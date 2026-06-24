@@ -1,0 +1,11 @@
+/target/
+/target-local/
+/target-fresh/
+**/*.wal
+deno_kv_*.json
+*.stackdump
+.DS_Store
+.kabootar/cache/
+
+# Editor extension build output
+editor/vscode-kabootar/node_modules/

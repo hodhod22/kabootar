@@ -1,0 +1,8 @@
+@version "1.0.0"
+
+pub let APP_NAME = "Kabootar"
+pub let MAX_ITEMS = 100
+
+pub fn limit_ok(n) {
+    return n <= MAX_ITEMS
+}

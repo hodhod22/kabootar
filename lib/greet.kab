@@ -1,0 +1,9 @@
+@version "1.0.0"
+
+pub fn greet(name) {
+    return "Hello, " + name
+}
+
+fn secret() {
+    return "hidden"
+}

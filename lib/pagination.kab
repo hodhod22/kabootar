@@ -1,0 +1,12 @@
+@version "1.0.0"
+
+pub fn page(items, offset, limit) {
+    let total = len(items)
+    let stop = offset + limit > total ? total : offset + limit
+    return {
+        items: slice(items, offset, stop),
+        total: total,
+        offset: offset,
+        limit: limit
+    }
+}

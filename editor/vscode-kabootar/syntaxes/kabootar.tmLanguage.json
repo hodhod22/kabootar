@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kabootar",
+  "scopeName": "source.kabootar",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#builtins" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.kabootar",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.kabootar",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.kabootar",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.kabootar",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.kabootar",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.kabootar",
+          "match": "\\b(if|else|while|for|in|break|continue|return|match|import|class|this)\\b"
+        },
+        {
+          "name": "keyword.declaration.kabootar",
+          "match": "\\b(let|fn)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.kabootar",
+          "match": "\\b(and|or)\\b"
+        },
+        {
+          "name": "constant.language.boolean.kabootar",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.kabootar",
+          "match": "\\b(null|undefined|NaN)\\b"
+        },
+        {
+          "name": "constant.language.result.kabootar",
+          "match": "\\b(Some|None|Ok|Err)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.kabootar",
+          "match": "\\b(String|Integer|Bool|Float)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.kabootar",
+          "match": "\\b(println|is_null|is_undefined|is_nan|sql|kml|kdom_render|os_read|os_write|os_exists|os_list|os_delete|os_mkdir|os_stat|os_caps|http_route|http_request|http_response|http_status|http_body|http_process|http_serve_once)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.kabootar",
+          "match": "(==|!=|<=|>=|=>|&&|\\|\\||[+\\-*/=<>!.:])"
+        }
+      ]
+    }
+  }
+}

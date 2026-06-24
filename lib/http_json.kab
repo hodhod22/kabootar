@@ -1,0 +1,16 @@
+@version "1.0.0"
+
+import "json"
+import "http"
+
+pub fn json_ok(body) {
+    return ok(json_stringify(body))
+}
+
+pub fn json_error(code, message) {
+    return http_response(code, json_stringify({ error: message }))
+}
+
+pub fn parse_body(raw) {
+    return json_parse(raw)
+}
