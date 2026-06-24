@@ -3,6 +3,7 @@
 /target-fresh/
 **/*.wal
 deno_kv_*.json
+open_kv_*.json
 *.stackdump
 .DS_Store
 .kabootar/cache/

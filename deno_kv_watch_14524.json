@@ -1,1 +1,0 @@
-{"version":1,"tables":{"_kab_kv":{"columns":[{"name":"kv_key","sql_type":"text","not_null":true,"unique":true,"serial":false},{"name":"kv_value","sql_type":"text","not_null":true,"unique":false,"serial":false}],"rows":[{"kv_key":"evt1","kv_value":"\"changed\""}],"indexes":[{"name":"__pk_auto__","columns":["kv_key"],"unique":true}],"serial_counters":{},"primary_key":"kv_key"}}}
