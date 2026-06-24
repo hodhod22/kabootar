@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kabootar Browser</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #202124; color: #e8eaed; height: 100vh; display: flex; flex-direction: column; }
+    .chrome-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #35363a; border-bottom: 1px solid #5f6368; flex-shrink: 0; }
+    .chrome-toolbar button { background: #4a4d51; color: #e8eaed; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 14px; }
+    .chrome-toolbar button:hover { background: #5f6368; }
+    .chrome-toolbar button.active { background: #8ab4f8; color: #202124; }
+    .omnibox { flex: 1; background: #202124; border: 1px solid #5f6368; border-radius: 24px; padding: 8px 16px; color: #e8eaed; font-size: 14px; }
+    .tabs { display: flex; gap: 4px; padding: 4px 12px 0; background: #292a2d; flex-shrink: 0; }
+    .tab { padding: 8px 16px; background: #35363a; border-radius: 8px 8px 0 0; font-size: 13px; cursor: pointer; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tab.active { background: #202124; }
+    .main-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #viewport { flex: 1; border: none; width: 100%; background: #292a2d; }
+    #pixel-view { display: none; flex: 1; width: 100%; background: #292a2d; }
+    .devtools { display: none; flex-direction: column; height: 280px; border-top: 1px solid #5f6368; background: #292a2d; flex-shrink: 0; }
+    .devtools.open { display: flex; }
+    .devtools-tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: #35363a; }
+    .devtools-tab { padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 6px 6px 0 0; color: #9aa0a6; }
+    .devtools-tab.active { background: #292a2d; color: #e8eaed; }
+    .devtools-body { flex: 1; display: flex; min-height: 0; }
+    .devtools-panel { display: none; flex: 1; min-height: 0; overflow: auto; font-size: 12px; font-family: Consolas, "Cascadia Mono", monospace; }
+    .devtools-panel.active { display: flex; }
+    #elements-tree { flex: 1; padding: 8px; overflow: auto; }
+    #elements-styles { width: 240px; border-left: 1px solid #5f6368; padding: 8px; overflow: auto; background: #202124; }
+    #console-log { flex: 1; padding: 8px; overflow: auto; }
+    .dom-node { cursor: pointer; padding: 1px 0; white-space: nowrap; }
+    .dom-node:hover { background: #35363a; }
+    .dom-node.selected { background: #394457; }
+    .dom-tag { color: #8ab4f8; }
+    .dom-attr { color: #f28b82; }
+    .dom-text { color: #81c995; }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid #35363a; }
+    .log-level { color: #9aa0a6; margin-right: 6px; }
+    .log-source { color: #8ab4f8; margin-right: 6px; }
+    .status { padding: 4px 12px; font-size: 11px; color: #9aa0a6; background: #292a2d; border-top: 1px solid #5f6368; flex-shrink: 0; }
+    .layer-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #8ab4f8; color: #202124; }
+    .style-row { margin: 4px 0; color: #bdc1c6; }
+    .style-key { color: #f28b82; }
+  </style>
+</head>
+<body>
+  <div class="chrome-toolbar">
+    <button id="back" title="Back">←</button>
+    <button id="forward" title="Forward">→</button>
+    <button id="reload" title="Reload">↻</button>
+    <input class="omnibox" id="url" value="kabootar://home" />
+    <span class="layer-badge" id="layer-badge">hybrid</span>
+    <button id="os-mode" title="OS mode: auto / host / kabootar">OS</button>
+    <button id="devtools" title="Toggle DevTools">⎈</button>
+    <button id="mode" title="Toggle HTML / pixel info">Px</button>
+    <button id="run" title="Run Kabootar">▶</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="main-stage">
+    <iframe id="viewport" sandbox="allow-scripts allow-same-origin"></iframe>
+    <canvas id="pixel-view"></canvas>
+    <div class="devtools" id="devtools-panel">
+      <div class="devtools-tabs">
+        <div class="devtools-tab active" data-panel="elements">Elements</div>
+        <div class="devtools-tab" data-panel="console">Console</div>
+      </div>
+      <div class="devtools-body">
+        <div class="devtools-panel active" id="panel-elements" style="display:flex;">
+          <div id="elements-tree"></div>
+          <div id="elements-styles"><em>Select a node</em></div>
+        </div>
+        <div class="devtools-panel" id="panel-console">
+          <div id="console-log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="status" id="status">Kabootar Browser — dual layer (host Chrome shell + Kabootar compositor)</div>
+
+  <script type="module">
+    import init, { evaluate, kb_run_ui, kb_last_frame, kb_last_pixels, kb_devtools_json } from './pkg/kabootar.js';
+    await init();
+
+    const viewport = document.getElementById('viewport');
+    const pixelView = document.getElementById('pixel-view');
+    const urlBox = document.getElementById('url');
+    const status = document.getElementById('status');
+    const devtoolsPanel = document.getElementById('devtools-panel');
+    const devtoolsBtn = document.getElementById('devtools');
+    const elementsTree = document.getElementById('elements-tree');
+    const elementsStyles = document.getElementById('elements-styles');
+    const consoleLog = document.getElementById('console-log');
+    let pixelMode = false;
+    let devtoolsOpen = false;
+    let selectedNodeId = null;
+
+    const defaultApp = `
+      platform_use("hybrid");
+      kb_sync_platform();
+      kstyle_parse("body { display:flex; flex-direction:column; padding:24px; background:#292a2d; color:#e8eaed; gap:16px; }
+        h1 { font-size:32px; color:#8ab4f8; } .card { background:#35363a; padding:20px; border-radius:12px; }");
+      let page = kml("<html><body><h1>Kabootar Browser</h1><div class=\\"card\\"><p>Multi-OS: kabootar://vfs, file://, host://, http://</p></div></body></html>");
+      kb_mount(page);
+      devtools_log("info", "Compositor ready (hybrid)", "shell");
+      kb_paint();
+    `;
+
+    function refreshOsBadge() {
+      try {
+        const info = JSON.parse(evaluate('JSON.stringify(kb_os_info())') || '{}');
+        const badge = document.getElementById('layer-badge');
+        badge.textContent = (info.mode || 'auto') + ' · ' + (info.host_os || 'host');
+      } catch (_) {}
+    }
+
+    function mountFrame(html) {
+      if (!html) return;
+      const doc = html.includes('<html') ? html : `<!DOCTYPE html><html><body>${html}</body></html>`;
+      viewport.srcdoc = doc;
+    }
+
+    function renderDomNode(node, depth = 0) {
+      const pad = '  '.repeat(depth);
+      const line = document.createElement('div');
+      line.className = 'dom-node';
+      line.dataset.nodeId = node.id;
+      if (selectedNodeId === node.id) line.classList.add('selected');
+      const tag = document.createElement('span');
+      tag.className = 'dom-tag';
+      tag.textContent = `${pad}<${node.tag}>`;
+      line.appendChild(tag);
+      if (node.attrs && Object.keys(node.attrs).length) {
+        for (const [k, v] of Object.entries(node.attrs)) {
+          const a = document.createElement('span');
+          a.className = 'dom-attr';
+          a.textContent = ` ${k}="${v}"`;
+          line.appendChild(a);
+        }
+      }
+      if (node.text) {
+        const t = document.createElement('span');
+        t.className = 'dom-text';
+        t.textContent = ` "${node.text}"`;
+        line.appendChild(t);
+      }
+      line.onclick = (e) => {
+        e.stopPropagation();
+        selectedNodeId = node.id;
+        renderStyles(node);
+        refreshDevToolsTree();
+      };
+      const frag = document.createDocumentFragment();
+      frag.appendChild(line);
+      for (const child of node.children || []) {
+        frag.appendChild(renderDomNode(child, depth + 1));
+      }
+      return frag;
+    }
+
+    function renderStyles(node) {
+      elementsStyles.innerHTML = '';
+      const title = document.createElement('div');
+      title.innerHTML = `<strong class="dom-tag">&lt;${node.tag}&gt;</strong> <span style="color:#9aa0a6">#${node.id}</span>`;
+      elementsStyles.appendChild(title);
+      if (node.text) {
+        const row = document.createElement('div');
+        row.className = 'style-row';
+        row.textContent = `text: ${node.text}`;
+        elementsStyles.appendChild(row);
+      }
+      for (const [k, v] of Object.entries(node.attrs || {})) {
+        const row = document.createElement('div');
+        row.className = 'style-row';
+        row.innerHTML = `<span class="style-key">${k}</span>: ${v}`;
+        elementsStyles.appendChild(row);
+      }
+    }
+
+    function refreshDevTools() {
+      if (!devtoolsOpen) return;
+      try {
+        const raw = kb_devtools_json();
+        const snap = JSON.parse(raw);
+        elementsTree.innerHTML = '';
+        if (snap.tree) {
+          elementsTree.appendChild(renderDomNode(snap.tree));
+        } else {
+          elementsTree.textContent = '(no DOM — run ▶ first)';
+        }
+        consoleLog.innerHTML = '';
+        for (const entry of snap.console || []) {
+          const row = document.createElement('div');
+          row.className = 'log-entry';
+          row.innerHTML = `<span class="log-level">[${entry.level}]</span><span class="log-source">${entry.source}</span>${entry.message}`;
+          consoleLog.appendChild(row);
+        }
+      } catch (e) {
+        elementsTree.textContent = 'DevTools parse error: ' + e;
+      }
+    }
+
+    function refreshDevToolsTree() {
+      try {
+        const raw = kb_devtools_json();
+        const snap = JSON.parse(raw);
+        elementsTree.innerHTML = '';
+        if (snap.tree) elementsTree.appendChild(renderDomNode(snap.tree));
+      } catch (_) {}
+    }
+
+    async function runKabootar(code) {
+      status.textContent = 'Running Kabootar compositor…';
+      try {
+        const result = kb_run_ui(code);
+        const frame = kb_last_frame() || result;
+        const pxMeta = kb_last_pixels() || evaluate('kb_pixels()');
+        if (pixelMode) {
+          viewport.style.display = 'none';
+          pixelView.style.display = 'block';
+          status.textContent = 'Raster frame: ' + (pxMeta || 'no pixels') + ' — use `kabootar shell` for native blit';
+        } else {
+          viewport.style.display = 'block';
+          pixelView.style.display = 'none';
+          mountFrame(frame);
+          status.textContent = 'Compositor mounted (' + (frame?.length || 0) + ' bytes)' + (pxMeta ? ' · ' + pxMeta : '');
+        }
+        refreshDevTools();
+        refreshOsBadge();
+      } catch (e) {
+        status.textContent = 'Error: ' + e;
+      }
+    }
+
+    devtoolsBtn.onclick = () => {
+      devtoolsOpen = !devtoolsOpen;
+      devtoolsPanel.classList.toggle('open', devtoolsOpen);
+      devtoolsBtn.classList.toggle('active', devtoolsOpen);
+      if (devtoolsOpen) refreshDevTools();
+    };
+
+    document.querySelectorAll('.devtools-tab').forEach((tab) => {
+      tab.onclick = () => {
+        document.querySelectorAll('.devtools-tab').forEach((t) => t.classList.remove('active'));
+        document.querySelectorAll('.devtools-panel').forEach((p) => p.classList.remove('active'));
+        tab.classList.add('active');
+        const panel = document.getElementById('panel-' + tab.dataset.panel);
+        panel.classList.add('active');
+        if (tab.dataset.panel === 'elements') panel.style.display = 'flex';
+        else panel.style.display = 'block';
+      };
+    });
+
+    document.getElementById('mode').onclick = () => {
+      pixelMode = !pixelMode;
+      runKabootar(defaultApp);
+    };
+
+    document.getElementById('os-mode').onclick = () => {
+      const cur = evaluate('kb_os_mode()');
+      const next = cur === 'auto' ? 'host' : cur === 'host' ? 'kabootar' : 'auto';
+      evaluate('kb_set_os_mode("' + next + '")');
+      refreshOsBadge();
+      runKabootar('kb_reload(); kb_paint();');
+    };
+
+    document.getElementById('run').onclick = () => runKabootar(defaultApp);
+    document.getElementById('reload').onclick = () => runKabootar(defaultApp);
+    document.getElementById('back').onclick = () => {
+      evaluate('kb_back()');
+      runKabootar('kb_paint();');
+    };
+    document.getElementById('forward').onclick = () => {
+      evaluate('kb_forward()');
+      runKabootar('kb_paint();');
+    };
+    urlBox.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        const url = urlBox.value;
+        runKabootar(`kb_navigate("${url}"); kb_paint();`);
+      }
+    };
+
+    runKabootar(defaultApp);
+    console.log('Kabootar Browser shell ready', { evaluate, kb_run_ui, kb_devtools_json });
+  </script>
+</body>
+</html>

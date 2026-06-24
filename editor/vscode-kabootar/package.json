@@ -1,0 +1,169 @@
+{
+  "name": "vscode-kabootar",
+  "displayName": "Kabootar",
+  "description": "Syntax highlighting, LSP and module navigation for Kabootar (.kab)",
+  "version": "2.2.0",
+  "publisher": "kabootar",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:kabootar",
+    "onCommand:kabootar.docai.ask",
+    "onCommand:kabootar.docai.openPanel",
+    "onCommand:kabootar.codai.sync",
+    "onCommand:kabootar.codai.openPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "kabootar",
+        "aliases": [
+          "Kabootar",
+          "kabootar"
+        ],
+        "extensions": [
+          ".kab",
+          ".kabootar"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kabootar",
+        "scopeName": "source.kabootar",
+        "path": "./syntaxes/kabootar.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Kabootar",
+      "properties": {
+        "kabootar.languageServer.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to kabootar-lsp. Leave empty to auto-detect target/debug/ or target/release/ in the workspace."
+        },
+        "kabootar.docai.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to kabootar-docai. Leave empty to auto-detect target/release/ or target/debug/ in the workspace."
+        },
+        "kabootar.codai.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to kabootar-codai. Leave empty to auto-detect target/release/ or target/debug/ in the workspace."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "kabootar.docai.ask",
+        "title": "Kabootar: Fråga DocAI",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.docai.openPanel",
+        "title": "Kabootar: Öppna DocAI-panel",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.docai.search",
+        "title": "Kabootar: Sök i dokumentation",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.docai.topics",
+        "title": "Kabootar: DocAI ämnen",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.codai.sync",
+        "title": "Kabootar: CodAI — synka projekt",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.codai.openPanel",
+        "title": "Kabootar: Öppna CodAI-panel",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.codai.suggest",
+        "title": "Kabootar: CodAI — föreslå utility",
+        "category": "Kabootar"
+      },
+      {
+        "command": "kabootar.codai.projectSuggest",
+        "title": "Kabootar: CodAI — föreslå projektmall",
+        "category": "Kabootar"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "kabootar.docai.ask",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.docai.openPanel",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.docai.search",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.docai.topics",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.codai.sync",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.codai.openPanel",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.codai.suggest",
+          "when": "true"
+        },
+        {
+          "command": "kabootar.codai.projectSuggest",
+          "when": "true"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "kabootar.docai.ask",
+          "when": "editorLangId == kabootar",
+          "group": "kabootar@1"
+        },
+        {
+          "command": "kabootar.codai.sync",
+          "when": "editorLangId == kabootar",
+          "group": "kabootar@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npm run compile && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "typescript": "^5.4.0"
+  }
+}

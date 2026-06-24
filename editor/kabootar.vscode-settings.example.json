@@ -1,0 +1,7 @@
+{
+  "kabootar.languageServer.path": "",
+  "files.associations": {
+    "*.kab": "kabootar",
+    "*.kabootar": "kabootar"
+  }
+}

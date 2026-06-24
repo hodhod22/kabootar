@@ -1,0 +1,13 @@
+@version "1.0.0"
+
+pub fn is_email(s) {
+    return regex_test("^[^@]+@[^@]+\\.[^@]+$", s)
+}
+
+pub fn is_non_empty(s) {
+    return len(trim(s)) > 0
+}
+
+pub fn in_range(n, lo, hi) {
+    return n >= lo && n <= hi
+}
