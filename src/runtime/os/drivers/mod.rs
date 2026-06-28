@@ -5,10 +5,10 @@ mod gpu;
 mod net;
 pub mod usb;
 
-pub use audio::{AudioDeviceInfo, AudioDirection, AudioDriver};
-pub use gpu::{GpuDriver, GpuDriverInfo, GpuMode};
-pub use net::{NetDriver, NetInterface, SocketState};
-pub use usb::{UsbClass, UsbDeviceInfo, UsbDriver};
+pub use audio::AudioDriver;
+pub use gpu::{GpuDriver, GpuDriverInfo};
+pub use net::{NetDriver, NetInterface};
+pub use usb::{UsbClass, UsbDriver};
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -348,7 +348,7 @@ impl DeviceManager {
                         Some(Value::Number(n)) if *n >= 0 => vec![*n as u64],
                         _ => Vec::new(),
                     };
-                    let mut sock_copy = socks.clone();
+                    let sock_copy = socks.clone();
                     let events = self.net.poll(&sock_copy);
                     Ok(Value::Array(
                         events

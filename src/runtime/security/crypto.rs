@@ -17,7 +17,7 @@ use rand::RngCore;
 #[cfg(feature = "crypto")]
 use rsa::pkcs1::{DecodeRsaPublicKey, EncodeRsaPublicKey};
 #[cfg(feature = "crypto")]
-use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey};
+use rsa::pkcs8::{DecodePrivateKey, EncodePrivateKey};
 #[cfg(feature = "crypto")]
 use rsa::{pkcs1v15::Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 #[cfg(feature = "crypto")]
@@ -354,7 +354,7 @@ pub fn dilithium_sign_stub(_message: &[u8], _secret_seed: &[u8]) -> Result<Vec<u
     Err(CRYPTO_DISABLED.into())
 }
 
-#[cfg(feature = "crypto")]
+#[cfg(all(test, feature = "crypto"))]
 mod tests {
     use super::*;
 

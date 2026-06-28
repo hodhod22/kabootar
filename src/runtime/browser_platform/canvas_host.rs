@@ -262,7 +262,7 @@ fn str_arg(args: &[Value], i: usize) -> Result<String, String> {
 }
 
 fn host_fill_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
+    let (_host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
     let x = f64_arg(args, 1)?;
     let y = f64_arg(args, 2)?;
     let w = f64_arg(args, 3)?;
@@ -274,7 +274,7 @@ fn host_fill_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value
 }
 
 fn host_stroke_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
+    let (_host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
     let x = f64_arg(args, 1)?;
     let y = f64_arg(args, 2)?;
     let w = f64_arg(args, 3)?;
@@ -354,7 +354,7 @@ fn host_restore_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
 }
 
 fn host_translate_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
+    let (_host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
     let x = f64_arg(args, 1)?;
     let y = f64_arg(args, 2)?;
     #[cfg(target_arch = "wasm32")]
@@ -364,7 +364,7 @@ fn host_translate_native(args: &[Value], _env: &mut Environment) -> Result<Value
 }
 
 fn host_scale_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
+    let (_host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
     let sx = f64_arg(args, 1)?;
     let sy = f64_arg(args, 2)?;
     #[cfg(target_arch = "wasm32")]
@@ -374,7 +374,7 @@ fn host_scale_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
 }
 
 fn host_rotate_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
+    let (_host_ctx_id, native_id) = host_ctx_id_from_receiver(args)?;
     let angle = f64_arg(args, 1)?;
     #[cfg(target_arch = "wasm32")]
     host_wasm_rotate(host_ctx_id, angle)?;

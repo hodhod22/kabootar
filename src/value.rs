@@ -1,5 +1,5 @@
 use crate::ast::Expr;
-use crate::class::{ClassDef, ClassInstance, ClassRegistry, MethodDef, SharedClassInstance};
+use crate::class::{ClassDef, ClassRegistry, MethodDef};
 use crate::runtime::{
     db::DbConnection, http::HttpRouter, kabootar_browser::KabootarBrowser, kabootar_dom::DomNode,
     kv8::Kv8Context, os::OsHandle, security::{DeviceHandle, SecureBytes, SecurityHandle},

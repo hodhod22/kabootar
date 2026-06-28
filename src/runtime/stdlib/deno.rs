@@ -1464,6 +1464,7 @@ fn ts_compile_file_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     crate::runtime::npm_ts::ts_compile_file(path)
 }
 
+#[allow(non_snake_case)]
 fn Deno_emit_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     ts_compile_native(args, env)
 }

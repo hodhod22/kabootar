@@ -1,7 +1,5 @@
 use crate::ast::*;
 use crate::class::{ClassDef, ClassInstance, FieldDef, InterfaceDef, MethodDef, MethodSignature, SharedClassInstance};
-use crate::lexer::tokenize;
-use crate::parser::Parser;
 use crate::modules;
 use crate::runtime::{
     browser_globals, browser_platform_globals, db_globals, http_globals, io_async_globals, kabootar_browser_globals,
@@ -217,7 +215,7 @@ fn console_warn_native(args: &[Value], env: &mut Environment) -> Result<Value, S
     println_native(args, env)
 }
 
-fn console_error_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+fn console_error_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     eprint!("[error] ");
     for arg in args {
         eprint!("{} ", format_value(arg));
@@ -1307,7 +1305,6 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                         crate::ops::values_equal(&val, &case_val)
                     };
                 if matched {
-                    run_next = false;
                     match eval_switch_case_body(&case.body, env)? {
                         SwitchCaseFlow::Value(v) => return Ok(v),
                         SwitchCaseFlow::Fallthrough => run_next = true,
@@ -1835,7 +1832,7 @@ fn assign_member_value(
             )?;
             Ok(())
         }
-        Value::ClassInstance(inst) => {
+        Value::ClassInstance(_inst) => {
             crate::class::with_class_instance_mut(obj, |inst| {
                 if crate::class::is_private_name(field) {
                     let scope = env.private_access_class().ok_or_else(|| {

@@ -644,7 +644,7 @@ fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, St
             }
         }
         "enumerate" => {
-            let mut idx = match map.get(ITER_ENUM_IDX) {
+            let idx = match map.get(ITER_ENUM_IDX) {
                 Some(Value::Number(n)) if *n >= 0 => *n,
                 _ => 0,
             };
@@ -1626,7 +1626,7 @@ pub fn iterator_includes(
     Ok(Value::Bool(false))
 }
 
-fn iterator_inst_map_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+fn iterator_inst_map_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let iter = args.first().ok_or("Iterator.map(fn)")?;
     let func = args.get(1).ok_or("Iterator.map(fn)")?;
     create_map_on_iterator(iter, func.clone())

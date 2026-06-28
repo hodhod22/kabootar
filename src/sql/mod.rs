@@ -22,7 +22,7 @@ use persist::{save_engine as save_db_file};
 use schema::{parse_column_defs, sql_values_equal};
 use storage::partition::parse_partition_clause;
 use storage::parallel::parallel_count;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum StorageFormat {
@@ -314,7 +314,7 @@ impl SqlEngine {
                 .foreign_keys
                 .retain(|fk| fk.column != col);
             table_def.checks.retain(|c| c.column != col);
-            let mut rows: Vec<HashMap<String, Value>> = table_def
+            let rows: Vec<HashMap<String, Value>> = table_def
                 .iter_live_maps()
                 .map(|(_, mut m)| {
                     m.remove(&col);

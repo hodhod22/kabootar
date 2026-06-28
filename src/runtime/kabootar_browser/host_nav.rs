@@ -263,9 +263,9 @@ fn fetch_http(url: &str) -> Result<(String, String), String> {
 }
 
 fn parse_content(content: &str, url: &str, source: String) -> Result<LoadedPage, String> {
-    let mut kv8_script = None;
-    let mut kv8_css = None;
-    let mut kv8_parsed_stylesheet = None;
+    let kv8_script = None;
+    let kv8_css = None;
+    let kv8_parsed_stylesheet = None;
 
     if url.ends_with(".kv8") || content.contains("---kml---") {
         if let Ok(module) = parse_kv8_module(content) {

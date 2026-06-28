@@ -4,7 +4,7 @@ use crate::ast::{CallArg, Expr};
 use crate::runtime::stdlib::descriptor::{
     default_descriptor_for_value, define_property_key, enumerable_own_keys,
     enumerable_own_symbol_ids, get_own_property_descriptor_key, get_own_property_symbols,
-    get_own_property_key, has_own_property, has_own_property_key, is_descriptor_object,
+    get_own_property_key, has_own_property_key, is_descriptor_object,
     own_property_keys, parse_descriptor_input, property_key_from_value, set_own_property_key,
     PropertyKey,
 };

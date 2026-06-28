@@ -305,7 +305,7 @@ fn blueprint_file_set(template: &str) -> BTreeSet<String> {
 fn dir_has_files(dir: &Path) -> bool {
     std::fs::read_dir(dir)
         .ok()
-        .is_some_and(|mut rd| rd.flatten().next().is_some())
+        .is_some_and(|rd| rd.flatten().next().is_some())
 }
 
 fn count_occurrences(haystack: &str, needle: &str) -> usize {

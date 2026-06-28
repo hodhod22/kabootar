@@ -6,10 +6,9 @@ mod thread;
 
 pub use job::JobObject;
 pub use signal::{Signal, SignalHandler};
-pub use thread::{Thread, ThreadPool};
+pub use thread::ThreadPool;
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct ProcessSubsystem {
     pub threads: ThreadPool,

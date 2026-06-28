@@ -156,7 +156,7 @@ fn parse_fields_object(v: &Value) -> Result<PlainDateParts, String> {
     Ok(PlainDateParts { year, month, day })
 }
 
-fn add_days(mut p: PlainDateParts, days: i64) -> PlainDateParts {
+fn add_days(p: PlainDateParts, days: i64) -> PlainDateParts {
     let epoch = epoch_days_from_civil(p);
     civil_from_epoch_days(epoch + days)
 }

@@ -6,8 +6,8 @@ mod irq;
 mod pnp;
 
 pub use dma::DmaChannel;
-pub use framework::{DriverFramework, DriverRegistration};
-pub use irq::{IrqHandler, IrqLine};
+pub use framework::DriverFramework;
+pub use irq::IrqHandler;
 pub use pnp::PnpManager;
 
 pub struct IoSubsystem {

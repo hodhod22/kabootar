@@ -1,0 +1,41 @@
+---
+description: Kabootar utvecklingsfilosofi — modern stack, esbuild-modell, inte legacy UMD/V8
+alwaysApply: true
+---
+
+# Kabootar: modern stack, inte legacy
+
+## Bundling & dependencies
+
+- **Använd ESM + modern bundler** (esbuild, Vite) — **inte UMD**, community-UMD-rebuilds eller webpack-liknande gamla pipelines.
+- UMD/långa monolitiska skript i Kv8-tester orsakar **extremt långsam eval**, IDE-timeout och instabilitet (Cursor/Windows).
+- Officiella npm-paket (`react`, `react-dom`) → esbuild IIFE/Kv8-script. Regenerera: `fixtures/kv8/react && npm run build`.
+- Legacy API-namn (`*_umd`) får finnas som alias tills migrering är klar — nya features ska **inte** bygga på UMD.
+
+## Lär av esbuild/Go — inte av V8-hacks
+
+Kabootar/Kv8 ska utvecklas som **esbuild utvecklar med Go**:
+
+| esbuild/Go | Kabootar/Kv8 |
+|------------|--------------|
+| Egen lexer/parser, förutsägbar AST | `lexer.rs`, `ast.rs`, `eval.rs` |
+| Tydliga faser: parse → transform → emit | parse → opt → eval/bytecode |
+| `supported`-flaggor, medveten downlevel | Transpilera **in** till Kv8, expandera **ut** språket i motorn |
+| Snabb, deterministisk, testbar | Små enhetstester per språkfeature — inte 200 KB bundle i varje test |
+| Ingen “kör hela världen i en motor och hoppas” | Ingen strategi “lita på V8/Chrome att fixa det” |
+
+**Undvik:** att kopiera Node/V8-beteenden (module hoisting-hacks, `module_bindings`-kollisioner, global eval av megabundles) som “lösning”.
+
+**Gör istället:** fixa rotorsaken i parser/eval/runtime; håll fixtures små; cache parse/eval där det är säkert.
+
+## Tester
+
+- **Parse-tester** för stora bundlar: OK och snabba.
+- **Full bundle eval**: `#[ignore]` eller separat långsam CI — inte i standard `cargo test`.
+- `react_bundle_info()` och smoke-probes: parse + minimal bootstrap, inte full React-init i varje anrop.
+
+## När du väljer teknik
+
+1. Finns officiellt ESM/npm + esbuild? → använd det.
+2. Kräver det gammal UMD/webpack? → **nej** — hitta ESM-väg eller vänta tills Kv8-paritet finns.
+3. Kraschar eller hänger IDE/test? → minska scope, dela upp, modernisera pipeline.

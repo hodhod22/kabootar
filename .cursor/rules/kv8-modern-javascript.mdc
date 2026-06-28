@@ -1,0 +1,48 @@
+---
+description: Kv8 — modern JavaScript-paritet (väg framåt, inte bara ES5-subset)
+globs: src/runtime/kv8/**,fixtures/kv8/**,tests/kv8*
+alwaysApply: false
+---
+
+# Kv8: modern JavaScript, stegvis
+
+Kv8 ska **växa mot modern JS** — inte frysa vid gammal subset bara för att esbuild tillfälligt downlevelar React-bundlen.
+
+## Nuvarande läge (kort)
+
+- **Har:** `for-in`, arrow, spread, `===`, async/await, classes-liknande patterns, Symbol, m.m.
+- **Saknas / pågår:** `for...of`, optional chaining `?.`, nullish `??`, template literals, destructuring i fler sammanhang, `import`/`export` som förstaklass (framtida).
+
+esbuild `supported: { "for-of": false, ... }` på React-fixturen är en **tillfällig bundler-kompromiss** — inte målbilden för Kv8-språket.
+
+## Prioriterad modern paritet (Våg JS+)
+
+Implementera i ordning när relevant för self-hosting:
+
+1. **`for...of`** — iterator-protokoll + `Symbol.iterator` (blockerar renare esbuild-output)
+2. **Template literals** — `` `hello ${x}` ``
+3. **Optional chaining / nullish coalescing** — `a?.b`, `x ?? y`
+4. **Destructuring** — `const { a } = obj`, `[x, ...rest] = arr`
+5. **ES modules** — `import`/`export` i Kv8 (esbuild kan då emitta mindre IIFE-hacks)
+
+## Implementationsmönster (esbuild-stil)
+
+Per feature, samma kedja som alltid:
+
+1. `lexer.rs` — token
+2. `ast.rs` — nod
+3. `eval.rs` + `opt.rs` + `bytecode_bridge.rs` om det behövs
+4. **Liten** snippet-test i `bundle::parse_probe` eller `kv8_smoke` — **inte** full React-bundle
+5. Ta bort motsvarande `supported: false` i `fixtures/kv8/react/build.mjs` när Kv8 kan köra det
+
+## React / fixtures
+
+- Källa: `fixtures/kv8/react/global-entry.js` (ESM) → `react-runtime.bundle.js`
+- Laddning: `load_react_runtime()` → `KV8ReactRuntime.default` → `globalThis.React` / `ReactDOM`
+- Shim (`react-shim.kv8.js`) för snabba counter/DOM-tester utan full fiber
+
+## Anti-mönster
+
+- Lägga till **mer** UMD/IIFE-workarounds i Kv8 för att köra ännu större legacy-bundles
+- Downlevela **Kv8-motorn** till ES5 som permanent strategi
+- Kopiera V8 edge cases (t.ex. `module_bindings` som skriver över closure-`var`) utan closure/lifetime-fix

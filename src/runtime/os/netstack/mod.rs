@@ -3,7 +3,7 @@
 mod layers;
 mod traffic;
 
-pub use layers::{NetStack, ProtocolLayer};
+pub use layers::NetStack;
 pub use traffic::TrafficControl;
 
 pub struct NetStackSubsystem {

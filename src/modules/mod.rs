@@ -49,7 +49,7 @@ pub fn import_meta_object() -> Value {
     Value::Object(map)
 }
 
-pub fn load_module_namespace(spec: &str, env: &Environment) -> Result<Value, String> {
+pub fn load_module_namespace(spec: &str, _env: &Environment) -> Result<Value, String> {
     let mut module_env = create_global_env();
     let mut loaded = HashSet::new();
     let (module_name, requested_version) = crate::project::version::split_import_spec(spec);

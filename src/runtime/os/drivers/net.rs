@@ -221,7 +221,7 @@ impl NetDriver {
         #[cfg(not(target_arch = "wasm32"))]
         {
             use std::net::TcpListener;
-            use std::time::Duration;
+            
 
             let listener = TcpListener::bind(&addr).map_err(|e| format!("net listen: {e}"))?;
             listener
@@ -366,7 +366,7 @@ impl NetDriver {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use std::net::UdpSocket;
+            
             if let SockBackend::Udp(socket) = &entry.backend {
                 let n = socket
                     .send_to(data, format!("{host}:{port}"))
@@ -461,7 +461,7 @@ impl NetDriver {
                     match &entry.backend {
                         #[cfg(not(target_arch = "wasm32"))]
                         SockBackend::TcpStream(stream) => {
-                            use std::io::Read;
+                            
                             let mut buf = [0u8; 1];
                             match stream.peek(&mut buf) {
                                 Ok(0) => {}

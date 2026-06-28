@@ -5,9 +5,9 @@ mod log;
 mod power;
 mod security;
 
-pub use error::{CrashReport, ErrorSubsystem, Watchdog};
+pub use error::ErrorSubsystem;
 pub use log::EventLog;
-pub use power::{AcpiState, PowerManager};
+pub use power::PowerManager;
 pub use security::SecurityMonitor;
 
 pub struct CrosscutSubsystem {

@@ -1,6 +1,5 @@
 //! Security Reference Monitor — ACL, capabilities, sandbox.
 
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct AclEntry {

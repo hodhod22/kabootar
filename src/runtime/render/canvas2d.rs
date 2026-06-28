@@ -993,7 +993,7 @@ fn flatten_segments(path: &[PathCmd]) -> Vec<(f64, f64, f64, f64)> {
 }
 
 fn tessellate_arc(cx: f64, cy: f64, r: f64, start: f64, end: f64, ccw: bool) -> Vec<(f64, f64)> {
-    let mut a0 = start;
+    let a0 = start;
     let mut a1 = end;
     if ccw {
         if a1 > a0 {
