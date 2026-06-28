@@ -1,7 +1,7 @@
 //! Kabootar CLI — `mod init`, `mod run`, `serve`, `run`, `compile`.
 
-use crate::compile::{self, CompiledProgram};
-use crate::evaluator::{create_global_env, eval_source};
+use crate::compile::{self};
+use crate::evaluator::create_global_env;
 use crate::project::manifest::load_manifest_cwd;
 use std::fs;
 use std::io::{self, Write};

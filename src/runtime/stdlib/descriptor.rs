@@ -2,7 +2,7 @@
 
 use crate::bytecode::call_value;
 use crate::runtime::stdlib::object::{check_can_delete, check_can_set, is_extensible};
-use crate::runtime::stdlib::symbol::{symbol_id, symbol_value};
+use crate::runtime::stdlib::symbol::symbol_value;
 use crate::value::{Environment, Value};
 use std::collections::{HashMap, HashSet};
 

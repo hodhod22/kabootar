@@ -1,6 +1,6 @@
 //! Bytecode optimizer — constant folding, peephole, dead-code trimming.
 
-use super::types::{BytecodeFnDef, BytecodeModule, Constant, Opcode};
+use super::types::{BytecodeModule, Constant, Opcode};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OptStats {

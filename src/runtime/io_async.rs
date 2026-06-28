@@ -1,6 +1,6 @@
 //! Async IO — Promise-baserade wrappers för OS, HTTP och SQL (v2.8).
 
-use crate::runtime::stdlib::abort::{abort_reason, is_aborted, rejected_abort_promise, signal_id};
+use crate::runtime::stdlib::abort::{abort_reason, is_aborted, rejected_abort_promise};
 use crate::runtime::db::DbConnection;
 use crate::runtime::http::HttpRequest;
 use crate::runtime::os::OsHandle;

@@ -5,10 +5,10 @@ mod cache;
 mod pager;
 mod vmm;
 
-pub use allocator::{HeapAllocator, StackFrame};
+pub use allocator::HeapAllocator;
 pub use cache::CacheCoherence;
 pub use pager::Pager;
-pub use vmm::{PageTable, Vmm};
+pub use vmm::Vmm;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 

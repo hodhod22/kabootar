@@ -1,6 +1,5 @@
 //! Unified game surface — KDOM canvas + compositor present in all environments.
 
-use crate::runtime::browser_platform::canvas_host;
 use crate::runtime::browser_platform::canvas_register::native_canvas_context;
 use crate::runtime::browser_platform::webgl;
 use crate::runtime::browser_platform::webgl_register;
@@ -26,7 +25,7 @@ pub fn active_layer(env: &Environment) -> RuntimeLayer {
 pub fn create_surface(env: &Environment, width: u32, height: u32) -> Result<Value, String> {
     let w = width.clamp(1, 4096);
     let h = height.clamp(1, 4096);
-    let layer = active_layer(env);
+    let _layer = active_layer(env);
 
     #[cfg(target_arch = "wasm32")]
     if matches!(layer, RuntimeLayer::Host) {
@@ -39,7 +38,7 @@ pub fn create_surface(env: &Environment, width: u32, height: u32) -> Result<Valu
 pub fn create_gl_surface(env: &Environment, width: u32, height: u32) -> Result<Value, String> {
     let w = width.clamp(1, 4096);
     let h = height.clamp(1, 4096);
-    let layer = active_layer(env);
+    let _layer = active_layer(env);
 
     #[cfg(target_arch = "wasm32")]
     if matches!(layer, RuntimeLayer::Host) {

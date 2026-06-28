@@ -188,6 +188,104 @@ fn kv8_run_html_native(args: &[Value], env: &mut Environment) -> Result<Value, S
     Ok(Value::Kv8Context(ctx))
 }
 
+fn kv8_drain_timers_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = expect_ctx(args, 0)?;
+    let n = super::eval::drain_timers(&ctx)?;
+    Ok(Value::Number(n))
+}
+
+fn kv8_drain_event_loop_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = expect_ctx(args, 0)?;
+    let n = super::eval::drain_event_loop(&ctx)?;
+    Ok(Value::Number(n))
+}
+
+fn kv8_self_hosting_probe_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_self_hosting_probe(ctx?) expects Kv8Context or no args".into()),
+    };
+    let results = super::smoke::run_all_probes(&ctx);
+    Ok(super::smoke::probe_report_value(&results))
+}
+
+fn kv8_minimum_app_shell_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_minimum_app_shell(ctx?) expects Kv8Context or no args".into()),
+    };
+    let root = super::smoke::minimum_app_shell(&ctx)?;
+    Ok(kv8_value_to_kabootar(&root))
+}
+
+fn kv8_react_smoke_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_react_smoke(ctx?) expects Kv8Context or no args".into()),
+    };
+    let n = super::smoke::react_smoke_path(&ctx)?;
+    Ok(kv8_value_to_kabootar(&n))
+}
+
+fn kv8_react_bundle_smoke_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_react_bundle_smoke(ctx?) expects Kv8Context or no args".into()),
+    };
+    let n = super::smoke::react_bundle_smoke_path(&ctx)?;
+    Ok(kv8_value_to_kabootar(&n))
+}
+
+fn kv8_react_bundle_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(super::bundle::react_bundle_info())
+}
+
+fn kv8_load_react_runtime_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_load_react_runtime(ctx?) expects Kv8Context or no args".into()),
+    };
+    let react = super::bundle::load_react_runtime(&ctx)?;
+    Ok(kv8_value_to_kabootar(&react))
+}
+
+fn kv8_react_runtime_bundle_smoke_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_react_runtime_bundle_smoke(ctx?) expects Kv8Context or no args".into()),
+    };
+    let n = super::bundle::react_runtime_bundle_smoke(&ctx)?;
+    Ok(kv8_value_to_kabootar(&n))
+}
+
+fn kv8_load_react_dom_runtime_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = match args.first() {
+        Some(Value::Kv8Context(c)) => c.clone(),
+        None => Kv8Context::default(),
+        _ => return Err("kv8_load_react_dom_runtime(ctx?) expects Kv8Context or no args".into()),
+    };
+    let react_dom = super::bundle::load_react_dom_runtime(&ctx)?;
+    Ok(kv8_value_to_kabootar(&react_dom))
+}
+
+fn kv8_load_react_umd_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    kv8_load_react_runtime_native(args, env)
+}
+
+fn kv8_react_umd_bundle_smoke_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    kv8_react_runtime_bundle_smoke_native(args, env)
+}
+
+fn kv8_load_react_dom_umd_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    kv8_load_react_dom_runtime_native(args, env)
+}
+
 fn expect_ctx(args: &[Value], i: usize) -> Result<Kv8Context, String> {
     match args.get(i) {
         Some(Value::Kv8Context(c)) => Ok(c.clone()),
@@ -203,7 +301,9 @@ fn kv8_value_to_kabootar(v: &super::context::Kv8Value) -> Value {
         Kv8Value::Num(n) => Value::Number(*n as i64),
         Kv8Value::Str(s) => Value::String(s.clone()),
         Kv8Value::Dom(n) => Value::KabootarDom(n.clone()),
-        Kv8Value::Fun { .. } | Kv8Value::Arrow { .. } => Value::String("<function>".into()),
+        Kv8Value::Fun { .. } | Kv8Value::Arrow { .. } | Kv8Value::AsyncFun { .. } => Value::String("<function>".into()),
+        Kv8Value::Promise(_) => Value::String("<promise>".into()),
+        Kv8Value::Symbol { key, .. } => Value::String(format!("Symbol({key})")),
         Kv8Value::Obj(m) => Value::Object(
             m.iter()
                 .filter(|(k, _)| *k != "__native")
@@ -226,6 +326,58 @@ pub fn kv8_globals(env: &mut Environment) {
     env.set("kv8_jit_info".into(), Value::NativeFunction(kv8_jit_info_native));
     env.set("kv8_opt_info".into(), Value::NativeFunction(kv8_opt_info_native));
     env.set("kv8_load_vfs".into(), Value::NativeFunction(kv8_load_vfs_native));
+    env.set(
+        "kv8_drain_timers".into(),
+        Value::NativeFunction(kv8_drain_timers_native),
+    );
+    env.set(
+        "kv8_drain_event_loop".into(),
+        Value::NativeFunction(kv8_drain_event_loop_native),
+    );
+    env.set(
+        "kv8_self_hosting_probe".into(),
+        Value::NativeFunction(kv8_self_hosting_probe_native),
+    );
+    env.set(
+        "kv8_minimum_app_shell".into(),
+        Value::NativeFunction(kv8_minimum_app_shell_native),
+    );
+    env.set(
+        "kv8_react_smoke".into(),
+        Value::NativeFunction(kv8_react_smoke_native),
+    );
+    env.set(
+        "kv8_react_bundle_smoke".into(),
+        Value::NativeFunction(kv8_react_bundle_smoke_native),
+    );
+    env.set(
+        "kv8_react_runtime_bundle_smoke".into(),
+        Value::NativeFunction(kv8_react_runtime_bundle_smoke_native),
+    );
+    env.set(
+        "kv8_react_umd_bundle_smoke".into(),
+        Value::NativeFunction(kv8_react_umd_bundle_smoke_native),
+    );
+    env.set(
+        "kv8_react_bundle_info".into(),
+        Value::NativeFunction(kv8_react_bundle_info_native),
+    );
+    env.set(
+        "kv8_load_react_runtime".into(),
+        Value::NativeFunction(kv8_load_react_runtime_native),
+    );
+    env.set(
+        "kv8_load_react_umd".into(),
+        Value::NativeFunction(kv8_load_react_umd_native),
+    );
+    env.set(
+        "kv8_load_react_dom_runtime".into(),
+        Value::NativeFunction(kv8_load_react_dom_runtime_native),
+    );
+    env.set(
+        "kv8_load_react_dom_umd".into(),
+        Value::NativeFunction(kv8_load_react_dom_umd_native),
+    );
 }
 
 pub fn kv8_register(env: &mut Environment) {

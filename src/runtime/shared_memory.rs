@@ -790,7 +790,6 @@ pub fn register_shared_memory(env: &mut Environment) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evaluator::create_global_env;
 
     #[test]
     fn sab_roundtrip_transfer() {

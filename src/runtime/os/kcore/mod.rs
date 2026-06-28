@@ -8,8 +8,8 @@ mod sched;
 
 pub use dispatcher::{ContextSwitch, Dispatcher};
 pub use executive::Executive;
-pub use hal::{CpuArch, Hal};
-pub use microkernel::{IpcEndpoint, IpcMessage, Microkernel};
+pub use hal::Hal;
+pub use microkernel::{IpcMessage, Microkernel};
 pub use sched::{FairScheduler, SchedPolicy, SchedTask};
 
 use std::sync::atomic::{AtomicU64, Ordering};

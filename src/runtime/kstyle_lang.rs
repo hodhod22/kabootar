@@ -3,7 +3,6 @@
 use crate::runtime::kstyle::{StyleRule, Stylesheet};
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
-use std::rc::Rc;
 
 thread_local! {
     static KSTYLE_BUILDER: RefCell<Stylesheet> = RefCell::new(Stylesheet::default());

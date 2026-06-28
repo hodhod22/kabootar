@@ -2,10 +2,9 @@
 
 use crate::runtime::http::HttpRequest;
 use crate::runtime::stdlib::deno::dispatch_serve;
-use crate::value::{Environment, PromiseValue, Value};
+use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
-use std::rc::Rc;
 
 fn serve_dispatch_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let handler = args.first().ok_or("serve_dispatch(handler, method, path, body?)")?;

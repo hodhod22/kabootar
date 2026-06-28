@@ -277,7 +277,7 @@ impl WsTransport {
 #[cfg(not(target_arch = "wasm32"))]
 fn build_tls_config(trust: &crate::runtime::tls_trust::TlsTrust) -> Result<rustls::ClientConfig, String> {
     use rustls::pki_types::CertificateDer;
-    use std::sync::{Arc, Once};
+    use std::sync::Once;
 
     static TLS_INIT: Once = Once::new();
     TLS_INIT.call_once(|| {

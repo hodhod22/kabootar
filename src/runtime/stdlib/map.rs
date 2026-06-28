@@ -1,6 +1,5 @@
 //! Map and Set — first-class collections (competitor parity).
 
-use crate::bytecode::call_value;
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};

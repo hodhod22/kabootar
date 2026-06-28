@@ -493,12 +493,12 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-06):** C1 påbörjad — `kdom_query_selector`, `kdom_query_selector_all`, `kdom_mutation_records`.
+**Status (2026-06):** C1 påbörjad — `kdom_query_selector`, `kdom_query_selector_all`, `kdom_mutation_records`. **C2 påbörjad:** React 19 via esbuild ESM (ingen UMD), Kv8 modern JS (`for…of`, templates, `??`, `?.`, `import`/`export`), fast/slow CI (`scripts/kv8-test-*.sh`). React bundle **parsar** (~0,1 s); full **eval** i Kv8-tolkaren tar fortfarande minuter — nästa milestone: render/fiber-paritet + tolk-prestanda.
 
 | Fas | Innehåll |
 |-----|----------|
 | **C1** 🚧 | **kDOM** — full DOM Level 2: Events, MutationObserver, `querySelector` alla selectors |
-| **C2** | **Kv8** — utöka JS-subset → Kabootar-syntax parity i sandbox (`async`, `class`, modules) |
+| **C2** 🚧 | **Kv8** — modern JS + ESM/esbuild React 19; full bundle eval/render parity; `class`/`async` i parsern |
 | **C3** | **Kv8 JIT** — fler hot paths, delad bytecode med huvudspråket |
 | **C4** | **Layout** — flexbox/grid (subset), box model polish |
 | **C5** | **Canvas 2D** — full HTML5 canvas API ([CANVAS.md](CANVAS.md) luckor) |

@@ -1,0 +1,15 @@
+{
+  "name": "kv8-react-fixtures",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

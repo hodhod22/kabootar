@@ -562,7 +562,7 @@ impl<'a> JsonParser<'a> {
                         self.skip_ws();
                         match self.peek() {
                             Some(',') => {
-                                self.next();
+                                self.next()?;
                             }
                             Some(']') => break,
                             other => return Err(format!("Expected ',' or ']', found {other:?}")),
@@ -583,7 +583,7 @@ impl<'a> JsonParser<'a> {
                         self.skip_ws();
                         match self.peek() {
                             Some(',') => {
-                                self.next();
+                                self.next()?;
                             }
                             Some('}') => break,
                             other => return Err(format!("Expected ',' or '}}', found {other:?}")),

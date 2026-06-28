@@ -6,6 +6,9 @@ description = "Kabootar — fullstack programming language (formerly Nova)"
 authors = ["Kabootar Contributors"]
 build = "build.rs"
 
+[lints.rust]
+dead_code = "allow"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 name = "kabootar"

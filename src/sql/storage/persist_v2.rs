@@ -1,9 +1,9 @@
 //! Binary .kdb v2 format — page-oriented persistence (Phase 2).
 
 use crate::sql::{SqlEngine, TableDef};
-use crate::sql::schema::{ColumnDef, ForeignKeyDef, CheckDef, IndexDef};
+use crate::sql::schema::{ColumnDef, IndexDef};
 use crate::sql::storage::buffer::BufferPool;
-use crate::sql::storage::pages::{page_checksum, Page, PageKind, PAGE_SIZE};
+use crate::sql::storage::pages::page_checksum;
 use crate::value::Value;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -97,31 +97,31 @@ fn encode_engine_v2(engine: &SqlEngine) -> Result<Vec<u8>, String> {
 }
 
 fn encode_table_v2(name: &str, table: &TableDef, out: &mut Vec<u8>) -> Result<(), String> {
-    write_str(out, name);
-    write_u32(out, table.columns.len() as u32);
+    write_str(out, name)?;
+    write_u32(out, table.columns.len() as u32)?;
     for col in &table.columns {
-        write_str(out, &col.name);
-        write_u8(out, sql_type_tag(&col.sql_type));
-        write_u8(out, col.not_null as u8);
-        write_u8(out, col.unique as u8);
-        write_u8(out, col.serial as u8);
+        write_str(out, &col.name)?;
+        write_u8(out, sql_type_tag(&col.sql_type))?;
+        write_u8(out, col.not_null as u8)?;
+        write_u8(out, col.unique as u8)?;
+        write_u8(out, col.serial as u8)?;
     }
-    write_opt_str(out, table.primary_key.as_deref());
+    write_opt_str(out, table.primary_key.as_deref())?;
     let slots: Vec<usize> = table.live_slots();
-    write_u32(out, slots.len() as u32);
+    write_u32(out, slots.len() as u32)?;
     for slot in slots {
         if let Some(row) = table.row_map(slot) {
             write_row(out, &row, &table.columns)?;
         }
     }
-    write_u32(out, table.indexes.len() as u32);
+    write_u32(out, table.indexes.len() as u32)?;
     for idx in &table.indexes {
-        write_str(out, &idx.name);
-        write_u32(out, idx.columns.len() as u32);
+        write_str(out, &idx.name)?;
+        write_u32(out, idx.columns.len() as u32)?;
         for c in &idx.columns {
-            write_str(out, c);
+            write_str(out, c)?;
         }
-        write_u8(out, idx.unique as u8);
+        write_u8(out, idx.unique as u8)?;
     }
     Ok(())
 }

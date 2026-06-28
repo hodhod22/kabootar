@@ -511,7 +511,6 @@ impl Compiler {
                 self.emit(Opcode::MakeNone);
                 Ok(())
             }
-            _ => Err(CompileError),
         }
     }
 

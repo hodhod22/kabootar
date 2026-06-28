@@ -1,6 +1,6 @@
 //! Unix domain sockets for Deno parity.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 
 static NEXT_UNIX: AtomicU64 = AtomicU64::new(1);
 

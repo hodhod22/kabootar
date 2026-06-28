@@ -282,8 +282,6 @@ fn fetch_over_stream_bytes<S: std::io::Read + std::io::Write>(
     headers: &std::collections::HashMap<String, String>,
     timeout_ms: u64,
 ) -> Result<(HttpResponse, Vec<u8>), String> {
-    use std::io::{Read, Write};
-
     let request = build_http_request(method, host, path, body, headers);
     stream
         .write_all(request.as_bytes())

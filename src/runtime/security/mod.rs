@@ -410,7 +410,6 @@ pub fn security_globals(env: &mut Environment) {
 
 #[cfg(all(test, feature = "crypto"))]
 mod integration_tests {
-    use super::*;
     use crate::evaluator::{create_global_env, eval_source};
     use crate::value::Value;
 

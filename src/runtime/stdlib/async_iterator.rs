@@ -256,7 +256,7 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
             }
         }
         "enumerate" => {
-            let mut idx = match map.get(ASYNC_ITER_ENUM_IDX) {
+            let idx = match map.get(ASYNC_ITER_ENUM_IDX) {
                 Some(Value::Number(n)) if *n >= 0 => *n,
                 _ => 0,
             };

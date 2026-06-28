@@ -2,7 +2,7 @@
 
 use crate::runtime::frame_buffer;
 use crate::runtime::render::math3d::{
-    mat4_identity, mat4_look_at, mat4_mul, mat4_perspective, mat4_rotate_y, mat4_translate,
+    mat4_identity, mat4_look_at, mat4_mul, mat4_perspective, mat4_rotate_y,
     project_point, Mat4,
 };
 use crate::runtime::render::gpu3d::{self, Gpu3dFrame};
@@ -236,7 +236,7 @@ pub fn create_buffer(kind: &str, floats: &[f32]) -> Result<GlBuffer, String> {
         data.extend_from_slice(&f.to_le_bytes());
     }
     let id = NEXT_BUFFER.fetch_add(1, Ordering::Relaxed);
-    let mut gpu_uploaded = false;
+    let gpu_uploaded = false;
     #[cfg(feature = "gpu")]
     {
         if gpu_available() && kind == BufferKind::Array {

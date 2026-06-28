@@ -4,7 +4,6 @@ use super::classes::{
     instantiate_class, register_module_classes, register_module_enums, register_module_interfaces,
 };
 use super::types::{BytecodeClassDef, BytecodeFnDef, BytecodeModule, Constant, GeneratorTryRegion, Opcode};
-use crate::evaluator::resolve_super_member;
 use crate::ops::{eval_binary_op, get_length, read_index, read_member, write_index, write_member};
 use crate::value::{AsyncBody, BytecodeFunction, Environment, Microtask, PromiseValue, Value};
 use std::cell::RefCell;
@@ -1278,9 +1277,9 @@ pub fn schedule_bytecode_async(
 pub fn call_value(
     callee: Value,
     args: Vec<Value>,
-    constants: &[Constant],
-    globals: &[String],
-    arrow_functions: &[BytecodeFnDef],
+    _constants: &[Constant],
+    _globals: &[String],
+    _arrow_functions: &[BytecodeFnDef],
     classes: &[BytecodeClassDef],
     env: &mut Environment,
 ) -> Result<Value, String> {
