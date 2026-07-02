@@ -1,10 +1,8 @@
 // Kabootar-side roundtrip smoke (Rust CI runs deserialize on probe output).
-import "self_host/parse"
-import "self_host/emit"
-import "self_host/serialize"
+import "self_host/compile"
 import "self_host/serialize_defs"
 
-let tText = serialize_bc(emit(parse("let x = 1; return x")))
+let tText = compile("let x = 1; return x")
 if char_at(tText, 0) != "k" {
     throw "roundtrip: bad header"
 }

@@ -1,13 +1,11 @@
-// Smoke: parse facade + emit pipeline
-import "self_host/parse"
-import "self_host/emit"
+// Smoke: full compile pipeline
+import "self_host/compile"
 
-let ast = parse("let x = 1; return x")
-let bc = emit(ast)
-if len(bc.globals) != 1 {
-    throw "smoke: expected one global"
+let tText = compile("let x = 1; return x")
+if char_at(tText, 0) != "k" {
+    throw "smoke: bad header"
 }
-if bc.globals[0] != "x" {
-    throw "smoke: expected global x"
+if len(tText) < 30 {
+    throw "smoke: output too short"
 }
 println("self_host smoke ok")

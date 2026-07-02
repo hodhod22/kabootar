@@ -1,0 +1,50 @@
+// Test suite for compile(source) full pipeline facade.
+import "self_host/compile"
+import "self_host/serialize_defs"
+
+let passed = 0
+let fail = 0
+let tText = ""
+
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+fn assert_true(v, msg) {
+    if v {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+// -- main program --------------------------------------------------
+{
+    tText = compile("let x = 1; return x")
+    assert_true(char_at(tText, 0) == "k", "header starts with k")
+    assert_true(len(tText) > 30, "main output length")
+}
+
+// -- fn body -------------------------------------------------------
+{
+    tText = compile("fn add(a, b) { return a + b }")
+    assert_true(len(tText) > 30, "fn output length")
+}
+
+// -- fn call program -----------------------------------------------
+{
+    tText = compile("fn add(a, b) { return a + b }; return add(1, 2)")
+    assert_true(len(tText) > 40, "fn call output length")
+}
+
+println("")
+println("Self-hosted compile tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "COMPILE TESTS FAILED"
+}
