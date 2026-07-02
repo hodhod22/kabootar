@@ -7,6 +7,11 @@ fn main() {
     }
     let _ = std::fs::write(out, decode_font());
     println!("cargo:rerun-if-changed=build.rs");
+
+    // Self-hosted compile/parse chains nest deeply; default 1 MiB stack overflows on Windows.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        println!("cargo:rustc-link-arg-bin=kabootar=/STACK:16777216");
+    }
 }
 
 /// Minimal valid TrueType (Null.ttf, BSD-3-Clause, grzegorzrolek/null-ttf).

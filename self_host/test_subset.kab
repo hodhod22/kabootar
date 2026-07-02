@@ -1,0 +1,55 @@
+// Tests for extended self-hosted parser subset (objects, compares, &&).
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/ast_defs"
+
+let passed = 0
+let fail = 0
+
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+fn assert_kind(node, kind, msg) {
+    assert_eq(node.kind, kind, msg)
+}
+
+{
+    let ast = parseTokens(tokenize("true && false"))
+    assert_kind(ast.body[0].expr, AST_BINARY, "and expr")
+    assert_eq(ast.body[0].expr.op, "&&", "and op")
+}
+
+{
+    let ast = parseTokens(tokenize("x >= 1"))
+    assert_kind(ast.body[0].expr, AST_BINARY, "ge expr")
+    assert_eq(ast.body[0].expr.op, ">=", "ge op")
+}
+
+{
+    let ast = parseTokens(tokenize("let o = { type: x, line: 1 }"))
+    assert_kind(ast.body[0].init, AST_OBJECT, "object expr")
+    assert_eq(len(ast.body[0].init.fields), 2, "object fields")
+}
+
+{
+    let ast = parseTokens(tokenize("arr[0]"))
+    assert_kind(ast.body[0].expr, AST_INDEX, "index expr")
+}
+
+{
+    let ast = parseTokens(tokenize("tok.type"))
+    assert_kind(ast.body[0].expr, AST_MEMBER, "member expr")
+    assert_eq(ast.body[0].expr.field, "type", "member field")
+}
+
+println("")
+println("Self-hosted subset tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "SUBSET TESTS FAILED"
+}

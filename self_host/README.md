@@ -39,7 +39,10 @@ source text
 | `roundtrip_fn_probe.kab` | klar | Fn-body roundtrip (Rust CI) |
 | `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
 | `test_parse_facade.kab` | klar | `parse(source)` facade-tester |
-| `test_compile.kab` | klar | `compile(source)` pipeline-tester |
+| `test_subset.kab` | klar | Utökad parser-subset |
+| `mini_module.kab` | klar | Lexer-liknande mini-modul (Rust) |
+| `larger_probe.kab` | klar | `compile(mini_module)` -> Rust CI |
+| `test_larger.kab` | klar | Larger compile smoke |
 | `sample.kab` | klar | Bootstrap-exempel (`return 42`) |
 | `bootstrap_probe.kab` | klar | `compile(sample)` -> Rust `run_module` CI |
 | `test_bootstrap.kab` | klar | Bootstrap smoke |
@@ -51,6 +54,8 @@ source text
 kabootar self_host/test_lexer.kab
 kabootar self_host/test_parser.kab
 kabootar self_host/test_parse_facade.kab
+kabootar self_host/test_subset.kab
+kabootar self_host/test_larger.kab
 kabootar self_host/test_compile.kab
 kabootar self_host/test_bootstrap.kab
 kabootar compile self_host/compile.kab
@@ -71,6 +76,8 @@ cargo test --test self_host
 7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
 8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
 9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
+10. **Emitter: CALL-args i fn-kropp** — undvik blandade var+literal i samma 2-arg `CALL` i fn-body (emit-hang). Använd t.ex. strängjämförelse i stället för `char_code_at(ch, 0)` tills fix finns.
+11. **Windows stack** — `build.rs` sätter 16 MiB stack för `kabootar`-bin (djup self-host-kedja).
 
 ## Nästa milstolpar
 
@@ -79,4 +86,5 @@ cargo test --test self_host
 3. ~~`parse.kab`-facaden (nested `tokenize`)~~ ✅
 4. ~~Full pipeline: `compile(source)` entrypoint~~ ✅
 5. ~~Self-host bootstrap: `compile.kab` cache + `compile(sample)` -> Rust `run_module`~~ ✅
-6. Utöka self-hosted språksubset (fler ops / stmts) för större moduler
+6. ~~Utöka self-hosted språksubset (obj, &&, compares, index)~~ ✅
+7. Self-host `lexer.kab` (fortsatt utökning: `continue`, `!=` chains, …)

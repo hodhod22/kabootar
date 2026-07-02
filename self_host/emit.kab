@@ -10,7 +10,6 @@ let eFnOps = []
 let eFnGlobals = []
 let eFnLocals = []
 let eInFn = 0
-let eI = 0
 let eIdx = 0
 let eSym = null
 let eJmp = 0
@@ -32,14 +31,23 @@ let eBxL = null
 let eBxR = null
 let eArgs = []
 let eCallee = null
+let eCallI = 0
+let eArgN = 0
+let eLocalI = 0
+let eGlobI = 0
+let eConstI = 0
+let eStmtI = 0
+let eObjI = 0
+let eParamI = 0
+let eFound = 0
 
 fn localIndex(name) {
-    eI = 0
-    while eI < len(eFnLocals) {
-        if eFnLocals[eI] == name {
-            return eI
+    eLocalI = 0
+    while eLocalI < len(eFnLocals) {
+        if eFnLocals[eLocalI] == name {
+            return eLocalI
         }
-        eI = eI + 1
+        eLocalI = eLocalI + 1
     }
     eFnLocals = push(eFnLocals, name)
     return len(eFnLocals) - 1
@@ -47,34 +55,34 @@ fn localIndex(name) {
 
 fn globalIndex(name) {
     if eInFn == 1 {
-        eI = 0
-        while eI < len(eFnGlobals) {
-            if eFnGlobals[eI] == name {
-                return eI
+        eGlobI = 0
+        while eGlobI < len(eFnGlobals) {
+            if eFnGlobals[eGlobI] == name {
+                return eGlobI
             }
-            eI = eI + 1
+            eGlobI = eGlobI + 1
         }
         eFnGlobals = push(eFnGlobals, name)
         return len(eFnGlobals) - 1
     }
-    eI = 0
-    while eI < len(eGlobals) {
-        if eGlobals[eI] == name {
-            return eI
+    eGlobI = 0
+    while eGlobI < len(eGlobals) {
+        if eGlobals[eGlobI] == name {
+            return eGlobI
         }
-        eI = eI + 1
+        eGlobI = eGlobI + 1
     }
     eGlobals = push(eGlobals, name)
     return len(eGlobals) - 1
 }
 
 fn constIndex(value) {
-    eI = 0
-    while eI < len(eConsts) {
-        if eConsts[eI] == value {
-            return eI
+    eConstI = 0
+    while eConstI < len(eConsts) {
+        if eConsts[eConstI] == value {
+            return eConstI
         }
-        eI = eI + 1
+        eConstI = eConstI + 1
     }
     eConsts = push(eConsts, value)
     return len(eConsts) - 1
@@ -98,8 +106,23 @@ fn emitExpr(node) {
     if eNode.kind == AST_VAR {
         eSym = eNode["sym"]
         if eInFn == 1 {
-            eIdx = localIndex(eSym)
-            emitOp(OP_LOAD_LOCAL, eIdx)
+            eFound = 0
+            eLocalI = 0
+            while eLocalI < len(eFnLocals) {
+                if eFnLocals[eLocalI] == eSym {
+                    eIdx = eLocalI
+                    eFound = 1
+                    eLocalI = len(eFnLocals)
+                } else {
+                    eLocalI = eLocalI + 1
+                }
+            }
+            if eFound == 1 {
+                emitOp(OP_LOAD_LOCAL, eIdx)
+            } else {
+                eIdx = globalIndex(eSym)
+                emitOp(OP_LOAD_GLOBAL, eIdx)
+            }
         } else {
             eIdx = globalIndex(eSym)
             emitOp(OP_LOAD_GLOBAL, eIdx)
@@ -110,55 +133,281 @@ fn emitExpr(node) {
         eBxL = eNode["left"]
         eBxR = eNode["right"]
         eOp = eNode["op"]
-        eNode = eBxL
-        if eNode.kind == AST_LITERAL {
-            eIdx = constIndex(eNode["value"])
-            emitOp(OP_CONST, eIdx)
-        } else {
-            eSym = eNode["sym"]
-            if eInFn == 1 {
-                eIdx = localIndex(eSym)
-                emitOp(OP_LOAD_LOCAL, eIdx)
+        if eInFn == 1 {
+            eNode = eBxL
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
             } else {
-                eIdx = globalIndex(eSym)
-                emitOp(OP_LOAD_GLOBAL, eIdx)
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    eFound = 0
+                    eLocalI = 0
+                    while eLocalI < len(eFnLocals) {
+                        if eFnLocals[eLocalI] == eSym {
+                            eIdx = eLocalI
+                            eFound = 1
+                            eLocalI = len(eFnLocals)
+                        } else {
+                            eLocalI = eLocalI + 1
+                        }
+                    }
+                    if eFound == 1 {
+                        emitOp(OP_LOAD_LOCAL, eIdx)
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eBxL)
+                }
             }
-        }
-        eNode = eBxR
-        if eNode.kind == AST_LITERAL {
-            eIdx = constIndex(eNode["value"])
-            emitOp(OP_CONST, eIdx)
-        } else {
-            eSym = eNode["sym"]
-            if eInFn == 1 {
-                eIdx = localIndex(eSym)
-                emitOp(OP_LOAD_LOCAL, eIdx)
+            eNode = eBxR
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
             } else {
-                eIdx = globalIndex(eSym)
-                emitOp(OP_LOAD_GLOBAL, eIdx)
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    eFound = 0
+                    eLocalI = 0
+                    while eLocalI < len(eFnLocals) {
+                        if eFnLocals[eLocalI] == eSym {
+                            eIdx = eLocalI
+                            eFound = 1
+                            eLocalI = len(eFnLocals)
+                        } else {
+                            eLocalI = eLocalI + 1
+                        }
+                    }
+                    if eFound == 1 {
+                        emitOp(OP_LOAD_LOCAL, eIdx)
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eBxR)
+                }
             }
+        } else {
+            emitExpr(eBxL)
+            emitExpr(eBxR)
         }
         if eOp == "+" {
             emitOp(OP_ADD, 0)
-        } else {
-            if eOp == "==" {
-                emitOp(OP_EQ, 0)
-            } else {
-                throw "Unsupported binary op: " + eOp
-            }
+            return
         }
+        if eOp == "==" {
+            emitOp(OP_EQ, 0)
+            return
+        }
+        if eOp == "!=" {
+            emitOp(OP_NE, 0)
+            return
+        }
+        if eOp == "<" {
+            emitOp(OP_LT, 0)
+            return
+        }
+        if eOp == ">=" {
+            emitOp(OP_GE, 0)
+            return
+        }
+        if eOp == "<=" {
+            emitOp(OP_LE, 0)
+            return
+        }
+        if eOp == "&&" {
+            emitOp(OP_AND, 0)
+            return
+        }
+        throw "Unsupported binary op: " + eOp
+    }
+    if eNode.kind == AST_OBJECT {
+        eLeft = eNode["fields"]
+        eObjI = 0
+        while eObjI < len(eLeft) {
+            eFld = eLeft[eObjI]
+            emitExpr(eFld["value"])
+            eIdx = constIndex(eFld["key"])
+            emitOp(OP_CONST, eIdx)
+            eObjI = eObjI + 1
+        }
+        emitOp(OP_MAKE_OBJECT, len(eLeft))
+        return
+    }
+    if eNode.kind == AST_MEMBER {
+        emitExpr(eNode["object"])
+        eIdx = constIndex(eNode["field"])
+        emitOp(OP_GET_MEMBER, eIdx)
+        return
+    }
+    if eNode.kind == AST_INDEX {
+        emitExpr(eNode["object"])
+        emitExpr(eNode["index"])
+        emitOp(OP_INDEX_GET, 0)
         return
     }
     if eNode.kind == AST_CALL {
         eArgs = eNode["args"]
         eCallee = eNode["callee"]
-        eI = 0
-        while eI < len(eArgs) {
-            emitExpr(eArgs[eI])
-            eI = eI + 1
+        eArgN = len(eArgs)
+        if eArgN == 0 {
+            emitExpr(eCallee)
+            emitOp(OP_CALL, 0)
+            return
+        }
+        if eArgN == 1 {
+            eNode = eArgs[0]
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
+            } else {
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    if eInFn == 1 {
+                        eFound = 0
+                        eLocalI = 0
+                        while eLocalI < len(eFnLocals) {
+                            if eFnLocals[eLocalI] == eSym {
+                                eIdx = eLocalI
+                                eFound = 1
+                                eLocalI = len(eFnLocals)
+                            } else {
+                                eLocalI = eLocalI + 1
+                            }
+                        }
+                        if eFound == 1 {
+                            emitOp(OP_LOAD_LOCAL, eIdx)
+                        } else {
+                            eIdx = globalIndex(eSym)
+                            emitOp(OP_LOAD_GLOBAL, eIdx)
+                        }
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eArgs[0])
+                }
+            }
+            emitExpr(eCallee)
+            emitOp(OP_CALL, 1)
+            return
+        }
+        if eArgN == 2 {
+            eLeft = eArgs[0]
+            eRight = eArgs[1]
+            eNode = eLeft
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
+            } else {
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    if eInFn == 1 {
+                        eFound = 0
+                        eLocalI = 0
+                        while eLocalI < len(eFnLocals) {
+                            if eFnLocals[eLocalI] == eSym {
+                                eIdx = eLocalI
+                                eFound = 1
+                                eLocalI = len(eFnLocals)
+                            } else {
+                                eLocalI = eLocalI + 1
+                            }
+                        }
+                        if eFound == 1 {
+                            emitOp(OP_LOAD_LOCAL, eIdx)
+                        } else {
+                            eIdx = globalIndex(eSym)
+                            emitOp(OP_LOAD_GLOBAL, eIdx)
+                        }
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eLeft)
+                }
+            }
+            eNode = eRight
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
+            } else {
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    if eInFn == 1 {
+                        eFound = 0
+                        eLocalI = 0
+                        while eLocalI < len(eFnLocals) {
+                            if eFnLocals[eLocalI] == eSym {
+                                eIdx = eLocalI
+                                eFound = 1
+                                eLocalI = len(eFnLocals)
+                            } else {
+                                eLocalI = eLocalI + 1
+                            }
+                        }
+                        if eFound == 1 {
+                            emitOp(OP_LOAD_LOCAL, eIdx)
+                        } else {
+                            eIdx = globalIndex(eSym)
+                            emitOp(OP_LOAD_GLOBAL, eIdx)
+                        }
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eRight)
+                }
+            }
+            emitExpr(eCallee)
+            emitOp(OP_CALL, 2)
+            return
+        }
+        eCallI = 0
+        while eCallI < eArgN {
+            eNode = eArgs[eCallI]
+            if eNode.kind == AST_LITERAL {
+                eIdx = constIndex(eNode["value"])
+                emitOp(OP_CONST, eIdx)
+            } else {
+                if eNode.kind == AST_VAR {
+                    eSym = eNode["sym"]
+                    if eInFn == 1 {
+                        eFound = 0
+                        eLocalI = 0
+                        while eLocalI < len(eFnLocals) {
+                            if eFnLocals[eLocalI] == eSym {
+                                eIdx = eLocalI
+                                eFound = 1
+                                eLocalI = len(eFnLocals)
+                            } else {
+                                eLocalI = eLocalI + 1
+                            }
+                        }
+                        if eFound == 1 {
+                            emitOp(OP_LOAD_LOCAL, eIdx)
+                        } else {
+                            eIdx = globalIndex(eSym)
+                            emitOp(OP_LOAD_GLOBAL, eIdx)
+                        }
+                    } else {
+                        eIdx = globalIndex(eSym)
+                        emitOp(OP_LOAD_GLOBAL, eIdx)
+                    }
+                } else {
+                    emitExpr(eNode)
+                }
+            }
+            eCallI = eCallI + 1
         }
         emitExpr(eCallee)
-        emitOp(OP_CALL, len(eArgs))
+        emitOp(OP_CALL, eArgN)
         return
     }
     throw "Unsupported expr: " + eNode.kind
@@ -206,10 +455,10 @@ fn emitStmt(node) {
     }
     if eNode.kind == AST_BLOCK {
         eLeft = eNode["body"]
-        eI = 0
-        while eI < len(eLeft) {
-            emitStmt(eLeft[eI])
-            eI = eI + 1
+        eStmtI = 0
+        while eStmtI < len(eLeft) {
+            emitStmt(eLeft[eStmtI])
+            eStmtI = eStmtI + 1
         }
         return
     }
@@ -292,10 +541,10 @@ fn emitStmt(node) {
         eFnOps = []
         eFnGlobals = []
         eFnLocals = []
-        eI = 0
-        while eI < len(eParams) {
-            localIndex(eParams[eI])
-            eI = eI + 1
+        eParamI = 0
+        while eParamI < len(eParams) {
+            localIndex(eParams[eParamI])
+            eParamI = eParamI + 1
         }
         emitStmt(eFnBody)
         eFunctions = push(eFunctions, {
@@ -329,8 +578,4 @@ pub fn emit(program) {
     }
     emitOp(OP_HALT, 0)
     return { "constants": eConsts, "globals": eGlobals, "ops": eOps, "functions": eFunctions }
-}
-
-pub fn emit_op_count(bc) {
-    return len(bc.ops)
 }

@@ -17,7 +17,7 @@ fn assert_eq(a, b, msg) {
 }
 
 fn assert_kind(node, kind, msg) {
-    assert_eq(ast_kind(node), kind, msg)
+    assert_eq(node.kind, kind, msg)
 }
 
 // -- Literals and expressions --------------------------------------

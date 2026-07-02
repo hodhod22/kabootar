@@ -1,0 +1,5 @@
+// Self-hosted compile of mini_module.kab-equivalent source -> .kbc text.
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+compile("fn isDigit(ch) {" + CHAR_NL + "  if ch == " + QUOTE + "5" + QUOTE + " {" + CHAR_NL + "    return true" + CHAR_NL + "  }" + CHAR_NL + "  return false" + CHAR_NL + "}" + CHAR_NL + "return isDigit(" + QUOTE + "5" + QUOTE + ")")
