@@ -1,0 +1,190 @@
+// Self-hosted bytecode emitter - produces opcode IR from AST.
+// Emitter scratch slots are module-level (Kabootar fn locals are not re-entrant).
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+
+let eConsts = []
+let eOps = []
+let eGlobals = []
+let eI = 0
+let eIdx = 0
+let eSym = null
+let eJmp = 0
+let eEnd = 0
+let eNode = null
+let eProg = 0
+let eLeft = null
+let eRight = null
+let eOp = ""
+let eCond = null
+let eThen = null
+let eElse = null
+let eProgram = null
+
+fn globalIndex(name) {
+    eI = 0
+    while eI < len(eGlobals) {
+        if eGlobals[eI] == name {
+            return eI
+        }
+        eI = eI + 1
+    }
+    eGlobals = push(eGlobals, name)
+    return len(eGlobals) - 1
+}
+
+fn constIndex(value) {
+    eI = 0
+    while eI < len(eConsts) {
+        if eConsts[eI] == value {
+            return eI
+        }
+        eI = eI + 1
+    }
+    eConsts = push(eConsts, value)
+    return len(eConsts) - 1
+}
+
+fn emitOp(op, arg) {
+    eOps = push(eOps, { "op": op, "arg": arg })
+}
+
+fn emitExpr(node) {
+    eNode = node
+    if eNode.kind == AST_LITERAL {
+        eIdx = constIndex(eNode["value"])
+        emitOp(OP_CONST, eIdx)
+        return
+    }
+    if eNode.kind == AST_VAR {
+        eSym = eNode["sym"]
+        eIdx = globalIndex(eSym)
+        emitOp(OP_LOAD_GLOBAL, eIdx)
+        return
+    }
+    if eNode.kind == AST_BINARY {
+        eLeft = eNode["left"]
+        eRight = eNode["right"]
+        eOp = eNode["op"]
+        emitExpr(eLeft)
+        emitExpr(eRight)
+        if eOp == "+" {
+            emitOp(OP_ADD, 0)
+        } else {
+            if eOp == "==" {
+                emitOp(OP_EQ, 0)
+            } else {
+                throw "Unsupported binary op: " + eOp
+            }
+        }
+        return
+    }
+    if eNode.kind == AST_CALL {
+        eI = 0
+        eLeft = eNode["callee"]
+        while eI < len(eNode["args"]) {
+            emitExpr(eNode["args"][eI])
+            eI = eI + 1
+        }
+        emitExpr(eLeft)
+        emitOp(OP_CALL, len(eNode["args"]))
+        return
+    }
+    throw "Unsupported expr: " + eNode.kind
+}
+
+fn emitStmt(node) {
+    eNode = node
+    if eNode.kind == AST_LET {
+        eSym = eNode["sym"]
+        emitExpr(eNode["init"])
+        emitOp(OP_STORE_GLOBAL, globalIndex(eSym))
+        return
+    }
+    if eNode.kind == AST_ASSIGN {
+        eSym = eNode["sym"]
+        emitExpr(eNode["rhs"])
+        emitOp(OP_STORE_GLOBAL, globalIndex(eSym))
+        return
+    }
+    if eNode.kind == AST_EXPR {
+        emitExpr(eNode["expr"])
+        emitOp(OP_POP, 0)
+        return
+    }
+    if eNode.kind == AST_RETURN {
+        if eNode["value"] == null {
+            emitOp(OP_CONST, constIndex(null))
+        } else {
+            emitExpr(eNode["value"])
+        }
+        emitOp(OP_RETURN, 0)
+        return
+    }
+    if eNode.kind == AST_BLOCK {
+        eLeft = eNode["body"]
+        eI = 0
+        while eI < len(eLeft) {
+            emitStmt(eLeft[eI])
+            eI = eI + 1
+        }
+        return
+    }
+    if eNode.kind == AST_IF {
+        eCond = eNode["cond"]
+        eThen = eNode["then"]
+        eElse = eNode["elseBranch"]
+        emitExpr(eCond)
+        eJmp = len(eOps)
+        emitOp(OP_JUMP_IF_FALSE, 0)
+        emitStmt(eThen)
+        if eElse != null {
+            eIdx = len(eOps)
+            emitOp(OP_JUMP, 0)
+            eEnd = len(eOps)
+            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            emitStmt(eElse)
+            eEnd = len(eOps)
+            eOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+        } else {
+            eEnd = len(eOps)
+            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+        }
+        return
+    }
+    if eNode.kind == AST_WHILE {
+        eCond = eNode["cond"]
+        eThen = eNode["body"]
+        eIdx = len(eOps)
+        emitExpr(eCond)
+        eJmp = len(eOps)
+        emitOp(OP_JUMP_IF_FALSE, 0)
+        emitStmt(eThen)
+        emitOp(OP_JUMP, eIdx)
+        eEnd = len(eOps)
+        eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+        return
+    }
+    if eNode.kind == AST_FN {
+        return
+    }
+    throw "Unsupported stmt: " + eNode.kind
+}
+
+pub fn emit(program) {
+    eProgram = program
+    eConsts = []
+    eOps = []
+    eGlobals = []
+    eProg = 0
+    while eProg < len(eProgram["body"]) {
+        emitStmt(eProgram["body"][eProg])
+        eProg = eProg + 1
+    }
+    emitOp(OP_HALT, 0)
+    return { "constants": eConsts, "globals": eGlobals, "ops": eOps }
+}
+
+pub fn emit_op_count(bc) {
+    return len(bc.ops)
+}

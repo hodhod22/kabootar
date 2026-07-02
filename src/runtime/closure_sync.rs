@@ -21,6 +21,12 @@ pub fn sync_closure_writes(closure: &Environment, call_env: &Environment, root: 
 
 pub fn pull_root_into_closure(closure: &mut Environment, root: &Environment) {
     for name in closure.all_binding_names() {
+        let Some(cur) = closure.get(&name) else {
+            continue;
+        };
+        if matches!(cur, Value::BytecodeFn(_)) {
+            continue;
+        }
         if let Some(v) = root.get(&name) {
             let _ = closure.assign(&name, v);
         }

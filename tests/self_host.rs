@@ -17,6 +17,21 @@ fn self_host_parser_suite() {
 }
 
 #[test]
+fn self_host_emit_suite() {
+    kabootar::cli::run_file(&self_host_path("test_emit.kab"))
+        .expect("self_host/test_emit.kab should pass");
+}
+
+#[test]
+fn self_host_emit_compiles() {
+    let path = self_host_path("emit.kab");
+    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+        .expect("emit.kab should compile");
+    assert!(n > 0);
+    assert!(bytecode);
+}
+
+#[test]
 fn self_host_parse_facade_smoke() {
     kabootar::cli::run_file(&self_host_path("test_tiny.kab"))
         .expect("self_host/test_tiny.kab should pass");

@@ -1,9 +1,25 @@
 // Self-hosted Kabootar parser - subset mirroring src/parser.rs.
+// Parser scratch slots are module-level: Kabootar fn locals are not re-entrant.
 import "self_host/lexer_defs"
 import "self_host/ast_defs"
 
 let pPos = 0
 let pToks = []
+let pLeft = null
+let pRight = null
+let pArgs = []
+let pTok = null
+let pIdent = null
+let pInit = null
+let pVal = null
+let pBody = []
+let pStmts = []
+let pParams = []
+let pCond = null
+let pThen = null
+let pElse = null
+let pLoopBody = []
+let pCallee = null
 
 fn peek() {
     if pPos >= len(pToks) {
@@ -13,47 +29,47 @@ fn peek() {
 }
 
 fn bump() {
-    let t = peek()
+    pTok = peek()
     if pPos < len(pToks) {
         pPos = pPos + 1
     }
-    return t
+    return pTok
 }
 
-fn parseAtom() {
-    let t = peek()
-    let node = null
-    if t.type == TOKEN_NUMBER {
+fn parseExpr() {
+    pTok = peek()
+    if pTok.type == TOKEN_NUMBER {
         bump()
-        node = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": t.value }
+        pLeft = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
     } else {
-        if t.type == TOKEN_STRING {
+        if pTok.type == TOKEN_STRING {
             bump()
-            node = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": t.value }
+            pLeft = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
         } else {
-            if t.type == TOKEN_IDENT {
+            if pTok.type == TOKEN_IDENT {
                 bump()
-                node = { "kind": AST_VAR, "name": t.value }
+                pLeft = { "kind": AST_VAR, "sym": pTok.value }
             } else {
-                if t.type == "(" {
+                if pTok.type == "(" {
                     bump()
-                    node = parseExpr()
+                    pLeft = parseExpr()
                     if peek().type != ")" {
                         throw "Expected )"
                     }
                     bump()
                 } else {
-                    throw "Unexpected token: " + t.type
+                    throw "Unexpected token: " + pTok.type
                 }
             }
         }
     }
     while peek().type == "(" {
+        pCallee = pLeft
         bump()
-        let args = []
+        pArgs = []
         if peek().type != ")" {
             while true {
-                args = push(args, parseExpr())
+                pArgs = push(pArgs, parseExpr())
                 if peek().type == "," {
                     bump()
                 } else {
@@ -65,36 +81,197 @@ fn parseAtom() {
             throw "Expected )"
         }
         bump()
-        node = { "kind": AST_CALL, "callee": node, "args": args }
+        pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
     }
-    return node
-}
-
-fn parseExpr() {
-    let left = parseAtom()
     while peek().type == "+" {
         bump()
-        let right = parseAtom()
-        left = { "kind": AST_BINARY, "op": "+", "left": left, "right": right }
+        pTok = peek()
+        if pTok.type == TOKEN_NUMBER {
+            bump()
+            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
+        } else {
+            if pTok.type == TOKEN_IDENT {
+                bump()
+                pRight = { "kind": AST_VAR, "sym": pTok.value }
+            } else {
+                if pTok.type == "(" {
+                    bump()
+                    pRight = parseExpr()
+                    if peek().type != ")" {
+                        throw "Expected )"
+                    }
+                    bump()
+                } else {
+                    throw "Unexpected token: " + pTok.type
+                }
+            }
+        }
+        while peek().type == "(" {
+            pCallee = pRight
+            bump()
+            pArgs = []
+            if peek().type != ")" {
+                while true {
+                    pArgs = push(pArgs, parseExpr())
+                    if peek().type == "," {
+                        bump()
+                    } else {
+                        break
+                    }
+                }
+            }
+            if peek().type != ")" {
+                throw "Expected )"
+            }
+            bump()
+            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
+        }
+        pLeft = { "kind": AST_BINARY, "op": "+", "left": pLeft, "right": pRight }
     }
-    return left
+    if peek().type == "==" {
+        bump()
+        pTok = peek()
+        if pTok.type == TOKEN_NUMBER {
+            bump()
+            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
+        } else {
+            if pTok.type == TOKEN_IDENT {
+                bump()
+                pRight = { "kind": AST_VAR, "sym": pTok.value }
+            } else {
+                if pTok.type == "(" {
+                    bump()
+                    pRight = parseExpr()
+                    if peek().type != ")" {
+                        throw "Expected )"
+                    }
+                    bump()
+                } else {
+                    throw "Unexpected token: " + pTok.type
+                }
+            }
+        }
+        return { "kind": AST_BINARY, "op": "==", "left": pLeft, "right": pRight }
+    }
+    return pLeft
 }
 
 fn parseStmt() {
     if peek().type == TOKEN_LET {
         bump()
-        let t = peek()
-        if t.type != TOKEN_IDENT {
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
             throw "Expected identifier after let"
         }
         bump()
-        let name = t.value
+        pIdent = pTok.value
         if peek().type != "=" {
             throw "Expected ="
         }
         bump()
-        let init = parseExpr()
-        return { "kind": AST_LET, "name": name, "init": init }
+        pInit = parseExpr()
+        return { "kind": AST_LET, "sym": pIdent, "init": pInit }
+    }
+    if peek().type == TOKEN_FN {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected function name"
+        }
+        bump()
+        pIdent = pTok.value
+        if peek().type != "(" {
+            throw "Expected ("
+        }
+        bump()
+        pParams = []
+        if peek().type != ")" {
+            while true {
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected parameter name"
+                }
+                bump()
+                pParams = push(pParams, pTok.value)
+                if peek().type == "," {
+                    bump()
+                } else {
+                    break
+                }
+            }
+        }
+        if peek().type != ")" {
+            throw "Expected )"
+        }
+        bump()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pBody = []
+        while peek().type != "}" {
+            if peek().type == TOKEN_EOF {
+                throw "Unclosed block"
+            }
+            pBody = push(pBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        return { "kind": AST_FN, "sym": pIdent, "params": pParams, "body": { "kind": AST_BLOCK, "body": pBody } }
+    }
+    if peek().type == TOKEN_IF {
+        bump()
+        pCond = parseExpr()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pBody = []
+        while peek().type != "}" {
+            pBody = push(pBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        pThen = { "kind": AST_BLOCK, "body": pBody }
+        pElse = null
+        if peek().type == TOKEN_ELSE {
+            bump()
+            if peek().type != "{" {
+                throw "Expected {"
+            }
+            bump()
+            pBody = []
+            while peek().type != "}" {
+                pBody = push(pBody, parseStmt())
+                if peek().type == ";" {
+                    bump()
+                }
+            }
+            bump()
+            pElse = { "kind": AST_BLOCK, "body": pBody }
+        }
+        return { "kind": AST_IF, "cond": pCond, "then": pThen, "elseBranch": pElse }
+    }
+    if peek().type == TOKEN_WHILE {
+        bump()
+        pCond = parseExpr()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pLoopBody = []
+        while peek().type != "}" {
+            pLoopBody = push(pLoopBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        return { "kind": AST_WHILE, "cond": pCond, "body": { "kind": AST_BLOCK, "body": pLoopBody } }
     }
     if peek().type == TOKEN_RETURN {
         bump()
@@ -107,41 +284,52 @@ fn parseStmt() {
         if peek().type == TOKEN_EOF {
             return { "kind": AST_RETURN, "value": null }
         }
-        let v = parseExpr()
-        return { "kind": AST_RETURN, "value": v }
+        pVal = parseExpr()
+        return { "kind": AST_RETURN, "value": pVal }
     }
     if peek().type == "{" {
         bump()
-        let stmts = []
+        pStmts = []
         while peek().type != "}" {
             if peek().type == TOKEN_EOF {
                 throw "Unclosed block"
             }
-            let s = parseStmt()
-            stmts = push(stmts, s)
+            pStmts = push(pStmts, parseStmt())
             if peek().type == ";" {
                 bump()
             }
         }
         bump()
-        return { "kind": AST_BLOCK, "body": stmts }
+        return { "kind": AST_BLOCK, "body": pStmts }
     }
-    let e = parseExpr()
-    return { "kind": AST_EXPR, "expr": e }
+    if peek().type == TOKEN_IDENT {
+        if pPos + 1 < len(pToks) {
+            pTok = pToks[pPos + 1]
+            if pTok.type == "=" {
+                pTok = peek()
+                pIdent = pTok.value
+                bump()
+                bump()
+                pVal = parseExpr()
+                return { "kind": AST_ASSIGN, "sym": pIdent, "rhs": pVal }
+            }
+        }
+    }
+    pVal = parseExpr()
+    return { "kind": AST_EXPR, "expr": pVal }
 }
 
 pub fn parseTokens(tokens) {
     pToks = tokens
     pPos = 0
-    let body = []
+    pBody = []
     while peek().type != TOKEN_EOF {
-        let s = parseStmt()
-        body = push(body, s)
+        pBody = push(pBody, parseStmt())
         if peek().type == ";" {
             bump()
         }
     }
-    return { "kind": AST_PROGRAM, "body": body }
+    return { "kind": AST_PROGRAM, "body": pBody }
 }
 
 pub fn parse(source) {
