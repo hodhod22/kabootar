@@ -1,0 +1,3 @@
+// Sample program compiled by the self-hosted bootstrap probe.
+let n = 10
+return n + 32

@@ -40,6 +40,9 @@ source text
 | `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
 | `test_parse_facade.kab` | klar | `parse(source)` facade-tester |
 | `test_compile.kab` | klar | `compile(source)` pipeline-tester |
+| `sample.kab` | klar | Bootstrap-exempel (`return 42`) |
+| `bootstrap_probe.kab` | klar | `compile(sample)` -> Rust `run_module` CI |
+| `test_bootstrap.kab` | klar | Bootstrap smoke |
 | `test_tiny.kab` | klar | Snabb smoke |
 
 ## Kör tester
@@ -49,6 +52,8 @@ kabootar self_host/test_lexer.kab
 kabootar self_host/test_parser.kab
 kabootar self_host/test_parse_facade.kab
 kabootar self_host/test_compile.kab
+kabootar self_host/test_bootstrap.kab
+kabootar compile self_host/compile.kab
 kabootar self_host/test_emit.kab
 kabootar self_host/test_serialize.kab
 kabootar self_host/test_tiny.kab
@@ -73,4 +78,5 @@ cargo test --test self_host
 2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)
 3. ~~`parse.kab`-facaden (nested `tokenize`)~~ ✅
 4. ~~Full pipeline: `compile(source)` entrypoint~~ ✅
-5. Self-host: `kabootar compile self_host/compile.kab` → kör self-hosted kompilatorn
+5. ~~Self-host bootstrap: `compile.kab` cache + `compile(sample)` -> Rust `run_module`~~ ✅
+6. Utöka self-hosted språksubset (fler ops / stmts) för större moduler
