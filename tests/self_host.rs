@@ -50,6 +50,8 @@ fn self_host_emit_compiles() {
 fn self_host_parse_facade_smoke() {
     kabootar::cli::run_file(&self_host_path("test_tiny.kab"))
         .expect("self_host/test_tiny.kab should pass");
+    kabootar::cli::run_file(&self_host_path("roundtrip_probe.kab"))
+        .expect("self_host/roundtrip_probe.kab should pass");
 }
 
 #[test]
@@ -77,4 +79,61 @@ fn self_host_parser_compiles() {
         .expect("parser.kab should compile");
     assert!(n > 0);
     assert!(bytecode, "parser.kab should emit bytecode");
+}
+
+#[test]
+fn self_host_kbc_roundtrip_main() {
+    use kabootar::bytecode::deserialize;
+    use kabootar::value::Value;
+
+    let v = kabootar::cli::run_file(&self_host_path("roundtrip_main_probe.kab"))
+        .expect("roundtrip_main_probe.kab should run");
+    let Value::String(text) = v else {
+        panic!("roundtrip_probe should return serialized .kbc text");
+    };
+    let module = deserialize(&text).expect("Rust deserialize should accept self-hosted .kbc");
+    assert_eq!(module.globals, vec!["x".to_string()]);
+    assert_eq!(module.constants.len(), 1);
+    assert!(module.main_code.len() >= 4);
+    assert!(module.functions.is_empty());
+}
+
+#[test]
+fn self_host_kbc_roundtrip_fn() {
+    use kabootar::bytecode::deserialize;
+    use kabootar::value::Value;
+
+    let v = kabootar::cli::run_file(&self_host_path("roundtrip_fn_probe.kab"))
+        .expect("roundtrip_fn_probe.kab should run");
+    let Value::String(text) = v else {
+        panic!("roundtrip_fn_probe should return serialized .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize fn .kbc from self-host");
+    assert_eq!(module.functions.len(), 1);
+    assert_eq!(module.functions[0].name, "add");
+    assert_eq!(module.functions[0].params, vec!["a".to_string(), "b".to_string()]);
+    assert!(!module.functions[0].code.is_empty());
+    assert_eq!(module.main_code.last(), Some(&kabootar::bytecode::Opcode::Halt));
+}
+
+#[test]
+fn self_host_kbc_run_fn_call() {
+    use kabootar::bytecode::{deserialize, run_module};
+    use kabootar::evaluator::create_global_env;
+    use kabootar::value::{Value, format_value};
+
+    let v = kabootar::cli::run_file(&self_host_path("roundtrip_call_probe.kab"))
+        .expect("roundtrip_call_probe.kab should run");
+    let Value::String(text) = v else {
+        panic!("roundtrip_call_probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize call probe");
+    let mut env = create_global_env();
+    let result = run_module(&module, &mut env).expect("run self-hosted fn call bytecode");
+    assert_eq!(
+        format_value(&result),
+        "3",
+        "add(1,2) should return 3, got {}",
+        format_value(&result)
+    );
 }

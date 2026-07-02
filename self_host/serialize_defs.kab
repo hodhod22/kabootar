@@ -1,3 +1,4 @@
 // .kbc text format constants (mirrors src/bytecode/types.rs).
+import "self_host/lexer_defs"
 
 pub let KBC_HEADER = "kabootar-bytecode/1"

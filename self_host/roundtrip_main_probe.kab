@@ -1,0 +1,7 @@
+// Returns .kbc text for Rust deserialize roundtrip (main program).
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+import "self_host/serialize"
+
+serialize_bc(emit(parseTokens(tokenize("let x = 1; return x"))))

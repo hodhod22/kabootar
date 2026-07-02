@@ -1,0 +1,15 @@
+// Kabootar-side roundtrip smoke (Rust CI runs deserialize on probe output).
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+import "self_host/serialize"
+import "self_host/serialize_defs"
+
+let tText = serialize_bc(emit(parseTokens(tokenize("let x = 1; return x"))))
+if char_at(tText, 0) != "k" {
+    throw "roundtrip: bad header"
+}
+if len(tText) < 30 {
+    throw "roundtrip: output too short"
+}
+println("roundtrip smoke ok")
