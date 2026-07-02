@@ -77,6 +77,16 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "while emits jump back")
 }
 
+// -- fn body -------------------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn add(a, b) { return a + b }"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "one function")
+    assert_eq(bc.functions[0].sym, "add", "fn sym")
+    assert_true(len(bc.functions[0].ops) >= 3, "fn body op count")
+    assert_eq(bc.functions[0].ops[len(bc.functions[0].ops) - 1].op, OP_RETURN, "fn ends with return")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

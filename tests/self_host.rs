@@ -23,6 +23,21 @@ fn self_host_emit_suite() {
 }
 
 #[test]
+fn self_host_serialize_suite() {
+    kabootar::cli::run_file(&self_host_path("test_serialize.kab"))
+        .expect("self_host/test_serialize.kab should pass");
+}
+
+#[test]
+fn self_host_serialize_compiles() {
+    let path = self_host_path("serialize.kab");
+    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+        .expect("serialize.kab should compile");
+    assert!(n > 0);
+    assert!(bytecode);
+}
+
+#[test]
 fn self_host_emit_compiles() {
     let path = self_host_path("emit.kab");
     let (n, bytecode) = kabootar::cli::compile_file_report(&path)

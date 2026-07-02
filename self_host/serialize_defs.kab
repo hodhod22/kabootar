@@ -1,0 +1,3 @@
+// .kbc text format constants (mirrors src/bytecode/types.rs).
+
+pub let KBC_HEADER = "kabootar-bytecode/1"

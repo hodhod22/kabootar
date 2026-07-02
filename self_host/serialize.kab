@@ -1,0 +1,114 @@
+// Serialize self-hosted opcode IR to kabootar-bytecode/1 text (.kbc subset).
+import "self_host/serialize_defs"
+import "self_host/emit_defs"
+
+let sOut = ""
+let sI = 0
+let sOp = null
+let sLine = ""
+let sFn = null
+let sParams = ""
+let sJ = 0
+
+fn constLine(idx, val) {
+    if val == null {
+        return "const " + ("" + idx) + " null"
+    }
+    return "const " + ("" + idx) + " number " + ("" + val)
+}
+
+fn irOpLine(op) {
+    sOp = op.op
+    if sOp == OP_CONST {
+        return "const " + ("" + op.arg)
+    }
+    if sOp == OP_LOAD_GLOBAL {
+        return "load_global " + ("" + op.arg)
+    }
+    if sOp == OP_STORE_GLOBAL {
+        return "store_global " + ("" + op.arg)
+    }
+    if sOp == OP_POP {
+        return "pop"
+    }
+    if sOp == OP_ADD {
+        return "add"
+    }
+    if sOp == OP_EQ {
+        return "eq"
+    }
+    if sOp == OP_JUMP {
+        return "jump " + ("" + op.arg)
+    }
+    if sOp == OP_JUMP_IF_FALSE {
+        return "jump_if_false " + ("" + op.arg)
+    }
+    if sOp == OP_CALL {
+        return "call " + ("" + op.arg)
+    }
+    if sOp == OP_RETURN {
+        return "return"
+    }
+    if sOp == OP_HALT {
+        return "halt"
+    }
+    throw "Unsupported IR op: " + sOp
+}
+
+fn appendLine(line) {
+    if sOut == "" {
+        sOut = line
+    } else {
+        sOut = sOut + "\n" + line
+    }
+}
+
+fn appendOps(ops) {
+    sI = 0
+    while sI < len(ops) {
+        appendLine(irOpLine(ops[sI]))
+        sI = sI + 1
+    }
+}
+
+pub fn serialize_bc(bc) {
+    sOut = KBC_HEADER
+    appendLine("constants=" + ("" + len(bc.constants)))
+    sI = 0
+    while sI < len(bc.constants) {
+        appendLine(constLine(sI, bc.constants[sI]))
+        sI = sI + 1
+    }
+    sI = 0
+    while sI < len(bc.globals) {
+        appendLine("global " + ("" + sI) + " " + bc.globals[sI])
+        sI = sI + 1
+    }
+    appendLine("functions=" + ("" + len(bc.functions)))
+    sI = 0
+    while sI < len(bc.functions) {
+        sFn = bc.functions[sI]
+        appendLine("fn " + ("" + sI) + " " + sFn.sym)
+        sParams = ""
+        sJ = 0
+        while sJ < len(sFn.params) {
+            if sParams == "" {
+                sParams = sFn.params[sJ]
+            } else {
+                sParams = sParams + "," + sFn.params[sJ]
+            }
+            sJ = sJ + 1
+        }
+        appendLine("fn_params " + ("" + sI) + " " + sParams)
+        appendLine("fn_locals " + ("" + sI) + " " + sParams)
+        sJ = 0
+        while sJ < len(sFn.ops) {
+            appendLine("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
+            sJ = sJ + 1
+        }
+        sI = sI + 1
+    }
+    appendLine("code")
+    appendOps(bc.ops)
+    return sOut
+}

@@ -9,6 +9,7 @@ source text
     → lexer.kab        (src/lexer.rs)     token[]
     → parser.kab       (src/parser.rs)    AST
     → emit.kab         (src/bytecode/compiler.rs)  opcode IR
+    → serialize.kab    (src/bytecode/types.rs)     .kbc text
     → [opt.kab]        (src/runtime/kv8/opt.rs)
     → .kbc bytecode
     → kabootar compile self_host/…   (full self-host)
@@ -23,11 +24,14 @@ source text
 | `ast_defs.kab` | klar | AST-nodtyper |
 | `parser.kab` | klar | `parseTokens(tokens)` → AST (let/assign/if/while/fn/+/==/calls) |
 | `emit_defs.kab` | klar | Opcode-namn för IR |
-| `emit.kab` | klar | `emit(ast)` → opcode IR |
+| `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
+| `serialize_defs.kab` | klar | `.kbc`-header |
+| `serialize.kab` | klar | `serialize_bc(ir)` → text |
 | `parse.kab` | klar | `parse(source)` facade (lexer + parser) |
 | `test_lexer.kab` | klar | 234+ lexer-tester |
 | `test_parser.kab` | klar | Parser-tester |
 | `test_emit.kab` | klar | Emitter-tester |
+| `test_serialize.kab` | klar | Serializer-tester |
 | `test_tiny.kab` | klar | Snabb smoke |
 
 ## Kör tester
@@ -36,6 +40,7 @@ source text
 kabootar self_host/test_lexer.kab
 kabootar self_host/test_parser.kab
 kabootar self_host/test_emit.kab
+kabootar self_host/test_serialize.kab
 kabootar self_host/test_tiny.kab
 cargo test --test self_host
 ```
@@ -53,6 +58,6 @@ cargo test --test self_host
 
 ## Nästa milstolpar
 
-1. Utöka parsern: fler operatorer, `fn`-body i emitter
-2. Serialisera opcode IR till `.kbc`-textformat
-3. `kabootar compile self_host/emit.kab` med self-hostad pipeline
+1. `.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust
+2. `fn`-anrop: `OP_CALL` mot self-hosted `functions[]`
+3. `parse.kab`-facaden (nested `tokenize`)
