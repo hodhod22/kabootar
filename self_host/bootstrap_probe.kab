@@ -1,0 +1,6 @@
+// Bootstrap: self-hosted compile() on sample.kab source -> .kbc text.
+// Source mirrors self_host/sample.kab (use CHAR_NL; "\n" is literal in Kabootar).
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+compile("let n = 10" + CHAR_NL + "return n + 32")
