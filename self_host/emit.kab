@@ -6,6 +6,9 @@ import "self_host/emit_defs"
 let eConsts = []
 let eOps = []
 let eGlobals = []
+let eFnOps = []
+let eFnGlobals = []
+let eInFn = 0
 let eI = 0
 let eIdx = 0
 let eSym = null
@@ -20,8 +23,25 @@ let eCond = null
 let eThen = null
 let eElse = null
 let eProgram = null
+let eFunctions = []
+let eParams = []
+let eFnBody = null
+let eFnName = ""
+let eBxL = null
+let eBxR = null
 
 fn globalIndex(name) {
+    if eInFn == 1 {
+        eI = 0
+        while eI < len(eFnGlobals) {
+            if eFnGlobals[eI] == name {
+                return eI
+            }
+            eI = eI + 1
+        }
+        eFnGlobals = push(eFnGlobals, name)
+        return len(eFnGlobals) - 1
+    }
     eI = 0
     while eI < len(eGlobals) {
         if eGlobals[eI] == name {
@@ -46,7 +66,11 @@ fn constIndex(value) {
 }
 
 fn emitOp(op, arg) {
-    eOps = push(eOps, { "op": op, "arg": arg })
+    if eInFn == 1 {
+        eFnOps = push(eFnOps, { "op": op, "arg": arg })
+    } else {
+        eOps = push(eOps, { "op": op, "arg": arg })
+    }
 }
 
 fn emitExpr(node) {
@@ -63,11 +87,27 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_BINARY {
-        eLeft = eNode["left"]
-        eRight = eNode["right"]
+        eBxL = eNode["left"]
+        eBxR = eNode["right"]
         eOp = eNode["op"]
-        emitExpr(eLeft)
-        emitExpr(eRight)
+        eNode = eBxL
+        if eNode.kind == AST_LITERAL {
+            eIdx = constIndex(eNode["value"])
+            emitOp(OP_CONST, eIdx)
+        } else {
+            eSym = eNode["sym"]
+            eIdx = globalIndex(eSym)
+            emitOp(OP_LOAD_GLOBAL, eIdx)
+        }
+        eNode = eBxR
+        if eNode.kind == AST_LITERAL {
+            eIdx = constIndex(eNode["value"])
+            emitOp(OP_CONST, eIdx)
+        } else {
+            eSym = eNode["sym"]
+            eIdx = globalIndex(eSym)
+            emitOp(OP_LOAD_GLOBAL, eIdx)
+        }
         if eOp == "+" {
             emitOp(OP_ADD, 0)
         } else {
@@ -135,37 +175,93 @@ fn emitStmt(node) {
         eThen = eNode["then"]
         eElse = eNode["elseBranch"]
         emitExpr(eCond)
-        eJmp = len(eOps)
+        if eInFn == 1 {
+            eJmp = len(eFnOps)
+        } else {
+            eJmp = len(eOps)
+        }
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
         if eElse != null {
-            eIdx = len(eOps)
+            if eInFn == 1 {
+                eIdx = len(eFnOps)
+            } else {
+                eIdx = len(eOps)
+            }
             emitOp(OP_JUMP, 0)
-            eEnd = len(eOps)
-            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            if eInFn == 1 {
+                eEnd = len(eFnOps)
+                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            } else {
+                eEnd = len(eOps)
+                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            }
             emitStmt(eElse)
-            eEnd = len(eOps)
-            eOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+            if eInFn == 1 {
+                eEnd = len(eFnOps)
+                eFnOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+            } else {
+                eEnd = len(eOps)
+                eOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+            }
         } else {
-            eEnd = len(eOps)
-            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            if eInFn == 1 {
+                eEnd = len(eFnOps)
+                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            } else {
+                eEnd = len(eOps)
+                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            }
         }
         return
     }
     if eNode.kind == AST_WHILE {
         eCond = eNode["cond"]
         eThen = eNode["body"]
-        eIdx = len(eOps)
+        if eInFn == 1 {
+            eIdx = len(eFnOps)
+        } else {
+            eIdx = len(eOps)
+        }
         emitExpr(eCond)
-        eJmp = len(eOps)
+        if eInFn == 1 {
+            eJmp = len(eFnOps)
+        } else {
+            eJmp = len(eOps)
+        }
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
         emitOp(OP_JUMP, eIdx)
-        eEnd = len(eOps)
-        eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+        if eInFn == 1 {
+            eEnd = len(eFnOps)
+            eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+        } else {
+            eEnd = len(eOps)
+            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+        }
         return
     }
     if eNode.kind == AST_FN {
+        eFnName = eNode["sym"]
+        eParams = eNode["params"]
+        eFnBody = eNode["body"]
+        eInFn = 1
+        eFnOps = []
+        eFnGlobals = []
+        eI = 0
+        while eI < len(eParams) {
+            globalIndex(eParams[eI])
+            eI = eI + 1
+        }
+        emitStmt(eFnBody)
+        eFunctions = push(eFunctions, {
+            "sym": eFnName,
+            "params": eParams,
+            "globals": eFnGlobals,
+            "ops": eFnOps
+        })
+        eInFn = 0
+        globalIndex(eFnName)
         return
     }
     throw "Unsupported stmt: " + eNode.kind
@@ -176,13 +272,17 @@ pub fn emit(program) {
     eConsts = []
     eOps = []
     eGlobals = []
+    eFunctions = []
+    eFnOps = []
+    eFnGlobals = []
+    eInFn = 0
     eProg = 0
     while eProg < len(eProgram["body"]) {
         emitStmt(eProgram["body"][eProg])
         eProg = eProg + 1
     }
     emitOp(OP_HALT, 0)
-    return { "constants": eConsts, "globals": eGlobals, "ops": eOps }
+    return { "constants": eConsts, "globals": eGlobals, "ops": eOps, "functions": eFunctions }
 }
 
 pub fn emit_op_count(bc) {
