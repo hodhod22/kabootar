@@ -32,6 +32,10 @@ source text
 | `test_parser.kab` | klar | Parser-tester |
 | `test_emit.kab` | klar | Emitter-tester |
 | `test_serialize.kab` | klar | Serializer-tester |
+| `roundtrip_probe.kab` | klar | Kabootar roundtrip smoke |
+| `roundtrip_main_probe.kab` | klar | Main program → Rust `deserialize` |
+| `roundtrip_fn_probe.kab` | klar | Fn-body roundtrip (Rust CI) |
+| `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
 | `test_tiny.kab` | klar | Snabb smoke |
 
 ## Kör tester
@@ -51,13 +55,14 @@ cargo test --test self_host
 2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`, inte bara `push(arr, item)`.
 3. **Spara AST-fält före rekursion** — t.ex. `eSym = eNode["sym"]` innan `emitExpr(init)`; `pCallee = pLeft` innan call-args.
 4. **Bracket-access för AST-nycklar** — undvik `.then`, `.sym`, `.value` där det krockar; använd `node["sym"]`.
-5. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
-6. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
-7. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
-8. **Nested import** — `parse(source)` via `parse.kab`; tester: `parseTokens(tokenize(src))`.
+5. **Radbrytning** — `"\n"` är literal i Kabootar; använd `CHAR_NL` från `lexer_defs` i serializer.
+6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
+7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
+8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
+9. **Nested import** — `parse(source)` via `parse.kab`; tester: `parseTokens(tokenize(src))`.
 
 ## Nästa milstolpar
 
-1. `.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust
-2. `fn`-anrop: `OP_CALL` mot self-hosted `functions[]`
+1. ~~`.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust~~ ✅
+2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)
 3. `parse.kab`-facaden (nested `tokenize`)

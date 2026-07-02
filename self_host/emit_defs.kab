@@ -3,6 +3,8 @@
 pub let OP_CONST = "const"
 pub let OP_LOAD_GLOBAL = "load_global"
 pub let OP_STORE_GLOBAL = "store_global"
+pub let OP_LOAD_LOCAL = "load_local"
+pub let OP_STORE_LOCAL = "store_local"
 pub let OP_POP = "pop"
 pub let OP_ADD = "add"
 pub let OP_EQ = "eq"

@@ -8,6 +8,7 @@ let eOps = []
 let eGlobals = []
 let eFnOps = []
 let eFnGlobals = []
+let eFnLocals = []
 let eInFn = 0
 let eI = 0
 let eIdx = 0
@@ -29,6 +30,20 @@ let eFnBody = null
 let eFnName = ""
 let eBxL = null
 let eBxR = null
+let eArgs = []
+let eCallee = null
+
+fn localIndex(name) {
+    eI = 0
+    while eI < len(eFnLocals) {
+        if eFnLocals[eI] == name {
+            return eI
+        }
+        eI = eI + 1
+    }
+    eFnLocals = push(eFnLocals, name)
+    return len(eFnLocals) - 1
+}
 
 fn globalIndex(name) {
     if eInFn == 1 {
@@ -82,8 +97,13 @@ fn emitExpr(node) {
     }
     if eNode.kind == AST_VAR {
         eSym = eNode["sym"]
-        eIdx = globalIndex(eSym)
-        emitOp(OP_LOAD_GLOBAL, eIdx)
+        if eInFn == 1 {
+            eIdx = localIndex(eSym)
+            emitOp(OP_LOAD_LOCAL, eIdx)
+        } else {
+            eIdx = globalIndex(eSym)
+            emitOp(OP_LOAD_GLOBAL, eIdx)
+        }
         return
     }
     if eNode.kind == AST_BINARY {
@@ -96,8 +116,13 @@ fn emitExpr(node) {
             emitOp(OP_CONST, eIdx)
         } else {
             eSym = eNode["sym"]
-            eIdx = globalIndex(eSym)
-            emitOp(OP_LOAD_GLOBAL, eIdx)
+            if eInFn == 1 {
+                eIdx = localIndex(eSym)
+                emitOp(OP_LOAD_LOCAL, eIdx)
+            } else {
+                eIdx = globalIndex(eSym)
+                emitOp(OP_LOAD_GLOBAL, eIdx)
+            }
         }
         eNode = eBxR
         if eNode.kind == AST_LITERAL {
@@ -105,8 +130,13 @@ fn emitExpr(node) {
             emitOp(OP_CONST, eIdx)
         } else {
             eSym = eNode["sym"]
-            eIdx = globalIndex(eSym)
-            emitOp(OP_LOAD_GLOBAL, eIdx)
+            if eInFn == 1 {
+                eIdx = localIndex(eSym)
+                emitOp(OP_LOAD_LOCAL, eIdx)
+            } else {
+                eIdx = globalIndex(eSym)
+                emitOp(OP_LOAD_GLOBAL, eIdx)
+            }
         }
         if eOp == "+" {
             emitOp(OP_ADD, 0)
@@ -120,14 +150,15 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_CALL {
+        eArgs = eNode["args"]
+        eCallee = eNode["callee"]
         eI = 0
-        eLeft = eNode["callee"]
-        while eI < len(eNode["args"]) {
-            emitExpr(eNode["args"][eI])
+        while eI < len(eArgs) {
+            emitExpr(eArgs[eI])
             eI = eI + 1
         }
-        emitExpr(eLeft)
-        emitOp(OP_CALL, len(eNode["args"]))
+        emitExpr(eCallee)
+        emitOp(OP_CALL, len(eArgs))
         return
     }
     throw "Unsupported expr: " + eNode.kind
@@ -138,13 +169,25 @@ fn emitStmt(node) {
     if eNode.kind == AST_LET {
         eSym = eNode["sym"]
         emitExpr(eNode["init"])
-        emitOp(OP_STORE_GLOBAL, globalIndex(eSym))
+        if eInFn == 1 {
+            eIdx = localIndex(eSym)
+            emitOp(OP_STORE_LOCAL, eIdx)
+        } else {
+            eIdx = globalIndex(eSym)
+            emitOp(OP_STORE_GLOBAL, eIdx)
+        }
         return
     }
     if eNode.kind == AST_ASSIGN {
         eSym = eNode["sym"]
         emitExpr(eNode["rhs"])
-        emitOp(OP_STORE_GLOBAL, globalIndex(eSym))
+        if eInFn == 1 {
+            eIdx = localIndex(eSym)
+            emitOp(OP_STORE_LOCAL, eIdx)
+        } else {
+            eIdx = globalIndex(eSym)
+            emitOp(OP_STORE_GLOBAL, eIdx)
+        }
         return
     }
     if eNode.kind == AST_EXPR {
@@ -248,15 +291,17 @@ fn emitStmt(node) {
         eInFn = 1
         eFnOps = []
         eFnGlobals = []
+        eFnLocals = []
         eI = 0
         while eI < len(eParams) {
-            globalIndex(eParams[eI])
+            localIndex(eParams[eI])
             eI = eI + 1
         }
         emitStmt(eFnBody)
         eFunctions = push(eFunctions, {
             "sym": eFnName,
             "params": eParams,
+            "locals": eFnLocals,
             "globals": eFnGlobals,
             "ops": eFnOps
         })
@@ -275,6 +320,7 @@ pub fn emit(program) {
     eFunctions = []
     eFnOps = []
     eFnGlobals = []
+    eFnLocals = []
     eInFn = 0
     eProg = 0
     while eProg < len(eProgram["body"]) {

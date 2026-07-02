@@ -87,6 +87,24 @@ fn assert_true(v, msg) {
     assert_eq(bc.functions[0].ops[len(bc.functions[0].ops) - 1].op, OP_RETURN, "fn ends with return")
 }
 
+// -- fn call -------------------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn add(a, b) { return a + b }; add(1, 2)"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "fn call: one function")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_CALL {
+            if bc.ops[tI].arg == 2 {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "main emits call 2")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

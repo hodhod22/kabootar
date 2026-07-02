@@ -28,6 +28,12 @@ fn irOpLine(op) {
     if sOp == OP_STORE_GLOBAL {
         return "store_global " + ("" + op.arg)
     }
+    if sOp == OP_LOAD_LOCAL {
+        return "load_local " + ("" + op.arg)
+    }
+    if sOp == OP_STORE_LOCAL {
+        return "store_local " + ("" + op.arg)
+    }
     if sOp == OP_POP {
         return "pop"
     }
@@ -59,7 +65,7 @@ fn appendLine(line) {
     if sOut == "" {
         sOut = line
     } else {
-        sOut = sOut + "\n" + line
+        sOut = sOut + CHAR_NL + line
     }
 }
 
@@ -100,6 +106,16 @@ pub fn serialize_bc(bc) {
             sJ = sJ + 1
         }
         appendLine("fn_params " + ("" + sI) + " " + sParams)
+        sParams = ""
+        sJ = 0
+        while sJ < len(sFn.locals) {
+            if sParams == "" {
+                sParams = sFn.locals[sJ]
+            } else {
+                sParams = sParams + "," + sFn.locals[sJ]
+            }
+            sJ = sJ + 1
+        }
         appendLine("fn_locals " + ("" + sI) + " " + sParams)
         sJ = 0
         while sJ < len(sFn.ops) {
