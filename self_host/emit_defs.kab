@@ -1,0 +1,13 @@
+// Opcode names for self-hosted bytecode IR (mirrors src/bytecode/types.rs).
+
+pub let OP_CONST = "const"
+pub let OP_LOAD_GLOBAL = "load_global"
+pub let OP_STORE_GLOBAL = "store_global"
+pub let OP_POP = "pop"
+pub let OP_ADD = "add"
+pub let OP_EQ = "eq"
+pub let OP_JUMP = "jump"
+pub let OP_JUMP_IF_FALSE = "jump_if_false"
+pub let OP_CALL = "call"
+pub let OP_RETURN = "return"
+pub let OP_HALT = "halt"

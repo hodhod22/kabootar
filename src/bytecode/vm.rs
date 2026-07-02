@@ -266,34 +266,12 @@ pub fn prepare_exported_bytecode_fn(
     func: BytecodeFunction,
     module_env: &Environment,
 ) -> BytecodeFunction {
-    let fn_names: Vec<String> = module_env
-        .all_binding_names()
-        .into_iter()
-        .filter(|n| matches!(module_env.get(n), Some(Value::BytecodeFn(_))))
-        .collect();
-    let exclude: Vec<&str> = fn_names.iter().map(String::as_str).collect();
-    let data_only = module_env.clone_excluding(&exclude);
-    let shared_data = data_only.share_bindings();
-    let mut fn_table = Environment::child_from(&shared_data);
-    for sib in &fn_names {
-        if sib == name {
-            continue;
-        }
-        let Some(Value::BytecodeFn(sib_fn)) = module_env.get(sib) else {
-            continue;
-        };
-        fn_table.set(
-            sib.clone(),
-            Value::BytecodeFn(BytecodeFunction {
-                def: sib_fn.def.clone(),
-                closure: shared_data.share_bindings(),
-            }),
-        );
-    }
-    let fn_table_handle = fn_table.share_bindings();
+    let Some(Value::BytecodeFn(refreshed)) = module_env.get(name) else {
+        return func;
+    };
     BytecodeFunction {
-        def: func.def,
-        closure: fn_table_handle,
+        def: refreshed.def.clone(),
+        closure: refreshed.closure.share_bindings(),
     }
 }
 

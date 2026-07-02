@@ -2,8 +2,12 @@
 
 pub let AST_PROGRAM = "Program"
 pub let AST_LET = "LetStmt"
+pub let AST_ASSIGN = "AssignStmt"
 pub let AST_RETURN = "ReturnStmt"
 pub let AST_EXPR = "ExprStmt"
+pub let AST_IF = "IfStmt"
+pub let AST_WHILE = "WhileStmt"
+pub let AST_FN = "FnStmt"
 pub let AST_LITERAL = "Literal"
 pub let AST_VAR = "Variable"
 pub let AST_BINARY = "Binary"
