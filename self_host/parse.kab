@@ -1,0 +1,8 @@
+// Facade: lexer + parser composed (avoids nested module private-fn call bug).
+import "self_host/lexer_defs"
+import "self_host/lexer"
+import "self_host/parser"
+
+pub fn parse(source) {
+    return parseTokens(tokenize(source))
+}

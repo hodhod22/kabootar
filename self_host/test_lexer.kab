@@ -1,0 +1,226 @@
+// Test suite for the self-hosted Kabootar lexer
+
+import "self_host/lexer"
+
+let passed = 0
+let fail = 0
+
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected " + json_stringify(b) + ", got " + json_stringify(a))
+    }
+}
+
+fn assert_tokens(source, expected, label) {
+    let tokens = tokenize(source)
+    assert_eq(len(tokens), len(expected), label + " token count")
+    let i = 0
+    while i < len(expected) {
+        if i >= len(tokens) { break }
+        let exp = expected[i]
+        let got = tokens[i]
+        assert_eq(got.type, exp[0], label + " token[" + ("" + i) + "] type")
+        if len(exp) > 1 {
+            assert_eq(got.value, exp[1], label + " token[" + ("" + i) + "] value")
+        }
+        i = i + 1
+    }
+}
+
+// -- Basic punctuation ---------------------------------------------
+assert_tokens("( ) { } [ ]", [
+    ["("], [")"], ["{"], ["}"], ["["], ["]"]
+], "parens/braces/brackets")
+
+assert_tokens("; , : .", [
+    [";"], [","], [":"], ["."]
+], "semi/comma/colon/dot")
+
+// -- Operators -----------------------------------------------------
+assert_tokens("+ - * / %", [
+    ["+"], ["-"], ["*"], ["/"], ["%"]
+], "arithmetic ops")
+
+assert_tokens("+= -= *= /= %=", [
+    ["+="], ["-="], ["*="], ["/="], ["%="]
+], "compound assign ops")
+
+assert_tokens("** ...", [
+    ["**"], ["..."]
+], "starstar and spread")
+
+assert_tokens("== != < <= > >= =>", [
+    ["=="], ["!="], ["<"], ["<="], [">"], [">="], ["=>"]
+], "comparison and fat arrow")
+
+assert_tokens("&& || ?? ?.", [
+    ["&&"], ["||"], ["??"], ["?."]
+], "logical and nullish ops")
+
+assert_tokens("<< >> >>>", [
+    ["<<"], [">>"], [">>>"]
+], "shift ops")
+
+assert_tokens("& | ^ ~ ! ?", [
+    ["&"], ["|"], ["^"], ["~"], ["!"], ["?"]
+], "bitwise and misc ops")
+
+// -- Keywords ------------------------------------------------------
+assert_tokens("fn let const return if else", [
+    ["fn"], ["let"], ["const"], ["return"], ["if"], ["else"]
+], "basic keywords")
+
+assert_tokens("while for in of break continue", [
+    ["while"], ["for"], ["in"], ["of"], ["break"], ["continue"]
+], "loop keywords")
+
+assert_tokens("match Some None Ok Err", [
+    ["match"], ["Some"], ["None"], ["Ok"], ["Err"]
+], "match keywords")
+
+assert_tokens("class enum interface extends implements", [
+    ["class"], ["enum"], ["interface"], ["extends"], ["implements"]
+], "class keywords")
+
+assert_tokens("try catch finally throw raise", [
+    ["try"], ["catch"], ["finally"], ["throw"], ["raise"]
+], "error handling keywords")
+
+assert_tokens("async await yield", [
+    ["async"], ["await"], ["yield"]
+], "async keywords")
+
+assert_tokens("import pub self super", [
+    ["import"], ["pub"], ["self"], ["super"]
+], "module keywords")
+
+assert_tokens("true false null undefined NaN", [
+    ["true"], ["false"], ["null"], ["undefined"], ["NaN"]
+], "literal keywords")
+
+assert_tokens("is not as with using delete pass assert", [
+    ["is"], ["not"], ["as"], ["with"], ["using"], ["delete"], ["pass"], ["assert"]
+], "other keywords")
+
+assert_tokens("switch case default do fallthrough", [
+    ["switch"], ["case"], ["default"], ["do"], ["fallthrough"]
+], "switch keywords")
+
+// -- Identifiers ---------------------------------------------------
+assert_tokens("foo bar_baz x1 _", [
+    ["Identifier", "foo"], ["Identifier", "bar_baz"], ["Identifier", "x1"], ["Identifier", "_"]
+], "identifiers")
+
+// -- Numbers -------------------------------------------------------
+assert_tokens("42 0 123", [
+    ["Number", 42], ["Number", 0], ["Number", 123]
+], "integers")
+
+assert_tokens("3.14 0.5", [
+    ["Float", 3.14], ["Float", 0.5]
+], "floats")
+
+assert_tokens("100n", [
+    ["BigInt", "100"]
+], "bigint")
+
+// -- Strings -------------------------------------------------------
+let q = from_char_code(34)
+assert_tokens(q + "hello" + q + " " + q + "world" + q, [
+    ["String", "hello"], ["String", "world"]
+], "strings")
+
+assert_tokens(q + q, [
+    ["String", ""]
+], "empty string")
+
+// -- Template literals ---------------------------------------------
+let bt = from_char_code(96)
+assert_tokens(bt + "hi" + bt, [
+    ["String", "hi"]
+], "simple template as string")
+
+assert_tokens(bt + "a" + bt + " + " + bt + "b" + bt, [
+    ["String", "a"], ["+"], ["String", "b"]
+], "adjacent templates")
+
+assert_tokens(bt + "x${1 + 2}y" + bt, [
+    ["Template"]
+], "template with interpolation")
+
+// -- Comments ------------------------------------------------------
+let nl2 = from_char_code(10)
+assert_tokens("a // this is a comment" + nl2 + "b", [
+    ["Identifier", "a"], ["Identifier", "b"]
+], "line comment")
+
+assert_tokens("a /* block */ b", [
+    ["Identifier", "a"], ["Identifier", "b"]
+], "block comment")
+
+// -- Private names -------------------------------------------------
+assert_tokens("#foo #bar", [
+    ["PrivateName", "foo"], ["PrivateName", "bar"]
+], "private names")
+
+// -- Combined expressions ------------------------------------------
+assert_tokens("let x = 42", [
+    ["let"], ["Identifier", "x"], ["="], ["Number", 42]
+], "let binding")
+
+assert_tokens("fn add(a, b) { return a + b }", [
+    ["fn"], ["Identifier", "add"], ["("],
+    ["Identifier", "a"], [","], ["Identifier", "b"],
+    [")"], ["{"], ["return"], ["Identifier", "a"],
+    ["+"], ["Identifier", "b"], ["}"]
+], "function declaration")
+
+assert_tokens("if x == 1 { y } else { z }", [
+    ["if"], ["Identifier", "x"], ["=="], ["Number", 1],
+    ["{"], ["Identifier", "y"], ["}"],
+    ["else"], ["{"], ["Identifier", "z"], ["}"]
+], "if-else")
+
+assert_tokens("x?.y ?? 0", [
+    ["Identifier", "x"], ["?."], ["Identifier", "y"],
+    ["??"], ["Number", 0]
+], "optional chaining + nullish")
+
+// -- Line tracking -------------------------------------------------
+fn test_line_tracking() {
+    let nl = from_char_code(10)
+    let tokens = tokenize("a" + nl + "b" + nl + "c")
+    assert_eq(tokens[0].line, 1, "line tracking: a on line 1")
+    assert_eq(tokens[1].line, 2, "line tracking: b on line 2")
+    assert_eq(tokens[2].line, 3, "line tracking: c on line 3")
+}
+test_line_tracking()
+
+// -- Self-lex test (lex a small Kabootar program) ------------------
+fn test_self_lex() {
+    let qq = from_char_code(34)
+    let nl = from_char_code(10)
+    let src = "pub fn greet(name) {" + nl + "    let msg = " + qq + "Hello, " + qq + " + name" + nl + "    return msg" + nl + "}"
+    let tokens = tokenize(src)
+    // pub fn greet ( name ) { let msg = "Hello, " + name return msg }
+    assert_eq(len(tokens), 16, "self-lex token count")
+    assert_eq(tokens[0].type, "pub", "self-lex: pub")
+    assert_eq(tokens[1].type, "fn", "self-lex: fn")
+    assert_eq(tokens[2].type, "Identifier", "self-lex: greet")
+    assert_eq(tokens[2].value, "greet", "self-lex: greet value")
+    assert_eq(tokens[8].type, "Identifier", "self-lex: msg")
+    assert_eq(tokens[8].value, "msg", "self-lex: msg value")
+    assert_eq(tokens[10].type, "String", "self-lex: string literal")
+    assert_eq(tokens[10].value, "Hello, ", "self-lex: string value")
+}
+test_self_lex()
+
+// -- Report --------------------------------------------------------
+println("")
+println("Self-hosted lexer tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "LEXER TESTS FAILED"
+}

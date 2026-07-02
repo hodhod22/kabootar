@@ -232,18 +232,68 @@ fn store_local_to_env(
 }
 
 fn refresh_function_closures(module: &BytecodeModule, env: &mut Environment) {
-    let exclude: Vec<&str> = module.functions.iter().map(|f| f.name.as_str()).collect();
-    let closure = env.clone_excluding(&exclude);
+    let fn_names: Vec<&str> = module.functions.iter().map(|f| f.name.as_str()).collect();
+    let data_only = env.clone_excluding(&fn_names);
+    let shared_data = data_only.share_bindings();
+    let mut fn_table = Environment::child_from(&shared_data);
+    let fn_table_handle = fn_table.share_bindings();
+    for func in &module.functions {
+        if let Some(Value::BytecodeFn(existing)) = env.get(&func.name) {
+            fn_table.set(
+                func.name.clone(),
+                Value::BytecodeFn(BytecodeFunction {
+                    def: existing.def.clone(),
+                    closure: shared_data.share_bindings(),
+                }),
+            );
+        }
+    }
     for func in &module.functions {
         if let Some(Value::BytecodeFn(existing)) = env.get(&func.name) {
             env.set(
                 func.name.clone(),
                 Value::BytecodeFn(BytecodeFunction {
                     def: existing.def.clone(),
-                    closure: closure.clone(),
+                    closure: fn_table_handle.share_bindings(),
                 }),
             );
         }
+    }
+}
+
+pub fn prepare_exported_bytecode_fn(
+    name: &str,
+    func: BytecodeFunction,
+    module_env: &Environment,
+) -> BytecodeFunction {
+    let fn_names: Vec<String> = module_env
+        .all_binding_names()
+        .into_iter()
+        .filter(|n| matches!(module_env.get(n), Some(Value::BytecodeFn(_))))
+        .collect();
+    let exclude: Vec<&str> = fn_names.iter().map(String::as_str).collect();
+    let data_only = module_env.clone_excluding(&exclude);
+    let shared_data = data_only.share_bindings();
+    let mut fn_table = Environment::child_from(&shared_data);
+    for sib in &fn_names {
+        if sib == name {
+            continue;
+        }
+        let Some(Value::BytecodeFn(sib_fn)) = module_env.get(sib) else {
+            continue;
+        };
+        fn_table.set(
+            sib.clone(),
+            Value::BytecodeFn(BytecodeFunction {
+                def: sib_fn.def.clone(),
+                closure: shared_data.share_bindings(),
+            }),
+        );
+    }
+    let fn_table_handle = fn_table.share_bindings();
+    BytecodeFunction {
+        def: func.def,
+        closure: fn_table_handle,
     }
 }
 

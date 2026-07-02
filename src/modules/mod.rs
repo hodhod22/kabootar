@@ -95,10 +95,20 @@ pub fn register_import_builtins(env: &mut Environment) {
 }
 
 fn export_module_bindings(module_env: &Environment, importer: &mut Environment) -> Vec<String> {
+    use crate::value::Value;
     let mut imported = Vec::new();
     for name in module_env.exported_names() {
         if let Some(val) = module_env.get(&name) {
-            importer.set(name.clone(), val);
+            let exported = if let Value::BytecodeFn(func) = val {
+                Value::BytecodeFn(crate::bytecode::prepare_exported_bytecode_fn(
+                    &name,
+                    func,
+                    module_env,
+                ))
+            } else {
+                val
+            };
+            importer.set(name.clone(), exported);
             imported.push(name);
         }
     }

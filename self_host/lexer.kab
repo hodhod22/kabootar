@@ -1,0 +1,633 @@
+// Self-hosted Kabootar lexer - mirrors src/lexer.rs.
+import "self_host/lexer_defs"
+
+let lxPos = 0
+let lxSrc = ""
+let lxLine = 1
+let lxCol = 1
+
+fn lxScan() {
+    if lxPos >= len(lxSrc) {
+        return { "type": TOKEN_EOF, "value": null, "line": lxLine, "column": lxCol }
+    }
+    let c = char_at(lxSrc, lxPos)
+    let line = lxLine
+    let col = lxCol
+
+    if c == "(" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "(", "value": null, "line": line, "column": col }
+    }
+    if c == ")" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ")", "value": null, "line": line, "column": col }
+    }
+    if c == "{" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "{", "value": null, "line": line, "column": col }
+    }
+    if c == "}" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "}", "value": null, "line": line, "column": col }
+    }
+    if c == "[" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "[", "value": null, "line": line, "column": col }
+    }
+    if c == "]" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "]", "value": null, "line": line, "column": col }
+    }
+    if c == ";" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ";", "value": null, "line": line, "column": col }
+    }
+    if c == "," {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ",", "value": null, "line": line, "column": col }
+    }
+    if c == ":" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ":", "value": null, "line": line, "column": col }
+    }
+    if c == "^" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "^", "value": null, "line": line, "column": col }
+    }
+    if c == "~" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "~", "value": null, "line": line, "column": col }
+    }
+    if c == "+" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "+=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "+", "value": null, "line": line, "column": col }
+    }
+    if c == "-" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "-=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "-", "value": null, "line": line, "column": col }
+    }
+    if c == "*" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "*" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "**", "value": null, "line": line, "column": col }
+        }
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "*=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "*", "value": null, "line": line, "column": col }
+    }
+    if c == "/" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "/=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "/", "value": null, "line": line, "column": col }
+    }
+    if c == "%" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "%=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "%", "value": null, "line": line, "column": col }
+    }
+    if c == "?" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "?" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "??", "value": null, "line": line, "column": col }
+        }
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "?.", "value": null, "line": line, "column": col }
+        }
+        return { "type": "?", "value": null, "line": line, "column": col }
+    }
+    if c == "=" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "==", "value": null, "line": line, "column": col }
+        }
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "=>", "value": null, "line": line, "column": col }
+        }
+        return { "type": "=", "value": null, "line": line, "column": col }
+    }
+    if c == "!" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "!=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "!", "value": null, "line": line, "column": col }
+    }
+    if c == "&" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "&" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "&&", "value": null, "line": line, "column": col }
+        }
+        return { "type": "&", "value": null, "line": line, "column": col }
+    }
+    if c == "|" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "|" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "||", "value": null, "line": line, "column": col }
+        }
+        return { "type": "|", "value": null, "line": line, "column": col }
+    }
+    if c == "<" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "<=", "value": null, "line": line, "column": col }
+        }
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "<" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "<<", "value": null, "line": line, "column": col }
+        }
+        return { "type": "<", "value": null, "line": line, "column": col }
+    }
+    if c == ">" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": ">=", "value": null, "line": line, "column": col }
+        }
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                return { "type": ">>>", "value": null, "line": line, "column": col }
+            }
+            return { "type": ">>", "value": null, "line": line, "column": col }
+        }
+        return { "type": ">", "value": null, "line": line, "column": col }
+    }
+    if c == "." {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                return { "type": "...", "value": null, "line": line, "column": col }
+            }
+            throw "Expected ... at line " + ("" + line) + " col " + ("" + col)
+        }
+        return { "type": ".", "value": null, "line": line, "column": col }
+    }
+    if c == "#" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let name = ""
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            let cd = char_code_at(ch, 0)
+            let ok = 0
+            if cd >= 65 {
+                if cd <= 90 {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                if cd >= 97 {
+                    if cd <= 122 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if cd >= 48 {
+                    if cd <= 57 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if ch == "_" {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                break
+            }
+            name = name + ch
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        if name == "" {
+            throw "Expected identifier after # at line " + ("" + line) + " col " + ("" + col)
+        }
+        return { "type": TOKEN_PRIVATE, "value": name, "line": line, "column": col }
+    }
+    if c == QUOTE {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let s = ""
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if ch == QUOTE {
+                break
+            }
+            s = s + ch
+        }
+        return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
+    }
+    if c == BACKTICK {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let parts = []
+        let buf = ""
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            if ch == BACKTICK {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                if len(buf) > 0 {
+                    parts = push(parts, { "text": buf })
+                    buf = ""
+                }
+                if len(parts) == 0 {
+                    return { "type": TOKEN_STRING, "value": "", "line": line, "column": col }
+                }
+                if len(parts) == 1 {
+                    let p0 = parts[0]
+                    if p0.text != undefined {
+                        return { "type": TOKEN_STRING, "value": p0.text, "line": line, "column": col }
+                    }
+                }
+                return { "type": TOKEN_TEMPLATE, "value": parts, "line": line, "column": col }
+            }
+            if ch == "$" {
+                if lxPos + 1 < len(lxSrc) {
+                    let next = char_at(lxSrc, lxPos + 1)
+                    if next == "{" {
+                        lxPos = lxPos + 2
+                        lxCol = lxCol + 2
+                        if len(buf) > 0 {
+                            parts = push(parts, { "text": buf })
+                            buf = ""
+                        }
+                        let depth = 1
+                        let expr = ""
+                        while lxPos < len(lxSrc) {
+                            let c2 = char_at(lxSrc, lxPos)
+                            lxPos = lxPos + 1
+                            lxCol = lxCol + 1
+                            if c2 == "{" {
+                                depth = depth + 1
+                                expr = expr + c2
+                            } else {
+                                if c2 == "}" {
+                                    depth = depth - 1
+                                    if depth == 0 {
+                                        break
+                                    }
+                                    expr = expr + c2
+                                } else {
+                                    expr = expr + c2
+                                }
+                            }
+                        }
+                        if depth != 0 {
+                            throw "Unterminated template expression"
+                        }
+                        parts = push(parts, { "expr": expr })
+                    } else {
+                        buf = buf + ch
+                        lxPos = lxPos + 1
+                        lxCol = lxCol + 1
+                    }
+                } else {
+                    buf = buf + ch
+                    lxPos = lxPos + 1
+                    lxCol = lxCol + 1
+                }
+            } else {
+                buf = buf + ch
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+            }
+        }
+        throw "Unterminated template literal"
+    }
+    if c == "_" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let id = "_"
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            let cd = char_code_at(ch, 0)
+            let ok = 0
+            if cd >= 65 {
+                if cd <= 90 {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                if cd >= 97 {
+                    if cd <= 122 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if cd >= 48 {
+                    if cd <= 57 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if ch == "_" {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                break
+            }
+            id = id + ch
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+    }
+
+    let code0 = char_code_at(c, 0)
+    if code0 >= 48 {
+        if code0 <= 57 {
+        let digits = c
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            let cd = char_code_at(ch, 0)
+            if cd < 48 {
+                break
+            }
+            if cd > 57 {
+                break
+            }
+            digits = digits + ch
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        if lxPos < len(lxSrc) {
+            if char_at(lxSrc, lxPos) == "n" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": TOKEN_BIGINT, "value": digits, "line": line, "column": col }
+            }
+        }
+        if lxPos < len(lxSrc) {
+            if char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            let frac = ""
+            while lxPos < len(lxSrc) {
+                let ch = char_at(lxSrc, lxPos)
+                let cd = char_code_at(ch, 0)
+                if cd < 48 {
+                    break
+                }
+                if cd > 57 {
+                    break
+                }
+                frac = frac + ch
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+            }
+            return { "type": TOKEN_FLOAT, "value": parse_float(digits + "." + frac), "line": line, "column": col }
+            }
+        }
+        return { "type": TOKEN_NUMBER, "value": parse_int(digits), "line": line, "column": col }
+        }
+    }
+    let isAlpha = 0
+    if code0 >= 97 {
+        if code0 <= 122 {
+            isAlpha = 1
+        }
+    }
+    if isAlpha == 0 {
+        if code0 >= 65 {
+            if code0 <= 90 {
+                isAlpha = 1
+            }
+        }
+    }
+    if isAlpha == 1 {
+        let id = c
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            let cd = char_code_at(ch, 0)
+            let ok = 0
+            if cd >= 65 {
+                if cd <= 90 {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                if cd >= 97 {
+                    if cd <= 122 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if cd >= 48 {
+                    if cd <= 57 {
+                        ok = 1
+                    }
+                }
+            }
+            if ok == 0 {
+                if ch == "_" {
+                    ok = 1
+                }
+            }
+            if ok == 0 {
+                break
+            }
+            id = id + ch
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        let kw = KEYWORDS[id]
+        if kw == undefined {
+            return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+        }
+        return { "type": kw, "value": null, "line": line, "column": col }
+    }
+
+    throw "Unknown character: " + c + " at line " + ("" + line) + " col " + ("" + col)
+}
+
+pub fn tokenize(source) {
+    lxPos = 0
+    lxSrc = source
+    lxLine = 1
+    lxCol = 1
+    let tokens = []
+    while true {
+        while lxPos < len(lxSrc) {
+            let ch = char_at(lxSrc, lxPos)
+            let ws = 0
+            if ch == " " {
+                ws = 1
+            }
+            if ws == 0 {
+                if ch == CHAR_TAB {
+                    ws = 1
+                }
+            }
+            if ws == 0 {
+                if ch == CHAR_NL {
+                    ws = 1
+                }
+            }
+            if ws == 0 {
+                if ch == CHAR_CR {
+                    ws = 1
+                }
+            }
+            if ws == 1 {
+                if ch == CHAR_NL {
+                    lxLine = lxLine + 1
+                    lxCol = 1
+                } else {
+                    lxCol = lxCol + 1
+                }
+                lxPos = lxPos + 1
+            } else {
+                break
+            }
+        }
+        if lxPos < len(lxSrc) {
+            let ch0 = char_at(lxSrc, lxPos)
+            if ch0 == "/" {
+                if lxPos + 1 < len(lxSrc) {
+                    let ch1 = char_at(lxSrc, lxPos + 1)
+                    if ch1 == "/" {
+                        lxPos = lxPos + 2
+                        while lxPos < len(lxSrc) {
+                            let ch = char_at(lxSrc, lxPos)
+                            if ch == CHAR_NL {
+                                lxLine = lxLine + 1
+                                lxCol = 1
+                                lxPos = lxPos + 1
+                                break
+                            }
+                            lxCol = lxCol + 1
+                            lxPos = lxPos + 1
+                        }
+                        continue
+                    }
+                }
+            }
+        }
+        if lxPos < len(lxSrc) {
+            let ch0 = char_at(lxSrc, lxPos)
+            if ch0 == "/" {
+                if lxPos + 1 < len(lxSrc) {
+                    let ch1 = char_at(lxSrc, lxPos + 1)
+                    if ch1 == "*" {
+                        lxPos = lxPos + 2
+                        while lxPos < len(lxSrc) {
+                            let ch = char_at(lxSrc, lxPos)
+                            lxPos = lxPos + 1
+                            lxCol = lxCol + 1
+                            if ch == "*" {
+                                if lxPos < len(lxSrc) {
+                                    let ch2 = char_at(lxSrc, lxPos)
+                                    if ch2 == "/" {
+                                        lxPos = lxPos + 1
+                                        lxCol = lxCol + 1
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                        continue
+                    }
+                }
+            }
+        }
+        let tok = lxScan()
+        if tok.type == TOKEN_EOF {
+            break
+        }
+        tokens = push(tokens, tok)
+    }
+    return tokens
+}
+
+pub fn token_type_name(tok) {
+    return tok.type
+}
+
+pub fn token_value(tok) {
+    return tok.value
+}

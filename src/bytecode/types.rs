@@ -1496,10 +1496,7 @@ fn parse_const(rest: &str) -> Result<Constant, String> {
                 .map_err(|_| format!("Invalid float const: {rest}"))?,
         )),
         "string" => {
-            let value = rest
-                .split_once(" string ")
-                .map(|(_, v)| v)
-                .ok_or_else(|| format!("Invalid string const: {rest}"))?;
+            let value = parts.next().unwrap_or("");
             Ok(Constant::String(unescape(value)))
         }
         "bool" => Ok(Constant::Bool(

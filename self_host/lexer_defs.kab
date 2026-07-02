@@ -1,0 +1,85 @@
+pub let QUOTE = from_char_code(34)
+pub let BACKTICK = from_char_code(96)
+pub let CHAR_TAB = from_char_code(9)
+pub let CHAR_NL = from_char_code(10)
+pub let CHAR_CR = from_char_code(13)
+
+pub let TOKEN_FN = "fn"
+pub let TOKEN_LET = "let"
+pub let TOKEN_CONST = "const"
+pub let TOKEN_RETURN = "return"
+pub let TOKEN_IF = "if"
+pub let TOKEN_ELSE = "else"
+pub let TOKEN_MATCH = "match"
+pub let TOKEN_SOME = "Some"
+pub let TOKEN_NONE = "None"
+pub let TOKEN_OK = "Ok"
+pub let TOKEN_ERR = "Err"
+pub let TOKEN_WHILE = "while"
+pub let TOKEN_DO = "do"
+pub let TOKEN_FOR = "for"
+pub let TOKEN_IN = "in"
+pub let TOKEN_OF = "of"
+pub let TOKEN_SWITCH = "switch"
+pub let TOKEN_CASE = "case"
+pub let TOKEN_DEFAULT = "default"
+pub let TOKEN_BREAK = "break"
+pub let TOKEN_FALLTHROUGH = "fallthrough"
+pub let TOKEN_CONTINUE = "continue"
+pub let TOKEN_ASYNC = "async"
+pub let TOKEN_AWAIT = "await"
+pub let TOKEN_YIELD = "yield"
+pub let TOKEN_DELETE = "delete"
+pub let TOKEN_THROW = "throw"
+pub let TOKEN_RAISE = "raise"
+pub let TOKEN_PASS = "pass"
+pub let TOKEN_ASSERT = "assert"
+pub let TOKEN_WITH = "with"
+pub let TOKEN_USING = "using"
+pub let TOKEN_AS = "as"
+pub let TOKEN_IS = "is"
+pub let TOKEN_NOT = "not"
+pub let TOKEN_EXTENDS = "extends"
+pub let TOKEN_INTERFACE = "interface"
+pub let TOKEN_IMPLEMENTS = "implements"
+pub let TOKEN_TRY = "try"
+pub let TOKEN_CATCH = "catch"
+pub let TOKEN_FINALLY = "finally"
+pub let TOKEN_CLASS = "class"
+pub let TOKEN_ENUM = "enum"
+pub let TOKEN_IMPORT = "import"
+pub let TOKEN_PUB = "pub"
+pub let TOKEN_SELF = "self"
+pub let TOKEN_SUPER = "super"
+pub let TOKEN_NULL = "null"
+pub let TOKEN_UNDEFINED = "undefined"
+pub let TOKEN_NAN = "NaN"
+pub let TOKEN_TRUE = "true"
+pub let TOKEN_FALSE = "false"
+pub let TOKEN_IDENT = "Identifier"
+pub let TOKEN_PRIVATE = "PrivateName"
+pub let TOKEN_NUMBER = "Number"
+pub let TOKEN_FLOAT = "Float"
+pub let TOKEN_BIGINT = "BigInt"
+pub let TOKEN_STRING = "String"
+pub let TOKEN_TEMPLATE = "Template"
+pub let TOKEN_EOF = "EOF"
+
+pub let KEYWORDS = {
+    "fn": "fn", "let": "let", "const": "const", "return": "return",
+    "if": "if", "else": "else", "match": "match",
+    "Some": "Some", "None": "None", "Ok": "Ok", "Err": "Err",
+    "while": "while", "do": "do", "for": "for", "in": "in", "of": "of",
+    "switch": "switch", "case": "case", "default": "default",
+    "break": "break", "fallthrough": "fallthrough", "continue": "continue",
+    "async": "async", "await": "await", "yield": "yield",
+    "delete": "delete", "throw": "throw", "raise": "raise",
+    "pass": "pass", "assert": "assert", "with": "with", "using": "using",
+    "as": "as", "is": "is", "not": "not",
+    "extends": "extends", "interface": "interface", "implements": "implements",
+    "try": "try", "catch": "catch", "finally": "finally",
+    "class": "class", "enum": "enum", "import": "import",
+    "pub": "pub", "self": "self", "super": "super",
+    "null": "null", "undefined": "undefined", "NaN": "NaN",
+    "true": "true", "false": "false"
+}

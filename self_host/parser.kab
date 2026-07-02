@@ -1,0 +1,153 @@
+// Self-hosted Kabootar parser - subset mirroring src/parser.rs.
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+
+let pPos = 0
+let pToks = []
+
+fn peek() {
+    if pPos >= len(pToks) {
+        return { "type": TOKEN_EOF, "value": null, "line": 1, "column": 1 }
+    }
+    return pToks[pPos]
+}
+
+fn bump() {
+    let t = peek()
+    if pPos < len(pToks) {
+        pPos = pPos + 1
+    }
+    return t
+}
+
+fn parseAtom() {
+    let t = peek()
+    let node = null
+    if t.type == TOKEN_NUMBER {
+        bump()
+        node = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": t.value }
+    } else {
+        if t.type == TOKEN_STRING {
+            bump()
+            node = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": t.value }
+        } else {
+            if t.type == TOKEN_IDENT {
+                bump()
+                node = { "kind": AST_VAR, "name": t.value }
+            } else {
+                if t.type == "(" {
+                    bump()
+                    node = parseExpr()
+                    if peek().type != ")" {
+                        throw "Expected )"
+                    }
+                    bump()
+                } else {
+                    throw "Unexpected token: " + t.type
+                }
+            }
+        }
+    }
+    while peek().type == "(" {
+        bump()
+        let args = []
+        if peek().type != ")" {
+            while true {
+                args = push(args, parseExpr())
+                if peek().type == "," {
+                    bump()
+                } else {
+                    break
+                }
+            }
+        }
+        if peek().type != ")" {
+            throw "Expected )"
+        }
+        bump()
+        node = { "kind": AST_CALL, "callee": node, "args": args }
+    }
+    return node
+}
+
+fn parseExpr() {
+    let left = parseAtom()
+    while peek().type == "+" {
+        bump()
+        let right = parseAtom()
+        left = { "kind": AST_BINARY, "op": "+", "left": left, "right": right }
+    }
+    return left
+}
+
+fn parseStmt() {
+    if peek().type == TOKEN_LET {
+        bump()
+        let t = peek()
+        if t.type != TOKEN_IDENT {
+            throw "Expected identifier after let"
+        }
+        bump()
+        let name = t.value
+        if peek().type != "=" {
+            throw "Expected ="
+        }
+        bump()
+        let init = parseExpr()
+        return { "kind": AST_LET, "name": name, "init": init }
+    }
+    if peek().type == TOKEN_RETURN {
+        bump()
+        if peek().type == ";" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if peek().type == "}" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if peek().type == TOKEN_EOF {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        let v = parseExpr()
+        return { "kind": AST_RETURN, "value": v }
+    }
+    if peek().type == "{" {
+        bump()
+        let stmts = []
+        while peek().type != "}" {
+            if peek().type == TOKEN_EOF {
+                throw "Unclosed block"
+            }
+            let s = parseStmt()
+            stmts = push(stmts, s)
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        return { "kind": AST_BLOCK, "body": stmts }
+    }
+    let e = parseExpr()
+    return { "kind": AST_EXPR, "expr": e }
+}
+
+pub fn parseTokens(tokens) {
+    pToks = tokens
+    pPos = 0
+    let body = []
+    while peek().type != TOKEN_EOF {
+        let s = parseStmt()
+        body = push(body, s)
+        if peek().type == ";" {
+            bump()
+        }
+    }
+    return { "kind": AST_PROGRAM, "body": body }
+}
+
+pub fn parse(source) {
+    throw "parse(source) requires import self_host/parse (lexer+parser facade)"
+}
+
+pub fn ast_kind(node) {
+    return node.kind
+}

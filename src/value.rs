@@ -286,6 +286,13 @@ impl Environment {
             }),
         }
     }
+
+    /// Alias closures that must observe the same mutable module bindings.
+    pub fn share_bindings(&self) -> Self {
+        Self {
+            inner: Rc::clone(&self.inner),
+        }
+    }
 }
 
 impl Clone for EnvironmentInner {
