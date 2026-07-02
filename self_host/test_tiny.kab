@@ -1,9 +1,8 @@
-// Smoke: lexer + parser + emit pipeline
-import "self_host/lexer"
-import "self_host/parser"
+// Smoke: parse facade + emit pipeline
+import "self_host/parse"
 import "self_host/emit"
 
-let ast = parseTokens(tokenize("let x = 1; return x"))
+let ast = parse("let x = 1; return x")
 let bc = emit(ast)
 if len(bc.globals) != 1 {
     throw "smoke: expected one global"

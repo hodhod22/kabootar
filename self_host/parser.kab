@@ -332,10 +332,6 @@ pub fn parseTokens(tokens) {
     return { "kind": AST_PROGRAM, "body": pBody }
 }
 
-pub fn parse(source) {
-    throw "parse(source) requires import self_host/parse (lexer+parser facade)"
-}
-
 pub fn ast_kind(node) {
     return node.kind
 }
