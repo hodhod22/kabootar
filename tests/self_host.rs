@@ -47,6 +47,12 @@ fn self_host_emit_compiles() {
 }
 
 #[test]
+fn self_host_parse_facade_suite() {
+    kabootar::cli::run_file(&self_host_path("test_parse_facade.kab"))
+        .expect("self_host/test_parse_facade.kab should pass");
+}
+
+#[test]
 fn self_host_parse_facade_smoke() {
     kabootar::cli::run_file(&self_host_path("test_tiny.kab"))
         .expect("self_host/test_tiny.kab should pass");

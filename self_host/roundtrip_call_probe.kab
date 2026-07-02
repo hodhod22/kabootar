@@ -1,6 +1,5 @@
-import "self_host/lexer"
-import "self_host/parser"
+import "self_host/parse"
 import "self_host/emit"
 import "self_host/serialize"
 
-serialize_bc(emit(parseTokens(tokenize("fn add(a, b) { return a + b }; return add(1, 2)"))))
+serialize_bc(emit(parse("fn add(a, b) { return a + b }; return add(1, 2)")))

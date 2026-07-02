@@ -36,6 +36,7 @@ source text
 | `roundtrip_main_probe.kab` | klar | Main program → Rust `deserialize` |
 | `roundtrip_fn_probe.kab` | klar | Fn-body roundtrip (Rust CI) |
 | `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
+| `test_parse_facade.kab` | klar | `parse(source)` facade-tester |
 | `test_tiny.kab` | klar | Snabb smoke |
 
 ## Kör tester
@@ -43,6 +44,7 @@ source text
 ```bash
 kabootar self_host/test_lexer.kab
 kabootar self_host/test_parser.kab
+kabootar self_host/test_parse_facade.kab
 kabootar self_host/test_emit.kab
 kabootar self_host/test_serialize.kab
 kabootar self_host/test_tiny.kab
@@ -59,10 +61,11 @@ cargo test --test self_host
 6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
 7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
 8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
-9. **Nested import** — `parse(source)` via `parse.kab`; tester: `parseTokens(tokenize(src))`.
+9. **Nested import** — använd `import "self_host/parse"` + `parse(src)`; importera inte `parser.kab` i samma modul (namnkrock). Tester med tokens: `parseTokens(tokenize(src))` i `test_parser.kab`.
 
 ## Nästa milstolpar
 
 1. ~~`.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust~~ ✅
 2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)
-3. `parse.kab`-facaden (nested `tokenize`)
+3. ~~`parse.kab`-facaden (nested `tokenize`)~~ ✅
+4. Full pipeline: `serialize_bc(emit(parse(src)))` som enda entrypoint
