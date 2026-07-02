@@ -35,7 +35,7 @@ fn assert_true(v, msg) {
     let bc = emit(ast)
     assert_eq(len(bc.globals), 1, "one global")
     assert_eq(bc.globals[0], "x", "global name")
-    assert_true(emit_op_count(bc) >= 4, "let+return op count")
+    assert_true(len(bc.ops) >= 4, "let+return op count")
     assert_eq(bc.ops[len(bc.ops) - 1].op, OP_HALT, "ends with halt")
 }
 
@@ -43,7 +43,7 @@ fn assert_true(v, msg) {
 {
     let ast = parseTokens(tokenize("1 + 2"))
     let bc = emit(ast)
-    assert_true(emit_op_count(bc) >= 3, "add emits ops")
+    assert_true(len(bc.ops) >= 3, "add emits ops")
     assert_eq(bc.ops[2].op, OP_ADD, "third op is add")
 }
 

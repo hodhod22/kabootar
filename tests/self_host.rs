@@ -56,6 +56,44 @@ fn self_host_sample_runs() {
 }
 
 #[test]
+fn self_host_subset_suite() {
+    kabootar::cli::run_file(&self_host_path("test_subset.kab"))
+        .expect("self_host/test_subset.kab should pass");
+}
+
+#[test]
+fn self_host_larger_smoke() {
+    kabootar::cli::run_file(&self_host_path("test_larger.kab"))
+        .expect("self_host/test_larger.kab should pass");
+}
+
+#[test]
+fn self_host_mini_module_runs() {
+    use kabootar::value::format_value;
+
+    let v = kabootar::cli::run_file(&self_host_path("mini_module.kab"))
+        .expect("mini_module.kab should run");
+    assert_eq!(format_value(&v), "true");
+}
+
+#[test]
+fn self_host_larger_compile_and_run() {
+    use kabootar::bytecode::{deserialize, run_module};
+    use kabootar::evaluator::create_global_env;
+    use kabootar::value::{Value, format_value};
+
+    let v = kabootar::cli::run_file(&self_host_path("larger_probe.kab"))
+        .expect("larger_probe.kab should run");
+    let Value::String(text) = v else {
+        panic!("larger_probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize larger .kbc");
+    let mut env = create_global_env();
+    let result = run_module(&module, &mut env).expect("run self-hosted mini module");
+    assert_eq!(format_value(&result), "true");
+}
+
+#[test]
 fn self_host_bootstrap_smoke() {
     kabootar::cli::run_file(&self_host_path("test_bootstrap.kab"))
         .expect("self_host/test_bootstrap.kab should pass");

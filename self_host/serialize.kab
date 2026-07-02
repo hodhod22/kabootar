@@ -14,6 +14,15 @@ fn constLine(idx, val) {
     if val == null {
         return "const " + ("" + idx) + " null"
     }
+    if val == true {
+        return "const " + ("" + idx) + " bool true"
+    }
+    if val == false {
+        return "const " + ("" + idx) + " bool false"
+    }
+    if typeof(val) == "string" {
+        return "const " + ("" + idx) + " string " + val
+    }
     return "const " + ("" + idx) + " number " + ("" + val)
 }
 
@@ -40,8 +49,35 @@ fn irOpLine(op) {
     if sOp == OP_ADD {
         return "add"
     }
+    if sOp == OP_SUB {
+        return "sub"
+    }
     if sOp == OP_EQ {
         return "eq"
+    }
+    if sOp == OP_NE {
+        return "ne"
+    }
+    if sOp == OP_LT {
+        return "lt"
+    }
+    if sOp == OP_GE {
+        return "ge"
+    }
+    if sOp == OP_LE {
+        return "le"
+    }
+    if sOp == OP_AND {
+        return "and"
+    }
+    if sOp == OP_MAKE_OBJECT {
+        return "make_object " + ("" + op.arg)
+    }
+    if sOp == OP_INDEX_GET {
+        return "index_get"
+    }
+    if sOp == OP_GET_MEMBER {
+        return "get_member " + ("" + op.arg)
     }
     if sOp == OP_JUMP {
         return "jump " + ("" + op.arg)

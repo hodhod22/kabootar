@@ -20,6 +20,8 @@ let pThen = null
 let pElse = null
 let pLoopBody = []
 let pCallee = null
+let pObjFields = []
+let pBinOp = ""
 
 fn peek() {
     if pPos >= len(pToks) {
@@ -36,32 +38,93 @@ fn bump() {
     return pTok
 }
 
-fn parseExpr() {
+fn parsePostfix() {
+    pLeft = null
     pTok = peek()
     if pTok.type == TOKEN_NUMBER {
         bump()
         pLeft = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-    } else {
+    }
+    if pLeft == null {
+        pTok = peek()
         if pTok.type == TOKEN_STRING {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_IDENT {
-                bump()
-                pLeft = { "kind": AST_VAR, "sym": pTok.value }
-            } else {
-                if pTok.type == "(" {
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_TRUE {
+            bump()
+            pLeft = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_FALSE {
+            bump()
+            pLeft = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_NULL {
+            bump()
+            pLeft = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_IDENT {
+            bump()
+            pLeft = { "kind": AST_VAR, "sym": pTok.value }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == "(" {
+            bump()
+            pLeft = parseCompare()
+            if peek().type != ")" {
+                throw "Expected )"
+            }
+            bump()
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == "{" {
+            bump()
+            pObjFields = []
+            while peek().type != "}" {
+                pTok = peek()
+                if pTok.type == TOKEN_IDENT {
                     bump()
-                    pLeft = parseExpr()
-                    if peek().type != ")" {
-                        throw "Expected )"
-                    }
-                    bump()
+                    pIdent = pTok.value
                 } else {
-                    throw "Unexpected token: " + pTok.type
+                    if pTok.type == TOKEN_STRING {
+                        bump()
+                        pIdent = pTok.value
+                    } else {
+                        throw "Expected object key"
+                    }
+                }
+                if peek().type != ":" {
+                    throw "Expected :"
+                }
+                bump()
+                pVal = parseCompare()
+                pObjFields = push(pObjFields, { "key": pIdent, "value": pVal })
+                if peek().type == "," {
+                    bump()
                 }
             }
+            bump()
+            pLeft = { "kind": AST_OBJECT, "fields": pObjFields }
         }
+    }
+    if pLeft == null {
+        throw "Unexpected token: " + pTok.type
     }
     while peek().type == "(" {
         pCallee = pLeft
@@ -69,7 +132,7 @@ fn parseExpr() {
         pArgs = []
         if peek().type != ")" {
             while true {
-                pArgs = push(pArgs, parseExpr())
+                pArgs = push(pArgs, parseCompare())
                 if peek().type == "," {
                     bump()
                 } else {
@@ -83,6 +146,29 @@ fn parseExpr() {
         bump()
         pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
     }
+    while peek().type == "." {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected field name"
+        }
+        bump()
+        pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pTok.value }
+    }
+    while peek().type == "[" {
+        bump()
+        pRight = parseCompare()
+        if peek().type != "]" {
+            throw "Expected ]"
+        }
+        bump()
+        pLeft = { "kind": AST_INDEX, "object": pLeft, "index": pRight }
+    }
+    return pLeft
+}
+
+fn parseCompare() {
+    pLeft = parsePostfix()
     while peek().type == "+" {
         bump()
         pTok = peek()
@@ -96,7 +182,7 @@ fn parseExpr() {
             } else {
                 if pTok.type == "(" {
                     bump()
-                    pRight = parseExpr()
+                    pRight = parseCompare()
                     if peek().type != ")" {
                         throw "Expected )"
                     }
@@ -112,7 +198,7 @@ fn parseExpr() {
             pArgs = []
             if peek().type != ")" {
                 while true {
-                    pArgs = push(pArgs, parseExpr())
+                    pArgs = push(pArgs, parseCompare())
                     if peek().type == "," {
                         bump()
                     } else {
@@ -128,30 +214,46 @@ fn parseExpr() {
         }
         pLeft = { "kind": AST_BINARY, "op": "+", "left": pLeft, "right": pRight }
     }
-    if peek().type == "==" {
+    while peek().type == "==" {
+        pBinOp = peek().type
         bump()
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_IDENT {
-                bump()
-                pRight = { "kind": AST_VAR, "sym": pTok.value }
-            } else {
-                if pTok.type == "(" {
-                    bump()
-                    pRight = parseExpr()
-                    if peek().type != ")" {
-                        throw "Expected )"
-                    }
-                    bump()
-                } else {
-                    throw "Unexpected token: " + pTok.type
-                }
-            }
-        }
-        return { "kind": AST_BINARY, "op": "==", "left": pLeft, "right": pRight }
+        pRight = parsePostfix()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
+    }
+    while peek().type == "!=" {
+        pBinOp = peek().type
+        bump()
+        pRight = parsePostfix()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
+    }
+    while peek().type == "<" {
+        pBinOp = peek().type
+        bump()
+        pRight = parsePostfix()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
+    }
+    while peek().type == ">=" {
+        pBinOp = peek().type
+        bump()
+        pRight = parsePostfix()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
+    }
+    while peek().type == "<=" {
+        pBinOp = peek().type
+        bump()
+        pRight = parsePostfix()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
+    }
+    return pLeft
+}
+
+fn parseExpr() {
+    pLeft = parseCompare()
+    while peek().type == "&&" {
+        pBinOp = peek().type
+        bump()
+        pRight = parseCompare()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pLeft, "right": pRight }
     }
     return pLeft
 }
@@ -330,8 +432,4 @@ pub fn parseTokens(tokens) {
         }
     }
     return { "kind": AST_PROGRAM, "body": pBody }
-}
-
-pub fn ast_kind(node) {
-    return node.kind
 }

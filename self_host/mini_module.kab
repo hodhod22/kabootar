@@ -1,0 +1,10 @@
+// Reference mini-module (lexer-like patterns). Runs under Rust interpreter.
+fn isDigit(ch) {
+    let cd = char_code_at(ch, 0)
+    if cd >= 48 && cd <= 57 {
+        return true
+    }
+    return false
+}
+
+return isDigit("5")
