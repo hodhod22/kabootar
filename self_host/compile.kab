@@ -1,0 +1,8 @@
+// Full self-hosted pipeline: source text -> kabootar-bytecode/1 text.
+import "self_host/parse"
+import "self_host/emit"
+import "self_host/serialize"
+
+pub fn compile(source) {
+    return serialize_bc(emit(parse(source)))
+}

@@ -7,9 +7,10 @@ Kabootar kompilerar sig själv steg för steg. Varje fas speglar motsvarande Rus
 ```
 source text
     → lexer.kab        (src/lexer.rs)     token[]
-    → parser.kab       (src/parser.rs)    AST
+    → parse.kab        (facade)           AST
     → emit.kab         (src/bytecode/compiler.rs)  opcode IR
     → serialize.kab    (src/bytecode/types.rs)     .kbc text
+    → compile.kab      (facade)           source → .kbc
     → [opt.kab]        (src/runtime/kv8/opt.rs)
     → .kbc bytecode
     → kabootar compile self_host/…   (full self-host)
@@ -28,6 +29,7 @@ source text
 | `serialize_defs.kab` | klar | `.kbc`-header |
 | `serialize.kab` | klar | `serialize_bc(ir)` → text |
 | `parse.kab` | klar | `parse(source)` facade (lexer + parser) |
+| `compile.kab` | klar | `compile(source)` → `.kbc` text (full pipeline) |
 | `test_lexer.kab` | klar | 234+ lexer-tester |
 | `test_parser.kab` | klar | Parser-tester |
 | `test_emit.kab` | klar | Emitter-tester |
@@ -37,6 +39,7 @@ source text
 | `roundtrip_fn_probe.kab` | klar | Fn-body roundtrip (Rust CI) |
 | `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
 | `test_parse_facade.kab` | klar | `parse(source)` facade-tester |
+| `test_compile.kab` | klar | `compile(source)` pipeline-tester |
 | `test_tiny.kab` | klar | Snabb smoke |
 
 ## Kör tester
@@ -45,6 +48,7 @@ source text
 kabootar self_host/test_lexer.kab
 kabootar self_host/test_parser.kab
 kabootar self_host/test_parse_facade.kab
+kabootar self_host/test_compile.kab
 kabootar self_host/test_emit.kab
 kabootar self_host/test_serialize.kab
 kabootar self_host/test_tiny.kab
@@ -61,11 +65,12 @@ cargo test --test self_host
 6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
 7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
 8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
-9. **Nested import** — använd `import "self_host/parse"` + `parse(src)`; importera inte `parser.kab` i samma modul (namnkrock). Tester med tokens: `parseTokens(tokenize(src))` i `test_parser.kab`.
+9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
 
 ## Nästa milstolpar
 
 1. ~~`.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust~~ ✅
 2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)
 3. ~~`parse.kab`-facaden (nested `tokenize`)~~ ✅
-4. Full pipeline: `serialize_bc(emit(parse(src)))` som enda entrypoint
+4. ~~Full pipeline: `compile(source)` entrypoint~~ ✅
+5. Self-host: `kabootar compile self_host/compile.kab` → kör self-hosted kompilatorn

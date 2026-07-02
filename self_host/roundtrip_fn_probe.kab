@@ -1,6 +1,4 @@
 // Returns .kbc text for Rust deserialize roundtrip (fn body).
-import "self_host/parse"
-import "self_host/emit"
-import "self_host/serialize"
+import "self_host/compile"
 
-serialize_bc(emit(parse("fn add(a, b) { return a + b }")))
+compile("fn add(a, b) { return a + b }")
