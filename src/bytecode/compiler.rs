@@ -560,8 +560,10 @@ impl Compiler {
                 }
                 if matches!(op, BinaryOp::And) {
                     self.compile_expr(left)?;
+                    self.emit(Opcode::Dup);
                     let jump_end = self.code.len();
                     self.emit(Opcode::JumpIfFalse(0));
+                    self.emit(Opcode::Pop);
                     self.compile_expr(right)?;
                     let end = self.code.len();
                     patch_jump(&mut self.code, jump_end, end);

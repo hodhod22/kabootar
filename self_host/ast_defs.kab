@@ -1,0 +1,16 @@
+// AST node kind constants for the self-hosted parser.
+
+pub let AST_PROGRAM = "Program"
+pub let AST_LET = "LetStmt"
+pub let AST_RETURN = "ReturnStmt"
+pub let AST_EXPR = "ExprStmt"
+pub let AST_LITERAL = "Literal"
+pub let AST_VAR = "Variable"
+pub let AST_BINARY = "Binary"
+pub let AST_CALL = "Call"
+pub let AST_BLOCK = "Block"
+
+pub let LIT_NUMBER = "number"
+pub let LIT_STRING = "string"
+pub let LIT_BOOL = "bool"
+pub let LIT_NULL = "null"

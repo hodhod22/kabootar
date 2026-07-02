@@ -219,6 +219,26 @@ fn bytecode_break_and_continue() {
 }
 
 #[test]
+fn bytecode_and_short_circuit_in_if_condition() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        let lxPos = 0
+        let lxSrc = ""
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "/" {
+            while lxPos < len(lxSrc) {
+                break
+            }
+        }
+        42
+    "#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Number(42)));
+}
+
+#[test]
 fn bytecode_can_compile_v23_subset() {
     assert!(can_compile("let [a] = [1]"));
     assert!(can_compile("let b = [0, ...[1]]"));
