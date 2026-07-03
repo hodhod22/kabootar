@@ -50,6 +50,7 @@ let eBf = 0
 let eWh = 0
 let eWhNew = []
 let eWhI = 0
+let eList = []
 
 fn localIndex(name) {
     eLocalI = 0
@@ -243,26 +244,26 @@ fn emitExpr(node) {
         throw "Unsupported binary op: " + eOp
     }
     if eNode.kind == AST_OBJECT {
-        eLeft = eNode["fields"]
+        eList = eNode["fields"]
         eObjI = 0
-        while eObjI < len(eLeft) {
-            eFld = eLeft[eObjI]
+        while eObjI < len(eList) {
+            eFld = eList[eObjI]
             emitExpr(eFld["value"])
             eIdx = constIndex(eFld["key"])
             emitOp(OP_CONST, eIdx)
             eObjI = eObjI + 1
         }
-        emitOp(OP_MAKE_OBJECT, len(eLeft))
+        emitOp(OP_MAKE_OBJECT, len(eList))
         return
     }
     if eNode.kind == AST_ARRAY {
-        eLeft = eNode["elems"]
+        eList = eNode["elems"]
         eObjI = 0
-        while eObjI < len(eLeft) {
-            emitExpr(eLeft[eObjI])
+        while eObjI < len(eList) {
+            emitExpr(eList[eObjI])
             eObjI = eObjI + 1
         }
-        emitOp(OP_MAKE_ARRAY, len(eLeft))
+        emitOp(OP_MAKE_ARRAY, len(eList))
         return
     }
     if eNode.kind == AST_MEMBER {

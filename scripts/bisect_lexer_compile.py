@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Find lexer.kab line prefix that fails self-hosted compile() (os_mount path)."""
+"""Bisect lexer.kab compile failure via os_mount (same path as CI)."""
 import os
 import subprocess
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KAB = os.path.join(ROOT, "target-alt2", "debug", "kabootar.exe")
@@ -13,12 +14,32 @@ SRC = os.path.join(ROOT, "_bisect_lexer.kab")
 PROBE = os.path.join(ROOT, "self_host", "_bisect_probe.kab")
 MANIFEST = ROOT.replace("\\", "/")
 
+STUBS = (
+    "\n\npub fn tokenize(source) { return [] }\n"
+    "pub fn token_type_name(tok) { return tok.type }\n"
+    "pub fn token_value(tok) { return tok.value }\n"
+)
 
-def try_compile(n_lines: int, lines: list[str]) -> tuple[bool, str]:
+
+def wrap_prefix(lines: list[str]) -> str:
+    text = "\n".join(lines)
+    need = text.count("{") - text.count("}")
+    if need > 0:
+        text += "\n" + ("}" * need)
+    if "pub fn tokenize" not in text:
+        text += STUBS
+    return text + "\n"
+
+
+def timeout_for(n_lines: int) -> int:
+    # full lexer ~52 min; scale roughly linear with min floor 120s
+    return max(120, int(n_lines * 6))
+
+
+def try_compile(n_lines: int, lines: list[str]) -> tuple[bool, str, float]:
+    src = wrap_prefix(lines[:n_lines])
     with open(SRC, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(lines[:n_lines]))
-        if not lines[:n_lines][-1].endswith("\n"):
-            f.write("\n")
+        f.write(src)
     probe = (
         'import "self_host/compile"\n'
         f'os_mount("/proj", "{MANIFEST}")\n'
@@ -27,39 +48,69 @@ def try_compile(n_lines: int, lines: list[str]) -> tuple[bool, str]:
     )
     with open(PROBE, "w", encoding="utf-8", newline="\n") as f:
         f.write(probe)
-    r = subprocess.run(
-        [KAB, PROBE],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=900,
-    )
+    t0 = time.time()
+    try:
+        r = subprocess.run(
+            [KAB, PROBE],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout_for(n_lines),
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"TIMEOUT after {timeout_for(n_lines)}s", time.time() - t0
     err = (r.stderr or r.stdout or "").strip()
     ok = r.returncode == 0 and "Error:" not in err and "kab_throw" not in err
-    return ok, err[:400]
+    return ok, err[:500], time.time() - t0
+
+
+def run_probe(label: str, n_lines: int, lines: list[str]) -> bool:
+    print(f"\n--- {label}: lines 1..{n_lines} (timeout {timeout_for(n_lines)}s) ---")
+    ok, err, elapsed = try_compile(n_lines, lines)
+    print(f"  {'OK' if ok else 'FAIL'} in {elapsed:.0f}s")
+    if not ok:
+        print(f"  {err}")
+    return ok
 
 
 def main() -> int:
     lines = open(LEXER, encoding="utf-8").read().splitlines()
     n = len(lines)
-    ok, err = try_compile(n, lines)
-    print(f"full ({n} lines): {'OK' if ok else 'FAIL'}")
-    if not ok:
-        print(err)
-    lo, hi = 1, n
-    fail_at = n
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        ok, err = try_compile(mid, lines)
-        print(f"lines 1..{mid}: {'OK' if ok else 'FAIL'}")
+
+    # Phase 1: boundary probes at function edges
+    boundaries = [200, 350, 529, n]
+    last_ok = 0
+    first_fail = n
+    for b in boundaries:
+        if b > n:
+            b = n
+        ok = run_probe(f"boundary", b, lines)
         if ok:
-            lo = mid + 1
+            last_ok = b
         else:
-            fail_at = mid
-            hi = mid - 1
-    print(f"\nfirst failing prefix ends near line {fail_at}")
-    for i in range(max(0, fail_at - 2), min(n, fail_at + 2)):
+            first_fail = min(first_fail, b)
+            break
+
+    # Phase 2: binary search between last_ok and first_fail
+    if last_ok < first_fail - 1:
+        lo, hi = last_ok + 1, first_fail
+        fail_at = first_fail
+        print(f"\n--- binary search {lo}..{hi} ---")
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            ok, err, elapsed = try_compile(mid, lines)
+            print(f"  lines 1..{mid}: {'OK' if ok else 'FAIL'} ({elapsed:.0f}s)")
+            if ok:
+                lo = mid + 1
+            else:
+                fail_at = mid
+                hi = mid - 1
+        first_fail = fail_at
+
+    print(f"\n=== first failing prefix ends near line {first_fail} ===")
+    for i in range(max(0, first_fail - 3), min(n, first_fail + 2)):
         print(f"  {i+1}: {lines[i][:120]}")
+
     for p in (SRC, PROBE):
         try:
             os.remove(p)
