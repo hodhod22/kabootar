@@ -125,6 +125,21 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
+        pTok = peek()
+        if pTok.type == "[" {
+            bump()
+            pArgs = []
+            while peek().type != "]" {
+                pArgs = push(pArgs, parseCompare())
+                if peek().type == "," {
+                    bump()
+                }
+            }
+            bump()
+            pLeft = { "kind": AST_ARRAY, "elems": pArgs }
+        }
+    }
+    if pLeft == null {
         throw "Unexpected token: " + pTok.type
     }
     while peek().type == "(" {

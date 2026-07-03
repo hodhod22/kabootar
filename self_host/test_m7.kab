@@ -2,6 +2,7 @@
 import "self_host/lexer"
 import "self_host/parser"
 import "self_host/ast_defs"
+import "self_host/compile"
 
 let passed = 0
 let fail = 0
@@ -40,6 +41,14 @@ fn assert_kind(node, kind, msg) {
 {
     let ast = parseTokens(tokenize("while x { break }"))
     assert_kind(ast.body[0].body.body[0], AST_BREAK, "break stmt")
+}
+
+{
+    let kbc = compile("let parts = []")
+    if char_at(kbc, 0) != "k" {
+        throw "array literal compile failed"
+    }
+    passed = passed + 1
 }
 
 println("")
