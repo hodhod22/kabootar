@@ -1024,20 +1024,20 @@ fn kv8_smoke_react_bundle_mounts_counter() {
         "#,
     );
     assert!(matches!(buttons, Value::Number(1)));
-    let label = eval(
-        r#"
-        let ctx = kv8_create();
-        kv8_react_bundle_smoke(ctx);
-        kv8_eval(ctx, "
-          let btns = document.querySelectorAll('button');
-          btns.forEach((btn) => { btn.dispatchEvent({ type: 'click' }); });
-          let text = '';
-          document.querySelectorAll('button').forEach((b) => { text = b.textContent; });
-          return text;
-        ");
-        "#,
-    );
-    assert!(matches!(label, Value::String(s) if s == "Count: 1"));
+   let label = eval(
+    r#"
+    let ctx = kv8_create();
+    kv8_react_bundle_smoke(ctx);
+    kv8_eval(ctx, "
+      let btns = document.querySelectorAll('button');
+      btns.forEach((btn) => { btn.dispatchEvent({ type: 'click' }); });
+      let text = '';
+      document.querySelectorAll('button').forEach((b) => { text = b.textContent; });
+      return text;
+    ");
+    "#,
+);
+assert!(matches!(label, Value::String(s) if s == "Count: 1"));
 }
 
 #[test]
@@ -1164,6 +1164,214 @@ fn kv8_smoke_click_listener_fires() {
         "#,
     );
     assert!(matches!(n, Value::Number(1)));
+}
+
+#[test]
+fn kv8_smoke_class_basic() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          class Animal {
+            constructor(name) {
+              this.name = name;
+            }
+            speak() {
+              return this.name + ' makes a noise.';
+            }
+          }
+          let a = new Animal('Cat');
+          return a.speak();
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::String(s) if s == "Cat makes a noise."));
+}
+
+#[test]
+fn kv8_smoke_class_extends() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          class Animal {
+            constructor(name) {
+              this.name = name;
+            }
+            speak() {
+              return this.name + ' makes a noise.';
+            }
+          }
+          class Dog extends Animal {
+            speak() {
+              return this.name + ' barks.';
+            }
+          }
+          let d = new Dog('Rex');
+          return d.speak();
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::String(s) if s == "Rex barks."));
+}
+
+#[test]
+fn kv8_smoke_class_super_constructor() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          class Shape {
+            constructor(color) {
+              this.color = color;
+            }
+          }
+          class Circle extends Shape {
+            constructor(color, radius) {
+              super(color);
+              this.radius = radius;
+            }
+            area() {
+              return this.radius * this.radius;
+            }
+          }
+          let c = new Circle('red', 5);
+          return c.color + ':' + c.area();
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::String(s) if s == "red:25"));
+}
+
+#[test]
+fn kv8_smoke_class_static_method() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          class MathHelper {
+            static square(x) {
+              return x * x;
+            }
+          }
+          return MathHelper.square(7);
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::Number(n) if n == 49));
+}
+
+#[test]
+fn kv8_smoke_class_instance_fields_independent() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          class Counter {
+            constructor() {
+              this.count = 0;
+            }
+            inc() {
+              this.count = this.count + 1;
+            }
+          }
+          let a = new Counter();
+          let b = new Counter();
+          a.inc();
+          a.inc();
+          b.inc();
+          return a.count + ':' + b.count;
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::String(s) if s == "2:1"));
+}
+
+#[test]
+fn kv8_smoke_object_keys_values_entries() {
+    let keys = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let o = { a: 1, b: 2 };
+          return Object.keys(o).length;
+        ");
+        "#,
+    );
+    assert!(matches!(keys, Value::Number(2)));
+
+    let vals = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let o = { x: 10, y: 20 };
+          let sum = 0;
+          Object.values(o).forEach((v) => { sum = sum + v; });
+          return sum;
+        ");
+        "#,
+    );
+    assert!(matches!(vals, Value::Number(30)));
+
+    let entries = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let o = { k: 'v' };
+          let e = Object.entries(o);
+          return e.length;
+        ");
+        "#,
+    );
+    assert!(matches!(entries, Value::Number(1)));
+}
+
+#[test]
+fn kv8_smoke_object_assign_reads_obj_store() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let src = {};
+          src.version = '19.2.7';
+          let dst = Object.assign({}, src);
+          return dst.version;
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::String(s) if s == "19.2.7"));
+}
+
+#[test]
+fn kv8_smoke_object_from_entries() {
+    let v = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let o = Object.fromEntries([['a', 1], ['b', 2]]);
+          return o.a + o.b;
+        ");
+        "#,
+    );
+    assert!(matches!(v, Value::Number(3)));
+}
+
+#[test]
+fn kv8_smoke_object_is() {
+    let same = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "return Object.is(1, 1);");
+        "#,
+    );
+    assert!(matches!(same, Value::Bool(true)));
+    let diff = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "return Object.is(1, 2);");
+        "#,
+    );
+    assert!(matches!(diff, Value::Bool(false)));
 }
 
 #[test]

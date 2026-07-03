@@ -1,6 +1,6 @@
 //! Kv8 parser + interpreter — JS-subset with if/for/function/arrow + JIT hooks.
 
-use super::ast::{Expr, Kv8Param, Kv8Program, LValue, ObjectEntryKey, Stmt, SwitchCase, TemplatePart};
+use super::ast::{ClassMethod, Expr, Kv8Param, Kv8Program, LValue, ObjectEntryKey, Stmt, SwitchCase, TemplatePart};
 use super::bytecode_bridge::{compile_arrow, run_kv8_bytecode_fn};
 use super::context::{Kv8Context, Kv8ContextInner, Kv8Module, Kv8Value};
 use super::jit::{loop_key, JIT_THRESHOLD};
@@ -86,6 +86,50 @@ fn pop_this(ctx: &Kv8Context) -> Result<(), String> {
         inner.this_stack.pop();
         Ok(())
     })
+}
+
+/// Pops `this` on drop so nested `new` and error paths keep `this_stack` balanced.
+struct ThisGuard<'a> {
+    ctx: &'a Kv8Context,
+}
+
+impl<'a> ThisGuard<'a> {
+    fn push(ctx: &'a Kv8Context, value: Kv8Value) -> Result<Self, String> {
+        push_this(ctx, value)?;
+        Ok(Self { ctx })
+    }
+}
+
+impl Drop for ThisGuard<'_> {
+    fn drop(&mut self) {
+        let _ = pop_this(self.ctx);
+    }
+}
+
+/// Pops scope (and optional closure frame) on drop.
+struct ScopeGuard<'a> {
+    ctx: &'a Kv8Context,
+    preserve: bool,
+    exit_closure: bool,
+}
+
+impl Drop for ScopeGuard<'_> {
+    fn drop(&mut self) {
+        let _ = self.ctx.with_mut(|inner| {
+            if self.preserve {
+                if !inner.closure_env_stack.is_empty() {
+                    inner.closure_call_exit();
+                }
+                inner.scope_pop_preserve();
+            } else {
+                if self.exit_closure && !inner.closure_env_stack.is_empty() {
+                    inner.closure_call_exit();
+                }
+                inner.scope_pop();
+            }
+            Ok(())
+        });
+    }
 }
 
 fn eval_call(ctx: &Kv8Context, callee: Expr, args: Vec<Expr>) -> Result<Kv8Value, String> {
@@ -475,6 +519,9 @@ impl Parser {
             Token::Finally => Ok("finally".into()),
             Token::Do => Ok("do".into()),
             Token::Function => Ok("function".into()),
+            Token::Class => Ok("class".into()),
+            Token::Static => Ok("static".into()),
+            Token::Extends => Ok("extends".into()),
             Token::Var => Ok("var".into()),
             Token::Let => Ok("let".into()),
             Token::Const => Ok("const".into()),
@@ -730,6 +777,9 @@ impl Parser {
                 self.semi();
                 Ok(Stmt::Throw(expr))
             }
+            Token::Class => {
+                return self.parse_class();
+            }
             Token::Function => {
                 self.bump();
                 let Token::Ident(name) = self.bump() else {
@@ -759,6 +809,70 @@ impl Parser {
                 Ok(Stmt::Expr(expr))
             }
         }
+    }
+
+    fn parse_class(&mut self) -> Result<Stmt, String> {
+        self.expect(Token::Class)?;
+        let Token::Ident(name) = self.bump() else {
+            return Err("class name expected".into());
+        };
+        let superclass = if matches!(self.peek(), Token::Extends) {
+            self.bump();
+            let Token::Ident(sup) = self.bump() else {
+                return Err("superclass name expected after extends".into());
+            };
+            Some(sup)
+        } else {
+            None
+        };
+        self.expect(Token::LBrace)?;
+        let mut methods = Vec::new();
+        while !matches!(self.peek(), Token::RBrace | Token::Eof) {
+            let is_static = if matches!(self.peek(), Token::Static) {
+                self.bump();
+                true
+            } else {
+                false
+            };
+            let is_async = if matches!(self.peek(), Token::Async) {
+                self.bump();
+                true
+            } else {
+                false
+            };
+            let (is_getter, is_setter, method_name) = {
+                let saved = self.pos;
+                let tok = self.bump();
+                let keyword = match &tok {
+                    Token::Ident(s) if s == "get" => "get",
+                    Token::Ident(s) if s == "set" => "set",
+                    _ => "",
+                };
+                if !keyword.is_empty() && !matches!(self.peek(), Token::LParen) {
+                    let mn = self.parse_member_field()?;
+                    (keyword == "get", keyword == "set", mn)
+                } else {
+                    self.pos = saved;
+                    let mn = self.parse_member_field()?;
+                    (false, false, mn)
+                }
+            };
+            self.expect(Token::LParen)?;
+            let params = self.parse_params()?;
+            self.expect(Token::RParen)?;
+            let body = self.parse_block()?;
+            methods.push(ClassMethod {
+                name: method_name,
+                params,
+                body,
+                is_static,
+                is_async,
+                is_getter,
+                is_setter,
+            });
+        }
+        self.expect(Token::RBrace)?;
+        Ok(Stmt::Class { name, superclass, methods })
     }
 
     fn parse_params(&mut self) -> Result<Vec<Kv8Param>, String> {
@@ -1259,6 +1373,15 @@ impl Parser {
             Token::Null => Ok(Expr::Lit(Kv8Value::Null)),
             Token::Undefined => Ok(Expr::Lit(Kv8Value::Undefined)),
             Token::This => Ok(Expr::This),
+            Token::Super => {
+                if matches!(self.peek(), Token::Dot) {
+                    self.bump();
+                    let field = self.parse_member_field()?;
+                    Ok(Expr::Member(Box::new(Expr::Var("__super__".into())), field))
+                } else {
+                    Ok(Expr::Var("__super__".into()))
+                }
+            }
             Token::Function => self.parse_function_expr_body(),
             Token::Ident(name) => Ok(Expr::Var(name)),
             Token::LParen => {
@@ -2004,14 +2127,13 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
         Stmt::ForClassic(init, cond, update, body) => {
             run_stmts(ctx, &init)?;
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 if let Some(c) = &cond {
                     if !eval_expr(ctx, c.clone())?.is_truthy() {
                         break;
                     }
                 }
-                iter += 1;
                 match run_stmts(ctx, &body)? {
                     Flow::Break(l) if flow_break_matches(&l, Some(label)) => break,
                     Flow::Break(l) => return Ok(Flow::Break(l)),
@@ -2024,16 +2146,13 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
                 if let Some(u) = &update {
                     eval_expr(ctx, u.clone())?;
                 }
-                if iter > 10_000 {
-                    break;
-                }
             }
             Ok(Flow::Next(last))
         }
         Stmt::While(cond, body) => {
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
                     break;
                 }
@@ -2045,18 +2164,14 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
                     Flow::Return(v) => return Ok(Flow::Return(v)),
                     Flow::Throw(v) => return Ok(Flow::Throw(v)),
                     Flow::Next(v) => last = v,
-                }
-                iter += 1;
-                if iter > 10_000 {
-                    break;
                 }
             }
             Ok(Flow::Next(last))
         }
         Stmt::DoWhile(body, cond) => {
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 match run_stmts(ctx, &body)? {
                     Flow::Break(l) if flow_break_matches(&l, Some(label)) => break,
                     Flow::Break(l) => return Ok(Flow::Break(l)),
@@ -2067,10 +2182,6 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
                     Flow::Next(v) => last = v,
                 }
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
-                    break;
-                }
-                iter += 1;
-                if iter > 10_000 {
                     break;
                 }
             }
@@ -2083,12 +2194,11 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
                 Ok(())
             })?;
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
                     break;
                 }
-                iter += 1;
                 match run_stmts(ctx, body)? {
                     Flow::Break(l) if flow_break_matches(&l, Some(label)) => break,
                     Flow::Break(l) => return Ok(Flow::Break(l)),
@@ -2103,15 +2213,16 @@ fn exec_labeled(ctx: &Kv8Context, name: String, inner: &Stmt) -> Result<Flow, St
                     inner.scope_current_mut().insert(var.clone(), step_v);
                     Ok(())
                 })?;
-                if iter > 10_000 {
-                    break;
-                }
             }
             Ok(Flow::Next(last))
         }
         Stmt::ForIn(lv, iterable, body) => {
             let obj = eval_expr(ctx, iterable.clone())?;
-            let keys = for_in_keys(&obj);
+            let keys = if matches!(&obj, Kv8Value::Obj(m) if is_kv8_array(&Kv8Value::Obj(m.clone()))) {
+                for_in_keys(&obj)
+            } else {
+                object_own_keys(ctx, &obj)
+            };
             let mut last = Kv8Value::Undefined;
             for key in keys {
                 assign_lvalue(ctx, lv.clone(), Kv8Value::Str(key))?;
@@ -2187,10 +2298,7 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
     match stmt {
         Stmt::Var(name, expr) | Stmt::Let(name, expr) => {
             let val = eval_expr(ctx, expr.clone())?;
-            ctx.with_mut(|inner| {
-                inner.scope_current_mut().insert(name.clone(), val.clone());
-                Ok(())
-            })?;
+            assign_closure_aware_name(ctx, name.clone(), val.clone())?;
             Ok(Flow::Next(val))
         }
         Stmt::Assign(lv, expr) => {
@@ -2205,8 +2313,8 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
         Stmt::Block(stmts) => run_stmts(ctx, stmts),
         Stmt::DoWhile(body, cond) => {
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 match run_stmts(ctx, body)? {
                     Flow::Break(l) if flow_break_matches(&l, None) => break,
                     Flow::Break(l) => return Ok(Flow::Break(l)),
@@ -2217,10 +2325,6 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
                     Flow::Next(v) => last = v,
                 }
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
-                    break;
-                }
-                iter += 1;
-                if iter > 10_000 {
                     break;
                 }
             }
@@ -2251,6 +2355,7 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
             collect_vars_stmts(body, &mut body_refs);
             body_refs.insert(var.clone());
             loop {
+                ctx.bump_eval_ops()?;
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
                     break;
                 }
@@ -2289,16 +2394,13 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
                     inner.scope_current_mut().insert(var.clone(), step_v);
                     Ok(())
                 })?;
-                if iter > 10_000 {
-                    break;
-                }
             }
             Ok(Flow::Next(last))
         }
         Stmt::While(cond, body) => {
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 if !eval_expr(ctx, cond.clone())?.is_truthy() {
                     break;
                 }
@@ -2310,10 +2412,6 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
                     Flow::Return(v) => return Ok(Flow::Return(v)),
                     Flow::Throw(v) => return Ok(Flow::Throw(v)),
                     Flow::Next(v) => last = v,
-                }
-                iter += 1;
-                if iter > 10_000 {
-                    break;
                 }
             }
             Ok(Flow::Next(last))
@@ -2345,14 +2443,13 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
         Stmt::ForClassic(init, cond, update, body) => {
             run_stmts(ctx, &init)?;
             let mut last = Kv8Value::Undefined;
-            let mut iter = 0u64;
             loop {
+                ctx.bump_eval_ops()?;
                 if let Some(c) = &cond {
                     if !eval_expr(ctx, c.clone())?.is_truthy() {
                         break;
                     }
                 }
-                iter += 1;
                 match run_stmts(ctx, &body)? {
                     Flow::Break(l) if flow_break_matches(&l, None) => break,
                     Flow::Break(l) => return Ok(Flow::Break(l)),
@@ -2365,15 +2462,16 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
                 if let Some(u) = update {
                     eval_expr(ctx, u.clone())?;
                 }
-                if iter > 10_000 {
-                    break;
-                }
             }
             Ok(Flow::Next(last))
         }
         Stmt::ForIn(lv, iterable, body) => {
             let obj = eval_expr(ctx, iterable.clone())?;
-            let keys = for_in_keys(&obj);
+            let keys = if matches!(&obj, Kv8Value::Obj(m) if is_kv8_array(&Kv8Value::Obj(m.clone()))) {
+                for_in_keys(&obj)
+            } else {
+                object_own_keys(ctx, &obj)
+            };
             let mut last = Kv8Value::Undefined;
             for key in keys {
                 assign_lvalue(ctx, lv.clone(), Kv8Value::Str(key))?;
@@ -2484,13 +2582,58 @@ fn exec_stmt(ctx: &Kv8Context, stmt: &Stmt) -> Result<Flow, String> {
                 Ok(Flow::Next(Kv8Value::Undefined))
             })
         }
+        Stmt::Class { name, superclass, methods } => {
+            let cls = build_class(ctx, name, superclass, methods)?;
+            ctx.with_mut(|inner| {
+                inner.scope_current_mut().insert(name.clone(), cls);
+                Ok(Flow::Next(Kv8Value::Undefined))
+            })
+        }
     }
 }
 
+fn build_class(
+    ctx: &Kv8Context,
+    name: &str,
+    superclass: &Option<String>,
+    methods: &[ClassMethod],
+) -> Result<Kv8Value, String> {
+    let mut cls_map: HashMap<String, Kv8Value> = HashMap::new();
+    cls_map.insert("__native".into(), Kv8Value::Str("class".into()));
+    cls_map.insert("__class_name".into(), Kv8Value::Str(name.to_string()));
+
+    if let Some(sup_name) = superclass {
+        let sup = ctx
+            .with_mut(|inner| Ok(inner.scope_get(sup_name)))?
+            .ok_or_else(|| format!("superclass '{}' is not defined", sup_name))?;
+        cls_map.insert("__superclass".into(), sup);
+    }
+
+    for m in methods {
+        let fun = if m.is_async {
+            new_async_fun(ctx, m.params.clone(), m.body.clone())?
+        } else {
+            new_fun(ctx, m.params.clone(), m.body.clone())?
+        };
+        if m.is_static {
+            cls_map.insert(format!("__static__{}", m.name), fun);
+        } else if m.is_getter {
+            cls_map.insert(format!("__getter__{}", m.name), fun);
+        } else if m.is_setter {
+            cls_map.insert(format!("__setter__{}", m.name), fun);
+        } else {
+            cls_map.insert(m.name.clone(), fun);
+        }
+    }
+
+    Ok(Kv8Value::Obj(cls_map))
+}
+
 fn run_stmts(ctx: &Kv8Context, stmts: &[Stmt]) -> Result<Flow, String> {
+    let stmts_arc = std::sync::Arc::new(stmts.to_vec());
     ctx.with_mut(|inner| {
         inner.exec_stmts_stack.push(super::context::ExecStmtsFrame {
-            stmts: stmts.to_vec(),
+            stmts: stmts_arc.clone(),
             index: 0,
         });
         Ok(())
@@ -2504,6 +2647,7 @@ fn run_stmts(ctx: &Kv8Context, stmts: &[Stmt]) -> Result<Flow, String> {
                 }
                 Ok(())
             })?;
+            ctx.bump_eval_ops()?;
             match exec_stmt(ctx, s)? {
                 Flow::Next(v) => last = v,
                 other => return Ok(other),
@@ -2518,13 +2662,36 @@ fn run_stmts(ctx: &Kv8Context, stmts: &[Stmt]) -> Result<Flow, String> {
     result
 }
 
-fn new_fun(ctx: &Kv8Context, params: Vec<Kv8Param>, body: Vec<Stmt>) -> Result<Kv8Value, String> {
-    let closure = ctx.with_mut(|inner| Ok(inner.capture_lexical_env()))?;
+fn new_closure_env(
+    ctx: &Kv8Context,
+    free: &std::collections::HashSet<String>,
+) -> Result<super::context::Kv8ClosureEnv, String> {
+    let map = ctx.with_mut(|inner| Ok(inner.capture_lexical_env_for(free)))?;
+    Ok(std::sync::Arc::new(std::sync::Mutex::new(map)))
+}
+
+fn new_hoisted_fun(
+    _ctx: &Kv8Context,
+    params: Vec<Kv8Param>,
+    body: Vec<Stmt>,
+) -> Result<Kv8Value, String> {
+    // Hoisted `function f(){}` shares the enclosing scope; do not snapshot outer
+    // `var` slots into the closure (they may still be undefined at hoist time).
     Ok(Kv8Value::Fun {
         params,
         body,
         prototype: HashMap::new(),
-        closure,
+        closure: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
+    })
+}
+
+fn new_fun(ctx: &Kv8Context, params: Vec<Kv8Param>, body: Vec<Stmt>) -> Result<Kv8Value, String> {
+    let free = opt::free_names_for_function(&params, &body);
+    Ok(Kv8Value::Fun {
+        params,
+        body,
+        prototype: HashMap::new(),
+        closure: new_closure_env(ctx, &free)?,
     })
 }
 
@@ -2533,21 +2700,21 @@ fn new_async_fun(
     params: Vec<Kv8Param>,
     body: Vec<Stmt>,
 ) -> Result<Kv8Value, String> {
-    let closure = ctx.with_mut(|inner| Ok(inner.capture_lexical_env()))?;
+    let free = opt::free_names_for_function(&params, &body);
     Ok(Kv8Value::AsyncFun {
         params,
         body,
         prototype: HashMap::new(),
-        closure,
+        closure: new_closure_env(ctx, &free)?,
     })
 }
 
 fn new_arrow(ctx: &Kv8Context, params: Vec<Kv8Param>, body: Box<Expr>) -> Result<Kv8Value, String> {
-    let closure = ctx.with_mut(|inner| Ok(inner.capture_lexical_env()))?;
+    let free = opt::free_names_for_expr(&params, body.as_ref());
     Ok(Kv8Value::Arrow {
         params,
         body,
-        closure,
+        closure: new_closure_env(ctx, &free)?,
     })
 }
 
@@ -2579,23 +2746,115 @@ fn kv8_values_shallow_eq(a: &Kv8Value, b: &Kv8Value) -> bool {
     }
 }
 
-fn bind_closure_env(ctx: &Kv8Context, closure: &HashMap<String, Kv8Value>) -> Result<(), String> {
-    if closure.is_empty() {
+fn assign_closure_aware_name(
+    ctx: &Kv8Context,
+    name: String,
+    val: Kv8Value,
+) -> Result<(), String> {
+    ctx.with_mut(|inner| {
+        let persist = inner.closure_assign_active(&name);
+        if persist {
+            if let Some(env) = inner.closure_env_stack.last() {
+                if let Ok(mut map) = env.lock() {
+                    map.insert(name.clone(), val.clone());
+                }
+            }
+        }
+        if let Some(cell) = inner.scope_resolve_mut(&name) {
+            *cell = val.clone();
+        } else if persist {
+            inner.scope_current_mut().insert(name.clone(), val.clone());
+        } else {
+            inner.scope_current_mut().insert(name, val);
+        }
+        Ok(())
+    })
+}
+
+fn resolve_live_hoist(inner: &Kv8ContextInner, name: &str) -> Option<Kv8Value> {
+    if inner.hoists_finalized {
+        if let Some(v) = inner.hoist_latest.get(name) {
+            if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                return Some(v.clone());
+            }
+        }
+    }
+    inner
+        .scope_stack
+        .iter()
+        .rev()
+        .skip(1)
+        .find_map(|frame| {
+            frame.get(name).and_then(|v| {
+                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
+            inner.module_bindings.get(name).and_then(|v| {
+                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+        })
+}
+
+fn bind_closure_env(
+    ctx: &Kv8Context,
+    closure: &super::context::Kv8ClosureEnv,
+    strict: bool,
+) -> Result<(), String> {
+    let snapshot: Vec<(String, Kv8Value)> = closure
+        .lock()
+        .map_err(|e| format!("closure lock poisoned: {e}"))?
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    if snapshot.is_empty() {
         return Ok(());
     }
+    let closure_keys: std::collections::HashSet<String> =
+        snapshot.iter().map(|(k, _)| k.clone()).collect();
     ctx.with_mut(|inner| {
-        let to_bind: Vec<(String, Kv8Value)> = closure
-            .iter()
-            .filter(|(k, v)| {
-                !matches!(v, Kv8Value::Undefined)
-                    && closure_snapshot_differs_from_outer(inner, k, v)
+        let to_bind: Vec<(String, Kv8Value)> = snapshot
+            .into_iter()
+            .filter(|(k, _v)| {
+                let outer_lex = inner.scope_get_outer_lexical(k);
+                if !strict {
+                    if matches!(
+                        outer_lex,
+                        Some(Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. })
+                    ) {
+                        return false;
+                    }
+                }
+                if strict {
+                    let existing = inner.scope_stack.last().and_then(|f| f.get(k.as_str()));
+                    !matches!(existing, Some(v) if !matches!(v, Kv8Value::Undefined))
+                } else if closure_keys.contains(k) {
+                    matches!(outer_lex, None | Some(Kv8Value::Undefined))
+                } else {
+                    inner.scope_get_outer(k).is_none()
+                }
             })
-            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let live_hoists: Vec<(String, Kv8Value)> = closure_keys
+            .iter()
+            .filter_map(|k| resolve_live_hoist(inner, k).map(|v| (k.clone(), v)))
             .collect();
         let frame = inner.scope_current_mut();
         for (k, v) in to_bind {
             frame.insert(k, v);
         }
+        for (k, v) in live_hoists {
+            frame.insert(k, v);
+        }
+        frame.insert("__is_closure_frame__".into(), Kv8Value::Bool(true));
         Ok(())
     })
 }
@@ -2734,14 +2993,7 @@ fn assign_lvalue(ctx: &Kv8Context, lv: LValue, val: Kv8Value) -> Result<(), Stri
             let key = index_to_key(&eval_expr(ctx, (*index_expr).clone())?);
             write_this_index(ctx, &key, val)
         }
-        LValue::Name(name) => ctx.with_mut(|inner| {
-            if let Some(cell) = inner.scope_resolve_mut(&name) {
-                *cell = val;
-            } else {
-                inner.scope_current_mut().insert(name, val);
-            }
-            Ok(())
-        }),
+        LValue::Name(name) => assign_closure_aware_name(ctx, name, val),
         LValue::Member(base, field) if matches!(base.as_ref(), LValue::Name(_)) && field == "prototype" => {
             let LValue::Name(var) = base.as_ref() else {
                 unreachable!()
@@ -2837,31 +3089,10 @@ fn assign_lvalue(ctx: &Kv8Context, lv: LValue, val: Kv8Value) -> Result<(), Stri
         }
         LValue::Index(base, index_expr) => {
             let key = index_to_key(&eval_expr(ctx, (*index_expr).clone())?);
+            if let LValue::Name(var) = base.as_ref() {
+                return assign_index_on_name(ctx, var, &key, val);
+            }
             match base.as_ref() {
-                LValue::Name(var) => ctx.with_mut(|inner| {
-                    let cell = inner
-                        .scope_resolve_mut(var)
-                        .ok_or_else(|| format!("cannot assign to undefined {var}"))?;
-                    match cell {
-                        Kv8Value::Obj(m) => {
-                            set_index_on_obj(m, &key, val);
-                            Ok(())
-                        }
-                        Kv8Value::Dom(node) => {
-                            let id = node.id;
-                            inner
-                                .dom_expandos
-                                .entry(id)
-                                .or_default()
-                                .insert(key, val);
-                            Ok(())
-                        }
-                        _ => Err(format!(
-                            "cannot assign index on non-object ({var}={})",
-                            callee_debug_hint(cell)
-                        )),
-                    }
-                }),
                 other => {
                     let parent = read_lvalue(ctx, other)?;
                     match parent {
@@ -3028,17 +3259,7 @@ fn assign_expr_member(
         return set_global_prop(ctx, field, val);
     }
     if let Expr::Var(name) = base {
-        return ctx.with_mut(|inner| {
-            let cell = inner
-                .scope_resolve_mut(name)
-                .ok_or_else(|| format!("cannot assign to undefined {name}"))?;
-            if let Kv8Value::Obj(m) = cell {
-                m.insert(field.to_string(), val);
-                Ok(())
-            } else {
-                Err("cannot assign to member of non-object".into())
-            }
-        });
+        return assign_scope_var_member(ctx, name, field, val);
     }
     let parent = eval_expr(ctx, base.clone())?;
     set_prop_on_value(ctx, &parent, field, val)
@@ -3104,36 +3325,42 @@ fn eval_lvalue_as_obj(ctx: &Kv8Context, lv: LValue) -> Result<Kv8Value, String> 
 }
 
 fn write_this_member(ctx: &Kv8Context, field: &str, val: Kv8Value) -> Result<(), String> {
-    ctx.with_mut(|inner| {
-        let this = inner
+    let this_val = ctx.with_mut(|inner| {
+        inner
             .this_stack
-            .last_mut()
-            .ok_or("no this binding")?;
-        match this {
-            Kv8Value::Obj(m) => {
-                if let Some(id) = plain_obj_id(m) {
+            .last()
+            .cloned()
+            .ok_or("no this binding".to_string())
+    })?;
+    match this_val {
+        Kv8Value::Obj(mut m) => {
+            if let Some(id) = plain_obj_id(&m) {
+                ctx.with_mut(|inner| {
                     inner
                         .obj_store
                         .entry(id)
                         .or_default()
                         .insert(field.to_string(), val);
-                } else {
-                    m.insert(field.to_string(), val);
-                }
-                Ok(())
+                    Ok(())
+                })?;
+            } else {
+                m.insert(field.to_string(), val);
             }
-            Kv8Value::Dom(node) => {
-                let id = node.id;
+            Ok(())
+        }
+        Kv8Value::Dom(node) => {
+            let id = node.id;
+            ctx.with_mut(|inner| {
                 inner
                     .dom_expandos
                     .entry(id)
                     .or_default()
                     .insert(field.to_string(), val);
                 Ok(())
-            }
-            _ => Err("cannot set property on this".into()),
+            })
         }
-    })
+        _ => Err("cannot set property on this".into()),
+    }
 }
 
 fn write_this_index(ctx: &Kv8Context, key: &str, val: Kv8Value) -> Result<(), String> {
@@ -3377,7 +3604,7 @@ fn eval_expr(ctx: &Kv8Context, expr: Expr) -> Result<Kv8Value, String> {
                 match k {
                     ObjectEntryKey::Spread(expr) => {
                         if let Kv8Value::Obj(m) = eval_expr(ctx, expr)? {
-                            for (pk, pv) in m {
+                            for (pk, pv) in object_spread_entries(ctx, &m)? {
                                 map.insert(pk, pv);
                             }
                         }
@@ -3766,7 +3993,7 @@ fn object_property_get(
         if let Some(value) = desc.get("value") {
             return Ok(Some(value.clone()));
         }
-        return Ok(Some(Kv8Value::Undefined));
+        return Ok(None);
     }
     if let Some(id) = plain_obj_id(map) {
         let v = obj_store_get(ctx, id, field)?;
@@ -3874,6 +4101,72 @@ fn object_get_own_property_descriptor(
     Ok(Kv8Value::Obj(desc))
 }
 
+fn object_spread_entries(
+    ctx: &Kv8Context,
+    map: &HashMap<String, Kv8Value>,
+) -> Result<Vec<(String, Kv8Value)>, String> {
+    let mut out = Vec::new();
+    for (k, v) in map {
+        if is_object_own_key(k) {
+            out.push((k.clone(), v.clone()));
+        }
+    }
+    if let Some(id) = plain_obj_id(map) {
+        let keys = ctx.with_mut(|inner| {
+            Ok(inner
+                .obj_store
+                .get(&id)
+                .map(|store| {
+                    store
+                        .keys()
+                        .filter(|k| is_object_own_key(k) && !k.starts_with("__desc__:"))
+                        .cloned()
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default())
+        })?;
+        for k in keys {
+            if out.iter().any(|(pk, _)| pk == &k) {
+                continue;
+            }
+            let v = obj_store_get(ctx, id, &k)?;
+            if !matches!(v, Kv8Value::Undefined) {
+                out.push((k, v));
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn object_own_keys(ctx: &Kv8Context, obj: &Kv8Value) -> Vec<String> {
+    let Kv8Value::Obj(map) = obj else {
+        return vec![];
+    };
+    let mut keys: Vec<String> = map
+        .keys()
+        .filter(|k| is_object_own_key(k))
+        .cloned()
+        .collect();
+    if let Some(id) = plain_obj_id(map) {
+        let _ = ctx.with_mut(|inner| {
+            if let Some(store) = inner.obj_store.get(&id) {
+                for k in store.keys() {
+                    if let Some(prop) = k.strip_prefix("__desc__:") {
+                        if !keys.contains(&prop.to_string()) {
+                            keys.push(prop.to_string());
+                        }
+                    } else if is_object_own_key(k) && !keys.contains(k) {
+                        keys.push(k.clone());
+                    }
+                }
+            }
+            Ok(())
+        });
+    }
+    keys.sort();
+    keys
+}
+
 fn object_own_property_names(
     ctx: &Kv8Context,
     obj: Kv8Value,
@@ -3937,6 +4230,16 @@ fn object_namespace(ctx: &Kv8Context) -> Kv8Value {
         "getPrototypeOf".into(),
         object_static_method("Object.getPrototypeOf"),
     );
+    m.insert("keys".into(), object_static_method("Object.keys"));
+    m.insert("values".into(), object_static_method("Object.values"));
+    m.insert("entries".into(), object_static_method("Object.entries"));
+    m.insert(
+        "fromEntries".into(),
+        object_static_method("Object.fromEntries"),
+    );
+    m.insert("freeze".into(), object_static_method("Object.freeze"));
+    m.insert("isFrozen".into(), object_static_method("Object.isFrozen"));
+    m.insert("is".into(), object_static_method("Object.is"));
     let _ = ctx;
     Kv8Value::Obj(m)
 }
@@ -4052,6 +4355,17 @@ fn member_get(ctx: &Kv8Context, obj: Kv8Value, field: &str) -> Result<Kv8Value, 
                     return Ok(regexp_method("test"));
                 }
             }
+            if matches!(field, "bind" | "call" | "apply") {
+                if map.get("__native").is_some() || is_kv8_callable(&Kv8Value::Obj(map.clone())) {
+                    let mut bm = HashMap::new();
+                    bm.insert(
+                        "__native".into(),
+                        Kv8Value::Str(format!("Function.{field}")),
+                    );
+                    bm.insert("__fn__".into(), Kv8Value::Obj(map.clone()));
+                    return Ok(Kv8Value::Obj(bm));
+                }
+            }
             if let Some(id) = plain_obj_id(&map) {
                 if let Ok(Some(v)) = object_property_get(ctx, &map, field) {
                     return Ok(v);
@@ -4059,6 +4373,11 @@ fn member_get(ctx: &Kv8Context, obj: Kv8Value, field: &str) -> Result<Kv8Value, 
                 let _ = id;
             }
             Ok(map.get(field).cloned().unwrap_or_else(|| {
+                if map.get("__native").and_then(|v| v.as_str()) == Some("class") {
+                    if let Some(v) = map.get(&format!("__static__{}", field)) {
+                        return v.clone();
+                    }
+                }
                 map.get("__proto__")
                     .and_then(|p| p.as_obj())
                     .and_then(|proto| proto.get(field))
@@ -4081,13 +4400,27 @@ fn member_get(ctx: &Kv8Context, obj: Kv8Value, field: &str) -> Result<Kv8Value, 
             "catch" => Ok(promise_method("catch", p)),
             _ => Ok(Kv8Value::Undefined),
         },
-        Kv8Value::Fun { prototype, .. } | Kv8Value::AsyncFun { prototype, .. } => {
-            if field == "prototype" {
-                Ok(Kv8Value::Obj(prototype.clone()))
-            } else {
-                Ok(Kv8Value::Undefined)
+        Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. } => match field {
+            "prototype" => {
+                if let Kv8Value::Fun { prototype, .. } | Kv8Value::AsyncFun { prototype, .. } =
+                    &obj
+                {
+                    Ok(Kv8Value::Obj(prototype.clone()))
+                } else {
+                    Ok(Kv8Value::Undefined)
+                }
             }
-        }
+            "bind" | "call" | "apply" => {
+                let mut m = HashMap::new();
+                m.insert(
+                    "__native".into(),
+                    Kv8Value::Str(format!("Function.{field}")),
+                );
+                m.insert("__fn__".into(), obj);
+                Ok(Kv8Value::Obj(m))
+            }
+            _ => Ok(Kv8Value::Undefined),
+        },
         Kv8Value::Num(_) => match field {
             "toString" => Ok(number_method("toString")),
             _ => Ok(Kv8Value::Undefined),
@@ -4209,16 +4542,46 @@ fn format_call_error(ctx: &Kv8Context, msg: String) -> String {
 fn hoist_function_vars(ctx: &Kv8Context, body: &[Stmt]) -> Result<(), String> {
     let mut names = HashSet::new();
     opt::collect_var_hoists(body, &mut names);
-    if names.is_empty() {
+    let fn_decls = opt::collect_fn_decls(body);
+    if names.is_empty() && fn_decls.is_empty() {
         return Ok(());
     }
+    // Hoist var names as Undefined slots first.
     ctx.with_mut(|inner| {
         let frame = inner.scope_current_mut();
-        for name in names {
-            frame.entry(name).or_insert(Kv8Value::Undefined);
+        for name in &names {
+            frame.entry(name.clone()).or_insert(Kv8Value::Undefined);
         }
         Ok(())
-    })
+    })?;
+    // Hoist function declarations as Fun values (JS function hoisting semantics).
+    // Track hoisted names in __hoisted_fns__ so scope_pop_preserve knows not to
+    // promote them to module_bindings (they are local to this function).
+    if !fn_decls.is_empty() {
+        let mut hoisted_names: Vec<String> = Vec::new();
+        for (name, params, fn_body) in fn_decls {
+            let fun = new_hoisted_fun(ctx, params, fn_body)?;
+            ctx.with_mut(|inner| {
+                inner.scope_current_mut().insert(name.clone(), fun);
+                Ok(())
+            })?;
+            hoisted_names.push(name);
+        }
+        ctx.with_mut(|inner| {
+            let existing = inner.scope_stack.last()
+                .and_then(|f| f.get("__hoisted_fns__"))
+                .and_then(|v| if let Kv8Value::Str(s) = v { Some(s.clone()) } else { None })
+                .unwrap_or_default();
+            let merged = if existing.is_empty() {
+                hoisted_names.join(",")
+            } else {
+                format!("{},{}", existing, hoisted_names.join(","))
+            };
+            inner.scope_current_mut().insert("__hoisted_fns__".into(), Kv8Value::Str(merged));
+            Ok(())
+        })?;
+    }
+    Ok(())
 }
 
 fn call_value_with_this(
@@ -4227,36 +4590,54 @@ fn call_value_with_this(
     args: Vec<Kv8Value>,
     this_receiver: Option<Kv8Value>,
 ) -> Result<Kv8Value, String> {
-    let this_val = this_receiver.unwrap_or(Kv8Value::Undefined);
+    let is_class_call = this_receiver.is_none()
+        && callee
+            .as_obj()
+            .and_then(|m| m.get("__native"))
+            .and_then(|v| v.as_str())
+            == Some("class");
+    let this_val = if is_class_call {
+        current_this(ctx).unwrap_or(Kv8Value::Undefined)
+    } else {
+        this_receiver.unwrap_or(Kv8Value::Undefined)
+    };
     let isolate_scope = matches!(
         &callee,
         Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }
     );
-    if isolate_scope {
+    let closure_env = match &callee {
+        Kv8Value::Fun { closure, .. } | Kv8Value::AsyncFun { closure, .. } => {
+            Some(std::sync::Arc::clone(closure))
+        }
+        _ => None,
+    };
+    let _scope_guard = if isolate_scope {
         ctx.with_mut(|inner| {
             inner.scope_push();
             Ok(())
         })?;
+        Some(ScopeGuard {
+            ctx,
+            preserve: true,
+            exit_closure: false,
+        })
+    } else {
+        None
+    };
+    if isolate_scope {
         if let Kv8Value::Fun { body, .. } | Kv8Value::AsyncFun { body, .. } = &callee {
             hoist_function_vars(ctx, body)?;
         }
-        match &callee {
-            Kv8Value::Fun { closure, .. } | Kv8Value::AsyncFun { closure, .. } => {
-                bind_closure_env(ctx, &closure)?;
-            }
-            _ => {}
+        if let Some(env) = &closure_env {
+            ctx.with_mut(|inner| {
+                inner.closure_call_enter(std::sync::Arc::clone(env));
+                Ok(())
+            })?;
+            bind_closure_env(ctx, env, false)?;
         }
     }
-    push_this(ctx, this_val)?;
-    let result = call_value_inner(ctx, callee, args);
-    pop_this(ctx)?;
-    if isolate_scope {
-        ctx.with_mut(|inner| {
-            inner.scope_pop_preserve();
-            Ok(())
-        })?;
-    }
-    result
+    let _this_guard = ThisGuard::push(ctx, this_val)?;
+    call_value_inner(ctx, callee, args)
 }
 
 fn bind_function_params(
@@ -4265,9 +4646,10 @@ fn bind_function_params(
     args: &[Kv8Value],
 ) -> Result<(), String> {
     ctx.with_mut(|inner| {
-        inner
-            .scope_current_mut()
-            .insert("arguments".into(), array_from_values(args.to_vec()));
+        let frame = inner.scope_current_mut();
+        frame.insert("arguments".into(), array_from_values(args.to_vec()));
+        let param_names: String = params.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(",");
+        frame.insert("__params__".into(), Kv8Value::Str(param_names));
         Ok(())
     })?;
     for (i, (name, default)) in params.iter().enumerate() {
@@ -4340,11 +4722,17 @@ fn call_value_inner(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> 
         Kv8Value::Arrow { params, body, closure } => {
             ctx.with_mut(|inner| {
                 inner.scope_push();
+                inner.closure_call_enter(std::sync::Arc::clone(&closure));
                 Ok(())
             })?;
-            bind_closure_env(ctx, &closure)?;
+            let _scope_guard = ScopeGuard {
+                ctx,
+                preserve: false,
+                exit_closure: true,
+            };
+            bind_closure_env(ctx, &closure, false)?;
             bind_function_params(ctx, &params, &args)?;
-            let result = match body.as_ref() {
+            match body.as_ref() {
                 Expr::Block(stmts) => flow_fn_result(run_stmts(ctx, stmts)?),
                 expr => {
                     let key = opt::arrow_cache_key(&params, expr);
@@ -4367,12 +4755,7 @@ fn call_value_inner(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> 
                     let out = run_kv8_bytecode_fn(&compiled, kabootar_args, &mut env)?;
                     Ok(kabootar_to_kv8(out))
                 }
-            };
-            ctx.with_mut(|inner| {
-                inner.scope_pop();
-                Ok(())
-            })?;
-            result
+            }
         }
         Kv8Value::Obj(_) => call_native(ctx, callee, args),
         other => Err(format!("value is not callable: {}", callee_debug_hint(&other))),
@@ -4395,6 +4778,21 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
         Ok(())
     })?;
     match native.as_str() {
+        "class" => {
+            let methods = collect_class_methods(&m);
+            if let Some(Kv8Value::Fun { params, body, .. }) = methods.get("constructor").cloned() {
+                ctx.with_mut(|inner| { inner.scope_push(); Ok(()) })?;
+                let _scope_guard = ScopeGuard {
+                    ctx,
+                    preserve: false,
+                    exit_closure: false,
+                };
+                bind_function_params(ctx, &params, &args)?;
+                flow_fn_result(run_stmts(ctx, &body)?)
+            } else {
+                Ok(Kv8Value::Undefined)
+            }
+        }
         "bound.call" => {
             let target = m
                 .get("__target")
@@ -5400,14 +5798,40 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                 .cloned()
                 .unwrap_or_else(|| Kv8Value::Obj(HashMap::new()));
             if let Kv8Value::Obj(ref mut t) = target {
+                let target_id = plain_obj_id(t);
+                let mut to_write: Vec<(String, Kv8Value)> = Vec::new();
                 for src in args.iter().skip(1) {
                     if let Kv8Value::Obj(src_m) = src {
                         for (k, v) in src_m {
                             if !k.starts_with("__") {
                                 t.insert(k.clone(), v.clone());
+                                to_write.push((k.clone(), v.clone()));
+                            }
+                        }
+                        if let Some(src_id) = plain_obj_id(src_m) {
+                            if let Ok(store_props) = ctx.with_mut(|inner| {
+                                Ok(inner.obj_store.get(&src_id).cloned().unwrap_or_default())
+                            }) {
+                                for (k, v) in store_props {
+                                    if k.starts_with("__desc__:") {
+                                        to_write.push((k, v));
+                                    } else if !k.starts_with("__") {
+                                        t.insert(k.clone(), v.clone());
+                                        to_write.push((k, v));
+                                    }
+                                }
                             }
                         }
                     }
+                }
+                if let Some(tid) = target_id {
+                    let _ = ctx.with_mut(|inner| {
+                        let store = inner.obj_store.entry(tid).or_default();
+                        for (k, v) in &to_write {
+                            store.insert(k.clone(), v.clone());
+                        }
+                        Ok(())
+                    });
                 }
             }
             Ok(target)
@@ -5459,6 +5883,71 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                 .unwrap_or(Kv8Value::Undefined);
             object_get_prototype_of(obj)
         }
+        "Object.keys" => {
+            let obj = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let keys = if matches!(&obj, Kv8Value::Obj(m) if is_kv8_array(&Kv8Value::Obj(m.clone()))) {
+                for_in_keys(&obj)
+            } else {
+                object_own_keys(ctx, &obj)
+            };
+            Ok(array_from_values(keys.into_iter().map(Kv8Value::Str).collect()))
+        }
+        "Object.values" => {
+            let obj = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let keys = if matches!(&obj, Kv8Value::Obj(m) if is_kv8_array(&Kv8Value::Obj(m.clone()))) {
+                for_in_keys(&obj)
+            } else {
+                object_own_keys(ctx, &obj)
+            };
+            let vals: Vec<Kv8Value> = keys
+                .into_iter()
+                .map(|k| member_get(ctx, obj.clone(), &k).unwrap_or(Kv8Value::Undefined))
+                .collect();
+            Ok(array_from_values(vals))
+        }
+        "Object.entries" => {
+            let obj = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let keys = if matches!(&obj, Kv8Value::Obj(m) if is_kv8_array(&Kv8Value::Obj(m.clone()))) {
+                for_in_keys(&obj)
+            } else {
+                object_own_keys(ctx, &obj)
+            };
+            let pairs: Vec<Kv8Value> = keys
+                .into_iter()
+                .map(|k| {
+                    let v = member_get(ctx, obj.clone(), &k).unwrap_or(Kv8Value::Undefined);
+                    array_from_values(vec![Kv8Value::Str(k), v])
+                })
+                .collect();
+            Ok(array_from_values(pairs))
+        }
+        "Object.fromEntries" => {
+            let iter = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let mut map = HashMap::new();
+            if let Kv8Value::Obj(m) = &iter {
+                let vals = array_values_of(&Kv8Value::Obj(m.clone()));
+                for pair in vals {
+                    if let Kv8Value::Obj(pm) = &pair {
+                        let pv = array_values_of(&Kv8Value::Obj(pm.clone()));
+                        if let (Some(Kv8Value::Str(k)), Some(v)) = (pv.first(), pv.get(1)) {
+                            map.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+            }
+            Ok(Kv8Value::Obj(map))
+        }
+        "Object.freeze" => {
+            Ok(args.first().cloned().unwrap_or(Kv8Value::Undefined))
+        }
+        "Object.isFrozen" => {
+            Ok(Kv8Value::Bool(false))
+        }
+        "Object.is" => {
+            let a = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let b = args.get(1).cloned().unwrap_or(Kv8Value::Undefined);
+            Ok(Kv8Value::Bool(kv8_strict_eq(&a, &b)))
+        }
         "Object.prototype.hasOwnProperty" => {
             let obj = current_this(ctx)?;
             let key = args.first().and_then(|v| v.as_str()).unwrap_or("");
@@ -5484,6 +5973,53 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                 _ => false,
             };
             Ok(Kv8Value::Bool(has))
+        }
+        "Function.bind" => {
+            let fn_val = m.get("__fn__").cloned().unwrap_or(Kv8Value::Undefined);
+            let this_arg = args.first().cloned().unwrap_or(Kv8Value::Undefined);
+            let prefix_args: Vec<Kv8Value> = args.into_iter().skip(1).collect();
+            let mut bm = HashMap::new();
+            bm.insert("__native".into(), Kv8Value::Str("BoundFn".into()));
+            bm.insert("__fn__".into(), fn_val);
+            bm.insert("__this__".into(), this_arg);
+            bm.insert(
+                "__prefix_args__".into(),
+                array_from_values(prefix_args),
+            );
+            Ok(Kv8Value::Obj(bm))
+        }
+        "Function.call" => {
+            let fn_val = m.get("__fn__").cloned().unwrap_or(Kv8Value::Undefined);
+            let this_arg = args.first().cloned();
+            let call_args: Vec<Kv8Value> = args.into_iter().skip(1).collect();
+            call_value_with_this(ctx, fn_val, call_args, this_arg)
+        }
+        "Function.apply" => {
+            let fn_val = m.get("__fn__").cloned().unwrap_or(Kv8Value::Undefined);
+            let this_arg = args.first().cloned();
+            let call_args = if let Some(arr) = args.get(1) {
+                array_values_of(arr)
+            } else {
+                vec![]
+            };
+            call_value_with_this(ctx, fn_val, call_args, this_arg)
+        }
+        "BoundFn" => {
+            let fn_val = m.get("__fn__").cloned().unwrap_or(Kv8Value::Undefined);
+            let this_arg = m.get("__this__").cloned().unwrap_or(Kv8Value::Undefined);
+            let prefix = m
+                .get("__prefix_args__")
+                .cloned()
+                .unwrap_or(Kv8Value::Undefined);
+            let prefix_args = array_values_of(&prefix);
+            let mut call_args = prefix_args;
+            call_args.extend(args);
+            let this_opt = if matches!(this_arg, Kv8Value::Null | Kv8Value::Undefined) {
+                None
+            } else {
+                Some(this_arg)
+            };
+            call_value_with_this(ctx, fn_val, call_args, this_opt)
         }
         "Symbol.for" => {
             let key = args.first().and_then(|v| v.as_str()).unwrap_or("");
@@ -5563,7 +6099,10 @@ fn is_kv8_callable(v: &Kv8Value) -> bool {
             .get("__native")
             .and_then(|n| n.as_str())
             .is_some_and(|n| {
-                n == "bound.call"
+                n == "class"
+                    || n == "bound.call"
+                    || n == "BoundFn"
+                    || n.starts_with("Function.")
                     || n.starts_with("element.")
                     || n.starts_with("document.")
                     || n.starts_with("Array.")
@@ -5640,10 +6179,105 @@ fn construct_new(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Res
             m.insert("__pattern".into(), Kv8Value::Str(pattern));
             Ok(Kv8Value::Obj(m))
         }
+        "class" => {
+            let cls_map = match callee {
+                Kv8Value::Obj(m) => m,
+                _ => unreachable!(),
+            };
+            construct_class_new(ctx, cls_map, args)
+        }
         _ => Err(format!(
             "unknown constructor: {}",
             callee_debug_hint(&callee)
         )),
+    }
+}
+
+fn collect_class_methods(cls_map: &HashMap<String, Kv8Value>) -> HashMap<String, Kv8Value> {
+    let mut methods = HashMap::new();
+    if let Some(Kv8Value::Obj(sup_map)) = cls_map.get("__superclass") {
+        let inherited = collect_class_methods(sup_map);
+        for (k, v) in inherited {
+            methods.insert(k, v);
+        }
+    }
+    for (k, v) in cls_map {
+        if k.starts_with("__") {
+            continue;
+        }
+        methods.insert(k.clone(), v.clone());
+    }
+    methods
+}
+
+fn construct_class_new(
+    ctx: &Kv8Context,
+    cls_map: HashMap<String, Kv8Value>,
+    args: Vec<Kv8Value>,
+) -> Result<Kv8Value, String> {
+    let methods = collect_class_methods(&cls_map);
+    let mut instance_map: HashMap<String, Kv8Value> = HashMap::new();
+    instance_map.insert("__class_name".into(), cls_map
+        .get("__class_name")
+        .cloned()
+        .unwrap_or(Kv8Value::Str("Object".into())));
+
+    let proto_methods: HashMap<String, Kv8Value> = methods
+        .iter()
+        .filter(|(k, _)| k.as_str() != "constructor")
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    if !proto_methods.is_empty() {
+        instance_map.insert("__proto__".into(), Kv8Value::Obj(proto_methods));
+    }
+
+    register_plain_obj(ctx, &mut instance_map);
+    let instance = Kv8Value::Obj(instance_map);
+
+    ctx.with_mut(|inner| { inner.scope_push(); Ok(()) })?;
+    let _scope_guard = ScopeGuard {
+        ctx,
+        preserve: false,
+        exit_closure: false,
+    };
+    let _this_guard = ThisGuard::push(ctx, instance.clone())?;
+
+    if let Some(sup_val) = cls_map.get("__superclass").cloned() {
+        ctx.with_mut(|inner| {
+            inner.scope_current_mut().insert("__super__".into(), sup_val);
+            Ok(())
+        })?;
+    }
+
+    let ctor_result = if let Some(ctor) = methods.get("constructor").cloned() {
+        match ctor {
+            Kv8Value::Fun { params, body, .. } => {
+                bind_function_params(ctx, &params, &args)?;
+                flow_fn_result(run_stmts(ctx, &body)?)
+            }
+            _ => Ok(Kv8Value::Undefined),
+        }
+    } else if let Some(Kv8Value::Obj(sup_map)) = cls_map.get("__superclass") {
+        let sup_methods = collect_class_methods(sup_map);
+        if let Some(Kv8Value::Fun { params, body, .. }) = sup_methods.get("constructor").cloned() {
+            bind_function_params(ctx, &params, &args)?;
+            flow_fn_result(run_stmts(ctx, &body)?)
+        } else {
+            Ok(Kv8Value::Undefined)
+        }
+    } else {
+        Ok(Kv8Value::Undefined)
+    };
+
+    let updated_this = current_this(ctx)?;
+    drop(_this_guard);
+    drop(_scope_guard);
+
+    ctor_result?;
+
+    match updated_this {
+        Kv8Value::Obj(_) => Ok(updated_this),
+        _ => Ok(instance),
     }
 }
 
@@ -5669,18 +6303,28 @@ fn construct_function_new(
         inner.scope_push();
         Ok(())
     })?;
-    push_this(ctx, instance.clone())?;
+    let _scope_guard = ScopeGuard {
+        ctx,
+        preserve: false,
+        exit_closure: false,
+    };
+    let _this_guard = ThisGuard::push(ctx, instance.clone())?;
     bind_function_params(ctx, &params, &args)?;
-    let result = flow_fn_result(run_stmts(ctx, &body)?);
-    pop_this(ctx)?;
-    ctx.with_mut(|inner| {
-        inner.scope_pop();
-        Ok(())
-    })?;
-    match result {
-        Ok(Kv8Value::Obj(_)) => result,
-        Ok(_) => Ok(instance),
-        Err(e) => Err(e),
+    let flow = run_stmts(ctx, &body)?;
+    let updated_this = current_this(ctx)?;
+    drop(_this_guard);
+    drop(_scope_guard);
+    match flow {
+        Flow::Throw(v) => Err(kv8_throw_string(&v)),
+        Flow::Break(_) => Err("illegal break".into()),
+        Flow::Continue(_) => Err("illegal continue".into()),
+        // Only an explicit `return <object>` replaces the constructed instance.
+        // The last expression value (e.g. `this.x = arg`) must not shadow `this`.
+        Flow::Return(v) if matches!(v, Kv8Value::Obj(_)) => Ok(v),
+        Flow::Return(_) | Flow::Next(_) => match updated_this {
+            Kv8Value::Obj(_) => Ok(updated_this),
+            _ => Ok(instance),
+        },
     }
 }
 

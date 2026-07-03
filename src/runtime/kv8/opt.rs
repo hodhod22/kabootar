@@ -240,6 +240,7 @@ pub fn stmt_key(stmt: &Stmt) -> String {
             params_key(p),
             b.iter().map(stmt_key).collect::<Vec<_>>().join(";")
         ),
+        Stmt::Class { name, .. } => format!("class {name}{{}}"),
     }
 }
 
@@ -299,11 +300,332 @@ pub fn collect_var_hoists(stmts: &[Stmt], out: &mut HashSet<String>) {
                 }
             }
             Stmt::Label(_, inner) => collect_var_hoists(std::slice::from_ref(inner), out),
-            Stmt::Function(_, _, body) | Stmt::AsyncFunction(_, _, body) => {
-                collect_var_hoists(body, out);
-            }
+            // Do NOT recurse into Stmt::Function/AsyncFunction bodies: `var`
+            // declarations inside a nested function are function-scoped to
+            // *that* function, not the enclosing one.
+            Stmt::Function(_, _, _) | Stmt::AsyncFunction(_, _, _) => {}
             _ => {}
         }
+    }
+}
+
+/// Collect `function name(params){body}` declarations in the enclosing scope
+/// (including inside `Block` / `if` bodies, but not inside nested `function` bodies).
+/// These must be hoisted as Fun values into the enclosing function's frame so
+/// forward references (calling `l` before its declaration) work correctly.
+pub fn collect_fn_decls(stmts: &[Stmt]) -> Vec<(String, Vec<super::ast::Kv8Param>, Vec<Stmt>)> {
+    let mut out = Vec::new();
+    collect_fn_decls_stmts(stmts, &mut out);
+    out
+}
+
+fn collect_fn_decls_stmts(
+    stmts: &[Stmt],
+    out: &mut Vec<(String, Vec<super::ast::Kv8Param>, Vec<Stmt>)>,
+) {
+    for s in stmts {
+        match s {
+            Stmt::Function(name, params, body) => {
+                out.push((name.clone(), params.clone(), body.clone()));
+            }
+            Stmt::AsyncFunction(name, params, body) => {
+                out.push((name.clone(), params.clone(), body.clone()));
+            }
+            Stmt::Block(inner) => collect_fn_decls_stmts(inner, out),
+            Stmt::If(_, then_b, else_b) => {
+                collect_fn_decls_stmts(then_b, out);
+                if let Some(b) = else_b {
+                    collect_fn_decls_stmts(b, out);
+                }
+            }
+            Stmt::For(_, _, _, _, b) | Stmt::While(_, b) => collect_fn_decls_stmts(b, out),
+            Stmt::ForClassic(init, _, _, b) => {
+                collect_fn_decls_stmts(init, out);
+                collect_fn_decls_stmts(b, out);
+            }
+            Stmt::ForIn(_, _, b) | Stmt::ForOf(_, _, b) => collect_fn_decls_stmts(b, out),
+            Stmt::DoWhile(b, _) => collect_fn_decls_stmts(b, out),
+            Stmt::TryCatch(try_b, catch, fin) => {
+                collect_fn_decls_stmts(try_b, out);
+                if let Some((_, catch_b)) = catch {
+                    collect_fn_decls_stmts(catch_b, out);
+                }
+                if let Some(b) = fin {
+                    collect_fn_decls_stmts(b, out);
+                }
+            }
+            Stmt::Switch(_, cases, def) => {
+                for c in cases {
+                    collect_fn_decls_stmts(&c.body, out);
+                }
+                if let Some(b) = def {
+                    collect_fn_decls_stmts(b, out);
+                }
+            }
+            Stmt::Label(_, inner) => collect_fn_decls_stmts(std::slice::from_ref(inner), out),
+            _ => {}
+        }
+    }
+}
+
+/// Names referenced from `body` that are not bound by `params` or local `var`/`let`/inner `function`.
+pub fn free_names_for_function(params: &[Kv8Param], body: &[Stmt]) -> HashSet<String> {
+    let mut bound: HashSet<String> = params.iter().map(|(n, _)| n.clone()).collect();
+    collect_var_hoists(body, &mut bound);
+    collect_fn_decl_names(body, &mut bound);
+    let mut free = HashSet::new();
+    collect_referenced_names_stmts(body, &mut bound, &mut free);
+    free
+}
+
+pub fn free_names_for_expr(params: &[Kv8Param], body: &Expr) -> HashSet<String> {
+    let bound: HashSet<String> = params.iter().map(|(n, _)| n.clone()).collect();
+    let mut free = HashSet::new();
+    collect_referenced_names_expr(body, &bound, &mut free);
+    free
+}
+
+fn collect_fn_decl_names(stmts: &[Stmt], bound: &mut HashSet<String>) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Function(name, _, body) | Stmt::AsyncFunction(name, _, body) => {
+                bound.insert(name.clone());
+                collect_fn_decl_names(body, bound);
+            }
+            Stmt::Block(stmts) => collect_fn_decl_names(stmts, bound),
+            Stmt::If(_, t, e) => {
+                collect_fn_decl_names(t, bound);
+                if let Some(b) = e {
+                    collect_fn_decl_names(b, bound);
+                }
+            }
+            Stmt::For(_, _, _, _, b) | Stmt::While(_, b) | Stmt::DoWhile(b, _) => {
+                collect_fn_decl_names(b, bound);
+            }
+            Stmt::ForClassic(init, _, _, b) => {
+                collect_fn_decl_names(init, bound);
+                collect_fn_decl_names(b, bound);
+            }
+            Stmt::ForIn(_, _, b) | Stmt::ForOf(_, _, b) => collect_fn_decl_names(b, bound),
+            Stmt::TryCatch(try_b, catch, fin) => {
+                collect_fn_decl_names(try_b, bound);
+                if let Some((_, catch_b)) = catch {
+                    collect_fn_decl_names(catch_b, bound);
+                }
+                if let Some(b) = fin {
+                    collect_fn_decl_names(b, bound);
+                }
+            }
+            Stmt::Switch(_, cases, def) => {
+                for c in cases {
+                    collect_fn_decl_names(&c.body, bound);
+                }
+                if let Some(b) = def {
+                    collect_fn_decl_names(b, bound);
+                }
+            }
+            Stmt::Label(_, inner) => collect_fn_decl_names(std::slice::from_ref(inner), bound),
+            _ => {}
+        }
+    }
+}
+
+fn collect_referenced_names_stmts(
+    stmts: &[Stmt],
+    bound: &mut HashSet<String>,
+    free: &mut HashSet<String>,
+) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Var(name, e) | Stmt::Let(name, e) => {
+                collect_referenced_names_expr(e, bound, free);
+                bound.insert(name.clone());
+            }
+            Stmt::Assign(lv, e) => {
+                collect_referenced_names_lvalue(lv, bound, free);
+                collect_referenced_names_expr(e, bound, free);
+            }
+            Stmt::Expr(e) | Stmt::Return(e) | Stmt::Throw(e) => {
+                collect_referenced_names_expr(e, bound, free);
+            }
+            Stmt::If(c, t, e) => {
+                collect_referenced_names_expr(c, bound, free);
+                collect_referenced_names_stmts(t, bound, free);
+                if let Some(b) = e {
+                    collect_referenced_names_stmts(b, bound, free);
+                }
+            }
+            Stmt::For(name, init, limit, step, b) => {
+                bound.insert(name.clone());
+                collect_referenced_names_expr(init, bound, free);
+                collect_referenced_names_expr(limit, bound, free);
+                collect_referenced_names_expr(step, bound, free);
+                collect_referenced_names_stmts(b, bound, free);
+            }
+            Stmt::ForClassic(init, c, upd, b) => {
+                collect_referenced_names_stmts(init, bound, free);
+                if let Some(e) = c {
+                    collect_referenced_names_expr(e, bound, free);
+                }
+                if let Some(e) = upd {
+                    collect_referenced_names_expr(e, bound, free);
+                }
+                collect_referenced_names_stmts(b, bound, free);
+            }
+            Stmt::While(c, b) | Stmt::DoWhile(b, c) => {
+                collect_referenced_names_expr(c, bound, free);
+                collect_referenced_names_stmts(b, bound, free);
+            }
+            Stmt::ForIn(lv, iter, b) | Stmt::ForOf(lv, iter, b) => {
+                collect_referenced_names_lvalue(&lv, bound, free);
+                collect_referenced_names_expr(iter, bound, free);
+                collect_referenced_names_stmts(b, bound, free);
+            }
+            Stmt::Block(stmts) => collect_referenced_names_stmts(stmts, bound, free),
+            Stmt::Switch(d, cases, def) => {
+                collect_referenced_names_expr(d, bound, free);
+                for c in cases {
+                    collect_referenced_names_expr(&c.label, bound, free);
+                    collect_referenced_names_stmts(&c.body, bound, free);
+                }
+                if let Some(b) = def {
+                    collect_referenced_names_stmts(b, bound, free);
+                }
+            }
+            Stmt::TryCatch(try_b, catch, fin) => {
+                collect_referenced_names_stmts(try_b, bound, free);
+                if let Some((name, catch_b)) = catch {
+                    let mut catch_bound = bound.clone();
+                    catch_bound.insert(name.clone());
+                    collect_referenced_names_stmts(catch_b, &mut catch_bound, free);
+                }
+                if let Some(b) = fin {
+                    collect_referenced_names_stmts(b, bound, free);
+                }
+            }
+            Stmt::Function(_, params, body) | Stmt::AsyncFunction(_, params, body) => {
+                let mut inner = bound.clone();
+                for (p, _) in params {
+                    inner.insert(p.clone());
+                }
+                collect_var_hoists(body, &mut inner);
+                collect_fn_decl_names(body, &mut inner);
+            }
+            Stmt::Label(_, inner) => {
+                collect_referenced_names_stmts(std::slice::from_ref(inner), bound, free);
+            }
+            Stmt::Import { .. } | Stmt::ExportDefault(_) | Stmt::ExportNamed(_) => {}
+            Stmt::Break(_) | Stmt::Continue(_) => {}
+            Stmt::Class { .. } => {}
+        }
+    }
+}
+
+fn collect_referenced_names_lvalue(lv: &LValue, bound: &HashSet<String>, free: &mut HashSet<String>) {
+    match lv {
+        LValue::Name(name) => {
+            if !bound.contains(name) {
+                free.insert(name.clone());
+            }
+        }
+        LValue::Member(base, _) | LValue::Index(base, _) => {
+            collect_referenced_names_lvalue(base, bound, free);
+        }
+        LValue::MemberExpr(e, _) => collect_referenced_names_expr(e, bound, free),
+        LValue::IndexExpr(b, i) => {
+            collect_referenced_names_expr(b, bound, free);
+            collect_referenced_names_expr(i, bound, free);
+        }
+        LValue::This => {}
+    }
+}
+
+fn collect_referenced_names_expr(expr: &Expr, bound: &HashSet<String>, free: &mut HashSet<String>) {
+    match expr {
+        Expr::Var(name) => {
+            if !bound.contains(name) {
+                free.insert(name.clone());
+            }
+        }
+        Expr::Member(b, _) | Expr::Unary(_, b) | Expr::Await(b) => {
+            collect_referenced_names_expr(b, bound, free);
+        }
+        Expr::OptMember(b, _) | Expr::OptIndex(b, _) => collect_referenced_names_expr(b, bound, free),
+        Expr::OptCall(c, args) => {
+            collect_referenced_names_expr(c, bound, free);
+            for a in args {
+                collect_referenced_names_expr(a, bound, free);
+            }
+        }
+        Expr::Index(b, i) => {
+            collect_referenced_names_expr(b, bound, free);
+            collect_referenced_names_expr(i, bound, free);
+        }
+        Expr::Update(lv, _, _) => collect_referenced_names_lvalue(lv, bound, free),
+        Expr::Call(c, args) | Expr::New(c, args) => {
+            collect_referenced_names_expr(c, bound, free);
+            for a in args {
+                collect_referenced_names_expr(a, bound, free);
+            }
+        }
+        Expr::Bin(l, _, r) => {
+            collect_referenced_names_expr(l, bound, free);
+            collect_referenced_names_expr(r, bound, free);
+        }
+        Expr::Arrow(params, body) => {
+            let mut inner = bound.clone();
+            for (p, _) in params {
+                inner.insert(p.clone());
+            }
+            collect_referenced_names_expr(body, &inner, free);
+        }
+        Expr::Block(stmts) => {
+            let mut block_bound = bound.clone();
+            collect_referenced_names_stmts(stmts, &mut block_bound, free);
+        }
+        Expr::Object(pairs) => {
+            for (k, e) in pairs {
+                if let ObjectEntryKey::Computed(ce) = k {
+                    collect_referenced_names_expr(ce, bound, free);
+                }
+                collect_referenced_names_expr(e, bound, free);
+            }
+        }
+        Expr::Array(elems) => {
+            for e in elems {
+                collect_referenced_names_expr(e, bound, free);
+            }
+        }
+        Expr::FunExpr(params, body) => {
+            let mut inner = bound.clone();
+            for (p, _) in params {
+                inner.insert(p.clone());
+            }
+            collect_var_hoists(body, &mut inner);
+            collect_fn_decl_names(body, &mut inner);
+        }
+        Expr::AssignExpr(lv, _, rhs) => {
+            collect_referenced_names_lvalue(lv, bound, free);
+            collect_referenced_names_expr(rhs, bound, free);
+        }
+        Expr::Seq(exprs) => {
+            for e in exprs {
+                collect_referenced_names_expr(e, bound, free);
+            }
+        }
+        Expr::Cond(c, t, e) => {
+            collect_referenced_names_expr(c, bound, free);
+            collect_referenced_names_expr(t, bound, free);
+            collect_referenced_names_expr(e, bound, free);
+        }
+        Expr::Template(parts) => {
+            for part in parts {
+                if let super::ast::TemplatePart::Expr(e) = part {
+                    collect_referenced_names_expr(e, bound, free);
+                }
+            }
+        }
+        Expr::Lit(_) | Expr::This => {}
     }
 }
 
@@ -344,6 +666,7 @@ fn stmt_has_loop_control(stmt: &Stmt) -> bool {
                 || fin.as_ref().is_some_and(|b| stmts_have_loop_control(b))
         }
         Stmt::Function(_, _, b) | Stmt::AsyncFunction(_, _, b) => stmts_have_loop_control(b),
+        Stmt::Class { .. } => false,
         Stmt::Var(_, e) | Stmt::Let(_, e) | Stmt::Return(e) | Stmt::Expr(e) | Stmt::Assign(_, e) => {
             expr_has_loop_control(e)
         }
@@ -482,6 +805,12 @@ fn collect_vars_stmt(stmt: &Stmt, out: &mut HashSet<String>) {
                 }
             }
             collect_vars_stmts(b, out);
+        }
+        Stmt::Class { name, methods, .. } => {
+            out.remove(name);
+            for m in methods {
+                collect_vars_stmts(&m.body, out);
+            }
         }
     }
 }
