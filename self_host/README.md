@@ -88,7 +88,7 @@ cargo test --test self_host
 14. **Bytecode-cache** — `.kabootar/cache/*.kbc` ogiltigförklaras när källan är nyare (`read_bytecode_cache` mtime-check).
 15. **Serialize från `.kbc`** — undvik privata fn-anrop från exporterade fn (`serialize_bc`); använd modul-global `sOut` + `CHAR_NL` inline istället för `appendLine()`.
 16. **Array literal** — `[]` / `[a, b]` kräver `AST_ARRAY` + `make_array` i parser/emit/serialize (lexer.kab använder `let parts = []`).
-17. **Emitter scratch** — spara `object`/`index` i `eBxL`/`eBxR` före `emitExpr` i `AST_INDEX`/`AST_MEMBER`; `AST_ARRAY` skriver över `eLeft`.
+17. **Emitter scratch** — spara `object`/`index` i `eBxL`/`eBxR` (INDEX/MEMBER); obj/array-fält i `eList` (inte `eLeft`, skrivs över av nested emit).
 18. **Throw** — `throw expr` som `AST_THROW` + `throw` opcode i parser/emit/serialize.
 
 ## Nästa milstolpar
