@@ -738,6 +738,9 @@ fn parseStmt() {
         pInit = parseExpr()
         return { "kind": AST_LET, "sym": pIdent, "init": pInit }
     }
+    if peek().type == TOKEN_PUB {
+        bump()
+    }
     if peek().type == TOKEN_FN {
         bump()
         pTok = peek()

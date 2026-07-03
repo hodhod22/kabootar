@@ -66,6 +66,19 @@ fn assert_kind(node, kind, msg) {
 }
 
 {
+    let ast = parseTokens(tokenize("pub fn f() { return 1 }"))
+    assert_kind(ast.body[0], AST_FN, "pub fn")
+}
+
+{
+    let kbc = compile("pub fn f() { return 1 }")
+    if char_at(kbc, 0) != "k" {
+        throw "pub fn compile failed"
+    }
+    passed = passed + 1
+}
+
+{
     let kbc = compile("let parts = []")
     if char_at(kbc, 0) != "k" {
         throw "array literal compile failed"
