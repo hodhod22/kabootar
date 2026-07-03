@@ -1,7 +1,7 @@
 //! v2.8 — parallell async IO
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn os_read_async_returns_content() {

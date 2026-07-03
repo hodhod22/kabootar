@@ -1,7 +1,7 @@
 //! Advanced HTML Canvas 2D — paths, gradients, transforms, compositor.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::format_value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::format_value;
 
 fn eval(code: &str) -> String {
     let mut env = create_global_env();

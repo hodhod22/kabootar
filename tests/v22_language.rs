@@ -1,7 +1,7 @@
 //! v2.2 language — JS-paritet (minus problematiska delar) + lånade konstruktioner
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn const_binding_and_reassign_error() {

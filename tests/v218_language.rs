@@ -1,9 +1,9 @@
 //! v2.18 — bytecode VM and .kbc cache
 
-use kabootar::bytecode::{can_compile, compile_source, CompiledProgram};
-use kabootar::compile::{eval_program, read_bytecode_cache, write_compile_marker};
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::{can_compile, compile_source, CompiledProgram};
+use kabootar_lib::compile::{eval_program, read_bytecode_cache, write_compile_marker};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::fs;
 use std::sync::Mutex;
 

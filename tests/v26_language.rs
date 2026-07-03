@@ -1,7 +1,7 @@
 //! v2.6 — microtask-kö och schemalagd async
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn async_tasks_scheduled_on_call() {

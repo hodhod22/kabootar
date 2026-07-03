@@ -1,10 +1,10 @@
 //! v2.29 — bytecode pub fn/pub let + file module exports
 
-use kabootar::bytecode::{can_compile, compile_source, deserialize, serialize};
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::project::version::strip_version_directive;
-use kabootar::value::Value;
+use kabootar_lib::bytecode::{can_compile, compile_source, deserialize, serialize};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::project::version::strip_version_directive;
+use kabootar_lib::value::Value;
 use std::fs;
 use std::path::PathBuf;
 

@@ -1,7 +1,7 @@
 //! Kabootar SQL scale engine — RowStore, KDB2, ANALYZE, MVCC, planner
 
-use kabootar::sql::{is_binary_kdb, SqlEngine};
-use kabootar::value::Value;
+use kabootar_lib::sql::{is_binary_kdb, SqlEngine};
+use kabootar_lib::value::Value;
 use std::fs;
 
 fn temp_path(name: &str) -> String {

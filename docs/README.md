@@ -22,7 +22,7 @@ cd editor/vscode-kabootar && npm install && npm run compile
 
 # WASM (webbläsare)
 cargo build --release --target wasm32-unknown-unknown
-wasm-bindgen target/wasm32-unknown-unknown/release/kabootar.wasm --out-dir pkg --target web
+wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir pkg --target web
 # Öppna index.html med en lokal server
 ```
 

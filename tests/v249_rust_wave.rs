@@ -1,7 +1,7 @@
 //! Rust wave: enum, field types, if let, iterator pack.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::format_value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::format_value;
 
 fn evaluate(code: &str) -> String {
     let mut env = create_global_env();

@@ -1,8 +1,8 @@
 //! Kabootar SQL v2 — modern database features
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::sql::SqlEngine;
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::sql::SqlEngine;
+use kabootar_lib::value::Value;
 
 fn eval_sql(code: &str) -> Value {
     let mut env = create_global_env();

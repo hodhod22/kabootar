@@ -7,7 +7,7 @@
 //! kabootar-docai --topics
 //! ```
 
-use kabootar::docai::{ask, search, topics};
+use kabootar_lib::docai::{ask, search, topics};
 use std::env;
 use std::io::{self, Write};
 

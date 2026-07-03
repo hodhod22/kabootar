@@ -1,7 +1,7 @@
 //! v2.3 — destructuring, spread, klassisk for, try/catch på Result
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn array_destructuring() {

@@ -1,10 +1,10 @@
 //! v2.28 — .kbc serialization for classes/interfaces + bytecode import
 
-use kabootar::bytecode::{can_compile, compile_source, deserialize, serialize};
-use kabootar::bytecode::run_module;
-use kabootar::compile::{eval_program, read_bytecode_cache, write_compile_marker, CompiledProgram};
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::{can_compile, compile_source, deserialize, serialize};
+use kabootar_lib::bytecode::run_module;
+use kabootar_lib::compile::{eval_program, read_bytecode_cache, write_compile_marker, CompiledProgram};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::fs;
 use std::sync::Mutex;
 

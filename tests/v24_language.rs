@@ -1,7 +1,7 @@
 //! v2.4 — pilfunktioner, async/await, klass-arv, konstruktor
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn arrow_function_expression() {

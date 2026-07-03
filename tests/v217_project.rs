@@ -1,10 +1,10 @@
 //! v2.17 — local package registry (publish, install, import from packages)
 
-use kabootar::cli;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::registry::{install_package, list_registry, publish_file, resolve_installed_path};
-use kabootar::value::Value;
+use kabootar_lib::cli;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::registry::{install_package, list_registry, publish_file, resolve_installed_path};
+use kabootar_lib::value::Value;
 use std::fs;
 use std::path::PathBuf;
 use std::process;

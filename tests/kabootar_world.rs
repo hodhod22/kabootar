@@ -1,7 +1,7 @@
 //! Kabootar World — end-to-end: OS → browser → raster → events → persist
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::{Environment, Value};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::{Environment, Value};
 use std::path::PathBuf;
 
 fn eval(code: &str) -> Value {

@@ -1,11 +1,11 @@
 //! Deno runtime parity tests.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn spawn_ws_echo_server() -> u16 {
-    kabootar::runtime::ws::spawn_echo_server_for_test()
+    kabootar_lib::runtime::ws::spawn_echo_server_for_test()
 }
 
 fn eval(code: &str) -> Value {
@@ -249,8 +249,8 @@ fn deno_tcp_listen_connect() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn deno_tcp_start_tls() {
-    use kabootar::evaluator::eval_source;
-    use kabootar::evaluator::create_global_env;
+    use kabootar_lib::evaluator::eval_source;
+    use kabootar_lib::evaluator::create_global_env;
     use rcgen::generate_simple_self_signed;
     use rustls::pki_types::{CertificateDer, PrivateKeyDer};
     use rustls::server::WebPkiClientVerifier;
@@ -305,7 +305,7 @@ fn deno_tcp_start_tls() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn deno_wss_connect() {
-    use kabootar::runtime::ws::ws_accept_key;
+    use kabootar_lib::runtime::ws::ws_accept_key;
     use rcgen::generate_simple_self_signed;
     use rustls::pki_types::{CertificateDer, PrivateKeyDer};
     use rustls::server::WebPkiClientVerifier;
@@ -867,7 +867,7 @@ fn deno_run_command() {
 }
 
 fn seed_npm_cache_math_lite(base: &std::path::Path) {
-    use kabootar::runtime::npm_remote::{package_dir, RegistryKind};
+    use kabootar_lib::runtime::npm_remote::{package_dir, RegistryKind};
     let install = package_dir(RegistryKind::Npm, "math-lite", "1.0.0", base);
     let pkg = install.join("package");
     std::fs::create_dir_all(&pkg).unwrap();
@@ -1252,7 +1252,7 @@ fn js_wave_b1_serve_dispatch() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn js_wave_b1_serve_async_live() {
-    use kabootar::evaluator::{create_global_env, eval_source};
+    use kabootar_lib::evaluator::{create_global_env, eval_source};
     use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::thread;

@@ -1,7 +1,7 @@
 //! v2.11 — TLS custom CA and certificate pinning
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[cfg(not(target_arch = "wasm32"))]
 struct LocalTlsServer {
@@ -12,7 +12,7 @@ struct LocalTlsServer {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn spawn_local_tls_server() -> LocalTlsServer {
-    use kabootar::runtime::tls_trust::cert_pem_sha256_hex;
+    use kabootar_lib::runtime::tls_trust::cert_pem_sha256_hex;
     use rcgen::generate_simple_self_signed;
     use rustls::pki_types::{CertificateDer, PrivateKeyDer};
     use rustls::server::WebPkiClientVerifier;

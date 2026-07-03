@@ -1,4 +1,4 @@
-use kabootar::cli;
+use kabootar_lib::cli;
 use std::env;
 
 fn main() {
