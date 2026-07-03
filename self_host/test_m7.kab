@@ -79,7 +79,14 @@ fn assert_kind(node, kind, msg) {
 }
 
 {
-    let kbc = compile("fn f() { return { " + QUOTE + "type" + QUOTE + ": TOKEN_EOF, " + QUOTE + "value" + QUOTE + ": null, " + QUOTE + "line" + QUOTE + ": 1, " + QUOTE + "column" + QUOTE + ": 1 } }")
+    let kbc = compile("fn f() { let parts = []; parts = push(parts, { " + QUOTE + "text" + QUOTE + ": " + QUOTE + "x" + QUOTE + " }); return parts }")
+    if char_at(kbc, 0) != "k" {
+        throw "push object arg compile failed"
+    }
+    passed = passed + 1
+}
+
+{
     if char_at(kbc, 0) != "k" {
         throw "multi-field object compile failed"
     }

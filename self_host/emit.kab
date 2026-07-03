@@ -51,6 +51,8 @@ let eWh = 0
 let eWhNew = []
 let eWhI = 0
 let eList = []
+let eBodyStmts = []
+let eFld = null
 
 fn localIndex(name) {
     eLocalI = 0
@@ -292,13 +294,13 @@ fn emitExpr(node) {
             return
         }
         if eArgN == 1 {
-            eNode = eArgs[0]
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+            eBxL = eArgs[0]
+            if eBxL.kind == AST_LITERAL {
+                eIdx = constIndex(eBxL["value"])
                 emitOp(OP_CONST, eIdx)
             } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
+                if eBxL.kind == AST_VAR {
+                    eSym = eBxL["sym"]
                     if eInFn == 1 {
                         eFound = 0
                         eLocalI = 0
@@ -322,7 +324,7 @@ fn emitExpr(node) {
                         emitOp(OP_LOAD_GLOBAL, eIdx)
                     }
                 } else {
-                    emitExpr(eArgs[0])
+                    emitExpr(eBxL)
                 }
             }
             emitExpr(eCallee)
@@ -330,15 +332,14 @@ fn emitExpr(node) {
             return
         }
         if eArgN == 2 {
-            eLeft = eArgs[0]
-            eRight = eArgs[1]
-            eNode = eLeft
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+            eBxL = eArgs[0]
+            eBxR = eArgs[1]
+            if eBxL.kind == AST_LITERAL {
+                eIdx = constIndex(eBxL["value"])
                 emitOp(OP_CONST, eIdx)
             } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
+                if eBxL.kind == AST_VAR {
+                    eSym = eBxL["sym"]
                     if eInFn == 1 {
                         eFound = 0
                         eLocalI = 0
@@ -362,16 +363,15 @@ fn emitExpr(node) {
                         emitOp(OP_LOAD_GLOBAL, eIdx)
                     }
                 } else {
-                    emitExpr(eLeft)
+                    emitExpr(eBxL)
                 }
             }
-            eNode = eRight
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+            if eBxR.kind == AST_LITERAL {
+                eIdx = constIndex(eBxR["value"])
                 emitOp(OP_CONST, eIdx)
             } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
+                if eBxR.kind == AST_VAR {
+                    eSym = eBxR["sym"]
                     if eInFn == 1 {
                         eFound = 0
                         eLocalI = 0
@@ -395,7 +395,7 @@ fn emitExpr(node) {
                         emitOp(OP_LOAD_GLOBAL, eIdx)
                     }
                 } else {
-                    emitExpr(eRight)
+                    emitExpr(eBxR)
                 }
             }
             emitExpr(eCallee)
@@ -404,13 +404,13 @@ fn emitExpr(node) {
         }
         eCallI = 0
         while eCallI < eArgN {
-            eNode = eArgs[eCallI]
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+            eBxL = eArgs[eCallI]
+            if eBxL.kind == AST_LITERAL {
+                eIdx = constIndex(eBxL["value"])
                 emitOp(OP_CONST, eIdx)
             } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
+                if eBxL.kind == AST_VAR {
+                    eSym = eBxL["sym"]
                     if eInFn == 1 {
                         eFound = 0
                         eLocalI = 0
@@ -434,7 +434,7 @@ fn emitExpr(node) {
                         emitOp(OP_LOAD_GLOBAL, eIdx)
                     }
                 } else {
-                    emitExpr(eNode)
+                    emitExpr(eBxL)
                 }
             }
             eCallI = eCallI + 1
@@ -495,10 +495,10 @@ fn emitStmt(node) {
         return
     }
     if eNode.kind == AST_BLOCK {
-        eLeft = eNode["body"]
+        eBodyStmts = eNode["body"]
         eStmtI = 0
-        while eStmtI < len(eLeft) {
-            emitStmt(eLeft[eStmtI])
+        while eStmtI < len(eBodyStmts) {
+            emitStmt(eBodyStmts[eStmtI])
             eStmtI = eStmtI + 1
         }
         return
