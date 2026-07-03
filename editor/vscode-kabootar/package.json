@@ -5,7 +5,7 @@
   "version": "2.2.0",
   "publisher": "kabootar",
   "license": "MIT",
-  "icon": "icons/logo.png",
+  "icon": "icons/logo.ico",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -34,8 +34,8 @@
           ".kabootar"
         ],
         "icon": {
-          "light": "icons/logo.png",
-          "dark": "icons/logo.png"
+          "light": "icons/logo.ico",
+          "dark": "icons/logo.ico"
         },
         "configuration": "./language-configuration.json"
       }

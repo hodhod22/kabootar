@@ -26,6 +26,7 @@ cursor --install-extension .
 
 # 4. Filikoner — workspace `.vscode/settings.json` sätter `workbench.iconTheme` till `kabootar-file-icons`.
 #    Om ikoner saknas: Command Palette → "Preferences: File Icon Theme" → **Kabootar**
+#    Ikonfil: icons/logo.ico
 ```
 
 ## Funktioner
