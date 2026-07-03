@@ -472,8 +472,16 @@ fn emitStmt(node) {
         return
     }
     if eNode.kind == AST_EXPR {
+        eCond = eNode["expr"]
+        emitExpr(eCond)
+        if eCond.kind != AST_THROW {
+            emitOp(OP_POP, 0)
+        }
+        return
+    }
+    if eNode.kind == AST_THROW {
         emitExpr(eNode["expr"])
-        emitOp(OP_POP, 0)
+        emitOp(OP_THROW, 0)
         return
     }
     if eNode.kind == AST_RETURN {
