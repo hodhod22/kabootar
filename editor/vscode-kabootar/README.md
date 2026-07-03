@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icons/logo.png" alt="Kabootar logo" width="96">
+</p>
+
 # Kabootar — VS Code / Cursor extension
 
 Syntax highlighting, Language Server, DocAI och CodAI för `.kab`-filer.
