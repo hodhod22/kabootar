@@ -266,14 +266,18 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_MEMBER {
-        emitExpr(eNode["object"])
-        eIdx = constIndex(eNode["field"])
+        eBxL = eNode["object"]
+        eSym = eNode["field"]
+        emitExpr(eBxL)
+        eIdx = constIndex(eSym)
         emitOp(OP_GET_MEMBER, eIdx)
         return
     }
     if eNode.kind == AST_INDEX {
-        emitExpr(eNode["object"])
-        emitExpr(eNode["index"])
+        eBxL = eNode["object"]
+        eBxR = eNode["index"]
+        emitExpr(eBxL)
+        emitExpr(eBxR)
         emitOp(OP_INDEX_GET, 0)
         return
     }
