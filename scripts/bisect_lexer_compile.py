@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Bisect lexer.kab compile failure via os_mount (same path as CI)."""
+import argparse
 import os
 import subprocess
 import sys
@@ -32,7 +33,6 @@ def wrap_prefix(lines: list[str]) -> str:
 
 
 def timeout_for(n_lines: int) -> int:
-    # full lexer ~52 min; scale roughly linear with min floor 120s
     return max(120, int(n_lines * 6))
 
 
@@ -64,8 +64,8 @@ def try_compile(n_lines: int, lines: list[str]) -> tuple[bool, str, float]:
     return ok, err[:500], time.time() - t0
 
 
-def run_probe(label: str, n_lines: int, lines: list[str]) -> bool:
-    print(f"\n--- {label}: lines 1..{n_lines} (timeout {timeout_for(n_lines)}s) ---")
+def run_probe(n_lines: int, lines: list[str]) -> bool:
+    print(f"\n--- lines 1..{n_lines} (timeout {timeout_for(n_lines)}s) ---")
     ok, err, elapsed = try_compile(n_lines, lines)
     print(f"  {'OK' if ok else 'FAIL'} in {elapsed:.0f}s")
     if not ok:
@@ -73,39 +73,45 @@ def run_probe(label: str, n_lines: int, lines: list[str]) -> bool:
     return ok
 
 
+def binary_search(lo: int, hi: int, lines: list[str]) -> int:
+    fail_at = hi
+    print(f"\n--- binary search {lo}..{hi} ---")
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        ok, _, elapsed = try_compile(mid, lines)
+        print(f"  lines 1..{mid}: {'OK' if ok else 'FAIL'} ({elapsed:.0f}s)")
+        if ok:
+            lo = mid + 1
+        else:
+            fail_at = mid
+            hi = mid - 1
+    return fail_at
+
+
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--lo", type=int, default=14, help="last known OK prefix length")
+    ap.add_argument("--hi", type=int, default=0, help="search upper bound (0 = file end)")
+    args = ap.parse_args()
+
     lines = open(LEXER, encoding="utf-8").read().splitlines()
     n = len(lines)
+    hi = args.hi if args.hi > 0 else n
+    last_ok = args.lo
+    first_fail = hi
 
-    # Phase 1: boundary probes at function edges
-    boundaries = [200, 350, 529, n]
-    last_ok = 0
-    first_fail = n
+    # lxScan ends ~529; tokenize ~531-629
+    boundaries = [b for b in (200, 350, 450, 529, 580, 620, hi) if last_ok < b <= hi]
     for b in boundaries:
-        if b > n:
-            b = n
-        ok = run_probe(f"boundary", b, lines)
+        ok = run_probe(b, lines)
         if ok:
             last_ok = b
         else:
-            first_fail = min(first_fail, b)
+            first_fail = b
             break
 
-    # Phase 2: binary search between last_ok and first_fail
     if last_ok < first_fail - 1:
-        lo, hi = last_ok + 1, first_fail
-        fail_at = first_fail
-        print(f"\n--- binary search {lo}..{hi} ---")
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            ok, err, elapsed = try_compile(mid, lines)
-            print(f"  lines 1..{mid}: {'OK' if ok else 'FAIL'} ({elapsed:.0f}s)")
-            if ok:
-                lo = mid + 1
-            else:
-                fail_at = mid
-                hi = mid - 1
-        first_fail = fail_at
+        first_fail = binary_search(last_ok + 1, first_fail, lines)
 
     print(f"\n=== first failing prefix ends near line {first_fail} ===")
     for i in range(max(0, first_fail - 3), min(n, first_fail + 2)):
