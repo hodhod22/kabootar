@@ -1,0 +1,7 @@
+{
+  "files.associations": {
+    "*.kab": "kabootar",
+    "*.kabootar": "kabootar"
+  },
+  "workbench.iconTheme": "kabootar-file-icons"
+}

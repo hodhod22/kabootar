@@ -19,9 +19,13 @@ cd editor/vscode-kabootar
 npm install
 npm run compile
 
-# 3. VS Code eller Cursor
+# 3. VS Code eller Cursor — installera extension (krävs för .kab-ikoner)
 code --install-extension .
-# Cursor: F5 → "Run Extension" från denna mapp
+# Cursor:
+cursor --install-extension .
+
+# 4. Filikoner — workspace `.vscode/settings.json` sätter `workbench.iconTheme` till `kabootar-file-icons`.
+#    Om ikoner saknas: Command Palette → "Preferences: File Icon Theme" → **Kabootar**
 ```
 
 ## Funktioner
