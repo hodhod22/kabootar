@@ -1,4 +1,6 @@
 // Self-hosted Kabootar lexer - mirrors src/lexer.rs.
+// KEEP <=~4 top-level fn (lxScan, tokenize, token_type_name, token_value).
+// More private fn causes stack overflow on module init (Windows); inline helpers in lxScan.
 import "self_host/lexer_defs"
 
 let lxPos = 0
