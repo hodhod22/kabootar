@@ -25,6 +25,23 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].expr.op, "!=", "ne op")
 }
 
+{
+    let ast = parseTokens(tokenize("kw == undefined"))
+    assert_kind(ast.body[0].expr, AST_BINARY, "eq undefined")
+    assert_eq(ast.body[0].expr.op, "==", "eq undef op")
+}
+
+{
+    let ast = parseTokens(tokenize("while x { continue }"))
+    assert_kind(ast.body[0], AST_WHILE, "while continue")
+    assert_kind(ast.body[0].body.body[0], AST_CONTINUE, "continue stmt")
+}
+
+{
+    let ast = parseTokens(tokenize("while x { break }"))
+    assert_kind(ast.body[0].body.body[0], AST_BREAK, "break stmt")
+}
+
 println("")
 println("Self-hosted milestone-7 subset: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

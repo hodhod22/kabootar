@@ -234,29 +234,44 @@ fn store_local_to_env(
 fn refresh_function_closures(module: &BytecodeModule, env: &mut Environment) {
     let fn_names: Vec<&str> = module.functions.iter().map(|f| f.name.as_str()).collect();
     let data_only = env.clone_excluding(&fn_names);
-    let shared_data = data_only.share_bindings();
-    let mut fn_table = Environment::child_from(&shared_data);
-    let fn_table_handle = fn_table.share_bindings();
+    let temp_data = data_only.share_bindings();
+
+    let mut fn_registry = Environment::new();
     for func in &module.functions {
         if let Some(Value::BytecodeFn(existing)) = env.get(&func.name) {
-            fn_table.set(
+            fn_registry.set(
                 func.name.clone(),
                 Value::BytecodeFn(BytecodeFunction {
                     def: existing.def.clone(),
-                    closure: shared_data.share_bindings(),
+                    closure: temp_data.share_bindings(),
                 }),
             );
         }
     }
+
+    let mut data_env = Environment::child_from(&fn_registry);
+    for name in data_only.all_binding_names() {
+        if let Some(v) = data_only.get(&name) {
+            data_env.set(name, v);
+        }
+    }
+    let data_handle = data_env.share_bindings();
+
     for func in &module.functions {
-        if let Some(Value::BytecodeFn(existing)) = env.get(&func.name) {
-            env.set(
+        if let Some(Value::BytecodeFn(existing)) = fn_registry.get(&func.name) {
+            fn_registry.set(
                 func.name.clone(),
                 Value::BytecodeFn(BytecodeFunction {
                     def: existing.def.clone(),
-                    closure: fn_table_handle.share_bindings(),
+                    closure: data_handle.share_bindings(),
                 }),
             );
+        }
+    }
+
+    for func in &module.functions {
+        if let Some(v) = fn_registry.get(&func.name) {
+            env.set(func.name.clone(), v.clone());
         }
     }
 }

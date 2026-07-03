@@ -66,42 +66,75 @@ pub fn strip_header_directives(source: &str) -> String {
 }
 
 /// `comptime { ... }` → `{ ... }` (compile-time blocks run as normal const code today).
+/// `comptime { ... }` → `{ ... }` (compile-time blocks run as normal const code today).
 pub fn expand_comptime_keyword(source: &str) -> String {
     let mut out = String::new();
-    let bytes = source.as_bytes();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        if let Some(rest) = source[i..].strip_prefix("comptime") {
-            let j = i + 8;
-            let mut k = j;
-            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+    let chars: Vec<char> = source.chars().collect();
+    let mut i = 0;
+    
+    while i < chars.len() {
+        // Kolla om vi har "comptime" här
+        if i + 8 <= chars.len()
+            && chars[i] == 'c'
+            && chars[i+1] == 'o'
+            && chars[i+2] == 'm'
+            && chars[i+3] == 'p'
+            && chars[i+4] == 't'
+            && chars[i+5] == 'i'
+            && chars[i+6] == 'm'
+            && chars[i+7] == 'e'
+        {
+            let mut k = i + 8;
+            
+            // Hoppa över whitespace
+            while k < chars.len() && chars[k].is_whitespace() {
                 k += 1;
             }
-            if k < bytes.len() && bytes[k] == b'{' {
-                i = j;
-                continue;
+            
+            // Kolla om nästa tecken är '{'
+            if k < chars.len() && chars[k] == '{' {
+                // Hitta matchande '}'
+                let mut depth = 1;
+                let mut end = k + 1;
+                while end < chars.len() && depth > 0 {
+                    if chars[end] == '{' { depth += 1; }
+                    else if chars[end] == '}' { depth -= 1; }
+                    end += 1;
+                }
+                
+                if depth == 0 {
+                    // Vi hoppar över "comptime" och allt fram till '{'
+                    // Vill du behålla '{' och '}'? 
+                    // Om ja, lägg till '{' + body + '}'
+                    let body: String = chars[k+1..end-1].iter().collect();
+                    out.push('{');
+                    out.push_str(&body);
+                    out.push('}');
+                    i = end;
+                    continue;
+                }
             }
-            let _ = rest;
         }
-        out.push(bytes[i] as char);
+        
+        // Lägg till aktuellt tecken
+        out.push(chars[i]);
         i += 1;
     }
+    
     out
 }
-
 /// `html! { <tag>...</tag> }` → `kv8_create()` + `kv8_run_ui`.
 pub fn expand_html_blocks(source: &str) -> String {
     let mut out = String::new();
-    let bytes = source.as_bytes();
     let mut i = 0usize;
-    while i < bytes.len() {
-        if let Some(rest) = source[i..].strip_prefix("html!") {
+    while i < source.len() {
+        if source[i..].starts_with("html!") {
             let after_kw = i + 5;
             let mut k = after_kw;
-            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+            while k < source.len() && source.as_bytes()[k].is_ascii_whitespace() {
                 k += 1;
             }
-            if k < bytes.len() && bytes[k] == b'{' {
+            if k < source.len() && source.as_bytes()[k] == b'{' {
                 if let Some((inner, end)) = parse_brace_block(&source[k..]) {
                     if !out.is_empty() && !out.ends_with('\n') {
                         out.push('\n');
@@ -114,10 +147,10 @@ pub fn expand_html_blocks(source: &str) -> String {
                     continue;
                 }
             }
-            let _ = rest;
         }
-        out.push(bytes[i] as char);
-        i += 1;
+        let ch = source[i..].chars().next().expect("valid utf-8");
+        out.push(ch);
+        i += ch.len_utf8();
     }
     out
 }
@@ -125,26 +158,56 @@ pub fn expand_html_blocks(source: &str) -> String {
 /// `actor Name { }` → `let Name_actor = actor_spawn("Name");`
 pub fn expand_actor_declarations(source: &str) -> String {
     let mut out = String::new();
-    let bytes = source.as_bytes();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        if let Some(rest) = source[i..].strip_prefix("actor") {
-            let after_kw = i + 5;
-            let mut k = after_kw;
-            while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+    let mut i = 0;
+    let chars: Vec<char> = source.chars().collect();
+    
+    while i < chars.len() {
+        // Kolla om vi har "actor" här
+        if i + 4 < chars.len() 
+            && chars[i] == 'a'
+            && chars[i+1] == 'c'
+            && chars[i+2] == 't'
+            && chars[i+3] == 'o'
+            && chars[i+4] == 'r' 
+        {
+            let _start = i;
+            let mut k = i + 5; // efter "actor"
+            
+            // Hoppa över whitespace
+            while k < chars.len() && chars[k].is_whitespace() {
                 k += 1;
             }
+            
+            // Läs namnet
             let name_start = k;
-            while k < bytes.len() && (bytes[k].is_ascii_alphanumeric() || bytes[k] == b'_') {
+            while k < chars.len() && (chars[k].is_alphanumeric() || chars[k] == '_') {
                 k += 1;
             }
+            
             if k > name_start {
-                let name = &source[name_start..k];
-                while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+                let name: String = chars[name_start..k].iter().collect();
+                
+                // Hoppa över whitespace efter namnet
+                while k < chars.len() && chars[k].is_whitespace() {
                     k += 1;
                 }
-                if k < bytes.len() && bytes[k] == b'{' {
-                    if let Some((body, end)) = parse_brace_block(&source[k..]) {
+                
+                if k < chars.len() && chars[k] == '{' {
+                    // Hitta matchande '}'
+                    let mut depth = 1;
+                    let mut end = k + 1;
+                    while end < chars.len() && depth > 0 {
+                        if chars[end] == '{' { depth += 1; }
+                        else if chars[end] == '}' { depth -= 1; }
+                        end += 1;
+                    }
+                    
+                    if depth == 0 {
+                        // Body är mellan '{' och '}'
+                        let body_start = k + 1;
+                        let body_end = end - 1;
+                        let body: String = chars[body_start..body_end].iter().collect();
+                        
                         if !out.is_empty() && !out.ends_with('\n') {
                             out.push('\n');
                         }
@@ -159,19 +222,19 @@ pub fn expand_actor_declarations(source: &str) -> String {
                                 out.push('\n');
                             }
                         }
-                        i = k + end;
+                        i = end;
                         continue;
                     }
                 }
             }
-            let _ = rest;
         }
-        out.push(bytes[i] as char);
+        
+        out.push(chars[i]);
         i += 1;
     }
+    
     out
 }
-
 fn parse_brace_block(input: &str) -> Option<(String, usize)> {
     let input = input.trim_start();
     if !input.starts_with('{') {

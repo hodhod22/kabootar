@@ -61,6 +61,9 @@ fn irOpLine(op) {
     if sOp == OP_LT {
         return "lt"
     }
+    if sOp == OP_GT {
+        return "gt"
+    }
     if sOp == OP_GE {
         return "ge"
     }
@@ -97,40 +100,32 @@ fn irOpLine(op) {
     throw "Unsupported IR op: " + sOp
 }
 
-fn appendLine(line) {
-    if sOut == "" {
-        sOut = line
-    } else {
-        sOut = sOut + CHAR_NL + line
-    }
-}
-
 fn appendOps(ops) {
     sI = 0
     while sI < len(ops) {
-        appendLine(irOpLine(ops[sI]))
+        sOut = sOut + CHAR_NL + irOpLine(ops[sI])
         sI = sI + 1
     }
 }
 
 pub fn serialize_bc(bc) {
     sOut = KBC_HEADER
-    appendLine("constants=" + ("" + len(bc.constants)))
+    sOut = sOut + CHAR_NL + ("constants=" + ("" + len(bc.constants)))
     sI = 0
     while sI < len(bc.constants) {
-        appendLine(constLine(sI, bc.constants[sI]))
+        sOut = sOut + CHAR_NL + constLine(sI, bc.constants[sI])
         sI = sI + 1
     }
     sI = 0
     while sI < len(bc.globals) {
-        appendLine("global " + ("" + sI) + " " + bc.globals[sI])
+        sOut = sOut + CHAR_NL + ("global " + ("" + sI) + " " + bc.globals[sI])
         sI = sI + 1
     }
-    appendLine("functions=" + ("" + len(bc.functions)))
+    sOut = sOut + CHAR_NL + ("functions=" + ("" + len(bc.functions)))
     sI = 0
     while sI < len(bc.functions) {
         sFn = bc.functions[sI]
-        appendLine("fn " + ("" + sI) + " " + sFn.sym)
+        sOut = sOut + CHAR_NL + ("fn " + ("" + sI) + " " + sFn.sym)
         sParams = ""
         sJ = 0
         while sJ < len(sFn.params) {
@@ -141,7 +136,7 @@ pub fn serialize_bc(bc) {
             }
             sJ = sJ + 1
         }
-        appendLine("fn_params " + ("" + sI) + " " + sParams)
+        sOut = sOut + CHAR_NL + ("fn_params " + ("" + sI) + " " + sParams)
         sParams = ""
         sJ = 0
         while sJ < len(sFn.locals) {
@@ -152,15 +147,15 @@ pub fn serialize_bc(bc) {
             }
             sJ = sJ + 1
         }
-        appendLine("fn_locals " + ("" + sI) + " " + sParams)
+        sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + sParams)
         sJ = 0
         while sJ < len(sFn.ops) {
-            appendLine("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
+            sOut = sOut + CHAR_NL + ("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
             sJ = sJ + 1
         }
         sI = sI + 1
     }
-    appendLine("code")
+    sOut = sOut + CHAR_NL + "code"
     appendOps(bc.ops)
     return sOut
 }

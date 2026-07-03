@@ -4,6 +4,52 @@ fn self_host_path(name: &str) -> String {
     format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"))
 }
 
+fn kab_string_literal(s: &str) -> String {
+    let mut out = String::from('"');
+    for ch in s.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+    out
+}
+
+fn kabootar_bin() -> std::path::PathBuf {
+    let exe = std::env::current_exe().expect("current_exe");
+    let debug = exe.parent().expect("deps").parent().expect("profile dir");
+    if cfg!(windows) {
+        debug.join("kabootar.exe")
+    } else {
+        debug.join("kabootar")
+    }
+}
+
+fn run_kabootar_file_subprocess(path: &str) -> Result<(), String> {
+    let bin = kabootar_bin();
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let output = std::process::Command::new(&bin)
+        .current_dir(manifest)
+        .arg(path)
+        .output()
+        .map_err(|e| format!("spawn {}: {e}", bin.display()))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    Err(format!(
+        "kabootar {} failed ({})\nstdout: {stdout}\nstderr: {stderr}",
+        path,
+        output.status
+    ))
+}
+
 #[test]
 fn self_host_lexer_suite() {
     kabootar::cli::run_file(&self_host_path("test_lexer.kab"))
@@ -120,6 +166,82 @@ fn self_host_lexer_compile_and_run() {
     let mut env = create_global_env();
     let result = run_module(&module, &mut env).expect("run lexer-like loop bytecode");
     assert_eq!(format_value(&result), "2");
+}
+
+#[test]
+fn self_host_lexer_full_compile_smoke() {
+    kabootar::cli::run_file(&self_host_path("test_lexer_full_compile.kab"))
+        .expect("self_host/test_lexer_full_compile.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~15 min): self-hosted compile(lexer.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_lexer_full_compile_and_run() {
+    use kabootar::bytecode::{call_value, deserialize, run_module};
+    use kabootar::evaluator::create_global_env;
+    use kabootar::value::Value;
+
+    let probe_path = self_host_path("_lexer_full_probe_gen.kab");
+    let src_copy = format!("{}/_lexer_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_lexer_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("lexer.kab"), &src_copy).expect("copy lexer.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_lexer_full_src.kab\"))\nwrite_text_file(\"/proj/_lexer_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated lexer full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(lexer.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled lexer .kbc output");
+    assert!(
+        kbc.starts_with("kabootar-bytecode/1"),
+        "lexer .kbc should have bytecode header"
+    );
+    let module = deserialize(&kbc).expect("deserialize compiled lexer.kab");
+    assert!(!module.functions.is_empty(), "lexer should emit functions");
+    let mut run_env = create_global_env();
+    run_module(&module, &mut run_env).expect("run compiled lexer module");
+    let tokenize = run_env
+        .get("tokenize")
+        .expect("compiled lexer should export tokenize");
+    let toks = call_value(
+        tokenize,
+        vec![Value::String("ab".into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    )
+    .expect("tokenize(\"ab\")");
+    let Value::Array(items) = toks else {
+        panic!("tokenize should return array, got {toks:?}");
+    };
+    assert_eq!(items.len(), 2, "tokenize(\"ab\") => [ident, eof]");
+    let Value::Object(first) = &items[0] else {
+        panic!("expected token object, got {:?}", items[0]);
+    };
+    assert_eq!(
+        first.get("type").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("Identifier")
+    );
+    assert_eq!(
+        first.get("value").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("ab")
+    );
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
 }
 
 #[test]
