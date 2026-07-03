@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/logo.png" alt="Kabootar logo" width="128">
+</p>
+
 # Kabootar
 
 **Kabootar** (tidigare *Nova*) är ett fullstack-programmeringsspråk med inbyggd runtime för frontend, backend, databas och operativsystem.
