@@ -1,8 +1,8 @@
 //! Python wave (no elif): pass, raise, is/is not, assert, with, range, Counter, defaultdict, iterators.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::runtime::stdlib::error::{take_throw_value, THROW_MARKER};
-use kabootar::value::format_value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::runtime::stdlib::error::{take_throw_value, THROW_MARKER};
+use kabootar_lib::value::format_value;
 
 fn evaluate(code: &str) -> String {
     let mut env = create_global_env();

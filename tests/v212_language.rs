@@ -1,7 +1,7 @@
 //! v2.12 — HTTP fetch headers (request + response)
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;

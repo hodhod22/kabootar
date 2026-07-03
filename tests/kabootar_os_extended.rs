@@ -1,7 +1,7 @@
 //! OS extended features — VFS, TCP/UDP, memory safety, bytecode optimize
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::path::PathBuf;
 
 fn eval(code: &str) -> Value {

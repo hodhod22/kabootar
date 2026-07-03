@@ -2,8 +2,8 @@
 //!
 //! Run: `cargo test kv8_smoke -- --nocapture`
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 fn eval(code: &str) -> Value {
     let mut env = create_global_env();
@@ -621,8 +621,8 @@ fn kv8_smoke_wave1_void_and_undefined() {
 #[test]
 fn kv8_smoke_wave1_throw_propagates() {
     let err = {
-        let mut env = kabootar::evaluator::create_global_env();
-        kabootar::evaluator::eval_source(
+        let mut env = kabootar_lib::evaluator::create_global_env();
+        kabootar_lib::evaluator::eval_source(
             r#"
             let ctx = kv8_create();
             kv8_eval(ctx, "function f() { throw Error('boom'); } f();");

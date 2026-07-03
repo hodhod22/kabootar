@@ -1,8 +1,8 @@
 //! v2.33 — Result ? operator, object rest destructuring, callable spread calls
 
-use kabootar::bytecode::can_compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::can_compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_result_question_unwraps_ok() {

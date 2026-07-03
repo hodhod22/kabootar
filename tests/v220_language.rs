@@ -1,8 +1,8 @@
 //! v2.20 — bytecode v2.2 constructs (objects, index write, for-in, for-classic)
 
-use kabootar::bytecode::can_compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::can_compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_object_literal_and_member() {

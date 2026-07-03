@@ -52,32 +52,32 @@ fn run_kabootar_file_subprocess(path: &str) -> Result<(), String> {
 
 #[test]
 fn self_host_lexer_suite() {
-    kabootar::cli::run_file(&self_host_path("test_lexer.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_lexer.kab"))
         .expect("self_host/test_lexer.kab should pass");
 }
 
 #[test]
 fn self_host_parser_suite() {
-    kabootar::cli::run_file(&self_host_path("test_parser.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_parser.kab"))
         .expect("self_host/test_parser.kab should pass");
 }
 
 #[test]
 fn self_host_emit_suite() {
-    kabootar::cli::run_file(&self_host_path("test_emit.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_emit.kab"))
         .expect("self_host/test_emit.kab should pass");
 }
 
 #[test]
 fn self_host_serialize_suite() {
-    kabootar::cli::run_file(&self_host_path("test_serialize.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_serialize.kab"))
         .expect("self_host/test_serialize.kab should pass");
 }
 
 #[test]
 fn self_host_serialize_compiles() {
     let path = self_host_path("serialize.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("serialize.kab should compile");
     assert!(n > 0);
     assert!(bytecode);
@@ -86,7 +86,7 @@ fn self_host_serialize_compiles() {
 #[test]
 fn self_host_emit_compiles() {
     let path = self_host_path("emit.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("emit.kab should compile");
     assert!(n > 0);
     assert!(bytecode);
@@ -94,41 +94,41 @@ fn self_host_emit_compiles() {
 
 #[test]
 fn self_host_sample_runs() {
-    use kabootar::value::format_value;
+    use kabootar_lib::value::format_value;
 
-    let v = kabootar::cli::run_file(&self_host_path("sample.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("sample.kab"))
         .expect("sample.kab should run under Rust interpreter");
     assert_eq!(format_value(&v), "42");
 }
 
 #[test]
 fn self_host_subset_suite() {
-    kabootar::cli::run_file(&self_host_path("test_subset.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_subset.kab"))
         .expect("self_host/test_subset.kab should pass");
 }
 
 #[test]
 fn self_host_larger_smoke() {
-    kabootar::cli::run_file(&self_host_path("test_larger.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_larger.kab"))
         .expect("self_host/test_larger.kab should pass");
 }
 
 #[test]
 fn self_host_mini_module_runs() {
-    use kabootar::value::format_value;
+    use kabootar_lib::value::format_value;
 
-    let v = kabootar::cli::run_file(&self_host_path("mini_module.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("mini_module.kab"))
         .expect("mini_module.kab should run");
     assert_eq!(format_value(&v), "true");
 }
 
 #[test]
 fn self_host_larger_compile_and_run() {
-    use kabootar::bytecode::{deserialize, run_module};
-    use kabootar::evaluator::create_global_env;
-    use kabootar::value::{Value, format_value};
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::{Value, format_value};
 
-    let v = kabootar::cli::run_file(&self_host_path("larger_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("larger_probe.kab"))
         .expect("larger_probe.kab should run");
     let Value::String(text) = v else {
         panic!("larger_probe should return .kbc text");
@@ -141,23 +141,23 @@ fn self_host_larger_compile_and_run() {
 
 #[test]
 fn self_host_m7_subset_suite() {
-    kabootar::cli::run_file(&self_host_path("test_m7.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_m7.kab"))
         .expect("self_host/test_m7.kab should pass");
 }
 
 #[test]
 fn self_host_lexer_compile_smoke() {
-    kabootar::cli::run_file(&self_host_path("test_lexer_compile.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_lexer_compile.kab"))
         .expect("self_host/test_lexer_compile.kab should pass");
 }
 
 #[test]
 fn self_host_lexer_compile_and_run() {
-    use kabootar::bytecode::{deserialize, run_module};
-    use kabootar::evaluator::create_global_env;
-    use kabootar::value::{Value, format_value};
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::{Value, format_value};
 
-    let v = kabootar::cli::run_file(&self_host_path("lexer_compile_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("lexer_compile_probe.kab"))
         .expect("lexer_compile_probe.kab should run");
     let Value::String(text) = v else {
         panic!("lexer_compile_probe should return .kbc text");
@@ -170,16 +170,16 @@ fn self_host_lexer_compile_and_run() {
 
 #[test]
 fn self_host_lexer_full_compile_smoke() {
-    kabootar::cli::run_file(&self_host_path("test_lexer_full_compile.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_lexer_full_compile.kab"))
         .expect("self_host/test_lexer_full_compile.kab should pass");
 }
 
 #[test]
 #[ignore = "slow (~15 min): self-hosted compile(lexer.kab); run: cargo test --test self_host -- --ignored"]
 fn self_host_lexer_full_compile_and_run() {
-    use kabootar::bytecode::{call_value, deserialize, run_module};
-    use kabootar::evaluator::create_global_env;
-    use kabootar::value::Value;
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
 
     let probe_path = self_host_path("_lexer_full_probe_gen.kab");
     let src_copy = format!("{}/_lexer_full_src.kab", env!("CARGO_MANIFEST_DIR"));
@@ -246,22 +246,22 @@ fn self_host_lexer_full_compile_and_run() {
 
 #[test]
 fn self_host_bootstrap_smoke() {
-    kabootar::cli::run_file(&self_host_path("test_bootstrap.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_bootstrap.kab"))
         .expect("self_host/test_bootstrap.kab should pass");
 }
 
 #[test]
 fn self_host_bootstrap_compile_and_run() {
-    use kabootar::bytecode::{deserialize, run_module};
-    use kabootar::evaluator::create_global_env;
-    use kabootar::value::{Value, format_value};
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::{Value, format_value};
 
     let compile_path = self_host_path("compile.kab");
-    let (_, bytecode) = kabootar::cli::compile_file_report(&compile_path)
+    let (_, bytecode) = kabootar_lib::cli::compile_file_report(&compile_path)
         .expect("kabootar compile self_host/compile.kab should succeed");
     assert!(bytecode, "compile.kab should produce bytecode cache");
 
-    let v = kabootar::cli::run_file(&self_host_path("bootstrap_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("bootstrap_probe.kab"))
         .expect("bootstrap_probe.kab should run");
     let Value::String(text) = v else {
         panic!("bootstrap_probe should return .kbc text from self-hosted compile");
@@ -279,14 +279,14 @@ fn self_host_bootstrap_compile_and_run() {
 
 #[test]
 fn self_host_compile_suite() {
-    kabootar::cli::run_file(&self_host_path("test_compile.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_compile.kab"))
         .expect("self_host/test_compile.kab should pass");
 }
 
 #[test]
 fn self_host_compile_compiles() {
     let path = self_host_path("compile.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("compile.kab should compile");
     assert!(n > 0);
     assert!(bytecode);
@@ -294,22 +294,22 @@ fn self_host_compile_compiles() {
 
 #[test]
 fn self_host_parse_facade_suite() {
-    kabootar::cli::run_file(&self_host_path("test_parse_facade.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_parse_facade.kab"))
         .expect("self_host/test_parse_facade.kab should pass");
 }
 
 #[test]
 fn self_host_parse_facade_smoke() {
-    kabootar::cli::run_file(&self_host_path("test_tiny.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("test_tiny.kab"))
         .expect("self_host/test_tiny.kab should pass");
-    kabootar::cli::run_file(&self_host_path("roundtrip_probe.kab"))
+    kabootar_lib::cli::run_file(&self_host_path("roundtrip_probe.kab"))
         .expect("self_host/roundtrip_probe.kab should pass");
 }
 
 #[test]
 fn self_host_parse_facade_compiles() {
     let path = self_host_path("parse.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("parse.kab should compile");
     assert!(n > 0);
     assert!(bytecode);
@@ -318,7 +318,7 @@ fn self_host_parse_facade_compiles() {
 #[test]
 fn self_host_lexer_compiles() {
     let path = self_host_path("lexer.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("lexer.kab should compile");
     assert!(n > 0);
     assert!(bytecode, "lexer.kab should emit bytecode");
@@ -327,7 +327,7 @@ fn self_host_lexer_compiles() {
 #[test]
 fn self_host_parser_compiles() {
     let path = self_host_path("parser.kab");
-    let (n, bytecode) = kabootar::cli::compile_file_report(&path)
+    let (n, bytecode) = kabootar_lib::cli::compile_file_report(&path)
         .expect("parser.kab should compile");
     assert!(n > 0);
     assert!(bytecode, "parser.kab should emit bytecode");
@@ -335,10 +335,10 @@ fn self_host_parser_compiles() {
 
 #[test]
 fn self_host_kbc_roundtrip_main() {
-    use kabootar::bytecode::deserialize;
-    use kabootar::value::Value;
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::value::Value;
 
-    let v = kabootar::cli::run_file(&self_host_path("roundtrip_main_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("roundtrip_main_probe.kab"))
         .expect("roundtrip_main_probe.kab should run");
     let Value::String(text) = v else {
         panic!("roundtrip_probe should return serialized .kbc text");
@@ -352,10 +352,10 @@ fn self_host_kbc_roundtrip_main() {
 
 #[test]
 fn self_host_kbc_roundtrip_fn() {
-    use kabootar::bytecode::deserialize;
-    use kabootar::value::Value;
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::value::Value;
 
-    let v = kabootar::cli::run_file(&self_host_path("roundtrip_fn_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("roundtrip_fn_probe.kab"))
         .expect("roundtrip_fn_probe.kab should run");
     let Value::String(text) = v else {
         panic!("roundtrip_fn_probe should return serialized .kbc text");
@@ -365,16 +365,16 @@ fn self_host_kbc_roundtrip_fn() {
     assert_eq!(module.functions[0].name, "add");
     assert_eq!(module.functions[0].params, vec!["a".to_string(), "b".to_string()]);
     assert!(!module.functions[0].code.is_empty());
-    assert_eq!(module.main_code.last(), Some(&kabootar::bytecode::Opcode::Halt));
+    assert_eq!(module.main_code.last(), Some(&kabootar_lib::bytecode::Opcode::Halt));
 }
 
 #[test]
 fn self_host_kbc_run_fn_call() {
-    use kabootar::bytecode::{deserialize, run_module};
-    use kabootar::evaluator::create_global_env;
-    use kabootar::value::{Value, format_value};
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::{Value, format_value};
 
-    let v = kabootar::cli::run_file(&self_host_path("roundtrip_call_probe.kab"))
+    let v = kabootar_lib::cli::run_file(&self_host_path("roundtrip_call_probe.kab"))
         .expect("roundtrip_call_probe.kab should run");
     let Value::String(text) = v else {
         panic!("roundtrip_call_probe should return .kbc text");

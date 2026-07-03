@@ -1,7 +1,7 @@
 //! Kabootar OS permissions, hotplug, and host bridge
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::path::PathBuf;
 use std::sync::Mutex;
 

@@ -1,10 +1,10 @@
 //! Game runtime — frame loop, input, unified surface.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::format_value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::format_value;
 
 fn eval(code: &str) -> String {
-    kabootar::runtime::game::reset_all();
+    kabootar_lib::runtime::game::reset_all();
     let mut env = create_global_env();
     format_value(&eval_source(code, &mut env).unwrap())
 }

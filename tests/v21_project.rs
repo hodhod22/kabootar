@@ -1,11 +1,11 @@
 //! v2.1 project features tests
 
-use kabootar::cli;
-use kabootar::compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::project::manifest::{parse_manifest, version_matches};
-use kabootar::value::Value;
+use kabootar_lib::cli;
+use kabootar_lib::compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::project::manifest::{parse_manifest, version_matches};
+use kabootar_lib::value::Value;
 use std::fs;
 use std::path::PathBuf;
 

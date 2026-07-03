@@ -1,7 +1,7 @@
 //! v2.14 — ? operator, match guards, is()
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn result_question_unwraps_ok() {

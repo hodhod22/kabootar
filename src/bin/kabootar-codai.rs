@@ -7,7 +7,7 @@
 //! kabootar-codai --compose http-health http-serve
 //! ```
 
-use kabootar::codai::{
+use kabootar_lib::codai::{
     all_ids, all_project_ids, categories, compose, help, project_tree, scaffold_project,
     suggest, suggest_projects, sync_project, util,
 };
@@ -63,7 +63,7 @@ fn main() {
     }
 
     if let Some(id) = flag_value(&args, "--project-progress") {
-        match kabootar::codai::progress_report(&id) {
+        match kabootar_lib::codai::progress_report(&id) {
             Ok(md) => print!("{md}"),
             Err(e) => eprintln!("{e}"),
         }
@@ -74,7 +74,7 @@ fn main() {
         let path = flag_value(&args, "--project-sync").unwrap_or_else(|| ".".into());
         match sync_project(std::path::Path::new(&path)) {
             Ok(report) => {
-                use kabootar::codai::format_sync_report;
+                use kabootar_lib::codai::format_sync_report;
                 print!("{}", format_sync_report(&report));
             }
             Err(e) => eprintln!("{e}"),
@@ -87,7 +87,7 @@ fn main() {
         let force = args.iter().any(|a| a == "--force");
         match scaffold_project(&id, std::path::Path::new(&dir), force) {
             Ok(report) => {
-                use kabootar::codai::format_scaffold_report;
+                use kabootar_lib::codai::format_scaffold_report;
                 print!("{}", format_scaffold_report(&id, &report));
             }
             Err(e) => eprintln!("{e}"),
@@ -199,7 +199,7 @@ fn run_repl() {
             let path = if path.is_empty() { "." } else { path };
             match sync_project(std::path::Path::new(path)) {
                 Ok(report) => {
-                    use kabootar::codai::format_sync_report;
+                    use kabootar_lib::codai::format_sync_report;
                     println!("{}", format_sync_report(&report));
                 }
                 Err(e) => println!("{e}"),
@@ -225,7 +225,7 @@ fn run_repl() {
             let dir = parts.get(1).copied().unwrap_or(".");
             match scaffold_project(id, std::path::Path::new(dir), false) {
                 Ok(report) => {
-                    use kabootar::codai::format_scaffold_report;
+                    use kabootar_lib::codai::format_scaffold_report;
                     println!("{}", format_scaffold_report(id, &report));
                 }
                 Err(e) => println!("{e}"),

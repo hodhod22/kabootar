@@ -1,7 +1,7 @@
 //! Kabootar Browser — multi-OS navigation (Kabootar VFS + host)
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 fn eval(code: &str) -> Value {
     let mut env = create_global_env();

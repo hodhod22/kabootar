@@ -1,8 +1,8 @@
 //! Kabootar SQL v3 — advanced features tests
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::sql::SqlEngine;
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::sql::SqlEngine;
+use kabootar_lib::value::Value;
 use std::collections::HashMap;
 
 #[test]

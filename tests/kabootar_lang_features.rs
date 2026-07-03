@@ -1,8 +1,8 @@
 //! Kabootar language standout features — 20-point matrix
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::lang_preprocess;
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::lang_preprocess;
+use kabootar_lib::value::Value;
 
 fn eval(code: &str) -> Value {
     let mut env = create_global_env();

@@ -1,8 +1,8 @@
 //! v2.43 — nested member/index assignment
 
-use kabootar::bytecode::can_compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::can_compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_nested_member_assign() {

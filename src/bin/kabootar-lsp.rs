@@ -1,4 +1,4 @@
-use kabootar::language::{analyze, completions, goto_definition, hover_word, word_at_position, CompletionKind, Severity};
+use kabootar_lib::language::{analyze, completions, goto_definition, hover_word, word_at_position, CompletionKind, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

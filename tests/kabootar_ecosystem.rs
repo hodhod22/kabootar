@@ -1,9 +1,9 @@
 //! Ecosystem — registry search, catalog, seed, uninstall.
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::registry::{install_package, list_registry, publish_file, seed_lib_to_registry};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::registry::{install_package, list_registry, publish_file, seed_lib_to_registry};
+use kabootar_lib::value::Value;
 use std::fs;
 use std::process;
 use std::sync::Mutex;

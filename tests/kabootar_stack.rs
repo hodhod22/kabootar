@@ -1,7 +1,7 @@
 //! Kabootar native stack — render engine, CSS, compositor, OS binding
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 use std::sync::Mutex;
 
 /// `kb_backend` / `kb_set_backend` use process-wide state; serialize those tests.

@@ -10,13 +10,16 @@ build = "build.rs"
 dead_code = "allow"
 
 [lib]
+# Distinct from [[bin]] name "kabootar" — avoids kabootar.pdb collision on Windows (cargo#6313).
 crate-type = ["cdylib", "rlib"]
-name = "kabootar"
+name = "kabootar_lib"
 
 [[bin]]
 name = "kabootar"
 path = "src/main.rs"
 required-features = ["default"]
+test = false
+bench = false
 
 [[bin]]
 name = "kabootar-lsp"

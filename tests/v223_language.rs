@@ -1,8 +1,8 @@
 //! v2.23 — bytecode v2.4 subset: sync arrow functions, match (guards)
 
-use kabootar::bytecode::can_compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::can_compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_arrow_expression() {

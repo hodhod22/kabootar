@@ -1,8 +1,8 @@
 //! v2.36 — fn expressions + string-key object destructuring
 
-use kabootar::bytecode::can_compile;
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::can_compile;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_object_literal_string_keys() {

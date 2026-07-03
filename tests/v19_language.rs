@@ -1,8 +1,8 @@
 //! v1.9 language core tests
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::value::{Environment, Value};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::value::{Environment, Value};
 
 #[test]
 fn array_literal_evaluates() {

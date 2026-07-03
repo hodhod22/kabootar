@@ -1,8 +1,8 @@
 //! v2.10 — HTTPS/TLS för http_fetch_async
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::runtime::net::parse_url;
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::runtime::net::parse_url;
+use kabootar_lib::value::Value;
 
 #[test]
 fn parse_https_url_in_language_layer() {

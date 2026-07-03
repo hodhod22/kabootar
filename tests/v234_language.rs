@@ -1,8 +1,8 @@
 //! v2.34 — Undefined/NaN literals, spread class constructor, bytecode is()
 
-use kabootar::bytecode::{can_compile, compile_source, deserialize, serialize};
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::bytecode::{can_compile, compile_source, deserialize, serialize};
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn bytecode_undefined_and_nan_literals() {
@@ -19,7 +19,7 @@ fn bytecode_undefined_and_nan_literals() {
 fn undefined_nan_serialize_roundtrip() {
     let program = compile_source("undefined").unwrap();
     let bc = program.bytecode.as_ref().unwrap();
-    assert!(bc.constants.iter().any(|c| *c == kabootar::bytecode::Constant::Undefined));
+    assert!(bc.constants.iter().any(|c| *c == kabootar_lib::bytecode::Constant::Undefined));
     let restored = deserialize(&serialize(bc)).unwrap();
     assert_eq!(restored.constants, bc.constants);
 }

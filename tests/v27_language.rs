@@ -1,7 +1,7 @@
 //! v2.7 — sleep_ticks och interface/implements
 
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::value::Value;
 
 #[test]
 fn sleep_ticks_yields_to_other_tasks() {

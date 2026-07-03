@@ -1,12 +1,12 @@
 //! CodAI integration tests.
 
-use kabootar::codai::{
+use kabootar_lib::codai::{
     compose, progress_report, project_tree, scaffold_project, suggest, suggest_projects,
     sync_project, util, IDE_PATH, PROGRESS_PATH, ROADMAP_PATH, ROAD_NOW_PATH,
 };
-use kabootar::evaluator::{create_global_env, eval_source};
-use kabootar::modules::import_module;
-use kabootar::value::Value;
+use kabootar_lib::evaluator::{create_global_env, eval_source};
+use kabootar_lib::modules::import_module;
+use kabootar_lib::value::Value;
 use std::fs;
 
 #[test]

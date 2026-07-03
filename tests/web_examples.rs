@@ -1,4 +1,4 @@
-use kabootar::evaluate;
+use kabootar_lib::evaluate;
 
 #[test]
 fn while_loop_increments_to_five() {

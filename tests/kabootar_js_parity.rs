@@ -1,7 +1,7 @@
 //! JS parity batch 2 — language operators and stdlib.
 
-use kabootar::evaluator::{create_global_env, drain_all_microtasks, eval_source};
-use kabootar::value::{PromiseValue, Value};
+use kabootar_lib::evaluator::{create_global_env, drain_all_microtasks, eval_source};
+use kabootar_lib::value::{PromiseValue, Value};
 
 fn eval(code: &str) -> Value {
     let mut env = create_global_env();
@@ -438,7 +438,7 @@ fn js_parity_batch6() {
     );
     assert!(matches!(out, Value::Number(2)));
 
-    use kabootar::bytecode::can_compile;
+    use kabootar_lib::bytecode::can_compile;
     assert!(can_compile("5 & 3"));
     assert!(can_compile("4294967295 >>> 1"));
     assert!(can_compile(
