@@ -1,7 +1,11 @@
 /target/
 /target-local/
 /target-fresh/
+/target-alt/
+/target-alt2/
+/target-alt3/
 **/*.wal
+tmp_*.log
 deno_kv_*.json
 open_kv_*.json
 *.stackdump
