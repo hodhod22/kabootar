@@ -1,0 +1,15 @@
+{
+  "iconDefinitions": {
+    "_kab_file": {
+      "iconPath": "../icons/logo.png"
+    }
+  },
+  "fileExtensions": {
+    "kab": "_kab_file",
+    "kabootar": "_kab_file"
+  },
+  "languageIds": {
+    "kabootar": "_kab_file"
+  },
+  "showLanguageModeIcons": true
+}

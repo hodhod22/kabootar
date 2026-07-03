@@ -14,6 +14,7 @@
   ],
   "activationEvents": [
     "onLanguage:kabootar",
+    "onStartupFinished",
     "onCommand:kabootar.docai.ask",
     "onCommand:kabootar.docai.openPanel",
     "onCommand:kabootar.codai.sync",
@@ -33,8 +34,8 @@
           ".kabootar"
         ],
         "icon": {
-          "light": "./icons/logo.png",
-          "dark": "./icons/logo.png"
+          "light": "icons/logo.png",
+          "dark": "icons/logo.png"
         },
         "configuration": "./language-configuration.json"
       }
@@ -44,6 +45,13 @@
         "language": "kabootar",
         "scopeName": "source.kabootar",
         "path": "./syntaxes/kabootar.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "kabootar-file-icons",
+        "label": "Kabootar",
+        "path": "./themes/kabootar-file-icon-theme.json"
       }
     ],
     "configuration": {
