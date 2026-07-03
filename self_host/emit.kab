@@ -40,6 +40,8 @@ let eStmtI = 0
 let eObjI = 0
 let eParamI = 0
 let eFound = 0
+let eWhileHead = 0
+let eJumpOff = 0
 
 fn localIndex(name) {
     eLocalI = 0
@@ -483,26 +485,32 @@ fn emitStmt(node) {
             emitOp(OP_JUMP, 0)
             if eInFn == 1 {
                 eEnd = len(eFnOps)
-                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+                eJumpOff = eEnd - eJmp - 1
+                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             } else {
                 eEnd = len(eOps)
-                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+                eJumpOff = eEnd - eJmp - 1
+                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             }
             emitStmt(eElse)
             if eInFn == 1 {
                 eEnd = len(eFnOps)
-                eFnOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+                eJumpOff = eEnd - eIdx - 1
+                eFnOps[eIdx] = { "op": OP_JUMP, "arg": eJumpOff }
             } else {
                 eEnd = len(eOps)
-                eOps[eIdx] = { "op": OP_JUMP, "arg": eEnd }
+                eJumpOff = eEnd - eIdx - 1
+                eOps[eIdx] = { "op": OP_JUMP, "arg": eJumpOff }
             }
         } else {
             if eInFn == 1 {
                 eEnd = len(eFnOps)
-                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+                eJumpOff = eEnd - eJmp - 1
+                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             } else {
                 eEnd = len(eOps)
-                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+                eJumpOff = eEnd - eJmp - 1
+                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             }
         }
         return
@@ -511,9 +519,9 @@ fn emitStmt(node) {
         eCond = eNode["cond"]
         eThen = eNode["body"]
         if eInFn == 1 {
-            eIdx = len(eFnOps)
+            eWhileHead = len(eFnOps)
         } else {
-            eIdx = len(eOps)
+            eWhileHead = len(eOps)
         }
         emitExpr(eCond)
         if eInFn == 1 {
@@ -523,13 +531,20 @@ fn emitStmt(node) {
         }
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
-        emitOp(OP_JUMP, eIdx)
+        if eInFn == 1 {
+            eJumpOff = eWhileHead - len(eFnOps) - 1
+        } else {
+            eJumpOff = eWhileHead - len(eOps) - 1
+        }
+        emitOp(OP_JUMP, eJumpOff)
         if eInFn == 1 {
             eEnd = len(eFnOps)
-            eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            eJumpOff = eEnd - eJmp - 1
+            eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
         } else {
             eEnd = len(eOps)
-            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eEnd }
+            eJumpOff = eEnd - eJmp - 1
+            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
         }
         return
     }
