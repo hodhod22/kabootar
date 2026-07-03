@@ -11,6 +11,7 @@ fn main() {
     // Self-hosted compile/parse chains nest deeply; default 1 MiB stack overflows on Windows.
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         println!("cargo:rustc-link-arg-bin=kabootar=/STACK:16777216");
+        println!("cargo:rustc-link-arg=/STACK:16777216");
     }
 }
 

@@ -1,0 +1,21 @@
+// Smoke: compile a lexer-like snippet (continue/break/undefined); full lexer.kab in Rust CI.
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+let snippet = "let kw = null" + CHAR_NL
+    + "if kw == undefined {" + CHAR_NL
+    + "  kw = " + QUOTE + "x" + QUOTE + CHAR_NL
+    + "}" + CHAR_NL
+    + "while kw != null {" + CHAR_NL
+    + "  if kw == " + QUOTE + "x" + QUOTE + " {" + CHAR_NL
+    + "    break" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "  continue" + CHAR_NL
+    + "}" + CHAR_NL
+    + "return kw"
+
+let kbc = compile(snippet)
+if char_at(kbc, 0) != "k" {
+    throw "lexer snippet compile: bad header"
+}
+println("lexer snippet compile ok")

@@ -42,6 +42,14 @@ let eParamI = 0
 let eFound = 0
 let eWhileHead = 0
 let eJumpOff = 0
+let eWhileHeads = []
+let eBreakIdxs = []
+let eBreakFromStack = []
+let eBi = 0
+let eBf = 0
+let eWh = 0
+let eWhNew = []
+let eWhI = 0
 
 fn localIndex(name) {
     eLocalI = 0
@@ -200,6 +208,10 @@ fn emitExpr(node) {
             emitOp(OP_ADD, 0)
             return
         }
+        if eOp == "-" {
+            emitOp(OP_SUB, 0)
+            return
+        }
         if eOp == "==" {
             emitOp(OP_EQ, 0)
             return
@@ -210,6 +222,10 @@ fn emitExpr(node) {
         }
         if eOp == "<" {
             emitOp(OP_LT, 0)
+            return
+        }
+        if eOp == ">" {
+            emitOp(OP_GT, 0)
             return
         }
         if eOp == ">=" {
@@ -515,14 +531,41 @@ fn emitStmt(node) {
         }
         return
     }
+    if eNode.kind == AST_CONTINUE {
+        if len(eWhileHeads) == 0 {
+            throw "continue outside loop"
+        }
+        eWh = eWhileHeads[len(eWhileHeads) - 1]
+        if eInFn == 1 {
+            eJumpOff = eWh - len(eFnOps) - 1
+        } else {
+            eJumpOff = eWh - len(eOps) - 1
+        }
+        emitOp(OP_JUMP, eJumpOff)
+        return
+    }
+    if eNode.kind == AST_BREAK {
+        if len(eBreakFromStack) == 0 {
+            throw "break outside loop"
+        }
+        if eInFn == 1 {
+            eBreakIdxs = push(eBreakIdxs, len(eFnOps))
+        } else {
+            eBreakIdxs = push(eBreakIdxs, len(eOps))
+        }
+        emitOp(OP_JUMP, 0)
+        return
+    }
     if eNode.kind == AST_WHILE {
         eCond = eNode["cond"]
         eThen = eNode["body"]
+        eBreakFromStack = push(eBreakFromStack, len(eBreakIdxs))
         if eInFn == 1 {
             eWhileHead = len(eFnOps)
         } else {
             eWhileHead = len(eOps)
         }
+        eWhileHeads = push(eWhileHeads, eWhileHead)
         emitExpr(eCond)
         if eInFn == 1 {
             eJmp = len(eFnOps)
@@ -546,6 +589,32 @@ fn emitStmt(node) {
             eJumpOff = eEnd - eJmp - 1
             eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
         }
+        eBf = eBreakFromStack[len(eBreakFromStack) - 1]
+        eBi = eBf
+        while eBi < len(eBreakIdxs) {
+            if eInFn == 1 {
+                eJumpOff = eEnd - eBreakIdxs[eBi] - 1
+                eFnOps[eBreakIdxs[eBi]] = { "op": OP_JUMP, "arg": eJumpOff }
+            } else {
+                eJumpOff = eEnd - eBreakIdxs[eBi] - 1
+                eOps[eBreakIdxs[eBi]] = { "op": OP_JUMP, "arg": eJumpOff }
+            }
+            eBi = eBi + 1
+        }
+        eWhNew = []
+        eWhI = 0
+        while eWhI < len(eWhileHeads) - 1 {
+            eWhNew = push(eWhNew, eWhileHeads[eWhI])
+            eWhI = eWhI + 1
+        }
+        eWhileHeads = eWhNew
+        eWhNew = []
+        eWhI = 0
+        while eWhI < len(eBreakFromStack) - 1 {
+            eWhNew = push(eWhNew, eBreakFromStack[eWhI])
+            eWhI = eWhI + 1
+        }
+        eBreakFromStack = eWhNew
         return
     }
     if eNode.kind == AST_FN {
@@ -586,6 +655,9 @@ pub fn emit(program) {
     eFnGlobals = []
     eFnLocals = []
     eInFn = 0
+    eWhileHeads = []
+    eBreakIdxs = []
+    eBreakFromStack = []
     eProg = 0
     while eProg < len(eProgram["body"]) {
         emitStmt(eProgram["body"][eProg])

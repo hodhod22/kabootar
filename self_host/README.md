@@ -86,7 +86,7 @@ cargo test --test self_host
 12. **Compare-parse** — spara lhs i `pSave` före rhs; använd **inte** `parsePostfix()` för compare-rhs (skriver över `pLeft`). Undvik `parsePostfix()` i `.kbc`-cache (privata fn syns inte). Inline rhs som `+`-loopen + `null`/`true`/`false`.
 13. **Emitter while** — spara loop-head i `eWhileHead` (inte `eIdx`). Jump-args är **relativa** i VM: `target - jmpIndex - 1`.
 14. **Bytecode-cache** — `.kabootar/cache/*.kbc` ogiltigförklaras när källan är nyare (`read_bytecode_cache` mtime-check).
-15. **Parser under native Kabootar** — `continue`/`undefined` som input till self-hosted `parseTokens()` kan ge `kab_throw`; undvik i compile-prober tills fix finns.
+15. **Serialize från `.kbc`** — undvik privata fn-anrop från exporterade fn (`serialize_bc`); använd modul-global `sOut` + `CHAR_NL` inline istället för `appendLine()`.
 
 ## Nästa milstolpar
 
@@ -96,5 +96,7 @@ cargo test --test self_host
 4. ~~Full pipeline: `compile(source)` entrypoint~~ ✅
 5. ~~Self-host bootstrap: `compile.kab` cache + `compile(sample)` -> Rust `run_module`~~ ✅
 6. ~~Utöka self-hosted språksubset (obj, &&, compares, index)~~ ✅
-7. ~~Lexer-like compile (`char_at`-loop, `!=`)~~ ✅ — `continue`/`undefined`-parse + full `lexer.kab` kvar
-8. Self-host hela `lexer.kab` (`lxScan` + `ZERO` for `char_code_at`)
+7. ~~Lexer-like compile (`char_at`-loop, `!=`, `continue`/`break`/`undefined`)~~ ✅
+8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — snippet-smoke + Rust `self_host_lexer_full_compile_and_run` (långsam ~10–30 min)
+
+9. Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes)
