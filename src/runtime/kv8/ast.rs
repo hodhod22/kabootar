@@ -53,6 +53,23 @@ pub enum Stmt {
     TryCatch(Vec<Stmt>, Option<(String, Vec<Stmt>)>, Option<Vec<Stmt>>),
     Function(String, Vec<Kv8Param>, Vec<Stmt>),
     AsyncFunction(String, Vec<Kv8Param>, Vec<Stmt>),
+    /// `class Name [extends Super] { methods }`
+    Class {
+        name: String,
+        superclass: Option<String>,
+        methods: Vec<ClassMethod>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassMethod {
+    pub name: String,
+    pub params: Vec<Kv8Param>,
+    pub body: Vec<Stmt>,
+    pub is_static: bool,
+    pub is_async: bool,
+    pub is_getter: bool,
+    pub is_setter: bool,
 }
 
 #[derive(Debug, Clone)]

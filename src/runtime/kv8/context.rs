@@ -8,6 +8,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+/// Shared mutable environment for a `function` / arrow closure.
+pub type Kv8ClosureEnv = Arc<Mutex<HashMap<String, Kv8Value>>>;
+
 #[derive(Debug, Clone)]
 pub enum Kv8Value {
     Undefined,
@@ -22,13 +25,13 @@ pub enum Kv8Value {
         params: Vec<Kv8Param>,
         body: Vec<super::ast::Stmt>,
         prototype: HashMap<String, Kv8Value>,
-        closure: HashMap<String, Kv8Value>,
+        closure: Kv8ClosureEnv,
     },
     /// Arrow `=>` — bytecode cached on first call
     Arrow {
         params: Vec<Kv8Param>,
         body: Box<super::ast::Expr>,
-        closure: HashMap<String, Kv8Value>,
+        closure: Kv8ClosureEnv,
     },
     Promise(SharedKv8Promise),
     /// `async function` body
@@ -36,7 +39,7 @@ pub enum Kv8Value {
         params: Vec<Kv8Param>,
         body: Vec<super::ast::Stmt>,
         prototype: HashMap<String, Kv8Value>,
-        closure: HashMap<String, Kv8Value>,
+        closure: Kv8ClosureEnv,
     },
     /// `Symbol.for("key")` / well-known symbols
     Symbol {
@@ -119,8 +122,18 @@ pub struct Kv8ContextInner {
     pub next_symbol_id: u64,
     /// Bindings from completed UMD/module function scopes (survive scope_pop).
     pub module_bindings: HashMap<String, Kv8Value>,
+    /// Latest hoisted `function` value per name (last factory pop wins; used by finalize).
+    pub hoist_latest: HashMap<String, Kv8Value>,
+    /// Set after [`Self::finalize_module_hoists`] — enables live hoist scope resolution.
+    pub hoists_finalized: bool,
+    /// Closure variable names for the active call.
+    pub closure_assign_stack: Vec<HashSet<String>>,
+    /// Live closure cells for the active call (per-function, not global).
+    pub closure_env_stack: Vec<Kv8ClosureEnv>,
     /// Mutable `globalThis` / `self` singleton for UMD exports.
     pub global_this: Option<Kv8Value>,
+    /// Op counter for infinite-loop detection (reset per eval_script call).
+    pub op_count: u64,
     /// Registered ES modules (`import … from "name"`).
     pub modules: HashMap<String, Kv8Module>,
     /// `export default` from the current module evaluation.
@@ -137,7 +150,7 @@ pub struct Kv8ContextInner {
 
 #[derive(Debug, Clone)]
 pub struct ExecStmtsFrame {
-    pub stmts: Vec<super::ast::Stmt>,
+    pub stmts: Arc<Vec<super::ast::Stmt>>,
     pub index: usize,
 }
 
@@ -195,10 +208,15 @@ impl Default for Kv8ContextInner {
             symbol_registry: HashMap::new(),
             next_symbol_id: 1,
             global_this: None,
+            op_count: 0,
             modules: HashMap::new(),
             export_default: None,
             export_bindings: HashMap::new(),
             module_bindings: HashMap::new(),
+            hoist_latest: HashMap::new(),
+            hoists_finalized: false,
+            closure_assign_stack: Vec::new(),
+            closure_env_stack: Vec::new(),
             call_trace: Vec::new(),
             exec_stmts_stack: Vec::new(),
             owner_document_node: None,
@@ -238,41 +256,6 @@ fn plain_obj_id(map: &HashMap<String, Kv8Value>) -> Option<u64> {
         .map(|n| n as u64)
 }
 
-fn collect_closure_capture_names(
-    v: &Kv8Value,
-    names: &mut HashSet<String>,
-    obj_store: &HashMap<u64, HashMap<String, Kv8Value>>,
-) {
-    match v {
-        Kv8Value::Fun { closure, .. } | Kv8Value::AsyncFun { closure, .. } => {
-            names.extend(closure.keys().cloned());
-        }
-        Kv8Value::Obj(map) => {
-            if map.get("__native").and_then(|v| v.as_str()) == Some("bound.call") {
-                if let Some(target) = map.get("__target") {
-                    collect_closure_capture_names(target, names, obj_store);
-                }
-            }
-            for val in map.values() {
-                collect_closure_capture_names(val, names, obj_store);
-            }
-            if let Some(id) = plain_obj_id(map) {
-                if let Some(store) = obj_store.get(&id) {
-                    for (k, val) in store {
-                        if k.starts_with("__desc__:") {
-                            if let Kv8Value::Obj(desc) = val {
-                                if let Some(getter) = desc.get("get") {
-                                    collect_closure_capture_names(getter, names, obj_store);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
 
 impl Kv8ContextInner {
     pub fn scope_current_mut(&mut self) -> &mut HashMap<String, Kv8Value> {
@@ -281,34 +264,128 @@ impl Kv8ContextInner {
             .expect("kv8 scope stack must not be empty")
     }
 
+    /// Returns true if the name is already bound in the current (innermost) frame.
+    pub fn scope_current_has(&self, name: &str) -> bool {
+        self.scope_stack.last().map_or(false, |f| f.contains_key(name))
+    }
+
+    fn finalized_hoist(&self, name: &str) -> Option<Kv8Value> {
+        if !self.hoists_finalized {
+            return None;
+        }
+        self.hoist_latest.get(name).and_then(|v| {
+            if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn scope_get(&self, name: &str) -> Option<Kv8Value> {
         for frame in self.scope_stack.iter().rev() {
             if let Some(v) = frame.get(name) {
+                if matches!(v, Kv8Value::Undefined) {
+                    if let Some(h) = self.finalized_hoist(name) {
+                        return Some(h);
+                    }
+                }
+                if self.closure_assign_active(name) {
+                    if let Some(h) = self.finalized_hoist(name) {
+                        if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                            return Some(h);
+                        }
+                    }
+                    if matches!(v, Kv8Value::Undefined) {
+                        if let Some(mb) = self.module_bindings.get(name) {
+                            if matches!(mb, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                                return Some(mb.clone());
+                            }
+                        }
+                    }
+                }
                 return Some(v.clone());
             }
         }
-        self.module_bindings.get(name).cloned()
-    }
-
-    /// Scope lookup excluding the innermost frame (active call scope).
-    pub fn scope_get_outer(&self, name: &str) -> Option<Kv8Value> {
-        if self.scope_stack.len() > 1 {
-            for frame in self.scope_stack[..self.scope_stack.len() - 1].iter().rev() {
-                if let Some(v) = frame.get(name) {
+        if self.closure_assign_active(name) {
+            if let Some(v) = self.scope_get_outer_lexical(name) {
+                return Some(v);
+            }
+            // Prefer live module hoists over closure snapshots for functions.
+            if let Some(v) = self.module_bindings.get(name) {
+                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
                     return Some(v.clone());
+                }
+            }
+            if let Some(env) = self.closure_env_stack.last() {
+                if let Ok(map) = env.lock() {
+                    if let Some(v) = map.get(name) {
+                        return Some(v.clone());
+                    }
                 }
             }
         }
         self.module_bindings.get(name).cloned()
     }
 
+    /// Scope lookup excluding the innermost frame (active call scope).
+    /// Also skips variables that are declared as parameters in an outer frame —
+    /// a parameter `factory` in Tm's call-frame must not shadow the `factory`
+    /// captured in bm's own closure snapshot.
+    pub fn scope_get_outer_lexical(&self, name: &str) -> Option<Kv8Value> {
+        let skip_closure_frames = self.closure_assign_active(name);
+        if self.scope_stack.len() > 1 {
+            for frame in self.scope_stack[..self.scope_stack.len() - 1].iter().rev() {
+                if skip_closure_frames
+                    && matches!(frame.get("__is_closure_frame__"), Some(Kv8Value::Bool(true)))
+                    && frame.contains_key(name)
+                {
+                    continue;
+                }
+                if let Some(v) = frame.get(name) {
+                    let is_param = frame
+                        .get("__params__")
+                        .and_then(|p| if let Kv8Value::Str(s) = p { Some(s.as_str()) } else { None })
+                        .map(|s| s.split(',').any(|p| p == name))
+                        .unwrap_or(false);
+                    if is_param {
+                        continue;
+                    }
+                    return Some(v.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub fn scope_get_outer(&self, name: &str) -> Option<Kv8Value> {
+        if let Some(v) = self.scope_get_outer_lexical(name) {
+            return Some(v);
+        }
+        if self.closure_assign_active(name) {
+            return None;
+        }
+        self.module_bindings.get(name).cloned()
+    }
+
     pub fn capture_lexical_env(&self) -> HashMap<String, Kv8Value> {
         let mut env = HashMap::new();
-        // Include all frames (incl. current) — same-block `var mn` must be visible in
-        // `Nm = function(){ mn(...) }`. Skip `Fun` bodies (hoisted to module_bindings).
         for frame in &self.scope_stack {
+            // Collect the parameter names for this frame.
+            let param_names: std::collections::HashSet<&str> = frame
+                .get("__params__")
+                .and_then(|v| if let Kv8Value::Str(s) = v { Some(s.as_str()) } else { None })
+                .map(|s| s.split(',').filter(|s| !s.is_empty()).collect())
+                .unwrap_or_default();
             for (k, v) in frame {
-                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                if k == "__params__" || k == "__hoisted_fns__" || k == "__is_closure_frame__" {
+                    continue;
+                }
+                // Skip Fun/AsyncFun values UNLESS they are parameters.
+                // Hoisted helpers referenced by inner closures use capture_lexical_env_for.
+                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. })
+                    && !param_names.contains(k.as_str())
+                {
                     continue;
                 }
                 env.insert(k.clone(), v.clone());
@@ -317,31 +394,269 @@ impl Kv8ContextInner {
         env
     }
 
-    pub fn scope_pop_preserve(&mut self) {
-        if self.scope_stack.len() <= 1 {
-            return;
+    /// Capture only names referenced by an inner function (transitive over hoisted helpers).
+    pub fn capture_lexical_env_for(&self, names: &std::collections::HashSet<String>) -> HashMap<String, Kv8Value> {
+        if names.is_empty() {
+            return HashMap::new();
         }
-        let Some(frame) = self.scope_stack.pop() else {
-            return;
-        };
-        let mut closure_names = HashSet::new();
-        for v in frame.values() {
-            collect_closure_capture_names(v, &mut closure_names, &self.obj_store);
+        let needed = self.expand_closure_needed_names(names);
+        let mut env = HashMap::new();
+        for frame in &self.scope_stack {
+            let param_names: std::collections::HashSet<&str> = frame
+                .get("__params__")
+                .and_then(|v| if let Kv8Value::Str(s) = v { Some(s.as_str()) } else { None })
+                .map(|s| s.split(',').filter(|s| !s.is_empty()).collect())
+                .unwrap_or_default();
+            for (k, v) in frame {
+                if k == "__params__" || k == "__hoisted_fns__" || k == "__is_closure_frame__" {
+                    continue;
+                }
+                if !needed.contains(k.as_str()) {
+                    continue;
+                }
+                if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. })
+                    && !param_names.contains(k.as_str())
+                {
+                    env.insert(k.clone(), v.clone());
+                    continue;
+                }
+                env.insert(k.clone(), v.clone());
+            }
         }
-        for (k, v) in frame {
-            if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
-                self.module_bindings.entry(k).or_insert(v);
-            } else if closure_names.contains(&k) {
-                self.module_bindings.insert(k, v);
+        env
+    }
+
+    /// Expand `seed` with free names of any hoisted/captured functions transitively.
+    fn expand_closure_needed_names(
+        &self,
+        seed: &std::collections::HashSet<String>,
+    ) -> std::collections::HashSet<String> {
+        let mut needed = seed.clone();
+        loop {
+            let mut added = false;
+            for frame in &self.scope_stack {
+                for name in needed.clone() {
+                    let Some(v) = frame.get(&name) else {
+                        continue;
+                    };
+                    let free = match v {
+                        Kv8Value::Fun { params, body, .. } => {
+                            super::opt::free_names_for_function(params, body)
+                        }
+                        Kv8Value::AsyncFun { params, body, .. } => {
+                            super::opt::free_names_for_function(params, body)
+                        }
+                        _ => continue,
+                    };
+                    for n in free {
+                        if needed.insert(n) {
+                            added = true;
+                        }
+                    }
+                }
+            }
+            if !added {
+                break;
+            }
+        }
+        needed
+    }
+
+    pub fn scope_collapse_to_global(&mut self) {
+        while self.scope_stack.len() > 1 {
+            self.scope_pop_preserve();
+        }
+    }
+
+    /// After a large factory bundle finishes, replace stale first-or-insert hoists in
+    /// `module_bindings` with the final `Fun` values still present on scope frames.
+   pub fn finalize_module_hoists(&mut self, names: &[&str]) {
+    for &name in names {
+        let latest = self
+            .hoist_latest
+            .get(name)
+            .cloned()
+            .or_else(|| {
+                self.scope_stack.iter().rev().find_map(|frame| {
+                    frame.get(name).and_then(|v| {
+                        if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                            Some(v.clone())
+                        } else {
+                            None
+                        }
+                    })
+                })
+            })
+            .or_else(|| {
+                // 👇 NYTT: Läs från module_bindings
+                self.module_bindings.get(name).and_then(|v| {
+                    if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                        Some(v.clone())
+                    } else {
+                        None
+                    }
+                })
+            });
+        if let Some(v) = latest {
+            self.hoist_latest.insert(name.to_string(), v.clone());
+            self.module_bindings.insert(name.to_string(), v);
+        }
+    }
+    self.refresh_closure_hoist_snapshots(names);
+    self.refresh_hoist_slots_in_scope(names);
+    self.hoists_finalized = true;
+}
+    /// Replace stale `undefined`/early hoists on every scope frame with finalized bindings.
+    fn refresh_hoist_slots_in_scope(&mut self, names: &[&str]) {
+        for &name in names {
+            let Some(v) = self
+                .hoist_latest
+                .get(name)
+                .or_else(|| self.module_bindings.get(name))
+                .cloned()
+            else {
+                continue;
+            };
+            if !matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                continue;
+            }
+            for frame in &mut self.scope_stack {
+                if frame.contains_key(name) {
+                    frame.insert(name.to_string(), v.clone());
+                }
             }
         }
     }
 
+    /// Patch captured hoist helpers inside closure envs so `mm` etc. see final `g2`/`Dl`.
+    fn refresh_closure_hoist_snapshots(&mut self, names: &[&str]) {
+        let live: HashMap<String, Kv8Value> = names
+            .iter()
+            .filter_map(|&n| {
+                self.hoist_latest
+                    .get(n)
+                    .or_else(|| self.module_bindings.get(n))
+                    .filter(|v| matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }))
+                    .map(|v| (n.to_string(), v.clone()))
+            })
+            .collect();
+        if live.is_empty() {
+            return;
+        }
+        let patch = |val: &mut Kv8Value| {
+            let closure = match val {
+                Kv8Value::Fun { closure, .. } | Kv8Value::AsyncFun { closure, .. } => closure,
+                _ => return,
+            };
+            if let Ok(mut map) = closure.lock() {
+                for (k, v) in &live {
+                    if map.contains_key(k) {
+                        map.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        };
+        let keys: Vec<String> = self.module_bindings.keys().cloned().collect();
+        for k in keys {
+            if let Some(v) = self.module_bindings.get_mut(&k) {
+                patch(v);
+            }
+        }
+        for frame in &mut self.scope_stack {
+            for v in frame.values_mut() {
+                patch(v);
+            }
+        }
+    }
+
+    pub fn publish_hoisted_fn(&mut self, name: &str, value: &Kv8Value) {
+        if matches!(value, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+            self.hoist_latest.insert(name.to_string(), value.clone());
+            self.module_bindings
+                .entry(name.to_string())
+                .or_insert_with(|| value.clone());
+            for frame in &mut self.scope_stack {
+                if matches!(
+                    frame.get(name),
+                    Some(Kv8Value::Undefined)
+                        | Some(Kv8Value::Fun { .. })
+                        | Some(Kv8Value::AsyncFun { .. })
+                ) {
+                    frame.insert(name.to_string(), value.clone());
+                }
+            }
+        }
+    }
+
+   pub fn scope_pop_preserve(&mut self) {
+    if self.scope_stack.len() <= 1 {
+        return;
+    }
+    let is_module_level = self.scope_stack.len() == 2;
+    let Some(frame) = self.scope_stack.pop() else {
+        return;
+    };
+
+    let get_names = |key: &str| -> std::collections::HashSet<String> {
+        frame.get(key)
+            .and_then(|v| if let Kv8Value::Str(s) = v { Some(s.as_str()) } else { None })
+            .map(|s| s.split(',').filter(|p| !p.is_empty()).map(|p| p.to_string()).collect())
+            .unwrap_or_default()
+    };
+
+    // esbuild `At(factory)` runs the factory at depth>2; publish hoisted helpers
+    // on every pop so createRoot/mm can still resolve g2, Dl, df, … via module_bindings.
+    let hoisted_fn_names = get_names("__hoisted_fns__");
+
+    // Always hoist important functions from all frames.
+    let important_fns = ["mm", "g2", "Dl", "ih", "df", "Pc", "ui", "qi", "yh"];
+    for (k, v) in &frame {
+        if important_fns.contains(&k.as_str()) {
+            if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                self.publish_hoisted_fn(k, v);
+            }
+        }
+    }
+
+    for (k, v) in &frame {
+        if hoisted_fn_names.contains(k.as_str()) {
+            if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+                self.publish_hoisted_fn(k, v);
+            }
+        }
+    }
+
+    if !is_module_level {
+        return;
+    }
+
+    // Closure-call frames (e.g. an At-wrapper) must not promote their locals.
+    if matches!(frame.get("__is_closure_frame__"), Some(Kv8Value::Bool(true))) {
+        return;
+    }
+
+    let param_names = get_names("__params__");
+    for (k, v) in &frame {
+        if k == "__params__" || k == "__hoisted_fns__" || param_names.contains(k.as_str()) {
+            continue;
+        }
+        if hoisted_fn_names.contains(k.as_str()) {
+            continue;
+        }
+        if matches!(v, Kv8Value::Fun { .. } | Kv8Value::AsyncFun { .. }) {
+            self.publish_hoisted_fn(k, v);
+        }
+    }
+}
     pub fn scope_resolve_mut(&mut self, name: &str) -> Option<&mut Kv8Value> {
+        let skip_module = self.closure_assign_active(name);
         for frame in self.scope_stack.iter_mut().rev() {
             if frame.contains_key(name) {
                 return frame.get_mut(name);
             }
+        }
+        if skip_module {
+            return None;
         }
         self.module_bindings.get_mut(name)
     }
@@ -358,6 +673,35 @@ impl Kv8ContextInner {
         self.module_bindings.contains_key(name)
     }
 
+    pub fn closure_call_enter(&mut self, env: Kv8ClosureEnv) {
+        let names = env
+            .lock()
+            .map(|map| map.keys().cloned().collect())
+            .unwrap_or_default();
+        self.closure_assign_stack.push(names);
+        self.closure_env_stack.push(env);
+    }
+
+    pub fn closure_call_exit(&mut self) {
+        self.closure_env_stack.pop();
+        self.closure_assign_stack.pop();
+    }
+
+    pub fn closure_assign_push(&mut self, names: HashSet<String>) {
+        self.closure_assign_stack.push(names);
+    }
+
+    pub fn closure_assign_pop(&mut self) {
+        self.closure_assign_stack.pop();
+    }
+
+    pub fn closure_assign_active(&self, name: &str) -> bool {
+        self.closure_assign_stack
+            .last()
+            .map(|s| s.contains(name))
+            .unwrap_or(false)
+    }
+
     pub fn scope_push(&mut self) {
         self.scope_stack.push(HashMap::new());
     }
@@ -370,10 +714,10 @@ impl Kv8ContextInner {
 
     pub fn try_materialize_forward_fun(&mut self, name: &str) -> Option<Kv8Value> {
         let frame = self.exec_stmts_stack.last()?;
-        for stmt in frame.stmts.iter().skip(frame.index.saturating_add(1)) {
+        for stmt in frame.stmts.as_slice().iter().skip(frame.index.saturating_add(1)) {
             if let super::ast::Stmt::Function(n, params, body) = stmt {
                 if n == name {
-                    let closure = self.capture_lexical_env();
+                    let closure = Arc::new(Mutex::new(self.capture_lexical_env()));
                     let fun = Kv8Value::Fun {
                         params: params.clone(),
                         body: body.clone(),

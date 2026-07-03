@@ -231,6 +231,7 @@ fn stmt_to_kabootar(stmt: &Stmt) -> String {
             s
         }
         Stmt::Assign(lv, expr) => format!("{} = {};", lvalue_to_kabootar(lv), expr_to_kabootar(expr)),
+        Stmt::Class { name, .. } => format!("class {name} {{}}"),
     }
 }
 
