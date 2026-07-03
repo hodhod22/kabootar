@@ -847,6 +847,11 @@ fn parseStmt() {
         bump()
         return { "kind": AST_BREAK }
     }
+    if peek().type == TOKEN_THROW {
+        bump()
+        pVal = parseExpr()
+        return { "kind": AST_THROW, "expr": pVal }
+    }
     if peek().type == TOKEN_RETURN {
         bump()
         if peek().type == ";" {

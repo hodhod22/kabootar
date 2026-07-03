@@ -3,6 +3,7 @@ import "self_host/lexer"
 import "self_host/parser"
 import "self_host/ast_defs"
 import "self_host/compile"
+import "self_host/lexer_defs"
 
 let passed = 0
 let fail = 0
@@ -41,6 +42,27 @@ fn assert_kind(node, kind, msg) {
 {
     let ast = parseTokens(tokenize("while x { break }"))
     assert_kind(ast.body[0].body.body[0], AST_BREAK, "break stmt")
+}
+
+{
+    let ast = parseTokens(tokenize("throw " + QUOTE + "err" + QUOTE))
+    assert_kind(ast.body[0], AST_THROW, "throw stmt")
+}
+
+{
+    let kbc = compile("fn f() { throw " + QUOTE + "err" + QUOTE + " }")
+    if char_at(kbc, 0) != "k" {
+        throw "throw compile failed"
+    }
+    passed = passed + 1
+}
+
+{
+    let kbc = compile("fn f() { throw " + QUOTE + "e" + QUOTE + " + (" + QUOTE + "1" + QUOTE + ") }")
+    if char_at(kbc, 0) != "k" {
+        throw "throw concat compile failed"
+    }
+    passed = passed + 1
 }
 
 {

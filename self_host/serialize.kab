@@ -97,6 +97,9 @@ fn irOpLine(op) {
     if sOp == OP_RETURN {
         return "return"
     }
+    if sOp == OP_THROW {
+        return "throw"
+    }
     if sOp == OP_HALT {
         return "halt"
     }
