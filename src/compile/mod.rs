@@ -147,7 +147,7 @@ pub fn write_compile_marker_at(
     fs::write(marker, content).map_err(|e| format!("Failed to write cache marker: {e}"))
 }
 
-pub fn read_bytecode_cache(path: &str, _source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {
+pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
     let marker = cache_path_for(&base, path);
     let text = match fs::read_to_string(&marker) {
@@ -156,6 +156,14 @@ pub fn read_bytecode_cache(path: &str, _source_mtime: SystemTime) -> Result<Opti
     };
     if !text.starts_with(FORMAT_HEADER) {
         return Ok(None);
+    }
+    let cache_mtime = fs::metadata(&marker)
+        .ok()
+        .and_then(|m| m.modified().ok());
+    if let Some(cache_mtime) = cache_mtime {
+        if source_mtime > cache_mtime {
+            return Ok(None);
+        }
     }
     Ok(Some(deserialize(&text)?))
 }

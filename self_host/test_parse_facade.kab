@@ -1,5 +1,6 @@
-// Test suite for parse(source) facade (lexer + parser via parse.kab).
-import "self_host/parse"
+// Test suite for parseTokens(tokenize(source) facade (lexer + parser composed like parse.kab).
+import "self_host/lexer"
+import "self_host/parser"
 import "self_host/ast_defs"
 
 let passed = 0
@@ -20,20 +21,20 @@ fn assert_kind(node, kind, msg) {
 
 // -- Literals and expressions --------------------------------------
 {
-    let ast = parse("1 + 2")
+    let ast = parseTokens(tokenize("1 + 2"))
     assert_kind(ast, AST_PROGRAM, "program root")
     assert_eq(len(ast.body), 1, "expr stmt count")
     let stmt = ast.body[0]
     assert_kind(stmt, AST_EXPR, "expr stmt kind")
     assert_kind(stmt.expr, AST_BINARY, "add binary")
     assert_eq(stmt.expr.op, "+", "add op")
-    assert_kind(stmt.expr.left, AST_LITERAL, "left literal")
-    assert_eq(stmt.expr.left.value, 1, "left value")
+    assert_kind(stmt.expr["left"], AST_LITERAL, "left literal")
+    assert_eq(stmt.expr["left"].value, 1, "left value")
 }
 
 // -- let binding ---------------------------------------------------
 {
-    let ast = parse("let x = 42")
+    let ast = parseTokens(tokenize("let x = 42"))
     assert_eq(len(ast.body), 1, "let stmt count")
     let stmt = ast.body[0]
     assert_kind(stmt, AST_LET, "let stmt")
@@ -44,21 +45,21 @@ fn assert_kind(node, kind, msg) {
 
 // -- assign --------------------------------------------------------
 {
-    let ast = parse("x = 10")
+    let ast = parseTokens(tokenize("x = 10"))
     assert_kind(ast.body[0], AST_ASSIGN, "assign stmt")
     assert_eq(ast.body[0].sym, "x", "assign sym")
 }
 
 // -- return --------------------------------------------------------
 {
-    let ast = parse("return 1")
+    let ast = parseTokens(tokenize("return 1"))
     assert_kind(ast.body[0], AST_RETURN, "return stmt")
     assert_kind(ast.body[0].value, AST_LITERAL, "return value")
 }
 
 // -- call ----------------------------------------------------------
 {
-    let ast = parse("foo(1, 2)")
+    let ast = parseTokens(tokenize("foo(1, 2)"))
     assert_kind(ast.body[0].expr, AST_CALL, "call expr")
     assert_kind(ast.body[0].expr.callee, AST_VAR, "call callee")
     assert_eq(ast.body[0].expr.callee.sym, "foo", "callee sym")
@@ -67,7 +68,7 @@ fn assert_kind(node, kind, msg) {
 
 // -- if / else -----------------------------------------------------
 {
-    let ast = parse("if x == 1 { return 0 } else { return 1 }")
+    let ast = parseTokens(tokenize("if x == 1 { return 0 } else { return 1 }"))
     assert_kind(ast.body[0], AST_IF, "if stmt")
     assert_kind(ast.body[0].cond, AST_BINARY, "if cond")
     assert_eq(ast.body[0].cond.op, "==", "if cond op")
@@ -77,14 +78,14 @@ fn assert_kind(node, kind, msg) {
 
 // -- while ---------------------------------------------------------
 {
-    let ast = parse("while x == 0 { x = 1 }")
+    let ast = parseTokens(tokenize("while x == 0 { x = 1 }"))
     assert_kind(ast.body[0], AST_WHILE, "while stmt")
     assert_kind(ast.body[0].body, AST_BLOCK, "while body")
 }
 
 // -- fn ------------------------------------------------------------
 {
-    let ast = parse("fn add(a, b) { return a + b }")
+    let ast = parseTokens(tokenize("fn add(a, b) { return a + b }"))
     assert_kind(ast.body[0], AST_FN, "fn stmt")
     assert_eq(ast.body[0].sym, "add", "fn sym")
     assert_eq(len(ast.body[0].params), 2, "fn param count")
@@ -92,14 +93,14 @@ fn assert_kind(node, kind, msg) {
 
 // -- block ---------------------------------------------------------
 {
-    let ast = parse("{ let a = 1; return a }")
+    let ast = parseTokens(tokenize("{ let a = 1; return a }"))
     assert_kind(ast.body[0], AST_BLOCK, "block stmt")
     assert_eq(len(ast.body[0].body), 2, "block stmt count")
 }
 
 // -- multi-statement program ---------------------------------------
 {
-    let ast = parse("let x = 1; let y = 2; x + y")
+    let ast = parseTokens(tokenize("let x = 1; let y = 2; x + y"))
     assert_eq(len(ast.body), 3, "multi stmt count")
 }
 

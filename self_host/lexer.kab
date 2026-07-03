@@ -5,6 +5,7 @@ let lxPos = 0
 let lxSrc = ""
 let lxLine = 1
 let lxCol = 1
+let ZERO = 0
 
 fn lxScan() {
     if lxPos >= len(lxSrc) {
@@ -240,7 +241,7 @@ fn lxScan() {
         let name = ""
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(ch, ZERO)
             let ok = 0
             if cd >= 65 {
                 if cd <= 90 {
@@ -377,7 +378,7 @@ fn lxScan() {
         let id = "_"
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(ch, ZERO)
             let ok = 0
             if cd >= 65 {
                 if cd <= 90 {
@@ -413,7 +414,7 @@ fn lxScan() {
         return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
     }
 
-    let code0 = char_code_at(c, 0)
+    let code0 = char_code_at(c, ZERO)
     if code0 >= 48 {
         if code0 <= 57 {
         let digits = c
@@ -421,7 +422,7 @@ fn lxScan() {
         lxCol = lxCol + 1
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(ch, ZERO)
             if cd < 48 {
                 break
             }
@@ -446,7 +447,7 @@ fn lxScan() {
             let frac = ""
             while lxPos < len(lxSrc) {
                 let ch = char_at(lxSrc, lxPos)
-                let cd = char_code_at(ch, 0)
+                let cd = char_code_at(ch, ZERO)
                 if cd < 48 {
                     break
                 }
@@ -482,7 +483,7 @@ fn lxScan() {
         lxCol = lxCol + 1
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(ch, ZERO)
             let ok = 0
             if cd >= 65 {
                 if cd <= 90 {

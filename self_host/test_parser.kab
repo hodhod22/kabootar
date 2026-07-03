@@ -29,8 +29,8 @@ fn assert_kind(node, kind, msg) {
     assert_kind(stmt, AST_EXPR, "expr stmt kind")
     assert_kind(stmt.expr, AST_BINARY, "add binary")
     assert_eq(stmt.expr.op, "+", "add op")
-    assert_kind(stmt.expr.left, AST_LITERAL, "left literal")
-    assert_eq(stmt.expr.left.value, 1, "left value")
+    assert_kind(stmt.expr["left"], AST_LITERAL, "left literal")
+    assert_eq(stmt.expr["left"].value, 1, "left value")
 }
 
 // -- let binding ---------------------------------------------------
