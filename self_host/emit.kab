@@ -255,6 +255,16 @@ fn emitExpr(node) {
         emitOp(OP_MAKE_OBJECT, len(eLeft))
         return
     }
+    if eNode.kind == AST_ARRAY {
+        eLeft = eNode["elems"]
+        eObjI = 0
+        while eObjI < len(eLeft) {
+            emitExpr(eLeft[eObjI])
+            eObjI = eObjI + 1
+        }
+        emitOp(OP_MAKE_ARRAY, len(eLeft))
+        return
+    }
     if eNode.kind == AST_MEMBER {
         emitExpr(eNode["object"])
         eIdx = constIndex(eNode["field"])

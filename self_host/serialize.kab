@@ -76,6 +76,9 @@ fn irOpLine(op) {
     if sOp == OP_MAKE_OBJECT {
         return "make_object " + ("" + op.arg)
     }
+    if sOp == OP_MAKE_ARRAY {
+        return "make_array " + ("" + op.arg)
+    }
     if sOp == OP_INDEX_GET {
         return "index_get"
     }

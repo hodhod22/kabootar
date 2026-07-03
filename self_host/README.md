@@ -78,7 +78,7 @@ cargo test --test self_host
 4. **Bracket-access för AST-nycklar** — undvik `.then`, `.sym`, `.value` där det krockar; använd `node["sym"]`.
 5. **Radbrytning** — `"\n"` är literal i Kabootar; använd `CHAR_NL` från `lexer_defs` i serializer.
 6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
-7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init.
+7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init. **`lexer.kab`: max ~4 fn** (endast `lxScan` + exports); dela inte upp i `lxChar`/`lxPlus`/… som egna fn.
 8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
 9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
 10. **Emitter: CALL-args i fn-kropp** — undvik var+literal i samma 2-arg `CALL`. Använd modul-global `ZERO = 0` + `char_code_at(ch, ZERO)`.
@@ -87,6 +87,7 @@ cargo test --test self_host
 13. **Emitter while** — spara loop-head i `eWhileHead` (inte `eIdx`). Jump-args är **relativa** i VM: `target - jmpIndex - 1`.
 14. **Bytecode-cache** — `.kabootar/cache/*.kbc` ogiltigförklaras när källan är nyare (`read_bytecode_cache` mtime-check).
 15. **Serialize från `.kbc`** — undvik privata fn-anrop från exporterade fn (`serialize_bc`); använd modul-global `sOut` + `CHAR_NL` inline istället för `appendLine()`.
+16. **Array literal** — `[]` / `[a, b]` kräver `AST_ARRAY` + `make_array` i parser/emit/serialize (lexer.kab använder `let parts = []`).
 
 ## Nästa milstolpar
 
@@ -97,6 +98,10 @@ cargo test --test self_host
 5. ~~Self-host bootstrap: `compile.kab` cache + `compile(sample)` -> Rust `run_module`~~ ✅
 6. ~~Utöka self-hosted språksubset (obj, &&, compares, index)~~ ✅
 7. ~~Lexer-like compile (`char_at`-loop, `!=`, `continue`/`break`/`undefined`)~~ ✅
-8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — snippet-smoke + Rust `self_host_lexer_full_compile_and_run` (långsam ~10–30 min)
+8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — snippet-smoke + array literal; full fil: `self_host_lexer_full_compile_and_run` (långsam ~15–60 min)
 
-9. Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes)
+9. Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes). Inventering:
+   - **parser.kab** (~900 rader, 6 fn): behöver `compile()`-parity för all syntax i filen (idag: let/fn/if/while, obj/array, member/index, `+/-/==/!=/</>/>=/<=/&&`, call, break/continue/return).
+   - **emit.kab** (~670 rader, 7 fn): saknar ev. fler opcodes om parser utökas (`||`, unary `!`, `*`, assign till index, etc.).
+   - **Risk:** ~7 fn/modul-gräns — undvik fler top-level fn; håll scratch modul-globalt.
+   - **Verifiering:** `compile(read_text_file("self_host/parser.kab"))` → Rust `run_module` + befintliga `test_parser.kab`.
