@@ -24,6 +24,15 @@ pub fn take_throw_value(err: &str) -> Option<Value> {
     }
 }
 
+/// Expand `throw` marker into the thrown value's display string (for CLI errors).
+pub fn format_runtime_error(err: &str) -> String {
+    if let Some(v) = take_throw_value(err) {
+        crate::value::format_value(&v)
+    } else {
+        err.to_string()
+    }
+}
+
 pub fn capture_stack_trace(skip_frames: usize) -> String {
     let mut lines = Vec::new();
     let bt = std::backtrace::Backtrace::capture();

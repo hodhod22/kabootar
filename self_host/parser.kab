@@ -13,6 +13,7 @@ let pIdent = null
 let pInit = null
 let pVal = null
 let pBody = []
+let pBodyStack = []
 let pStmts = []
 let pParams = []
 let pCond = null
@@ -23,6 +24,39 @@ let pCallee = null
 let pObjFields = []
 let pSave = null
 let pBinOp = ""
+let pSaveSym = ""
+let pFnSym = ""
+let pFnPub = 0
+let pIsPub = 0
+let pSymPool = []
+let pSymN = 0
+let pImports = []
+let pPopI = 0
+let pPopNew = []
+let pSymOut = ""
+let pSymSrc = ""
+let pSymI = 0
+
+fn popStack(stack) {
+    pPopNew = []
+    pPopI = 0
+    while pPopI < len(stack) - 1 {
+        pPopNew = push(pPopNew, stack[pPopI])
+        pPopI = pPopI + 1
+    }
+    return pPopNew
+}
+
+fn symCopy(name) {
+    pSymOut = ""
+    pSymSrc = "" + name
+    pSymI = 0
+    while pSymI < len(pSymSrc) {
+        pSymOut = pSymOut + char_at(pSymSrc, pSymI)
+        pSymI = pSymI + 1
+    }
+    return pSymOut
+}
 
 fn peek() {
     if pPos >= len(pToks) {
@@ -78,7 +112,8 @@ fn parsePostfix() {
         pTok = peek()
         if pTok.type == TOKEN_IDENT {
             bump()
-            pLeft = { "kind": AST_VAR, "sym": pTok.value }
+            pSymPool = push(pSymPool, symCopy(pTok.value))
+            pLeft = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
         }
     }
     if pLeft == null {
@@ -101,11 +136,13 @@ fn parsePostfix() {
                 pTok = peek()
                 if pTok.type == TOKEN_IDENT {
                     bump()
-                    pIdent = pTok.value
+                    pSymPool = push(pSymPool, symCopy(pTok.value))
+                    pSaveSym = pSymPool[len(pSymPool) - 1]
                 } else {
                     if pTok.type == TOKEN_STRING {
                         bump()
-                        pIdent = pTok.value
+                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pSaveSym = pSymPool[len(pSymPool) - 1]
                     } else {
                         throw "Expected object key"
                     }
@@ -115,7 +152,7 @@ fn parsePostfix() {
                 }
                 bump()
                 pVal = parseCompare()
-                pObjFields = push(pObjFields, { "key": pIdent, "value": pVal })
+                pObjFields = push(pObjFields, { "key": pSaveSym, "value": pVal })
                 if peek().type == "," {
                     bump()
                 }
@@ -169,7 +206,8 @@ fn parsePostfix() {
             throw "Expected field name"
         }
         bump()
-        pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pTok.value }
+        pSymPool = push(pSymPool, symCopy(pTok.value))
+        pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pSymPool[len(pSymPool) - 1] }
     }
     while peek().type == "[" {
         bump()
@@ -194,8 +232,13 @@ fn parseCompare() {
         } else {
             if pTok.type == TOKEN_IDENT {
                 bump()
-                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
             } else {
+                if pTok.type == TOKEN_STRING {
+                    bump()
+                    pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
+                } else {
                 if pTok.type == "(" {
                     bump()
                     pRight = parseCompare()
@@ -205,6 +248,7 @@ fn parseCompare() {
                     bump()
                 } else {
                     throw "Unexpected token: " + pTok.type
+                }
                 }
             }
         }
@@ -239,8 +283,13 @@ fn parseCompare() {
         } else {
             if pTok.type == TOKEN_IDENT {
                 bump()
-                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
             } else {
+                if pTok.type == TOKEN_STRING {
+                    bump()
+                    pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
+                } else {
                 if pTok.type == "(" {
                     bump()
                     pRight = parseCompare()
@@ -250,6 +299,7 @@ fn parseCompare() {
                     bump()
                 } else {
                     throw "Unexpected token: " + pTok.type
+                }
                 }
             }
         }
@@ -306,7 +356,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -378,7 +429,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -450,7 +502,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -522,7 +575,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -594,7 +648,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -666,7 +721,8 @@ fn parseCompare() {
                         } else {
                             if pTok.type == TOKEN_IDENT {
                                 bump()
-                                pRight = { "kind": AST_VAR, "sym": pTok.value }
+                                pSymPool = push(pSymPool, symCopy(pTok.value))
+                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
                             } else {
                                 if pTok.type == "(" {
                                     bump()
@@ -730,16 +786,19 @@ fn parseStmt() {
             throw "Expected identifier after let"
         }
         bump()
-        pIdent = pTok.value
+        pSymPool = push(pSymPool, symCopy(pTok.value))
+        pSaveSym = pSymPool[len(pSymPool) - 1]
         if peek().type != "=" {
             throw "Expected ="
         }
         bump()
         pInit = parseExpr()
-        return { "kind": AST_LET, "sym": pIdent, "init": pInit }
+        return { "kind": AST_LET, "sym": pSaveSym, "init": pInit }
     }
+    pIsPub = 0
     if peek().type == TOKEN_PUB {
         bump()
+        pIsPub = 1
     }
     if peek().type == TOKEN_FN {
         bump()
@@ -748,7 +807,8 @@ fn parseStmt() {
             throw "Expected function name"
         }
         bump()
-        pIdent = pTok.value
+        pFnSym = symCopy(pTok.value)
+        pFnPub = pIsPub
         if peek().type != "(" {
             throw "Expected ("
         }
@@ -761,7 +821,8 @@ fn parseStmt() {
                     throw "Expected parameter name"
                 }
                 bump()
-                pParams = push(pParams, pTok.value)
+                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pParams = push(pParams, pSymPool[len(pSymPool) - 1])
                 if peek().type == "," {
                     bump()
                 } else {
@@ -777,6 +838,7 @@ fn parseStmt() {
             throw "Expected {"
         }
         bump()
+        pBodyStack = push(pBodyStack, pBody)
         pBody = []
         while peek().type != "}" {
             if peek().type == TOKEN_EOF {
@@ -788,7 +850,10 @@ fn parseStmt() {
             }
         }
         bump()
-        return { "kind": AST_FN, "sym": pIdent, "params": pParams, "body": { "kind": AST_BLOCK, "body": pBody } }
+        let fnBody = pBody
+        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        return { "kind": AST_FN, "sym": pFnSym, "isPub": pFnPub, "params": pParams, "body": { "kind": AST_BLOCK, "body": fnBody } }
     }
     if peek().type == TOKEN_IF {
         bump()
@@ -797,6 +862,7 @@ fn parseStmt() {
             throw "Expected {"
         }
         bump()
+        pBodyStack = push(pBodyStack, pBody)
         pBody = []
         while peek().type != "}" {
             pBody = push(pBody, parseStmt())
@@ -806,6 +872,8 @@ fn parseStmt() {
         }
         bump()
         pThen = { "kind": AST_BLOCK, "body": pBody }
+        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
         pElse = null
         if peek().type == TOKEN_ELSE {
             bump()
@@ -813,6 +881,7 @@ fn parseStmt() {
                 throw "Expected {"
             }
             bump()
+            pBodyStack = push(pBodyStack, pBody)
             pBody = []
             while peek().type != "}" {
                 pBody = push(pBody, parseStmt())
@@ -822,6 +891,8 @@ fn parseStmt() {
             }
             bump()
             pElse = { "kind": AST_BLOCK, "body": pBody }
+            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBodyStack = popStack(pBodyStack)
         }
         return { "kind": AST_IF, "cond": pCond, "then": pThen, "elseBranch": pElse }
     }
@@ -832,6 +903,7 @@ fn parseStmt() {
             throw "Expected {"
         }
         bump()
+        pBodyStack = push(pBodyStack, pLoopBody)
         pLoopBody = []
         while peek().type != "}" {
             pLoopBody = push(pLoopBody, parseStmt())
@@ -840,7 +912,10 @@ fn parseStmt() {
             }
         }
         bump()
-        return { "kind": AST_WHILE, "cond": pCond, "body": { "kind": AST_BLOCK, "body": pLoopBody } }
+        let whileBody = pLoopBody
+        pLoopBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        return { "kind": AST_WHILE, "cond": pCond, "body": { "kind": AST_BLOCK, "body": whileBody } }
     }
     if peek().type == TOKEN_CONTINUE {
         bump()
@@ -871,6 +946,7 @@ fn parseStmt() {
     }
     if peek().type == "{" {
         bump()
+        pBodyStack = push(pBodyStack, pStmts)
         pStmts = []
         while peek().type != "}" {
             if peek().type == TOKEN_EOF {
@@ -882,18 +958,22 @@ fn parseStmt() {
             }
         }
         bump()
-        return { "kind": AST_BLOCK, "body": pStmts }
+        let blockStmts = pStmts
+        pStmts = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        return { "kind": AST_BLOCK, "body": blockStmts }
     }
     if peek().type == TOKEN_IDENT {
         if pPos + 1 < len(pToks) {
             pTok = pToks[pPos + 1]
             if pTok.type == "=" {
                 pTok = peek()
-                pIdent = pTok.value
+                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pSaveSym = pSymPool[len(pSymPool) - 1]
                 bump()
                 bump()
                 pVal = parseExpr()
-                return { "kind": AST_ASSIGN, "sym": pIdent, "rhs": pVal }
+                return { "kind": AST_ASSIGN, "sym": pSaveSym, "rhs": pVal }
             }
         }
     }
@@ -904,6 +984,9 @@ fn parseStmt() {
 pub fn parseTokens(tokens) {
     pToks = tokens
     pPos = 0
+    pSymPool = []
+    pImports = []
+    pBodyStack = push(pBodyStack, pBody)
     pBody = []
     while peek().type != TOKEN_EOF {
         if peek().type == TOKEN_IMPORT {
@@ -911,6 +994,7 @@ pub fn parseTokens(tokens) {
             pTok = peek()
             if pTok.type == TOKEN_STRING {
                 bump()
+                pImports = push(pImports, symCopy(pTok.value))
             }
             if peek().type == ";" {
                 bump()
@@ -922,5 +1006,8 @@ pub fn parseTokens(tokens) {
             bump()
         }
     }
-    return { "kind": AST_PROGRAM, "body": pBody }
+    let programBody = pBody
+    pBody = pBodyStack[len(pBodyStack) - 1]
+    pBodyStack = popStack(pBodyStack)
+    return { "kind": AST_PROGRAM, "body": programBody, "imports": pImports }
 }

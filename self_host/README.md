@@ -90,6 +90,14 @@ cargo test --test self_host
 16. **Array literal** — `[]` / `[a, b]` kräver `AST_ARRAY` + `make_array` i parser/emit/serialize (lexer.kab använder `let parts = []`).
 17. **Emitter scratch** — `eBxL`/`eBxR` för CALL/INDEX/MEMBER/BINARY; `eList` för OBJECT/ARRAY; `eBodyStmts` för BLOCK (inte `eLeft`).
 18. **Throw** — `throw expr` som `AST_THROW` + `throw` opcode i parser/emit/serialize.
+19. **Emitter nested if/while** — `eIfJmpStack`/`eIfSkipStack` för jump-patch (inte modul-global `eJmp`; nästlade `if` skrev över den).
+20. **Parser sym snapshot** — `symCopy()` + `pFnSym`/`pFnPub`; spara före rekursiv `parseStmt` (token/sträng-alias + modul-global `pSaveSym`).
+21. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
+22. **Emitter let/member** — `eStoreSym`/`eMemberFld` före rekursiv `emitExpr` (inte `eSym`; clobberar sym/field).
+23. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
+24. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
+25. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
+26. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 

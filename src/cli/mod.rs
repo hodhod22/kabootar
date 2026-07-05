@@ -10,6 +10,10 @@ use std::time::SystemTime;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+fn format_user_error(e: &str) -> String {
+    crate::runtime::stdlib::error::format_runtime_error(e)
+}
+
 pub fn run(args: &[String]) -> i32 {
     if args.is_empty() {
         return run_repl();
@@ -125,7 +129,7 @@ fn run_file_cmd(args: &[String]) -> i32 {
             0
         }
         Err(e) => {
-            eprintln!("Error: {e}");
+            eprintln!("Error: {}", format_user_error(&e));
             1
         }
     }

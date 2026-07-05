@@ -105,6 +105,69 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "main emits call 2")
 }
 
+// -- fn sym snapshot (parser pSaveSym) -----------------------------
+{
+    let ast = parseTokens(tokenize("fn a() { let x = 1 } fn b() { let y = 2 }"))
+    let bc = emit(ast)
+    assert_eq(bc.functions[0].sym, "a", "first fn sym")
+    assert_eq(bc.functions[1].sym, "b", "second fn sym")
+}
+
+// -- pub fn exports ------------------------------------------------
+{
+    let ast = parseTokens(tokenize("pub fn tokenize() { return 1 }"))
+    let bc = emit(ast)
+    assert_eq(bc.functions[0].sym, "tokenize", "pub fn sym")
+    assert_eq(len(bc.exports), 1, "one export")
+    assert_eq(bc.exports[0], "tokenize", "export name")
+}
+
+// -- member field not clobbered by emitExpr ------------------------
+{
+    let ast = parseTokens(tokenize("fn f(tok) { return tok.type }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_GET_MEMBER {
+            if bc.constants[bc.functions[0].ops[tI].arg] == "type" {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_true(tHas == 1, "member field type")
+}
+
+// -- multi-stmt fn body + fn op snapshot ---------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { if a { return 0 } let x = 1 return x }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_RETURN {
+            tHas = tHas + 1
+        }
+        tI = tI + 1
+    }
+    assert_true(tHas >= 2, "multi-stmt fn ops")
+}
+
+{
+    let ast = parseTokens(tokenize("fn a() { return 1 } fn b() { return 2 }"))
+    let bc = emit(ast)
+    assert_true(len(bc.functions[0].ops) >= 2, "fn a ops snapshotted")
+    assert_true(len(bc.functions[1].ops) >= 2, "fn b ops snapshotted")
+}
+
+// -- nested object literal in fn body -----------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { return { a: { b: 1 } } }"))
+    let bc = emit(ast)
+    assert_true(len(bc.functions[0].ops) >= 5, "nested object ops")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

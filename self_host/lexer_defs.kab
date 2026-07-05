@@ -1,9 +1,14 @@
-pub let QUOTE = from_char_code(34)
-pub let BACKTICK = from_char_code(96)
-pub let CHAR_TAB = from_char_code(9)
-pub let CHAR_NL = from_char_code(10)
-pub let CHAR_CR = from_char_code(13)
+// Self-hosted Kabootar lexer definitions.
+// Mirrors src/lexer/token.rs.
 
+// ----- CHARACTER CONSTANTS (direct ASCII values) -----
+pub let QUOTE = "\""
+pub let BACKTICK = "`"
+pub let CHAR_TAB = "\t"
+pub let CHAR_NL = "\n"
+pub let CHAR_CR = "\r"
+
+// ----- TOKEN TYPES -----
 pub let TOKEN_FN = "fn"
 pub let TOKEN_LET = "let"
 pub let TOKEN_CONST = "const"
@@ -65,21 +70,58 @@ pub let TOKEN_STRING = "String"
 pub let TOKEN_TEMPLATE = "Template"
 pub let TOKEN_EOF = "EOF"
 
+// ----- KEYWORDS MAP (for lexer to identify reserved words) -----
 pub let KEYWORDS = {
-    "fn": "fn", "let": "let", "const": "const", "return": "return",
-    "if": "if", "else": "else", "match": "match",
-    "Some": "Some", "None": "None", "Ok": "Ok", "Err": "Err",
-    "while": "while", "do": "do", "for": "for", "in": "in", "of": "of",
-    "switch": "switch", "case": "case", "default": "default",
-    "break": "break", "fallthrough": "fallthrough", "continue": "continue",
-    "async": "async", "await": "await", "yield": "yield",
-    "delete": "delete", "throw": "throw", "raise": "raise",
-    "pass": "pass", "assert": "assert", "with": "with", "using": "using",
-    "as": "as", "is": "is", "not": "not",
-    "extends": "extends", "interface": "interface", "implements": "implements",
-    "try": "try", "catch": "catch", "finally": "finally",
-    "class": "class", "enum": "enum", "import": "import",
-    "pub": "pub", "self": "self", "super": "super",
-    "null": "null", "undefined": "undefined", "NaN": "NaN",
-    "true": "true", "false": "false"
+    "fn": "fn",
+    "let": "let",
+    "const": "const",
+    "return": "return",
+    "if": "if",
+    "else": "else",
+    "match": "match",
+    "Some": "Some",
+    "None": "None",
+    "Ok": "Ok",
+    "Err": "Err",
+    "while": "while",
+    "do": "do",
+    "for": "for",
+    "in": "in",
+    "of": "of",
+    "switch": "switch",
+    "case": "case",
+    "default": "default",
+    "break": "break",
+    "fallthrough": "fallthrough",
+    "continue": "continue",
+    "async": "async",
+    "await": "await",
+    "yield": "yield",
+    "delete": "delete",
+    "throw": "throw",
+    "raise": "raise",
+    "pass": "pass",
+    "assert": "assert",
+    "with": "with",
+    "using": "using",
+    "as": "as",
+    "is": "is",
+    "not": "not",
+    "extends": "extends",
+    "interface": "interface",
+    "implements": "implements",
+    "try": "try",
+    "catch": "catch",
+    "finally": "finally",
+    "class": "class",
+    "enum": "enum",
+    "import": "import",
+    "pub": "pub",
+    "self": "self",
+    "super": "super",
+    "null": "null",
+    "undefined": "undefined",
+    "NaN": "NaN",
+    "true": "true",
+    "false": "false"
 }

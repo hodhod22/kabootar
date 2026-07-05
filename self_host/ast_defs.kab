@@ -1,6 +1,7 @@
 // AST node kind constants for the self-hosted parser.
 
 pub let AST_PROGRAM = "Program"
+pub let AST_IMPORT = "Import"
 pub let AST_LET = "LetStmt"
 pub let AST_ASSIGN = "AssignStmt"
 pub let AST_RETURN = "ReturnStmt"
