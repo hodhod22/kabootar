@@ -572,8 +572,12 @@ impl Compiler {
                 if matches!(op, BinaryOp::Or) {
                     self.compile_expr(left)?;
                     self.emit(Opcode::Dup);
-                    let jump_end = self.code.len();
+                    let jump_eval_right = self.code.len();
                     self.emit(Opcode::JumpIfFalse(0));
+                    let jump_end = self.code.len();
+                    self.emit(Opcode::Jump(0));
+                    let eval_right = self.code.len();
+                    patch_jump(&mut self.code, jump_eval_right, eval_right);
                     self.emit(Opcode::Pop);
                     self.compile_expr(right)?;
                     let end = self.code.len();

@@ -1548,6 +1548,21 @@ mod tests {
     }
 
     #[test]
+    fn vm_logical_or_short_circuit() {
+        use crate::bytecode::run_module;
+        let p = compile_source(
+            r#"
+            false || true
+            "#,
+        )
+        .unwrap();
+        let bc = try_compile(&p.stmts).unwrap();
+        let mut env = create_global_env();
+        let v = run_module(&bc, &mut env).unwrap();
+        assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    }
+
+    #[test]
     fn vm_return_undefined_object() {
         let p = compile_source(
             r#"

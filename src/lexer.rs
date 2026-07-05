@@ -267,6 +267,22 @@ impl Lexer {
         self.next();
         let mut s = String::new();
         while let Some(c) = self.next() {
+            if c == '\\' {
+                match self.next() {
+                    Some('"') => s.push('"'),
+                    Some('\\') => s.push('\\'),
+                    Some('n') => s.push('\n'),
+                    Some('r') => s.push('\r'),
+                    Some('t') => s.push('\t'),
+                    Some('`') => s.push('`'),
+                    Some(other) => {
+                        s.push('\\');
+                        s.push(other);
+                    }
+                    None => s.push('\\'),
+                }
+                continue;
+            }
             if c == delim {
                 break;
             }
