@@ -18,7 +18,13 @@ fn parse_int(s) {
         let c = char_at(s, i)
         let digit = char_code_at(c, 0) - 48
         if digit >= 0 && digit <= 9 {
-            result = result * 10 + digit
+            let tmp = 0
+            let k = 0
+            while k < 10 {
+                tmp = tmp + result
+                k = k + 1
+            }
+            result = tmp + digit
         }
         i = i + 1
     }
@@ -46,10 +52,22 @@ fn parse_float(s) {
     let divisor = 1
     let j = 0
     while j < fracLen {
-        divisor = divisor * 10
+        let tmp = 0
+        let k = 0
+        while k < 10 {
+            tmp = tmp + divisor
+            k = k + 1
+        }
+        divisor = tmp
         j = j + 1
     }
-    return intPart + (fracPart / divisor)
+    let quot = 0
+    let rem = fracPart
+    while rem >= divisor {
+        rem = rem - divisor
+        quot = quot + 1
+    }
+    return intPart + quot
 }
 
 // ----- MAIN LEXER -----
@@ -399,7 +417,10 @@ fn lxScan() {
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
             let cd = char_code_at(ch, 0)
-            if cd < 48 || cd > 57 {
+            if cd < 48 {
+                break
+            }
+            if cd > 57 {
                 break
             }
             digits = digits + ch
@@ -420,7 +441,10 @@ fn lxScan() {
             while lxPos < len(lxSrc) {
                 let ch = char_at(lxSrc, lxPos)
                 let cd = char_code_at(ch, 0)
-                if cd < 48 || cd > 57 {
+                if cd < 48 {
+                    break
+                }
+                if cd > 57 {
                     break
                 }
                 frac = frac + ch
@@ -433,7 +457,19 @@ fn lxScan() {
     }
 
     // Identifier or keyword
-    let isAlpha = (code0 >= 97 && code0 <= 122) || (code0 >= 65 && code0 <= 90)
+    let isAlpha = 0
+    if code0 >= 97 {
+        if code0 <= 122 {
+            isAlpha = 1
+        }
+    }
+    if isAlpha == 0 {
+        if code0 >= 65 {
+            if code0 <= 90 {
+                isAlpha = 1
+            }
+        }
+    }
     if isAlpha {
         let id = c
         lxPos = lxPos + 1
@@ -474,16 +510,26 @@ pub fn tokenize(source) {
         // Skip whitespace
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
-            if ch == " " || ch == "\t" || ch == "\r" {
+            if ch == " " {
                 lxCol = lxCol + 1
                 lxPos = lxPos + 1
             } else {
-                if ch == "\n" {
-                    lxLine = lxLine + 1
-                    lxCol = 1
+                if ch == "\t" {
+                    lxCol = lxCol + 1
                     lxPos = lxPos + 1
                 } else {
-                    break
+                    if ch == "\r" {
+                        lxCol = lxCol + 1
+                        lxPos = lxPos + 1
+                    } else {
+                        if ch == "\n" {
+                            lxLine = lxLine + 1
+                            lxCol = 1
+                            lxPos = lxPos + 1
+                        } else {
+                            break
+                        }
+                    }
                 }
             }
         }
