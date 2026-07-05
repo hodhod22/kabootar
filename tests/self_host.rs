@@ -141,7 +141,8 @@ fn self_host_larger_compile_and_run() {
 
 #[test]
 fn self_host_m7_subset_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_m7.kab"))
+    // In-process run overflows test harness stack; kabootar.exe has 16 MiB (build.rs).
+    run_kabootar_file_subprocess(&self_host_path("test_m7.kab"))
         .expect("self_host/test_m7.kab should pass");
 }
 

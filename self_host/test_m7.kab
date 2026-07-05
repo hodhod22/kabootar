@@ -101,6 +101,22 @@ fn assert_kind(node, kind, msg) {
     passed = passed + 1
 }
 
+{
+    let kbc = compile("fn f(c) { if c == " + QUOTE + "a" + QUOTE + " { if c == " + QUOTE + "b" + QUOTE + " { return 1 } } return 0 }")
+    if char_at(kbc, 0) != "k" {
+        throw "nested if compile failed"
+    }
+    passed = passed + 1
+}
+
+{
+    let kbc = compile("let s = a + " + QUOTE + "." + QUOTE + " + b")
+    if char_at(kbc, 0) != "k" {
+        throw "string concat + compile failed"
+    }
+    passed = passed + 1
+}
+
 println("")
 println("Self-hosted milestone-7 subset: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

@@ -10,6 +10,8 @@ let sFn = null
 let sParams = ""
 let sJ = 0
 
+// ----- HELPER FUNCTIONS -----
+
 fn constLine(idx, val) {
     if val == null {
         return "const " + ("" + idx) + " null"
@@ -52,6 +54,24 @@ fn irOpLine(op) {
     if sOp == OP_SUB {
         return "sub"
     }
+    if sOp == OP_MUL {
+        return "mul"
+    }
+    if sOp == OP_DIV {
+        return "div"
+    }
+    if sOp == OP_MOD {
+        return "mod"
+    }
+    if sOp == OP_POW {
+        return "pow"
+    }
+    if sOp == OP_NEG {
+        return "neg"
+    }
+    if sOp == OP_NOT {
+        return "not"
+    }
     if sOp == OP_EQ {
         return "eq"
     }
@@ -73,6 +93,9 @@ fn irOpLine(op) {
     if sOp == OP_AND {
         return "and"
     }
+    if sOp == OP_OR {
+        return "or"
+    }
     if sOp == OP_MAKE_OBJECT {
         return "make_object " + ("" + op.arg)
     }
@@ -82,14 +105,23 @@ fn irOpLine(op) {
     if sOp == OP_INDEX_GET {
         return "index_get"
     }
+    if sOp == OP_INDEX_SET {
+        return "index_set"
+    }
     if sOp == OP_GET_MEMBER {
         return "get_member " + ("" + op.arg)
+    }
+    if sOp == OP_SET_MEMBER {
+        return "set_member " + ("" + op.arg)
     }
     if sOp == OP_JUMP {
         return "jump " + ("" + op.arg)
     }
     if sOp == OP_JUMP_IF_FALSE {
         return "jump_if_false " + ("" + op.arg)
+    }
+    if sOp == OP_JUMP_IF_TRUE {
+        return "jump_if_true " + ("" + op.arg)
     }
     if sOp == OP_CALL {
         return "call " + ("" + op.arg)
@@ -109,29 +141,32 @@ fn irOpLine(op) {
 fn appendOps(ops) {
     sI = 0
     while sI < len(ops) {
-        sOut = sOut + CHAR_NL + irOpLine(ops[sI])
+        sOut = sOut + "\n" + irOpLine(ops[sI])
         sI = sI + 1
     }
 }
 
+// ----- MAIN SERIALIZE FUNCTION -----
+
 pub fn serialize_bc(bc) {
     sOut = KBC_HEADER
-    sOut = sOut + CHAR_NL + ("constants=" + ("" + len(bc.constants)))
+    sOut = sOut + "\n" + ("constants=" + ("" + len(bc.constants)))
     sI = 0
     while sI < len(bc.constants) {
-        sOut = sOut + CHAR_NL + constLine(sI, bc.constants[sI])
+        sOut = sOut + "\n" + constLine(sI, bc.constants[sI])
         sI = sI + 1
     }
     sI = 0
     while sI < len(bc.globals) {
-        sOut = sOut + CHAR_NL + ("global " + ("" + sI) + " " + bc.globals[sI])
+        sOut = sOut + "\n" + ("global " + ("" + sI) + " " + bc.globals[sI])
         sI = sI + 1
     }
-    sOut = sOut + CHAR_NL + ("functions=" + ("" + len(bc.functions)))
+    sOut = sOut + "\n" + ("functions=" + ("" + len(bc.functions)))
     sI = 0
     while sI < len(bc.functions) {
         sFn = bc.functions[sI]
-        sOut = sOut + CHAR_NL + ("fn " + ("" + sI) + " " + sFn.sym)
+        sOut = sOut + "\n" + ("fn " + ("" + sI) + " " + sFn.sym)
+        // Params
         sParams = ""
         sJ = 0
         while sJ < len(sFn.params) {
@@ -142,7 +177,8 @@ pub fn serialize_bc(bc) {
             }
             sJ = sJ + 1
         }
-        sOut = sOut + CHAR_NL + ("fn_params " + ("" + sI) + " " + sParams)
+        sOut = sOut + "\n" + ("fn_params " + ("" + sI) + " " + sParams)
+        // Locals
         sParams = ""
         sJ = 0
         while sJ < len(sFn.locals) {
@@ -153,15 +189,39 @@ pub fn serialize_bc(bc) {
             }
             sJ = sJ + 1
         }
-        sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + sParams)
+        sOut = sOut + "\n" + ("fn_locals " + ("" + sI) + " " + sParams)
+        // Function ops
         sJ = 0
         while sJ < len(sFn.ops) {
-            sOut = sOut + CHAR_NL + ("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
+            sOut = sOut + "\n" + ("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
             sJ = sJ + 1
         }
         sI = sI + 1
     }
-    sOut = sOut + CHAR_NL + "code"
+    // Exports
+    if bc.exports == undefined {
+        sOut = sOut + "\n" + "exports=0"
+    } else {
+        sOut = sOut + "\n" + ("exports=" + ("" + len(bc.exports)))
+        sI = 0
+        while sI < len(bc.exports) {
+            sOut = sOut + "\n" + ("export " + ("" + sI) + " " + bc.exports[sI])
+            sI = sI + 1
+        }
+    }
+    // Imports
+    if bc.imports == undefined {
+        sOut = sOut + "\n" + "imports=0"
+    } else {
+        sOut = sOut + "\n" + ("imports=" + ("" + len(bc.imports)))
+        sI = 0
+        while sI < len(bc.imports) {
+            sOut = sOut + "\n" + ("import " + ("" + sI) + " " + bc.imports[sI])
+            sI = sI + 1
+        }
+    }
+    // Main code
+    sOut = sOut + "\n" + "code"
     appendOps(bc.ops)
     return sOut
 }
