@@ -8,52 +8,8 @@ let lxSrc = ""
 let lxLine = 1
 let lxCol = 1
 
-// ----- HELPER FUNCTIONS (inline in lxScan to avoid stack overflow) -----
-
-fn char_code_at(s, idx) {
-    if idx >= len(s) {
-        return -1
-    }
-    let c = char_at(s, idx)
-    // Direct ASCII mapping without recursion
-    if c == " " { return 32 }
-    if c == "!" { return 33 }
-    if c == "\"" { return 34 }
-    if c == "#" { return 35 }
-    if c == "$" { return 36 }
-    if c == "%" { return 37 }
-    if c == "&" { return 38 }
-    if c == "'" { return 39 }
-    if c == "(" { return 40 }
-    if c == ")" { return 41 }
-    if c == "*" { return 42 }
-    if c == "+" { return 43 }
-    if c == "," { return 44 }
-    if c == "-" { return 45 }
-    if c == "." { return 46 }
-    if c == "/" { return 47 }
-    if c >= "0" && c <= "9" { return 48 + (char_code_at(c, 0) - 48) }
-    if c == ":" { return 58 }
-    if c == ";" { return 59 }
-    if c == "<" { return 60 }
-    if c == "=" { return 61 }
-    if c == ">" { return 62 }
-    if c == "?" { return 63 }
-    if c == "@" { return 64 }
-    if c >= "A" && c <= "Z" { return 65 + (char_code_at(c, 0) - 65) }
-    if c == "[" { return 91 }
-    if c == "\\" { return 92 }
-    if c == "]" { return 93 }
-    if c == "^" { return 94 }
-    if c == "_" { return 95 }
-    if c == "`" { return 96 }
-    if c >= "a" && c <= "z" { return 97 + (char_code_at(c, 0) - 97) }
-    if c == "{" { return 123 }
-    if c == "|" { return 124 }
-    if c == "}" { return 125 }
-    if c == "~" { return 126 }
-    return 0
-}
+// ----- HELPER FUNCTIONS -----
+// char_code_at: use runtime builtin
 
 fn parse_int(s) {
     let result = 0
@@ -373,6 +329,31 @@ fn lxScan() {
         let s = ""
         while lxPos < len(lxSrc) {
             let ch = char_at(lxSrc, lxPos)
+            if ch == "\\" {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                if lxPos >= len(lxSrc) {
+                    throw "Unterminated string escape at line " + ("" + line) + " col " + ("" + col)
+                }
+                let e = char_at(lxSrc, lxPos)
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                if e == "n" { s = s + "\n" }
+                else {
+                    if e == "r" { s = s + "\r" }
+                    else {
+                        if e == "t" { s = s + "\t" }
+                        else {
+                            if e == "\"" { s = s + "\"" }
+                            else {
+                                if e == "\\" { s = s + "\\" }
+                                else { s = s + "\\" + e }
+                            }
+                        }
+                    }
+                }
+                continue
+            }
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             if ch == "\"" {
@@ -383,75 +364,9 @@ fn lxScan() {
         return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
     }
 
-    // Template literal: `...`
-    if c == "`" {
-        lxPos = lxPos + 1
-        lxCol = lxCol + 1
-        let parts = []
-        let buf = ""
-        while lxPos < len(lxSrc) {
-            let ch = char_at(lxSrc, lxPos)
-            if ch == "`" {
-                lxPos = lxPos + 1
-                lxCol = lxCol + 1
-                if len(buf) > 0 {
-                    parts = push(parts, { "text": buf })
-                    buf = ""
-                }
-                if len(parts) == 0 {
-                    return { "type": TOKEN_STRING, "value": "", "line": line, "column": col }
-                }
-                if len(parts) == 1 {
-                    let p0 = parts[0]
-                    if p0.text != undefined {
-                        return { "type": TOKEN_STRING, "value": p0.text, "line": line, "column": col }
-                    }
-                }
-                return { "type": TOKEN_TEMPLATE, "value": parts, "line": line, "column": col }
-            }
-            if ch == "$" {
-                if lxPos + 1 < len(lxSrc) && char_at(lxSrc, lxPos + 1) == "{" {
-                    lxPos = lxPos + 2
-                    lxCol = lxCol + 2
-                    if len(buf) > 0 {
-                        parts = push(parts, { "text": buf })
-                        buf = ""
-                    }
-                    let depth = 1
-                    let expr = ""
-                    while lxPos < len(lxSrc) {
-                        let c2 = char_at(lxSrc, lxPos)
-                        lxPos = lxPos + 1
-                        lxCol = lxCol + 1
-                        if c2 == "{" {
-                            depth = depth + 1
-                            expr = expr + c2
-                        } else if c2 == "}" {
-                            depth = depth - 1
-                            if depth == 0 {
-                                break
-                            }
-                            expr = expr + c2
-                        } else {
-                            expr = expr + c2
-                        }
-                    }
-                    if depth != 0 {
-                        throw "Unterminated template expression"
-                    }
-                    parts = push(parts, { "expr": expr })
-                } else {
-                    buf = buf + ch
-                    lxPos = lxPos + 1
-                    lxCol = lxCol + 1
-                }
-            } else {
-                buf = buf + ch
-                lxPos = lxPos + 1
-                lxCol = lxCol + 1
-            }
-        }
-        throw "Unterminated template literal"
+    // Template literal not supported in self-hosted lexer
+    if c == BACKTICK {
+        throw "Template literal not supported at line " + ("" + line) + " col " + ("" + col)
     }
 
     // Identifier starting with _
@@ -519,7 +434,7 @@ fn lxScan() {
 
     // Identifier or keyword
     let isAlpha = (code0 >= 97 && code0 <= 122) || (code0 >= 65 && code0 <= 90)
-    if isAlpha == 1 {
+    if isAlpha {
         let id = c
         lxPos = lxPos + 1
         lxCol = lxCol + 1
@@ -562,12 +477,14 @@ pub fn tokenize(source) {
             if ch == " " || ch == "\t" || ch == "\r" {
                 lxCol = lxCol + 1
                 lxPos = lxPos + 1
-            } else if ch == "\n" {
-                lxLine = lxLine + 1
-                lxCol = 1
-                lxPos = lxPos + 1
             } else {
-                break
+                if ch == "\n" {
+                    lxLine = lxLine + 1
+                    lxCol = 1
+                    lxPos = lxPos + 1
+                } else {
+                    break
+                }
             }
         }
 
