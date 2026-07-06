@@ -245,6 +245,57 @@ fn self_host_lexer_full_compile_and_run() {
     let _ = std::fs::remove_file(&out_file);
 }
 
+/// Fast regression: per-fn `load_global` indices must use module `globals`, not a
+/// separate per-function table (otherwise `lxScan()` resolves to the wrong fn).
+#[test]
+fn self_host_emit_unified_globals_member_access() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nreturn compile(read_text_file(\"/proj/self_host/_emit_globals_mini.kab\"))",
+        kab_string_literal(&manifest)
+    );
+    let probe_path = self_host_path("_emit_globals_run_probe_gen.kab");
+    std::fs::write(&probe_path, probe).expect("write emit globals probe");
+    let v = kabootar_lib::cli::run_file(&probe_path)
+        .expect("compile _emit_globals_mini.kab via self-hosted pipeline");
+    let _ = std::fs::remove_file(&probe_path);
+    let Value::String(text) = v else {
+        panic!("probe should return .kbc text, got {v:?}");
+    };
+    let module = deserialize(&text).expect("deserialize mini lexer .kbc");
+    let mut env = create_global_env();
+    run_module(&module, &mut env).expect("run mini lexer module");
+    let tokenize = env.get("tokenize").expect("tokenize export");
+    let toks = call_value(
+        tokenize,
+        vec![Value::String("ab".into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("tokenize should not fail on tok.type member access");
+    let Value::Array(items) = toks else {
+        panic!("tokenize should return array, got {toks:?}");
+    };
+    assert_eq!(items.len(), 1);
+    let Value::Object(first) = &items[0] else {
+        panic!("expected token object");
+    };
+    assert_eq!(
+        first.get("type").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("Identifier")
+    );
+}
+
 #[test]
 fn self_host_bootstrap_smoke() {
     kabootar_lib::cli::run_file(&self_host_path("test_bootstrap.kab"))

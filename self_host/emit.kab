@@ -115,17 +115,6 @@ fn localIndex(name) {
 }
 
 fn globalIndex(name) {
-    if eInFn == 1 {
-        eGlobI = 0
-        while eGlobI < len(eFnGlobals) {
-            if eFnGlobals[eGlobI] == name {
-                return eGlobI
-            }
-            eGlobI = eGlobI + 1
-        }
-        eFnGlobals = push(eFnGlobals, name)
-        return len(eFnGlobals) - 1
-    }
     eGlobI = 0
     while eGlobI < len(eGlobals) {
         if eGlobals[eGlobI] == name {

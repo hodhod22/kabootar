@@ -1,0 +1,15 @@
+import "self_host/lexer_defs"
+
+let lxLine = 1
+
+fn lxScan() {
+    return { "type": TOKEN_IDENT, "value": "ab", "line": lxLine, "column": 1 }
+}
+
+pub fn tokenize(source) {
+    let tok = lxScan()
+    if tok.type == TOKEN_EOF {
+        return []
+    }
+    return [tok]
+}
