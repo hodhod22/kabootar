@@ -92,12 +92,17 @@ cargo test --test self_host
 18. **Throw** — `throw expr` som `AST_THROW` + `throw` opcode i parser/emit/serialize.
 19. **Emitter nested if/while** — `eIfJmpStack`/`eIfSkipStack` för jump-patch (inte modul-global `eJmp`; nästlade `if` skrev över den).
 20. **Parser sym snapshot** — `symCopy()` + `pFnSym`/`pFnPub`; spara före rekursiv `parseStmt` (token/sträng-alias + modul-global `pSaveSym`).
-21. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
-22. **Emitter let/member** — `eStoreSym`/`eMemberFld` före rekursiv `emitExpr` (inte `eSym`; clobberar sym/field).
-23. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
-24. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
-25. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
-26. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+21. **Parser while/if cond** — `pCondStack`: spara `pCond` efter `parseExpr()` före body/then/else (annars skriver sista inner `if` över `while`-villkoret).
+22. **Parser let/assign sym** — `pBindSym` (inte `pSaveSym`): objektnycklar i rhs skriver över `pSaveSym` innan `return` (t.ex. `tokens = push(tokens, { column: lxCol })`).
+23. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
+23. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobberar `&&` och rhs).
+24. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
+23. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobberar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobberas av call/member/index).
+24. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
+25. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
+26. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
+27. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
+28. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 

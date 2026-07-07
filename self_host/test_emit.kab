@@ -168,6 +168,68 @@ fn assert_true(v, msg) {
     assert_true(len(bc.functions[0].ops) >= 5, "nested object ops")
 }
 
+// -- module global assign in fn body ------------------------------
+{
+    let ast = parseTokens(tokenize("let g = 0\nfn f() { g = 1 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_STORE_GLOBAL {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "assign to module global in fn uses store_global")
+}
+
+// -- assign sym preserved through object rhs ----------------------
+{
+    let ast = parseTokens(tokenize("fn f() { let tokens = []; tokens = push(tokens, { column: 1 }) }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_STORE_LOCAL {
+            if bc.functions[0].locals[bc.functions[0].ops[tI].arg] == "tokens" {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "assign to tokens uses store_local tokens not column")
+}
+
+// -- && emits and opcode -------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { if cd >= 65 && cd <= 90 { ok = 1 } }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_AND {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "&& emits and")
+}
+
+// -- expr stmt after call (eExprStmt; not eBxL) --------------------
+{
+    let ast = parseTokens(tokenize("fn f() { push(a, b); return 0 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_POP {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "expr stmt call emits pop")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

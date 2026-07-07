@@ -17,6 +17,7 @@ let pBodyStack = []
 let pStmts = []
 let pParams = []
 let pCond = null
+let pCondStack = []
 let pThen = null
 let pElse = null
 let pLoopBody = []
@@ -25,6 +26,8 @@ let pObjFields = []
 let pSave = null
 let pBinOp = ""
 let pSaveSym = ""
+let pBindSym = ""
+let pExprLeft = null
 let pFnSym = ""
 let pFnPub = 0
 let pIsPub = 0
@@ -328,7 +331,7 @@ fn parseCompare() {
     while peek().type == "==" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -401,7 +404,7 @@ fn parseCompare() {
     while peek().type == "!=" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -474,7 +477,7 @@ fn parseCompare() {
     while peek().type == "<" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -547,7 +550,7 @@ fn parseCompare() {
     while peek().type == ">" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -620,7 +623,7 @@ fn parseCompare() {
     while peek().type == ">=" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -693,7 +696,7 @@ fn parseCompare() {
     while peek().type == "<=" {
         pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pSave = pLeft
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -769,11 +772,10 @@ fn parseCompare() {
 fn parseExpr() {
     pLeft = parseCompare()
     while peek().type == "&&" {
-        pBinOp = peek().type
         bump()
-        pSave = { "kind": pLeft["kind"], "lit": pLeft["lit"], "value": pLeft["value"], "sym": pLeft["sym"], "object": pLeft["object"], "field": pLeft["field"], "index": pLeft["index"], "callee": pLeft["callee"], "args": pLeft["args"] }
+        pExprLeft = pLeft
         pRight = parseCompare()
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
+        pLeft = { "kind": AST_BINARY, "op": "&&", "left": pExprLeft, "right": pRight }
     }
     return pLeft
 }
@@ -787,13 +789,13 @@ fn parseStmt() {
         }
         bump()
         pSymPool = push(pSymPool, symCopy(pTok.value))
-        pSaveSym = pSymPool[len(pSymPool) - 1]
+        pBindSym = pSymPool[len(pSymPool) - 1]
         if peek().type != "=" {
             throw "Expected ="
         }
         bump()
         pInit = parseExpr()
-        return { "kind": AST_LET, "sym": pSaveSym, "init": pInit }
+        return { "kind": AST_LET, "sym": pBindSym, "init": pInit }
     }
     pIsPub = 0
     if peek().type == TOKEN_PUB {
@@ -858,6 +860,7 @@ fn parseStmt() {
     if peek().type == TOKEN_IF {
         bump()
         pCond = parseExpr()
+        pCondStack = push(pCondStack, pCond)
         if peek().type != "{" {
             throw "Expected {"
         }
@@ -894,11 +897,14 @@ fn parseStmt() {
             pBody = pBodyStack[len(pBodyStack) - 1]
             pBodyStack = popStack(pBodyStack)
         }
-        return { "kind": AST_IF, "cond": pCond, "then": pThen, "elseBranch": pElse }
+        pSave = pCondStack[len(pCondStack) - 1]
+        pCondStack = popStack(pCondStack)
+        return { "kind": AST_IF, "cond": pSave, "then": pThen, "elseBranch": pElse }
     }
     if peek().type == TOKEN_WHILE {
         bump()
         pCond = parseExpr()
+        pCondStack = push(pCondStack, pCond)
         if peek().type != "{" {
             throw "Expected {"
         }
@@ -915,7 +921,9 @@ fn parseStmt() {
         let whileBody = pLoopBody
         pLoopBody = pBodyStack[len(pBodyStack) - 1]
         pBodyStack = popStack(pBodyStack)
-        return { "kind": AST_WHILE, "cond": pCond, "body": { "kind": AST_BLOCK, "body": whileBody } }
+        pSave = pCondStack[len(pCondStack) - 1]
+        pCondStack = popStack(pCondStack)
+        return { "kind": AST_WHILE, "cond": pSave, "body": { "kind": AST_BLOCK, "body": whileBody } }
     }
     if peek().type == TOKEN_CONTINUE {
         bump()
@@ -969,11 +977,11 @@ fn parseStmt() {
             if pTok.type == "=" {
                 pTok = peek()
                 pSymPool = push(pSymPool, symCopy(pTok.value))
-                pSaveSym = pSymPool[len(pSymPool) - 1]
+                pBindSym = pSymPool[len(pSymPool) - 1]
                 bump()
                 bump()
                 pVal = parseExpr()
-                return { "kind": AST_ASSIGN, "sym": pSaveSym, "rhs": pVal }
+                return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
             }
         }
     }
