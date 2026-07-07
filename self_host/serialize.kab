@@ -29,6 +29,9 @@ fn constLine(idx, val) {
 }
 
 fn irOpLine(op) {
+    if op == null {
+        throw "serialize: null op in IR"
+    }
     sOp = op.op
     if sOp == OP_CONST {
         return "const " + ("" + op.arg)

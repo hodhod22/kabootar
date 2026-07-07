@@ -254,18 +254,19 @@ fn self_host_emit_unified_globals_member_access() {
     use kabootar_lib::value::Value;
 
     let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let probe_path = self_host_path("_emit_globals_run_probe_gen.kab");
+    let out_file = format!("{}/_emit_globals_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&out_file);
     let probe = format!(
-        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nreturn compile(read_text_file(\"/proj/self_host/_emit_globals_mini.kab\"))",
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nwrite_text_file(\"/proj/_emit_globals_out.kbc\", compile(read_text_file(\"/proj/self_host/_emit_globals_mini.kab\")))\nreturn 1",
         kab_string_literal(&manifest)
     );
-    let probe_path = self_host_path("_emit_globals_run_probe_gen.kab");
     std::fs::write(&probe_path, probe).expect("write emit globals probe");
-    let v = kabootar_lib::cli::run_file(&probe_path)
-        .expect("compile _emit_globals_mini.kab via self-hosted pipeline");
+    run_kabootar_file_subprocess(&probe_path)
+        .expect("compile _emit_globals_mini.kab via subprocess");
     let _ = std::fs::remove_file(&probe_path);
-    let Value::String(text) = v else {
-        panic!("probe should return .kbc text, got {v:?}");
-    };
+    let text = std::fs::read_to_string(&out_file).expect("read compiled mini lexer .kbc");
+    let _ = std::fs::remove_file(&out_file);
     let module = deserialize(&text).expect("deserialize mini lexer .kbc");
     let mut env = create_global_env();
     run_module(&module, &mut env).expect("run mini lexer module");
@@ -283,7 +284,7 @@ fn self_host_emit_unified_globals_member_access() {
     let Value::Array(items) = toks else {
         panic!("tokenize should return array, got {toks:?}");
     };
-    assert_eq!(items.len(), 1);
+    assert_eq!(items.len(), 2, "tokenize should return [ident, eof]");
     let Value::Object(first) = &items[0] else {
         panic!("expected token object");
     };

@@ -84,6 +84,32 @@ fn assert_kind(node, kind, msg) {
     assert_kind(ast.body[0].body, AST_BLOCK, "while body")
 }
 
+// -- while cond not clobbered by inner if --------------------------
+{
+    let ast = parseTokens(tokenize("while x == 0 { if y == 1 { y = 2 } }"))
+    assert_kind(ast.body[0], AST_WHILE, "while with inner if")
+    assert_kind(ast.body[0].cond, AST_BINARY, "while cond preserved")
+    assert_eq(ast.body[0].cond.op, "==", "while cond op")
+    assert_kind(ast.body[0].cond["left"], AST_VAR, "while cond lhs")
+    assert_eq(ast.body[0].cond["left"].sym, "x", "while cond var")
+}
+
+// -- assign sym not clobbered by object key in rhs ----------------
+{
+    let ast = parseTokens(tokenize("tokens = push(tokens, { column: 1 })"))
+    assert_kind(ast.body[0], AST_ASSIGN, "assign with object rhs")
+    assert_eq(ast.body[0].sym, "tokens", "assign sym preserved")
+}
+
+// -- && preserves compare ops on both sides -----------------------
+{
+    let ast = parseTokens(tokenize("cd >= 65 && cd <= 90"))
+    assert_kind(ast.body[0].expr, AST_BINARY, "and expr")
+    assert_eq(ast.body[0].expr.op, "&&", "and op")
+    assert_eq(ast.body[0].expr["left"].op, ">=", "lhs compare")
+    assert_eq(ast.body[0].expr["right"].op, "<=", "rhs compare")
+}
+
 // -- fn ------------------------------------------------------------
 {
     let ast = parseTokens(tokenize("fn add(a, b) { return a + b }"))
