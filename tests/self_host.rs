@@ -409,6 +409,7 @@ fn self_host_parser_full_compile_and_run() {
     use kabootar_lib::bytecode::{call_value, deserialize, run_module};
     use kabootar_lib::evaluator::create_global_env;
     use kabootar_lib::value::Value;
+    use kabootar_lib::runtime::stdlib::error::format_runtime_error;
 
     let probe_path = self_host_path("_parser_full_probe_gen.kab");
     let src_copy = format!("{}/_parser_full_src.kab", env!("CARGO_MANIFEST_DIR"));
@@ -439,7 +440,7 @@ fn self_host_parser_full_compile_and_run() {
         .get("parseTokens")
         .expect("compiled parser should export parseTokens");
     let tokens = tokenize_via_interpreter("let x = 1");
-    let ast = call_value(
+    let ast = match call_value(
         parse_tokens,
         vec![tokens],
         &[],
@@ -447,8 +448,13 @@ fn self_host_parser_full_compile_and_run() {
         &[],
         &[],
         &mut run_env,
-    )
-    .expect("parseTokens(tokenize(\"let x = 1\"))");
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = format_runtime_error(&e);
+            panic!("parseTokens(tokenize(\"let x = 1\")) threw: {msg}");
+        }
+    };
     assert_eq!(ast_kind(&ast), Some("Program"), "parseTokens root kind");
     let Value::Object(root) = ast else {
         panic!("parseTokens should return object AST");
