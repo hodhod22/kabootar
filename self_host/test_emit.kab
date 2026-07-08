@@ -230,6 +230,45 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "expr stmt call emits pop")
 }
 
+// -- bracket index emits object then index (not id[id]) ------------
+{
+    let ast = parseTokens(tokenize("fn f(id) { let kw = KEYWORDS[id]; return kw }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_INDEX_GET {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "index expr emits index_get")
+}
+
+// -- undefined literal distinct from null (kw == undefined) --------
+{
+    let ast = parseTokens(tokenize("if kw == undefined { return 1 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.constants) {
+        if bc.constants[tI] == KAB_UNDEF_CONST {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "undefined literal uses KAB_UNDEF_CONST pool entry")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.constants) {
+        if bc.constants[tI] == null {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 0, "undefined compare must not use null const")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

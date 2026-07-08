@@ -54,3 +54,6 @@ pub let OP_THROW = "throw"
 
 // ----- PROGRAM TERMINATION -----
 pub let OP_HALT = "halt"
+
+// Sentinel in emitter const pool; serialize maps to `const N undefined`.
+pub let KAB_UNDEF_CONST = "__kab_const_undefined__"

@@ -28,6 +28,7 @@ let pBinOp = ""
 let pSaveSym = ""
 let pBindSym = ""
 let pExprLeft = null
+let pIndexObj = null
 let pFnSym = ""
 let pFnPub = 0
 let pIsPub = 0
@@ -39,6 +40,8 @@ let pPopNew = []
 let pSymOut = ""
 let pSymSrc = ""
 let pSymI = 0
+let pInAddSub = 0
+let pNextTok = null
 
 fn popStack(stack) {
     pPopNew = []
@@ -180,7 +183,7 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        throw "Unexpected token: " + pTok.type
+        throw "U1 parsePostfix pos " + ("" + pPos) + " tok " + json_stringify(peek())
     }
     while peek().type == "(" {
         pCallee = pLeft
@@ -214,12 +217,13 @@ fn parsePostfix() {
     }
     while peek().type == "[" {
         bump()
+        pIndexObj = pLeft
         pRight = parseCompare()
         if peek().type != "]" {
             throw "Expected ]"
         }
         bump()
-        pLeft = { "kind": AST_INDEX, "object": pLeft, "index": pRight }
+        pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
     }
     return pLeft
 }
@@ -250,7 +254,7 @@ fn parseCompare() {
                     }
                     bump()
                 } else {
-                    throw "Unexpected token: " + pTok.type
+                    throw "U2 parseCompare+ pos " + ("" + pPos) + " tok " + json_stringify(peek())
                 }
                 }
             }
@@ -301,7 +305,7 @@ fn parseCompare() {
                     }
                     bump()
                 } else {
-                    throw "Unexpected token: " + pTok.type
+                    throw "U2 parseCompare+ pos " + ("" + pPos) + " tok " + json_stringify(peek())
                 }
                 }
             }
@@ -328,442 +332,61 @@ fn parseCompare() {
         }
         pLeft = { "kind": AST_BINARY, "op": "-", "left": pLeft, "right": pRight }
     }
+    if pInAddSub == 1 {
+        return pLeft
+    }
     while peek().type == "==" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     while peek().type == "!=" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     while peek().type == "<" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     while peek().type == ">" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     while peek().type == ">=" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     while peek().type == "<=" {
         pBinOp = peek().type
         bump()
         pSave = pLeft
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_NULL {
-                bump()
-                pRight = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
-            } else {
-                if pTok.type == TOKEN_UNDEFINED {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": null }
-                } else {
-                if pTok.type == TOKEN_TRUE {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
-                } else {
-                    if pTok.type == TOKEN_FALSE {
-                        bump()
-                        pRight = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
-                    } else {
-                        if pTok.type == TOKEN_STRING {
-                            bump()
-                            pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                        } else {
-                            if pTok.type == TOKEN_IDENT {
-                                bump()
-                                pSymPool = push(pSymPool, symCopy(pTok.value))
-                                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-                            } else {
-                                if pTok.type == "(" {
-                                    bump()
-                                    pRight = parseCompare()
-                                    if peek().type != ")" {
-                                        throw "Expected )"
-                                    }
-                                    bump()
-                                } else {
-                                    throw "Unexpected token: " + pTok.type
-                                }
-                            }
-                        }
-                    }
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     return pLeft
@@ -781,6 +404,9 @@ fn parseExpr() {
 }
 
 fn parseStmt() {
+    if peek().type == TOKEN_EOF {
+        throw "parseStmt called at EOF"
+    }
     if peek().type == TOKEN_LET {
         bump()
         pTok = peek()
@@ -973,16 +599,18 @@ fn parseStmt() {
     }
     if peek().type == TOKEN_IDENT {
         if pPos + 1 < len(pToks) {
-            pTok = pToks[pPos + 1]
-            if pTok.type == "=" {
-                pTok = peek()
-                pSymPool = push(pSymPool, symCopy(pTok.value))
-                pBindSym = pSymPool[len(pSymPool) - 1]
-                bump()
-                bump()
-                pVal = parseExpr()
-                return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
-            }
+            pNextTok = pToks[pPos + 1]
+        } else {
+            pNextTok = { "type": TOKEN_EOF, "value": null, "line": 1, "column": 1 }
+        }
+        if pNextTok.type == "=" {
+            pTok = peek()
+            pSymPool = push(pSymPool, symCopy(pTok.value))
+            pBindSym = pSymPool[len(pSymPool) - 1]
+            bump()
+            bump()
+            pVal = parseExpr()
+            return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
         }
     }
     pVal = parseExpr()
@@ -996,8 +624,12 @@ pub fn parseTokens(tokens) {
     pImports = []
     pBodyStack = push(pBodyStack, pBody)
     pBody = []
-    while peek().type != TOKEN_EOF {
-        if peek().type == TOKEN_IMPORT {
+    while true {
+        pTok = peek()
+        if pTok.type == TOKEN_EOF {
+            break
+        }
+        if pTok.type == TOKEN_IMPORT {
             bump()
             pTok = peek()
             if pTok.type == TOKEN_STRING {

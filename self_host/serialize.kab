@@ -13,6 +13,9 @@ let sJ = 0
 // ----- HELPER FUNCTIONS -----
 
 fn constLine(idx, val) {
+    if val == KAB_UNDEF_CONST {
+        return "const " + ("" + idx) + " undefined"
+    }
     if val == null {
         return "const " + ("" + idx) + " null"
     }
