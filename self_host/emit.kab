@@ -146,6 +146,21 @@ fn constIndex(value) {
     return len(eConsts) - 1
 }
 
+fn constIndexLit(node) {
+    if node["lit"] == LIT_UNDEF {
+        eConstI = 0
+        while eConstI < len(eConsts) {
+            if eConsts[eConstI] == KAB_UNDEF_CONST {
+                return eConstI
+            }
+            eConstI = eConstI + 1
+        }
+        eConsts = push(eConsts, KAB_UNDEF_CONST)
+        return len(eConsts) - 1
+    }
+    return constIndex(node["value"])
+}
+
 fn emitOp(op, arg) {
     if eInFn == 1 {
         eFnOps = push(eFnOps, { "op": op, "arg": arg })
@@ -212,7 +227,7 @@ fn emitExpr(node) {
         throw "emitExpr: null node"
     }
     if eNode.kind == AST_LITERAL {
-        eIdx = constIndex(eNode["value"])
+        eIdx = constIndexLit(eNode)
         emitOp(OP_CONST, eIdx)
         return
     }
@@ -229,7 +244,7 @@ fn emitExpr(node) {
         if eInFn == 1 {
             eNode = eBinaryL
             if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+                eIdx = constIndexLit(eNode)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eNode.kind == AST_VAR {
@@ -242,7 +257,7 @@ fn emitExpr(node) {
             eBinaryR = eBinRStack[len(eBinRStack) - 1]
             eNode = eBinaryR
             if eNode.kind == AST_LITERAL {
-                eIdx = constIndex(eNode["value"])
+                eIdx = constIndexLit(eNode)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eNode.kind == AST_VAR {
@@ -399,7 +414,7 @@ fn emitExpr(node) {
         if eArgN == 1 {
             eBxL = eArgs[0]
             if eBxL.kind == AST_LITERAL {
-                eIdx = constIndex(eBxL["value"])
+                eIdx = constIndexLit(eBxL)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eBxL.kind == AST_VAR {
@@ -417,7 +432,7 @@ fn emitExpr(node) {
             eBxL = eArgs[0]
             eBxR = eArgs[1]
             if eBxL.kind == AST_LITERAL {
-                eIdx = constIndex(eBxL["value"])
+                eIdx = constIndexLit(eBxL)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eBxL.kind == AST_VAR {
@@ -428,7 +443,7 @@ fn emitExpr(node) {
                 }
             }
             if eBxR.kind == AST_LITERAL {
-                eIdx = constIndex(eBxR["value"])
+                eIdx = constIndexLit(eBxR)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eBxR.kind == AST_VAR {
@@ -448,7 +463,7 @@ fn emitExpr(node) {
             eCallI = eCallArgIStack[len(eCallArgIStack) - 1]
             eBxL = eArgs[eCallI]
             if eBxL.kind == AST_LITERAL {
-                eIdx = constIndex(eBxL["value"])
+                eIdx = constIndexLit(eBxL)
                 emitOp(OP_CONST, eIdx)
             } else {
                 if eBxL.kind == AST_VAR {
@@ -744,6 +759,13 @@ fn emitStmt(node) {
             }
             eBi = eBi + 1
         }
+        eWhNew = []
+        eWhI = 0
+        while eWhI < eBf {
+            eWhNew = push(eWhNew, eBreakIdxs[eWhI])
+            eWhI = eWhI + 1
+        }
+        eBreakIdxs = eWhNew
         eWhNew = []
         eWhI = 0
         while eWhI < len(eWhileHeads) - 1 {

@@ -101,6 +101,16 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].sym, "tokens", "assign sym preserved")
 }
 
+// -- bracket index preserves object (not pLeft) --------------------
+{
+    let ast = parseTokens(tokenize("let kw = KEYWORDS[id]"))
+    assert_kind(ast.body[0].init, AST_INDEX, "index expr")
+    assert_kind(ast.body[0].init["object"], AST_VAR, "index object")
+    assert_eq(ast.body[0].init["object"].sym, "KEYWORDS", "index object sym")
+    assert_kind(ast.body[0].init["index"], AST_VAR, "index rhs")
+    assert_eq(ast.body[0].init["index"].sym, "id", "index rhs sym")
+}
+
 // -- && preserves compare ops on both sides -----------------------
 {
     let ast = parseTokens(tokenize("cd >= 65 && cd <= 90"))
@@ -108,6 +118,42 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].expr.op, "&&", "and op")
     assert_eq(ast.body[0].expr["left"].op, ">=", "lhs compare")
     assert_eq(ast.body[0].expr["right"].op, "<=", "rhs compare")
+}
+
+// -- compare rhs includes add/sub (len(stack) - 1) ----------------
+{
+    let ast = parseTokens(tokenize("while i < len(stack) - 1 { i = 1 }"))
+    assert_kind(ast.body[0], AST_WHILE, "while with len-1 cond")
+    assert_kind(ast.body[0].cond, AST_BINARY, "while cond binary")
+    assert_eq(ast.body[0].cond.op, "<", "while cond op")
+    assert_kind(ast.body[0].cond["right"], AST_BINARY, "rhs is subtraction")
+    assert_eq(ast.body[0].cond["right"].op, "-", "rhs sub op")
+}
+
+// -- assign ident lookahead must not clobber expr stmt ------------
+{
+    let ast = parseTokens(tokenize("x = 1"))
+    assert_kind(ast.body[0], AST_ASSIGN, "assign stmt")
+    assert_eq(ast.body[0].sym, "x", "assign sym")
+    let ast2 = parseTokens(tokenize("x"))
+    assert_kind(ast2.body[0], AST_EXPR, "ident expr stmt")
+    assert_kind(ast2.body[0].expr, AST_VAR, "ident expr var")
+    assert_eq(ast2.body[0].expr.sym, "x", "ident expr sym")
+}
+
+// -- object key not clobbered by parseCompare rhs ------------------
+{
+    let ast = parseTokens(tokenize("push(a, { column: lxCol })"))
+    assert_kind(ast.body[0].expr, AST_CALL, "call with object arg")
+    let obj = ast.body[0].expr.args[1]
+    assert_kind(obj, AST_OBJECT, "object arg")
+    assert_eq(obj.fields[0].key, "column", "object key preserved")
+}
+
+// -- assign at EOF (peekAt(1) must not OOB) -----------------------
+{
+    let ast = parseTokens(tokenize("x"))
+    assert_kind(ast.body[0].expr, AST_VAR, "ident at eof")
 }
 
 // -- fn ------------------------------------------------------------
@@ -129,6 +175,15 @@ fn assert_kind(node, kind, msg) {
 {
     let ast = parseTokens(tokenize("let x = 1; let y = 2; x + y"))
     assert_eq(len(ast.body), 3, "multi stmt count")
+}
+
+// -- let x = 1 program (EOF must not become expr stmt) --------------
+{
+    let ast = parseTokens(tokenize("let x = 1"))
+    assert_kind(ast, AST_PROGRAM, "let program root")
+    assert_eq(len(ast.body), 1, "let program one stmt")
+    assert_kind(ast.body[0], AST_LET, "let program stmt")
+    assert_eq(ast.body[0].sym, "x", "let program sym")
 }
 
 // -- Report --------------------------------------------------------

@@ -50,6 +50,28 @@ fn run_kabootar_file_subprocess(path: &str) -> Result<(), String> {
     ))
 }
 
+fn tokenize_via_interpreter(src: &str) -> kabootar_lib::value::Value {
+    let probe_src = format!(
+        "import \"self_host/lexer\"\nreturn tokenize({})",
+        kab_string_literal(src)
+    );
+    let probe_path = self_host_path("_tokenize_helper_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write tokenize helper probe");
+    let v = kabootar_lib::cli::run_file(&probe_path).expect("tokenize helper should run");
+    let _ = std::fs::remove_file(&probe_path);
+    v
+}
+
+fn ast_kind<'a>(v: &'a kabootar_lib::value::Value) -> Option<&'a str> {
+    let kabootar_lib::value::Value::Object(map) = v else {
+        return None;
+    };
+    map.get("kind").and_then(|k| match k {
+        kabootar_lib::value::Value::String(s) => Some(s.as_str()),
+        _ => None,
+    })
+}
+
 #[test]
 fn self_host_lexer_suite() {
     kabootar_lib::cli::run_file(&self_host_path("test_lexer.kab"))
@@ -170,6 +192,130 @@ fn self_host_lexer_compile_and_run() {
 }
 
 #[test]
+fn self_host_bracket_index_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let snippet = "let KEYWORDS = { \"if\": \"KW_IF\" }\nfn f(id) { return KEYWORDS[id] }\nreturn f";
+    let probe_src = format!(
+        "import \"self_host/compile\"\nreturn compile({})",
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_bracket_index_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write bracket index probe");
+    let v = kabootar_lib::cli::run_file(&probe_path)
+        .expect("bracket index probe should run");
+    let _ = std::fs::remove_file(&probe_path);
+    let Value::String(text) = v else {
+        panic!("bracket index probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize bracket index snippet .kbc");
+    let mut env = create_global_env();
+    run_module(&module, &mut env).expect("run bracket index snippet");
+    let f = env.get("f").expect("f export");
+    let hit = call_value(
+        f,
+        vec![Value::String("if".into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("KEYWORDS[id] with string index");
+    assert_eq!(
+        kabootar_lib::value::format_value(&hit),
+        "KW_IF",
+        "bracket index should read object map"
+    );
+}
+
+#[test]
+fn self_host_undefined_eq_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let snippet = "let KEYWORDS = { \"if\": \"KW_IF\" }\nfn f(id) {\n  let kw = KEYWORDS[id]\n  if kw == undefined {\n    return \"miss\"\n  }\n  return \"hit\"\n}\nreturn f";
+    let probe_src = format!(
+        "import \"self_host/compile\"\nreturn compile({})",
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_undefined_eq_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write undefined eq probe");
+    let v = kabootar_lib::cli::run_file(&probe_path)
+        .expect("undefined eq probe should run");
+    let _ = std::fs::remove_file(&probe_path);
+    let Value::String(text) = v else {
+        panic!("undefined eq probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize undefined eq snippet .kbc");
+    let mut env = create_global_env();
+    run_module(&module, &mut env).expect("run undefined eq snippet");
+    let f = env.get("f").expect("f export");
+    let miss = call_value(
+        f.clone(),
+        vec![Value::String("ab".into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("missing key should compare equal to undefined");
+    assert_eq!(
+        kabootar_lib::value::format_value(&miss),
+        "miss",
+        "KEYWORDS[\"ab\"] == undefined must be true"
+    );
+    let hit = call_value(
+        f,
+        vec![Value::String("if".into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("present key should not match undefined");
+    assert_eq!(
+        kabootar_lib::value::format_value(&hit),
+        "hit",
+        "KEYWORDS[\"if\"] == undefined must be false"
+    );
+}
+
+#[test]
+fn self_host_nested_break_scope_compile_and_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let snippet = "let x = 0\nwhile true {\n  while true {\n    break\n  }\n  x = 1\n  break\n}\nreturn x";
+    let probe_src = format!(
+        "import \"self_host/compile\"\nreturn compile({})",
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_nested_break_scope_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write nested break scope probe");
+    let v = kabootar_lib::cli::run_file(&probe_path)
+        .expect("nested break scope probe should run");
+    let _ = std::fs::remove_file(&probe_path);
+    let Value::String(text) = v else {
+        panic!("nested break probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize nested break snippet .kbc");
+    let mut env = create_global_env();
+    let result = run_module(&module, &mut env).expect("run nested break snippet");
+    assert_eq!(
+        kabootar_lib::value::format_value(&result),
+        "1",
+        "inner break must not break outer loop"
+    );
+}
+
+#[test]
 fn self_host_lexer_full_compile_smoke() {
     kabootar_lib::cli::run_file(&self_host_path("test_lexer_full_compile.kab"))
         .expect("self_host/test_lexer_full_compile.kab should pass");
@@ -240,6 +386,88 @@ fn self_host_lexer_full_compile_and_run() {
             _ => None,
         }),
         Some("ab")
+    );
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+}
+
+#[test]
+fn self_host_parser_full_compile_smoke() {
+    kabootar_lib::cli::run_file(&self_host_path("test_parser_full_compile.kab"))
+        .expect("self_host/test_parser_full_compile.kab should pass");
+}
+
+#[test]
+fn self_host_emit_full_compile_smoke() {
+    kabootar_lib::cli::run_file(&self_host_path("test_emit_full_compile.kab"))
+        .expect("self_host/test_emit_full_compile.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~2h): self-hosted compile(parser.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_parser_full_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let probe_path = self_host_path("_parser_full_probe_gen.kab");
+    let src_copy = format!("{}/_parser_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_parser_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("parser.kab"), &src_copy).expect("copy parser.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_parser_full_src.kab\"))\nwrite_text_file(\"/proj/_parser_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated parser full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(parser.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled parser .kbc output");
+    assert!(
+        kbc.starts_with("kabootar-bytecode/1"),
+        "parser .kbc should have bytecode header"
+    );
+    let module = deserialize(&kbc).expect("deserialize compiled parser.kab");
+    assert!(!module.functions.is_empty(), "parser should emit functions");
+    let mut run_env = create_global_env();
+    run_module(&module, &mut run_env).expect("run compiled parser module");
+    let parse_tokens = run_env
+        .get("parseTokens")
+        .expect("compiled parser should export parseTokens");
+    let tokens = tokenize_via_interpreter("let x = 1");
+    let ast = call_value(
+        parse_tokens,
+        vec![tokens],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    )
+    .expect("parseTokens(tokenize(\"let x = 1\"))");
+    assert_eq!(ast_kind(&ast), Some("Program"), "parseTokens root kind");
+    let Value::Object(root) = ast else {
+        panic!("parseTokens should return object AST");
+    };
+    let Value::Array(body) = root.get("body").expect("program body") else {
+        panic!("program body should be array");
+    };
+    assert_eq!(body.len(), 1, "let x = 1 => one stmt");
+    assert_eq!(ast_kind(&body[0]), Some("LetStmt"), "first stmt should be let");
+    let Value::Object(let_stmt) = &body[0] else {
+        panic!("let stmt should be object");
+    };
+    assert_eq!(
+        let_stmt.get("sym").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("x"),
+        "let sym"
     );
     let _ = std::fs::remove_file(&src_copy);
     let _ = std::fs::remove_file(&out_file);

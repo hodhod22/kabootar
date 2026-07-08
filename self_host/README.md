@@ -23,7 +23,7 @@ source text
 | `lexer_defs.kab` | klar | Token-konstanter och `KEYWORDS` |
 | `lexer.kab` | klar | `tokenize(source)` → token-array |
 | `ast_defs.kab` | klar | AST-nodtyper |
-| `parser.kab` | klar | `parseTokens(tokens)` → AST (let/assign/if/while/fn/+/==/calls) |
+| `parser.kab` | klar | `parseTokens(tokens)` → AST (let/assign/if/while/fn/obj/array/member/index/+/==/&&/calls) |
 | `emit_defs.kab` | klar | Opcode-namn för IR |
 | `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
 | `serialize_defs.kab` | klar | `.kbc`-header |
@@ -90,19 +90,22 @@ cargo test --test self_host
 16. **Array literal** — `[]` / `[a, b]` kräver `AST_ARRAY` + `make_array` i parser/emit/serialize (lexer.kab använder `let parts = []`).
 17. **Emitter scratch** — `eBxL`/`eBxR` för CALL/INDEX/MEMBER/BINARY; `eList` för OBJECT/ARRAY; `eBodyStmts` för BLOCK (inte `eLeft`).
 18. **Throw** — `throw expr` som `AST_THROW` + `throw` opcode i parser/emit/serialize.
-19. **Emitter nested if/while** — `eIfJmpStack`/`eIfSkipStack` för jump-patch (inte modul-global `eJmp`; nästlade `if` skrev över den).
+19. **Emitter nested if/while** — `eIfJmpStack`/`eIfSkipStack` för jump-patch (inte modul-global `eJmp`; nästlade `if` skrev över den). För `break`: trimma `eBreakIdxs` tillbaka till `eBf` när en loop är färdigpatchad, annars läcker inner-loop breaks till outer-loop.
 20. **Parser sym snapshot** — `symCopy()` + `pFnSym`/`pFnPub`; spara före rekursiv `parseStmt` (token/sträng-alias + modul-global `pSaveSym`).
 21. **Parser while/if cond** — `pCondStack`: spara `pCond` efter `parseExpr()` före body/then/else (annars skriver sista inner `if` över `while`-villkoret).
 22. **Parser let/assign sym** — `pBindSym` (inte `pSaveSym`): objektnycklar i rhs skriver över `pSaveSym` innan `return` (t.ex. `tokens = push(tokens, { column: lxCol })`).
-23. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
-23. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobberar `&&` och rhs).
-24. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
-23. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobberar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobberas av call/member/index).
-24. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
-25. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
-26. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
-27. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
-28. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+23. **Parser assign lookahead** — säker `ident =`-lookahead via `pNextTok = pToks[pPos+1]` med explicit EOF-fallback; undviker både OOB och att clobbra `pTok` före expr-stmts.
+24. **Parser bracket index** — `pIndexObj` (inte `pLeft`): `parseCompare()` i `a[b]` skriver över `pLeft` (t.ex. `KEYWORDS[id]` blev `id[id]`).
+25. **Parser compare rhs** — `pInAddSub`-flagga: compare-rhs via `parseCompare()` i add/sub-läge (inte inline literal); annars `len(stack) - 1` lämnar `-` kvar och `while` får `Expected {`.
+26. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
+27. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobbar `&&` och rhs).
+28. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
+29. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobbar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobras av call/member/index).
+30. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
+31. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
+32. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
+33. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
+34. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 
@@ -113,10 +116,9 @@ cargo test --test self_host
 5. ~~Self-host bootstrap: `compile.kab` cache + `compile(sample)` -> Rust `run_module`~~ ✅
 6. ~~Utöka self-hosted språksubset (obj, &&, compares, index)~~ ✅
 7. ~~Lexer-like compile (`char_at`-loop, `!=`, `continue`/`break`/`undefined`)~~ ✅
-8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — snippet-smoke + array literal; full fil: `self_host_lexer_full_compile_and_run` (långsam ~15–60 min)
+8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — `self_host_lexer_full_compile_and_run` (~2.5 h)
 
-9. Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes). Inventering:
-   - **parser.kab** (~900 rader, 6 fn): behöver `compile()`-parity för all syntax i filen (idag: let/fn/if/while, obj/array, member/index, `+/-/==/!=/</>/>=/<=/&&`, call, break/continue/return).
-   - **emit.kab** (~670 rader, 7 fn): saknar ev. fler opcodes om parser utökas (`||`, unary `!`, `*`, assign till index, etc.).
-   - **Risk:** ~7 fn/modul-gräns — undvik fler top-level fn; håll scratch modul-globalt.
-   - **Verifiering:** `compile(read_text_file("self_host/parser.kab"))` → Rust `run_module` + befintliga `test_parser.kab`.
+9. **Pågår:** Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes).
+   - **parser.kab** (~650 rader, 8 fn): interpreter-varianten och self-hostade parser-tester är gröna; full self-hostad `compile(parser.kab)` kompilerar, men runtime-smoket `parseTokens(tokenize("let x = 1"))` via bytecode har kvar en känd EOF/`+`-bugg (`Cannot add Object EOF and Object EOF`).
+   - **emit.kab** (~880 rader, 8 fn): redo för vidare opcode-stöd om parsern utökas (`||`, unary `!`, `*`, assign till index, etc.).
+   - **Verifiering:** snabb: `self_host_parser_suite`, `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2 h) för full self-hostad parser + runtime.
