@@ -80,6 +80,9 @@ fn bump() {
 }
 
 fn parsePostfix() {
+    if peek().type == TOKEN_EOF {
+        throw "parsePostfix: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    }
     pLeft = null
     pTok = peek()
     if pTok.type == TOKEN_NUMBER {
@@ -229,6 +232,9 @@ fn parsePostfix() {
 }
 
 fn parseCompare() {
+    if peek().type == TOKEN_EOF {
+        throw "parseCompare: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    }
     pLeft = parsePostfix()
     while peek().type == "+" {
         bump()
@@ -393,6 +399,9 @@ fn parseCompare() {
 }
 
 fn parseExpr() {
+    if peek().type == TOKEN_EOF {
+        throw "parseExpr: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    }
     pLeft = parseCompare()
     while peek().type == "&&" {
         bump()
@@ -405,7 +414,7 @@ fn parseExpr() {
 
 fn parseStmt() {
     if peek().type == TOKEN_EOF {
-        throw "parseStmt called at EOF"
+        throw "parseStmt: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
     }
     if peek().type == TOKEN_LET {
         bump()
