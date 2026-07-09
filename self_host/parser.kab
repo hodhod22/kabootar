@@ -256,53 +256,9 @@ fn parseCompare() {
     while peek().type == "+" {
         bump()
         pAddLeftStack = push(pAddLeftStack, pLeft)
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_IDENT {
-                bump()
-                pSymPool = push(pSymPool, symCopy(pTok.value))
-                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-            } else {
-                if pTok.type == TOKEN_STRING {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                } else {
-                if pTok.type == "(" {
-                    bump()
-                    pRight = parseCompare()
-                    if peek().type != ")" {
-                        throw "Expected )"
-                    }
-                    bump()
-                } else {
-                    throw "parseCompare unexpected rhs"
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
         pLeft = { "kind": AST_BINARY, "op": "+", "left": pAddLeft, "right": pRight }
         pAddLeftStack = popStack(pAddLeftStack)
@@ -310,53 +266,9 @@ fn parseCompare() {
     while peek().type == "-" {
         bump()
         pAddLeftStack = push(pAddLeftStack, pLeft)
-        pTok = peek()
-        if pTok.type == TOKEN_NUMBER {
-            bump()
-            pRight = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
-        } else {
-            if pTok.type == TOKEN_IDENT {
-                bump()
-                pSymPool = push(pSymPool, symCopy(pTok.value))
-                pRight = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
-            } else {
-                if pTok.type == TOKEN_STRING {
-                    bump()
-                    pRight = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
-                } else {
-                if pTok.type == "(" {
-                    bump()
-                    pRight = parseCompare()
-                    if peek().type != ")" {
-                        throw "Expected )"
-                    }
-                    bump()
-                } else {
-                    throw "parseCompare unexpected rhs"
-                }
-                }
-            }
-        }
-        while peek().type == "(" {
-            pCallee = pRight
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
-                        bump()
-                    } else {
-                        break
-                    }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        }
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
         pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
         pLeft = { "kind": AST_BINARY, "op": "-", "left": pAddLeft, "right": pRight }
         pAddLeftStack = popStack(pAddLeftStack)
