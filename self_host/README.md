@@ -83,7 +83,7 @@ cargo test --test self_host
 9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
 10. **Emitter: CALL-args i fn-kropp** — undvik var+literal i samma 2-arg `CALL`. Använd modul-global `ZERO = 0` + `char_code_at(ch, ZERO)`.
 11. **Windows stack** — `build.rs` sätter 16 MiB stack för `kabootar`-bin.
-12. **Compare-parse** — spara lhs i `pSave` före rhs; använd **inte** `parsePostfix()` för compare-rhs (skriver över `pLeft`). Undvik `parsePostfix()` i `.kbc`-cache (privata fn syns inte). Inline rhs som `+`-loopen + `null`/`true`/`false`.
+12. **Compare-parse** — spara lhs i `pSave` före rhs; använd **inte** `parsePostfix()` för compare-rhs (skriver över `pLeft`). Undvik `parsePostfix()` i `.kbc`-cache (privata fn syns inte). Inline rhs som `+`-loopen + `null`/`undefined`/`true`/`false`.
 13. **Emitter while** — spara loop-head i `eWhileHead` (inte `eIdx`). Jump-args är **relativa** i VM: `target - jmpIndex - 1`.
 14. **Bytecode-cache** — `.kabootar/cache/*.kbc` ogiltigförklaras när källan är nyare (`read_bytecode_cache` mtime-check).
 15. **Serialize från `.kbc`** — undvik privata fn-anrop från exporterade fn (`serialize_bc`); använd modul-global `sOut` + `CHAR_NL` inline istället för `appendLine()`.
@@ -110,7 +110,8 @@ cargo test --test self_host
 36. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
 37. **Parser undefined literal** — `TOKEN_UNDEFINED` i `parsePostfix` → `LIT_UNDEF` (emit.kab jämför `== undefined` / `!= undefined`).
 38. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
-39. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+39. **`null` vs `undefined`** — båda är förstklassiga i lexer/parser/bytecode. `null == undefined` är `false`. Saknad nyckel / oinitierad `let` → `undefined`; medveten tomhet → `null`. Self-host: `if node.kind == undefined`, `if obj["field"] != undefined` — **inte** `null` i dessa fall.
+40. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 
