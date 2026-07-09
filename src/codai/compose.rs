@@ -101,7 +101,7 @@ pub fn explain(code: &str) -> String {
         parts.push("SQL: kör DDL/DML eller SELECT mot inbäddad databas.".into());
     }
     if lower.contains("import \"science\"") {
-        parts.push("Science: fysik, statistik, matriser, PLC och EL-beräkningar.".into());
+        parts.push("Science: fysik, statistik, matriser och numerisk analys.".into());
     }
     if lower.contains("pub fn") {
         parts.push("Exporterar funktion från filmodul (synlig vid import).".into());

@@ -134,7 +134,7 @@ export class CodaiPanel {
   </div>
   <input id="suggest" placeholder="Föreslå utility, t.ex. REST API" />
   <button id="btnSuggest">Utility-förslag</button>
-  <input id="project" placeholder="Föreslå projektmall, t.ex. PLC" />
+  <input id="project" placeholder="Föreslå projektmall, t.ex. REST API" />
   <button id="btnProject">Projektmall</button>
   <input id="util" placeholder="Utility-id, t.ex. http-route-get" />
   <button id="btnUtil">Visa kodmall</button>
@@ -181,7 +181,7 @@ export async function suggestUtility(): Promise<void> {
   const query = await vscode.window.showInputBox({
     title: "CodAI — utility-förslag",
     prompt: "Beskriv vad du vill bygga",
-    placeHolder: "t.ex. SQL insert, PLC timer",
+    placeHolder: "t.ex. SQL insert, HTTP route",
   });
   if (!query) return;
   try {

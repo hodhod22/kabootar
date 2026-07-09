@@ -75,62 +75,16 @@ fn shr(a, n) { return null }
 fn hex(s) { return null }
 fn bin(s) { return null }
 fn hamming_weight(n) { return null }
-fn el_copper_r(cross_mm2, length_m) { return null }
-fn el_aluminum_r(cross_mm2, length_m) { return null }
-fn el_voltage_drop(i_a, r_ohm) { return null }
-fn el_voltage_drop_pct(drop_v, nominal_v) { return null }
-fn el_drop_ok(drop_v, nominal_v, max_pct) { return null }
-fn el_single_phase_i(p_w, u_v, cos_phi) { return null }
-fn el_three_phase_i(p_w, u_ll_v, cos_phi) { return null }
-fn el_single_phase_p(u_v, i_a, cos_phi) { return null }
-fn el_three_phase_p(u_ll_v, i_a, cos_phi) { return null }
-fn el_apparent_va(u_v, i_a) { return null }
-fn el_three_phase_s(u_ll_v, i_a) { return null }
-fn el_reactive_from_ps(p_w, s_va) { return null }
-fn el_reactive_ui(u_v, i_a, sin_phi) { return null }
-fn el_power_factor(p_w, s_va) { return null }
-fn el_sin_phi(cos_phi) { return null }
-fn el_kw_to_kva(kw, cos_phi) { return null }
-fn el_kva_to_kw(kva, cos_phi) { return null }
-fn el_power_triangle_s(p_w, q_var) { return null }
-fn el_fuse_size(load_a, margin) { return null }
-fn el_motor_flc(kw, u_v, eff, cos_phi, phases) { return null }
-fn el_ampacity_cu(cross_mm2) { return null }
-fn el_cable_min_cu(load_a) { return null }
-fn el_phase_imbalance(i1, i2, i3) { return null }
-fn el_short_circuit_i(u_v, z_ohm) { return null }
-fn el_loop_z(r_line, r_pe) { return null }
-fn el_cable_derating(ambient_c, ref_c, base_a) { return null }
-fn el_1ph_drop(i_a, length_m, cross_mm2) { return null }
-fn el_3ph_drop(i_a, length_m, cross_mm2) { return null }
-fn plc_and(a, b) { return null }
-fn plc_or(a, b) { return null }
-fn plc_not(a) { return null }
-fn plc_xor(a, b) { return null }
-fn plc_rising_edge(curr, prev) { return null }
-fn plc_falling_edge(curr, prev) { return null }
-fn plc_ton_done(elapsed_ms, preset_ms) { return null }
-fn plc_tof_active(elapsed_ms, preset_ms, input_on) { return null }
-fn plc_ctu_done(count, preset) { return null }
-fn plc_ctd_done(count, preset) { return null }
-fn plc_scale_raw(raw, raw_min, raw_max, eng_min, eng_max) { return null }
-fn plc_eng_to_raw(eng, eng_min, eng_max, raw_min, raw_max) { return null }
-fn plc_4_20_to_pct(ma) { return null }
-fn plc_pct_to_4_20(pct) { return null }
-fn plc_0_10v_to_pct(v) { return null }
-fn plc_pct_to_0_10v(pct) { return null }
-fn plc_pid_error(sp, pv) { return null }
-fn plc_pid_p(error, kp) { return null }
-fn plc_pid_i(error_sum, ki, dt_s) { return null }
-fn plc_pid_d(error, prev_error, kd, dt_s) { return null }
-fn plc_scan_hz(scan_ms) { return null }
-fn plc_debounce_scans(debounce_ms, scan_ms) { return null }
-fn plc_modbus_holding(unit, offset) { return null }
-fn plc_modbus_input(unit, offset) { return null }
-fn plc_modbus_coil(unit, offset) { return null }
-fn plc_latch(set, reset, prev) { return null }
-fn plc_seal_in(input, memory) { return null }
-fn plc_limit_alarm(pv, hi, lo) { return null }
+fn stat_mean(data) { return null }
+fn stat_std(data) { return null }
+fn stat_linreg(x, y) { return null }
+fn mat(rows, cols) { return null }
+fn mat_mul(a, b) { return null }
+fn mat_det(m) { return null }
+fn mat_inv(m) { return null }
+fn num_trapz(xs, ys) { return null }
+fn num_solve(a, b) { return null }
+fn num_interp_linear(xs, ys, x) { return null }
 `,
   docai: `fn doc_ask(query) { return null }
 fn doc_search(query) { return null }

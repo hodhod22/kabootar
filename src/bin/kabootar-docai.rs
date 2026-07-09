@@ -3,7 +3,7 @@
 //! ```bash
 //! cargo run --bin kabootar-docai
 //! kabootar-docai --ask "hur importerar jag science"
-//! kabootar-docai --search "PLC timer" --limit 5
+//! kabootar-docai --search "stat_mean" --limit 5
 //! kabootar-docai --topics
 //! ```
 

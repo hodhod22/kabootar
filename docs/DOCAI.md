@@ -24,7 +24,7 @@ docai> :quit
 import "docai";
 
 doc_ask("hur fungerar import science");
-doc_search("PLC timer", 5);
+doc_search("stat_mean", 5);
 doc_sources("SQL WHERE");
 doc_topics();
 ```

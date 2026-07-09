@@ -162,7 +162,7 @@ export class DocaiPanel {
 </head>
 <body>
   <header>Kabootar DocAI — fråga om dokumentationen</header>
-  <div class="hint">Exempel: hur importerar jag science? · el_motor_flc · PLC 4-20 mA · SQL INSERT</div>
+  <div class="hint">Exempel: hur importerar jag science? · stat_mean · SQL INSERT · HTTP routes</div>
   <div id="messages"></div>
   <footer>
     <input id="query" type="text" placeholder="Skriv din fråga…" />
