@@ -108,7 +108,9 @@ cargo test --test self_host
 34. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
 35. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
 36. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
-37. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+37. **Parser undefined literal** — `TOKEN_UNDEFINED` i `parsePostfix` → `LIT_UNDEF` (emit.kab jämför `== undefined` / `!= undefined`).
+38. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
+39. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 

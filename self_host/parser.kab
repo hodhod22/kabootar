@@ -123,6 +123,13 @@ fn parsePostfix() {
     }
     if pLeft == null {
         pTok = peek()
+        if pTok.type == TOKEN_UNDEFINED {
+            bump()
+            pLeft = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": undefined }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
         if pTok.type == TOKEN_IDENT {
             bump()
             pSymPool = push(pSymPool, symCopy(pTok.value))
@@ -190,47 +197,53 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        throw "parsePostfix unexpected token"
+        throw json_stringify(peek())
     }
-    while peek().type == "(" {
-        pCallee = pLeft
-        bump()
-        pArgs = []
-        if peek().type != ")" {
-            while true {
-                pArgs = push(pArgs, parseCompare())
-                if peek().type == "," {
+    while true {
+        if peek().type == "(" {
+            pCallee = pLeft
+            bump()
+            pArgs = []
+            if peek().type != ")" {
+                while true {
+                    pArgs = push(pArgs, parseCompare())
+                    if peek().type == "," {
+                        bump()
+                    } else {
+                        break
+                    }
+                }
+            }
+            if peek().type != ")" {
+                throw "Expected )"
+            }
+            bump()
+            pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
+        } else {
+            if peek().type == "." {
+                bump()
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected field name"
+                }
+                bump()
+                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pSymPool[len(pSymPool) - 1] }
+            } else {
+                if peek().type == "[" {
                     bump()
+                    pIndexObj = pLeft
+                    pRight = parseCompare()
+                    if peek().type != "]" {
+                        throw "Expected ]"
+                    }
+                    bump()
+                    pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
                 } else {
                     break
                 }
             }
         }
-        if peek().type != ")" {
-            throw "Expected )"
-        }
-        bump()
-        pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-    }
-    while peek().type == "." {
-        bump()
-        pTok = peek()
-        if pTok.type != TOKEN_IDENT {
-            throw "Expected field name"
-        }
-        bump()
-        pSymPool = push(pSymPool, symCopy(pTok.value))
-        pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pSymPool[len(pSymPool) - 1] }
-    }
-    while peek().type == "[" {
-        bump()
-        pIndexObj = pLeft
-        pRight = parseCompare()
-        if peek().type != "]" {
-            throw "Expected ]"
-        }
-        bump()
-        pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
     }
     return pLeft
 }
