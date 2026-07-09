@@ -105,7 +105,10 @@ cargo test --test self_host
 31. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
 32. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
 33. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
-34. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+34. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
+35. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
+36. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
+37. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 
@@ -118,7 +121,12 @@ cargo test --test self_host
 7. ~~Lexer-like compile (`char_at`-loop, `!=`, `continue`/`break`/`undefined`)~~ ✅
 8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — `self_host_lexer_full_compile_and_run` (~2.5 h)
 
-9. **Pågår:** Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes).
-   - **parser.kab** (~650 rader, 8 fn): interpreter-varianten och self-hostade parser-tester är gröna; full self-hostad `compile(parser.kab)` kompilerar, men runtime-smoket `parseTokens(tokenize("let x = 1"))` via bytecode har kvar en känd EOF/`+`-bugg (`Cannot add Object EOF and Object EOF`).
-   - **emit.kab** (~880 rader, 8 fn): redo för vidare opcode-stöd om parsern utökas (`||`, unary `!`, `*`, assign till index, etc.).
-   - **Verifiering:** snabb: `self_host_parser_suite`, `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2 h) för full self-hostad parser + runtime.
+9. ~~Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes).~~ ✅
+   - **parser.kab** (~680 rader, 8 fn): interpreter + self-hostade parser-tester gröna; `parseTokens`-loopen med `pDone`, `"EOF"`-literal, `pLetSym` för let-bindning. `self_host_parser_full_compile_and_run` (~2.5 h) verifierar `compile(parser.kab)` → `parseTokens(tokenize("let x = 1"))`.
+   - **emit.kab** (~850 rader, 8 fn): redo för vidare opcode-stöd om parsern utökas (`||`, unary `!`, `*`, assign till index, etc.).
+   - **Verifiering:** snabb: `self_host_parser_suite`, `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2.5 h).
+
+10. **Nästa:** Self-host hela `emit.kab` via `compile()` → kör `emit(parse("let x = 1"))` i bytecode (spegla lexer/parser full compile_and_run).
+    - Snabb smoke finns redan: `self_host_emit_full_compile_smoke`.
+    - Långsam CI: ny `self_host_emit_full_compile_and_run` (ignored, ~2–3 h).
+    - Därefter: `serialize.kab` full compile_and_run, sedan true bootstrap (`compile.kab` kompilerad av self-hosted `compile()`).

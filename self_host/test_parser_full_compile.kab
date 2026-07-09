@@ -1,0 +1,25 @@
+// Smoke: compile a parser-like snippet; full parser.kab in Rust CI (slow).
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+let snippet = "fn parseCompare() {" + CHAR_NL
+    + "  let pLeft = null" + CHAR_NL
+    + "  if peek().type == TOKEN_IDENT {" + CHAR_NL
+    + "    pLeft = { kind: AST_VAR, sym: peek().value }" + CHAR_NL
+    + "    bump()" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "  while peek().type == " + QUOTE + "[" + QUOTE + " {" + CHAR_NL
+    + "    bump()" + CHAR_NL
+    + "    let pIndexObj = pLeft" + CHAR_NL
+    + "    let pVal = parseExpr()" + CHAR_NL
+    + "    pLeft = { kind: AST_INDEX, object: pIndexObj, index: pVal }" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "  return pLeft" + CHAR_NL
+    + "}" + CHAR_NL
+    + "return parseCompare"
+
+let kbc = compile(snippet)
+if char_at(kbc, 0) != "k" {
+    throw "parser snippet compile: bad header"
+}
+println("parser snippet compile ok")

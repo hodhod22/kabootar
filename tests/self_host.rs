@@ -286,6 +286,93 @@ fn self_host_undefined_eq_compile_and_run() {
     );
 }
 
+/// Fast regression: self-hosted compiled EOF loop must stop before extra parseStmt.
+#[test]
+fn self_host_parser_eof_loop_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let out_file = format!("{}/_parser_eof_loop_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&out_file);
+    let snippet = "let pPos = 0\nlet pToks = []\nlet pDone = 0\nlet pTok = null\nlet pBody = []\nlet pVal = null\nfn peek() {\n  if pPos >= len(pToks) {\n    return { type: \"EOF\", value: null, line: 1, column: 1 }\n  }\n  return pToks[pPos]\n}\nfn bump() {\n  pTok = peek()\n  if pPos < len(pToks) {\n    pPos = pPos + 1\n  }\n  return pTok\n}\nfn parseStmt() {\n  if peek().type == \"EOF\" {\n    throw \"parseStmt EOF\"\n  }\n  while peek().type != \"EOF\" && pPos < len(pToks) {\n    bump()\n  }\n  return 1\n}\npub fn countStmts(tokens) {\n  pToks = tokens\n  pPos = 0\n  pBody = []\n  pDone = 0\n  while pDone == 0 {\n    if pPos >= len(pToks) {\n      pDone = 1\n    }\n    if pDone == 0 {\n      pTok = peek()\n      if pTok.type == \"EOF\" {\n        pDone = 1\n      }\n    }\n    if pDone == 0 {\n      pVal = parseStmt()\n      if pVal != null {\n        pBody = push(pBody, pVal)\n      }\n    }\n  }\n  return len(pBody)\n}\nreturn countStmts";
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nwrite_text_file(\"/proj/_parser_eof_loop_out.kbc\", compile({}))\nreturn 1",
+        kab_string_literal(&manifest),
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_parser_eof_loop_probe_gen.kab");
+    std::fs::write(&probe_path, probe).expect("write parser eof loop probe");
+    run_kabootar_file_subprocess(&probe_path).expect("compile parser eof loop snippet via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let text = std::fs::read_to_string(&out_file).expect("read parser eof loop .kbc");
+    let _ = std::fs::remove_file(&out_file);
+    let module = deserialize(&text).expect("deserialize parser eof loop snippet .kbc");
+    let mut env = create_global_env();
+    run_module(&module, &mut env).expect("run parser eof loop snippet");
+    let count_leading = env.get("countStmts").expect("countStmts export");
+    let tokens = tokenize_via_interpreter("let x = 1");
+    let n = call_value(
+        count_leading,
+        vec![tokens],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("countStmts should not call parseStmt at EOF");
+    assert_eq!(
+        kabootar_lib::value::format_value(&n),
+        "1",
+        "let x = 1 => one stmt before EOF"
+    );
+}
+
+/// Fast regression: chained `+` in fn bodies must not clobber nested emitExpr (throw/debug strings).
+#[test]
+fn self_host_emit_binary_concat_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    let out_file = format!("{}/_emit_binary_concat_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&out_file);
+    let snippet = "pub fn concatPos(n) { return \"pos \" + (\"\" + n) }\nreturn concatPos";
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nwrite_text_file(\"/proj/_emit_binary_concat_out.kbc\", compile({}))\nreturn 1",
+        kab_string_literal(&manifest),
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_emit_binary_concat_probe_gen.kab");
+    std::fs::write(&probe_path, probe).expect("write emit binary concat probe");
+    run_kabootar_file_subprocess(&probe_path).expect("compile binary concat snippet via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let text = std::fs::read_to_string(&out_file).expect("read binary concat .kbc");
+    let _ = std::fs::remove_file(&out_file);
+    let module = deserialize(&text).expect("deserialize binary concat snippet .kbc");
+    let mut env = create_global_env();
+    run_module(&module, &mut env).expect("run binary concat snippet");
+    let concat_pos = env.get("concatPos").expect("concatPos export");
+    let out = call_value(
+        concat_pos,
+        vec![kabootar_lib::value::Value::Number(4)],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("concatPos should not add objects");
+    assert_eq!(
+        kabootar_lib::value::format_value(&out),
+        "pos 4",
+        "chained + in fn body"
+    );
+}
+
 #[test]
 fn self_host_nested_break_scope_compile_and_run() {
     use kabootar_lib::bytecode::{deserialize, run_module};

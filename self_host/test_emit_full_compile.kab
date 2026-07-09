@@ -1,0 +1,26 @@
+// Smoke: compile an emitter-like snippet; full emit.kab in Rust CI (slow).
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+let snippet = "let eBreakIdxs = []" + CHAR_NL
+    + "let eBf = 0" + CHAR_NL
+    + "fn emitWhile(node) {" + CHAR_NL
+    + "  eBf = len(eBreakIdxs)" + CHAR_NL
+    + "  while true {" + CHAR_NL
+    + "    if node == null {" + CHAR_NL
+    + "      break" + CHAR_NL
+    + "    }" + CHAR_NL
+    + "    node = null" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "  while len(eBreakIdxs) > eBf {" + CHAR_NL
+    + "    eBreakIdxs = pop(eBreakIdxs)" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "}" + CHAR_NL
+    + "emitWhile({})" + CHAR_NL
+    + "return len(eBreakIdxs)"
+
+let kbc = compile(snippet)
+if char_at(kbc, 0) != "k" {
+    throw "emit snippet compile: bad header"
+}
+println("emit snippet compile ok")
