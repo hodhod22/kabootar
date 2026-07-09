@@ -1,5 +1,7 @@
 # Kabootar — typer: null, undefined och NaN
 
+**Status:** Både `null` och `undefined` är **officiella, separata** värden i lexer, parser, bytecode och runtime. Ersätt inte `undefined` med `null` i ny kod — de betyder olika saker och `null == undefined` är **`false`**.
+
 ## Problemet med JavaScript
 
 I JavaScript blandas ofta:
@@ -24,16 +26,32 @@ is_null(user)   // true
 
 ## `undefined`
 
-**Betydelse:** Bindingen finns men har inte tilldelats ännu.
+**Betydelse:** Värdet saknas — bindingen finns men är oinitierad, eller en nyckel/index finns inte.
 
 ```kabootar
 let x;
 is_undefined(x)  // true
 x = 5;
 is_undefined(x)  // false
+
+let m = { "a": 1 };
+is_undefined(m["b"])   // true — saknad nyckel
+is_undefined(m["a"])   // false
 ```
 
 Att läsa en **odeklarerad** variabel (`y` utan `let y`) ger **runtime-fel**, inte `undefined`.
+
+## När ska jag använda vilket?
+
+| Situation | Använd |
+|-----------|--------|
+| Medvetet “inget värde” / SQL-liknande tomhet | `null` |
+| `let x;` utan init | `undefined` (automatiskt) |
+| Saknad objektnyckel / array-index | `undefined` (automatiskt) |
+| Valfritt fält i AST/objekt (self-host) | jämför med `undefined`, inte `null` |
+| API som uttryckligen returnerar tomhet | `null` om kontraktet säger det |
+
+**Praktisk regel:** om du testar “finns fältet?” → `x == undefined` eller `x != undefined`. Om du sätter “tomt med flit” → `null`.
 
 ## Sanning (truthiness)
 

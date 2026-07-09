@@ -31,6 +31,8 @@ b = 5;             // tilldelning
 
 **Skillnad mot JavaScript:** `let b;` ger `undefined` i variabeln, inte `null`. Att läsa en **odeklarerad** variabel är ett fel.
 
+Se [TYPES.md](TYPES.md) för när du ska använda `null` respektive `undefined` — båda är förstklassiga literalvärden i språket.
+
 ## Literaler
 
 | Literal | Betydelse |

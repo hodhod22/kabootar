@@ -233,6 +233,8 @@ Se [TYPES.md](TYPES.md) för detaljer. Kortversion:
 
 ### `null` vs `undefined`
 
+Båda finns i språket — **ersätt inte** den ena med den andra.
+
 ```kabootar
 let a = null;        // medvetet "inget"
 let b;               // undefined — inte tilldelad än
@@ -240,6 +242,14 @@ is_null(a)           // true
 is_undefined(b)      // true
 null == undefined    // false  ← inte som JS ==
 ```
+
+| | `null` | `undefined` |
+|---|--------|-------------|
+| Oinitierad `let` | nej | ja |
+| Saknad objektnyckel | nej | ja |
+| `==` mellan dem | `false` | `false` |
+
+Fullständig guide: [TYPES.md](TYPES.md).
 
 ### Ingen implicit typkonvertering
 
