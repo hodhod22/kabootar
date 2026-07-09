@@ -1,6 +1,6 @@
 # Kabootar — `import "science"`
 
-Vetenskaplig, teknisk och industriell beräkningsmodul. Laddas **endast vid import**.
+Vetenskaplig och teknisk beräkningsmodul. Laddas **endast vid import**.
 
 ```kabootar
 import "science";
