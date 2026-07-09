@@ -62,6 +62,18 @@ fn tokenize_via_interpreter(src: &str) -> kabootar_lib::value::Value {
     v
 }
 
+fn parse_via_interpreter(src: &str) -> kabootar_lib::value::Value {
+    let probe_src = format!(
+        "import \"self_host/parse\"\nreturn parse({})",
+        kab_string_literal(src)
+    );
+    let probe_path = self_host_path("_parse_helper_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write parse helper probe");
+    let v = kabootar_lib::cli::run_file(&probe_path).expect("parse helper should run");
+    let _ = std::fs::remove_file(&probe_path);
+    v
+}
+
 fn ast_kind<'a>(v: &'a kabootar_lib::value::Value) -> Option<&'a str> {
     let kabootar_lib::value::Value::Object(map) = v else {
         return None;
@@ -488,6 +500,98 @@ fn self_host_parser_full_compile_smoke() {
 fn self_host_emit_full_compile_smoke() {
     kabootar_lib::cli::run_file(&self_host_path("test_emit_full_compile.kab"))
         .expect("self_host/test_emit_full_compile.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~2-3h): self-hosted compile(emit.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_emit_full_compile_and_run() {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::runtime::stdlib::error::format_runtime_error;
+    use kabootar_lib::value::Value;
+
+    let probe_path = self_host_path("_emit_full_probe_gen.kab");
+    let src_copy = format!("{}/_emit_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("emit.kab"), &src_copy).expect("copy emit.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_emit_full_src.kab\"))\nwrite_text_file(\"/proj/_emit_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated emit full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(emit.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled emit .kbc output");
+    assert!(
+        kbc.starts_with("kabootar-bytecode/1"),
+        "emit .kbc should have bytecode header"
+    );
+    let module = deserialize(&kbc).expect("deserialize compiled emit.kab");
+    assert!(!module.functions.is_empty(), "emit should emit functions");
+    let mut run_env = create_global_env();
+    run_module(&module, &mut run_env).expect("run compiled emit module");
+    let emit_fn = run_env.get("emit").expect("compiled emit should export emit");
+    let ast = parse_via_interpreter("let x = 1");
+    assert_eq!(ast_kind(&ast), Some("Program"), "parse let x = 1 root kind");
+    let bc = match call_value(
+        emit_fn,
+        vec![ast],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = format_runtime_error(&e);
+            panic!("emit(parse(\"let x = 1\")) threw: {msg}");
+        }
+    };
+    let Value::Object(ir) = bc else {
+        panic!("emit should return IR object, got {bc:?}");
+    };
+    let Value::Array(globals) = ir.get("globals").expect("emit IR globals") else {
+        panic!("emit globals should be array");
+    };
+    assert_eq!(globals.len(), 1, "let x = 1 => one global");
+    assert_eq!(
+        match &globals[0] {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        },
+        Some("x"),
+        "let global name"
+    );
+    let Value::Array(ops) = ir.get("ops").expect("emit IR ops") else {
+        panic!("emit ops should be array");
+    };
+    assert!(ops.len() >= 4, "let x = 1 should emit several main ops");
+    let Value::Object(last_op) = ops.last().expect("emit ops non-empty") else {
+        panic!("emit op should be object");
+    };
+    assert_eq!(
+        last_op.get("op").and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        Some("halt"),
+        "main ops should end with halt"
+    );
+    let has_store_global = ops.iter().any(|op| {
+        let Value::Object(obj) = op else {
+            return false;
+        };
+        matches!(obj.get("op"), Some(Value::String(s)) if s == "store_global")
+    });
+    assert!(has_store_global, "let x = 1 should emit store_global");
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
 }
 
 #[test]

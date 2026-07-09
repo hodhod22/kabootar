@@ -126,7 +126,7 @@ cargo test --test self_host
    - **emit.kab** (~850 rader, 8 fn): redo för vidare opcode-stöd om parsern utökas (`||`, unary `!`, `*`, assign till index, etc.).
    - **Verifiering:** snabb: `self_host_parser_suite`, `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2.5 h).
 
-10. **Nästa:** Self-host hela `emit.kab` via `compile()` → kör `emit(parse("let x = 1"))` i bytecode (spegla lexer/parser full compile_and_run).
-    - Snabb smoke finns redan: `self_host_emit_full_compile_smoke`.
-    - Långsam CI: ny `self_host_emit_full_compile_and_run` (ignored, ~2–3 h).
+10. **Pågår:** Self-host hela `emit.kab` via `compile()` → kör `emit(parse("let x = 1"))` i bytecode (spegla lexer/parser full compile_and_run).
+    - Snabb smoke: `self_host_emit_full_compile_smoke`.
+    - Långsam CI: `self_host_emit_full_compile_and_run` (ignored, ~2–3 h).
     - Därefter: `serialize.kab` full compile_and_run, sedan true bootstrap (`compile.kab` kompilerad av self-hosted `compile()`).
