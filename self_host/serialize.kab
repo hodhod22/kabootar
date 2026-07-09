@@ -9,8 +9,30 @@ let sLine = ""
 let sFn = null
 let sParams = ""
 let sJ = 0
+let sEscOut = ""
+let sEscI = 0
+let sEscCh = ""
 
 // ----- HELPER FUNCTIONS -----
+
+fn escStr(s) {
+    sEscOut = ""
+    sEscI = 0
+    while sEscI < len(s) {
+        sEscCh = char_at(s, sEscI)
+        if sEscCh == "\\" {
+            sEscOut = sEscOut + "\\\\"
+        } else {
+            if sEscCh == " " {
+                sEscOut = sEscOut + "\\s"
+            } else {
+                sEscOut = sEscOut + sEscCh
+            }
+        }
+        sEscI = sEscI + 1
+    }
+    return sEscOut
+}
 
 fn constLine(idx, val) {
     if val == KAB_UNDEF_CONST {
@@ -26,7 +48,7 @@ fn constLine(idx, val) {
         return "const " + ("" + idx) + " bool false"
     }
     if typeof(val) == "string" {
-        return "const " + ("" + idx) + " string " + val
+        return "const " + ("" + idx) + " string " + escStr(val)
     }
     return "const " + ("" + idx) + " number " + ("" + val)
 }

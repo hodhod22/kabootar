@@ -1496,7 +1496,19 @@ fn parse_const(rest: &str) -> Result<Constant, String> {
                 .map_err(|_| format!("Invalid float const: {rest}"))?,
         )),
         "string" => {
-            let value = parts.next().unwrap_or("");
+            let Some((_idx, after)) = rest.split_once(' ') else {
+                return Err(format!("Invalid string const: {rest}"));
+            };
+            let after = after
+                .strip_prefix("string")
+                .ok_or_else(|| format!("Invalid string const: {rest}"))?;
+            let value = if let Some(rest) = after.strip_prefix(' ') {
+                rest
+            } else if after.is_empty() {
+                ""
+            } else {
+                return Err(format!("Invalid string const: {rest}"));
+            };
             Ok(Constant::String(unescape(value)))
         }
         "bool" => Ok(Constant::Bool(
@@ -1699,6 +1711,14 @@ fn parse_fn_arrow_index_name(rest: &str) -> Result<(usize, usize, String), Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_string_const_preserves_trailing_space() {
+        let c = parse_const("0 string pos ").unwrap();
+        assert_eq!(c, Constant::String("pos ".into()));
+        let empty = parse_const("1 string").unwrap();
+        assert_eq!(empty, Constant::String(String::new()));
+    }
 
     #[test]
     fn roundtrip_main_try_regions() {

@@ -240,39 +240,9 @@ fn emitExpr(node) {
         eBinaryL = eNode["left"]
         eBinaryR = eNode["right"]
         eBinOpStack = push(eBinOpStack, eNode["op"])
-        eBinRStack = push(eBinRStack, eBinaryR)
-        if eInFn == 1 {
-            eNode = eBinaryL
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndexLit(eNode)
-                emitOp(OP_CONST, eIdx)
-            } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
-                    emitLoadSym(eSym)
-                } else {
-                    emitExpr(eBinaryL)
-                }
-            }
-            eBinaryR = eBinRStack[len(eBinRStack) - 1]
-            eNode = eBinaryR
-            if eNode.kind == AST_LITERAL {
-                eIdx = constIndexLit(eNode)
-                emitOp(OP_CONST, eIdx)
-            } else {
-                if eNode.kind == AST_VAR {
-                    eSym = eNode["sym"]
-                    emitLoadSym(eSym)
-                } else {
-                    emitExpr(eBinaryR)
-                }
-            }
-        } else {
-            emitExpr(eBinaryL)
-            eBinaryR = eBinRStack[len(eBinRStack) - 1]
-            emitExpr(eBinaryR)
-        }
-        eBinRStack = popStack(eBinRStack)
+        eBxR = eBinaryR
+        emitExpr(eBinaryL)
+        emitExpr(eBxR)
         eBinOp = eBinOpStack[len(eBinOpStack) - 1]
         eBinOpStack = popStack(eBinOpStack)
         if eBinOp == "+" {

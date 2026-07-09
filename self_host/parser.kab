@@ -32,6 +32,7 @@ let pIndexObj = null
 let pFnSym = ""
 let pFnPub = 0
 let pIsPub = 0
+let pLetSym = ""
 let pSymPool = []
 let pSymN = 0
 let pImports = []
@@ -41,7 +42,10 @@ let pSymOut = ""
 let pSymSrc = ""
 let pSymI = 0
 let pInAddSub = 0
+let pAddLeft = null
+let pAddLeftStack = []
 let pNextTok = null
+let pDone = 0
 
 fn popStack(stack) {
     pPopNew = []
@@ -66,7 +70,7 @@ fn symCopy(name) {
 
 fn peek() {
     if pPos >= len(pToks) {
-        return { "type": TOKEN_EOF, "value": null, "line": 1, "column": 1 }
+        return { "type": "EOF", "value": null, "line": 1, "column": 1 }
     }
     return pToks[pPos]
 }
@@ -80,8 +84,8 @@ fn bump() {
 }
 
 fn parsePostfix() {
-    if peek().type == TOKEN_EOF {
-        throw "parsePostfix: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    if peek().type == "EOF" {
+        throw "parsePostfix EOF"
     }
     pLeft = null
     pTok = peek()
@@ -186,7 +190,7 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        throw "U1 parsePostfix pos " + ("" + pPos) + " tok " + json_stringify(peek())
+        throw "parsePostfix unexpected token"
     }
     while peek().type == "(" {
         pCallee = pLeft
@@ -232,12 +236,13 @@ fn parsePostfix() {
 }
 
 fn parseCompare() {
-    if peek().type == TOKEN_EOF {
-        throw "parseCompare: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    if peek().type == "EOF" {
+        throw "parseCompare EOF"
     }
     pLeft = parsePostfix()
     while peek().type == "+" {
         bump()
+        pAddLeftStack = push(pAddLeftStack, pLeft)
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -260,7 +265,7 @@ fn parseCompare() {
                     }
                     bump()
                 } else {
-                    throw "U2 parseCompare+ pos " + ("" + pPos) + " tok " + json_stringify(peek())
+                    throw "parseCompare unexpected rhs"
                 }
                 }
             }
@@ -285,10 +290,13 @@ fn parseCompare() {
             bump()
             pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
         }
-        pLeft = { "kind": AST_BINARY, "op": "+", "left": pLeft, "right": pRight }
+        pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
+        pLeft = { "kind": AST_BINARY, "op": "+", "left": pAddLeft, "right": pRight }
+        pAddLeftStack = popStack(pAddLeftStack)
     }
     while peek().type == "-" {
         bump()
+        pAddLeftStack = push(pAddLeftStack, pLeft)
         pTok = peek()
         if pTok.type == TOKEN_NUMBER {
             bump()
@@ -311,7 +319,7 @@ fn parseCompare() {
                     }
                     bump()
                 } else {
-                    throw "U2 parseCompare+ pos " + ("" + pPos) + " tok " + json_stringify(peek())
+                    throw "parseCompare unexpected rhs"
                 }
                 }
             }
@@ -336,7 +344,9 @@ fn parseCompare() {
             bump()
             pRight = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
         }
-        pLeft = { "kind": AST_BINARY, "op": "-", "left": pLeft, "right": pRight }
+        pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
+        pLeft = { "kind": AST_BINARY, "op": "-", "left": pAddLeft, "right": pRight }
+        pAddLeftStack = popStack(pAddLeftStack)
     }
     if pInAddSub == 1 {
         return pLeft
@@ -399,8 +409,8 @@ fn parseCompare() {
 }
 
 fn parseExpr() {
-    if peek().type == TOKEN_EOF {
-        throw "parseExpr: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    if peek().type == "EOF" {
+        throw "parseExpr EOF"
     }
     pLeft = parseCompare()
     while peek().type == "&&" {
@@ -413,8 +423,8 @@ fn parseExpr() {
 }
 
 fn parseStmt() {
-    if peek().type == TOKEN_EOF {
-        throw "parseStmt: EOF at pos " + ("" + pPos) + " tok " + json_stringify(peek())
+    if peek().type == "EOF" {
+        return null
     }
     if peek().type == TOKEN_LET {
         bump()
@@ -422,8 +432,9 @@ fn parseStmt() {
         if pTok.type != TOKEN_IDENT {
             throw "Expected identifier after let"
         }
+        pLetSym = symCopy(pTok.value)
         bump()
-        pSymPool = push(pSymPool, symCopy(pTok.value))
+        pSymPool = push(pSymPool, pLetSym)
         pBindSym = pSymPool[len(pSymPool) - 1]
         if peek().type != "=" {
             throw "Expected ="
@@ -478,7 +489,7 @@ fn parseStmt() {
         pBodyStack = push(pBodyStack, pBody)
         pBody = []
         while peek().type != "}" {
-            if peek().type == TOKEN_EOF {
+            if peek().type == "EOF" {
                 throw "Unclosed block"
             }
             pBody = push(pBody, parseStmt())
@@ -581,7 +592,7 @@ fn parseStmt() {
         if peek().type == "}" {
             return { "kind": AST_RETURN, "value": null }
         }
-        if peek().type == TOKEN_EOF {
+        if peek().type == "EOF" {
             return { "kind": AST_RETURN, "value": null }
         }
         pVal = parseExpr()
@@ -592,7 +603,7 @@ fn parseStmt() {
         pBodyStack = push(pBodyStack, pStmts)
         pStmts = []
         while peek().type != "}" {
-            if peek().type == TOKEN_EOF {
+            if peek().type == "EOF" {
                 throw "Unclosed block"
             }
             pStmts = push(pStmts, parseStmt())
@@ -610,7 +621,7 @@ fn parseStmt() {
         if pPos + 1 < len(pToks) {
             pNextTok = pToks[pPos + 1]
         } else {
-            pNextTok = { "type": TOKEN_EOF, "value": null, "line": 1, "column": 1 }
+            pNextTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
         }
         if pNextTok.type == "=" {
             pTok = peek()
@@ -633,26 +644,37 @@ pub fn parseTokens(tokens) {
     pImports = []
     pBodyStack = push(pBodyStack, pBody)
     pBody = []
-    while true {
-        pTok = peek()
-        if pTok.type == TOKEN_EOF {
-            break
+    pDone = 0
+    while pDone == 0 {
+        if pPos >= len(pToks) {
+            pDone = 1
         }
-        if pTok.type == TOKEN_IMPORT {
-            bump()
+        if pDone == 0 {
             pTok = peek()
-            if pTok.type == TOKEN_STRING {
+            if pTok.type == "EOF" {
+                pDone = 1
+            }
+        }
+        if pDone == 0 {
+            if pTok.type == TOKEN_IMPORT {
                 bump()
-                pImports = push(pImports, symCopy(pTok.value))
+                pTok = peek()
+                if pTok.type == TOKEN_STRING {
+                    bump()
+                    pImports = push(pImports, symCopy(pTok.value))
+                }
+                if peek().type == ";" {
+                    bump()
+                }
+            } else {
+                pVal = parseStmt()
+                if pVal != null {
+                    pBody = push(pBody, pVal)
+                }
             }
             if peek().type == ";" {
                 bump()
             }
-        } else {
-            pBody = push(pBody, parseStmt())
-        }
-        if peek().type == ";" {
-            bump()
         }
     }
     let programBody = pBody
