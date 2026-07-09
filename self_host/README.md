@@ -97,21 +97,22 @@ cargo test --test self_host
 23. **Parser assign lookahead** — säker `ident =`-lookahead via `pNextTok = pToks[pPos+1]` med explicit EOF-fallback; undviker både OOB och att clobbra `pTok` före expr-stmts.
 24. **Parser bracket index** — `pIndexObj` (inte `pLeft`): `parseCompare()` i `a[b]` skriver över `pLeft` (t.ex. `KEYWORDS[id]` blev `id[id]`).
 25. **Parser compare rhs** — `pInAddSub`-flagga: compare-rhs via `parseCompare()` i add/sub-läge (inte inline literal); annars `len(stack) - 1` lämnar `-` kvar och `while` får `Expected {`.
-26. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
-27. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobbar `&&` och rhs).
-28. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
-29. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobbar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobras av call/member/index).
-30. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
-31. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
-32. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
-33. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
-34. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
-35. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
-36. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
-37. **Parser undefined literal** — `TOKEN_UNDEFINED` i `parsePostfix` → `LIT_UNDEF` (emit.kab jämför `== undefined` / `!= undefined`).
-38. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
-39. **`null` vs `undefined`** — båda är förstklassiga i lexer/parser/bytecode. `null == undefined` är `false`. Saknad nyckel / oinitierad `let` → `undefined`; medveten tomhet → `null`. Self-host: `if node.kind == undefined`, `if obj["field"] != undefined` — **inte** `null` i dessa fall.
-40. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+26. **Parser `+`/`-` rhs** — `pAddLeftStack` + rekursiv `parseCompare()` under `pInAddSub=1` (inte ident-shortcut; tappar `.field` efter `+`, t.ex. `throw "msg" + eNode.kind`).
+27. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
+28. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobbar `&&` och rhs).
+29. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
+30. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobbar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobras av call/member/index).
+31. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
+32. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
+33. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
+34. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
+35. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
+36. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
+37. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
+38. **Parser undefined literal** — `TOKEN_UNDEFINED` i `parsePostfix` → `LIT_UNDEF` (emit.kab jämför `== undefined` / `!= undefined`).
+39. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
+40. **`null` vs `undefined`** — båda är förstklassiga i lexer/parser/bytecode. `null == undefined` är `false`. Saknad nyckel / oinitierad `let` → `undefined`; medveten tomhet → `null`. Self-host: `if node.kind == undefined`, `if obj["field"] != undefined` — **inte** `null` i dessa fall.
+41. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
 
 ## Nästa milstolpar
 
