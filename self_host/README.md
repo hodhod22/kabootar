@@ -113,6 +113,11 @@ cargo test --test self_host
 39. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
 40. **`null` vs `undefined`** — båda är förstklassiga i lexer/parser/bytecode. `null == undefined` är `false`. Saknad nyckel / oinitierad `let` → `undefined`; medveten tomhet → `null`. Self-host: `if node.kind == undefined`, `if obj["field"] != undefined` — **inte** `null` i dessa fall.
 41. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
+42. **Parser index assign** — `arr[i] = rhs` → `AST_INDEX_ASSIGN` + `OP_INDEX_SET` (inte `parseExpr` + kvarlämnat `=`; emit.kab patchar `eFnOps[eJmp] = { … }`).
+43. **Emitter index assign** — spara `eBxRhs = eNode["rhs"]` före `emitExpr(eBxL)`/`emitExpr(eBxR)`; `emitExpr` clobbrar `eNode` (annars `eNode["rhs"]` läser index-noden → member access-fel).
+44. **Emitter popStack** — använd native `pop(stack)` (inte manuell while-kopia); self-host compile av emit.kab är annars extremt långsam.
+45. **Self-compiled vs Rust emit** — `import "self_host/emit"` = Rust-bytecode (~långsam men klar). `compile(emit.kab)` → `.kbc` = self-hosted bytecode; om `emit(parse("let x = 1"))` hänger via `.kbc` men import fungerar → felsök serialize/compile-output, inte bara emit.kab-logik.
+46. **Self-host nested builtins** — `push(stack, len(x))` kompileras fel (yttre anrop blir `len`). Använd `pushLen(stack, arr)` eller spara `eLenScratch = len(x)` före `push`.
 
 ## Nästa milstolpar
 
@@ -134,3 +139,34 @@ cargo test --test self_host
     - Snabb smoke: `self_host_emit_full_compile_smoke`.
     - Långsam CI: `self_host_emit_full_compile_and_run` (ignored, ~2–3 h).
     - Därefter: `serialize.kab` full compile_and_run, sedan true bootstrap (`compile.kab` kompilerad av self-hosted `compile()`).
+
+11. **Nästa:** `serialize.kab` full `compile_and_run` (`.kbc` roundtrip via self-hosted serialize).
+
+12. **Därefter:** True bootstrap — `compile(compile.kab)` körs av self-hosted pipeline.
+
+13. **Generics (språk):** Rust-motorn först (monomorphisering), sedan self-host. Design: [docs/GENERICS.md](../docs/GENERICS.md). **Struct planeras inte.**
+
+## Profilering (compile-tid)
+
+Efter grön `emit` full compile — hitta flaskhalsar innan M11/M12.
+
+```bash
+# Fas-tid: parse / emit / serialize (emit.kab, kan ta timmar)
+python scripts/profile_emit_compile.py phases emit.kab
+
+# Wall-time compile() end-to-end
+python scripts/profile_emit_compile.py compile emit.kab
+
+# Prefix-skala: vilka radintervall dominerar
+python scripts/profile_emit_compile.py bisect emit
+
+# Jämför lexer / parser / emit
+python scripts/profile_emit_compile.py compare
+
+# Run-fas (kräver _emit_full_out.kbc)
+CARGO_TARGET_DIR=target-alt3 cargo test --test self_host self_host_emit_profile_run_phases -- --ignored --nocapture
+```
+
+Output-rader `PROFILE ...` är maskinläsbara. `popStack()` och stack-trim-loopar använder nu native `pop()` (kräver ny `compile(emit.kab)` för `.kbc`).
+
+Snabb smoke: `cargo test --test self_host self_host_profile_phases_smoke`.

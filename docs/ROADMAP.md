@@ -535,6 +535,16 @@ Våg D (OS)     ░░░░░░░░░░██████  mån 10–18+
 
 **Checkpoint efter varje våg:** `cargo test` full suite + uppdatera [FEATURES.md](FEATURES.md).
 
+### Våg E — Self-host bootstrap + generics 🚧
+
+| Fas | Innehåll |
+|-----|----------|
+| **E1** 🚧 | `emit.kab` full compile_and_run (M10) |
+| **E2** | `serialize.kab` full compile_and_run (M11) |
+| **E3** | True bootstrap `compile(compile.kab)` (M12) |
+| **E4** | Native generics — Rust lexer/parser/bytecode, monomorphisering ([GENERICS.md](GENERICS.md)) |
+| **E5** | Self-host generics subset i `parser.kab` / `emit.kab` |
+
 ---
 
 ## Bidra

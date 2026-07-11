@@ -71,6 +71,8 @@ fn add(a, b) {
 }
 ```
 
+Parametriska funktioner (`fn id<T>(x: T)`) är **planerade** — se [GENERICS.md](GENERICS.md). Inte tillgängligt i motorn än.
+
 ## Inbyggda anrop
 
 | Funktion | Beskrivning |

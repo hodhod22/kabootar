@@ -40,6 +40,7 @@ wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir p
 | [OVERVIEW.md](OVERVIEW.md) | Vision, mål och arkitektur |
 | [LANGUAGE.md](LANGUAGE.md) | Syntax och konstruktioner |
 | [TYPES.md](TYPES.md) | `null` och `undefined` (separata värden), `NaN`, sanning |
+| [GENERICS.md](GENERICS.md) | **Planerat:** parametriska funktioner, monomorphisering (efter self-host bootstrap) |
 | [CLASSES.md](CLASSES.md) | C#-inspirerade klasser |
 | [KML.md](KML.md) | Kabootar Markup Language |
 | [OS.md](OS.md) | Kabootar OS (kernel + VFS) |
