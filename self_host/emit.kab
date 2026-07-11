@@ -37,6 +37,7 @@ let eFnBody = null
 let eFnName = ""
 let eBxL = null
 let eBxR = null
+let eBxRhs = null
 let eArgs = []
 let eCallee = null
 let eCallI = 0
@@ -66,6 +67,7 @@ let eBlockI = 0
 let eBlockNStack = []
 let eBlockIStack = []
 let eBlockStmtsStack = []
+let eLenScratch = 0
 let eFld = null
 let eIfJmpStack = []
 let eIfSkipStack = []
@@ -89,15 +91,16 @@ let eArrIStack = []
 let eArrNStack = []
 let eCallArgIStack = []
 let eCallArgNStack = []
+let eIndexStack = []
 
 fn popStack(stack) {
-    eWhNew = []
-    eWhI = 0
-    while eWhI < len(stack) - 1 {
-        eWhNew = push(eWhNew, stack[eWhI])
-        eWhI = eWhI + 1
-    }
-    return eWhNew
+    return pop(stack)
+}
+
+// Self-host compile breaks push(stack, len(x)); inner len becomes outer callee.
+fn pushLen(stack, arr) {
+    eLenScratch = len(arr)
+    return push(stack, eLenScratch)
 }
 
 fn snapArr(arr) {
@@ -237,14 +240,13 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_BINARY {
-        eBinaryL = eNode["left"]
-        eBinaryR = eNode["right"]
         eBinOpStack = push(eBinOpStack, eNode["op"])
-        eBxR = eBinaryR
-        emitExpr(eBinaryL)
-        emitExpr(eBxR)
+        eBinRStack = push(eBinRStack, eNode["right"])
+        emitExpr(eNode["left"])
+        emitExpr(eBinRStack[len(eBinRStack) - 1])
         eBinOp = eBinOpStack[len(eBinOpStack) - 1]
         eBinOpStack = popStack(eBinOpStack)
+        eBinRStack = popStack(eBinRStack)
         if eBinOp == "+" {
             emitOp(OP_ADD, 0)
             return
@@ -286,7 +288,7 @@ fn emitExpr(node) {
     if eNode.kind == AST_OBJECT {
         eList = eNode["fields"]
         eObjIStack = push(eObjIStack, 0)
-        eObjNStack = push(eObjNStack, len(eList))
+        eObjNStack = pushLen(eObjNStack, eList)
         while eObjIStack[len(eObjIStack) - 1] < eObjNStack[len(eObjNStack) - 1] {
             eObjI = eObjIStack[len(eObjIStack) - 1]
             eFld = eList[eObjI]
@@ -294,63 +296,27 @@ fn emitExpr(node) {
             eIdx = constIndex(eFld["key"])
             emitOp(OP_CONST, eIdx)
             eObjI = eObjIStack[len(eObjIStack) - 1] + 1
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eObjIStack) - 1 {
-                eWhNew = push(eWhNew, eObjIStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eObjIStack = eWhNew
+            eObjIStack = pop(eObjIStack)
             eObjIStack = push(eObjIStack, eObjI)
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eObjIStack) - 1 {
-            eWhNew = push(eWhNew, eObjIStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eObjIStack = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eObjNStack) - 1 {
-            eWhNew = push(eWhNew, eObjNStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eObjNStack = eWhNew
+        eObjIStack = pop(eObjIStack)
+        eObjNStack = pop(eObjNStack)
         emitOp(OP_MAKE_OBJECT, len(eList))
         return
     }
     if eNode.kind == AST_ARRAY {
         eList = eNode["elems"]
         eArrIStack = push(eArrIStack, 0)
-        eArrNStack = push(eArrNStack, len(eList))
+        eArrNStack = pushLen(eArrNStack, eList)
         while eArrIStack[len(eArrIStack) - 1] < eArrNStack[len(eArrNStack) - 1] {
             eObjI = eArrIStack[len(eArrIStack) - 1]
             emitExpr(eList[eObjI])
             eObjI = eArrIStack[len(eArrIStack) - 1] + 1
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eArrIStack) - 1 {
-                eWhNew = push(eWhNew, eArrIStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eArrIStack = eWhNew
+            eArrIStack = pop(eArrIStack)
             eArrIStack = push(eArrIStack, eObjI)
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eArrIStack) - 1 {
-            eWhNew = push(eWhNew, eArrIStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eArrIStack = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eArrNStack) - 1 {
-            eWhNew = push(eWhNew, eArrNStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eArrNStack = eWhNew
+        eArrIStack = pop(eArrIStack)
+        eArrNStack = pop(eArrNStack)
         emitOp(OP_MAKE_ARRAY, len(eList))
         return
     }
@@ -365,10 +331,10 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_INDEX {
-        eBxL = eNode["object"]
-        eBxR = eNode["index"]
-        emitExpr(eBxL)
-        emitExpr(eBxR)
+        eIndexStack = push(eIndexStack, eNode["index"])
+        emitExpr(eNode["object"])
+        emitExpr(eIndexStack[len(eIndexStack) - 1])
+        eIndexStack = popStack(eIndexStack)
         emitOp(OP_INDEX_GET, 0)
         return
     }
@@ -444,29 +410,11 @@ fn emitExpr(node) {
                 }
             }
             eCallI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eCallArgIStack) - 1 {
-                eWhNew = push(eWhNew, eCallArgIStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eCallArgIStack = eWhNew
+            eCallArgIStack = pop(eCallArgIStack)
             eCallArgIStack = push(eCallArgIStack, eCallI)
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eCallArgIStack) - 1 {
-            eWhNew = push(eWhNew, eCallArgIStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eCallArgIStack = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eCallArgNStack) - 1 {
-            eWhNew = push(eWhNew, eCallArgNStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eCallArgNStack = eWhNew
+        eCallArgIStack = pop(eCallArgIStack)
+        eCallArgNStack = pop(eCallArgNStack)
         emitExpr(eCallee)
         emitOp(OP_CALL, eArgN)
         return
@@ -496,6 +444,18 @@ fn emitStmt(node) {
         emitStoreSym(eAssignSym)
         return
     }
+    if eNode.kind == AST_INDEX_ASSIGN {
+        eBxL = eNode["object"]
+        eBxR = eNode["index"]
+        eBxRhs = eNode["rhs"]
+        emitExpr(eBxL)
+        emitExpr(eBxR)
+        emitExpr(eBxRhs)
+        emitOp(OP_INDEX_SET, 0)
+        emitOp(OP_POP, 0)
+        emitOp(OP_POP, 0)
+        return
+    }
     if eNode.kind == AST_EXPR {
         eExprStmt = eNode["expr"]
         emitExpr(eExprStmt)
@@ -520,7 +480,7 @@ fn emitStmt(node) {
     }
     if eNode.kind == AST_BLOCK {
         eBlockStmtsStack = push(eBlockStmtsStack, eNode["body"])
-        eBlockNStack = push(eBlockNStack, len(eNode["body"]))
+        eBlockNStack = pushLen(eBlockNStack, eNode["body"])
         eBlockIStack = push(eBlockIStack, 0)
         while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1] {
             eBlockStmts = eBlockStmtsStack[len(eBlockStmtsStack) - 1]
@@ -531,36 +491,12 @@ fn emitStmt(node) {
             }
             emitStmt(eStmtNode)
             eBlockI = eBlockIStack[len(eBlockIStack) - 1] + 1
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eBlockIStack) - 1 {
-                eWhNew = push(eWhNew, eBlockIStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eBlockIStack = eWhNew
+            eBlockIStack = pop(eBlockIStack)
             eBlockIStack = push(eBlockIStack, eBlockI)
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eBlockStmtsStack) - 1 {
-            eWhNew = push(eWhNew, eBlockStmtsStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eBlockStmtsStack = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eBlockNStack) - 1 {
-            eWhNew = push(eWhNew, eBlockNStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eBlockNStack = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eBlockIStack) - 1 {
-            eWhNew = push(eWhNew, eBlockIStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eBlockIStack = eWhNew
+        eBlockStmtsStack = pop(eBlockStmtsStack)
+        eBlockNStack = pop(eBlockNStack)
+        eBlockIStack = pop(eBlockIStack)
         return
     }
     if eNode.kind == AST_IF {
@@ -572,17 +508,17 @@ fn emitStmt(node) {
         eElse = eNode["elseBranch"]
         emitExpr(eCond)
         if eInFn == 1 {
-            eIfJmpStack = push(eIfJmpStack, len(eFnOps))
+            eIfJmpStack = pushLen(eIfJmpStack, eFnOps)
         } else {
-            eIfJmpStack = push(eIfJmpStack, len(eOps))
+            eIfJmpStack = pushLen(eIfJmpStack, eOps)
         }
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
         if eElse != null {
             if eInFn == 1 {
-                eIfSkipStack = push(eIfSkipStack, len(eFnOps))
+                eIfSkipStack = pushLen(eIfSkipStack, eFnOps)
             } else {
-                eIfSkipStack = push(eIfSkipStack, len(eOps))
+                eIfSkipStack = pushLen(eIfSkipStack, eOps)
             }
             emitOp(OP_JUMP, 0)
             if eInFn == 1 {
@@ -596,13 +532,7 @@ fn emitStmt(node) {
                 eJumpOff = eEnd - eJmp - 1
                 eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             }
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eIfJmpStack) - 1 {
-                eWhNew = push(eWhNew, eIfJmpStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eIfJmpStack = eWhNew
+            eIfJmpStack = pop(eIfJmpStack)
             emitStmt(eElse)
             if eInFn == 1 {
                 eEnd = len(eFnOps)
@@ -615,13 +545,7 @@ fn emitStmt(node) {
                 eJumpOff = eEnd - eIdx - 1
                 eOps[eIdx] = { "op": OP_JUMP, "arg": eJumpOff }
             }
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eIfSkipStack) - 1 {
-                eWhNew = push(eWhNew, eIfSkipStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eIfSkipStack = eWhNew
+            eIfSkipStack = pop(eIfSkipStack)
         } else {
             if eInFn == 1 {
                 eEnd = len(eFnOps)
@@ -634,13 +558,7 @@ fn emitStmt(node) {
                 eJumpOff = eEnd - eJmp - 1
                 eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
             }
-            eWhNew = []
-            eWhI = 0
-            while eWhI < len(eIfJmpStack) - 1 {
-                eWhNew = push(eWhNew, eIfJmpStack[eWhI])
-                eWhI = eWhI + 1
-            }
-            eIfJmpStack = eWhNew
+            eIfJmpStack = pop(eIfJmpStack)
         }
         eCond = eCondStack[len(eCondStack) - 1]
         eThen = eThenStack[len(eThenStack) - 1]
@@ -668,9 +586,9 @@ fn emitStmt(node) {
             throw "break outside loop"
         }
         if eInFn == 1 {
-            eBreakIdxs = push(eBreakIdxs, len(eFnOps))
+            eBreakIdxs = pushLen(eBreakIdxs, eFnOps)
         } else {
-            eBreakIdxs = push(eBreakIdxs, len(eOps))
+            eBreakIdxs = pushLen(eBreakIdxs, eOps)
         }
         emitOp(OP_JUMP, 0)
         return
@@ -678,7 +596,7 @@ fn emitStmt(node) {
     if eNode.kind == AST_WHILE {
         eCond = eNode["cond"]
         eThen = eNode["body"]
-        eBreakFromStack = push(eBreakFromStack, len(eBreakIdxs))
+        eBreakFromStack = pushLen(eBreakFromStack, eBreakIdxs)
         if eInFn == 1 {
             eWhileHead = len(eFnOps)
         } else {
@@ -687,9 +605,9 @@ fn emitStmt(node) {
         eWhileHeads = push(eWhileHeads, eWhileHead)
         emitExpr(eCond)
         if eInFn == 1 {
-            eIfJmpStack = push(eIfJmpStack, len(eFnOps))
+            eIfJmpStack = pushLen(eIfJmpStack, eFnOps)
         } else {
-            eIfJmpStack = push(eIfJmpStack, len(eOps))
+            eIfJmpStack = pushLen(eIfJmpStack, eOps)
         }
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
@@ -710,13 +628,7 @@ fn emitStmt(node) {
             eJumpOff = eEnd - eJmp - 1
             eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eIfJmpStack) - 1 {
-            eWhNew = push(eWhNew, eIfJmpStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eIfJmpStack = eWhNew
+        eIfJmpStack = pop(eIfJmpStack)
         eBf = eBreakFromStack[len(eBreakFromStack) - 1]
         eBi = eBf
         while eBi < len(eBreakIdxs) {
@@ -729,27 +641,27 @@ fn emitStmt(node) {
             }
             eBi = eBi + 1
         }
-        eWhNew = []
-        eWhI = 0
-        while eWhI < eBf {
-            eWhNew = push(eWhNew, eBreakIdxs[eWhI])
-            eWhI = eWhI + 1
+        if eBf > 0 {
+            eWhNew = []
+            eWhI = 0
+            while eWhI < eBf {
+                eWhNew = push(eWhNew, eBreakIdxs[eWhI])
+                eWhI = eWhI + 1
+            }
+            eBreakIdxs = eWhNew
+        } else {
+            eBreakIdxs = []
         }
-        eBreakIdxs = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eWhileHeads) - 1 {
-            eWhNew = push(eWhNew, eWhileHeads[eWhI])
-            eWhI = eWhI + 1
+        if len(eWhileHeads) > 0 {
+            eWhileHeads = pop(eWhileHeads)
+        } else {
+            eWhileHeads = []
         }
-        eWhileHeads = eWhNew
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eBreakFromStack) - 1 {
-            eWhNew = push(eWhNew, eBreakFromStack[eWhI])
-            eWhI = eWhI + 1
+        if len(eBreakFromStack) > 0 {
+            eBreakFromStack = pop(eBreakFromStack)
+        } else {
+            eBreakFromStack = []
         }
-        eBreakFromStack = eWhNew
         return
     }
     if eNode.kind == AST_FN {
@@ -825,7 +737,7 @@ pub fn emit(program) {
         eImports = eProgram["imports"]
     }
     eBlockStmtsStack = push(eBlockStmtsStack, eProgram["body"])
-    eBlockNStack = push(eBlockNStack, len(eProgram["body"]))
+    eBlockNStack = pushLen(eBlockNStack, eProgram["body"])
     eBlockIStack = push(eBlockIStack, 0)
     while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1] {
         eBlockStmts = eBlockStmtsStack[len(eBlockStmtsStack) - 1]
@@ -836,13 +748,7 @@ pub fn emit(program) {
         }
         emitStmt(eStmtNode)
         eBlockI = eBlockIStack[len(eBlockIStack) - 1] + 1
-        eWhNew = []
-        eWhI = 0
-        while eWhI < len(eBlockIStack) - 1 {
-            eWhNew = push(eWhNew, eBlockIStack[eWhI])
-            eWhI = eWhI + 1
-        }
-        eBlockIStack = eWhNew
+        eBlockIStack = pop(eBlockIStack)
         eBlockIStack = push(eBlockIStack, eBlockI)
     }
     emitOp(OP_HALT, 0)

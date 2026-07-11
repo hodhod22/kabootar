@@ -385,6 +385,22 @@ fn self_host_emit_binary_concat_compile_and_run() {
     );
 }
 
+/// Fast regression: `arr[i] = rhs` must save rhs before emitExpr clobbers `eNode`.
+#[test]
+fn self_host_emit_index_assign_compile_and_run() {
+    use kabootar_lib::value::Value;
+
+    kabootar_lib::cli::run_file(&self_host_path("_emit_index_assign_only_probe.kab"))
+        .expect("emit(a[i]=1) must not read rhs from clobbered eNode");
+
+    let v = kabootar_lib::cli::run_file(&self_host_path("_emit_index_assign_compile_probe.kab"))
+        .expect("compile(index assign jump-patch snippet) should succeed");
+    let Value::Number(n) = v else {
+        panic!("index assign compile probe should return .kbc length");
+    };
+    assert!(n > 100, "index assign snippet should produce non-trivial .kbc");
+}
+
 #[test]
 fn self_host_nested_break_scope_compile_and_run() {
     use kabootar_lib::bytecode::{deserialize, run_module};
@@ -867,3 +883,144 @@ fn self_host_kbc_run_fn_call() {
         format_value(&result)
     );
 }
+
+/// Profile: deserialize / run_module / emit(parse) after compile(emit.kab).
+/// Run: cargo test --test self_host self_host_emit_profile_run_phases -- --ignored --nocapture
+#[test]
+#[ignore = "profile: requires _emit_full_out.kbc from emit full compile"]
+fn self_host_emit_profile_run_phases() {
+    use std::io::Write;
+    use std::time::Instant;
+
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    fn profile_step(msg: &str) {
+        eprintln!("PROFILE step {msg}");
+        let _ = std::io::stderr().flush();
+    }
+
+    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    profile_step("read_kbc_start");
+    let kbc = std::fs::read_to_string(&out_file)
+        .unwrap_or_else(|e| panic!("read {out_file}: {e} (run emit full compile first)"));
+    profile_step(&format!("read_kbc_done bytes={}", kbc.len()));
+
+    let t0 = Instant::now();
+    profile_step("deserialize_start");
+    let module = deserialize(&kbc).expect("deserialize compiled emit.kab");
+    let t1 = Instant::now();
+    profile_step(&format!(
+        "deserialize_done ms={} fn_count={}",
+        (t1 - t0).as_millis(),
+        module.functions.len()
+    ));
+
+    let mut run_env = create_global_env();
+    profile_step("run_module_start");
+    run_module(&module, &mut run_env).expect("run compiled emit module");
+    let t2 = Instant::now();
+    profile_step(&format!("run_module_done ms={}", (t2 - t1).as_millis()));
+
+    let emit_fn = run_env.get("emit").expect("compiled emit should export emit");
+    profile_step("parse_ast_start");
+    let ast = parse_via_interpreter("let x = 1");
+    let t2b = Instant::now();
+    profile_step(&format!("parse_ast_done ms={}", (t2b - t2).as_millis()));
+
+    profile_step("emit_call_start");
+    let bc = call_value(
+        emit_fn,
+        vec![ast],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    )
+    .expect("emit(parse(\"let x = 1\"))");
+    let t3 = Instant::now();
+    profile_step(&format!("emit_call_done ms={}", (t3 - t2b).as_millis()));
+
+    let Value::Object(ir) = bc else {
+        panic!("emit should return IR object");
+    };
+    let ops_len = ir
+        .get("ops")
+        .and_then(|v| match v {
+            Value::Array(a) => Some(a.len()),
+            _ => None,
+        })
+        .unwrap_or(0);
+
+    eprintln!("PROFILE run.deserialize_ms {}", (t1 - t0).as_millis());
+    eprintln!("PROFILE run.run_module_ms {}", (t2 - t1).as_millis());
+    eprintln!("PROFILE run.parse_ast_ms {}", (t2b - t2).as_millis());
+    eprintln!("PROFILE run.emit_call_ms {}", (t3 - t2b).as_millis());
+    eprintln!("PROFILE run.total_ms {}", (t3 - t0).as_millis());
+    eprintln!("PROFILE meta.fn_count {}", module.functions.len());
+    eprintln!("PROFILE meta.emit_ops {}", ops_len);
+}
+
+/// Profile: self-hosted parse/emit/serialize on a tiny snippet (sanity check for profiler).
+#[test]
+fn self_host_profile_phases_smoke() {
+    let snippet = "let x = 1\nreturn x";
+    let probe = format!(
+        "import \"self_host/parse\"\nimport \"self_host/emit\"\nimport \"self_host/serialize\"\n\
+         let src = {}\nlet t0 = date_now_ms()\nlet ast = parse(src)\nlet t1 = date_now_ms()\n\
+         let ir = emit(ast)\nlet t2 = date_now_ms()\nlet kbc = serialize_bc(ir)\nlet t3 = date_now_ms()\n\
+         if t3 < t0 {{ throw \"bad clock\" }}\nreturn len(kbc)",
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_profile_phases_smoke_gen.kab");
+    std::fs::write(&probe_path, probe).expect("write profile smoke probe");
+    let v = kabootar_lib::cli::run_file(&probe_path).expect("profile phases smoke");
+    let _ = std::fs::remove_file(&probe_path);
+    let kabootar_lib::value::Value::Number(n) = v else {
+        panic!("profile smoke should return kbc length");
+    };
+    assert!(n > 0, "profile smoke kbc len");
+}
+
+/// Self-host compile must not emit push(stack, len(x)) — use pushLen helper pattern.
+#[test]
+fn self_host_push_len_compile_and_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+
+    let snippet = "let eLenScratch = 0\nfn pushLen(stack, arr) {\n  eLenScratch = len(arr)\n  return push(stack, eLenScratch)\n}\nlet s = []\nlet p = { \"body\": [1] }\ns = pushLen(s, p[\"body\"])\nreturn s[0]";
+    let probe_src = format!(
+        "import \"self_host/compile\"\nreturn compile({})",
+        kab_string_literal(snippet)
+    );
+    let probe_path = self_host_path("_push_len_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write pushLen compile probe");
+    let v = kabootar_lib::cli::run_file(&probe_path)
+        .expect("pushLen compile probe should run");
+    let _ = std::fs::remove_file(&probe_path);
+    let kabootar_lib::value::Value::String(text) = v else {
+        panic!("pushLen probe should return .kbc text");
+    };
+    let module = deserialize(&text).expect("deserialize pushLen snippet");
+    let mut env = create_global_env();
+    let result = run_module(&module, &mut env).expect("run pushLen snippet");
+    assert_eq!(
+        kabootar_lib::value::format_value(&result),
+        "1",
+        "pushLen should store body length"
+    );
+}
+
+/// Rust-compiled emit (import) on let x = 1 — should finish; compare to self-compiled .kbc profile test.
+#[test]
+fn self_host_emit_rust_bytecode_let_probe() {
+    let v = kabootar_lib::cli::run_file(&self_host_path("_emit_interpreted_let_probe.kab"))
+        .expect("rust-bytecode emit(parse let x=1) should complete");
+    let kabootar_lib::value::Value::Number(n) = v else {
+        panic!("emit let probe should return op count");
+    };
+    assert!(n >= 3, "let x = 1 should emit at least const/store/halt path, got {n} ops");
+}
+

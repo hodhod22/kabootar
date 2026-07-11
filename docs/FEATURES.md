@@ -332,7 +332,13 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Deno | Kabootar |
 |------|----------|
 | `Deno.emit` / TS compile | **`ts_compile`**, **`ts_compile_file`**, **`Deno_emit`** → `{ code, diagnostics }` |
-| Type erasure | **`ts_strip_types`**, **`ts_transpile`** — interface/type/enum/generics/modifiers |
+| Type erasure | **`ts_strip_types`**, **`ts_transpile`** — interface/type/enum/generics/modifiers (TS-källa, **inte** native Kabootar) |
+
+### 🚧 Planerat (språk)
+
+| Feature | Status | Doc |
+|---------|--------|-----|
+| Native generics (`fn id<T>(x: T)`) | Efter self-host M12 | [GENERICS.md](GENERICS.md) |
 
 ### ✅ Deno-paritet (runtime våg 17)
 

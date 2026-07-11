@@ -558,7 +558,19 @@ fn parseStmt() {
             return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
         }
     }
-    pVal = parseExpr()
+    pSave = parseExpr()
+    if peek().type == "=" {
+        bump()
+        pInit = parseExpr()
+        if pSave.kind == AST_VAR {
+            return { "kind": AST_ASSIGN, "sym": pSave["sym"], "rhs": pInit }
+        }
+        if pSave.kind == AST_INDEX {
+            return { "kind": AST_INDEX_ASSIGN, "object": pSave["object"], "index": pSave["index"], "rhs": pInit }
+        }
+        throw "invalid assign lhs"
+    }
+    pVal = pSave
     return { "kind": AST_EXPR, "expr": pVal }
 }
 
