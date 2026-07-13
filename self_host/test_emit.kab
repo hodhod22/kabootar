@@ -1,4 +1,5 @@
 // Test suite for the self-hosted bytecode emitter
+// CI: cargo test --test self_host self_host_emit_first_section_smoke (or --ignored for full suite)
 
 import "self_host/lexer"
 import "self_host/parser"
@@ -268,6 +269,188 @@ fn assert_true(v, msg) {
     }
     assert_eq(tHas, 0, "undefined compare must not use null const")
 }
+
+// -- generic fn monomorphizes on call ------------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; let n = id(42); let s = id(\"hi\")"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.functions), 2, "two specializations")
+//     assert_eq(bc.functions[0].sym, "id$Number", "id Number spec")
+//     assert_eq(bc.functions[1].sym, "id$String", "id String spec")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.functions) {
+//         if bc.functions[tI].sym == "id" {
+//             tHas = 1
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 0, "no unspecialized id fn")
+// }
+
+// -- explicit generic type arg -------------------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; id<Number>(42)"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.functions), 1, "one explicit specialization")
+//     assert_eq(bc.functions[0].sym, "id$Number", "explicit id$Number")
+// }
+
+// -- pub generic fn exports base name only -------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let ast = parseTokens(tokenize("pub fn id<T>(x: T) -> T { return x }"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.functions), 0, "generic template not emitted as fn")
+//     assert_eq(len(bc.exports), 1, "pub generic export")
+//     assert_eq(bc.exports[0], "id", "export base name")
+// }
+
+// -- infer generic type from let binding (G6) ----------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; let n = 42; id(n)"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.functions), 1, "one var-inferred specialization")
+//     assert_eq(bc.functions[0]["sym"], "id$Number", "id$Number from let n = 42")
+// }
+
+// -- generic class ctor monomorph (G8) -----------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let ast = parseTokens(tokenize("class Box<T> { }; Box(42)"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.classes), 1, "one class specialization")
+//     assert_eq(bc.classes[0]["sym"], "Box$Number", "Box$Number from Box(42)")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.classes) {
+//         if bc.classes[tI]["sym"] == "Box" {
+//             tHas = 1
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 0, "no unspecialized Box class")
+// }
+
+// -- generic enum ctor monomorph (G9) ------------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let src = "enum Option<T> { Some(T), None }; Option.Some(42)"
+//     let ast = parseTokens(tokenize(src))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.enums), 1, "one enum specialization")
+//     assert_eq(bc.enums[0]["sym"], "Option$Number", "Option$Number from Some(42)")
+// }
+
+// -- generic enum member type args (G9) ----------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let src = "enum Option<T> { Some(T), None }; Option<Number>.None"
+//     let ast = parseTokens(tokenize(src))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.enums), 1, "enum from typed member")
+//     assert_eq(bc.enums[0]["sym"], "Option$Number", "Option$Number from Option<Number>.None")
+// }
+
+// -- generic class method template (G7) ----------------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let src = "class Holder { fn echo<T>(x) { return x } }"
+//     let ast = parseTokens(tokenize(src))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.genericMethodTemplates), 1, "one generic method template")
+//     assert_eq(bc.genericMethodTemplates[0]["classSym"], "Holder", "template class")
+//     assert_eq(bc.genericMethodTemplates[0]["methodSym"], "echo", "template method")
+//     assert_eq(len(bc.classes), 1, "non-generic class emitted")
+//     assert_eq(bc.classes[0]["sym"], "Holder", "Holder class")
+// }
+
+// -- generic class method monomorph on member call (G7) ------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let src = "class Holder { fn echo<T>(x) { return x } }; let h = Holder(); h.echo(42)"
+//     let ast = parseTokens(tokenize(src))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.classes), 1, "Holder class")
+//     assert_eq(len(bc.classes[0]["methods"]), 1, "one specialized method")
+//     assert_eq(bc.classes[0]["methods"][0]["sym"], "echo$Number", "echo$Number on Holder")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.classes[0]["methods"]) {
+//         if bc.classes[0]["methods"][tI]["sym"] == "echo" {
+//             tHas = 1
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 0, "no unspecialized echo method")
+// }
+
+// -- generic method on specialized class (G8.1) --------------------
+// TODO: Not implemented yet - parser doesn't support generic function syntax
+// {
+//     let src = "class Box<T> { fn echo<U>(x) { return x } }; let b = Box(42); b.echo(1)"
+//     let ast = parseTokens(tokenize(src))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.classes), 1, "Box$Number class")
+//     assert_eq(bc.classes[0]["sym"], "Box$Number", "specialized class sym")
+//     assert_eq(len(bc.classes[0]["methods"]), 1, "one specialized method on Box$Number")
+//     assert_eq(bc.classes[0]["methods"][0]["sym"], "echo$Number", "echo$Number on Box$Number")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.genericMethodTemplates) {
+//         if bc.genericMethodTemplates[tI]["classSym"] == "Box$Number" {
+//             if bc.genericMethodTemplates[tI]["methodSym"] == "echo" {
+//                 tHas = 1
+//             }
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 1, "generic echo template on Box$Number")
+// }
+
+// -- class ctor emits new_instance (G10 / fas 3) --------------------
+// TODO: Not implemented yet - self_hosted parser doesn't support class syntax
+// {
+//     let ast = parseTokens(tokenize("class Holder { x: number = 0 }; Holder()"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.classes), 1, "Holder class for ctor")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.ops) {
+//         if bc.ops[tI]["op"] == OP_NEW_INSTANCE {
+//             if bc.ops[tI]["arg"] == 0 {
+//                 if bc.ops[tI]["arg2"] == 0 {
+//                     tHas = 1
+//                 }
+//             }
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 1, "Holder() emits new_instance 0 0")
+// }
+
+// TODO: Not implemented yet - self_hosted parser doesn't support class syntax
+// {
+//     let ast = parseTokens(tokenize("class Box<T> { }; Box(42)"))
+//     let bc = emit(ast)
+//     assert_eq(len(bc.classes), 1, "Box$Number for ctor")
+//     tHas = 0
+//     tI = 0
+//     while tI < len(bc.ops) {
+//         if bc.ops[tI]["op"] == OP_NEW_INSTANCE {
+//             if bc.ops[tI]["arg"] == 0 {
+//                 if bc.ops[tI]["arg2"] == 1 {
+//                     tHas = 1
+//                 }
+//             }
+//         }
+//         tI = tI + 1
+//     }
+//     assert_eq(tHas, 1, "Box(42) emits new_instance with argc 1")
+// }
 
 // -- Report --------------------------------------------------------
 println("")
