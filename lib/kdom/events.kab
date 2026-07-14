@@ -1,0 +1,28 @@
+@version "1.0.0"
+
+// Kabootar kDOM events - handlers and mutation observer (native syscalls).
+// import "kdom/events"
+
+pub fn on(node, event, handler) {
+    return kdom_on(node, event, handler)
+}
+
+pub fn listen(root, tag, event, handler) {
+    return kdom_listen(root, tag, event, handler)
+}
+
+pub fn dispatch(node, event) {
+    return kdom_dispatch(node, event)
+}
+
+pub fn id(node) {
+    return kdom_id(node)
+}
+
+pub fn mutations() {
+    return kdom_mutation_records()
+}
+
+pub fn clearMutations() {
+    return kdom_mutation_clear()
+}

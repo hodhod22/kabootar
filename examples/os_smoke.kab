@@ -1,0 +1,18 @@
+// Kabootar OS lib smoke - cargo run --bin kabootar -- examples/os_smoke.kab
+
+import "os/vfs"
+import "os/process"
+import "os/kernel"
+
+mkdir("/tmp")
+write("/tmp/hello.txt", "Kabootar OS lib")
+let text = read("/tmp/hello.txt")
+println("os smoke: read=" + json_stringify(text))
+println("os smoke: exists=" + json_stringify(exists("/tmp/hello.txt")))
+
+let pid = spawn("smoke-worker")
+println("os smoke: pid=" + json_stringify(pid))
+println("os smoke: procs=" + json_stringify(len(list())))
+println("os smoke: kernel=" + json_stringify(info()))
+
+return len(text)

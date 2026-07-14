@@ -1,0 +1,21 @@
+// Kv8 parser smoke - Kabootar lib/kv8/parser.kab
+// cargo run --bin kabootar -- examples/kv8_parser_smoke.kab
+
+import "kv8/parser"
+
+let ast = parseSource("let x = 1 + 2; function add(a, b) { return a + b; }")
+println("kv8 parser: kind=" + json_stringify(ast.kind))
+println("kv8 parser: stmts=" + json_stringify(len(ast.body)))
+
+let s0 = ast.body[0]
+println("kv8 parser: let=" + json_stringify(s0.kind))
+println("kv8 parser: add op=" + json_stringify(s0.init.op))
+
+let addFn = ast.body[1]
+println("kv8 parser: fn=" + json_stringify(addFn.name))
+
+let arrow = parseSource("(n) => n + 1")
+let arr = arrow.body[0]
+println("kv8 parser: arrow=" + json_stringify(arr.expr.kind))
+
+return len(ast.body)

@@ -1,0 +1,11 @@
+@version "1.0.0"
+
+// Kabootar OS process table wrappers. import "os/process"
+
+pub fn spawn(name) {
+    return os_spawn(name)
+}
+
+pub fn list() {
+    return os_process_list()
+}

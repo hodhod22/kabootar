@@ -610,7 +610,9 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
         }
         Stmt::Class {
             name,
+            type_params: _,
             extends,
+            extends_type_args: _,
             implements,
             fields,
             methods,
@@ -648,7 +650,14 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
             env.classes_mut().register(def);
             Ok(Value::Null)
         }
-        Stmt::Enum { name, variants } => {
+        Stmt::Enum {
+            name,
+            type_params,
+            variants,
+        } => {
+            if !type_params.is_empty() {
+                return Ok(Value::Null);
+            }
             let def = crate::class::EnumDef {
                 name: name.clone(),
                 variants: variants
@@ -690,7 +699,7 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
 
 fn eval_delete(inner: &Expr, env: &mut Environment) -> Result<Value, String> {
     match inner {
-        Expr::Member(obj_expr, field) => {
+        Expr::Member(obj_expr, field, _) => {
             let obj = eval_expr(obj_expr, env)?;
             match obj {
                 Value::Object(mut map) => {
@@ -781,8 +790,10 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
         },
         Expr::Function {
             name,
+            type_params: _,
             params,
             rest,
+            return_type: _,
             body,
             public,
             async_fn,
@@ -829,8 +840,12 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
         }
         Expr::Yield(_) => Err("yield requires bytecode compilation".into()),
         Expr::YieldStar(_) => Err("yield* requires bytecode compilation".into()),
-        Expr::Call(func_expr, args) => {
-            if let Expr::Member(obj_expr, method) = func_expr.as_ref() {
+        Expr::Call {
+            func: func_expr,
+            type_args: _,
+            args,
+        } => {
+            if let Expr::Member(obj_expr, method, _) = func_expr.as_ref() {
                 if method == "push" && args.len() == 1 {
                     let Expr::Variable(var_name) = obj_expr.as_ref() else {
                         return Err("push() only supported on array variables".into());
@@ -1373,7 +1388,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             let idx = eval_expr(idx_expr, env)?;
             crate::ops::read_index(&obj, &idx, env)
         }
-        Expr::Member(obj_expr, field) => {
+        Expr::Member(obj_expr, field, _) => {
             if matches!(obj_expr.as_ref(), Expr::Super) {
                 let this_val = env
                     .get("self")
@@ -1785,7 +1800,7 @@ fn store_lvalue(expr: &Expr, value: Value, env: &mut Environment) -> Result<(), 
         Expr::Variable(name) => env.assign(name, value),
         Expr::This => env.assign("self", value),
         Expr::Super => env.assign("self", value),
-        Expr::Member(inner, field) => {
+        Expr::Member(inner, field, _) => {
             if matches!(inner.as_ref(), Expr::Super) {
                 let mut this_val = env
                     .get("self")
@@ -2293,8 +2308,8 @@ fn pattern_matches(pattern: &Pattern, value: &Value) -> bool {
                 fields: payload,
             },
         ) => {
-            enum_name == type_name
-                && variant == vname
+            variant == vname
+                && (enum_name == type_name || type_name.starts_with(&format!("{enum_name}$")))
                 && fields.len() == payload.len()
                 && fields
                     .iter()

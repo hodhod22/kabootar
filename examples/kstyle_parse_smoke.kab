@@ -1,0 +1,23 @@
+// KSS parser smoke (Kabootar parse.kab, not native kstyle_parse).
+// cargo run --bin kabootar -- examples/kstyle_parse_smoke.kab
+
+import "kstyle/parse"
+import "kstyle/selectors"
+import "kstyle/parser"
+
+let css = "body { color: red; margin: 0; } .card { padding: 8px; background: #303134; }"
+
+let sheet = parseSheet(css)
+let n = parse(css)
+
+println("kstyle smoke: rules=" + json_stringify(len(sheet)))
+println("kstyle smoke: commit count=" + json_stringify(n))
+println("kstyle smoke: css len=" + json_stringify(len(kstyle_css())))
+
+let okTag = matches("body", "body", "", "")
+let okClass = matches(".card", "div", "card active", "")
+let okId = matches("#main", "div", "", "main")
+
+println("kstyle smoke: selectors=" + json_stringify(okTag && okClass && okId))
+
+return n

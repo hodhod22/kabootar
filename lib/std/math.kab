@@ -1,0 +1,27 @@
+@version "1.0.0"
+
+// Kabootar std/math — constants and small helpers.
+// Full Math parity: native globals (floor, sinh, hypot, …) or import "math".
+// import "std/math"
+
+pub fn degToRad(deg) {
+    return deg * pi() / 180
+}
+
+pub fn radToDeg(rad) {
+    return rad * 180 / pi()
+}
+
+pub fn lerp(a, b, t) {
+    return a + (b - a) * t
+}
+
+pub fn isFiniteNumber(n) {
+    if typeof(n) != "number" {
+        return false
+    }
+    if n != n {
+        return false
+    }
+    return true
+}

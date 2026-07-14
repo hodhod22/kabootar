@@ -152,6 +152,11 @@ fn lxScan() {
     if c == "-" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
+        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "->", "value": null, "line": line, "column": col }
+        }
         if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1

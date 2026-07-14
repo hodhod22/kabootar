@@ -7,6 +7,7 @@
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#keywords" },
+    { "include": "#generics" },
     { "include": "#types" },
     { "include": "#builtins" },
     { "include": "#operators" }
@@ -79,7 +80,47 @@
       "patterns": [
         {
           "name": "entity.name.type.kabootar",
-          "match": "\\b(String|Integer|Bool|Float)\\b"
+          "match": "\\b(Number|String|Bool|Float|BigInt|Array|Object|Result|Option|Null|Undefined|Integer)\\b"
+        }
+      ]
+    },
+    "generics": {
+      "patterns": [
+        {
+          "name": "meta.generic.kabootar",
+          "begin": "(?<=\\b(fn|class|enum)\\s+\\w+)\\s*(<)",
+          "beginCaptures": {
+            "2": { "name": "punctuation.definition.generic.begin.kabootar" }
+          },
+          "end": ">",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.generic.end.kabootar" }
+          },
+          "patterns": [
+            {
+              "name": "entity.name.type.parameter.kabootar",
+              "match": "[A-Z][A-Za-z0-9_]*"
+            },
+            {
+              "name": "punctuation.separator.comma.kabootar",
+              "match": ","
+            }
+          ]
+        },
+        {
+          "name": "meta.generic.args.kabootar",
+          "begin": "<",
+          "end": ">",
+          "patterns": [
+            {
+              "name": "entity.name.type.kabootar",
+              "match": "\\b(Number|String|Bool|Float|BigInt|Array|Object|Result|Option)\\b"
+            },
+            {
+              "name": "entity.name.type.parameter.kabootar",
+              "match": "[A-Z][A-Za-z0-9_]*"
+            }
+          ]
         }
       ]
     },

@@ -1,0 +1,24 @@
+@version "1.0.0"
+
+// KSS facade - Kabootar parser (import "kstyle/parse") replaces native kstyle_parse.
+// import "kstyle/parser"
+
+import "kstyle/parse"
+
+pub fn parse(css) {
+    return parseAndApply(css)
+}
+
+pub fn ruleCount(css) {
+    let rules = parseSheet(css)
+    return len(rules)
+}
+
+pub fn rules(css) {
+    return parseSheet(css)
+}
+
+// Minimal smoke: one rule block as string.
+pub fn bodyColor(color) {
+    return parseAndApply("body { color: " + color + "; }")
+}

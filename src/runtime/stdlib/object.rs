@@ -284,7 +284,7 @@ fn is_object_mutator_fn(name: &str) -> bool {
 /// When an object mutator returns a new object snapshot, write it back to the first-arg variable.
 pub fn mutator_writeback_var(func: &Expr, args: &[CallArg]) -> Option<String> {
     let ok = match func {
-        Expr::Member(obj, method) if is_object_mutator_method(method) => {
+        Expr::Member(obj, method, _) if is_object_mutator_method(method) => {
             matches!(obj.as_ref(), Expr::Variable(s) if s == "Object")
         }
         Expr::Variable(name) => is_object_mutator_fn(name),

@@ -1,0 +1,33 @@
+// Smoke test: Kabootar kDOM + KSS via lib/ (run: kabootar examples/kdom_smoke.kab)
+
+import "kdom/document"
+import "kdom/events"
+import "kstyle/theme"
+
+let root = el("div")
+
+let heading = el("h1")
+heading = attr(heading, "class", "title")
+heading = attach(heading, text("Kabootar kDOM"), true)
+root = attach(root, heading, true)
+
+let para = el("p")
+para = attach(para, text("lib/kdom + lib/kstyle in Kabootar"), true)
+root = attach(root, para, true)
+
+applyDark()
+
+let btn = el("button")
+btn = attr(btn, "id", "go")
+btn = attach(btn, text("Go"), true)
+btn = on(btn, "click", "on_go")
+root = attach(root, btn, true)
+
+let frame = paint(root, 1280, 720, "")
+let recs = mutations()
+
+println("kdom smoke: root id=" + json_stringify(id(root)))
+println("kdom smoke: mutations=" + json_stringify(len(recs)))
+println("kdom smoke: frame keys=" + json_stringify(object_keys(frame)))
+
+return id(root)

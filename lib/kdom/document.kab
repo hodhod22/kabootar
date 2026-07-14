@@ -1,0 +1,60 @@
+@version "1.0.0"
+
+// Kabootar kDOM - document tree (max ~7 fn; natives kdom_*, kml are syscalls).
+// import "kdom/document"
+
+pub fn el(tag) {
+    return kdom_create(tag)
+}
+
+pub fn text(content) {
+    return kdom_text(content)
+}
+
+// retParent: true -> return parent, false -> return child
+pub fn attach(parent, child, retParent) {
+    let updated = kdom_append(parent, child)
+    if retParent {
+        return updated
+    }
+    return child
+}
+
+pub fn attr(node, key, value) {
+    return kdom_set_attr(node, key, value)
+}
+
+pub fn query(root, selector) {
+    return kdom_query_selector(root, selector)
+}
+
+// mode: getAttr | queryAll | children | kml | render | byTag
+pub fn domExtra(mode, a, b) {
+    if mode == "getAttr" {
+        return kdom_get_attr(a, b)
+    }
+    if mode == "queryAll" {
+        return kdom_query_selector_all(a, b)
+    }
+    if mode == "children" {
+        return kdom_children(a)
+    }
+    if mode == "kml" {
+        return kml(a)
+    }
+    if mode == "render" {
+        return kdom_render(a)
+    }
+    if mode == "byTag" {
+        return kdom_query(a, b)
+    }
+    throw "domExtra: unknown mode"
+}
+
+// css: pass "" to skip kstyle_parse
+pub fn paint(node, width, height, css) {
+    if css != "" {
+        kstyle_parse(css)
+    }
+    return kdom_paint(node, width, height)
+}

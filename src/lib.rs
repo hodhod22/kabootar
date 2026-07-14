@@ -12,6 +12,7 @@ pub mod kstyle_preprocess;
 pub mod lang_preprocess;
 pub mod span;
 pub mod lexer;
+pub mod generics;
 pub mod ast;
 pub mod parser;
 pub mod value;

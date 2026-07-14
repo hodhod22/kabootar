@@ -1,0 +1,11 @@
+@version "1.0.0"
+
+// Kabootar kernel info wrappers. import "os/kernel"
+
+pub fn info() {
+    return os_info()
+}
+
+pub fn caps() {
+    return os_caps()
+}

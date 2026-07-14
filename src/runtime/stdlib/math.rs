@@ -239,6 +239,30 @@ fn expm1_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     unary_f64(args, "expm1", |x| x.exp_m1())
 }
 
+fn sinh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "sinh", |x| x.sinh())
+}
+
+fn cosh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "cosh", |x| x.cosh())
+}
+
+fn tanh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "tanh", |x| x.tanh())
+}
+
+fn asinh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "asinh", |x| x.asinh())
+}
+
+fn acosh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "acosh", |x| x.acosh())
+}
+
+fn atanh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    unary_f64(args, "atanh", |x| x.atanh())
+}
+
 pub fn register_math(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("floor", floor_native),
@@ -274,6 +298,12 @@ pub fn register_math(env: &mut Environment) {
         ("fround", fround_native),
         ("log1p", log1p_native),
         ("expm1", expm1_native),
+        ("sinh", sinh_native),
+        ("cosh", cosh_native),
+        ("tanh", tanh_native),
+        ("asinh", asinh_native),
+        ("acosh", acosh_native),
+        ("atanh", atanh_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));

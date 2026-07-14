@@ -1,0 +1,26 @@
+// Smoke: compile a serialize-like snippet; full serialize.kab in Rust CI (slow).
+import "self_host/compile"
+import "self_host/lexer_defs"
+import "self_host/serialize_defs"
+import "self_host/emit_defs"
+
+let snippet = "let sOut = \"\"" + CHAR_NL
+    + "let sEscI = 0" + CHAR_NL
+    + "fn escStr(s) {" + CHAR_NL
+    + "  sEscI = 0" + CHAR_NL
+    + "  while sEscI < len(s) {" + CHAR_NL
+    + "    sEscI = sEscI + 1" + CHAR_NL
+    + "  }" + CHAR_NL
+    + "  return sOut" + CHAR_NL
+    + "}" + CHAR_NL
+    + "pub fn serialize_bc(bc) {" + CHAR_NL
+    + "  sOut = KBC_HEADER" + CHAR_NL
+    + "  return sOut" + CHAR_NL
+    + "}" + CHAR_NL
+    + "return len(escStr(\"ab\"))"
+
+let kbc = compile(snippet)
+if char_at(kbc, 0) != "k" {
+    throw "serialize snippet compile: bad header"
+}
+println("serialize snippet compile ok")

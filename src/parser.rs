@@ -44,8 +44,26 @@ impl Parser {
             Token::For => Ok("for".into()),
             Token::Return => Ok("return".into()),
             Token::Throw => Ok("throw".into()),
+            Token::None => Ok("None".into()),
+            Token::Some => Ok("Some".into()),
+            Token::Ok => Ok("Ok".into()),
+            Token::Err => Ok("Err".into()),
             _ => Err(Self::err_at(spanned.span, "Expected member name")),
         }
+    }
+
+    fn parse_enum_variant_name(&mut self) -> Result<String, ParseError> {
+        let spanned = self.bump().ok_or_else(|| self.err("Expected variant name"))?;
+        Ok(match spanned.value {
+            Token::Identifier(s) => s,
+            Token::None => "None".into(),
+            Token::Some => "Some".into(),
+            Token::Ok => "Ok".into(),
+            Token::Err => "Err".into(),
+            Token::True => "True".into(),
+            Token::False => "False".into(),
+            _ => return Err(Self::err_at(spanned.span, "Expected variant name")),
+        })
     }
 
     fn parse_class_member_name(&mut self) -> Result<(String, bool), ParseError> {
@@ -393,6 +411,10 @@ impl Parser {
             },
             None => return Err(self.err("Expected enum name")),
         };
+        let mut type_params = Vec::new();
+        if self.at(Token::Lt) && self.lookahead_type_params() {
+            type_params = self.parse_type_param_list()?;
+        }
         self.expect(Token::LBrace)?;
         let mut variants = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
@@ -400,13 +422,7 @@ impl Parser {
                 self.bump();
                 continue;
             }
-            let vname = match self.bump() {
-                Some(spanned) => match spanned.value {
-                    Token::Identifier(s) => s,
-                    _ => return Err(Self::err_at(spanned.span, "Expected variant name")),
-                },
-                None => return Err(self.err("Expected variant name")),
-            };
+            let vname = self.parse_enum_variant_name()?;
             let fields = if self.at(Token::LParen) {
                 self.bump();
                 let mut fields = Vec::new();
@@ -430,7 +446,11 @@ impl Parser {
             }
         }
         self.expect(Token::RBrace)?;
-        Ok(Stmt::Enum { name, variants })
+        Ok(Stmt::Enum {
+            name,
+            type_params,
+            variants,
+        })
     }
 
     fn parse_class_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -445,12 +465,23 @@ impl Parser {
             },
             None => return Err(self.err("Expected class name")),
         };
+        let mut type_params = Vec::new();
+        if self.at(Token::Lt) && self.lookahead_type_params() {
+            type_params = self.parse_type_param_list()?;
+        }
         let extends = if self.at(Token::Extends) {
             self.bump();
             Some(self.expect_identifier("base class")?)
         } else {
             None
         };
+        let mut extends_type_args = Vec::new();
+        if extends.is_some()
+            && self.at(Token::Lt)
+            && self.lookahead_type_params()
+        {
+            extends_type_args = self.parse_type_arg_list()?;
+        }
         let mut implements = Vec::new();
         if self.at(Token::Implements) {
             self.bump();
@@ -476,7 +507,9 @@ impl Parser {
         self.expect(Token::RBrace)?;
         Ok(Stmt::Class {
             name,
+            type_params,
             extends,
+            extends_type_args,
             implements,
             fields,
             methods,
@@ -525,6 +558,10 @@ impl Parser {
         if !private {
             self.record(name.clone(), SymbolKind::Method, self.peek().map(|t| t.span).unwrap_or(Span::new(0, 0, 0)));
         }
+        let mut type_params = Vec::new();
+        if self.at(Token::Lt) && self.lookahead_type_params() {
+            type_params = self.parse_type_param_list()?;
+        }
         self.expect(Token::LParen)?;
         let mut params = Vec::new();
         while !self.at(Token::RParen) {
@@ -546,6 +583,7 @@ impl Parser {
         let body = self.parse_block()?;
         Ok(ClassMethod {
             name,
+            type_params,
             params,
             body,
             private,
@@ -813,6 +851,12 @@ impl Parser {
             }
             let name = self.expect_identifier("parameter")?;
             self.record(name.clone(), SymbolKind::Parameter, Span::unknown());
+            let type_ann = if self.at(Token::Colon) {
+                self.bump();
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
             let default = if self.at(Token::Eq) {
                 self.bump();
                 saw_default = true;
@@ -823,7 +867,11 @@ impl Parser {
                 }
                 None
             };
-            params.push(crate::ast::FnParam { name, default });
+            params.push(crate::ast::FnParam {
+                name,
+                type_ann,
+                default,
+            });
             if self.at(Token::Comma) {
                 self.bump();
             } else if !self.at(Token::RParen) && !self.at(Token::DotDotDot) {
@@ -901,6 +949,7 @@ impl Parser {
                 return Ok(Expr::Arrow {
                     params: vec![crate::ast::FnParam {
                         name,
+                        type_ann: None,
                         default: None,
                     }],
                     rest: None,
@@ -933,7 +982,7 @@ impl Parser {
     fn assign_target_from_expr(&self, expr: Expr) -> Result<AssignTarget, ParseError> {
         match expr {
             Expr::Variable(name) => Ok(AssignTarget::Name(name)),
-            Expr::Member(obj, field) => Ok(AssignTarget::Member(obj, field)),
+            Expr::Member(obj, field, _) => Ok(AssignTarget::Member(obj, field)),
             Expr::Index(obj, idx) => Ok(AssignTarget::Index(obj, idx)),
             other => Err(self.err(format!("Invalid assignment target: {:?}", other))),
         }
@@ -1263,9 +1312,19 @@ impl Parser {
             },
             None => return Err(self.err("Expected function name")),
         };
+        let mut type_params = Vec::new();
+        if self.at(Token::Lt) && self.lookahead_type_params() {
+            type_params = self.parse_type_param_list()?;
+        }
         self.expect(Token::LParen)?;
         let (params, rest) = self.parse_fn_param_list()?;
         self.expect(Token::RParen)?;
+        let return_type = if self.at(Token::ReturnArrow) {
+            self.bump();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
         self.expect(Token::LBrace)?;
         let mut stmts = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
@@ -1275,8 +1334,10 @@ impl Parser {
         let body = Expr::Block(stmts);
         Ok(Expr::Function {
             name,
+            type_params,
             params,
             rest,
+            return_type,
             body: Box::new(body),
             public: is_public,
             async_fn,
@@ -1507,8 +1568,12 @@ impl Parser {
     }
 
     fn parse_postfix(&mut self, mut left: Expr) -> Result<Expr, ParseError> {
+        let mut pending_type_args = Vec::new();
         loop {
             match self.peek_token() {
+                Some(Token::Lt) if Self::is_generic_instantiation_callee(&left) && self.lookahead_type_args() => {
+                    pending_type_args = self.parse_type_arg_list()?;
+                }
                 Some(Token::LBracket) => {
                     let bracket_line = self.peek().map(|t| t.span.line).unwrap_or(0);
                     if bracket_line != self.last_primary_line {
@@ -1522,7 +1587,7 @@ impl Parser {
                 Some(Token::Dot) => {
                     self.bump();
                     let name = self.parse_member_name()?;
-                    left = Expr::Member(Box::new(left), name);
+                    left = Expr::Member(Box::new(left), name, std::mem::take(&mut pending_type_args));
                 }
                 Some(Token::QuestionDot) => {
                     self.bump();
@@ -1567,12 +1632,96 @@ impl Parser {
                         }
                     }
                     self.expect(Token::RParen)?;
-                    left = Expr::Call(Box::new(left), args);
+                    left = Expr::Call {
+                        func: Box::new(left),
+                        type_args: pending_type_args,
+                        args,
+                    };
+                    pending_type_args = Vec::new();
                 }
                 _ => break,
             }
         }
         Ok(left)
+    }
+
+    fn is_generic_instantiation_callee(expr: &Expr) -> bool {
+        matches!(expr, Expr::Variable(_) | Expr::Member(_, _, _))
+    }
+
+    fn lookahead_type_params(&self) -> bool {
+        self.lookahead_type_args()
+    }
+
+    /// `<` … `>` where inner tokens are identifiers (not comparison).
+    fn lookahead_type_args(&self) -> bool {
+        let mut i = self.pos + 1;
+        if !matches!(
+            self.tokens.get(i).map(|t| &t.value),
+            Some(Token::Identifier(_))
+        ) {
+            return false;
+        }
+        i += 1;
+        while i < self.tokens.len() {
+            match &self.tokens[i].value {
+                Token::Gt => return true,
+                Token::Lt => return false,
+                Token::Comma | Token::Identifier(_) => i += 1,
+                _ => return false,
+            }
+        }
+        false
+    }
+
+    fn parse_type_param_list(&mut self) -> Result<Vec<String>, ParseError> {
+        self.expect(Token::Lt)?;
+        let mut names = Vec::new();
+        while !self.at(Token::Gt) {
+            let name = match self.bump() {
+                Some(spanned) => match spanned.value {
+                    Token::Identifier(s) => {
+                        self.record(s.clone(), SymbolKind::TypeParam, spanned.span);
+                        s
+                    }
+                    _ => return Err(Self::err_at(spanned.span, "Expected type parameter")),
+                },
+                None => return Err(self.err("Expected type parameter")),
+            };
+            names.push(name);
+            if self.at(Token::Comma) {
+                self.bump();
+            } else if !self.at(Token::Gt) {
+                return Err(self.err("Expected `,` or `>` in type parameter"));
+            }
+        }
+        self.expect(Token::Gt)?;
+        Ok(names)
+    }
+
+    fn parse_type_arg_list(&mut self) -> Result<Vec<String>, ParseError> {
+        self.expect(Token::Lt)?;
+        let args = self.parse_type_ident_list("type argument")?;
+        self.expect(Token::Gt)?;
+        Ok(args)
+    }
+
+    fn parse_type_ident_list(&mut self, ctx: &str) -> Result<Vec<String>, ParseError> {
+        let mut names = Vec::new();
+        while !self.at(Token::Gt) {
+            names.push(self.expect_identifier(ctx)?);
+            if self.at(Token::Comma) {
+                self.bump();
+            } else if !self.at(Token::Gt) {
+                return Err(self.err(format!("Expected `,` or `>` in {}", ctx)));
+            }
+        }
+        Ok(names)
+    }
+
+    fn parse_type(&mut self) -> Result<crate::ast::KabType, ParseError> {
+        let name = self.expect_identifier("type")?;
+        Ok(crate::ast::KabType::Named(name))
     }
 
     fn parse_match(&mut self) -> Result<Expr, ParseError> {
@@ -1616,7 +1765,7 @@ impl Parser {
                     Ok(Pattern::Wildcard)
                     } else if self.at(Token::Dot) {
                         self.bump();
-                        let variant = self.expect_identifier("variant")?;
+                        let variant = self.parse_member_name()?;
                         let fields = if self.at(Token::LParen) {
                             self.bump();
                             let mut fields = Vec::new();
@@ -1923,7 +2072,7 @@ mod tests {
         let stmts = parser.parse_program().unwrap();
         assert_eq!(stmts.len(), 1);
         match &stmts[0] {
-            Stmt::Expr(Expr::Call(func, args)) => {
+            Stmt::Expr(Expr::Call { func, args, .. }) => {
                 assert!(matches!(func.as_ref(), Expr::Arrow { .. }));
                 assert_eq!(args.len(), 1);
             }

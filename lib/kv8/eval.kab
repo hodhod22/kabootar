@@ -1,0 +1,247 @@
+@version "1.0.0"
+
+// Kv8 JS-subset interpreter in Kabootar (AST -> values). import "kv8/eval"
+// KEEP <=~7 top-level fn. Locals for loops; no shared idx across recursion.
+
+import "kv8/defs"
+import "kv8/parser"
+import "kv8/host"
+
+let evRetFlag = false
+let evRetVal = undefined
+
+fn evExpr(node, env) {
+    if node.kind == K_LITERAL {
+        if node.lit == LIT_NUMBER {
+            return parse_int(node.value)
+        }
+        return node.value
+    }
+    if node.kind == K_IDENT {
+        let name = node.name
+        if !object_has_own(env, name) {
+            throw "ReferenceError: " + name
+        }
+        return env[name]
+    }
+    if node.kind == K_BINARY {
+        let subL = node.left
+        let subR = node.right
+        let op = node.op
+        let lhs = evExpr(subL, env)
+        let rhs = evExpr(subR, env)
+        if op == "+" { return lhs + rhs }
+        if op == "-" { return lhs - rhs }
+        if op == "*" { return lhs * rhs }
+        if op == "/" { return lhs / rhs }
+        if op == "==" { return lhs == rhs }
+        if op == "===" { return lhs == rhs }
+        if op == "!=" { return lhs != rhs }
+        if op == "!==" { return lhs != rhs }
+        if op == "<" { return lhs < rhs }
+        if op == ">" { return lhs > rhs }
+        if op == "<=" { return lhs <= rhs }
+        if op == ">=" { return lhs >= rhs }
+        if op == "&&" {
+            if !lhs { return lhs }
+            return rhs
+        }
+        if op == "||" {
+            if lhs { return lhs }
+            return rhs
+        }
+        if op == "??" {
+            if lhs == null || lhs == undefined { return rhs }
+            return lhs
+        }
+        throw "Unsupported op " + op
+    }
+    if node.kind == K_MEMBER {
+        let objNode = node.object
+        let field = node.field
+        let optional = node.optional
+        let obj = evExpr(objNode, env)
+        if obj == null || obj == undefined {
+            if optional {
+                return undefined
+            }
+            throw "TypeError: cannot read property " + field
+        }
+        if object_has_own(obj, field) {
+            return obj[field]
+        }
+        if optional {
+            return undefined
+        }
+        return undefined
+    }
+    if node.kind == K_CALL {
+        let calleeNode = node.callee
+        let callArgs = node.args
+        let callee = evExpr(calleeNode, env)
+        let fnArgs = []
+        let i = 0
+        while i < len(callArgs) {
+            let argNode = callArgs[i]
+            fnArgs = push(fnArgs, evExpr(argNode, env))
+            i = i + 1
+        }
+        return evCall(callee, fnArgs)
+    }
+    if node.kind == K_ARROW {
+        let bodyNode = node.body
+        return { "tag": "k8fn", "params": node.params, "body": [bodyNode], "closure": env, "arrow": true }
+    }
+    throw "eval expr " + node.kind
+}
+
+fn evCall(fnVal, args) {
+    if fnVal == null || fnVal == undefined {
+        throw "TypeError: not a function"
+    }
+    if fnVal.tag == "k8host" {
+        return hostCall(fnVal.name, args)
+    }
+    if fnVal.tag != "k8fn" {
+        throw "TypeError: not a k8 function"
+    }
+    let fnParams = fnVal.params
+    let fnBody = fnVal.body
+    let fnClosure = fnVal.closure
+    let scope = {}
+    let keys = object_keys(fnClosure)
+    let i = 0
+    while i < len(keys) {
+        let key = keys[i]
+        scope[key] = fnClosure[key]
+        i = i + 1
+    }
+    i = 0
+    while i < len(fnParams) {
+        let pname = fnParams[i]
+        scope[pname] = args[i]
+        i = i + 1
+    }
+    if fnVal.arrow {
+        let bodyNode = fnBody[0]
+        return evExpr(bodyNode, scope)
+    }
+    let out = evRunStmts(fnBody, scope)
+    evRetFlag = false
+    return out
+}
+
+fn evRunStmts(stmts, env) {
+    evRetFlag = false
+    evRetVal = undefined
+    let last = undefined
+    let i = 0
+    while i < len(stmts) && !evRetFlag {
+        let stmt = stmts[i]
+        last = evStmt(stmt, env)
+        i = i + 1
+    }
+    if evRetFlag {
+        return evRetVal
+    }
+    return last
+}
+
+fn evStmt(stmt, env) {
+    if stmt == null {
+        return undefined
+    }
+    if stmt.kind == K_LET || stmt.kind == K_VAR {
+        let initNode = stmt.init
+        env[stmt.name] = evExpr(initNode, env)
+        return undefined
+    }
+    if stmt.kind == K_FN {
+        let scope = {}
+        let keys = object_keys(env)
+        let i = 0
+        while i < len(keys) {
+            let key = keys[i]
+            scope[key] = env[key]
+            i = i + 1
+        }
+        let blockNode = stmt.body
+        let bodyStmts = blockNode.body
+        let fnParams = stmt.params
+        env[stmt.name] = { "tag": "k8fn", "params": fnParams, "body": bodyStmts, "closure": scope, "arrow": false }
+        return undefined
+    }
+    if stmt.kind == K_RETURN {
+        let valNode = stmt.value
+        evRetFlag = true
+        evRetVal = evExpr(valNode, env)
+        return evRetVal
+    }
+    if stmt.kind == K_IF {
+        let condNode = stmt.cond
+        if evExpr(condNode, env) {
+            let thenBlock = stmt.then
+            return evRunStmts(thenBlock.body, env)
+        }
+        let elseStmts = stmt.elseBranch
+        if elseStmts != null {
+            if len(elseStmts) > 0 {
+                return evRunStmts(elseStmts, env)
+            }
+        }
+        return undefined
+    }
+    if stmt.kind == K_WHILE {
+        let condNode = stmt.cond
+        let bodyBlock = stmt.body
+        while evExpr(condNode, env) {
+            evRunStmts(bodyBlock.body, env)
+            if evRetFlag {
+                break
+            }
+        }
+        return undefined
+    }
+    if stmt.kind == K_ASSIGN {
+        let valNode = stmt.value
+        let name = stmt.name
+        env[name] = evExpr(valNode, env)
+        return env[name]
+    }
+    if stmt.kind == K_BLOCK {
+        return evRunStmts(stmt.body, env)
+    }
+    if stmt.kind == K_EXPR {
+        let exprNode = stmt.expr
+        return evExpr(exprNode, env)
+    }
+    throw "eval stmt " + stmt.kind
+}
+
+pub fn evalProgram(ast, extraEnv) {
+    let env = {}
+    if extraEnv != null {
+        let keys = object_keys(extraEnv)
+        let i = 0
+        while i < len(keys) {
+            let key = keys[i]
+            env[key] = extraEnv[key]
+            i = i + 1
+        }
+    }
+    let last = undefined
+    let i = 0
+    while i < len(ast.body) {
+        let stmt = ast.body[i]
+        last = evStmt(stmt, env)
+        if evRetFlag {
+            return evRetVal
+        }
+        i = i + 1
+    }
+    return last
+}
+
+pub fn evalSource(source) {
+    return evalProgram(parseSource(source), null)
+}

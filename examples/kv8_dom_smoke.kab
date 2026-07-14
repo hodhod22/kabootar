@@ -1,0 +1,8 @@
+// Kv8 + kDOM smoke - cargo run --bin kabootar -- examples/kv8_dom_smoke.kab
+
+import "kv8/dom"
+
+let js = "let root = el(\"div\"); let t = text(\"Kv8 UI\"); root = attach(root, t, true); attr(root, \"class\", \"app\"); paint(root, 480, 320, \"div { padding: 8px; } .app { color: #3366cc; }\")"
+let frame = evalUi(js)
+println("kv8 dom: painted=" + json_stringify(frame["html"] != undefined))
+return frame["html"] != undefined

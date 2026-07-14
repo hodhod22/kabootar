@@ -164,6 +164,85 @@ fn assert_kind(node, kind, msg) {
     assert_eq(len(ast.body[0].params), 2, "fn param count")
 }
 
+// -- generic fn type params + annotations --------------------------
+{
+    let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }"))
+    assert_kind(ast.body[0], AST_FN, "generic fn stmt")
+    assert_eq(ast.body[0].sym, "id", "generic fn sym")
+    assert_eq(len(ast.body[0].typeParams), 1, "type param count")
+    assert_eq(ast.body[0].typeParams[0], "T", "type param name")
+    assert_eq(len(ast.body[0].paramTypes), 1, "param type count")
+    assert_eq(ast.body[0].paramTypes[0], "T", "param type ann")
+    assert_eq(ast.body[0].returnType, "T", "return type")
+}
+
+// -- generic call explicit type args -------------------------------
+{
+    let ast = parseTokens(tokenize("id<Number>(42)"))
+    assert_kind(ast.body[0].expr, AST_CALL, "generic call expr")
+    assert_eq(len(ast.body[0].expr.typeArgs), 1, "call type arg count")
+    assert_eq(ast.body[0].expr.typeArgs[0], "Number", "call type arg")
+}
+
+// -- generic call inferred (no typeArgs field clash with compare) --
+{
+    let ast = parseTokens(tokenize("id(42)"))
+    assert_kind(ast.body[0].expr, AST_CALL, "inferred generic call")
+    assert_eq(len(ast.body[0].expr.typeArgs), 0, "empty type args")
+    let ast2 = parseTokens(tokenize("a < b"))
+    assert_kind(ast2.body[0].expr, AST_BINARY, "compare not generic call")
+    assert_eq(ast2.body[0].expr.op, "<", "compare op")
+}
+
+// -- pair two type params ------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn pair<A, B>(a: A, b: B) -> Array { return [a, b] }"))
+    assert_eq(len(ast.body[0].typeParams), 2, "two type params")
+    assert_eq(ast.body[0].typeParams[1], "B", "second type param")
+}
+
+// -- generic enum type params ------------------------------------
+{
+    let src = "enum Option<T> { Some(T), None }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_ENUM, "generic enum stmt")
+    assert_eq(ast.body[0].sym, "Option", "enum sym")
+    assert_eq(len(ast.body[0].typeParams), 1, "enum type param count")
+    assert_eq(ast.body[0].typeParams[0], "T", "enum type param")
+    assert_eq(len(ast.body[0].variants), 2, "enum variant count")
+    assert_eq(ast.body[0].variants[0].name, "Some", "Some variant")
+}
+
+// -- member type args Option<Number>.None --------------------------
+{
+    let ast = parseTokens(tokenize("Option<Number>.None"))
+    assert_kind(ast.body[0].expr, AST_MEMBER, "typed enum member")
+    assert_eq(len(ast.body[0].expr.typeArgs), 1, "member type arg count")
+    assert_eq(ast.body[0].expr.typeArgs[0], "Number", "member type arg")
+    assert_eq(ast.body[0].expr.field, "None", "None field")
+}
+
+// -- generic class type params (G8) --------------------------------
+{
+    let src = "class Box<T> { value: Number }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "generic class stmt")
+    assert_eq(ast.body[0].sym, "Box", "class sym")
+    assert_eq(len(ast.body[0].typeParams), 1, "class type param count")
+    assert_eq(ast.body[0].typeParams[0], "T", "class type param")
+}
+
+// -- generic class method type params (G7) -------------------------
+{
+    let src = "class Holder { fn echo<T>(x) { return x } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "class with generic method")
+    assert_eq(len(ast.body[0].methods), 1, "one method")
+    assert_eq(ast.body[0].methods[0].sym, "echo", "method sym")
+    assert_eq(len(ast.body[0].methods[0].typeParams), 1, "method type param count")
+    assert_eq(ast.body[0].methods[0].typeParams[0], "T", "method type param")
+}
+
 // -- block ---------------------------------------------------------
 {
     let ast = parseTokens(tokenize("{ let a = 1; return a }"))

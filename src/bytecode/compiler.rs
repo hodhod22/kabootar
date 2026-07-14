@@ -10,9 +10,38 @@ use super::types::{
     BytecodeInterfaceDef, BytecodeInterfaceMethod, BytecodeModule, Constant, GeneratorTryRegion,
     Opcode,
 };
-use std::collections::HashMap;
+use crate::generics::{
+    generic_method_template_key, infer_receiver_class_name, infer_type_from_expr, mangle,
+    mangle_method, resolve_type_args, resolve_type_ref, TypeInferenceCtx,
+};
+use std::collections::{HashMap, HashSet};
 
 pub struct CompileError;
+
+#[derive(Clone)]
+struct GenericFnTemplate {
+    type_params: Vec<String>,
+    param_names: Vec<String>,
+    body: Expr,
+    async_fn: bool,
+    generator_fn: bool,
+}
+
+#[derive(Clone)]
+struct GenericClassTemplate {
+    type_params: Vec<String>,
+    extends: Option<String>,
+    extends_type_args: Vec<String>,
+    implements: Vec<String>,
+    fields: Vec<ClassField>,
+    methods: Vec<ClassMethod>,
+}
+
+#[derive(Clone)]
+struct GenericEnumTemplate {
+    type_params: Vec<String>,
+    variants: Vec<crate::ast::EnumVariant>,
+}
 
 struct IteratorCloseCtx {
     src_local: String,
@@ -52,6 +81,16 @@ struct Compiler {
     in_generator: bool,
     in_async_fn: bool,
     try_regions: Vec<GeneratorTryRegion>,
+    generic_templates: HashMap<String, GenericFnTemplate>,
+    generic_class_templates: HashMap<String, GenericClassTemplate>,
+    generic_enum_templates: HashMap<String, GenericEnumTemplate>,
+    specialized_mangled: HashSet<String>,
+    specialization_functions: Vec<BytecodeFnDef>,
+    binding_types: TypeInferenceCtx,
+    pending_class_methods: HashMap<String, Vec<BytecodeFnDef>>,
+    pending_classes: Vec<BytecodeClassDef>,
+    pending_enums: Vec<BytecodeEnumDef>,
+    classes_len_snapshot: usize,
 }
 
 impl Compiler {
@@ -73,7 +112,325 @@ impl Compiler {
             in_generator: false,
             in_async_fn: false,
             try_regions: Vec::new(),
+            generic_templates: HashMap::new(),
+            generic_class_templates: HashMap::new(),
+            generic_enum_templates: HashMap::new(),
+            specialized_mangled: HashSet::new(),
+            specialization_functions: Vec::new(),
+            binding_types: TypeInferenceCtx::new(),
+            pending_class_methods: HashMap::new(),
+            pending_classes: Vec::new(),
+            pending_enums: Vec::new(),
+            classes_len_snapshot: 0,
         }
+    }
+
+    fn merged_type_args(
+        call_type_args: &[String],
+        member_type_args: &[String],
+    ) -> Vec<String> {
+        if !call_type_args.is_empty() {
+            call_type_args.to_vec()
+        } else {
+            member_type_args.to_vec()
+        }
+    }
+
+    fn infer_binding_type_from_expr(&self, expr: &Expr) -> Option<String> {
+        if let Expr::Call {
+            func,
+            type_args,
+            args,
+        } = expr
+        {
+            if let Expr::Variable(name) = func.as_ref() {
+                if let Some(tmpl) = self.generic_class_templates.get(name) {
+                    let arg_exprs: Vec<Expr> = args
+                        .iter()
+                        .filter_map(|a| match a {
+                            CallArg::Expr(e) => Some(e.clone()),
+                            CallArg::Spread(_) => None,
+                        })
+                        .collect();
+                    let resolved = resolve_type_args(
+                        name,
+                        &tmpl.type_params,
+                        type_args,
+                        &arg_exprs,
+                        Some(&self.binding_types),
+                    )
+                    .ok()?;
+                    return Some(mangle(name, &resolved));
+                }
+            }
+            if let Expr::Member(obj, _variant, member_type_args) = func.as_ref() {
+                if let Expr::Variable(name) = obj.as_ref() {
+                    if let Some(tmpl) = self.generic_enum_templates.get(name) {
+                        let arg_exprs: Vec<Expr> = args
+                            .iter()
+                            .filter_map(|a| match a {
+                                CallArg::Expr(e) => Some(e.clone()),
+                                CallArg::Spread(_) => None,
+                            })
+                            .collect();
+                        let explicit =
+                            Self::merged_type_args(type_args, member_type_args);
+                        let resolved = resolve_type_args(
+                            name,
+                            &tmpl.type_params,
+                            &explicit,
+                            &arg_exprs,
+                            Some(&self.binding_types),
+                        )
+                        .ok()?;
+                        return Some(mangle(name, &resolved));
+                    }
+                }
+            }
+        }
+        if let Expr::Member(obj, _field, type_args) = expr {
+            if let Expr::Variable(name) = obj.as_ref() {
+                if self.generic_enum_templates.contains_key(name) && !type_args.is_empty() {
+                    return Some(mangle(name, type_args));
+                }
+            }
+        }
+        infer_type_from_expr(expr, Some(&self.binding_types))
+    }
+
+    fn record_inferred_binding(&mut self, name: &str, value: &Expr) {
+        if let Some(ty) = self.infer_binding_type_from_expr(value) {
+            self.binding_types.bind(name, ty);
+        }
+    }
+
+    fn flush_pending_classes(&mut self, classes: &mut Vec<BytecodeClassDef>) {
+        for def in self.pending_classes.drain(..) {
+            let idx = classes.len() as u16;
+            self.class_names.insert(def.name.clone(), idx);
+            self.binding_types.add_class(def.name.clone());
+            classes.push(def);
+        }
+        self.classes_len_snapshot = classes.len();
+    }
+
+    fn flush_pending_enums(&mut self, enums: &mut Vec<BytecodeEnumDef>) {
+        for def in self.pending_enums.drain(..) {
+            self.binding_types.add_class(def.name.clone());
+            enums.push(def);
+        }
+    }
+
+    fn ensure_generic_enum_specialization(
+        &mut self,
+        base: &str,
+        explicit_type_args: &[String],
+        arg_exprs: &[Expr],
+    ) -> Result<String, CompileError> {
+        let tmpl = self
+            .generic_enum_templates
+            .get(base)
+            .ok_or(CompileError)?
+            .clone();
+        let type_args = resolve_type_args(
+            base,
+            &tmpl.type_params,
+            explicit_type_args,
+            arg_exprs,
+            Some(&self.binding_types),
+        )
+        .map_err(|_| CompileError)?;
+        let mangled = mangle(base, &type_args);
+        if enums_contains_name(&self.pending_enums, &mangled)
+            || self.binding_types.is_class(&mangled)
+        {
+            return Ok(mangled);
+        }
+        self.pending_enums.push(BytecodeEnumDef {
+            name: mangled.clone(),
+            variants: tmpl
+                .variants
+                .iter()
+                .map(|v| BytecodeEnumVariantDef {
+                    name: v.name.clone(),
+                    fields: v.fields.clone(),
+                })
+                .collect(),
+        });
+        self.binding_types.add_class(mangled.clone());
+        Ok(mangled)
+    }
+
+    fn emit_generic_enum_namespace(
+        &mut self,
+        base: &str,
+        explicit_type_args: &[String],
+        arg_exprs: &[Expr],
+    ) -> Result<(), CompileError> {
+        let mangled = self.ensure_generic_enum_specialization(base, explicit_type_args, arg_exprs)?;
+        self.emit_load_name(&mangled);
+        Ok(())
+    }
+
+    fn ensure_generic_class_specialization(
+        &mut self,
+        base: &str,
+        explicit_type_args: &[String],
+        arg_exprs: &[Expr],
+    ) -> Result<u16, CompileError> {
+        let tmpl = self
+            .generic_class_templates
+            .get(base)
+            .ok_or(CompileError)?
+            .clone();
+        let type_args = resolve_type_args(
+            base,
+            &tmpl.type_params,
+            explicit_type_args,
+            arg_exprs,
+            Some(&self.binding_types),
+        )
+        .map_err(|_| CompileError)?;
+        let mangled = mangle(base, &type_args);
+        if let Some(&idx) = self.class_names.get(&mangled) {
+            return Ok(idx);
+        }
+        let resolved_extends = tmpl.extends.as_ref().map(|base_name| {
+            resolve_type_ref(
+                base_name,
+                &tmpl.extends_type_args,
+                &tmpl.type_params,
+                &type_args,
+            )
+        });
+        if let Some(ref parent_mangled) = resolved_extends {
+            if !self.class_names.contains_key(parent_mangled) {
+                if let Some(base_name) = tmpl.extends.as_deref() {
+                    if self.generic_class_templates.contains_key(base_name) {
+                        self.ensure_generic_class_specialization(base_name, &type_args, &[])?;
+                    }
+                }
+            }
+        }
+        let class_idx = (self.classes_len_snapshot + self.pending_classes.len()) as u16;
+        let class_def = self.compile_class(
+            &mangled,
+            &resolved_extends,
+            &tmpl.implements,
+            &tmpl.fields,
+            &tmpl.methods,
+        )?;
+        self.pending_classes.push(class_def);
+        self.class_names.insert(mangled.clone(), class_idx);
+        self.binding_types.add_class(mangled);
+        Ok(class_idx)
+    }
+
+    fn ensure_generic_specialization(
+        &mut self,
+        base: &str,
+        explicit_type_args: &[String],
+        arg_exprs: &[Expr],
+    ) -> Result<String, CompileError> {
+        let tmpl = self
+            .generic_templates
+            .get(base)
+            .ok_or(CompileError)?
+            .clone();
+        let type_args = resolve_type_args(
+            base,
+            &tmpl.type_params,
+            explicit_type_args,
+            arg_exprs,
+            Some(&self.binding_types),
+        )
+        .map_err(|_| CompileError)?;
+        let mangled = mangle(base, &type_args);
+        if self.specialized_mangled.contains(&mangled) {
+            return Ok(mangled);
+        }
+        let mut fn_compiler = Compiler::new();
+        fn_compiler.constants = self.constants.clone();
+        fn_compiler.globals = self.globals.clone();
+        fn_compiler.in_generator = tmpl.generator_fn;
+        fn_compiler.in_async_fn = tmpl.async_fn;
+        fn_compiler
+            .compile_function_body(&tmpl.param_names, &tmpl.body, tmpl.async_fn)
+            .map_err(|_| CompileError)?;
+        self.constants = fn_compiler.constants.clone();
+        self.globals = fn_compiler.globals.clone();
+        self.global_index(&mangled);
+        self.specialization_functions.push(BytecodeFnDef {
+            name: mangled.clone(),
+            params: tmpl.param_names,
+            locals: fn_compiler.locals,
+            globals: fn_compiler.globals,
+            constants: fn_compiler.constants,
+            code: fn_compiler.code,
+            immutable_locals: fn_compiler.immutable_locals,
+            arrow_functions: fn_compiler.arrow_functions,
+            async_fn: tmpl.async_fn,
+            generator_fn: tmpl.generator_fn,
+            try_regions: fn_compiler.try_regions,
+        });
+        self.specialized_mangled.insert(mangled.clone());
+        Ok(mangled)
+    }
+
+    fn ensure_generic_method_specialization(
+        &mut self,
+        class_name: &str,
+        method_name: &str,
+        explicit_type_args: &[String],
+        arg_exprs: &[Expr],
+    ) -> Result<String, CompileError> {
+        let template_key = generic_method_template_key(class_name, method_name);
+        let tmpl = self
+            .generic_templates
+            .get(&template_key)
+            .ok_or(CompileError)?
+            .clone();
+        let type_args = resolve_type_args(
+            method_name,
+            &tmpl.type_params,
+            explicit_type_args,
+            arg_exprs,
+            Some(&self.binding_types),
+        )
+        .map_err(|_| CompileError)?;
+        let mangled_method = mangle_method(method_name, &type_args);
+        let dedupe_key = mangle(&template_key, &type_args);
+        if self.specialized_mangled.contains(&dedupe_key) {
+            return Ok(mangled_method);
+        }
+        let mut method_compiler = Compiler::new();
+        method_compiler.constants = self.constants.clone();
+        method_compiler.globals = self.globals.clone();
+        method_compiler.class_names = self.class_names.clone();
+        method_compiler.binding_types = self.binding_types.clone();
+        method_compiler
+            .compile_function_body(&tmpl.param_names, &tmpl.body, false)
+            .map_err(|_| CompileError)?;
+        self.constants = method_compiler.constants.clone();
+        self.globals = method_compiler.globals.clone();
+        self.pending_class_methods
+            .entry(class_name.to_string())
+            .or_default()
+            .push(BytecodeFnDef {
+                name: mangled_method.clone(),
+                params: tmpl.param_names,
+                locals: method_compiler.locals,
+                globals: method_compiler.globals,
+                constants: method_compiler.constants,
+                code: method_compiler.code,
+                immutable_locals: method_compiler.immutable_locals,
+                arrow_functions: method_compiler.arrow_functions,
+                async_fn: false,
+                generator_fn: false,
+                try_regions: method_compiler.try_regions,
+            });
+        self.specialized_mangled.insert(dedupe_key);
+        Ok(mangled_method)
     }
 
     fn const_index(&mut self, c: Constant) -> u16 {
@@ -433,7 +790,7 @@ impl Compiler {
                 self.emit_load_name(name);
                 Ok(())
             }
-            Expr::Member(obj, method) => {
+            Expr::Member(obj, method, _) => {
                 if matches!(obj.as_ref(), Expr::Super) {
                     let idx = self.const_index(Constant::String(method.clone()));
                     self.emit(Opcode::GetSuperMethod(idx));
@@ -675,11 +1032,93 @@ impl Compiler {
                 self.compile_expr(&Expr::Match(scrutinee.clone(), arms))
             }
             Expr::WhileLet { .. } => Err(CompileError),
-            Expr::Call(func, args) => {
+            Expr::Call {
+                func,
+                type_args,
+                args,
+            } => {
                 let has_spread = args.iter().any(|a| matches!(a, CallArg::Spread(_)));
+                let arg_exprs: Vec<Expr> = args
+                    .iter()
+                    .filter_map(|a| match a {
+                        CallArg::Expr(e) => Some(e.clone()),
+                        CallArg::Spread(_) => None,
+                    })
+                    .collect();
+                if let Expr::Variable(name) = func.as_ref() {
+                    if self.generic_templates.contains_key(name) {
+                        if has_spread {
+                            return Err(CompileError);
+                        }
+                        for arg in args {
+                            match arg {
+                                CallArg::Expr(e) => self.compile_expr(e)?,
+                                CallArg::Spread(_) => return Err(CompileError),
+                            }
+                        }
+                        let mangled =
+                            self.ensure_generic_specialization(name, type_args, &arg_exprs)?;
+                        self.emit_load_name(&mangled);
+                        self.emit(Opcode::Call(args.len() as u8));
+                        return Ok(());
+                    }
+                    if self.generic_class_templates.contains_key(name) {
+                        if has_spread {
+                            return Err(CompileError);
+                        }
+                        for arg in args {
+                            match arg {
+                                CallArg::Expr(e) => self.compile_expr(e)?,
+                                CallArg::Spread(_) => return Err(CompileError),
+                            }
+                        }
+                        let class_idx = self.ensure_generic_class_specialization(
+                            name,
+                            type_args,
+                            &arg_exprs,
+                        )?;
+                        self.emit(Opcode::NewInstance(class_idx, args.len() as u8));
+                        return Ok(());
+                    }
+                    if let Some(&class_idx) = self.class_names.get(name) {
+                        if has_spread {
+                            return Err(CompileError);
+                        }
+                        for arg in args {
+                            match arg {
+                                CallArg::Expr(e) => self.compile_expr(e)?,
+                                CallArg::Spread(_) => return Err(CompileError),
+                            }
+                        }
+                        self.emit(Opcode::NewInstance(class_idx, args.len() as u8));
+                        return Ok(());
+                    }
+                }
+                if let Expr::Member(obj, variant, member_type_args) = func.as_ref() {
+                    if let Expr::Variable(enum_name) = obj.as_ref() {
+                        if self.generic_enum_templates.contains_key(enum_name) {
+                            if has_spread {
+                                return Err(CompileError);
+                            }
+                            for arg in args {
+                                match arg {
+                                    CallArg::Expr(e) => self.compile_expr(e)?,
+                                    CallArg::Spread(_) => return Err(CompileError),
+                                }
+                            }
+                            let explicit =
+                                Self::merged_type_args(type_args, member_type_args);
+                            self.emit_generic_enum_namespace(enum_name, &explicit, &arg_exprs)?;
+                            let idx = self.const_index(Constant::String(variant.clone()));
+                            self.emit(Opcode::GetMember(idx));
+                            self.emit(Opcode::Call(args.len() as u8));
+                            return Ok(());
+                        }
+                    }
+                }
                 if has_spread {
                     self.compile_call_args_array(args)?;
-                    if let Expr::Member(obj, method) = func.as_ref() {
+                    if let Expr::Member(obj, method, _) = func.as_ref() {
                         if matches!(obj.as_ref(), Expr::Super) {
                             let idx = self.const_index(Constant::String(method.clone()));
                             self.emit(Opcode::GetSuperMethod(idx));
@@ -704,7 +1143,31 @@ impl Compiler {
                         CallArg::Spread(_) => return Err(CompileError),
                     }
                 }
-                if let Expr::Member(obj, method) = func.as_ref() {
+                if let Expr::Member(obj, method, _) = func.as_ref() {
+                    if !matches!(obj.as_ref(), Expr::Super) {
+                        if let Some(class_name) =
+                            infer_receiver_class_name(obj, &self.binding_types)
+                        {
+                            let template_key =
+                                generic_method_template_key(&class_name, method);
+                            if self.generic_templates.contains_key(&template_key) {
+                                let mangled_method = self.ensure_generic_method_specialization(
+                                    &class_name,
+                                    method,
+                                    type_args,
+                                    &arg_exprs,
+                                )?;
+                                self.compile_expr(obj)?;
+                                let idx =
+                                    self.const_index(Constant::String(mangled_method));
+                                self.emit(Opcode::GetMember(idx));
+                                self.emit(Opcode::Call(args.len() as u8));
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+                if let Expr::Member(obj, method, _) = func.as_ref() {
                     if matches!(obj.as_ref(), Expr::Super) {
                         let idx = self.const_index(Constant::String(method.clone()));
                         self.emit(Opcode::GetSuperMethod(idx));
@@ -733,11 +1196,27 @@ impl Compiler {
                 self.emit(Opcode::IndexGet);
                 Ok(())
             }
-            Expr::Member(obj, field) => {
+            Expr::Member(obj, field, member_type_args) => {
                 if matches!(obj.as_ref(), Expr::Super) {
                     let idx = self.const_index(Constant::String(field.clone()));
                     self.emit(Opcode::GetSuperMethod(idx));
                     Ok(())
+                } else if let Expr::Variable(enum_name) = obj.as_ref() {
+                    if self.generic_enum_templates.contains_key(enum_name) {
+                        self.emit_generic_enum_namespace(enum_name, member_type_args, &[])?;
+                        let idx = self.const_index(Constant::String(field.clone()));
+                        self.emit(Opcode::GetMember(idx));
+                        Ok(())
+                    } else {
+                        self.compile_expr(obj)?;
+                        if field == "length" {
+                            self.emit(Opcode::GetLength);
+                        } else {
+                            let idx = self.const_index(Constant::String(field.clone()));
+                            self.emit(Opcode::GetMember(idx));
+                        }
+                        Ok(())
+                    }
                 } else {
                     self.compile_expr(obj)?;
                     if field == "length" {
@@ -870,8 +1349,10 @@ impl Compiler {
             }
             Expr::Function {
                 name,
+                type_params: _,
                 params,
                 rest,
+                return_type: _,
                 body,
                 public,
                 async_fn,
@@ -978,10 +1459,25 @@ impl Compiler {
 
         let mut bc_methods = Vec::new();
         for method in methods {
+            if !method.type_params.is_empty() {
+                let key = generic_method_template_key(name, &method.name);
+                self.generic_templates.insert(
+                    key,
+                    GenericFnTemplate {
+                        type_params: method.type_params.clone(),
+                        param_names: method.params.clone(),
+                        body: method.body.clone(),
+                        async_fn: false,
+                        generator_fn: false,
+                    },
+                );
+                continue;
+            }
             let mut method_compiler = Compiler::new();
             method_compiler.constants = self.constants.clone();
             method_compiler.globals = self.globals.clone();
             method_compiler.class_names = self.class_names.clone();
+            method_compiler.binding_types = self.binding_types.clone();
             method_compiler.compile_function_body(&method.params, &method.body, false)?;
             self.constants = method_compiler.constants.clone();
             self.globals = method_compiler.globals.clone();
@@ -1201,7 +1697,26 @@ impl Compiler {
             }
             Pattern::Array(pieces) => self.compile_match_array_pattern(pieces, pattern_fails),
             Pattern::Object(fields) => self.compile_match_object_pattern(fields, pattern_fails),
-            Pattern::EnumVariant { .. } => Err(CompileError),
+            Pattern::EnumVariant {
+                enum_name,
+                variant,
+                fields,
+            } => {
+                let type_idx = self.const_index(Constant::String(enum_name.clone()));
+                let variant_idx = self.const_index(Constant::String(variant.clone()));
+                let jump = self.code.len();
+                self.emit(Opcode::JumpUnlessEnumVariant(type_idx, variant_idx, 0));
+                pattern_fails.push(jump);
+                if fields.is_empty() {
+                    self.emit(Opcode::Pop);
+                } else {
+                    self.emit(Opcode::UnpackEnumFields(fields.len() as u8));
+                    for field_pat in fields {
+                        self.compile_match_pattern(field_pat, pattern_fails)?;
+                    }
+                }
+                Ok(())
+            }
         }
     }
 
@@ -1430,7 +1945,7 @@ impl Compiler {
                 self.emit_load_name("self");
                 Ok(())
             }
-            Expr::Member(inner, field) => {
+            Expr::Member(inner, field, _) => {
                 self.compile_expr(inner)?;
                 let idx = self.const_index(Constant::String(field.clone()));
                 self.emit(Opcode::GetMember(idx));
@@ -1460,7 +1975,7 @@ impl Compiler {
                 self.emit_store_name("self");
                 Ok(())
             }
-            Expr::Member(inner, field) => {
+            Expr::Member(inner, field, _) => {
                 let tmp = self.fresh_assign_tmp();
                 let tmp_idx = self.local_index(&tmp);
                 self.emit(Opcode::Swap);
@@ -1507,6 +2022,7 @@ impl Compiler {
         match target {
             AssignTarget::Name(name) => {
                 self.compile_expr(value)?;
+                self.record_inferred_binding(name, value);
                 self.emit(Opcode::Dup);
                 self.emit_store_name(name);
                 Ok(())
@@ -1956,6 +2472,9 @@ impl Compiler {
                 }
                 if let Some(expr) = init {
                     self.compile_expr(expr)?;
+                    if let BindingPattern::Name(name) = pattern {
+                        self.record_inferred_binding(name, expr);
+                    }
                 } else {
                     let idx = self.const_index(Constant::Undefined);
                     self.emit(Opcode::Const(idx));
@@ -2058,6 +2577,10 @@ fn switch_body_fallthroughs(body: &crate::ast::Expr) -> bool {
     }
 }
 
+fn enums_contains_name(enums: &[BytecodeEnumDef], name: &str) -> bool {
+    enums.iter().any(|e| e.name == name)
+}
+
 fn patch_jump(code: &mut [Opcode], at: usize, target: usize) {
     let offset = (target as i32) - (at as i32) - 1;
     match &mut code[at] {
@@ -2068,6 +2591,7 @@ fn patch_jump(code: &mut [Opcode], at: usize, target: usize) {
         | Opcode::JumpUnlessResultErr(ref mut off)
         | Opcode::JumpUnlessOptionSome(ref mut off)
         | Opcode::JumpUnlessOptionNone(ref mut off)
+        | Opcode::JumpUnlessEnumVariant(_, _, ref mut off)
         | Opcode::JumpUnlessConstEq(_, ref mut off)
         | Opcode::JumpUnlessArray(ref mut off)
         | Opcode::JumpUnlessObject(ref mut off)
@@ -2110,7 +2634,22 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
             });
             continue;
         }
-        if let Stmt::Enum { name, variants } = stmt {
+        if let Stmt::Enum {
+            name,
+            type_params,
+            variants,
+        } = stmt
+        {
+            if !type_params.is_empty() {
+                main.generic_enum_templates.insert(
+                    name.clone(),
+                    GenericEnumTemplate {
+                        type_params: type_params.clone(),
+                        variants: variants.clone(),
+                    },
+                );
+                continue;
+            }
             enums.push(BytecodeEnumDef {
                 name: name.clone(),
                 variants: variants
@@ -2121,39 +2660,76 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
                     })
                     .collect(),
             });
+            main.binding_types.add_class(name.clone());
             continue;
         }
         if let Stmt::Class {
             name,
+            type_params,
             extends,
+            extends_type_args,
             implements,
             fields,
             methods,
         } = stmt
         {
+            if !type_params.is_empty() {
+                main.generic_class_templates.insert(
+                    name.clone(),
+                    GenericClassTemplate {
+                        type_params: type_params.clone(),
+                        extends: extends.clone(),
+                        extends_type_args: extends_type_args.clone(),
+                        implements: implements.clone(),
+                        fields: fields.clone(),
+                        methods: methods.clone(),
+                    },
+                );
+                continue;
+            }
             let class_idx = classes.len() as u16;
             main.class_names.insert(name.clone(), class_idx);
+            main.binding_types.add_class(name.clone());
             let class_def = match main.compile_class(name, extends, implements, fields, methods) {
                 Ok(def) => def,
                 Err(_) => return None,
             };
             classes.push(class_def);
+            main.classes_len_snapshot = classes.len();
             continue;
         }
         if let Stmt::Expr(Expr::Function {
             name,
+            type_params,
             params,
             rest,
             body,
             public,
             async_fn,
             generator_fn,
+            return_type: _,
         }) = stmt
         {
             if crate::ast::fn_has_defaults_or_rest(params, rest) {
                 return None;
             }
             let param_names = crate::ast::fn_param_names(params);
+            if !type_params.is_empty() {
+                main.generic_templates.insert(
+                    name.clone(),
+                    GenericFnTemplate {
+                        type_params: type_params.clone(),
+                        param_names,
+                        body: *body.clone(),
+                        async_fn: *async_fn,
+                        generator_fn: *generator_fn,
+                    },
+                );
+                if *public {
+                    exports.push(name.clone());
+                }
+                continue;
+            }
             let mut fn_compiler = Compiler::new();
             fn_compiler.constants = main.constants.clone();
             fn_compiler.globals = main.globals.clone();
@@ -2190,7 +2766,12 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
         if main.compile_stmt(stmt, is_last).is_err() {
             return None;
         }
+        main.flush_pending_classes(&mut classes);
+        main.flush_pending_enums(&mut enums);
     }
+
+    main.flush_pending_classes(&mut classes);
+    main.flush_pending_enums(&mut enums);
 
     if !matches!(
         main.code.last(),
@@ -2198,6 +2779,14 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
     ) {
         main.emit(Opcode::Halt);
     }
+
+    for (class_name, methods) in main.pending_class_methods {
+        if let Some(class) = classes.iter_mut().find(|c| c.name == class_name) {
+            class.methods.extend(methods);
+        }
+    }
+
+    functions.extend(main.specialization_functions);
 
     Some({
         let mut module = BytecodeModule {

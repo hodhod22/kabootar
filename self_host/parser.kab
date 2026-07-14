@@ -46,6 +46,32 @@ let pAddLeft = null
 let pAddLeftStack = []
 let pNextTok = null
 let pDone = 0
+let pTypeParams = []
+let pParamTypes = []
+let pReturnType = ""
+let pTypeArgs = []
+let pCalleeStack = []
+let pTypeArgsStack = []
+let pVariants = []
+let pClassFields = []
+let pClassMethods = []
+let pFieldType = ""
+let pFieldDefault = null
+let pVariantFields = []
+let pMethTypeParams = []
+let pMethParams = []
+let pMethParamTypes = []
+let pIsGenericCallee = 0
+let pAngleI = 0
+let pAngleTok = null
+let pAngleOut = []
+let pMemberName = ""
+let pVariantName = ""
+let pVariantSym = ""
+let pEnumSym = ""
+let pClassSym = ""
+let pSnapTypeArgs = []
+let pParamType = ""
 
 fn popStack(stack) {
     pPopNew = []
@@ -83,11 +109,70 @@ fn bump() {
     return pTok
 }
 
+fn parseTypeArgs() {
+    if peek().type != "<" {
+        return []
+    }
+    pAngleI = pPos + 1
+    if pAngleI >= len(pToks) {
+        return []
+    }
+    pAngleTok = pToks[pAngleI]
+    if pAngleTok.type != TOKEN_IDENT {
+        return []
+    }
+    pAngleI = pAngleI + 1
+    while pAngleI < len(pToks) {
+        pAngleTok = pToks[pAngleI]
+        if pAngleTok.type == ">" {
+            break
+        }
+        if pAngleTok.type == "<" {
+            return []
+        }
+        if pAngleTok.type == "," {
+            pAngleI = pAngleI + 1
+        } else {
+            if pAngleTok.type == TOKEN_IDENT {
+                pAngleI = pAngleI + 1
+            } else {
+                return []
+            }
+        }
+    }
+    if pAngleI >= len(pToks) {
+        return []
+    }
+    if pToks[pAngleI].type != ">" {
+        return []
+    }
+    bump()
+    pAngleOut = []
+    while peek().type != ">" {
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected type name"
+        }
+        bump()
+        pSymPool = push(pSymPool, symCopy(pTok.value))
+        pAngleOut = push(pAngleOut, pSymPool[len(pSymPool) - 1])
+        if peek().type == "," {
+            bump()
+        }
+    }
+    if peek().type != ">" {
+        throw "Expected >"
+    }
+    bump()
+    return pAngleOut
+}
+
 fn parsePostfix() {
     if peek().type == "EOF" {
         throw "parsePostfix EOF"
     }
     pLeft = null
+    pTypeArgs = []
     pTok = peek()
     if pTok.type == TOKEN_NUMBER {
         bump()
@@ -200,47 +285,106 @@ fn parsePostfix() {
         throw json_stringify(peek())
     }
     while true {
-        if peek().type == "(" {
-            pCallee = pLeft
-            bump()
-            pArgs = []
-            if peek().type != ")" {
-                while true {
-                    pArgs = push(pArgs, parseCompare())
-                    if peek().type == "," {
+        if peek().type == "<" {
+            pIsGenericCallee = 0
+            if pLeft.kind == AST_VAR {
+                pIsGenericCallee = 1
+            }
+            if pLeft.kind == AST_MEMBER {
+                pIsGenericCallee = 1
+            }
+            if pIsGenericCallee == 1 {
+                pSnapTypeArgs = parseTypeArgs()
+                if len(pSnapTypeArgs) > 0 {
+                    pTypeArgs = pSnapTypeArgs
+                } else {
+                    break
+                }
+            } else {
+                break
+            }
+        } else {
+            if peek().type == "(" {
+                pCallee = pLeft
+                if pCallee.kind == AST_VAR {
+                    pCallee = { "kind": AST_VAR, "sym": symCopy(pCallee["sym"]) }
+                }
+                pCalleeStack = push(pCalleeStack, pCallee)
+                pTypeArgsStack = push(pTypeArgsStack, pTypeArgs)
+                bump()
+                pArgs = []
+                if peek().type != ")" {
+                    while true {
+                        pArgs = push(pArgs, parseCompare())
+                        if peek().type == "," {
+                            bump()
+                        } else {
+                            break
+                        }
+                    }
+                }
+                if peek().type != ")" {
+                    throw "Expected )"
+                }
+                bump()
+                pCallee = pCalleeStack[len(pCalleeStack) - 1]
+                pCalleeStack = popStack(pCalleeStack)
+                pSnapTypeArgs = pTypeArgsStack[len(pTypeArgsStack) - 1]
+                pTypeArgsStack = popStack(pTypeArgsStack)
+                pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs, "typeArgs": pSnapTypeArgs }
+                pTypeArgs = []
+            } else {
+                if peek().type == "." {
+                    bump()
+                    pTok = peek()
+                    pMemberName = ""
+                    if pTok.type == TOKEN_IDENT {
                         bump()
+                        pMemberName = symCopy(pTok.value)
+                    } else {
+                        if pTok.type == TOKEN_NONE {
+                            bump()
+                            pMemberName = "None"
+                        } else {
+                            if pTok.type == TOKEN_SOME {
+                                bump()
+                                pMemberName = "Some"
+                            } else {
+                                if pTok.type == TOKEN_OK {
+                                    bump()
+                                    pMemberName = "Ok"
+                                } else {
+                                    if pTok.type == TOKEN_ERR {
+                                        bump()
+                                        pMemberName = "Err"
+                                    } else {
+                                        throw "Expected member name"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    pSymPool = push(pSymPool, pMemberName)
+                    pLeft = {
+                        "kind": AST_MEMBER,
+                        "object": pLeft,
+                        "field": pSymPool[len(pSymPool) - 1],
+                        "typeArgs": pTypeArgs
+                    }
+                    pTypeArgs = []
+                } else {
+                    if peek().type == "[" {
+                        bump()
+                        pIndexObj = pLeft
+                        pRight = parseCompare()
+                        if peek().type != "]" {
+                            throw "Expected ]"
+                        }
+                        bump()
+                        pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
                     } else {
                         break
                     }
-                }
-            }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs }
-        } else {
-            if peek().type == "." {
-                bump()
-                pTok = peek()
-                if pTok.type != TOKEN_IDENT {
-                    throw "Expected field name"
-                }
-                bump()
-                pSymPool = push(pSymPool, symCopy(pTok.value))
-                pLeft = { "kind": AST_MEMBER, "object": pLeft, "field": pSymPool[len(pSymPool) - 1] }
-            } else {
-                if peek().type == "[" {
-                    bump()
-                    pIndexObj = pLeft
-                    pRight = parseCompare()
-                    if peek().type != "]" {
-                        throw "Expected ]"
-                    }
-                    bump()
-                    pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
-                } else {
-                    break
                 }
             }
         }
@@ -330,14 +474,6 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    return pLeft
-}
-
-fn parseExpr() {
-    if peek().type == "EOF" {
-        throw "parseExpr EOF"
-    }
-    pLeft = parseCompare()
     while peek().type == "&&" {
         bump()
         pExprLeft = pLeft
@@ -365,13 +501,229 @@ fn parseStmt() {
             throw "Expected ="
         }
         bump()
-        pInit = parseExpr()
+        pInit = parseCompare()
         return { "kind": AST_LET, "sym": pBindSym, "init": pInit }
     }
     pIsPub = 0
     if peek().type == TOKEN_PUB {
         bump()
         pIsPub = 1
+    }
+    if peek().type == TOKEN_ENUM {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected enum name"
+        }
+        bump()
+        pEnumSym = symCopy(pTok.value)
+        pTypeParams = parseTypeArgs()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pVariants = []
+        while peek().type != "}" {
+            if peek().type == "," {
+                bump()
+            } else {
+                pTok = peek()
+                pVariantName = ""
+                if pTok.type == TOKEN_IDENT {
+                    bump()
+                    pVariantName = symCopy(pTok.value)
+                } else {
+                    if pTok.type == TOKEN_NONE {
+                        bump()
+                        pVariantName = "None"
+                    } else {
+                        if pTok.type == TOKEN_SOME {
+                            bump()
+                            pVariantName = "Some"
+                        } else {
+                            if pTok.type == TOKEN_OK {
+                                bump()
+                                pVariantName = "Ok"
+                            } else {
+                                if pTok.type == TOKEN_ERR {
+                                    bump()
+                                    pVariantName = "Err"
+                                } else {
+                                    if pTok.type == TOKEN_TRUE {
+                                        bump()
+                                        pVariantName = "True"
+                                    } else {
+                                        if pTok.type == TOKEN_FALSE {
+                                            bump()
+                                            pVariantName = "False"
+                                        } else {
+                                            throw "Expected variant name"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                pSymPool = push(pSymPool, pVariantName)
+                pVariantSym = pSymPool[len(pSymPool) - 1]
+                pVariantFields = []
+                if peek().type == "(" {
+                    bump()
+                    while peek().type != ")" {
+                        pTok = peek()
+                        if pTok.type != TOKEN_IDENT {
+                            throw "Expected variant field type"
+                        }
+                        bump()
+                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pVariantFields = push(pVariantFields, pSymPool[len(pSymPool) - 1])
+                        if peek().type == "," {
+                            bump()
+                        }
+                    }
+                    bump()
+                }
+                pVariants = push(pVariants, {
+                    "name": pVariantSym,
+                    "fields": pVariantFields
+                })
+                if peek().type == "," {
+                    bump()
+                }
+            }
+        }
+        bump()
+        return { "kind": AST_ENUM, "sym": pEnumSym, "typeParams": pTypeParams, "variants": pVariants }
+    }
+    if peek().type == TOKEN_CLASS {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected class name"
+        }
+        bump()
+        pClassSym = symCopy(pTok.value)
+        pTypeParams = parseTypeArgs()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pClassFields = []
+        pClassMethods = []
+        while peek().type != "}" {
+            if peek().type == TOKEN_FN {
+                bump()
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected method name"
+                }
+                bump()
+                pFnSym = symCopy(pTok.value)
+                pMethTypeParams = parseTypeArgs()
+                if peek().type != "(" {
+                    throw "Expected ("
+                }
+                bump()
+                pMethParams = []
+                pMethParamTypes = []
+                if peek().type != ")" {
+                    while true {
+                        pTok = peek()
+                        if pTok.type != TOKEN_IDENT {
+                            throw "Expected parameter name"
+                        }
+                        bump()
+                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                        pParamType = ""
+                        if peek().type == ":" {
+                            bump()
+                            pTok = peek()
+                            if pTok.type != TOKEN_IDENT {
+                                throw "Expected parameter type"
+                            }
+                            bump()
+                            pParamType = symCopy(pTok.value)
+                        }
+                        pMethParamTypes = push(pMethParamTypes, pParamType)
+                        if peek().type == "," {
+                            bump()
+                        } else {
+                            break
+                        }
+                    }
+                }
+                if peek().type != ")" {
+                    throw "Expected )"
+                }
+                bump()
+                if peek().type != "{" {
+                    throw "Expected {"
+                }
+                bump()
+                pBodyStack = push(pBodyStack, pBody)
+                pBody = []
+                while peek().type != "}" {
+                    if peek().type == "EOF" {
+                        throw "Unclosed block"
+                    }
+                    pBody = push(pBody, parseStmt())
+                    if peek().type == ";" {
+                        bump()
+                    }
+                }
+                bump()
+                let methBody = pBody
+                pBody = pBodyStack[len(pBodyStack) - 1]
+                pBodyStack = popStack(pBodyStack)
+                pVal = {
+                    "sym": pFnSym,
+                    "typeParams": pMethTypeParams,
+                    "params": pMethParams,
+                    "paramTypes": pMethParamTypes,
+                    "returnType": "",
+                    "body": { "kind": AST_BLOCK, "body": methBody }
+                }
+                pClassMethods = push(pClassMethods, pVal)
+            } else {
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected field name"
+                }
+                bump()
+                pSaveSym = symCopy(pTok.value)
+                pSymPool = push(pSymPool, pSaveSym)
+                pFieldType = ""
+                if peek().type == ":" {
+                    bump()
+                    pTok = peek()
+                    if pTok.type != TOKEN_IDENT {
+                        throw "Expected field type"
+                    }
+                    bump()
+                    pFieldType = symCopy(pTok.value)
+                }
+                pFieldDefault = null
+                if peek().type == "=" {
+                    bump()
+                    pFieldDefault = parseCompare()
+                }
+                if peek().type == ";" {
+                    bump()
+                }
+                pVal = { "name": pSymPool[len(pSymPool) - 1], "type": pFieldType, "default": pFieldDefault }
+                pClassFields = push(pClassFields, pVal)
+            }
+        }
+        bump()
+        return {
+            "kind": AST_CLASS,
+            "sym": pClassSym,
+            "typeParams": pTypeParams,
+            "fields": pClassFields,
+            "methods": pClassMethods
+        }
     }
     if peek().type == TOKEN_FN {
         bump()
@@ -382,11 +734,13 @@ fn parseStmt() {
         bump()
         pFnSym = symCopy(pTok.value)
         pFnPub = pIsPub
+        pTypeParams = parseTypeArgs()
         if peek().type != "(" {
             throw "Expected ("
         }
         bump()
         pParams = []
+        pParamTypes = []
         if peek().type != ")" {
             while true {
                 pTok = peek()
@@ -396,6 +750,17 @@ fn parseStmt() {
                 bump()
                 pSymPool = push(pSymPool, symCopy(pTok.value))
                 pParams = push(pParams, pSymPool[len(pSymPool) - 1])
+                pParamType = ""
+                if peek().type == ":" {
+                    bump()
+                    pTok = peek()
+                    if pTok.type != TOKEN_IDENT {
+                        throw "Expected parameter type"
+                    }
+                    bump()
+                    pParamType = symCopy(pTok.value)
+                }
+                pParamTypes = push(pParamTypes, pParamType)
                 if peek().type == "," {
                     bump()
                 } else {
@@ -407,6 +772,16 @@ fn parseStmt() {
             throw "Expected )"
         }
         bump()
+        pReturnType = ""
+        if peek().type == "->" {
+            bump()
+            pTok = peek()
+            if pTok.type != TOKEN_IDENT {
+                throw "Expected return type"
+            }
+            bump()
+            pReturnType = symCopy(pTok.value)
+        }
         if peek().type != "{" {
             throw "Expected {"
         }
@@ -426,11 +801,20 @@ fn parseStmt() {
         let fnBody = pBody
         pBody = pBodyStack[len(pBodyStack) - 1]
         pBodyStack = popStack(pBodyStack)
-        return { "kind": AST_FN, "sym": pFnSym, "isPub": pFnPub, "params": pParams, "body": { "kind": AST_BLOCK, "body": fnBody } }
+        return {
+            "kind": AST_FN,
+            "sym": pFnSym,
+            "isPub": pFnPub,
+            "typeParams": pTypeParams,
+            "params": pParams,
+            "paramTypes": pParamTypes,
+            "returnType": pReturnType,
+            "body": { "kind": AST_BLOCK, "body": fnBody }
+        }
     }
     if peek().type == TOKEN_IF {
         bump()
-        pCond = parseExpr()
+        pCond = parseCompare()
         pCondStack = push(pCondStack, pCond)
         if peek().type != "{" {
             throw "Expected {"
@@ -474,7 +858,7 @@ fn parseStmt() {
     }
     if peek().type == TOKEN_WHILE {
         bump()
-        pCond = parseExpr()
+        pCond = parseCompare()
         pCondStack = push(pCondStack, pCond)
         if peek().type != "{" {
             throw "Expected {"
@@ -506,7 +890,7 @@ fn parseStmt() {
     }
     if peek().type == TOKEN_THROW {
         bump()
-        pVal = parseExpr()
+        pVal = parseCompare()
         return { "kind": AST_THROW, "expr": pVal }
     }
     if peek().type == TOKEN_RETURN {
@@ -520,7 +904,7 @@ fn parseStmt() {
         if peek().type == "EOF" {
             return { "kind": AST_RETURN, "value": null }
         }
-        pVal = parseExpr()
+        pVal = parseCompare()
         return { "kind": AST_RETURN, "value": pVal }
     }
     if peek().type == "{" {
@@ -554,14 +938,14 @@ fn parseStmt() {
             pBindSym = pSymPool[len(pSymPool) - 1]
             bump()
             bump()
-            pVal = parseExpr()
+            pVal = parseCompare()
             return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
         }
     }
-    pSave = parseExpr()
+    pSave = parseCompare()
     if peek().type == "=" {
         bump()
-        pInit = parseExpr()
+        pInit = parseCompare()
         if pSave.kind == AST_VAR {
             return { "kind": AST_ASSIGN, "sym": pSave["sym"], "rhs": pInit }
         }
@@ -579,6 +963,10 @@ pub fn parseTokens(tokens) {
     pPos = 0
     pSymPool = []
     pImports = []
+    pCalleeStack = []
+    pTypeArgsStack = []
+    pCondStack = []
+    pAddLeftStack = []
     pBodyStack = push(pBodyStack, pBody)
     pBody = []
     pDone = 0

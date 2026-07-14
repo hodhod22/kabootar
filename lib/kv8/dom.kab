@@ -1,0 +1,22 @@
+@version "1.0.0"
+
+// Kv8 + kDOM/KSS UI pipeline. import "kv8/dom"
+// Use sequential JS (let a = el(...); attach(a, ...)) not nested calls (Kabootar let scoping).
+
+import "kv8/parser"
+import "kv8/eval"
+
+pub fn makeEnv() {
+    return {
+        "el": { "tag": "k8host", "name": "el" },
+        "text": { "tag": "k8host", "name": "text" },
+        "attach": { "tag": "k8host", "name": "attach" },
+        "attr": { "tag": "k8host", "name": "attr" },
+        "paint": { "tag": "k8host", "name": "paint" },
+        "applyCss": { "tag": "k8host", "name": "applyCss" }
+    }
+}
+
+pub fn evalUi(source) {
+    return evalProgram(parseSource(source), makeEnv())
+}

@@ -78,6 +78,8 @@ pub enum Opcode {
     JumpUnlessOptionSome(i32),
     UnwrapOptionSome,
     JumpUnlessOptionNone(i32),
+    JumpUnlessEnumVariant(u16, u16, i32),
+    UnpackEnumFields(u8),
     JumpUnlessConstEq(u16, i32),
     JumpUnlessArray(i32),
     JumpUnlessObject(i32),
@@ -1320,6 +1322,10 @@ fn encode_op(op: &Opcode) -> String {
         Opcode::JumpUnlessOptionSome(off) => format!("jump_unless_option_some {off}"),
         Opcode::UnwrapOptionSome => "unwrap_option_some".into(),
         Opcode::JumpUnlessOptionNone(off) => format!("jump_unless_option_none {off}"),
+        Opcode::JumpUnlessEnumVariant(type_name, variant, off) => {
+            format!("jump_unless_enum_variant {type_name} {variant} {off}")
+        }
+        Opcode::UnpackEnumFields(n) => format!("unpack_enum_fields {n}"),
         Opcode::JumpUnlessConstEq(i, off) => format!("jump_unless_const_eq {i} {off}"),
         Opcode::JumpUnlessArray(off) => format!("jump_unless_array {off}"),
         Opcode::JumpUnlessObject(off) => format!("jump_unless_object {off}"),
@@ -1408,6 +1414,12 @@ fn decode_op(line: &str) -> Result<Opcode, String> {
         "jump_unless_option_some" => Opcode::JumpUnlessOptionSome(parse_i32(parts.next(), line)?),
         "unwrap_option_some" => Opcode::UnwrapOptionSome,
         "jump_unless_option_none" => Opcode::JumpUnlessOptionNone(parse_i32(parts.next(), line)?),
+        "jump_unless_enum_variant" => Opcode::JumpUnlessEnumVariant(
+            parse_u16(parts.next(), line)?,
+            parse_u16(parts.next(), line)?,
+            parse_i32(parts.next(), line)?,
+        ),
+        "unpack_enum_fields" => Opcode::UnpackEnumFields(parse_u8(parts.next(), line)?),
         "jump_unless_const_eq" => {
             let i = parse_u16(parts.next(), line)?;
             Opcode::JumpUnlessConstEq(i, parse_i32(parts.next(), line)?)

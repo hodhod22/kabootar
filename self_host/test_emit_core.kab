@@ -1,0 +1,277 @@
+// Emit tests - core opcodes (run in isolated subprocess on Windows to avoid OOM).
+// Full suite: test_emit_core + test_emit_generics + test_emit_generics_calls
+
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+import "self_host/emit_defs"
+import "self_host/ast_defs"
+
+let passed = 0
+let fail = 0
+let tI = 0
+let tHas = 0
+
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected " + json_stringify(b) + ", got " + json_stringify(a))
+    }
+}
+
+fn assert_true(v, msg) {
+    if v {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+// -- let + return --------------------------------------------------
+{
+    let ast = parseTokens(tokenize("let x = 1; return x"))
+    let bc = emit(ast)
+    assert_eq(len(bc.globals), 1, "one global")
+    assert_eq(bc.globals[0], "x", "global name")
+    assert_true(len(bc.ops) >= 4, "let+return op count")
+    assert_eq(bc.ops[len(bc.ops) - 1].op, OP_HALT, "ends with halt")
+}
+
+// -- add expression ------------------------------------------------
+{
+    let ast = parseTokens(tokenize("1 + 2"))
+    let bc = emit(ast)
+    assert_true(len(bc.ops) >= 3, "add emits ops")
+    assert_eq(bc.ops[2].op, OP_ADD, "third op is add")
+}
+
+// -- if statement --------------------------------------------------
+{
+    let ast = parseTokens(tokenize("if x == 1 { return 0 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_JUMP_IF_FALSE {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "if emits jump_if_false")
+}
+
+// -- while loop ----------------------------------------------------
+{
+    let ast = parseTokens(tokenize("while x == 0 { x = 1 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_JUMP {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "while emits jump back")
+}
+
+// -- fn body -------------------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn add(a, b) { return a + b }"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "one function")
+    assert_eq(bc.functions[0].sym, "add", "fn sym")
+    assert_true(len(bc.functions[0].ops) >= 3, "fn body op count")
+    assert_eq(bc.functions[0].ops[len(bc.functions[0].ops) - 1].op, OP_RETURN, "fn ends with return")
+}
+
+// -- fn call -------------------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn add(a, b) { return a + b }; add(1, 2)"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "fn call: one function")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_CALL {
+            if bc.ops[tI].arg == 2 {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "main emits call 2")
+}
+
+// -- fn sym snapshot (parser pSaveSym) -----------------------------
+{
+    let ast = parseTokens(tokenize("fn a() { let x = 1 } fn b() { let y = 2 }"))
+    let bc = emit(ast)
+    assert_eq(bc.functions[0].sym, "a", "first fn sym")
+    assert_eq(bc.functions[1].sym, "b", "second fn sym")
+}
+
+// -- pub fn exports ------------------------------------------------
+{
+    let ast = parseTokens(tokenize("pub fn tokenize() { return 1 }"))
+    let bc = emit(ast)
+    assert_eq(bc.functions[0].sym, "tokenize", "pub fn sym")
+    assert_eq(len(bc.exports), 1, "one export")
+    assert_eq(bc.exports[0], "tokenize", "export name")
+}
+
+// -- member field not clobbered by emitExpr ------------------------
+{
+    let ast = parseTokens(tokenize("fn f(tok) { return tok.type }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_GET_MEMBER {
+            if bc.constants[bc.functions[0].ops[tI].arg] == "type" {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_true(tHas == 1, "member field type")
+}
+
+// -- multi-stmt fn body + fn op snapshot ---------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { if a { return 0 } let x = 1 return x }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_RETURN {
+            tHas = tHas + 1
+        }
+        tI = tI + 1
+    }
+    assert_true(tHas >= 2, "multi-stmt fn ops")
+}
+
+{
+    let ast = parseTokens(tokenize("fn a() { return 1 } fn b() { return 2 }"))
+    let bc = emit(ast)
+    assert_true(len(bc.functions[0].ops) >= 2, "fn a ops snapshotted")
+    assert_true(len(bc.functions[1].ops) >= 2, "fn b ops snapshotted")
+}
+
+// -- nested object literal in fn body -----------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { return { a: { b: 1 } } }"))
+    let bc = emit(ast)
+    assert_true(len(bc.functions[0].ops) >= 5, "nested object ops")
+}
+
+// -- module global assign in fn body ------------------------------
+{
+    let ast = parseTokens(tokenize("let g = 0\nfn f() { g = 1 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_STORE_GLOBAL {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "assign to module global in fn uses store_global")
+}
+
+// -- assign sym preserved through object rhs ----------------------
+{
+    let ast = parseTokens(tokenize("fn f() { let tokens = []; tokens = push(tokens, { column: 1 }) }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_STORE_LOCAL {
+            if bc.functions[0].locals[bc.functions[0].ops[tI].arg] == "tokens" {
+                tHas = 1
+            }
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "assign to tokens uses store_local tokens not column")
+}
+
+// -- && emits and opcode -------------------------------------------
+{
+    let ast = parseTokens(tokenize("fn f() { if cd >= 65 && cd <= 90 { ok = 1 } }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_AND {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "&& emits and")
+}
+
+// -- expr stmt after call (eExprStmt; not eBxL) --------------------
+{
+    let ast = parseTokens(tokenize("fn f() { push(a, b); return 0 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_POP {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "expr stmt call emits pop")
+}
+
+// -- bracket index emits object then index (not id[id]) ------------
+{
+    let ast = parseTokens(tokenize("fn f(id) { let kw = KEYWORDS[id]; return kw }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions[0].ops) {
+        if bc.functions[0].ops[tI].op == OP_INDEX_GET {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "index expr emits index_get")
+}
+
+// -- undefined literal distinct from null (kw == undefined) --------
+{
+    let ast = parseTokens(tokenize("if kw == undefined { return 1 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.constants) {
+        if bc.constants[tI] == KAB_UNDEF_CONST {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "undefined literal uses KAB_UNDEF_CONST pool entry")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.constants) {
+        if bc.constants[tI] == null {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 0, "undefined compare must not use null const")
+}
+
+println("")
+println("Self-hosted emit core tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "EMIT CORE TESTS FAILED"
+}

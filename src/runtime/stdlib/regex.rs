@@ -351,6 +351,29 @@ fn regex_escape_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     Ok(Value::String(regex::escape(s)))
 }
 
+/// JS `String.prototype.search` — index of first regex match, or -1.
+pub fn text_search_regex(pattern: &str, text: &str) -> Result<i64, String> {
+    let (pattern, flags) = parse_pattern_and_flags(pattern);
+    let re = compile_regex(&pattern, &flags)?;
+    if let Some((start, _, _)) = regex_find_at(&re, text, 0)? {
+        Ok(start as i64)
+    } else {
+        Ok(-1)
+    }
+}
+
+/// JS `String.prototype.match` — first match as array (index 0 = full match), or null.
+pub fn text_match_regex(pattern: &str, text: &str) -> Result<Option<Value>, String> {
+    let (pattern, flags) = parse_pattern_and_flags(pattern);
+    let re = compile_regex(&pattern, &flags)?;
+    if let Some((_, _, groups)) = regex_find_at(&re, text, 0)? {
+        let items: Vec<Value> = groups.into_iter().map(Value::String).collect();
+        Ok(Some(Value::Array(items)))
+    } else {
+        Ok(None)
+    }
+}
+
 pub fn register_regex(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("regexp_new", regexp_new_native),

@@ -1,0 +1,49 @@
+@version "1.0.0"
+
+// KSS selector matching in Kabootar (mirrors kstyle.rs selector_matches).
+// import "kstyle/selectors"
+
+pub fn matchesTag(sel, tag) {
+    return sel == tag
+}
+
+pub fn matchesClass(sel, classAttr) {
+    if len(sel) == 0 {
+        return false
+    }
+    if char_at(sel, 0) != "." {
+        return false
+    }
+    let want = str_slice(sel, 1, len(sel))
+    let parts = split(classAttr, " ")
+    for p of parts {
+        if trim(p) == want {
+            return true
+        }
+    }
+    return false
+}
+
+pub fn matchesId(sel, idAttr) {
+    if len(sel) == 0 {
+        return false
+    }
+    if char_at(sel, 0) != "#" {
+        return false
+    }
+    let want = str_slice(sel, 1, len(sel))
+    return want == idAttr
+}
+
+pub fn matches(sel, tag, classAttr, idAttr) {
+    if matchesTag(sel, tag) {
+        return true
+    }
+    if matchesClass(sel, classAttr) {
+        return true
+    }
+    if matchesId(sel, idAttr) {
+        return true
+    }
+    return false
+}

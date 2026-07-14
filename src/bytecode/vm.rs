@@ -722,6 +722,42 @@ fn run_chunk(
                     continue;
                 }
             }
+            Opcode::JumpUnlessEnumVariant(type_idx, variant_idx, off) => {
+                let v = stack.last().ok_or("Bytecode stack underflow")?;
+                let type_name = member_name(constants, *type_idx)?;
+                let variant = member_name(constants, *variant_idx)?;
+                let matches = match v {
+                    Value::EnumValue {
+                        type_name: tn,
+                        variant: vr,
+                        ..
+                    } => {
+                        vr == &variant
+                            && (tn == &type_name
+                                || tn.starts_with(&format!("{type_name}$")))
+                    }
+                    _ => false,
+                };
+                if !matches {
+                    *ip = ((*ip as i32 + 1) + off) as usize;
+                    continue;
+                }
+            }
+            Opcode::UnpackEnumFields(n) => {
+                let v = stack.pop().ok_or("Bytecode stack underflow")?;
+                let Value::EnumValue { fields, .. } = v else {
+                    return Err("UnpackEnumFields requires EnumValue".into());
+                };
+                if fields.len() != *n as usize {
+                    return Err(format!(
+                        "UnpackEnumFields expected {n} fields, got {}",
+                        fields.len()
+                    ));
+                }
+                for f in fields.into_iter().rev() {
+                    push_stack(stack, f)?;
+                }
+            }
             Opcode::JumpUnlessConstEq(const_idx, off) => {
                 let v = stack
                     .last()

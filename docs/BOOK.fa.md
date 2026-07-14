@@ -1,5 +1,8 @@
 # زبان کبوتر — مرجع کامل
 
+<div dir="rtl" lang="fa">
+
+
 ## مقدمه
 
 کبوتر یک زبان برنامه‌نویسی fullstack برای سیستم‌ها و برنامه‌های کاربردی با ساختاری شبیه به JavaScript، رفتار تایپ صریح و یک runtime بزرگ است که همه چیز را از HTTP/SQL گرفته تا workers، رمزنگاری و self-hosting پوشش می‌دهد. این کتاب زبان را همان‌گونه که در پیاده‌سازی `nova-interpreter` وجود دارد توصیف می‌کند.
@@ -20,7 +23,7 @@
 ۲. **تایپ‌های قابل پیش‌بینی** — بدون تبدیل صامت؛ `null`، `undefined`، `NaN` و `Result` صریح هستند.
 ۳. **runtime همه‌چیز‌داخل‌خود** — ماژول‌هایی برای SQL، HTTP، دسترسی OS، رمزنگاری، علوم، رندر DOM و غیره.
 
-### ۱.۲ Hello world
+### ۱.۲ برنامهٔ آغازین (Hello world)
 
 ```kabootar
 println("Hello, Kabootar!")
@@ -50,26 +53,26 @@ kabootar hello.kab
 
 ### ۲.۲ انواع اولیه
 
-| نوع | literal | توضیح |
-|-----|---------|-------|
-| عدد صحیح | `42`، `-7` | ۶۴ بیتی علامت‌دار. |
-| عدد اعشاری | `3.14`، `NaN` | ۶۴ بیتی IEEE 754. |
-| BigInt | `123n`، `BigInt("99")` | عدد صحیح با دقت دلخواه. با `number` ترکیب نمی‌شود. |
-| رشته | `"text"`، `` `template ${x}` `` | UTF-8. تمپلیت‌ها از `${expr}` پشتیبانی می‌کنند. |
-| بولین | `true`، `false` | |
-| Null | `null` | "مقدار ندارد" به صورت صریح. |
-| Undefined | `undefined` | binding مقداردهی نشده یا کلید/ایندکس ناموجود. |
+| توضیح | نمونه | نوع |
+|-------|-------|-----|
+| ۶۴ بیتی علامت‌دار. | `42`، `-7` | عدد صحیح |
+| ۶۴ بیتی IEEE 754. | `3.14`، `NaN` | عدد اعشاری |
+| عدد صحیح با دقت دلخواه؛ با `number` ترکیب نمی‌شود. | `123n`، `BigInt("99")` | BigInt |
+| UTF-8؛ تمپلیت‌ها از `${expr}` پشتیبانی می‌کنند. | `"text"`، `` `template ${x}` `` | رشته |
+| | `true`، `false` | بولین |
+| «مقدار ندارد» به‌صورت صریح. | `null` | Null |
+| binding مقداردهی‌نشده یا کلید/ایندکس ناموجود. | `undefined` | Undefined |
 
 ### ۲.۳ انواع مرکب
 
 - **آرایه**: `[1, 2, 3]`.
-- **شیء**: `{ "a": 1, b: 2 }`.
+- **آبجکت**: `{ "a": 1, b: 2 }`.
 - **Map/Set**: از طریق `map_new` / `set_new` ایجاد می‌شوند.
 - **نمونه کلاس**: از تعاریف `class` ایجاد می‌شوند.
 - **Result**: `Ok(v)`، `Err(e)`.
 - **Option**: `Some(v)`، `None`.
 
-### ۲.۴ truthiness
+### ۲.۴ ارزش منطقی (truthiness)
 
 مقادیر falsy: `null`، `undefined`، `false`، `0`، `""`، `NaN`. بقیه truthy هستند.
 
@@ -110,7 +113,7 @@ println(a)           // 2
 println(b)           // 1
 ```
 
-### ۳.۲ Destructuring
+### ۳.۲ بازآرایی (Destructuring)
 
 ```kabootar
 let [a, b, ...rest] = [1, 2, 3, 4]
@@ -125,7 +128,7 @@ println(n)           // "Ada"
 println(restObj)     // { age: 36, city: "Stockholm" }
 ```
 
-### ۳.۳ Spread
+### ۳.۳ گسترش (Spread)
 
 ```kabootar
 let base = { x: 1, y: 2 }
@@ -142,7 +145,7 @@ fn f(a, ...rest) {
 println(f(1, 2, 3))  // 2
 ```
 
-### ۳.۴ Scope
+### ۳.۴ محدوده (Scope)
 
 Scope در سطح بلوک مانند `let` در JavaScript است. خواندن یک متغیر اعلام‌نشده خطای runtime است، نه `undefined`.
 
@@ -449,7 +452,7 @@ match pair {
 }
 ```
 
-الگوها شامل: literal، متغیر، wildcard `_`، `Some`/`None`، `Ok`/`Err`، variantهای enum، آرایه‌ها، اشیاء و guardها (`if expr =>`) می‌شوند.
+الگوها شامل: literal، متغیر، wildcard `_`، `Some`/`None`، `Ok`/`Err`، variantهای enum، آرایه‌ها، آبجکت‌ها و guardها (`if expr =>`) می‌شوند.
 
 ### ۵.۶ `if let` / `while let`
 
@@ -660,7 +663,7 @@ println(square(3))        // 9
 
 ---
 
-## فصل ۷ — اشیاء، آرایه‌ها و کلاس‌ها
+## فصل ۷ — آبجکت‌ها، آرایه‌ها و کلاس‌ها
 
 ### ۷.۱ آرایه‌ها
 
@@ -685,7 +688,7 @@ println(at(xs, -1))            // 4
 
 کمک‌کننده‌های آرایه شامل `map`، `filter`، `reduce`، `find`، `slice`، `sort`، `reverse`، `join`، `includes`، `some`، `every`، `index_of`، `flat`، `flat_map`، `at`، `fill`، `to_spliced`، `to_reversed`، `to_sorted`، `shift`، `unshift`، `splice`، `concat` می‌شوند.
 
-### ۷.۲ اشیاء
+### ۷.۲ آبجکت‌ها
 
 ```kabootar
 let u = { name: "Ada", age: 36 }
@@ -703,7 +706,7 @@ copy.city = "Stockholm"
 println(copy)                  // { name: "Ada", age: 36, city: "Stockholm" }
 ```
 
-کمک‌کننده‌های شیء شامل `assign`، `has_key`، `delete_prop`، `keys`، `values`، `entries`، `from_entries`، `clone_shallow`، `group_by` می‌شوند.
+کمک‌کننده‌های آبجکت شامل `assign`، `has_key`، `delete_prop`، `keys`، `values`، `entries`، `from_entries`، `clone_shallow`، `group_by` می‌شوند.
 
 ### ۷.۳ کلاس‌ها
 
@@ -832,7 +835,7 @@ println(c.get())               // 2
 - `Ok(p)`، `Err(p)`
 - variant Enum: `Color.Red`، `Msg.Move(x, y)`
 - آرایه: `[a, b, ...rest]`
-- شیء: `{ name, age: a }`
+- آبجکت: `{ name, age: a }`
 
 **مثال: تطابق با Option**
 
@@ -844,7 +847,7 @@ match opt {
 }
 ```
 
-**مثال: تطابق آرایه‌ها و اشیاء**
+**مثال: تطابق آرایه‌ها و آبجکت‌ها**
 
 ```kabootar
 let pair = [1, 2]
@@ -1505,23 +1508,42 @@ println(date.year)                     // 2026
 
 ## فصل ۱۴ — کامپایلر و self-hosting
 
-### ۱۴.۱ Pipeline
+### ۱۴.۱ خط لوله
 
 ```
-text source
-   ↓
-lexer.kab → tokens
-   ↓
-parser.kab → AST
-   ↓
-emit.kab → bytecode IR
-   ↓
-serialize.kab → .kbc
-   ↓
-VM Rust → اجرا
+متن منبع
+    → lexer.kab        → token[]
+    → parser.kab       → AST
+    → emit.kab         → IR opcode
+    → serialize.kab    → متن .kbc
+    → compile.kab      → خط لولهٔ کامل
 ```
 
-### ۱۴.۲ فایل‌های self-host
+پیاده‌سازی Rust این مراحل را در `src/lexer.rs`، `src/parser.rs`، `src/bytecode/compiler.rs` و `src/bytecode/types.rs` منعکس می‌کند.
+
+### ۱۴.۲ کش bytecode
+
+`.kabootar/cache/*.kbc` bytecode کامپایل‌شده را ذخیره می‌کند. اگر فایل منبع جدیدتر باشد، ورودی کش باطل می‌شود.
+
+### ۱۴.۳ وضعیت self-hosting
+
+- `lexer.kab` از طریق self-host کامپایل و اجرا می‌شود.
+- `parser.kab` از طریق self-host کامپایل و اجرا می‌شود.
+- `emit.kab` از طریق self-host کامپایل و اجرا می‌شود (سنگین).
+- نقاط بعدی: self-host کامل `serialize.kab`، سپس bootstrap واقعی (`compile.kab` کامپایل‌شده با `compile()` خودکامپایل).
+
+### ۱۴.۴ قوانین طراحی self-hosting
+
+- برای slotهای scratch از state سطح ماژول استفاده کنید؛ localهای تابع Kabootar در فراخوانی بازگشتی re-entrant نیستند.
+- `push` آرایهٔ جدید برمی‌گرداند: همیشه `arr = push(arr, item)` بنویسید.
+- برای کوتاه‌کردن stack از `pop(arr)` استفاده کنید (نه حلقهٔ دستی کپی).
+- `push(stack, len(x))` در self-host compile اشتباه codegen می‌شود؛ از `pushLen(stack, x)` یا scratch جداگانه استفاده کنید.
+- قبل از نزول بازگشتی، فیلدهای AST را ذخیره کنید.
+- برای کلیدهای AST از دسترسی براکتی `node["field"]` استفاده کنید تا برخورد نام رخ ندهد.
+- تعداد توابع سطح بالای هر ماژول را کم (~۴–۷) نگه دارید تا روی Windows stack overflow نشود.
+- `if`/`while` تو در تو به stackهای jump-patch صریح نیاز دارند.
+
+### ۱۴.۵ فایل‌های self-host
 
 | فایل | نقش |
 |------|------|
@@ -1529,34 +1551,129 @@ VM Rust → اجرا
 | `self_host/parser.kab` | ساخت AST |
 | `self_host/emit.kab` | تولید IR |
 | `self_host/serialize.kab` | نوشتن .kbc |
-| `self_host/compile.kab` | wrapper pipeline |
+| `self_host/compile.kab` | wrapper خط لوله |
 
-### ۱۴.۳ قوانین طراحی self-hosting
-
-- state مدیریت‌شده در stack به جای `pop` استفاده می‌شود تا از بازنویسی متغیرهای جهانی جلوگیری شود.
-- قبل از فراخوانی بازگشتی فیلدهای AST ذخیره شوند.
-- ASTها با `node["field"]` و `node.kind` خوانده می‌شوند.
-- emitter باید از متغیرهای scratch جهانی و stackها برای operandها استفاده کند.
-- parser باید از snapshotهای symbol استفاده کند تا دوباره تعریف شدن‌ها را کنترل کند.
-- برای توسعه بیشتر، `self_host/README.md` را ببینید.
-
-### ۱۴.۴ اجرای self-hosting
+### ۱۴.۶ اجرای self-hosting
 
 ```bash
 cargo test self_host_emit_full_compile_smoke -- --nocapture
+CARGO_TARGET_DIR=target-alt3 cargo test --test self_host self_host_emit_kbc_run_only -- --ignored --nocapture
 ```
 
-### ۱۴.۵ آزمون
+### ۱۴.۷ آزمون
 
 ```bash
 cargo test --all-features
 cargo test parser -- --nocapture
-CARGO_TARGET_DIR='target-alt3' cargo test self_host -- --test-threads=1
+CARGO_TARGET_DIR=target-alt3 cargo test --test self_host self_host -- --test-threads=1
 ```
 
 ---
 
-## پیوست — ویژگی‌های متمایز
+## پیوست الف — مرجع گرامر
+
+### دستورات
+
+```
+stmt        := let_stmt | const_stmt | pub_stmt | import_stmt
+             | fn_stmt | class_stmt | enum_stmt | interface_stmt
+             | return_stmt | if_stmt | while_stmt | do_while_stmt
+             | for_stmt | switch_stmt | try_stmt | using_stmt
+             | break | continue | pass | assert | expr_stmt
+
+let_stmt    := "let" binding_pattern ("=" expr)?
+const_stmt  := "const" binding_pattern "=" expr
+pub_stmt    := "pub" (let_stmt | const_stmt | fn_stmt)
+fn_stmt     := "async"? "fn" identifier params block
+class_stmt  := "class" identifier ("extends" identifier)?
+               ("implements" identifier ("," identifier)*)? class_body
+enum_stmt   := "enum" identifier "{" enum_variant* "}"
+interface_stmt := "interface" identifier "{" fn_signature* "}"
+```
+
+### عبارات
+
+```
+expr        := assign_expr
+assign_expr := logical_or ("=" | "+=" | "-=" | "*=" | "/=" | "%=" | "**=") assign_expr
+             | logical_or
+logical_or  := logical_and ("||" logical_and)*
+logical_and := nullish ("&&" nullish)*
+nullish     := equality ("??" equality)*
+equality    := compare (("==" | "!=") compare)*
+compare     := bitwise (("<" | ">" | "<=" | ">=") bitwise)*
+bitwise     := shift (("&" | "|" | "^") shift)*
+shift       := additive (("<<" | ">>" | ">>>") additive)*
+additive    := multiplicative (("+" | "-") multiplicative)*
+multiplicative := unary (("*" | "/" | "%" | "**") unary)*
+unary       := ("!" | "-" | "~" | "delete" | "throw" | "raise") unary | postfix
+postfix     := primary ("(" args? ")" | "[" expr "]" | "." identifier | "?." identifier | "?.[" expr | "?.")*
+primary     := number | float | bigint | string | template | boolean
+             | null | undefined | NaN | identifier
+             | "(" expr ")" | array_literal | object_literal
+             | fn* block | "this" | "super" | "import" "." "meta"
+```
+
+### الگوها
+
+```
+pattern     := literal | identifier | "_" | "Some" "(" pattern ")"
+             | "None" | "Ok" "(" pattern ")" | "Err" "(" pattern ")"
+             | enum_name "." variant ("(" pattern* ")")?
+             | "[" pattern_piece* "]" | "{" object_pattern_field* "}"
+```
+
+---
+
+## پیوست ب — خلاصهٔ توابع builtin و native
+
+### کنسول
+
+- `println(...)`، `log(...)`، `console_log(...)`، `console_warn(...)`، `console_error(...)`
+
+### ریاضی
+
+فصل ۱۲.۱ را ببینید.
+
+### بررسی نوع
+
+فصل ۱۲.۱۵ را ببینید.
+
+### آرایه / آبجکت
+
+فصل ۷ را ببینید.
+
+### introspection زمان اجرا
+
+- `lang_info()`، `ecosystem_info()`، `modules_catalog()`
+
+### رجیستری
+
+- `registry_publish(path)`، `registry_install(name, version)`، `registry_list()`، `registry_search(query)`، `registry_seed()`، `registry_uninstall(name, version)`
+
+---
+
+## پیوست ج — تفاوت‌ها با JavaScript
+
+| JavaScript | Kabootar |
+|------------|----------|
+| `var` | حذف شده؛ فقط `let`/`const` |
+| `===` | `==` از قبل strict است |
+| coercion ضمنی (`"1" + 2`) | خطای runtime |
+| `null == undefined` | `false` |
+| ارث‌بری prototype | `class` به سبک C# با `self` |
+| `function` | `fn` |
+| arrow `=>` | همان syntax، با پشتیبانی block body |
+| `constructor` | `fn init(...)` |
+| `for…in` روی آبجکت | `for key in obj` |
+| `for…of` روی آرایه | `for x of xs` |
+| دستور `with` | حذف شده |
+| `eval()` | حذف شده |
+| `Infinity`/`-Infinity` | تقسیم صحیح خطاست؛ float از `NaN` استفاده می‌کند |
+
+---
+
+## پیوست د — ویژگی‌های متمایز
 
 ۱. `==` سخت و بدون coercion.
 ۲. کلاس‌های C#-style با `self` و ارث‌بری صریح.
@@ -1572,3 +1689,5 @@ CARGO_TARGET_DIR='target-alt3' cargo test self_host -- --test-threads=1
 ---
 
 *این کتاب آخرین وضعیت زبان کبوتر را در `nova-interpreter` توصیف می‌کند. برای جزئیات بیشتر مستندات تکمیلی `docs/LANGUAGE.md`، `docs/FEATURES.md`، `docs/JAVASCRIPT.md`، `docs/CLASSES.md` و `docs/MODULES.md` را ببینید.*
+
+</div>
