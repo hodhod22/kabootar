@@ -1,7 +1,14 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct FnParam {
     pub name: String,
+    pub type_ann: Option<KabType>,
     pub default: Option<Expr>,
+}
+
+/// Simple type annotation (v1: identifier only — `Number`, `String`, or type param `T`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum KabType {
+    Named(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,8 +20,10 @@ pub enum Expr {
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     Function {
         name: String,
+        type_params: Vec<String>,
         params: Vec<FnParam>,
         rest: Option<String>,
+        return_type: Option<KabType>,
         body: Box<Expr>,
         public: bool,
         async_fn: bool,
@@ -30,7 +39,11 @@ pub enum Expr {
     Yield(Box<Expr>),
     YieldStar(Box<Expr>),
     Await(Box<Expr>),
-    Call(Box<Expr>, Vec<CallArg>),
+    Call {
+        func: Box<Expr>,
+        type_args: Vec<String>,
+        args: Vec<CallArg>,
+    },
     Block(Vec<Stmt>),
     Match(Box<Expr>, Vec<MatchArm>),
     While(Box<Expr>, Box<Expr>),
@@ -66,7 +79,7 @@ pub enum Expr {
         else_branch: Option<Box<Expr>>,
     },
     Assign(AssignTarget, Box<Expr>),
-    Member(Box<Expr>, String),
+    Member(Box<Expr>, String, Vec<String>),
     Index(Box<Expr>, Box<Expr>),
     OptionalMember(Box<Expr>, String),
     OptionalIndex(Box<Expr>, Box<Expr>),
@@ -172,6 +185,16 @@ pub fn fn_param_names(params: &[FnParam]) -> Vec<String> {
     params.iter().map(|p| p.name.clone()).collect()
 }
 
+impl Expr {
+    pub fn call(func: Expr, args: Vec<CallArg>) -> Self {
+        Expr::Call {
+            func: Box::new(func),
+            type_args: Vec::new(),
+            args,
+        }
+    }
+}
+
 pub fn fn_param_defaults(params: &[FnParam]) -> Vec<Option<Expr>> {
     params.iter().map(|p| p.default.clone()).collect()
 }
@@ -197,6 +220,7 @@ pub struct ClassField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassMethod {
     pub name: String,
+    pub type_params: Vec<String>,
     pub params: Vec<String>,
     pub body: Expr,
     pub private: bool,
@@ -239,11 +263,14 @@ pub enum Stmt {
     },
     Enum {
         name: String,
+        type_params: Vec<String>,
         variants: Vec<EnumVariant>,
     },
     Class {
         name: String,
+        type_params: Vec<String>,
         extends: Option<String>,
+        extends_type_args: Vec<String>,
         implements: Vec<String>,
         fields: Vec<ClassField>,
         methods: Vec<ClassMethod>,

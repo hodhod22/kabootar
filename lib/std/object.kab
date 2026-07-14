@@ -1,0 +1,33 @@
+@version "1.0.0"
+
+// Kabootar std/object — helpers over native object globals.
+// import "std/object"
+
+pub fn isEmpty(o) {
+    return len(object_keys(o)) == 0
+}
+
+pub fn pick(o, keys) {
+    let out = {}
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        if has_key(o, k) {
+            out[k] = o[k]
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn mapValues(o, fn) {
+    let keys = object_keys(o)
+    let out = {}
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        out[k] = fn(o[k])
+        i = i + 1
+    }
+    return out
+}

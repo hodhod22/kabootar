@@ -158,6 +158,12 @@ fn std_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
         "sin",
         "cos",
         "hypot",
+        "sinh",
+        "cosh",
+        "tanh",
+        "str_match",
+        "str_search",
+        "str_locale_compare",
     ];
     let items: Vec<Value> = caps.into_iter().map(|s| Value::String(s.into())).collect();
     let mut info = std::collections::HashMap::new();

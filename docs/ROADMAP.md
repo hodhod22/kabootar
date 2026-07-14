@@ -517,10 +517,11 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 | **D2** | MMU: page faults, COW, mmap |
 | **D3** | FS: ext4-lik journal, permissions, ACL |
 | **D4** | Netstack: riktig NIC-driver (`--features hw`) |
-| **D5** | GPU compositor: multi-monitor, vsync |
+| **D5** | GPU compositor: multi-monitor, vsync, blur/acrylic-lager (kOS shell) |
 | **D6** | `os_compat_run`: Wine-lik / container (inte 99 % stub) |
 | **D7** | Boot: BIOS/UEFI chain eller bare-metal target |
 | **D8** | Sauce-strategier: haptic, seamless, energy — hardware där möjligt |
+| **D9** | **kOS desktop shell** — taskbar, Start, Explorer, Settings ([G12](ROADMAP.md), [OS.md](OS.md#desktop--utseende)) |
 
 **Våg D totalt:** ~6–12 månader
 
@@ -531,19 +532,129 @@ Våg A (JS)     ████████████░░░░  mån 1–4
 Våg B (Deno)   ░░░░████░░░░░░░░  mån 4–5
 Våg C (DOM)    ░░░░░░██████████  mån 5–10
 Våg D (OS)     ░░░░░░░░░░██████  mån 10–18+
+Våg E (boot)   ████████████████  klart (M10–M12, fn-generics)
+Våg F (gen2)   ████████████████  klart (G6–G11)
 ```
 
 **Checkpoint efter varje våg:** `cargo test` full suite + uppdatera [FEATURES.md](FEATURES.md).
 
-### Våg E — Self-host bootstrap + generics 🚧
+### Våg E — Self-host bootstrap + generics ✅
 
 | Fas | Innehåll |
 |-----|----------|
-| **E1** 🚧 | `emit.kab` full compile_and_run (M10) |
-| **E2** | `serialize.kab` full compile_and_run (M11) |
-| **E3** | True bootstrap `compile(compile.kab)` (M12) |
-| **E4** | Native generics — Rust lexer/parser/bytecode, monomorphisering ([GENERICS.md](GENERICS.md)) |
-| **E5** | Self-host generics subset i `parser.kab` / `emit.kab` |
+| **E1** ✅ | `emit.kab` full compile_and_run (M10) |
+| **E2** ✅ | `serialize.kab` full compile_and_run (M11) |
+| **E3** ✅ | True bootstrap `compile(compile.kab)` (M12) |
+| **E4** ✅ | Native generics — Rust lexer/parser/bytecode, monomorphisering v1 ([GENERICS.md](GENERICS.md), `tests/generics.rs`) |
+| **E5** ✅ | Self-host generics subset i `parser.kab` / `emit.kab` / `lexer.kab` (`test_parser.kab`, `test_emit.kab`) |
+
+### Våg F — Generics fas 2 (G6–G11) ✅
+
+Bygger på **Våg E** (fn-generics v1). Se [GENERICS.md](GENERICS.md#fas-2--g6-planering).
+
+| Fas | Innehåll | Beräknad ordning |
+|-----|----------|------------------|
+| **F1** ✅ | **G6** — Inferens v1.1: variabler med känd typ, klass-c ctor-namn, tester i `tests/generics.rs` |
+| **F2** ✅ | **G7** — Generiska klassmetoder (`fn map<U>(self, …)`), Rust parse + monomorph (`echo$Number` på klass) |
+| **F3** ✅ | **G8** — Generiska klasser (`class Box<T>`), `Box(42)` → `Box$Number`, infer + explicit type args |
+| **F4** ✅ | **G9** — Generiska enum (`enum Option<T>`), `Option.Some(42)` → `Option$Number` |
+| **F5** ✅ | **G10** — Self-host: G6 variabel-inferens i `emit.kab`, G9 enum-parse + member `typeArgs` |
+| **F6** ✅ | **G11** — LSP: hover specialiserad signatur, go-to-def på `T`, completion |
+
+**Icke-mål Våg F:** trait bounds, HKT, struct, runtime `typeid`.
+
+**Checkpoint:** `cargo test --test generics` + `self_host_parser_suite` / `self_host_emit_suite` efter varje fas.
+
+### Våg G — Standardbibliotek + traits + Kv8-ramverk 🚧
+
+Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **G1** | **`lib/std/*`**, [STDLIB.md](STDLIB.md), `str_match`/`str_search`, hyperbolic Math | ✅ subset |
+| **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | 🚧 |
+| **G3** | `import "std"` aggregator, Intl-localeCompare | 🚧 |
+| **G4** | Math rest (`f16round`, `sumPrecise`) | 🚧 |
+| **G5** | **Traits** — `trait Show { fn show<T>(self) }`, bounds i generics ([GENERICS.md#traits](GENERICS.md#traits)) | 🚧 design |
+| **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | 🚧 |
+| **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
+| **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |
+| **G9** | **Kv8 i Kabootar** — lexer/parser Kv8-subset self-host | 🚧 |
+| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | 🚧 |
+| **G11** | **kbrowser cross-platform** — samma `kb_*`-API på **kOS** + **4 desktop-värd-OS** + **mobil (Android, iPhone)**; se [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål) | 📋 planerat |
+
+**G7 — kbrowser mobil (planering):**
+
+Kabootar Browser ska fungera på **mobiltelefoner** — Android och iPhone — med samma `kb_*`-API som desktop.
+
+| Mål | Väg | Smoke |
+|-----|-----|-------|
+| **Android (web)** | Chrome / WebView + WASM + touch | `kb_viewport` + touch hit-test |
+| **Android (app)** | Kabootar Shell (WebView) + PWA manifest | install + offline VFS |
+| **iPhone (web)** | Mobile Safari + WASM | safe area + viewport |
+| **iPhone (app)** | WKWebView Shell + PWA | App Store-ready wrapper |
+
+Krav:
+
+- [ ] **Touch-input** — pek/hit-test i compositor (`kb_poll_events`, kDOM pointer events)
+- [ ] **Responsiv viewport** — `kb_viewport`, DPR, orientering (`portrait`/`landscape`)
+- [ ] **iOS safe area** — notch/home indicator via KSS env-variabler eller `kb_safe_area()`
+- [ ] **Mobil shell-UI** — kompakt adressfält, flikar, tillbaka; delad `lib/kbrowser/` med desktop
+- [ ] **PWA** — service worker + manifest ([BROWSER_V2.md](BROWSER_V2.md)); “Lägg till hemskärm”
+- [ ] **Smokes** — `examples/kbrowser_mobile_smoke.kab`; manuell/device CI (inte i snabb `cargo test`)
+
+Beror på: **G11** (kbrowser core), **Våg C** (layout, touch targets), **BROWSER_V2 PWA**.
+
+**G11 — kbrowser på desktop-mål (planering):**
+
+Kabootar Browser (`kbrowser`) ska inte bara köras i Chrome/WASM — den ska vara **första-klassens** på Kabootar OS (kOS) *och* på varje host där motorn byggs:
+
+| Mål | Renderingsväg | Smoke |
+|-----|---------------|-------|
+| **kOS** | VFS (`kabootar://`), compositor, OS-fönster | `kb_navigate("kabootar://vfs/…")` + `kb_paint()` |
+| **Windows** | Native shell / pixel-compositor | `file:///…`, `kb_host_sync()` |
+| **Linux** | Native shell (X11/Wayland bridge) | samma API som Windows |
+| **macOS** | Native shell (AppKit bridge) | samma API som Windows |
+| **WASM** | `kabootar-shell.html` + host canvas | `wasm-pack` + `kb_run_ui()` |
+
+Krav:
+
+- [ ] **`lib/kbrowser/`** (eller motsv.) i Kabootar — navigation, flikar, viewport, theme; Rust endast som tunn host-bindning
+- [ ] **`kb_sync_platform()`** — rätt URL-scheme och I/O per mål (`kabootar://` vs `file://` vs HTTP)
+- [ ] **Enhetlig compositor-yta** — `kb_mount` → `kb_render` → `kb_paint` på alla fem; kOS kopplar till `os_window_*`
+- [ ] **CI-smokes** — minst ett `examples/kbrowser_*_smoke.kab` per plattformsklass (native / wasm / kos)
+- [ ] **Dokumentation** — matris i [BROWSER.md](BROWSER.md), uppdatera [FEATURES.md](FEATURES.md) när varje mål går grönt
+
+Mobil (Android, iPhone): se **G7** — samma `lib/kbrowser/`, touch + viewport + PWA/Shell.
+
+Beror på: **G6–G10** (kDOM/Kv8/kss), **Våg C** (layout/canvas), **`lib/os/*`** (VFS, async, fönster).
+
+| **G12** | **kOS desktop shell** — Windows-lik UX (taskbar, Start, fönster, Explorer) med modern stack (kDOM/KSS, GPU compositor, blur, animationer); se [OS.md#desktop--utseende](OS.md#desktop--utseende) | 📋 planerat |
+
+**G12 — kOS utseende (planering):**
+
+Målbild: användaren ska känna igen sig från Windows, men systemet ska **se och kännas 2020+-modernt** — inte Win32.
+
+| Komponent | Innehåll | Teknik |
+|-----------|----------|--------|
+| **Shell** | Taskbar, Start/meny, systemfält, klocka | `lib/kos/shell.kab` |
+| **Fönsterhanterare** | Titelfält, min/max/stäng, snap-zoner, Alt+Tab | `os_window_*` + compositor |
+| **Explorer** | `kabootar://vfs`, mount, sökvägsfält | kbrowser + VFS |
+| **Settings** | Kategorier (system, nät, skärm, integritet) | Kv8-app i VFS |
+| **Tema** | Mörk/ljust, accentfärg, skal-transparens | KSS tokens + `kb_theme()` |
+| **Rörelse** | Öppna/stäng, snap, hover | spring physics (`os_haptic_*`), vsync |
+
+Milstolpar:
+
+- [ ] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster
+- [ ] **G12.2** — Start + app-lista från VFS (`/apps`)
+- [ ] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`)
+- [ ] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay
+- [ ] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema
+
+Beror på: **G11** (kbrowser), **Våg D5** (GPU compositor), **Våg C4** (layout).
+
+**Tester:** `cargo test stdlib_wave`, `cargo test --test kabootar_js_parity`, [VSCODE_TESTS.md](VSCODE_TESTS.md).
 
 ---
 

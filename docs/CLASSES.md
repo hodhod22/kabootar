@@ -130,3 +130,14 @@ Fälttyper (`string`, `number`) är annoteringar för nu — runtime validerar d
 | Arv | Prototypkedja | `extends` — fält/metoder kopieras vid materialisering |
 
 Se [ROADMAP.md](ROADMAP.md) och [JAVASCRIPT.md](JAVASCRIPT.md) för JS-jämförelse.
+
+## Generiska klasser (G7–G8) ✅
+
+Fn-generics v1 och klass-generics (Rust) enligt [GENERICS.md](GENERICS.md#fas-2--g6-planering) och roadmap **Våg F**:
+
+| Milestone | Innehåll |
+|-----------|----------|
+| **G7** ✅ | Generiska **metoder** — `fn echo<T>(x) { … }` |
+| **G8** ✅ | Generiska **klasser** — `class Box<T> { … }`, monomorphisering som fn (`Box$Number`) |
+
+**Struct** planeras inte. Trait bounds och generiska interfaces ingår inte i Våg F.

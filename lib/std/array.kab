@@ -1,0 +1,32 @@
+@version "1.0.0"
+
+// Kabootar std/array — helpers composing native array globals.
+// Natives: map, filter, reduce, slice, flat, push, pop, …
+// import "std/array"
+
+pub fn sum(arr) {
+    return reduce(arr, (a, b) => a + b, 0)
+}
+
+pub fn isEmpty(arr) {
+    return len(arr) == 0
+}
+
+pub fn first(arr) {
+    if len(arr) == 0 {
+        return null
+    }
+    return arr[0]
+}
+
+pub fn last(arr) {
+    let n = len(arr)
+    if n == 0 {
+        return null
+    }
+    return arr[n - 1]
+}
+
+pub fn fromIterable(items) {
+    return array_from(items)
+}

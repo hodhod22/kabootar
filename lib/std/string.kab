@@ -1,0 +1,28 @@
+@version "1.0.0"
+
+// Kabootar std/string — helpers composing native string globals.
+// Natives: trim, split, str_match, str_search, pad_start, …
+// import "std/string"
+
+pub fn isEmpty(s) {
+    return len(s) == 0
+}
+
+pub fn isBlank(s) {
+    return len(trim(s)) == 0
+}
+
+pub fn capitalize(s) {
+    if len(s) == 0 {
+        return s
+    }
+    return to_upper(char_at(s, 0)) + to_lower(str_slice(s, 1))
+}
+
+pub fn lines(s) {
+    return split(s, "\n")
+}
+
+pub fn words(s) {
+    return split(trim(s), " ")
+}

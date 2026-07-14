@@ -1,0 +1,389 @@
+@version "1.0.0"
+
+// Kv8 JS-subset lexer in Kabootar (mirrors src/runtime/kv8/lexer.rs subset).
+// KEEP <=~4 top-level fn. import "kv8/lexer"
+
+import "kv8/defs"
+
+let k8Pos = 0
+let k8Src = ""
+let k8Line = 1
+let k8Col = 1
+
+fn lxScan() {
+    if k8Pos >= len(k8Src) {
+        return { "type": TOKEN_EOF, "value": null, "line": k8Line, "column": k8Col }
+    }
+    let c = char_at(k8Src, k8Pos)
+    let line = k8Line
+    let col = k8Col
+
+    if c == "(" || c == ")" || c == "{" || c == "}" || c == "[" || c == "]" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        return { "type": c, "value": null, "line": line, "column": col }
+    }
+    if c == ";" || c == "," || c == ":" || c == "^" || c == "~" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        return { "type": c, "value": null, "line": line, "column": col }
+    }
+
+    if c == "+" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "+" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "++", "value": null, "line": line, "column": col }
+        }
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "+=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "+", "value": null, "line": line, "column": col }
+    }
+
+    if c == "-" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "-" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "--", "value": null, "line": line, "column": col }
+        }
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "-=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "-", "value": null, "line": line, "column": col }
+    }
+
+    if c == "*" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "*=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "*", "value": null, "line": line, "column": col }
+    }
+
+    if c == "/" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "/=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "/", "value": null, "line": line, "column": col }
+    }
+
+    if c == "%" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "%=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "%", "value": null, "line": line, "column": col }
+    }
+
+    if c == "?" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "?" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "??", "value": null, "line": line, "column": col }
+        }
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "." {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "?.", "value": null, "line": line, "column": col }
+        }
+        return { "type": "?", "value": null, "line": line, "column": col }
+    }
+
+    if c == "=" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+                return { "type": "===", "value": null, "line": line, "column": col }
+            }
+            return { "type": "==", "value": null, "line": line, "column": col }
+        }
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == ">" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "=>", "value": null, "line": line, "column": col }
+        }
+        return { "type": "=", "value": null, "line": line, "column": col }
+    }
+
+    if c == "!" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+                return { "type": "!==", "value": null, "line": line, "column": col }
+            }
+            return { "type": "!=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "!", "value": null, "line": line, "column": col }
+    }
+
+    if c == "&" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "&" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "&&", "value": null, "line": line, "column": col }
+        }
+        return { "type": "&", "value": null, "line": line, "column": col }
+    }
+
+    if c == "|" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "|" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "||", "value": null, "line": line, "column": col }
+        }
+        return { "type": "|", "value": null, "line": line, "column": col }
+    }
+
+    if c == "<" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": "<=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "<", "value": null, "line": line, "column": col }
+    }
+
+    if c == ">" {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "=" {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            return { "type": ">=", "value": null, "line": line, "column": col }
+        }
+        return { "type": ">", "value": null, "line": line, "column": col }
+    }
+
+    if c == "." {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "." {
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            if k8Pos < len(k8Src) && char_at(k8Src, k8Pos) == "." {
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+                return { "type": "...", "value": null, "line": line, "column": col }
+            }
+        }
+        return { "type": ".", "value": null, "line": line, "column": col }
+    }
+
+    if c == QUOTE || c == SQUOTE {
+        let q = c
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        let s = ""
+        while k8Pos < len(k8Src) {
+            let ch = char_at(k8Src, k8Pos)
+            if ch == "\\" {
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+                if k8Pos >= len(k8Src) {
+                    throw "Unterminated string escape"
+                }
+                let e = char_at(k8Src, k8Pos)
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+                if e == "n" { s = s + "\n" } else {
+                    if e == "t" { s = s + "\t" } else {
+                        if e == "r" { s = s + "\r" } else { s = s + e }
+                    }
+                }
+                continue
+            }
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            if ch == q {
+                break
+            }
+            s = s + ch
+        }
+        return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
+    }
+
+    if c == BACKTICK {
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        let s = ""
+        while k8Pos < len(k8Src) {
+            let ch = char_at(k8Src, k8Pos)
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+            if ch == BACKTICK {
+                break
+            }
+            s = s + ch
+        }
+        return { "type": TOKEN_TEMPLATE, "value": s, "line": line, "column": col }
+    }
+
+    let code0 = char_code_at(c, 0)
+    if code0 >= 48 && code0 <= 57 {
+        let digits = c
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        while k8Pos < len(k8Src) {
+            let ch = char_at(k8Src, k8Pos)
+            let cd = char_code_at(ch, 0)
+            if cd >= 48 && cd <= 57 {
+                digits = digits + ch
+                k8Pos = k8Pos + 1
+                k8Col = k8Col + 1
+            } else {
+                if ch == "." {
+                    digits = digits + ch
+                    k8Pos = k8Pos + 1
+                    k8Col = k8Col + 1
+                    while k8Pos < len(k8Src) {
+                        let d2 = char_at(k8Src, k8Pos)
+                        let cd2 = char_code_at(d2, 0)
+                        if cd2 >= 48 && cd2 <= 57 {
+                            digits = digits + d2
+                            k8Pos = k8Pos + 1
+                            k8Col = k8Col + 1
+                        } else {
+                            break
+                        }
+                    }
+                }
+                break
+            }
+        }
+        return { "type": TOKEN_NUMBER, "value": digits, "line": line, "column": col }
+    }
+
+    let isStart = 0
+    if code0 >= 97 && code0 <= 122 { isStart = 1 }
+    if code0 >= 65 && code0 <= 90 { isStart = 1 }
+    if c == "_" || c == "$" { isStart = 1 }
+    if isStart == 1 {
+        let id = c
+        k8Pos = k8Pos + 1
+        k8Col = k8Col + 1
+        while k8Pos < len(k8Src) {
+            let ch = char_at(k8Src, k8Pos)
+            let cd = char_code_at(ch, 0)
+            let ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if ch == "_" || ch == "$" { ok = 1 }
+            if ok == 0 { break }
+            id = id + ch
+            k8Pos = k8Pos + 1
+            k8Col = k8Col + 1
+        }
+        let kw = KEYWORDS[id]
+        if kw == undefined {
+            return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+        }
+        return { "type": kw, "value": null, "line": line, "column": col }
+    }
+
+    throw "Kv8 lexer: unknown char " + c + " at line " + ("" + line)
+}
+
+pub fn tokenize(source) {
+    k8Pos = 0
+    k8Src = source
+    k8Line = 1
+    k8Col = 1
+    let tokens = []
+    while true {
+        while k8Pos < len(k8Src) {
+            let ch = char_at(k8Src, k8Pos)
+            if ch == " " || ch == "\t" || ch == "\r" {
+                k8Col = k8Col + 1
+                k8Pos = k8Pos + 1
+            } else {
+                if ch == "\n" {
+                    k8Line = k8Line + 1
+                    k8Col = 1
+                    k8Pos = k8Pos + 1
+                } else {
+                    break
+                }
+            }
+        }
+        if k8Pos >= len(k8Src) {
+            break
+        }
+        if char_at(k8Src, k8Pos) == "/" && k8Pos + 1 < len(k8Src) && char_at(k8Src, k8Pos + 1) == "/" {
+            k8Pos = k8Pos + 2
+            while k8Pos < len(k8Src) && char_at(k8Src, k8Pos) != "\n" {
+                k8Pos = k8Pos + 1
+            }
+            continue
+        }
+        if char_at(k8Src, k8Pos) == "/" && k8Pos + 1 < len(k8Src) && char_at(k8Src, k8Pos + 1) == "*" {
+            k8Pos = k8Pos + 2
+            while k8Pos < len(k8Src) {
+                if char_at(k8Src, k8Pos) == "*" && k8Pos + 1 < len(k8Src) && char_at(k8Src, k8Pos + 1) == "/" {
+                    k8Pos = k8Pos + 2
+                    break
+                }
+                if char_at(k8Src, k8Pos) == "\n" {
+                    k8Line = k8Line + 1
+                    k8Col = 1
+                } else {
+                    k8Col = k8Col + 1
+                }
+                k8Pos = k8Pos + 1
+            }
+            continue
+        }
+        let tok = lxScan()
+        if tok.type == TOKEN_EOF {
+            break
+        }
+        tokens = push(tokens, tok)
+    }
+    tokens = push(tokens, { "type": TOKEN_EOF, "value": null, "line": k8Line, "column": k8Col })
+    return tokens
+}
+
+pub fn tokenType(tok) {
+    return tok.type
+}
+
+pub fn tokenValue(tok) {
+    return tok.value
+}

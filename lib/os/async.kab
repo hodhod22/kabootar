@@ -1,0 +1,34 @@
+@version "1.0.0"
+
+// Async OS VFS. import "os/async"
+// Imported promise helpers must use awaitAll internally (Kabootar module await quirk).
+
+fn readOne(path) {
+    let xs = await_all([os_read_async(path)])
+    return xs[0]
+}
+
+fn writeOne(path, content) {
+    await_all([os_write_async(path, content)])
+    return null
+}
+
+pub fn readAsync(path) {
+    return readOne(path)
+}
+
+pub fn writeAsync(path, content) {
+    return writeOne(path, content)
+}
+
+pub fn awaitAll(promises) {
+    return await_all(promises)
+}
+
+pub fn readPromise(path) {
+    return os_read_async(path)
+}
+
+pub fn writePromise(path, content) {
+    return os_write_async(path, content)
+}

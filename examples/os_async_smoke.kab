@@ -1,0 +1,17 @@
+// Kabootar OS async smoke - cargo run --bin kabootar -- examples/os_async_smoke.kab
+
+import "os/vfs"
+import "os/async"
+
+mkdir("/async")
+write("/async/one.txt", "A")
+write("/async/two.txt", "B")
+
+let joined = awaitAll([readPromise("/async/one.txt"), readPromise("/async/two.txt")])
+println("os async: joined=" + json_stringify(joined[0] + joined[1]))
+
+await writeAsync("/async/rt.txt", "ok")
+let rt = await readAsync("/async/rt.txt")
+println("os async: rt=" + json_stringify(rt))
+
+return len(joined[0] + joined[1])

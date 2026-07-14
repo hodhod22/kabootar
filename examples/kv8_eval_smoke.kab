@@ -1,0 +1,15 @@
+// Kv8 eval smoke - Kabootar lib/kv8/eval.kab
+// cargo run --bin kabootar -- examples/kv8_eval_smoke.kab
+
+import "kv8/eval"
+
+let a = evalSource("let x = 1 + 2; x")
+println("kv8 eval: x=" + json_stringify(a))
+
+let b = evalSource("function add(a, b) { return a + b; } add(3, 4)")
+println("kv8 eval: add=" + json_stringify(b))
+
+let c = evalSource("let n = 5; if (n > 3) { n + 10 } else { 0 }")
+println("kv8 eval: if=" + json_stringify(c))
+
+return b

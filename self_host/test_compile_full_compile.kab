@@ -1,0 +1,18 @@
+// Smoke: compile a compile-facade-like snippet; full compile.kab in Rust CI (slow).
+// Do not call compile() inside the snippet - nested pipeline overflows the test stack.
+import "self_host/compile"
+import "self_host/lexer_defs"
+
+let snippet = "import \"self_host/parse\"" + CHAR_NL
+    + "import \"self_host/emit\"" + CHAR_NL
+    + "import \"self_host/serialize\"" + CHAR_NL
+    + "pub fn compile(source) {" + CHAR_NL
+    + "  return serialize_bc(emit(parse(source)))" + CHAR_NL
+    + "}" + CHAR_NL
+    + "return 1"
+
+let kbc = compile(snippet)
+if char_at(kbc, 0) != "k" {
+    throw "compile snippet compile: bad header"
+}
+println("compile snippet compile ok")

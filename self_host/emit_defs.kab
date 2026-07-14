@@ -47,6 +47,7 @@ pub let OP_JUMP_IF_TRUE = "jump_if_true"
 
 // ----- FUNCTIONS -----
 pub let OP_CALL = "call"
+pub let OP_NEW_INSTANCE = "new_instance"
 pub let OP_RETURN = "return"
 
 // ----- EXCEPTIONS -----

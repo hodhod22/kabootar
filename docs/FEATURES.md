@@ -13,7 +13,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Kategori | Funktion |
 |----------|----------|
 | Variabler | `let`, **`const`** (immutable) |
-| Funktioner | `fn`, `return`, nästlade funktioner |
+| Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host) |
 | Kontroll | `if`/`else`, `while`, **`do { } while`**, **`for x in xs`**, **`for x of xs`**, **`switch`**, `break`, `continue` |
 | Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, `&& \|\|`, **`??`**, **`!`**, **`? :`**, **`& \| ^ ~ << >> >>>`** |
 | Data | array `[1,2]`, **objekt `{ a: 1 }`**, strängar `"..."`, **template `` `Hej ${name}` ``** |
@@ -334,11 +334,25 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | `Deno.emit` / TS compile | **`ts_compile`**, **`ts_compile_file`**, **`Deno_emit`** → `{ code, diagnostics }` |
 | Type erasure | **`ts_strip_types`**, **`ts_transpile`** — interface/type/enum/generics/modifiers (TS-källa, **inte** native Kabootar) |
 
-### 🚧 Planerat (språk)
+### 🚧 Planerat (språk — generics fas 2)
+
+| Feature | Milestone | Doc |
+|---------|-----------|-----|
+| Inferens från variabler (`let n = 42; id(n)`) | G6 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska klassmetoder (`fn echo<T>(x) { … }`) | G7 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska klasser (`class Box<T>`) | G8 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska enum / `Option<T>` | G9 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Self-host generics fas 2 | G10 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| LSP hover / completion för generics | G11 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+
+### 🚧 Planerat (språk — generics fas 3)
 
 | Feature | Status | Doc |
 |---------|--------|-----|
-| Native generics (`fn id<T>(x: T)`) | Efter self-host M12 | [GENERICS.md](GENERICS.md) |
+| `match Option.Some(v)` i bytecode | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
+| `class Child<T> extends Base<T>` | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
+| Self-host `NewInstance` opcode | ✅ | [self_host/README.md](../self_host/README.md) |
+| LSP hover member-call med receiver | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
 
 ### ✅ Deno-paritet (runtime våg 17)
 

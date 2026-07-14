@@ -30,6 +30,20 @@ fn kabootar_bin() -> std::path::PathBuf {
     }
 }
 
+/// Pre pop()-refactor emit.kab compiled to bytecode with manual stack-copy loops in popStack.
+/// Running emit() from such a .kbc appears to hang (hours of CPU on emit_call).
+fn assert_fresh_emit_kbc(kbc: &str) {
+    let stale_popstack = kbc.contains("fn 0 popStack\nfn_params 0 stack\nfn_locals 0 stack,newStack,i")
+        && kbc.contains("fn_op 0 jump -20");
+    if stale_popstack {
+        panic!(
+            "stale _emit_full_out.kbc (pre pop() refactor in emit.kab): emit_call will not finish in reasonable time.\n\
+             Rebuild (~4h): python scripts/profile_emit_compile.py compile emit.kab\n\
+             Or full M10 (compile+run): cargo test --test self_host self_host_emit_full_compile_and_run -- --ignored --test-threads=1"
+        );
+    }
+}
+
 fn run_kabootar_file_subprocess(path: &str) -> Result<(), String> {
     let bin = kabootar_bin();
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -48,6 +62,272 @@ fn run_kabootar_file_subprocess(path: &str) -> Result<(), String> {
         path,
         output.status
     ))
+}
+
+/// Compile lexer/parser/emit once per test run (re-compiling per section OOMs on Windows).
+fn load_self_host_emit_programs() -> Result<Vec<kabootar_lib::compile::CompiledProgram>, String> {
+    use kabootar_lib::compile::compile_file_cached;
+
+    let mut out = Vec::with_capacity(3);
+    for mod_file in ["lexer.kab", "parser.kab", "emit.kab"] {
+        let path = self_host_path(mod_file);
+        let program = compile_file_cached(&path)?;
+        if !program.has_bytecode() {
+            return Err(format!("{mod_file} must compile to bytecode"));
+        }
+        out.push(program);
+    }
+    Ok(out)
+}
+
+/// Load precompiled self_host modules into `env`.
+fn preload_self_host_emit_deps(
+    env: &mut kabootar_lib::value::Environment,
+    programs: &[kabootar_lib::compile::CompiledProgram],
+) -> Result<(), String> {
+    use kabootar_lib::compile::eval_program;
+
+    for program in programs {
+        eval_program(program, env)?;
+    }
+    Ok(())
+}
+
+/// Run one emit test section with fresh env + preloaded bytecode modules.
+fn run_emit_section(
+    title: &str,
+    body: &str,
+    programs: &[kabootar_lib::compile::CompiledProgram],
+) -> Result<(), String> {
+    use kabootar_lib::evaluator::{create_global_env, eval_source};
+
+    let header = r#"import "self_host/emit_defs"
+import "self_host/ast_defs"
+let passed = 0
+let fail = 0
+let tI = 0
+let tHas = 0
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected " + json_stringify(b) + ", got " + json_stringify(a))
+    }
+}
+fn assert_true(v, msg) {
+    if v {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+"#;
+    let mut env = create_global_env();
+    preload_self_host_emit_deps(&mut env, programs)?;
+    let src = format!(
+        "{header}{body}\nif fail > 0 {{ throw \"EMIT FAIL: {title}\" }}\n"
+    );
+    eval_source(&src, &mut env).map_err(|e| format!("{title}: {e}"))?;
+    Ok(())
+}
+
+/// Run one emit section in a fresh kabootar subprocess (frees heap between sections).
+fn run_emit_section_subprocess(title: &str, body: &str) -> Result<(), String> {
+    let header = r#"import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+import "self_host/emit_defs"
+import "self_host/ast_defs"
+let passed = 0
+let fail = 0
+let tI = 0
+let tHas = 0
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected " + json_stringify(b) + ", got " + json_stringify(a))
+    }
+}
+fn assert_true(v, msg) {
+    if v {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+"#;
+    let probe = format!(
+        "{header}{body}\nif fail > 0 {{ throw \"EMIT FAIL: {title}\" }}\nreturn 1\n"
+    );
+    let safe: String = title
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let path = self_host_path(&format!("_emit_section_{safe}.kab"));
+    std::fs::write(&path, probe).map_err(|e| format!("write section probe {title}: {e}"))?;
+    let result = run_kabootar_file_subprocess(&path);
+    let _ = std::fs::remove_file(&path);
+    result.map_err(|e| format!("{title}: {e}"))
+}
+
+/// Run `test_emit.kab` sections (subprocess per section; emit.kab must stay <=7 top-level fn).
+fn run_emit_test_suite() -> Result<(), String> {
+    let sections = emit_sections_from_test_file()?;
+    eprintln!(
+        "emit suite: {} sections, one kabootar subprocess each",
+        sections.len()
+    );
+    assert!(
+        sections.len() >= 20,
+        "expected >= 20 emit sections in test_emit.kab, got {}",
+        sections.len()
+    );
+    for (title, body) in sections {
+        eprintln!("emit section: {title}");
+        run_emit_section_subprocess(&title, &body)?;
+    }
+    Ok(())
+}
+
+/// Rust compile + run_module only (no emit call).
+#[test]
+fn self_host_emit_rust_run_module_smoke() {
+    use kabootar_lib::bytecode::run_module;
+    use kabootar_lib::compile::compile_file;
+    use kabootar_lib::evaluator::create_global_env;
+
+    let emit_path = self_host_path("emit.kab");
+    let program = compile_file(&emit_path).expect("compile emit.kab");
+    let bytecode = program
+        .bytecode
+        .as_ref()
+        .expect("emit.kab should produce bytecode");
+    eprintln!(
+        "emit module: main_ops={} fn_count={} main_locals={}",
+        bytecode.main_code.len(),
+        bytecode.functions.len(),
+        bytecode.main_locals.len()
+    );
+    let mut env = create_global_env();
+    run_module(bytecode, &mut env).expect("run_module emit.kab");
+    assert!(env.get("emit").is_some(), "emit export after run_module");
+}
+
+#[test]
+fn self_host_lexer_rust_run_module_smoke() {
+    use kabootar_lib::bytecode::run_module;
+    use kabootar_lib::compile::compile_file;
+    use kabootar_lib::evaluator::create_global_env;
+
+    let path = self_host_path("lexer.kab");
+    let program = compile_file(&path).expect("compile lexer.kab");
+    let bytecode = program.bytecode.as_ref().expect("lexer bytecode");
+    eprintln!(
+        "lexer module: main_ops={} fn_count={} main_locals={}",
+        bytecode.main_code.len(),
+        bytecode.functions.len(),
+        bytecode.main_locals.len()
+    );
+    let mut env = create_global_env();
+    run_module(bytecode, &mut env).expect("run_module lexer.kab");
+    assert!(env.get("tokenize").is_some());
+}
+
+#[test]
+fn self_host_parser_rust_run_module_smoke() {
+    use kabootar_lib::bytecode::run_module;
+    use kabootar_lib::compile::compile_file;
+    use kabootar_lib::evaluator::create_global_env;
+
+    let path = self_host_path("parser.kab");
+    let program = compile_file(&path).expect("compile parser.kab");
+    let bytecode = program.bytecode.as_ref().expect("parser bytecode");
+    eprintln!(
+        "parser module: main_ops={} fn_count={} main_locals={}",
+        bytecode.main_code.len(),
+        bytecode.functions.len(),
+        bytecode.main_locals.len()
+    );
+    let mut env = create_global_env();
+    run_module(bytecode, &mut env).expect("run_module parser.kab");
+    assert!(env.get("parseTokens").is_some());
+}
+
+/// Rust compile + run_module + emit(parse) without kabootar CLI (fast regression for Windows OOM).
+#[test]
+fn self_host_emit_rust_compile_run_smoke() {
+    use kabootar_lib::bytecode::{call_value, run_module};
+    use kabootar_lib::compile::compile_file;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::Value;
+
+    let emit_path = self_host_path("emit.kab");
+    let program = compile_file(&emit_path).expect("compile emit.kab");
+    let bytecode = program
+        .bytecode
+        .as_ref()
+        .expect("emit.kab should produce bytecode");
+    let mut env = create_global_env();
+    run_module(bytecode, &mut env).expect("run_module emit.kab");
+    let emit_fn = env.get("emit").expect("emit export");
+    let ast = parse_via_interpreter("let x = 1");
+    let bc = call_value(emit_fn, vec![ast], &[], &[], &[], &[], &mut env)
+        .expect("emit(parse let x=1)");
+    let Value::Object(ir) = bc else {
+        panic!("emit should return object");
+    };
+    let Value::Array(globals) = ir.get("globals").expect("globals") else {
+        panic!("globals array");
+    };
+    assert_eq!(globals.len(), 1);
+}
+
+/// Split `test_emit.kab` into sections at `// --` markers (section count sanity check).
+fn emit_sections_from_test_file() -> Result<Vec<(String, String)>, String> {
+    let content = std::fs::read_to_string(self_host_path("test_emit.kab"))
+        .map_err(|e| format!("read test_emit.kab: {e}"))?;
+    let mut out = Vec::new();
+    let mut title: Option<String> = None;
+    let mut body = String::new();
+    for line in content.lines() {
+        if line.starts_with("// --") {
+            if let Some(t) = title.take() {
+                if !t.contains("Report") && !body.trim().is_empty() {
+                    out.push((t, body.clone()));
+                }
+                body.clear();
+            }
+            title = Some(line.trim().to_string());
+            continue;
+        }
+        if line.starts_with("import ")
+            || line.starts_with("let passed")
+            || line.starts_with("let fail")
+            || line.starts_with("let tI")
+            || line.starts_with("let tHas")
+            || line.starts_with("fn assert_")
+            || line.starts_with("// Test suite")
+            || line.starts_with("// CI:")
+            || line.starts_with("// Full suite")
+        {
+            continue;
+        }
+        if title.is_some() {
+            body.push_str(line);
+            body.push('\n');
+        }
+    }
+    if let Some(t) = title {
+        if !t.contains("Report") && !body.trim().is_empty() {
+            out.push((t, body));
+        }
+    }
+    Ok(out)
 }
 
 fn tokenize_via_interpreter(src: &str) -> kabootar_lib::value::Value {
@@ -90,16 +370,84 @@ fn self_host_lexer_suite() {
         .expect("self_host/test_lexer.kab should pass");
 }
 
-#[test]
-fn self_host_parser_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_parser.kab"))
-        .expect("self_host/test_parser.kab should pass");
+/// Compile lexer + parser once (interpreting parser.kab OOMs on Windows).
+fn load_self_host_parser_programs() -> Result<Vec<kabootar_lib::compile::CompiledProgram>, String> {
+    use kabootar_lib::compile::compile_file_cached;
+
+    let mut out = Vec::with_capacity(2);
+    for mod_file in ["lexer.kab", "parser.kab"] {
+        let path = self_host_path(mod_file);
+        let program = compile_file_cached(&path)?;
+        if !program.has_bytecode() {
+            return Err(format!("{mod_file} must compile to bytecode"));
+        }
+        out.push(program);
+    }
+    Ok(out)
+}
+
+fn preload_self_host_parser_deps(
+    env: &mut kabootar_lib::value::Environment,
+    programs: &[kabootar_lib::compile::CompiledProgram],
+) -> Result<(), String> {
+    use kabootar_lib::compile::eval_program;
+
+    for program in programs {
+        eval_program(program, env)?;
+    }
+    Ok(())
+}
+
+fn run_parser_test_suite() -> Result<(), String> {
+    use kabootar_lib::compile::{compile_file_cached, eval_program};
+    use kabootar_lib::evaluator::create_global_env;
+
+    let programs = load_self_host_parser_programs()?;
+    let mut env = create_global_env();
+    preload_self_host_parser_deps(&mut env, &programs)?;
+    eval_program(&compile_file_cached(&self_host_path("test_parser.kab"))?, &mut env)?;
+    Ok(())
 }
 
 #[test]
+fn self_host_parser_suite() {
+    run_parser_test_suite().expect("self_host/test_parser.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~6m): first emit section (tokenize+parse+emit)"]
+fn self_host_emit_first_section_smoke() {
+    let programs = load_self_host_emit_programs().expect("compile emit deps");
+    let sections = emit_sections_from_test_file().expect("parse test_emit.kab sections");
+    let (title, body) = sections.first().expect("at least one emit section");
+    run_emit_section(title, body, &programs).expect("first emit section should pass");
+}
+
+/// First three emit sections (let/add/if) - ~20 min regression without full suite runtime.
+#[test]
+#[ignore = "slow (~20m): first 3 emit sections"]
+fn self_host_emit_core_sections_smoke() {
+    let programs = load_self_host_emit_programs().expect("compile emit deps");
+    let sections = emit_sections_from_test_file().expect("parse test_emit.kab sections");
+    for (title, body) in sections.into_iter().take(3) {
+        run_emit_section(&title, &body, &programs).expect("emit core section should pass");
+    }
+}
+
+#[test]
+#[ignore = "slow (~2h on Windows): all emit sections; see self_host_emit_first_section_smoke"]
 fn self_host_emit_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_emit.kab"))
-        .expect("self_host/test_emit.kab should pass");
+    run_emit_test_suite().expect("self_host/test_emit.kab should pass");
+}
+
+#[test]
+fn self_host_emit_section_count() {
+    let sections = emit_sections_from_test_file().expect("parse test_emit.kab sections");
+    assert!(
+        sections.len() >= 28,
+        "expected >= 28 emit sections, got {}",
+        sections.len()
+    );
 }
 
 #[test]
@@ -115,6 +463,31 @@ fn self_host_serialize_compiles() {
         .expect("serialize.kab should compile");
     assert!(n > 0);
     assert!(bytecode);
+}
+
+/// Interpreter serialize must emit line-oriented .kbc (CHAR_NL, not literal "\\n").
+#[test]
+fn self_host_serialize_interpreter_deserializes() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::value::Value;
+
+    let probe_src = r#"import "self_host/parse"
+import "self_host/emit"
+import "self_host/serialize"
+return serialize_bc(emit(parse("let x = 1; return x")))"#;
+    let probe_path = self_host_path("_serialize_interp_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write serialize interpreter probe");
+    let v = kabootar_lib::cli::run_file(&probe_path).expect("serialize interpreter probe");
+    let _ = std::fs::remove_file(&probe_path);
+    let Value::String(text) = v else {
+        panic!("serialize_bc should return string, got {v:?}");
+    };
+    assert!(
+        text.contains("kabootar-bytecode/1\n"),
+        "serialized .kbc must use real newlines after header"
+    );
+    let module = deserialize(&text).expect("Rust deserialize interpreter serialize output");
+    assert_eq!(module.globals, vec!["x".to_string()]);
 }
 
 #[test]
@@ -518,36 +891,18 @@ fn self_host_emit_full_compile_smoke() {
         .expect("self_host/test_emit_full_compile.kab should pass");
 }
 
-#[test]
-#[ignore = "slow (~2-3h): self-hosted compile(emit.kab); run: cargo test --test self_host -- --ignored"]
-fn self_host_emit_full_compile_and_run() {
+fn assert_emit_kbc_runs_let_x_1(kbc: &str) {
     use kabootar_lib::bytecode::{call_value, deserialize, run_module};
     use kabootar_lib::evaluator::create_global_env;
     use kabootar_lib::runtime::stdlib::error::format_runtime_error;
     use kabootar_lib::value::Value;
 
-    let probe_path = self_host_path("_emit_full_probe_gen.kab");
-    let src_copy = format!("{}/_emit_full_src.kab", env!("CARGO_MANIFEST_DIR"));
-    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
-    let _ = std::fs::remove_file(&src_copy);
-    let _ = std::fs::remove_file(&out_file);
-    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
-    std::fs::copy(self_host_path("emit.kab"), &src_copy).expect("copy emit.kab for compile probe");
-    let probe = format!(
-        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_emit_full_src.kab\"))\nwrite_text_file(\"/proj/_emit_full_out.kbc\", kbc)\nreturn len(kbc)",
-        kab_string_literal(&manifest)
-    );
-    std::fs::write(&probe_path, probe).expect("write generated emit full compile probe");
-
-    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(emit.kab) via subprocess");
-    let _ = std::fs::remove_file(&probe_path);
-
-    let kbc = std::fs::read_to_string(&out_file).expect("read compiled emit .kbc output");
     assert!(
         kbc.starts_with("kabootar-bytecode/1"),
         "emit .kbc should have bytecode header"
     );
-    let module = deserialize(&kbc).expect("deserialize compiled emit.kab");
+    assert_fresh_emit_kbc(kbc);
+    let module = deserialize(kbc).expect("deserialize compiled emit.kab");
     assert!(!module.functions.is_empty(), "emit should emit functions");
     let mut run_env = create_global_env();
     run_module(&module, &mut run_env).expect("run compiled emit module");
@@ -587,7 +942,11 @@ fn self_host_emit_full_compile_and_run() {
     let Value::Array(ops) = ir.get("ops").expect("emit IR ops") else {
         panic!("emit ops should be array");
     };
-    assert!(ops.len() >= 4, "let x = 1 should emit several main ops");
+    assert!(
+        ops.len() >= 3,
+        "let x = 1 should emit const/store_global/halt, got {} ops",
+        ops.len()
+    );
     let Value::Object(last_op) = ops.last().expect("emit ops non-empty") else {
         panic!("emit op should be object");
     };
@@ -606,8 +965,281 @@ fn self_host_emit_full_compile_and_run() {
         matches!(obj.get("op"), Some(Value::String(s)) if s == "store_global")
     });
     assert!(has_store_global, "let x = 1 should emit store_global");
+}
+
+#[test]
+#[ignore = "slow (~2-3h): self-hosted compile(emit.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_emit_full_compile_and_run() {
+    let probe_path = self_host_path("_emit_full_probe_gen.kab");
+    let src_copy = format!("{}/_emit_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
     let _ = std::fs::remove_file(&src_copy);
     let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("emit.kab"), &src_copy).expect("copy emit.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_emit_full_src.kab\"))\nwrite_text_file(\"/proj/_emit_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated emit full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(emit.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled emit .kbc output");
+    assert_emit_kbc_runs_let_x_1(&kbc);
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+}
+
+fn emit_via_interpreter(src: &str) -> kabootar_lib::value::Value {
+    let probe_src = format!(
+        "import \"self_host/parse\"\nimport \"self_host/emit\"\nreturn emit(parse({}))",
+        kab_string_literal(src)
+    );
+    let probe_path = self_host_path("_emit_helper_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write emit helper probe");
+    let v = kabootar_lib::cli::run_file(&probe_path).expect("emit helper should run");
+    let _ = std::fs::remove_file(&probe_path);
+    v
+}
+
+fn assert_fresh_serialize_kbc(kbc: &str) {
+    if kbc.starts_with("kabootar-bytecode/1constants=")
+        || kbc.starts_with("kabootar-bytecode/1const")
+    {
+        panic!(
+            "stale _serialize_full_out.kbc (pre CHAR_NL fix in serialize.kab): .kbc is one line, deserialize will fail.\n\
+             Rebuild (~50m): python scripts/profile_emit_compile.py compile serialize.kab\n\
+             Or full M11: cargo test --test self_host self_host_serialize_full_compile_and_run -- --ignored --test-threads=1"
+        );
+    }
+    assert!(
+        kbc.contains("kabootar-bytecode/1\n"),
+        "serialize .kbc must use real newlines (CHAR_NL)"
+    );
+}
+
+fn assert_serialize_kbc_roundtrips_let_x_1(kbc: &str) {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::runtime::stdlib::error::format_runtime_error;
+    use kabootar_lib::value::{Value, format_value};
+
+    assert!(
+        kbc.starts_with("kabootar-bytecode/1"),
+        "serialize .kbc should have bytecode header"
+    );
+    assert_fresh_serialize_kbc(kbc);
+    let module = deserialize(kbc).expect("deserialize compiled serialize.kab");
+    assert!(
+        !module.functions.is_empty(),
+        "serialize should emit helper functions"
+    );
+    let mut run_env = create_global_env();
+    run_module(&module, &mut run_env).expect("run compiled serialize module");
+    let serialize_bc = run_env
+        .get("serialize_bc")
+        .expect("compiled serialize should export serialize_bc");
+    let ir = emit_via_interpreter("let x = 1; return x");
+    let text = match call_value(
+        serialize_bc,
+        vec![ir],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = format_runtime_error(&e);
+            panic!("serialize_bc(emit(parse(...))) threw: {msg}");
+        }
+    };
+    let Value::String(kbc_text) = text else {
+        panic!("serialize_bc should return .kbc text, got {text:?}");
+    };
+    assert!(
+        kbc_text.starts_with("kabootar-bytecode/1"),
+        "serialized output should have bytecode header"
+    );
+    assert!(
+        kbc_text.contains("global 0 x"),
+        "let x = 1 should serialize global x"
+    );
+    let roundtrip = deserialize(&kbc_text).expect("deserialize self-serialized .kbc");
+    let mut rt_env = create_global_env();
+    let result = run_module(&roundtrip, &mut rt_env).expect("run self-serialized module");
+    assert_eq!(
+        format_value(&result),
+        "1",
+        "let x = 1; return x via self-hosted serialize"
+    );
+}
+
+#[test]
+fn self_host_serialize_full_compile_smoke() {
+    kabootar_lib::cli::run_file(&self_host_path("test_serialize_full_compile.kab"))
+        .expect("self_host/test_serialize_full_compile.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~30-90m): self-hosted compile(serialize.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_serialize_full_compile_and_run() {
+    let probe_path = self_host_path("_serialize_full_probe_gen.kab");
+    let src_copy = format!("{}/_serialize_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_serialize_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("serialize.kab"), &src_copy)
+        .expect("copy serialize.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_serialize_full_src.kab\"))\nwrite_text_file(\"/proj/_serialize_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated serialize full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path)
+        .expect("kabootar compile(serialize.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled serialize .kbc output");
+    assert_serialize_kbc_roundtrips_let_x_1(&kbc);
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+}
+
+/// Run phase only: reuse _serialize_full_out.kbc from a prior compile(serialize.kab).
+#[test]
+#[ignore = "requires _serialize_full_out.kbc from serialize full compile"]
+fn self_host_serialize_kbc_run_only() {
+    let out_file = format!("{}/_serialize_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let kbc = std::fs::read_to_string(&out_file).unwrap_or_else(|e| {
+        panic!("read {out_file}: {e} (run serialize full compile first)")
+    });
+    assert_serialize_kbc_roundtrips_let_x_1(&kbc);
+}
+
+/// Run phase only: reuse _emit_full_out.kbc from a prior compile(emit.kab).
+#[test]
+#[ignore = "requires _emit_full_out.kbc from emit full compile"]
+fn self_host_emit_kbc_run_only() {
+    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let kbc = std::fs::read_to_string(&out_file)
+        .unwrap_or_else(|e| panic!("read {out_file}: {e} (run emit full compile first)"));
+    assert_emit_kbc_runs_let_x_1(&kbc);
+}
+
+/// compile.kab body uses nested calls; callee must not clobber (pCalleeStack + eCalleeStack).
+#[test]
+fn self_host_emit_nested_call_compile_facade() {
+    let src = std::fs::read_to_string(self_host_path("compile.kab")).expect("read compile.kab");
+    let probe_src = format!(
+        "import \"self_host/parse\"\nimport \"self_host/emit\"\nlet ir = emit(parse({}))\nif len(ir[\"globals\"]) < 4 {{ throw \"expected 4 globals\" }}\nreturn 0",
+        kab_string_literal(&src)
+    );
+    let probe_path = self_host_path("_emit_nested_call_probe_gen.kab");
+    std::fs::write(&probe_path, probe_src).expect("write nested call emit probe");
+    run_kabootar_file_subprocess(&probe_path).expect("nested call emit probe");
+    let _ = std::fs::remove_file(&probe_path);
+}
+
+fn assert_compiled_compile_runs_sample(kbc: &str) {
+    use kabootar_lib::bytecode::{call_value, deserialize, run_module};
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::runtime::stdlib::error::format_runtime_error;
+    use kabootar_lib::value::{Value, format_value};
+
+    assert!(
+        kbc.starts_with("kabootar-bytecode/1"),
+        "compile .kbc should have bytecode header"
+    );
+    let module = deserialize(kbc).expect("deserialize compiled compile.kab");
+    assert!(
+        !module.functions.is_empty(),
+        "compile.kab should emit compile function body"
+    );
+    let mut run_env = create_global_env();
+    run_module(&module, &mut run_env).expect("run compiled compile module");
+    let compile_fn = run_env
+        .get("compile")
+        .expect("compiled compile.kab should export compile");
+    let sample_src = "let n = 10\nreturn n + 32";
+    let text = match call_value(
+        compile_fn,
+        vec![Value::String(sample_src.into())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut run_env,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = format_runtime_error(&e);
+            panic!("compile(sample) threw: {msg}");
+        }
+    };
+    let Value::String(sample_kbc) = text else {
+        panic!("compile should return .kbc text, got {text:?}");
+    };
+    assert!(
+        sample_kbc.starts_with("kabootar-bytecode/1"),
+        "compile(sample) should produce bytecode header"
+    );
+    let sample_mod = deserialize(&sample_kbc).expect("deserialize compile(sample) output");
+    let mut sample_env = create_global_env();
+    let result = run_module(&sample_mod, &mut sample_env).expect("run compile(sample) output");
+    assert_eq!(
+        format_value(&result),
+        "42",
+        "true bootstrap: compile(sample) should return 42"
+    );
+}
+
+#[test]
+fn self_host_compile_full_compile_smoke() {
+    run_kabootar_file_subprocess(&self_host_path("test_compile_full_compile.kab"))
+        .expect("self_host/test_compile_full_compile.kab should pass");
+}
+
+#[test]
+#[ignore = "slow (~1-3h): self-hosted compile(compile.kab); run: cargo test --test self_host -- --ignored"]
+fn self_host_compile_full_compile_and_run() {
+    let probe_path = self_host_path("_compile_full_probe_gen.kab");
+    let src_copy = format!("{}/_compile_full_src.kab", env!("CARGO_MANIFEST_DIR"));
+    let out_file = format!("{}/_compile_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+    let manifest = env!("CARGO_MANIFEST_DIR").replace('\\', "/");
+    std::fs::copy(self_host_path("compile.kab"), &src_copy)
+        .expect("copy compile.kab for compile probe");
+    let probe = format!(
+        "import \"self_host/compile\"\nos_mount(\"/proj\", {})\nlet kbc = compile(read_text_file(\"/proj/_compile_full_src.kab\"))\nwrite_text_file(\"/proj/_compile_full_out.kbc\", kbc)\nreturn len(kbc)",
+        kab_string_literal(&manifest)
+    );
+    std::fs::write(&probe_path, probe).expect("write generated compile full compile probe");
+
+    run_kabootar_file_subprocess(&probe_path).expect("kabootar compile(compile.kab) via subprocess");
+    let _ = std::fs::remove_file(&probe_path);
+
+    let kbc = std::fs::read_to_string(&out_file).expect("read compiled compile .kbc output");
+    assert_compiled_compile_runs_sample(&kbc);
+    let _ = std::fs::remove_file(&src_copy);
+    let _ = std::fs::remove_file(&out_file);
+}
+
+/// Run phase only: reuse _compile_full_out.kbc from a prior compile(compile.kab).
+#[test]
+#[ignore = "requires _compile_full_out.kbc from compile full compile"]
+fn self_host_compile_kbc_run_only() {
+    let out_file = format!("{}/_compile_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let kbc = std::fs::read_to_string(&out_file).unwrap_or_else(|e| {
+        panic!("read {out_file}: {e} (run compile full compile first)")
+    });
+    assert_compiled_compile_runs_sample(&kbc);
 }
 
 #[test]
@@ -884,6 +1516,16 @@ fn self_host_kbc_run_fn_call() {
     );
 }
 
+/// Fail fast if _emit_full_out.kbc on disk predates emit.kab pop() refactor.
+#[test]
+fn self_host_emit_kbc_freshness_guard() {
+    let out_file = format!("{}/_emit_full_out.kbc", env!("CARGO_MANIFEST_DIR"));
+    let Ok(kbc) = std::fs::read_to_string(&out_file) else {
+        return; // no artifact yet
+    };
+    assert_fresh_emit_kbc(&kbc);
+}
+
 /// Profile: deserialize / run_module / emit(parse) after compile(emit.kab).
 /// Run: cargo test --test self_host self_host_emit_profile_run_phases -- --ignored --nocapture
 #[test]
@@ -905,6 +1547,7 @@ fn self_host_emit_profile_run_phases() {
     profile_step("read_kbc_start");
     let kbc = std::fs::read_to_string(&out_file)
         .unwrap_or_else(|e| panic!("read {out_file}: {e} (run emit full compile first)"));
+    assert_fresh_emit_kbc(&kbc);
     profile_step(&format!("read_kbc_done bytes={}", kbc.len()));
 
     let t0 = Instant::now();

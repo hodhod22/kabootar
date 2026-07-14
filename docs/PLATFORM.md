@@ -83,6 +83,7 @@ platform_use("hybrid");    // båda tillgängliga
 | Scenario | Lager |
 |----------|-------|
 | Webbapp i Chrome/Safari | Host (`document`, `window`) |
+| **Mobil (Android, iPhone)** | Host WASM + `kbrowser` touch/viewport ([G7](ROADMAP.md), [BROWSER.md](BROWSER.md)) |
 | Native desktop utan browser | Kabootar (`kdom`, `kbrowser`, `os`) |
 | Server / SSR | Kabootar (`kdom_render`, `sql`, `http_*`) |
 | Fullstack samma kodbas | Hybrid — UI i `kdom`, deploy WASM med host |

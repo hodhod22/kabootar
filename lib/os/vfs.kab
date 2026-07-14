@@ -1,0 +1,33 @@
+@version "1.0.0"
+
+// Kabootar OS VFS wrappers (natives os_* are syscalls). import "os/vfs"
+// KEEP <=~7 top-level fn.
+
+pub fn read(path) {
+    return os_read(path)
+}
+
+pub fn write(path, content) {
+    return os_write(path, content)
+}
+
+pub fn exists(path) {
+    return os_exists(path)
+}
+
+pub fn list(dir) {
+    return os_list(dir)
+}
+
+pub fn mkdir(path) {
+    return os_mkdir(path)
+}
+
+pub fn remove(path) {
+    return os_delete(path)
+}
+
+pub fn stat(path) {
+    let s = os_stat(path)
+    return { "kind": s[0], "size": s[1], "mtime": s[2], "readonly": s[3] }
+}

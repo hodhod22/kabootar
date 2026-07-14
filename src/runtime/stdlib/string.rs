@@ -2,6 +2,7 @@
 
 use crate::value::{Environment, Value};
 use unicode_normalization::UnicodeNormalization;
+use std::cmp::Ordering;
 
 fn str_arg(v: &Value) -> Result<&str, String> {
     match v {
@@ -273,6 +274,34 @@ fn from_code_point_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     from_char_code_native(args, _env)
 }
 
+fn str_search_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let text = str_arg(args.first().ok_or("str_search(text, pattern)")?)?;
+    let pattern = str_arg(args.get(1).ok_or("str_search(text, pattern)")?)?;
+    Ok(Value::Number(
+        crate::runtime::stdlib::regex::text_search_regex(pattern, text)?,
+    ))
+}
+
+fn str_match_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let text = str_arg(args.first().ok_or("str_match(text, pattern)")?)?;
+    let pattern = str_arg(args.get(1).ok_or("str_match(text, pattern)")?)?;
+    match crate::runtime::stdlib::regex::text_match_regex(pattern, text)? {
+        Some(v) => Ok(v),
+        None => Ok(Value::Null),
+    }
+}
+
+fn str_locale_compare_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = str_arg(args.first().ok_or("str_locale_compare(a, b)")?)?;
+    let b = str_arg(args.get(1).ok_or("str_locale_compare(a, b)")?)?;
+    let ord = a.cmp(b);
+    Ok(Value::Number(match ord {
+        Ordering::Less => -1,
+        Ordering::Equal => 0,
+        Ordering::Greater => 1,
+    }))
+}
+
 pub fn register_string(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("substring", substring_native),
@@ -311,6 +340,12 @@ pub fn register_string(env: &mut Environment) {
         ("from_code_point", from_code_point_native),
         ("string_trim", trim_native),
         ("string_char_at", char_at_native),
+        ("str_search", str_search_native),
+        ("string_search", str_search_native),
+        ("str_match", str_match_native),
+        ("string_match", str_match_native),
+        ("str_locale_compare", str_locale_compare_native),
+        ("string_locale_compare", str_locale_compare_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));

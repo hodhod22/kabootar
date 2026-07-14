@@ -72,6 +72,50 @@ kb_navigate("kabootar://vfs/host/app/page.kml");
 
 Framtida steg: OS-fönster kopplas direkt till `kbrowser`-viewport (compositor).
 
+## Plattformsmål
+
+`kbrowser` ska fungera **överallt Kabootar körs** — inte bara som WASM-demo i Chrome. Sju målklasser:
+
+| # | Plattform | Lager | Primär URL / I/O |
+|---|-----------|-------|------------------|
+| 1 | **kOS** | Kabootar-native | `kabootar://vfs/…`, `os_*`, compositor |
+| 2 | **Windows** | Host + hybrid | `file:///`, native desktop shell |
+| 3 | **Linux** | Host + hybrid | `file://`, X11/Wayland bridge |
+| 4 | **macOS** | Host + hybrid | `file://`, AppKit bridge |
+| 5 | **WASM** (desktop web) | Host (web) | `kabootar-shell.html`, canvas + `kb_host_sync()` |
+| 6 | **Android** | Mobil host | WebView / PWA + touch; framtida Kabootar Shell-app |
+| 7 | **iPhone / iOS** | Mobil host | WKWebView / PWA + touch + safe area; framtida Shell-app |
+
+### Mobil (Android & iPhone)
+
+Samma **`kb_*`-API** som desktop — anpassad **input**, **viewport** och **shell**, inte ett separat “mini-browser”-språk.
+
+| Krav | Android | iPhone / iOS |
+|------|---------|----------------|
+| Motor | WASM i WebView / Chrome | WASM i WKWebView / Mobile Safari |
+| Touch | `touchstart` / `touchmove` / `touchend` → kDOM hit-test | samma + scroll-rubberband policy |
+| Viewport | `kb_viewport(w, h)`, DPR, orientering | + **safe area** (notch, home indicator) |
+| Navigation | Tillbaka-gest, adressfält / flikar (mobil layout) | swipe-back, iOS safe-area padding |
+| Distribution | PWA (`kabootar-shell.html`) → Play Store Shell | PWA → App Store Shell (WKWebView) |
+| kOS / seamless | `os_seamless_*` — clipboard/handoff mot desktop | samma ([OS.md](OS.md)) |
+
+Mobil implementeras under **[ROADMAP G7](ROADMAP.md)** och delar compositor med **G11**.
+
+Principer (planerat — [ROADMAP.md — Våg G11](ROADMAP.md)):
+
+1. **Samma Kabootar-API** — `kb_navigate`, `kb_mount`, `kb_render`, `kb_paint`, flikar/historik på **desktop och mobil**.
+2. **Plattformsadapter** — `kb_sync_platform()` / `platform_use("kabootar"|"host"|"hybrid")` väljer scheme, fil-I/O och paint-backend.
+3. **kOS som referens** — VFS-sidor och OS-fönster är canonical; host-OS speglar beteendet via mount (`os_mount("/host", …)`). **Utseende:** Windows-lik familiaritet (taskbar, Start, Explorer) med modern Kabootar-rendering — se [OS.md#desktop--utseende](OS.md#desktop--utseende) och [ROADMAP G12](ROADMAP.md).
+4. **Små smoke per klass** — native (win/linux/mac), wasm, kos, **mobil (Android/iOS)**; inga megabundles i standard-`cargo test`.
+
+Implementeringsordning (förslag):
+
+```
+lib/os + lib/kdom + lib/kv8  →  lib/kbrowser/*.kab  →  host-bindningar per OS  →  mobil touch/viewport (G7)  →  CI-smokes
+```
+
+Se även [PLATFORM.md](PLATFORM.md) (dual-layer) och [STDLIB.md](STDLIB.md) (plattformstabell).
+
 **v2.50+:** WebAssembly, WebGL, WebRTC, DevTools, Extensions, PWA — se [BROWSER_V2.md](BROWSER_V2.md).
 
 ## Arkitektur

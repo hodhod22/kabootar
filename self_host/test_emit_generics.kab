@@ -1,0 +1,126 @@
+// Emit tests - generics registration (isolated subprocess; see test_emit_core.kab).
+
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+import "self_host/emit_defs"
+import "self_host/ast_defs"
+
+let passed = 0
+let fail = 0
+let tI = 0
+let tHas = 0
+
+fn assert_eq(a, b, msg) {
+    if a == b {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected " + json_stringify(b) + ", got " + json_stringify(a))
+    }
+}
+
+fn assert_true(v, msg) {
+    if v {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+// -- generic fn monomorphizes on call ------------------------------
+{
+    let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; let n = id(42); let s = id(\"hi\")"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 2, "two specializations")
+    assert_eq(bc.functions[0].sym, "id$Number", "id Number spec")
+    assert_eq(bc.functions[1].sym, "id$String", "id String spec")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.functions) {
+        if bc.functions[tI].sym == "id" {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 0, "no unspecialized id fn")
+}
+
+// -- explicit generic type arg -------------------------------------
+{
+    let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; id<Number>(42)"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "one explicit specialization")
+    assert_eq(bc.functions[0].sym, "id$Number", "explicit id$Number")
+}
+
+// -- pub generic fn exports base name only -------------------------
+{
+    let ast = parseTokens(tokenize("pub fn id<T>(x: T) -> T { return x }"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 0, "generic template not emitted as fn")
+    assert_eq(len(bc.exports), 1, "pub generic export")
+    assert_eq(bc.exports[0], "id", "export base name")
+}
+
+// -- infer generic type from let binding (G6) ----------------------
+{
+    let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; let n = 42; id(n)"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "one var-inferred specialization")
+    assert_eq(bc.functions[0]["sym"], "id$Number", "id$Number from let n = 42")
+}
+
+// -- generic class ctor monomorph (G8) -----------------------------
+{
+    let ast = parseTokens(tokenize("class Box<T> { }; Box(42)"))
+    let bc = emit(ast)
+    assert_eq(len(bc.classes), 1, "one class specialization")
+    assert_eq(bc.classes[0]["sym"], "Box$Number", "Box$Number from Box(42)")
+    tHas = 0
+    tI = 0
+    while tI < len(bc.classes) {
+        if bc.classes[tI]["sym"] == "Box" {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 0, "no unspecialized Box class")
+}
+
+// -- generic enum ctor monomorph (G9) ------------------------------
+{
+    let src = "enum Option<T> { Some(T), None }; Option.Some(42)"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    assert_eq(len(bc.enums), 1, "one enum specialization")
+    assert_eq(bc.enums[0]["sym"], "Option$Number", "Option$Number from Some(42)")
+}
+
+// -- generic enum member type args (G9) ----------------------------
+{
+    let src = "enum Option<T> { Some(T), None }; Option<Number>.None"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    assert_eq(len(bc.enums), 1, "enum from typed member")
+    assert_eq(bc.enums[0]["sym"], "Option$Number", "Option$Number from Option<Number>.None")
+}
+
+// -- generic class method template (G7) ----------------------------
+{
+    let src = "class Holder { fn echo<T>(x) { return x } }"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    assert_eq(len(bc.genericMethodTemplates), 1, "one generic method template")
+    assert_eq(bc.genericMethodTemplates[0]["classSym"], "Holder", "template class")
+    assert_eq(bc.genericMethodTemplates[0]["methodSym"], "echo", "template method")
+    assert_eq(len(bc.classes), 1, "non-generic class emitted")
+    assert_eq(bc.classes[0]["sym"], "Holder", "Holder class")
+}
+
+println("")
+println("Self-hosted emit generics tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "EMIT GENERICS TESTS FAILED"
+}

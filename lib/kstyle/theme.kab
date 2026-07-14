@@ -1,0 +1,40 @@
+@version "1.0.0"
+
+// KSS theme builder - programmatic rules via kstyle_* natives.
+// import "kstyle/theme"
+
+import "kstyle/parse"
+
+pub fn reset() {
+    return kstyle_reset()
+}
+
+pub fn addRule(selector, prop, value) {
+    return kstyle_rule(selector, prop, value)
+}
+
+pub fn commit() {
+    return kstyle_commit()
+}
+
+pub fn cssText() {
+    return kstyle_css()
+}
+
+// Dark UI preset matching Kabootar render defaults.
+pub fn applyDark() {
+    reset()
+    addRule("body", "color", "#e8eaed")
+    addRule("body", "background", "#202124")
+    addRule("h1", "font-size", "24px")
+    addRule("h1", "color", "#8ab4f8")
+    addRule(".card", "padding", "12px")
+    addRule(".card", "border-radius", "8px")
+    addRule(".card", "background", "#303134")
+    return commit()
+}
+
+// Reset + one selector block from CSS string (Kabootar parser).
+pub fn applyCss(css) {
+    return parseAndApply(css)
+}

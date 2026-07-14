@@ -1,4 +1,4 @@
-use kabootar_lib::language::{analyze, completions, goto_definition, hover_word, word_at_position, CompletionKind, Severity};
+use kabootar_lib::language::{analyze, completions_at, goto_definition, hover_at, word_at_position, CompletionKind, Severity};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -20,7 +20,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec![".".to_string()]),
+                    trigger_characters: Some(vec![".".to_string(), "<".to_string()]),
                     ..Default::default()
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -70,13 +70,9 @@ impl LanguageServer for Backend {
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri.clone();
         let doc = self.documents.read().await.get(&uri).cloned().unwrap_or_default();
-        let prefix = word_at_position(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-            &doc,
-        );
-
-        let items: Vec<CompletionItem> = completions(&prefix)
+        let pos = params.text_document_position.position;
+        let prefix = word_at_position(pos.line, pos.character, &doc);
+        let items: Vec<CompletionItem> = completions_at(&doc, pos.line, pos.character, &prefix)
             .into_iter()
             .map(|item| CompletionItem {
                 label: item.label,
@@ -85,6 +81,8 @@ impl LanguageServer for Backend {
                     CompletionKind::Keyword => CompletionItemKind::KEYWORD,
                     CompletionKind::Function => CompletionItemKind::FUNCTION,
                     CompletionKind::Module => CompletionItemKind::MODULE,
+                    CompletionKind::Type => CompletionItemKind::TYPE_PARAMETER,
+                    CompletionKind::Generic => CompletionItemKind::CLASS,
                 }),
                 ..Default::default()
             })
@@ -96,12 +94,8 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri.clone();
         let doc = self.documents.read().await.get(&uri).cloned().unwrap_or_default();
-        let word = word_at_position(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-            &doc,
-        );
-        Ok(hover_word(&word).map(|contents| Hover {
+        let pos = params.text_document_position_params.position;
+        Ok(hover_at(&doc, pos.line, pos.character).map(|contents| Hover {
             contents: HoverContents::Scalar(MarkedString::String(contents)),
             range: None,
         }))
@@ -112,14 +106,16 @@ impl LanguageServer for Backend {
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = params.text_document_position_params.text_document.uri.clone();
-        let doc = self.documents.read().await.get(&uri).cloned()?;
+        let Some(doc) = self.documents.read().await.get(&uri).cloned() else {
+            return Ok(None);
+        };
         let pos = params.text_document_position_params.position;
         let Some(target) = goto_definition(&doc, pos.line, pos.character) else {
             return Ok(None);
         };
 
         let target_uri = if let Some(module) = target.module {
-            Url::parse(&format!("kabootar://module/{}", module)).ok()?
+            Url::parse(&format!("kabootar://module/{}", module)).unwrap_or(uri.clone())
         } else {
             uri
         };

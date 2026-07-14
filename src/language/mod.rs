@@ -1,9 +1,16 @@
+mod generics_lsp;
 mod symbols;
 
 pub use symbols::{DefinitionSite, Symbol, SymbolKind};
 
 use crate::lexer::tokenize;
 use crate::parser::Parser;
+pub use generics_lsp::{
+    class_signature, collect_generic_templates, demangle_name, fn_signature, generic_word_at,
+    hover_for_symbol, hover_from_ast, hover_member_at, in_type_arg_context, parse_for_lsp,
+    symbol_covering,
+    TYPE_NAMES,
+};
 pub use symbols::{definition_before, resolve_definition};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,18 +64,16 @@ pub fn analyze(source: &str) -> Vec<Diagnostic> {
 }
 
 pub fn goto_definition(source: &str, line: u32, column: u32) -> Option<GotoTarget> {
-    let word = word_at_position(line, column, source);
+    let word = generic_word_at(line, column, source);
     if word.is_empty() {
         return None;
     }
 
-    let tokens = tokenize(source).ok()?;
-    let mut parser = Parser::with_eof(tokens);
-    parser.parse_program().ok()?;
+    let (_, symbols) = parse_for_lsp(source)?;
 
     let use_line = line + 1;
     let use_column = column + 1;
-    let sym = definition_before(parser.symbols(), &word, use_line, use_column)?;
+    let sym = definition_before(&symbols, &word, use_line, use_column)?;
     let site = resolve_definition(sym);
     Some(GotoTarget {
         line: site.line,
@@ -95,6 +100,79 @@ pub fn word_at_position(line: u32, character: u32, text: &str) -> String {
 
 fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
+}
+
+pub fn hover_at(source: &str, line: u32, column: u32) -> Option<String> {
+    let word = generic_word_at(line, column, source);
+    if word.is_empty() {
+        return None;
+    }
+
+    if let Some(doc) = hover_word(&word) {
+        return Some(doc);
+    }
+
+    if TYPE_NAMES.iter().any(|t| *t == word) {
+        return Some(format!("Concrete type `{word}`"));
+    }
+
+    if let Some(text) = hover_member_at(source, line, column, &word) {
+        return Some(text);
+    }
+
+    let (stmts, symbols) = parse_for_lsp(source)?;
+    let use_line = line + 1;
+    let use_column = column + 1;
+
+    if let Some(sym) = symbol_covering(&symbols, &word, line, column) {
+        if let Some(text) = hover_for_symbol(&word, sym, &stmts) {
+            return Some(text);
+        }
+    }
+
+    if let Some(sym) = definition_before(&symbols, &word, use_line, use_column) {
+        if let Some(text) = hover_for_symbol(&word, sym, &stmts) {
+            return Some(text);
+        }
+    }
+
+    hover_from_ast(&word, &stmts)
+}
+
+pub fn completions_at(source: &str, line: u32, column: u32, prefix: &str) -> Vec<CompletionItem> {
+    if in_type_arg_context(source, line, column) {
+        let lower = prefix.to_lowercase();
+        return TYPE_NAMES
+            .iter()
+            .filter(|t| prefix.is_empty() || t.starts_with(prefix) || t.to_lowercase().starts_with(&lower))
+            .map(|t| CompletionItem {
+                label: (*t).to_string(),
+                detail: Some("concrete type".into()),
+                kind: CompletionKind::Type,
+            })
+            .collect();
+    }
+
+    let mut items = completions(prefix);
+
+    if let Some((stmts, _)) = parse_for_lsp(source) {
+        for (name, detail) in collect_generic_templates(&stmts) {
+            if prefix.is_empty()
+                || name.starts_with(prefix)
+                || name.to_lowercase().starts_with(&prefix.to_lowercase())
+            {
+                if !items.iter().any(|i| i.label == name) {
+                    items.push(CompletionItem {
+                        label: name,
+                        detail: Some(detail),
+                        kind: CompletionKind::Generic,
+                    });
+                }
+            }
+        }
+    }
+
+    items
 }
 
 pub fn completions(prefix: &str) -> Vec<CompletionItem> {
@@ -129,6 +207,8 @@ pub enum CompletionKind {
     Keyword,
     Function,
     Module,
+    Type,
+    Generic,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -880,5 +960,79 @@ mod tests {
         let target = goto_definition(source, 0, 9).expect("definition");
         assert_eq!(target.line, 1);
         assert_eq!(target.module, None);
+    }
+
+    #[test]
+    fn goto_type_param_on_generic_fn() {
+        let source = "fn id<T>(x) { return x }\nreturn T";
+        let target = goto_definition(source, 1, 7).expect("type param def");
+        assert_eq!(target.line, 1);
+        assert!(target.column >= 6);
+    }
+
+    #[test]
+    fn goto_type_param_on_generic_class() {
+        let source = "class Box<T> { }\nlet x = T";
+        let target = goto_definition(source, 1, 8).expect("type param def");
+        assert_eq!(target.line, 1);
+    }
+
+    #[test]
+    fn hover_generic_fn_signature() {
+        let source = "fn id<T>(x: T) -> T { return x }";
+        let text = hover_at(source, 0, 3).expect("hover fn");
+        assert!(text.contains("fn id<T>"));
+    }
+
+    #[test]
+    fn hover_type_param() {
+        let source = "fn id<T>(x) { return x }";
+        let text = hover_at(source, 0, 6).expect("hover T");
+        assert!(text.contains("type parameter"));
+    }
+
+    #[test]
+    fn hover_concrete_type_in_type_arg() {
+        let source = "fn id<T>(x) { return x }\nid<Number>(1)";
+        let text = hover_at(source, 1, 5).expect("hover Number");
+        assert!(text.contains("Number"));
+    }
+
+    #[test]
+    fn completions_after_lt_suggest_types() {
+        let source = "fn id<T>(x) { return x }\nid<";
+        let items = completions_at(source, 1, 3, "");
+        assert!(items.iter().any(|i| i.label == "Number"));
+        assert!(items.iter().any(|i| i.label == "String"));
+    }
+
+    #[test]
+    fn completions_include_generic_class_template() {
+        let source = "class Box<T> { }";
+        let items = completions_at(source, 0, 0, "Bo");
+        assert!(items.iter().any(|i| i.label == "Box"));
+    }
+
+    #[test]
+    fn hover_generic_class_signature() {
+        let source = "class Box<T> { fn get<U>(x) { return x } }";
+        let text = hover_at(source, 0, 7).expect("hover Box");
+        assert!(text.contains("class Box<T>"));
+    }
+
+    #[test]
+    fn hover_member_method_with_inferred_receiver() {
+        let source = "class Box<T> { fn echo<U>(x) { return x } }\nlet b = Box(42)\nb.echo";
+        let text = hover_at(source, 2, 6).expect("hover echo on Box$Number receiver");
+        assert!(text.contains("Box$Number"));
+        assert!(text.contains("echo"));
+    }
+
+    #[test]
+    fn hover_member_method_on_non_generic_class() {
+        let source = "class Holder { fn echo<T>(x) { return x } }\nlet h = Holder()\nh.echo";
+        let text = hover_at(source, 2, 6).expect("hover echo on Holder receiver");
+        assert!(text.contains("Holder"));
+        assert!(text.contains("echo"));
     }
 }

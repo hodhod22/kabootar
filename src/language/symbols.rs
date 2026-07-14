@@ -8,6 +8,7 @@ pub enum SymbolKind {
     Method,
     Field,
     Parameter,
+    TypeParam,
     Module,
     Imported,
 }

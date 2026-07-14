@@ -1,5 +1,6 @@
 // Test suite for self-hosted .kbc serialization
 
+import "self_host/lexer_defs"
 import "self_host/lexer"
 import "self_host/parser"
 import "self_host/emit"
@@ -37,6 +38,7 @@ fn assert_true(v, msg) {
     tText = serialize_bc(bc)
     assert_true(char_at(tText, 0) == "k", "text starts with k")
     assert_true(len(tText) > 20, "non-trivial output")
+    assert_true(str_index_of(tText, KBC_HEADER + CHAR_NL + "constants=") >= 0, "real newline after header (CHAR_NL)")
 }
 
 // -- function section ----------------------------------------------
@@ -62,6 +64,15 @@ fn assert_true(v, msg) {
     }
     assert_eq(tHas, 1, "undefined const in pool")
     assert_true(str_index_of(tText, "undefined") >= 0, "text contains undefined const")
+}
+
+// -- class + new_instance ------------------------------------------
+{
+    let bc = emit(parseTokens(tokenize("class Holder { }; Holder()")))
+    tText = serialize_bc(bc)
+    assert_true(str_index_of(tText, "classes=1") >= 0, "classes section")
+    assert_true(str_index_of(tText, "class 0 Holder") >= 0, "class sym")
+    assert_true(str_index_of(tText, "new_instance 0 0") >= 0, "new_instance opcode")
 }
 
 println("")

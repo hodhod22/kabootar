@@ -9,6 +9,40 @@ Kabootar OS är en **sandboxad kernel** inbyggd i språket — Lager 2 i dual-la
 - **Konkurrenskraftigt mål** — samma API från REPL, WASM och native desktop shell
 - **Ärlig scope** — använd `kabootar_reality()` och `os_sauce_honesty()` för att se sandbox vs native vs stub
 
+## Desktop & utseende
+
+kOS ska **kännas igen** för Windows-användare — samma mentala modell (skrivbord, fönster, aktivitetsfält, filutforskare, inställningar) — men byggas med **nyare teknik** än klassisk Win32/GDI/DWM.
+
+| Windows-lik familiaritet | Modern Kabootar-stack |
+|--------------------------|------------------------|
+| Skrivbord + ikoner | kDOM + KSS, vektorlayout, GPU-compositor |
+| Aktivitetsfält / Start | `kbrowser`-flikar + shell i **`lib/kos/`** (Kabootar, inte Rust-UI) |
+| Fönster (min/max/stäng, snap) | `os_window_*` + compositor-lager, vsync ([Våg D5](ROADMAP.md)) |
+| Filutforskare (träd, sökväg) | VFS (`kabootar://vfs/…`) + `os_mount` mot host |
+| Inställningar (kategorier) | Kv8-app i VFS, samma render-pipeline som resten |
+| Mörkt/ljust tema | KSS design tokens + `kb_theme()` |
+| Notifieringar / systemfält | compositor overlay + `os_haptic_*` för feedback |
+
+**Designprinciper:**
+
+1. **Bekant, inte kopia** — layout och flöden som Windows 10/11, men eget Kabootar-branding; inga Microsoft-tillgångar eller varumärken.
+2. **All UI i språket** — shell, Start, Explorer och Settings som `.kab` + KML/KSS/Kv8; Rust endast display server, input och drivrutiner.
+3. **Compositor-first** — acrylic/Mica-liknande lager (blur + transparens via GPU), rundade hörn, 60–120 Hz, spring-animationer ([sauce/haptic](OS.md#hemliga-såsen--9-konkurrensstrategier)).
+4. **En pipeline** — samma `kdom` → layout → paint som appar och `kbrowser`; inget separat legacy-widget-set.
+5. **Progressiv polish** — fungerande shell först (fönster + taskbar + VFS), visuell finish i [ROADMAP G12](ROADMAP.md).
+
+```
+Användare (bekant Windows-UX)
+        ↓
+lib/kos/shell.kab  — taskbar, Start, snap, notifieringar
+        ↓
+kbrowser + kDOM/KSS/Kv8  — appar, Explorer, Settings
+        ↓
+os_window_* / GPU compositor  — presentation (winit + wgpu)
+```
+
+Se [RENDERING.md](RENDERING.md), [BROWSER.md](BROWSER.md) och [ROADMAP.md — G12](ROADMAP.md).
+
 ### Kapabilitetstier
 
 | Tier | Betydelse |

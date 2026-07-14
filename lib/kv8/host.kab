@@ -1,0 +1,33 @@
+@version "1.0.0"
+
+// Host bridge: Kv8 eval k8host calls -> lib/kdom + lib/kstyle. import "kv8/host"
+
+import "kdom/document"
+import "kstyle/parse"
+
+pub fn hostCall(name, args) {
+    if name == "el" {
+        return el(args[0])
+    }
+    if name == "text" {
+        return text(args[0])
+    }
+    if name == "attach" {
+        return attach(args[0], args[1], args[2])
+    }
+    if name == "attr" {
+        return attr(args[0], args[1], args[2])
+    }
+    if name == "paint" {
+        let css = ""
+        if len(args) > 3 {
+            css = args[3]
+        }
+        return paint(args[0], args[1], args[2], css)
+    }
+    if name == "applyCss" {
+        parseAndApply(args[0])
+        return null
+    }
+    throw "hostCall: unknown " + name
+}

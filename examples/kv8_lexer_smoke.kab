@@ -1,0 +1,28 @@
+// Kv8 lexer smoke - Kabootar lib/kv8/lexer.kab
+// cargo run --bin kabootar -- examples/kv8_lexer_smoke.kab
+
+import "kv8/lexer"
+
+let src = "let x = 1 + 2; // comment\nconst msg = `hi`; a ?? b; c?.d; fn() => 1"
+let toks = tokenize(src)
+
+println("kv8 lexer: count=" + json_stringify(len(toks)))
+println("kv8 lexer: t0=" + json_stringify(tokenType(toks[0])))
+println("kv8 lexer: t2=" + json_stringify(tokenType(toks[2])))
+println("kv8 lexer: ident=" + json_stringify(tokenValue(toks[1])))
+
+let hasNullish = false
+let hasOpt = false
+let hasArrow = false
+let i = 0
+while i < len(toks) {
+    let ty = tokenType(toks[i])
+    if ty == "??" { hasNullish = true }
+    if ty == "?." { hasOpt = true }
+    if ty == "=>" { hasArrow = true }
+    i = i + 1
+}
+
+println("kv8 lexer: modern=" + json_stringify(hasNullish && hasOpt && hasArrow))
+
+return len(toks)

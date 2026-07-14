@@ -73,6 +73,7 @@ pub enum Token {
     PlusEq,
     Minus,
     MinusEq,
+    ReturnArrow,
     Star,
     StarStar,
     StarEq,
@@ -391,7 +392,10 @@ impl Lexer {
                 }
                 '-' => {
                     self.next();
-                    if self.peek() == Some('=') {
+                    if self.peek() == Some('>') {
+                        self.next();
+                        Ok(Token::ReturnArrow)
+                    } else if self.peek() == Some('=') {
                         self.next();
                         Ok(Token::MinusEq)
                     } else {

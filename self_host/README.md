@@ -23,7 +23,7 @@ source text
 | `lexer_defs.kab` | klar | Token-konstanter och `KEYWORDS` |
 | `lexer.kab` | klar | `tokenize(source)` → token-array |
 | `ast_defs.kab` | klar | AST-nodtyper |
-| `parser.kab` | klar | `parseTokens(tokens)` → AST (let/assign/if/while/fn/obj/array/member/index/+/==/&&/calls) |
+| `parser.kab` | klar | `parseTokens(tokens)` → AST (+ generics: `<T>`, enum/class, typed calls/members) |
 | `emit_defs.kab` | klar | Opcode-namn för IR |
 | `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
 | `serialize_defs.kab` | klar | `.kbc`-header |
@@ -118,6 +118,11 @@ cargo test --test self_host
 44. **Emitter popStack** — använd native `pop(stack)` (inte manuell while-kopia); self-host compile av emit.kab är annars extremt långsam.
 45. **Self-compiled vs Rust emit** — `import "self_host/emit"` = Rust-bytecode (~långsam men klar). `compile(emit.kab)` → `.kbc` = self-hosted bytecode; om `emit(parse("let x = 1"))` hänger via `.kbc` men import fungerar → felsök serialize/compile-output, inte bara emit.kab-logik.
 46. **Self-host nested builtins** — `push(stack, len(x))` kompileras fel (yttre anrop blir `len`). Använd `pushLen(stack, arr)` eller spara `eLenScratch = len(x)` före `push`.
+47. **Serialize radbrytning** — använd `CHAR_NL` från `lexer_defs`, **inte** `"\n"` (literal i Kabootar); annars blir `.kbc` en enda rad som Rust `deserialize` avvisar.
+48. **Emitter nested call** — `eCalleeStack` före rekursiv `emitExpr` på args (inte modul-global `eCallee`; nästlade `serialize_bc(emit(parse(x)))` laddar fel callee).
+49. **Parser nested call** — `pCalleeStack` + `snapCallee()` före arg-parse (inte modul-global `pCallee`; nästlade anrop får alla callee `parse`).
+50. **Parser generic call type args** — `pTypeArgsStack` + spara `pTypeArgs` före arg-parse (rekursiv `parseCompare` nollställer modul-global `pTypeArgs`; `id<T>(x)` tappar annars `<T>`).
+51. **Emit generic fn** — spara template i `eGenericTemplates`; vid `AST_CALL` till generic callee: infer/mangle → specialisera → ersätt callee med `id$Number` (importera **inte** extra modul från `emit.kab` — kombinerad import overflowar compile).
 
 ## Nästa milstolpar
 
@@ -131,20 +136,31 @@ cargo test --test self_host
 8. ~~Self-host hela `lexer.kab` via `compile()`~~ ✅ — `self_host_lexer_full_compile_and_run` (~2.5 h)
 
 9. ~~Self-host `parser.kab` / `emit.kab` (större moduler, fler opcodes).~~ ✅
-   - **parser.kab** (~680 rader, 8 fn): interpreter + self-hostade parser-tester gröna; `parseTokens`-loopen med `pDone`, `"EOF"`-literal, `pLetSym` för let-bindning. `self_host_parser_full_compile_and_run` (~2.5 h) verifierar `compile(parser.kab)` → `parseTokens(tokenize("let x = 1"))`.
+   - **parser.kab** (~960 rader, 9 fn): generics (`<T>` på fn/class/enum, type args på call/member), `self_host_parser_suite` via Rust bytecode-preload (undviker Windows OOM). `self_host_parser_full_compile_and_run` (~2.5 h) verifierar `compile(parser.kab)` → `parseTokens(tokenize("let x = 1"))`.
    - **emit.kab** (~850 rader, 8 fn): redo för vidare opcode-stöd om parsern utökas (`||`, unary `!`, `*`, assign till index, etc.).
-   - **Verifiering:** snabb: `self_host_parser_suite`, `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2.5 h).
+    - **Verifiering:** snabb: `self_host_emit_suite` (3 subprocess-chunks: core / generics / calls — undviker Windows OOM), `self_host_parser_full_compile_smoke`, `self_host_emit_full_compile_smoke`; långsam: `self_host_parser_full_compile_and_run` (ignored, ~2.5 h).
 
-10. **Pågår:** Self-host hela `emit.kab` via `compile()` → kör `emit(parse("let x = 1"))` i bytecode (spegla lexer/parser full compile_and_run).
+10. ~~Self-host hela `emit.kab` via `compile()` → kör `emit(parse("let x = 1"))` i bytecode~~ ✅
     - Snabb smoke: `self_host_emit_full_compile_smoke`.
     - Långsam CI: `self_host_emit_full_compile_and_run` (ignored, ~2–3 h).
-    - Därefter: `serialize.kab` full compile_and_run, sedan true bootstrap (`compile.kab` kompilerad av self-hosted `compile()`).
+    - Run-only: `self_host_emit_kbc_run_only` (kräver `_emit_full_out.kbc`).
 
-11. **Nästa:** `serialize.kab` full `compile_and_run` (`.kbc` roundtrip via self-hosted serialize).
+11. ~~Self-host hela `serialize.kab` via `compile()` → kör `serialize_bc(emit(parse(...)))` + roundtrip~~ ✅
+    - Snabb smoke: `self_host_serialize_full_compile_smoke`.
+    - Långsam CI: `self_host_serialize_full_compile_and_run` (ignored, ~40 min).
+    - Run-only: `self_host_serialize_kbc_run_only` (kräver `_serialize_full_out.kbc`).
+    - Bygg KBC: `python scripts/profile_emit_compile.py compile serialize.kab`
+    - **Kör tunga tester med `--test-threads=1`** (parallella serialize-tester kan OOM:a på Windows).
 
-12. **Därefter:** True bootstrap — `compile(compile.kab)` körs av self-hosted pipeline.
+12. ~~True bootstrap — `compile(compile.kab)` körs som self-hosted bytecode och kan `compile(sample)`~~ ✅
+    - Snabb smoke: `self_host_compile_full_compile_smoke` (subprocess — djup pipeline overflowar test-stack).
+    - Långsam CI: `self_host_compile_full_compile_and_run` (ignored, ~3 min för compile.kab).
+    - Run-only: `self_host_compile_kbc_run_only` (kräver `_compile_full_out.kbc`).
+    - Bygg KBC: `python scripts/profile_emit_compile.py compile compile.kab`
 
-13. **Generics (språk):** Rust-motorn först (monomorphisering), sedan self-host. Design: [docs/GENERICS.md](../docs/GENERICS.md). **Struct planeras inte.**
+13. ~~**Generics (språk):** Rust v1 + self-host G4~~ ✅ — `fn id<T>`, monomorphisering, `tests/generics.rs`, `test_parser.kab` / `test_emit.kab`. Design: [docs/GENERICS.md](../docs/GENERICS.md). **Struct planeras inte.** Semikolon förblir valfria (ev. framtida breaking change).
+
+14. **Generics fas 2 (G6–G11):** ~~G6 inferens~~ ✅, ~~G7 klassmetoder~~ ✅, ~~G8 klasser~~ ✅, ~~G9 enum~~ ✅, ~~G10 self-host~~ ✅, ~~G11 LSP~~ ✅. Plan: [docs/GENERICS.md#fas-2--g6-planering](../docs/GENERICS.md#fas-2--g6-planering), roadmap **Våg F** i [docs/ROADMAP.md](../docs/ROADMAP.md).
 
 ## Profilering (compile-tid)
 
