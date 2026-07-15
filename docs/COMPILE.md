@@ -45,9 +45,22 @@ Profilerar compile-faser. Använd för att hitta flaskhalsar — **inte** i varj
 
 ## `.kbc`-cache
 
-- Rust `compile::load_program_for_file` cachar parse/bytecode per fil
+- Rust `compile::load_program_for_file` cachar parse/bytecode per fil under `.kabootar/cache/*.kbc`
+- Ogiltigförklaras när källfilens mtime är **nyare** än cache-filen
 - Self-host output: `_emit_full_out.kbc`, `_serialize_full_out.kbc` i repo root
 - **Stale guard:** `self_host_emit_kbc_freshness_guard` / `assert_fresh_serialize_kbc` i `tests/self_host.rs`
+
+**Kv8:** efter ändring i `lib/kv8/eval.kab`, radera gammal cache om while/import beter sig konstigt:
+
+```bash
+rm .kabootar/cache/eval.kab.kbc
+```
+
+## Modul-export-cache (process)
+
+`import "kv8/eval"` kompilerar och kör modulen en gång per process; upprepade importer kopierar exporterade bindings från minnescache (`src/modules/mod.rs`, nyckel = filsökväg + mtime). Detta gör `kv8_lib_slow` snabbare när flera tester importerar samma kedja.
+
+Ogiltigförklaras automatiskt när `.kab`-källan ändras (mtime).
 
 Regenerera efter opcode-ändringar:
 
@@ -63,6 +76,7 @@ cargo test --test self_host self_host_emit_full_compile_and_run -- --ignored --t
 |------------|--------|
 | Parse-cache per fil | ✅ Rust |
 | Bytecode VM vs AST eval | ✅ default bytecode |
+| Modul-export-cache (import) | ✅ `modules/mod.rs` |
 | Self-host: undvik megabundles i tester | ✅ regel i `.cursor/rules` |
 | Kv8: parse-only CI för React bundle | ✅ `#[ignore]` full eval |
 | Parallel `cargo test --test-threads=4` | ✅ JS parity |
@@ -74,16 +88,23 @@ cargo test --test self_host self_host_emit_full_compile_and_run -- --ignored --t
 ## Kv8 / React — minimal CI
 
 ```bash
-bash scripts/kv8-test-fast.sh
+cargo test --test kv8_lib -- --test-threads=1
 ```
 
-Parse + smoke. Full bundle eval:
+Snabb suite: lexer + parser (~1–2 min).
 
 ```bash
-bash scripts/kv8-test-slow.sh
+cargo test --test kv8_lib_slow -- --test-threads=1
 ```
 
-Kör **inte** slow i standard `cargo test`.
+Tung suite: eval + dom (~5–10 min). Kör **inte** slow i varje IDE-klick.
+
+Alternativ scripts:
+
+```bash
+bash scripts/kv8-test-fast.sh
+bash scripts/kv8-test-slow.sh
+```
 
 ---
 

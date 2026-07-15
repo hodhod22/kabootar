@@ -21,6 +21,38 @@ let k8pName = ""
 let k8pTok = null
 let k8pElse = null
 let k8pCond = null
+let k8pSnapI = 0
+let k8pAsName = ""
+let k8pSymPool = []
+let k8pSymOut = ""
+let k8pSymSrc = ""
+let k8pSymI = 0
+
+fn k8pSymCopy(name) {
+    k8pSymOut = ""
+    k8pSymSrc = "" + name
+    k8pSymI = 0
+    while k8pSymI < len(k8pSymSrc) {
+        k8pSymOut = k8pSymOut + char_at(k8pSymSrc, k8pSymI)
+        k8pSymI = k8pSymI + 1
+    }
+    return k8pSymOut
+}
+
+fn k8pPoolSym(name) {
+    k8pSymPool = push(k8pSymPool, k8pSymCopy(name))
+    return k8pSymPool[len(k8pSymPool) - 1]
+}
+
+fn k8pSnapList(items) {
+    let out = []
+    k8pSnapI = 0
+    while k8pSnapI < len(items) {
+        out = push(out, items[k8pSnapI])
+        k8pSnapI = k8pSnapI + 1
+    }
+    return out
+}
 
 fn k8pTokAt(mode) {
     if k8pPos >= len(k8pToks) {
@@ -78,8 +110,9 @@ fn parsePostfix() {
     if k8pNode == null {
         k8pTok = k8pTokAt("peek")
         if k8pTok.type == TOKEN_IDENT {
-            k8pTok = k8pTokAt("bump")
-            k8pNode = { "kind": K_IDENT, "name": k8pTok.value }
+            let identSym = k8pPoolSym(k8pTok.value)
+            k8pTokAt("bump")
+            k8pNode = { "kind": K_IDENT, "sym": identSym }
         }
     }
     if k8pNode == null {
@@ -264,14 +297,14 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected binding name"
         }
-        k8pName = k8pTok.value
+        let bindSym = k8pPoolSym(k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type != "=" {
             throw "Expected ="
         }
         k8pTokAt("bump")
         k8pLeft = parseCompare()
-        return { "kind": K_LET, "name": k8pName, "init": k8pLeft }
+        return { "kind": K_LET, "sym": bindSym, "init": k8pLeft }
     }
     if k8pTok.type == "var" {
         k8pTokAt("bump")
@@ -279,7 +312,7 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected var name"
         }
-        k8pName = k8pTok.value
+        let bindSym = k8pPoolSym(k8pTok.value)
         k8pTokAt("bump")
         k8pLeft = null
         if k8pTokAt("peek").type == "=" {
@@ -289,7 +322,7 @@ fn parseStmt() {
         if k8pLeft == null {
             k8pLeft = { "kind": K_LITERAL, "lit": LIT_UNDEF, "value": undefined }
         }
-        return { "kind": K_VAR, "name": k8pName, "init": k8pLeft }
+        return { "kind": K_VAR, "sym": bindSym, "init": k8pLeft }
     }
     if k8pTok.type == "return" {
         k8pTokAt("bump")
@@ -300,7 +333,7 @@ fn parseStmt() {
         if k8pLeft == null {
             k8pLeft = { "kind": K_LITERAL, "lit": LIT_UNDEF, "value": undefined }
         }
-        return { "kind": K_RETURN, "value": k8pLeft }
+        return { "kind": K_RETURN, "rhs": k8pLeft }
     }
     if k8pTok.type == "function" {
         k8pTokAt("bump")
@@ -308,7 +341,7 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected function name"
         }
-        k8pName = k8pTok.value
+        k8pName = k8pPoolSym(k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type != "(" {
             throw "Expected ("
@@ -352,7 +385,7 @@ fn parseStmt() {
             throw "Expected }"
         }
         k8pTokAt("bump")
-        return { "kind": K_FN, "name": k8pName, "params": k8pParams, "body": { "kind": K_BLOCK, "body": k8pBlockBody } }
+        return { "kind": K_FN, "sym": k8pName, "params": k8pSnapList(k8pParams), "body": { "kind": K_BLOCK, "body": k8pSnapList(k8pBlockBody) } }
     }
     if k8pTok.type == "if" {
         k8pTokAt("bump")
@@ -407,7 +440,7 @@ fn parseStmt() {
                 }
             }
         }
-        return { "kind": K_IF, "cond": k8pCond, "then": { "kind": K_BLOCK, "body": k8pBlockBody }, "elseBranch": k8pElse }
+        return { "kind": K_IF, "cond": k8pCond, "then": { "kind": K_BLOCK, "body": k8pSnapList(k8pBlockBody) }, "elseBranch": k8pSnapList(k8pElse) }
     }
     if k8pTok.type == "while" {
         k8pTokAt("bump")
@@ -439,7 +472,7 @@ fn parseStmt() {
                 k8pBlockBody = push(k8pBlockBody, k8pSave)
             }
         }
-        return { "kind": K_WHILE, "cond": k8pCond, "body": { "kind": K_BLOCK, "body": k8pBlockBody } }
+        return { "kind": K_WHILE, "cond": k8pCond, "body": { "kind": K_BLOCK, "body": k8pSnapList(k8pBlockBody) } }
     }
     if k8pTok.type == "{" {
         k8pTokAt("bump")
@@ -457,19 +490,18 @@ fn parseStmt() {
             throw "Expected }"
         }
         k8pTokAt("bump")
-        return { "kind": K_BLOCK, "body": k8pBlockBody }
+        return { "kind": K_BLOCK, "body": k8pSnapList(k8pBlockBody) }
     }
     k8pTok = k8pTokAt("peek")
     if k8pTok.type == TOKEN_IDENT {
-        k8pName = k8pTok.value
-        let saved = k8pPos
+        let assignSym = k8pPoolSym(k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type == "=" {
             k8pTokAt("bump")
             k8pLeft = parseCompare()
-            return { "kind": K_ASSIGN, "name": k8pName, "value": k8pLeft }
+            return { "kind": K_ASSIGN, "sym": assignSym, "rhs": k8pLeft }
         }
-        k8pPos = saved
+        k8pPos = k8pPos - 1
     }
     k8pLeft = parseCompare()
     return { "kind": K_EXPR, "expr": k8pLeft }
@@ -488,7 +520,7 @@ pub fn parseTokens(tokens) {
             k8pTokAt("bump")
         }
     }
-    return { "kind": K_PROGRAM, "body": k8pBody }
+    return { "kind": K_PROGRAM, "body": k8pSnapList(k8pBody) }
 }
 
 pub fn parseSource(source) {

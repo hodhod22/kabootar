@@ -8,6 +8,71 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::SystemTime;
+
+#[derive(Clone)]
+struct CachedModuleExports {
+    source_mtime: SystemTime,
+    exported_names: Vec<String>,
+    bindings: HashMap<String, Value>,
+}
+
+thread_local! {
+    static MODULE_EXPORT_CACHE: RefCell<HashMap<String, CachedModuleExports>> =
+        RefCell::new(HashMap::new());
+}
+
+/// Drop cached exports for a module (e.g. after editing `lib/kv8/eval.kab` in tests).
+pub fn invalidate_module_export_cache(module_path: &str) {
+    let key = module_path.replace('\\', "/");
+    MODULE_EXPORT_CACHE.with(|cache| {
+        cache.borrow_mut().remove(&key);
+    });
+}
+
+fn try_restore_cached_module(
+    cache_key: &str,
+    source_mtime: SystemTime,
+    importer: &mut Environment,
+) -> Option<Vec<String>> {
+    MODULE_EXPORT_CACHE.with(|cache| {
+        let cache = cache.borrow();
+        let cached = cache.get(cache_key)?;
+        if source_mtime > cached.source_mtime {
+            return None;
+        }
+        for name in &cached.exported_names {
+            if let Some(v) = cached.bindings.get(name) {
+                importer.set(name.clone(), v.clone());
+            }
+        }
+        Some(cached.exported_names.clone())
+    })
+}
+
+fn store_cached_module(
+    cache_key: &str,
+    source_mtime: SystemTime,
+    module_env: &Environment,
+    exported: &[String],
+) {
+    let mut bindings = HashMap::new();
+    for name in exported {
+        if let Some(v) = module_env.get(name) {
+            bindings.insert(name.clone(), v.clone());
+        }
+    }
+    MODULE_EXPORT_CACHE.with(|cache| {
+        cache.borrow_mut().insert(
+            cache_key.to_string(),
+            CachedModuleExports {
+                source_mtime,
+                exported_names: exported.to_vec(),
+                bindings,
+            },
+        );
+    });
+}
 
 #[derive(Debug, Clone)]
 pub struct ImportMeta {
@@ -148,10 +213,19 @@ fn check_module_version(
 }
 
 fn eval_file_module(source: &str, path: &std::path::Path, importer: &mut Environment) -> Result<Vec<String>, String> {
-    let mut module_env = create_global_env();
     let cache_key = path
         .to_string_lossy()
         .replace('\\', "/");
+    let source_mtime = fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok());
+    if let Some(mtime) = source_mtime {
+        if let Some(imported) = try_restore_cached_module(&cache_key, mtime, importer) {
+            return Ok(imported);
+        }
+    }
+
+    let mut module_env = create_global_env();
     let program = crate::compile::load_program_for_file(&cache_key, source)?;
     let path_str = path.to_string_lossy().replace('\\', "/");
     let url = format!("file://{path_str}");
@@ -162,7 +236,11 @@ fn eval_file_module(source: &str, path: &std::path::Path, importer: &mut Environ
         },
         || crate::compile::eval_program(&program, &mut module_env),
     )?;
-    Ok(export_module_bindings(&module_env, importer))
+    let imported = export_module_bindings(&module_env, importer);
+    if let Some(mtime) = source_mtime {
+        store_cached_module(&cache_key, mtime, &module_env, &imported);
+    }
+    Ok(imported)
 }
 
 fn import_registry_spec(
