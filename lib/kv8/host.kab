@@ -5,29 +5,29 @@
 import "kdom/document"
 import "kstyle/parse"
 
-pub fn hostCall(name, args) {
-    if name == "el" {
-        return el(args[0])
+pub fn hostCall(hostName, hostArgs) {
+    if hostName == "el" {
+        return el(hostArgs[0])
     }
-    if name == "text" {
-        return text(args[0])
+    if hostName == "text" {
+        return text(hostArgs[0])
     }
-    if name == "attach" {
-        return attach(args[0], args[1], args[2])
+    if hostName == "attach" {
+        return attach(hostArgs[0], hostArgs[1], hostArgs[2])
     }
-    if name == "attr" {
-        return attr(args[0], args[1], args[2])
+    if hostName == "attr" {
+        return attr(hostArgs[0], hostArgs[1], hostArgs[2])
     }
-    if name == "paint" {
+    if hostName == "paint" {
         let css = ""
-        if len(args) > 3 {
-            css = args[3]
+        if len(hostArgs) > 3 {
+            css = hostArgs[3]
         }
-        return paint(args[0], args[1], args[2], css)
+        return paint(hostArgs[0], hostArgs[1], hostArgs[2], css)
     }
-    if name == "applyCss" {
-        parseAndApply(args[0])
+    if hostName == "applyCss" {
+        parseAndApply(hostArgs[0])
         return null
     }
-    throw "hostCall: unknown " + name
+    throw "hostCall: unknown " + hostName
 }

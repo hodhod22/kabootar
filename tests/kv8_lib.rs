@@ -1,4 +1,5 @@
-//! lib/kv8 — Kabootar-language Kv8 lexer (G9 start).
+//! Fast kv8 tests — lexer + parser only (~1–2 min).
+//! Slow eval/dom: `cargo test --test kv8_lib_slow -- --test-threads=1`
 
 use kabootar_lib::cli;
 use kabootar_lib::value::Value;
@@ -90,24 +91,6 @@ fn kv8_parser_smoke_example_runs() {
 }
 
 #[test]
-fn kv8_eval_let_and_add() {
-    let code = r#"
-import "kv8/eval"
-evalSource("let x = 1 + 2; x") == 3 && evalSource("function add(a, b) { return a + b; } add(3, 4)") == 7
-"#;
-    let mut env = kabootar_lib::evaluator::create_global_env();
-    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
-    assert!(matches!(v, Value::Bool(true)));
-}
-
-#[test]
-fn kv8_eval_smoke_example_runs() {
-    let path = format!("{}/examples/kv8_eval_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_eval_smoke.kab should run");
-    assert!(matches!(result, Value::Number(n) if n == 7));
-}
-
-#[test]
 fn kv8_parser_while_loop() {
     let code = r#"
 import "kv8/parser"
@@ -117,36 +100,4 @@ ast.body[0].kind == "While" && ast.body[0].body.body[0].kind == "Assign"
     let mut env = kabootar_lib::evaluator::create_global_env();
     let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
     assert!(matches!(v, Value::Bool(true)));
-}
-
-#[test]
-fn kv8_eval_while_and_member() {
-    let code = r#"
-import "kv8/eval"
-import "kv8/parser"
-evalSource("let n = 0; while (n < 3) { n = n + 1; } n") == 3 &&
-evalProgram(parseSource("cfg.mode"), { "cfg": { "mode": "ui" } }) == "ui"
-"#;
-    let mut env = kabootar_lib::evaluator::create_global_env();
-    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
-    assert!(matches!(v, Value::Bool(true)));
-}
-
-#[test]
-fn kv8_dom_ui_pipeline() {
-    let code = r#"
-import "kv8/dom"
-let frame = evalUi("let r = el(\"div\"); let t = text(\"Hi\"); r = attach(r, t, true); paint(r, 240, 120, \"\");")
-frame != null && frame["html"] != undefined
-"#;
-    let mut env = kabootar_lib::evaluator::create_global_env();
-    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
-    assert!(matches!(v, Value::Bool(true)));
-}
-
-#[test]
-fn kv8_dom_smoke_example_runs() {
-    let path = format!("{}/examples/kv8_dom_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_dom_smoke.kab should run");
-    assert!(matches!(result, Value::Bool(true)));
 }

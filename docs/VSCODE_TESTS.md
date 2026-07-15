@@ -47,6 +47,7 @@ cargo run --bin kabootar -- examples/kdom_smoke.kab
 cargo run --bin kabootar -- examples/kstyle_parse_smoke.kab
 cargo run --bin kabootar -- examples/kv8_lexer_smoke.kab
 cargo test --test kv8_lib -- --test-threads=1
+cargo test --test kv8_lib_slow -- --test-threads=1
 cargo run --bin kabootar -- examples/kv8_parser_smoke.kab
 cargo run --bin kabootar -- examples/kv8_eval_smoke.kab
 cargo run --bin kabootar -- examples/kv8_dom_smoke.kab
@@ -177,6 +178,7 @@ Kör via **Terminal → Run Task…**.
 | Self-host emit fail | Kör `cargo run -- run self_host/test_emit.kab` för stack trace |
 | Compile timeout i IDE | Kör tunga tester i terminal, inte via Test Explorer |
 | `.kbc` stale | Se [COMPILE.md](COMPILE.md) — regenerera med `compile(serialize.kab)` |
+| **`kv8_lib` verkar hänga i VS Code** | Normalt **2–3 min per test utan output** (första `import "kv8/eval"` kompilerar modulkedjan). Kör med `--test-threads=1` (finns i `.vscode/settings.json`). Om det hänger **>10 min**: radera `.kabootar/cache/eval.kab.kbc` och bygg om — gammal cache kan innehålla trasig `evalSource`→`evalSourceWith`-kedja. Terminal: `rm .kabootar/cache/eval.kab.kbc` |
 
 ---
 

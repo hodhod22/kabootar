@@ -1,5 +1,0 @@
-import "self_host/compile"
-os_mount("/proj", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
-let kbc = compile(read_text_file("/proj/_lexer_full_src.kab"))
-write_text_file("/proj/_lexer_full_out.kbc", kbc)
-return len(kbc)
