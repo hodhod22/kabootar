@@ -125,3 +125,28 @@ return outer()
     let v = run_module(bc, &mut env).unwrap();
     assert!(matches!(v, Value::Number(0)), "outer slot must not be clobbered by inner");
 }
+
+#[test]
+fn bytecode_object_param_mutations_write_back() {
+    let source = r#"
+fn setKey(obj, k, v) {
+    obj[k] = v
+    return obj
+}
+fn run() {
+    let env = {}
+    env["el"] = 1
+    setKey(env, "root", 2)
+    return env["el"] + env["root"]
+}
+return run()
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(3)),
+        "object mutations must write back to caller local"
+    );
+}

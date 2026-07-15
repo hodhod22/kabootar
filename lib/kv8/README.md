@@ -22,7 +22,13 @@ Learned from self-host; same VM limits apply here.
 
 ## VM fix (Fas 2)
 
-Rust bytecode VM (`src/bytecode/vm.rs`): function-frame `LoadLocal`/`StoreLocal` no longer mirror `let` bindings into shared module `env` during calls. That restores re-entrant locals so helpers like `evRunBlock()` can be used again (pending eval.kab refactor).
+Rust bytecode VM (`src/bytecode/vm.rs`):
+
+1. Function-frame **LoadLocal** reads `local_vals` only (not shared `env`) — re-entrant scalars.
+2. **StoreLocal** still mirrors into `env` so object-arg writeback can find `__oid`.
+3. After **Call**, only object locals are refreshed from `env` by oid (not a full scalar pull).
+
+That keeps `while`+`assign` helpers safe without breaking `env["k"] = v` writeback (DOM/`evalUi`).
 
 ## Tests
 
