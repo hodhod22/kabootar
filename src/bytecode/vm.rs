@@ -203,6 +203,37 @@ fn pull_env_into_local_vals(locals: &[String], local_vals: &mut Vec<Value>, env:
     }
 }
 
+/// Refresh caller object locals after `Call` writeback (by `__oid`), without pulling
+/// scalar locals that nested frames may have clobbered in the shared env.
+fn pull_object_locals_from_env(
+    locals: &[String],
+    local_vals: &mut Vec<Value>,
+    env: &Environment,
+) {
+    use crate::runtime::stdlib::object::object_oid_of;
+    for (i, name) in locals.iter().enumerate() {
+        if name.starts_with("__kab_") {
+            continue;
+        }
+        let Some(oid) = local_vals.get(i).and_then(|v| match v {
+            Value::Object(map) => object_oid_of(map),
+            _ => None,
+        }) else {
+            continue;
+        };
+        let Some(live) = env.get(name) else {
+            continue;
+        };
+        let Value::Object(ref live_map) = live else {
+            continue;
+        };
+        if object_oid_of(live_map) != Some(oid) {
+            continue;
+        }
+        local_vals[i] = live;
+    }
+}
+
 fn store_local_to_env(
     locals: &[String],
     immutable_locals: &[bool],
@@ -377,9 +408,9 @@ fn run_chunk(
                     return Err(format!("Cannot assign to const `{name}`"));
                 }
                 local_vals[i] = v.clone();
-                if args.is_none() {
-                    store_local_to_env(locals, immutable_locals, i, &v, env)?;
-                }
+                // Mirror into `env` so object-arg writeback can find the binding by `__oid`.
+                // Loads still prefer `local_vals` in function frames (re-entrant scalars).
+                store_local_to_env(locals, immutable_locals, i, &v, env)?;
                 // Closure refresh runs once at end of `run_module`; refreshing on every
                 // module-level StoreLocal clones the full environment and breaks lazy
                 // iterators whose state lives only in `__kab_*` local slots.
@@ -489,6 +520,10 @@ fn run_chunk(
                 let result = call_value(callee, call_args, constants, globals, arrow_functions, classes, env)?;
                 if args.is_none() {
                     pull_env_into_local_vals(locals, &mut local_vals, env);
+                } else {
+                    // Object params are cloned into callees; writeback_object_args merges into
+                    // `env` by oid — sync only those object locals (not scalar slots).
+                    pull_object_locals_from_env(locals, &mut local_vals, env);
                 }
                 push_stack(stack, result)?;
             }
