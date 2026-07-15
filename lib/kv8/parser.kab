@@ -12,6 +12,11 @@ let k8pLeft = null
 let k8pRight = null
 let k8pNode = null
 let k8pSave = null
+let k8pAndLeft = null
+let k8pLogLeft = null
+let k8pAddLeft = null
+let k8pCmpLeft = null
+let k8pCmpOp = ""
 let k8pOp = ""
 let k8pBody = []
 let k8pBlockBody = []
@@ -233,7 +238,9 @@ fn parsePostfix() {
     return k8pNode
 }
 
-fn parseCompare() {
+// Precedence layers: mul -> add -> cmp -> and -> or/??.
+// Dedicated left slots (k8pAddLeft/AndLeft/LogLeft) - never reuse k8pSave across &&.
+fn parseMulExpr() {
     k8pLeft = parsePostfix()
     while k8pTokAt("peek").type == "*" || k8pTokAt("peek").type == "/" {
         k8pOp = k8pTokAt("bump").type
@@ -241,47 +248,60 @@ fn parseCompare() {
         k8pRight = parsePostfix()
         k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
     }
+    return k8pLeft
+}
+
+fn parseAddExpr() {
+    k8pLeft = parseMulExpr()
     while k8pTokAt("peek").type == "+" || k8pTokAt("peek").type == "-" {
         k8pOp = k8pTokAt("bump").type
-        k8pSave = k8pLeft
-        k8pRight = parsePostfix()
-        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
+        k8pAddLeft = k8pLeft
+        k8pRight = parseMulExpr()
+        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pAddLeft, "right": k8pRight }
     }
+    return k8pLeft
+}
+
+fn parseCmpExpr() {
+    k8pLeft = parseAddExpr()
     while true {
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type == "==" || k8pTok.type == "===" || k8pTok.type == "!=" || k8pTok.type == "!==" {
-            k8pOp = k8pTokAt("bump").type
-            k8pSave = k8pLeft
-            k8pRight = parsePostfix()
-            k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
+        if k8pTok.type == "==" || k8pTok.type == "===" || k8pTok.type == "!=" || k8pTok.type == "!==" || k8pTok.type == "<" || k8pTok.type == ">" || k8pTok.type == "<=" || k8pTok.type == ">=" {
+            k8pCmpOp = k8pTokAt("bump").type
+            k8pCmpLeft = k8pLeft
+            k8pRight = parseAddExpr()
+            k8pLeft = { "kind": K_BINARY, "op": k8pCmpOp, "left": k8pCmpLeft, "right": k8pRight }
         } else {
-            if k8pTok.type == "<" || k8pTok.type == ">" || k8pTok.type == "<=" || k8pTok.type == ">=" {
-                k8pOp = k8pTokAt("bump").type
-                k8pSave = k8pLeft
-                k8pRight = parsePostfix()
-                k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
-            } else {
-                break
-            }
+            break
         }
     }
+    return k8pLeft
+}
+
+fn parseAndExpr() {
+    k8pLeft = parseCmpExpr()
     while k8pTokAt("peek").type == "&&" {
-        k8pOp = k8pTokAt("bump").type
-        k8pSave = k8pLeft
-        k8pRight = parseCompare()
-        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
+        k8pTokAt("bump")
+        k8pAndLeft = k8pLeft
+        k8pRight = parseCmpExpr()
+        k8pLeft = { "kind": K_BINARY, "op": "&&", "left": k8pAndLeft, "right": k8pRight }
     }
+    return k8pLeft
+}
+
+fn parseCompare() {
+    k8pLeft = parseAndExpr()
     while k8pTokAt("peek").type == "||" {
-        k8pOp = k8pTokAt("bump").type
-        k8pSave = k8pLeft
-        k8pRight = parseCompare()
-        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
+        k8pTokAt("bump")
+        k8pLogLeft = k8pLeft
+        k8pRight = parseAndExpr()
+        k8pLeft = { "kind": K_BINARY, "op": "||", "left": k8pLogLeft, "right": k8pRight }
     }
     while k8pTokAt("peek").type == "??" {
-        k8pOp = k8pTokAt("bump").type
-        k8pSave = k8pLeft
-        k8pRight = parseCompare()
-        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
+        k8pTokAt("bump")
+        k8pLogLeft = k8pLeft
+        k8pRight = parseAndExpr()
+        k8pLeft = { "kind": K_BINARY, "op": "??", "left": k8pLogLeft, "right": k8pRight }
     }
     return k8pLeft
 }

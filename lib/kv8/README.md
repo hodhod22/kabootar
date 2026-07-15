@@ -10,25 +10,20 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Module rules (Kabootar bytecode)
 
-Learned from self-host; same VM limits apply here.
+1. **Module stacks for recurse** — push `op`/`right`/`lhs` on `evBin*Stack` (and member/call stacks) before nested `evExpr`; fn locals are not re-entrant in `.kbc`.
+2. **Bracket access for AST keys** — `node["sym"]`, not `.sym` where names collide.
+3. **`evRunBlock` for nested bodies** — if/block/`k8fn` bodies. Pub `evalSource*` keep an inline program loop (delegating the whole entry to a helper hung on Windows module-init with a taller mutual-rec call graph).
+4. **Unique loop index names** per fn (`si`, `bi`, `ei`, …).
+5. **Sym pool in parser** — `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`.
+6. **≤~8 top-level fn** where possible — import of `eval.kab` with 9+ mutual-rec pub helpers has hung on Windows.
 
-1. **No re-entrant `let` in recursive fn** — save AST fields in module globals (`evBxL`, `evBindSym`, …) before calling yourself.
-2. **Bracket access for AST keys** — `node["sym"]`, not `.sym` where names collide with locals.
-3. **`while` + assign in module fn** — the cond loop and `let bi = 0` body loop must live in the **same pub entry fn** as the caller expects. No `pub fn a() { return b() }` if `b` contains the while; no private `evRunBlock()` helper between entry and the loop.
-4. **`evalSource` and `evalSourceWith` each inline the program loop** — do not delegate to each other.
-5. **Unique loop index names** per fn (`si`, `bi`, `ei`, …); never duplicate `let i = 0` in the same fn.
-6. **Sym pool in parser** — `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`, not `"name"`.
-7. **≤~7 top-level fn per module** where possible — large modules slow compile and can OOM on Windows.
+## Fas 2 VM notes
 
-## VM fix (Fas 2)
+`src/bytecode/vm.rs`: LoadLocal prefers frame `local_vals`; StoreLocal mirrors to `env` for `__oid` writeback; after Call only object locals refresh by oid.
 
-Rust bytecode VM (`src/bytecode/vm.rs`):
+## Eval subset (Fas 1.3+)
 
-1. Function-frame **LoadLocal** reads `local_vals` only (not shared `env`) — re-entrant scalars.
-2. **StoreLocal** still mirrors into `env` so object-arg writeback can find `__oid`.
-3. After **Call**, only object locals are refreshed from `env` by oid (not a full scalar pull).
-
-That keeps `while`+`assign` helpers safe without breaking `env["k"] = v` writeback (DOM/`evalUi`).
+Literals, ident, member, call, let/var/assign, if/else, while, function, binary: `+ - * / == === != !== < > <= >= && || ??`.
 
 ## Tests
 

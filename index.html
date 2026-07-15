@@ -4,16 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Kabootar</title>
-    <script type="module">
-        import init, { evaluate } from './pkg/kabootar.js';
-        await init();
-        window.evaluate = evaluate;
-        const r1 = evaluate('let i = 0; while i < 5 { i = i + 1 }; i');
-        const r2 = evaluate('sql("SELECT 1")');
-        document.body.insertAdjacentHTML('beforeend',
-            `<pre>while-loop: ${r1}\nsql: ${r2}</pre>`);
-        console.log('Kabootar ready', { r1, r2 });
-    </script>
+    
 </head>
 
 <body>
