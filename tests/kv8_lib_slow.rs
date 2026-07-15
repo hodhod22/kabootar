@@ -81,6 +81,22 @@ evalSourceWith("cfg.mode", { "cfg": { "mode": "ui" } }) == "ui"
     assert!(matches!(v, Value::Bool(true)));
 }
 
+/// Fas 1.3 — ops already produced by kv8/parser (*, /, !=, <=, >=, ??).
+#[test]
+fn kv8_eval_ops_extended() {
+    ensure_kv8_eval_cache_fresh();
+    let code = r#"
+import "kv8/eval"
+evalSource("let x = 2 * 3 + 4 / 2; x") == 8 &&
+evalSource("let a = 1; a != 2 && a !== 2 && a <= 1 && a >= 1") == true &&
+evalSource("let u = undefined; let v = u ?? 9; v") == 9 &&
+evalSource("let z = 0; z ?? 5") == 0
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
 #[test]
 fn kv8_dom_ui_pipeline() {
     ensure_kv8_eval_cache_fresh();

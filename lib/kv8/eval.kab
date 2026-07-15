@@ -1,25 +1,38 @@
 @version "1.0.0"
 
 // Kv8 interpreter in Kabootar. import "kv8/eval"
-// While+assign: bytecode VM requires the cond/body loops in the same fn as the
-// pub entry (no evRunBlock helper call). See self_host/README.md re-entrant locals.
+// Fas 2: evRunBlock for nested blocks/calls. Pub entries keep their program loop
+// (import of a taller mutual-rec fn graph hung on Windows during module init).
+// Binary/member/call: module stacks (fn locals not re-entrant in .kbc).
 
 import "kv8/parser"
 import "kv8/defs"
 import "kv8/host"
 
-let evBxL = null
-let evBxR = null
 let evBxOp = ""
 let evLhs = 0
 let evRhsVal = 0
-let evBindSym = ""
-let evRhsNode = null
-let evMemObj = null
-let evMemField = ""
-let evCallFn = null
-let evCallArgNodes = []
+let evBinOpStack = []
+let evBinRStack = []
+let evBinLStack = []
+let evMemObjStack = []
+let evMemFieldStack = []
+let evCallFnStack = []
+let evCallArgsStack = []
+let evAiStack = []
 let evAi = 0
+let evPopNew = []
+let evPopI = 0
+
+fn evPopStack(stack) {
+    evPopNew = []
+    evPopI = 0
+    while evPopI < len(stack) - 1 {
+        evPopNew = push(evPopNew, stack[evPopI])
+        evPopI = evPopI + 1
+    }
+    return evPopNew
+}
 
 fn evExpr(node, env) {
     if node.kind == K_LITERAL {
@@ -29,24 +42,34 @@ fn evExpr(node, env) {
         return node.value
     }
     if node.kind == K_IDENT {
-        evBindSym = node["sym"]
-        if !object_has_own(env, evBindSym) {
-            throw "ReferenceError: " + evBindSym
+        let bindSym = node["sym"]
+        if !object_has_own(env, bindSym) {
+            throw "ReferenceError: " + bindSym
         }
-        return env[evBindSym]
+        return env[bindSym]
     }
     if node.kind == K_BINARY {
-        evBxL = node.left
-        evBxR = node.right
-        evBxOp = node.op
-        evLhs = evExpr(evBxL, env)
-        evRhsVal = evExpr(evBxR, env)
+        evBinOpStack = push(evBinOpStack, node.op)
+        evBinRStack = push(evBinRStack, node.right)
+        evBinLStack = push(evBinLStack, evExpr(node.left, env))
+        evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
+        evLhs = evBinLStack[len(evBinLStack) - 1]
+        evBxOp = evBinOpStack[len(evBinOpStack) - 1]
+        evBinLStack = evPopStack(evBinLStack)
+        evBinOpStack = evPopStack(evBinOpStack)
+        evBinRStack = evPopStack(evBinRStack)
         if evBxOp == "+" { return evLhs + evRhsVal }
         if evBxOp == "-" { return evLhs - evRhsVal }
+        if evBxOp == "*" { return evLhs * evRhsVal }
+        if evBxOp == "/" { return evLhs / evRhsVal }
         if evBxOp == "==" { return evLhs == evRhsVal }
         if evBxOp == "===" { return evLhs == evRhsVal }
+        if evBxOp == "!=" { return evLhs != evRhsVal }
+        if evBxOp == "!==" { return evLhs != evRhsVal }
         if evBxOp == "<" { return evLhs < evRhsVal }
         if evBxOp == ">" { return evLhs > evRhsVal }
+        if evBxOp == "<=" { return evLhs <= evRhsVal }
+        if evBxOp == ">=" { return evLhs >= evRhsVal }
         if evBxOp == "&&" {
             if !evLhs { return evLhs }
             return evRhsVal
@@ -55,44 +78,91 @@ fn evExpr(node, env) {
             if evLhs { return evLhs }
             return evRhsVal
         }
+        if evBxOp == "??" {
+            if evLhs == null || evLhs == undefined {
+                return evRhsVal
+            }
+            return evLhs
+        }
         throw "Unsupported op " + evBxOp
     }
     if node.kind == K_MEMBER {
-        evMemObj = node.object
-        evMemField = "" + node.field
-        let obj = evExpr(evMemObj, env)
+        evMemFieldStack = push(evMemFieldStack, "" + node.field)
+        evMemObjStack = push(evMemObjStack, node.object)
+        let obj = evExpr(evMemObjStack[len(evMemObjStack) - 1], env)
+        let memField = evMemFieldStack[len(evMemFieldStack) - 1]
+        evMemObjStack = evPopStack(evMemObjStack)
+        evMemFieldStack = evPopStack(evMemFieldStack)
         if obj == null || obj == undefined {
-            throw "TypeError: cannot read property " + evMemField
+            throw "TypeError: cannot read property " + memField
         }
-        if object_has_own(obj, evMemField) {
-            return obj[evMemField]
+        if object_has_own(obj, memField) {
+            return obj[memField]
         }
         return undefined
     }
     if node.kind == K_CALL {
-        evCallFn = node.callee
-        evCallArgNodes = node.args
-        let callee = evExpr(evCallFn, env)
+        evCallFnStack = push(evCallFnStack, node.callee)
+        evCallArgsStack = push(evCallArgsStack, node.args)
+        let callee = evExpr(evCallFnStack[len(evCallFnStack) - 1], env)
+        let callArgNodes = evCallArgsStack[len(evCallArgsStack) - 1]
+        evCallFnStack = evPopStack(evCallFnStack)
+        evCallArgsStack = evPopStack(evCallArgsStack)
         let fnTag = callee["tag"]
         if fnTag == "k8host" {
             let hostName = callee["name"]
             let hostArgs = []
-            evAi = 0
-            while evAi < len(evCallArgNodes) {
-                hostArgs = push(hostArgs, evExpr(evCallArgNodes[evAi], env))
-                evAi = evAi + 1
+            evAiStack = push(evAiStack, 0)
+            while evAiStack[len(evAiStack) - 1] < len(callArgNodes) {
+                evAi = evAiStack[len(evAiStack) - 1]
+                hostArgs = push(hostArgs, evExpr(callArgNodes[evAi], env))
+                evAi = evAiStack[len(evAiStack) - 1] + 1
+                evAiStack = evPopStack(evAiStack)
+                evAiStack = push(evAiStack, evAi)
             }
+            evAiStack = evPopStack(evAiStack)
             return hostCall(hostName, hostArgs)
         }
         let fnArgs = []
-        evAi = 0
-        while evAi < len(evCallArgNodes) {
-            fnArgs = push(fnArgs, evExpr(evCallArgNodes[evAi], env))
-            evAi = evAi + 1
+        evAiStack = push(evAiStack, 0)
+        while evAiStack[len(evAiStack) - 1] < len(callArgNodes) {
+            evAi = evAiStack[len(evAiStack) - 1]
+            fnArgs = push(fnArgs, evExpr(callArgNodes[evAi], env))
+            evAi = evAiStack[len(evAiStack) - 1] + 1
+            evAiStack = evPopStack(evAiStack)
+            evAiStack = push(evAiStack, evAi)
         }
+        evAiStack = evPopStack(evAiStack)
         return evCall(callee, fnArgs)
     }
     throw "eval expr " + node.kind
+}
+
+fn evRunBlock(stmts, env) {
+    let last = undefined
+    let si = 0
+    while si < len(stmts) {
+        let st = stmts[si]
+        if st.kind == K_WHILE {
+            let condNode = st.cond
+            let bodyStmts = st.body.body
+            while true {
+                if !evExpr(condNode, env) {
+                    break
+                }
+                let bi = 0
+                while bi < len(bodyStmts) {
+                    last = evStmt(bodyStmts[bi], env)
+                    bi = bi + 1
+                }
+            }
+            last = undefined
+        } else {
+            last = evStmt(st, env)
+        }
+        si = si + 1
+    }
+    return last
 }
 
 fn evCall(fnVal, args) {
@@ -126,30 +196,7 @@ fn evCall(fnVal, args) {
     if fnArrow {
         return evExpr(fnBody[0], scope)
     }
-    let fnLast = undefined
-    let fnSi = 0
-    while fnSi < len(fnBody) {
-        let fnSt = fnBody[fnSi]
-        if fnSt.kind == K_WHILE {
-            let fnCond = fnSt.cond
-            let fnBodyStmts = fnSt.body.body
-            while true {
-                if !evExpr(fnCond, scope) {
-                    break
-                }
-                let fnBi = 0
-                while fnBi < len(fnBodyStmts) {
-                    fnLast = evStmt(fnBodyStmts[fnBi], scope)
-                    fnBi = fnBi + 1
-                }
-            }
-            fnLast = undefined
-        } else {
-            fnLast = evStmt(fnSt, scope)
-        }
-        fnSi = fnSi + 1
-    }
-    return fnLast
+    return evRunBlock(fnBody, scope)
 }
 
 fn evStmt(stmt, env) {
@@ -162,114 +209,40 @@ fn evStmt(stmt, env) {
             scope[keys[fi]] = env[keys[fi]]
             fi = fi + 1
         }
-        evBindSym = stmt["sym"]
-        env["" + evBindSym] = { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": scope, "arrow": false }
+        let bindSym = stmt["sym"]
+        env["" + bindSym] = { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": scope, "arrow": false }
         return undefined
     }
     if stmtKind == K_RETURN {
-        evRhsNode = stmt["rhs"]
-        return evExpr(evRhsNode, env)
+        return evExpr(stmt["rhs"], env)
     }
     if stmtKind == K_IF {
         let condNode = stmt.cond
         if evExpr(condNode, env) {
-            let thenStmts = stmt.then.body
-            let ti = 0
-            let tLast = undefined
-            while ti < len(thenStmts) {
-                let tSt = thenStmts[ti]
-                if tSt.kind == K_WHILE {
-                    let tCond = tSt.cond
-                    let tBody = tSt.body.body
-                    while true {
-                        if !evExpr(tCond, env) {
-                            break
-                        }
-                        let tBi = 0
-                        while tBi < len(tBody) {
-                            tLast = evStmt(tBody[tBi], env)
-                            tBi = tBi + 1
-                        }
-                    }
-                    tLast = undefined
-                } else {
-                    tLast = evStmt(tSt, env)
-                }
-                ti = ti + 1
-            }
-            return tLast
+            return evRunBlock(stmt.then.body, env)
         }
         if stmt.elseBranch != null {
             if len(stmt.elseBranch) > 0 {
-                let elseStmts = stmt.elseBranch
-                let ei = 0
-                let eLast = undefined
-                while ei < len(elseStmts) {
-                    let eSt = elseStmts[ei]
-                    if eSt.kind == K_WHILE {
-                        let eCond = eSt.cond
-                        let eBody = eSt.body.body
-                        while true {
-                            if !evExpr(eCond, env) {
-                                break
-                            }
-                            let eBi = 0
-                            while eBi < len(eBody) {
-                                eLast = evStmt(eBody[eBi], env)
-                                eBi = eBi + 1
-                            }
-                        }
-                        eLast = undefined
-                    } else {
-                        eLast = evStmt(eSt, env)
-                    }
-                    ei = ei + 1
-                }
-                return eLast
+                return evRunBlock(stmt.elseBranch, env)
             }
         }
         return undefined
     }
     if stmtKind == K_LET || stmtKind == K_VAR {
-        evBindSym = stmt["sym"]
-        env["" + evBindSym] = evExpr(stmt.init, env)
+        let bindSym = stmt["sym"]
+        env["" + bindSym] = evExpr(stmt.init, env)
         return undefined
     }
     if stmtKind == K_ASSIGN {
-        evBindSym = stmt["sym"]
-        evRhsNode = stmt["rhs"]
-        env["" + evBindSym] = evExpr(evRhsNode, env)
+        let bindSym = stmt["sym"]
+        env["" + bindSym] = evExpr(stmt["rhs"], env)
         return undefined
     }
     if stmtKind == K_EXPR {
         return evExpr(stmt.expr, env)
     }
     if stmtKind == K_BLOCK {
-        let blkStmts = stmt.body
-        let blkLast = undefined
-        let bi2 = 0
-        while bi2 < len(blkStmts) {
-            let bSt = blkStmts[bi2]
-            if bSt.kind == K_WHILE {
-                let bCond = bSt.cond
-                let bBody = bSt.body.body
-                while true {
-                    if !evExpr(bCond, env) {
-                        break
-                    }
-                    let bBi = 0
-                    while bBi < len(bBody) {
-                        blkLast = evStmt(bBody[bBi], env)
-                        bBi = bBi + 1
-                    }
-                }
-                blkLast = undefined
-            } else {
-                blkLast = evStmt(bSt, env)
-            }
-            bi2 = bi2 + 1
-        }
-        return blkLast
+        return evRunBlock(stmt.body, env)
     }
     throw "eval stmt " + stmtKind
 }
@@ -377,8 +350,4 @@ pub fn evalSource(source) {
         si = si + 1
     }
     return last
-}
-
-pub fn parseProgram(source) {
-    return parseSource(source)
 }
