@@ -20,6 +20,10 @@ Learned from self-host; same VM limits apply here.
 6. **Sym pool in parser** — `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`, not `"name"`.
 7. **≤~7 top-level fn per module** where possible — large modules slow compile and can OOM on Windows.
 
+## VM fix (Fas 2)
+
+Rust bytecode VM (`src/bytecode/vm.rs`): function-frame `LoadLocal`/`StoreLocal` no longer mirror `let` bindings into shared module `env` during calls. That restores re-entrant locals so helpers like `evRunBlock()` can be used again (pending eval.kab refactor).
+
 ## Tests
 
 | Suite | Command | Time |

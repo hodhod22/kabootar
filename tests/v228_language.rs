@@ -104,3 +104,24 @@ fn kbc_cache_loads_class_program() {
         assert!(matches!(v, Value::Number(7)));
     });
 }
+
+#[test]
+fn bytecode_fn_locals_survive_nested_call() {
+    let source = r#"
+fn inner() {
+    let slot = 99
+    return slot
+}
+fn outer() {
+    let slot = 0
+    inner()
+    return slot
+}
+return outer()
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(matches!(v, Value::Number(0)), "outer slot must not be clobbered by inner");
+}
