@@ -179,6 +179,7 @@ Kör via **Terminal → Run Task…**.
 | Compile timeout i IDE | Kör tunga tester i terminal, inte via Test Explorer |
 | `.kbc` stale | Se [COMPILE.md](COMPILE.md) — regenerera med `compile(serialize.kab)` |
 | **`kv8_lib` verkar hänga i VS Code** | Normalt **2–3 min per test utan output** (första `import "kv8/eval"` kompilerar modulkedjan). Kör med `--test-threads=1` (finns i `.vscode/settings.json`). Om det hänger **>10 min**: radera `.kabootar/cache/eval.kab.kbc` och bygg om — gammal cache kan innehålla trasig `evalSource`→`evalSourceWith`-kedja. Terminal: `rm .kabootar/cache/eval.kab.kbc` |
+| **`LNK1104` / cannot open `kv8_lib_slow*.exe`** | En **hängande testprocess** låser exe (vanligt efter avbruten slow-körning). Stäng Test Explorer-körningen, döda processer, bygg om: `taskkill //F //IM kv8_lib_slow-0f5b08c27dd34a7d.exe` (Windows), `rm target/debug/deps/kv8_lib_slow*.exe`, `cargo test --test kv8_lib_slow --no-run`. Kör **inte** fast + slow parallellt i IDE. |
 
 ---
 

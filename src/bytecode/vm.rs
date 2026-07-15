@@ -329,14 +329,16 @@ fn run_chunk(
             }
             Opcode::LoadLocal(idx) => {
                 let i = *idx as usize;
-                let is_param = match &args {
-                    Some((func, _)) => locals
+                // Function frames keep `let` bindings in `local_vals` only. Reading module
+                // `env` first breaks re-entrancy (recursive calls clobber shared slots).
+                if args.is_some() {
+                    let v = local_vals
                         .get(i)
-                        .is_some_and(|name| func.params.iter().any(|p| p == name)),
-                    None => false,
-                };
-                let v = if args.is_none() || !is_param {
-                    if let Some(name) = locals.get(i) {
+                        .cloned()
+                        .unwrap_or(Value::Undefined);
+                    push_stack(stack, v)?;
+                } else {
+                    let v = if let Some(name) = locals.get(i) {
                         if name.starts_with("__kab_") {
                             local_vals
                                 .get(i)
@@ -355,14 +357,9 @@ fn run_chunk(
                             .get(i)
                             .cloned()
                             .unwrap_or(Value::Undefined)
-                    }
-                } else {
-                    local_vals
-                        .get(i)
-                        .cloned()
-                        .unwrap_or(Value::Undefined)
-                };
-                push_stack(stack, v)?;
+                    };
+                    push_stack(stack, v)?;
+                }
             }
             Opcode::StoreLocal(idx) => {
                 let v = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -380,7 +377,9 @@ fn run_chunk(
                     return Err(format!("Cannot assign to const `{name}`"));
                 }
                 local_vals[i] = v.clone();
-                store_local_to_env(locals, immutable_locals, i, &v, env)?;
+                if args.is_none() {
+                    store_local_to_env(locals, immutable_locals, i, &v, env)?;
+                }
                 // Closure refresh runs once at end of `run_module`; refreshing on every
                 // module-level StoreLocal clones the full environment and breaks lazy
                 // iterators whose state lives only in `__kab_*` local slots.
@@ -488,7 +487,7 @@ fn run_chunk(
                 }
                 call_args.reverse();
                 let result = call_value(callee, call_args, constants, globals, arrow_functions, classes, env)?;
-                if args.is_some() {
+                if args.is_none() {
                     pull_env_into_local_vals(locals, &mut local_vals, env);
                 }
                 push_stack(stack, result)?;
