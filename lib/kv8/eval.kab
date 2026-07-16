@@ -23,6 +23,7 @@ let evAiStack = []
 let evAi = 0
 let evPopNew = []
 let evPopI = 0
+let evLoopSig = 0
 
 fn evPopStack(stack) {
     evPopNew = []
@@ -174,12 +175,25 @@ fn evRunBlock(stmts, env) {
                 let bi = 0
                 while bi < len(bodyStmts) {
                     last = evStmt(bodyStmts[bi], env)
+                    if evLoopSig != 0 {
+                        break
+                    }
                     bi = bi + 1
+                }
+                if evLoopSig == 1 {
+                    evLoopSig = 0
+                    break
+                }
+                if evLoopSig == 2 {
+                    evLoopSig = 0
                 }
             }
             last = undefined
         } else {
             last = evStmt(st, env)
+            if evLoopSig != 0 {
+                return last
+            }
         }
         si = si + 1
     }
@@ -253,11 +267,26 @@ fn evStmt(stmt, env) {
         if stmt.init != null {
             evStmt(stmt.init, env)
         }
+        let bodyStmts = stmt.body.body
         while true {
             if !evExpr(stmt.cond, env) {
                 break
             }
-            evRunBlock(stmt.body.body, env)
+            let bi = 0
+            while bi < len(bodyStmts) {
+                evStmt(bodyStmts[bi], env)
+                if evLoopSig != 0 {
+                    break
+                }
+                bi = bi + 1
+            }
+            if evLoopSig == 1 {
+                evLoopSig = 0
+                break
+            }
+            if evLoopSig == 2 {
+                evLoopSig = 0
+            }
             if stmt.update != null {
                 evStmt(stmt.update, env)
             }
@@ -279,6 +308,14 @@ fn evStmt(stmt, env) {
     }
     if stmtKind == K_THROW {
         throw evExpr(stmt["rhs"], env)
+    }
+    if stmtKind == K_BREAK {
+        evLoopSig = 1
+        return undefined
+    }
+    if stmtKind == K_CONTINUE {
+        evLoopSig = 2
+        return undefined
     }
     if stmtKind == K_LET || stmtKind == K_VAR {
         let bindSym = stmt["sym"]
@@ -324,12 +361,25 @@ pub fn evalProgram(ast, extraEnv) {
                 let bi = 0
                 while bi < len(bodyStmts) {
                     last = evStmt(bodyStmts[bi], env)
+                    if evLoopSig != 0 {
+                        break
+                    }
                     bi = bi + 1
+                }
+                if evLoopSig == 1 {
+                    evLoopSig = 0
+                    break
+                }
+                if evLoopSig == 2 {
+                    evLoopSig = 0
                 }
             }
             last = undefined
         } else {
             last = evStmt(st, env)
+            if evLoopSig != 0 {
+                return last
+            }
         }
         si = si + 1
     }
@@ -362,12 +412,25 @@ pub fn evalSourceWith(source, extraEnv) {
                 let bi = 0
                 while bi < len(bodyStmts) {
                     last = evStmt(bodyStmts[bi], env)
+                    if evLoopSig != 0 {
+                        break
+                    }
                     bi = bi + 1
+                }
+                if evLoopSig == 1 {
+                    evLoopSig = 0
+                    break
+                }
+                if evLoopSig == 2 {
+                    evLoopSig = 0
                 }
             }
             last = undefined
         } else {
             last = evStmt(st, env)
+            if evLoopSig != 0 {
+                return last
+            }
         }
         si = si + 1
     }
@@ -392,12 +455,25 @@ pub fn evalSource(source) {
                 let bi = 0
                 while bi < len(bodyStmts) {
                     last = evStmt(bodyStmts[bi], env)
+                    if evLoopSig != 0 {
+                        break
+                    }
                     bi = bi + 1
+                }
+                if evLoopSig == 1 {
+                    evLoopSig = 0
+                    break
+                }
+                if evLoopSig == 2 {
+                    evLoopSig = 0
                 }
             }
             last = undefined
         } else {
             last = evStmt(st, env)
+            if evLoopSig != 0 {
+                return last
+            }
         }
         si = si + 1
     }

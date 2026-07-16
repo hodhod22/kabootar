@@ -27,4 +27,7 @@ println("kv8 eval: for=" + json_stringify(g))
 let h = evalSource("try { throw \"boom\"; } catch (e) { e }")
 println("kv8 eval: try=" + json_stringify(h))
 
+let br = evalSource("let s = 0; for (let i = 0; i < 10; i = i + 1) { if (i == 3) { break; } s = s + i; } s")
+println("kv8 eval: break=" + json_stringify(br))
+
 return b

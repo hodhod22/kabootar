@@ -75,6 +75,8 @@ pub let K_WHILE = "While"
 pub let K_FOR = "For"
 pub let K_TRY = "Try"
 pub let K_THROW = "Throw"
+pub let K_BREAK = "Break"
+pub let K_CONTINUE = "Continue"
 pub let K_ASSIGN = "Assign"
 
 pub let LIT_NUMBER = "number"

@@ -157,6 +157,21 @@ evalSource("try { throw \"boom\"; } catch (e) { e }") == "boom"
     assert!(matches!(v, Value::Bool(true)));
 }
 
+/// break/continue in for and while loops.
+#[test]
+fn kv8_eval_break_continue() {
+    ensure_kv8_eval_cache_fresh();
+    let code = r#"
+import "kv8/eval"
+evalSource("let s = 0; for (let i = 0; i < 10; i = i + 1) { if (i == 3) { break; } s = s + i; } s") == 3 &&
+evalSource("let s = 0; for (let i = 0; i < 5; i = i + 1) { if (i == 2) { continue; } s = s + i; } s") == 8 &&
+evalSource("let n = 0; let s = 0; while (n < 5) { n = n + 1; if (n == 3) { continue; } s = s + n; } s") == 12
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
 #[test]
 fn kv8_dom_ui_pipeline() {
     ensure_kv8_eval_cache_fresh();

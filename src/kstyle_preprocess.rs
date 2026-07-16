@@ -7,10 +7,9 @@ pub fn expand_kstyle_blocks(source: &str) -> String {
     let mut out = String::new();
     let bytes = source.as_bytes();
     let mut i = 0usize;
-    while i < bytes.len() {
+    while i < source.len() {
         if let Some(rest) = source[i..].strip_prefix("kstyle") {
-            let j = i;
-            let after_kw = j + 6;
+            let after_kw = i + 6;
             let mut k = after_kw;
             while k < bytes.len() && bytes[k].is_ascii_whitespace() {
                 k += 1;
@@ -38,8 +37,12 @@ pub fn expand_kstyle_blocks(source: &str) -> String {
             }
             let _ = rest;
         }
-        out.push(bytes[i] as char);
-        i += 1;
+        if let Some(ch) = source[i..].chars().next() {
+            out.push(ch);
+            i += ch.len_utf8();
+        } else {
+            break;
+        }
     }
     out
 }
@@ -149,5 +152,12 @@ let x = 1;
         assert!(out.contains("kstyle_rule(\".app\", \"color\", \"#fff\")"));
         assert!(out.contains("kstyle_commit()"));
         assert!(out.contains("let x = 1"));
+    }
+
+    #[test]
+    fn preserves_utf8_outside_kstyle() {
+        let src = "// note — em dash\nlet x = 1;\n";
+        let out = expand_kstyle_blocks(src);
+        assert_eq!(out, src);
     }
 }
