@@ -51,7 +51,42 @@ fn evExpr(node, env) {
     if node.kind == K_BINARY {
         evBinOpStack = push(evBinOpStack, node.op)
         evBinRStack = push(evBinRStack, node.right)
-        evBinLStack = push(evBinLStack, evExpr(node.left, env))
+        evLhs = evExpr(node.left, env)
+        evBxOp = evBinOpStack[len(evBinOpStack) - 1]
+        if evBxOp == "&&" {
+            if !evLhs {
+                evBinOpStack = evPopStack(evBinOpStack)
+                evBinRStack = evPopStack(evBinRStack)
+                return evLhs
+            }
+            evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
+            evBinOpStack = evPopStack(evBinOpStack)
+            evBinRStack = evPopStack(evBinRStack)
+            return evRhsVal
+        }
+        if evBxOp == "||" {
+            if evLhs {
+                evBinOpStack = evPopStack(evBinOpStack)
+                evBinRStack = evPopStack(evBinRStack)
+                return evLhs
+            }
+            evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
+            evBinOpStack = evPopStack(evBinOpStack)
+            evBinRStack = evPopStack(evBinRStack)
+            return evRhsVal
+        }
+        if evBxOp == "??" {
+            if evLhs != null && evLhs != undefined {
+                evBinOpStack = evPopStack(evBinOpStack)
+                evBinRStack = evPopStack(evBinRStack)
+                return evLhs
+            }
+            evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
+            evBinOpStack = evPopStack(evBinOpStack)
+            evBinRStack = evPopStack(evBinRStack)
+            return evRhsVal
+        }
+        evBinLStack = push(evBinLStack, evLhs)
         evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
         evLhs = evBinLStack[len(evBinLStack) - 1]
         evBxOp = evBinOpStack[len(evBinOpStack) - 1]
@@ -70,20 +105,6 @@ fn evExpr(node, env) {
         if evBxOp == ">" { return evLhs > evRhsVal }
         if evBxOp == "<=" { return evLhs <= evRhsVal }
         if evBxOp == ">=" { return evLhs >= evRhsVal }
-        if evBxOp == "&&" {
-            if !evLhs { return evLhs }
-            return evRhsVal
-        }
-        if evBxOp == "||" {
-            if evLhs { return evLhs }
-            return evRhsVal
-        }
-        if evBxOp == "??" {
-            if evLhs == null || evLhs == undefined {
-                return evRhsVal
-            }
-            return evLhs
-        }
         throw "Unsupported op " + evBxOp
     }
     if node.kind == K_MEMBER {
@@ -227,6 +248,37 @@ fn evStmt(stmt, env) {
             }
         }
         return undefined
+    }
+    if stmtKind == K_FOR {
+        if stmt.init != null {
+            evStmt(stmt.init, env)
+        }
+        while true {
+            if !evExpr(stmt.cond, env) {
+                break
+            }
+            evRunBlock(stmt.body.body, env)
+            if stmt.update != null {
+                evStmt(stmt.update, env)
+            }
+        }
+        return undefined
+    }
+    if stmtKind == K_TRY {
+        try {
+            return evRunBlock(stmt.body.body, env)
+        } catch (err) {
+            if stmt.catchBody != null {
+                if stmt.catchParam != null && stmt.catchParam != "" {
+                    env["" + stmt.catchParam] = err
+                }
+                return evRunBlock(stmt.catchBody.body, env)
+            }
+            throw err
+        }
+    }
+    if stmtKind == K_THROW {
+        throw evExpr(stmt["rhs"], env)
     }
     if stmtKind == K_LET || stmtKind == K_VAR {
         let bindSym = stmt["sym"]

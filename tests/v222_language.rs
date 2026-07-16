@@ -108,6 +108,25 @@ fn bytecode_try_catch_err_and_ok() {
 }
 
 #[test]
+fn bytecode_try_catch_nested_throw() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn inner() { throw "boom" }
+        fn mid() { return inner() }
+        try {
+            mid()
+        } catch (e) {
+            e
+        }
+    "#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::String(s) if s == "boom"));
+}
+
+#[test]
 fn bytecode_assign_destructuring() {
     let mut env = create_global_env();
     let v = eval_source(

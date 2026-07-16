@@ -10,12 +10,13 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Module rules (Kabootar bytecode)
 
-1. **Module stacks for recurse** — push `op`/`right`/`lhs` on `evBin*Stack` (and member/call stacks) before nested `evExpr`; fn locals are not re-entrant in `.kbc`.
-2. **Bracket access for AST keys** — `node["sym"]`, not `.sym` where names collide.
-3. **`evRunBlock` for nested bodies** — if/block/`k8fn` bodies. Pub `evalSource*` keep an inline program loop (delegating the whole entry to a helper hung on Windows module-init with a taller mutual-rec call graph).
-4. **Unique loop index names** per fn (`si`, `bi`, `ei`, …).
-5. **Sym pool in parser** — `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`.
-6. **≤~8 top-level fn** where possible — import of `eval.kab` with 9+ mutual-rec pub helpers has hung on Windows.
+1. **Module stacks for recurse** - push `op`/`right`/`lhs` on `evBin*Stack` (and member/call stacks) before nested `evExpr`; fn locals are not re-entrant in `.kbc`. `&&`/`||`/`??` short-circuit (skip RHS).
+2. **Bracket access for AST keys** - `node["sym"]`, not `.sym` where names collide.
+3. **`evRunBlock` for nested bodies** - if/block/`k8fn` bodies. Pub `evalSource*` keep an inline program loop (delegating the whole entry to a helper hung on Windows module-init with a taller mutual-rec call graph).
+4. **Unique loop index names** per fn (`si`, `bi`, `ei`, ...).
+5. **Sym pool in parser** - `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`.
+6. **<=~8 top-level fn** where possible - import of `eval.kab` with 9+ mutual-rec pub helpers has hung on Windows.
+7. **ASCII-only in `.kab` comments** - em-dash can trip `kstyle_preprocess` UTF-8 scan.
 
 ## Fas 2 VM notes
 
@@ -23,7 +24,7 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+)
 
-Literals, ident, member, call, let/var/assign, if/else, while, function, binary: `+ - * / == === != !== < > <= >= && || ??`.
+Literals, ident, member, call, let/var/assign, if/else, while, for, try/catch, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## Tests
 
