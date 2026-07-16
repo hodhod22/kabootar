@@ -21,6 +21,8 @@ fn ensure_kv8_eval_cache_fresh() {
             "lib/kv8/dom.kab",
             "lib/kv8/parser.kab",
             "lib/kv8/host.kab",
+            "lib/kv8/defs.kab",
+            "lib/kv8/lexer.kab",
         ] {
             let path = format!("{base}/{rel}");
             compile::invalidate_file_cache(&path);
@@ -119,6 +121,36 @@ evalSource("let x = 2 * 3 + 4 / 2; x") == 8 &&
 evalSource("let a = 1; a != 2 && a !== 2 && a <= 1 && a >= 1") == true &&
 evalSource("let u = undefined; let v = u ?? 9; v") == 9 &&
 evalSource("let z = 0; z ?? 5") == 0
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
+/// Short-circuit: RHS must not run when LHS decides the result.
+#[test]
+fn kv8_eval_short_circuit() {
+    ensure_kv8_eval_cache_fresh();
+    let code = r#"
+import "kv8/eval"
+evalSource("false && missing") == false &&
+evalSource("true || missing") == true &&
+evalSource("0 ?? missing") == 0 &&
+evalSource("null ?? 7") == 7
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
+/// C-style for + try/catch/throw.
+#[test]
+fn kv8_eval_for_and_try() {
+    ensure_kv8_eval_cache_fresh();
+    let code = r#"
+import "kv8/eval"
+evalSource("let s = 0; for (let i = 0; i < 3; i = i + 1) { s = s + i; } s") == 3 &&
+evalSource("try { throw \"boom\"; } catch (e) { e }") == "boom"
 "#;
     let mut env = kabootar_lib::evaluator::create_global_env();
     let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();

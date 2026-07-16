@@ -51,6 +51,49 @@ pub fn find_try_region_for_ip(func: &BytecodeFnDef, ip: usize) -> Option<&Genera
         })
 }
 
+/// If `err` is a `throw` marker and the current IP is inside a try region, bind the
+/// value and jump to the catch handler. Nested calls previously leaked throws past
+/// the caller's `try` because only same-frame `Opcode::Throw` consulted regions.
+fn try_catch_propagated_throw(
+    err: &str,
+    current_fn: Option<&BytecodeFnDef>,
+    module: Option<&BytecodeModule>,
+    locals: &[String],
+    immutable_locals: &[bool],
+    local_vals: &mut Vec<Value>,
+    env: &mut Environment,
+    ip: &mut usize,
+    stack: &mut Vec<Value>,
+) -> Result<bool, String> {
+    let Some(v) = crate::runtime::stdlib::error::take_throw_value(err) else {
+        return Ok(false);
+    };
+    let ip_now = *ip;
+    let region = current_fn
+        .and_then(|func| find_try_region_for_ip(func, ip_now))
+        .or_else(|| {
+            module.and_then(|m| {
+                m.main_try_regions
+                    .iter()
+                    .filter(|r| ip_now >= r.body_start && ip_now <= r.body_end)
+                    .max_by_key(|r| r.body_start)
+            })
+        });
+    let Some(region) = region else {
+        return Err(crate::runtime::stdlib::error::throw_value(v));
+    };
+    let li = region.err_local as usize;
+    if li >= local_vals.len() {
+        local_vals.resize(li + 1, Value::Undefined);
+    }
+    let caught = crate::runtime::stdlib::error::enrich_error_value_for_catch(v);
+    local_vals[li] = caught.clone();
+    store_local_to_env(locals, immutable_locals, li, &caught, env)?;
+    push_stack(stack, caught)?;
+    *ip = region.catch_start;
+    Ok(true)
+}
+
 #[inline]
 fn push_stack(stack: &mut Vec<Value>, v: Value) -> Result<(), String> {
     if stack.len() >= MAX_BYTECODE_STACK {
@@ -517,7 +560,33 @@ fn run_chunk(
                     call_args.push(stack.pop().ok_or("Bytecode stack underflow")?);
                 }
                 call_args.reverse();
-                let result = call_value(callee, call_args, constants, globals, arrow_functions, classes, env)?;
+                let result = match call_value(
+                    callee,
+                    call_args,
+                    constants,
+                    globals,
+                    arrow_functions,
+                    classes,
+                    env,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if try_catch_propagated_throw(
+                            &e,
+                            args.as_ref().map(|(f, _)| *f),
+                            module,
+                            locals,
+                            immutable_locals,
+                            &mut local_vals,
+                            env,
+                            ip,
+                            stack,
+                        )? {
+                            continue;
+                        }
+                        return Err(e);
+                    }
+                };
                 if args.is_none() {
                     pull_env_into_local_vals(locals, &mut local_vals, env);
                 } else {
@@ -643,7 +712,33 @@ fn run_chunk(
                 let Value::Array(items) = args_arr else {
                     return Err("CallFromArray requires an array of arguments".into());
                 };
-                let result = call_value(callee, items, constants, globals, arrow_functions, classes, env)?;
+                let result = match call_value(
+                    callee,
+                    items,
+                    constants,
+                    globals,
+                    arrow_functions,
+                    classes,
+                    env,
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        if try_catch_propagated_throw(
+                            &e,
+                            args.as_ref().map(|(f, _)| *f),
+                            module,
+                            locals,
+                            immutable_locals,
+                            &mut local_vals,
+                            env,
+                            ip,
+                            stack,
+                        )? {
+                            continue;
+                        }
+                        return Err(e);
+                    }
+                };
                 push_stack(stack, result)?;
             }
             Opcode::MakeOk => {

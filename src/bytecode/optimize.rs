@@ -11,18 +11,28 @@ pub struct OptStats {
 
 pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
     let mut stats = OptStats::default();
-    let s = optimize_chunk(&mut module.main_code, &mut module.constants);
-    stats.folds += s.folds;
-    stats.peepholes += s.peepholes;
-    stats.dead_removed += s.dead_removed;
+    // Skipping chunks with try/catch: fold/peephole remove ops and would leave
+    // absolute try_region IPs pointing into the wrong instructions.
+    if module.main_try_regions.is_empty() {
+        let s = optimize_chunk(&mut module.main_code, &mut module.constants);
+        stats.folds += s.folds;
+        stats.peepholes += s.peepholes;
+        stats.dead_removed += s.dead_removed;
+    }
 
     for f in &mut module.functions {
+        if !f.try_regions.is_empty() {
+            continue;
+        }
         let s = optimize_chunk(&mut f.code, &mut f.constants);
         stats.folds += s.folds;
         stats.peepholes += s.peepholes;
         stats.dead_removed += s.dead_removed;
     }
     for f in &mut module.arrow_functions {
+        if !f.try_regions.is_empty() {
+            continue;
+        }
         let s = optimize_chunk(&mut f.code, &mut f.constants);
         stats.folds += s.folds;
         stats.peepholes += s.peepholes;
@@ -30,6 +40,9 @@ pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
     }
     for c in &mut module.classes {
         for m in &mut c.methods {
+            if !m.try_regions.is_empty() {
+                continue;
+            }
             let s = optimize_chunk(&mut m.code, &mut m.constants);
             stats.folds += s.folds;
             stats.peepholes += s.peepholes;

@@ -18,4 +18,13 @@ println("kv8 eval: while=" + json_stringify(d))
 let e = evalSource("let x = 2 * 3; x != 5 && (null ?? 4) == 4")
 println("kv8 eval: ops=" + json_stringify(e))
 
+let f = evalSource("false && missing")
+println("kv8 eval: sc=" + json_stringify(f))
+
+let g = evalSource("let s = 0; for (let i = 0; i < 3; i = i + 1) { s = s + i; } s")
+println("kv8 eval: for=" + json_stringify(g))
+
+let h = evalSource("try { throw \"boom\"; } catch (e) { e }")
+println("kv8 eval: try=" + json_stringify(h))
+
 return b
