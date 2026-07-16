@@ -1,6 +1,7 @@
 //! Bytecode optimizer — constant folding, peephole, dead-code trimming.
+//! Try-region absolute IPs are remapped when ops are removed (not skipped).
 
-use super::types::{BytecodeModule, Constant, Opcode};
+use super::types::{BytecodeModule, Constant, GeneratorTryRegion, Opcode};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OptStats {
@@ -11,39 +12,30 @@ pub struct OptStats {
 
 pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
     let mut stats = OptStats::default();
-    // Skipping chunks with try/catch: fold/peephole remove ops and would leave
-    // absolute try_region IPs pointing into the wrong instructions.
-    if module.main_try_regions.is_empty() {
-        let s = optimize_chunk(&mut module.main_code, &mut module.constants);
-        stats.folds += s.folds;
-        stats.peepholes += s.peepholes;
-        stats.dead_removed += s.dead_removed;
-    }
+    let s = optimize_chunk(
+        &mut module.main_code,
+        &mut module.constants,
+        &mut module.main_try_regions,
+    );
+    stats.folds += s.folds;
+    stats.peepholes += s.peepholes;
+    stats.dead_removed += s.dead_removed;
 
     for f in &mut module.functions {
-        if !f.try_regions.is_empty() {
-            continue;
-        }
-        let s = optimize_chunk(&mut f.code, &mut f.constants);
+        let s = optimize_chunk(&mut f.code, &mut f.constants, &mut f.try_regions);
         stats.folds += s.folds;
         stats.peepholes += s.peepholes;
         stats.dead_removed += s.dead_removed;
     }
     for f in &mut module.arrow_functions {
-        if !f.try_regions.is_empty() {
-            continue;
-        }
-        let s = optimize_chunk(&mut f.code, &mut f.constants);
+        let s = optimize_chunk(&mut f.code, &mut f.constants, &mut f.try_regions);
         stats.folds += s.folds;
         stats.peepholes += s.peepholes;
         stats.dead_removed += s.dead_removed;
     }
     for c in &mut module.classes {
         for m in &mut c.methods {
-            if !m.try_regions.is_empty() {
-                continue;
-            }
-            let s = optimize_chunk(&mut m.code, &mut m.constants);
+            let s = optimize_chunk(&mut m.code, &mut m.constants, &mut m.try_regions);
             stats.folds += s.folds;
             stats.peepholes += s.peepholes;
             stats.dead_removed += s.dead_removed;
@@ -52,15 +44,45 @@ pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
     stats
 }
 
-fn optimize_chunk(code: &mut Vec<Opcode>, constants: &mut Vec<Constant>) -> OptStats {
+fn optimize_chunk(
+    code: &mut Vec<Opcode>,
+    constants: &mut Vec<Constant>,
+    regions: &mut [GeneratorTryRegion],
+) -> OptStats {
     let mut stats = OptStats::default();
-    fold_constants(code, constants, &mut stats);
-    peephole(code, &mut stats);
-    trim_dead_after_halt(code, &mut stats);
+    fold_constants(code, constants, regions, &mut stats);
+    peephole(code, regions, &mut stats);
+    trim_dead_after_halt(code, regions, &mut stats);
     stats
 }
 
-fn fold_constants(code: &mut Vec<Opcode>, constants: &mut Vec<Constant>, stats: &mut OptStats) {
+fn map_ip_after_remove(ip: usize, removed_at: usize, count: usize) -> usize {
+    if ip <= removed_at {
+        ip
+    } else if ip < removed_at + count {
+        removed_at
+    } else {
+        ip - count
+    }
+}
+
+fn remap_try_regions(regions: &mut [GeneratorTryRegion], removed_at: usize, count: usize) {
+    for r in regions.iter_mut() {
+        r.body_start = map_ip_after_remove(r.body_start, removed_at, count);
+        r.body_end = map_ip_after_remove(r.body_end, removed_at, count);
+        r.catch_start = map_ip_after_remove(r.catch_start, removed_at, count);
+        if r.body_end < r.body_start {
+            r.body_end = r.body_start;
+        }
+    }
+}
+
+fn fold_constants(
+    code: &mut Vec<Opcode>,
+    constants: &mut Vec<Constant>,
+    regions: &mut [GeneratorTryRegion],
+    stats: &mut OptStats,
+) {
     let mut i = 0;
     while i + 2 < code.len() {
         let (ai, bi) = match (&code[i], &code[i + 1]) {
@@ -80,6 +102,8 @@ fn fold_constants(code: &mut Vec<Opcode>, constants: &mut Vec<Constant>, stats: 
                 code[i] = Opcode::Const(idx);
                 code.remove(i + 1);
                 code.remove(i + 1);
+                remap_try_regions(regions, i + 1, 2);
+                adjust_jump_targets(code, i + 1, 2);
                 stats.folds += 1;
                 continue;
             }
@@ -133,7 +157,7 @@ fn fold_binop(a: &Constant, b: &Constant, op: &Opcode) -> Option<Constant> {
     }
 }
 
-fn peephole(code: &mut Vec<Opcode>, stats: &mut OptStats) {
+fn peephole(code: &mut Vec<Opcode>, regions: &mut [GeneratorTryRegion], stats: &mut OptStats) {
     let mut i = 0;
     while i < code.len() {
         let removed = match peephole_step(code, i) {
@@ -143,6 +167,7 @@ fn peephole(code: &mut Vec<Opcode>, stats: &mut OptStats) {
                 continue;
             }
         };
+        remap_try_regions(regions, i, removed);
         adjust_jump_targets(code, i, removed);
         stats.peepholes += removed;
     }
@@ -165,27 +190,6 @@ fn peephole_step(code: &mut Vec<Opcode>, i: usize) -> Option<usize> {
         }
         _ => None,
     }
-}
-
-fn jump_target(ip: usize, op: &Opcode) -> Option<usize> {
-    let off = match op {
-        Opcode::Jump(off)
-        | Opcode::JumpIfFalse(off)
-        | Opcode::JumpIfResultErr(off)
-        | Opcode::JumpUnlessResultOk(off)
-        | Opcode::JumpUnlessResultErr(off)
-        | Opcode::JumpUnlessOptionSome(off)
-        | Opcode::JumpUnlessOptionNone(off)
-        | Opcode::JumpUnlessEnumVariant(_, _, off)
-        | Opcode::JumpUnlessConstEq(_, off)
-        | Opcode::JumpUnlessArray(off)
-        | Opcode::JumpUnlessObject(off)
-        | Opcode::JumpUnlessObjectEmpty(off)
-        | Opcode::JumpUnlessHasMember(_, off)
-        | Opcode::JumpIfNotNullish(off) => *off,
-        _ => return None,
-    };
-    Some(((ip as i32 + 1) + off) as usize)
 }
 
 fn set_jump_target(ip: usize, op: &mut Opcode, target: usize) {
@@ -239,7 +243,11 @@ fn adjust_jump_targets(code: &mut [Opcode], removed_at: usize, count: usize) {
     }
 }
 
-fn trim_dead_after_halt(code: &mut Vec<Opcode>, stats: &mut OptStats) {
+fn trim_dead_after_halt(
+    code: &mut Vec<Opcode>,
+    regions: &mut [GeneratorTryRegion],
+    stats: &mut OptStats,
+) {
     // Only trim after `Halt`. `Return` may appear mid-function (e.g. if-then) with
     // live fallthrough code still to emit (else / following statements).
     if let Some(pos) = code.iter().position(|op| matches!(op, Opcode::Halt)) {
@@ -247,6 +255,7 @@ fn trim_dead_after_halt(code: &mut Vec<Opcode>, stats: &mut OptStats) {
         if end < code.len() {
             let removed = code.len() - end;
             code.truncate(end);
+            remap_try_regions(regions, end, removed);
             stats.dead_removed += removed;
         }
     }
@@ -273,7 +282,8 @@ mod tests {
             Constant::Number(1),
             Constant::Number(2),
         ];
-        optimize_chunk(&mut code, &mut constants);
+        let mut regions = vec![];
+        optimize_chunk(&mut code, &mut constants, &mut regions);
         assert_eq!(code.len(), 8, "must not truncate fallthrough return after if-then return");
     }
 
@@ -291,8 +301,38 @@ mod tests {
             Opcode::Halt,
         ];
         let mut constants = constants;
-        let stats = optimize_chunk(&mut code, &mut constants);
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
         assert!(stats.folds >= 1);
         assert!(matches!(code.first(), Some(Opcode::Const(2))));
+    }
+
+    #[test]
+    fn remaps_try_regions_on_fold() {
+        let mut constants = vec![
+            Constant::Number(1),
+            Constant::Number(2),
+            Constant::Number(3),
+        ];
+        // body: const 0, const 1, add  | catch at index 4 after fold becomes 2
+        let mut code = vec![
+            Opcode::Const(0),
+            Opcode::Const(1),
+            Opcode::Add,
+            Opcode::JumpIfResultErr(1),
+            Opcode::Jump(1),
+            Opcode::LoadLocal(0),
+            Opcode::Halt,
+        ];
+        let mut regions = vec![GeneratorTryRegion {
+            body_start: 0,
+            body_end: 2,
+            catch_start: 5,
+            err_local: 0,
+        }];
+        optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert_eq!(regions[0].body_start, 0);
+        assert!(regions[0].body_end <= regions[0].catch_start);
+        assert!(regions[0].catch_start < code.len());
     }
 }

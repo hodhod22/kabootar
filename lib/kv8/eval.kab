@@ -123,6 +123,17 @@ fn evExpr(node, env) {
         }
         return undefined
     }
+    if node.kind == K_OBJECT {
+        let obj = {}
+        let fields = node.fields
+        let fi = 0
+        while fi < len(fields) {
+            let field = fields[fi]
+            obj["" + field["key"]] = evExpr(field["value"], env)
+            fi = fi + 1
+        }
+        return obj
+    }
     if node.kind == K_CALL {
         evCallFnStack = push(evCallFnStack, node.callee)
         evCallArgsStack = push(evCallArgsStack, node.args)
@@ -293,18 +304,59 @@ fn evStmt(stmt, env) {
         }
         return undefined
     }
+    if stmtKind == K_FOR_IN {
+        let iterable = evExpr(stmt.iterable, env)
+        let keys = object_keys(iterable)
+        let bodyStmts = stmt.body.body
+        let bindSym = "" + stmt["sym"]
+        let ki = 0
+        while ki < len(keys) {
+            env[bindSym] = keys[ki]
+            let bi = 0
+            while bi < len(bodyStmts) {
+                evStmt(bodyStmts[bi], env)
+                if evLoopSig != 0 {
+                    break
+                }
+                bi = bi + 1
+            }
+            if evLoopSig == 1 {
+                evLoopSig = 0
+                break
+            }
+            if evLoopSig == 2 {
+                evLoopSig = 0
+            }
+            ki = ki + 1
+        }
+        return undefined
+    }
     if stmtKind == K_TRY {
+        let result = undefined
+        let pending = null
         try {
-            return evRunBlock(stmt.body.body, env)
+            result = evRunBlock(stmt.body.body, env)
         } catch (err) {
+            pending = err
             if stmt.catchBody != null {
                 if stmt.catchParam != null && stmt.catchParam != "" {
                     env["" + stmt.catchParam] = err
                 }
-                return evRunBlock(stmt.catchBody.body, env)
+                try {
+                    result = evRunBlock(stmt.catchBody.body, env)
+                    pending = null
+                } catch (err2) {
+                    pending = err2
+                }
             }
-            throw err
         }
+        if stmt.finallyBody != null {
+            evRunBlock(stmt.finallyBody.body, env)
+        }
+        if pending != null {
+            throw pending
+        }
+        return result
     }
     if stmtKind == K_THROW {
         throw evExpr(stmt["rhs"], env)

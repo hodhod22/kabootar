@@ -1,0 +1,108 @@
+@version "1.0.0"
+
+// Minimal Kv8 React-like fiber mount. import "kv8/react"
+// createElement + one-shot render over kDOM (no reconciliation yet).
+
+import "kv8/host"
+import "kdom/events"
+
+fn applyProps(node, props) {
+    if props == null || props == undefined {
+        return node
+    }
+    let keys = object_keys(props)
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        if k == "children" {
+            i = i + 1
+            continue
+        }
+        let v = props[k]
+        if char_at(k, 0) == "o" && char_at(k, 1) == "n" && len(k) > 2 {
+            let ev = ""
+            let ci = 2
+            while ci < len(k) {
+                ev = ev + char_at(k, ci)
+                ci = ci + 1
+            }
+            on(node, ev, v)
+        } else {
+            hostCall("attr", [node, k, v])
+        }
+        i = i + 1
+    }
+    return node
+}
+
+fn mountChildren(parent, children) {
+    if children == null || children == undefined {
+        return parent
+    }
+    let t = typeof(children)
+    if t == "string" || t == "number" {
+        let tnode = hostCall("text", ["" + children])
+        return hostCall("attach", [parent, tnode, true])
+    }
+    if object_has_own(children, "tag") && children["tag"] == "fiber" {
+        return hostCall("attach", [parent, mount(children), true])
+    }
+    try {
+        let n = len(children)
+        let i = 0
+        while i < n {
+            let child = children[i]
+            let ct = typeof(child)
+            if ct == "string" || ct == "number" {
+                parent = hostCall("attach", [parent, hostCall("text", ["" + child]), true])
+            } else {
+                parent = hostCall("attach", [parent, mount(child), true])
+            }
+            i = i + 1
+        }
+        return parent
+    } catch (e) {
+        return hostCall("attach", [parent, mount(children), true])
+    }
+}
+
+fn mount(element) {
+    if element == null || element == undefined {
+        return hostCall("text", [""])
+    }
+    if typeof(element) == "string" || typeof(element) == "number" {
+        return hostCall("text", ["" + element])
+    }
+    let typ = element["type"]
+    let props = element["props"]
+    if typeof(typ) == "function" {
+        let out = typ(props)
+        return mount(out)
+    }
+    let node = hostCall("el", ["" + typ])
+    node = applyProps(node, props)
+    if props != null && object_has_own(props, "children") {
+        node = mountChildren(node, props["children"])
+    }
+    return node
+}
+
+pub fn createElement(typ, props) {
+    if props == null || props == undefined {
+        props = {}
+    }
+    return { "tag": "fiber", "type": typ, "props": props }
+}
+
+pub fn render(element, width, height) {
+    let w = 240
+    let h = 120
+    if width != null && width != undefined {
+        w = width
+    }
+    if height != null && height != undefined {
+        h = height
+    }
+    let node = mount(element)
+    return hostCall("paint", [node, w, h, ""])
+}

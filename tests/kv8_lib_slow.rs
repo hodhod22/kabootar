@@ -19,6 +19,7 @@ fn ensure_kv8_eval_cache_fresh() {
         for rel in [
             "lib/kv8/eval.kab",
             "lib/kv8/dom.kab",
+            "lib/kv8/react.kab",
             "lib/kv8/parser.kab",
             "lib/kv8/host.kab",
             "lib/kv8/defs.kab",
@@ -172,6 +173,20 @@ evalSource("let n = 0; let s = 0; while (n < 5) { n = n + 1; if (n == 3) { conti
     assert!(matches!(v, Value::Bool(true)));
 }
 
+/// finally + for-in.
+#[test]
+fn kv8_eval_finally_and_for_in() {
+    ensure_kv8_eval_cache_fresh();
+    let code = r#"
+import "kv8/eval"
+evalSource("let f = 0; try { throw \"x\"; } catch (e) { f = 1; } finally { f = f + 10; } f") == 11 &&
+evalSource("let n = 0; for (let k in { \"a\": 1, \"b\": 2 }) { if (k != \"__oid\") { n = n + 1; } } n") == 2
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
 #[test]
 fn kv8_dom_ui_pipeline() {
     ensure_kv8_eval_cache_fresh();
@@ -190,5 +205,13 @@ fn kv8_dom_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
     let path = format!("{}/examples/kv8_dom_smoke.kab", manifest_dir());
     let result = cli::run_file(&path).expect("examples/kv8_dom_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
+
+#[test]
+fn kv8_react_smoke_example_runs() {
+    ensure_kv8_eval_cache_fresh();
+    let path = format!("{}/examples/kv8_react_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8_react_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }

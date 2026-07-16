@@ -3,6 +3,7 @@
 Self-hosted Kv8 JS-subset: lexer → parser → eval → dom. Import chain:
 
 ```
+kv8/react → kv8/host → kdom/events
 kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
                       kv8/host
                       kv8/defs
@@ -25,7 +26,11 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+)
 
-Literals, ident, member, call, let/var/assign, if/else, while, for, break/continue, try/catch, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+Literals, ident, member, call, let/var/assign, if/else, while, for, for-in, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+
+## React stub (G10)
+
+`import "kv8/react"`: `createElement` + one-shot `render` over kDOM. Props `onClick`-style map to `kdom/events` `on`. No reconciliation yet.
 
 ## Tests
 
