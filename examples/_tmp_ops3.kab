@@ -1,5 +1,0 @@
-import "kv8/eval"
-println(json_stringify(evalSource("let a = 1; a != 2 && a !== 2 && a <= 1 && a >= 1")))
-println(json_stringify(evalSource("let x = 2 * 3 + 4 / 2; x")))
-println(json_stringify(evalSource("let u = undefined; let v = u ?? 9; v")))
-println(json_stringify(evalSource("let z = 0; z ?? 5")))
