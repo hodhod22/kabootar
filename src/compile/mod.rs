@@ -89,7 +89,11 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
             });
         }
     }
-    compile_source(source)
+    let program = compile_source(source)?;
+    if program.has_bytecode() {
+        let _ = write_compile_marker(path, &program);
+    }
+    Ok(program)
 }
 
 pub fn eval_file_cached(path: &str, env: &mut Environment) -> Result<Value, String> {
