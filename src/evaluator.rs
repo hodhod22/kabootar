@@ -151,15 +151,15 @@ pub fn create_global_env() -> Environment {
     reality_globals(&mut env);
     ecosystem_globals(&mut env);
     crate::runtime::game::game_globals(&mut env);
+    crate::runtime::ownership::ownership_globals(&mut env);
     modules::register_import_builtins(&mut env);
     env
 }
 
 /// Evaluate Kabootar source into an existing environment.
 pub fn eval_source(code: &str, env: &mut Environment) -> Result<Value, String> {
-    let code = crate::lang_preprocess::preprocess(code);
-    let code = crate::kstyle_preprocess::expand_kstyle_blocks(&code);
-    let program = crate::bytecode::compile_source(&code)?;
+    let program = crate::bytecode::compile_source(code)?;
+    crate::runtime::ownership::set_memory_mode(env, program.memory_mode);
     if let Some(bc) = &program.bytecode {
         if bc.uses_bytecode() {
             let result = crate::bytecode::run_module(bc, env)?;

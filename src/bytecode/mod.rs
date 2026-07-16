@@ -27,6 +27,7 @@ pub struct CompiledProgram {
     pub stmts: Vec<Stmt>,
     pub bytecode: Option<BytecodeModule>,
     pub stmt_count: usize,
+    pub memory_mode: crate::lang_preprocess::MemoryMode,
 }
 
 impl CompiledProgram {
@@ -39,7 +40,7 @@ impl CompiledProgram {
 }
 
 pub fn compile_source(source: &str) -> Result<CompiledProgram, String> {
-    let source = crate::lang_preprocess::preprocess(source);
+    let (source, meta) = crate::lang_preprocess::preprocess_with_meta(source);
     let source = crate::kstyle_preprocess::expand_kstyle_blocks(&source);
     let (_, body) = strip_version_directive(&source);
     let tokens = tokenize(&body).map_err(|e| format!("Lexer error: {e}"))?;
@@ -48,10 +49,15 @@ pub fn compile_source(source: &str) -> Result<CompiledProgram, String> {
         .parse_program()
         .map_err(|e| format!("Parse error: {e}"))?;
     let stmt_count = stmts.len();
-    let bytecode = try_compile(&stmts);
+    let memory_mode = meta.memory_mode();
+    let bytecode = try_compile(&stmts).map(|mut m| {
+        m.memory_mode = memory_mode;
+        m
+    });
     Ok(CompiledProgram {
         stmts,
         bytecode,
         stmt_count,
+        memory_mode,
     })
 }

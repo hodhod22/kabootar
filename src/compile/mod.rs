@@ -61,6 +61,7 @@ pub fn compile_file_cached(path: &str) -> Result<CompiledProgram, String> {
 }
 
 pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<Value, String> {
+    crate::runtime::ownership::set_memory_mode(env, program.memory_mode);
     if let Some(bytecode) = &program.bytecode {
         if bytecode.uses_bytecode() {
             let result = run_module(bytecode, env)?;
@@ -84,8 +85,9 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
         if let Some(bc) = read_bytecode_cache(path, mtime)? {
             return Ok(CompiledProgram {
                 stmts: Vec::new(),
-                bytecode: Some(bc),
+                bytecode: Some(bc.clone()),
                 stmt_count: 0,
+                memory_mode: bc.memory_mode,
             });
         }
     }

@@ -573,14 +573,15 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 |-----|----------|--------|
 | **G1** | **`lib/std/*`**, [STDLIB.md](STDLIB.md), `str_match`/`str_search`, hyperbolic Math | ✅ subset |
 | **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | 🚧 |
-| **G3** | `import "std"` aggregator, Intl-localeCompare | 🚧 |
+| **G3** | `import "std"` aggregator, Intl-localeCompare | 🚧 (`pub import "std/*"`) |
 | **G4** | Math rest (`f16round`, `sumPrecise`) | 🚧 |
 | **G5** | **Traits** — `trait Show { fn show<T>(self) }`, bounds i generics ([GENERICS.md#traits](GENERICS.md#traits)) | 🚧 design |
-| **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | 🚧 |
+| **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | 🚧 (`pages/_app`, `pages/index`, `import "kss"` stub) |
 | **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |
-| **G9** | **Kv8 i Kabootar** — lexer/parser Kv8-subset self-host | 🚧 |
-| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | 🚧 |
+| **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | 🚧 (subset: + ternary/`switch`/array/unary/`for*`/try/fn; se `lib/kv8`) |
+| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | 🚧 (`createElement`/`useState`/`useEffect` stub/remount/`onClick`) |
+| **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |
 | **G11** | **kbrowser cross-platform** — samma `kb_*`-API på **kOS** + **4 desktop-värd-OS** + **mobil (Android, iPhone)**; se [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål) | 📋 planerat |
 
 **G7 — kbrowser mobil (planering):**

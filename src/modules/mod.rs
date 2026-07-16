@@ -413,6 +413,12 @@ pub fn module_path(name: &str) -> Option<PathBuf> {
 }
 
 static BUILTIN_STD: &str = r#"
+// Aggregator: also pulls lib/std/* helpers (G3).
+pub import "std/array"
+pub import "std/object"
+pub import "std/math"
+pub import "std/string"
+
 pub fn parse(text) {
     return json_parse(text)
 }
@@ -422,7 +428,6 @@ pub fn stringify(v) {
 pub fn info() {
     return std_info()
 }
-// Re-export discovery — see docs/STDLIB.md and lib/std/*.kab
 pub fn array_sum(arr) {
     return reduce(arr, (a, b) => a + b, 0)
 }
