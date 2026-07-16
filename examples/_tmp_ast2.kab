@@ -1,4 +1,0 @@
-import "kv8/parser"
-println(json_stringify(parseSource("let x = 2 * 3 + 4 / 2; x")))
-println(json_stringify(parseSource("2 * 3")))
-println(json_stringify(parseSource("let x = 2 * 3; x")))

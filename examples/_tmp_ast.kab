@@ -1,3 +1,0 @@
-import "kv8/parser"
-let ast = parseSource("let a = 1; a != 2 && a !== 2 && a <= 1 && a >= 1")
-println(json_stringify(ast))
