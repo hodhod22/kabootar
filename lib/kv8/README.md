@@ -16,7 +16,8 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 4. **Unique loop index names** per fn (`si`, `bi`, `ei`, ...).
 5. **Sym pool in parser** - `k8pPoolSym` / `k8pSymCopy`; AST field `"sym"`.
 6. **<=~8 top-level fn** where possible - import of `eval.kab` with 9+ mutual-rec pub helpers has hung on Windows.
-7. **ASCII-only in `.kab` comments** - em-dash can trip `kstyle_preprocess` UTF-8 scan.
+7. **ASCII-only in `.kab` comments** - em-dash can trip older `kstyle_preprocess`; scan is now UTF-8 safe.
+8. **Parser body/cond stacks** - nested if/for/while/try push `k8pBlockBody`/`k8pCond` so nested stmts do not clobber the outer node.
 
 ## Fas 2 VM notes
 
@@ -24,7 +25,7 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+)
 
-Literals, ident, member, call, let/var/assign, if/else, while, for, try/catch, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+Literals, ident, member, call, let/var/assign, if/else, while, for, break/continue, try/catch, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## Tests
 
