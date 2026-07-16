@@ -1,0 +1,12 @@
+// Kv8 react smoke - createElement + render
+// cargo run --bin kabootar -- examples/kv8_react_smoke.kab
+
+import "kv8/react"
+
+let tree = createElement("div", {
+    "id": "app",
+    "children": createElement("span", { "children": "Hi" })
+})
+let frame = render(tree, 240, 120)
+println("kv8 react: " + json_stringify(frame != null))
+return frame != null

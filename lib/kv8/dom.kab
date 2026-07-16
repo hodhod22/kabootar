@@ -13,7 +13,9 @@ pub fn makeEnv() {
         "attach": { "tag": "k8host", "name": "attach" },
         "attr": { "tag": "k8host", "name": "attr" },
         "paint": { "tag": "k8host", "name": "paint" },
-        "applyCss": { "tag": "k8host", "name": "applyCss" }
+        "applyCss": { "tag": "k8host", "name": "applyCss" },
+        "on": { "tag": "k8host", "name": "on" },
+        "dispatch": { "tag": "k8host", "name": "dispatch" }
     }
 }
 
