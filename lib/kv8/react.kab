@@ -1,39 +1,15 @@
 @version "1.0.0"
 
-// Minimal Kv8 React-like fiber mount. import "kv8/react"
-// createElement + one-shot render over kDOM (no reconciliation yet).
+// Minimal Kv8 React-like fiber. import "kv8/react"
+// Hook bag is a plain object on the root fiber; useState/useEffect(hooks, ...).
+// Remount-only: setState remounts the tree (no DOM reconcile yet).
 
 import "kv8/host"
 import "kdom/events"
 
-fn applyProps(node, props) {
-    if props == null || props == undefined {
-        return node
-    }
-    let keys = object_keys(props)
-    let i = 0
-    while i < len(keys) {
-        let k = keys[i]
-        if k == "children" {
-            i = i + 1
-            continue
-        }
-        let v = props[k]
-        if char_at(k, 0) == "o" && char_at(k, 1) == "n" && len(k) > 2 {
-            let ev = ""
-            let ci = 2
-            while ci < len(k) {
-                ev = ev + char_at(k, ci)
-                ci = ci + 1
-            }
-            on(node, ev, v)
-        } else {
-            hostCall("attr", [node, k, v])
-        }
-        i = i + 1
-    }
-    return node
-}
+let rxW = 240
+let rxH = 120
+let rxHasClick = false
 
 fn mountChildren(parent, children) {
     if children == null || children == undefined {
@@ -75,14 +51,52 @@ fn mount(element) {
     }
     let typ = element["type"]
     let props = element["props"]
-    if typeof(typ) == "function" {
+    if typeof(typ) != "string" && typeof(typ) != "number" {
+        if props == null || props == undefined {
+            props = {}
+            element["props"] = props
+        }
+        if object_has_own(element, "$hooks") {
+            props["$hooks"] = element["$hooks"]
+        }
         let out = typ(props)
+        if object_has_own(props, "$hooks") {
+            element["$hooks"] = props["$hooks"]
+        }
         return mount(out)
     }
     let node = hostCall("el", ["" + typ])
-    node = applyProps(node, props)
-    if props != null && object_has_own(props, "children") {
-        node = mountChildren(node, props["children"])
+    if props != null && props != undefined {
+        let keys = object_keys(props)
+        let i = 0
+        while i < len(keys) {
+            let k = keys[i]
+            if k == "children" || k == "$hooks" {
+                i = i + 1
+                continue
+            }
+            let v = props[k]
+            if char_at(k, 0) == "o" && char_at(k, 1) == "n" && len(k) > 2 {
+                let ev = ""
+                let ci = 2
+                while ci < len(k) {
+                    ev = ev + char_at(k, ci)
+                    ci = ci + 1
+                }
+                if typeof(v) != "string" && typeof(v) != "number" && v != null {
+                    rxHasClick = true
+                    on(node, ev, "rxClick")
+                } else {
+                    on(node, ev, "" + v)
+                }
+            } else {
+                hostCall("attr", [node, k, v])
+            }
+            i = i + 1
+        }
+        if object_has_own(props, "children") {
+            node = mountChildren(node, props["children"])
+        }
     }
     return node
 }
@@ -94,15 +108,62 @@ pub fn createElement(typ, props) {
     return { "tag": "fiber", "type": typ, "props": props }
 }
 
+pub fn useState(hooks, initial) {
+    if !object_has_own(hooks, "i") {
+        hooks["i"] = 0
+    }
+    let idx = hooks["i"]
+    hooks["i"] = idx + 1
+    let key = "h" + idx
+    if !object_has_own(hooks, key) {
+        hooks[key] = initial
+    }
+    return [hooks[key], idx]
+}
+
+// Stub: run setup during render/remount (no deps array / cleanup yet).
+// Returns 1-based effect count; assign onto hooks in the component if you need hooks["fx"]
+// (call args may be object copies under bytecode).
+pub fn useEffect(hooks, setup) {
+    if !object_has_own(hooks, "ei") {
+        hooks["ei"] = 0
+    }
+    let idx = hooks["ei"]
+    hooks["ei"] = idx + 1
+    if setup != null && typeof(setup) != "string" && typeof(setup) != "number" {
+        setup()
+    }
+    return idx + 1
+}
+
+pub fn setState(fiber, hookIndex, next) {
+    let hooks = fiber["$hooks"]
+    hooks["h" + hookIndex] = next
+    hooks["i"] = 0
+    hooks["ei"] = 0
+    fiber["$hooks"] = hooks
+    rxHasClick = false
+    let node = mount(fiber)
+    return hostCall("paint", [node, rxW, rxH, ""])
+}
+
 pub fn render(element, width, height) {
-    let w = 240
-    let h = 120
+    rxW = 240
+    rxH = 120
     if width != null && width != undefined {
-        w = width
+        rxW = width
     }
     if height != null && height != undefined {
-        h = height
+        rxH = height
     }
+    if !object_has_own(element, "$hooks") {
+        element["$hooks"] = { "i": 0, "ei": 0 }
+    }
+    let hooks = element["$hooks"]
+    hooks["i"] = 0
+    hooks["ei"] = 0
+    element["$hooks"] = hooks
+    rxHasClick = false
     let node = mount(element)
-    return hostCall("paint", [node, w, h, ""])
+    return { "frame": hostCall("paint", [node, rxW, rxH, ""]), "hasClick": rxHasClick }
 }

@@ -4,12 +4,55 @@ use super::classes::{
     instantiate_class, register_module_classes, register_module_enums, register_module_interfaces,
 };
 use super::types::{BytecodeClassDef, BytecodeFnDef, BytecodeModule, Constant, GeneratorTryRegion, Opcode};
+use crate::lang_preprocess::MemoryMode;
 use crate::ops::{eval_binary_op, get_length, read_index, read_member, write_index, write_member};
+use crate::runtime::ownership;
 use crate::value::{AsyncBody, BytecodeFunction, Environment, Microtask, PromiseValue, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 const MAX_BYTECODE_STACK: usize = 8192;
+
+fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
+    if let Some(m) = module {
+        return m.memory_mode == MemoryMode::Manual;
+    }
+    ownership::is_manual(env)
+}
+
+fn load_local_value(
+    local_vals: &mut [Value],
+    locals: &[String],
+    i: usize,
+    args: &Option<(&BytecodeFnDef, Vec<Value>)>,
+    env: &Environment,
+    _manual: bool,
+) -> Result<Value, String> {
+    // Owned buffers: peek (shared handle). Move/invalidate via `drop` / overwrite / scope end.
+    // (Auto-move on every LoadLocal breaks `owned_write(b, …); owned_read(b, …)`.)
+    if args.is_some() {
+        return Ok(local_vals.get(i).cloned().unwrap_or(Value::Undefined));
+    }
+    let v = if let Some(name) = locals.get(i) {
+        if name.starts_with("__kab_") {
+            local_vals.get(i).cloned().unwrap_or(Value::Undefined)
+        } else {
+            env.get(name).unwrap_or_else(|| {
+                local_vals.get(i).cloned().unwrap_or(Value::Undefined)
+            })
+        }
+    } else {
+        local_vals.get(i).cloned().unwrap_or(Value::Undefined)
+    };
+    Ok(v)
+}
+
+fn drop_owned_locals(local_vals: &[Value], env: &mut Environment) -> Result<(), String> {
+    for v in local_vals {
+        ownership::drop_owned_value(v, env)?;
+    }
+    Ok(())
+}
 
 pub struct ChunkCursor {
     pub ip: usize,
@@ -403,37 +446,9 @@ fn run_chunk(
             }
             Opcode::LoadLocal(idx) => {
                 let i = *idx as usize;
-                // Function frames keep `let` bindings in `local_vals` only. Reading module
-                // `env` first breaks re-entrancy (recursive calls clobber shared slots).
-                if args.is_some() {
-                    let v = local_vals
-                        .get(i)
-                        .cloned()
-                        .unwrap_or(Value::Undefined);
-                    push_stack(stack, v)?;
-                } else {
-                    let v = if let Some(name) = locals.get(i) {
-                        if name.starts_with("__kab_") {
-                            local_vals
-                                .get(i)
-                                .cloned()
-                                .unwrap_or(Value::Undefined)
-                        } else {
-                            env.get(name).unwrap_or_else(|| {
-                                local_vals
-                                    .get(i)
-                                    .cloned()
-                                    .unwrap_or(Value::Undefined)
-                            })
-                        }
-                    } else {
-                        local_vals
-                            .get(i)
-                            .cloned()
-                            .unwrap_or(Value::Undefined)
-                    };
-                    push_stack(stack, v)?;
-                }
+                let manual = chunk_is_manual(module, env);
+                let v = load_local_value(&mut local_vals, locals, i, &args, env, manual)?;
+                push_stack(stack, v)?;
             }
             Opcode::StoreLocal(idx) => {
                 let v = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -450,13 +465,13 @@ fn run_chunk(
                         .unwrap_or("binding");
                     return Err(format!("Cannot assign to const `{name}`"));
                 }
+                if chunk_is_manual(module, env) {
+                    if let Some(old) = local_vals.get(i) {
+                        ownership::drop_owned_value(old, env)?;
+                    }
+                }
                 local_vals[i] = v.clone();
-                // Mirror into `env` so object-arg writeback can find the binding by `__oid`.
-                // Loads still prefer `local_vals` in function frames (re-entrant scalars).
                 store_local_to_env(locals, immutable_locals, i, &v, env)?;
-                // Closure refresh runs once at end of `run_module`; refreshing on every
-                // module-level StoreLocal clones the full environment and breaks lazy
-                // iterators whose state lives only in `__kab_*` local slots.
             }
             Opcode::LoadGlobal(idx) => {
                 let name = globals
@@ -1122,9 +1137,15 @@ fn run_chunk(
             }
             Opcode::Return => {
                 let v = stack.pop().unwrap_or(Value::Undefined);
+                if chunk_is_manual(module, env) {
+                    drop_owned_locals(&local_vals, env)?;
+                }
                 return Ok((ChunkExit::Done(v), local_vals));
             }
             Opcode::Halt => {
+                if chunk_is_manual(module, env) {
+                    drop_owned_locals(&local_vals, env)?;
+                }
                 return Ok((
                     ChunkExit::Done(stack.pop().unwrap_or(Value::Null)),
                     local_vals,

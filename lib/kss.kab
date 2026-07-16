@@ -1,0 +1,10 @@
+@version "1.0.0"
+
+// Optional kss stub (Vag G6). Real CSS lives in kstyle; this marks the pages/kss hook.
+
+pub fn kss(rules) {
+    if rules == null || rules == undefined {
+        return ""
+    }
+    return "" + rules
+}

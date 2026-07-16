@@ -34,7 +34,7 @@ Kör `std_info()` för aktuell capability-lista.
 | `String.prototype.localeCompare` med `Intl` locales | G3 |
 | `Math.f16round`, `Math.sumPrecise` | G4 |
 | Method-syntax `arr.push(x)` på icke-variabel receiver (bytecode) | G2 |
-| `import "std"` som enda entry (aggregator-modul) | G1 |
+| `import "std"` som enda entry (aggregator-modul) | G3 (`pub import "std/*"` i builtin) |
 | **Traits** för generics (se [GENERICS.md#traits](GENERICS.md#traits)) | G5 |
 
 ### ❌ Medvetet borttaget
@@ -109,12 +109,14 @@ lib/os/
   process.kab — spawn, list
   kernel.kab  — info, caps
   async.kab   — readAsync, writeAsync, readPromise, writePromise, awaitAll
+  mem.kab          — @manual MemBox: alloc/read/write/free (owned_*)
+  display_buf.kab  — @manual framebuffer helper over os/mem
 examples/
   os_smoke.kab — cargo run --bin kabootar -- examples/os_smoke.kab
   os_async_smoke.kab — cargo run --bin kabootar -- examples/os_async_smoke.kab
 ```
 
-Tester: `cargo test --test os_lib`
+Tester: `cargo test --test os_lib`; ownership: `cargo test --test ownership_manual`
 
 ---
 

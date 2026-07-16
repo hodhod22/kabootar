@@ -2807,6 +2807,7 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
             exports.append(&mut main.exports);
             exports
         },
+        memory_mode: crate::lang_preprocess::MemoryMode::Gc,
     };
         super::optimize::optimize_module(&mut module);
         module

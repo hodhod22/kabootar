@@ -33,6 +33,7 @@ pub let KEYWORDS = {
     "catch": "catch",
     "finally": "finally",
     "in": "in",
+    "of": "of",
     "import": "import",
     "export": "export",
     "from": "from",
@@ -75,6 +76,12 @@ pub let K_IF = "If"
 pub let K_WHILE = "While"
 pub let K_FOR = "For"
 pub let K_FOR_IN = "ForIn"
+pub let K_FOR_OF = "ForOf"
+pub let K_ARRAY = "Array"
+pub let K_UNARY = "Unary"
+pub let K_INDEX = "Index"
+pub let K_TERNARY = "Ternary"
+pub let K_SWITCH = "Switch"
 pub let K_TRY = "Try"
 pub let K_THROW = "Throw"
 pub let K_BREAK = "Break"

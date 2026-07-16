@@ -1,0 +1,7 @@
+@version "1.0.0"
+
+// Default page stub for G6 file-based routing.
+
+pub fn Page() {
+    return { "title": "Kabootar", "body": "pages/index" }
+}

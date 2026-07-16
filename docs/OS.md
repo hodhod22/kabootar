@@ -77,7 +77,7 @@ os_syscalls(); // info, read, write, spawn, paint, present, sleep
 | `process-table` | ✅ | `os_spawn`, processlista |
 | `window-manager` | ✅ | `os_window_create`, `os_window_bind` |
 | `display-server` | ✅ | `os_display_register` |
-| `memory-manager` | ✅ | `os_mem_alloc`, `os_mem_stats` |
+| `memory-manager` | ✅ | `os_mem_*`; systems: `@manual` + `import "os/mem"` / `os/display_buf` |
 | `scheduler` | ✅ | `os_sched_enqueue` |
 | `syscalls` | ✅ | `os_syscall("read", path)` m.fl. |
 | `vfs-persist` | ✅ | `os_vfs_save`, `os_vfs_load` (KVF1-format) |

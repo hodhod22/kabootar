@@ -1,0 +1,41 @@
+@version "1.0.0"
+@manual
+
+// kOS display/framebuffer backing via os/mem.
+// import "os/display_buf" (requires @manual in the consumer).
+
+import "os/mem"
+
+pub fn create(width, height, label) {
+    let w = width
+    let h = height
+    if w == null || w == undefined {
+        w = 240
+    }
+    if h == null || h == undefined {
+        h = 120
+    }
+    let name = label
+    if name == null || name == undefined {
+        name = "framebuffer"
+    }
+    let bytes = w * h * 4
+    let buf = alloc(bytes, name)
+    return { "buf": buf, "width": w, "height": h, "bytes": bytes }
+}
+
+pub fn fill(fb, r, g, b, a) {
+    let n = fb["bytes"]
+    let i = 0
+    let pixel = [r, g, b, a]
+    while i < n {
+        write(fb["buf"], i, pixel)
+        i = i + 4
+    }
+    return fb
+}
+
+pub fn release(fb) {
+    free(fb["buf"])
+    return null
+}

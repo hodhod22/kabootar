@@ -202,9 +202,61 @@ pub enum Value {
     SecureBytes(SecureBytes),
     SecurityHandle(SecurityHandle),
     DeviceHandle(DeviceHandle),
+    /// Opt-in `@manual` memory buffer (os_mem region). Move/drop via shared slot.
+    Owned(OwnedBuf),
     Break,
     Continue,
     Fallthrough,
+}
+
+/// Manual-heap buffer handle. Cloning shares the slot; `take_move` / `take_drop` empty it.
+#[derive(Debug, Clone)]
+pub struct OwnedBuf {
+    pub id: u64,
+    pub slot: Rc<RefCell<Option<u64>>>,
+}
+
+impl PartialEq for OwnedBuf {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && *self.slot.borrow() == *other.slot.borrow()
+    }
+}
+
+impl OwnedBuf {
+    pub fn new(id: u64) -> Self {
+        Self {
+            id,
+            slot: Rc::new(RefCell::new(Some(id))),
+        }
+    }
+
+    pub fn peek_id(&self) -> Result<u64, String> {
+        self.slot
+            .borrow()
+            .ok_or_else(|| "use after move".to_string())
+    }
+
+    /// Move: invalidate this handle and return a fresh live handle to the same region.
+    pub fn take_move(&self) -> Result<OwnedBuf, String> {
+        let id = self
+            .slot
+            .borrow_mut()
+            .take()
+            .ok_or_else(|| "use after move".to_string())?;
+        Ok(OwnedBuf::new(id))
+    }
+
+    /// Drop: invalidate and return region id for `os_mem_free`.
+    pub fn take_drop(&self) -> Result<u64, String> {
+        self.slot
+            .borrow_mut()
+            .take()
+            .ok_or_else(|| "use after move".to_string())
+    }
+
+    pub fn is_alive(&self) -> bool {
+        self.slot.borrow().is_some()
+    }
 }
 
 impl Value {
@@ -821,6 +873,13 @@ pub fn format_value(val: &Value) -> String {
         Value::SecureBytes(_) => "<secure bytes>".to_string(),
         Value::SecurityHandle(_) => "<security>".to_string(),
         Value::DeviceHandle(h) => format!("<device {}>", h.device_id),
+        Value::Owned(buf) => {
+            if buf.is_alive() {
+                format!("<owned mem {}>", buf.id)
+            } else {
+                "<owned (moved)>".to_string()
+            }
+        }
         Value::Range { start, end, step } => {
             if *step == 1 && *start == 0 {
                 format!("range({})", end)

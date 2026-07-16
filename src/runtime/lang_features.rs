@@ -237,7 +237,7 @@ fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
         ("actors", "partial", "actor Name { } → actor_spawn"),
         ("hot_reload", "partial", "kabootar serve --watch + kbc invalidate"),
         ("auto_simd", "stub", "@simd directive (doc)"),
-        ("memory", "partial", "os_mem_* manual heap; @gc/@manual doc"),
+        ("memory", "partial", "os_mem_*; @manual owned_alloc/drop (systems)"),
         ("web_native", "partial", "html! → kv8_run_ui"),
         ("toolchain", "partial", "compile, registry, fmt, serve"),
         ("static_binary", "partial", "cargo build --release"),

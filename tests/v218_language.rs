@@ -99,6 +99,7 @@ fn bytecode_cache_loads_and_runs() {
                 stmts: vec![],
                 bytecode: Some(bc),
                 stmt_count: 0,
+                memory_mode: kabootar_lib::lang_preprocess::MemoryMode::Gc,
             },
             &mut env,
         )

@@ -97,6 +97,7 @@ fn kbc_cache_loads_class_program() {
                 stmts: vec![],
                 bytecode: Some(bc),
                 stmt_count: 0,
+                memory_mode: kabootar_lib::lang_preprocess::MemoryMode::Gc,
             },
             &mut env,
         )

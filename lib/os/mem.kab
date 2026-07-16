@@ -1,0 +1,22 @@
+@version "1.0.0"
+@manual
+
+// kOS manual memory — MemBox over owned_* / os_mem_*.
+// Consumers must also use @manual. import "os/mem"
+
+pub fn alloc(size, label) {
+    return owned_alloc(size, label)
+}
+
+pub fn read(buf, off, len) {
+    return owned_read(buf, off, len)
+}
+
+pub fn write(buf, off, bytes) {
+    return owned_write(buf, off, bytes)
+}
+
+pub fn free(buf) {
+    drop(buf)
+    return null
+}

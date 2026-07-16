@@ -143,6 +143,8 @@ pub struct BytecodeModule {
     pub imports: Vec<String>,
     pub pub_imports: Vec<String>,
     pub exports: Vec<String>,
+    /// Opt-in `@manual` systems memory; default GC.
+    pub memory_mode: crate::lang_preprocess::MemoryMode,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -289,6 +291,12 @@ pub fn serialize(module: &BytecodeModule) -> String {
     for (i, name) in module.exports.iter().enumerate() {
         writeln!(out, "export {i} {}", escape(name)).unwrap();
     }
+    writeln!(
+        out,
+        "memory_mode={}",
+        module.memory_mode.as_str()
+    )
+    .unwrap();
     writeln!(out, "interfaces={}", module.interfaces.len()).unwrap();
     for (ii, iface) in module.interfaces.iter().enumerate() {
         writeln!(out, "interface {ii} {}", escape(&iface.name)).unwrap();
@@ -380,6 +388,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
     let mut exports: Vec<String> = Vec::new();
     let mut interfaces: Vec<BytecodeInterfaceDef> = Vec::new();
     let mut classes: Vec<BytecodeClassDef> = Vec::new();
+    let mut memory_mode = crate::lang_preprocess::MemoryMode::Gc;
     let mut in_code = false;
 
     for line in lines.iter().skip(1) {
@@ -392,6 +401,13 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
                 break;
             }
             main_code.push(decode_op(line)?);
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("memory_mode=") {
+            memory_mode = match rest.trim() {
+                "manual" => crate::lang_preprocess::MemoryMode::Manual,
+                _ => crate::lang_preprocess::MemoryMode::Gc,
+            };
             continue;
         }
         if let Some(rest) = line.strip_prefix("const ") {
@@ -765,6 +781,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             || line.starts_with("imports=")
             || line.starts_with("pub_imports=")
             || line.starts_with("exports=")
+            || line.starts_with("memory_mode=")
             || line.starts_with("interfaces=")
             || line.starts_with("classes=")
             || line.starts_with("class_method_arrows ")
@@ -808,6 +825,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
         imports,
         pub_imports,
         exports,
+        memory_mode,
     })
 }
 
@@ -1758,6 +1776,7 @@ mod tests {
             imports: Vec::new(),
             pub_imports: Vec::new(),
             exports: Vec::new(),
+            memory_mode: crate::lang_preprocess::MemoryMode::Gc,
         };
         let restored = deserialize(&serialize(&module)).unwrap();
         assert_eq!(restored.main_try_regions, module.main_try_regions);
@@ -1785,6 +1804,7 @@ mod tests {
             imports: Vec::new(),
             pub_imports: Vec::new(),
             exports: Vec::new(),
+            memory_mode: crate::lang_preprocess::MemoryMode::Gc,
         };
         let text = serialize(&module);
         let back = deserialize(&text).unwrap();

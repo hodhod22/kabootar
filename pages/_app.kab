@@ -1,0 +1,12 @@
+@version "1.0.0"
+
+// Next-like pages stub (Vag G6). Router not wired yet.
+// Convention: pages/_app.kab wraps pages/*.kab.
+
+pub fn App(props) {
+    let child = null
+    if props != null && object_has_own(props, "children") {
+        child = props["children"]
+    }
+    return child
+}

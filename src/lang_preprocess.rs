@@ -14,13 +14,87 @@ const EFFECT_DIRECTIVES: &[&str] = &[
     "@packed",
 ];
 
+/// File-level directives captured before stripping (ownership / effects).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ModuleDirectives {
+    /// `@manual` — opt-in systems memory (move/drop). Default is GC.
+    pub manual: bool,
+    /// Explicit `@gc` in header (documentation / future).
+    pub gc: bool,
+}
+
+/// Memory mode for a compiled module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MemoryMode {
+    #[default]
+    Gc,
+    Manual,
+}
+
+impl MemoryMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MemoryMode::Gc => "gc",
+            MemoryMode::Manual => "manual",
+        }
+    }
+}
+
+impl ModuleDirectives {
+    pub fn memory_mode(&self) -> MemoryMode {
+        if self.manual {
+            MemoryMode::Manual
+        } else {
+            MemoryMode::Gc
+        }
+    }
+}
+
 /// Full source transform pipeline (safe sugar only).
 pub fn preprocess(source: &str) -> String {
+    preprocess_with_meta(source).0
+}
+
+/// Preprocess and retain header directive metadata (`@manual`, `@gc`, …).
+pub fn preprocess_with_meta(source: &str) -> (String, ModuleDirectives) {
+    let meta = scan_header_directives(source);
     let s = strip_header_directives(source);
     let s = expand_comptime_keyword(&s);
     let s = expand_html_blocks(&s);
     let s = expand_actor_declarations(&s);
-    s
+    (s, meta)
+}
+
+/// Scan only the module header for effect directives (before first real statement).
+pub fn scan_header_directives(source: &str) -> ModuleDirectives {
+    let mut meta = ModuleDirectives::default();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") {
+            continue;
+        }
+        if trimmed.starts_with("@version ")
+            || trimmed.starts_with("# kabootar-version:")
+            || trimmed.starts_with("@persist ")
+            || EFFECT_DIRECTIVES.iter().any(|d| {
+                trimmed.starts_with(d)
+                    && (trimmed.len() == d.len()
+                        || trimmed.as_bytes().get(d.len()) == Some(&b' '))
+            })
+        {
+            if trimmed == "@manual"
+                || trimmed.starts_with("@manual ")
+            {
+                meta.manual = true;
+            }
+            if trimmed == "@gc" || trimmed.starts_with("@gc ") {
+                meta.gc = true;
+            }
+            continue;
+        }
+        break;
+    }
+    meta
 }
 
 /// Strip effect/decorator lines from the module header (like `@version`).
@@ -307,6 +381,14 @@ mod tests {
     fn strips_pure_and_io() {
         let out = strip_header_directives("@pure\n@io\nlet x = 1");
         assert!(!out.contains("@pure"));
+        assert!(out.contains("let x = 1"));
+    }
+
+    #[test]
+    fn preprocess_with_meta_captures_manual() {
+        let (out, meta) = preprocess_with_meta("@version \"1.0.0\"\n@manual\nlet x = 1");
+        assert!(meta.manual);
+        assert!(!out.contains("@manual"));
         assert!(out.contains("let x = 1"));
     }
 

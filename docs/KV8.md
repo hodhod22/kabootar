@@ -99,7 +99,9 @@ Also available via `import "kv8";` (re-registers natives).
 
 ## Optimizations (Kv8 vs V8)
 
-Kv8 targets Kabootar's ownership model — not a drop-in V8 replacement. Safe wins implemented in `opt.rs`:
+Kv8 is **not** a drop-in V8. The **Rust host** Kv8 runtime avoids a tracing GC (values live in Rust). Self-hosted Kv8 under `lib/kv8` runs as ordinary Kabootar and uses the **default GC** heap. Systems ownership (`@manual`, `owned_*`, `os/mem`) is for kOS / low-level Kabootar — not for web/Kv8 app code.
+
+Safe wins implemented in `opt.rs`:
 
 | Technique | Kv8 status | Notes |
 |-----------|------------|-------|
@@ -109,16 +111,17 @@ Kv8 targets Kabootar's ownership model — not a drop-in V8 replacement. Safe wi
 | OS-specific machine code JIT | ⏭️ skipped | Kabootar bytecode bridge instead (portable, sandboxed) |
 | Lazy parse + precompile | ✅ | `program_cache` + `arrow_cache` on context |
 | Hidden classes | ⏭️ skipped | HashMap model; predictor covers hot natives |
-| Predictive GC | ✅ N/A | Rust ownership — **no GC pauses** (Kabootar advantage) |
+| Predictive GC | ✅ N/A | Host Kv8: Rust lifetimes; Kabootar apps: GC default |
 | WASM → native JIT | ⏭️ separate | Guest WASM via wasmi (`browser_platform`); Kv8 JIT → bytecode |
-| Speculative execution / deopt | ⏭️ skipped | Would fight ownership model; threshold JIT only |
+| Speculative execution / deopt | ⏭️ skipped | Threshold JIT only |
 | OS integration | ✅ | VFS `.kv8`, journal, no extra syscall layer in hot path |
 
 ### Kabootar advantages (by design)
 
-- **No use-after-free** — Rust + Kabootar ownership, not shared mutating heap
+- **Web/default = GC** — no ownership noise for app and Kv8-in-Kabootar code
+- **Systems = `@manual`** — MemBox / move+drop for kOS buffers (`import "os/mem"`)
 - **Browser = OS** — `kabootar://vfs`, compositor, kernel capabilities
-- **No GC pauses** — no tracing collector in Kv8
+- **Host Kv8** — no tracing GC pauses in the Rust Kv8 engine
 - **Predictive JIT** — hot `for` loops compile after 8 iterations with scope bridge
 
 ```kabootar

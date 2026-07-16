@@ -41,8 +41,11 @@ let k8pTryBody = null
 let k8pForInSym = ""
 let k8pObjFields = []
 let k8pObjStack = []
+let k8pArrElems = []
+let k8pArrStack = []
 let k8pSnapI = 0
 let k8pAsName = ""
+let k8pForKind = ""
 fn k8pSnapList(items) {
     let out = []
     k8pSnapI = 0
@@ -82,6 +85,11 @@ fn parsePostfix() {
     k8pTok = k8pTokAt("peek")
     if k8pTok.type == TOKEN_EOF {
         throw "parsePostfix EOF"
+    }
+    if k8pTok.type == "!" || k8pTok.type == "typeof" {
+        k8pOp = k8pTokAt("bump").type
+        k8pSave = parsePostfix()
+        return { "kind": K_UNARY, "op": k8pOp, "arg": k8pSave }
     }
 
     if k8pTok.type == TOKEN_NUMBER {
@@ -230,6 +238,27 @@ fn parsePostfix() {
         }
     }
     if k8pNode == null {
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type == "[" {
+            k8pTokAt("bump")
+            k8pArrStack = push(k8pArrStack, k8pArrElems)
+            k8pArrElems = []
+            while k8pTokAt("peek").type != "]" && k8pTokAt("peek").type != TOKEN_EOF {
+                k8pArrElems = push(k8pArrElems, parseCompare())
+                if k8pTokAt("peek").type == "," {
+                    k8pTokAt("bump")
+                }
+            }
+            if k8pTokAt("peek").type != "]" {
+                throw "Expected ]"
+            }
+            k8pTokAt("bump")
+            k8pNode = { "kind": K_ARRAY, "elements": k8pSnapList(k8pArrElems) }
+            k8pArrElems = k8pArrStack[len(k8pArrStack) - 1]
+            k8pArrStack = k8pPopStack(k8pArrStack)
+        }
+    }
+    if k8pNode == null {
         throw "Expected expression"
     }
 
@@ -255,6 +284,16 @@ fn parsePostfix() {
             k8pTokAt("bump")
             k8pNode = { "kind": K_CALL, "callee": callee, "args": k8pParams }
         } else {
+            if k8pTok.type == "[" {
+                k8pTokAt("bump")
+                k8pSave = k8pNode
+                k8pRight = parseCompare()
+                if k8pTokAt("peek").type != "]" {
+                    throw "Expected ]"
+                }
+                k8pTokAt("bump")
+                k8pNode = { "kind": K_INDEX, "object": k8pSave, "index": k8pRight }
+            } else {
             if k8pTok.type == "." {
                 k8pTokAt("bump")
                 k8pTok = k8pTokAt("peek")
@@ -275,6 +314,7 @@ fn parsePostfix() {
                 } else {
                     break
                 }
+            }
             }
         }
     }
@@ -359,6 +399,22 @@ fn parseCompare() {
     return k8pLeft
 }
 
+fn parseExpr() {
+    k8pLeft = parseCompare()
+    if k8pTokAt("peek").type == "?" {
+        k8pTokAt("bump")
+        k8pSave = k8pLeft
+        k8pRight = parseExpr()
+        if k8pTokAt("peek").type != ":" {
+            throw "Expected :"
+        }
+        k8pTokAt("bump")
+        k8pAndLeft = parseExpr()
+        return { "kind": K_TERNARY, "cond": k8pSave, "thenBranch": k8pRight, "elseBranch": k8pAndLeft }
+    }
+    return k8pLeft
+}
+
 fn parseStmt() {
     k8pTok = k8pTokAt("peek")
     if k8pTok.type == TOKEN_EOF {
@@ -376,7 +432,7 @@ fn parseStmt() {
             throw "Expected ="
         }
         k8pTokAt("bump")
-        k8pLeft = parseCompare()
+        k8pLeft = parseExpr()
         return { "kind": K_LET, "sym": bindSym, "init": k8pLeft }
     }
     if k8pTok.type == "var" {
@@ -390,7 +446,7 @@ fn parseStmt() {
         k8pLeft = null
         if k8pTokAt("peek").type == "=" {
             k8pTokAt("bump")
-            k8pLeft = parseCompare()
+            k8pLeft = parseExpr()
         }
         if k8pLeft == null {
             k8pLeft = { "kind": K_LITERAL, "lit": LIT_UNDEF, "value": undefined }
@@ -401,7 +457,7 @@ fn parseStmt() {
         k8pTokAt("bump")
         k8pLeft = null
         if k8pTokAt("peek").type != ";" && k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
-            k8pLeft = parseCompare()
+            k8pLeft = parseExpr()
         }
         if k8pLeft == null {
             k8pLeft = { "kind": K_LITERAL, "lit": LIT_UNDEF, "value": undefined }
@@ -470,7 +526,7 @@ fn parseStmt() {
             throw "Expected ("
         }
         k8pTokAt("bump")
-        k8pCondStack = push(k8pCondStack, parseCompare())
+        k8pCondStack = push(k8pCondStack, parseExpr())
         if k8pTokAt("peek").type != ")" {
             throw "Expected )"
         }
@@ -524,13 +580,75 @@ fn parseStmt() {
         k8pCondStack = k8pPopStack(k8pCondStack)
         return { "kind": K_IF, "cond": k8pCond, "then": { "kind": K_BLOCK, "body": thenBody }, "elseBranch": k8pSnapList(k8pElse) }
     }
+    if k8pTok.type == "switch" {
+        k8pTokAt("bump")
+        if k8pTokAt("peek").type != "(" {
+            throw "Expected ("
+        }
+        k8pTokAt("bump")
+        k8pCondStack = push(k8pCondStack, parseExpr())
+        if k8pTokAt("peek").type != ")" {
+            throw "Expected )"
+        }
+        k8pTokAt("bump")
+        if k8pTokAt("peek").type != "{" {
+            throw "Expected {"
+        }
+        k8pTokAt("bump")
+        let cases = []
+        while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+            k8pTok = k8pTokAt("peek")
+            let caseTest = null
+            if k8pTok.type == "case" {
+                k8pTokAt("bump")
+                caseTest = parseExpr()
+                if k8pTokAt("peek").type != ":" {
+                    throw "Expected :"
+                }
+                k8pTokAt("bump")
+            } else {
+                if k8pTok.type == "default" {
+                    k8pTokAt("bump")
+                    if k8pTokAt("peek").type != ":" {
+                        throw "Expected :"
+                    }
+                    k8pTokAt("bump")
+                    caseTest = null
+                } else {
+                    throw "Expected case or default"
+                }
+            }
+            k8pBodyStack = push(k8pBodyStack, k8pBlockBody)
+            k8pBlockBody = []
+            while k8pTokAt("peek").type != "case" && k8pTokAt("peek").type != "default" && k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+                k8pSave = parseStmt()
+                if k8pSave != null {
+                    k8pBlockBody = push(k8pBlockBody, k8pSave)
+                }
+                if k8pTokAt("peek").type == ";" {
+                    k8pTokAt("bump")
+                }
+            }
+            let caseBody = k8pSnapList(k8pBlockBody)
+            k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
+            k8pBodyStack = k8pPopStack(k8pBodyStack)
+            cases = push(cases, { "test": caseTest, "body": caseBody })
+        }
+        if k8pTokAt("peek").type != "}" {
+            throw "Expected }"
+        }
+        k8pTokAt("bump")
+        k8pCond = k8pCondStack[len(k8pCondStack) - 1]
+        k8pCondStack = k8pPopStack(k8pCondStack)
+        return { "kind": K_SWITCH, "disc": k8pCond, "cases": cases }
+    }
     if k8pTok.type == "while" {
         k8pTokAt("bump")
         if k8pTokAt("peek").type != "(" {
             throw "Expected ("
         }
         k8pTokAt("bump")
-        k8pCondStack = push(k8pCondStack, parseCompare())
+        k8pCondStack = push(k8pCondStack, parseExpr())
         if k8pTokAt("peek").type != ")" {
             throw "Expected )"
         }
@@ -577,9 +695,9 @@ fn parseStmt() {
             if k8pTok.type == TOKEN_IDENT {
                 k8pForInSym = ("" + k8pTok.value)
                 k8pTokAt("bump")
-                if k8pTokAt("peek").type == "in" {
-                    k8pTokAt("bump")
-                    k8pForCond = parseCompare()
+                if k8pTokAt("peek").type == "in" || k8pTokAt("peek").type == "of" {
+                    k8pForKind = k8pTokAt("bump").type
+                    k8pForCond = parseExpr()
                     if k8pTokAt("peek").type != ")" {
                         throw "Expected )"
                     }
@@ -607,6 +725,9 @@ fn parseStmt() {
                     let forInBody = k8pSnapList(k8pBlockBody)
                     k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
                     k8pBodyStack = k8pPopStack(k8pBodyStack)
+                    if k8pForKind == "of" {
+                        return { "kind": K_FOR_OF, "sym": k8pForInSym, "iterable": k8pForCond, "body": { "kind": K_BLOCK, "body": forInBody } }
+                    }
                     return { "kind": K_FOR_IN, "sym": k8pForInSym, "iterable": k8pForCond, "body": { "kind": K_BLOCK, "body": forInBody } }
                 }
             }
@@ -615,9 +736,9 @@ fn parseStmt() {
             if k8pTok.type == TOKEN_IDENT {
                 k8pForInSym = ("" + k8pTok.value)
                 k8pTokAt("bump")
-                if k8pTokAt("peek").type == "in" {
-                    k8pTokAt("bump")
-                    k8pForCond = parseCompare()
+                if k8pTokAt("peek").type == "in" || k8pTokAt("peek").type == "of" {
+                    k8pForKind = k8pTokAt("bump").type
+                    k8pForCond = parseExpr()
                     if k8pTokAt("peek").type != ")" {
                         throw "Expected )"
                     }
@@ -645,6 +766,9 @@ fn parseStmt() {
                     let forInBody2 = k8pSnapList(k8pBlockBody)
                     k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
                     k8pBodyStack = k8pPopStack(k8pBodyStack)
+                    if k8pForKind == "of" {
+                        return { "kind": K_FOR_OF, "sym": k8pForInSym, "iterable": k8pForCond, "body": { "kind": K_BLOCK, "body": forInBody2 } }
+                    }
                     return { "kind": K_FOR_IN, "sym": k8pForInSym, "iterable": k8pForCond, "body": { "kind": K_BLOCK, "body": forInBody2 } }
                 }
                 k8pPos = forInPos
@@ -661,7 +785,7 @@ fn parseStmt() {
         if k8pTokAt("peek").type == ";" {
             k8pForCond = { "kind": K_LITERAL, "lit": LIT_BOOL, "value": true }
         } else {
-            k8pForCond = parseCompare()
+            k8pForCond = parseExpr()
         }
         if k8pTokAt("peek").type != ";" {
             throw "Expected ;"
@@ -791,7 +915,7 @@ fn parseStmt() {
     }
     if k8pTok.type == "throw" {
         k8pTokAt("bump")
-        k8pLeft = parseCompare()
+        k8pLeft = parseExpr()
         return { "kind": K_THROW, "rhs": k8pLeft }
     }
     if k8pTok.type == "break" {
@@ -830,12 +954,12 @@ fn parseStmt() {
         k8pTokAt("bump")
         if k8pTokAt("peek").type == "=" {
             k8pTokAt("bump")
-            k8pLeft = parseCompare()
+            k8pLeft = parseExpr()
             return { "kind": K_ASSIGN, "sym": assignSym, "rhs": k8pLeft }
         }
         k8pPos = k8pPos - 1
     }
-    k8pLeft = parseCompare()
+    k8pLeft = parseExpr()
     return { "kind": K_EXPR, "expr": k8pLeft }
 }
 
