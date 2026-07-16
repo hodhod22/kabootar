@@ -5,6 +5,7 @@ use kabootar_lib::cli;
 use kabootar_lib::compile;
 use kabootar_lib::value::Value;
 use std::sync::Once;
+use std::time::Instant;
 
 fn manifest_dir() -> String {
     env!("CARGO_MANIFEST_DIR").to_string()
@@ -29,15 +30,42 @@ fn ensure_kv8_eval_cache_fresh() {
 }
 
 #[test]
+fn kv8_eval_import_chain() {
+    ensure_kv8_eval_cache_fresh();
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    for module in ["kv8/defs", "kv8/host", "kv8/parser", "kv8/eval"] {
+        let started = Instant::now();
+        kabootar_lib::evaluator::eval_source(&format!("import \"{module}\""), &mut env)
+            .unwrap_or_else(|error| panic!("{module} import failed: {error}"));
+        eprintln!("{module} import completed in {:?}", started.elapsed());
+    }
+}
+
+#[test]
 fn kv8_eval_let_and_add() {
     ensure_kv8_eval_cache_fresh();
-    let code = r#"
-import "kv8/eval"
-evalSource("let x = 1 + 2; x") == 3 && evalSource("function add(a, b) { return a + b; } add(3, 4)") == 7
-"#;
     let mut env = kabootar_lib::evaluator::create_global_env();
-    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
-    assert!(matches!(v, Value::Bool(true)));
+    let import_started = Instant::now();
+    kabootar_lib::evaluator::eval_source("import \"kv8/eval\"", &mut env).unwrap();
+    eprintln!("kv8/eval import completed in {:?}", import_started.elapsed());
+
+    let basic_started = Instant::now();
+    let basic = kabootar_lib::evaluator::eval_source(
+        "evalSource(\"let x = 1 + 2; x\")",
+        &mut env,
+    )
+    .unwrap();
+    eprintln!("kv8 basic evalSource completed in {:?}", basic_started.elapsed());
+    assert!(matches!(basic, Value::Number(n) if n == 3));
+
+    let function_started = Instant::now();
+    let function = kabootar_lib::evaluator::eval_source(
+        "evalSource(\"function add(a, b) { return a + b; } add(3, 4)\")",
+        &mut env,
+    )
+    .unwrap();
+    eprintln!("kv8 function evalSource completed in {:?}", function_started.elapsed());
+    assert!(matches!(function, Value::Number(n) if n == 7));
 }
 
 #[test]

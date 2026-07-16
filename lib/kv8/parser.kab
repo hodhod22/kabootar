@@ -18,6 +18,7 @@ let k8pAddLeft = null
 let k8pCmpLeft = null
 let k8pCmpOp = ""
 let k8pOp = ""
+let k8pAddOp = ""
 let k8pBody = []
 let k8pBlockBody = []
 let k8pArrowBody = null
@@ -28,27 +29,6 @@ let k8pElse = null
 let k8pCond = null
 let k8pSnapI = 0
 let k8pAsName = ""
-let k8pSymPool = []
-let k8pSymOut = ""
-let k8pSymSrc = ""
-let k8pSymI = 0
-
-fn k8pSymCopy(name) {
-    k8pSymOut = ""
-    k8pSymSrc = "" + name
-    k8pSymI = 0
-    while k8pSymI < len(k8pSymSrc) {
-        k8pSymOut = k8pSymOut + char_at(k8pSymSrc, k8pSymI)
-        k8pSymI = k8pSymI + 1
-    }
-    return k8pSymOut
-}
-
-fn k8pPoolSym(name) {
-    k8pSymPool = push(k8pSymPool, k8pSymCopy(name))
-    return k8pSymPool[len(k8pSymPool) - 1]
-}
-
 fn k8pSnapList(items) {
     let out = []
     k8pSnapI = 0
@@ -115,7 +95,7 @@ fn parsePostfix() {
     if k8pNode == null {
         k8pTok = k8pTokAt("peek")
         if k8pTok.type == TOKEN_IDENT {
-            let identSym = k8pPoolSym(k8pTok.value)
+            let identSym = ("" + k8pTok.value)
             k8pTokAt("bump")
             k8pNode = { "kind": K_IDENT, "sym": identSym }
         }
@@ -240,7 +220,7 @@ fn parsePostfix() {
 
 // Precedence layers: mul -> add -> cmp -> and -> or/??.
 // Dedicated left slots (k8pAddLeft/AndLeft/LogLeft) - never reuse k8pSave across &&.
-fn parseMulExpr() {
+fn parseAddExpr() {
     k8pLeft = parsePostfix()
     while k8pTokAt("peek").type == "*" || k8pTokAt("peek").type == "/" {
         k8pOp = k8pTokAt("bump").type
@@ -248,21 +228,21 @@ fn parseMulExpr() {
         k8pRight = parsePostfix()
         k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": k8pRight }
     }
-    return k8pLeft
-}
-
-fn parseAddExpr() {
-    k8pLeft = parseMulExpr()
     while k8pTokAt("peek").type == "+" || k8pTokAt("peek").type == "-" {
-        k8pOp = k8pTokAt("bump").type
+        k8pAddOp = k8pTokAt("bump").type
         k8pAddLeft = k8pLeft
-        k8pRight = parseMulExpr()
-        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pAddLeft, "right": k8pRight }
+        k8pRight = parsePostfix()
+        while k8pTokAt("peek").type == "*" || k8pTokAt("peek").type == "/" {
+            k8pOp = k8pTokAt("bump").type
+            k8pSave = k8pRight
+            k8pRight = { "kind": K_BINARY, "op": k8pOp, "left": k8pSave, "right": parsePostfix() }
+        }
+        k8pLeft = { "kind": K_BINARY, "op": k8pAddOp, "left": k8pAddLeft, "right": k8pRight }
     }
     return k8pLeft
 }
 
-fn parseCmpExpr() {
+fn parseCompare() {
     k8pLeft = parseAddExpr()
     while true {
         k8pTok = k8pTokAt("peek")
@@ -275,33 +255,43 @@ fn parseCmpExpr() {
             break
         }
     }
-    return k8pLeft
-}
-
-fn parseAndExpr() {
-    k8pLeft = parseCmpExpr()
     while k8pTokAt("peek").type == "&&" {
         k8pTokAt("bump")
         k8pAndLeft = k8pLeft
-        k8pRight = parseCmpExpr()
+        k8pRight = parseAddExpr()
+        while true {
+            k8pTok = k8pTokAt("peek")
+            if k8pTok.type == "==" || k8pTok.type == "===" || k8pTok.type == "!=" || k8pTok.type == "!==" || k8pTok.type == "<" || k8pTok.type == ">" || k8pTok.type == "<=" || k8pTok.type == ">=" {
+                k8pCmpOp = k8pTokAt("bump").type
+                k8pCmpLeft = k8pRight
+                k8pRight = { "kind": K_BINARY, "op": k8pCmpOp, "left": k8pCmpLeft, "right": parseAddExpr() }
+            } else {
+                break
+            }
+        }
         k8pLeft = { "kind": K_BINARY, "op": "&&", "left": k8pAndLeft, "right": k8pRight }
     }
-    return k8pLeft
-}
-
-fn parseCompare() {
-    k8pLeft = parseAndExpr()
-    while k8pTokAt("peek").type == "||" {
-        k8pTokAt("bump")
+    while k8pTokAt("peek").type == "||" || k8pTokAt("peek").type == "??" {
+        k8pOp = k8pTokAt("bump").type
         k8pLogLeft = k8pLeft
-        k8pRight = parseAndExpr()
-        k8pLeft = { "kind": K_BINARY, "op": "||", "left": k8pLogLeft, "right": k8pRight }
-    }
-    while k8pTokAt("peek").type == "??" {
-        k8pTokAt("bump")
-        k8pLogLeft = k8pLeft
-        k8pRight = parseAndExpr()
-        k8pLeft = { "kind": K_BINARY, "op": "??", "left": k8pLogLeft, "right": k8pRight }
+        k8pRight = parseAddExpr()
+        while true {
+            k8pTok = k8pTokAt("peek")
+            if k8pTok.type == "==" || k8pTok.type == "===" || k8pTok.type == "!=" || k8pTok.type == "!==" || k8pTok.type == "<" || k8pTok.type == ">" || k8pTok.type == "<=" || k8pTok.type == ">=" {
+                k8pCmpOp = k8pTokAt("bump").type
+                k8pCmpLeft = k8pRight
+                k8pRight = { "kind": K_BINARY, "op": k8pCmpOp, "left": k8pCmpLeft, "right": parseAddExpr() }
+            } else {
+                break
+            }
+        }
+        while k8pTokAt("peek").type == "&&" {
+            k8pTokAt("bump")
+            k8pAndLeft = k8pRight
+            k8pRight = parseAddExpr()
+            k8pRight = { "kind": K_BINARY, "op": "&&", "left": k8pAndLeft, "right": k8pRight }
+        }
+        k8pLeft = { "kind": K_BINARY, "op": k8pOp, "left": k8pLogLeft, "right": k8pRight }
     }
     return k8pLeft
 }
@@ -317,7 +307,7 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected binding name"
         }
-        let bindSym = k8pPoolSym(k8pTok.value)
+        let bindSym = ("" + k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type != "=" {
             throw "Expected ="
@@ -332,7 +322,7 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected var name"
         }
-        let bindSym = k8pPoolSym(k8pTok.value)
+        let bindSym = ("" + k8pTok.value)
         k8pTokAt("bump")
         k8pLeft = null
         if k8pTokAt("peek").type == "=" {
@@ -361,7 +351,7 @@ fn parseStmt() {
         if k8pTok.type != TOKEN_IDENT {
             throw "Expected function name"
         }
-        k8pName = k8pPoolSym(k8pTok.value)
+        k8pName = ("" + k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type != "(" {
             throw "Expected ("
@@ -514,7 +504,7 @@ fn parseStmt() {
     }
     k8pTok = k8pTokAt("peek")
     if k8pTok.type == TOKEN_IDENT {
-        let assignSym = k8pPoolSym(k8pTok.value)
+        let assignSym = ("" + k8pTok.value)
         k8pTokAt("bump")
         if k8pTokAt("peek").type == "=" {
             k8pTokAt("bump")
@@ -527,8 +517,8 @@ fn parseStmt() {
     return { "kind": K_EXPR, "expr": k8pLeft }
 }
 
-pub fn parseTokens(tokens) {
-    k8pToks = tokens
+pub fn parseSource(source) {
+    k8pToks = tokenize(source)
     k8pPos = 0
     k8pBody = []
     while k8pTokAt("peek").type != TOKEN_EOF {
@@ -541,8 +531,4 @@ pub fn parseTokens(tokens) {
         }
     }
     return { "kind": K_PROGRAM, "body": k8pSnapList(k8pBody) }
-}
-
-pub fn parseSource(source) {
-    return parseTokens(tokenize(source))
 }

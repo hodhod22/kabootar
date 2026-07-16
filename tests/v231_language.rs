@@ -126,6 +126,26 @@ fn module_kbc_cache_preserves_exports() {
 }
 
 #[test]
+fn file_module_import_writes_bytecode_cache() {
+    with_temp_lib(|dir| {
+        fs::write(
+            dir.join("lib/persistent_arith.kab"),
+            "pub fn triple(n) { return n * 3 }",
+        )
+        .unwrap();
+
+        let mut env = create_global_env();
+        import_module("persistent_arith", &mut env).unwrap();
+
+        let cache = dir.join(".kabootar/cache/persistent_arith.kab.kbc");
+        assert!(cache.is_file());
+        assert!(fs::read_to_string(cache)
+            .unwrap()
+            .starts_with("kabootar-bytecode/1"));
+    });
+}
+
+#[test]
 fn bytecode_pub_async_fn_export() {
     with_temp_lib(|dir| {
         fs::write(
