@@ -1,0 +1,12 @@
+// G6 pages + kss smoke
+// cargo run --bin kabootar -- examples/pages_kss_smoke.kab
+
+import "pages"
+import "kss"
+
+let css = toCss({ ".hero": { "color": "red", "font-size": "16px" } })
+let route = renderRoute("index", {})
+let okCss = str_includes(css, ".hero") && str_includes(css, "color:red")
+let okPage = route["layout"] == "app" && route["children"]["title"] == "Kabootar"
+println("pages/kss: css=" + css + " title=" + route["children"]["title"])
+return okCss && okPage
