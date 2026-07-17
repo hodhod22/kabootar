@@ -232,6 +232,20 @@ evalSource("let n = 9; let out = 0; switch (n) { case 1: out = 1; break; default
     });
 }
 
+/// Optional chaining + template literals with ${}.
+#[test]
+fn kv8_eval_optional_and_template() {
+    with_kv8_eval(|env| {
+        let code = r#"
+typeof(evalSource("let o = null; o?.missing")) == "undefined" &&
+evalSource("let o = { \"a\": 3 }; o?.a") == 3 &&
+evalSource("let n = 7; let s = `n=${n}`; s") == "n=7"
+"#;
+        let v = kabootar_lib::evaluator::eval_source(code, env).unwrap();
+        assert!(matches!(v, Value::Bool(true)));
+    });
+}
+
 #[test]
 fn kv8_dom_ui_pipeline() {
     ensure_kv8_eval_cache_fresh();

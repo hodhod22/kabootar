@@ -307,6 +307,11 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
     env.set("kdom_set_attr".to_string(), Value::NativeFunction(kdom_set_attr_native));
     env.set("kdom_get_attr".to_string(), Value::NativeFunction(kdom_get_attr_native));
     env.set("kdom_text".to_string(), Value::NativeFunction(kdom_text_native));
+    env.set("kdom_set_text".to_string(), Value::NativeFunction(kdom_set_text_native));
+    env.set(
+        "kdom_clear_children".to_string(),
+        Value::NativeFunction(kdom_clear_children_native),
+    );
     env.set("kdom_query".to_string(), Value::NativeFunction(kdom_query_native));
     env.set(
         "kdom_query_selector".to_string(),
@@ -508,6 +513,27 @@ fn kdom_text_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
         _ => return Err("kdom_text() expects a string".into()),
     };
     Ok(Value::KabootarDom(DomNode::text_node(text)))
+}
+
+fn kdom_set_text_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut node = expect_dom(args, 0, "kdom_set_text()")?;
+    let text = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => return Err("kdom_set_text() expects text string".into()),
+    };
+    if node.tag == "#text" {
+        node.text = Some(text);
+    } else {
+        node.children = vec![DomNode::text_node(text)];
+    }
+    Ok(Value::KabootarDom(node))
+}
+
+fn kdom_clear_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut node = expect_dom(args, 0, "kdom_clear_children()")?;
+    node.children.clear();
+    Ok(Value::KabootarDom(node))
 }
 
 fn kdom_query_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

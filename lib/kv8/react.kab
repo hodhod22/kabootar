@@ -1,8 +1,8 @@
 @version "1.0.0"
 
 // Minimal Kv8 React-like fiber. import "kv8/react"
-// Hook bag is a plain object on the root fiber; useState/useEffect(hooks, ...).
-// Remount-only: setState remounts the tree (no DOM reconcile yet).
+// Same-type mark (rxPatched) when host tag unchanged; useEffect deps on deps[0].
+// Note: live Dom reuse via setText needs a node registry (Dom values must not sit in .kab lets).
 
 import "kv8/host"
 import "kdom/events"
@@ -10,6 +10,7 @@ import "kdom/events"
 let rxW = 240
 let rxH = 120
 let rxHasClick = false
+let rxLastType = null
 
 fn mountChildren(parent, children) {
     if children == null || children == undefined {
@@ -98,6 +99,7 @@ fn mount(element) {
             node = mountChildren(node, props["children"])
         }
     }
+    rxLastType = "" + typ
     return node
 }
 
@@ -121,15 +123,21 @@ pub fn useState(hooks, initial) {
     return [hooks[key], idx]
 }
 
-// Stub: run setup during render/remount (no deps array / cleanup yet).
-// Returns 1-based effect count; assign onto hooks in the component if you need hooks["fx"]
-// (call args may be object copies under bytecode).
-pub fn useEffect(hooks, setup) {
+// useEffect(hooks, setup, deps?): skip when deps[0] unchanged; re-run setup (cleanup return ignored — Dom/fn slots unsafe in .kab).
+pub fn useEffect(hooks, setup, deps) {
     if !object_has_own(hooks, "ei") {
         hooks["ei"] = 0
     }
     let idx = hooks["ei"]
     hooks["ei"] = idx + 1
+    let depKey = "d" + idx
+    if deps != null && deps != undefined {
+        let depStr = "" + deps[0]
+        if object_has_own(hooks, depKey) && hooks[depKey] == depStr {
+            return idx + 1
+        }
+        hooks[depKey] = depStr
+    }
     if setup != null && typeof(setup) != "string" && typeof(setup) != "number" {
         setup()
     }
@@ -143,8 +151,17 @@ pub fn setState(fiber, hookIndex, next) {
     hooks["ei"] = 0
     fiber["$hooks"] = hooks
     rxHasClick = false
+    let prevType = rxLastType
     let node = mount(fiber)
-    return hostCall("paint", [node, rxW, rxH, ""])
+    let patched = false
+    if prevType != null && ("" + prevType) == ("" + rxLastType) {
+        patched = true
+    }
+    return {
+        "frame": hostCall("paint", [node, rxW, rxH, ""]),
+        "hasClick": rxHasClick,
+        "patched": patched
+    }
 }
 
 pub fn render(element, width, height) {
@@ -164,6 +181,11 @@ pub fn render(element, width, height) {
     hooks["ei"] = 0
     element["$hooks"] = hooks
     rxHasClick = false
+    rxLastType = null
     let node = mount(element)
-    return { "frame": hostCall("paint", [node, rxW, rxH, ""]), "hasClick": rxHasClick }
+    return {
+        "frame": hostCall("paint", [node, rxW, rxH, ""]),
+        "hasClick": rxHasClick,
+        "patched": false
+    }
 }
