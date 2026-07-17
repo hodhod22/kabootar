@@ -73,6 +73,36 @@ fn interface_implements_success() {
 }
 
 #[test]
+fn trait_implements_success_g5() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        trait Greeter {
+            fn greet();
+        }
+
+        class Person implements Greeter {
+            name: string;
+
+            fn init(n) {
+                self.name = n
+            }
+
+            fn greet() {
+                return "hi " + self.name
+            }
+        }
+
+        let p = Person("Ada")
+        is_impl(p, "Greeter")
+    "#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
+#[test]
 fn interface_missing_method_errors() {
     let mut env = create_global_env();
     let err = eval_source(

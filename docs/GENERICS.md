@@ -360,32 +360,28 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 
 ---
 
-## Traits (planerat — Våg G5)
+## Traits (Våg G5) ✅ subset
 
-Traits gör generics **användbara** utan JavaScript-prototyper:
+`trait` är ett alias för `interface`-formade metodkontrakt (samma AST/`implements`/bytecode):
 
 ```kabootar
-trait Show<T> {
-    fn show(self) -> String
+trait Show {
+    fn show();
 }
 
-class Box<T> implements Show<T> {
-    fn show(self) -> String {
+class Box implements Show {
+    fn show() {
         return "Box"
     }
 }
-
-fn print<T>(x: T) where T: Show<T> {
-    log(x.show())
-}
 ```
 
-| Beslut | Rekommendation |
-|--------|----------------|
-| Syntax | `trait Name<T>` + `implements` på klass |
-| Bounds | `fn f<T>() where T: Show<T>` efter G11 |
-| Monomorph | Trait-metoder specialiseras som klassmetoder |
-| Self-host | Efter G10 emit parity |
+| Beslut | Status |
+|--------|--------|
+| Syntax | `trait Name { fn … }` ✅ (= interface) |
+| `implements` på klass | ✅ (samma som interface) |
+| Bounds `where T: Show` | senare |
+| Generiska traits `trait Show<T>` | senare |
 
 **Icke-mål v1:** HKT, associated types, dyn dispatch runtime.
 

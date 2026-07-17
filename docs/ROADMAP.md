@@ -493,13 +493,13 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-07):** C1 påbörjad — `kdom_query_selector`, `kdom_query_selector_all`, `kdom_mutation_records`. **C2:** React 19 via esbuild ESM; self-host `kv8/eval` hot path uses native `pop` (inte O(n) `evPopStack`); warm `.kbc`/export-cache + budget-assert på 1k while. Full React-bundle eval fortfarande långsam — vidare JIT/hot paths i C3. **Dom live:** parent-registry sync efter child patch (paint(parent) ser uppdaterad text).
+**Status (2026-07):** C1 — `querySelector` tag/`#id`/`.class`/descendant + **`[attr]`/`[attr=value]`** + child combinator **`>`**. **C2:** React 19 via esbuild ESM; self-host parser `class`/`async`/`await`; `evalSource` → Rust Kv8 (`kv8_eval_source`) för class/async/while. **C3:** native eval bridge (10k while budget). **Dom live:** parent-registry sync.
 
 | Fas | Innehåll |
 |-----|----------|
-| **C1** 🚧 | **kDOM** — full DOM Level 2: Events, MutationObserver, `querySelector` alla selectors |
-| **C2** 🚧 | **Kv8** — modern JS + ESM/esbuild React 19; full bundle eval/render parity; `class`/`async` i parsern |
-| **C3** | **Kv8 JIT** — fler hot paths, delad bytecode med huvudspråket |
+| **C1** 🚧 | **kDOM** — full DOM Level 2: Events, MutationObserver, `querySelector` (`#`/`.`/`[attr]`/`>`/descendant) |
+| **C2** 🚧 | **Kv8** — modern JS + ESM/esbuild React 19; `class`/`async` i self-host parser; `evalSource` → Rust |
+| **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` (Rust while/binary/class); vidare JIT för bundles |
 | **C4** | **Layout** — flexbox/grid (subset), box model polish |
 | **C5** | **Canvas 2D** — full HTML5 canvas API ([CANVAS.md](CANVAS.md) luckor) |
 | **C6** | **WebGL** — textures, FBO, shaders från GLSL-filer |
@@ -575,7 +575,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | ✅ (`ArrayPush`; `str_match_all` / `.matchAll`; `toLocaleString` på str/array) |
 | **G3** | `import "std"` aggregator, Intl-localeCompare | ✅ (`lib/std.kab` + builtin; `localeCompare` / sensitivity base) |
 | **G4** | Math rest (`f16round`, `sumPrecise`) | ✅ |
-| **G5** | **Traits** — `trait Show { fn show<T>(self) }`, bounds i generics ([GENERICS.md#traits](GENERICS.md#traits)) | 🚧 design |
+| **G5** | **Traits** — `trait Show { fn show() }` alias till interface + `implements` | ✅ subset (`trait` ≈ `interface`; `where`-bounds senare) |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
 | **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |

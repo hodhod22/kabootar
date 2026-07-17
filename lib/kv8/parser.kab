@@ -91,6 +91,11 @@ fn parsePostfix() {
         k8pSave = parsePostfix()
         return { "kind": K_UNARY, "op": k8pOp, "arg": k8pSave }
     }
+    if k8pTok.type == "await" {
+        k8pTokAt("bump")
+        k8pSave = parsePostfix()
+        return { "kind": K_AWAIT, "arg": k8pSave }
+    }
 
     if k8pTok.type == TOKEN_NUMBER {
         k8pTok = k8pTokAt("bump")
@@ -575,6 +580,156 @@ fn parseStmt() {
         k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
         k8pBodyStack = k8pPopStack(k8pBodyStack)
         return { "kind": K_FN, "sym": k8pName, "params": k8pSnapList(k8pParams), "body": { "kind": K_BLOCK, "body": fnBody } }
+    }
+    if k8pTok.type == "async" {
+        k8pTokAt("bump")
+        if k8pTokAt("peek").type != "function" {
+            throw "Expected function after async"
+        }
+        k8pTokAt("bump")
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type != TOKEN_IDENT {
+            throw "Expected function name"
+        }
+        k8pName = ("" + k8pTok.value)
+        k8pTokAt("bump")
+        if k8pTokAt("peek").type != "(" {
+            throw "Expected ("
+        }
+        k8pTokAt("bump")
+        k8pParams = []
+        if k8pTokAt("peek").type != ")" {
+            while true {
+                k8pTok = k8pTokAt("peek")
+                if k8pTok.type != TOKEN_IDENT {
+                    throw "Expected parameter"
+                }
+                k8pParams = push(k8pParams, k8pTok.value)
+                k8pTokAt("bump")
+                if k8pTokAt("peek").type == "," {
+                    k8pTokAt("bump")
+                } else {
+                    break
+                }
+            }
+        }
+        if k8pTokAt("peek").type != ")" {
+            throw "Expected )"
+        }
+        k8pTokAt("bump")
+        if k8pTokAt("peek").type != "{" {
+            throw "Expected {"
+        }
+        k8pTokAt("bump")
+        k8pBodyStack = push(k8pBodyStack, k8pBlockBody)
+        k8pBlockBody = []
+        while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+            k8pLeft = parseStmt()
+            if k8pLeft != null {
+                k8pBlockBody = push(k8pBlockBody, k8pLeft)
+            }
+            if k8pTokAt("peek").type == ";" {
+                k8pTokAt("bump")
+            }
+        }
+        if k8pTokAt("peek").type != "}" {
+            throw "Expected }"
+        }
+        k8pTokAt("bump")
+        let asyncBody = k8pSnapList(k8pBlockBody)
+        k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
+        k8pBodyStack = k8pPopStack(k8pBodyStack)
+        return { "kind": K_FN, "sym": k8pName, "params": k8pSnapList(k8pParams), "body": { "kind": K_BLOCK, "body": asyncBody }, "async": true }
+    }
+    if k8pTok.type == "class" {
+        k8pTokAt("bump")
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type != TOKEN_IDENT {
+            throw "Expected class name"
+        }
+        k8pName = ("" + k8pTok.value)
+        k8pTokAt("bump")
+        let classExt = null
+        if k8pTokAt("peek").type == "extends" {
+            k8pTokAt("bump")
+            k8pTok = k8pTokAt("peek")
+            if k8pTok.type != TOKEN_IDENT {
+                throw "Expected superclass name"
+            }
+            classExt = ("" + k8pTok.value)
+            k8pTokAt("bump")
+        }
+        if k8pTokAt("peek").type != "{" {
+            throw "Expected {"
+        }
+        k8pTokAt("bump")
+        k8pBodyStack = push(k8pBodyStack, k8pBlockBody)
+        k8pBlockBody = []
+        while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+            if k8pTokAt("peek").type == "static" {
+                k8pTokAt("bump")
+            }
+            if k8pTokAt("peek").type == "async" {
+                k8pTokAt("bump")
+            }
+            k8pTok = k8pTokAt("peek")
+            if k8pTok.type != TOKEN_IDENT {
+                throw "Expected method name"
+            }
+            let methName = ("" + k8pTok.value)
+            k8pTokAt("bump")
+            if k8pTokAt("peek").type != "(" {
+                throw "Expected ("
+            }
+            k8pTokAt("bump")
+            k8pParams = []
+            if k8pTokAt("peek").type != ")" {
+                while true {
+                    k8pTok = k8pTokAt("peek")
+                    if k8pTok.type != TOKEN_IDENT {
+                        throw "Expected parameter"
+                    }
+                    k8pParams = push(k8pParams, k8pTok.value)
+                    k8pTokAt("bump")
+                    if k8pTokAt("peek").type == "," {
+                        k8pTokAt("bump")
+                    } else {
+                        break
+                    }
+                }
+            }
+            if k8pTokAt("peek").type != ")" {
+                throw "Expected )"
+            }
+            k8pTokAt("bump")
+            if k8pTokAt("peek").type != "{" {
+                throw "Expected {"
+            }
+            k8pTokAt("bump")
+            let methStmts = []
+            while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+                k8pSave = parseStmt()
+                if k8pSave != null {
+                    methStmts = push(methStmts, k8pSave)
+                }
+                if k8pTokAt("peek").type == ";" {
+                    k8pTokAt("bump")
+                }
+            }
+            if k8pTokAt("peek").type != "}" {
+                throw "Expected }"
+            }
+            k8pTokAt("bump")
+            k8pBlockBody = push(k8pBlockBody, { "kind": K_FN, "sym": methName, "params": k8pSnapList(k8pParams), "body": { "kind": K_BLOCK, "body": k8pSnapList(methStmts) } })
+        }
+        if k8pTokAt("peek").type != "}" {
+            throw "Expected }"
+        }
+        k8pTokAt("bump")
+        let classMethods = k8pSnapList(k8pBlockBody)
+        k8pBlockBody = k8pBodyStack[len(k8pBodyStack) - 1]
+        k8pBodyStack = k8pPopStack(k8pBodyStack)
+        return { "kind": K_CLASS, "sym": k8pName, "extends": classExt, "methods": classMethods }
     }
     if k8pTok.type == "if" {
         k8pTokAt("bump")

@@ -34,7 +34,8 @@ Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` 
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
 - **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` + `hooks["cnid0"…]` / `ncn` for nested fiber children; `setTextById` / `setAttrById` / multi-text / nested remount via `appendById`; parent live-registry sync so `paint(parent)` sees child text; `onById` + `dispatchById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
-- Stack pop in `kv8/eval` uses native `pop` (C2). Do not reintroduce Kabootar `evPopStack` rebuild loops. Keep `evExpr` binary path stack-based (large inlined hot paths have hung Windows module eval).
+- Stack pop in `kv8/eval` uses native `pop` (C2). **`evalSource` → `kv8_eval_source` (C3 Rust Kv8)** for while/binary/class/async; `evalSourceWith` stays self-host for `extraEnv`. Do not reintroduce Kabootar `evPopStack` rebuild loops.
+- Self-host parser: `class` / `async function` / `await` AST (`K_CLASS` / `K_FN.async` / `K_AWAIT`).
 - `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.
 
