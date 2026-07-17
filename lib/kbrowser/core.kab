@@ -1,0 +1,32 @@
+@version "1.0.0"
+
+// Kabootar Browser core wrappers (natives kb_*). import "kbrowser/core"
+// KEEP <=~7 top-level fn. Shared by desktop (G11) and mobil (G7).
+
+pub fn navigate(url) {
+    return kb_navigate(url)
+}
+
+pub fn paint() {
+    return kb_paint()
+}
+
+pub fn sync() {
+    return kb_sync_platform()
+}
+
+pub fn info() {
+    return kb_os_info()
+}
+
+pub fn tabs() {
+    return kb_tabs()
+}
+
+pub fn back() {
+    return kb_back()
+}
+
+pub fn openTab(url) {
+    return kb_tab_open(url)
+}

@@ -8,7 +8,7 @@ mod vmm;
 pub use allocator::HeapAllocator;
 pub use cache::CacheCoherence;
 pub use pager::Pager;
-pub use vmm::Vmm;
+pub use vmm::{PageEntry, Vmm, PAGE_SIZE};
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -51,6 +51,64 @@ impl MemorySubsystem {
                 }
             }
         }
+    }
+
+    /// Demand-zero page fault: map a fresh page if missing.
+    pub fn fault(&mut self, pid: u64, virt: u64) -> Result<u64, String> {
+        match self.vmm.translate(pid, virt) {
+            Ok(p) => Ok(p),
+            Err(_) => {
+                self.page_faults.fetch_add(1, Ordering::SeqCst);
+                let phys = self.vmm.alloc_phys();
+                let page = virt & !(PAGE_SIZE - 1);
+                self.map_page(pid, page, phys, 7)?;
+                Ok(phys + (virt & (PAGE_SIZE - 1)))
+            }
+        }
+    }
+
+    /// Anonymous mmap — map `len` bytes starting at `virt` (page-aligned).
+    pub fn mmap(&mut self, pid: u64, virt: u64, len: u64, perms: u8) -> Result<u64, String> {
+        if len == 0 {
+            return Err("os_mm_mmap: len must be > 0".into());
+        }
+        let start = virt & !(PAGE_SIZE - 1);
+        let pages = (len + PAGE_SIZE - 1) / PAGE_SIZE;
+        for i in 0..pages {
+            let v = start + i * PAGE_SIZE;
+            let phys = self.vmm.alloc_phys();
+            self.map_page(pid, v, phys, perms)?;
+        }
+        Ok(start)
+    }
+
+    /// Share a page COW from src_pid to dst_pid (same phys, both marked cow).
+    pub fn cow_share(&mut self, src_pid: u64, dst_pid: u64, virt: u64) -> Result<u64, String> {
+        let mut entry = self.vmm.entry(src_pid, virt)?;
+        entry.cow = true;
+        self.vmm.map_entry(src_pid, entry.clone())?;
+        self.vmm.map_entry(dst_pid, entry.clone())?;
+        Ok(entry.phys)
+    }
+
+    /// Break COW on write: allocate private phys if page is shared.
+    pub fn cow_break(&mut self, pid: u64, virt: u64) -> Result<u64, String> {
+        let entry = self.vmm.entry(pid, virt)?;
+        if !entry.cow {
+            return Ok(entry.phys);
+        }
+        let phys = self.vmm.alloc_phys();
+        self.vmm.map_entry(
+            pid,
+            PageEntry {
+                virt: entry.virt,
+                phys,
+                perms: entry.perms,
+                cow: false,
+            },
+        )?;
+        self.cache.invalidate_line(virt);
+        Ok(phys)
     }
 
     pub fn malloc(&mut self, pid: u64, size: usize) -> Result<u64, String> {

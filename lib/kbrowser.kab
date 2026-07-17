@@ -1,0 +1,5 @@
+@version "1.0.0"
+
+// Aggregator — import "kbrowser" (G11 core). Mobil shell: import "kbrowser/mobile_chrome".
+
+import "kbrowser/core"

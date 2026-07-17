@@ -444,7 +444,8 @@ Kabootar är **fullstack** — detta finns inte i vanlig JavaScript:
 
 - `import "sql"` / `sql()` / **`sql_async()`** — in-process databas
 - `http_route`, `http_serve`, **`http_request_async`** (in-process), **`http_fetch_async`** (headers, redirects, timeout), **`http_headers`**, **`http_header`**, **`http_set_timeout`**, **`tls_*`**
-- `import "os"` — sandboxat filsystem, **`os_read_async`**, **`os_write_async`**
+- `import "os"` — sandboxat filsystem, **`os_read_async`**, **`os_write_async`**, CFS/`os_mm_*` (fault/mmap/COW), journal/`os_acl_*`
+- `import "kbrowser"` / `kbrowser/core` / `kbrowser/mobile_chrome` — cross-platform + mobil shell
 - `import "science"` — fysik, kemi, statistik, matriser
 - `import "crypto"` — kryptografi
 - `import "std"` — JSON, Map/Set, array/string/regex, typkontroller

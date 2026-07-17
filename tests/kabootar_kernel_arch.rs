@@ -87,6 +87,26 @@ fn mmu_map_translate_and_stats() {
 }
 
 #[test]
+fn d2_mmu_fault_mmap_and_cow() {
+    let out = eval(
+        r#"
+        let before = os_mm_stats();
+        let faulted = os_mm_fault(1, 131072);
+        let mid = os_mm_stats();
+        let base = os_mm_mmap(1, 196608, 8192, 7);
+        let p1 = os_mm_translate(1, 196608);
+        let p2 = os_mm_translate(1, 200704);
+        let shared = os_mm_cow_share(1, 2, 196608);
+        let broken = os_mm_cow_break(2, 196608);
+        is_number(faulted) && mid[2] > before[2]
+            && base == 196608 && p1 > 0 && p2 > 0 && p1 != p2
+            && shared > 0 && broken > 0 && broken != shared
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn process_threads_signals_jobs() {
     let tid = eval("os_thread_spawn(1, \"worker\")");
     assert!(matches!(tid, Value::Number(n) if n > 0));
@@ -115,6 +135,30 @@ fn fs_journal_and_netstack() {
     assert!(matches!(seq, Value::Number(n) if n >= 1));
     let pkt = eval("os_netstack_send(\"tcp\", \"hello\")");
     assert!(matches!(pkt, Value::Array(a) if !a.is_empty()));
+}
+
+#[test]
+fn d3_journal_replay_checkpoint_and_acl() {
+    let out = eval(
+        r#"
+        os_journal_append("/secure/a.txt", "hello");
+        os_journal_append("/secure/b.txt", "world");
+        let committed = os_journal_commit();
+        let replay = os_journal_replay();
+        let ck = os_journal_checkpoint();
+        let after = os_journal_replay();
+        os_acl_grant("uid:1", "/secure/secret", "read");
+        let ok = os_acl_check("uid:1", "/secure/secret", "read");
+        let deny = os_acl_check("uid:2", "/secure/secret", "read");
+        os_acl_revoke("uid:1", "/secure/secret");
+        let gone = os_acl_check("uid:1", "/secure/secret", "read");
+        is_number(committed) && is_array(replay) && len(replay) >= 2
+            && replay[0].payload == "hello" && ck >= 1
+            && is_array(after) && len(after) == 0
+            && ok == true && deny == false && gone == false
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }
 
 #[test]

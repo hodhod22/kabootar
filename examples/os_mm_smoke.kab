@@ -1,0 +1,8 @@
+// D2 MMU smoke — fault, mmap, COW (decimal addrs; no hex literals).
+let before = os_mm_stats();
+let faulted = os_mm_fault(1, 262144);
+let base = os_mm_mmap(1, 327680, 4096, 7);
+let shared = os_mm_cow_share(1, 2, 327680);
+let broken = os_mm_cow_break(2, 327680);
+print("fault=" + faulted + " mmap=" + base + " cow=" + shared + "->" + broken);
+broken != shared;

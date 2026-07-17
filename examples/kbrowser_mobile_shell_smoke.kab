@@ -1,0 +1,18 @@
+// G7-rest mobil shell-UI — chrome + back + tabs.
+import "kbrowser/mobile_chrome"
+
+applyPhoneViewport();
+applySafeArea();
+mountChrome("kabootar://home");
+kb_paint();
+
+os_mkdir("/apps");
+os_write("/apps/m1.kml", "<html><body><h1>Page One</h1></body></html>");
+os_write("/apps/m2.kml", "<html><body><h1>Page Two</h1></body></html>");
+kb_set_os_mode("kabootar");
+kb_navigate("kabootar://vfs/apps/m1.kml");
+kb_navigate("kabootar://vfs/apps/m2.kml");
+let went = goBack();
+let tabs = listTabs();
+print("back=" + went + " tabs=" + len(tabs));
+went;

@@ -514,8 +514,8 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 | Fas | Innehåll |
 |-----|----------|
 | **D1** ✅/🚧 | Ring 0: `os_sched_enqueue` → CFS `FairScheduler`, `os_sched_yield` (kooperativ preemption); hård IRQ-preemption senare |
-| **D2** | MMU: page faults, COW, mmap |
-| **D3** | FS: ext4-lik journal, permissions, ACL |
+| **D2** ✅ | MMU: `os_mm_fault`, `os_mm_mmap`, COW (`os_mm_cow_share` / `os_mm_cow_break`) |
+| **D3** ✅ | FS: journal payload + `os_journal_replay`/`checkpoint`; path-ACL (`os_acl_*`) + `os_perm_*` |
 | **D4** | Netstack: riktig NIC-driver (`--features hw`) |
 | **D5** | GPU compositor: multi-monitor, vsync, blur/acrylic-lager (kOS shell) |
 | **D6** | `os_compat_run`: Wine-lik / container (inte 99 % stub) |
@@ -577,12 +577,12 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G4** | Math rest (`f16round`, `sumPrecise`) | ✅ |
 | **G5** | **Traits** — `trait Show { fn show() }` alias till interface + `implements` | ✅ subset (`trait` ≈ `interface`; `where`-bounds senare) |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
-| **G7** | **kbrowser mobil** — `kb_viewport(w,h,dpr?,orientation?)`, `kb_touch_at`, `kb_safe_area`; Android/iOS shell senare | ✅ subset |
+| **G7** | **kbrowser mobil** — viewport/touch/safe area + mobil shell-UI (`lib/kbrowser/mobile_chrome`) | ✅ subset |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | ✅ subset (`.kbc` fingerprint + import mtimes) |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
 | **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid*` multi nested + parent live sync/`onById`/`dispatchById`) |
 | **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |
-| **G11** | **kbrowser cross-platform** — samma `kb_*`-API på **kOS** + **4 desktop-värd-OS** + **mobil (Android, iPhone)**; se [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål) | 📋 planerat |
+| **G11** | **kbrowser cross-platform** — `lib/kbrowser/` + `kb_sync_platform` object + native/kos/wasm smokes | ✅ subset |
 
 **G7 — kbrowser mobil (planering):**
 
@@ -600,9 +600,9 @@ Krav:
 - [x] **Touch-input** — `kb_touch_at` + hit-test (`kb_poll_events`, fallback till `click`)
 - [x] **Responsiv viewport** — `kb_viewport(w, h, dpr?, orientation?)` returnerar `{width,height,dpr,orientation}`
 - [x] **iOS safe area** — `kb_safe_area(top?, right?, bottom?, left?)` stub
-- [ ] **Mobil shell-UI** — kompakt adressfält, flikar, tillbaka; delad `lib/kbrowser/` med desktop
+- [x] **Mobil shell-UI** — `lib/kbrowser/mobile_chrome.kab` (adressfält, tillbaka, flikar)
 - [x] **PWA** — service worker + fetch events + manifest ([BROWSER_V2.md](BROWSER_V2.md)); “Lägg till hemskärm”
-- [x] **Smokes** — `examples/kbrowser_mobile_smoke.kab` + `g7_mobile_viewport_touch_safe_area`; device CI senare
+- [x] **Smokes** — `examples/kbrowser_mobile_smoke.kab`, `kbrowser_mobile_shell_smoke.kab`; device CI senare
 
 Beror på: **G11** (kbrowser core), **Våg C** (layout, touch targets), **BROWSER_V2 PWA**.
 
@@ -620,11 +620,11 @@ Kabootar Browser (`kbrowser`) ska inte bara köras i Chrome/WASM — den ska var
 
 Krav:
 
-- [ ] **`lib/kbrowser/`** (eller motsv.) i Kabootar — navigation, flikar, viewport, theme; Rust endast som tunn host-bindning
-- [ ] **`kb_sync_platform()`** — rätt URL-scheme och I/O per mål (`kabootar://` vs `file://` vs HTTP)
-- [ ] **Enhetlig compositor-yta** — `kb_mount` → `kb_render` → `kb_paint` på alla fem; kOS kopplar till `os_window_*`
-- [ ] **CI-smokes** — minst ett `examples/kbrowser_*_smoke.kab` per plattformsklass (native / wasm / kos)
-- [ ] **Dokumentation** — matris i [BROWSER.md](BROWSER.md), uppdatera [FEATURES.md](FEATURES.md) när varje mål går grönt
+- [x] **`lib/kbrowser/`** — `core.kab` + `mobile_chrome.kab` + aggregator; Rust som host-bindning
+- [x] **`kb_sync_platform()`** — returnerar `{mode,layer,host_os,schemes}`
+- [x] **Enhetlig compositor-yta** — `kb_mount` → `kb_render` → `kb_paint` (kOS/native/wasm-klass)
+- [x] **CI-smokes** — `kbrowser_native_smoke` / `kbrowser_kos_smoke` / `kbrowser_wasm_smoke` + host-tester
+- [x] **Dokumentation** — matris i [BROWSER.md](BROWSER.md); native AppKit/X11-bridge senare
 
 Mobil (Android, iPhone): se **G7** — samma `lib/kbrowser/`, touch + viewport + PWA/Shell.
 

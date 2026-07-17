@@ -169,6 +169,19 @@ impl OsHandle {
                 }
             }
             p.require(pid, &format!("{base}:{path}"))
+        })?;
+        // D3: path-specific ACL (opt-in when an entry exists for the path).
+        let right = if write { "write" } else { "read" };
+        let subject = format!("uid:{pid}");
+        self.with_subsys(|s| {
+            if s.xcut.security.has_path_acl(path) {
+                let ok = s.xcut.security.check_acl(&subject, path, right);
+                s.xcut.security.audit(pid, &format!("vfs_acl:{right}:{path}"), ok);
+                if !ok {
+                    return Err(format!("ACL denied {right} on {path} for {subject}"));
+                }
+            }
+            Ok(())
         })
     }
 

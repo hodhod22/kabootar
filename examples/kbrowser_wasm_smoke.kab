@@ -1,0 +1,6 @@
+// G11 WASM-class smoke — same kb_* surface (runs on any host; wasm CI optional).
+platform_use("hybrid");
+let sync = kb_sync_platform();
+kb_viewport(960, 540);
+kb_paint();
+print("wasm-class mode=" + sync.mode + " schemes=" + len(sync.schemes));

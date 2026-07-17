@@ -211,7 +211,7 @@ Kabootar OS modellerar en fullständig kernel-stack i sandbox — från Ring 0 t
 
 | Komponent | Modul | API |
 |-----------|-------|-----|
-| VMM (sidtabeller) | `mm/vmm` | `os_mm_map`, `os_mm_translate` |
+| VMM (sidtabeller) | `mm/vmm` | `os_mm_map`, `os_mm_translate`, `os_mm_fault`, `os_mm_mmap`, COW |
 | Pager (swap) | `mm/pager` | `os_mm_stats` |
 | Cache-koherens | `mm/cache` | (stat i `os_mm_stats`) |
 | Allokator | `mm/allocator` | `os_mem_alloc` (befintlig) |
@@ -239,7 +239,8 @@ Kabootar OS modellerar en fullständig kernel-stack i sandbox — från Ring 0 t
 | Komponent | Modul | API |
 |-----------|-------|-----|
 | VFS | `vfs.rs` | `os_read`, `os_write`, … |
-| Journal (WAL) | `fsys/journal` | `os_journal_commit` |
+| Journal (WAL) | `fsys/journal` | `os_journal_append` / `commit` / `replay` / `checkpoint` |
+| ACL | `xcut/security` | `os_acl_grant` / `check` / `revoke` (path-ACL på VFS) |
 | Block I/O | `fsys/block_io` | (kö i `os_architecture`) |
 | Page cache | `fsys/page_cache` | (stat i `os_architecture`) |
 
@@ -279,12 +280,19 @@ os_sched_tick();
 os_context_switch(1, 2);
 os_mm_map(1, 4096, 7);
 os_mm_translate(1, 4096);
+os_mm_fault(1, 131072);
+os_mm_mmap(1, 196608, 8192, 7);
+os_mm_cow_share(1, 2, 196608);
+os_mm_cow_break(2, 196608);
 os_thread_spawn(1, "worker");
 os_signal_send(1, 15);
 os_driver_register("my-drv", "1.0");
 os_pnp_discover("usb", "046d", "c52b");
 os_journal_append("/path", "data");
 os_journal_commit();
+os_journal_replay();
+os_acl_grant("uid:1", "/path", "read");
+os_acl_check("uid:1", "/path", "read");
 os_netstack_send("tcp", "payload");
 os_shell("echo hello");
 os_libc_open("/dev/null");
