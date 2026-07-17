@@ -294,7 +294,19 @@ pub fn read_member(
             }
         }
         Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
+        Value::Array(items) if field == "toLocaleString" => Ok(Value::BoundNative(
+            Box::new(Value::Array(items.clone())),
+            crate::runtime::stdlib::array_to_locale_string_method,
+        )),
         Value::String(s) if field == "length" => Ok(Value::Number(s.chars().count() as i64)),
+        Value::String(s) if field == "matchAll" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::str_match_all_method,
+        )),
+        Value::String(s) if field == "toLocaleString" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::str_to_locale_string_method,
+        )),
         Value::KabootarDom(node) => match field {
             "tag" => Ok(Value::String(node.tag.clone())),
             "id" => Ok(Value::Number(node.id as i64)),

@@ -42,7 +42,8 @@ mod fs;
 
 use crate::value::{Environment, Value};
 
-pub use array::{entries_native, values_native};
+pub use array::{array_to_locale_string_method, entries_native, values_native};
+pub(crate) use string::{str_match_all_method, str_to_locale_string_method};
 pub use map::{is_map_value, is_set_value};
 pub use types::typeof_name;
 
@@ -163,6 +164,8 @@ fn std_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
         "tanh",
         "str_match",
         "str_search",
+        "str_match_all",
+        "str_to_locale_string",
         "str_locale_compare",
     ];
     let items: Vec<Value> = caps.into_iter().map(|s| Value::String(s.into())).collect();

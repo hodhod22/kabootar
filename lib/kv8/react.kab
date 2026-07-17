@@ -183,6 +183,14 @@ pub fn setState(fiber, hookIndex, next) {
         liveHit = hostCall("getById", [prevId]) != null
     }
     if liveHit && out != null && object_has_own(out, "props") {
+        let outType = "" + out["type"]
+        if object_has_own(hooks, "ntag") && hooks["ntag"] != outType {
+            liveHit = false
+        } else {
+            hooks["ntag"] = outType
+        }
+    }
+    if liveHit && out != null && object_has_own(out, "props") {
         let op = out["props"]
         let ch = null
         if op != null && object_has_own(op, "children") {
@@ -195,6 +203,7 @@ pub fn setState(fiber, hookIndex, next) {
             let node = hostCall("setTextById", [prevId, "" + ch])
             if op != null && object_has_own(op, "onClick") {
                 rxHasClick = true
+                hostCall("onById", [prevId, "click", "rxClick"])
             }
             hooks["nid"] = prevId
             fiber["$hooks"] = hooks
@@ -213,6 +222,7 @@ pub fn setState(fiber, hookIndex, next) {
             }
             if op != null && object_has_own(op, "onClick") {
                 rxHasClick = true
+                hostCall("onById", [prevId, "click", "rxClick"])
             }
             let node = hostCall("clearChildrenById", [prevId])
             let nch = len(ch)

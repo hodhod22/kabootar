@@ -16,6 +16,48 @@ fn manifest_dir() -> String {
 }
 
 static KV8_CACHE_ONCE: Once = Once::new();
+static KV8_WARM_ONCE: Once = Once::new();
+
+fn warm_kv8_module_exports() {
+    KV8_WARM_ONCE.call_once(|| {
+        let mut env = kabootar_lib::evaluator::create_global_env();
+        let started = Instant::now();
+        for module in [
+            "kv8/defs",
+            "kv8/lexer",
+            "kv8/parser",
+            "kv8/host",
+            "kdom/events",
+            "kdom/document",
+            "kstyle/parse",
+            "kv8/dom",
+            "kv8/eval",
+            "kv8/react",
+        ] {
+            kabootar_lib::evaluator::eval_source(&format!("import \"{module}\""), &mut env)
+                .unwrap_or_else(|error| panic!("kv8 warm import {module} failed: {error}"));
+        }
+        eprintln!("kv8 module warm completed in {:?}", started.elapsed());
+    });
+}
+
+fn warm_kv8_disk_kbc() {
+    let base = manifest_dir();
+    for rel in [
+        "lib/kv8/defs.kab",
+        "lib/kv8/lexer.kab",
+        "lib/kv8/parser.kab",
+        "lib/kv8/host.kab",
+        "lib/kv8/dom.kab",
+        "lib/kv8/eval.kab",
+        "lib/kv8/react.kab",
+        "lib/kdom/events.kab",
+        "lib/kdom/document.kab",
+    ] {
+        let path = format!("{base}/{rel}");
+        let _ = compile::compile_file_cached(&path);
+    }
+}
 
 fn ensure_kv8_eval_cache_fresh() {
     KV8_CACHE_ONCE.call_once(|| {
@@ -45,6 +87,8 @@ thread_local! {
 
 fn with_kv8_eval<R>(f: impl FnOnce(&mut Environment) -> R) -> R {
     ensure_kv8_eval_cache_fresh();
+    warm_kv8_disk_kbc();
+    warm_kv8_module_exports();
     KV8_EVAL_ENV.with(|cell| {
         let mut slot = cell.borrow_mut();
         if slot.is_none() {
@@ -271,7 +315,19 @@ fn kv8_dom_smoke_example_runs() {
 #[test]
 fn kv8_react_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
+    warm_kv8_disk_kbc();
+    warm_kv8_module_exports();
     let path = format!("{}/examples/kv8_react_smoke.kab", manifest_dir());
     let result = cli::run_file(&path).expect("examples/kv8_react_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
+
+#[test]
+fn kv8_react_kids_smoke_example_runs() {
+    ensure_kv8_eval_cache_fresh();
+    warm_kv8_disk_kbc();
+    warm_kv8_module_exports();
+    let path = format!("{}/examples/kv8_react_kids_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8_react_kids_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }

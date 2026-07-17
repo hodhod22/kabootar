@@ -78,6 +78,20 @@ fn effect_directives_stripped() {
 }
 
 #[test]
+fn g2_match_all_and_to_locale_string() {
+    let out = eval(
+        r#"
+        let m = str_match_all("a1b2", "(\\d)");
+        len(m) == 2 && m[0][0] == "1" && m[1][0] == "2" &&
+        "x".matchAll("(.)")[0][0] == "x" &&
+        [1, 2].toLocaleString() == "1,2" &&
+        "hi".toLocaleString() == "hi"
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)));
+}
+
+#[test]
 fn g2_array_member_push_on_expression() {
     let out = eval(
         r#"
