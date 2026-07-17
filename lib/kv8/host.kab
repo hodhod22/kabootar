@@ -22,8 +22,20 @@ pub fn hostCall(hostName, hostArgs) {
     if hostName == "setTextById" {
         return kdom_set_text_by_id(hostArgs[0], hostArgs[1])
     }
+    if hostName == "setAttrById" {
+        return kdom_set_attr_by_id(hostArgs[0], hostArgs[1], hostArgs[2])
+    }
+    if hostName == "clearChildrenById" {
+        return kdom_clear_children_by_id(hostArgs[0])
+    }
+    if hostName == "appendTextById" {
+        return kdom_append_text_by_id(hostArgs[0], hostArgs[1])
+    }
     if hostName == "getById" {
         return kdom_get_by_id(hostArgs[0])
+    }
+    if hostName == "getAttr" {
+        return kdom_get_attr(hostArgs[0], hostArgs[1])
     }
     if hostName == "clearChildren" {
         return kdom_clear_children(hostArgs[0])

@@ -30,11 +30,11 @@ Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` 
 
 ## React stub (G10)
 
-`import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
+`import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?, cleanup?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
-- **Live Dom patch:** `hooks["nid"]` (number id from `hostCall("id")`); same-type `setState` calls `setTextById` via Rust live registry (`kdom_set_text_by_id`). `patched: true` when id reuses. Never store `KabootarDom` in `.kab` lets; fiber field writes inside `mount` do not stick (copies) — keep ids on the hooks bag.
-- `useEffect(hooks, setup, deps?)` — skip when `deps[0]` unchanged; bumps `hooks["c"+n]` on each run (storing fn cleanup on hooks hangs — run cleanup inside `setup` instead).
+- **Live Dom patch:** `hooks["nid"]` (number id from `hostCall("id")`); same-type `setState` calls `setTextById` / `setAttrById` / `clearChildrenById`+`appendTextById` via Rust live registry. `patched: true` when id reuses. Never store `KabootarDom` in `.kab` lets; avoid local name `id` (env writeback clash). Fiber field writes inside `mount` do not stick — keep ids on the hooks bag.
+- `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.
 
 ## Tests / DX

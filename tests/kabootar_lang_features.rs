@@ -78,6 +78,19 @@ fn effect_directives_stripped() {
 }
 
 #[test]
+fn g2_array_member_push_on_expression() {
+    let out = eval(
+        r#"
+        let a = [1];
+        let n1 = a.push(2);
+        let n2 = ([10]).push(20);
+        a[1] == 2 && n1 == 2 && n2 == 2
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)));
+}
+
+#[test]
 fn lang_syscalls_zero_ffi() {
     let list = eval("lang_syscalls()");
     let Value::Array(items) = list else {

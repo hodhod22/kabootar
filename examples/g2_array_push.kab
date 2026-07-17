@@ -1,0 +1,9 @@
+// G2: array.push on variables and expression receivers (bytecode ArrayPush).
+fn getArr() { return [10] }
+let a = [1]
+let n1 = a.push(2)
+let b = getArr()
+let n2 = b.push(20)
+let n3 = ([30]).push(40)
+println("g2 push: a=" + json_stringify(a) + " b=" + json_stringify(b) + " n1=" + n1 + " n2=" + n2 + " n3=" + n3)
+return a[1] == 2 && b[1] == 20 && n1 == 2 && n2 == 2 && n3 == 2
