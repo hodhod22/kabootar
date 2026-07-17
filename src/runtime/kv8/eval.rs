@@ -2673,7 +2673,12 @@ fn new_closure_env(
     free: &std::collections::HashSet<String>,
 ) -> Result<super::context::Kv8ClosureEnv, String> {
     let map = ctx.with_mut(|inner| Ok(inner.capture_lexical_env_for(free)))?;
-    Ok(std::sync::Arc::new(std::sync::Mutex::new(map)))
+    let env = std::sync::Arc::new(std::sync::Mutex::new(map));
+    ctx.with_mut(|inner| {
+        inner.register_closure_env(&env);
+        Ok(())
+    })?;
+    Ok(env)
 }
 
 fn new_hoisted_fun(
@@ -2766,6 +2771,8 @@ fn assign_closure_aware_name(
                 }
             }
         }
+        // C2: refresh all closure snapshots that captured this binding (late var after funexpr).
+        inner.patch_closure_envs(&name, &val);
         if let Some(cell) = inner.scope_resolve_mut(&name) {
             *cell = val.clone();
         } else if persist {

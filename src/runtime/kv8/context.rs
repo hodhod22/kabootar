@@ -130,6 +130,8 @@ pub struct Kv8ContextInner {
     pub closure_assign_stack: Vec<HashSet<String>>,
     /// Live closure cells for the active call (per-function, not global).
     pub closure_env_stack: Vec<Kv8ClosureEnv>,
+    /// All live closure snapshots — patched on `var`/assign so late bindings survive IIFE pop (C2/esbuild).
+    pub closure_env_registry: Vec<std::sync::Weak<std::sync::Mutex<HashMap<String, Kv8Value>>>>,
     /// Mutable `globalThis` / `self` singleton for UMD exports.
     pub global_this: Option<Kv8Value>,
     /// Op counter for infinite-loop detection (reset per eval_script call).
@@ -217,6 +219,7 @@ impl Default for Kv8ContextInner {
             hoists_finalized: false,
             closure_assign_stack: Vec::new(),
             closure_env_stack: Vec::new(),
+            closure_env_registry: Vec::new(),
             call_trace: Vec::new(),
             exec_stmts_stack: Vec::new(),
             owner_document_node: None,
@@ -680,6 +683,27 @@ impl Kv8ContextInner {
             .unwrap_or_default();
         self.closure_assign_stack.push(names);
         self.closure_env_stack.push(env);
+    }
+
+    /// Remember a closure snapshot so later `var`/assign can refresh captured bindings.
+    pub fn register_closure_env(&mut self, env: &Kv8ClosureEnv) {
+        self.closure_env_registry
+            .retain(|w| w.strong_count() > 0);
+        self.closure_env_registry.push(std::sync::Arc::downgrade(env));
+    }
+
+    /// Patch every live closure that captured `name` (esbuild late `var O2 = …` after getter creation).
+    pub fn patch_closure_envs(&mut self, name: &str, val: &Kv8Value) {
+        self.closure_env_registry.retain(|w| w.strong_count() > 0);
+        for weak in &self.closure_env_registry {
+            if let Some(env) = weak.upgrade() {
+                if let Ok(mut map) = env.lock() {
+                    if map.contains_key(name) {
+                        map.insert(name.to_string(), val.clone());
+                    }
+                }
+            }
+        }
     }
 
     pub fn closure_call_exit(&mut self) {

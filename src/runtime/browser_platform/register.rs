@@ -454,6 +454,15 @@ fn ext_install_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     o.insert("name".into(), Value::String(ext.name));
     o.insert("version".into(), Value::String(ext.version));
     o.insert("enabled".into(), Value::Bool(ext.enabled));
+    o.insert(
+        "permissions".into(),
+        Value::Array(
+            ext.permissions
+                .into_iter()
+                .map(Value::String)
+                .collect(),
+        ),
+    );
     Ok(Value::Object(o))
 }
 
@@ -467,8 +476,65 @@ fn ext_list_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
                 m.insert("name".into(), Value::String(e.name));
                 m.insert("version".into(), Value::String(e.version));
                 m.insert("enabled".into(), Value::Bool(e.enabled));
+                m.insert(
+                    "permissions".into(),
+                    Value::Array(e.permissions.into_iter().map(Value::String).collect()),
+                );
                 Value::Object(m)
             })
+            .collect(),
+    ))
+}
+
+fn ext_has_permission_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let perm = expect_str(args, 1, "ext_has_permission(id, permission)")?;
+    Ok(Value::Bool(extensions::has_permission(id, &perm)?))
+}
+
+fn ext_request_permission_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let perm = expect_str(args, 1, "ext_request_permission(id, permission)")?;
+    Ok(Value::Bool(extensions::request_permission(id, &perm)?))
+}
+
+fn ext_revoke_permission_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let perm = expect_str(args, 1, "ext_revoke_permission(id, permission)")?;
+    Ok(Value::Bool(extensions::revoke_permission(id, &perm)?))
+}
+
+fn ext_permissions_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    Ok(Value::Array(
+        extensions::list_permissions(id)?
+            .into_iter()
+            .map(Value::String)
+            .collect(),
+    ))
+}
+
+fn ext_storage_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let key = expect_str(args, 1, "ext_storage_get(id, key)")?;
+    Ok(extensions::storage_get(id, &key)?
+        .map(Value::String)
+        .unwrap_or(Value::Null))
+}
+
+fn ext_storage_set_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let key = expect_str(args, 1, "ext_storage_set(id, key, value)")?;
+    let value = expect_str(args, 2, "ext_storage_set(id, key, value)")?;
+    Ok(Value::Bool(extensions::storage_set(id, &key, &value)?))
+}
+
+fn ext_tabs_query_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    Ok(Value::Array(
+        extensions::tabs_query(id)?
+            .into_iter()
+            .map(Value::String)
             .collect(),
     ))
 }
@@ -512,6 +578,25 @@ fn pwa_fetch_cached_native(args: &[Value], _env: &mut Environment) -> Result<Val
     Ok(pwa::fetch_cached(&url)
         .map(Value::String)
         .unwrap_or(Value::Null))
+}
+
+fn pwa_on_fetch_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let scope = expect_str(args, 0, "pwa_on_fetch(scope, strategy)")?;
+    let strategy = expect_str(args, 1, "pwa_on_fetch(scope, strategy)")?;
+    Ok(Value::Bool(pwa::on_fetch(&scope, &strategy)?))
+}
+
+fn pwa_dispatch_fetch_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let url = expect_str(args, 0, "pwa_dispatch_fetch(url)")?;
+    let r = pwa::dispatch_fetch(&url)?;
+    let mut o = HashMap::new();
+    o.insert("url".into(), Value::String(r.url));
+    o.insert("scope".into(), Value::String(r.scope));
+    o.insert("handled".into(), Value::Bool(r.handled));
+    o.insert("from_cache".into(), Value::Bool(r.from_cache));
+    o.insert("status".into(), Value::Number(r.status));
+    o.insert("body".into(), Value::String(r.body));
+    Ok(Value::Object(o))
 }
 
 fn read_os_bytes(os: &OsHandle, path: &str) -> Result<Vec<u8>, String> {
@@ -615,10 +700,43 @@ pub fn browser_platform_globals(env: &mut Environment) {
     env.set("ext_info".into(), Value::NativeFunction(ext_info_native));
     env.set("ext_install".into(), Value::NativeFunction(ext_install_native));
     env.set("ext_list".into(), Value::NativeFunction(ext_list_native));
+    env.set(
+        "ext_has_permission".into(),
+        Value::NativeFunction(ext_has_permission_native),
+    );
+    env.set(
+        "ext_request_permission".into(),
+        Value::NativeFunction(ext_request_permission_native),
+    );
+    env.set(
+        "ext_revoke_permission".into(),
+        Value::NativeFunction(ext_revoke_permission_native),
+    );
+    env.set(
+        "ext_permissions".into(),
+        Value::NativeFunction(ext_permissions_native),
+    );
+    env.set(
+        "ext_storage_get".into(),
+        Value::NativeFunction(ext_storage_get_native),
+    );
+    env.set(
+        "ext_storage_set".into(),
+        Value::NativeFunction(ext_storage_set_native),
+    );
+    env.set(
+        "ext_tabs_query".into(),
+        Value::NativeFunction(ext_tabs_query_native),
+    );
     env.set("pwa_info".into(), Value::NativeFunction(pwa_info_native));
     env.set("pwa_parse".into(), Value::NativeFunction(pwa_parse_native));
     env.set("pwa_install".into(), Value::NativeFunction(pwa_install_native));
     env.set("pwa_register_worker".into(), Value::NativeFunction(pwa_register_worker_native));
     env.set("pwa_fetch_cached".into(), Value::NativeFunction(pwa_fetch_cached_native));
+    env.set("pwa_on_fetch".into(), Value::NativeFunction(pwa_on_fetch_native));
+    env.set(
+        "pwa_dispatch_fetch".into(),
+        Value::NativeFunction(pwa_dispatch_fetch_native),
+    );
     canvas_register::register_canvas(env);
 }

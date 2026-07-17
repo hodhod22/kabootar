@@ -1,4 +1,4 @@
-//! PWA — manifests, service workers, offline cache.
+//! PWA — manifests, service workers, offline cache, fetch events (C8).
 
 use super::json_util::{extract_array_strings, extract_field};
 use std::collections::HashMap;
@@ -19,10 +19,25 @@ pub struct ServiceWorker {
     pub scope: String,
     pub script: String,
     pub cache: HashMap<String, String>,
+    /// True when the SW script registers a `fetch` listener (or via `pwa_on_fetch`).
+    pub fetch_listener: bool,
+    /// Fetch strategy: `cache-first` (default) | `offline-only` | `network-stub`.
+    pub fetch_strategy: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct FetchEventResult {
+    pub url: String,
+    pub scope: String,
+    pub handled: bool,
+    pub from_cache: bool,
+    pub status: i64,
+    pub body: String,
 }
 
 static WORKERS: OnceLock<Mutex<HashMap<String, ServiceWorker>>> = OnceLock::new();
 static OFFLINE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+static LAST_FETCH: OnceLock<Mutex<Option<FetchEventResult>>> = OnceLock::new();
 
 fn workers() -> &'static Mutex<HashMap<String, ServiceWorker>> {
     WORKERS.get_or_init(|| Mutex::new(HashMap::new()))
@@ -30,6 +45,10 @@ fn workers() -> &'static Mutex<HashMap<String, ServiceWorker>> {
 
 fn offline_cache() -> &'static Mutex<HashMap<String, String>> {
     OFFLINE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn last_fetch() -> &'static Mutex<Option<FetchEventResult>> {
+    LAST_FETCH.get_or_init(|| Mutex::new(None))
 }
 
 pub fn parse_manifest(json: &str) -> Result<PwaManifest, String> {
@@ -68,7 +87,17 @@ pub fn install_to_os(
     Ok(format!("kabootar://vfs{kv8_path}"))
 }
 
+fn script_has_fetch_listener(script: &str) -> bool {
+    let lower = script.to_ascii_lowercase();
+    lower.contains("addeventlistener('fetch'")
+        || lower.contains("addeventlistener(\"fetch\"")
+        || lower.contains("addeventlistener(`fetch`")
+        || lower.contains(".onfetch")
+        || lower.contains("on('fetch'")
+}
+
 pub fn register_worker(scope: &str, script: &str) -> Result<bool, String> {
+    let fetch_listener = script_has_fetch_listener(script);
     workers()
         .lock()
         .map_err(|_| "pwa worker lock".to_string())?
@@ -78,8 +107,31 @@ pub fn register_worker(scope: &str, script: &str) -> Result<bool, String> {
                 scope: scope.to_string(),
                 script: script.to_string(),
                 cache: HashMap::new(),
+                fetch_listener,
+                fetch_strategy: "cache-first".into(),
             },
         );
+    Ok(true)
+}
+
+/// Enable/override fetch handling for a registered worker scope.
+pub fn on_fetch(scope: &str, strategy: &str) -> Result<bool, String> {
+    let strategy = match strategy {
+        "cache-first" | "offline-only" | "network-stub" => strategy.to_string(),
+        other => {
+            return Err(format!(
+                "pwa_on_fetch: unknown strategy '{other}' (cache-first|offline-only|network-stub)"
+            ))
+        }
+    };
+    let mut guard = workers()
+        .lock()
+        .map_err(|_| "pwa worker lock".to_string())?;
+    let worker = guard
+        .get_mut(scope)
+        .ok_or_else(|| format!("pwa_on_fetch: no worker for scope '{scope}'"))?;
+    worker.fetch_listener = true;
+    worker.fetch_strategy = strategy;
     Ok(true)
 }
 
@@ -100,6 +152,115 @@ pub fn cache_put(url: &str, body: &str) -> Result<bool, String> {
 
 pub fn fetch_cached(url: &str) -> Option<String> {
     offline_cache().lock().ok()?.get(url).cloned()
+}
+
+/// Dispatch a FetchEvent to the longest matching service worker scope (C8).
+pub fn dispatch_fetch(url: &str) -> Result<FetchEventResult, String> {
+    let workers_guard = workers()
+        .lock()
+        .map_err(|_| "pwa worker lock".to_string())?;
+    let mut best: Option<&ServiceWorker> = None;
+    for worker in workers_guard.values() {
+        if url.starts_with(&worker.scope) || worker.scope == "/" {
+            let better = match best {
+                None => true,
+                Some(cur) => worker.scope.len() > cur.scope.len(),
+            };
+            if better {
+                best = Some(worker);
+            }
+        }
+    }
+    let Some(worker) = best else {
+        let result = FetchEventResult {
+            url: url.to_string(),
+            scope: String::new(),
+            handled: false,
+            from_cache: false,
+            status: 503,
+            body: String::new(),
+        };
+        *last_fetch().lock().map_err(|_| "pwa last_fetch lock")? = Some(result.clone());
+        return Ok(result);
+    };
+
+    if !worker.fetch_listener {
+        let result = FetchEventResult {
+            url: url.to_string(),
+            scope: worker.scope.clone(),
+            handled: false,
+            from_cache: false,
+            status: 0,
+            body: String::new(),
+        };
+        *last_fetch().lock().map_err(|_| "pwa last_fetch lock")? = Some(result.clone());
+        return Ok(result);
+    }
+
+    let scope = worker.scope.clone();
+    let strategy = worker.fetch_strategy.clone();
+    let sw_hit = worker.cache.get(url).cloned();
+    drop(workers_guard);
+
+    let offline_hit = offline_cache()
+        .lock()
+        .ok()
+        .and_then(|c| c.get(url).cloned());
+
+    let result = match strategy.as_str() {
+        "network-stub" => FetchEventResult {
+            url: url.to_string(),
+            scope,
+            handled: true,
+            from_cache: false,
+            status: 200,
+            body: format!("network-stub:{url}"),
+        },
+        "offline-only" => match offline_hit.or(sw_hit) {
+            Some(body) => FetchEventResult {
+                url: url.to_string(),
+                scope,
+                handled: true,
+                from_cache: true,
+                status: 200,
+                body,
+            },
+            None => FetchEventResult {
+                url: url.to_string(),
+                scope,
+                handled: true,
+                from_cache: false,
+                status: 504,
+                body: "offline-miss".into(),
+            },
+        },
+        // cache-first
+        _ => match sw_hit.or(offline_hit) {
+            Some(body) => FetchEventResult {
+                url: url.to_string(),
+                scope,
+                handled: true,
+                from_cache: true,
+                status: 200,
+                body,
+            },
+            None => FetchEventResult {
+                url: url.to_string(),
+                scope,
+                handled: true,
+                from_cache: false,
+                status: 404,
+                body: "fetch-miss".into(),
+            },
+        },
+    };
+
+    *last_fetch().lock().map_err(|_| "pwa last_fetch lock")? = Some(result.clone());
+    Ok(result)
+}
+
+pub fn last_fetch_event() -> Option<FetchEventResult> {
+    last_fetch().lock().ok()?.clone()
 }
 
 pub fn list_workers() -> Vec<ServiceWorker> {
@@ -136,7 +297,8 @@ pub fn info() -> HashMap<String, String> {
     o.insert("install".into(), "os-vfs".into());
     o.insert("service_worker".into(), "true".into());
     o.insert("offline".into(), "true".into());
-    o.insert("phase".into(), "v2.55".into());
+    o.insert("fetch_events".into(), "true".into());
+    o.insert("phase".into(), "C8".into());
     o.insert(
         "workers".into(),
         workers()
