@@ -26,16 +26,15 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+)
 
-Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` — `${ident}` only), call, object literals, let/var/assign, if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` / `` `${a + b}` ``), call, object literals, let/var/assign, if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## React stub (G10)
 
 `import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
-- **Same-type mark:** `setState` sets `patched: true` when the host tag matches the previous render (`rxLastType`). Full remount still happens — do **not** store `KabootarDom` in `.kab` module/fiber slots (hangs/OOM on Windows bytecode). `hostCall("setText")` / `kdom_set_text` exist for a future id-registry patch.
-- `useEffect(hooks, setup, deps?)` — skip when `deps[0]` unchanged; cleanup return values are ignored (fn slots unsafe across modules).
-- `$hooks` survive setState (only hook indices reset).
+- **Live Dom patch:** `hooks["nid"]` (number id from `hostCall("id")`); same-type `setState` calls `setTextById` via Rust live registry (`kdom_set_text_by_id`). `patched: true` when id reuses. Never store `KabootarDom` in `.kab` lets; fiber field writes inside `mount` do not stick (copies) — keep ids on the hooks bag.
+- `useEffect(hooks, setup, deps?)` — skip when `deps[0]` unchanged; bumps `hooks["c"+n]` on each run (storing fn cleanup on hooks hangs — run cleanup inside `setup` instead).
 - Keep `react.kab` at ~7 top-level fns.
 
 ## Tests / DX

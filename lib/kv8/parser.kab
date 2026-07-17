@@ -138,33 +138,15 @@ fn parsePostfix() {
                             }
                             ti = ti + 1
                         }
-                        // Subset: ${ident} only (avoid nested parseExpr re-entry / stack overflow).
-                        let sym = ""
-                        let si = 0
-                        while si < len(exprSrc) {
-                            let ch = char_at(exprSrc, si)
-                            if ch == " " || ch == "\t" || ch == "\n" || ch == "\r" {
-                                si = si + 1
-                                continue
-                            }
-                            break
-                        }
-                        while si < len(exprSrc) {
-                            let ch = char_at(exprSrc, si)
-                            let cd = char_code_at(ch, 0)
-                            let ok = 0
-                            if cd >= 65 && cd <= 90 { ok = 1 }
-                            if cd >= 97 && cd <= 122 { ok = 1 }
-                            if cd >= 48 && cd <= 57 { ok = 1 }
-                            if ch == "_" || ch == "$" { ok = 1 }
-                            if ok == 0 { break }
-                            sym = sym + ch
-                            si = si + 1
-                        }
-                        if sym == "" {
-                            throw "Template ${} expects ident"
-                        }
-                        parts = push(parts, { "tag": "expr", "expr": { "kind": K_IDENT, "sym": sym } })
+                        // Parse ${expr} via nested tokenize (no backticks inside → no re-entry).
+                        let savedToks = k8pToks
+                        let savedPos = k8pPos
+                        k8pToks = tokenize(exprSrc)
+                        k8pPos = 0
+                        let exprNode = parseCompare()
+                        k8pToks = savedToks
+                        k8pPos = savedPos
+                        parts = push(parts, { "tag": "expr", "expr": exprNode })
                     } else {
                         lit = lit + char_at(raw, ti)
                         ti = ti + 1

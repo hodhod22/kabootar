@@ -1,0 +1,34 @@
+@version "1.0.0"
+
+// Next-like pages router (G6). import "pages"
+// Resolves pages/_app + pages/index (extend getPage for more routes).
+
+import "pages/_app"
+import "pages/index"
+
+pub fn getPage(name) {
+    let n = name
+    if n == null || n == undefined || n == "" || n == "/" {
+        n = "index"
+    }
+    if n == "index" {
+        return Page
+    }
+    throw "pages: unknown route " + n
+}
+
+pub fn renderRoute(name, props) {
+    let pageFn = getPage(name)
+    let body = pageFn()
+    let wrap = { "children": body }
+    if props != null && props != undefined {
+        let keys = object_keys(props)
+        let i = 0
+        while i < len(keys) {
+            wrap[keys[i]] = props[keys[i]]
+            i = i + 1
+        }
+        wrap["children"] = body
+    }
+    return App(wrap)
+}

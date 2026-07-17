@@ -1,12 +1,11 @@
 @version "1.0.0"
 
-// Next-like pages stub (Vag G6). Router not wired yet.
-// Convention: pages/_app.kab wraps pages/*.kab.
+// Next-like pages stub (Vag G6). Used by import "pages" router.
 
 pub fn App(props) {
     let child = null
     if props != null && object_has_own(props, "children") {
         child = props["children"]
     }
-    return child
+    return { "layout": "app", "children": child }
 }

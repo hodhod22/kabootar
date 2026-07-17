@@ -1,10 +1,51 @@
 @version "1.0.0"
 
-// Optional kss stub (Vag G6). Real CSS lives in kstyle; this marks the pages/kss hook.
+// kss — object/string styles to CSS, optional apply via kstyle.
+// import "kss"
 
-pub fn kss(rules) {
+import "kstyle/parse"
+
+pub fn toCss(rules) {
     if rules == null || rules == undefined {
         return ""
     }
-    return "" + rules
+    if typeof(rules) == "string" {
+        return "" + rules
+    }
+    let css = ""
+    let sels = object_keys(rules)
+    let i = 0
+    while i < len(sels) {
+        let sel = sels[i]
+        if sel == "__oid" {
+            i = i + 1
+            continue
+        }
+        let block = rules[sel]
+        css = css + sel + "{"
+        if typeof(block) == "string" {
+            css = css + block
+        } else {
+            let props = object_keys(block)
+            let j = 0
+            while j < len(props) {
+                let p = props[j]
+                if p != "__oid" {
+                    css = css + p + ":" + block[p] + ";"
+                }
+                j = j + 1
+            }
+        }
+        css = css + "}"
+        i = i + 1
+    }
+    return css
+}
+
+pub fn kss(rules) {
+    let css = toCss(rules)
+    if css != "" {
+        parseAndApply(css)
+    }
+    return css
 }

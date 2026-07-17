@@ -13,8 +13,17 @@ pub fn hostCall(hostName, hostArgs) {
     if hostName == "text" {
         return text(hostArgs[0])
     }
+    if hostName == "id" {
+        return kdom_id(hostArgs[0])
+    }
     if hostName == "setText" {
         return kdom_set_text(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "setTextById" {
+        return kdom_set_text_by_id(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "getById" {
+        return kdom_get_by_id(hostArgs[0])
     }
     if hostName == "clearChildren" {
         return kdom_clear_children(hostArgs[0])

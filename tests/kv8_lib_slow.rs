@@ -239,7 +239,8 @@ fn kv8_eval_optional_and_template() {
         let code = r#"
 typeof(evalSource("let o = null; o?.missing")) == "undefined" &&
 evalSource("let o = { \"a\": 3 }; o?.a") == 3 &&
-evalSource("let n = 7; let s = `n=${n}`; s") == "n=7"
+evalSource("let n = 7; let s = `n=${n}`; s") == "n=7" &&
+evalSource("let a = 2; let b = 3; let s = `sum=${a + b}`; s") == "sum=5"
 "#;
         let v = kabootar_lib::evaluator::eval_source(code, env).unwrap();
         assert!(matches!(v, Value::Bool(true)));

@@ -1,8 +1,7 @@
 @version "1.0.0"
 
 // Minimal Kv8 React-like fiber. import "kv8/react"
-// Same-type mark (rxPatched) when host tag unchanged; useEffect deps on deps[0].
-// Note: live Dom reuse via setText needs a node registry (Dom values must not sit in .kab lets).
+// Live Dom patch in setState via hooks["nid"] + setTextById (ids only, no Dom in lets).
 
 import "kv8/host"
 import "kdom/events"
@@ -10,7 +9,6 @@ import "kdom/events"
 let rxW = 240
 let rxH = 120
 let rxHasClick = false
-let rxLastType = null
 
 fn mountChildren(parent, children) {
     if children == null || children == undefined {
@@ -18,8 +16,7 @@ fn mountChildren(parent, children) {
     }
     let t = typeof(children)
     if t == "string" || t == "number" {
-        let tnode = hostCall("text", ["" + children])
-        return hostCall("attach", [parent, tnode, true])
+        return hostCall("attach", [parent, hostCall("text", ["" + children]), true])
     }
     if object_has_own(children, "tag") && children["tag"] == "fiber" {
         return hostCall("attach", [parent, mount(children), true])
@@ -86,12 +83,12 @@ fn mount(element) {
                 }
                 if typeof(v) != "string" && typeof(v) != "number" && v != null {
                     rxHasClick = true
-                    on(node, ev, "rxClick")
+                    node = on(node, ev, "rxClick")
                 } else {
-                    on(node, ev, "" + v)
+                    node = on(node, ev, "" + v)
                 }
             } else {
-                hostCall("attr", [node, k, v])
+                node = hostCall("attr", [node, k, v])
             }
             i = i + 1
         }
@@ -99,7 +96,6 @@ fn mount(element) {
             node = mountChildren(node, props["children"])
         }
     }
-    rxLastType = "" + typ
     return node
 }
 
@@ -123,7 +119,6 @@ pub fn useState(hooks, initial) {
     return [hooks[key], idx]
 }
 
-// useEffect(hooks, setup, deps?): skip when deps[0] unchanged; re-run setup (cleanup return ignored — Dom/fn slots unsafe in .kab).
 pub fn useEffect(hooks, setup, deps) {
     if !object_has_own(hooks, "ei") {
         hooks["ei"] = 0
@@ -131,12 +126,18 @@ pub fn useEffect(hooks, setup, deps) {
     let idx = hooks["ei"]
     hooks["ei"] = idx + 1
     let depKey = "d" + idx
+    let cleanKey = "c" + idx
     if deps != null && deps != undefined {
         let depStr = "" + deps[0]
         if object_has_own(hooks, depKey) && hooks[depKey] == depStr {
             return idx + 1
         }
         hooks[depKey] = depStr
+    }
+    if object_has_own(hooks, cleanKey) {
+        hooks[cleanKey] = hooks[cleanKey] + 1
+    } else {
+        hooks[cleanKey] = 1
     }
     if setup != null && typeof(setup) != "string" && typeof(setup) != "number" {
         setup()
@@ -151,16 +152,61 @@ pub fn setState(fiber, hookIndex, next) {
     hooks["ei"] = 0
     fiber["$hooks"] = hooks
     rxHasClick = false
-    let prevType = rxLastType
-    let node = mount(fiber)
-    let patched = false
-    if prevType != null && ("" + prevType) == ("" + rxLastType) {
-        patched = true
+    let prevId = 0
+    if object_has_own(hooks, "nid") {
+        prevId = hooks["nid"]
     }
+    let props = fiber["props"]
+    if props == null || props == undefined {
+        props = {}
+        fiber["props"] = props
+    }
+    props["$hooks"] = hooks
+    let typ = fiber["type"]
+    let out = typ(props)
+    if object_has_own(props, "$hooks") {
+        fiber["$hooks"] = props["$hooks"]
+        hooks = fiber["$hooks"]
+    }
+    let liveHit = false
+    if prevId != null && prevId != 0 {
+        liveHit = hostCall("getById", [prevId]) != null
+    }
+    if liveHit && out != null && object_has_own(out, "props") {
+        let op = out["props"]
+        let ch = null
+        if op != null && object_has_own(op, "children") {
+            ch = op["children"]
+        }
+        if typeof(ch) == "string" || typeof(ch) == "number" {
+            let node = hostCall("setTextById", [prevId, "" + ch])
+            if op != null && object_has_own(op, "onClick") {
+                rxHasClick = true
+            }
+            hooks["nid"] = prevId
+            fiber["$hooks"] = hooks
+            return {
+                "frame": hostCall("paint", [node, rxW, rxH, ""]),
+                "hasClick": rxHasClick,
+                "patched": true,
+                "nodeId": prevId,
+                "liveHit": true,
+                "prevId": prevId
+            }
+        }
+    }
+    let node = mount(fiber)
+    let nid = hostCall("id", [node])
+    hooks = fiber["$hooks"]
+    hooks["nid"] = nid
+    fiber["$hooks"] = hooks
     return {
         "frame": hostCall("paint", [node, rxW, rxH, ""]),
         "hasClick": rxHasClick,
-        "patched": patched
+        "patched": false,
+        "nodeId": nid,
+        "liveHit": liveHit,
+        "prevId": prevId
     }
 }
 
@@ -181,11 +227,15 @@ pub fn render(element, width, height) {
     hooks["ei"] = 0
     element["$hooks"] = hooks
     rxHasClick = false
-    rxLastType = null
     let node = mount(element)
+    let nid = hostCall("id", [node])
+    hooks = element["$hooks"]
+    hooks["nid"] = nid
+    element["$hooks"] = hooks
     return {
         "frame": hostCall("paint", [node, rxW, rxH, ""]),
         "hasClick": rxHasClick,
-        "patched": false
+        "patched": false,
+        "nodeId": nid
     }
 }
