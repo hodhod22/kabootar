@@ -16,7 +16,8 @@
 - Parametriserade **funktioner** med compile-time typargument: `fn id<T>(x: T) -> T`
 - **Monomorphisering** vid compile — varje konkret typ får en egen bytecode-funktion (samma modell som `.kbc` + `functions[]`)
 - Tydlig gräns mot **TS type-erasure** (`ts_strip_types`) — separata spår, ingen blandning i v1
-- `self` för **klasser** oförändrat (C#-stil); **struct** är **inte** planerat
+- `this` för **klasser** (C#-stil); **`self`** reserverat för framtida **struct** (Rust-stil)
+- **Struct** planeras i ROADMAP **Våg R** (tidigare icke-mål)
 
 ## Icke-mål (v1)
 
@@ -199,10 +200,10 @@ Förväntat: två specialiseringar, `main` returnerar `4`.
 
 ---
 
-## Klasser och `self`
+## Klasser och `this`
 
-- **Klasser** behåller `self` som instansreferens ([CLASSES.md](CLASSES.md))
-- Generiska **klassmetoder** (`fn map<U>(self, …)`) — **G7** ([GENERICS.md](GENERICS.md#fas-2--g6-planering))
+- **Klasser** behåller `this` som instansreferens ([CLASSES.md](CLASSES.md))
+- Generiska **klassmetoder** (`fn map<U>(f)` med `this`) — **G7** ([GENERICS.md](GENERICS.md#fas-2--g6-planering))
 - `interface` / `implements` — oförändrat; ingen generic interface i v1
 
 ---
@@ -241,7 +242,7 @@ G11      LSP / IDE (hover, completion)           ✅
 
 **Förutsättning:** G1–G5 klara (fn-generics Rust + self-host).
 
-**Princip:** samma modell som v1 — **monomorphisering**, inga trait bounds, ingen runtime typreflektion. **Struct planeras inte.**
+**Princip:** samma modell som v1 — **monomorphisering**, inga trait bounds, ingen runtime typreflektion. **Struct** = våg **R** (med `self`), separat från `class`/`this`.
 
 ### G6 — Inferens v1.1 (Rust)
 
@@ -262,8 +263,8 @@ Syntax (förslag):
 class List {
     items: Array;
 
-    fn map<U>(self, f) -> Array {
-        // monomorphisera metod per U vid anrop
+    fn map<U>(f) -> Array {
+        // monomorphisera metod per U vid anrop; receiver = this
     }
 }
 ```
@@ -286,11 +287,11 @@ class Box<T> {
     value: T;
 
     fn init(v: T) {
-        self.value = v
+        this.value = v
     }
 
-    fn get(self) -> T {
-        return self.value
+    fn get() -> T {
+        return this.value
     }
 }
 
@@ -360,9 +361,18 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 
 ---
 
-## Traits (Våg G5) ✅ subset
+## Traits (Våg G5 ✅ subset → Våg T)
 
-`trait` är ett alias för `interface`-formade metodkontrakt (samma AST/`implements`/bytecode):
+`trait` är idag ett alias för `interface`. **Full traits** planeras i ROADMAP **Våg T**:
+
+| Fas | Innehåll |
+|-----|----------|
+| T0 | `trait` ≈ `interface` + `implements` ✅ |
+| T1 | `where T: Trait` |
+| T2 | Generiska traits `trait Show<T>` |
+| T3 | Associated types |
+| T4 | Default-metoder |
+| T5 | Self-host |
 
 ```kabootar
 trait Show {
@@ -379,11 +389,11 @@ class Box implements Show {
 | Beslut | Status |
 |--------|--------|
 | Syntax | `trait Name { fn … }` ✅ (= interface) |
-| `implements` på klass | ✅ (samma som interface) |
-| Bounds `where T: Show` | senare |
-| Generiska traits `trait Show<T>` | senare |
+| `implements` på klass | ✅ |
+| Bounds `where T: Show` | 📋 T1 |
+| Generiska traits `trait Show<T>` | 📋 T2 |
 
-**Icke-mål v1:** HKT, associated types, dyn dispatch runtime.
+**Icke-mål:** HKT, `dyn Trait`, Rust-coherence.
 
 ---
 
@@ -399,7 +409,7 @@ class Box implements Show {
 
 | Dokument | Koppling |
 |----------|----------|
-| [CLASSES.md](CLASSES.md) | Referenstyper, `self`, `fn init` |
+| [CLASSES.md](CLASSES.md) | Referenstyper, `this`, `fn init` |
 | [TYPES.md](TYPES.md) | Runtime-värden (generics ändrar inte `Value`) |
 | [FEATURES.md](FEATURES.md) | Statusmatris |
 | [self_host/README.md](../self_host/README.md) | Bootstrap-milstolpar |

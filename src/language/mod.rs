@@ -221,7 +221,7 @@ pub struct CompletionItem {
 const KEYWORDS: &[&str] = &[
     "async", "await", "yield", "break", "catch", "class", "const", "continue", "else", "extends", "false",
     "fn", "for", "if", "implements", "import", "in", "interface", "trait", "let", "match", "null", "return",
-    "super", "self", "true", "try", "finally",
+    "super", "this", "true", "try", "finally",
     "undefined", "while", "do", "switch", "case", "default", "of", "NaN", "Some", "None", "Ok", "Err",
     "pass", "raise", "assert", "with", "as", "is", "not",
 ];

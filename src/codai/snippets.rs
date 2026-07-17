@@ -177,11 +177,11 @@ let host = CONFIG_HOST;
         description: "Enkel klass med konstruktor och metod.",
         code: r#"class Point {
     fn init(x, y) {
-        self.x = x;
-        self.y = y;
+        this.x = x;
+        this.y = y;
     }
     fn sum() {
-        return self.x + self.y;
+        return this.x + this.y;
     }
 }
 

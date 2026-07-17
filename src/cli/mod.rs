@@ -51,7 +51,7 @@ fn print_help() {
 Usage:
   kabootar                         Interactive REPL
   kabootar run <file.kab>          Run a Kabootar script
-  kabootar compile <file.kab>      Parse and cache (compile)
+  kabootar compile <file.kab> [--self-host|--rust]   Compile via self-host (default; Rust fallback)
   kabootar fmt <file.kab>          Format Kabootar source (basic)
   kabootar install [name@ver]      Install deps from local registry
   kabootar publish <file.kab>      Publish module to local registry
@@ -141,16 +141,21 @@ pub fn run_file(path: &str) -> Result<crate::value::Value, String> {
 }
 
 fn compile_cmd(args: &[String]) -> i32 {
-    let Some(path) = args.first() else {
-        eprintln!("Usage: kabootar compile <file.kab>");
+    let prefer = compile::CompilePrefer::from_args_and_env(args);
+    let path = args
+        .iter()
+        .find(|a| !a.starts_with("--"))
+        .map(String::as_str);
+    let Some(path) = path else {
+        eprintln!("Usage: kabootar compile <file.kab> [--self-host|--rust]");
         return 1;
     };
-    match compile_file_report(path) {
-        Ok((n, bytecode)) => {
+    match compile_file_report_with(path, prefer) {
+        Ok((n, bytecode, backend)) => {
             if bytecode {
-                println!("Compiled {path}: {n} statements (bytecode)");
+                println!("Compiled {path}: {n} statements (bytecode/{backend})");
             } else {
-                println!("Compiled {path}: {n} statements (ast fallback)");
+                println!("Compiled {path}: {n} statements (ast fallback/{backend})");
             }
             0
         }
@@ -162,9 +167,17 @@ fn compile_cmd(args: &[String]) -> i32 {
 }
 
 pub fn compile_file_report(path: &str) -> Result<(usize, bool), String> {
-    let program = compile::compile_file(path)?;
+    let (n, bc, _) = compile_file_report_with(path, compile::CompilePrefer::SelfHostThenRust)?;
+    Ok((n, bc))
+}
+
+pub fn compile_file_report_with(
+    path: &str,
+    prefer: compile::CompilePrefer,
+) -> Result<(usize, bool, &'static str), String> {
+    let (program, backend) = compile::compile_file_prefer(path, prefer)?;
     compile::write_compile_marker(path, &program)?;
-    Ok((program.stmt_count, program.has_bytecode()))
+    Ok((program.stmt_count, program.has_bytecode(), backend))
 }
 
 fn fmt_cmd(args: &[String]) -> i32 {

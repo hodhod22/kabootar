@@ -25,8 +25,8 @@ fn bytecode_super_method_value_returns_bound_method() {
         r#"
         class Base {
             n: number;
-            fn init(v) { self.n = v }
-            fn get() { return self.n }
+            fn init(v) { this.n = v }
+            fn get() { return this.n }
         }
         class Child extends Base {
             fn capture() { return super.get }
@@ -69,7 +69,7 @@ fn bytecode_super_method_value_as_callback() {
         class Base { fn f() { return 2 } }
         class Child extends Base {
             fn run(cb) { return cb() }
-            fn via() { return self.run(super.f) }
+            fn via() { return this.run(super.f) }
         }
         let c = Child()
         c.via()
@@ -81,7 +81,7 @@ fn bytecode_super_method_value_as_callback() {
         class Base { fn f() { return 2 } }
         class Child extends Base {
             fn run(cb) { return cb() }
-            fn via() { return self.run(super.f) }
+            fn via() { return this.run(super.f) }
         }
         let c = Child()
         c.via()
@@ -152,13 +152,13 @@ fn bytecode_super_method_value_init_reference() {
         r#"
         class Base {
             n: number;
-            fn init() { self.n = 9 }
+            fn init() { this.n = 9 }
         }
         class Child extends Base {
             fn setup() {
                 let parentInit = super.init
                 parentInit()
-                return self.n
+                return this.n
             }
         }
         Child().setup()

@@ -192,6 +192,7 @@ pub struct BytecodeClassDef {
     pub fields: Vec<BytecodeClassField>,
     pub constants: Vec<Constant>,
     pub methods: Vec<BytecodeFnDef>,
+    pub is_struct: bool,
 }
 
 impl BytecodeModule {
@@ -327,6 +328,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
                     .join(",")
             )
             .unwrap();
+        }
+        if class.is_struct {
+            writeln!(out, "class_is_struct {ci}").unwrap();
         }
         for (idx, c) in class.constants.iter().enumerate() {
             write_const_line(&mut out, &format!("class_const {ci}"), idx, c);
@@ -617,6 +621,15 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             let (ci, list) = parse_index_list(rest)?;
             ensure_class(&mut classes, ci, String::new());
             classes[ci].implements = list;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("class_is_struct ") {
+            let ci: usize = rest
+                .trim()
+                .parse()
+                .map_err(|_| format!("bad class_is_struct: {rest}"))?;
+            ensure_class(&mut classes, ci, String::new());
+            classes[ci].is_struct = true;
             continue;
         }
         if let Some(rest) = line.strip_prefix("class_const ") {
@@ -972,6 +985,7 @@ fn ensure_class(classes: &mut Vec<BytecodeClassDef>, idx: usize, name: String) {
                 fields: Vec::new(),
                 constants: Vec::new(),
                 methods: Vec::new(),
+                is_struct: false,
             },
         );
     }
@@ -1263,7 +1277,18 @@ fn parse_class_field_default_op(rest: &str) -> Result<(usize, usize, &str), Stri
 }
 
 fn escape(s: &str) -> String {
-    s.replace('\\', "\\\\").replace(' ', "\\s")
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            ' ' => out.push_str("\\s"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 fn unescape(s: &str) -> String {
@@ -1273,8 +1298,10 @@ fn unescape(s: &str) -> String {
         if c == '\\' {
             match chars.next() {
                 Some('\\') => out.push('\\'),
-                Some(' ') => out.push(' '),
-                Some('s') => out.push(' '),
+                Some(' ') | Some('s') => out.push(' '),
+                Some('n') => out.push('\n'),
+                Some('r') => out.push('\r'),
+                Some('t') => out.push('\t'),
                 Some(other) => {
                     out.push('\\');
                     out.push(other);
@@ -1770,6 +1797,39 @@ mod tests {
     }
 
     #[test]
+    fn string_const_escape_roundtrips_whitespace() {
+        let module = BytecodeModule {
+            constants: vec![
+                Constant::String("\n".into()),
+                Constant::String("\r\n".into()),
+                Constant::String("\t x".into()),
+            ],
+            globals: Vec::new(),
+            main_locals: Vec::new(),
+            main_immutable_locals: Vec::new(),
+            main_try_regions: Vec::new(),
+            main_code: vec![Opcode::Halt],
+            functions: Vec::new(),
+            arrow_functions: Vec::new(),
+            classes: Vec::new(),
+            interfaces: Vec::new(),
+            enums: Vec::new(),
+            imports: Vec::new(),
+            pub_imports: Vec::new(),
+            exports: Vec::new(),
+            memory_mode: crate::lang_preprocess::MemoryMode::Gc,
+        };
+        let text = serialize(&module);
+        assert!(
+            !text.contains("string \n"),
+            "raw newline must not break .kbc lines"
+        );
+        assert!(text.contains("string \\n"));
+        let restored = deserialize(&text).unwrap();
+        assert_eq!(restored.constants, module.constants);
+    }
+
+    #[test]
     fn roundtrip_main_try_regions() {
         let module = BytecodeModule {
             constants: vec![Constant::String("kab".into())],
@@ -1840,8 +1900,8 @@ mod tests {
             interface Greeter { fn greet(); }
             class Animal {
                 name: string;
-                fn init(n) { self.name = n }
-                fn greet() { return "hi " + self.name }
+                fn init(n) { this.name = n }
+                fn greet() { return "hi " + this.name }
             }
             class Dog extends Animal implements Greeter {
                 fn greet() { return super.greet() + "!" }

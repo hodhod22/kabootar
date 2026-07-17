@@ -237,9 +237,9 @@ fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
         ("actors", "partial", "actor Name { } → actor_spawn"),
         ("hot_reload", "partial", "kabootar serve --watch + kbc invalidate"),
         ("auto_simd", "stub", "@simd directive (doc)"),
-        ("memory", "partial", "os_mem_*; @manual owned_alloc/drop (systems)"),
+        ("memory", "ok", "@manual owned_*/os/mem (systems); GC default (web)"),
         ("web_native", "partial", "html! → kv8_run_ui"),
-        ("toolchain", "partial", "compile, registry, fmt, serve"),
+        ("toolchain", "partial", "compile self-host default, registry, fmt, serve"),
         ("static_binary", "partial", "cargo build --release"),
         ("match_guards", "exists", "match x if cond =>"),
         ("effects", "partial", "@pure @io @disk stripped at compile"),
@@ -251,7 +251,7 @@ fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
         ("persist", "partial", "persist_save/load + @persist"),
         ("gpu_shader", "partial", "shader_compile + webgl_*"),
         ("resumable_errors", "partial", "try/catch returns resume value"),
-        ("self_hosting", "stub", "compiler in Rust today"),
+        ("self_hosting", "partial", "kabootar compile via self_host (Rust fallback)"),
     ];
     let items: Vec<Value> = features
         .into_iter()

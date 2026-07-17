@@ -30,7 +30,19 @@ fn escStr(s) {
             if sEscCh == " " {
                 sEscOut = sEscOut + "\\s"
             } else {
-                sEscOut = sEscOut + sEscCh
+                if sEscCh == "\n" {
+                    sEscOut = sEscOut + "\\n"
+                } else {
+                    if sEscCh == "\r" {
+                        sEscOut = sEscOut + "\\r"
+                    } else {
+                        if sEscCh == "\t" {
+                            sEscOut = sEscOut + "\\t"
+                        } else {
+                            sEscOut = sEscOut + sEscCh
+                        }
+                    }
+                }
             }
         }
         sEscI = sEscI + 1

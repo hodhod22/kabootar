@@ -414,7 +414,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Rust | `match` / mönstermatchning | ✅ tal, variabel, `_`, `Some`/`None`, `Ok`/`Err` |
 | Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** |
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
-| C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`** |
+| C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
 | C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()` |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab` |
@@ -430,7 +430,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Rust | fälttyper i klasser | ✅ `x: number` / `status: Color` runtime-check |
 | Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** + **`?`-operator** |
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
-| C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`** |
+| C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
 | C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()` |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab`, lokalt paketregistry |

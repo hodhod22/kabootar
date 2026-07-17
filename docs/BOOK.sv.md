@@ -547,6 +547,7 @@ Objekthjälpare inkluderar `assign`, `has_key`, `delete_prop`, `keys`, `values`,
 ### 7.3 Klasser
 
 Kabootar-klasser är C#-stil, inte JavaScript-prototyper.
+Receiver i metoder är **`this`**. Nyckelordet **`self`** är reserverat för framtida `struct` (Rust-stil).
 
 ```kabootar
 class Point {
@@ -554,12 +555,12 @@ class Point {
     y: number;
 
     fn init(a, b) {
-        self.x = a
-        self.y = b
+        this.x = a
+        this.y = b
     }
 
     fn sum() {
-        return self.x + self.y
+        return this.x + this.y
     }
 }
 
@@ -575,7 +576,7 @@ class Dog extends Animal {
 
     fn init(n, b) {
         super.init(n)
-        self.breed = b
+        this.breed = b
     }
 }
 ```
@@ -590,7 +591,7 @@ interface Greeter {
 class Person implements Greeter {
     name: string;
     fn greet() {
-        return "hi " + self.name
+        return "hi " + this.name
     }
 }
 
@@ -1128,7 +1129,7 @@ Se kapitel 7.
 | `===` | `==` är redan strikt per typ |
 | implicit konvertering (`"1" + 2`) | runtime-fel |
 | `null == undefined` | `false` |
-| prototyparv | C#-stil `class` med `self` |
+| prototyparv | C#-stil `class` med `this` |
 | `function` | `fn` |
 | pil `=>` | samma syntax, plus blockkropp |
 | `constructor` | `fn init(...)` |

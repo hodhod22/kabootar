@@ -63,6 +63,7 @@ pub struct ClassDef {
     pub implements: Vec<String>,
     pub fields: Vec<FieldDef>,
     pub methods: Vec<MethodDef>,
+    pub is_struct: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +75,7 @@ pub struct ClassInstance {
     pub methods: HashMap<String, MethodDef>,
     pub private_fields: HashMap<String, Value>,
     pub private_methods: HashMap<String, MethodDef>,
+    pub is_struct: bool,
 }
 
 pub fn is_private_name(name: &str) -> bool {
@@ -110,6 +112,15 @@ pub fn method_owner_class(method: &MethodDef, inst: &ClassInstance) -> String {
         .owner_class
         .clone()
         .unwrap_or_else(|| inst.class_name.clone())
+}
+
+/// Class methods bind `this`; struct methods bind `self`.
+pub fn receiver_binding(is_struct: bool) -> &'static str {
+    if is_struct {
+        "self"
+    } else {
+        "this"
+    }
 }
 
 pub fn borrow_class_instance(v: &Value) -> Result<std::cell::Ref<'_, ClassInstance>, String> {
@@ -174,6 +185,7 @@ impl ClassDef {
             methods,
             private_fields: HashMap::new(),
             private_methods: HashMap::new(),
+            is_struct: self.is_struct,
         }))
     }
 

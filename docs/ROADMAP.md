@@ -450,24 +450,30 @@ Se [BROWSER_V2.md](BROWSER_V2.md).
 **Slutmål:** hela plattformen i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell. Rust försvinner **småningom** tills bara (möjligen) en minimal bootstrap/FFI finns kvar; ny produktlogik skrivs **aldrig** i Rust.
 
 **Minnesmodell:**
-- **Borrowing / `@manual` / `owned_*`** — systemutveckling (OS, drivrutiner, buffertar, netstack)
+- **Borrowing / `@manual` / `owned_*`** — systemutveckling (OS, drivrutiner, buffertar, netstack). **Compile-time ownership = Våg O** (L5 var bara runtime MemBox).
 - **GC (default)** — webutveckling (DOM, Kv8, appar, shell-UI)
 
-Ordning (strikt):
+Ordning (strikt) — **just nu: endast språk**:
 
-1. **Komplettera språket** (L) så stora `.kab`-moduler och self-host fungerar  
-2. **Self-host som produktionskompilator** (S)  
-3. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
-4. **Tunna bort Rust** (H) tills hosten är trivial
+0. **Komplettera Kabootar-språket** (L + O + **T** traits + **J** JS-stdlib + **R** struct) — optimera, paritet, ownership  
+1. **Self-host som produktionskompilator** (S) — pausad tills J/T/R landat tillräckligt  
+2. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
+3. **Tunna bort Rust** (H) tills hosten är trivial
 
 | Våg | Namn | Mål |
 |-----|------|-----|
-| **L** | Language (systems-ready) | Reentranta lokaler, modulskala, closures, await, ownership |
+| **L** | Language (systems-ready) | Reentranta lokaler, modulskala, closures, await, MemBox |
+| **O** | Ownership | Compile-time Owned/`&`/`&mut` i `@manual` |
+| **T** | Traits | Riktiga traits (bounds, generics) utöver `trait`≈`interface` |
+| **R** | Struct (Rust-inspirerat) | `struct` + **`self`** i metoder; `class` använder **`this`** |
+| **J** | JS-språkparitet | Array/Object/String/Math + övriga ES-luckor |
 | **S** | Self-host | `self_host/` bygger produkten |
 | **K** | Kabootar libs | kv8 + DOM + CSS + OS + webläsare i `.kab` |
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
 
-**Fryst:** ny Rust för OS/browser/policy. Befintlig Rust är tillfällig host tills K ersätter den.
+**Aktivt fokus (2026-07):** vågorna **O / T / J / R** — ingen ny OS/browser/Kv8-produktlogik förrän språket är komplett.
+
+**Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
 ### Våg L — Language (systems-ready) 🚧
 
@@ -479,17 +485,119 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L2** | **Modulskala** — `register_functions` + `BytecodeFunction::Clone` använder `share_bindings` (inte djupklon); ≥40 top-level fn/modul utan OOM | ✅ |
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
 | **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/os/async` använder riktig `await` | ✅ |
-| **L5** | **Ownership / borrowing** — `@manual` + `owned_*` för OS; GC default för web | 📋 subset finns |
+| **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `os/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
 
-**Checkpoint L1–L4:** `cargo test --test v228_language bytecode_`
+**Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`
 
-### Våg S — Self-host som produktkompilator 📋
+### Våg O — Ownership (systems, compile-time) 🚧
 
-| Fas | Innehåll |
-|-----|----------|
+GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP.md](OWNERSHIP.md).
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **O1** | **Affine Owned** — compile-time use-after-move; `let y = x` / call-arg flyttar Owned; kända peek-API (`owned_read`/`owned_write`) flyttar inte | ✅ |
+| **O2** | **Signaturer** — `fn f(b: Owned)`, `fn g(b: &Owned)`; call-arg med Owned flyttar (om inte `&`/`&mut`) | ✅ |
+| **O3** | **Borrow** — `&x` / `&mut x`, typer `&Owned` / `&mut Owned`; shared vs exclusive; borrow-scope = call-uttryck | ✅ |
+| **O4** | **Scope drop** — compile-time varning/fel om Owned lever över scope utan `drop`/`move` (leak-lint); runtime drop oförändrad | ✅ |
+| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | 📋 |
+
+**Checkpoint O1–O3:** `cargo test --test ownership_check` + `cargo test --test ownership_manual`
+
+**Icke-mål (medvetet):** Rust-lifetimes, lifetime-elision, borrow över async boundaries, ownership i GC-moduler.
+
+### Våg T — Traits (språk) 🚧
+
+G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod. Se [GENERICS.md#traits](GENERICS.md#traits).
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **T0** | `trait` / `interface` + `implements` + `is_impl` (G5) | ✅ subset |
+| **T1** | **`where T: Trait`** på generiska fn/klass/metod — monomorphisering respekterar bound | ✅ |
+| **T2** | **Generiska traits** — `trait Show<T> { … }` | 📋 |
+| **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | 📋 |
+| **T4** | **Default-metoder** i trait-kropp | 📋 |
+| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | 📋 |
+
+**Icke-mål:** HKT, `dyn Trait`-objekt, Rust-coherence.
+
+### Våg R — Struct (Rust-inspirerat) 📋
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **R0** | **`this` i `class`** — klassreceiver = `this`; `self` reserverat i lexern | ✅ |
+| **R1** | **`struct Name { … }`** — värdetyper + metoder med **`self` / `&self` / `&mut self`** | ✅ |
+| **R2** | Struct + `@manual` ownership (move) | 📋 |
+| **R3** | Generiska structs `struct Box<T>` | 📋 |
+| **R4** | Self-host: `struct`/`self` i parser+emit | 📋 |
+
+**Regel:** `class` → `this`; `struct` → `self`. Se [CLASSES.md](CLASSES.md).
+
+### Våg J — JS-språkparitet (stdlib + syntax) 🚧
+
+Kabootar har redan stor del av ES2020–ES2025 (ofta snake_case). Nedan är **kvarvarande luckor** för språket (inte Kv8-bundle-yta).
+
+#### J1 — String ✅
+
+| API | Status |
+|-----|--------|
+| Core: trim/split/replace/replaceAll/pad*/matchAll/localeCompare/… | ✅ |
+| **`str_at` / `.at`** | ✅ |
+| **`is_well_formed` / `to_well_formed`** (+ `.isWellFormed` / `.toWellFormed`) | ✅ |
+| **`string_concat`**, **`string_raw`** / `String.raw` | ✅ |
+| `normalize` **NFKC/NFKD** | ✅ |
+
+#### J2 — Array ✅ (medvetna avvikelser)
+
+| API | Status |
+|-----|--------|
+| map/filter/flat/flatMap/at/toSorted/toReversed/toSpliced/with/findLast/… | ✅ |
+| `Array.groupBy` | använd `Object.groupBy` / `group_by` |
+| Muterande `sort`/`reverse` (JS in-place) | medvetet: alltid copy |
+| Array iterator-protokoll (lazy) | 📋 J5 |
+
+#### J3 — Object ✅ (Parent + class, ingen prototype)
+
+Kabootar har **inte** JS-prototyper. Två tydliga modeller:
+
+| Behov | Modell |
+|-------|--------|
+| Klassarv | `class` / `extends` / `implements` — [CLASSES.md](CLASSES.md) |
+| Dataobjekt-kedja | **Parent**: `Object.getParent` / `setParent`, `Reflect.getParent` / `setParent`, `Object.create(parent)` |
+
+| API | Status |
+|-----|--------|
+| keys/values/entries/assign/fromEntries/hasOwn/groupBy/freeze/seal/defineProperty(ies)/… | ✅ |
+| **`Object.getParent` / `setParent`** (Kabootar-modell) | ✅ |
+| **`Object.getPrototypeOf` / `setPrototypeOf` / `__proto__`** | ❌ **icke-mål** |
+
+#### J4 — Math ✅
+
+| API | Status |
+|-----|--------|
+| floor/ceil/trunc/sign/imul/clz32/fround/f16round/sumPrecise/trig/… | ✅ |
+| **Konstanter** `LN2`, `LN10`, `LOG2E`, `LOG10E`, `SQRT1_2`, `SQRT2` (+ globals) | ✅ |
+| **`Math` namespace** (`Math.floor`, `Math.PI`, …) | ✅ |
+
+#### J5 — Övrig ES-paritet (språk) 🚧
+
+| Område | Luckor |
+|--------|--------|
+| **Number** | `Number.EPSILON` / `MAX_SAFE_INTEGER` / namespace ✅ |
+| **Promise** | `withResolvers` ✅; `Promise.try` ✅ + `Promise` namespace |
+| **Iterator helpers** | `Iterator.from`, `.map`/`.filter`/`.take` (ES2025) |
+| **Map/Set** | `getOrInsert` / `getOrInsertComputed` |
+| **RegExp** | kvarvarande unicode/`v`-flagga-luckor |
+| **Syntax** | logical assign `||=` `&&=` `??=` ✅ |
+
+**Checkpoint J:** `cargo test --test js_stdlib_gaps` + `cargo test --test kabootar_js_parity`
+
+### Våg S — Self-host som produktkompilator 🚧
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
 | **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
-| **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` |
-| **S3** | CI: self-host bygger self-host (bootstrap) som gate |
+| **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` (`--rust` / `--self-host`; `self_host/` → Rust) | ✅ |
+| **S3** | CI: self-host bygger self-host (bootstrap) som gate | 📋 |
 
 ### Våg K — Ekosystem i Kabootar 📋
 
@@ -620,13 +728,13 @@ Bygger på **Våg E** (fn-generics v1). Se [GENERICS.md](GENERICS.md#fas-2--g6-p
 | Fas | Innehåll | Beräknad ordning |
 |-----|----------|------------------|
 | **F1** ✅ | **G6** — Inferens v1.1: variabler med känd typ, klass-c ctor-namn, tester i `tests/generics.rs` |
-| **F2** ✅ | **G7** — Generiska klassmetoder (`fn map<U>(self, …)`), Rust parse + monomorph (`echo$Number` på klass) |
+| **F2** ✅ | **G7** — Generiska klassmetoder (`fn map<U>(f)` + `this`), Rust parse + monomorph (`echo$Number` på klass) |
 | **F3** ✅ | **G8** — Generiska klasser (`class Box<T>`), `Box(42)` → `Box$Number`, infer + explicit type args |
 | **F4** ✅ | **G9** — Generiska enum (`enum Option<T>`), `Option.Some(42)` → `Option$Number` |
 | **F5** ✅ | **G10** — Self-host: G6 variabel-inferens i `emit.kab`, G9 enum-parse + member `typeArgs` |
 | **F6** ✅ | **G11** — LSP: hover specialiserad signatur, go-to-def på `T`, completion |
 
-**Icke-mål Våg F:** trait bounds, HKT, struct, runtime `typeid`.
+**Icke-mål Våg F:** trait bounds, HKT, runtime `typeid`. (Struct = Våg R.)
 
 **Checkpoint:** `cargo test --test generics` + `self_host_parser_suite` / `self_host_emit_suite` efter varje fas.
 
@@ -646,7 +754,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | ✅ subset (`.kbc` fingerprint + import mtimes) |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
 | **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid*` multi nested + parent live sync/`onById`/`dispatchById`) |
-| **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |
+| **G10b** | **Runtime MemBox** — opt-in `@manual` + `owned_*` / `import "os/mem"` (GC default orörd). Compile-time = **Våg O** | ✅ runtime; O1–O3 ✅ |
 | **G11** | **kbrowser cross-platform** — `lib/kbrowser/` + `kb_sync_platform` object + native/kos/wasm smokes | ✅ subset |
 
 **G7 — kbrowser mobil (planering):**

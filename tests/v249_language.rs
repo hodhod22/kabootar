@@ -8,7 +8,7 @@ use kabootar_lib::value::Value;
 fn bytecode_super_member_assign_compiles() {
     assert!(can_compile(
         r#"
-        class Base { count: number; fn init() { self.count = 0 } }
+        class Base { count: number; fn init() { this.count = 0 } }
         class Child extends Base {
             fn init() {
                 super.init()
@@ -25,7 +25,7 @@ fn bytecode_super_member_assign() {
     let mut env = create_global_env();
     let v = eval_source(
         r#"
-        class Base { count: number; fn init() { self.count = 0 } }
+        class Base { count: number; fn init() { this.count = 0 } }
         class Child extends Base {
             fn init() {
                 super.init()
@@ -44,7 +44,7 @@ fn bytecode_super_member_assign() {
 fn bytecode_super_member_plus_assign() {
     assert!(can_compile(
         r#"
-        class Base { n: number; fn init() { self.n = 0 } }
+        class Base { n: number; fn init() { this.n = 0 } }
         class Child extends Base {
             fn init() {
                 super.init()
@@ -57,7 +57,7 @@ fn bytecode_super_member_plus_assign() {
     let mut env = create_global_env();
     let v = eval_source(
         r#"
-        class Base { n: number; fn init() { self.n = 0 } }
+        class Base { n: number; fn init() { this.n = 0 } }
         class Child extends Base {
             fn init() {
                 super.init()
@@ -77,7 +77,7 @@ fn bytecode_super_member_assign_returns_value() {
     let mut env = create_global_env();
     let v = eval_source(
         r#"
-        class Base { x: number; fn init() { self.x = 0 } }
+        class Base { x: number; fn init() { this.x = 0 } }
         class Child extends Base {
             fn set() { super.x = 9 }
         }
@@ -94,7 +94,7 @@ fn bytecode_super_member_read_field() {
     let mut env = create_global_env();
     let v = eval_source(
         r#"
-        class Base { label: string; fn init() { self.label = "base" } }
+        class Base { label: string; fn init() { this.label = "base" } }
         class Child extends Base {
             fn tag() { return super.label }
         }
@@ -134,8 +134,8 @@ fn bytecode_super_member_assign_after_parent_init() {
             a: number;
             b: number;
             fn init() {
-                self.a = 1
-                self.b = 2
+                this.a = 1
+                this.b = 2
             }
         }
         class Child extends Base {
@@ -158,5 +158,5 @@ fn bytecode_super_member_assign_outside_method_errors() {
     assert!(can_compile("super.x = 1"));
     let mut env = create_global_env();
     let err = eval_source("super.x = 1", &mut env).unwrap_err();
-    assert!(err.contains("super") || err.contains("self"));
+    assert!(err.contains("super") || err.contains("this"));
 }

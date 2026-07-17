@@ -27,19 +27,25 @@ pub fn fn_signature(
     let ps: Vec<String> = params
         .iter()
         .map(|p| {
-            if let Some(KabType::Named(t)) = &p.type_ann {
-                format!("{}: {t}", p.name)
+            if let Some(t) = &p.type_ann {
+                format!("{}: {}", p.name, format_kab_type(t))
             } else {
                 p.name.clone()
             }
         })
         .collect();
     let ret = return_type
-        .map(|t| match t {
-            KabType::Named(n) => format!(" -> {n}"),
-        })
+        .map(|t| format!(" -> {}", format_kab_type(t)))
         .unwrap_or_default();
     format!("fn {name}{tparams}({}){ret}", ps.join(", "))
+}
+
+fn format_kab_type(t: &KabType) -> String {
+    match t {
+        KabType::Named(n) => n.clone(),
+        KabType::Ref(inner) => format!("&{}", format_kab_type(inner)),
+        KabType::RefMut(inner) => format!("&mut {}", format_kab_type(inner)),
+    }
 }
 
 pub fn class_signature(name: &str, type_params: &[String]) -> String {

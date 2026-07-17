@@ -88,12 +88,12 @@ fn class_constructor_init() {
             y: number;
 
             fn init(a, b) {
-                self.x = a
-                self.y = b
+                this.x = a
+                this.y = b
             }
 
             fn sum() {
-                return self.x + self.y
+                return this.x + this.y
             }
         }
         let p = Point(3, 4)
@@ -114,11 +114,11 @@ fn class_inheritance_extends() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
 
             fn label() {
-                return self.name
+                return this.name
             }
         }
 
@@ -126,12 +126,12 @@ fn class_inheritance_extends() {
             breed: string;
 
             fn init(n, b) {
-                self.name = n
-                self.breed = b
+                this.name = n
+                this.breed = b
             }
 
             fn label() {
-                return self.name + " (" + self.breed + ")"
+                return this.name + " (" + this.breed + ")"
             }
         }
 

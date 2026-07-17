@@ -15,6 +15,184 @@ use std::time::SystemTime;
 
 pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProgram};
 
+/// Which backend `kabootar compile` prefers (S2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompilePrefer {
+    /// Self-host first, Rust on failure (default for app `.kab`).
+    SelfHostThenRust,
+    /// Force Rust host compiler.
+    Rust,
+    /// Force self-host; error if it cannot produce bytecode.
+    SelfHostOnly,
+}
+
+impl CompilePrefer {
+    pub fn from_args_and_env(args: &[String]) -> Self {
+        if args.iter().any(|a| a == "--rust" || a == "--host") {
+            return Self::Rust;
+        }
+        if args.iter().any(|a| a == "--self-host") {
+            return Self::SelfHostOnly;
+        }
+        match std::env::var("KABOOTAR_COMPILE")
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "rust" | "host" => Self::Rust,
+            "self-host" | "self_host" | "selfhost" => Self::SelfHostOnly,
+            _ => Self::SelfHostThenRust,
+        }
+    }
+}
+
+/// Skip self-host for the compiler sources themselves (S3 bootstrap is separate)
+/// and for very large files (subset / time).
+fn should_attempt_self_host(path: &str, source: &str) -> bool {
+    let norm = path.replace('\\', "/");
+    if norm.contains("self_host/") {
+        return false;
+    }
+    if source.len() > 64 * 1024 {
+        return false;
+    }
+    true
+}
+
+fn rough_stmt_count(source: &str) -> usize {
+    source
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("//"))
+        .count()
+        .max(1)
+}
+
+/// Compile source text via `import "self_host/compile"` → `.kbc` text → deserialize.
+pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String> {
+    use crate::bytecode::call_value;
+    use crate::evaluator::create_global_env;
+    use crate::value::Value;
+
+    // Module resolution is cwd-relative; prefer the package root when available.
+    let _cwd_guard = PackageRootGuard::enter();
+
+    let mut env = create_global_env();
+    crate::modules::import_module("self_host/compile", &mut env).map_err(|e| {
+        crate::runtime::stdlib::error::format_runtime_error(&e)
+    })?;
+    let compile_fn = env
+        .get("compile")
+        .ok_or_else(|| "self_host/compile: missing export `compile`".to_string())?;
+    let result = call_value(
+        compile_fn,
+        vec![Value::String(source.to_string())],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .map_err(|e| crate::runtime::stdlib::error::format_runtime_error(&e))?;
+    let Value::String(kbc) = result else {
+        return Err(format!(
+            "self_host compile must return .kbc text, got {}",
+            crate::value::format_value(&result)
+        ));
+    };
+    if !kbc.starts_with(FORMAT_HEADER) {
+        return Err("self_host compile did not emit kabootar-bytecode header".into());
+    }
+    let module = deserialize(&kbc)?;
+    Ok(CompiledProgram {
+        stmts: Vec::new(),
+        bytecode: Some(module.clone()),
+        stmt_count: rough_stmt_count(source),
+        memory_mode: module.memory_mode,
+    })
+}
+
+/// Temporarily set cwd to the package root (directory containing `self_host/`).
+struct PackageRootGuard {
+    prev: Option<PathBuf>,
+}
+
+impl PackageRootGuard {
+    fn enter() -> Self {
+        let prev = std::env::current_dir().ok();
+        let mut cand = prev.clone();
+        // Walk up from cwd looking for self_host/compile.kab
+        for _ in 0..6 {
+            let Some(dir) = cand else { break };
+            if dir.join("self_host").join("compile.kab").is_file() {
+                let _ = std::env::set_current_dir(&dir);
+                return Self { prev };
+            }
+            cand = dir.parent().map(|p| p.to_path_buf());
+        }
+        // Fallback: CARGO_MANIFEST_DIR when built as part of this package.
+        if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
+            let dir = PathBuf::from(manifest);
+            if dir.join("self_host").join("compile.kab").is_file() {
+                let _ = std::env::set_current_dir(&dir);
+            }
+        }
+        Self { prev }
+    }
+}
+
+impl Drop for PackageRootGuard {
+    fn drop(&mut self) {
+        if let Some(prev) = self.prev.take() {
+            let _ = std::env::set_current_dir(prev);
+        }
+    }
+}
+
+pub fn compile_file_self_host(path: &str) -> Result<CompiledProgram, String> {
+    let source =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
+    if !should_attempt_self_host(path, &source) {
+        return Err("self-host skipped for this path/size".into());
+    }
+    let program = compile_source_self_host(&source)?;
+    if let Ok(mut map) = cache().lock() {
+        if let Some(t) = fs::metadata(path).ok().and_then(|m| m.modified().ok()) {
+            map.insert(
+                path.to_string(),
+                CachedProgram {
+                    mtime: t,
+                    program: program.clone(),
+                },
+            );
+        }
+    }
+    Ok(program)
+}
+
+/// Compile a file with the preferred backend (S2). Returns `(program, backend_label)`.
+pub fn compile_file_prefer(
+    path: &str,
+    prefer: CompilePrefer,
+) -> Result<(CompiledProgram, &'static str), String> {
+    match prefer {
+        CompilePrefer::Rust => Ok((compile_file(path)?, "rust")),
+        CompilePrefer::SelfHostOnly => {
+            let program = compile_file_self_host(path)?;
+            if !program.has_bytecode() {
+                return Err("self-host compile produced no bytecode".into());
+            }
+            Ok((program, "self-host"))
+        }
+        CompilePrefer::SelfHostThenRust => {
+            match compile_file_self_host(path) {
+                Ok(program) if program.has_bytecode() => Ok((program, "self-host")),
+                Ok(_) | Err(_) => Ok((compile_file(path)?, "rust")),
+            }
+        }
+    }
+}
+
 static PARSE_CACHE: OnceLock<Mutex<HashMap<String, CachedProgram>>> = OnceLock::new();
 
 #[derive(Debug, Clone)]
@@ -120,10 +298,26 @@ pub fn cache_dir() -> PathBuf {
 }
 
 pub fn cache_path_for(base: &Path, path: &str) -> PathBuf {
-    let file_name = Path::new(path)
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| path.replace(['/', '\\'], "_"));
+    // Prefer cwd-relative keys so `self_host/lexer.kab` and `lib/kv8/lexer.kab`
+    // do not share a basename-only `lexer.kab.kbc` (S2 collision).
+    let abs = Path::new(path);
+    let rel = std::env::current_dir()
+        .ok()
+        .and_then(|cwd| abs.strip_prefix(&cwd).ok().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| abs.to_path_buf());
+    let key = rel
+        .to_string_lossy()
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .replace("..", "_")
+        .replace('/', "__");
+    let file_name = if key.is_empty() {
+        "module.kab".to_string()
+    } else if key.ends_with(".kab") || key.ends_with(".kabootar") {
+        key
+    } else {
+        format!("{key}.kab")
+    };
     base.join(".kabootar").join("cache").join(format!("{file_name}.kbc"))
 }
 
@@ -180,6 +374,14 @@ pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Optio
             return Ok(None);
         }
     }
+    // Reject basename-collision leftovers (e.g. kv8 lexer cached as lexer.kab.kbc).
+    let norm = |p: &str| p.replace('\\', "/");
+    if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
+        let cached_src = line.trim_start_matches("source=");
+        if norm(cached_src) != norm(path) {
+            return Ok(None);
+        }
+    }
     // G8: content + import fingerprint — invalidate when source/imports change without mtime bump.
     if let Ok(source) = fs::read_to_string(path) {
         let expected = source_fingerprint(path, &source);
@@ -188,6 +390,9 @@ pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Optio
             if got != expected {
                 return Ok(None);
             }
+        } else {
+            // Old cache entries without fingerprint are unsafe across path collisions.
+            return Ok(None);
         }
     }
     Ok(Some(deserialize(&text)?))

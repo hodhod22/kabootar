@@ -614,8 +614,10 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
             extends,
             extends_type_args: _,
             implements,
+            where_clause: _,
             fields,
             methods,
+            is_struct,
         } => {
             let def = ClassDef {
                 name: name.clone(),
@@ -645,6 +647,7 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
                         owner_class: Some(name.clone()),
                     })
                     .collect(),
+                is_struct: *is_struct,
             };
             validate_class_interfaces(&def, env)?;
             env.classes_mut().register(def);
@@ -734,6 +737,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             }
             let v = eval_expr(inner, env)?;
             match op {
+                UnaryOp::Ref | UnaryOp::RefMut => Ok(v),
                 UnaryOp::Not => Ok(Value::Bool(!v.is_truthy())),
                 UnaryOp::Neg => {
                     if let Some(r) = crate::runtime::stdlib::bigint::try_neg(&v) {
@@ -794,6 +798,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             params,
             rest,
             return_type: _,
+            where_clause: _,
             body,
             public,
             async_fn,
@@ -921,45 +926,39 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                             arg_vals.len()
                         ));
                     }
-                    let owner = {
+                    let (owner, recv) = {
                         let inst_ref = instance
                             .try_borrow()
                             .map_err(|e| format!("class instance borrow: {e}"))?;
-                        crate::class::method_owner_class(&method, &inst_ref)
+                        let owner = crate::class::method_owner_class(&method, &inst_ref);
+                        let recv = crate::class::receiver_binding(inst_ref.is_struct);
+                        (owner, recv)
                     };
                     if let Some(bc) = &method.bytecode {
                         let mut call_env = create_global_env();
                         *call_env.classes_mut() = env.classes().clone();
                         call_env.set_private_scope(Some(&owner));
                         call_env.set(
-                            "self".to_string(),
+                            recv.to_string(),
                             Value::ClassInstance(instance.clone()),
                         );
                         let result =
                             crate::bytecode::run_bytecode_fn(bc, arg_vals, &mut call_env)?;
-                        if env.get("self").is_some() {
-                            if let Some(Value::ClassInstance(updated)) = call_env.get("self") {
-                                env.assign("self", Value::ClassInstance(updated.clone()))?;
-                            }
-                        }
+                        writeback_receiver(env, &call_env, recv)?;
                         return Ok(result);
                     }
                     let mut new_env = create_global_env();
                     *new_env.classes_mut() = env.classes().clone();
                     new_env.set_private_scope(Some(&owner));
                     new_env.set(
-                        "self".to_string(),
+                        recv.to_string(),
                         Value::ClassInstance(instance.clone()),
                     );
                     for (p, a) in method.params.iter().zip(arg_vals) {
                         new_env.set(p.clone(), a);
                     }
                     let result = eval_expr(&method.body, &mut new_env)?;
-                    if env.get("self").is_some() {
-                        if let Some(Value::ClassInstance(updated)) = new_env.get("self") {
-                            env.assign("self", Value::ClassInstance(updated.clone()))?;
-                        }
-                    }
+                    writeback_receiver(env, &new_env, recv)?;
                     Ok(result)
                 }
                 Value::NativeFunction(f) => {
@@ -1358,7 +1357,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             let val = eval_expr(value_expr, env)?;
             match target {
                 AssignTarget::Name(name) => {
-                    env.assign(name, val.clone())?;
+                    crate::runtime::ownership::store_binding(env, name, val.clone())?;
                     Ok(val)
                 }
                 AssignTarget::Pattern(pat) => {
@@ -1368,10 +1367,10 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                 AssignTarget::Member(obj_expr, field) => {
                     if matches!(obj_expr.as_ref(), Expr::Super) {
                         let mut this_val = env
-                            .get("self")
+                            .get("this")
                             .ok_or_else(|| "`super` used outside of method".to_string())?;
                         assign_member_value(&mut this_val, field, val.clone(), env)?;
-                        env.assign("self", this_val)?;
+                        env.assign("this", this_val)?;
                         return Ok(val);
                     }
                     let mut container = eval_expr(obj_expr, env)?;
@@ -1396,10 +1395,10 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
         Expr::Member(obj_expr, field, _) => {
             if matches!(obj_expr.as_ref(), Expr::Super) {
                 let this_val = env
-                    .get("self")
+                    .get("this")
                     .ok_or_else(|| "`super` used outside of method".to_string())?;
                 let Value::ClassInstance(inst) = this_val else {
-                    return Err("`super` requires class instance `self`".into());
+                    return Err("`super` requires class instance `this`".into());
                 };
                 return resolve_super_member(&inst, field, env);
             }
@@ -1433,8 +1432,11 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             crate::bytecode::call_value(base, arg_vals, &[], &[], &[], &[], env)
         }
         Expr::This => env
+            .get("this")
+            .ok_or_else(|| "`this` used outside of method".into()),
+        Expr::Self_ => env
             .get("self")
-            .ok_or_else(|| "`self` used outside of method".into()),
+            .ok_or_else(|| "`self` used outside of struct method".into()),
         Expr::Super => Err("`super` must be used as super.method(...)".into()),
         Expr::Break => Ok(Value::Break),
         Expr::Continue => Ok(Value::Continue),
@@ -1803,15 +1805,16 @@ pub fn resolve_super_member(
 fn store_lvalue(expr: &Expr, value: Value, env: &mut Environment) -> Result<(), String> {
     match expr {
         Expr::Variable(name) => env.assign(name, value),
-        Expr::This => env.assign("self", value),
-        Expr::Super => env.assign("self", value),
+        Expr::This => env.assign("this", value),
+        Expr::Self_ => env.assign("self", value),
+        Expr::Super => env.assign("this", value),
         Expr::Member(inner, field, _) => {
             if matches!(inner.as_ref(), Expr::Super) {
                 let mut this_val = env
-                    .get("self")
+                    .get("this")
                     .ok_or_else(|| "`super` used outside of method".to_string())?;
                 assign_member_value(&mut this_val, field, value, env)?;
-                return env.assign("self", this_val);
+                return env.assign("this", this_val);
             }
             let mut parent = eval_expr(inner, env)?;
             assign_member_value(&mut parent, field, value, env)?;
@@ -1825,6 +1828,30 @@ fn store_lvalue(expr: &Expr, value: Value, env: &mut Environment) -> Result<(), 
         }
         _ => Err("Invalid assignment target".into()),
     }
+}
+
+fn writeback_receiver(
+    env: &mut Environment,
+    call_env: &Environment,
+    recv: &str,
+) -> Result<(), String> {
+    if env.get(recv).is_some() {
+        if let Some(Value::ClassInstance(updated)) = call_env.get(recv) {
+            env.assign(recv, Value::ClassInstance(updated.clone()))?;
+        }
+    }
+    // Nested class method may have outer `this` while struct uses `self`.
+    if recv != "this" && env.get("this").is_some() {
+        if let Some(Value::ClassInstance(updated)) = call_env.get(recv) {
+            let _ = env.assign("this", Value::ClassInstance(updated.clone()));
+        }
+    }
+    if recv != "self" && env.get("self").is_some() {
+        if let Some(Value::ClassInstance(updated)) = call_env.get(recv) {
+            let _ = env.assign("self", Value::ClassInstance(updated.clone()));
+        }
+    }
+    Ok(())
 }
 
 fn assign_member_value(
@@ -1929,8 +1956,9 @@ fn instantiate_class(
             crate::class::method_owner_class(&init, &inst_ref)
         };
         init_env.set_private_scope(Some(&owner));
+        let recv = crate::class::receiver_binding(class_def.is_struct);
         init_env.set(
-            "self".to_string(),
+            recv.to_string(),
             Value::ClassInstance(instance.clone()),
         );
         for (p, a) in init.params.iter().zip(arg_vals.iter()) {
@@ -1965,6 +1993,7 @@ fn materialize_class(
             methods: HashMap::new(),
             private_fields: HashMap::new(),
             private_methods: HashMap::new(),
+            is_struct: class_def.is_struct,
         }))
     };
 
@@ -2026,6 +2055,7 @@ fn materialize_class(
         instance.class_name = class_def.name.clone();
         instance.super_class = class_def.extends.clone();
         instance.interfaces = class_def.implements.clone();
+        instance.is_struct = class_def.is_struct;
     }
 
     Ok(inst)

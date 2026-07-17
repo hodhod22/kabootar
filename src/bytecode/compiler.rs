@@ -3,7 +3,7 @@
 use crate::ast::{
     exported_binding_names, ArrayPiece, AssignTarget, BinaryOp, BindingPattern, CallArg,
     ClassField, ClassMethod, Expr, Literal, MatchArm, ObjectBind, ObjectPiece, Pattern,
-    PatternField, PatternPiece, Stmt, UnaryOp,
+    PatternField, PatternPiece, Stmt, UnaryOp, WhereBound,
 };
 use super::types::{
     BytecodeClassDef, BytecodeClassField, BytecodeEnumDef, BytecodeEnumVariantDef, BytecodeFnDef,
@@ -11,10 +11,15 @@ use super::types::{
     Opcode,
 };
 use crate::generics::{
-    generic_method_template_key, infer_receiver_class_name, infer_type_from_expr, mangle,
-    mangle_method, resolve_type_args, resolve_type_ref, TypeInferenceCtx,
+    check_where_bounds, generic_method_template_key, infer_receiver_class_name, infer_type_from_expr,
+    mangle, mangle_method, resolve_type_args, resolve_type_ref, TypeInferenceCtx,
 };
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+
+thread_local! {
+    static HARD_COMPILE_ERROR: RefCell<Option<String>> = const { RefCell::new(None) };
+}
 
 pub struct CompileError;
 
@@ -25,6 +30,7 @@ struct GenericFnTemplate {
     body: Expr,
     async_fn: bool,
     generator_fn: bool,
+    where_clause: Vec<WhereBound>,
 }
 
 #[derive(Clone)]
@@ -92,6 +98,7 @@ struct Compiler {
     pending_classes: Vec<BytecodeClassDef>,
     pending_enums: Vec<BytecodeEnumDef>,
     classes_len_snapshot: usize,
+    trait_impls: HashMap<String, Vec<String>>,
 }
 
 impl Compiler {
@@ -124,6 +131,7 @@ impl Compiler {
             pending_classes: Vec::new(),
             pending_enums: Vec::new(),
             classes_len_snapshot: 0,
+            trait_impls: HashMap::new(),
         }
     }
 
@@ -321,6 +329,7 @@ impl Compiler {
             &tmpl.implements,
             &tmpl.fields,
             &tmpl.methods,
+            false,
         )?;
         self.pending_classes.push(class_def);
         self.class_names.insert(mangled.clone(), class_idx);
@@ -347,6 +356,15 @@ impl Compiler {
             Some(&self.binding_types),
         )
         .map_err(|_| CompileError)?;
+        if let Err(msg) = check_where_bounds(
+            &tmpl.type_params,
+            &type_args,
+            &tmpl.where_clause,
+            &self.trait_impls,
+        ) {
+            HARD_COMPILE_ERROR.with(|e| *e.borrow_mut() = Some(msg));
+            return Err(CompileError);
+        }
         let mangled = mangle(base, &type_args);
         if self.specialized_mangled.contains(&mangled) {
             return Ok(mangled);
@@ -401,6 +419,15 @@ impl Compiler {
             Some(&self.binding_types),
         )
         .map_err(|_| CompileError)?;
+        if let Err(msg) = check_where_bounds(
+            &tmpl.type_params,
+            &type_args,
+            &tmpl.where_clause,
+            &self.trait_impls,
+        ) {
+            HARD_COMPILE_ERROR.with(|e| *e.borrow_mut() = Some(msg));
+            return Err(CompileError);
+        }
         let mangled_method = mangle_method(method_name, &type_args);
         let dedupe_key = mangle(&template_key, &type_args);
         if self.specialized_mangled.contains(&dedupe_key) {
@@ -899,6 +926,8 @@ impl Compiler {
                     UnaryOp::Not => self.emit(Opcode::Not),
                     UnaryOp::Neg => self.emit(Opcode::Neg),
                     UnaryOp::BitNot => self.emit(Opcode::BitNot),
+                    // Borrow is a type-level / checker concern; runtime peeks the value.
+                    UnaryOp::Ref | UnaryOp::RefMut => {}
                     UnaryOp::Delete | UnaryOp::Throw | UnaryOp::Raise => unreachable!(),
                 }
                 Ok(())
@@ -1382,6 +1411,7 @@ impl Compiler {
                 params,
                 rest,
                 return_type: _,
+                where_clause: _,
                 body,
                 public,
                 async_fn,
@@ -1419,6 +1449,10 @@ impl Compiler {
                 Ok(())
             }
             Expr::This => {
+                self.emit_load_name("this");
+                Ok(())
+            }
+            Expr::Self_ => {
                 self.emit_load_name("self");
                 Ok(())
             }
@@ -1450,6 +1484,7 @@ impl Compiler {
         implements: &[String],
         fields: &[ClassField],
         methods: &[ClassMethod],
+        is_struct: bool,
     ) -> Result<BytecodeClassDef, CompileError> {
         let mut class_constants = Vec::new();
         let mut bc_fields = Vec::new();
@@ -1498,6 +1533,7 @@ impl Compiler {
                         body: method.body.clone(),
                         async_fn: false,
                         generator_fn: false,
+                        where_clause: method.where_clause.clone(),
                     },
                 );
                 continue;
@@ -1533,6 +1569,7 @@ impl Compiler {
             fields: bc_fields,
             constants: class_constants,
             methods: bc_methods,
+            is_struct,
         })
     }
 
@@ -1969,11 +2006,15 @@ impl Compiler {
                 Ok(())
             }
             Expr::This => {
+                self.emit_load_name("this");
+                Ok(())
+            }
+            Expr::Self_ => {
                 self.emit_load_name("self");
                 Ok(())
             }
             Expr::Super => {
-                self.emit_load_name("self");
+                self.emit_load_name("this");
                 Ok(())
             }
             Expr::Member(inner, field, _) => {
@@ -1999,11 +2040,15 @@ impl Compiler {
                 Ok(())
             }
             Expr::This => {
+                self.emit_store_name("this");
+                Ok(())
+            }
+            Expr::Self_ => {
                 self.emit_store_name("self");
                 Ok(())
             }
             Expr::Super => {
-                self.emit_store_name("self");
+                self.emit_store_name("this");
                 Ok(())
             }
             Expr::Member(inner, field, _) => {
@@ -2634,6 +2679,15 @@ fn patch_jump(code: &mut [Opcode], at: usize, target: usize) {
 }
 
 pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
+    HARD_COMPILE_ERROR.with(|e| *e.borrow_mut() = None);
+    try_compile_inner(stmts)
+}
+
+pub fn take_hard_compile_error() -> Option<String> {
+    HARD_COMPILE_ERROR.with(|e| e.borrow_mut().take())
+}
+
+fn try_compile_inner(stmts: &[Stmt]) -> Option<BytecodeModule> {
     let mut main = Compiler::new();
     let mut functions = Vec::new();
     let mut classes = Vec::new();
@@ -2700,10 +2754,16 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
             extends,
             extends_type_args,
             implements,
+            where_clause: _,
             fields,
             methods,
+            is_struct,
         } = stmt
         {
+            if !implements.is_empty() {
+                main.trait_impls
+                    .insert(name.clone(), implements.clone());
+            }
             if !type_params.is_empty() {
                 main.generic_class_templates.insert(
                     name.clone(),
@@ -2721,10 +2781,16 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
             let class_idx = classes.len() as u16;
             main.class_names.insert(name.clone(), class_idx);
             main.binding_types.add_class(name.clone());
-            let class_def = match main.compile_class(name, extends, implements, fields, methods) {
-                Ok(def) => def,
-                Err(_) => return None,
-            };
+            let class_def =
+                match main.compile_class(name, extends, implements, fields, methods, *is_struct) {
+                    Ok(def) => def,
+                    Err(_) => {
+                        if HARD_COMPILE_ERROR.with(|e| e.borrow().is_some()) {
+                            return None;
+                        }
+                        return None;
+                    }
+                };
             classes.push(class_def);
             main.classes_len_snapshot = classes.len();
             continue;
@@ -2739,6 +2805,7 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
             async_fn,
             generator_fn,
             return_type: _,
+            where_clause,
         }) = stmt
         {
             if crate::ast::fn_has_defaults_or_rest(params, rest) {
@@ -2754,6 +2821,7 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
                         body: *body.clone(),
                         async_fn: *async_fn,
                         generator_fn: *generator_fn,
+                        where_clause: where_clause.clone(),
                     },
                 );
                 if *public {
@@ -2958,11 +3026,11 @@ mod tests {
                 x: number;
                 y: number;
                 fn init(a, b) {
-                    self.x = a
-                    self.y = b
+                    this.x = a
+                    this.y = b
                 }
                 fn sum() {
-                    return self.x + self.y
+                    return this.x + this.y
                 }
             }
             let p = Point(3, 4)
@@ -2988,7 +3056,7 @@ mod tests {
             r#"
             class Point {
                 x: number;
-                fn init(a) { self.x = a }
+                fn init(a) { this.x = a }
             }
         "#,
         )

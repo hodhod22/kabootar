@@ -12,11 +12,11 @@ fn bytecode_class_constructor_and_method() {
             x: number;
             y: number;
             fn init(a, b) {
-                self.x = a
-                self.y = b
+                this.x = a
+                this.y = b
             }
             fn sum() {
-                return self.x + self.y
+                return this.x + this.y
             }
         }
         let p = Point(3, 4)
@@ -31,12 +31,12 @@ fn bytecode_class_constructor_and_method() {
             y: number;
 
             fn init(a, b) {
-                self.x = a
-                self.y = b
+                this.x = a
+                this.y = b
             }
 
             fn sum() {
-                return self.x + self.y
+                return this.x + this.y
             }
         }
         let p = Point(3, 4)
@@ -57,11 +57,11 @@ fn bytecode_class_inheritance() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
 
             fn label() {
-                return self.name
+                return this.name
             }
         }
 
@@ -69,12 +69,12 @@ fn bytecode_class_inheritance() {
             breed: string;
 
             fn init(n, b) {
-                self.name = n
-                self.breed = b
+                this.name = n
+                this.breed = b
             }
 
             fn label() {
-                return self.name + " (" + self.breed + ")"
+                return this.name + " (" + this.breed + ")"
             }
         }
 

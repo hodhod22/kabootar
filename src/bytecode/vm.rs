@@ -164,6 +164,7 @@ fn const_to_value(c: &Constant) -> Value {
 }
 
 pub fn run_module(module: &BytecodeModule, env: &mut Environment) -> Result<Value, String> {
+    crate::runtime::ownership::set_memory_mode(env, module.memory_mode);
     for name in &module.imports {
         let imported = crate::modules::import_module_exported(name, env)?;
         if module.pub_imports.iter().any(|m| m == name) {
@@ -521,11 +522,7 @@ fn run_chunk(
                     .ok_or_else(|| format!("Invalid global index {idx}"))?
                     .clone();
                 let v = stack.pop().ok_or("Bytecode stack underflow")?;
-                if env.get(&name).is_some() {
-                    env.assign(&name, v)?;
-                } else {
-                    env.set(name, v);
-                }
+                ownership::store_binding(env, &name, v)?;
             }
             Opcode::Pop => {
                 let _ = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -1138,10 +1135,10 @@ fn run_chunk(
             Opcode::GetSuperMethod(key_idx) => {
                 let member_name = member_name(constants, *key_idx)?;
                 let this_val = env
-                    .get("self")
+                    .get("this")
                     .ok_or_else(|| "`super` used outside of method".to_string())?;
                 let Value::ClassInstance(inst) = this_val else {
-                    return Err("`super` requires class instance `self`".into());
+                    return Err("`super` requires class instance `this`".into());
                 };
                 let v = crate::evaluator::resolve_super_member(&inst, &member_name, env)?;
                 push_stack(stack, v)?;
@@ -1694,24 +1691,26 @@ pub fn call_value(
                     args.len()
                 ));
             }
-            let owner = {
+            let (owner, recv) = {
                 let inst_ref = instance
                     .try_borrow()
                     .map_err(|e| format!("class instance borrow: {e}"))?;
-                crate::class::method_owner_class(&method, &inst_ref)
+                let owner = crate::class::method_owner_class(&method, &inst_ref);
+                let recv = crate::class::receiver_binding(inst_ref.is_struct);
+                (owner, recv)
             };
             if let Some(bc) = &method.bytecode {
                 let mut call_env = crate::evaluator::create_global_env();
                 *call_env.classes_mut() = env.classes().clone();
                 call_env.set_private_scope(Some(&owner));
                 call_env.set(
-                    "self".to_string(),
+                    recv.to_string(),
                     Value::ClassInstance(instance.clone()),
                 );
                 let result = run_bytecode_fn_with_classes(bc, args, classes, &mut call_env)?;
-                if env.get("self").is_some() {
-                    if let Some(Value::ClassInstance(updated)) = call_env.get("self") {
-                        env.assign("self", Value::ClassInstance(updated.clone()))?;
+                if env.get(recv).is_some() {
+                    if let Some(Value::ClassInstance(updated)) = call_env.get(recv) {
+                        env.assign(recv, Value::ClassInstance(updated.clone()))?;
                     }
                 }
                 return Ok(result);
@@ -1720,16 +1719,16 @@ pub fn call_value(
             *call_env.classes_mut() = env.classes().clone();
             call_env.set_private_scope(Some(&owner));
             call_env.set(
-                "self".to_string(),
+                recv.to_string(),
                 Value::ClassInstance(instance.clone()),
             );
             for (p, a) in method.params.iter().zip(args) {
                 call_env.set(p.clone(), a);
             }
             let result = crate::evaluator::eval_expr(&method.body, &mut call_env)?;
-            if env.get("self").is_some() {
-                if let Some(Value::ClassInstance(updated)) = call_env.get("self") {
-                    env.assign("self", Value::ClassInstance(updated.clone()))?;
+            if env.get(recv).is_some() {
+                if let Some(Value::ClassInstance(updated)) = call_env.get(recv) {
+                    env.assign(recv, Value::ClassInstance(updated.clone()))?;
                 }
             }
             Ok(result)

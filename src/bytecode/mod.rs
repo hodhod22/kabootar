@@ -6,7 +6,7 @@ mod optimize;
 mod types;
 mod vm;
 
-pub use compiler::{can_compile, try_compile};
+pub use compiler::{can_compile, take_hard_compile_error, try_compile};
 pub use optimize::{optimize_module, OptStats};
 pub use types::{
     deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, Opcode, FORMAT_HEADER,
@@ -50,10 +50,14 @@ pub fn compile_source(source: &str) -> Result<CompiledProgram, String> {
         .map_err(|e| format!("Parse error: {e}"))?;
     let stmt_count = stmts.len();
     let memory_mode = meta.memory_mode();
+    crate::ownership_check::check_ownership(&stmts, memory_mode)?;
     let bytecode = try_compile(&stmts).map(|mut m| {
         m.memory_mode = memory_mode;
         m
     });
+    if let Some(err) = take_hard_compile_error() {
+        return Err(err);
+    }
     Ok(CompiledProgram {
         stmts,
         bytecode,

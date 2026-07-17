@@ -137,8 +137,12 @@ fn file_module_import_writes_bytecode_cache() {
         let mut env = create_global_env();
         import_module("persistent_arith", &mut env).unwrap();
 
-        let cache = dir.join(".kabootar/cache/persistent_arith.kab.kbc");
-        assert!(cache.is_file());
+        let cache = dir.join(".kabootar/cache/lib__persistent_arith.kab.kbc");
+        assert!(
+            cache.is_file(),
+            "expected path-scoped cache at {}",
+            cache.display()
+        );
         assert!(fs::read_to_string(cache)
             .unwrap()
             .starts_with("kabootar-bytecode/1"));
