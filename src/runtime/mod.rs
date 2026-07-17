@@ -19,6 +19,7 @@ pub mod tls_trust;
 pub mod tls_client;
 pub mod tls_server;
 pub mod serve_async;
+pub mod http2;
 pub mod net;
 pub mod tcp;
 pub mod udp;

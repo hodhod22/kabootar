@@ -63,7 +63,10 @@ pub fn build_server_config(cert_pem: &str, key_pem: &str) -> Result<Arc<rustls::
     rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)
-        .map(Arc::new)
+        .map(|mut cfg| {
+            cfg.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+            Arc::new(cfg)
+        })
         .map_err(|e| format!("Failed to build TLS server config: {e}"))
 }
 

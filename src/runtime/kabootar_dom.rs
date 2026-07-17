@@ -940,17 +940,53 @@ fn kdom_set_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
         Some(Value::Number(n)) => n.to_string(),
         _ => return Err("kdom_set_text_by_id() expects text".into()),
     };
-    let mut node = live_get(id).ok_or_else(|| format!("kdom_set_text_by_id: unknown id {id}"))?;
+    Ok(Value::KabootarDom(devtools_live_set_text(id, &text)?))
+}
+
+/// C9 live edit — set text content on a live DOM node by id.
+pub fn devtools_live_set_text(id: u64, text: &str) -> Result<DomNode, String> {
+    let mut node = live_get(id).ok_or_else(|| format!("devtools_live_edit: unknown id {id}"))?;
     if node.tag == "#text" {
-        node.text = Some(text);
+        node.text = Some(text.to_string());
     } else {
-        let child = DomNode::text_node(text);
+        let child = DomNode::text_node(text.to_string());
         live_upsert(&child);
         node.children = vec![child];
     }
     live_upsert(&node);
     live_propagate_to_ancestors(node.id);
-    Ok(Value::KabootarDom(node))
+    Ok(node)
+}
+
+/// C9 live edit — set attribute on a live DOM node by id.
+pub fn devtools_live_set_attr(id: u64, key: &str, value: &str) -> Result<DomNode, String> {
+    let mut node = live_get(id).ok_or_else(|| format!("devtools_live_edit: unknown id {id}"))?;
+    node.set_attr(key, value);
+    live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
+    record_attribute_mutation(id, key);
+    Ok(node)
+}
+
+/// Register a DOM subtree in the live node map (so DevTools live edit can find mounted nodes).
+pub fn live_register_tree(node: &DomNode) {
+    live_upsert(node);
+    for child in &node.children {
+        live_register_tree(child);
+    }
+}
+
+/// Ensure `id` is in the live map by registering `root` (and ancestors) if needed.
+pub fn live_ensure_id(id: u64, root: &DomNode) -> Result<(), String> {
+    if live_get(id).is_some() {
+        return Ok(());
+    }
+    live_register_tree(root);
+    if live_get(id).is_some() {
+        Ok(())
+    } else {
+        Err(format!("devtools_live_edit: unknown id {id}"))
+    }
 }
 
 fn kdom_set_attr_by_id_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -962,16 +998,12 @@ fn kdom_set_attr_by_id_native(args: &[Value], env: &mut Environment) -> Result<V
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("kdom_set_attr_by_id() expects key string".into()),
     };
-    let mut node = live_get(id).ok_or_else(|| format!("kdom_set_attr_by_id: unknown id {id}"))?;
     let val = match args.get(2) {
         Some(Value::String(s)) => s.clone(),
         Some(other) => crate::value::format_value(other),
         None => String::new(),
     };
-    node.set_attr(key, &val);
-    record_attribute_mutation(node.id, key);
-    live_upsert(&node);
-    live_propagate_to_ancestors(node.id);
+    let node = devtools_live_set_attr(id, key, &val)?;
     deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }

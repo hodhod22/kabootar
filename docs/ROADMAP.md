@@ -480,40 +480,40 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 | Fas | Innehåll |
 |-----|----------|
-| **B1** ✅/🚧 | `Deno.serve` async + HTTP/2, WebSocket framing polish — **async bakgrundstråd** ✅, HTTP/2 kvar |
+| **B1** ✅ | `Deno.serve` async + HTTP/2 preface/SETTINGS + TLS ALPN `h2` — full HPACK/streams senare |
 | **B2** ✅ | Full WHATWG Streams (backpressure, cancel, tee edge cases) — grund ✅ |
 | **B3** ✅ | `Deno.permissions` / capability prompts |
 | **B4** ✅ | `Deno.test` / `Deno.bench` inbyggt |
 | **B5** ✅/🚧 | npm/JSR: fler paket, native addons policy, lockfile — **integrity från cache** ✅ |
 | **B6** ✅ | `Deno.cwd`/`chdir` + `Deno.realPath`/`Deno.symlink`/`Deno.link` |
-| **B7** ✅ | `Deno.listenTls` / ALPN / cert reload — TLS server ✅, ALPN kvar |
+| **B7** ✅ | `Deno.listenTls` / ALPN (`h2`, `http/1.1`) / cert reload — TLS server ✅ |
 | **B8** ✅ | Worker: SharedWorker, `postMessage` transferables full lista — in-process ✅ |
 
 **Våg B totalt:** ~1–2 månader
 
-### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
+### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) ✅
 
-**Status (2026-07):** C1 — selectors + MutationObserver + Kv8 EventTarget (bubble/capture/`removeEventListener`/`Event`). **C2:** React 19 esbuild; late-var closure patch for `KV8ReactRuntime.default`; CI `via_import` wire (+ shim fill for createRoot); full createRoot+render (`#[ignore]`). **C3:** `evalSource` → Rust. **C4:** flex wrap/grow/shrink + grid. **C5:** Canvas curves/clip/toDataURL/imageData/setTransform + host parity. **C6:** WebGL FBO + `compileShaderFromFiles` + texture flat API. **C7:** WebRTC ICE + DTLS fingerprint/role + SRTP peer bridge. **C8:** SW fetch events + extension permissions. **Dom live:** parent sync.
+**Status (2026-07):** C1 — selectors + MutationObserver + Kv8 EventTarget (bubble/capture/`removeEventListener`/`Event`). **C2:** React 19 esbuild; late-var closure patch; CI `via_import` wire; createRoot preferens `bundle` → reconstruct från publicerad `mm` → shim (`__kv8CreateRootSource`); full createRoot+render (`#[ignore]`). **C3:** `evalSource` → Rust. **C4:** flex wrap/grow/shrink + grid. **C5:** Canvas curves/clip/toDataURL/imageData/setTransform + host parity. **C6:** WebGL FBO + `compileShaderFromFiles` + texture flat API. **C7:** WebRTC ICE + DTLS fingerprint/role + SRTP peer bridge. **C8:** SW fetch events + extension permissions. **C9:** DevTools network panel, profiler, live edit. **Dom live:** parent sync.
 
 | Fas | Innehåll |
 |-----|----------|
 | **C1** ✅ | **kDOM** — MutationObserver + Kv8 Event bubble/capture/remove; selectors |
-| **C2** ✅ | **Kv8** — React 19 esbuild; shim createRoot; CI `via_import` wire; full render `#[ignore]` |
+| **C2** ✅ | **Kv8** — React 19 esbuild; createRoot `bundle`/`mm`/`shim`; CI wire; full render `#[ignore]` |
 | **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` |
 | **C4** ✅ | **Layout** — flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple CSS grid |
 | **C5** ✅ | **Canvas 2D** — curves/clip/toDataURL/imageData/setTransform (+ [CANVAS.md](CANVAS.md)) |
 | **C6** ✅ | **WebGL** — textures, FBO, shaders från GLSL-filer (`fixtures/webgl`) |
 | **C7** ✅ | **WebRTC** — ICE + DTLS fingerprint/role + SRTP media bridge |
 | **C8** ✅ | **PWA/Extensions** — SW fetch events (`pwa_dispatch_fetch`) + extension permissions |
-| **C9** | **DevTools** — network panel, profiler, live edit |
+| **C9** ✅ | **DevTools** — network panel, profiler, live edit |
 
 **Våg C totalt:** ~4–6 månader
 
-### Våg D — OS (stub → native, ~40–50 %)
+### Våg D — OS (stub → native, ~40–50 %) 🚧
 
 | Fas | Innehåll |
 |-----|----------|
-| **D1** | Ring 0: scheduler/CFS produktion, riktig preemption |
+| **D1** ✅/🚧 | Ring 0: `os_sched_enqueue` → CFS `FairScheduler`, `os_sched_yield` (kooperativ preemption); hård IRQ-preemption senare |
 | **D2** | MMU: page faults, COW, mmap |
 | **D3** | FS: ext4-lik journal, permissions, ACL |
 | **D4** | Netstack: riktig NIC-driver (`--features hw`) |
@@ -577,7 +577,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G4** | Math rest (`f16round`, `sumPrecise`) | ✅ |
 | **G5** | **Traits** — `trait Show { fn show() }` alias till interface + `implements` | ✅ subset (`trait` ≈ `interface`; `where`-bounds senare) |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
-| **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
+| **G7** | **kbrowser mobil** — `kb_viewport(w,h,dpr?,orientation?)`, `kb_touch_at`, `kb_safe_area`; Android/iOS shell senare | ✅ subset |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | ✅ subset (`.kbc` fingerprint + import mtimes) |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
 | **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid*` multi nested + parent live sync/`onById`/`dispatchById`) |
@@ -597,12 +597,12 @@ Kabootar Browser ska fungera på **mobiltelefoner** — Android och iPhone — m
 
 Krav:
 
-- [ ] **Touch-input** — pek/hit-test i compositor (`kb_poll_events`, kDOM pointer events)
-- [ ] **Responsiv viewport** — `kb_viewport`, DPR, orientering (`portrait`/`landscape`)
-- [ ] **iOS safe area** — notch/home indicator via KSS env-variabler eller `kb_safe_area()`
+- [x] **Touch-input** — `kb_touch_at` + hit-test (`kb_poll_events`, fallback till `click`)
+- [x] **Responsiv viewport** — `kb_viewport(w, h, dpr?, orientation?)` returnerar `{width,height,dpr,orientation}`
+- [x] **iOS safe area** — `kb_safe_area(top?, right?, bottom?, left?)` stub
 - [ ] **Mobil shell-UI** — kompakt adressfält, flikar, tillbaka; delad `lib/kbrowser/` med desktop
 - [x] **PWA** — service worker + fetch events + manifest ([BROWSER_V2.md](BROWSER_V2.md)); “Lägg till hemskärm”
-- [ ] **Smokes** — `examples/kbrowser_mobile_smoke.kab`; manuell/device CI (inte i snabb `cargo test`)
+- [x] **Smokes** — `examples/kbrowser_mobile_smoke.kab` + `g7_mobile_viewport_touch_safe_area`; device CI senare
 
 Beror på: **G11** (kbrowser core), **Våg C** (layout, touch targets), **BROWSER_V2 PWA**.
 

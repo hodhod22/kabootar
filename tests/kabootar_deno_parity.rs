@@ -1245,7 +1245,15 @@ fn js_wave_b1_serve_dispatch() {
     );
     assert!(matches!(out, Value::Bool(true)));
 
-    let out = eval(r#"http2_supported() == false"#);
+    let out = eval(r#"http2_supported() == true"#);
+    assert!(matches!(out, Value::Bool(true)));
+
+    let out = eval(
+        r#"
+        http2_preface_ok("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n") == true
+            && http2_preface_ok("GET / HTTP/1.1\r\n") == false
+        "#,
+    );
     assert!(matches!(out, Value::Bool(true)));
 }
 

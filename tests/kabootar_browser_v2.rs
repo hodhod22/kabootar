@@ -424,3 +424,58 @@ fn devtools_breakpoint_and_source_map() {
     );
     assert!(matches!(ok, Value::Null));
 }
+
+#[test]
+fn c9_devtools_network_panel() {
+    let out = eval(
+        r#"
+        devtools_network_clear();
+        let e = devtools_network_record("GET", "https://api.kabootar/v1", 200, 128, 12.5, "test");
+        let dump = devtools_network_dump();
+        let info = devtools_info();
+        e["status"] == 200
+          && dump[0]["url"] == "https://api.kabootar/v1"
+          && info["network"] == "true"
+          && info["phase"] == "C9"
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "network panel failed: {out:?}");
+}
+
+#[test]
+fn c9_devtools_profiler() {
+    let out = eval(
+        r#"
+        devtools_profile_start("c9");
+        devtools_profile_mark("start");
+        devtools_profile_mark("end");
+        let d = devtools_profile_measure("span", "start", "end");
+        let stop = devtools_profile_stop();
+        let dump = devtools_profile_dump();
+        d >= 0
+          && stop["label"] == "c9"
+          && dump["measures"][0]["name"] == "span"
+          && len(dump["marks"]) >= 2
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "profiler failed: {out:?}");
+}
+
+#[test]
+fn c9_devtools_live_edit() {
+    let out = eval(
+        r#"
+        let page = kml("<html><body><p id='p'>old</p></body></html>");
+        kb_mount(page);
+        let tree = devtools_dom_tree();
+        let p = tree["children"][0]["children"][0];
+        let id = p["id"];
+        let ok_text = devtools_live_edit(id, "text", "live");
+        let ok_attr = devtools_live_edit(id, "attr", "data-x", "1");
+        let ev = devtools_live_eval("1 + 2");
+        let info = devtools_info();
+        ok_text && ok_attr && ev == 3 && info["live_edit"] == "true"
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "live edit failed: {out:?}");
+}

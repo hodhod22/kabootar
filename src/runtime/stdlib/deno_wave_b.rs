@@ -56,7 +56,7 @@ fn serve_async_ready_native(args: &[Value], env: &mut Environment) -> Result<Val
     let mut map = HashMap::new();
     map.insert("port".into(), Value::Number(port as i64));
     map.insert("ready".into(), Value::Bool(true));
-    map.insert("http2".into(), Value::Bool(false));
+    map.insert("http2".into(), Value::Bool(crate::runtime::http2::supported()));
     map.insert("serveId".into(), Value::Number(serve_id as i64));
     Ok(Value::Object(map))
 }
@@ -89,7 +89,22 @@ fn serve_async_poll_native(_args: &[Value], env: &mut Environment) -> Result<Val
 }
 
 fn http2_supported_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Bool(false))
+    Ok(Value::Bool(crate::runtime::http2::supported()))
+}
+
+fn http2_preface_ok_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let raw = match args.first() {
+        Some(Value::String(s)) => s.as_bytes().to_vec(),
+        Some(Value::Array(vals)) => vals
+            .iter()
+            .map(|v| match v {
+                Value::Number(n) => Ok(*n as u8),
+                _ => Err("http2_preface_ok expects string or byte array".into()),
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+        _ => return Err("http2_preface_ok(bytes)".into()),
+    };
+    Ok(Value::Bool(crate::runtime::http2::is_preface(&raw)))
 }
 
 fn realpath_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -312,6 +327,7 @@ pub fn register_wave_b(env: &mut Environment) {
         ("serve_async_poll", serve_async_poll_native),
         ("serve_async_stop", serve_async_stop_native),
         ("http2_supported", http2_supported_native),
+        ("http2_preface_ok", http2_preface_ok_native),
         ("realpath", realpath_native),
         ("Deno_realPath", realpath_native),
         ("symlink", symlink_native),

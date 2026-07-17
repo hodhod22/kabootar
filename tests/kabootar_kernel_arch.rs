@@ -52,6 +52,23 @@ fn ring0_ipc_and_scheduler() {
 }
 
 #[test]
+fn d1_cfs_enqueue_tick_and_yield() {
+    let out = eval(
+        r#"
+        let a = os_sched_enqueue("paint");
+        let b = os_sched_enqueue("net");
+        let t1 = os_sched_tick();
+        let y = os_sched_yield();
+        let t2 = os_sched_tick();
+        is_number(a) && is_number(b) && a > 0 && b > 0
+            && is_object(t1) && is_object(y) && is_object(t2)
+            && is_string(t1.name) && is_number(y.vruntime)
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn mmu_map_translate_and_stats() {
     let out = eval(
         r#"

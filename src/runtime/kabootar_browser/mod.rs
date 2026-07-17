@@ -124,6 +124,12 @@ struct BrowserInner {
     user_agent: String,
     viewport_w: f64,
     viewport_h: f64,
+    device_pixel_ratio: f64,
+    orientation: String,
+    safe_top: f64,
+    safe_right: f64,
+    safe_bottom: f64,
+    safe_left: f64,
     stylesheet: String,
     last_layers: Vec<RenderLayer>,
     os_mode: BrowserOsMode,
@@ -142,6 +148,12 @@ impl KabootarBrowser {
             ),
             viewport_w: 1280.0,
             viewport_h: 720.0,
+            device_pixel_ratio: 1.0,
+            orientation: "landscape".into(),
+            safe_top: 0.0,
+            safe_right: 0.0,
+            safe_bottom: 0.0,
+            safe_left: 0.0,
             stylesheet: default_chrome_theme_css(),
             last_layers: Vec::new(),
             os_mode: BrowserOsMode::Auto,
@@ -273,11 +285,55 @@ impl KabootarBrowser {
     }
 
     pub fn set_viewport(&self, w: f64, h: f64) -> Result<(), String> {
+        self.set_viewport_ex(w, h, None, None).map(|_| ())
+    }
+
+    pub fn set_viewport_ex(
+        &self,
+        w: f64,
+        h: f64,
+        dpr: Option<f64>,
+        orientation: Option<&str>,
+    ) -> Result<HashMap<String, Value>, String> {
         self.with_mut(|inner| {
             inner.viewport_w = w;
             inner.viewport_h = h;
-            Ok(())
+            if let Some(d) = dpr {
+                if d > 0.0 {
+                    inner.device_pixel_ratio = d;
+                }
+            }
+            if let Some(o) = orientation {
+                if o == "portrait" || o == "landscape" {
+                    inner.orientation = o.into();
+                }
+            } else {
+                inner.orientation = if h >= w {
+                    "portrait".into()
+                } else {
+                    "landscape".into()
+                };
+            }
+            Ok(viewport_map(inner))
         })
+    }
+
+    pub fn viewport_info(&self) -> Result<HashMap<String, Value>, String> {
+        self.with_mut(|inner| Ok(viewport_map(inner)))
+    }
+
+    pub fn set_safe_area(&self, top: f64, right: f64, bottom: f64, left: f64) -> Result<HashMap<String, Value>, String> {
+        self.with_mut(|inner| {
+            inner.safe_top = top.max(0.0);
+            inner.safe_right = right.max(0.0);
+            inner.safe_bottom = bottom.max(0.0);
+            inner.safe_left = left.max(0.0);
+            Ok(safe_area_map(inner))
+        })
+    }
+
+    pub fn safe_area_info(&self) -> Result<HashMap<String, Value>, String> {
+        self.with_mut(|inner| Ok(safe_area_map(inner)))
     }
 
     pub fn set_theme_css(&self, css: &str) -> Result<(), String> {
@@ -341,6 +397,20 @@ impl KabootarBrowser {
     }
 
     pub fn click_at(&self, x: f64, y: f64) -> Result<Option<String>, String> {
+        self.dispatch_pointer(x, y, "click")
+    }
+
+    pub fn touch_at(&self, x: f64, y: f64, phase: &str) -> Result<Option<String>, String> {
+        let event_type = match phase {
+            "start" | "touchstart" => "touchstart",
+            "move" | "touchmove" => "touchmove",
+            "end" | "touchend" | "" => "touchend",
+            other => other,
+        };
+        self.dispatch_pointer(x, y, event_type)
+    }
+
+    fn dispatch_pointer(&self, x: f64, y: f64, event_type: &str) -> Result<Option<String>, String> {
         self.with_mut(|inner| {
             let tab = inner.tabs.get(inner.active).ok_or("No active tab")?;
             let node_id = hit_test(&inner.last_layers, x, y);
@@ -350,19 +420,48 @@ impl KabootarBrowser {
             let Some(node) = tab.document.query_id(id) else {
                 return Ok(None);
             };
-            if let Some(handler) = node.listeners.get("click") {
-                events::enqueue(events::KabootarEvent {
-                    node_id: id,
-                    event_type: "click".into(),
-                    handler: handler.clone(),
-                    x,
-                    y,
+            let handler = node
+                .listeners
+                .get(event_type)
+                .cloned()
+                .or_else(|| {
+                    if event_type.starts_with("touch") {
+                        node.listeners.get("click").cloned()
+                    } else {
+                        None
+                    }
                 });
-                return Ok(Some(handler.clone()));
-            }
-            Ok(None)
+            let Some(handler) = handler else {
+                return Ok(None);
+            };
+            events::enqueue(events::KabootarEvent {
+                node_id: id,
+                event_type: event_type.into(),
+                handler: handler.clone(),
+                x,
+                y,
+            });
+            Ok(Some(handler))
         })
     }
+}
+
+fn viewport_map(inner: &BrowserInner) -> HashMap<String, Value> {
+    let mut m = HashMap::new();
+    m.insert("width".into(), Value::Float(inner.viewport_w));
+    m.insert("height".into(), Value::Float(inner.viewport_h));
+    m.insert("dpr".into(), Value::Float(inner.device_pixel_ratio));
+    m.insert("orientation".into(), Value::String(inner.orientation.clone()));
+    m
+}
+
+fn safe_area_map(inner: &BrowserInner) -> HashMap<String, Value> {
+    let mut m = HashMap::new();
+    m.insert("top".into(), Value::Float(inner.safe_top));
+    m.insert("right".into(), Value::Float(inner.safe_right));
+    m.insert("bottom".into(), Value::Float(inner.safe_bottom));
+    m.insert("left".into(), Value::Float(inner.safe_left));
+    m
 }
 
 fn default_chrome_theme_css() -> String {
@@ -471,6 +570,7 @@ fn kb_viewport_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         .first()
         .and_then(|v| match v {
             Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
             _ => None,
         })
         .unwrap_or(1280.0);
@@ -478,11 +578,41 @@ fn kb_viewport_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         .get(1)
         .and_then(|v| match v {
             Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
             _ => None,
         })
         .unwrap_or(720.0);
-    get_browser(env)?.set_viewport(w, h)?;
-    Ok(Value::Null)
+    let dpr = args.get(2).and_then(|v| match v {
+        Value::Number(n) => Some(*n as f64),
+        Value::Float(f) => Some(*f),
+        _ => None,
+    });
+    let orientation = args.get(3).and_then(|v| match v {
+        Value::String(s) => Some(s.as_str()),
+        _ => None,
+    });
+    Ok(Value::Object(
+        get_browser(env)?.set_viewport_ex(w, h, dpr, orientation)?,
+    ))
+}
+
+fn kb_safe_area_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    if args.is_empty() {
+        return Ok(Value::Object(get_browser(env)?.safe_area_info()?));
+    }
+    let num = |i: usize| {
+        args.get(i).and_then(|v| match v {
+            Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
+            _ => None,
+        })
+    };
+    Ok(Value::Object(get_browser(env)?.set_safe_area(
+        num(0).unwrap_or(0.0),
+        num(1).unwrap_or(0.0),
+        num(2).unwrap_or(0.0),
+        num(3).unwrap_or(0.0),
+    )?))
 }
 
 fn kb_theme_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -580,6 +710,7 @@ fn kb_mount_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     let Value::KabootarDom(dom) = node else {
         return Err("kb_mount() expects a Kabootar DOM node".into());
     };
+    crate::runtime::kabootar_dom::live_register_tree(dom);
     get_browser(env)?.set_document(dom.clone())?;
     Ok(Value::Null)
 }
@@ -592,6 +723,36 @@ fn kb_click_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     let x = args.first().and_then(|v| match v { Value::Number(n) => Some(*n as f64), Value::Float(f) => Some(*f), _ => None }).unwrap_or(0.0);
     let y = args.get(1).and_then(|v| match v { Value::Number(n) => Some(*n as f64), Value::Float(f) => Some(*f), _ => None }).unwrap_or(0.0);
     Ok(match get_browser(env)?.click_at(x, y)? {
+        Some(h) => Value::String(h),
+        None => Value::Null,
+    })
+}
+
+fn kb_touch_at_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = args
+        .first()
+        .and_then(|v| match v {
+            Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
+            _ => None,
+        })
+        .unwrap_or(0.0);
+    let y = args
+        .get(1)
+        .and_then(|v| match v {
+            Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
+            _ => None,
+        })
+        .unwrap_or(0.0);
+    let phase = args
+        .get(2)
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .unwrap_or("end");
+    Ok(match get_browser(env)?.touch_at(x, y, phase)? {
         Some(h) => Value::String(h),
         None => Value::Null,
     })
@@ -688,6 +849,7 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_composite".into(), Value::NativeFunction(kb_composite_native));
     env.set("kb_host_sync".into(), Value::NativeFunction(kb_host_sync_native));
     env.set("kb_viewport".into(), Value::NativeFunction(kb_viewport_native));
+    env.set("kb_safe_area".into(), Value::NativeFunction(kb_safe_area_native));
     env.set("kb_theme".into(), Value::NativeFunction(kb_theme_native));
     env.set("kb_tab_open".into(), Value::NativeFunction(kb_tab_open_native));
     env.set("kb_tabs".into(), Value::NativeFunction(kb_tabs_native));
@@ -701,6 +863,7 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_mount".into(), Value::NativeFunction(kb_mount_native));
     env.set("kb_user_agent".into(), Value::NativeFunction(kb_user_agent_native));
     env.set("kb_click".into(), Value::NativeFunction(kb_click_native));
+    env.set("kb_touch_at".into(), Value::NativeFunction(kb_touch_at_native));
     env.set("kb_poll_events".into(), Value::NativeFunction(kb_poll_events_native));
     env.set("kb_poll_hotplug".into(), Value::NativeFunction(kb_poll_hotplug_native));
     env.set("kb_pixels".into(), Value::NativeFunction(kb_pixels_native));
