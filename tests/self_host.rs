@@ -370,6 +370,12 @@ fn self_host_lexer_suite() {
         .expect("self_host/test_lexer.kab should pass");
 }
 
+#[test]
+fn self_host_ownership_suite() {
+    kabootar_lib::cli::run_file(&self_host_path("test_ownership.kab"))
+        .expect("self_host/test_ownership.kab should pass");
+}
+
 /// Compile lexer + parser once (interpreting parser.kab OOMs on Windows).
 fn load_self_host_parser_programs() -> Result<Vec<kabootar_lib::compile::CompiledProgram>, String> {
     use kabootar_lib::compile::compile_file_cached;
@@ -1401,6 +1407,12 @@ fn self_host_bootstrap_compile_and_run() {
         "sample.kab (n=10; return n+32) should return 42, got {}",
         format_value(&result)
     );
+}
+
+/// S3 gate alias — same bootstrap path as `self_host_bootstrap_compile_and_run`.
+#[test]
+fn s3_self_host_bootstrap_gate() {
+    self_host_bootstrap_compile_and_run();
 }
 
 #[test]

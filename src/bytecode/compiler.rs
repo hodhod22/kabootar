@@ -39,8 +39,10 @@ struct GenericClassTemplate {
     extends: Option<String>,
     extends_type_args: Vec<String>,
     implements: Vec<String>,
+    associated_types: Vec<(String, String)>,
     fields: Vec<ClassField>,
     methods: Vec<ClassMethod>,
+    is_struct: bool,
 }
 
 #[derive(Clone)]
@@ -327,10 +329,15 @@ impl Compiler {
             &mangled,
             &resolved_extends,
             &tmpl.implements,
+            &tmpl.associated_types,
             &tmpl.fields,
             &tmpl.methods,
-            false,
+            tmpl.is_struct,
         )?;
+        if !tmpl.implements.is_empty() {
+            self.trait_impls
+                .insert(mangled.clone(), tmpl.implements.clone());
+        }
         self.pending_classes.push(class_def);
         self.class_names.insert(mangled.clone(), class_idx);
         self.binding_types.add_class(mangled);
@@ -1482,6 +1489,7 @@ impl Compiler {
         name: &str,
         extends: &Option<String>,
         implements: &[String],
+        associated_types: &[(String, String)],
         fields: &[ClassField],
         methods: &[ClassMethod],
         is_struct: bool,
@@ -1566,6 +1574,7 @@ impl Compiler {
             name: name.to_string(),
             extends: extends.clone(),
             implements: implements.to_vec(),
+            associated_types: associated_types.to_vec(),
             fields: bc_fields,
             constants: class_constants,
             methods: bc_methods,
@@ -2706,16 +2715,60 @@ fn try_compile_inner(stmts: &[Stmt]) -> Option<BytecodeModule> {
             }
             continue;
         }
-        if let Stmt::Interface { name, methods } = stmt {
-            interfaces.push(BytecodeInterfaceDef {
-                name: name.clone(),
-                methods: methods
-                    .iter()
-                    .map(|m| BytecodeInterfaceMethod {
+        if let Stmt::Interface {
+            name,
+            type_params,
+            associated_types,
+            methods,
+        } = stmt
+        {
+            let mut bc_methods = Vec::new();
+            for m in methods {
+                let default_fn = if let Some(body) = &m.body {
+                    let mut method_compiler = Compiler::new();
+                    method_compiler.constants = main.constants.clone();
+                    method_compiler.globals = main.globals.clone();
+                    method_compiler.class_names = main.class_names.clone();
+                    method_compiler.binding_types = main.binding_types.clone();
+                    if method_compiler
+                        .compile_function_body(&m.params, body, false)
+                        .is_err()
+                    {
+                        if HARD_COMPILE_ERROR.with(|e| e.borrow().is_some()) {
+                            return None;
+                        }
+                        return None;
+                    }
+                    main.constants = method_compiler.constants.clone();
+                    main.globals = method_compiler.globals.clone();
+                    Some(BytecodeFnDef {
                         name: m.name.clone(),
                         params: m.params.clone(),
+                        locals: method_compiler.locals,
+                        globals: method_compiler.globals,
+                        constants: method_compiler.constants,
+                        code: method_compiler.code,
+                        immutable_locals: method_compiler.immutable_locals,
+                        local_captures: method_compiler.local_captures,
+                        arrow_functions: method_compiler.arrow_functions,
+                        async_fn: false,
+                        generator_fn: false,
+                        try_regions: Vec::new(),
                     })
-                    .collect(),
+                } else {
+                    None
+                };
+                bc_methods.push(BytecodeInterfaceMethod {
+                    name: m.name.clone(),
+                    params: m.params.clone(),
+                    default_fn,
+                });
+            }
+            interfaces.push(BytecodeInterfaceDef {
+                name: name.clone(),
+                type_params: type_params.clone(),
+                associated_types: associated_types.clone(),
+                methods: bc_methods,
             });
             continue;
         }
@@ -2755,6 +2808,7 @@ fn try_compile_inner(stmts: &[Stmt]) -> Option<BytecodeModule> {
             extends_type_args,
             implements,
             where_clause: _,
+            associated_types,
             fields,
             methods,
             is_struct,
@@ -2772,8 +2826,10 @@ fn try_compile_inner(stmts: &[Stmt]) -> Option<BytecodeModule> {
                         extends: extends.clone(),
                         extends_type_args: extends_type_args.clone(),
                         implements: implements.clone(),
+                        associated_types: associated_types.clone(),
                         fields: fields.clone(),
                         methods: methods.clone(),
+                        is_struct: *is_struct,
                     },
                 );
                 continue;
@@ -2781,16 +2837,24 @@ fn try_compile_inner(stmts: &[Stmt]) -> Option<BytecodeModule> {
             let class_idx = classes.len() as u16;
             main.class_names.insert(name.clone(), class_idx);
             main.binding_types.add_class(name.clone());
-            let class_def =
-                match main.compile_class(name, extends, implements, fields, methods, *is_struct) {
-                    Ok(def) => def,
-                    Err(_) => {
-                        if HARD_COMPILE_ERROR.with(|e| e.borrow().is_some()) {
-                            return None;
-                        }
+            let mut class_def = match main.compile_class(
+                name,
+                extends,
+                implements,
+                associated_types,
+                fields,
+                methods,
+                *is_struct,
+            ) {
+                Ok(def) => def,
+                Err(_) => {
+                    if HARD_COMPILE_ERROR.with(|e| e.borrow().is_some()) {
                         return None;
                     }
-                };
+                    return None;
+                }
+            };
+            inject_bytecode_interface_defaults(&mut class_def, &interfaces);
             classes.push(class_def);
             main.classes_len_snapshot = classes.len();
             continue;
@@ -2919,6 +2983,37 @@ pub fn can_compile(source: &str) -> bool {
         .ok()
         .and_then(|p| try_compile(&p.stmts))
         .is_some()
+}
+
+fn inject_bytecode_interface_defaults(
+    class_def: &mut BytecodeClassDef,
+    interfaces: &[BytecodeInterfaceDef],
+) {
+    if class_def.implements.is_empty() {
+        return;
+    }
+    let existing: HashSet<String> = class_def.methods.iter().map(|m| m.name.clone()).collect();
+    let mut extras = Vec::new();
+    for iface_name in &class_def.implements {
+        let base = iface_name.split('$').next().unwrap_or(iface_name);
+        let Some(iface) = interfaces
+            .iter()
+            .find(|i| i.name == *iface_name || i.name == base)
+        else {
+            continue;
+        };
+        for m in &iface.methods {
+            if existing.contains(&m.name) {
+                continue;
+            }
+            if let Some(def_fn) = &m.default_fn {
+                let mut cloned = def_fn.clone();
+                cloned.name = m.name.clone();
+                extras.push(cloned);
+            }
+        }
+    }
+    class_def.methods.extend(extras);
 }
 
 #[cfg(test)]

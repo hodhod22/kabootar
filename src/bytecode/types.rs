@@ -167,11 +167,15 @@ pub struct BytecodeEnumDef {
 pub struct BytecodeInterfaceMethod {
     pub name: String,
     pub params: Vec<String>,
+    /// Compiled default method body, if the trait provided one.
+    pub default_fn: Option<BytecodeFnDef>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BytecodeInterfaceDef {
     pub name: String,
+    pub type_params: Vec<String>,
+    pub associated_types: Vec<String>,
     pub methods: Vec<BytecodeInterfaceMethod>,
 }
 
@@ -189,6 +193,7 @@ pub struct BytecodeClassDef {
     pub name: String,
     pub extends: Option<String>,
     pub implements: Vec<String>,
+    pub associated_types: Vec<(String, String)>,
     pub fields: Vec<BytecodeClassField>,
     pub constants: Vec<Constant>,
     pub methods: Vec<BytecodeFnDef>,
@@ -305,9 +310,63 @@ pub fn serialize(module: &BytecodeModule) -> String {
     writeln!(out, "interfaces={}", module.interfaces.len()).unwrap();
     for (ii, iface) in module.interfaces.iter().enumerate() {
         writeln!(out, "interface {ii} {}", escape(&iface.name)).unwrap();
+        if !iface.type_params.is_empty() {
+            writeln!(
+                out,
+                "interface_type_params {ii} {}",
+                iface.type_params.join(",")
+            )
+            .unwrap();
+        }
+        if !iface.associated_types.is_empty() {
+            writeln!(
+                out,
+                "interface_assoc_types {ii} {}",
+                iface.associated_types.join(",")
+            )
+            .unwrap();
+        }
         for (mi, m) in iface.methods.iter().enumerate() {
             writeln!(out, "iface_method {ii} {mi} {}", escape(&m.name)).unwrap();
             writeln!(out, "iface_method_params {ii} {mi} {}", m.params.join(",")).unwrap();
+            if let Some(ref def_fn) = m.default_fn {
+                writeln!(out, "iface_method_default {ii} {mi}").unwrap();
+                for (idx, c) in def_fn.constants.iter().enumerate() {
+                    write_const_line(&mut out, &format!("iface_method_default_const {ii} {mi}"), idx, c);
+                }
+                if !def_fn.params.is_empty() {
+                    writeln!(
+                        out,
+                        "iface_method_default_params {ii} {mi} {}",
+                        def_fn.params.join(",")
+                    )
+                    .unwrap();
+                }
+                if !def_fn.locals.is_empty() {
+                    writeln!(
+                        out,
+                        "iface_method_default_locals {ii} {mi} {}",
+                        def_fn.locals.join(",")
+                    )
+                    .unwrap();
+                }
+                if !def_fn.globals.is_empty() {
+                    writeln!(
+                        out,
+                        "iface_method_default_globals {ii} {mi} {}",
+                        def_fn.globals.join(",")
+                    )
+                    .unwrap();
+                }
+                for op in &def_fn.code {
+                    writeln!(
+                        out,
+                        "iface_method_default_op {ii} {mi} {}",
+                        encode_op(op)
+                    )
+                    .unwrap();
+                }
+            }
         }
     }
     writeln!(out, "classes={}", module.classes.len()).unwrap();
@@ -328,6 +387,14 @@ pub fn serialize(module: &BytecodeModule) -> String {
                     .join(",")
             )
             .unwrap();
+        }
+        if !class.associated_types.is_empty() {
+            let encoded: Vec<String> = class
+                .associated_types
+                .iter()
+                .map(|(n, t)| format!("{}={}", escape(n), escape(t)))
+                .collect();
+            writeln!(out, "class_assoc_types {ci} {}", encoded.join(",")).unwrap();
         }
         if class.is_struct {
             writeln!(out, "class_is_struct {ci}").unwrap();
@@ -598,6 +665,74 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             ensure_interface(&mut interfaces, idx, name);
             continue;
         }
+        if let Some(rest) = line.strip_prefix("interface_type_params ") {
+            let (ii, params) = parse_index_list(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            interfaces[ii].type_params = params;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("interface_assoc_types ") {
+            let (ii, list) = parse_index_list(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            interfaces[ii].associated_types = list;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default_op ") {
+            let (ii, mi, op_text) = parse_class_method_op(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            interfaces[ii].methods[mi]
+                .default_fn
+                .as_mut()
+                .unwrap()
+                .code
+                .push(decode_op(op_text)?);
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default_const ") {
+            let (ii, mi, idx, c) = parse_class_method_const(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            let defs = interfaces[ii].methods[mi].default_fn.as_mut().unwrap();
+            if defs.constants.len() <= idx {
+                defs.constants.resize(idx + 1, Constant::Null);
+            }
+            defs.constants[idx] = c;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default_params ") {
+            let (ii, mi, params) = parse_class_method_index_list(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            interfaces[ii].methods[mi].default_fn.as_mut().unwrap().params = params;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default_locals ") {
+            let (ii, mi, locals) = parse_class_method_index_list(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            interfaces[ii].methods[mi].default_fn.as_mut().unwrap().locals = locals;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default_globals ") {
+            let (ii, mi, globals) = parse_class_method_index_list(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            interfaces[ii].methods[mi].default_fn.as_mut().unwrap().globals = globals;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("iface_method_default ") {
+            let (ii, mi) = parse_class_method_indices(rest)?;
+            ensure_interface(&mut interfaces, ii, String::new());
+            ensure_iface_method(&mut interfaces[ii].methods, mi, String::new());
+            ensure_iface_default_fn(&mut interfaces[ii].methods[mi]);
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("iface_method_params ") {
             let (ii, mi, params) = parse_class_method_index_list(rest)?;
             ensure_interface(&mut interfaces, ii, String::new());
@@ -621,6 +756,18 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             let (ci, list) = parse_index_list(rest)?;
             ensure_class(&mut classes, ci, String::new());
             classes[ci].implements = list;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("class_assoc_types ") {
+            let (ci, list) = parse_index_list(rest)?;
+            ensure_class(&mut classes, ci, String::new());
+            let mut pairs = Vec::new();
+            for item in list {
+                if let Some((n, t)) = item.split_once('=') {
+                    pairs.push((unescape(n), unescape(t)));
+                }
+            }
+            classes[ci].associated_types = pairs;
             continue;
         }
         if let Some(rest) = line.strip_prefix("class_is_struct ") {
@@ -950,6 +1097,8 @@ fn ensure_interface(interfaces: &mut Vec<BytecodeInterfaceDef>, idx: usize, name
             idx + 1,
             BytecodeInterfaceDef {
                 name: String::new(),
+                type_params: Vec::new(),
+                associated_types: Vec::new(),
                 methods: Vec::new(),
             },
         );
@@ -966,11 +1115,31 @@ fn ensure_iface_method(methods: &mut Vec<BytecodeInterfaceMethod>, idx: usize, n
             BytecodeInterfaceMethod {
                 name: String::new(),
                 params: Vec::new(),
+                default_fn: None,
             },
         );
     }
     if !name.is_empty() {
         methods[idx].name = name;
+    }
+}
+
+fn ensure_iface_default_fn(method: &mut BytecodeInterfaceMethod) {
+    if method.default_fn.is_none() {
+        method.default_fn = Some(BytecodeFnDef {
+            name: method.name.clone(),
+            params: method.params.clone(),
+            locals: Vec::new(),
+            globals: Vec::new(),
+            constants: Vec::new(),
+            code: Vec::new(),
+            immutable_locals: Vec::new(),
+            local_captures: Vec::new(),
+            arrow_functions: Vec::new(),
+            async_fn: false,
+            generator_fn: false,
+            try_regions: Vec::new(),
+        });
     }
 }
 
@@ -982,6 +1151,7 @@ fn ensure_class(classes: &mut Vec<BytecodeClassDef>, idx: usize, name: String) {
                 name: String::new(),
                 extends: None,
                 implements: Vec::new(),
+                associated_types: Vec::new(),
                 fields: Vec::new(),
                 constants: Vec::new(),
                 methods: Vec::new(),

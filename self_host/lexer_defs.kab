@@ -51,12 +51,15 @@ pub let TOKEN_TRY = "try"
 pub let TOKEN_CATCH = "catch"
 pub let TOKEN_FINALLY = "finally"
 pub let TOKEN_CLASS = "class"
+pub let TOKEN_STRUCT = "struct"
 pub let TOKEN_ENUM = "enum"
 pub let TOKEN_IMPORT = "import"
 pub let TOKEN_PUB = "pub"
 pub let TOKEN_THIS = "this"
 pub let TOKEN_SELF = "self"
 pub let TOKEN_SUPER = "super"
+pub let TOKEN_TRAIT = "trait"
+pub let TOKEN_WHERE = "where"
 pub let TOKEN_NULL = "null"
 pub let TOKEN_UNDEFINED = "undefined"
 pub let TOKEN_NAN = "NaN"
@@ -115,6 +118,9 @@ pub let KEYWORDS = {
     "catch": "catch",
     "finally": "finally",
     "class": "class",
+    "struct": "struct",
+    "trait": "trait",
+    "where": "where",
     "enum": "enum",
     "import": "import",
     "pub": "pub",

@@ -373,13 +373,38 @@ impl Parser {
             },
             None => return Err(self.err("Expected interface/trait name")),
         };
+        let mut type_params = Vec::new();
+        if self.at(Token::Lt) && self.lookahead_type_params() {
+            type_params = self.parse_type_param_list()?;
+        }
         self.expect(Token::LBrace)?;
         let mut methods = Vec::new();
+        let mut associated_types = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
-            methods.push(self.parse_interface_method()?);
+            if self.at_identifier("type") {
+                associated_types.push(self.parse_interface_associated_type()?);
+            } else {
+                methods.push(self.parse_interface_method()?);
+            }
         }
         self.expect(Token::RBrace)?;
-        Ok(Stmt::Interface { name, methods })
+        Ok(Stmt::Interface {
+            name,
+            type_params,
+            associated_types,
+            methods,
+        })
+    }
+
+    fn parse_interface_associated_type(&mut self) -> Result<String, ParseError> {
+        // No Token::Type — parse identifier "type" as keyword.
+        if !self.at_identifier("type") {
+            return Err(self.err("Expected associated type declaration"));
+        }
+        self.bump();
+        let name = self.expect_identifier("associated type name")?;
+        self.expect(Token::Semicolon)?;
+        Ok(name)
     }
 
     fn parse_interface_method(&mut self) -> Result<InterfaceMethod, ParseError> {
@@ -403,8 +428,15 @@ impl Parser {
             }
         }
         self.expect(Token::RParen)?;
-        self.expect(Token::Semicolon)?;
-        Ok(InterfaceMethod { name, params })
+        let body = if self.at(Token::Semicolon) {
+            self.bump();
+            None
+        } else if self.at(Token::LBrace) {
+            Some(self.parse_block()?)
+        } else {
+            return Err(self.err("Expected `;` or method body after interface method"));
+        };
+        Ok(InterfaceMethod { name, params, body })
     }
 
     fn parse_enum_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -510,7 +542,13 @@ impl Parser {
         if !is_struct && self.at(Token::Implements) {
             self.bump();
             loop {
-                implements.push(self.expect_identifier("interface")?);
+                let iface = self.expect_identifier("interface")?;
+                let type_args = if self.at(Token::Lt) && self.lookahead_type_args() {
+                    self.parse_type_arg_list()?
+                } else {
+                    Vec::new()
+                };
+                implements.push(crate::generics::mangle(&iface, &type_args));
                 if self.at(Token::Comma) {
                     self.bump();
                 } else {
@@ -522,8 +560,11 @@ impl Parser {
         self.expect(Token::LBrace)?;
         let mut fields = Vec::new();
         let mut methods = Vec::new();
+        let mut associated_types = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
-            if self.at(Token::Fn) {
+            if self.at_identifier("type") {
+                associated_types.push(self.parse_class_associated_type()?);
+            } else if self.at(Token::Fn) {
                 methods.push(self.parse_class_method(is_struct)?);
             } else {
                 fields.push(self.parse_class_field()?);
@@ -537,10 +578,25 @@ impl Parser {
             extends_type_args,
             implements,
             where_clause,
+            associated_types,
             fields,
             methods,
             is_struct,
         })
+    }
+
+    fn parse_class_associated_type(&mut self) -> Result<(String, String), ParseError> {
+        if !self.at_identifier("type") {
+            return Err(self.err("Expected associated type binding"));
+        }
+        self.bump();
+        let name = self.expect_identifier("associated type name")?;
+        self.expect(Token::Eq)?;
+        let type_name = self.expect_identifier("associated type value")?;
+        if self.at(Token::Semicolon) {
+            self.bump();
+        }
+        Ok((name, type_name))
     }
 
     fn parse_where_clause(&mut self) -> Result<Vec<crate::ast::WhereBound>, ParseError> {
@@ -646,6 +702,11 @@ impl Parser {
                     Token::Identifier(p) => {
                         self.record(p.clone(), SymbolKind::Parameter, spanned.span);
                         params.push(p);
+                        // Optional `: Type` annotation (stored only as name today).
+                        if self.at(Token::Colon) {
+                            self.bump();
+                            let _ = self.parse_type()?;
+                        }
                     }
                     Token::Self_ => {
                         return Err(Self::err_at(
@@ -2136,7 +2197,16 @@ impl Parser {
     fn parse_block_body(&mut self) -> Result<Expr, ParseError> {
         let mut stmts = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
+            while self.at(Token::Semicolon) {
+                self.bump();
+            }
+            if self.at(Token::RBrace) || self.at(Token::Eof) {
+                break;
+            }
             stmts.push(self.parse_stmt()?);
+            if self.at(Token::Semicolon) {
+                self.bump();
+            }
         }
         self.expect(Token::RBrace)?;
         Ok(Expr::Block(stmts))

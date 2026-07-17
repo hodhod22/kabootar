@@ -299,6 +299,87 @@ fn map_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     })
 }
 
+fn map_get_or_insert_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = map_id(args.first().ok_or("map_get_or_insert(map, key, value)")?)?;
+    let key = str_arg(args, 1)?;
+    let value = args
+        .get(2)
+        .cloned()
+        .ok_or("map_get_or_insert(map, key, value)")?;
+    MAPS.with(|m| {
+        let mut maps = m.borrow_mut();
+        let inner = maps.get_mut(&id).ok_or("unknown map")?;
+        if let Some(existing) = inner.get(&key) {
+            return Ok(existing.clone());
+        }
+        inner.insert(key, value.clone());
+        Ok(value)
+    })
+}
+
+fn map_get_or_insert_computed_native(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let map_val = args
+        .first()
+        .ok_or("map_get_or_insert_computed(map, key, fn)")?
+        .clone();
+    let id = map_id(&map_val)?;
+    let key = str_arg(args, 1)?;
+    let func = args
+        .get(2)
+        .ok_or("map_get_or_insert_computed(map, key, fn)")?
+        .clone();
+    let existing = MAPS.with(|m| {
+        m.borrow()
+            .get(&id)
+            .and_then(|inner| inner.get(&key).cloned())
+    });
+    if let Some(v) = existing {
+        return Ok(v);
+    }
+    let computed = call_fn(&func, vec![Value::String(key.clone())], env)?;
+    MAPS.with(|m| {
+        let mut maps = m.borrow_mut();
+        let inner = maps.get_mut(&id).ok_or("unknown map")?;
+        // Another insert may have raced in the same thread via the callback — prefer existing.
+        if let Some(existing) = inner.get(&key) {
+            return Ok(existing.clone());
+        }
+        inner.insert(key, computed.clone());
+        Ok(computed)
+    })
+}
+
+/// Bound method: `map.getOrInsert(key, value)`.
+pub fn map_get_or_insert_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    map_get_or_insert_native(args, env)
+}
+
+/// Bound method: `map.getOrInsertComputed(key, fn)`.
+pub fn map_get_or_insert_computed_method(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    map_get_or_insert_computed_native(args, env)
+}
+
+pub fn map_instance_method(
+    field: &str,
+) -> Option<fn(&[Value], &mut Environment) -> Result<Value, String>> {
+    match field {
+        "getOrInsert" => Some(map_get_or_insert_method),
+        "getOrInsertComputed" => Some(map_get_or_insert_computed_method),
+        "get" => Some(map_get_native),
+        "set" => Some(map_set_native),
+        "has" => Some(map_has_native),
+        "delete" => Some(map_delete_native),
+        "clear" => Some(map_clear_native),
+        _ => None,
+    }
+}
+
 fn map_has_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = map_id(args.first().ok_or("map_has(map, key)")?)?;
     let key = str_arg(args, 1)?;
@@ -1038,6 +1119,8 @@ pub fn register_map_set(env: &mut Environment) {
         ("map_new", map_new_native),
         ("map_set", map_set_native),
         ("map_get", map_get_native),
+        ("map_get_or_insert", map_get_or_insert_native),
+        ("map_get_or_insert_computed", map_get_or_insert_computed_native),
         ("map_has", map_has_native),
         ("map_delete", map_delete_native),
         ("map_clear", map_clear_native),
@@ -1104,6 +1187,22 @@ pub fn register_map_set(env: &mut Environment) {
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
+    env.set("Map".to_string(), build_map_namespace());
+}
+
+fn build_map_namespace() -> Value {
+    let mut m = HashMap::new();
+    let insert = |map: &mut HashMap<String, Value>,
+                  name: &str,
+                  f: fn(&[Value], &mut Environment) -> Result<Value, String>| {
+        map.insert(name.into(), Value::NativeFunction(f));
+    };
+    insert(&mut m, "getOrInsert", map_get_or_insert_native);
+    insert(&mut m, "getOrInsertComputed", map_get_or_insert_computed_native);
+    // Alias snake_case helpers for consistency with other collections.
+    insert(&mut m, "get_or_insert", map_get_or_insert_native);
+    insert(&mut m, "get_or_insert_computed", map_get_or_insert_computed_native);
+    Value::Object(m)
 }
 
 pub fn is_map_value(v: &Value) -> bool {

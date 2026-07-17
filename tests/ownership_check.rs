@@ -180,3 +180,58 @@ drop(b)
     .expect("drop clears Owned");
 }
 
+#[test]
+fn r2_struct_use_after_move() {
+    let err = compile_source(
+        r#"
+@manual
+struct Point {
+    x: number;
+    fn init(n) { self.x = n }
+}
+let a = Point(1)
+let b = a
+let c = a
+drop(b)
+"#,
+    )
+    .expect_err("use after move");
+    assert!(err.contains("use after move"), "{err}");
+}
+
+#[test]
+fn r2_struct_drop_after_move_ok() {
+    compile_source(
+        r#"
+@manual
+struct Point {
+    x: number;
+    fn init(n) { self.x = n }
+}
+let a = Point(1)
+let b = a
+drop(b)
+"#,
+    )
+    .expect("drop after move clears Owned");
+}
+
+#[test]
+fn r2_struct_leak_without_drop() {
+    let err = compile_source(
+        r#"
+@manual
+struct Point {
+    x: number;
+    fn init(n) { self.x = n }
+}
+let a = Point(1)
+"#,
+    )
+    .expect_err("leak without drop");
+    assert!(
+        err.contains("leak-lint") || err.contains("dropped out of scope"),
+        "{err}"
+    );
+}
+

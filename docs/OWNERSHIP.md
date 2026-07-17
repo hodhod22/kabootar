@@ -1,6 +1,6 @@
 # Kabootar — Ownership (Våg O)
 
-**Status:** O1–O4 ✅ (compile-time affine + borrow + leak-lint i `@manual`). O5 kvar. L5/G10b = runtime MemBox.
+**Status:** O1–O4 ✅ (compile-time affine + borrow + leak-lint i `@manual`). R2 ✅ (struct-typer affine i `@manual`). O5 = self-host subset. L5/G10b = runtime MemBox.
 
 ## Två minnesmodeller
 
@@ -64,6 +64,7 @@ take(b)           // move
 | O3 | `&` / `&mut` expr + typer |
 | O4 | Leak-lint — Owned som lämnar scope utan `drop`/`move` ❌ compile |
 | O5 | Same checker i `self_host/` |
+| R2 | Struct-typer är affine i `@manual` (samma Place som MemBox Owned) |
 
 ### O4 — leak-lint
 
@@ -72,5 +73,25 @@ I `@manual`-moduler: om en `Owned`-plats fortfarande är Owned när ett block/fn
 `ownership: Owned 'name' dropped out of scope without move/drop (leak-lint)`
 
 Runtime drop oförändrad — detta är compile-time endast.
+
+### R2 — struct affine ownership
+
+I `@manual` är **struct**-typer affine på samma sätt som `Owned` (MemBox):
+
+```kabootar
+@manual
+struct Point {
+    x: number;
+    fn init(n) { self.x = n }
+}
+let a = Point(1)
+let b = a      // move
+// use a       // use after move
+drop(b)        // konsumera — annars leak-lint
+```
+
+- `Point(...)` producerar Owned
+- `fn take(p: Point)` — Named-typ som matchar en struct räknas som Owned-plats
+- Class-metoder har fortfarande otypade params (skip)
 
 Tester: `cargo test --test ownership_check` + `cargo test --test ownership_manual`.

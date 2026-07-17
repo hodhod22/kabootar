@@ -78,6 +78,10 @@ assert_tokens("fn let const return if else", [
     ["fn"], ["let"], ["const"], ["return"], ["if"], ["else"]
 ], "basic keywords")
 
+assert_tokens("struct trait where class interface", [
+    ["struct"], ["trait"], ["where"], ["class"], ["interface"]
+], "struct/trait/where keywords")
+
 assert_tokens("while for in of break continue", [
     ["while"], ["for"], ["in"], ["of"], ["break"], ["continue"]
 ], "loop keywords")

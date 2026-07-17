@@ -499,7 +499,7 @@ GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP
 | **O2** | **Signaturer** — `fn f(b: Owned)`, `fn g(b: &Owned)`; call-arg med Owned flyttar (om inte `&`/`&mut`) | ✅ |
 | **O3** | **Borrow** — `&x` / `&mut x`, typer `&Owned` / `&mut Owned`; shared vs exclusive; borrow-scope = call-uttryck | ✅ |
 | **O4** | **Scope drop** — compile-time varning/fel om Owned lever över scope utan `drop`/`move` (leak-lint); runtime drop oförändrad | ✅ |
-| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | 📋 |
+| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | ✅ subset |
 
 **Checkpoint O1–O3:** `cargo test --test ownership_check` + `cargo test --test ownership_manual`
 
@@ -513,10 +513,10 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 |-----|----------|--------|
 | **T0** | `trait` / `interface` + `implements` + `is_impl` (G5) | ✅ subset |
 | **T1** | **`where T: Trait`** på generiska fn/klass/metod — monomorphisering respekterar bound | ✅ |
-| **T2** | **Generiska traits** — `trait Show<T> { … }` | 📋 |
-| **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | 📋 |
-| **T4** | **Default-metoder** i trait-kropp | 📋 |
-| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | 📋 |
+| **T2** | **Generiska traits** — `trait Show<T> { … }` | ✅ |
+| **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | ✅ |
+| **T4** | **Default-metoder** i trait-kropp | ✅ |
+| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset |
 
 **Icke-mål:** HKT, `dyn Trait`-objekt, Rust-coherence.
 
@@ -526,9 +526,9 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 |-----|----------|--------|
 | **R0** | **`this` i `class`** — klassreceiver = `this`; `self` reserverat i lexern | ✅ |
 | **R1** | **`struct Name { … }`** — värdetyper + metoder med **`self` / `&self` / `&mut self`** | ✅ |
-| **R2** | Struct + `@manual` ownership (move) | 📋 |
-| **R3** | Generiska structs `struct Box<T>` | 📋 |
-| **R4** | Self-host: `struct`/`self` i parser+emit | 📋 |
+| **R2** | Struct + `@manual` ownership (move) | ✅ |
+| **R3** | Generiska structs `struct Box<T>` | ✅ |
+| **R4** | Self-host: `struct`/`self` i parser+emit | ✅ subset |
 
 **Regel:** `class` → `this`; `struct` → `self`. Se [CLASSES.md](CLASSES.md).
 
@@ -553,7 +553,7 @@ Kabootar har redan stor del av ES2020–ES2025 (ofta snake_case). Nedan är **kv
 | map/filter/flat/flatMap/at/toSorted/toReversed/toSpliced/with/findLast/… | ✅ |
 | `Array.groupBy` | använd `Object.groupBy` / `group_by` |
 | Muterande `sort`/`reverse` (JS in-place) | medvetet: alltid copy |
-| Array iterator-protokoll (lazy) | 📋 J5 |
+| Array iterator-protokoll (lazy) | ✅ J5 |
 
 #### J3 — Object ✅ (Parent + class, ingen prototype)
 
@@ -578,14 +578,14 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **Konstanter** `LN2`, `LN10`, `LOG2E`, `LOG10E`, `SQRT1_2`, `SQRT2` (+ globals) | ✅ |
 | **`Math` namespace** (`Math.floor`, `Math.PI`, …) | ✅ |
 
-#### J5 — Övrig ES-paritet (språk) 🚧
+#### J5 — Övrig ES-paritet (språk) ✅ subset
 
 | Område | Luckor |
 |--------|--------|
 | **Number** | `Number.EPSILON` / `MAX_SAFE_INTEGER` / namespace ✅ |
 | **Promise** | `withResolvers` ✅; `Promise.try` ✅ + `Promise` namespace |
-| **Iterator helpers** | `Iterator.from`, `.map`/`.filter`/`.take` (ES2025) |
-| **Map/Set** | `getOrInsert` / `getOrInsertComputed` |
+| **Iterator helpers** | `Iterator.from`, `.map`/`.filter`/`.take` (ES2025) ✅ |
+| **Map/Set** | `getOrInsert` / `getOrInsertComputed` ✅ |
 | **RegExp** | kvarvarande unicode/`v`-flagga-luckor |
 | **Syntax** | logical assign `||=` `&&=` `??=` ✅ |
 
@@ -597,13 +597,13 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
 | **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` (`--rust` / `--self-host`; `self_host/` → Rust) | ✅ |
-| **S3** | CI: self-host bygger self-host (bootstrap) som gate | 📋 |
+| **S3** | CI: self-host bygger self-host (bootstrap) som gate | ✅ |
 
 ### Våg K — Ekosystem i Kabootar 📋
 
 | Fas | Innehåll |
 |-----|----------|
-| **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) |
+| **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) — ✅ **subset** (lexer+parser i `lib/kv8`; eval fortfarande hybrid). Gate: `cargo test --test kv8_lib -- --test-threads=1` |
 | **K2** | **DOM + CSS/KSS** — layout/style/paint-orchestration i `.kab` |
 | **K3** | **OS** — schemaläggare/VFS/policy/net i `.kab`; borrowing för buffertar |
 | **K4** | **Webläsare** — `lib/kbrowser` + shell helt i Kabootar (GC-UI) |

@@ -1,0 +1,68 @@
+// O5 — self-hosted ownership checker smoke tests.
+
+import "self_host/ownership"
+
+let passed = 0
+let fail = 0
+
+fn assert_true(cond, msg) {
+    if cond {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg)
+    }
+}
+
+fn assert_null(v, msg) {
+    if v == null {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- got " + json_stringify(v))
+    }
+}
+
+fn assert_contains(hay, needle, msg) {
+    if hay == null {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected error containing " + needle)
+        return
+    }
+    if str_includes(hay, needle) {
+        passed = passed + 1
+    } else {
+        fail = fail + 1
+        println("FAIL: " + msg + " -- expected `" + needle + "` in " + json_stringify(hay))
+    }
+}
+
+// use after move
+{
+    let err = checkOwnership("@manual\nlet a = owned_alloc(4, \"t\")\nlet b = a\nowned_read(a, 0, 1)\n")
+    assert_contains(err, "use after move", "use after move")
+}
+
+// drop after move clears
+{
+    let err = checkOwnership("@manual\nlet a = owned_alloc(4, \"t\")\nlet b = a\ndrop(b)\n")
+    assert_null(err, "drop after move ok")
+}
+
+// leak without drop
+{
+    let err = checkOwnership("@manual\nlet b = owned_alloc(4, \"t\")\n")
+    assert_contains(err, "leak-lint", "leak without drop")
+}
+
+// clean alloc+drop
+{
+    let err = checkOwnership("@manual\nlet b = owned_alloc(4, \"t\")\ndrop(b)\n")
+    assert_null(err, "alloc then drop")
+}
+
+println("")
+println("Self-hosted ownership tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
+if fail > 0 {
+    throw "OWNERSHIP TESTS FAILED"
+}

@@ -330,6 +330,9 @@ pub fn serialize_bc(bc) {
         while sI < len(bc.classes) {
             sCls = bc.classes[sI]
             sOut = sOut + CHAR_NL + ("class " + ("" + sI) + " " + sCls["sym"])
+            if sCls["isStruct"] == 1 {
+                sOut = sOut + CHAR_NL + ("class_is_struct " + ("" + sI))
+            }
             appendClassMethods(sI, sCls["methods"])
             sI = sI + 1
         }

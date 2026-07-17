@@ -1416,7 +1416,14 @@ fn emitStmt(node) {
             }
             eMi = eMi + 1
         }
-        eClasses = push(eClasses, { "sym": eFnSave, "methods": eClassMethods })
+        eClasses = push(eClasses, {
+            "sym": eFnSave,
+            "methods": eClassMethods,
+            "isStruct": eNode["isStruct"]
+        })
+        return
+    }
+    if eNode.kind == AST_INTERFACE {
         return
     }
     if eNode.kind == AST_FN {

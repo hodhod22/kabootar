@@ -47,11 +47,16 @@ pub struct MethodDef {
 pub struct MethodSignature {
     pub name: String,
     pub params: Vec<String>,
+    /// Default method body when the implementing class omits the method.
+    pub default_body: Option<Expr>,
+    pub default_bytecode: Option<std::rc::Rc<crate::bytecode::BytecodeFnDef>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
     pub name: String,
+    pub type_params: Vec<String>,
+    pub associated_types: Vec<String>,
     pub methods: Vec<MethodSignature>,
 }
 
@@ -61,6 +66,7 @@ pub struct ClassDef {
     pub name: String,
     pub extends: Option<String>,
     pub implements: Vec<String>,
+    pub associated_types: Vec<(String, String)>,
     pub fields: Vec<FieldDef>,
     pub methods: Vec<MethodDef>,
     pub is_struct: bool,
