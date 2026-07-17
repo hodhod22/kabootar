@@ -342,6 +342,18 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
         Value::NativeFunction(kdom_set_text_by_id_native),
     );
     env.set(
+        "kdom_set_attr_by_id".to_string(),
+        Value::NativeFunction(kdom_set_attr_by_id_native),
+    );
+    env.set(
+        "kdom_clear_children_by_id".to_string(),
+        Value::NativeFunction(kdom_clear_children_by_id_native),
+    );
+    env.set(
+        "kdom_append_text_by_id".to_string(),
+        Value::NativeFunction(kdom_append_text_by_id_native),
+    );
+    env.set(
         "kdom_get_by_id".to_string(),
         Value::NativeFunction(kdom_get_by_id_native),
     );
@@ -599,6 +611,58 @@ fn kdom_set_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
         live_upsert(&child);
         node.children = vec![child];
     }
+    live_upsert(&node);
+    Ok(Value::KabootarDom(node))
+}
+
+fn kdom_set_attr_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_set_attr_by_id() expects numeric id".into()),
+    };
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("kdom_set_attr_by_id() expects key string".into()),
+    };
+    let mut node = live_get(id).ok_or_else(|| format!("kdom_set_attr_by_id: unknown id {id}"))?;
+    let val = match args.get(2) {
+        Some(Value::String(s)) => s.clone(),
+        Some(other) => crate::value::format_value(other),
+        None => String::new(),
+    };
+    node.set_attr(key, &val);
+    record_attribute_mutation(node.id, key);
+    live_upsert(&node);
+    Ok(Value::KabootarDom(node))
+}
+
+fn kdom_clear_children_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_clear_children_by_id() expects numeric id".into()),
+    };
+    let mut node = live_get(id).ok_or_else(|| format!("kdom_clear_children_by_id: unknown id {id}"))?;
+    node.children.clear();
+    live_upsert(&node);
+    Ok(Value::KabootarDom(node))
+}
+
+fn kdom_append_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_append_text_by_id() expects numeric id".into()),
+    };
+    let text = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => return Err("kdom_append_text_by_id() expects text".into()),
+    };
+    let mut node = live_get(id).ok_or_else(|| format!("kdom_append_text_by_id: unknown id {id}"))?;
+    let child = DomNode::text_node(text);
+    let child_id = child.id;
+    live_upsert(&child);
+    node.append(child);
+    record_child_list_mutation(node.id, child_id);
     live_upsert(&node);
     Ok(Value::KabootarDom(node))
 }

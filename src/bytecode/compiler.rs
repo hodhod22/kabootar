@@ -1045,6 +1045,29 @@ impl Compiler {
                         CallArg::Spread(_) => None,
                     })
                     .collect();
+                // G2: arr.push(x) on any receiver (write back when receiver is a variable).
+                if !has_spread {
+                    if let Expr::Member(obj, method, _) = func.as_ref() {
+                        if method == "push" && args.len() == 1 {
+                            if let CallArg::Expr(arg) = &args[0] {
+                                self.compile_expr(obj)?;
+                                self.compile_expr(arg)?;
+                                self.emit(Opcode::ArrayPush);
+                                match obj.as_ref() {
+                                    Expr::Variable(name) => {
+                                        self.emit(Opcode::Swap);
+                                        self.emit_store_name(name);
+                                    }
+                                    _ => {
+                                        self.emit(Opcode::Swap);
+                                        self.emit(Opcode::Pop);
+                                    }
+                                }
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
                 if let Expr::Variable(name) = func.as_ref() {
                     if self.generic_templates.contains_key(name) {
                         if has_spread {

@@ -663,6 +663,17 @@ fn run_chunk(
                 let v = stack.pop().ok_or("Bytecode stack underflow")?;
                 push_stack(stack, get_length(&v)?)?;
             }
+            Opcode::ArrayPush => {
+                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let Value::Array(mut items) = arr else {
+                    return Err("array_push requires an array receiver".into());
+                };
+                items.push(item);
+                let len = items.len() as i64;
+                push_stack(stack, Value::Array(items))?;
+                push_stack(stack, Value::Number(len))?;
+            }
             Opcode::GetMember(key_idx) => {
                 let key = member_name(constants, *key_idx)?;
                 let container = stack.pop().ok_or("Bytecode stack underflow")?;

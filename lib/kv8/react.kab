@@ -119,7 +119,7 @@ pub fn useState(hooks, initial) {
     return [hooks[key], idx]
 }
 
-pub fn useEffect(hooks, setup, deps) {
+pub fn useEffect(hooks, setup, deps, cleanup) {
     if !object_has_own(hooks, "ei") {
         hooks["ei"] = 0
     }
@@ -127,6 +127,7 @@ pub fn useEffect(hooks, setup, deps) {
     hooks["ei"] = idx + 1
     let depKey = "d" + idx
     let cleanKey = "c" + idx
+    let xKey = "x" + idx
     if deps != null && deps != undefined {
         let depStr = "" + deps[0]
         if object_has_own(hooks, depKey) && hooks[depKey] == depStr {
@@ -135,9 +136,18 @@ pub fn useEffect(hooks, setup, deps) {
         hooks[depKey] = depStr
     }
     if object_has_own(hooks, cleanKey) {
+        if cleanup != null && cleanup != undefined && typeof(cleanup) != "string" && typeof(cleanup) != "number" {
+            cleanup()
+        }
+        if object_has_own(hooks, xKey) {
+            hooks[xKey] = hooks[xKey] + 1
+        } else {
+            hooks[xKey] = 1
+        }
         hooks[cleanKey] = hooks[cleanKey] + 1
     } else {
         hooks[cleanKey] = 1
+        hooks[xKey] = 0
     }
     if setup != null && typeof(setup) != "string" && typeof(setup) != "number" {
         setup()
@@ -179,9 +189,41 @@ pub fn setState(fiber, hookIndex, next) {
             ch = op["children"]
         }
         if typeof(ch) == "string" || typeof(ch) == "number" {
+            if op != null && object_has_own(op, "data-n") {
+                hostCall("setAttrById", [prevId, "data-n", "" + op["data-n"]])
+            }
             let node = hostCall("setTextById", [prevId, "" + ch])
             if op != null && object_has_own(op, "onClick") {
                 rxHasClick = true
+            }
+            hooks["nid"] = prevId
+            fiber["$hooks"] = hooks
+            return {
+                "frame": hostCall("paint", [node, rxW, rxH, ""]),
+                "hasClick": rxHasClick,
+                "patched": true,
+                "nodeId": prevId,
+                "liveHit": true,
+                "prevId": prevId
+            }
+        }
+        if ch != null && ch != undefined && object_has_own(ch, "0") {
+            if op != null && object_has_own(op, "data-n") {
+                hostCall("setAttrById", [prevId, "data-n", "" + op["data-n"]])
+            }
+            if op != null && object_has_own(op, "onClick") {
+                rxHasClick = true
+            }
+            let node = hostCall("clearChildrenById", [prevId])
+            let nch = len(ch)
+            let ci = 0
+            while ci < nch {
+                let piece = ch[ci]
+                let pt = typeof(piece)
+                if pt == "string" || pt == "number" {
+                    node = hostCall("appendTextById", [prevId, "" + piece])
+                }
+                ci = ci + 1
             }
             hooks["nid"] = prevId
             fiber["$hooks"] = hooks

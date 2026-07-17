@@ -847,25 +847,30 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
         } => {
             if let Expr::Member(obj_expr, method, _) = func_expr.as_ref() {
                 if method == "push" && args.len() == 1 {
-                    let Expr::Variable(var_name) = obj_expr.as_ref() else {
-                        return Err("push() only supported on array variables".into());
-                    };
-                    let mut arr_val = env
-                        .get(var_name)
-                        .ok_or_else(|| format!("Undefined variable: {}", var_name))?;
-                    let Value::Array(ref mut items) = arr_val else {
-                        return Err("push() requires an array".into());
-                    };
                     let pushed = match &args[0] {
                         CallArg::Expr(e) => eval_expr(e, env)?,
                         CallArg::Spread(_) => {
                             return Err("push() does not accept spread".into());
                         }
                     };
+                    if let Expr::Variable(var_name) = obj_expr.as_ref() {
+                        let mut arr_val = env
+                            .get(var_name)
+                            .ok_or_else(|| format!("Undefined variable: {}", var_name))?;
+                        let Value::Array(ref mut items) = arr_val else {
+                            return Err("push() requires an array".into());
+                        };
+                        items.push(pushed);
+                        let len = items.len() as i64;
+                        env.assign(var_name, arr_val)?;
+                        return Ok(Value::Number(len));
+                    }
+                    let mut arr_val = eval_expr(obj_expr, env)?;
+                    let Value::Array(ref mut items) = arr_val else {
+                        return Err("push() requires an array".into());
+                    };
                     items.push(pushed);
-                    let len = items.len() as i64;
-                    env.assign(var_name, arr_val)?;
-                    return Ok(Value::Number(len));
+                    return Ok(Value::Number(items.len() as i64));
                 }
             }
             if let Expr::Variable(class_name) = func_expr.as_ref() {
