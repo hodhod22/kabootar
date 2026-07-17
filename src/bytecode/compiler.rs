@@ -68,6 +68,7 @@ struct Compiler {
     globals: Vec<String>,
     locals: Vec<String>,
     immutable_locals: Vec<bool>,
+    local_captures: Vec<bool>,
     /// Locals from the enclosing function/block (for closure capture).
     enclosing_locals: Vec<String>,
     enclosing_immutable: Vec<bool>,
@@ -100,6 +101,7 @@ impl Compiler {
             locals: Vec::new(),
             globals: Vec::new(),
             immutable_locals: Vec::new(),
+            local_captures: Vec::new(),
             enclosing_locals: Vec::new(),
             enclosing_immutable: Vec::new(),
             code: Vec::new(),
@@ -368,6 +370,7 @@ impl Compiler {
             constants: fn_compiler.constants,
             code: fn_compiler.code,
             immutable_locals: fn_compiler.immutable_locals,
+            local_captures: fn_compiler.local_captures,
             arrow_functions: fn_compiler.arrow_functions,
             async_fn: tmpl.async_fn,
             generator_fn: tmpl.generator_fn,
@@ -424,6 +427,7 @@ impl Compiler {
                 constants: method_compiler.constants,
                 code: method_compiler.code,
                 immutable_locals: method_compiler.immutable_locals,
+                local_captures: method_compiler.local_captures,
                 arrow_functions: method_compiler.arrow_functions,
                 async_fn: false,
                 generator_fn: false,
@@ -458,6 +462,7 @@ impl Compiler {
         let i = self.locals.len();
         self.locals.push(name.to_string());
         self.immutable_locals.push(false);
+        self.local_captures.push(false);
         i as u16
     }
 
@@ -487,6 +492,7 @@ impl Compiler {
             .and_then(|ei| self.enclosing_immutable.get(ei).copied())
             .unwrap_or(false);
         self.immutable_locals.push(immutable);
+        self.local_captures.push(true);
         i as u16
     }
 
@@ -1512,6 +1518,7 @@ impl Compiler {
                 constants: method_compiler.constants,
                 code: method_compiler.code,
                 immutable_locals: method_compiler.immutable_locals,
+                local_captures: method_compiler.local_captures,
                 arrow_functions: method_compiler.arrow_functions,
                 async_fn: false,
                 generator_fn: false,
@@ -1582,6 +1589,7 @@ impl Compiler {
             constants: fn_compiler.constants,
             code: fn_compiler.code,
             immutable_locals: fn_compiler.immutable_locals,
+            local_captures: fn_compiler.local_captures,
             arrow_functions: fn_compiler.arrow_functions,
             async_fn,
             generator_fn,
@@ -2775,6 +2783,7 @@ pub fn try_compile(stmts: &[Stmt]) -> Option<BytecodeModule> {
                 constants: fn_compiler.constants,
                 code: fn_compiler.code,
                 immutable_locals: fn_compiler.immutable_locals,
+            local_captures: fn_compiler.local_captures,
                 arrow_functions: fn_compiler.arrow_functions,
                 async_fn: *async_fn,
                 generator_fn: *generator_fn,

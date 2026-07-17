@@ -72,7 +72,7 @@ cargo test --test self_host
 
 ## Designregler (lärt från lexern)
 
-1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram (`set` / `share_bindings` för pile), inte `assign` upp i modul-env. Rekursiva anrop får egna ramar (L1). **Modul-global scratch** (`let lxPos`, `eNode`, …) används fortfarande för parser/emitter-state och tills L2/L3 tar bort behovet i self_host.
+1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram (`set` / `share_bindings` för pile); captures markeras (`local_captures`) och får `assign` till parent. Rekursiva anrop får egna ramar (L1/L4). **Session-state** (`lxPos`, `eOps`, `pPos`, …) förblir modul-global; rekursions-temps migreras till fn-lokaler (S1).
 2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`, inte bara `push(arr, item)`.
 3. **Spara AST-fält före rekursion** — t.ex. `eSym = eNode["sym"]` innan `emitExpr(init)`; `pCallee = pLeft` innan call-args.
 4. **Bracket-access för AST-nycklar** — undvik `.then`, `.sym`, `.value` där det krockar; använd `node["sym"]`.
@@ -95,11 +95,11 @@ cargo test --test self_host
 21. **Parser while/if cond** — `pCondStack`: spara `pCond` efter `parseExpr()` före body/then/else (annars skriver sista inner `if` över `while`-villkoret).
 22. **Parser let/assign sym** — `pBindSym` (inte `pSaveSym`): objektnycklar i rhs skriver över `pSaveSym` innan `return` (t.ex. `tokens = push(tokens, { column: lxCol })`).
 23. **Parser assign lookahead** — säker `ident =`-lookahead via `pNextTok = pToks[pPos+1]` med explicit EOF-fallback; undviker både OOB och att clobbra `pTok` före expr-stmts.
-24. **Parser bracket index** — `pIndexObj` (inte `pLeft`): `parseCompare()` i `a[b]` skriver över `pLeft` (t.ex. `KEYWORDS[id]` blev `id[id]`).
+24. **Parser bracket index** — fn-lokal `indexObj` (S1; tidigare `pIndexObj`): `parseCompare()` i `a[b]` skriver över `pLeft`.
 25. **Parser compare rhs** — `pInAddSub`-flagga: compare-rhs via `parseCompare()` i add/sub-läge (inte inline literal); annars `len(stack) - 1` lämnar `-` kvar och `while` får `Expected {`.
 26. **Parser `+`/`-` rhs** — `pAddLeftStack` + rekursiv `parseCompare()` under `pInAddSub=1` (inte ident-shortcut; tappar `.field` efter `+`, t.ex. `throw "msg" + eNode.kind`).
 27. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
-28. **Emitter binary op** — `eBinOpStack` + `eBinRStack` före rekursiv `emitExpr` (inte `eOp`/`eBxR`; clobbar `&&` och rhs).
+28. **Emitter binary op** — fn-lokaler `binOp`/`binRight` före rekursiv `emitExpr` (S1; tidigare `eBinOpStack`).
 29. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
 30. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobbar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobras av call/member/index).
 31. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
@@ -119,9 +119,9 @@ cargo test --test self_host
 45. **Self-compiled vs Rust emit** — `import "self_host/emit"` = Rust-bytecode (~långsam men klar). `compile(emit.kab)` → `.kbc` = self-hosted bytecode; om `emit(parse("let x = 1"))` hänger via `.kbc` men import fungerar → felsök serialize/compile-output, inte bara emit.kab-logik.
 46. **Self-host nested builtins** — `push(stack, len(x))` kompileras fel (yttre anrop blir `len`). Använd `pushLen(stack, arr)` eller spara `eLenScratch = len(x)` före `push`.
 47. **Serialize radbrytning** — använd `CHAR_NL` från `lexer_defs`, **inte** `"\n"` (literal i Kabootar); annars blir `.kbc` en enda rad som Rust `deserialize` avvisar.
-48. **Emitter nested call** — `eCalleeStack` före rekursiv `emitExpr` på args (inte modul-global `eCallee`; nästlade `serialize_bc(emit(parse(x)))` laddar fel callee).
-49. **Parser nested call** — `pCalleeStack` + `snapCallee()` före arg-parse (inte modul-global `pCallee`; nästlade anrop får alla callee `parse`).
-50. **Parser generic call type args** — `pTypeArgsStack` + spara `pTypeArgs` före arg-parse (rekursiv `parseCompare` nollställer modul-global `pTypeArgs`; `id<T>(x)` tappar annars `<T>`).
+48. **Emitter nested call** — `eCalleeStack` före rekursiv `emitExpr` på args (inte modul-global `eCallee`; nästlade `serialize_bc(emit(parse(x)))` laddar fel callee). Binary temps är fn-lokala (S1).
+49. **Parser nested call** — fn-lokaler `savedCallee`/`savedTypeArgs` (S1; tidigare `pCalleeStack`).
+50. **Parser generic call type args** — spara `savedTypeArgs` med call (S1); rekursiv `parseCompare` nollställer modul-global `pTypeArgs`.
 51. **Emit generic fn** — spara template i `eGenericTemplates`; vid `AST_CALL` till generic callee: infer/mangle → specialisera → ersätt callee med `id$Number` (importera **inte** extra modul från `emit.kab` — kombinerad import overflowar compile).
 
 ## Nästa milstolpar

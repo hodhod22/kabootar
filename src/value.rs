@@ -61,6 +61,8 @@ pub struct Microtask {
     pub args: Vec<Value>,
     /// Pre-bound parameter values (default/rest expansion); when non-empty, used instead of zip.
     pub bindings: Vec<(String, Value)>,
+    /// Call-site frame to receive global/module writeback after the task finishes (L4).
+    pub writeback: Option<Environment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
