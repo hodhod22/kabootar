@@ -23,18 +23,63 @@ thread_local! {
     static MUTATION_RECORDS: RefCell<Vec<MutationRecord>> = RefCell::new(Vec::new());
     /// Live Dom nodes by id — lets `.kab` store numeric ids instead of KabootarDom values.
     static LIVE_NODES: RefCell<HashMap<u64, DomNode>> = RefCell::new(HashMap::new());
+    /// child id → parent id (for propagating child patches up to paintable parents).
+    static LIVE_PARENTS: RefCell<HashMap<u64, u64>> = RefCell::new(HashMap::new());
 }
 
 fn live_upsert(node: &DomNode) {
     LIVE_NODES.with(|m| {
-        let mut map = m.borrow_mut();
-        fn walk(map: &mut HashMap<u64, DomNode>, n: &DomNode) {
-            map.insert(n.id, n.clone());
-            for child in &n.children {
-                walk(map, child);
+        LIVE_PARENTS.with(|parents| {
+            let mut map = m.borrow_mut();
+            let mut parents = parents.borrow_mut();
+            fn walk(
+                map: &mut HashMap<u64, DomNode>,
+                parents: &mut HashMap<u64, u64>,
+                n: &DomNode,
+                parent_id: Option<u64>,
+            ) {
+                if let Some(pid) = parent_id {
+                    parents.insert(n.id, pid);
+                }
+                map.insert(n.id, n.clone());
+                for child in &n.children {
+                    walk(map, parents, child, Some(n.id));
+                }
             }
-        }
-        walk(&mut map, node);
+            walk(&mut map, &mut parents, node, None);
+        });
+    });
+}
+
+/// After mutating a live child, refresh ancestor snapshots so paint(parent) sees new text/attrs.
+fn live_propagate_to_ancestors(child_id: u64) {
+    LIVE_NODES.with(|m| {
+        LIVE_PARENTS.with(|parents| {
+            let mut map = m.borrow_mut();
+            let parents = parents.borrow();
+            let mut current = child_id;
+            while let Some(&pid) = parents.get(&current) {
+                let Some(child) = map.get(&current).cloned() else {
+                    break;
+                };
+                let Some(mut parent) = map.get(&pid).cloned() else {
+                    break;
+                };
+                let mut replaced = false;
+                for slot in &mut parent.children {
+                    if slot.id == current {
+                        *slot = child;
+                        replaced = true;
+                        break;
+                    }
+                }
+                if !replaced {
+                    break;
+                }
+                map.insert(pid, parent);
+                current = pid;
+            }
+        });
     });
 }
 
@@ -628,6 +673,7 @@ fn kdom_set_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
         node.children = vec![child];
     }
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 
@@ -649,6 +695,7 @@ fn kdom_set_attr_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
     node.set_attr(key, &val);
     record_attribute_mutation(node.id, key);
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 
@@ -660,6 +707,7 @@ fn kdom_clear_children_by_id_native(args: &[Value], _env: &mut Environment) -> R
     let mut node = live_get(id).ok_or_else(|| format!("kdom_clear_children_by_id: unknown id {id}"))?;
     node.children.clear();
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 
@@ -680,6 +728,7 @@ fn kdom_append_text_by_id_native(args: &[Value], _env: &mut Environment) -> Resu
     node.append(child);
     record_child_list_mutation(node.id, child_id);
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 
@@ -696,6 +745,7 @@ fn kdom_append_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Va
     parent.append(child);
     record_child_list_mutation(parent_id, child_id);
     live_upsert(&parent);
+    live_propagate_to_ancestors(parent.id);
     Ok(Value::KabootarDom(parent))
 }
 
@@ -726,6 +776,7 @@ fn kdom_on_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     let mut node = live_get(id).ok_or_else(|| format!("kdom_on_by_id: unknown id {id}"))?;
     node.on(event, handler);
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 

@@ -32,7 +32,7 @@ Kör `std_info()` för aktuell capability-lista.
 | `Array.prototype.toLocaleString` / `toString` på värden | G2 ✅ |
 | `String.prototype.matchAll` (global regex iterator) | G2 ✅ |
 | `String.prototype.localeCompare` med `Intl` locales | G3 ✅ subset (`sensitivity`) |
-| `Math.f16round`, `Math.sumPrecise` | G4 |
+| `Math.f16round`, `Math.sumPrecise` | G4 ✅ (`f16round` / `sumPrecise` globals) |
 | Method-syntax `arr.push(x)` på icke-variabel receiver (bytecode) | G2 ✅ |
 | `import "std"` som enda entry (aggregator-modul) | G3 ✅ (`lib/std.kab` + builtin) |
 | **Traits** för generics (se [GENERICS.md#traits](GENERICS.md#traits)) | G5 |

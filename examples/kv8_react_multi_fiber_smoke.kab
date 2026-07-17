@@ -1,0 +1,29 @@
+// Multi nested fiber children live patch (cnid0 + cnid1) + parent paint sync.
+// cargo run --bin kabootar -- examples/kv8_react_multi_fiber_smoke.kab
+
+import "kv8/react"
+
+fn Multi(props) {
+    let h = props["$hooks"]
+    let pair = useState(h, 0)
+    props["$hooks"] = h
+    let n = pair[0]
+    return createElement("div", {
+        "data-n": "" + n,
+        "children": [
+            createElement("span", { "children": "a" + n }),
+            createElement("span", { "children": "b" + n })
+        ]
+    })
+}
+
+let tree = createElement(Multi, {})
+let out0 = render(tree, 240, 120)
+let nid0 = out0["nodeId"]
+let cid0 = out0["childId"]
+let out1 = setState(tree, 0, 1)
+let html1 = "" + out1["frame"]["html"]
+let nid1 = out1["nodeId"]
+let cid1 = out1["childId"]
+println("multi-fiber: patched=" + json_stringify(out1["patched"]) + " sameParent=" + json_stringify(nid0 == nid1) + " sameChild0=" + json_stringify(cid0 == cid1) + " a=" + json_stringify(str_includes(html1, ">a1<")) + " b=" + json_stringify(str_includes(html1, ">b1<")))
+return out1["patched"] == true && nid0 == nid1 && cid0 == cid1 && str_includes(html1, ">a1<") && str_includes(html1, ">b1<")
