@@ -21,6 +21,17 @@ fn kv8_eval_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     Ok(kv8_value_to_kabootar(&result))
 }
 
+/// C3: self-host `evalSource` hot path — run in Rust Kv8 (while/binary/class/async).
+fn kv8_eval_source_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let script = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("kv8_eval_source(script) expects string".into()),
+    };
+    let ctx = Kv8Context::default();
+    let result = eval_script(&ctx, script)?;
+    Ok(kv8_value_to_kabootar(&result))
+}
+
 fn kv8_css_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let ctx = expect_ctx(args, 0)?;
     let css = match args.get(1) {
@@ -296,9 +307,16 @@ fn expect_ctx(args: &[Value], i: usize) -> Result<Kv8Context, String> {
 fn kv8_value_to_kabootar(v: &super::context::Kv8Value) -> Value {
     use super::context::Kv8Value;
     match v {
-        Kv8Value::Undefined | Kv8Value::Null => Value::Null,
+        Kv8Value::Undefined => Value::Undefined,
+        Kv8Value::Null => Value::Null,
         Kv8Value::Bool(b) => Value::Bool(*b),
-        Kv8Value::Num(n) => Value::Number(*n as i64),
+        Kv8Value::Num(n) => {
+            if n.is_finite() && n.fract() == 0.0 && *n >= i64::MIN as f64 && *n <= i64::MAX as f64 {
+                Value::Number(*n as i64)
+            } else {
+                Value::Float(*n)
+            }
+        }
         Kv8Value::Str(s) => Value::String(s.clone()),
         Kv8Value::Dom(n) => Value::KabootarDom(n.clone()),
         Kv8Value::Fun { .. } | Kv8Value::Arrow { .. } | Kv8Value::AsyncFun { .. } => Value::String("<function>".into()),
@@ -317,6 +335,10 @@ pub fn kv8_globals(env: &mut Environment) {
     env.set("kv8_info".into(), Value::NativeFunction(kv8_info_native));
     env.set("kv8_create".into(), Value::NativeFunction(kv8_create_native));
     env.set("kv8_eval".into(), Value::NativeFunction(kv8_eval_native));
+    env.set(
+        "kv8_eval_source".into(),
+        Value::NativeFunction(kv8_eval_source_native),
+    );
     env.set("kv8_css".into(), Value::NativeFunction(kv8_css_native));
     env.set("kv8_dom".into(), Value::NativeFunction(kv8_dom_native));
     env.set("kv8_paint".into(), Value::NativeFunction(kv8_paint_native));

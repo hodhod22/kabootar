@@ -619,44 +619,6 @@ pub fn evalSourceWith(source, extraEnv) {
 }
 
 pub fn evalSource(source) {
-    let ast = parseSource(source)
-    let env = {}
-    let stmts = ast.body
-    let last = undefined
-    let si = 0
-    while si < len(stmts) {
-        let st = stmts[si]
-        if st.kind == K_WHILE {
-            let condNode = st.cond
-            let bodyStmts = st.body.body
-            while true {
-                if !evExpr(condNode, env) {
-                    break
-                }
-                let bi = 0
-                while bi < len(bodyStmts) {
-                    last = evStmt(bodyStmts[bi], env)
-                    if evLoopSig != 0 {
-                        break
-                    }
-                    bi = bi + 1
-                }
-                if evLoopSig == 1 {
-                    evLoopSig = 0
-                    break
-                }
-                if evLoopSig == 2 {
-                    evLoopSig = 0
-                }
-            }
-            last = undefined
-        } else {
-            last = evStmt(st, env)
-            if evLoopSig != 0 {
-                return last
-            }
-        }
-        si = si + 1
-    }
-    return last
+    // C3: Rust Kv8 eval (while/binary/class/async). evalSourceWith stays self-host for extraEnv.
+    return kv8_eval_source(source)
 }

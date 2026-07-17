@@ -212,7 +212,7 @@ impl Parser {
             Some(Token::Pub) => self.parse_pub_stmt(),
             Some(Token::Class) => self.parse_class_stmt(),
             Some(Token::Enum) => self.parse_enum_stmt(),
-            Some(Token::Interface) => self.parse_interface_stmt(),
+            Some(Token::Interface) | Some(Token::Trait) => self.parse_interface_stmt(),
             Some(Token::Import) => self.parse_import_stmt(false),
             Some(Token::Return) => self.parse_return_stmt(),
             Some(Token::Do) => Ok(Stmt::Expr(self.parse_do_while_loop()?)),
@@ -354,16 +354,22 @@ impl Parser {
     }
 
     fn parse_interface_stmt(&mut self) -> Result<Stmt, ParseError> {
-        self.expect(Token::Interface)?;
+        match self.bump() {
+            Some(spanned) => match spanned.value {
+                Token::Interface | Token::Trait => {}
+                _ => return Err(Self::err_at(spanned.span, "Expected interface or trait")),
+            },
+            None => return Err(self.err("Expected interface or trait")),
+        }
         let name = match self.bump() {
             Some(spanned) => match spanned.value {
                 Token::Identifier(s) => {
                     self.record(s.clone(), SymbolKind::Class, spanned.span);
                     s
                 }
-                _ => return Err(Self::err_at(spanned.span, "Expected interface name")),
+                _ => return Err(Self::err_at(spanned.span, "Expected interface/trait name")),
             },
-            None => return Err(self.err("Expected interface name")),
+            None => return Err(self.err("Expected interface/trait name")),
         };
         self.expect(Token::LBrace)?;
         let mut methods = Vec::new();

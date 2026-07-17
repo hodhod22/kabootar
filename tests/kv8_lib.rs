@@ -101,3 +101,16 @@ ast.body[0].kind == "While" && ast.body[0].body.body[0].kind == "Assign"
     let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
     assert!(matches!(v, Value::Bool(true)));
 }
+
+#[test]
+fn kv8_parser_class_and_async() {
+    let code = r#"
+import "kv8/parser"
+let c = parseSource("class A { constructor(x) { return x } get() { return 1 } }")
+let a = parseSource("async function f() { return 1 }")
+c.body[0].kind == "Class" && c.body[0].sym == "A" && len(c.body[0].methods) == 2 && a.body[0].kind == "Function" && a.body[0]["async"] == true
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}

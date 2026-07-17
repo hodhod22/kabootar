@@ -46,6 +46,8 @@ pub enum Token {
     Not,
     Extends,
     Interface,
+    /// G5: `trait` is an alias for interface-shaped method contracts.
+    Trait,
     Implements,
     Class,
     Enum,
@@ -608,6 +610,7 @@ impl Lexer {
                         "not" => Token::Not,
                         "extends" => Token::Extends,
                         "interface" => Token::Interface,
+                        "trait" => Token::Trait,
                         "implements" => Token::Implements,
                         "try" => Token::Try,
                         "catch" => Token::Catch,

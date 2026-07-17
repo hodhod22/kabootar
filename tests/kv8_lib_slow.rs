@@ -352,23 +352,34 @@ fn kv8_react_multi_fiber_smoke_example_runs() {
     assert!(matches!(result, Value::Bool(true)));
 }
 
-/// C2: after warm cache, a 1k while-loop via kv8/eval must stay under a loose budget.
+/// C3: after warm cache, a 10k while-loop via kv8/eval (Rust hot path) stays under budget.
 #[test]
 fn kv8_eval_loop_under_budget_after_warm() {
     with_kv8_eval(|env| {
         let started = Instant::now();
         let v = kabootar_lib::evaluator::eval_source(
-            "evalSource(\"let n = 0; while (n < 1000) { n = n + 1 } n\")",
+            "evalSource(\"let n = 0; while (n < 10000) { n = n + 1 } n\")",
             env,
         )
         .unwrap();
         let elapsed = started.elapsed();
-        eprintln!("kv8 1k while via evalSource completed in {elapsed:?}");
-        assert!(matches!(v, Value::Number(n) if n == 1000));
-        // Warm Windows debug typically << 30s; keep generous for CI variance.
+        eprintln!("kv8 10k while via evalSource completed in {elapsed:?}");
+        assert!(matches!(v, Value::Number(n) if n == 10000));
         assert!(
-            elapsed.as_secs() < 60,
-            "kv8 eval loop too slow after warm: {elapsed:?}"
+            elapsed.as_millis() < 5000,
+            "kv8 eval loop too slow after C3 native bridge: {elapsed:?}"
         );
+    });
+}
+
+#[test]
+fn kv8_eval_source_class() {
+    with_kv8_eval(|env| {
+        let class_v = kabootar_lib::evaluator::eval_source(
+            "evalSource(\"class A { constructor(x) { this.x = x; } get() { return this.x; } } let a = new A(42); a.get()\")",
+            env,
+        )
+        .unwrap();
+        assert!(matches!(class_v, Value::Number(42)), "got {class_v:?}");
     });
 }

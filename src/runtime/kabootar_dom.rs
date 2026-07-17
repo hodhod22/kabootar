@@ -214,6 +214,36 @@ impl DomNode {
         if selector.is_empty() {
             return false;
         }
+        // Attribute: [name], [name=value], tag[name], tag[name=value]
+        if let Some(bracket) = selector.find('[') {
+            let prefix = selector[..bracket].trim();
+            let rest = &selector[bracket..];
+            if !rest.ends_with(']') {
+                return false;
+            }
+            let inner = &rest[1..rest.len() - 1];
+            let attr_ok = if let Some((name, raw_val)) = inner.split_once('=') {
+                let want = raw_val.trim().trim_matches(|c| c == '"' || c == '\'');
+                self.get_attr(name.trim()).is_some_and(|v| v == want)
+            } else {
+                self.get_attr(inner.trim()).is_some()
+            };
+            if !attr_ok {
+                return false;
+            }
+            if prefix.is_empty() {
+                return true;
+            }
+            return self.matches_selector_simple(prefix);
+        }
+        self.matches_selector_simple(selector)
+    }
+
+    fn matches_selector_simple(&self, selector: &str) -> bool {
+        let selector = selector.trim();
+        if selector.is_empty() {
+            return false;
+        }
         if let Some(id) = selector.strip_prefix('#') {
             return self.get_attr("id").is_some_and(|v| v == id);
         }
@@ -240,6 +270,16 @@ impl DomNode {
     }
 
     pub fn query_selector<'a>(&'a self, selector: &str) -> Option<&'a DomNode> {
+        let selector = selector.trim();
+        // Child combinator: "div > span" (not descendant space).
+        if selector.contains('>') {
+            let parts: Vec<&str> = selector
+                .split('>')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect();
+            return self.query_selector_child(&parts);
+        }
         let parts: Vec<&str> = selector.split_whitespace().filter(|s| !s.is_empty()).collect();
         match parts.as_slice() {
             [] => None,
@@ -256,6 +296,51 @@ impl DomNode {
             }
             _ => self.query_selector_descendant(&parts),
         }
+    }
+
+    fn query_selector_child<'a>(&'a self, parts: &[&str]) -> Option<&'a DomNode> {
+        if parts.is_empty() {
+            return None;
+        }
+        if parts.len() == 1 {
+            return self.query_selector(parts[0]);
+        }
+        // Search for ancestor matching parts[0], then only direct children for the rest.
+        if self.matches_selector(parts[0]) {
+            for child in &self.children {
+                if let Some(found) = child.query_selector_child_from(&parts[1..]) {
+                    return Some(found);
+                }
+            }
+        }
+        for child in &self.children {
+            if let Some(found) = child.query_selector_child(parts) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    /// `self` must match parts[0]; only direct-child steps remain.
+    fn query_selector_child_from<'a>(&'a self, parts: &[&str]) -> Option<&'a DomNode> {
+        if parts.is_empty() {
+            return Some(self);
+        }
+        if parts.len() == 1 {
+            if self.matches_selector(parts[0]) {
+                return Some(self);
+            }
+            return None;
+        }
+        if !self.matches_selector(parts[0]) {
+            return None;
+        }
+        for child in &self.children {
+            if let Some(found) = child.query_selector_child_from(&parts[1..]) {
+                return Some(found);
+            }
+        }
+        None
     }
 
     fn query_selector_descendant<'a>(&'a self, parts: &[&str]) -> Option<&'a DomNode> {
