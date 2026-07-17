@@ -268,58 +268,97 @@ pub fn setState(fiber, hookIndex, next) {
                     "prevId": prevId
                 }
             }
-            if hasFiber && nch == 1 {
-                let piece = ch[0]
-                let cprops = piece["props"]
-                let ctext = null
-                if cprops != null && object_has_own(cprops, "children") {
-                    ctext = cprops["children"]
+            if hasFiber {
+                let canPatch = true
+                let fi = 0
+                while fi < nch {
+                    let piece = ch[fi]
+                    if !(object_has_own(piece, "tag") && piece["tag"] == "fiber") {
+                        canPatch = false
+                        break
+                    }
+                    let cprops = piece["props"]
+                    let ctext = null
+                    if cprops != null && object_has_own(cprops, "children") {
+                        ctext = cprops["children"]
+                    }
+                    if !(typeof(ctext) == "string" || typeof(ctext) == "number") {
+                        canPatch = false
+                        break
+                    }
+                    fi = fi + 1
                 }
-                let cnid = 0
-                if object_has_own(hooks, "cnid0") {
-                    cnid = hooks["cnid0"]
-                }
-                let childLive = false
-                if cnid != null && cnid != 0 {
-                    childLive = hostCall("getById", [cnid]) != null
-                }
-                if childLive && (typeof(ctext) == "string" || typeof(ctext) == "number") {
-                    let node = hostCall("setTextById", [cnid, "" + ctext])
-                    if cprops != null && object_has_own(cprops, "onClick") {
-                        rxHasClick = true
-                        node = hostCall("onById", [cnid, "click", "rxClick"])
+                if canPatch {
+                    let allLive = true
+                    if object_has_own(hooks, "ncn") && hooks["ncn"] != nch {
+                        allLive = false
+                    }
+                    let li = 0
+                    while allLive && li < nch {
+                        let cnid = 0
+                        if object_has_own(hooks, "cnid" + li) {
+                            cnid = hooks["cnid" + li]
+                        }
+                        if cnid == null || cnid == 0 || hostCall("getById", [cnid]) == null {
+                            allLive = false
+                            break
+                        }
+                        li = li + 1
+                    }
+                    if allLive {
+                        let pi = 0
+                        while pi < nch {
+                            let piece = ch[pi]
+                            let cprops = piece["props"]
+                            let ctext = cprops["children"]
+                            let cnid = hooks["cnid" + pi]
+                            hostCall("setTextById", [cnid, "" + ctext])
+                            if cprops != null && object_has_own(cprops, "onClick") {
+                                rxHasClick = true
+                                hostCall("onById", [cnid, "click", "rxClick"])
+                            }
+                            pi = pi + 1
+                        }
+                        hooks["nid"] = prevId
+                        hooks["ncn"] = nch
+                        fiber["$hooks"] = hooks
+                        let parentNode = hostCall("getById", [prevId])
+                        return {
+                            "frame": hostCall("paint", [parentNode, rxW, rxH, ""]),
+                            "hasClick": rxHasClick,
+                            "patched": true,
+                            "nodeId": prevId,
+                            "childId": hooks["cnid0"],
+                            "liveHit": true,
+                            "prevId": prevId
+                        }
+                    }
+                    hostCall("clearChildrenById", [prevId])
+                    let ri = 0
+                    let node = null
+                    while ri < nch {
+                        let piece = ch[ri]
+                        let childNode = mount(piece)
+                        node = hostCall("appendById", [prevId, childNode])
+                        hooks["cnid" + ri] = hostCall("id", [childNode])
+                        let cprops = piece["props"]
+                        if cprops != null && object_has_own(cprops, "onClick") {
+                            rxHasClick = true
+                        }
+                        ri = ri + 1
                     }
                     hooks["nid"] = prevId
-                    hooks["cnid0"] = cnid
+                    hooks["ncn"] = nch
                     fiber["$hooks"] = hooks
                     return {
                         "frame": hostCall("paint", [node, rxW, rxH, ""]),
                         "hasClick": rxHasClick,
                         "patched": true,
                         "nodeId": prevId,
-                        "childId": cnid,
+                        "childId": hooks["cnid0"],
                         "liveHit": true,
                         "prevId": prevId
                     }
-                }
-                hostCall("clearChildrenById", [prevId])
-                let childNode = mount(piece)
-                let node = hostCall("appendById", [prevId, childNode])
-                cnid = hostCall("id", [childNode])
-                hooks["nid"] = prevId
-                hooks["cnid0"] = cnid
-                fiber["$hooks"] = hooks
-                if cprops != null && object_has_own(cprops, "onClick") {
-                    rxHasClick = true
-                }
-                return {
-                    "frame": hostCall("paint", [node, rxW, rxH, ""]),
-                    "hasClick": rxHasClick,
-                    "patched": true,
-                    "nodeId": prevId,
-                    "childId": cnid,
-                    "liveHit": true,
-                    "prevId": prevId
                 }
             }
         }
@@ -360,10 +399,20 @@ pub fn render(element, width, height) {
     let nid = hostCall("id", [node])
     hooks = element["$hooks"]
     hooks["nid"] = nid
-    let cid = hostCall("childId", [nid, 0])
-    if cid != null && cid != 0 {
-        hooks["cnid0"] = cid
+    let cid = 0
+    let ki = 0
+    while true {
+        let nextCid = hostCall("childId", [nid, ki])
+        if nextCid == null || nextCid == 0 {
+            break
+        }
+        hooks["cnid" + ki] = nextCid
+        if ki == 0 {
+            cid = nextCid
+        }
+        ki = ki + 1
     }
+    hooks["ncn"] = ki
     element["$hooks"] = hooks
     return {
         "frame": hostCall("paint", [node, rxW, rxH, ""]),

@@ -342,6 +342,16 @@ fn kv8_react_nested_smoke_example_runs() {
     assert!(matches!(result, Value::Bool(true)));
 }
 
+#[test]
+fn kv8_react_multi_fiber_smoke_example_runs() {
+    ensure_kv8_eval_cache_fresh();
+    warm_kv8_disk_kbc();
+    warm_kv8_module_exports();
+    let path = format!("{}/examples/kv8_react_multi_fiber_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8_react_multi_fiber_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
+
 /// C2: after warm cache, a 1k while-loop via kv8/eval must stay under a loose budget.
 #[test]
 fn kv8_eval_loop_under_budget_after_warm() {

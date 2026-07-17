@@ -582,6 +582,26 @@ fn js_parity_batch8() {
 
     assert!(matches!(eval("imul(2, 3)"), Value::Number(6)));
     assert!(matches!(eval("clz32(1)"), Value::Number(31)));
+    // G4 Math rest
+    match eval("f16round(1.5)") {
+        Value::Float(f) => assert!((f - 1.5).abs() < 1e-12),
+        Value::Number(n) => assert_eq!(n, 1), // num_out may fold 1.5? unlikely; 1.5 stays float
+        other => panic!("f16round(1.5)={other:?}"),
+    }
+    match eval("f16round(1.337)") {
+        Value::Float(f) => assert!((f - 1.3369140625).abs() < 1e-9, "f16round(1.337)={f}"),
+        Value::Number(n) => assert!((n as f64 - 1.3369140625).abs() < 1e-9),
+        other => panic!("f16round(1.337)={other:?}"),
+    }
+    match eval("sumPrecise([10000000000000000.0, 1.0, -10000000000000000.0])") {
+        Value::Float(f) => assert!((f - 1.0).abs() < 1e-9, "sumPrecise={f}"),
+        Value::Number(n) => assert_eq!(n, 1, "sumPrecise number={n}"),
+        other => panic!("sumPrecise={other:?}"),
+    }
+    assert!(matches!(
+        eval("sumPrecise([])"),
+        Value::Float(f) if f == 0.0 && f.is_sign_negative()
+    ));
     assert!(matches!(eval("number_to_string(42)"), Value::String(s) if s == "42"));
     assert!(matches!(
         eval(r#"string_split("a,b", ",")[1]"#),
