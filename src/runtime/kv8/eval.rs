@@ -11,7 +11,13 @@ use super::promise::{
     promise_state, push_then_link, reject_promise, Kv8PromiseState, Kv8ThenLink,
 };
 use crate::runtime::kabootar_dom::{assign_ids, DomNode};
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
+
+thread_local! {
+    static EVENT_PROPAGATION_STOPPED: Cell<bool> = const { Cell::new(false) };
+    static EVENT_DEFAULT_PREVENTED: Cell<bool> = const { Cell::new(false) };
+}
 
 #[derive(Debug, Clone)]
 enum Flow {
@@ -3406,6 +3412,7 @@ fn eval_var(ctx: &Kv8Context, name: &str) -> Result<Kv8Value, String> {
         "setInterval" => Ok(global_native("setInterval")),
         "clearInterval" => Ok(global_native("clearInterval")),
         "Promise" => Ok(promise_namespace_object()),
+        "Event" => Ok(global_native("Event")),
         "fetch" => Ok(global_native("fetch")),
         "localStorage" => Ok(local_storage_object()),
         "requestAnimationFrame" => Ok(global_native("requestAnimationFrame")),
@@ -4455,6 +4462,7 @@ fn member_get(ctx: &Kv8Context, obj: Kv8Value, field: &str) -> Result<Kv8Value, 
                 None => Ok(Kv8Value::Null),
             },
             "addEventListener" => Ok(element_method("addEventListener", node.id)),
+            "removeEventListener" => Ok(element_method("removeEventListener", node.id)),
             "dispatchEvent" => Ok(element_method("dispatchEvent", node.id)),
             _ => ctx.with_mut(|inner| {
                 Ok(inner
@@ -4930,7 +4938,42 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                     callee_debug_hint(&listener)
                 ));
             }
-            ctx.add_event_listener(node_id, event_type, listener)?;
+            let capture = match args.get(2) {
+                Some(Kv8Value::Bool(b)) => *b,
+                Some(Kv8Value::Obj(opts)) => opts
+                    .get("capture")
+                    .and_then(|v| match v {
+                        Kv8Value::Bool(b) => Some(*b),
+                        _ => None,
+                    })
+                    .unwrap_or(false),
+                _ => false,
+            };
+            ctx.add_event_listener(node_id, event_type, listener, capture)?;
+            Ok(Kv8Value::Undefined)
+        }
+        "element.removeEventListener" => {
+            let node_id = m.get("__id").and_then(|v| v.as_num()).unwrap_or(0.0) as u64;
+            let event_type = args
+                .first()
+                .and_then(|v| v.as_str())
+                .ok_or("removeEventListener(type, listener) expects type string")?;
+            let listener = args
+                .get(1)
+                .cloned()
+                .ok_or("removeEventListener(type, listener) expects listener")?;
+            let capture = match args.get(2) {
+                Some(Kv8Value::Bool(b)) => *b,
+                Some(Kv8Value::Obj(opts)) => opts
+                    .get("capture")
+                    .and_then(|v| match v {
+                        Kv8Value::Bool(b) => Some(*b),
+                        _ => None,
+                    })
+                    .unwrap_or(false),
+                _ => false,
+            };
+            ctx.remove_event_listener(node_id, event_type, &listener, capture)?;
             Ok(Kv8Value::Undefined)
         }
         "element.dispatchEvent" => {
@@ -4941,6 +4984,14 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                 .ok_or("dispatchEvent(event) expects event")?;
             let ok = dispatch_event_on_node(ctx, node_id, event)?;
             Ok(Kv8Value::Bool(ok))
+        }
+        "Event.preventDefault" => {
+            EVENT_DEFAULT_PREVENTED.with(|c| c.set(true));
+            Ok(Kv8Value::Undefined)
+        }
+        "Event.stopPropagation" => {
+            EVENT_PROPAGATION_STOPPED.with(|c| c.set(true));
+            Ok(Kv8Value::Undefined)
         }
         "console.log" => {
             let msgs: Vec<String> = args
@@ -6047,11 +6098,65 @@ fn event_type_from(event: &Kv8Value) -> Option<String> {
     }
 }
 
-fn build_event_object(event_type: &str, target: DomNode) -> Kv8Value {
+fn build_event_object(event_type: &str, target: DomNode, bubbles: bool, cancelable: bool) -> Kv8Value {
     let mut map = HashMap::new();
     map.insert("type".into(), Kv8Value::Str(event_type.to_string()));
     map.insert("target".into(), Kv8Value::Dom(target));
+    map.insert("bubbles".into(), Kv8Value::Bool(bubbles));
+    map.insert("cancelable".into(), Kv8Value::Bool(cancelable));
+    map.insert("defaultPrevented".into(), Kv8Value::Bool(false));
+    map.insert("eventPhase".into(), Kv8Value::Num(0.0));
+    map.insert("__native".into(), Kv8Value::Str("Event".into()));
+    map.insert(
+        "preventDefault".into(),
+        global_native("Event.preventDefault"),
+    );
+    map.insert(
+        "stopPropagation".into(),
+        global_native("Event.stopPropagation"),
+    );
     Kv8Value::Obj(map)
+}
+
+fn construct_event(args: Vec<Kv8Value>) -> Kv8Value {
+    let event_type = args
+        .first()
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let (bubbles, cancelable) = match args.get(1) {
+        Some(Kv8Value::Obj(opts)) => (
+            opts.get("bubbles")
+                .and_then(|v| match v {
+                    Kv8Value::Bool(b) => Some(*b),
+                    _ => None,
+                })
+                .unwrap_or(false),
+            opts.get("cancelable")
+                .and_then(|v| match v {
+                    Kv8Value::Bool(b) => Some(*b),
+                    _ => None,
+                })
+                .unwrap_or(false),
+        ),
+        _ => (false, false),
+    };
+    build_event_object(
+        &event_type,
+        DomNode::element("unknown"),
+        bubbles,
+        cancelable,
+    )
+}
+
+fn event_bool_flag(event: &Kv8Value, key: &str, default: bool) -> bool {
+    match event {
+        Kv8Value::Obj(map) => match map.get(key) {
+            Some(Kv8Value::Bool(b)) => *b,
+            _ => default,
+        },
+        _ => default,
+    }
 }
 
 fn dispatch_event_on_node(
@@ -6060,20 +6165,109 @@ fn dispatch_event_on_node(
     event: Kv8Value,
 ) -> Result<bool, String> {
     let event_type = event_type_from(&event).ok_or("dispatchEvent: missing event type")?;
-    let event_obj = match &event {
-        Kv8Value::Obj(map) if map.contains_key("type") => event.clone(),
-        _ => {
-            let target = ctx
-                .find_dom_by_id(node_id)?
-                .unwrap_or_else(|| DomNode::element("unknown"));
-            build_event_object(&event_type, target)
+    let target = ctx
+        .find_dom_by_id(node_id)?
+        .unwrap_or_else(|| DomNode::element("unknown"));
+    let mut event_obj = match &event {
+        Kv8Value::Obj(map) if map.contains_key("type") => {
+            let mut e = event.clone();
+            if let Kv8Value::Obj(m) = &mut e {
+                m.insert("target".into(), Kv8Value::Dom(target.clone()));
+                if !m.contains_key("bubbles") {
+                    m.insert("bubbles".into(), Kv8Value::Bool(true));
+                }
+                if !m.contains_key("__native") {
+                    m.insert("__native".into(), Kv8Value::Str("Event".into()));
+                }
+                if !m.contains_key("preventDefault") {
+                    m.insert(
+                        "preventDefault".into(),
+                        global_native("Event.preventDefault"),
+                    );
+                }
+                if !m.contains_key("stopPropagation") {
+                    m.insert(
+                        "stopPropagation".into(),
+                        global_native("Event.stopPropagation"),
+                    );
+                }
+            }
+            e
         }
+        _ => build_event_object(&event_type, target, true, false),
     };
-    let listeners = ctx.listeners_for(node_id, &event_type)?;
-    for listener in listeners {
-        invoke_listener(ctx, listener, event_obj.clone())?;
+    let bubbles = event_bool_flag(&event_obj, "bubbles", true);
+    let ancestors = ctx.ancestor_ids(node_id)?;
+
+    EVENT_PROPAGATION_STOPPED.with(|c| c.set(false));
+    EVENT_DEFAULT_PREVENTED.with(|c| c.set(false));
+
+    // CAPTURING_PHASE (root → parent)
+    if let Kv8Value::Obj(m) = &mut event_obj {
+        m.insert("eventPhase".into(), Kv8Value::Num(1.0));
     }
-    Ok(true)
+    for aid in &ancestors {
+        if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+            break;
+        }
+        if let Kv8Value::Obj(m) = &mut event_obj {
+            if let Some(node) = ctx.find_dom_by_id(*aid)? {
+                m.insert("currentTarget".into(), Kv8Value::Dom(node));
+            }
+        }
+        for listener in ctx.listeners_for(*aid, &event_type, true)? {
+            invoke_listener(ctx, listener, event_obj.clone())?;
+            if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+                break;
+            }
+        }
+    }
+
+    // AT_TARGET
+    if !EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+        if let Kv8Value::Obj(m) = &mut event_obj {
+            m.insert("eventPhase".into(), Kv8Value::Num(2.0));
+            if let Some(node) = ctx.find_dom_by_id(node_id)? {
+                m.insert("currentTarget".into(), Kv8Value::Dom(node));
+            }
+        }
+        for capture in [true, false] {
+            for listener in ctx.listeners_for(node_id, &event_type, capture)? {
+                invoke_listener(ctx, listener, event_obj.clone())?;
+                if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+                    break;
+                }
+            }
+            if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+                break;
+            }
+        }
+    }
+
+    // BUBBLING_PHASE (parent → root)
+    if bubbles && !EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+        if let Kv8Value::Obj(m) = &mut event_obj {
+            m.insert("eventPhase".into(), Kv8Value::Num(3.0));
+        }
+        for aid in ancestors.iter().rev() {
+            if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+                break;
+            }
+            if let Kv8Value::Obj(m) = &mut event_obj {
+                if let Some(node) = ctx.find_dom_by_id(*aid)? {
+                    m.insert("currentTarget".into(), Kv8Value::Dom(node));
+                }
+            }
+            for listener in ctx.listeners_for(*aid, &event_type, false)? {
+                invoke_listener(ctx, listener, event_obj.clone())?;
+                if EVENT_PROPAGATION_STOPPED.with(|c| c.get()) {
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok(!EVENT_DEFAULT_PREVENTED.with(|c| c.get()))
 }
 
 fn invoke_listener(ctx: &Kv8Context, listener: Kv8Value, event: Kv8Value) -> Result<(), String> {
@@ -6100,15 +6294,17 @@ fn is_kv8_callable(v: &Kv8Value) -> bool {
             .and_then(|n| n.as_str())
             .is_some_and(|n| {
                 n == "class"
-                    || n == "bound.call"
-                    || n == "BoundFn"
-                    || n.starts_with("Function.")
-                    || n.starts_with("element.")
-                    || n.starts_with("document.")
-                    || n.starts_with("Array.")
-                    || n.starts_with("Map.")
-                    || n.starts_with("Promise.")
-                    || n.starts_with("console.")
+                  || n == "bound.call"
+                  || n == "BoundFn"
+                  || n == "Event.preventDefault"
+                  || n == "Event.stopPropagation"
+                  || n.starts_with("Function.")
+                  || n.starts_with("element.")
+                  || n.starts_with("document.")
+                  || n.starts_with("Array.")
+                  || n.starts_with("Map.")
+                  || n.starts_with("Promise.")
+                  || n.starts_with("console.")
             }),
         _ => false,
     }
@@ -6159,6 +6355,7 @@ fn construct_new(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Res
         .unwrap_or("");
     match native {
         "Promise" => construct_promise(ctx, args),
+        "Event" => Ok(construct_event(args)),
         "Array" => Ok(construct_array(args)),
         "Map" => construct_map_from_args(args),
         "WeakMap" => Ok(weak_map_from_entries(vec![])),

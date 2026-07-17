@@ -1167,6 +1167,34 @@ fn kv8_smoke_click_listener_fires() {
 }
 
 #[test]
+fn kv8_smoke_event_bubble_and_remove() {
+    let n = eval(
+        r#"
+        let ctx = kv8_create();
+        kv8_eval(ctx, "
+          let seen = '';
+          let parent = document.createElement('div');
+          let child = document.createElement('span');
+          parent.appendChild(child);
+          document.body.appendChild(parent);
+          function onParent(e) { seen = seen + 'p'; }
+          function onChild(e) { seen = seen + 'c'; }
+          parent.addEventListener('click', onParent);
+          child.addEventListener('click', onChild);
+          child.dispatchEvent(new Event('click', { bubbles: true }));
+          child.removeEventListener('click', onChild);
+          child.dispatchEvent(new Event('click', { bubbles: true }));
+          return seen;
+        ");
+        "#,
+    );
+    assert!(
+        matches!(n, Value::String(ref s) if s == "cpp"),
+        "expected bubble then remove: {n:?}"
+    );
+}
+
+#[test]
 fn kv8_smoke_class_basic() {
     let v = eval(
         r#"

@@ -228,6 +228,11 @@ fn attach_host_ctx_methods(o: &mut HashMap<String, Value>) {
     o.insert("closePath".into(), Value::NativeFunction(host_close_path_native));
     o.insert("drawImage".into(), Value::NativeFunction(host_draw_image_native));
     o.insert("measureText".into(), Value::NativeFunction(host_measure_text_native));
+    o.insert("getImageData".into(), Value::NativeFunction(host_get_image_data_native));
+    o.insert("putImageData".into(), Value::NativeFunction(host_put_image_data_native));
+    o.insert("setTransform".into(), Value::NativeFunction(host_set_transform_native));
+    o.insert("rect".into(), Value::NativeFunction(host_rect_native));
+    o.insert("toDataURL".into(), Value::NativeFunction(host_to_data_url_native));
 }
 
 fn host_ctx_id_from_receiver(args: &[Value]) -> Result<(u64, u64), String> {
@@ -421,6 +426,87 @@ fn host_measure_text_native(args: &[Value], _env: &mut Environment) -> Result<Va
     o.insert("width".into(), Value::Float(w as f64));
     o.insert("height".into(), Value::Float(h as f64));
     Ok(Value::Object(o))
+}
+
+fn host_get_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_host, native_id) = host_ctx_id_from_receiver(args)?;
+    let x = f64_arg(args, 1)? as i32;
+    let y = f64_arg(args, 2)? as i32;
+    let w = f64_arg(args, 3)? as i32;
+    let h = f64_arg(args, 4)? as i32;
+    let data = canvas2d::get_image_data(native_id, x, y, w, h)?;
+    let mut o = HashMap::new();
+    o.insert("width".into(), Value::Number(w as i64));
+    o.insert("height".into(), Value::Number(h as i64));
+    o.insert(
+        "data".into(),
+        Value::Array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
+    );
+    Ok(Value::Object(o))
+}
+
+fn host_put_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_host, native_id) = host_ctx_id_from_receiver(args)?;
+    let Value::Object(img) = args.get(1).ok_or("putImageData expects ImageData")? else {
+        return Err("putImageData expects ImageData object".into());
+    };
+    let w = match img.get("width") {
+        Some(Value::Number(n)) => *n as i32,
+        _ => return Err("ImageData.width required".into()),
+    };
+    let h = match img.get("height") {
+        Some(Value::Number(n)) => *n as i32,
+        _ => return Err("ImageData.height required".into()),
+    };
+    let data = match img.get("data") {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|v| match v {
+                Value::Number(n) => Ok::<u8, String>(*n as u8),
+                _ => Err("data must be numbers".into()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("ImageData.data required".into()),
+    };
+    let dx = f64_arg(args, 2)? as i32;
+    let dy = f64_arg(args, 3)? as i32;
+    canvas2d::put_image_data(native_id, &data, dx, dy, w, h)?;
+    Ok(Value::Null)
+}
+
+fn host_set_transform_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_host, native_id) = host_ctx_id_from_receiver(args)?;
+    canvas2d::set_transform(
+        native_id,
+        f64_arg(args, 1)?,
+        f64_arg(args, 2)?,
+        f64_arg(args, 3)?,
+        f64_arg(args, 4)?,
+        f64_arg(args, 5)?,
+        f64_arg(args, 6)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn host_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_host, native_id) = host_ctx_id_from_receiver(args)?;
+    canvas2d::rect_path(
+        native_id,
+        f64_arg(args, 1)?,
+        f64_arg(args, 2)?,
+        f64_arg(args, 3)?,
+        f64_arg(args, 4)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn host_to_data_url_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_host, native_id) = host_ctx_id_from_receiver(args)?;
+    let mime = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "image/png",
+    };
+    Ok(Value::String(canvas2d::to_data_url(native_id, mime)?))
 }
 
 #[cfg(target_arch = "wasm32")]

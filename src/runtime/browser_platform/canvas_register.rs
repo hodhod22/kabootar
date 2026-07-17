@@ -159,7 +159,13 @@ fn attach_native_ctx_methods(o: &mut HashMap<String, Value>) {
     o.insert("getImageData".into(), Value::NativeFunction(canvas_get_image_data_native));
     o.insert("putImageData".into(), Value::NativeFunction(canvas_put_image_data_native));
     o.insert("setTransform".into(), Value::NativeFunction(canvas_set_transform_native));
+    o.insert("transform".into(), Value::NativeFunction(canvas_transform_native));
+    o.insert("resetTransform".into(), Value::NativeFunction(canvas_reset_transform_native));
     o.insert("rect".into(), Value::NativeFunction(canvas_rect_native));
+    o.insert("quadraticCurveTo".into(), Value::NativeFunction(canvas_quadratic_curve_to_native));
+    o.insert("bezierCurveTo".into(), Value::NativeFunction(canvas_bezier_curve_to_native));
+    o.insert("clip".into(), Value::NativeFunction(canvas_clip_native));
+    o.insert("toDataURL".into(), Value::NativeFunction(canvas_to_data_url_native));
 }
 
 fn canvas_fill_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -323,7 +329,45 @@ fn canvas_gradient_add_color_stop_native(args: &[Value], _env: &mut Environment)
 fn canvas_draw_image_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let dst = canvas_id_arg(args, 0)?;
     let src = canvas_id_arg(args, 1)?;
-    canvas2d::draw_image(dst, src, expect_f64(args, 2)?, expect_f64(args, 3)?, expect_f64(args, 4)?, expect_f64(args, 5)?)?;
+    match args.len() {
+        4 => {
+            canvas2d::draw_image_xy(dst, src, expect_f64(args, 2)?, expect_f64(args, 3)?)?;
+        }
+        6 => {
+            canvas2d::draw_image(
+                dst,
+                src,
+                expect_f64(args, 2)?,
+                expect_f64(args, 3)?,
+                expect_f64(args, 4)?,
+                expect_f64(args, 5)?,
+            )?;
+        }
+        n if n >= 10 => {
+            canvas2d::draw_image_rect(
+                dst,
+                src,
+                expect_f64(args, 2)?,
+                expect_f64(args, 3)?,
+                expect_f64(args, 4)?,
+                expect_f64(args, 5)?,
+                expect_f64(args, 6)?,
+                expect_f64(args, 7)?,
+                expect_f64(args, 8)?,
+                expect_f64(args, 9)?,
+            )?;
+        }
+        _ => {
+            canvas2d::draw_image(
+                dst,
+                src,
+                expect_f64(args, 2)?,
+                expect_f64(args, 3)?,
+                expect_f64(args, 4).unwrap_or(1.0),
+                expect_f64(args, 5).unwrap_or(1.0),
+            )?;
+        }
+    }
     Ok(Value::Null)
 }
 
@@ -414,6 +458,65 @@ fn canvas_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     Ok(Value::Null)
 }
 
+fn canvas_transform_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    canvas2d::transform_multiply(
+        id,
+        expect_f64(args, 1)?,
+        expect_f64(args, 2)?,
+        expect_f64(args, 3)?,
+        expect_f64(args, 4)?,
+        expect_f64(args, 5)?,
+        expect_f64(args, 6)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn canvas_reset_transform_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    canvas2d::reset_transform(canvas_id_arg(args, 0)?)?;
+    Ok(Value::Null)
+}
+
+fn canvas_quadratic_curve_to_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    canvas2d::quadratic_curve_to(
+        id,
+        expect_f64(args, 1)?,
+        expect_f64(args, 2)?,
+        expect_f64(args, 3)?,
+        expect_f64(args, 4)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn canvas_bezier_curve_to_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    canvas2d::bezier_curve_to(
+        id,
+        expect_f64(args, 1)?,
+        expect_f64(args, 2)?,
+        expect_f64(args, 3)?,
+        expect_f64(args, 4)?,
+        expect_f64(args, 5)?,
+        expect_f64(args, 6)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn canvas_clip_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    canvas2d::clip_path(canvas_id_arg(args, 0)?)?;
+    Ok(Value::Null)
+}
+
+fn canvas_to_data_url_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    let mime = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "image/png",
+    };
+    Ok(Value::String(canvas2d::to_data_url(id, mime)?))
+}
+
 fn canvas_to_pixels_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = canvas_id_arg(args, 0)?;
     let bytes = canvas2d::to_rgba_bytes(id)?;
@@ -454,7 +557,13 @@ pub fn register_canvas(env: &mut Environment) {
         ("canvas_get_image_data", canvas_get_image_data_native),
         ("canvas_put_image_data", canvas_put_image_data_native),
         ("canvas_set_transform", canvas_set_transform_native),
+        ("canvas_transform", canvas_transform_native),
+        ("canvas_reset_transform", canvas_reset_transform_native),
         ("canvas_rect", canvas_rect_native),
+        ("canvas_quadratic_curve_to", canvas_quadratic_curve_to_native),
+        ("canvas_bezier_curve_to", canvas_bezier_curve_to_native),
+        ("canvas_clip", canvas_clip_native),
+        ("canvas_to_data_url", canvas_to_data_url_native),
         ("canvas_to_pixels", canvas_to_pixels_native),
     ];
     for (name, func) in fns {

@@ -119,3 +119,34 @@ fn webgl_tex_image2d_from_canvas() {
     );
     assert_eq!(out, "8");
 }
+
+#[test]
+fn webgl_framebuffer_attach_texture() {
+    let out = eval(
+        r##"
+        let src = canvas_create(16, 16);
+        src.fillStyle = "#3366cc";
+        src.fillRect(0, 0, 16, 16);
+        let gl = webgl_create(32, 32);
+        let tex = gl.createTexture();
+        gl.texImage2D(tex, src);
+        let fb = gl.createFramebuffer();
+        gl.bindFramebuffer(fb);
+        gl.framebufferTexture2D(fb, tex);
+        let status = gl.checkFramebufferStatus(fb);
+        status == "FRAMEBUFFER_COMPLETE"
+    "##,
+    );
+    assert_eq!(out, "true");
+}
+
+#[test]
+fn webgl_shader_from_files_smoke() {
+    let out = eval(
+        r##"
+        let id = webgl_shader_from_files("fixtures/webgl/basic.vert", "fixtures/webgl/basic.frag");
+        id > 0
+    "##,
+    );
+    assert_eq!(out, "true");
+}

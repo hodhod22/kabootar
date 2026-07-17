@@ -310,6 +310,107 @@ fn texture_value(tex: &webgl::GlTexture) -> Value {
     Value::Object(o)
 }
 
+fn framebuffer_value(fb: &webgl::GlFramebuffer) -> Value {
+    let mut o = HashMap::new();
+    o.insert("__kab_gl_fbo".into(), Value::Bool(true));
+    o.insert("id".into(), Value::Number(fb.id as i64));
+    o.insert("complete".into(), Value::Bool(fb.complete));
+    if let Some(tid) = fb.color_texture {
+        o.insert("colorTexture".into(), Value::Number(tid as i64));
+    }
+    Value::Object(o)
+}
+
+fn fb_id_from_value(v: &Value) -> Result<u64, String> {
+    match v {
+        Value::Number(n) if *n > 0 => Ok(*n as u64),
+        Value::Object(map) => match map.get("id") {
+            Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
+            _ => Err("framebuffer object missing id".into()),
+        },
+        _ => Err("expected framebuffer id or object".into()),
+    }
+}
+
+fn gl_create_framebuffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = args;
+    Ok(framebuffer_value(&webgl::create_framebuffer()?))
+}
+
+fn gl_bind_framebuffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = gl_id_from_receiver(args)?;
+    let fb = match args.get(1) {
+        None | Some(Value::Null) | Some(Value::Undefined) => None,
+        Some(v) => Some(fb_id_from_value(v)?),
+    };
+    Ok(Value::Bool(webgl::bind_framebuffer(id, fb)?))
+}
+
+fn gl_framebuffer_texture_2d_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = gl_id_from_receiver(args)?;
+    // gl.framebufferTexture2D(fb, texture) or (target, attachment, texTarget, texture, level)
+    let (fb, tex) = if args.len() >= 3 {
+        // method: self, fb, tex  OR self, target, attachment, textarget, tex, level
+        if args.len() >= 6 {
+            (
+                fb_id_from_value(args.get(1).ok_or("framebuffer")?)?,
+                texture_id_from_value(args.get(4).ok_or("texture")?)?,
+            )
+        } else {
+            (
+                fb_id_from_value(args.get(1).ok_or("framebuffer")?)?,
+                texture_id_from_value(args.get(2).ok_or("texture")?)?,
+            )
+        }
+    } else {
+        return Err("framebufferTexture2D(fb, texture)".into());
+    };
+    Ok(Value::Bool(webgl::framebuffer_texture_2d(fb, tex)?))
+}
+
+fn gl_check_framebuffer_status_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = gl_id_from_receiver(args)?;
+    let fb = fb_id_from_value(args.get(1).ok_or("checkFramebufferStatus(fb)")?)?;
+    Ok(Value::String(webgl::check_framebuffer_status(fb)?.into()))
+}
+
+fn gl_compile_shader_from_files_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    // Method: (self, vert, frag) or flat: (vert, frag)
+    let (vert, frag) = if args.first().is_some_and(|v| matches!(v, Value::Object(m) if m.contains_key("__kab_gl_ctx")))
+    {
+        (
+            match args.get(1) {
+                Some(Value::String(s)) => s.clone(),
+                _ => return Err("compileShaderFromFiles(vert, frag)".into()),
+            },
+            match args.get(2) {
+                Some(Value::String(s)) => s.clone(),
+                _ => return Err("compileShaderFromFiles(vert, frag)".into()),
+            },
+        )
+    } else {
+        (
+            match args.first() {
+                Some(Value::String(s)) => s.clone(),
+                _ => return Err("compileShaderFromFiles(vert, frag)".into()),
+            },
+            match args.get(1) {
+                Some(Value::String(s)) => s.clone(),
+                _ => return Err("compileShaderFromFiles(vert, frag)".into()),
+            },
+        )
+    };
+    let prog = webgl::compile_shader_from_files(&vert, &frag)?;
+    let mut o = HashMap::new();
+    o.insert("id".into(), Value::Number(prog.id as i64));
+    o.insert("vertex".into(), Value::String(prog.vertex));
+    o.insert("fragment".into(), Value::String(prog.fragment));
+    Ok(Value::Object(o))
+}
+
 fn attach_gl_methods(o: &mut HashMap<String, Value>) {
     o.insert("clearColor".into(), Value::NativeFunction(gl_clear_color_native));
     o.insert("clear".into(), Value::NativeFunction(gl_clear_native));
@@ -335,11 +436,30 @@ fn attach_gl_methods(o: &mut HashMap<String, Value>) {
     o.insert("createTexture".into(), Value::NativeFunction(gl_create_texture_native));
     o.insert("bindTexture".into(), Value::NativeFunction(gl_bind_texture_native));
     o.insert("texImage2D".into(), Value::NativeFunction(gl_tex_image2d_native));
+    o.insert("createFramebuffer".into(), Value::NativeFunction(gl_create_framebuffer_native));
+    o.insert("bindFramebuffer".into(), Value::NativeFunction(gl_bind_framebuffer_native));
+    o.insert(
+        "framebufferTexture2D".into(),
+        Value::NativeFunction(gl_framebuffer_texture_2d_native),
+    );
+    o.insert(
+        "checkFramebufferStatus".into(),
+        Value::NativeFunction(gl_check_framebuffer_status_native),
+    );
+    o.insert(
+        "compileShaderFromFiles".into(),
+        Value::NativeFunction(gl_compile_shader_from_files_native),
+    );
     o.insert("TEXTURE_2D".into(), Value::String("texture_2d".into()));
     o.insert("ARRAY_BUFFER".into(), Value::String("array".into()));
     o.insert(
         "ELEMENT_ARRAY_BUFFER".into(),
         Value::String("element_array".into()),
+    );
+    o.insert("FRAMEBUFFER".into(), Value::String("framebuffer".into()));
+    o.insert(
+        "COLOR_ATTACHMENT0".into(),
+        Value::String("color_attachment0".into()),
     );
 }
 

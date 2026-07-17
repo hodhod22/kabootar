@@ -113,6 +113,20 @@ enum PaintStyle {
 enum PathCmd {
     Move(f64, f64),
     Line(f64, f64),
+    Quadratic {
+        cpx: f64,
+        cpy: f64,
+        x: f64,
+        y: f64,
+    },
+    Bezier {
+        cp1x: f64,
+        cp1y: f64,
+        cp2x: f64,
+        cp2y: f64,
+        x: f64,
+        y: f64,
+    },
     Arc {
         cx: f64,
         cy: f64,
@@ -134,6 +148,7 @@ struct ContextState {
     font_size: f32,
     font_family: String,
     text_baseline: String,
+    clip: Option<Vec<(f64, f64)>>,
 }
 
 impl Default for ContextState {
@@ -147,6 +162,7 @@ impl Default for ContextState {
             font_size: 16.0,
             font_family: "sans-serif".into(),
             text_baseline: "alphabetic".into(),
+            clip: None,
         }
     }
 }
@@ -460,6 +476,28 @@ pub fn set_transform(
     })
 }
 
+pub fn transform_multiply(
+    id: u64,
+    a: f64,
+    b: f64,
+    c: f64,
+    d: f64,
+    e: f64,
+    f: f64,
+) -> Result<(), String> {
+    with_surface(id, |s| {
+        s.state.transform = s.state.transform.multiply(&Transform { a, b, c, d, e, f });
+        Ok(())
+    })
+}
+
+pub fn reset_transform(id: u64) -> Result<(), String> {
+    with_surface(id, |s| {
+        s.state.transform = Transform::identity();
+        Ok(())
+    })
+}
+
 pub fn begin_path(id: u64) -> Result<(), String> {
     with_surface(id, |s| {
         s.path.clear();
@@ -481,6 +519,48 @@ pub fn line_to(id: u64, x: f64, y: f64) -> Result<(), String> {
     with_surface(id, |s| {
         s.path.push(PathCmd::Line(x, y));
         s.current = (x, y);
+        Ok(())
+    })
+}
+
+pub fn quadratic_curve_to(id: u64, cpx: f64, cpy: f64, x: f64, y: f64) -> Result<(), String> {
+    with_surface(id, |s| {
+        s.path.push(PathCmd::Quadratic { cpx, cpy, x, y });
+        s.current = (x, y);
+        Ok(())
+    })
+}
+
+pub fn bezier_curve_to(
+    id: u64,
+    cp1x: f64,
+    cp1y: f64,
+    cp2x: f64,
+    cp2y: f64,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    with_surface(id, |s| {
+        s.path
+            .push(PathCmd::Bezier {
+                cp1x,
+                cp1y,
+                cp2x,
+                cp2y,
+                x,
+                y,
+            });
+        s.current = (x, y);
+        Ok(())
+    })
+}
+
+pub fn clip_path(id: u64) -> Result<(), String> {
+    with_surface(id, |s| {
+        let polys = flatten_path(&s.path);
+        if let Some(poly) = polys.into_iter().next() {
+            s.state.clip = Some(poly);
+        }
         Ok(())
     })
 }
@@ -536,11 +616,19 @@ pub fn fill(id: u64) -> Result<(), String> {
         let polys = flatten_path(&s.path);
         let bounds = path_bounds(&polys);
         let color_base = resolve_fill(&s.state, bounds.0, bounds.1, bounds.2, bounds.3)?;
+        let clip = s.state.clip.clone();
         for poly in polys {
             if poly.len() < 3 {
                 continue;
             }
-            fill_polygon(&mut s.buffer, &poly, &s.state.transform, color_base, s.state.global_alpha);
+            fill_polygon_clipped(
+                &mut s.buffer,
+                &poly,
+                &s.state.transform,
+                color_base,
+                s.state.global_alpha,
+                clip.as_deref(),
+            );
         }
         s.mark_dirty();
         Ok(())
@@ -696,6 +784,37 @@ pub fn draw_image(
     dw: f64,
     dh: f64,
 ) -> Result<(), String> {
+    draw_image_rect(dst_id, src_id, 0.0, 0.0, -1.0, -1.0, dx, dy, dw, dh)
+}
+
+pub fn draw_image_xy(dst_id: u64, src_id: u64, dx: f64, dy: f64) -> Result<(), String> {
+    let (sw, sh, _) = surface_meta(src_id).ok_or("drawImage: invalid source canvas")?;
+    draw_image_rect(
+        dst_id,
+        src_id,
+        0.0,
+        0.0,
+        sw as f64,
+        sh as f64,
+        dx,
+        dy,
+        sw as f64,
+        sh as f64,
+    )
+}
+
+pub fn draw_image_rect(
+    dst_id: u64,
+    src_id: u64,
+    sx: f64,
+    sy: f64,
+    sw: f64,
+    sh: f64,
+    dx: f64,
+    dy: f64,
+    dw: f64,
+    dh: f64,
+) -> Result<(), String> {
     let src = surfaces()
         .lock()
         .map_err(|_| "canvas lock poisoned".to_string())?
@@ -703,11 +822,18 @@ pub fn draw_image(
         .ok_or("drawImage: invalid source canvas")?
         .buffer
         .clone();
+    let (full_w, full_h) = (src.width as f64, src.height as f64);
+    let sw = if sw < 0.0 { full_w } else { sw };
+    let sh = if sh < 0.0 { full_h } else { sh };
     with_surface(dst_id, |s| {
         let (tx, ty) = s.state.transform.apply(dx, dy);
-        blit_scaled(
+        blit_scaled_src(
             &mut s.buffer,
             &src,
+            sx.round() as i32,
+            sy.round() as i32,
+            sw.max(1.0) as i32,
+            sh.max(1.0) as i32,
             tx.round() as i32,
             ty.round() as i32,
             dw.max(1.0) as i32,
@@ -720,6 +846,21 @@ pub fn draw_image(
 
 pub fn to_rgba_bytes(id: u64) -> Result<Vec<u8>, String> {
     with_surface(id, |s| Ok(s.buffer.to_rgba_bytes()))
+}
+
+/// `data:image/bmp;base64,...` (or png-like raw BMP for smoke parity).
+pub fn to_data_url(id: u64, mime: &str) -> Result<String, String> {
+    let (w, h, _) = surface_meta(id).ok_or("toDataURL: invalid canvas")?;
+    let rgba = to_rgba_bytes(id)?;
+    let mime = if mime.is_empty() { "image/png" } else { mime };
+    let bytes = if mime.contains("bmp") {
+        encode_bmp(w, h, &rgba)
+    } else {
+        // Minimal uncompressed PNG (zlib store) — works without extra crates.
+        encode_png_store(w, h, &rgba)
+    };
+    let b64 = crate::runtime::stdlib::base64_encode(&bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
 }
 
 // --- raster helpers ---
@@ -920,6 +1061,34 @@ fn flatten_path(path: &[PathCmd]) -> Vec<Vec<(f64, f64)>> {
                 current.push((*x, *y));
                 cursor = (*x, *y);
             }
+            PathCmd::Quadratic { cpx, cpy, x, y } => {
+                let pts = tessellate_quadratic(cursor.0, cursor.1, *cpx, *cpy, *x, *y);
+                for (px, py) in pts {
+                    if current.is_empty() {
+                        current.push(cursor);
+                    }
+                    current.push((px, py));
+                    cursor = (px, py);
+                }
+            }
+            PathCmd::Bezier {
+                cp1x,
+                cp1y,
+                cp2x,
+                cp2y,
+                x,
+                y,
+            } => {
+                let pts =
+                    tessellate_bezier(cursor.0, cursor.1, *cp1x, *cp1y, *cp2x, *cp2y, *x, *y);
+                for (px, py) in pts {
+                    if current.is_empty() {
+                        current.push(cursor);
+                    }
+                    current.push((px, py));
+                    cursor = (px, py);
+                }
+            }
             PathCmd::Arc {
                 cx,
                 cy,
@@ -966,6 +1135,32 @@ fn flatten_segments(path: &[PathCmd]) -> Vec<(f64, f64, f64, f64)> {
             PathCmd::Line(x, y) => {
                 out.push((cursor.0, cursor.1, *x, *y));
                 cursor = (*x, *y);
+            }
+            PathCmd::Quadratic { cpx, cpy, x, y } => {
+                let pts = tessellate_quadratic(cursor.0, cursor.1, *cpx, *cpy, *x, *y);
+                let mut prev = cursor;
+                for (px, py) in pts {
+                    out.push((prev.0, prev.1, px, py));
+                    prev = (px, py);
+                }
+                cursor = prev;
+            }
+            PathCmd::Bezier {
+                cp1x,
+                cp1y,
+                cp2x,
+                cp2y,
+                x,
+                y,
+            } => {
+                let pts =
+                    tessellate_bezier(cursor.0, cursor.1, *cp1x, *cp1y, *cp2x, *cp2y, *x, *y);
+                let mut prev = cursor;
+                for (px, py) in pts {
+                    out.push((prev.0, prev.1, px, py));
+                    prev = (px, py);
+                }
+                cursor = prev;
             }
             PathCmd::Arc {
                 cx,
@@ -1093,4 +1288,220 @@ fn blend_pixel(buf: &mut PixelBuffer, x: i32, y: i32, color: u32) {
     let g = (sg * sa + dg * inv) / 255;
     let b = (sb * sa + db * inv) / 255;
     buf.pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+fn fill_polygon_clipped(
+    buf: &mut PixelBuffer,
+    poly: &[(f64, f64)],
+    tf: &Transform,
+    color: u32,
+    alpha: f32,
+    clip: Option<&[(f64, f64)]>,
+) {
+    let col = apply_alpha(color, alpha);
+    let pts: Vec<(f64, f64)> = poly.iter().map(|(x, y)| tf.apply(*x, *y)).collect();
+    let clip_pts: Option<Vec<(f64, f64)>> =
+        clip.map(|c| c.iter().map(|(x, y)| tf.apply(*x, *y)).collect());
+    if pts.len() < 3 {
+        return;
+    }
+    let min_y = pts.iter().map(|p| p.1).fold(f64::INFINITY, f64::min).floor() as i32;
+    let max_y = pts.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max).ceil() as i32;
+    let min_x = pts.iter().map(|p| p.0).fold(f64::INFINITY, f64::min).floor() as i32;
+    let max_x = pts.iter().map(|p| p.0).fold(f64::NEG_INFINITY, f64::max).ceil() as i32;
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let px = x as f64 + 0.5;
+            let py = y as f64 + 0.5;
+            if !point_in_polygon(px, py, &pts) {
+                continue;
+            }
+            if let Some(ref c) = clip_pts {
+                if c.len() >= 3 && !point_in_polygon(px, py, c) {
+                    continue;
+                }
+            }
+            blend_pixel(buf, x, y, col);
+        }
+    }
+}
+
+fn tessellate_quadratic(x0: f64, y0: f64, cpx: f64, cpy: f64, x1: f64, y1: f64) -> Vec<(f64, f64)> {
+    let steps = 12usize;
+    (1..=steps)
+        .map(|i| {
+            let t = i as f64 / steps as f64;
+            let u = 1.0 - t;
+            let x = u * u * x0 + 2.0 * u * t * cpx + t * t * x1;
+            let y = u * u * y0 + 2.0 * u * t * cpy + t * t * y1;
+            (x, y)
+        })
+        .collect()
+}
+
+fn tessellate_bezier(
+    x0: f64,
+    y0: f64,
+    cp1x: f64,
+    cp1y: f64,
+    cp2x: f64,
+    cp2y: f64,
+    x1: f64,
+    y1: f64,
+) -> Vec<(f64, f64)> {
+    let steps = 16usize;
+    (1..=steps)
+        .map(|i| {
+            let t = i as f64 / steps as f64;
+            let u = 1.0 - t;
+            let x = u * u * u * x0
+                + 3.0 * u * u * t * cp1x
+                + 3.0 * u * t * t * cp2x
+                + t * t * t * x1;
+            let y = u * u * u * y0
+                + 3.0 * u * u * t * cp1y
+                + 3.0 * u * t * t * cp2y
+                + t * t * t * y1;
+            (x, y)
+        })
+        .collect()
+}
+
+fn blit_scaled_src(
+    dst: &mut PixelBuffer,
+    src: &PixelBuffer,
+    sx: i32,
+    sy: i32,
+    sw: i32,
+    sh: i32,
+    dx: i32,
+    dy: i32,
+    dw: i32,
+    dh: i32,
+) {
+    if dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0 {
+        return;
+    }
+    for row in 0..dh {
+        let src_y = sy + (row * sh) / dh;
+        for col in 0..dw {
+            let src_x = sx + (col * sw) / dw;
+            if src_x < 0
+                || src_y < 0
+                || src_x >= src.width as i32
+                || src_y >= src.height as i32
+            {
+                continue;
+            }
+            let px = src.pixels[src_y as usize * src.width as usize + src_x as usize];
+            blend_pixel(dst, dx + col, dy + row, px);
+        }
+    }
+}
+
+fn encode_bmp(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
+    let row_stride = ((w * 3 + 3) / 4) * 4;
+    let pixel_size = row_stride * h;
+    let file_size = 54 + pixel_size;
+    let mut out = Vec::with_capacity(file_size as usize);
+    out.extend_from_slice(b"BM");
+    out.extend_from_slice(&(file_size as u32).to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&54u32.to_le_bytes());
+    out.extend_from_slice(&40u32.to_le_bytes());
+    out.extend_from_slice(&(w as i32).to_le_bytes());
+    out.extend_from_slice(&(h as i32).to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&24u16.to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&pixel_size.to_le_bytes());
+    out.extend_from_slice(&2835u32.to_le_bytes());
+    out.extend_from_slice(&2835u32.to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out.extend_from_slice(&0u32.to_le_bytes());
+    for row in (0..h).rev() {
+        for col in 0..w {
+            let i = ((row * w + col) * 4) as usize;
+            out.push(rgba[i + 2]);
+            out.push(rgba[i + 1]);
+            out.push(rgba[i]);
+        }
+        for _ in 0..(row_stride - w * 3) {
+            out.push(0);
+        }
+    }
+    out
+}
+
+fn encode_png_store(w: u32, h: u32, rgba: &[u8]) -> Vec<u8> {
+    // Uncompressed PNG: IHDR + IDAT (zlib stored) + IEND.
+    let mut raw = Vec::with_capacity(((w * 4 + 1) * h) as usize);
+    for row in 0..h {
+        raw.push(0); // filter None
+        let start = (row * w * 4) as usize;
+        let end = start + (w as usize) * 4;
+        raw.extend_from_slice(&rgba[start..end]);
+    }
+    let mut zlib = Vec::new();
+    zlib.push(0x78);
+    zlib.push(0x01);
+    let mut pos = 0usize;
+    while pos < raw.len() {
+        let end = (pos + 65535).min(raw.len());
+        let chunk = &raw[pos..end];
+        let last = end == raw.len();
+        zlib.push(if last { 0x01 } else { 0x00 });
+        let len = chunk.len() as u16;
+        zlib.extend_from_slice(&len.to_le_bytes());
+        zlib.extend_from_slice(&(!len).to_le_bytes());
+        zlib.extend_from_slice(chunk);
+        pos = end;
+    }
+    let adler = adler32(&raw);
+    zlib.extend_from_slice(&adler.to_be_bytes());
+
+    let mut png = Vec::new();
+    png.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+    write_png_chunk(&mut png, b"IHDR", &{
+        let mut d = Vec::new();
+        d.extend_from_slice(&w.to_be_bytes());
+        d.extend_from_slice(&h.to_be_bytes());
+        d.extend_from_slice(&[8, 6, 0, 0, 0]); // 8-bit RGBA
+        d
+    });
+    write_png_chunk(&mut png, b"IDAT", &zlib);
+    write_png_chunk(&mut png, b"IEND", &[]);
+    png
+}
+
+fn write_png_chunk(out: &mut Vec<u8>, ty: &[u8; 4], data: &[u8]) {
+    out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+    out.extend_from_slice(ty);
+    out.extend_from_slice(data);
+    let mut crc_data = Vec::with_capacity(4 + data.len());
+    crc_data.extend_from_slice(ty);
+    crc_data.extend_from_slice(data);
+    out.extend_from_slice(&crc32(&crc_data).to_be_bytes());
+}
+
+fn adler32(data: &[u8]) -> u32 {
+    let mut a = 1u32;
+    let mut b = 0u32;
+    for &byte in data {
+        a = (a + byte as u32) % 65521;
+        b = (b + a) % 65521;
+    }
+    (b << 16) | a
+}
+
+fn crc32(data: &[u8]) -> u32 {
+    let mut crc = 0xffff_ffffu32;
+    for &byte in data {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            let mask = !(crc & 1).wrapping_sub(1);
+            crc = (crc >> 1) ^ (0xedb88320 & mask);
+        }
+    }
+    !crc
 }

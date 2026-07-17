@@ -209,3 +209,24 @@ fn canvas_set_transform_and_rect_path() {
     );
     assert_eq!(out, "true");
 }
+
+#[test]
+fn canvas_curves_clip_and_to_data_url() {
+    let out = eval(
+        r##"
+        let ctx = canvas_create(32, 32);
+        canvas_begin_path(ctx);
+        canvas_rect(ctx, 0, 0, 16, 16);
+        canvas_clip(ctx);
+        canvas_begin_path(ctx);
+        canvas_move_to(ctx, 0, 16);
+        canvas_quadratic_curve_to(ctx, 8, 0, 16, 16);
+        canvas_bezier_curve_to(ctx, 20, 32, 28, 0, 32, 16);
+        canvas_set_stroke_style(ctx, "#ffffff");
+        canvas_stroke(ctx);
+        let url = canvas_to_data_url(ctx, "image/png");
+        string_starts_with(url, "data:image/png;base64,")
+        "##,
+    );
+    assert_eq!(out, "true");
+}

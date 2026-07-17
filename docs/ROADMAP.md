@@ -493,16 +493,16 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-07):** C1 — selectors `#`/`.`/`[attr]`/`>`/`:not()`/`,`/`+`/`~` + MutationObserver (`observe`/`disconnect`/callback) + mutation `removedNodeId`. **C2:** React 19 esbuild; shim createRoot smoke; full `via_import` createRoot/render probe (`#[ignore]` / `KABOOTAR_REACT_FULL`). **C3:** `evalSource` → Rust. **C4:** flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple `display:grid`. **C5:** Canvas `getImageData`/`putImageData`/`setTransform`/`rect`. **Dom live:** parent sync.
+**Status (2026-07):** C1 — selectors + MutationObserver + Kv8 EventTarget (bubble/capture/`removeEventListener`/`Event`). **C2:** React 19 esbuild; shim createRoot; full `via_import` createRoot (`#[ignore]`). **C3:** `evalSource` → Rust. **C4:** flex wrap/grow/shrink + grid. **C5:** Canvas curves/clip/toDataURL/imageData/setTransform + host parity. **C6:** WebGL FBO + `compileShaderFromFiles` + texture flat API. **Dom live:** parent sync.
 
 | Fas | Innehåll |
 |-----|----------|
-| **C1** 🚧 | **kDOM** — MutationObserver + Events/MO queue; `querySelector` (`#`/`.`/`[attr]`/`>`/`:not`/`,`/`+`/`~`) |
-| **C2** 🚧 | **Kv8** — React 19 esbuild; shim createRoot; full bundle `via_import` createRoot (`#[ignore]`) |
+| **C1** ✅ | **kDOM** — MutationObserver + Kv8 Event bubble/capture/remove; selectors |
+| **C2** 🚧 | **Kv8** — React 19 esbuild; shim createRoot; full bundle `via_import` (`#[ignore]`) |
 | **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` |
 | **C4** ✅ | **Layout** — flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple CSS grid |
-| **C5** 🚧 | **Canvas 2D** — get/putImageData, setTransform, rect (+ [CANVAS.md](CANVAS.md) remaining) |
-| **C6** | **WebGL** — textures, FBO, shaders från GLSL-filer |
+| **C5** ✅ | **Canvas 2D** — curves/clip/toDataURL/imageData/setTransform (+ [CANVAS.md](CANVAS.md)) |
+| **C6** ✅ | **WebGL** — textures, FBO, shaders från GLSL-filer (`fixtures/webgl`) |
 | **C7** | **WebRTC** — stub → produktion (ICE, DTLS-SRTP) |
 | **C8** | **PWA/Extensions** — service worker fetch events, extension permissions |
 | **C9** | **DevTools** — network panel, profiler, live edit |
