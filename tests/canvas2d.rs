@@ -174,3 +174,38 @@ fn canvas_host_translate_and_draw_image() {
     );
     assert_eq!(out, "true");
 }
+
+#[test]
+fn canvas_get_put_image_data_roundtrip() {
+    let out = eval(
+        r##"
+        let ctx = canvas_create(8, 8);
+        canvas_set_fill_style(ctx, "#ff0000");
+        canvas_fill_rect(ctx, 0, 0, 4, 4);
+        let img = canvas_get_image_data(ctx, 0, 0, 4, 4);
+        let ctx2 = canvas_create(8, 8);
+        canvas_put_image_data(ctx2, img, 2, 2);
+        let check = canvas_get_image_data(ctx2, 2, 2, 1, 1);
+        img["width"] == 4 && img["height"] == 4 && len(img["data"]) == 64
+            && check["data"][0] == 255 && check["data"][1] == 0 && check["data"][2] == 0
+        "##,
+    );
+    assert_eq!(out, "true");
+}
+
+#[test]
+fn canvas_set_transform_and_rect_path() {
+    let out = eval(
+        r##"
+        let ctx = canvas_create(20, 20);
+        canvas_set_transform(ctx, 1, 0, 0, 1, 5, 5);
+        canvas_begin_path(ctx);
+        canvas_rect(ctx, 0, 0, 4, 4);
+        canvas_set_fill_style(ctx, "#00ff00");
+        canvas_fill(ctx);
+        let px = canvas_get_image_data(ctx, 5, 5, 1, 1);
+        px["data"][1] == 255
+        "##,
+    );
+    assert_eq!(out, "true");
+}

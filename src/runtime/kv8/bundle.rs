@@ -1186,6 +1186,41 @@ mod parse_probe {
         }
     }
 
+    /// Real esbuild React bundle via [`load_react_runtime_via_import`] — not the shim.
+    /// Enable with `cargo test react_full_via_import_create_root -- --ignored` or
+    /// `KABOOTAR_REACT_FULL=1` smoke path. Minutes in debug.
+    #[test]
+    #[ignore = "slow: full React via_import createRoot/createElement/render"]
+    fn react_full_via_import_create_root() {
+        use super::super::context::{Kv8Context, Kv8Value};
+        use super::super::eval::eval_script;
+        let ctx = Kv8Context::default();
+        super::load_react_runtime_via_import(&ctx).expect("via_import react runtime");
+        let typeof_cr = eval_script(
+            &ctx,
+            "return typeof globalThis.ReactDOM.createRoot + ',' + typeof globalThis.React.createElement;",
+        );
+        match typeof_cr {
+            Ok(Kv8Value::Str(s)) if s == "function,function" => {}
+            other => panic!("via_import createRoot/createElement typeof got {other:?}"),
+        }
+        let rendered = eval_script(
+            &ctx,
+            r#"
+            var el = document.createElement('div');
+            document.body.appendChild(el);
+            var root = ReactDOM.createRoot(el);
+            root.render(React.createElement('span', null, 'hi'));
+            return typeof root.render === 'function' ? 'ok' : 'bad';
+            "#,
+        );
+        match rendered {
+            Ok(Kv8Value::Str(s)) if s == "ok" => {}
+            Ok(Kv8Value::Str(s)) => panic!("via_import createRoot/render failed: {s}"),
+            other => panic!("via_import createRoot/render got {other:?}"),
+        }
+    }
+
     #[test]
     fn react_like_render_this_chain() {
         use super::super::context::{Kv8Context, Kv8Value};

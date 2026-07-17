@@ -12,10 +12,11 @@ pub fn is_nullish(v: &Value) -> bool {
 
 fn object_wants_bound_native(map: &std::collections::HashMap<String, Value>) -> bool {
     matches!(map.get("__kab_ctx"), Some(Value::Bool(true)))
-        ||     matches!(map.get("__kab_gl_ctx"), Some(Value::Bool(true)))
+        || matches!(map.get("__kab_gl_ctx"), Some(Value::Bool(true)))
         || matches!(map.get("__kab_gl_tex"), Some(Value::Bool(true)))
         || matches!(map.get("__kab_host_canvas"), Some(Value::Bool(true)))
         || matches!(map.get("__kab_game_surface"), Some(Value::Bool(true)))
+        || matches!(map.get("__kab_mo"), Some(Value::Bool(true)))
 }
 
 pub fn maybe_bind_native_method(receiver: &Value, member: Value) -> Value {

@@ -493,15 +493,15 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-07):** C1 — selectors `#`/`.`/`[attr]`/`>`/`:not()`/`,`/`+`/`~` + mutation `removedNodeId`. **C2:** React 19 esbuild; `program_stmt_count` + full `run_program` lib probe; shim counter smoke; `KABOOTAR_REACT_FULL=1` for real bundle. **C3:** `evalSource` → Rust. **C4:** flex (`justify-content`/`align-items`) + simple `display:grid`. **Dom live:** parent sync.
+**Status (2026-07):** C1 — selectors `#`/`.`/`[attr]`/`>`/`:not()`/`,`/`+`/`~` + MutationObserver (`observe`/`disconnect`/callback) + mutation `removedNodeId`. **C2:** React 19 esbuild; shim createRoot smoke; full `via_import` createRoot/render probe (`#[ignore]` / `KABOOTAR_REACT_FULL`). **C3:** `evalSource` → Rust. **C4:** flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple `display:grid`. **C5:** Canvas `getImageData`/`putImageData`/`setTransform`/`rect`. **Dom live:** parent sync.
 
 | Fas | Innehåll |
 |-----|----------|
-| **C1** 🚧 | **kDOM** — Events/MO queue; `querySelector` (`#`/`.`/`[attr]`/`>`/`:not`/`,`/`+`/`~`) |
-| **C2** 🚧 | **Kv8** — React 19 esbuild; shim createRoot smoke; full bundle `run_program` + `KABOOTAR_REACT_FULL` |
+| **C1** 🚧 | **kDOM** — MutationObserver + Events/MO queue; `querySelector` (`#`/`.`/`[attr]`/`>`/`:not`/`,`/`+`/`~`) |
+| **C2** 🚧 | **Kv8** — React 19 esbuild; shim createRoot; full bundle `via_import` createRoot (`#[ignore]`) |
 | **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` |
-| **C4** ✅ | **Layout** — flex (`justify-content`/`align-items`) + simple CSS grid columns |
-| **C5** | **Canvas 2D** — full HTML5 canvas API ([CANVAS.md](CANVAS.md) luckor) |
+| **C4** ✅ | **Layout** — flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple CSS grid |
+| **C5** 🚧 | **Canvas 2D** — get/putImageData, setTransform, rect (+ [CANVAS.md](CANVAS.md) remaining) |
 | **C6** | **WebGL** — textures, FBO, shaders från GLSL-filer |
 | **C7** | **WebRTC** — stub → produktion (ICE, DTLS-SRTP) |
 | **C8** | **PWA/Extensions** — service worker fetch events, extension permissions |

@@ -17,6 +17,9 @@ pub struct ComputedStyle {
     pub flex_direction: String,
     pub justify_content: String,
     pub align_items: String,
+    pub flex_wrap: String,
+    pub flex_grow: f64,
+    pub flex_shrink: f64,
     pub gap: String,
     pub line_height: String,
     pub white_space: String,
@@ -39,6 +42,9 @@ impl ComputedStyle {
             flex_direction: "column".into(),
             justify_content: "flex-start".into(),
             align_items: "stretch".into(),
+            flex_wrap: "nowrap".into(),
+            flex_grow: 0.0,
+            flex_shrink: 1.0,
             gap: "0".into(),
             line_height: "normal".into(),
             white_space: "normal".into(),
@@ -50,7 +56,8 @@ impl ComputedStyle {
         format!(
             "display:{};color:{};background:{};font-size:{};font-weight:{};\
              padding:{};margin:{};width:{};height:{};border-radius:{};\
-             flex-direction:{};justify-content:{};align-items:{};gap:{};\
+             flex-direction:{};justify-content:{};align-items:{};flex-wrap:{};\
+             flex-grow:{};flex-shrink:{};gap:{};\
              grid-template-columns:{};line-height:{};white-space:{};box-sizing:border-box;",
             self.display,
             self.color,
@@ -65,6 +72,9 @@ impl ComputedStyle {
             self.flex_direction,
             self.justify_content,
             self.align_items,
+            self.flex_wrap,
+            self.flex_grow,
+            self.flex_shrink,
             self.gap,
             self.grid_template_columns,
             self.line_height,
@@ -88,12 +98,45 @@ impl ComputedStyle {
             "flex-direction" => self.flex_direction = v.into(),
             "justify-content" => self.justify_content = v.into(),
             "align-items" => self.align_items = v.into(),
+            "flex-wrap" => self.flex_wrap = v.into(),
+            "flex-grow" => self.flex_grow = v.parse().unwrap_or(0.0),
+            "flex-shrink" => self.flex_shrink = v.parse().unwrap_or(1.0),
+            "flex" => apply_flex_shorthand(self, v),
             "gap" => self.gap = v.into(),
             "grid-template-columns" => self.grid_template_columns = v.into(),
             "line-height" => self.line_height = v.into(),
             "white-space" => self.white_space = v.into(),
             _ => {}
         }
+    }
+}
+
+fn apply_flex_shorthand(style: &mut ComputedStyle, v: &str) {
+    let parts: Vec<&str> = v.split_whitespace().collect();
+    match parts.as_slice() {
+        ["none"] => {
+            style.flex_grow = 0.0;
+            style.flex_shrink = 0.0;
+        }
+        ["auto"] => {
+            style.flex_grow = 1.0;
+            style.flex_shrink = 1.0;
+        }
+        [grow] => {
+            if let Ok(g) = grow.parse::<f64>() {
+                style.flex_grow = g;
+                style.flex_shrink = 1.0;
+            }
+        }
+        [grow, shrink, ..] => {
+            if let Ok(g) = grow.parse::<f64>() {
+                style.flex_grow = g;
+            }
+            if let Ok(s) = shrink.parse::<f64>() {
+                style.flex_shrink = s;
+            }
+        }
+        _ => {}
     }
 }
 
