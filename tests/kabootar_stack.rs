@@ -192,16 +192,27 @@ fn js_wave_c1_query_selector() {
         child = kdom_set_attr(child, "class", "item active")
         child = kdom_set_attr(child, "data-x", "1")
         root = kdom_append(root, child)
+        let sib = kdom_create("p")
+        sib = kdom_set_attr(sib, "class", "next")
+        root = kdom_append(root, sib)
         let by_id = kdom_query_selector(root, "#main")
         let by_class = kdom_query_selector(root, ".active")
         let by_attr = kdom_query_selector(root, "[data-x=1]")
         let by_child = kdom_query_selector(root, "div > span")
-        let all = kdom_query_selector_all(root, "span")
+        let by_not = kdom_query_selector(root, "span:not(.missing)")
+        let by_comma = kdom_query_selector(root, "span, p")
+        let by_adj = kdom_query_selector(root, "span + p")
+        let by_sib = kdom_query_selector(root, "span ~ p")
+        let all = kdom_query_selector_all(root, "span, p")
         kdom_id(by_id) == kdom_id(child)
             && kdom_id(by_class) == kdom_id(child)
             && kdom_id(by_attr) == kdom_id(child)
             && kdom_id(by_child) == kdom_id(child)
-            && len(all) == 1
+            && kdom_id(by_not) == kdom_id(child)
+            && kdom_id(by_comma) == kdom_id(child)
+            && kdom_id(by_adj) == kdom_id(sib)
+            && kdom_id(by_sib) == kdom_id(sib)
+            && len(all) == 2
         "##,
     );
     assert!(matches!(out, Value::Bool(true)));
@@ -216,10 +227,13 @@ fn js_wave_c1_mutation_records() {
         let child = kdom_create("p")
         root = kdom_append(root, child)
         child = kdom_set_attr(child, "data-x", "1")
+        root = kdom_clear_children(root)
         let recs = kdom_mutation_records()
-        len(recs) == 2
+        len(recs) >= 3
             && recs[0]["type"] == "childList"
             && recs[1]["type"] == "attributes"
+            && recs[2]["type"] == "childList"
+            && recs[2]["removedNodeId"] != null
         "#,
     );
     assert!(matches!(out, Value::Bool(true)));

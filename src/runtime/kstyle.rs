@@ -15,9 +15,12 @@ pub struct ComputedStyle {
     pub height: String,
     pub border_radius: String,
     pub flex_direction: String,
+    pub justify_content: String,
+    pub align_items: String,
     pub gap: String,
     pub line_height: String,
     pub white_space: String,
+    pub grid_template_columns: String,
 }
 
 impl ComputedStyle {
@@ -34,9 +37,12 @@ impl ComputedStyle {
             height: "auto".into(),
             border_radius: "0".into(),
             flex_direction: "column".into(),
+            justify_content: "flex-start".into(),
+            align_items: "stretch".into(),
             gap: "0".into(),
             line_height: "normal".into(),
             white_space: "normal".into(),
+            grid_template_columns: String::new(),
         }
     }
 
@@ -44,7 +50,8 @@ impl ComputedStyle {
         format!(
             "display:{};color:{};background:{};font-size:{};font-weight:{};\
              padding:{};margin:{};width:{};height:{};border-radius:{};\
-             flex-direction:{};gap:{};line-height:{};white-space:{};box-sizing:border-box;",
+             flex-direction:{};justify-content:{};align-items:{};gap:{};\
+             grid-template-columns:{};line-height:{};white-space:{};box-sizing:border-box;",
             self.display,
             self.color,
             self.background,
@@ -56,7 +63,10 @@ impl ComputedStyle {
             self.height,
             self.border_radius,
             self.flex_direction,
+            self.justify_content,
+            self.align_items,
             self.gap,
+            self.grid_template_columns,
             self.line_height,
             self.white_space,
         )
@@ -76,7 +86,10 @@ impl ComputedStyle {
             "height" => self.height = v.into(),
             "border-radius" => self.border_radius = v.into(),
             "flex-direction" => self.flex_direction = v.into(),
+            "justify-content" => self.justify_content = v.into(),
+            "align-items" => self.align_items = v.into(),
             "gap" => self.gap = v.into(),
+            "grid-template-columns" => self.grid_template_columns = v.into(),
             "line-height" => self.line_height = v.into(),
             "white-space" => self.white_space = v.into(),
             _ => {}
