@@ -193,7 +193,7 @@ class Box {
     value: number;
 
     fn init(v) {
-        self.value = v
+        this.value = v
     }
 }
 
@@ -319,7 +319,7 @@ class Box<T> {
     value: number;
 
     fn init(v) {
-        self.value = 0
+        this.value = 0
     }
 }
 
@@ -349,7 +349,7 @@ class Box<T> {
     tag: number;
 
     fn init(v) {
-        self.tag = 1
+        this.tag = 1
     }
 }
 
@@ -373,7 +373,7 @@ class Box<T> {
     tag: number;
 
     fn init(v) {
-        self.tag = 1
+        this.tag = 1
     }
 }
 
@@ -556,7 +556,7 @@ class Base<T> {
     tag: Number
 
     fn init(v) {
-        self.tag = 1
+        this.tag = 1
     }
 }
 
@@ -577,4 +577,48 @@ return c.tag
     let mut env = create_global_env();
     let result = run_module(&module, &mut env).expect("run");
     assert!(matches!(result, Value::Number(1)));
+}
+
+#[test]
+fn where_bound_rejects_unimplemented() {
+    let src = r#"
+trait Show {
+    fn show();
+}
+
+class Nope {
+    fn init() {}
+}
+
+fn show_it<T>(x: T) where T: Show {
+    return 1
+}
+
+return show_it<Nope>(Nope())
+"#;
+    let err = compile_source(src).expect_err("where should reject");
+    assert!(err.contains("where"), "{err}");
+}
+
+#[test]
+fn where_bound_accepts_implemented() {
+    let src = r#"
+trait Show {
+    fn show();
+}
+
+class Shown implements Show {
+    fn init() {}
+    fn show() { return 1 }
+}
+
+fn show_it<T>(x: T) where T: Show {
+    return 42
+}
+
+return show_it<Shown>(Shown())
+"#;
+    let mut env = create_global_env();
+    let v = eval_source(src, &mut env).expect("where ok");
+    assert!(matches!(v, Value::Number(42)), "got {v:?}");
 }

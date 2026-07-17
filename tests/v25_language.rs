@@ -12,7 +12,7 @@ fn super_init_in_constructor() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
         }
 
@@ -21,7 +21,7 @@ fn super_init_in_constructor() {
 
             fn init(n, b) {
                 super.init(n)
-                self.breed = b
+                this.breed = b
             }
         }
 
@@ -43,11 +43,11 @@ fn super_method_call() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
 
             fn greet() {
-                return "hi " + self.name
+                return "hi " + this.name
             }
         }
 

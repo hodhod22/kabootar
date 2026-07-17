@@ -62,7 +62,7 @@ fn class_field_type_check() {
         r#"
         class User {
             age: number;
-            fn init(a) { self.age = a }
+            fn init(a) { this.age = a }
         }
         User("x")
     "#,
@@ -76,7 +76,7 @@ fn class_field_type_check() {
             r#"
             class User {
                 age: number;
-                fn init(a) { self.age = a }
+                fn init(a) { this.age = a }
             }
             let u = User(21)
             u.age

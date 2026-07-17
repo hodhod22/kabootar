@@ -32,8 +32,8 @@ fn bytecode_class_spread_constructor() {
             x: number;
             y: number;
             fn init(a, b) {
-                self.x = a
-                self.y = b
+                this.x = a
+                this.y = b
             }
         }
         let args = [3, 4]
@@ -48,8 +48,8 @@ fn bytecode_class_spread_constructor() {
             x: number;
             y: number;
             fn init(a, b) {
-                self.x = a
-                self.y = b
+                this.x = a
+                this.y = b
             }
         }
         let args = [3, 4]

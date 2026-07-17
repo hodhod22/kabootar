@@ -5,10 +5,27 @@
 Kabootar-klasser ska kännas som **C#**, inte som JavaScript-prototyper:
 
 - Explicita **fält** med valfria defaultvärden
-- **Metoder** bundna till instansen via `self`
+- **Metoder** bundna till instansen via `this`
 - **Konstruktor** — `fn init(...)` (konvention)
 - **Arv** — `class Dog extends Animal` (v2.4)
-- **Interfaces** (planerat)
+- **Interfaces / traits** — `implements` (inte prototype-kedjor)
+
+**`class`** uses **`this`**. **`struct`** uses **`self` / `&self` / `&mut self`** (R1 ✅).
+
+### Parent (dataobjekt) — inte prototype
+
+För vanliga objekt-litteraler (inte klassinstanser) finns **Parent**-kedjan:
+
+```kabootar
+let base = { x: 1 }
+let o = Object.create(base)
+Object.getParent(o)   // base
+o = Object.setParent(o, null)
+```
+
+Samma modell via `Reflect.getParent` / `Reflect.setParent`. Intern nyckel: `__kab_parent`.
+
+**Icke-mål:** `__proto__`, `Object.getPrototypeOf` / `setPrototypeOf`, prototype-inheritance.
 
 ## Syntax
 
@@ -18,12 +35,12 @@ class Point {
     y: number;
 
     fn init(a, b) {
-        self.x = a
-        self.y = b
+        this.x = a
+        this.y = b
     }
 
     fn sum() {
-        return self.x + self.y
+        return this.x + this.y
     }
 }
 
@@ -38,11 +55,11 @@ class Animal {
     name: string;
 
     fn init(n) {
-        self.name = n
+        this.name = n
     }
 
     fn label() {
-        return self.name
+        return this.name
     }
 }
 
@@ -50,12 +67,12 @@ class Dog extends Animal {
     breed: string;
 
     fn init(n, b) {
-        self.name = n
-        self.breed = b
+        this.name = n
+        this.breed = b
     }
 
     fn label() {
-        return self.name + " (" + self.breed + ")"
+        return this.name + " (" + this.breed + ")"
     }
 }
 
@@ -73,7 +90,7 @@ class Dog extends Animal {
 
     fn init(n, b) {
         super.init(n)
-        self.breed = b
+        this.breed = b
     }
 
     fn greet() {
@@ -82,7 +99,7 @@ class Dog extends Animal {
 }
 ```
 
-`super.method()` anropar förälderns version — även om barnet har en egen metod med samma namn. `super` fungerar bara inuti metoder (där `self` finns).
+`super.method()` anropar förälderns version — även om barnet har en egen metod med samma namn. `super` fungerar bara inuti metoder (där `this` finns).
 
 ### interface / implements (v2.7)
 
@@ -94,7 +111,7 @@ interface Greeter {
 class Person implements Greeter {
     name: string;
     fn greet() {
-        return "hi " + self.name
+        return "hi " + this.name
     }
 }
 
@@ -115,7 +132,7 @@ Evaluering (`src/evaluator.rs`):
 
 - `materialize_class()` slår ihop förälder + barn (fält, metoder)
 - `instantiate_class()` skapar instans och anropar `fn init(...)` med konstruktorargument
-- `self.x = v` i metoder muterar instansen via `assign_member_value`
+- `this.x = v` i metoder muterar instansen via `assign_member_value`
 
 Fälttyper (`string`, `number`) är annoteringar för nu — runtime validerar dem inte ännu.
 
@@ -124,12 +141,34 @@ Fälttyper (`string`, `number`) är annoteringar för nu — runtime validerar d
 | | JavaScript | Kabootar |
 |---|------------|----------|
 | Modell | Prototyper | Klassdefinitioner |
-| `this` (JS) | Implicit, bunden dynamiskt | **`self`** — explicit i metoder (Rust/Swift-stil) |
+| `this` (JS) | Implicit, bunden dynamiskt | **`this`** — explicit i `class`-metoder |
+| `self` (Rust) | Struct-metoder | **`self`** i `struct`-metoder (R1) |
 | Fält | Vilken property som helst | Deklarerade fält |
 | Konstruktor | `constructor` | `fn init(...)` |
 | Arv | Prototypkedja | `extends` — fält/metoder kopieras vid materialisering |
 
-Se [ROADMAP.md](ROADMAP.md) och [JAVASCRIPT.md](JAVASCRIPT.md) för JS-jämförelse.
+### Struct (R1)
+
+```kabootar
+struct Point {
+    x: number;
+    y: number;
+
+    fn init(a, b) {
+        self.x = a
+        self.y = b
+    }
+
+    fn sum(self) {
+        return self.x + self.y
+    }
+}
+
+let p = Point(3, 4)
+p.sum()  // 7
+```
+
+`class` → `this`; `struct` → `self`. Se [ROADMAP.md](ROADMAP.md) våg R.
 
 ## Generiska klasser (G7–G8) ✅
 

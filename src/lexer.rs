@@ -50,10 +50,14 @@ pub enum Token {
     Trait,
     Implements,
     Class,
+    Struct,
     Enum,
     Import,
     Pub,
     This,
+    /// Struct method receiver (`self` / after `&` / `&mut` in param lists).
+    Self_,
+    Where,
     Super,
     Null,
     Undefined,
@@ -87,6 +91,7 @@ pub enum Token {
     Question,
     QuestionDot,
     QuestionQuestion,
+    QuestionQuestionEq,
     Eq,
     EqEq,
     Ne,
@@ -95,7 +100,9 @@ pub enum Token {
     Gt,
     Ge,
     AndAnd,
+    AndAndEq,
     OrOr,
+    OrOrEq,
     Amp,
     Pipe,
     Caret,
@@ -438,7 +445,12 @@ impl Lexer {
                     self.next();
                     if self.peek() == Some('?') {
                         self.next();
-                        Ok(Token::QuestionQuestion)
+                        if self.peek() == Some('=') {
+                            self.next();
+                            Ok(Token::QuestionQuestionEq)
+                        } else {
+                            Ok(Token::QuestionQuestion)
+                        }
                     } else if self.peek() == Some('.') {
                         self.next();
                         Ok(Token::QuestionDot)
@@ -516,7 +528,12 @@ impl Lexer {
                     self.next();
                     if self.peek() == Some('&') {
                         self.next();
-                        Ok(Token::AndAnd)
+                        if self.peek() == Some('=') {
+                            self.next();
+                            Ok(Token::AndAndEq)
+                        } else {
+                            Ok(Token::AndAnd)
+                        }
                     } else {
                         Ok(Token::Amp)
                     }
@@ -525,7 +542,12 @@ impl Lexer {
                     self.next();
                     if self.peek() == Some('|') {
                         self.next();
-                        Ok(Token::OrOr)
+                        if self.peek() == Some('=') {
+                            self.next();
+                            Ok(Token::OrOrEq)
+                        } else {
+                            Ok(Token::OrOr)
+                        }
                     } else {
                         Ok(Token::Pipe)
                     }
@@ -616,16 +638,13 @@ impl Lexer {
                         "catch" => Token::Catch,
                         "finally" => Token::Finally,
                         "class" => Token::Class,
+                        "struct" => Token::Struct,
                         "enum" => Token::Enum,
                         "import" => Token::Import,
                         "pub" => Token::Pub,
-                        "self" => Token::This,
-                        "this" => {
-                            return Err(LexError::here(
-                                self,
-                                "Kabootar uses `self` for the current instance, not JavaScript `this`",
-                            ));
-                        }
+                        "this" => Token::This,
+                        "self" => Token::Self_,
+                        "where" => Token::Where,
                         "super" => Token::Super,
                         "null" => Token::Null,
                         "undefined" => Token::Undefined,

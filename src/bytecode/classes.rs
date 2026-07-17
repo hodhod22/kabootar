@@ -54,6 +54,7 @@ fn bytecode_class_to_def(class: &BytecodeClassDef) -> ClassDef {
                 owner_class: Some(class.name.clone()),
             })
             .collect(),
+        is_struct: class.is_struct,
     }
 }
 
@@ -119,6 +120,7 @@ fn materialize_class_instance(
             methods: HashMap::new(),
             private_fields: HashMap::new(),
             private_methods: HashMap::new(),
+            is_struct: class.is_struct,
         }))
     };
 
@@ -176,6 +178,7 @@ fn materialize_class_instance(
         instance.class_name = class.name.clone();
         instance.super_class = class.extends.clone();
         instance.interfaces = class.implements.clone();
+        instance.is_struct = class.is_struct;
     }
 
     Ok(inst)
@@ -207,15 +210,17 @@ pub fn instantiate_class(
         }
         let mut init_env = create_global_env();
         *init_env.classes_mut() = env.classes().clone();
-        let owner = {
+        let (owner, recv) = {
             let inst_ref = inst
                 .try_borrow()
                 .map_err(|e| format!("class instance borrow: {e}"))?;
-            crate::class::method_owner_class(&init, &inst_ref)
+            let owner = crate::class::method_owner_class(&init, &inst_ref);
+            let recv = crate::class::receiver_binding(inst_ref.is_struct);
+            (owner, recv)
         };
         init_env.set_private_scope(Some(&owner));
         init_env.set(
-            "self".to_string(),
+            recv.to_string(),
             Value::ClassInstance(inst.clone()),
         );
         run_bytecode_fn(bc, arg_vals, &mut init_env)?;

@@ -115,6 +115,8 @@ pub fn infer_type_from_literal(lit: &Literal) -> String {
 pub fn kab_type_name(ty: &KabType) -> &str {
     match ty {
         KabType::Named(name) => name.as_str(),
+        KabType::Ref(_) => "Ref",
+        KabType::RefMut(_) => "RefMut",
     }
 }
 
@@ -157,6 +159,43 @@ pub fn resolve_type_args(
         fn_name,
         type_params.join(", ")
     ))
+}
+
+/// Check `where T: Trait` bounds against known class→implements map (T1).
+pub fn check_where_bounds(
+    type_params: &[String],
+    concrete: &[String],
+    where_clause: &[crate::ast::WhereBound],
+    impls: &HashMap<String, Vec<String>>,
+) -> Result<(), String> {
+    for bound in where_clause {
+        let Some(idx) = type_params.iter().position(|p| p == &bound.type_param) else {
+            return Err(format!(
+                "where: unknown type parameter `{}`",
+                bound.type_param
+            ));
+        };
+        let Some(ty) = concrete.get(idx) else {
+            return Err(format!(
+                "where: missing concrete type for `{}`",
+                bound.type_param
+            ));
+        };
+        // Strip monomorphization suffix (`Foo$Number` → `Foo`) for implements lookup.
+        let base = ty.split('$').next().unwrap_or(ty);
+        let implemented = impls
+            .get(base)
+            .or_else(|| impls.get(ty))
+            .map(|v| v.as_slice())
+            .unwrap_or(&[]);
+        if !implemented.iter().any(|t| t == &bound.trait_name) {
+            return Err(format!(
+                "where: type `{ty}` does not implement `{}` (required by where {} : {})",
+                bound.trait_name, bound.type_param, bound.trait_name
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

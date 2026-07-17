@@ -15,7 +15,7 @@ Kabootar är **inte** Node eller en webbläsare — det är ett eget språk med 
 | `===` | `==` (redan strikt per typ) |
 | `import x from "./x"` | `import "x"` eller fil i `lib/` |
 | `module.exports` | `pub fn` / `pub let` i `.kab`-filer |
-| `class` + prototyper | `class` + **`self`** (C#-stil, inte prototyper) |
+| `class` + prototyper | `class` + **`this`** (C#-stil). Dataobjekt: **Parent** (`getParent`/`setParent`), inte prototyper |
 | `npm` + Express | `http_route`, `sql()` inbyggt |
 | `undefined` överallt | bara oinitierade `let`; odekvarerat = **fel** |
 | `"1" + 2` → `"12"` | **fel** — ingen implicit typkonvertering |
@@ -298,8 +298,8 @@ class Point {
 ```kabootar
 class Animal {
     name: string;
-    fn init(n) { self.name = n }
-    fn label() { return self.name }
+    fn init(n) { this.name = n }
+    fn label() { return this.name }
 }
 
 class Dog extends Animal {
@@ -307,7 +307,7 @@ class Dog extends Animal {
 
     fn init(n, b) {
         super.init(n)
-        self.breed = b
+        this.breed = b
     }
 
     fn greet() {
@@ -320,7 +320,7 @@ let d = Dog("Rex", "lab")
 | | JavaScript | Kabootar |
 |---|------------|----------|
 | Modell | Prototyper | Klassdefinition |
-| Instans | `this` | **`self`** (samma roll, annat nyckelord — undviker JS `this`) |
+| Instans | `this` | **`this`** (samma roll, annat nyckelord — undviker JS `this`) |
 | Konstruktor | `constructor` | **`fn init(...)`** (konvention) |
 | Arv | `extends` + prototypkedja | **`class Dog extends Animal`** (fält + metoder ärvs) |
 | Super | `super()` / `super.method()` | **`super.init(...)`** / **`super.method()`** |
@@ -493,7 +493,7 @@ Kabootar-källan i `.kab` är **inte** JS — kompilera/transpilera till WASM se
 5. Förvänta dig **fel** vid odekvarerade variabler och typmix i `+`.
 6. Kör i VS Code/Cursor med LSP — [IDE.md](IDE.md).
 
-*(Klasser använder `self` för instansen — inte JavaScript `this` eller prototypkedja.)*
+*(Klasser använder `this` för instansen — inte JavaScript `this` eller prototypkedja.)*
 
 ---
 

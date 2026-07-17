@@ -132,6 +132,21 @@ pub fn drop_owned_value(v: &Value, env: &mut Environment) -> Result<(), String> 
     Ok(())
 }
 
+/// Assign/set a binding, dropping a previous unique Owned in `@manual` modules (L5).
+pub fn store_binding(env: &mut Environment, name: &str, value: Value) -> Result<(), String> {
+    if is_manual(env) {
+        if let Some(old) = env.get(name) {
+            drop_owned_value(&old, env)?;
+        }
+    }
+    if env.get(name).is_some() {
+        env.assign(name, value)
+    } else {
+        env.set(name.to_string(), value);
+        Ok(())
+    }
+}
+
 pub fn ownership_globals(env: &mut Environment) {
     env.set(
         "owned_alloc".to_string(),

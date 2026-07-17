@@ -5,10 +5,19 @@ pub struct FnParam {
     pub default: Option<Expr>,
 }
 
-/// Simple type annotation (v1: identifier only — `Number`, `String`, or type param `T`).
+/// `where T: Trait` bound (T1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WhereBound {
+    pub type_param: String,
+    pub trait_name: String,
+}
+
+/// Type annotation — named (`Number`, `Owned`, `T`) or borrow (`&Owned`, `&mut Owned`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum KabType {
     Named(String),
+    Ref(Box<KabType>),
+    RefMut(Box<KabType>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -24,6 +33,7 @@ pub enum Expr {
         params: Vec<FnParam>,
         rest: Option<String>,
         return_type: Option<KabType>,
+        where_clause: Vec<WhereBound>,
         body: Box<Expr>,
         public: bool,
         async_fn: bool,
@@ -85,6 +95,8 @@ pub enum Expr {
     OptionalIndex(Box<Expr>, Box<Expr>),
     OptionalCall(Box<Expr>, Vec<CallArg>),
     This,
+    /// Struct method receiver (`self`).
+    Self_,
     Super,
     Break,
     Fallthrough,
@@ -118,6 +130,10 @@ pub enum UnaryOp {
     Delete,
     Throw,
     Raise,
+    /// Shared borrow: `&expr` (O3, `@manual`).
+    Ref,
+    /// Exclusive borrow: `&mut expr` (O3, `@manual`).
+    RefMut,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -222,8 +238,11 @@ pub struct ClassMethod {
     pub name: String,
     pub type_params: Vec<String>,
     pub params: Vec<String>,
+    pub where_clause: Vec<WhereBound>,
     pub body: Expr,
     pub private: bool,
+    /// Struct methods: `self` / `&self` / `&mut self` was declared (R1).
+    pub has_self_receiver: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -272,8 +291,11 @@ pub enum Stmt {
         extends: Option<String>,
         extends_type_args: Vec<String>,
         implements: Vec<String>,
+        where_clause: Vec<WhereBound>,
         fields: Vec<ClassField>,
         methods: Vec<ClassMethod>,
+        /// `struct` declaration (R1) — methods use `self`, not `this`.
+        is_struct: bool,
     },
     Import {
         module: String,

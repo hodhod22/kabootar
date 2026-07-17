@@ -411,6 +411,85 @@ fn atanh_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     unary_f64(args, "atanh", |x| x.atanh())
 }
 
+// Named wrappers so they can be stored in fn-pointer tables.
+fn ln2_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::LN_2))
+}
+fn ln10_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::LN_10))
+}
+fn log2e_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::LOG2_E))
+}
+fn log10e_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::LOG10_E))
+}
+fn sqrt2_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::SQRT_2))
+}
+fn sqrt1_2_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Float(std::f64::consts::FRAC_1_SQRT_2))
+}
+
+fn build_math_namespace() -> Value {
+    use std::collections::HashMap;
+    let mut m = HashMap::new();
+    let insert = |map: &mut HashMap<String, Value>,
+                  name: &str,
+                  f: fn(&[Value], &mut Environment) -> Result<Value, String>| {
+        map.insert(name.into(), Value::NativeFunction(f));
+    };
+    insert(&mut m, "floor", floor_native);
+    insert(&mut m, "ceil", ceil_native);
+    insert(&mut m, "round", round_native);
+    insert(&mut m, "trunc", trunc_native);
+    insert(&mut m, "abs", abs_native);
+    insert(&mut m, "sign", sign_native);
+    insert(&mut m, "sqrt", sqrt_native);
+    insert(&mut m, "pow", pow_native);
+    insert(&mut m, "min", min_native);
+    insert(&mut m, "max", max_native);
+    insert(&mut m, "random", random_native);
+    insert(&mut m, "log", log_native);
+    insert(&mut m, "log2", log2_native);
+    insert(&mut m, "log10", log10_native);
+    insert(&mut m, "exp", exp_native);
+    insert(&mut m, "sin", sin_native);
+    insert(&mut m, "cos", cos_native);
+    insert(&mut m, "tan", tan_native);
+    insert(&mut m, "asin", asin_native);
+    insert(&mut m, "acos", acos_native);
+    insert(&mut m, "atan", atan_native);
+    insert(&mut m, "atan2", atan2_native);
+    insert(&mut m, "hypot", hypot_native);
+    insert(&mut m, "cbrt", cbrt_native);
+    insert(&mut m, "imul", imul_native);
+    insert(&mut m, "clz32", clz32_native);
+    insert(&mut m, "fround", fround_native);
+    insert(&mut m, "f16round", f16round_native);
+    insert(&mut m, "sumPrecise", sum_precise_native);
+    insert(&mut m, "log1p", log1p_native);
+    insert(&mut m, "expm1", expm1_native);
+    insert(&mut m, "sinh", sinh_native);
+    insert(&mut m, "cosh", cosh_native);
+    insert(&mut m, "tanh", tanh_native);
+    insert(&mut m, "asinh", asinh_native);
+    insert(&mut m, "acosh", acosh_native);
+    insert(&mut m, "atanh", atanh_native);
+    m.insert("PI".into(), Value::Float(std::f64::consts::PI));
+    m.insert("E".into(), Value::Float(std::f64::consts::E));
+    m.insert("LN2".into(), Value::Float(std::f64::consts::LN_2));
+    m.insert("LN10".into(), Value::Float(std::f64::consts::LN_10));
+    m.insert("LOG2E".into(), Value::Float(std::f64::consts::LOG2_E));
+    m.insert("LOG10E".into(), Value::Float(std::f64::consts::LOG10_E));
+    m.insert("SQRT2".into(), Value::Float(std::f64::consts::SQRT_2));
+    m.insert(
+        "SQRT1_2".into(),
+        Value::Float(std::f64::consts::FRAC_1_SQRT_2),
+    );
+    Value::Object(m)
+}
+
 pub fn register_math(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("floor", floor_native),
@@ -454,10 +533,17 @@ pub fn register_math(env: &mut Environment) {
         ("asinh", asinh_native),
         ("acosh", acosh_native),
         ("atanh", atanh_native),
+        ("ln2", ln2_native),
+        ("ln10", ln10_native),
+        ("log2e", log2e_native),
+        ("log10e", log10e_native),
+        ("sqrt2", sqrt2_native),
+        ("sqrt1_2", sqrt1_2_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
+    env.set("Math".to_string(), build_math_namespace());
 }
 
 #[cfg(test)]

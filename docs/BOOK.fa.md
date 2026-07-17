@@ -718,12 +718,12 @@ class Point {
     y: number;
 
     fn init(a, b) {
-        self.x = a
-        self.y = b
+        this.x = a
+        this.y = b
     }
 
     fn sum() {
-        return self.x + self.y
+        return this.x + this.y
     }
 }
 
@@ -736,8 +736,8 @@ println(p.sum())                     // 7
 ```kabootar
 class Animal {
     name: string;
-    fn init(n) { self.name = n }
-    fn label() { return self.name }
+    fn init(n) { this.name = n }
+    fn label() { return this.name }
 }
 
 class Dog extends Animal {
@@ -745,11 +745,11 @@ class Dog extends Animal {
 
     fn init(n, b) {
         super.init(n)
-        self.breed = b
+        this.breed = b
     }
 
     fn label() {
-        return super.label() + " (" + self.breed + ")"
+        return super.label() + " (" + this.breed + ")"
     }
 }
 
@@ -767,7 +767,7 @@ interface Greeter {
 class Person implements Greeter {
     name: string;
     fn greet() {
-        return "hi " + self.name
+        return "hi " + this.name
     }
 }
 
@@ -805,11 +805,11 @@ class Counter {
     #n: number = 0;
 
     fn inc() {
-        self.#n = self.#n + 1
+        this.#n = this.#n + 1
     }
 
     fn get() {
-        return self.#n
+        return this.#n
     }
 }
 
@@ -1661,7 +1661,7 @@ pattern     := literal | identifier | "_" | "Some" "(" pattern ")"
 | `===` | `==` از قبل strict است |
 | coercion ضمنی (`"1" + 2`) | خطای runtime |
 | `null == undefined` | `false` |
-| ارث‌بری prototype | `class` به سبک C# با `self` |
+| ارث‌بری prototype | `class` به سبک C# با `this` |
 | `function` | `fn` |
 | arrow `=>` | همان syntax، با پشتیبانی block body |
 | `constructor` | `fn init(...)` |
@@ -1676,7 +1676,7 @@ pattern     := literal | identifier | "_" | "Some" "(" pattern ")"
 ## پیوست د — ویژگی‌های متمایز
 
 ۱. `==` سخت و بدون coercion.
-۲. کلاس‌های C#-style با `self` و ارث‌بری صریح.
+۲. کلاس‌های C#-style با `this` و ارث‌بری صریح.
 ۳. `match`، `if let`، `while let` به سبک Rust.
 ۴. `Option` و `Result` داخلی.
 ۵. توابع generator و async/generator.

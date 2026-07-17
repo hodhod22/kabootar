@@ -187,4 +187,33 @@ pub fn register_number(env: &mut Environment) {
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
+    use std::collections::HashMap;
+    let mut n = HashMap::new();
+    n.insert("EPSILON".into(), Value::Float(f64::EPSILON));
+    n.insert(
+        "MAX_SAFE_INTEGER".into(),
+        Value::Number((2i64.pow(53)) - 1),
+    );
+    n.insert(
+        "MIN_SAFE_INTEGER".into(),
+        Value::Number(-(2i64.pow(53)) + 1),
+    );
+    n.insert("MAX_VALUE".into(), Value::Float(f64::MAX));
+    n.insert("MIN_VALUE".into(), Value::Float(f64::MIN_POSITIVE));
+    n.insert("NaN".into(), Value::Float(f64::NAN));
+    n.insert("POSITIVE_INFINITY".into(), Value::Float(f64::INFINITY));
+    n.insert("NEGATIVE_INFINITY".into(), Value::Float(f64::NEG_INFINITY));
+    n.insert("isFinite".into(), Value::NativeFunction(is_finite_native));
+    n.insert("isInteger".into(), Value::NativeFunction(is_integer_native));
+    n.insert(
+        "isSafeInteger".into(),
+        Value::NativeFunction(is_safe_integer_native),
+    );
+    n.insert("isNaN".into(), Value::NativeFunction(is_nan_number_native));
+    n.insert("parseInt".into(), Value::NativeFunction(parse_int_native));
+    n.insert(
+        "parseFloat".into(),
+        Value::NativeFunction(parse_float_native),
+    );
+    env.set("Number".to_string(), Value::Object(n));
 }

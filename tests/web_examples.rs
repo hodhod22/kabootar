@@ -90,7 +90,7 @@ fn class_field_assignment() {
 #[test]
 fn class_method_with_self() {
     let code = r#"
-        class Person { name: string; fn greet() { return "Hi " + self.name } }
+        class Person { name: string; fn greet() { return "Hi " + this.name } }
         let p = Person();
         p.name = "Ada";
         p.greet()

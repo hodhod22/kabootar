@@ -708,6 +708,7 @@ Object helpers include `assign`, `has_key`, `delete_prop`, `keys`, `values`, `en
 ### 7.3 Classes
 
 Kabootar classes are C#-style, not JavaScript prototypes.
+Method receiver is **`this`**. The keyword **`self`** is reserved for a future `struct` (Rust-style).
 
 ```kabootar
 class Point {
@@ -715,12 +716,12 @@ class Point {
     y: number;
 
     fn init(a, b) {
-        self.x = a
-        self.y = b
+        this.x = a
+        this.y = b
     }
 
     fn sum() {
-        return self.x + self.y
+        return this.x + this.y
     }
 }
 
@@ -733,8 +734,8 @@ p.sum()                     // 7
 ```kabootar
 class Animal {
     name: string;
-    fn init(n) { self.name = n }
-    fn label() { return self.name }
+    fn init(n) { this.name = n }
+    fn label() { return this.name }
 }
 
 class Dog extends Animal {
@@ -742,11 +743,11 @@ class Dog extends Animal {
 
     fn init(n, b) {
         super.init(n)
-        self.breed = b
+        this.breed = b
     }
 
     fn label() {
-        return super.label() + " (" + self.breed + ")"
+        return super.label() + " (" + this.breed + ")"
     }
 }
 
@@ -764,7 +765,7 @@ interface Greeter {
 class Person implements Greeter {
     name: string;
     fn greet() {
-        return "hi " + self.name
+        return "hi " + this.name
     }
 }
 
@@ -802,11 +803,11 @@ class Counter {
     #n: number = 0;
 
     fn inc() {
-        self.#n = self.#n + 1
+        this.#n = this.#n + 1
     }
 
     fn get() {
-        return self.#n
+        return this.#n
     }
 }
 
@@ -1652,7 +1653,7 @@ See Chapter 7.
 | `===` | `==` is already strict per type |
 | implicit coercion (`"1" + 2`) | runtime error |
 | `null == undefined` | `false` |
-| prototype inheritance | C#-style `class` with `self` |
+| prototype inheritance | C#-style `class` with `this` |
 | `function` | `fn` |
 | arrow `=>` | same syntax, plus block body support |
 | `constructor` | `fn init(...)` |

@@ -134,7 +134,7 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 3 | Aktörer | 🔶 | `actor Name { }`, `actor_spawn` |
 | 4 | Hot reload | 🔶 | `kabootar serve --watch` + kbc-invalidate |
 | 5 | Auto-SIMD | 🔶 | `@simd` (dokumentation) |
-| 6 | Valfri minne | ✅ subset | Default **GC**. Systems: `@manual` + `owned_alloc`/`drop`/`owned_move`; `import "os/mem"` |
+| 6 | Valfri minne | ✅ O1–O3 | Default **GC** (web). Systems: `@manual` + compile-time Owned/`&`/`&mut` — [OWNERSHIP.md](OWNERSHIP.md) |
 | 7 | Web-native | 🔶 | `html! { }` → Kv8 |
 | 8 | Verktygskedja | 🔶 | `compile`, `fmt`, `registry_*` |
 | 9 | Statisk binär | 🔶 | `cargo build --release` |
@@ -164,24 +164,38 @@ persist_save("/data/cfg.json", { port: 8080 }); // VFS-persist
 shader_compile("frag", "void main(){}");        // SPIR-V-stub
 ```
 
-### Systems memory (`@manual`)
+### Systems memory (`@manual`) — Våg O
 
-Default modules stay **GC** — web/app code is unchanged. System/kOS files opt in:
+Default modules stay **GC** (web/Kv8/UI). System/kOS files opt in with `@manual` and get **compile-time ownership** plus runtime MemBox.
 
 ```kabootar
 @version "1.0.0"
 @manual
-import "os/mem"
 
-let buf = alloc(64, "frame")
-write(buf, 0, [1, 2, 3])
-let bytes = read(buf, 0, 3)
-let other = owned_move(buf)   // buf invalid after this
-free(other)                   // or drop(other)
+fn peek(buf: &Owned) {
+    return owned_read(buf, 0, 4)
+}
+
+fn take(buf: Owned) {
+    drop(buf)
+}
+
+let buf = owned_alloc(64, "frame")
+owned_write(buf, 0, [1, 2, 3])
+let bytes = peek(&buf)       // shared borrow — buf lives
+let other = owned_move(buf)  // move — buf dead after this
+// owned_read(buf, …)        // compile error: use after move
+take(other)
 ```
 
-- `owned_alloc` / `owned_read` / `owned_write` / `owned_move` / `drop` require `@manual`.
-- Loads peek; use `owned_move` (or `os/mem` + drop) to transfer. After move, the source handle errors with use-after-move.
-- Scope end and overwrite free **unique** owned handles (shared call-arg aliases are not freed).
-- kOS helper: `import "os/display_buf"` — `@manual` framebuffer over `os/mem` (`create` / `fill` / `release`).
-- Borrow-check (`&` / `&mut`) is not in v1.
+| Regel | Betydelse |
+|-------|-----------|
+| **GC default** | Ingen ownership-check; `owned_*` förbjudet utan `@manual` |
+| **Affine Owned** | `let y = x`, call-arg, `owned_move`/`move`/`drop` flyttar; use-after-move = compile error |
+| **Peek-API** | `owned_read` / `owned_write` (och `os/mem` read/write) flyttar inte |
+| **`&` / `&mut`** | Shared vs exclusive borrow; borrow lever under call-uttrycket |
+| **Runtime** | `Value::Owned` + use-after-move som säkerhetsnät |
+
+Se [OWNERSHIP.md](OWNERSHIP.md). **Inte** Rust-lifetimes.
+
+- kOS helper: `import "os/display_buf"` — `@manual` framebuffer over `os/mem`.

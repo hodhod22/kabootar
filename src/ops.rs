@@ -299,6 +299,18 @@ pub fn read_member(
             crate::runtime::stdlib::array_to_locale_string_method,
         )),
         Value::String(s) if field == "length" => Ok(Value::Number(s.chars().count() as i64)),
+        Value::String(s) if field == "at" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::str_at_method,
+        )),
+        Value::String(s) if field == "isWellFormed" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::is_well_formed_method,
+        )),
+        Value::String(s) if field == "toWellFormed" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::to_well_formed_method,
+        )),
         Value::String(s) if field == "matchAll" => Ok(Value::BoundNative(
             Box::new(Value::String(s.clone())),
             crate::runtime::stdlib::str_match_all_method,

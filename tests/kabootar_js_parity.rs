@@ -1553,9 +1553,9 @@ fn iterator_protocol_phase8() {
         let it = {
           n: 0,
           next() {
-            if (self.n < 3) {
-              self.n = self.n + 1
-              return { value: self.n, done: false }
+            if (this.n < 3) {
+              this.n = this.n + 1
+              return { value: this.n, done: false }
             }
             return { value: null, done: true }
           }
@@ -1670,9 +1670,9 @@ fn iterator_protocol_phase10_async() {
             return {
               n: 0,
               next() {
-                if (self.n < 3) {
-                  self.n = self.n + 1
-                  return promise_resolve({ value: self.n, done: false })
+                if (this.n < 3) {
+                  this.n = this.n + 1
+                  return promise_resolve({ value: this.n, done: false })
                 }
                 return promise_resolve({ value: null, done: true })
               }
@@ -4203,8 +4203,8 @@ fn js_wave_a3_private_class_fields() {
         r#"
         class Counter {
             #n: number = 0
-            fn inc() { self.#n = self.#n + 1 }
-            fn read() { return self.#n }
+            fn inc() { this.#n = this.#n + 1 }
+            fn read() { return this.#n }
         }
         let c = Counter()
         c.inc()
@@ -4222,8 +4222,8 @@ fn js_wave_a3_private_class_fields() {
         r#"
         class Vault {
             #secret: number = 42
-            fn #peek() { return self.#secret }
-            fn reveal() { return self.#peek() }
+            fn #peek() { return this.#secret }
+            fn reveal() { return this.#peek() }
         }
         Vault().reveal()
         "#,

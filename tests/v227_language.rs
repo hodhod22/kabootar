@@ -10,13 +10,13 @@ fn bytecode_super_init_in_constructor() {
         r#"
         class Animal {
             name: string;
-            fn init(n) { self.name = n }
+            fn init(n) { this.name = n }
         }
         class Dog extends Animal {
             breed: string;
             fn init(n, b) {
                 super.init(n)
-                self.breed = b
+                this.breed = b
             }
         }
         let d = Dog("Rex", "lab")
@@ -28,13 +28,13 @@ fn bytecode_super_init_in_constructor() {
         r#"
         class Animal {
             name: string;
-            fn init(n) { self.name = n }
+            fn init(n) { this.name = n }
         }
         class Dog extends Animal {
             breed: string;
             fn init(n, b) {
                 super.init(n)
-                self.breed = b
+                this.breed = b
             }
         }
         let d = Dog("Rex", "lab")
@@ -52,8 +52,8 @@ fn bytecode_super_method_call() {
         r#"
         class Animal {
             name: string;
-            fn init(n) { self.name = n }
-            fn greet() { return "hi " + self.name }
+            fn init(n) { this.name = n }
+            fn greet() { return "hi " + this.name }
         }
         class Dog extends Animal {
             fn greet() { return super.greet() + "!" }
@@ -67,8 +67,8 @@ fn bytecode_super_method_call() {
         r#"
         class Animal {
             name: string;
-            fn init(n) { self.name = n }
-            fn greet() { return "hi " + self.name }
+            fn init(n) { this.name = n }
+            fn greet() { return "hi " + this.name }
         }
         class Dog extends Animal {
             fn greet() { return super.greet() + "!" }
@@ -97,8 +97,8 @@ fn bytecode_interface_implements_success() {
         interface Greeter { fn greet(); }
         class Person implements Greeter {
             name: string;
-            fn init(n) { self.name = n }
-            fn greet() { return "hi " + self.name }
+            fn init(n) { this.name = n }
+            fn greet() { return "hi " + this.name }
         }
         let p = Person("Ada")
         is_impl(p, "Greeter")
@@ -110,8 +110,8 @@ fn bytecode_interface_implements_success() {
         interface Greeter { fn greet(); }
         class Person implements Greeter {
             name: string;
-            fn init(n) { self.name = n }
-            fn greet() { return "hi " + self.name }
+            fn init(n) { this.name = n }
+            fn greet() { return "hi " + this.name }
         }
         let p = Person("Ada")
         is_impl(p, "Greeter")

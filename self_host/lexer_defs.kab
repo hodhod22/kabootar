@@ -54,6 +54,7 @@ pub let TOKEN_CLASS = "class"
 pub let TOKEN_ENUM = "enum"
 pub let TOKEN_IMPORT = "import"
 pub let TOKEN_PUB = "pub"
+pub let TOKEN_THIS = "this"
 pub let TOKEN_SELF = "self"
 pub let TOKEN_SUPER = "super"
 pub let TOKEN_NULL = "null"
@@ -117,6 +118,7 @@ pub let KEYWORDS = {
     "enum": "enum",
     "import": "import",
     "pub": "pub",
+    "this": "this",
     "self": "self",
     "super": "super",
     "null": "null",

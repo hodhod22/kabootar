@@ -177,9 +177,14 @@ pub(crate) fn set_parent_of_internal(
         return Ok(false);
     }
     if matches!(parent, Value::Null) {
+        map.remove(crate::runtime::stdlib::object::OBJECT_PARENT_KEY);
         map.remove("__kab_proto");
     } else {
-        map.insert("__kab_proto".into(), parent.clone());
+        map.remove("__kab_proto");
+        map.insert(
+            crate::runtime::stdlib::object::OBJECT_PARENT_KEY.into(),
+            parent.clone(),
+        );
     }
     *target = Value::Object(map);
     Ok(true)

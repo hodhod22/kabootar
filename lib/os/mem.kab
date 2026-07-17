@@ -3,6 +3,7 @@
 
 // kOS manual memory — MemBox over owned_* / os_mem_*.
 // Consumers must also use @manual. import "os/mem"
+// Prefer these wrappers over raw os_mem_* in @manual modules (L5).
 
 pub fn alloc(size, label) {
     return owned_alloc(size, label)
@@ -14,6 +15,10 @@ pub fn read(buf, off, len) {
 
 pub fn write(buf, off, bytes) {
     return owned_write(buf, off, bytes)
+}
+
+pub fn move(buf) {
+    return owned_move(buf)
 }
 
 pub fn free(buf) {

@@ -44,6 +44,7 @@ impl Parser {
             Token::For => Ok("for".into()),
             Token::Return => Ok("return".into()),
             Token::Throw => Ok("throw".into()),
+            Token::Try => Ok("try".into()),
             Token::None => Ok("None".into()),
             Token::Some => Ok("Some".into()),
             Token::Ok => Ok("Ok".into()),
@@ -210,7 +211,8 @@ impl Parser {
             Some(Token::Let) => self.parse_let_stmt(false, false),
             Some(Token::Const) => self.parse_let_stmt(false, true),
             Some(Token::Pub) => self.parse_pub_stmt(),
-            Some(Token::Class) => self.parse_class_stmt(),
+            Some(Token::Class) => self.parse_class_or_struct_stmt(false),
+            Some(Token::Struct) => self.parse_class_or_struct_stmt(true),
             Some(Token::Enum) => self.parse_enum_stmt(),
             Some(Token::Interface) | Some(Token::Trait) => self.parse_interface_stmt(),
             Some(Token::Import) => self.parse_import_stmt(false),
@@ -459,37 +461,53 @@ impl Parser {
         })
     }
 
-    fn parse_class_stmt(&mut self) -> Result<Stmt, ParseError> {
-        self.expect(Token::Class)?;
+    fn parse_class_or_struct_stmt(&mut self, is_struct: bool) -> Result<Stmt, ParseError> {
+        if is_struct {
+            self.expect(Token::Struct)?;
+        } else {
+            self.expect(Token::Class)?;
+        }
         let name = match self.bump() {
             Some(spanned) => match spanned.value {
                 Token::Identifier(s) => {
                     self.record(s.clone(), SymbolKind::Class, spanned.span);
                     s
                 }
-                _ => return Err(Self::err_at(spanned.span, "Expected class name")),
+                _ => {
+                    return Err(Self::err_at(
+                        spanned.span,
+                        if is_struct {
+                            "Expected struct name"
+                        } else {
+                            "Expected class name"
+                        },
+                    ))
+                }
             },
-            None => return Err(self.err("Expected class name")),
+            None => {
+                return Err(self.err(if is_struct {
+                    "Expected struct name"
+                } else {
+                    "Expected class name"
+                }))
+            }
         };
         let mut type_params = Vec::new();
         if self.at(Token::Lt) && self.lookahead_type_params() {
             type_params = self.parse_type_param_list()?;
         }
-        let extends = if self.at(Token::Extends) {
+        let extends = if !is_struct && self.at(Token::Extends) {
             self.bump();
             Some(self.expect_identifier("base class")?)
         } else {
             None
         };
         let mut extends_type_args = Vec::new();
-        if extends.is_some()
-            && self.at(Token::Lt)
-            && self.lookahead_type_params()
-        {
+        if extends.is_some() && self.at(Token::Lt) && self.lookahead_type_params() {
             extends_type_args = self.parse_type_arg_list()?;
         }
         let mut implements = Vec::new();
-        if self.at(Token::Implements) {
+        if !is_struct && self.at(Token::Implements) {
             self.bump();
             loop {
                 implements.push(self.expect_identifier("interface")?);
@@ -500,12 +518,13 @@ impl Parser {
                 }
             }
         }
+        let where_clause = self.parse_where_clause()?;
         self.expect(Token::LBrace)?;
         let mut fields = Vec::new();
         let mut methods = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
             if self.at(Token::Fn) {
-                methods.push(self.parse_class_method()?);
+                methods.push(self.parse_class_method(is_struct)?);
             } else {
                 fields.push(self.parse_class_field()?);
             }
@@ -517,9 +536,34 @@ impl Parser {
             extends,
             extends_type_args,
             implements,
+            where_clause,
             fields,
             methods,
+            is_struct,
         })
+    }
+
+    fn parse_where_clause(&mut self) -> Result<Vec<crate::ast::WhereBound>, ParseError> {
+        if !self.at(Token::Where) {
+            return Ok(Vec::new());
+        }
+        self.bump();
+        let mut bounds = Vec::new();
+        loop {
+            let type_param = self.expect_identifier("type parameter in where clause")?;
+            self.expect(Token::Colon)?;
+            let trait_name = self.expect_identifier("trait name in where clause")?;
+            bounds.push(crate::ast::WhereBound {
+                type_param,
+                trait_name,
+            });
+            if self.at(Token::Comma) {
+                self.bump();
+            } else {
+                break;
+            }
+        }
+        Ok(bounds)
     }
 
     fn parse_class_field(&mut self) -> Result<ClassField, ParseError> {
@@ -558,7 +602,7 @@ impl Parser {
         })
     }
 
-    fn parse_class_method(&mut self) -> Result<ClassMethod, ParseError> {
+    fn parse_class_method(&mut self, is_struct: bool) -> Result<ClassMethod, ParseError> {
         self.expect(Token::Fn)?;
         let (name, private) = self.parse_class_member_name()?;
         if !private {
@@ -570,12 +614,48 @@ impl Parser {
         }
         self.expect(Token::LParen)?;
         let mut params = Vec::new();
+        let mut has_self_receiver = false;
+        if is_struct {
+            // Optional `self` / `&self` / `&mut self` as first parameter.
+            if self.at(Token::Self_) {
+                self.bump();
+                has_self_receiver = true;
+                if self.at(Token::Comma) {
+                    self.bump();
+                }
+            } else if self.at(Token::Amp) {
+                self.bump();
+                let mut_self = self.at_identifier("mut");
+                if mut_self {
+                    self.bump();
+                }
+                if self.at(Token::Self_) {
+                    self.bump();
+                    has_self_receiver = true;
+                    if self.at(Token::Comma) {
+                        self.bump();
+                    }
+                } else {
+                    return Err(self.err("Expected `self` after `&` / `&mut` in struct method"));
+                }
+            }
+        }
         while !self.at(Token::RParen) {
             match self.bump() {
                 Some(spanned) => match spanned.value {
                     Token::Identifier(p) => {
                         self.record(p.clone(), SymbolKind::Parameter, spanned.span);
                         params.push(p);
+                    }
+                    Token::Self_ => {
+                        return Err(Self::err_at(
+                            spanned.span,
+                            if is_struct {
+                                "`self` must be the first struct method parameter"
+                            } else {
+                                "use `this` in class methods; `self` is for struct"
+                            },
+                        ));
                     }
                     _ => return Err(Self::err_at(spanned.span, "Expected parameter name")),
                 },
@@ -586,13 +666,16 @@ impl Parser {
             }
         }
         self.expect(Token::RParen)?;
+        let where_clause = self.parse_where_clause()?;
         let body = self.parse_block()?;
         Ok(ClassMethod {
             name,
             type_params,
             params,
+            where_clause,
             body,
             private,
+            has_self_receiver,
         })
     }
 
@@ -1034,6 +1117,9 @@ impl Parser {
             Token::StarEq => Some(BinaryOp::Mul),
             Token::SlashEq => Some(BinaryOp::Div),
             Token::PercentEq => Some(BinaryOp::Mod),
+            Token::AndAndEq => Some(BinaryOp::And),
+            Token::OrOrEq => Some(BinaryOp::Or),
+            Token::QuestionQuestionEq => Some(BinaryOp::NullishCoalesce),
             _ => None,
         }
     }
@@ -1331,6 +1417,7 @@ impl Parser {
         } else {
             None
         };
+        let where_clause = self.parse_where_clause()?;
         self.expect(Token::LBrace)?;
         let mut stmts = Vec::new();
         while !self.at(Token::RBrace) && !self.at(Token::Eof) {
@@ -1344,6 +1431,7 @@ impl Parser {
             params,
             rest,
             return_type,
+            where_clause,
             body: Box::new(body),
             public: is_public,
             async_fn,
@@ -1433,6 +1521,25 @@ impl Parser {
             let inner = self.parse_unary()?;
             return Ok(Expr::Unary(UnaryOp::Not, Box::new(inner)));
         }
+        if self.at(Token::Amp) {
+            self.bump();
+            let exclusive = matches!(
+                self.peek_token(),
+                Some(Token::Identifier(s)) if s == "mut"
+            );
+            if exclusive {
+                self.bump();
+            }
+            let inner = self.parse_unary()?;
+            return Ok(Expr::Unary(
+                if exclusive {
+                    UnaryOp::RefMut
+                } else {
+                    UnaryOp::Ref
+                },
+                Box::new(inner),
+            ));
+        }
         if self.at(Token::Minus) {
             self.bump();
             let inner = self.parse_unary()?;
@@ -1492,6 +1599,7 @@ impl Parser {
                 Token::NaN => Ok(Expr::Literal(Literal::Nan)),
                 Token::Import => self.parse_import_expr_after_keyword(),
                 Token::This => Ok(Expr::This),
+                Token::Self_ => Ok(Expr::Self_),
                 Token::Super => Ok(Expr::Super),
                 Token::Err => {
                 self.expect(Token::LParen)?;
@@ -1726,6 +1834,22 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<crate::ast::KabType, ParseError> {
+        if self.at(Token::Amp) {
+            self.bump();
+            let exclusive = matches!(
+                self.peek_token(),
+                Some(Token::Identifier(s)) if s == "mut"
+            );
+            if exclusive {
+                self.bump();
+            }
+            let inner = self.parse_type()?;
+            return Ok(if exclusive {
+                crate::ast::KabType::RefMut(Box::new(inner))
+            } else {
+                crate::ast::KabType::Ref(Box::new(inner))
+            });
+        }
         let name = self.expect_identifier("type")?;
         Ok(crate::ast::KabType::Named(name))
     }

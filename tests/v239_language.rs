@@ -109,7 +109,7 @@ fn bytecode_for_in_yields_indices() {
 #[test]
 fn bytecode_in_class_field_key() {
     assert!(can_compile(
-        "class Box { x: Number\nfn init(v) { self.x = v } }\nlet b = Box(1)\n\"x\" in b"
+        "class Box { x: Number\nfn init(v) { this.x = v } }\nlet b = Box(1)\n\"x\" in b"
     ));
     let mut env = create_global_env();
     let v = eval_source(
@@ -117,7 +117,7 @@ fn bytecode_in_class_field_key() {
         class Box {
             x: Number
             fn init(v) {
-                self.x = v
+                this.x = v
             }
         }
         let b = Box(1)

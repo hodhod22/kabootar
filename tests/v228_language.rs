@@ -45,8 +45,8 @@ fn kbc_roundtrip_preserves_classes_and_interfaces() {
         interface Greeter { fn greet(); }
         class Person implements Greeter {
             name: string;
-            fn init(n) { self.name = n }
-            fn greet() { return "hi " + self.name }
+            fn init(n) { this.name = n }
+            fn greet() { return "hi " + this.name }
         }
         let p = Person("Ada")
         is_impl(p, "Greeter")
@@ -71,10 +71,10 @@ fn kbc_cache_loads_class_program() {
                 x: number;
                 y: number;
                 fn init(a, b) {
-                    self.x = a
-                    self.y = b
+                    this.x = a
+                    this.y = b
                 }
-                fn sum() { return self.x + self.y }
+                fn sum() { return this.x + this.y }
             }
             let p = Point(3, 4)
             p.sum()

@@ -300,7 +300,11 @@ fn push_children(v: &Value, stack: &mut Vec<Value>) {
         Value::Array(items) => stack.extend(items.iter().cloned()),
         Value::Object(map) => {
             for (k, val) in map {
-                if k == proxy::PROXY_TARGET || k == "__kab_proto" || !k.starts_with("__kab_") {
+                if k == proxy::PROXY_TARGET
+                    || k == crate::runtime::stdlib::object::OBJECT_PARENT_KEY
+                    || k == "__kab_proto"
+                    || !k.starts_with("__kab_")
+                {
                     stack.push(val.clone());
                 }
             }

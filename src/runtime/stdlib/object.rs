@@ -39,7 +39,7 @@ pub fn object_is_pattern_empty(map: &HashMap<String, Value>) -> bool {
     map.keys().all(|k| k.starts_with("__kab_"))
 }
 
-/// When `obj.method` is read, bind `self` for plain-object methods.
+/// When `obj.method` is read, bind `this` for plain-object methods.
 pub fn bind_object_method(receiver: Value, method: Value) -> Value {
     match &method {
         Value::BoundNative(_, f) => Value::BoundNative(Box::new(receiver), *f),
@@ -149,13 +149,13 @@ pub fn call_object_method(
         Value::BytecodeFn(mut func) => {
             crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
             let mut call_env = Environment::child_from(&func.closure);
-            call_env.set("self".into(), receiver.clone());
+            call_env.set("this".into(), receiver.clone());
             let (result, _local_vals) = crate::bytecode::run_bytecode_fn_with_locals(
                 func.def.as_ref(),
                 args,
                 &mut call_env,
             )?;
-            if let Some(updated) = call_env.get("self") {
+            if let Some(updated) = call_env.get("this") {
                 crate::runtime::closure_sync::merge_object_fields(&updated, &mut receiver);
             }
             crate::runtime::closure_sync::sync_closure_writes(&func.closure, &call_env, env);
@@ -177,10 +177,10 @@ pub fn call_object_method(
             }
             let closure = closure_env.clone();
             let mut call_env = Environment::child(closure_env);
-            call_env.set("self".into(), receiver.clone());
+            call_env.set("this".into(), receiver.clone());
             crate::evaluator::bind_call_params(&params, &defaults, &rest, &args, &mut call_env)?;
             let result = crate::evaluator::eval_expr(&body, &mut call_env)?;
-            if let Some(updated) = call_env.get("self") {
+            if let Some(updated) = call_env.get("this") {
                 crate::runtime::closure_sync::merge_object_fields(&updated, &mut receiver);
             }
             crate::runtime::closure_sync::sync_closure_writes(&closure, &call_env, env);
@@ -218,13 +218,32 @@ pub fn is_extensible(map: &HashMap<String, Value>) -> bool {
         && !meta_truthy(map, "__kab_frozen")
 }
 
+/// Internal object-parent link (Kabootar model — **not** JS prototype).
+/// Public API: `Object.getParent` / `Object.setParent`, `Reflect.getParent` / `Reflect.setParent`.
+pub const OBJECT_PARENT_KEY: &str = "__kab_parent";
+/// Legacy key from older builds; still read, never written.
+const OBJECT_PARENT_KEY_LEGACY: &str = "__kab_proto";
+
 pub fn get_object_parent(map: &HashMap<String, Value>) -> Value {
-    map.get("__kab_proto")
+    map.get(OBJECT_PARENT_KEY)
+        .or_else(|| map.get(OBJECT_PARENT_KEY_LEGACY))
         .cloned()
         .unwrap_or(Value::Null)
 }
 
-fn proto_is_object_or_null(v: &Value) -> bool {
+fn set_object_parent_map(map: &mut HashMap<String, Value>, parent: Option<Value>) {
+    map.remove(OBJECT_PARENT_KEY_LEGACY);
+    match parent {
+        Some(p) => {
+            map.insert(OBJECT_PARENT_KEY.into(), p);
+        }
+        None => {
+            map.remove(OBJECT_PARENT_KEY);
+        }
+    }
+}
+
+fn parent_is_object_or_null(v: &Value) -> bool {
     matches!(v, Value::Object(_) | Value::Null)
 }
 
@@ -430,14 +449,14 @@ fn object_get_own_property_symbols_native(
 }
 
 fn object_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let proto = args.first().ok_or("Object.create(proto)")?;
-    if !proto_is_object_or_null(proto) {
-        return Err("Object.create() proto must be object or null".into());
+    let parent = args.first().ok_or("Object.create(parent)")?;
+    if !parent_is_object_or_null(parent) {
+        return Err("Object.create() parent must be object or null".into());
     }
     let mut map = HashMap::new();
     object_oid(&mut map);
-    if !matches!(proto, Value::Null) {
-        map.insert("__kab_proto".into(), proto.clone());
+    if !matches!(parent, Value::Null) {
+        set_object_parent_map(&mut map, Some(parent.clone()));
     }
     Ok(Value::Object(map))
 }
@@ -453,7 +472,7 @@ fn object_get_parent_native(args: &[Value], _env: &mut Environment) -> Result<Va
 fn object_set_parent_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let obj = args.first().ok_or("Object.setParent(obj, parent)")?;
     let parent = args.get(1).ok_or("Object.setParent(obj, parent)")?;
-    if !proto_is_object_or_null(parent) {
+    if !parent_is_object_or_null(parent) {
         return Err("Object.setParent() parent must be object or null".into());
     }
     let Value::Object(mut map) = obj.clone() else {
@@ -464,11 +483,56 @@ fn object_set_parent_native(args: &[Value], _env: &mut Environment) -> Result<Va
         return Err("Object.setParent() would introduce parent cycle".into());
     }
     if matches!(parent, Value::Null) {
-        map.remove("__kab_proto");
+        set_object_parent_map(&mut map, None);
     } else {
-        map.insert("__kab_proto".into(), parent.clone());
+        set_object_parent_map(&mut map, Some(parent.clone()));
     }
     Ok(Value::Object(map))
+}
+
+fn object_define_properties_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let obj = args
+        .first()
+        .ok_or("Object.defineProperties(obj, props)")?
+        .clone();
+    let props = args.get(1).ok_or("Object.defineProperties(obj, props)")?;
+    let Value::Object(prop_map) = props else {
+        return Err("Object.defineProperties() props must be object".into());
+    };
+    let mut current = obj;
+    for (key, desc) in prop_map {
+        if key.starts_with("__kab_") {
+            continue;
+        }
+        current = object_define_property_native(
+            &[current, Value::String(key.clone()), desc.clone()],
+            env,
+        )?;
+    }
+    Ok(current)
+}
+
+fn object_get_own_property_descriptors_native(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let obj = args
+        .first()
+        .ok_or("Object.getOwnPropertyDescriptors(obj)")?;
+    let names = object_get_own_property_names_native(&[obj.clone()], env)?;
+    let Value::Array(name_vals) = names else {
+        return Ok(Value::Object(HashMap::new()));
+    };
+    let mut out = HashMap::new();
+    for nv in name_vals {
+        let desc = object_get_own_property_descriptor_native(&[obj.clone(), nv.clone()], env)?;
+        if let Value::String(k) = nv {
+            if !matches!(desc, Value::Undefined) {
+                out.insert(k, desc);
+            }
+        }
+    }
+    Ok(Value::Object(out))
 }
 
 fn object_is_extensible_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -748,6 +812,13 @@ fn build_object_namespace() -> Value {
     insert_native(&mut m, "getOwnPropertySymbols", object_get_own_property_symbols_native);
     insert_native(&mut m, "getOwnPropertyNames", object_get_own_property_names_native);
     insert_native(&mut m, "getParent", object_get_parent_native);
+    insert_native(&mut m, "setParent", object_set_parent_native);
+    insert_native(&mut m, "defineProperties", object_define_properties_native);
+    insert_native(
+        &mut m,
+        "getOwnPropertyDescriptors",
+        object_get_own_property_descriptors_native,
+    );
     insert_native(&mut m, "groupBy", object_group_by_native);
     insert_native(&mut m, "hasOwn", has_key_native);
     insert_native(&mut m, "is", object_is_native);
@@ -757,7 +828,6 @@ fn build_object_namespace() -> Value {
     insert_native(&mut m, "keys", object_keys_native);
     insert_native(&mut m, "preventExtensions", object_prevent_extensions_native);
     insert_native(&mut m, "seal", object_seal_native);
-    insert_native(&mut m, "setParent", object_set_parent_native);
     insert_native(&mut m, "values", object_values_native);
     Value::Object(m)
 }

@@ -1,6 +1,23 @@
 # Snabb kompilering
 
-Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**. Self-host full compile av `emit.kab` kan ta **30–90 min** — undvik att köra det i varje edit-loop.
+Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**.
+
+## `kabootar compile` (S2)
+
+Default: **`self_host/compile.kab`** producerar `.kbc` för app-källor. Vid fel eller hopp (t.ex. `self_host/*`, stora filer) → **Rust**-fallback.
+
+```bash
+kabootar compile main.kab              # self-host → rust fallback
+kabootar compile main.kab --self-host  # endast self-host (fel om det misslyckas)
+kabootar compile main.kab --rust       # tvinga Rust-host
+KABOOTAR_COMPILE=rust kabootar compile main.kab
+```
+
+Cache: `.kabootar/cache/<path-with-__>.kbc` (cwd-relative, mtime + fingerprint + `source=`).
+Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gamla platta `lexer.kab.kbc`.
+`.kbc`-strängkonstanter escapar `\n`/`\r`/`\t`/`\s` så whitespace inte bryter radformatet.
+
+Self-host full compile av `emit.kab` kan ta **30–90 min** — undvik i varje edit-loop; `self_host/`-sökvägar använder Rust-host.
 
 ---
 
@@ -45,15 +62,16 @@ Profilerar compile-faser. Använd för att hitta flaskhalsar — **inte** i varj
 
 ## `.kbc`-cache
 
-- Rust `compile::load_program_for_file` cachar parse/bytecode per fil under `.kabootar/cache/*.kbc`
-- Ogiltigförklaras när källfilens mtime är **nyare** än cache-filen
+- Rust `compile::load_program_for_file` cachar parse/bytecode under `.kabootar/cache/<cwd-rel-path>.kbc` (`/` → `__`)
+- Ogiltigförklaras när källfilens mtime är **nyare**, fingerprint ändras, eller `source=` inte matchar sökvägen
 - Self-host output: `_emit_full_out.kbc`, `_serialize_full_out.kbc` i repo root
 - **Stale guard:** `self_host_emit_kbc_freshness_guard` / `assert_fresh_serialize_kbc` i `tests/self_host.rs`
 
 **Kv8:** efter ändring i `lib/kv8/eval.kab`, radera gammal cache om while/import beter sig konstigt:
 
 ```bash
-rm .kabootar/cache/eval.kab.kbc
+rm .kabootar/cache/lib__kv8__eval.kab.kbc
+# (äldre platta namn:) rm .kabootar/cache/eval.kab.kbc
 ```
 
 ## Modul-export-cache (process)

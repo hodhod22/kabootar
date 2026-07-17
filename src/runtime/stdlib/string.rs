@@ -227,8 +227,102 @@ fn str_normalize_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     match form.to_ascii_uppercase().as_str() {
         "NFC" => Ok(Value::String(s.nfc().collect::<String>())),
         "NFD" => Ok(Value::String(s.nfd().collect::<String>())),
-        _ => Err(format!("str_normalize supports NFC/NFD, got {:?}", form)),
+        "NFKC" => Ok(Value::String(s.nfkc().collect::<String>())),
+        "NFKD" => Ok(Value::String(s.nfkd().collect::<String>())),
+        _ => Err(format!(
+            "str_normalize supports NFC/NFD/NFKC/NFKD, got {:?}",
+            form
+        )),
     }
+}
+
+fn str_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let s = str_arg(args.first().ok_or("str_at(s, index)")?)?;
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len() as i64;
+    let idx = match args.get(1) {
+        Some(Value::Number(n)) if *n < 0 => len + *n,
+        Some(Value::Number(n)) => *n,
+        _ => 0,
+    };
+    if idx < 0 || idx >= len {
+        Ok(Value::Undefined)
+    } else {
+        Ok(Value::String(chars[idx as usize].to_string()))
+    }
+}
+
+fn is_lone_surrogate(c: char) -> bool {
+    let u = c as u32;
+    (0xD800..=0xDFFF).contains(&u)
+}
+
+fn is_well_formed_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let s = str_arg(args.first().ok_or("is_well_formed(s)")?)?;
+    Ok(Value::Bool(!s.chars().any(is_lone_surrogate)))
+}
+
+fn to_well_formed_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let s = str_arg(args.first().ok_or("to_well_formed(s)")?)?;
+    let out: String = s
+        .chars()
+        .map(|c| if is_lone_surrogate(c) { '\u{FFFD}' } else { c })
+        .collect();
+    Ok(Value::String(out))
+}
+
+fn string_concat_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut out = String::new();
+    for a in args {
+        match a {
+            Value::String(s) => out.push_str(s),
+            Value::Number(n) => out.push_str(&n.to_string()),
+            Value::Float(f) => out.push_str(&f.to_string()),
+            Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            Value::Null => out.push_str("null"),
+            Value::Undefined => out.push_str("undefined"),
+            _ => out.push_str(&crate::value::format_value(a)),
+        }
+    }
+    Ok(Value::String(out))
+}
+
+/// `String.raw({ raw: ["a", "b"] }, "X")` → `"aXb"` (JS parity subset).
+fn string_raw_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let template = args.first().ok_or("string_raw(template, ...subs)")?;
+    let raw_arr = match template {
+        Value::Object(map) => map.get("raw").cloned(),
+        Value::Array(items) => Some(Value::Array(items.clone())),
+        _ => None,
+    };
+    let Value::Array(parts) = raw_arr.ok_or("string_raw expects { raw: [...] } or array")? else {
+        return Err("string_raw: raw must be array".into());
+    };
+    let mut out = String::new();
+    for (i, part) in parts.iter().enumerate() {
+        out.push_str(str_arg(part).unwrap_or(""));
+        if i + 1 < parts.len() {
+            if let Some(sub) = args.get(i + 1) {
+                match sub {
+                    Value::String(s) => out.push_str(s),
+                    other => out.push_str(&crate::value::format_value(other)),
+                }
+            }
+        }
+    }
+    Ok(Value::String(out))
+}
+
+pub fn str_at_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_at_native(args, env)
+}
+
+pub fn is_well_formed_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    is_well_formed_native(args, env)
+}
+
+pub fn to_well_formed_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    to_well_formed_native(args, env)
 }
 
 fn char_code_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -412,8 +506,31 @@ pub fn register_string(env: &mut Environment) {
         ("string_to_locale_string", str_to_locale_string_native),
         ("str_locale_compare", str_locale_compare_native),
         ("string_locale_compare", str_locale_compare_native),
+        ("str_at", str_at_native),
+        ("string_at", str_at_native),
+        ("is_well_formed", is_well_formed_native),
+        ("string_is_well_formed", is_well_formed_native),
+        ("to_well_formed", to_well_formed_native),
+        ("string_to_well_formed", to_well_formed_native),
+        ("string_concat", string_concat_native),
+        ("string_raw", string_raw_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
+    // String namespace (static helpers)
+    let mut string_ns = std::collections::HashMap::new();
+    string_ns.insert(
+        "raw".into(),
+        Value::NativeFunction(string_raw_native),
+    );
+    string_ns.insert(
+        "fromCharCode".into(),
+        Value::NativeFunction(from_char_code_native),
+    );
+    string_ns.insert(
+        "fromCodePoint".into(),
+        Value::NativeFunction(from_code_point_native),
+    );
+    env.set("String".to_string(), Value::Object(string_ns));
 }

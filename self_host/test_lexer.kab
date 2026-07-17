@@ -98,8 +98,8 @@ assert_tokens("async await yield", [
     ["async"], ["await"], ["yield"]
 ], "async keywords")
 
-assert_tokens("import pub self super", [
-    ["import"], ["pub"], ["self"], ["super"]
+assert_tokens("import pub this self super", [
+    ["import"], ["pub"], ["this"], ["self"], ["super"]
 ], "module keywords")
 
 assert_tokens("true false null undefined NaN", [

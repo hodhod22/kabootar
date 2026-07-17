@@ -120,7 +120,7 @@ fn bytecode_this_nested_member_assign() {
         class Box {
             x: Number
             fn init(v) {
-                self.x = v
+                this.x = v
             }
             fn set(n) {
                 let inner = { v: 0 }

@@ -423,6 +423,29 @@ pub fn register_promise(env: &mut Environment) {
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
+    env.set("Promise".to_string(), build_promise_namespace());
+}
+
+fn build_promise_namespace() -> Value {
+    use std::collections::HashMap;
+    let mut m = HashMap::new();
+    let insert = |map: &mut HashMap<String, Value>,
+                  name: &str,
+                  f: fn(&[Value], &mut Environment) -> Result<Value, String>| {
+        map.insert(name.into(), Value::NativeFunction(f));
+    };
+    insert(&mut m, "try", promise_try_native);
+    insert(&mut m, "withResolvers", promise_with_resolvers_native);
+    insert(&mut m, "resolve", promise_resolve_native);
+    insert(&mut m, "reject", promise_reject_native);
+    insert(&mut m, "all", promise_all_native);
+    insert(&mut m, "race", promise_race_native);
+    insert(&mut m, "allSettled", promise_all_settled_native);
+    insert(&mut m, "any", promise_any_native);
+    insert(&mut m, "then", promise_then_native);
+    insert(&mut m, "catch", promise_catch_native);
+    insert(&mut m, "finally", promise_finally_native);
+    Value::Object(m)
 }
 
 #[cfg(test)]

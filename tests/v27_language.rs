@@ -55,11 +55,11 @@ fn interface_implements_success() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
 
             fn greet() {
-                return "hi " + self.name
+                return "hi " + this.name
             }
         }
 
@@ -85,11 +85,11 @@ fn trait_implements_success_g5() {
             name: string;
 
             fn init(n) {
-                self.name = n
+                this.name = n
             }
 
             fn greet() {
-                return "hi " + self.name
+                return "hi " + this.name
             }
         }
 
