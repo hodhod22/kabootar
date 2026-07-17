@@ -124,6 +124,13 @@ Kabootar Browser (kbrowser)
 - [x] `webrtc_connect_peers` — lokal DTLS/SRTP-brygga
 - [x] SRTP protect/unprotect på RTP-payload
 
+### C8 — PWA fetch events + extension permissions
+- [x] `pwa_dispatch_fetch(url)` — FetchEvent till längsta matchande SW-scope
+- [x] `pwa_on_fetch(scope, strategy)` — `cache-first` / `offline-only` / `network-stub`
+- [x] Auto-detektera `addEventListener('fetch', …)` i SW-script
+- [x] `ext_has_permission` / `ext_request_permission` / `ext_revoke_permission`
+- [x] Permission-gated `ext_storage_*` + `ext_tabs_query`
+
 ### v2.57 — WebGL buffers
 - [x] `webgl_create_buffer` / `webgl_create_index_buffer`
 - [x] `webgl_bind_buffer` + `webgl_draw_elements`

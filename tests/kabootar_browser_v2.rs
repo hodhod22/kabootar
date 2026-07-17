@@ -130,6 +130,95 @@ fn pwa_register_worker_and_fetch_cached() {
 }
 
 #[test]
+fn pwa_dispatch_fetch_event_cache_first() {
+    let out = eval(
+        r#"
+        pwa_register_worker("/app/", "self.addEventListener('fetch', (e) => {});");
+        // seed offline + SW cache via install-style put
+        pwa_install(`{"name":"FetchApp","short_name":"fetchapp","start_url":"/app/"}`);
+        let r = pwa_dispatch_fetch("/app/");
+        r["handled"] && r["from_cache"] && r["status"] == 200 && str_includes(r["body"], "---kml---")
+        "#,
+    );
+    assert!(
+        matches!(out, Value::Bool(true)),
+        "fetch event cache-first failed: {out:?}"
+    );
+    let info = eval("pwa_info()");
+    let Value::Object(o) = info else {
+        panic!("expected pwa info");
+    };
+    assert!(matches!(o.get("fetch_events"), Some(Value::String(s)) if s == "true"));
+    assert!(matches!(o.get("phase"), Some(Value::String(s)) if s == "C8"));
+}
+
+#[test]
+fn pwa_on_fetch_network_stub_and_no_listener() {
+    let stub = eval(
+        r#"
+        pwa_register_worker("/stub/", "// no listener yet");
+        pwa_on_fetch("/stub/", "network-stub");
+        let r = pwa_dispatch_fetch("/stub/x");
+        r["handled"] && !r["from_cache"] && r["body"] == "network-stub:/stub/x"
+        "#,
+    );
+    assert!(matches!(stub, Value::Bool(true)), "network-stub failed: {stub:?}");
+
+    let quiet = eval(
+        r#"
+        pwa_register_worker("/quiet/", "// silent worker");
+        let r = pwa_dispatch_fetch("/quiet/page");
+        !r["handled"] && r["status"] == 0
+        "#,
+    );
+    assert!(matches!(quiet, Value::Bool(true)), "no-listener failed: {quiet:?}");
+}
+
+#[test]
+fn ext_permissions_gate_storage_and_tabs() {
+    let granted = eval(
+        r#"
+        let e = ext_install(`{"name":"PermExt","version":"1.0","permissions":["storage"]}`);
+        let id = e["id"];
+        ext_has_permission(id, "storage")
+          && !ext_has_permission(id, "tabs")
+          && ext_storage_set(id, "k", "v")
+          && ext_storage_get(id, "k") == "v"
+          && ext_request_permission(id, "tabs")
+          && ext_tabs_query(id)[0] == "kabootar://active"
+        "#,
+    );
+    assert!(
+        matches!(granted, Value::Bool(true)),
+        "permission grant path failed: {granted:?}"
+    );
+
+    let mut env = create_global_env();
+    let denied = eval_source(
+        r#"
+        let e = ext_install(`{"name":"NoPerm","version":"1.0"}`);
+        ext_storage_get(e["id"], "x");
+        "#,
+        &mut env,
+    );
+    assert!(
+        denied
+            .as_ref()
+            .err()
+            .map(|e| e.contains("missing permission") || e.contains("storage"))
+            .unwrap_or(false),
+        "expected storage denial, got {denied:?}"
+    );
+
+    let info = eval("ext_info()");
+    let Value::Object(o) = info else {
+        panic!("expected ext info");
+    };
+    assert!(matches!(o.get("permissions"), Some(Value::String(s)) if s == "true"));
+    assert!(matches!(o.get("phase"), Some(Value::String(s)) if s == "C8"));
+}
+
+#[test]
 fn webgl_create_context() {
     let ctx = eval("webgl_create(640, 480)");
     let Value::Object(o) = ctx else {
