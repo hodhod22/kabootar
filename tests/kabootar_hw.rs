@@ -14,7 +14,8 @@ fn os_host_info_reports_hw_backend() {
     assert!(matches!(info, Value::Object(o) if
         o.get("hw_feature").is_some() &&
         o.get("audio_backend").is_some() &&
-        o.get("usb_backend").is_some()
+        o.get("usb_backend").is_some() &&
+        o.get("net_backend").is_some()
     ));
 }
 

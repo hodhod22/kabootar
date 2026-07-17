@@ -32,11 +32,13 @@ pub fn info_map() -> std::collections::HashMap<String, String> {
     {
         m.insert("audio_backend".into(), "cpal".into());
         m.insert("usb_backend".into(), "serialport+hidapi+nusb".into());
+        m.insert("net_backend".into(), "host-ifaces".into());
     }
     #[cfg(not(all(not(target_arch = "wasm32"), feature = "hw")))]
     {
         m.insert("audio_backend".into(), "simulated".into());
         m.insert("usb_backend".into(), "simulated".into());
+        m.insert("net_backend".into(), "simulated".into());
     }
     m
 }

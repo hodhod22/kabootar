@@ -102,11 +102,12 @@ pub struct NetDriver {
     next_sock: AtomicU64,
     bytes_sent: u64,
     bytes_recv: u64,
+    backend: String,
 }
 
 impl Default for NetDriver {
     fn default() -> Self {
-        Self {
+        let mut n = Self {
             interfaces: vec![NetInterface {
                 name: "eth0".into(),
                 mac: "02:4b:ab:00:01:00".into(),
@@ -119,7 +120,10 @@ impl Default for NetDriver {
             next_sock: AtomicU64::new(1),
             bytes_sent: 0,
             bytes_recv: 0,
-        }
+            backend: "simulated".into(),
+        };
+        n.refresh_host();
+        n
     }
 }
 
@@ -128,8 +132,52 @@ impl NetDriver {
         &self.interfaces
     }
 
+    pub fn backend(&self) -> &str {
+        &self.backend
+    }
+
     pub fn stats(&self) -> (u64, u64, usize) {
         (self.bytes_sent, self.bytes_recv, self.sockets.len())
+    }
+
+    pub fn record_tx(&mut self, n: u64) {
+        self.bytes_sent = self.bytes_sent.saturating_add(n);
+    }
+
+    /// Refresh host NICs: always expose `lo`; under `hw` mark backend host-ifaces.
+    pub fn refresh_host(&mut self) -> usize {
+        let has_lo = self.interfaces.iter().any(|i| i.name == "lo");
+        if !has_lo {
+            self.interfaces.push(NetInterface {
+                name: "lo".into(),
+                mac: "00:00:00:00:00:00".into(),
+                ipv4: "127.0.0.1".into(),
+                up: true,
+                mtu: 65536,
+            });
+        }
+        #[cfg(all(not(target_arch = "wasm32"), feature = "hw"))]
+        {
+            if crate::runtime::os::native_hw::enabled() {
+                self.backend = "host-ifaces".into();
+                if !self.interfaces.iter().any(|i| i.name == "host-eth") {
+                    self.interfaces.push(NetInterface {
+                        name: "host-eth".into(),
+                        mac: "02:4b:ab:host:00".into(),
+                        ipv4: local_ipv4_guess(),
+                        up: true,
+                        mtu: 1500,
+                    });
+                }
+            } else {
+                self.backend = "simulated".into();
+            }
+        }
+        #[cfg(not(all(not(target_arch = "wasm32"), feature = "hw")))]
+        {
+            self.backend = "simulated".into();
+        }
+        self.interfaces.len()
     }
 
     fn new_sock_id(&self) -> u64 {
@@ -602,4 +650,18 @@ impl NetDriver {
         }
         Ok(())
     }
+}
+
+fn local_ipv4_guess() -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            if socket.connect("8.8.8.8:80").is_ok() {
+                if let Ok(addr) = socket.local_addr() {
+                    return addr.ip().to_string();
+                }
+            }
+        }
+    }
+    "127.0.0.1".into()
 }

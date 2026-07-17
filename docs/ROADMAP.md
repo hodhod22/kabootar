@@ -513,11 +513,11 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 | Fas | Innehåll |
 |-----|----------|
-| **D1** ✅/🚧 | Ring 0: `os_sched_enqueue` → CFS `FairScheduler`, `os_sched_yield` (kooperativ preemption); hård IRQ-preemption senare |
+| **D1** ✅ | Ring 0: CFS enqueue/yield + IRQ timer preempt (`os_irq_raise` / `os_sched_preempt`) |
 | **D2** ✅ | MMU: `os_mm_fault`, `os_mm_mmap`, COW (`os_mm_cow_share` / `os_mm_cow_break`) |
 | **D3** ✅ | FS: journal payload + `os_journal_replay`/`checkpoint`; path-ACL (`os_acl_*`) + `os_perm_*` |
-| **D4** | Netstack: riktig NIC-driver (`--features hw`) |
-| **D5** | GPU compositor: multi-monitor, vsync, blur/acrylic-lager (kOS shell) |
+| **D4** ✅ | Netstack: `lo`/`host-eth` NIC refresh, `os_netstack_info`, tx accounting (`hw` → host-ifaces) |
+| **D5** ✅ | GPU compositor subset: `os_display_monitors`, `os_display_vsync`, acrylic layer preview |
 | **D6** | `os_compat_run`: Wine-lik / container (inte 99 % stub) |
 | **D7** | Boot: BIOS/UEFI chain eller bare-metal target |
 | **D8** | Sauce-strategier: haptic, seamless, energy — hardware där möjligt |

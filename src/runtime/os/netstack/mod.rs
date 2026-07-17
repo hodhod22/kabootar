@@ -25,4 +25,12 @@ impl NetStackSubsystem {
         let class = self.traffic.classify(proto);
         self.stack.transmit(proto, payload, class)
     }
+
+    pub fn info(&self) -> std::collections::HashMap<String, String> {
+        let mut m = std::collections::HashMap::new();
+        m.insert("packets".into(), self.stack.packet_count().to_string());
+        m.insert("layers".into(), self.stack.layers().len().to_string());
+        m.insert("qos".into(), "enabled".into());
+        m
+    }
 }

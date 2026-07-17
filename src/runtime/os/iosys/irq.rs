@@ -7,6 +7,7 @@ pub struct IrqLine {
     pub irq: u8,
     pub device: String,
     pub priority: u8,
+    pub kind: String,
 }
 
 pub struct IrqHandler {
@@ -25,6 +26,11 @@ impl Default for IrqHandler {
 
 impl IrqHandler {
     pub fn dispatch(&mut self, irq: u8, device: &str) {
+        let kind = if device.eq_ignore_ascii_case("timer") || irq == 0 {
+            "timer"
+        } else {
+            "device"
+        };
         let priority = match irq {
             0..=15 => 3,
             16..=31 => 2,
@@ -34,6 +40,7 @@ impl IrqHandler {
             irq,
             device: device.to_string(),
             priority,
+            kind: kind.into(),
         });
         self.handled += 1;
     }

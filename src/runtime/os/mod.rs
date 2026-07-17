@@ -202,7 +202,7 @@ impl OsHandle {
         })
     }
 
-    fn with_devices<F, T>(&self, f: F) -> Result<T, String>
+    pub(crate) fn with_devices<F, T>(&self, f: F) -> Result<T, String>
     where
         F: FnOnce(&mut DeviceManager) -> Result<T, String>,
     {
@@ -439,6 +439,62 @@ impl OsHandle {
         Ok(ds.present(window_id, bytes))
     }
 
+    pub fn display_monitors(&self) -> Result<Value, String> {
+        let ds = self.display.lock().map_err(|_| "display lock poisoned".to_string())?;
+        Ok(Value::Array(
+            ds.monitors()
+                .iter()
+                .map(|m| {
+                    let mut o = std::collections::HashMap::new();
+                    o.insert("id".into(), Value::Number(m.id as i64));
+                    o.insert("x".into(), Value::Number(m.x));
+                    o.insert("y".into(), Value::Number(m.y));
+                    o.insert("width".into(), Value::Number(m.width));
+                    o.insert("height".into(), Value::Number(m.height));
+                    o.insert("primary".into(), Value::Bool(m.primary));
+                    Value::Object(o)
+                })
+                .collect(),
+        ))
+    }
+
+    pub fn display_vsync(&self, mode: &str) -> Result<String, String> {
+        let mut ds = self.display.lock().map_err(|_| "display lock poisoned".to_string())?;
+        ds.set_vsync(mode)
+    }
+
+    pub fn compositor_layer(&self, window_id: u64, blur: u32, opacity: f64) -> Result<u64, String> {
+        let mut ds = self.display.lock().map_err(|_| "display lock poisoned".to_string())?;
+        Ok(ds.add_layer(window_id, blur, opacity))
+    }
+
+    pub fn compositor_acrylic_bytes(&self, layer_id: u64) -> Result<Option<usize>, String> {
+        let ds = self.display.lock().map_err(|_| "display lock poisoned".to_string())?;
+        Ok(ds.acrylic_preview_bytes(layer_id))
+    }
+
+    pub fn netstack_info(&self) -> Result<Value, String> {
+        let mut info = self.with_subsys(|s| Ok(s.netstack.info()))?;
+        let (backend, ifaces, tx, rx) = self.with_devices(|dm| {
+            let (tx, rx, _) = dm.net.stats();
+            Ok((
+                dm.net.backend().to_string(),
+                dm.net.interfaces().len(),
+                tx,
+                rx,
+            ))
+        })?;
+        info.insert("backend".into(), backend);
+        info.insert("ifaces".into(), ifaces.to_string());
+        info.insert("tx_bytes".into(), tx.to_string());
+        info.insert("rx_bytes".into(), rx.to_string());
+        Ok(Value::Object(
+            info.into_iter()
+                .map(|(k, v)| (k, Value::String(v)))
+                .collect(),
+        ))
+    }
+
     pub fn mem_alloc(&self, size: usize, label: &str) -> Result<u64, String> {
         let mut mm = self.memory.lock().map_err(|_| "memory lock poisoned".to_string())?;
         mm.alloc(size, label)
@@ -471,6 +527,37 @@ impl OsHandle {
 
     fn sched_yield(&self) -> Result<Option<kcore::SchedTask>, String> {
         self.with_subsys(|s| Ok(s.kcore.yield_running()))
+    }
+
+    /// D1-rest: raise IRQ; timer IRQs force CFS preemption + context switch.
+    pub fn irq_raise(&self, irq: u8, device: &str) -> Result<Value, String> {
+        self.with_subsys(|s| {
+            s.iosys.raise_irq(irq, device);
+            let is_timer = device.eq_ignore_ascii_case("timer") || irq == 0;
+            let mut out = std::collections::HashMap::new();
+            out.insert("raised".into(), Value::Bool(true));
+            out.insert("irq".into(), Value::Number(irq as i64));
+            out.insert("device".into(), Value::String(device.into()));
+            if is_timer {
+                if let Some((task, sw)) = s.kcore.preempt_from_irq(25) {
+                    out.insert("preempted".into(), Value::Bool(true));
+                    out.insert("tid".into(), Value::Number(task.tid as i64));
+                    out.insert("name".into(), Value::String(task.name));
+                    out.insert("vruntime".into(), Value::Number(task.vruntime as i64));
+                    out.insert("switch_from".into(), Value::Number(sw.from as i64));
+                    out.insert("switch_to".into(), Value::Number(sw.to as i64));
+                } else {
+                    out.insert("preempted".into(), Value::Bool(false));
+                }
+            } else {
+                out.insert("preempted".into(), Value::Bool(false));
+            }
+            Ok(Value::Object(out))
+        })
+    }
+
+    pub fn sched_preempt(&self) -> Result<Option<kcore::SchedTask>, String> {
+        self.with_subsys(|s| Ok(s.kcore.preempt_from_irq(25).map(|(t, _)| t)))
     }
 
     pub fn vfs_save(&self, path: &str) -> Result<(), String> {
@@ -900,6 +987,51 @@ fn os_display_register_native(args: &[Value], env: &mut Environment) -> Result<V
     let w = args.get(2).and_then(|v| match v { Value::Number(n) => Some(*n), _ => None }).unwrap_or(1280);
     let h = args.get(3).and_then(|v| match v { Value::Number(n) => Some(*n), _ => None }).unwrap_or(720);
     Ok(Value::Number(get_os(env)?.display_register(win, &title, w, h)? as i64))
+}
+
+fn os_display_monitors_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    get_os(env)?.display_monitors()
+}
+
+fn os_display_vsync_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let mode = expect_string(args, 0, "os_display_vsync()")?;
+    Ok(Value::String(get_os(env)?.display_vsync(&mode)?))
+}
+
+fn os_compositor_layer_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let win = match args.first() {
+        Some(Value::Number(n)) if *n >= 0 => *n as u64,
+        _ => return Err("os_compositor_layer(windowId, blur?, opacity?)".into()),
+    };
+    let blur = args
+        .get(1)
+        .and_then(|v| match v {
+            Value::Number(n) if *n >= 0 => Some(*n as u32),
+            _ => None,
+        })
+        .unwrap_or(4);
+    let opacity = args
+        .get(2)
+        .and_then(|v| match v {
+            Value::Number(n) => Some(*n as f64),
+            Value::Float(f) => Some(*f),
+            _ => None,
+        })
+        .unwrap_or(0.85);
+    Ok(Value::Number(
+        get_os(env)?.compositor_layer(win, blur, opacity)? as i64,
+    ))
+}
+
+fn os_compositor_acrylic_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let layer = match args.first() {
+        Some(Value::Number(n)) if *n > 0 => *n as u64,
+        _ => return Err("os_compositor_acrylic(layerId)".into()),
+    };
+    match get_os(env)?.compositor_acrylic_bytes(layer)? {
+        Some(n) => Ok(Value::Number(n as i64)),
+        None => Ok(Value::Null),
+    }
 }
 
 fn os_mem_alloc_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -1575,6 +1707,10 @@ pub fn os_globals(env: &mut Environment) {
         Value::NativeFunction(os_window_bind_native),
     );
     env.set("os_display_register".to_string(), Value::NativeFunction(os_display_register_native));
+    env.set("os_display_monitors".to_string(), Value::NativeFunction(os_display_monitors_native));
+    env.set("os_display_vsync".to_string(), Value::NativeFunction(os_display_vsync_native));
+    env.set("os_compositor_layer".to_string(), Value::NativeFunction(os_compositor_layer_native));
+    env.set("os_compositor_acrylic".to_string(), Value::NativeFunction(os_compositor_acrylic_native));
     env.set("os_mem_alloc".to_string(), Value::NativeFunction(os_mem_alloc_native));
     env.set("os_mem_free".to_string(), Value::NativeFunction(os_mem_free_native));
     env.set("os_mem_read".to_string(), Value::NativeFunction(os_mem_read_native));
@@ -1582,6 +1718,7 @@ pub fn os_globals(env: &mut Environment) {
     env.set("os_mem_stats".to_string(), Value::NativeFunction(os_mem_stats_native));
     env.set("os_sched_enqueue".to_string(), Value::NativeFunction(os_sched_enqueue_native));
     env.set("os_sched_yield".to_string(), Value::NativeFunction(os_sched_yield_native));
+    // D1-rest / D4 also registered via os_api::register_architecture_globals
     env.set("os_vfs_save".to_string(), Value::NativeFunction(os_vfs_save_native));
     env.set("os_vfs_load".to_string(), Value::NativeFunction(os_vfs_load_native));
     env.set("os_syscall".to_string(), Value::NativeFunction(os_syscall_native));

@@ -69,6 +69,27 @@ fn d1_cfs_enqueue_tick_and_yield() {
 }
 
 #[test]
+fn d1_irq_timer_preempt() {
+    let out = eval(
+        r#"
+        os_sched_enqueue("ui");
+        os_sched_enqueue("net");
+        os_sched_tick();
+        let before = os_kcore_info();
+        let raised = os_irq_raise(0, "timer");
+        let polled = os_irq_poll();
+        let after = os_kcore_info();
+        let forced = os_sched_preempt();
+        is_object(raised) && raised.preempted == true && is_number(raised.tid)
+            && is_object(polled) && polled.device == "timer" && polled.kind == "timer"
+            && is_object(forced) && forced.forced == true
+            && after.context_switches != before.context_switches
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn mmu_map_translate_and_stats() {
     let out = eval(
         r#"
@@ -138,6 +159,24 @@ fn fs_journal_and_netstack() {
 }
 
 #[test]
+fn d4_netstack_nic_and_info() {
+    let out = eval(
+        r#"
+        let n = os_hw_refresh();
+        let ifaces = os_net_interfaces();
+        let info = os_netstack_info();
+        let host = os_host_info();
+        let pkt = os_netstack_send("udp", "ping");
+        is_number(n) && is_array(ifaces) && len(ifaces) >= 2
+            && is_object(info) && is_string(info.backend) && is_string(info.packets)
+            && is_object(host) && is_string(host.net_backend)
+            && is_array(pkt) && len(pkt) > 0
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn d3_journal_replay_checkpoint_and_acl() {
     let out = eval(
         r#"
@@ -172,4 +211,22 @@ fn ring3_shell_libc_and_crosscut() {
     assert!(matches!(sleep, Value::String(s) if s == "sleep"));
     let logs = eval("os_log_drain(8)");
     assert!(matches!(logs, Value::Array(_)));
+}
+
+#[test]
+fn d5_monitors_vsync_acrylic() {
+    let out = eval(
+        r#"
+        let mons = os_display_monitors();
+        let vs = os_display_vsync("fifo");
+        let win = os_window_create("Acrylic", 800, 600);
+        os_display_register(win, "Acrylic", 800, 600);
+        let layer = os_compositor_layer(win, 8, 0.8);
+        let bytes = os_compositor_acrylic(layer);
+        is_array(mons) && len(mons) >= 2 && mons[0].primary == true
+            && vs == "fifo" && is_number(win) && is_number(layer) && layer > 0
+            && is_number(bytes) && bytes > 0
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }

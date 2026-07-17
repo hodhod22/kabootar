@@ -107,6 +107,27 @@ fn os_sched_yield_native(_args: &[Value], env: &mut Environment) -> Result<Value
     })
 }
 
+fn os_sched_preempt_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    match get_os(env)?.sched_preempt()? {
+        Some(t) => {
+            let mut o = HashMap::new();
+            o.insert("tid".into(), Value::Number(t.tid as i64));
+            o.insert("pid".into(), Value::Number(t.pid as i64));
+            o.insert("name".into(), Value::String(t.name));
+            o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
+            o.insert("forced".into(), Value::Bool(true));
+            Ok(Value::Object(o))
+        }
+        None => Ok(Value::Null),
+    }
+}
+
+fn os_irq_raise_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let irq = num_arg(args, 0, "os_irq_raise irq")? as u8;
+    let device = str_arg(args, 1).unwrap_or_else(|| "device".into());
+    get_os(env)?.irq_raise(irq, &device)
+}
+
 fn os_context_switch_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let from = num_arg(args, 0, "os_context_switch from")?;
     let to = num_arg(args, 1, "os_context_switch to")?;
@@ -253,6 +274,8 @@ fn os_irq_poll_native(_args: &[Value], env: &mut Environment) -> Result<Value, S
             let mut o = HashMap::new();
             o.insert("irq".into(), Value::Number(irq.irq as i64));
             o.insert("device".into(), Value::String(irq.device));
+            o.insert("kind".into(), Value::String(irq.kind));
+            o.insert("priority".into(), Value::Number(irq.priority as i64));
             Ok(Value::Object(o))
         }
         None => Ok(Value::Null),
@@ -331,10 +354,18 @@ fn os_netstack_send_native(args: &[Value], env: &mut Environment) -> Result<Valu
     let proto = str_arg(args, 0).unwrap_or_else(|| "tcp".into());
     let payload = bytes_arg(args, 1).unwrap_or_default();
     let os = get_os(env)?;
-    with_subsys(&os, |s| {
-        let out = s.netstack.send_packet(&proto, &payload)?;
-        Ok(Value::Array(out.into_iter().map(|b| Value::Number(b as i64)).collect()))
-    })
+    let out = with_subsys(&os, |s| s.netstack.send_packet(&proto, &payload))?;
+    let _ = os.with_devices(|dm| {
+        dm.net.record_tx(out.len() as u64);
+        Ok(())
+    });
+    Ok(Value::Array(
+        out.into_iter().map(|b| Value::Number(b as i64)).collect(),
+    ))
+}
+
+fn os_netstack_info_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    get_os(env)?.netstack_info()
 }
 
 fn os_shell_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -425,6 +456,8 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_ipc_recv".into(), Value::NativeFunction(os_ipc_recv_native));
     env.set("os_sched_tick".into(), Value::NativeFunction(os_sched_tick_native));
     env.set("os_sched_yield".into(), Value::NativeFunction(os_sched_yield_native));
+    env.set("os_sched_preempt".into(), Value::NativeFunction(os_sched_preempt_native));
+    env.set("os_irq_raise".into(), Value::NativeFunction(os_irq_raise_native));
     env.set("os_context_switch".into(), Value::NativeFunction(os_context_switch_native));
     env.set("os_mm_map".into(), Value::NativeFunction(os_mm_map_native));
     env.set("os_mm_translate".into(), Value::NativeFunction(os_mm_translate_native));
@@ -448,6 +481,7 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_acl_check".into(), Value::NativeFunction(os_acl_check_native));
     env.set("os_acl_revoke".into(), Value::NativeFunction(os_acl_revoke_native));
     env.set("os_netstack_send".into(), Value::NativeFunction(os_netstack_send_native));
+    env.set("os_netstack_info".into(), Value::NativeFunction(os_netstack_info_native));
     env.set("os_shell".into(), Value::NativeFunction(os_shell_native));
     env.set("os_libc_open".into(), Value::NativeFunction(os_libc_open_native));
     env.set("os_log_drain".into(), Value::NativeFunction(os_log_drain_native));
