@@ -184,3 +184,20 @@ fn import_std_module() {
     };
     assert!(s.contains("\"ok\":true"));
 }
+
+#[test]
+fn import_std_helpers_and_locale_compare() {
+    let mut env = create_global_env();
+    import_module("std", &mut env).unwrap();
+    let out = eval_source(
+        r#"
+        sum([1, 2, 3]) == 6 &&
+        capitalize("hi") == "Hi" &&
+        str_locale_compare("a", "A", "en", { "sensitivity": "base" }) == 0 &&
+        "b".localeCompare("a") == 1
+        "#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(out, Value::Bool(true)));
+}

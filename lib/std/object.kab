@@ -20,13 +20,13 @@ pub fn pick(o, keys) {
     return out
 }
 
-pub fn mapValues(o, fn) {
+pub fn mapValues(o, mapper) {
     let keys = object_keys(o)
     let out = {}
     let i = 0
     while i < len(keys) {
         let k = keys[i]
-        out[k] = fn(o[k])
+        out[k] = mapper(o[k])
         i = i + 1
     }
     return out

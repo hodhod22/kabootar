@@ -331,3 +331,34 @@ fn kv8_react_kids_smoke_example_runs() {
     let result = cli::run_file(&path).expect("examples/kv8_react_kids_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
+
+#[test]
+fn kv8_react_nested_smoke_example_runs() {
+    ensure_kv8_eval_cache_fresh();
+    warm_kv8_disk_kbc();
+    warm_kv8_module_exports();
+    let path = format!("{}/examples/kv8_react_nested_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8_react_nested_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
+
+/// C2: after warm cache, a 1k while-loop via kv8/eval must stay under a loose budget.
+#[test]
+fn kv8_eval_loop_under_budget_after_warm() {
+    with_kv8_eval(|env| {
+        let started = Instant::now();
+        let v = kabootar_lib::evaluator::eval_source(
+            "evalSource(\"let n = 0; while (n < 1000) { n = n + 1 } n\")",
+            env,
+        )
+        .unwrap();
+        let elapsed = started.elapsed();
+        eprintln!("kv8 1k while via evalSource completed in {elapsed:?}");
+        assert!(matches!(v, Value::Number(n) if n == 1000));
+        // Warm Windows debug typically << 30s; keep generous for CI variance.
+        assert!(
+            elapsed.as_secs() < 60,
+            "kv8 eval loop too slow after warm: {elapsed:?}"
+        );
+    });
+}

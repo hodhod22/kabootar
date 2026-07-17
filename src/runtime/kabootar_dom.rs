@@ -354,12 +354,24 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
         Value::NativeFunction(kdom_append_text_by_id_native),
     );
     env.set(
+        "kdom_append_by_id".to_string(),
+        Value::NativeFunction(kdom_append_by_id_native),
+    );
+    env.set(
         "kdom_get_by_id".to_string(),
         Value::NativeFunction(kdom_get_by_id_native),
     );
     env.set(
         "kdom_on_by_id".to_string(),
         Value::NativeFunction(kdom_on_by_id_native),
+    );
+    env.set(
+        "kdom_dispatch_by_id".to_string(),
+        Value::NativeFunction(kdom_dispatch_by_id_native),
+    );
+    env.set(
+        "kdom_child_id".to_string(),
+        Value::NativeFunction(kdom_child_id_native),
     );
     env.set(
         "kdom_clear_children".to_string(),
@@ -671,6 +683,22 @@ fn kdom_append_text_by_id_native(args: &[Value], _env: &mut Environment) -> Resu
     Ok(Value::KabootarDom(node))
 }
 
+fn kdom_append_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_append_by_id() expects numeric id".into()),
+    };
+    let child_arg = expect_dom(args, 1, "kdom_append_by_id()")?;
+    let mut parent = live_get(id).ok_or_else(|| format!("kdom_append_by_id: unknown id {id}"))?;
+    let child = live_resolve(child_arg);
+    let parent_id = parent.id;
+    let child_id = child.id;
+    parent.append(child);
+    record_child_list_mutation(parent_id, child_id);
+    live_upsert(&parent);
+    Ok(Value::KabootarDom(parent))
+}
+
 fn kdom_get_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = match args.first() {
         Some(Value::Number(n)) => *n as u64,
@@ -699,6 +727,46 @@ fn kdom_on_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     node.on(event, handler);
     live_upsert(&node);
     Ok(Value::KabootarDom(node))
+}
+
+fn kdom_dispatch_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_dispatch_by_id() expects numeric id".into()),
+    };
+    let event = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("kdom_dispatch_by_id() expects event name".into()),
+    };
+    let node = live_get(id).ok_or_else(|| format!("kdom_dispatch_by_id: unknown id {id}"))?;
+    if let Some(handler) = node.listeners.get(event) {
+        crate::runtime::events::enqueue(crate::runtime::events::KabootarEvent {
+            node_id: node.id,
+            event_type: event.to_string(),
+            handler: handler.clone(),
+            x: 0.0,
+            y: 0.0,
+        });
+        Ok(Value::String(handler.clone()))
+    } else {
+        Ok(Value::Null)
+    }
+}
+
+fn kdom_child_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_child_id() expects numeric id".into()),
+    };
+    let idx = match args.get(1) {
+        Some(Value::Number(n)) if *n >= 0 => *n as usize,
+        _ => 0,
+    };
+    let node = live_get(id).ok_or_else(|| format!("kdom_child_id: unknown id {id}"))?;
+    Ok(match node.children.get(idx) {
+        Some(child) => Value::Number(child.id as i64),
+        None => Value::Null,
+    })
 }
 
 fn kdom_clear_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

@@ -21,19 +21,9 @@ let evCallFnStack = []
 let evCallArgsStack = []
 let evAiStack = []
 let evAi = 0
-let evPopNew = []
-let evPopI = 0
 let evLoopSig = 0
 
-fn evPopStack(stack) {
-    evPopNew = []
-    evPopI = 0
-    while evPopI < len(stack) - 1 {
-        evPopNew = push(evPopNew, stack[evPopI])
-        evPopI = evPopI + 1
-    }
-    return evPopNew
-}
+// Stack pop uses native `pop` (O(1) slice) — old evPopStack rebuilt arrays in Kabootar (C2 hot path).
 
 fn evExpr(node, env) {
     if node.kind == K_LITERAL {
@@ -56,44 +46,44 @@ fn evExpr(node, env) {
         evBxOp = evBinOpStack[len(evBinOpStack) - 1]
         if evBxOp == "&&" {
             if !evLhs {
-                evBinOpStack = evPopStack(evBinOpStack)
-                evBinRStack = evPopStack(evBinRStack)
+                evBinOpStack = pop(evBinOpStack)
+                evBinRStack = pop(evBinRStack)
                 return evLhs
             }
             evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
-            evBinOpStack = evPopStack(evBinOpStack)
-            evBinRStack = evPopStack(evBinRStack)
+            evBinOpStack = pop(evBinOpStack)
+            evBinRStack = pop(evBinRStack)
             return evRhsVal
         }
         if evBxOp == "||" {
             if evLhs {
-                evBinOpStack = evPopStack(evBinOpStack)
-                evBinRStack = evPopStack(evBinRStack)
+                evBinOpStack = pop(evBinOpStack)
+                evBinRStack = pop(evBinRStack)
                 return evLhs
             }
             evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
-            evBinOpStack = evPopStack(evBinOpStack)
-            evBinRStack = evPopStack(evBinRStack)
+            evBinOpStack = pop(evBinOpStack)
+            evBinRStack = pop(evBinRStack)
             return evRhsVal
         }
         if evBxOp == "??" {
             if evLhs != null && evLhs != undefined {
-                evBinOpStack = evPopStack(evBinOpStack)
-                evBinRStack = evPopStack(evBinRStack)
+                evBinOpStack = pop(evBinOpStack)
+                evBinRStack = pop(evBinRStack)
                 return evLhs
             }
             evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
-            evBinOpStack = evPopStack(evBinOpStack)
-            evBinRStack = evPopStack(evBinRStack)
+            evBinOpStack = pop(evBinOpStack)
+            evBinRStack = pop(evBinRStack)
             return evRhsVal
         }
         evBinLStack = push(evBinLStack, evLhs)
         evRhsVal = evExpr(evBinRStack[len(evBinRStack) - 1], env)
         evLhs = evBinLStack[len(evBinLStack) - 1]
         evBxOp = evBinOpStack[len(evBinOpStack) - 1]
-        evBinLStack = evPopStack(evBinLStack)
-        evBinOpStack = evPopStack(evBinOpStack)
-        evBinRStack = evPopStack(evBinRStack)
+        evBinLStack = pop(evBinLStack)
+        evBinOpStack = pop(evBinOpStack)
+        evBinRStack = pop(evBinRStack)
         if evBxOp == "+" { return evLhs + evRhsVal }
         if evBxOp == "-" { return evLhs - evRhsVal }
         if evBxOp == "*" { return evLhs * evRhsVal }
@@ -113,8 +103,8 @@ fn evExpr(node, env) {
         evMemObjStack = push(evMemObjStack, node.object)
         let obj = evExpr(evMemObjStack[len(evMemObjStack) - 1], env)
         let memField = evMemFieldStack[len(evMemFieldStack) - 1]
-        evMemObjStack = evPopStack(evMemObjStack)
-        evMemFieldStack = evPopStack(evMemFieldStack)
+        evMemObjStack = pop(evMemObjStack)
+        evMemFieldStack = pop(evMemFieldStack)
         let optional = false
         if object_has_own(node, "optional") {
             optional = node.optional
@@ -150,8 +140,8 @@ fn evExpr(node, env) {
         evMemFieldStack = push(evMemFieldStack, node.index)
         let obj = evExpr(evMemObjStack[len(evMemObjStack) - 1], env)
         let idx = evExpr(evMemFieldStack[len(evMemFieldStack) - 1], env)
-        evMemObjStack = evPopStack(evMemObjStack)
-        evMemFieldStack = evPopStack(evMemFieldStack)
+        evMemObjStack = pop(evMemObjStack)
+        evMemFieldStack = pop(evMemFieldStack)
         return obj[idx]
     }
     if node.kind == K_OBJECT {
@@ -191,8 +181,8 @@ fn evExpr(node, env) {
         let ok = evExpr(node.cond, env)
         let thenN = evMemObjStack[len(evMemObjStack) - 1]
         let elseN = evMemFieldStack[len(evMemFieldStack) - 1]
-        evMemObjStack = evPopStack(evMemObjStack)
-        evMemFieldStack = evPopStack(evMemFieldStack)
+        evMemObjStack = pop(evMemObjStack)
+        evMemFieldStack = pop(evMemFieldStack)
         if ok {
             return evExpr(thenN, env)
         }
@@ -203,8 +193,8 @@ fn evExpr(node, env) {
         evCallArgsStack = push(evCallArgsStack, node.args)
         let callee = evExpr(evCallFnStack[len(evCallFnStack) - 1], env)
         let callArgNodes = evCallArgsStack[len(evCallArgsStack) - 1]
-        evCallFnStack = evPopStack(evCallFnStack)
-        evCallArgsStack = evPopStack(evCallArgsStack)
+        evCallFnStack = pop(evCallFnStack)
+        evCallArgsStack = pop(evCallArgsStack)
         let fnTag = callee["tag"]
         if fnTag == "k8host" {
             let hostName = callee["name"]
@@ -214,10 +204,10 @@ fn evExpr(node, env) {
                 evAi = evAiStack[len(evAiStack) - 1]
                 hostArgs = push(hostArgs, evExpr(callArgNodes[evAi], env))
                 evAi = evAiStack[len(evAiStack) - 1] + 1
-                evAiStack = evPopStack(evAiStack)
+                evAiStack = pop(evAiStack)
                 evAiStack = push(evAiStack, evAi)
             }
-            evAiStack = evPopStack(evAiStack)
+            evAiStack = pop(evAiStack)
             return hostCall(hostName, hostArgs)
         }
         let fnArgs = []
@@ -226,10 +216,10 @@ fn evExpr(node, env) {
             evAi = evAiStack[len(evAiStack) - 1]
             fnArgs = push(fnArgs, evExpr(callArgNodes[evAi], env))
             evAi = evAiStack[len(evAiStack) - 1] + 1
-            evAiStack = evPopStack(evAiStack)
+            evAiStack = pop(evAiStack)
             evAiStack = push(evAiStack, evAi)
         }
-        evAiStack = evPopStack(evAiStack)
+        evAiStack = pop(evAiStack)
         return evCall(callee, fnArgs)
     }
     throw "eval expr " + node.kind

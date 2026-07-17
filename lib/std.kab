@@ -1,0 +1,25 @@
+@version "1.0.0"
+
+// Aggregator: import "std" — re-exports lib/std/* + JSON helpers (G3).
+// Note: runtime resolves builtin "std" first; this file mirrors that surface.
+
+pub import "std/array"
+pub import "std/object"
+pub import "std/math"
+pub import "std/string"
+
+pub fn parse(text) {
+    return json_parse(text)
+}
+
+pub fn stringify(v) {
+    return json_stringify(v)
+}
+
+pub fn info() {
+    return std_info()
+}
+
+pub fn array_sum(arr) {
+    return reduce(arr, (a, b) => a + b, 0)
+}

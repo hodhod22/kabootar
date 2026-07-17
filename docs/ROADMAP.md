@@ -493,7 +493,7 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-06):** C1 påbörjad — `kdom_query_selector`, `kdom_query_selector_all`, `kdom_mutation_records`. **C2 påbörjad:** React 19 via esbuild ESM (ingen UMD), Kv8 modern JS (`for…of`, templates, `??`, `?.`, `import`/`export`), fast/slow CI (`scripts/kv8-test-*.sh`). React bundle **parsar** (~0,1 s); full **eval** i Kv8-tolkaren tar fortfarande minuter — nästa milestone: render/fiber-paritet + tolk-prestanda.
+**Status (2026-07):** C1 påbörjad — `kdom_query_selector`, `kdom_query_selector_all`, `kdom_mutation_records`. **C2:** React 19 via esbuild ESM; self-host `kv8/eval` hot path uses native `pop` (inte O(n) `evPopStack`); warm `.kbc`/export-cache + budget-assert på 1k while. Full React-bundle eval fortfarande långsam — vidare JIT/hot paths i C3.
 
 | Fas | Innehåll |
 |-----|----------|
@@ -573,14 +573,14 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 |-----|----------|--------|
 | **G1** | **`lib/std/*`**, [STDLIB.md](STDLIB.md), `str_match`/`str_search`, hyperbolic Math | ✅ subset |
 | **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | ✅ (`ArrayPush`; `str_match_all` / `.matchAll`; `toLocaleString` på str/array) |
-| **G3** | `import "std"` aggregator, Intl-localeCompare | 🚧 (`pub import "std/*"`) |
+| **G3** | `import "std"` aggregator, Intl-localeCompare | ✅ (`lib/std.kab` + builtin; `localeCompare` / sensitivity base) |
 | **G4** | Math rest (`f16round`, `sumPrecise`) | 🚧 |
 | **G5** | **Traits** — `trait Show { fn show<T>(self) }`, bounds i generics ([GENERICS.md#traits](GENERICS.md#traits)) | 🚧 design |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
 | **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
-| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`useState`/`useEffect` cleanup/`ntag` patch/`onById`/`setTextById`+attr+multi-child) |
+| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid0` nested patch/`onById`/`dispatchById`/multi-child) |
 | **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |
 | **G11** | **kbrowser cross-platform** — samma `kb_*`-API på **kOS** + **4 desktop-värd-OS** + **mobil (Android, iPhone)**; se [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål) | 📋 planerat |
 

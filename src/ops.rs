@@ -307,6 +307,10 @@ pub fn read_member(
             Box::new(Value::String(s.clone())),
             crate::runtime::stdlib::str_to_locale_string_method,
         )),
+        Value::String(s) if field == "localeCompare" => Ok(Value::BoundNative(
+            Box::new(Value::String(s.clone())),
+            crate::runtime::stdlib::str_locale_compare_method,
+        )),
         Value::KabootarDom(node) => match field {
             "tag" => Ok(Value::String(node.tag.clone())),
             "id" => Ok(Value::Number(node.id as i64)),

@@ -330,14 +330,38 @@ pub fn str_to_locale_string_method(args: &[Value], env: &mut Environment) -> Res
 }
 
 fn str_locale_compare_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let a = str_arg(args.first().ok_or("str_locale_compare(a, b)")?)?;
-    let b = str_arg(args.get(1).ok_or("str_locale_compare(a, b)")?)?;
-    let ord = a.cmp(b);
+    let a = str_arg(args.first().ok_or("str_locale_compare(a, b, locales?, options?)")?)?;
+    let b = str_arg(args.get(1).ok_or("str_locale_compare(a, b, locales?, options?)")?)?;
+    let mut sensitivity = "variant";
+    if let Some(Value::Object(opts)) = args.get(3) {
+        if let Some(Value::String(s)) = opts.get("sensitivity") {
+            sensitivity = s.as_str();
+        }
+    } else if let Some(Value::Object(opts)) = args.get(2) {
+        // localeCompare(that, options) — no locales arg
+        if let Some(Value::String(s)) = opts.get("sensitivity") {
+            sensitivity = s.as_str();
+        }
+    }
+    let (left, right) = match sensitivity {
+        "base" | "accent" => (a.to_lowercase(), b.to_lowercase()),
+        "case" => (a.to_string(), b.to_string()),
+        _ => (a.to_string(), b.to_string()),
+    };
+    let ord = left.cmp(&right);
     Ok(Value::Number(match ord {
         Ordering::Less => -1,
         Ordering::Equal => 0,
         Ordering::Greater => 1,
     }))
+}
+
+fn str_locale_compare_bound(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_locale_compare_native(args, env)
+}
+
+pub fn str_locale_compare_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_locale_compare_bound(args, env)
 }
 
 pub fn register_string(env: &mut Environment) {
