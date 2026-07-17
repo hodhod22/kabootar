@@ -165,6 +165,10 @@ fn webrtc_peer_offer_flow() {
         panic!("expected sdp");
     };
     assert!(s.contains("v=0"));
+    assert!(s.contains("a=ice-ufrag:"));
+    assert!(s.contains("a=fingerprint:sha-256"));
+    assert!(s.contains("a=setup:actpass"));
+    assert!(s.contains("UDP/TLS/RTP/SAVPF"));
 }
 
 #[test]
@@ -201,6 +205,59 @@ fn webrtc_rtp_send_and_recv() {
 }
 
 #[test]
+fn webrtc_dtls_srtp_peer_bridge() {
+    let out = eval(
+        r#"
+        let a = webrtc_create_peer();
+        let b = webrtc_create_peer();
+        webrtc_add_track(a, "audio");
+        webrtc_connect_peers(a, b);
+        let track = webrtc_add_track(a, "audio");
+        webrtc_send_rtp(a, track, "srtp-hello");
+        let pkts = webrtc_recv_rtp(b);
+        let sa = webrtc_stats(a);
+        let sb = webrtc_stats(b);
+        len(pkts) == 1
+            && pkts[0]["payload"] == "srtp-hello"
+            && sa["dtls_state"] == "Connected"
+            && sb["dtls_state"] == "Connected"
+            && sa["srtp_protect"] == "1"
+            && sb["srtp_unprotect"] == "1"
+        "#,
+    );
+    assert!(
+        matches!(out, Value::Bool(true)),
+        "DTLS-SRTP bridge failed: {out:?}"
+    );
+}
+
+#[test]
+fn webrtc_create_answer_after_offer() {
+    let out = eval(
+        r#"
+        let offerer = webrtc_create_peer();
+        let answerer = webrtc_create_peer();
+        let offer = webrtc_create_offer(offerer);
+        webrtc_set_remote(answerer, offer);
+        let answer = webrtc_create_answer(answerer);
+        webrtc_set_remote(offerer, answer);
+        webrtc_gather_ice(offerer);
+        webrtc_gather_ice(answerer);
+        let so = webrtc_stats(offerer);
+        let sa = webrtc_stats(answerer);
+        string_includes(answer, "a=setup:active")
+            && string_includes(answer, "a=fingerprint:sha-256")
+            && so["dtls_state"] == "Connected"
+            && sa["dtls_state"] == "Connected"
+        "#,
+    );
+    assert!(
+        matches!(out, Value::Bool(true)),
+        "answer/DTLS flow failed: {out:?}"
+    );
+}
+
+#[test]
 fn webrtc_configure_turn_server() {
     let info = eval(
         r#"
@@ -212,6 +269,9 @@ fn webrtc_configure_turn_server() {
         panic!("expected object");
     };
     assert!(matches!(o.get("ice"), Some(Value::String(s)) if s.contains("turn")));
+    assert!(matches!(o.get("phase"), Some(Value::String(s)) if s == "C7"));
+    assert!(matches!(o.get("dtls"), Some(Value::String(s)) if s.contains("fingerprint")));
+    assert!(matches!(o.get("srtp"), Some(Value::String(_))));
 }
 
 #[test]
