@@ -103,6 +103,7 @@ fn try_catch_propagated_throw(
     module: Option<&BytecodeModule>,
     locals: &[String],
     immutable_locals: &[bool],
+    local_captures: &[bool],
     local_vals: &mut Vec<Value>,
     env: &mut Environment,
     ip: &mut usize,
@@ -131,7 +132,7 @@ fn try_catch_propagated_throw(
     }
     let caught = crate::runtime::stdlib::error::enrich_error_value_for_catch(v);
     local_vals[li] = caught.clone();
-    store_local_to_env(locals, immutable_locals, li, &caught, env)?;
+    store_local_to_env(locals, immutable_locals, local_captures, li, &caught, env)?;
     push_stack(stack, caught)?;
     *ip = region.catch_start;
     Ok(true)
@@ -324,6 +325,7 @@ fn pull_object_locals_from_env(
 fn store_local_to_env(
     locals: &[String],
     immutable_locals: &[bool],
+    local_captures: &[bool],
     i: usize,
     v: &Value,
     env: &mut Environment,
@@ -343,13 +345,18 @@ fn store_local_to_env(
         }
         return Ok(());
     }
-    // Fresh fn-local → shadow on this frame. Captured name (visible on parent) → assign
-    // into the shared activation so arrows and the enclosing fn see the same binding.
-    if env.has_own_binding(name) {
-        env.set(name.clone(), v.clone());
-    } else if env.get(name).is_some() {
-        env.assign(name, v.clone())?;
+    let is_capture = local_captures.get(i).copied().unwrap_or(false);
+    if is_capture {
+        // Update the shared enclosing activation.
+        if env.has_own_binding(name) {
+            env.set(name.clone(), v.clone());
+        } else if env.get(name).is_some() {
+            env.assign(name, v.clone())?;
+        } else {
+            env.set(name.clone(), v.clone());
+        }
     } else {
+        // Fresh fn-local: always shadow on this frame (never clobber parent same-name).
         env.set(name.clone(), v.clone());
     }
     Ok(())
@@ -432,6 +439,10 @@ fn run_chunk(
     let is_fresh = resume_local_vals.is_none();
     let mut local_vals =
         resume_local_vals.unwrap_or_else(|| vec![Value::Undefined; locals.len().max(1)]);
+    let local_captures: &[bool] = args
+        .as_ref()
+        .map(|(f, _)| f.local_captures.as_slice())
+        .unwrap_or(&[]);
     if is_fresh {
         if let Some((func, arg_vals)) = &args {
             for (i, param) in func.params.iter().enumerate() {
@@ -493,7 +504,7 @@ fn run_chunk(
                     }
                 }
                 local_vals[i] = v.clone();
-                store_local_to_env(locals, immutable_locals, i, &v, env)?;
+                store_local_to_env(locals, immutable_locals, local_captures, i, &v, env)?;
             }
             Opcode::LoadGlobal(idx) => {
                 let name = globals
@@ -614,6 +625,7 @@ fn run_chunk(
                             module,
                             locals,
                             immutable_locals,
+                            local_captures,
                             &mut local_vals,
                             env,
                             ip,
@@ -779,6 +791,7 @@ fn run_chunk(
                             module,
                             locals,
                             immutable_locals,
+                            local_captures,
                             &mut local_vals,
                             env,
                             ip,
@@ -1043,10 +1056,12 @@ fn run_chunk(
             Opcode::MatchFail => return Err("No matching pattern".into()),
             Opcode::Await => {
                 let v = stack.pop().ok_or("Bytecode stack underflow")?;
+                // Expose this frame's locals before nested microtask drain (async tasks /
+                // module lets may mutate shared bindings). Always refresh after — including
+                // module main (`args.is_none()`), matching `Call` (L4).
+                sync_locals_into_env(locals, &local_vals, env);
                 let resolved = crate::evaluator::resolve_await_value(v, env)?;
-                if args.is_some() {
-                    pull_env_into_local_vals(locals, &mut local_vals, env);
-                }
+                pull_env_into_local_vals(locals, &mut local_vals, env);
                 push_stack(stack, resolved)?;
             }
             Opcode::Yield => {
@@ -1165,7 +1180,7 @@ fn run_chunk(
                     }
                     let caught = crate::runtime::stdlib::error::enrich_error_value_for_catch(v.clone());
                     local_vals[li] = caught.clone();
-                    store_local_to_env(locals, immutable_locals, li, &caught, env)?;
+                    store_local_to_env(locals, immutable_locals, local_captures, li, &caught, env)?;
                     push_stack(stack, caught)?;
                     *ip = region.catch_start;
                     continue;
@@ -1536,6 +1551,7 @@ pub fn schedule_bytecode_async(
         env: closure,
         args,
         bindings: Vec::new(),
+        writeback: Some(env.share_bindings()),
     });
     Ok(Value::Promise(promise))
 }
@@ -1557,7 +1573,15 @@ pub fn call_value(
             crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
             crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
             if func.def.async_fn {
-                return schedule_bytecode_async(func.def.clone(), args, func.closure.clone(), env);
+                // Keep `func.closure` as the async parent (module data frame) so recursive
+                // async calls do not child_from(caller locals) and clobber same-named slots.
+                // Globals are pulled from the call-site above so module lets are visible.
+                return schedule_bytecode_async(
+                    func.def.clone(),
+                    args,
+                    func.closure.share_bindings(),
+                    env,
+                );
             }
             let mut call_env = Environment::child_from(&func.closure);
             let orig_args = args.clone();
@@ -1566,7 +1590,20 @@ pub fn call_value(
                 args,
                 &mut call_env,
             )?;
-            crate::runtime::closure_sync::sync_closure_writes(&func.closure, &call_env, env);
+            let capture_names: Vec<String> = func
+                .def
+                .locals
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| func.def.local_captures.get(*i).copied().unwrap_or(false))
+                .map(|(_, n)| n.clone())
+                .collect();
+            crate::runtime::closure_sync::sync_closure_writes_filtered(
+                &func.closure,
+                &call_env,
+                env,
+                Some(&capture_names),
+            );
             crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
             crate::runtime::closure_sync::writeback_object_args(
                 func.def.as_ref(),

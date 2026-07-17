@@ -1,5 +1,5 @@
 // Self-hosted bytecode emitter - produces opcode IR from AST.
-// Emitter scratch slots are module-level (Kabootar fn locals are not re-entrant).
+// Session accumulators (eOps, eConsts, …) stay module-global; recursion temps use fn-locals (L1/S1).
 import "self_host/ast_defs"
 import "self_host/emit_defs"
 
@@ -20,8 +20,6 @@ let eLeft = null
 let eRight = null
 let eOp = ""
 let eBinOp = ""
-let eBinOpStack = []
-let eBinRStack = []
 let eBinaryL = null
 let eBinaryR = null
 let eCond = null
@@ -280,13 +278,11 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_BINARY {
-        eBinOpStack = push(eBinOpStack, eNode["op"])
-        eBinRStack = push(eBinRStack, eNode["right"])
+        let binOp = eNode["op"]
+        let binRight = eNode["right"]
         emitExpr(eNode["left"])
-        emitExpr(eBinRStack[len(eBinRStack) - 1])
-        eBinOp = eBinOpStack[len(eBinOpStack) - 1]
-        eBinOpStack = pop(eBinOpStack)
-        eBinRStack = pop(eBinRStack)
+        emitExpr(binRight)
+        eBinOp = binOp
         if eBinOp == "+" {
             emitOp(OP_ADD, 0)
             return
@@ -1494,8 +1490,6 @@ pub fn emit(program) {
     eBreakFromStack = []
     eIfJmpStack = []
     eIfSkipStack = []
-    eBinOpStack = []
-    eBinRStack = []
     eMemberFldStack = []
     eBlockStmtsStack = []
     eBlockNStack = []

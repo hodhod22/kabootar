@@ -123,6 +123,8 @@ pub struct BytecodeFnDef {
     pub constants: Vec<Constant>,
     pub code: Vec<Opcode>,
     pub immutable_locals: Vec<bool>,
+    /// Parallel to `locals`: true if the slot is a closure capture (not a fresh `let`/param).
+    pub local_captures: Vec<bool>,
     pub arrow_functions: Vec<BytecodeFnDef>,
     pub async_fn: bool,
     pub generator_fn: bool,
@@ -796,18 +798,23 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
     pad_immutable_locals(&main_locals, &mut main_immutable_locals);
     for f in &mut functions {
         pad_immutable_locals(&f.locals, &mut f.immutable_locals);
+        pad_local_captures(&f.locals, &mut f.local_captures);
         for arrow in &mut f.arrow_functions {
             pad_immutable_locals(&arrow.locals, &mut arrow.immutable_locals);
+            pad_local_captures(&arrow.locals, &mut arrow.local_captures);
         }
     }
     for arrow in &mut arrow_functions {
         pad_immutable_locals(&arrow.locals, &mut arrow.immutable_locals);
+        pad_local_captures(&arrow.locals, &mut arrow.local_captures);
     }
     for class in &mut classes {
         for method in &mut class.methods {
             pad_immutable_locals(&method.locals, &mut method.immutable_locals);
+            pad_local_captures(&method.locals, &mut method.local_captures);
             for arrow in &mut method.arrow_functions {
                 pad_immutable_locals(&arrow.locals, &mut arrow.immutable_locals);
+                pad_local_captures(&arrow.locals, &mut arrow.local_captures);
             }
         }
     }
@@ -1008,6 +1015,7 @@ fn ensure_class_method(
                 constants: Vec::new(),
                 code: Vec::new(),
                 immutable_locals: Vec::new(),
+                local_captures: Vec::new(),
                 arrow_functions: Vec::new(),
                 async_fn: false,
                 generator_fn: false,
@@ -1503,6 +1511,12 @@ fn pad_immutable_locals(locals: &[String], immutables: &mut Vec<bool>) {
     }
 }
 
+fn pad_local_captures(locals: &[String], captures: &mut Vec<bool>) {
+    if captures.len() < locals.len() {
+        captures.resize(locals.len(), false);
+    }
+}
+
 fn parse_const(rest: &str) -> Result<Constant, String> {
     let mut parts = rest.splitn(3, ' ');
     let _idx = parts.next();
@@ -1691,6 +1705,7 @@ fn ensure_fn(
                 constants: Vec::new(),
                 code: Vec::new(),
                 immutable_locals: Vec::new(),
+                local_captures: Vec::new(),
                 arrow_functions: Vec::new(),
                 async_fn: false,
                 generator_fn: false,

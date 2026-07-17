@@ -2101,12 +2101,16 @@ fn schedule_async(
         env: closure_env,
         args: Vec::new(),
         bindings,
+        writeback: Some(env.share_bindings()),
     });
     Ok(Value::Promise(promise))
 }
 
 fn run_microtask(task: Microtask) -> Result<(), String> {
-    let mut call_env = Environment::child(task.env);
+    // Keep a shared handle to the scheduled closure so capture/module mutations
+    // can be written back (L4).
+    let mut closure_root = task.env.share_bindings();
+    let mut call_env = Environment::child_from(&closure_root);
     let result = match &task.body {
         AsyncBody::Ast(body) => {
             if !task.bindings.is_empty() {
@@ -2124,6 +2128,50 @@ fn run_microtask(task: Microtask) -> Result<(), String> {
             crate::bytecode::run_bytecode_fn(func, task.args, &mut call_env)?
         }
     };
+    let closure_view = closure_root.share_bindings();
+    // Globals/module lets only — do not sync arbitrary fn-locals onto a parent frame
+    // (that breaks recursive async with same local names).
+    if let AsyncBody::Bytecode(func) = &task.body {
+        let view = crate::value::BytecodeFunction {
+            def: func.clone(),
+            closure: closure_root.share_bindings(),
+        };
+        crate::runtime::closure_sync::sync_bytecode_globals_to_root(
+            &view,
+            &call_env,
+            &mut closure_root,
+        );
+        if let Some(mut writeback) = task.writeback {
+            let wb_view = writeback.share_bindings();
+            crate::runtime::closure_sync::sync_bytecode_globals_to_root(
+                &view,
+                &call_env,
+                &mut writeback,
+            );
+            // Also copy globals that landed on the closure root into the call-site frame
+            // when closure and writeback are distinct (module let dual local/global).
+            for name in &func.globals {
+                if let Some(v) = closure_root.get(name).or_else(|| call_env.get(name)) {
+                    if matches!(v, Value::Undefined) {
+                        continue;
+                    }
+                    if writeback.get(name).is_some() {
+                        let _ = writeback.assign(name, v);
+                    } else if wb_view.get(name).is_some() {
+                        let _ = writeback.assign(name, v);
+                    } else {
+                        writeback.set(name.clone(), v);
+                    }
+                }
+            }
+        }
+    } else {
+        crate::runtime::closure_sync::sync_closure_writes(&closure_view, &call_env, &mut closure_root);
+        if let Some(mut writeback) = task.writeback {
+            let wb_view = writeback.share_bindings();
+            crate::runtime::closure_sync::sync_closure_writes(&wb_view, &call_env, &mut writeback);
+        }
+    }
     let resolved = resolve_await_value(result, &mut call_env)?;
     *task.promise.borrow_mut() = PromiseValue::Resolved(resolved);
     Ok(())

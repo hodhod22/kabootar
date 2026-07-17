@@ -1,5 +1,5 @@
 // Self-hosted Kabootar parser - subset mirroring src/parser.rs.
-// Parser scratch slots are module-level: Kabootar fn locals are not re-entrant.
+// Session cursors (pPos, pToks, …) stay module-global; recursion temps use fn-locals (L1/S1).
 import "self_host/lexer_defs"
 import "self_host/ast_defs"
 
@@ -28,7 +28,6 @@ let pBinOp = ""
 let pSaveSym = ""
 let pBindSym = ""
 let pExprLeft = null
-let pIndexObj = null
 let pFnSym = ""
 let pFnPub = 0
 let pIsPub = 0
@@ -50,8 +49,6 @@ let pTypeParams = []
 let pParamTypes = []
 let pReturnType = ""
 let pTypeArgs = []
-let pCalleeStack = []
-let pTypeArgsStack = []
 let pVariants = []
 let pClassFields = []
 let pClassMethods = []
@@ -309,8 +306,8 @@ fn parsePostfix() {
                 if pCallee.kind == AST_VAR {
                     pCallee = { "kind": AST_VAR, "sym": symCopy(pCallee["sym"]) }
                 }
-                pCalleeStack = push(pCalleeStack, pCallee)
-                pTypeArgsStack = push(pTypeArgsStack, pTypeArgs)
+                let savedCallee = pCallee
+                let savedTypeArgs = pTypeArgs
                 bump()
                 pArgs = []
                 if peek().type != ")" {
@@ -327,11 +324,7 @@ fn parsePostfix() {
                     throw "Expected )"
                 }
                 bump()
-                pCallee = pCalleeStack[len(pCalleeStack) - 1]
-                pCalleeStack = popStack(pCalleeStack)
-                pSnapTypeArgs = pTypeArgsStack[len(pTypeArgsStack) - 1]
-                pTypeArgsStack = popStack(pTypeArgsStack)
-                pLeft = { "kind": AST_CALL, "callee": pCallee, "args": pArgs, "typeArgs": pSnapTypeArgs }
+                pLeft = { "kind": AST_CALL, "callee": savedCallee, "args": pArgs, "typeArgs": savedTypeArgs }
                 pTypeArgs = []
             } else {
                 if peek().type == "." {
@@ -375,13 +368,13 @@ fn parsePostfix() {
                 } else {
                     if peek().type == "[" {
                         bump()
-                        pIndexObj = pLeft
+                        let indexObj = pLeft
                         pRight = parseCompare()
                         if peek().type != "]" {
                             throw "Expected ]"
                         }
                         bump()
-                        pLeft = { "kind": AST_INDEX, "object": pIndexObj, "index": pRight }
+                        pLeft = { "kind": AST_INDEX, "object": indexObj, "index": pRight }
                     } else {
                         break
                     }
@@ -963,8 +956,6 @@ pub fn parseTokens(tokens) {
     pPos = 0
     pSymPool = []
     pImports = []
-    pCalleeStack = []
-    pTypeArgsStack = []
     pCondStack = []
     pAddLeftStack = []
     pBodyStack = push(pBodyStack, pBody)

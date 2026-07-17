@@ -197,6 +197,75 @@ fn bytecode_module_scales_to_many_top_level_fns() {
 }
 
 #[test]
+fn bytecode_await_updates_module_let() {
+    let source = r#"
+let slot = 1
+async fn bump() {
+    slot = 99
+    return 0
+}
+await bump()
+return slot
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(99)),
+        "module let must see async StoreGlobal (got {v:?})"
+    );
+}
+
+#[test]
+fn bytecode_recursive_async_captures_survive() {
+    let source = r#"
+async fn walk(n) {
+    let slot = n
+    let get = () => slot
+    if n > 0 {
+        await walk(n - 1)
+    }
+    return get()
+}
+return await walk(3)
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(3)),
+        "recursive async frames must keep their slot (got {v:?})"
+    );
+}
+
+#[test]
+fn bytecode_nested_fn_same_local_name_after_await() {
+    let source = r#"
+async fn outer() {
+    let slot = 7
+    fn inner() {
+        let slot = 0
+        return slot
+    }
+    inner()
+    await (async () => 1)()
+    return slot
+}
+return await outer()
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(7)),
+        "nested fn must not clobber outer slot across await (got {v:?})"
+    );
+}
+
+#[test]
 fn bytecode_object_param_mutations_write_back() {
     let source = r#"
 fn setKey(obj, k, v) {

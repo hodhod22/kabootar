@@ -478,16 +478,16 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L1** | **Reentranta bytecode-lokaler** — `StoreLocal`/`MakeArrowFn` får inte `assign` upp i parent/modul-env; closures fångar aktiveringsram (`share_bindings`); seed av capture-slots vid fn-entry; `sync_closure_writes` synkar bara riktiga captures | ✅ |
 | **L2** | **Modulskala** — `register_functions` + `BytecodeFunction::Clone` använder `share_bindings` (inte djupklon); ≥40 top-level fn/modul utan OOM | ✅ |
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
-| **L4** | **Await i modul/fn** — förutsägbart bytecode-beteende utan modul-global scratch | 📋 |
+| **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/os/async` använder riktig `await` | ✅ |
 | **L5** | **Ownership / borrowing** — `@manual` + `owned_*` för OS; GC default för web | 📋 subset finns |
 
-**Checkpoint L1–L2:** `cargo test --test v228_language bytecode_` + 40-fn modul-smoke.
+**Checkpoint L1–L4:** `cargo test --test v228_language bytecode_`
 
 ### Våg S — Self-host som produktkompilator 📋
 
 | Fas | Innehåll |
 |-----|----------|
-| **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) |
+| **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
 | **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` |
 | **S3** | CI: self-host bygger self-host (bootstrap) som gate |
 
