@@ -27,6 +27,8 @@ kb_navigate("kabootar://vfs/apps/page.kml");
 kb_mount(page);
 kb_viewport(1280, 720);
 // Mobil (G7): kb_viewport(390, 844, 3, "portrait"); kb_safe_area(47, 0, 34, 0); kb_touch_at(x, y, "start");
+// import "kbrowser/mobile_chrome" → mountChrome / goBack / listTabs
+// G11: import "kbrowser" / "kbrowser/core"; kb_sync_platform() → {mode,host_os,schemes}
 kb_theme("h1 { color: #8ab4f8; }");
 let frame = kb_paint();        // { html, text, layers, nodes, width, height }
 let scene = kb_composite();    // frame + OS-fönster + aktiv flik

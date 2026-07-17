@@ -42,13 +42,18 @@ fn vfs_and_host_mode_switch() {
 
 #[test]
 fn sync_platform_maps_hybrid_to_auto() {
-    let mode = eval(
+    let sync = eval(
         r#"
         platform_use("hybrid");
         kb_sync_platform();
-        kb_os_mode();
         "#,
     );
+    let Value::Object(o) = sync else {
+        panic!("expected sync object, got {sync:?}");
+    };
+    assert!(matches!(o.get("mode"), Some(Value::String(s)) if s == "auto"));
+    assert!(matches!(o.get("schemes"), Some(Value::Array(a)) if a.len() >= 3));
+    let mode = eval("kb_os_mode()");
     assert!(matches!(mode, Value::String(s) if s == "auto"));
 }
 
@@ -85,6 +90,49 @@ fn g7_mobile_viewport_touch_safe_area() {
             && is_object(sa) && sa.top == 47 && sa.bottom == 34
             && sa2.top == 47
             && is_array(ev)
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn g11_platform_classes_and_lib() {
+    let out = eval(
+        r#"
+        platform_use("hybrid");
+        let sync = kb_sync_platform();
+        let info = kb_os_info();
+        os_mkdir("/apps");
+        os_write("/apps/g11.kml", "<html><body><h1>kOS</h1></body></html>");
+        kb_set_os_mode("kabootar");
+        kb_navigate("kabootar://vfs/apps/g11.kml");
+        let html = kb_render();
+        is_object(sync) && sync.mode == "auto" && len(sync.schemes) >= 3
+            && is_object(info) && is_string(info.host_os)
+            && is_string(html) && len(html) > 5
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn g7_mobile_shell_chrome_back_tabs() {
+    let out = eval(
+        r#"
+        import "kbrowser/mobile_chrome"
+        applyPhoneViewport();
+        applySafeArea();
+        mountChrome("kabootar://home");
+        kb_paint();
+        os_mkdir("/apps");
+        os_write("/apps/a.kml", "<html><body><h1>A</h1></body></html>");
+        os_write("/apps/b.kml", "<html><body><h1>B</h1></body></html>");
+        kb_set_os_mode("kabootar");
+        kb_navigate("kabootar://vfs/apps/a.kml");
+        kb_navigate("kabootar://vfs/apps/b.kml");
+        let went = goBack();
+        let tabs = listTabs();
+        went == true && is_array(tabs) && len(tabs) >= 1
         "#,
     );
     assert!(matches!(out, Value::Bool(true)), "got {out:?}");

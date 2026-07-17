@@ -1,0 +1,9 @@
+// G11 kOS / VFS smoke — kabootar:// navigation + paint.
+os_mkdir("/apps");
+os_write("/apps/g11.kml", "<html><body><h1>kOS G11</h1></body></html>");
+kb_set_os_mode("kabootar");
+kb_navigate("kabootar://vfs/apps/g11.kml");
+let html = kb_render();
+let frame = kb_paint();
+print("kos ok layers=" + len(frame.layers));
+html;

@@ -1,0 +1,59 @@
+@version "1.0.0"
+
+// Mobil shell chrome — kompakt adressfält, tillbaka, flikar. import "kbrowser/mobile_chrome"
+// KEEP <=~7 top-level fn. Delar kb_* med desktop (G11).
+
+pub fn applyPhoneViewport() {
+    return kb_viewport(390, 844, 3, "portrait")
+}
+
+pub fn applySafeArea() {
+    return kb_safe_area(47, 0, 34, 0)
+}
+
+pub fn buildChrome(url) {
+    let root = kdom_create("div")
+    kdom_set_attr(root, "class", "kb-mobile-shell")
+    kdom_set_attr(root, "style", "display:flex;flex-direction:column;padding:8px;gap:8px;background:#1f1f23;color:#e8eaed;")
+
+    let bar = kdom_create("div")
+    kdom_set_attr(bar, "class", "kb-mobile-chrome")
+    kdom_set_attr(bar, "style", "display:flex;gap:8px;align-items:center;")
+
+    let backBtn = kdom_create("button")
+    kdom_set_attr(backBtn, "id", "kb-back")
+    kdom_append(backBtn, kdom_text("←"))
+    kdom_append(bar, backBtn)
+
+    let addr = kdom_create("div")
+    kdom_set_attr(addr, "class", "kb-url")
+    kdom_set_attr(addr, "style", "flex:1;padding:8px;background:#35363a;border-radius:8px;font-size:14px;")
+    kdom_append(addr, kdom_text(url))
+    kdom_append(bar, addr)
+
+    let tabBtn = kdom_create("button")
+    kdom_set_attr(tabBtn, "id", "kb-tabs")
+    kdom_append(tabBtn, kdom_text("Tabs"))
+    kdom_append(bar, tabBtn)
+
+    kdom_append(root, bar)
+    return root
+}
+
+pub fn mountChrome(url) {
+    let chrome = buildChrome(url)
+    kb_mount(chrome)
+    return chrome
+}
+
+pub fn goBack() {
+    return kb_back()
+}
+
+pub fn listTabs() {
+    return kb_tabs()
+}
+
+pub fn openTab(url) {
+    return kb_tab_open(url)
+}

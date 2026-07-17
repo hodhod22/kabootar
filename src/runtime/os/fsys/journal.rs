@@ -7,6 +7,7 @@ pub struct JournalEntry {
     pub seq: u64,
     pub path: String,
     pub bytes: usize,
+    pub payload: String,
 }
 
 pub struct Journal {
@@ -33,6 +34,7 @@ impl Journal {
             seq,
             path: path.to_string(),
             bytes: data.len(),
+            payload: data.to_string(),
         });
         Ok(seq)
     }
@@ -45,6 +47,24 @@ impl Journal {
     }
 
     pub fn replay(&self) -> Vec<JournalEntry> {
-        self.log.iter().cloned().collect()
+        if self.committed == 0 {
+            return self.log.iter().cloned().collect();
+        }
+        self.log
+            .iter()
+            .filter(|e| e.seq <= self.committed)
+            .cloned()
+            .collect()
+    }
+
+    /// Drop committed entries (checkpoint / truncate WAL).
+    pub fn checkpoint(&mut self) -> u64 {
+        let committed = self.committed;
+        self.log.retain(|e| e.seq > committed);
+        committed
+    }
+
+    pub fn len(&self) -> usize {
+        self.log.len()
     }
 }

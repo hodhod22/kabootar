@@ -1,0 +1,8 @@
+// D3 FS smoke — journal replay + ACL.
+os_journal_append("/d3.txt", "payload");
+os_journal_commit();
+let replay = os_journal_replay();
+os_acl_grant("uid:1", "/d3.txt", "write");
+let ok = os_acl_check("uid:1", "/d3.txt", "write");
+print("entries=" + len(replay) + " acl=" + ok);
+ok;

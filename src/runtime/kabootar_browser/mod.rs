@@ -702,7 +702,23 @@ fn kb_sync_platform_native(_args: &[Value], env: &mut Environment) -> Result<Val
         _ => BrowserOsMode::Auto,
     };
     get_browser(env)?.set_os_mode(mode)?;
-    Ok(Value::String(mode.as_str().into()))
+    let mut m = HashMap::new();
+    m.insert("mode".into(), Value::String(mode.as_str().into()));
+    m.insert("layer".into(), Value::String(layer));
+    m.insert(
+        "host_os".into(),
+        Value::String(host_nav::host_os_name().into()),
+    );
+    m.insert(
+        "schemes".into(),
+        Value::Array(vec![
+            Value::String("kabootar://".into()),
+            Value::String("file://".into()),
+            Value::String("http://".into()),
+            Value::String("https://".into()),
+        ]),
+    );
+    Ok(Value::Object(m))
 }
 
 fn kb_mount_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {

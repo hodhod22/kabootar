@@ -157,6 +157,43 @@ fn os_mm_stats_native(_args: &[Value], env: &mut Environment) -> Result<Value, S
     })
 }
 
+fn os_mm_fault_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let pid = num_arg(args, 0, "os_mm_fault pid")?;
+    let virt = num_arg(args, 1, "os_mm_fault virt")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.fault(pid, virt)? as i64)))
+}
+
+fn os_mm_mmap_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let pid = num_arg(args, 0, "os_mm_mmap pid")?;
+    let virt = num_arg(args, 1, "os_mm_mmap virt")?;
+    let len = num_arg(args, 2, "os_mm_mmap len")?;
+    let perms = args
+        .get(3)
+        .and_then(|v| match v {
+            Value::Number(n) => Some(*n as u8),
+            _ => None,
+        })
+        .unwrap_or(7);
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.mmap(pid, virt, len, perms)? as i64)))
+}
+
+fn os_mm_cow_share_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let src = num_arg(args, 0, "os_mm_cow_share src")?;
+    let dst = num_arg(args, 1, "os_mm_cow_share dst")?;
+    let virt = num_arg(args, 2, "os_mm_cow_share virt")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.cow_share(src, dst, virt)? as i64)))
+}
+
+fn os_mm_cow_break_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let pid = num_arg(args, 0, "os_mm_cow_break pid")?;
+    let virt = num_arg(args, 1, "os_mm_cow_break virt")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.cow_break(pid, virt)? as i64)))
+}
+
 fn os_thread_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let pid = num_arg(args, 0, "os_thread_spawn pid")?;
     let name = str_arg(args, 1).unwrap_or_else(|| "worker".into());
@@ -232,6 +269,62 @@ fn os_journal_append_native(args: &[Value], env: &mut Environment) -> Result<Val
 fn os_journal_commit_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| Ok(Value::Number(s.fsys.journal.commit() as i64)))
+}
+
+fn os_journal_replay_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let os = get_os(env)?;
+    with_subsys(&os, |s| {
+        Ok(Value::Array(
+            s.fsys
+                .journal
+                .replay()
+                .into_iter()
+                .map(|e| {
+                    let mut o = HashMap::new();
+                    o.insert("seq".into(), Value::Number(e.seq as i64));
+                    o.insert("path".into(), Value::String(e.path));
+                    o.insert("bytes".into(), Value::Number(e.bytes as i64));
+                    o.insert("payload".into(), Value::String(e.payload));
+                    Value::Object(o)
+                })
+                .collect(),
+        ))
+    })
+}
+
+fn os_journal_checkpoint_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.fsys.journal.checkpoint() as i64)))
+}
+
+fn os_acl_grant_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let subject = str_arg(args, 0).ok_or("os_acl_grant(subject, object, right)")?;
+    let object = str_arg(args, 1).ok_or("os_acl_grant(subject, object, right)")?;
+    let right = str_arg(args, 2).ok_or("os_acl_grant(subject, object, right)")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| {
+        s.xcut.security.grant_acl(&subject, &object, &right);
+        Ok(Value::Bool(true))
+    })
+}
+
+fn os_acl_check_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let subject = str_arg(args, 0).ok_or("os_acl_check(subject, object, right)")?;
+    let object = str_arg(args, 1).ok_or("os_acl_check(subject, object, right)")?;
+    let right = str_arg(args, 2).ok_or("os_acl_check(subject, object, right)")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| {
+        let ok = s.xcut.security.check_acl(&subject, &object, &right);
+        s.xcut.security.audit(0, &format!("acl:{right}:{object}"), ok);
+        Ok(Value::Bool(ok))
+    })
+}
+
+fn os_acl_revoke_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let subject = str_arg(args, 0).ok_or("os_acl_revoke(subject, object)")?;
+    let object = str_arg(args, 1).ok_or("os_acl_revoke(subject, object)")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Bool(s.xcut.security.revoke_acl(&subject, &object))))
 }
 
 fn os_netstack_send_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -336,6 +429,10 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_mm_map".into(), Value::NativeFunction(os_mm_map_native));
     env.set("os_mm_translate".into(), Value::NativeFunction(os_mm_translate_native));
     env.set("os_mm_stats".into(), Value::NativeFunction(os_mm_stats_native));
+    env.set("os_mm_fault".into(), Value::NativeFunction(os_mm_fault_native));
+    env.set("os_mm_mmap".into(), Value::NativeFunction(os_mm_mmap_native));
+    env.set("os_mm_cow_share".into(), Value::NativeFunction(os_mm_cow_share_native));
+    env.set("os_mm_cow_break".into(), Value::NativeFunction(os_mm_cow_break_native));
     env.set("os_thread_spawn".into(), Value::NativeFunction(os_thread_spawn_native));
     env.set("os_signal_send".into(), Value::NativeFunction(os_signal_send_native));
     env.set("os_job_create".into(), Value::NativeFunction(os_job_create_native));
@@ -345,6 +442,11 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_irq_poll".into(), Value::NativeFunction(os_irq_poll_native));
     env.set("os_journal_append".into(), Value::NativeFunction(os_journal_append_native));
     env.set("os_journal_commit".into(), Value::NativeFunction(os_journal_commit_native));
+    env.set("os_journal_replay".into(), Value::NativeFunction(os_journal_replay_native));
+    env.set("os_journal_checkpoint".into(), Value::NativeFunction(os_journal_checkpoint_native));
+    env.set("os_acl_grant".into(), Value::NativeFunction(os_acl_grant_native));
+    env.set("os_acl_check".into(), Value::NativeFunction(os_acl_check_native));
+    env.set("os_acl_revoke".into(), Value::NativeFunction(os_acl_revoke_native));
     env.set("os_netstack_send".into(), Value::NativeFunction(os_netstack_send_native));
     env.set("os_shell".into(), Value::NativeFunction(os_shell_native));
     env.set("os_libc_open".into(), Value::NativeFunction(os_libc_open_native));
