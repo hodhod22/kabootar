@@ -136,6 +136,13 @@ pub const PROBES: &[SmokeProbe] = &[
     },
     SmokeProbe {
         category: "Events",
+        api: "element.removeEventListener",
+        script: "let el = document.createElement('button'); function f(){}; el.addEventListener('click', f); el.removeEventListener('click', f);",
+        priority: "P0",
+        wave: "C1",
+    },
+    SmokeProbe {
+        category: "Events",
         api: "element.dispatchEvent",
         script: "let el = document.createElement('button'); el.dispatchEvent({ type: 'click' });",
         priority: "P0",

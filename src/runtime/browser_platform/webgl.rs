@@ -86,12 +86,21 @@ static NEXT_CTX: AtomicU64 = AtomicU64::new(1);
 static NEXT_SHADER: AtomicU64 = AtomicU64::new(1);
 static NEXT_BUFFER: AtomicU64 = AtomicU64::new(1);
 static NEXT_TEXTURE: AtomicU64 = AtomicU64::new(1);
+static NEXT_FRAMEBUFFER: AtomicU64 = AtomicU64::new(1);
 static CONTEXTS: OnceLock<Mutex<HashMap<u64, WebGlContext>>> = OnceLock::new();
 static SHADERS: OnceLock<Mutex<HashMap<u64, ShaderProgram>>> = OnceLock::new();
 static BUFFERS: OnceLock<Mutex<HashMap<u64, GlBuffer>>> = OnceLock::new();
 static TEXTURES: OnceLock<Mutex<HashMap<u64, GlTexture>>> = OnceLock::new();
+static FRAMEBUFFERS: OnceLock<Mutex<HashMap<u64, GlFramebuffer>>> = OnceLock::new();
 static CTX_SHADER: OnceLock<Mutex<HashMap<u64, u64>>> = OnceLock::new();
 static DEPTH_BUFFERS: OnceLock<Mutex<HashMap<u64, Vec<f32>>>> = OnceLock::new();
+
+#[derive(Clone)]
+pub struct GlFramebuffer {
+    pub id: u64,
+    pub color_texture: Option<u64>,
+    pub complete: bool,
+}
 
 fn ctx_store() -> &'static Mutex<HashMap<u64, WebGlContext>> {
     CONTEXTS.get_or_init(|| Mutex::new(HashMap::new()))
@@ -107,6 +116,10 @@ fn buffer_store() -> &'static Mutex<HashMap<u64, GlBuffer>> {
 
 fn texture_store() -> &'static Mutex<HashMap<u64, GlTexture>> {
     TEXTURES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn framebuffer_store() -> &'static Mutex<HashMap<u64, GlFramebuffer>> {
+    FRAMEBUFFERS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn ctx_shader() -> &'static Mutex<HashMap<u64, u64>> {
@@ -359,6 +372,92 @@ pub fn bind_texture(ctx_id: u64, texture_id: u64) -> Result<bool, String> {
     let ctx = guard.get_mut(&ctx_id).ok_or("webgl: unknown context")?;
     ctx.bound_texture = Some(texture_id);
     Ok(true)
+}
+
+pub fn create_framebuffer() -> Result<GlFramebuffer, String> {
+    let id = NEXT_FRAMEBUFFER.fetch_add(1, Ordering::Relaxed);
+    let fb = GlFramebuffer {
+        id,
+        color_texture: None,
+        complete: false,
+    };
+    framebuffer_store()
+        .lock()
+        .map_err(|_| "webgl framebuffer lock".to_string())?
+        .insert(id, fb.clone());
+    Ok(fb)
+}
+
+pub fn bind_framebuffer(ctx_id: u64, fb_id: Option<u64>) -> Result<bool, String> {
+    let mut guard = ctx_store()
+        .lock()
+        .map_err(|_| "webgl lock poisoned".to_string())?;
+    let _ctx = guard.get_mut(&ctx_id).ok_or("webgl: unknown context")?;
+    if let Some(id) = fb_id {
+        framebuffer_store()
+            .lock()
+            .map_err(|_| "webgl framebuffer lock".to_string())?
+            .get(&id)
+            .ok_or("webgl: unknown framebuffer")?;
+        // Store bound FBO on context via draw_count unused high bit — use bound_texture slot pattern.
+        // Keep id in a side map keyed by ctx.
+        drop(guard);
+        CTX_FBO
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .map_err(|_| "webgl fbo bind lock".to_string())?
+            .insert(ctx_id, id);
+    } else {
+        drop(guard);
+        CTX_FBO
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .map_err(|_| "webgl fbo bind lock".to_string())?
+            .remove(&ctx_id);
+    }
+    Ok(true)
+}
+
+static CTX_FBO: OnceLock<Mutex<HashMap<u64, u64>>> = OnceLock::new();
+
+pub fn framebuffer_texture_2d(fb_id: u64, texture_id: u64) -> Result<bool, String> {
+    texture_store()
+        .lock()
+        .map_err(|_| "webgl texture lock".to_string())?
+        .get(&texture_id)
+        .ok_or("webgl: unknown texture")?;
+    let mut guard = framebuffer_store()
+        .lock()
+        .map_err(|_| "webgl framebuffer lock".to_string())?;
+    let fb = guard.get_mut(&fb_id).ok_or("webgl: unknown framebuffer")?;
+    fb.color_texture = Some(texture_id);
+    fb.complete = true;
+    Ok(true)
+}
+
+pub fn check_framebuffer_status(fb_id: u64) -> Result<&'static str, String> {
+    let guard = framebuffer_store()
+        .lock()
+        .map_err(|_| "webgl framebuffer lock".to_string())?;
+    let fb = guard.get(&fb_id).ok_or("webgl: unknown framebuffer")?;
+    Ok(if fb.complete {
+        "FRAMEBUFFER_COMPLETE"
+    } else {
+        "FRAMEBUFFER_INCOMPLETE_ATTACHMENT"
+    })
+}
+
+pub fn get_framebuffer(id: u64) -> Option<GlFramebuffer> {
+    framebuffer_store().lock().ok()?.get(&id).cloned()
+}
+
+/// Load GLSL sources from files and compile (stores source; no GPU compile).
+pub fn compile_shader_from_files(vert_path: &str, frag_path: &str) -> Result<ShaderProgram, String> {
+    let vertex = std::fs::read_to_string(vert_path)
+        .map_err(|e| format!("webgl: read vertex shader {vert_path}: {e}"))?;
+    let fragment = std::fs::read_to_string(frag_path)
+        .map_err(|e| format!("webgl: read fragment shader {frag_path}: {e}"))?;
+    compile_shader(&vertex, &fragment)
 }
 
 pub fn uniform4f(id: u64, r: f32, g: f32, b: f32, a: f32) -> Result<bool, String> {
@@ -1158,6 +1257,8 @@ pub fn info() -> HashMap<String, String> {
     o.insert("depth".into(), "z-buffer".into());
     o.insert("gpu3d".into(), gpu3d::info_line().into());
     o.insert("textures".into(), "createTexture+texImage2D".into());
+    o.insert("framebuffer".into(), "createFramebuffer+bind+texture2D".into());
+    o.insert("glsl_files".into(), "compileShaderFromFiles".into());
     o.insert("js_syntax".into(), "getContext+methods".into());
     o.insert(
         "texture_count".into(),

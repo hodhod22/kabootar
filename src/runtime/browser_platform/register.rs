@@ -104,6 +104,64 @@ fn webgl_shader_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     Ok(Value::Number(prog.id as i64))
 }
 
+fn webgl_shader_from_files_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let vert = expect_str(args, 0, "webgl_shader_from_files(vert, frag)")?;
+    let frag = expect_str(args, 1, "webgl_shader_from_files(vert, frag)")?;
+    let prog = webgl::compile_shader_from_files(&vert, &frag)?;
+    Ok(Value::Number(prog.id as i64))
+}
+
+fn webgl_create_texture_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let tex = webgl::create_texture()?;
+    Ok(Value::Number(tex.id as i64))
+}
+
+fn webgl_bind_texture_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = expect_num(args, 0)? as u64;
+    let tex = expect_num(args, 1)? as u64;
+    Ok(Value::Bool(webgl::bind_texture(ctx, tex)?))
+}
+
+fn webgl_tex_image2d_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let tex = expect_num(args, 0)? as u64;
+    let w = expect_num(args, 1)? as u32;
+    let h = expect_num(args, 2)? as u32;
+    let pixels = match args.get(3) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| match x {
+                Value::Number(n) => Ok(*n as u8),
+                _ => Err("pixels must be bytes".into()),
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+        _ => return Err("webgl_tex_image2d(tex, w, h, pixels)".into()),
+    };
+    Ok(Value::Bool(webgl::tex_image2d_rgba(tex, w, h, &pixels)?))
+}
+
+fn webgl_create_framebuffer_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Number(webgl::create_framebuffer()?.id as i64))
+}
+
+fn webgl_bind_framebuffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ctx = expect_num(args, 0)? as u64;
+    let fb = match args.get(1) {
+        None | Some(Value::Null) | Some(Value::Undefined) => None,
+        Some(Value::Number(n)) if *n > 0 => Some(*n as u64),
+        _ => return Err("webgl_bind_framebuffer(ctx, fb|null)".into()),
+    };
+    Ok(Value::Bool(webgl::bind_framebuffer(ctx, fb)?))
+}
+
+fn webgl_framebuffer_texture_2d_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let fb = expect_num(args, 0)? as u64;
+    let tex = expect_num(args, 1)? as u64;
+    Ok(Value::Bool(webgl::framebuffer_texture_2d(fb, tex)?))
+}
+
 fn webgl_use_program_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let ctx_id = expect_num(args, 0)? as u64;
     let shader_id = expect_num(args, 1)? as u64;
@@ -466,6 +524,10 @@ pub fn browser_platform_globals(env: &mut Environment) {
     env.set("webgl_info".into(), Value::NativeFunction(webgl_info_native));
     env.set("webgl_create".into(), Value::NativeFunction(webgl_create_native));
     env.set("webgl_shader".into(), Value::NativeFunction(webgl_shader_native));
+    env.set(
+        "webgl_shader_from_files".into(),
+        Value::NativeFunction(webgl_shader_from_files_native),
+    );
     env.set("webgl_use_program".into(), Value::NativeFunction(webgl_use_program_native));
     env.set("webgl_clear".into(), Value::NativeFunction(webgl_clear_native));
     env.set("webgl_draw".into(), Value::NativeFunction(webgl_draw_native));
@@ -476,6 +538,24 @@ pub fn browser_platform_globals(env: &mut Environment) {
     );
     env.set("webgl_bind_buffer".into(), Value::NativeFunction(webgl_bind_buffer_native));
     env.set("webgl_draw_elements".into(), Value::NativeFunction(webgl_draw_elements_native));
+    env.set(
+        "webgl_create_texture".into(),
+        Value::NativeFunction(webgl_create_texture_native),
+    );
+    env.set("webgl_bind_texture".into(), Value::NativeFunction(webgl_bind_texture_native));
+    env.set("webgl_tex_image2d".into(), Value::NativeFunction(webgl_tex_image2d_native));
+    env.set(
+        "webgl_create_framebuffer".into(),
+        Value::NativeFunction(webgl_create_framebuffer_native),
+    );
+    env.set(
+        "webgl_bind_framebuffer".into(),
+        Value::NativeFunction(webgl_bind_framebuffer_native),
+    );
+    env.set(
+        "webgl_framebuffer_texture_2d".into(),
+        Value::NativeFunction(webgl_framebuffer_texture_2d_native),
+    );
     env.set("webrtc_info".into(), Value::NativeFunction(webrtc_info_native));
     env.set("webrtc_create_peer".into(), Value::NativeFunction(webrtc_create_peer_native));
     env.set("webrtc_create_offer".into(), Value::NativeFunction(webrtc_create_offer_native));

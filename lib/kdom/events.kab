@@ -26,3 +26,19 @@ pub fn mutations() {
 pub fn clearMutations() {
     return kdom_mutation_clear()
 }
+
+pub fn observe(callback) {
+    return MutationObserver(callback)
+}
+
+pub fn moObserve(observer, target, options) {
+    return kdom_mo_observe(observer, target, options)
+}
+
+pub fn moDisconnect(observer) {
+    return kdom_mo_disconnect(observer)
+}
+
+pub fn moDeliver() {
+    return kdom_mo_deliver()
+}

@@ -93,8 +93,8 @@ pub struct Kv8ContextInner {
     pub last_result: Kv8Value,
     pub jit: Option<super::jit::Kv8Jit>,
     pub opt: super::opt::Kv8OptState,
-    /// DOM node id → event type → listener callbacks (Arrow/Fun).
-    pub listeners: HashMap<u64, HashMap<String, Vec<Kv8Value>>>,
+    /// DOM node id → event type → listener callbacks (Arrow/Fun) with capture flag.
+    pub listeners: HashMap<u64, HashMap<String, Vec<(bool, Kv8Value)>>>,
     pub timers: Vec<Kv8Timer>,
     pub next_timer_id: u64,
     pub cancelled_timer_ids: HashSet<u64>,
@@ -1148,6 +1148,7 @@ impl Kv8Context {
         node_id: u64,
         event_type: &str,
         listener: Kv8Value,
+        capture: bool,
     ) -> Result<(), String> {
         self.with_mut(|ctx| {
             ctx.listeners
@@ -1155,8 +1156,32 @@ impl Kv8Context {
                 .or_default()
                 .entry(event_type.to_string())
                 .or_default()
-                .push(listener);
+                .push((capture, listener));
             Ok(())
+        })
+    }
+
+    pub fn remove_event_listener(
+        &self,
+        node_id: u64,
+        event_type: &str,
+        listener: &Kv8Value,
+        capture: bool,
+    ) -> Result<bool, String> {
+        self.with_mut(|ctx| {
+            let Some(by_type) = ctx.listeners.get_mut(&node_id) else {
+                return Ok(false);
+            };
+            let Some(list) = by_type.get_mut(event_type) else {
+                return Ok(false);
+            };
+            if let Some(idx) = list.iter().position(|(c, l)| {
+                *c == capture && listeners_same(l, listener)
+            }) {
+                list.remove(idx);
+                return Ok(true);
+            }
+            Ok(false)
         })
     }
 
@@ -1164,14 +1189,29 @@ impl Kv8Context {
         &self,
         node_id: u64,
         event_type: &str,
+        capture: bool,
     ) -> Result<Vec<Kv8Value>, String> {
         self.with_mut(|ctx| {
             Ok(ctx
                 .listeners
                 .get(&node_id)
                 .and_then(|m| m.get(event_type))
-                .cloned()
+                .map(|list| {
+                    list.iter()
+                        .filter(|(c, _)| *c == capture)
+                        .map(|(_, l)| l.clone())
+                        .collect()
+                })
                 .unwrap_or_default())
+        })
+    }
+
+    /// Ancestor chain from root → … → parent of `node_id` (excluding the node itself).
+    pub fn ancestor_ids(&self, node_id: u64) -> Result<Vec<u64>, String> {
+        self.with_mut(|ctx| {
+            let mut chain = Vec::new();
+            find_ancestor_chain(&ctx.document.root, node_id, &mut chain);
+            Ok(chain)
         })
     }
 
@@ -1326,6 +1366,36 @@ fn find_by_id(node: &DomNode, id: u64) -> Option<&DomNode> {
         }
     }
     None
+}
+
+/// Fill `out` with ancestors from root down to the parent of `target_id`.
+fn find_ancestor_chain(node: &DomNode, target_id: u64, out: &mut Vec<u64>) -> bool {
+    if node.id == target_id {
+        return true;
+    }
+    for child in &node.children {
+        if find_ancestor_chain(child, target_id, out) {
+            out.insert(0, node.id);
+            return true;
+        }
+    }
+    false
+}
+
+fn listeners_same(a: &Kv8Value, b: &Kv8Value) -> bool {
+    use std::sync::Arc;
+    match (a, b) {
+        (Kv8Value::Fun { closure: c1, .. }, Kv8Value::Fun { closure: c2, .. }) => {
+            Arc::ptr_eq(c1, c2)
+        }
+        (Kv8Value::Arrow { closure: c1, .. }, Kv8Value::Arrow { closure: c2, .. }) => {
+            Arc::ptr_eq(c1, c2)
+        }
+        (Kv8Value::AsyncFun { closure: c1, .. }, Kv8Value::AsyncFun { closure: c2, .. }) => {
+            Arc::ptr_eq(c1, c2)
+        }
+        _ => false,
+    }
 }
 
 fn find_by_selector<'a>(node: &'a DomNode, selector: &str) -> Option<&'a DomNode> {
