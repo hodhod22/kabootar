@@ -493,14 +493,14 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 ### Våg C — DOM / kDOM / Kv8 (~60–70 % av browser-ytan) 🚧
 
-**Status (2026-07):** C1 — `querySelector` tag/`#id`/`.class`/descendant + **`[attr]`/`[attr=value]`** + child combinator **`>`**. **C2:** React 19 via esbuild ESM; self-host parser `class`/`async`/`await`; `evalSource` → Rust Kv8 (`kv8_eval_source`) för class/async/while. **C3:** native eval bridge (10k while budget). **Dom live:** parent-registry sync.
+**Status (2026-07):** C1 — selectors `#`/`.`/`[attr]`/`>`/`:not()`/`,`/`+`/`~` + mutation `removedNodeId`. **C2:** React 19 esbuild; `program_stmt_count` + full `run_program` lib probe; shim counter smoke; `KABOOTAR_REACT_FULL=1` for real bundle. **C3:** `evalSource` → Rust. **C4:** flex (`justify-content`/`align-items`) + simple `display:grid`. **Dom live:** parent sync.
 
 | Fas | Innehåll |
 |-----|----------|
-| **C1** 🚧 | **kDOM** — full DOM Level 2: Events, MutationObserver, `querySelector` (`#`/`.`/`[attr]`/`>`/descendant) |
-| **C2** 🚧 | **Kv8** — modern JS + ESM/esbuild React 19; `class`/`async` i self-host parser; `evalSource` → Rust |
-| **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` (Rust while/binary/class); vidare JIT för bundles |
-| **C4** | **Layout** — flexbox/grid (subset), box model polish |
+| **C1** 🚧 | **kDOM** — Events/MO queue; `querySelector` (`#`/`.`/`[attr]`/`>`/`:not`/`,`/`+`/`~`) |
+| **C2** 🚧 | **Kv8** — React 19 esbuild; shim createRoot smoke; full bundle `run_program` + `KABOOTAR_REACT_FULL` |
+| **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` |
+| **C4** ✅ | **Layout** — flex (`justify-content`/`align-items`) + simple CSS grid columns |
 | **C5** | **Canvas 2D** — full HTML5 canvas API ([CANVAS.md](CANVAS.md) luckor) |
 | **C6** | **WebGL** — textures, FBO, shaders från GLSL-filer |
 | **C7** | **WebRTC** — stub → produktion (ICE, DTLS-SRTP) |
@@ -578,7 +578,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G5** | **Traits** — `trait Show { fn show() }` alias till interface + `implements` | ✅ subset (`trait` ≈ `interface`; `where`-bounds senare) |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
 | **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
-| **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |
+| **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | ✅ subset (`.kbc` fingerprint + import mtimes) |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
 | **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid*` multi nested + parent live sync/`onById`/`dispatchById`) |
 | **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |

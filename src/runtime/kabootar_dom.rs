@@ -17,6 +17,7 @@ pub struct MutationRecord {
     pub target_id: u64,
     pub attribute_name: Option<String>,
     pub added_node_id: Option<u64>,
+    pub removed_node_id: Option<u64>,
 }
 
 thread_local! {
@@ -104,6 +105,19 @@ pub fn record_child_list_mutation(parent_id: u64, added_id: u64) {
             target_id: parent_id,
             attribute_name: None,
             added_node_id: Some(added_id),
+            removed_node_id: None,
+        });
+    });
+}
+
+pub fn record_child_removed_mutation(parent_id: u64, removed_id: u64) {
+    MUTATION_RECORDS.with(|r| {
+        r.borrow_mut().push(MutationRecord {
+            kind: "childList".into(),
+            target_id: parent_id,
+            attribute_name: None,
+            added_node_id: None,
+            removed_node_id: Some(removed_id),
         });
     });
 }
@@ -115,6 +129,7 @@ pub fn record_attribute_mutation(target_id: u64, attr: &str) {
             target_id,
             attribute_name: Some(attr.to_string()),
             added_node_id: None,
+            removed_node_id: None,
         });
     });
 }
@@ -214,6 +229,20 @@ impl DomNode {
         if selector.is_empty() {
             return false;
         }
+        // :not(inner) — optional base before :not
+        if let Some(not_at) = selector.find(":not(") {
+            let base = selector[..not_at].trim();
+            let rest = &selector[not_at + 5..];
+            let end = rest.find(')').unwrap_or(rest.len());
+            let inner = rest[..end].trim();
+            if self.matches_selector(inner) {
+                return false;
+            }
+            if base.is_empty() {
+                return true;
+            }
+            return self.matches_selector(base);
+        }
         // Attribute: [name], [name=value], tag[name], tag[name=value]
         if let Some(bracket) = selector.find('[') {
             let prefix = selector[..bracket].trim();
@@ -271,7 +300,38 @@ impl DomNode {
 
     pub fn query_selector<'a>(&'a self, selector: &str) -> Option<&'a DomNode> {
         let selector = selector.trim();
-        // Child combinator: "div > span" (not descendant space).
+        // Comma lists: first match wins.
+        if selector.contains(',') {
+            for part in selector.split(',') {
+                if let Some(found) = self.query_selector(part.trim()) {
+                    return Some(found);
+                }
+            }
+            return None;
+        }
+        // Adjacent sibling: "div + span"
+        if selector.contains('+') && !selector.contains('>') {
+            let parts: Vec<&str> = selector
+                .split('+')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if parts.len() == 2 {
+                return self.query_selector_adjacent(parts[0], parts[1]);
+            }
+        }
+        // General sibling: "div ~ span"
+        if selector.contains('~') && !selector.contains('>') && !selector.contains('+') {
+            let parts: Vec<&str> = selector
+                .split('~')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if parts.len() == 2 {
+                return self.query_selector_sibling(parts[0], parts[1]);
+            }
+        }
+        // Child combinator: "div > span"
         if selector.contains('>') {
             let parts: Vec<&str> = selector
                 .split('>')
@@ -296,6 +356,38 @@ impl DomNode {
             }
             _ => self.query_selector_descendant(&parts),
         }
+    }
+
+    fn query_selector_adjacent<'a>(&'a self, left: &str, right: &str) -> Option<&'a DomNode> {
+        for i in 1..self.children.len() {
+            if self.children[i - 1].matches_selector(left) && self.children[i].matches_selector(right)
+            {
+                return Some(&self.children[i]);
+            }
+        }
+        for child in &self.children {
+            if let Some(found) = child.query_selector_adjacent(left, right) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    fn query_selector_sibling<'a>(&'a self, left: &str, right: &str) -> Option<&'a DomNode> {
+        let mut seen_left = false;
+        for child in &self.children {
+            if child.matches_selector(left) {
+                seen_left = true;
+            } else if seen_left && child.matches_selector(right) {
+                return Some(child);
+            }
+        }
+        for child in &self.children {
+            if let Some(found) = child.query_selector_sibling(left, right) {
+                return Some(found);
+            }
+        }
+        None
     }
 
     fn query_selector_child<'a>(&'a self, parts: &[&str]) -> Option<&'a DomNode> {
@@ -369,6 +461,25 @@ impl DomNode {
     }
 
     fn collect_selector_matches<'a>(&'a self, selector: &str, out: &mut Vec<&'a DomNode>) {
+        let selector = selector.trim();
+        if selector.contains(',') {
+            for part in selector.split(',') {
+                self.collect_selector_matches(part.trim(), out);
+            }
+            return;
+        }
+        // Reuse query_selector walk for combinators; collect all via DFS for simple selectors.
+        if selector.contains('>') || selector.contains('+') || selector.contains('~') {
+            if let Some(found) = self.query_selector(selector) {
+                if !out.iter().any(|n| n.id == found.id) {
+                    out.push(found);
+                }
+            }
+            for child in &self.children {
+                child.collect_selector_matches(selector, out);
+            }
+            return;
+        }
         let parts: Vec<&str> = selector.split_whitespace().filter(|s| !s.is_empty()).collect();
         if parts.len() <= 1 {
             let single = parts.first().copied().unwrap_or(selector);
@@ -790,6 +901,9 @@ fn kdom_clear_children_by_id_native(args: &[Value], _env: &mut Environment) -> R
         _ => return Err("kdom_clear_children_by_id() expects numeric id".into()),
     };
     let mut node = live_get(id).ok_or_else(|| format!("kdom_clear_children_by_id: unknown id {id}"))?;
+    for child in &node.children {
+        record_child_removed_mutation(node.id, child.id);
+    }
     node.children.clear();
     live_upsert(&node);
     live_propagate_to_ancestors(node.id);
@@ -907,6 +1021,9 @@ fn kdom_child_id_native(args: &[Value], _env: &mut Environment) -> Result<Value,
 
 fn kdom_clear_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut node = live_resolve(expect_dom(args, 0, "kdom_clear_children()")?);
+    for child in &node.children {
+        record_child_removed_mutation(node.id, child.id);
+    }
     node.children.clear();
     live_upsert(&node);
     Ok(Value::KabootarDom(node))
@@ -1043,6 +1160,9 @@ fn mutation_record_to_value(record: &MutationRecord) -> Value {
     }
     if let Some(id) = record.added_node_id {
         map.insert("addedNodeId".into(), Value::Number(id as i64));
+    }
+    if let Some(id) = record.removed_node_id {
+        map.insert("removedNodeId".into(), Value::Number(id as i64));
     }
     Value::Object(map)
 }

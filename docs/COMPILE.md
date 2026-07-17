@@ -81,7 +81,7 @@ cargo test --test self_host self_host_emit_full_compile_and_run -- --ignored --t
 | Kv8: parse-only CI för React bundle | ✅ `#[ignore]` full eval |
 | Parallel `cargo test --test-threads=4` | ✅ JS parity |
 | Self-host compile i Kabootar (M12) | ✅ subset |
-| Incremental self-host emit | 🚧 Våg G8 |
+| Incremental self-host emit | ✅ subset — `.kbc` `fingerprint=` (source hash + import mtimes) |
 
 ---
 

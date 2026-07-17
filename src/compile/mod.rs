@@ -6,6 +6,8 @@ use crate::bytecode::{
 use crate::evaluator::{drain_all_microtasks, eval_stmt};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -142,11 +144,18 @@ pub fn write_compile_marker_at(
     }
     let content = if program.has_bytecode() {
         let mut text = serialize(program.bytecode.as_ref().unwrap());
-        text.push_str(&format!("\nsource={path}\nstatements={}\n", program.stmt_count));
+        let source = fs::read_to_string(path).unwrap_or_default();
+        let fp = source_fingerprint(path, &source);
+        text.push_str(&format!(
+            "\nsource={path}\nstatements={}\nfingerprint={fp}\n",
+            program.stmt_count
+        ));
         text
     } else {
+        let source = fs::read_to_string(path).unwrap_or_default();
+        let fp = source_fingerprint(path, &source);
         format!(
-            "kabootar-compile-cache/1\nsource={path}\nstatements={}\n",
+            "kabootar-compile-cache/1\nsource={path}\nstatements={}\nfingerprint={fp}\n",
             program.stmt_count
         )
     };
@@ -171,12 +180,72 @@ pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Optio
             return Ok(None);
         }
     }
+    // G8: content + import fingerprint — invalidate when source/imports change without mtime bump.
+    if let Ok(source) = fs::read_to_string(path) {
+        let expected = source_fingerprint(path, &source);
+        if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
+            let got = line.trim_start_matches("fingerprint=");
+            if got != expected {
+                return Ok(None);
+            }
+        }
+    }
     Ok(Some(deserialize(&text)?))
+}
+
+/// Hash of file bytes plus mtimes of `import "…"` deps (incremental self-host cache key).
+pub fn source_fingerprint(path: &str, source: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    source.hash(&mut hasher);
+    let base = Path::new(path).parent().unwrap_or_else(|| Path::new("."));
+    for dep in extract_kab_imports(source) {
+        let candidate = base.join(&dep);
+        let resolved = if candidate.exists() {
+            candidate
+        } else {
+            PathBuf::from(&dep)
+        };
+        if let Ok(meta) = fs::metadata(&resolved) {
+            if let Ok(mtime) = meta.modified() {
+                if let Ok(dur) = mtime.duration_since(SystemTime::UNIX_EPOCH) {
+                    dur.as_nanos().hash(&mut hasher);
+                }
+            }
+        }
+        dep.hash(&mut hasher);
+    }
+    format!("{:x}", hasher.finish())
+}
+
+fn extract_kab_imports(source: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in source.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("import ") {
+            let rest = rest.trim();
+            if let Some(q) = rest.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
+                if q.ends_with(".kab") || !q.contains('.') {
+                    out.push(q.to_string());
+                }
+            } else if let Some(q) = rest.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')) {
+                out.push(q.to_string());
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_fingerprint_changes_with_content() {
+        let a = source_fingerprint("x.kab", "let a = 1\n");
+        let b = source_fingerprint("x.kab", "let a = 2\n");
+        assert_ne!(a, b);
+        assert_eq!(a, source_fingerprint("x.kab", "let a = 1\n"));
+    }
 
     #[test]
     fn compile_source_parses_statements() {

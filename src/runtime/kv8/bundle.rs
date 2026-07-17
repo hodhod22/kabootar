@@ -72,8 +72,15 @@ pub fn react_bundle_smoke(ctx: &Kv8Context) -> Result<Kv8Value, String> {
 }
 
 /// Load official React 19 + ReactDOM client (esbuild ESM bundle) and run counter app.
+///
+/// Default uses the fast shim (`load_react_runtime`). Set `KABOOTAR_REACT_FULL=1` to eval the
+/// real ~190KB esbuild program via [`load_react_runtime_via_import`] (slow — minutes in debug).
 pub fn react_runtime_bundle_smoke(ctx: &Kv8Context) -> Result<Kv8Value, String> {
-    load_react_runtime(ctx)?;
+    if std::env::var("KABOOTAR_REACT_FULL").ok().as_deref() == Some("1") {
+        load_react_runtime_via_import(ctx)?;
+    } else {
+        load_react_runtime(ctx)?;
+    }
     eval_script(ctx, REACT_COUNTER_APP)?;
     eval_script(
         ctx,
@@ -387,9 +394,25 @@ pub fn react_bundle_info() -> Value {
     m.insert(
         "note".into(),
         Value::String(
-            "React 19 + ReactDOM client via esbuild ESM bundle (globalThis.React/ReactDOM)"
+            "React 19 + ReactDOM client via esbuild ESM bundle (globalThis.React/ReactDOM); full run_program gated in lib tests"
                 .into(),
         ),
+    );
+    // C2: parse-cache stats for the full esbuild program (no full eval in this probe).
+    let program_stmt_count = react_runtime_program()
+        .map(|p| p.stmts.len() as i64)
+        .unwrap_or(0);
+    m.insert(
+        "program_stmt_count".into(),
+        Value::Number(program_stmt_count),
+    );
+    m.insert(
+        "program_parse_cached".into(),
+        Value::Bool(program_stmt_count > 0),
+    );
+    m.insert(
+        "load_path".into(),
+        Value::String("shim_default|via_import_full".into()),
     );
     Value::Object(m)
 }
@@ -1573,6 +1596,20 @@ mod parse_probe {
             .with_read(|inner| Ok(inner.module_bindings.get("mm").cloned()))
             .expect("read");
         assert!(matches!(mm, Some(Kv8Value::Fun { .. })), "mm missing: {mm:?}");
+    }
+
+    #[test]
+    fn react_runtime_program_parses_large_ast() {
+        let program = super::react_runtime_program().expect("parse react runtime");
+        // esbuild IIFE is few top-level stmts but a large nested program.
+        assert!(
+            !program.stmts.is_empty(),
+            "expected non-empty React bundle AST"
+        );
+        assert!(
+            super::REACT_RUNTIME_BUNDLE.len() > 50_000,
+            "expected large esbuild bundle bytes"
+        );
     }
 
     #[test]
