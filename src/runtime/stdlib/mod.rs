@@ -43,7 +43,9 @@ mod fs;
 use crate::value::{Environment, Value};
 
 pub use array::{array_to_locale_string_method, entries_native, values_native};
-pub(crate) use string::{str_match_all_method, str_to_locale_string_method};
+pub(crate) use string::{
+    str_locale_compare_method, str_match_all_method, str_to_locale_string_method,
+};
 pub use map::{is_map_value, is_set_value};
 pub use types::typeof_name;
 

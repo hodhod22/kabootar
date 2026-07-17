@@ -1,0 +1,36 @@
+// Nested fiber live patch + onClick dispatch (ids only, no Dom in lets).
+// cargo run --bin kabootar -- examples/kv8_react_nested_smoke.kab
+
+import "kv8/react"
+
+fn handleClick(e) {
+    return null
+}
+
+fn Nested(props) {
+    let h = props["$hooks"]
+    let pair = useState(h, 0)
+    props["$hooks"] = h
+    let n = pair[0]
+    return createElement("div", {
+        "data-n": "" + n,
+        "children": [
+            createElement("span", {
+                "children": "v" + n,
+                "onClick": handleClick
+            })
+        ]
+    })
+}
+
+let tree = createElement(Nested, {})
+let out0 = render(tree, 240, 120)
+let nid0 = out0["nodeId"]
+let cid0 = out0["childId"]
+let out1 = setState(tree, 0, 1)
+let html1 = "" + out1["frame"]["html"]
+let nid1 = out1["nodeId"]
+let cid1 = out1["childId"]
+let clicked = kdom_dispatch_by_id(cid1, "click")
+println("nested: patched=" + json_stringify(out1["patched"]) + " sameParent=" + json_stringify(nid0 == nid1) + " sameChild=" + json_stringify(cid0 == cid1) + " kids=" + json_stringify(str_includes(html1, ">v1<")) + " click=" + clicked)
+return out1["patched"] == true && nid0 == nid1 && cid0 == cid1 && str_includes(html1, ">v1<") && clicked == "rxClick"

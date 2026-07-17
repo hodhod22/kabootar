@@ -33,7 +33,8 @@ Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` 
 `import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?, cleanup?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
-- **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` (tag mismatch → remount); `setTextById` / `setAttrById` / multi-child append; `onById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
+- **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` + `hooks["cnid0"]` for nested fiber child; `setTextById` / `setAttrById` / multi-text / nested remount via `appendById`; `onById` + `dispatchById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
+- Stack pop in `kv8/eval` uses native `pop` (C2) — do not reintroduce Kabootar `evPopStack` rebuild loops.
 - `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.
 
