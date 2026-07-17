@@ -8,7 +8,7 @@ Kabootar Browser v2 bygger på **Kv8** (DOM/CSS/JS) och lägger till sex webbpla
 |-------|--------|---------|
 | **WebAssembly** | wasmi gäst-körning, `wasm_run` | v2.51 |
 | **WebRTC** | SDP, ICE (STUN/TURN), RTP tracks | v2.56 |
-| **DevTools** | Console, inspector, Elements UI | v2.56 |
+| **DevTools** | Console, inspector, Elements, Network, Profiler, live edit | C9 |
 | **Extensions** | Manifest, content scripts vid navigation | v2.55 |
 | **PWA** | Manifest → OS VFS, service worker, offline cache | v2.55 |
 | **WebGL** | Buffers, draw_elements, shader pipeline | v2.57 |
@@ -130,6 +130,12 @@ Kabootar Browser (kbrowser)
 - [x] Auto-detektera `addEventListener('fetch', …)` i SW-script
 - [x] `ext_has_permission` / `ext_request_permission` / `ext_revoke_permission`
 - [x] Permission-gated `ext_storage_*` + `ext_tabs_query`
+
+### C9 — DevTools network / profiler / live edit
+- [x] `devtools_network_record` / `devtools_network_dump` / `devtools_network_clear`
+- [x] `devtools_profile_start` / `mark` / `measure` / `stop` / `dump`
+- [x] `devtools_live_edit` (text/attr) + `devtools_live_eval`
+- [x] Shell snapshot inkluderar `network` + `profiler`
 
 ### v2.57 — WebGL buffers
 - [x] `webgl_create_buffer` / `webgl_create_index_buffer`

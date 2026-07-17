@@ -263,14 +263,47 @@ pub fn wire_react_runtime_via_import(ctx: &Kv8Context) -> Result<Kv8Value, Strin
 }
 
 /// Ensure `React` / `ReactDOM.createRoot` are usable after a via_import wire.
-fn ensure_react_dom_api(ctx: &Kv8Context) -> Result<(), String> {
+///
+/// Preference order for `createRoot`:
+/// 1. Bundle export already a function → `__kv8CreateRootSource = "bundle"`
+/// 2. Fiber helper `mm` published into `module_bindings` → reconstruct createRoot (`"mm"`)
+/// 3. Fast Kv8 shim fill (`"shim"`)
+pub(crate) fn ensure_react_dom_api(ctx: &Kv8Context) -> Result<(), String> {
     let ready = eval_script(
         ctx,
         "return typeof globalThis.ReactDOM !== 'undefined' && typeof globalThis.ReactDOM.createRoot === 'function' && typeof globalThis.React !== 'undefined' && typeof globalThis.React.createElement === 'function';",
     )?;
     if matches!(ready, Kv8Value::Bool(true)) {
+        eval_script(ctx, "globalThis.__kv8CreateRootSource = 'bundle';")?;
         return Ok(());
     }
+
+    // Reconstruct createRoot from published `mm` when the factory ran far enough to hoist it
+    // but O2/Ke did not bake a live createRoot onto ReactDOM.
+    let from_mm = eval_script(
+        ctx,
+        r#"
+        if (typeof mm !== 'function') return false;
+        if (typeof globalThis.React === 'undefined' || typeof globalThis.React.createElement !== 'function') {
+            return false;
+        }
+        globalThis.__kv8Mm = mm;
+        var prev = (typeof globalThis.ReactDOM === 'object' && globalThis.ReactDOM) ? globalThis.ReactDOM : {};
+        var dom = { version: prev.version || '19.0.0' };
+        if (prev.hydrateRoot) dom.hydrateRoot = prev.hydrateRoot;
+        dom.createRoot = function(container) { return globalThis.__kv8Mm(container); };
+        globalThis.ReactDOM = dom;
+        globalThis.__kv8CreateRootSource = 'mm';
+        return typeof globalThis.ReactDOM.createRoot === 'function' && typeof globalThis.__kv8Mm === 'function';
+        "#,
+    )?;
+    if matches!(from_mm, Kv8Value::Bool(true)) {
+        let default_val =
+            eval_script(ctx, "return { React: globalThis.React, ReactDOM: globalThis.ReactDOM };")?;
+        register_react_runtime_module(ctx, default_val)?;
+        return Ok(());
+    }
+
     // Fill gaps from the Kv8 React shim without re-running the full esbuild program.
     eval_script(ctx, REACT_SHIM)?;
     eval_script(
@@ -309,6 +342,9 @@ fn ensure_react_dom_api(ctx: &Kv8Context) -> Result<(), String> {
                 },
                 version: '19.0.0'
             };
+            globalThis.__kv8CreateRootSource = 'shim';
+        } else if (typeof globalThis.__kv8CreateRootSource === 'undefined') {
+            globalThis.__kv8CreateRootSource = 'bundle';
         }
         "#,
     )?;
@@ -1784,6 +1820,57 @@ mod parse_probe {
         assert!(
             matches!(g2, Some(Kv8Value::Fun { .. })),
             "g2 should be published, got {g2:?}"
+        );
+    }
+
+    #[test]
+    fn c2_create_root_reconstructs_from_mm() {
+        use super::super::context::{Kv8Context, Kv8Value};
+        use super::super::eval::eval_script;
+        let ctx = Kv8Context::default();
+        eval_script(
+            &ctx,
+            r#"
+            var At = function(l, t) {
+              return function() {
+                return t || l((t = { exports: {} }).exports, t), t.exports;
+              };
+            };
+            var bm = At(function(xe) {
+              function g2(l) { this.containerInfo = l; }
+              function mm(l) { return new g2(l); }
+              xe.createRoot = function(el) { return mm(el); };
+            });
+            bm();
+            globalThis.React = {
+              createElement: function(t) { return document.createElement(t); }
+            };
+            globalThis.ReactDOM = { version: '19.0.0' };
+            "#,
+        )
+        .expect("publish mm without ReactDOM.createRoot");
+        super::ensure_react_dom_api(&ctx).expect("ensure");
+        let src = eval_script(&ctx, "return globalThis.__kv8CreateRootSource;").expect("source");
+        assert!(
+            matches!(src, Kv8Value::Str(ref s) if s == "mm"),
+            "expected mm source, got {src:?}"
+        );
+        let probe = eval_script(
+            &ctx,
+            r#"
+            try {
+              var el = document.createElement('div');
+              var r = globalThis.ReactDOM.createRoot(el);
+              return typeof globalThis.ReactDOM.createRoot + ':' + typeof r;
+            } catch (e) {
+              return 'err:' + String(e);
+            }
+            "#,
+        )
+        .expect("createRoot probe");
+        assert!(
+            matches!(probe, Kv8Value::Str(ref s) if s.starts_with("function:object")),
+            "expected function:object, got {probe:?}"
         );
     }
 

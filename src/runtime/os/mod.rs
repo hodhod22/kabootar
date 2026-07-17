@@ -452,8 +452,12 @@ impl OsHandle {
     }
 
     pub fn sched_enqueue(&self, name: &str) -> Result<u64, String> {
-        let mut sc = self.scheduler.lock().map_err(|_| "scheduler lock poisoned".to_string())?;
-        Ok(sc.enqueue(name))
+        // D1: route production enqueue through Ring-0 FairScheduler (CFS), not the legacy queue.
+        self.with_subsys(|s| Ok(s.kcore.sched_enqueue(1, name)))
+    }
+
+    fn sched_yield(&self) -> Result<Option<kcore::SchedTask>, String> {
+        self.with_subsys(|s| Ok(s.kcore.yield_running()))
     }
 
     pub fn vfs_save(&self, path: &str) -> Result<(), String> {
@@ -957,6 +961,20 @@ fn os_mem_read_native(args: &[Value], env: &mut Environment) -> Result<Value, St
 fn os_sched_enqueue_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let name = expect_string(args, 0, "os_sched_enqueue()")?;
     Ok(Value::Number(get_os(env)?.sched_enqueue(&name)? as i64))
+}
+
+fn os_sched_yield_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    match get_os(env)?.sched_yield()? {
+        Some(t) => {
+            let mut o = std::collections::HashMap::new();
+            o.insert("tid".into(), Value::Number(t.tid as i64));
+            o.insert("pid".into(), Value::Number(t.pid as i64));
+            o.insert("name".into(), Value::String(t.name));
+            o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
+            Ok(Value::Object(o))
+        }
+        None => Ok(Value::Null),
+    }
 }
 
 fn os_vfs_save_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -1550,6 +1568,7 @@ pub fn os_globals(env: &mut Environment) {
     env.set("os_mem_write".to_string(), Value::NativeFunction(os_mem_write_native));
     env.set("os_mem_stats".to_string(), Value::NativeFunction(os_mem_stats_native));
     env.set("os_sched_enqueue".to_string(), Value::NativeFunction(os_sched_enqueue_native));
+    env.set("os_sched_yield".to_string(), Value::NativeFunction(os_sched_yield_native));
     env.set("os_vfs_save".to_string(), Value::NativeFunction(os_vfs_save_native));
     env.set("os_vfs_load".to_string(), Value::NativeFunction(os_vfs_load_native));
     env.set("os_syscall".to_string(), Value::NativeFunction(os_syscall_native));

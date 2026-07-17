@@ -65,6 +65,10 @@ pub fn spawn_serve(port: u16, bind: &str) -> Result<u64, String> {
                         if n == 0 {
                             continue;
                         }
+                        if crate::runtime::http2::is_preface(&buffer[..n]) {
+                            let _ = stream.write_all(&crate::runtime::http2::handshake_response());
+                            continue;
+                        }
                         let raw = String::from_utf8_lossy(&buffer[..n]).into_owned();
                         let (reply_tx, reply_rx) = mpsc::channel();
                         if job_tx.send(ServeJob { raw, reply: reply_tx }).is_err() {

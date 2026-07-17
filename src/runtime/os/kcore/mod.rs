@@ -44,6 +44,16 @@ impl KernelCore {
         self.scheduler.tick()
     }
 
+    pub fn yield_running(&mut self) -> Option<SchedTask> {
+        self.ticks.fetch_add(1, Ordering::SeqCst);
+        self.hal.advance_timer();
+        self.scheduler.yield_running()
+    }
+
+    pub fn sched_enqueue(&mut self, pid: u64, name: &str) -> u64 {
+        self.scheduler.enqueue_task(pid, name)
+    }
+
     pub fn ipc_send(&mut self, from: u64, to: u64, payload: Vec<u8>) -> Result<(), String> {
         self.microkernel.send(from, to, payload)
     }

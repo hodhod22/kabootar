@@ -53,7 +53,6 @@ fn sync_platform_maps_hybrid_to_auto() {
 }
 
 #[test]
-#[cfg(not(target_arch = "wasm32"))]
 fn host_file_url_loads_native_file() {
     let dir = std::env::temp_dir().join("kabootar-browser-test");
     let _ = std::fs::create_dir_all(&dir);
@@ -69,4 +68,24 @@ fn host_file_url_loads_native_file() {
     );
     let html = eval(&code);
     assert!(matches!(html, Value::String(s) if s.contains("Host File")));
+}
+
+#[test]
+fn g7_mobile_viewport_touch_safe_area() {
+    let out = eval(
+        r#"
+        let vp = kb_viewport(390, 844, 3, "portrait");
+        let sa = kb_safe_area(47, 0, 34, 0);
+        let sa2 = kb_safe_area();
+        kb_paint();
+        let touched = kb_touch_at(10, 10, "start");
+        let ev = kb_poll_events();
+        is_object(vp) && vp.width == 390 && vp.height == 844 && vp.dpr == 3
+            && vp.orientation == "portrait"
+            && is_object(sa) && sa.top == 47 && sa.bottom == 34
+            && sa2.top == 47
+            && is_array(ev)
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }

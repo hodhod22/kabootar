@@ -440,6 +440,128 @@ fn devtools_dom_tree_native(args: &[Value], env: &mut Environment) -> Result<Val
     Ok(devtools::dom_tree_value(&doc))
 }
 
+fn network_entry_value(e: &devtools::NetworkEntry) -> Value {
+    let mut m = HashMap::new();
+    m.insert("id".into(), Value::Number(e.id as i64));
+    m.insert("method".into(), Value::String(e.method.clone()));
+    m.insert("url".into(), Value::String(e.url.clone()));
+    m.insert("status".into(), Value::Number(e.status));
+    m.insert("size".into(), Value::Number(e.size));
+    m.insert("duration_ms".into(), Value::Float(e.duration_ms));
+    m.insert("source".into(), Value::String(e.source.clone()));
+    Value::Object(m)
+}
+
+fn devtools_network_record_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let method = expect_str(args, 0, "devtools_network_record(method, url, status, size?, duration_ms?, source?)")?;
+    let url = expect_str(args, 1, "devtools_network_record(method, url, status, size?, duration_ms?, source?)")?;
+    let status = expect_num(args, 2)?;
+    let size = args
+        .get(3)
+        .and_then(num)
+        .unwrap_or(0);
+    let duration_ms = match args.get(4) {
+        Some(Value::Float(f)) => *f,
+        Some(Value::Number(n)) => *n as f64,
+        _ => 0.0,
+    };
+    let source = args
+        .get(5)
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .unwrap_or("kabootar");
+    let e = devtools::network_record(&method, &url, status, size, duration_ms, source)?;
+    Ok(network_entry_value(&e))
+}
+
+fn devtools_network_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Array(
+        devtools::network_dump()
+            .iter()
+            .map(network_entry_value)
+            .collect(),
+    ))
+}
+
+fn devtools_network_clear_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Bool(devtools::network_clear()))
+}
+
+fn devtools_profile_start_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let label = args
+        .first()
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .unwrap_or("default");
+    Ok(Value::Bool(devtools::profile_start(label)?))
+}
+
+fn devtools_profile_mark_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let name = expect_str(args, 0, "devtools_profile_mark(name)")?;
+    Ok(Value::Float(devtools::profile_mark(&name)?))
+}
+
+fn devtools_profile_measure_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let name = expect_str(args, 0, "devtools_profile_measure(name, startMark, endMark?)")?;
+    let start = expect_str(args, 1, "devtools_profile_measure(name, startMark, endMark?)")?;
+    let end = args
+        .get(2)
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .unwrap_or("");
+    Ok(Value::Float(devtools::profile_measure(&name, &start, end)?))
+}
+
+fn devtools_profile_stop_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Object(devtools::profile_stop()?))
+}
+
+fn devtools_profile_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Object(devtools::profile_dump()))
+}
+
+fn devtools_live_edit_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let kind = expect_str(args, 1, "devtools_live_edit(id, \"text\"|\"attr\", ...)")?;
+    if kind != "eval" {
+        if let Some(Value::KabootarBrowser(b)) = env.get("kbrowser") {
+            if let Ok(doc) = b.active_document() {
+                let _ = crate::runtime::kabootar_dom::live_ensure_id(id, &doc);
+            }
+        }
+    }
+    match kind.as_str() {
+        "text" => {
+            let text = expect_str(args, 2, "devtools_live_edit(id, \"text\", value)")?;
+            Ok(Value::Bool(devtools::live_edit_text(id, &text)?))
+        }
+        "attr" => {
+            let key = expect_str(args, 2, "devtools_live_edit(id, \"attr\", key, value)")?;
+            let value = expect_str(args, 3, "devtools_live_edit(id, \"attr\", key, value)")?;
+            Ok(Value::Bool(devtools::live_edit_attr(id, &key, &value)?))
+        }
+        "eval" => {
+            let source = expect_str(args, 2, "devtools_live_edit(idIgnored, \"eval\", source)")?;
+            let _ = id;
+            crate::evaluator::eval_source(&source, env)
+        }
+        other => Err(format!(
+            "devtools_live_edit: unknown kind '{other}' (text|attr|eval)"
+        )),
+    }
+}
+
+fn devtools_live_eval_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let source = expect_str(args, 0, "devtools_live_eval(source)")?;
+    crate::evaluator::eval_source(&source, env)
+}
+
 // --- Extensions ---
 
 fn ext_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -697,6 +819,46 @@ pub fn browser_platform_globals(env: &mut Environment) {
     env.set("devtools_breakpoint".into(), Value::NativeFunction(devtools_breakpoint_native));
     env.set("devtools_source_map".into(), Value::NativeFunction(devtools_source_map_native));
     env.set("devtools_dom_tree".into(), Value::NativeFunction(devtools_dom_tree_native));
+    env.set(
+        "devtools_network_record".into(),
+        Value::NativeFunction(devtools_network_record_native),
+    );
+    env.set(
+        "devtools_network_dump".into(),
+        Value::NativeFunction(devtools_network_dump_native),
+    );
+    env.set(
+        "devtools_network_clear".into(),
+        Value::NativeFunction(devtools_network_clear_native),
+    );
+    env.set(
+        "devtools_profile_start".into(),
+        Value::NativeFunction(devtools_profile_start_native),
+    );
+    env.set(
+        "devtools_profile_mark".into(),
+        Value::NativeFunction(devtools_profile_mark_native),
+    );
+    env.set(
+        "devtools_profile_measure".into(),
+        Value::NativeFunction(devtools_profile_measure_native),
+    );
+    env.set(
+        "devtools_profile_stop".into(),
+        Value::NativeFunction(devtools_profile_stop_native),
+    );
+    env.set(
+        "devtools_profile_dump".into(),
+        Value::NativeFunction(devtools_profile_dump_native),
+    );
+    env.set(
+        "devtools_live_edit".into(),
+        Value::NativeFunction(devtools_live_edit_native),
+    );
+    env.set(
+        "devtools_live_eval".into(),
+        Value::NativeFunction(devtools_live_eval_native),
+    );
     env.set("ext_info".into(), Value::NativeFunction(ext_info_native));
     env.set("ext_install".into(), Value::NativeFunction(ext_install_native));
     env.set("ext_list".into(), Value::NativeFunction(ext_list_native));

@@ -85,6 +85,22 @@ fn os_sched_tick_native(_args: &[Value], env: &mut Environment) -> Result<Value,
             o.insert("tid".into(), Value::Number(t.tid as i64));
             o.insert("pid".into(), Value::Number(t.pid as i64));
             o.insert("name".into(), Value::String(t.name));
+            o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
+            Ok(Value::Object(o))
+        }
+        None => Ok(Value::Null),
+    })
+}
+
+fn os_sched_yield_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let os = get_os(env)?;
+    with_subsys(&os, |s| match s.kcore.yield_running() {
+        Some(t) => {
+            let mut o = HashMap::new();
+            o.insert("tid".into(), Value::Number(t.tid as i64));
+            o.insert("pid".into(), Value::Number(t.pid as i64));
+            o.insert("name".into(), Value::String(t.name));
+            o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
             Ok(Value::Object(o))
         }
         None => Ok(Value::Null),
@@ -315,6 +331,7 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_ipc_send".into(), Value::NativeFunction(os_ipc_send_native));
     env.set("os_ipc_recv".into(), Value::NativeFunction(os_ipc_recv_native));
     env.set("os_sched_tick".into(), Value::NativeFunction(os_sched_tick_native));
+    env.set("os_sched_yield".into(), Value::NativeFunction(os_sched_yield_native));
     env.set("os_context_switch".into(), Value::NativeFunction(os_context_switch_native));
     env.set("os_mm_map".into(), Value::NativeFunction(os_mm_map_native));
     env.set("os_mm_translate".into(), Value::NativeFunction(os_mm_translate_native));

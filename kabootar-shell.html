@@ -64,6 +64,8 @@
       <div class="devtools-tabs">
         <div class="devtools-tab active" data-panel="elements">Elements</div>
         <div class="devtools-tab" data-panel="console">Console</div>
+        <div class="devtools-tab" data-panel="network">Network</div>
+        <div class="devtools-tab" data-panel="profiler">Profiler</div>
       </div>
       <div class="devtools-body">
         <div class="devtools-panel active" id="panel-elements" style="display:flex;">
@@ -72,6 +74,12 @@
         </div>
         <div class="devtools-panel" id="panel-console">
           <div id="console-log"></div>
+        </div>
+        <div class="devtools-panel" id="panel-network">
+          <div id="network-log"></div>
+        </div>
+        <div class="devtools-panel" id="panel-profiler">
+          <div id="profiler-log"></div>
         </div>
       </div>
     </div>
@@ -91,6 +99,8 @@
     const elementsTree = document.getElementById('elements-tree');
     const elementsStyles = document.getElementById('elements-styles');
     const consoleLog = document.getElementById('console-log');
+    const networkLog = document.getElementById('network-log');
+    const profilerLog = document.getElementById('profiler-log');
     let pixelMode = false;
     let devtoolsOpen = false;
     let selectedNodeId = null;
@@ -194,6 +204,25 @@
           row.className = 'log-entry';
           row.innerHTML = `<span class="log-level">[${entry.level}]</span><span class="log-source">${entry.source}</span>${entry.message}`;
           consoleLog.appendChild(row);
+        }
+        networkLog.innerHTML = '';
+        for (const entry of snap.network || []) {
+          const row = document.createElement('div');
+          row.className = 'log-entry';
+          row.textContent = `${entry.method} ${entry.status} ${entry.url} (${entry.duration_ms}ms, ${entry.size}b)`;
+          networkLog.appendChild(row);
+        }
+        profilerLog.innerHTML = '';
+        const prof = snap.profiler || {};
+        const head = document.createElement('div');
+        head.className = 'log-entry';
+        head.textContent = `profile: ${prof.label || '-'} active=${prof.active} total=${prof.total_ms || 0}ms`;
+        profilerLog.appendChild(head);
+        for (const m of prof.measures || []) {
+          const row = document.createElement('div');
+          row.className = 'log-entry';
+          row.textContent = `measure ${m.name}: ${m.duration_ms}ms (${m.start}→${m.end})`;
+          profilerLog.appendChild(row);
         }
       } catch (e) {
         elementsTree.textContent = 'DevTools parse error: ' + e;

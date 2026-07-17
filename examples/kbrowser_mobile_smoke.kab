@@ -1,0 +1,7 @@
+// G7 mobile smoke — viewport / DPR / safe area / touch API (no device CI).
+let vp = kb_viewport(390, 844, 3, "portrait");
+let sa = kb_safe_area(47, 0, 34, 0);
+kb_paint();
+kb_touch_at(12, 24, "start");
+let ev = kb_poll_events();
+print(vp.orientation + " dpr=" + vp.dpr + " safeTop=" + sa.top + " events=" + len(ev));
