@@ -238,3 +238,29 @@ fn js_wave_c1_mutation_records() {
     );
     assert!(matches!(out, Value::Bool(true)));
 }
+
+#[test]
+fn js_wave_c1_mutation_observer_observe_disconnect() {
+    let out = eval(
+        r#"
+        kdom_mutation_clear()
+        let state = { n: 0 }
+        fn on_mut(recs) {
+            state.n = state.n + len(recs)
+        }
+        let mo = MutationObserver(on_mut)
+        let root = kdom_create("div")
+        mo.observe(root, { childList: true, attributes: false })
+        let child = kdom_create("span")
+        root = kdom_append(root, child)
+        let after_append = state.n
+        mo.disconnect()
+        root = kdom_append(root, kdom_create("p"))
+        after_append == 1 && state.n == 1
+        "#,
+    );
+    assert!(
+        matches!(out, Value::Bool(true)),
+        "MutationObserver observe/disconnect: {out:?}"
+    );
+}

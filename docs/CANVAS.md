@@ -36,11 +36,11 @@ let pixels = canvas_to_pixels(ctx);
 | Skapa | `canvas_create(w,h)`, `canvas_bind(node)`, `canvas_get_context(node\|id, "2d")` |
 | Rektanglar | `canvas_fill_rect`, `canvas_stroke_rect`, `canvas_clear_rect` |
 | Stil | `canvas_set_fill_style`, `canvas_set_stroke_style`, `canvas_set_global_alpha`, `canvas_set_line_width`, `canvas_set_font` |
-| Transform | `canvas_save`, `canvas_restore`, `canvas_translate`, `canvas_scale`, `canvas_rotate` |
-| Paths | `canvas_begin_path`, `canvas_move_to`, `canvas_line_to`, `canvas_arc`, `canvas_close_path`, `canvas_fill`, `canvas_stroke` |
+| Transform | `canvas_save`, `canvas_restore`, `canvas_translate`, `canvas_scale`, `canvas_rotate`, `canvas_set_transform` |
+| Paths | `canvas_begin_path`, `canvas_move_to`, `canvas_line_to`, `canvas_arc`, `canvas_rect`, `canvas_close_path`, `canvas_fill`, `canvas_stroke` |
 | Text | `canvas_fill_text`, `canvas_measure_text` |
 | Gradient | `canvas_create_linear_gradient`, `canvas_gradient_add_color_stop` |
-| Bitmap | `canvas_draw_image`, `canvas_to_pixels` |
+| Bitmap | `canvas_draw_image`, `canvas_get_image_data`, `canvas_put_image_data`, `canvas_to_pixels` |
 | Info | `canvas_info()` |
 
 Kontextobjekt: `{ id, width, height, kind: "2d", layer, dom_id? }` — alla `canvas_*`-anrop accepterar id eller kontextobjekt.

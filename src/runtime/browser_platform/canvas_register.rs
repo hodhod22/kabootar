@@ -156,6 +156,10 @@ fn attach_native_ctx_methods(o: &mut HashMap<String, Value>) {
     o.insert("scale".into(), Value::NativeFunction(canvas_scale_native));
     o.insert("rotate".into(), Value::NativeFunction(canvas_rotate_native));
     o.insert("drawImage".into(), Value::NativeFunction(canvas_draw_image_native));
+    o.insert("getImageData".into(), Value::NativeFunction(canvas_get_image_data_native));
+    o.insert("putImageData".into(), Value::NativeFunction(canvas_put_image_data_native));
+    o.insert("setTransform".into(), Value::NativeFunction(canvas_set_transform_native));
+    o.insert("rect".into(), Value::NativeFunction(canvas_rect_native));
 }
 
 fn canvas_fill_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -323,6 +327,93 @@ fn canvas_draw_image_native(args: &[Value], _env: &mut Environment) -> Result<Va
     Ok(Value::Null)
 }
 
+fn canvas_get_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    let x = expect_num(args, 1)? as i32;
+    let y = expect_num(args, 2)? as i32;
+    let w = expect_num(args, 3)? as i32;
+    let h = expect_num(args, 4)? as i32;
+    let data = canvas2d::get_image_data(id, x, y, w, h)?;
+    let mut o = HashMap::new();
+    o.insert("width".into(), Value::Number(w as i64));
+    o.insert("height".into(), Value::Number(h as i64));
+    o.insert(
+        "data".into(),
+        Value::Array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
+    );
+    Ok(Value::Object(o))
+}
+
+fn canvas_put_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    let (data, w, h) = match args.get(1) {
+        Some(Value::Object(o)) => {
+            let w = match o.get("width") {
+                Some(Value::Number(n)) => *n as i32,
+                _ => return Err("putImageData: ImageData.width required".into()),
+            };
+            let h = match o.get("height") {
+                Some(Value::Number(n)) => *n as i32,
+                _ => return Err("putImageData: ImageData.height required".into()),
+            };
+            let data = match o.get("data") {
+                Some(Value::Array(items)) => items
+                    .iter()
+                    .map(|v| match v {
+                        Value::Number(n) => Ok::<u8, String>(*n as u8),
+                        _ => Err("putImageData: data must be number array".into()),
+                    })
+                    .collect::<Result<Vec<u8>, String>>()?,
+                _ => return Err("putImageData: ImageData.data required".into()),
+            };
+            (data, w, h)
+        }
+        Some(Value::Array(items)) => {
+            let w = expect_num(args, 4).unwrap_or(0) as i32;
+            let h = expect_num(args, 5).unwrap_or(0) as i32;
+            let data = items
+                .iter()
+                .map(|v| match v {
+                    Value::Number(n) => Ok::<u8, String>(*n as u8),
+                    _ => Err("putImageData: data must be number array".into()),
+                })
+                .collect::<Result<Vec<u8>, String>>()?;
+            (data, w, h)
+        }
+        _ => return Err("putImageData expects ImageData object".into()),
+    };
+    let dx = expect_num(args, 2)? as i32;
+    let dy = expect_num(args, 3)? as i32;
+    canvas2d::put_image_data(id, &data, dx, dy, w, h)?;
+    Ok(Value::Null)
+}
+
+fn canvas_set_transform_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    canvas2d::set_transform(
+        id,
+        expect_f64(args, 1)?,
+        expect_f64(args, 2)?,
+        expect_f64(args, 3)?,
+        expect_f64(args, 4)?,
+        expect_f64(args, 5)?,
+        expect_f64(args, 6)?,
+    )?;
+    Ok(Value::Null)
+}
+
+fn canvas_rect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = canvas_id_arg(args, 0)?;
+    canvas2d::rect_path(
+        id,
+        expect_f64(args, 1)?,
+        expect_f64(args, 2)?,
+        expect_f64(args, 3)?,
+        expect_f64(args, 4)?,
+    )?;
+    Ok(Value::Null)
+}
+
 fn canvas_to_pixels_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = canvas_id_arg(args, 0)?;
     let bytes = canvas2d::to_rgba_bytes(id)?;
@@ -360,6 +451,10 @@ pub fn register_canvas(env: &mut Environment) {
         ("canvas_create_linear_gradient", canvas_create_linear_gradient_native),
         ("canvas_gradient_add_color_stop", canvas_gradient_add_color_stop_native),
         ("canvas_draw_image", canvas_draw_image_native),
+        ("canvas_get_image_data", canvas_get_image_data_native),
+        ("canvas_put_image_data", canvas_put_image_data_native),
+        ("canvas_set_transform", canvas_set_transform_native),
+        ("canvas_rect", canvas_rect_native),
         ("canvas_to_pixels", canvas_to_pixels_native),
     ];
     for (name, func) in fns {

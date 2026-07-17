@@ -98,53 +98,110 @@ impl LayoutEngine {
                     total_h += row_h + gap;
                 }
             } else if is_flex {
-                let mut placed = Vec::new();
-                let cx = x + margin + pad;
-                let mut used_main = 0.0f64;
+                let is_row = style.flex_direction == "row";
+                let wrap = style.flex_wrap == "wrap" || style.flex_wrap == "wrap-reverse";
+                let cx0 = x + margin + pad;
+                let mut measured: Vec<(LayoutBox, f64, f64)> = Vec::new();
                 for child in &node.children {
-                    let child_box = Self::layout_node(child, sheet, cx, cy, inner_w, &style);
-                    if style.flex_direction == "row" {
-                        used_main += child_box.w;
-                        max_child_w = max_child_w.max(used_main);
-                        total_h = total_h.max(child_box.h + pad * 2.0 + margin * 2.0);
-                    } else {
+                    let child_style = compute_style(&child.tag, &child.attributes, sheet);
+                    let child_box = Self::layout_node(child, sheet, cx0, cy, inner_w, &style);
+                    measured.push((child_box, child_style.flex_grow, child_style.flex_shrink));
+                }
+
+                if is_row {
+                    // Split into flex lines when wrap is enabled.
+                    let mut lines: Vec<Vec<(LayoutBox, f64, f64)>> = Vec::new();
+                    let mut cur_line: Vec<(LayoutBox, f64, f64)> = Vec::new();
+                    let mut line_main = 0.0f64;
+                    for item in measured {
+                        let add = item.0.w + if cur_line.is_empty() { 0.0 } else { gap };
+                        if wrap && !cur_line.is_empty() && line_main + add > inner_w {
+                            lines.push(std::mem::take(&mut cur_line));
+                            line_main = item.0.w;
+                            cur_line.push(item);
+                        } else {
+                            line_main += add;
+                            cur_line.push(item);
+                        }
+                    }
+                    if !cur_line.is_empty() {
+                        lines.push(cur_line);
+                    }
+
+                    let mut line_y = cy;
+                    let mut stack_h = pad * 2.0 + margin * 2.0;
+                    for line in lines {
+                        let n = line.len().max(1) as f64;
+                        let gaps_total = gap * (n - 1.0);
+                        let mut used_main: f64 = line.iter().map(|(b, _, _)| b.w).sum();
+                        let mut free = inner_w - used_main - gaps_total;
+                        let grow_sum: f64 = line.iter().map(|(_, g, _)| *g).sum();
+                        let shrink_sum: f64 = line.iter().map(|(b, _, s)| b.w * *s).sum();
+
+                        let mut widths: Vec<f64> = line.iter().map(|(b, _, _)| b.w).collect();
+                        if free > 0.0 && grow_sum > 0.0 {
+                            for (i, (_, grow, _)) in line.iter().enumerate() {
+                                if *grow > 0.0 {
+                                    widths[i] += free * (*grow / grow_sum);
+                                }
+                            }
+                            used_main = widths.iter().sum();
+                            free = inner_w - used_main - gaps_total;
+                        } else if free < 0.0 && shrink_sum > 0.0 {
+                            let overflow = -free;
+                            for (i, (b, _, shrink)) in line.iter().enumerate() {
+                                if *shrink > 0.0 {
+                                    let share = (b.w * *shrink) / shrink_sum;
+                                    widths[i] = (b.w - overflow * share).max(0.0);
+                                }
+                            }
+                            used_main = widths.iter().sum();
+                            free = (inner_w - used_main - gaps_total).max(0.0);
+                        } else {
+                            free = free.max(0.0);
+                        }
+
+                        let (start_extra, between) = match style.justify_content.as_str() {
+                            "center" => (free / 2.0, 0.0),
+                            "flex-end" | "end" => (free, 0.0),
+                            "space-between" if n > 1.0 => (0.0, free / (n - 1.0)),
+                            _ => (0.0, 0.0),
+                        };
+                        let line_h = line.iter().map(|(b, _, _)| b.h).fold(0.0f64, f64::max);
+                        let mut cursor = cx0 + start_extra;
+                        for (i, (mut child_box, _, _)) in line.into_iter().enumerate() {
+                            child_box.w = widths[i];
+                            child_box.x = cursor;
+                            child_box.y = if style.align_items == "center" {
+                                line_y + (line_h - child_box.h).max(0.0) / 2.0
+                            } else {
+                                line_y
+                            };
+                            cursor += child_box.w + gap + between;
+                            max_child_w = max_child_w.max(child_box.x + child_box.w - x);
+                            children_layout.push(child_box);
+                        }
+                        line_y += line_h + gap;
+                        stack_h += line_h + gap;
+                    }
+                    total_h = stack_h.max(total_h);
+                } else {
+                    let mut used_main = 0.0f64;
+                    let mut placed = Vec::new();
+                    for (child_box, grow, shrink) in measured {
                         used_main += child_box.h;
                         max_child_w = max_child_w.max(child_box.w);
-                        total_h += child_box.h + gap;
+                        placed.push((child_box, grow, shrink));
                     }
-                    placed.push(child_box);
-                }
-                let n = placed.len().max(1) as f64;
-                let gaps_total = gap * (n - 1.0);
-                let free = if style.flex_direction == "row" {
-                    (inner_w - used_main - gaps_total).max(0.0)
-                } else {
-                    0.0
-                };
-                let (start_extra, between) = match style.justify_content.as_str() {
-                    "center" => (free / 2.0, 0.0),
-                    "flex-end" | "end" => (free, 0.0),
-                    "space-between" if n > 1.0 => (0.0, free / (n - 1.0)),
-                    _ => (0.0, 0.0),
-                };
-                let mut cursor = if style.flex_direction == "row" {
-                    x + margin + pad + start_extra
-                } else {
-                    cy
-                };
-                for mut child_box in placed {
-                    if style.flex_direction == "row" {
-                        child_box.x = cursor;
-                        if style.align_items == "center" {
-                            let cross = (total_h - pad * 2.0 - margin * 2.0 - child_box.h).max(0.0);
-                            child_box.y = cy + cross / 2.0;
-                        }
-                        cursor += child_box.w + gap + between;
-                    } else {
+                    let n = placed.len().max(1) as f64;
+                    let mut cursor = cy;
+                    for (mut child_box, _, _) in placed {
                         child_box.y = cursor;
                         cursor += child_box.h + gap;
+                        total_h += child_box.h + gap;
+                        children_layout.push(child_box);
                     }
-                    children_layout.push(child_box);
+                    let _ = (n, used_main); // column grow/shrink left for later polish
                 }
             } else {
                 for child in &node.children {
@@ -264,5 +321,83 @@ mod tests {
         // Block stacks vertically — same x.
         assert!((layout.children[0].x - layout.children[1].x).abs() < 0.1);
         assert!(layout.children[1].y > layout.children[0].y);
+    }
+
+    #[test]
+    fn flex_grow_expands_child_in_row() {
+        let mut root = DomNode::element("div");
+        root.set_attr(
+            "style",
+            "display:flex;flex-direction:row;width:200px;gap:0;padding:0;margin:0",
+        );
+        let mut a = DomNode::element("span");
+        a.set_attr("style", "width:40px;height:10px;padding:0;margin:0;flex-grow:1");
+        let mut b = DomNode::element("span");
+        b.set_attr("style", "width:40px;height:10px;padding:0;margin:0;flex-grow:0");
+        root.append(a);
+        root.append(b);
+        let sheet = Stylesheet { rules: vec![] };
+        let layout = LayoutEngine::layout(&root, &sheet, 200.0);
+        assert_eq!(layout.children.len(), 2);
+        assert!(
+            layout.children[0].w > 100.0,
+            "expected flex-grow child wider, got {}",
+            layout.children[0].w
+        );
+        assert!(
+            (layout.children[1].w - 40.0).abs() < 0.1,
+            "expected non-grow child ~40, got {}",
+            layout.children[1].w
+        );
+    }
+
+    #[test]
+    fn flex_wrap_moves_overflow_to_next_line() {
+        let mut root = DomNode::element("div");
+        root.set_attr(
+            "style",
+            "display:flex;flex-direction:row;flex-wrap:wrap;width:90px;gap:0;padding:0;margin:0",
+        );
+        for _ in 0..3 {
+            let mut c = DomNode::element("span");
+            c.set_attr("style", "width:40px;height:10px;padding:0;margin:0");
+            root.append(c);
+        }
+        let sheet = Stylesheet { rules: vec![] };
+        let layout = LayoutEngine::layout(&root, &sheet, 90.0);
+        assert_eq!(layout.children.len(), 3);
+        assert!(
+            (layout.children[0].y - layout.children[1].y).abs() < 0.1,
+            "first two should share a row"
+        );
+        assert!(
+            layout.children[2].y > layout.children[0].y + 1.0,
+            "third child should wrap to next line, y={}",
+            layout.children[2].y
+        );
+    }
+
+    #[test]
+    fn flex_shrink_compresses_overflow_children() {
+        let mut root = DomNode::element("div");
+        root.set_attr(
+            "style",
+            "display:flex;flex-direction:row;width:100px;gap:0;padding:0;margin:0",
+        );
+        let mut a = DomNode::element("span");
+        a.set_attr("style", "width:80px;height:10px;padding:0;margin:0;flex-shrink:1");
+        let mut b = DomNode::element("span");
+        b.set_attr("style", "width:80px;height:10px;padding:0;margin:0;flex-shrink:1");
+        root.append(a);
+        root.append(b);
+        let sheet = Stylesheet { rules: vec![] };
+        let layout = LayoutEngine::layout(&root, &sheet, 100.0);
+        assert_eq!(layout.children.len(), 2);
+        let total_w = layout.children[0].w + layout.children[1].w;
+        assert!(
+            total_w <= 100.5,
+            "expected shrink to fit container, got total {total_w}"
+        );
+        assert!(layout.children[0].w < 80.0);
     }
 }

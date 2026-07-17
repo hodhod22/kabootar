@@ -20,8 +20,22 @@ pub struct MutationRecord {
     pub removed_node_id: Option<u64>,
 }
 
+#[derive(Clone)]
+struct MutationObserverEntry {
+    id: u64,
+    callback: Value,
+    target_id: Option<u64>,
+    child_list: bool,
+    attributes: bool,
+    connected: bool,
+    pending: Vec<MutationRecord>,
+}
+
+static OBSERVER_ID: AtomicU64 = AtomicU64::new(1);
+
 thread_local! {
     static MUTATION_RECORDS: RefCell<Vec<MutationRecord>> = RefCell::new(Vec::new());
+    static MUTATION_OBSERVERS: RefCell<Vec<MutationObserverEntry>> = RefCell::new(Vec::new());
     /// Live Dom nodes by id — lets `.kab` store numeric ids instead of KabootarDom values.
     static LIVE_NODES: RefCell<HashMap<u64, DomNode>> = RefCell::new(HashMap::new());
     /// child id → parent id (for propagating child patches up to paintable parents).
@@ -99,43 +113,82 @@ fn live_get(id: u64) -> Option<DomNode> {
 
 
 pub fn record_child_list_mutation(parent_id: u64, added_id: u64) {
-    MUTATION_RECORDS.with(|r| {
-        r.borrow_mut().push(MutationRecord {
-            kind: "childList".into(),
-            target_id: parent_id,
-            attribute_name: None,
-            added_node_id: Some(added_id),
-            removed_node_id: None,
-        });
-    });
+    let record = MutationRecord {
+        kind: "childList".into(),
+        target_id: parent_id,
+        attribute_name: None,
+        added_node_id: Some(added_id),
+        removed_node_id: None,
+    };
+    push_mutation_record(record);
 }
 
 pub fn record_child_removed_mutation(parent_id: u64, removed_id: u64) {
-    MUTATION_RECORDS.with(|r| {
-        r.borrow_mut().push(MutationRecord {
-            kind: "childList".into(),
-            target_id: parent_id,
-            attribute_name: None,
-            added_node_id: None,
-            removed_node_id: Some(removed_id),
-        });
-    });
+    let record = MutationRecord {
+        kind: "childList".into(),
+        target_id: parent_id,
+        attribute_name: None,
+        added_node_id: None,
+        removed_node_id: Some(removed_id),
+    };
+    push_mutation_record(record);
 }
 
 pub fn record_attribute_mutation(target_id: u64, attr: &str) {
+    let record = MutationRecord {
+        kind: "attributes".into(),
+        target_id,
+        attribute_name: Some(attr.to_string()),
+        added_node_id: None,
+        removed_node_id: None,
+    };
+    push_mutation_record(record);
+}
+
+fn push_mutation_record(record: MutationRecord) {
     MUTATION_RECORDS.with(|r| {
-        r.borrow_mut().push(MutationRecord {
-            kind: "attributes".into(),
-            target_id,
-            attribute_name: Some(attr.to_string()),
-            added_node_id: None,
-            removed_node_id: None,
-        });
+        r.borrow_mut().push(record.clone());
+    });
+    MUTATION_OBSERVERS.with(|obs| {
+        for entry in obs.borrow_mut().iter_mut() {
+            if !entry.connected {
+                continue;
+            }
+            let Some(target) = entry.target_id else {
+                continue;
+            };
+            if target != record.target_id {
+                continue;
+            }
+            let match_kind = match record.kind.as_str() {
+                "childList" => entry.child_list,
+                "attributes" => entry.attributes,
+                _ => false,
+            };
+            if match_kind {
+                entry.pending.push(record.clone());
+            }
+        }
     });
 }
 
 fn take_mutation_records() -> Vec<MutationRecord> {
     MUTATION_RECORDS.with(|r| r.borrow_mut().drain(..).collect())
+}
+
+fn deliver_mutation_observers(env: &mut Environment) -> Result<(), String> {
+    let batches: Vec<(Value, Vec<MutationRecord>)> = MUTATION_OBSERVERS.with(|obs| {
+        obs.borrow_mut()
+            .iter_mut()
+            .filter(|e| e.connected && !e.pending.is_empty())
+            .map(|e| (e.callback.clone(), std::mem::take(&mut e.pending)))
+            .collect()
+    });
+    for (callback, records) in batches {
+        let arr = Value::Array(records.iter().map(mutation_record_to_value).collect());
+        crate::bytecode::call_value(callback, vec![arr], &[], &[], &[], &[], env)?;
+    }
+    Ok(())
 }
 
 pub fn next_node_id() -> u64 {
@@ -641,6 +694,30 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
         "kdom_mutation_clear".to_string(),
         Value::NativeFunction(kdom_mutation_clear_native),
     );
+    env.set(
+        "kdom_mo_new".to_string(),
+        Value::NativeFunction(kdom_mo_new_native),
+    );
+    env.set(
+        "kdom_mo_observe".to_string(),
+        Value::NativeFunction(kdom_mo_observe_native),
+    );
+    env.set(
+        "kdom_mo_disconnect".to_string(),
+        Value::NativeFunction(kdom_mo_disconnect_native),
+    );
+    env.set(
+        "kdom_mo_take_records".to_string(),
+        Value::NativeFunction(kdom_mo_take_records_native),
+    );
+    env.set(
+        "kdom_mo_deliver".to_string(),
+        Value::NativeFunction(kdom_mo_deliver_native),
+    );
+    env.set(
+        "MutationObserver".to_string(),
+        Value::NativeFunction(mutation_observer_ctor_native),
+    );
     env.set("kstyle_parse".to_string(), Value::NativeFunction(kstyle_parse_native));
     env.set("ktext_layout".to_string(), Value::NativeFunction(ktext_layout_native));
     env.set("ktext_measure".to_string(), Value::NativeFunction(ktext_measure_native));
@@ -775,7 +852,7 @@ fn kdom_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     Ok(Value::KabootarDom(node))
 }
 
-fn kdom_append_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_append_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let parent_arg = expect_dom(args, 0, "kdom_append()")?;
     let child_arg = expect_dom(args, 1, "kdom_append()")?;
     let mut parent = live_resolve(parent_arg);
@@ -785,10 +862,11 @@ fn kdom_append_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     parent.append(child);
     record_child_list_mutation(parent_id, child_id);
     live_upsert(&parent);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(parent))
 }
 
-fn kdom_set_attr_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_set_attr_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut node = live_resolve(expect_dom(args, 0, "kdom_set_attr()")?);
     let key = match args.get(1) {
         Some(Value::String(s)) => s.as_str(),
@@ -800,6 +878,7 @@ fn kdom_set_attr_native(args: &[Value], _env: &mut Environment) -> Result<Value,
             node.set_attr(key, &crate::value::format_value(other));
             record_attribute_mutation(node.id, key);
             live_upsert(&node);
+            deliver_mutation_observers(env)?;
             return Ok(Value::KabootarDom(node));
         }
         None => "",
@@ -807,6 +886,7 @@ fn kdom_set_attr_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     node.set_attr(key, val);
     record_attribute_mutation(node.id, key);
     live_upsert(&node);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }
 
@@ -873,7 +953,7 @@ fn kdom_set_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
     Ok(Value::KabootarDom(node))
 }
 
-fn kdom_set_attr_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_set_attr_by_id_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let id = match args.first() {
         Some(Value::Number(n)) => *n as u64,
         _ => return Err("kdom_set_attr_by_id() expects numeric id".into()),
@@ -892,10 +972,11 @@ fn kdom_set_attr_by_id_native(args: &[Value], _env: &mut Environment) -> Result<
     record_attribute_mutation(node.id, key);
     live_upsert(&node);
     live_propagate_to_ancestors(node.id);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }
 
-fn kdom_clear_children_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_clear_children_by_id_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let id = match args.first() {
         Some(Value::Number(n)) => *n as u64,
         _ => return Err("kdom_clear_children_by_id() expects numeric id".into()),
@@ -907,10 +988,11 @@ fn kdom_clear_children_by_id_native(args: &[Value], _env: &mut Environment) -> R
     node.children.clear();
     live_upsert(&node);
     live_propagate_to_ancestors(node.id);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }
 
-fn kdom_append_text_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_append_text_by_id_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let id = match args.first() {
         Some(Value::Number(n)) => *n as u64,
         _ => return Err("kdom_append_text_by_id() expects numeric id".into()),
@@ -928,10 +1010,11 @@ fn kdom_append_text_by_id_native(args: &[Value], _env: &mut Environment) -> Resu
     record_child_list_mutation(node.id, child_id);
     live_upsert(&node);
     live_propagate_to_ancestors(node.id);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }
 
-fn kdom_append_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_append_by_id_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let id = match args.first() {
         Some(Value::Number(n)) => *n as u64,
         _ => return Err("kdom_append_by_id() expects numeric id".into()),
@@ -945,6 +1028,7 @@ fn kdom_append_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Va
     record_child_list_mutation(parent_id, child_id);
     live_upsert(&parent);
     live_propagate_to_ancestors(parent.id);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(parent))
 }
 
@@ -1019,13 +1103,14 @@ fn kdom_child_id_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     })
 }
 
-fn kdom_clear_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+fn kdom_clear_children_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut node = live_resolve(expect_dom(args, 0, "kdom_clear_children()")?);
     for child in &node.children {
         record_child_removed_mutation(node.id, child.id);
     }
     node.children.clear();
     live_upsert(&node);
+    deliver_mutation_observers(env)?;
     Ok(Value::KabootarDom(node))
 }
 
@@ -1179,4 +1264,136 @@ fn kdom_mutation_records_native(_args: &[Value], _env: &mut Environment) -> Resu
 fn kdom_mutation_clear_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let _ = take_mutation_records();
     Ok(Value::Undefined)
+}
+
+fn observer_id_from(v: &Value) -> Result<u64, String> {
+    match v {
+        Value::Number(n) if *n > 0 => Ok(*n as u64),
+        Value::Object(o) => match o.get("id") {
+            Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
+            _ => Err("MutationObserver missing id".into()),
+        },
+        _ => Err("expected MutationObserver or id".into()),
+    }
+}
+
+fn target_id_from(v: &Value) -> Result<u64, String> {
+    match v {
+        Value::Number(n) if *n > 0 => Ok(*n as u64),
+        Value::KabootarDom(n) => Ok(n.id),
+        _ => Err("observe() expects DOM node or id".into()),
+    }
+}
+
+fn kdom_mo_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let callback = args
+        .first()
+        .cloned()
+        .ok_or("kdom_mo_new() expects callback")?;
+    match &callback {
+        Value::Function { .. } | Value::BytecodeFn(_) | Value::NativeFunction(_) => {}
+        _ => return Err("kdom_mo_new() expects a function callback".into()),
+    }
+    let id = OBSERVER_ID.fetch_add(1, Ordering::SeqCst);
+    MUTATION_OBSERVERS.with(|obs| {
+        obs.borrow_mut().push(MutationObserverEntry {
+            id,
+            callback,
+            target_id: None,
+            child_list: true,
+            attributes: false,
+            connected: false,
+            pending: Vec::new(),
+        });
+    });
+    Ok(Value::Number(id as i64))
+}
+
+fn kdom_mo_observe_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let oid = observer_id_from(args.first().ok_or("kdom_mo_observe expects observer")?)?;
+    let tid = target_id_from(args.get(1).ok_or("kdom_mo_observe expects target")?)?;
+    let (child_list, attributes) = match args.get(2) {
+        Some(Value::Object(o)) => {
+            let child_list = match o.get("childList") {
+                Some(Value::Bool(b)) => *b,
+                _ => true,
+            };
+            let attributes = match o.get("attributes") {
+                Some(Value::Bool(b)) => *b,
+                _ => false,
+            };
+            (child_list, attributes)
+        }
+        _ => (true, false),
+    };
+    let found = MUTATION_OBSERVERS.with(|obs| {
+        for entry in obs.borrow_mut().iter_mut() {
+            if entry.id == oid {
+                entry.target_id = Some(tid);
+                entry.child_list = child_list;
+                entry.attributes = attributes;
+                entry.connected = true;
+                return true;
+            }
+        }
+        false
+    });
+    if !found {
+        return Err(format!("unknown MutationObserver id {oid}"));
+    }
+    Ok(Value::Undefined)
+}
+
+fn kdom_mo_disconnect_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let oid = observer_id_from(args.first().ok_or("kdom_mo_disconnect expects observer")?)?;
+    MUTATION_OBSERVERS.with(|obs| {
+        for entry in obs.borrow_mut().iter_mut() {
+            if entry.id == oid {
+                entry.connected = false;
+                entry.target_id = None;
+                entry.pending.clear();
+            }
+        }
+    });
+    Ok(Value::Undefined)
+}
+
+fn kdom_mo_take_records_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let oid = observer_id_from(args.first().ok_or("kdom_mo_take_records expects observer")?)?;
+    let records = MUTATION_OBSERVERS.with(|obs| {
+        for entry in obs.borrow_mut().iter_mut() {
+            if entry.id == oid {
+                return std::mem::take(&mut entry.pending);
+            }
+        }
+        Vec::new()
+    });
+    Ok(Value::Array(
+        records.iter().map(mutation_record_to_value).collect(),
+    ))
+}
+
+fn kdom_mo_deliver_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    deliver_mutation_observers(env)?;
+    Ok(Value::Undefined)
+}
+
+fn mutation_observer_ctor_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let id = match kdom_mo_new_native(args, env)? {
+        Value::Number(n) => n,
+        _ => return Err("MutationObserver internal id error".into()),
+    };
+    let mut o = HashMap::new();
+    o.insert("__kab_mo".into(), Value::Bool(true));
+    o.insert("id".into(), Value::Number(id));
+    o.insert("observe".into(), Value::NativeFunction(kdom_mo_observe_native));
+    o.insert(
+        "disconnect".into(),
+        Value::NativeFunction(kdom_mo_disconnect_native),
+    );
+    o.insert(
+        "takeRecords".into(),
+        Value::NativeFunction(kdom_mo_take_records_native),
+    );
+    Ok(Value::Object(o))
 }
