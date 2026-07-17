@@ -445,9 +445,73 @@ Se [BROWSER_V2.md](BROWSER_V2.md).
 - [x] `//` kommentarer, `%`, `!`, ternary `? :`
 - [x] Feature-matris: [FEATURES.md](FEATURES.md)
 
-## Master fetch-plan (2026–2027)
+## Strategi (2026-07) — Kabootar-only (Rust fasas ut)
 
-Fyra vågor i ordning — inget hämtningsbart ska lämnas mellan vågarna utan medvetet beslut.
+**Slutmål:** hela plattformen i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell. Rust försvinner **småningom** tills bara (möjligen) en minimal bootstrap/FFI finns kvar; ny produktlogik skrivs **aldrig** i Rust.
+
+**Minnesmodell:**
+- **Borrowing / `@manual` / `owned_*`** — systemutveckling (OS, drivrutiner, buffertar, netstack)
+- **GC (default)** — webutveckling (DOM, Kv8, appar, shell-UI)
+
+Ordning (strikt):
+
+1. **Komplettera språket** (L) så stora `.kab`-moduler och self-host fungerar  
+2. **Self-host som produktionskompilator** (S)  
+3. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
+4. **Tunna bort Rust** (H) tills hosten är trivial
+
+| Våg | Namn | Mål |
+|-----|------|-----|
+| **L** | Language (systems-ready) | Reentranta lokaler, modulskala, closures, await, ownership |
+| **S** | Self-host | `self_host/` bygger produkten |
+| **K** | Kabootar libs | kv8 + DOM + CSS + OS + webläsare i `.kab` |
+| **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
+
+**Fryst:** ny Rust för OS/browser/policy. Befintlig Rust är tillfällig host tills K ersätter den.
+
+### Våg L — Language (systems-ready) 🚧
+
+Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekosystemet kan växa i Kabootar.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **L1** | **Reentranta bytecode-lokaler** — `StoreLocal`/`MakeArrowFn` får inte `assign` upp i parent/modul-env; closures fångar aktiveringsram (`share_bindings`); seed av capture-slots vid fn-entry; `sync_closure_writes` synkar bara riktiga captures | ✅ |
+| **L2** | **Modulskala** — `register_functions` + `BytecodeFunction::Clone` använder `share_bindings` (inte djupklon); ≥40 top-level fn/modul utan OOM | ✅ |
+| **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
+| **L4** | **Await i modul/fn** — förutsägbart bytecode-beteende utan modul-global scratch | 📋 |
+| **L5** | **Ownership / borrowing** — `@manual` + `owned_*` för OS; GC default för web | 📋 subset finns |
+
+**Checkpoint L1–L2:** `cargo test --test v228_language bytecode_` + 40-fn modul-smoke.
+
+### Våg S — Self-host som produktkompilator 📋
+
+| Fas | Innehåll |
+|-----|----------|
+| **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) |
+| **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` |
+| **S3** | CI: self-host bygger self-host (bootstrap) som gate |
+
+### Våg K — Ekosystem i Kabootar 📋
+
+| Fas | Innehåll |
+|-----|----------|
+| **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) |
+| **K2** | **DOM + CSS/KSS** — layout/style/paint-orchestration i `.kab` |
+| **K3** | **OS** — schemaläggare/VFS/policy/net i `.kab`; borrowing för buffertar |
+| **K4** | **Webläsare** — `lib/kbrowser` + shell helt i Kabootar (GC-UI) |
+| **K5** | **kOS desktop** — G12 Start/Explorer/Settings i `.kab` |
+
+### Våg H — Rust → noll 📋
+
+- Inga nya features i Rust  
+- Flytta kvarvarande logik till `.kab` under K  
+- Slutmått: produktkod = Kabootar; Rust borta (eller minimal bootstrap som sedan också skrivs om)
+
+---
+
+## Master fetch-plan (2026–2027) — historik / parity
+
+Nedan är **hämtad parity** (JS/Deno/DOM/OS). Den är **underordnad** Våg L→S→K→H ovan. Inget nytt i D/G som utökar Rust-ytan utan språkbehov.
 
 ### Våg A — JavaScript (hämtningsbar rest, ~10–15 %) ✅
 
@@ -509,7 +573,9 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 
 **Våg C totalt:** ~4–6 månader
 
-### Våg D — OS (stub → native, ~40–50 %) 🚧
+### Våg D — OS (stub → native, ~40–50 %) 🚧 host / ⏸ D6+
+
+D1–D5 finns som **tillfällig Rust-host**. Vidare OS-logik → **Våg K2** i Kabootar efter L+S. **D6–D9 pausade** som Rust-arbete.
 
 | Fas | Innehåll |
 |-----|----------|
@@ -518,25 +584,24 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 | **D3** ✅ | FS: journal payload + `os_journal_replay`/`checkpoint`; path-ACL (`os_acl_*`) + `os_perm_*` |
 | **D4** ✅ | Netstack: `lo`/`host-eth` NIC refresh, `os_netstack_info`, tx accounting (`hw` → host-ifaces) |
 | **D5** ✅ | GPU compositor subset: `os_display_monitors`, `os_display_vsync`, acrylic layer preview |
-| **D6** | `os_compat_run`: Wine-lik / container (inte 99 % stub) |
-| **D7** | Boot: BIOS/UEFI chain eller bare-metal target |
-| **D8** | Sauce-strategier: haptic, seamless, energy — hardware där möjligt |
-| **D9** | **kOS desktop shell** — taskbar, Start, Explorer, Settings ([G12](ROADMAP.md), [OS.md](OS.md#desktop--utseende)) |
+| **D6** ⏸ | `os_compat_run` — senare som Kabootar+thin host, inte ny Rust-monolit |
+| **D7** ⏸ | Boot: BIOS/UEFI / bare-metal — efter thin host (H) |
+| **D8** ⏸ | Sauce-strategier — hardware-bindningar only i Rust |
+| **D9** ⏸ | **kOS desktop shell** — [G12](ROADMAP.md) / **K3** i `.kab` |
 
-**Våg D totalt:** ~6–12 månader
+**Våg D totalt:** host-subset klart; resten via K/H
 
-### Total kalender (en utvecklare, heltid)
+### Total kalender (en utvecklare, heltid) — omställd
 
 ```
-Våg A (JS)     ████████████░░░░  mån 1–4
-Våg B (Deno)   ░░░░████░░░░░░░░  mån 4–5
-Våg C (DOM)    ░░░░░░██████████  mån 5–10
-Våg D (OS)     ░░░░░░░░░░██████  mån 10–18+
-Våg E (boot)   ████████████████  klart (M10–M12, fn-generics)
-Våg F (gen2)   ████████████████  klart (G6–G11)
+Våg L (språk)  ████████░░░░░░░░  nu — L1 först
+Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
+Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
+Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
+Våg A–G        (parity-historik — underordnad L/S/K)
 ```
 
-**Checkpoint efter varje våg:** `cargo test` full suite + uppdatera [FEATURES.md](FEATURES.md).
+**Checkpoint efter varje våg:** språk-/self_host-tester först; `cargo test` full suite + [FEATURES.md](FEATURES.md).
 
 ### Våg E — Self-host bootstrap + generics ✅
 

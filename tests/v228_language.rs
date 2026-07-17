@@ -128,6 +128,75 @@ return outer()
 }
 
 #[test]
+fn bytecode_recursive_closure_captures_survive() {
+    // L1: MakeArrowFn must not assign captured locals into the shared parent env.
+    let source = r#"
+fn walk(n) {
+    let slot = n
+    let get = () => slot
+    if n <= 0 {
+        return get()
+    }
+    let inner = walk(n - 1)
+    return get() * 10 + inner
+}
+return walk(3)
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(60)),
+        "recursive frames must keep their own captured slot (got {v:?})"
+    );
+}
+
+#[test]
+fn bytecode_arrow_sees_later_store_local_in_same_frame() {
+    let source = r#"
+fn run() {
+    let slot = 1
+    let get = () => slot
+    slot = 2
+    return get()
+}
+return run()
+"#;
+    let program = compile_source(source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(2)),
+        "arrow should share the activation frame (got {v:?})"
+    );
+}
+
+#[test]
+fn bytecode_module_scales_to_many_top_level_fns() {
+    // L2: register_functions must not deep-clone env per fn (was OOM/~7 fns).
+    let mut source = String::new();
+    for i in 0..40 {
+        source.push_str(&format!("fn f{i}() {{\n    return {i}\n}}\n"));
+    }
+    source.push_str("return f0() + f39()\n");
+    let program = compile_source(&source).unwrap();
+    let bc = program.bytecode.as_ref().unwrap();
+    assert!(
+        bc.functions.len() >= 40,
+        "expected ≥40 top-level fns, got {}",
+        bc.functions.len()
+    );
+    let mut env = create_global_env();
+    let v = run_module(bc, &mut env).unwrap();
+    assert!(
+        matches!(v, Value::Number(39)),
+        "f0()+f39() must be 39 (got {v:?})"
+    );
+}
+
+#[test]
 fn bytecode_object_param_mutations_write_back() {
     let source = r#"
 fn setKey(obj, k, v) {

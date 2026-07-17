@@ -72,13 +72,13 @@ cargo test --test self_host
 
 ## Designregler (lärt från lexern)
 
-1. **Modul-global state** — `let lxPos`, `let pPos`, `let pLeft`, `let eNode` på modulnivå. Kabootar har **inga re-entranta fn-lokaler**; rekursiva parser/emitter-anrop skriver över `let` i samma funktion.
+1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram (`set` / `share_bindings` för pile), inte `assign` upp i modul-env. Rekursiva anrop får egna ramar (L1). **Modul-global scratch** (`let lxPos`, `eNode`, …) används fortfarande för parser/emitter-state och tills L2/L3 tar bort behovet i self_host.
 2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`, inte bara `push(arr, item)`.
 3. **Spara AST-fält före rekursion** — t.ex. `eSym = eNode["sym"]` innan `emitExpr(init)`; `pCallee = pLeft` innan call-args.
 4. **Bracket-access för AST-nycklar** — undvik `.then`, `.sym`, `.value` där det krockar; använd `node["sym"]`.
 5. **Radbrytning** — `"\n"` är literal i Kabootar; använd `CHAR_NL` från `lexer_defs` i serializer.
 6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
-7. **≤~7 fn per modul** — fler privata fn kan ge stack overflow vid modul-init. **`lexer.kab`: max ~4 fn** (endast `lxScan` + exports); dela inte upp i `lxChar`/`lxPlus`/… som egna fn.
+7. **Modulskala (L2)** — ≥40 top-level `fn` per modul OK (`share_bindings` vid register/clone). Äldre gräns ~7/~14 fn var en host-bug, inte ett språkkrav. Dela fortfarande stora filer av läsbarhetsskäl.
 8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
 9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
 10. **Emitter: CALL-args i fn-kropp** — undvik var+literal i samma 2-arg `CALL`. Använd modul-global `ZERO = 0` + `char_code_at(ch, ZERO)`.
@@ -105,7 +105,7 @@ cargo test --test self_host
 31. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
 32. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
 33. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
-34. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. **Inga extra top-level fn** (Kabootar OOM vid ~14 fn/modul).
+34. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. Extra top-level fn är OK efter L2 (tidigare OOM ~14 fn).
 35. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
 36. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
 37. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).

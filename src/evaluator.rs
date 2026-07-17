@@ -807,7 +807,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                 params.clone(),
                 rest.clone(),
                 *body.clone(),
-                env.clone(),
+                env.share_bindings(),
                 *public,
                 *async_fn,
             );
@@ -829,7 +829,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                 params.clone(),
                 rest.clone(),
                 *body.clone(),
-                env.clone(),
+                env.share_bindings(),
                 false,
                 *async_fn,
             ))
@@ -1579,7 +1579,7 @@ fn expand_object_pieces(
                     params.clone(),
                     rest.clone(),
                     *body.clone(),
-                    env.clone(),
+                    env.share_bindings(),
                     false,
                     *async_fn,
                 );
