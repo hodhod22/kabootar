@@ -94,11 +94,16 @@ impl Default for DeviceManager {
 }
 
 impl DeviceManager {
-    /// Rescan host audio (cpal) and USB (serialport/nusb) devices.
+    /// Rescan host audio (cpal), USB, and network interfaces.
     pub fn refresh_hw(&mut self) -> usize {
         self.audio.refresh_host();
         self.usb.refresh_host();
-        self.devices.retain(|d| d.kind != DriverKind::Audio && d.kind != DriverKind::Usb);
+        let net_n = self.net.refresh_host();
+        self.devices.retain(|d| {
+            d.kind != DriverKind::Audio
+                && d.kind != DriverKind::Usb
+                && d.kind != DriverKind::Network
+        });
         for u in self.usb.list() {
             self.devices.push(DeviceDescriptor {
                 id: u.id.clone(),
@@ -121,9 +126,24 @@ impl DeviceManager {
                 status: "online",
             });
         }
+        for iface in self.net.interfaces() {
+            let vendor = if iface.name.starts_with("host-") || iface.name == "lo" {
+                "host"
+            } else {
+                "Kabootar"
+            };
+            self.devices.push(DeviceDescriptor {
+                id: format!("net-{}", iface.name),
+                kind: DriverKind::Network,
+                name: format!("NIC {}", iface.name),
+                vendor: vendor.into(),
+                status: if iface.up { "online" } else { "offline" },
+            });
+        }
+        let _ = net_n;
         self.devices
             .iter()
-            .filter(|d| d.id.starts_with("host-"))
+            .filter(|d| d.id.starts_with("host-") || d.id == "net-lo" || d.id.starts_with("net-host-"))
             .count()
     }
 
@@ -180,6 +200,11 @@ impl DeviceManager {
             self.audio.native_available().to_string(),
         );
         m.insert("usb_native".into(), self.usb.native_available().to_string());
+        m.insert("net_backend".into(), self.net.backend().into());
+        m.insert(
+            "net_ifaces".into(),
+            self.net.interfaces().len().to_string(),
+        );
         let (hid, serial, nusb) = self.usb.native_stats();
         m.insert("usb_hid_count".into(), hid.to_string());
         m.insert("usb_serial_count".into(), serial.to_string());

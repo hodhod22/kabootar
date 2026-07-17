@@ -102,10 +102,15 @@ impl FairScheduler {
 
     /// Cooperative preemption: penalize the running task's vruntime, then pick next.
     pub fn yield_running(&mut self) -> Option<SchedTask> {
+        self.preempt_running(10)
+    }
+
+    /// Forced preemption (timer/IRQ): larger timeslice penalty than cooperative yield.
+    pub fn preempt_running(&mut self, timeslice: u64) -> Option<SchedTask> {
         if let Some(tid) = self.running {
             if let Some(task) = self.tasks.get_mut(&tid) {
                 task.vruntime += match self.policy {
-                    SchedPolicy::Cfs => 10,
+                    SchedPolicy::Cfs => timeslice.max(1),
                     SchedPolicy::Realtime => 0,
                 };
                 let vr = task.vruntime;

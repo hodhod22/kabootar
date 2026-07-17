@@ -1,0 +1,8 @@
+// D1-rest / D4 / D5 smoke
+os_sched_enqueue("a");
+os_sched_tick();
+let raised = os_irq_raise(0, "timer");
+let info = os_netstack_info();
+let mons = os_display_monitors();
+print("preempt=" + raised.preempted + " net=" + info.backend + " mons=" + len(mons));
+raised.preempted;

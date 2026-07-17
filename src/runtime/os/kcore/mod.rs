@@ -50,6 +50,16 @@ impl KernelCore {
         self.scheduler.yield_running()
     }
 
+    /// Timer/IRQ forced preemption: pick next + record a context switch.
+    pub fn preempt_from_irq(&mut self, timeslice: u64) -> Option<(SchedTask, ContextSwitch)> {
+        self.ticks.fetch_add(1, Ordering::SeqCst);
+        self.hal.advance_timer();
+        let from = self.scheduler.running_tid().unwrap_or(0);
+        let next = self.scheduler.preempt_running(timeslice)?;
+        let sw = self.dispatcher.switch(from, next.tid);
+        Some((next, sw))
+    }
+
     pub fn sched_enqueue(&mut self, pid: u64, name: &str) -> u64 {
         self.scheduler.enqueue_task(pid, name)
     }
