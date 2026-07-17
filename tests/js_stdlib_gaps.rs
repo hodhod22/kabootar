@@ -147,3 +147,52 @@ Promise.try(() => 7)
     }
 }
 
+#[test]
+fn map_get_or_insert() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+let m = map_new()
+let a = map_get_or_insert(m, "k", 1)
+let b = map_get_or_insert(m, "k", 99)
+a + b + map_get(m, "k")
+"#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Number(3)), "got {v:?}");
+}
+
+#[test]
+fn map_get_or_insert_computed() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+let m = map_new()
+let calls = 0
+let a = map_get_or_insert_computed(m, "x", (k) => { calls = calls + 1; return 7 })
+let b = map_get_or_insert_computed(m, "x", (k) => { calls = calls + 1; return 8 })
+a + b + calls
+"#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Number(15)), "got {v:?}"); // 7+7+1
+}
+
+#[test]
+fn map_get_or_insert_method() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+let m = map_new()
+let a = m.getOrInsert("k", 5)
+let b = m.getOrInsert("k", 9)
+a + b
+"#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Number(10)), "got {v:?}");
+}
+

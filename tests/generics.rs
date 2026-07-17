@@ -622,3 +622,92 @@ return show_it<Shown>(Shown())
     let v = eval_source(src, &mut env).expect("where ok");
     assert!(matches!(v, Value::Number(42)), "got {v:?}");
 }
+
+#[test]
+fn r3_generic_struct_box() {
+    let src = r#"
+struct Box<T> {
+  value: T;
+  fn init(v: T) { self.value = v }
+  fn get(self) { return self.value }
+}
+let b = Box(42)
+return b.get()
+"#;
+    let program = compile_source(src).expect("parse/compile Box<T>");
+    let bc = try_compile(&program.stmts).expect("bytecode Box<T>");
+    let mut env = create_global_env();
+    let v = run_module(&bc, &mut env).expect("run Box<T>");
+    assert!(matches!(v, Value::Number(42)), "got {v:?}");
+}
+
+#[test]
+fn t2_generic_trait_implements() {
+    let src = r#"
+trait Show<T> { fn show(); }
+class Point implements Show<Number> {
+  x: number;
+  fn init(n) { this.x = n }
+  fn show() { return this.x }
+}
+let p = Point(3)
+return p.show()
+"#;
+    let program = compile_source(src).expect("parse/compile Show<T>");
+    let bc = try_compile(&program.stmts).expect("bytecode Show<T>");
+    let mut env = create_global_env();
+    let v = run_module(&bc, &mut env).expect("run Show<Number>");
+    assert!(matches!(v, Value::Number(3)), "got {v:?}");
+}
+
+#[test]
+fn t3_associated_types() {
+    let src = r#"
+trait Iter { type Item; fn next(); }
+class Counter implements Iter {
+  type Item = Number;
+  n: number;
+  fn init() { this.n = 0 }
+  fn next() { this.n = this.n + 1; return this.n }
+}
+let c = Counter()
+return c.next()
+"#;
+    let mut env = create_global_env();
+    let v = eval_source(src, &mut env).expect("associated types ok");
+    assert!(matches!(v, Value::Number(1)), "got {v:?}");
+}
+
+#[test]
+fn t3_associated_types_missing_errors() {
+    let src = r#"
+trait Iter { type Item; fn next(); }
+class Counter implements Iter {
+  n: number;
+  fn init() { this.n = 0 }
+  fn next() { this.n = this.n + 1; return this.n }
+}
+return Counter()
+"#;
+    let err = eval_source(src, &mut create_global_env()).expect_err("missing assoc type");
+    assert!(
+        err.contains("associated type") || err.contains("Item"),
+        "unexpected err: {err}"
+    );
+}
+
+#[test]
+fn t4_default_methods() {
+    let src = r#"
+trait HasId { fn id() { return 1 } }
+class Thing implements HasId {
+  fn init() {}
+}
+let obj = Thing()
+return obj.id()
+"#;
+    let mut env = create_global_env();
+    let v = eval_source(src, &mut env).expect("default method ok");
+    assert!(matches!(v, Value::Number(1)), "got {v:?}");
+}
+

@@ -243,6 +243,37 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].methods[0].typeParams[0], "T", "method type param")
 }
 
+// -- struct + self (R4) --------------------------------------------
+{
+    let src = "struct Point { x: number; fn sum(self) { return self.x } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "struct stmt")
+    assert_eq(ast.body[0].isStruct, 1, "isStruct")
+    assert_eq(ast.body[0].sym, "Point", "struct sym")
+    assert_eq(len(ast.body[0].fields), 1, "struct field count")
+    assert_eq(len(ast.body[0].methods), 1, "struct method count")
+    assert_eq(ast.body[0].methods[0].params[0], "self", "self param")
+}
+
+// -- trait (T5) ----------------------------------------------------
+{
+    let src = "trait Show { fn show(); }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_INTERFACE, "trait stmt")
+    assert_eq(ast.body[0].sym, "Show", "trait sym")
+    assert_eq(len(ast.body[0].methods), 1, "trait method count")
+}
+
+// -- where clause on fn (T5) ---------------------------------------
+{
+    let src = "fn id<T>(x) where T: Show { return x }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_FN, "fn with where")
+    assert_eq(len(ast.body[0].whereClause), 1, "where count")
+    assert_eq(ast.body[0].whereClause[0].typeParam, "T", "where type param")
+    assert_eq(ast.body[0].whereClause[0].traitName, "Show", "where trait")
+}
+
 // -- block ---------------------------------------------------------
 {
     let ast = parseTokens(tokenize("{ let a = 1; return a }"))

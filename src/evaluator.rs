@@ -594,14 +594,23 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
             }
             Ok(Value::Null)
         }
-        Stmt::Interface { name, methods } => {
+        Stmt::Interface {
+            name,
+            type_params,
+            associated_types,
+            methods,
+        } => {
             let def = InterfaceDef {
                 name: name.clone(),
+                type_params: type_params.clone(),
+                associated_types: associated_types.clone(),
                 methods: methods
                     .iter()
                     .map(|m| MethodSignature {
                         name: m.name.clone(),
                         params: m.params.clone(),
+                        default_body: m.body.clone(),
+                        default_bytecode: None,
                     })
                     .collect(),
             };
@@ -615,14 +624,16 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
             extends_type_args: _,
             implements,
             where_clause: _,
+            associated_types,
             fields,
             methods,
             is_struct,
         } => {
-            let def = ClassDef {
+            let mut def = ClassDef {
                 name: name.clone(),
                 extends: extends.clone(),
                 implements: implements.clone(),
+                associated_types: associated_types.clone(),
                 fields: fields
                     .iter()
                     .map(|f| FieldDef {
@@ -649,6 +660,7 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
                     .collect(),
                 is_struct: *is_struct,
             };
+            inject_interface_default_methods(&mut def, env)?;
             validate_class_interfaces(&def, env)?;
             env.classes_mut().register(def);
             Ok(Value::Null)
@@ -2078,15 +2090,68 @@ fn collect_class_method_arities(
     Ok(methods)
 }
 
+pub fn inject_interface_default_methods(
+    class_def: &mut ClassDef,
+    env: &Environment,
+) -> Result<(), String> {
+    if class_def.implements.is_empty() {
+        return Ok(());
+    }
+    let existing: HashSet<String> = class_def.methods.iter().map(|m| m.name.clone()).collect();
+    let mut to_inject = Vec::new();
+    for iface_name in &class_def.implements {
+        let base = iface_name.split('$').next().unwrap_or(iface_name);
+        let iface = env
+            .get_interface(iface_name)
+            .or_else(|| env.get_interface(base))
+            .ok_or_else(|| format!("Unknown interface: {}", iface_name))?;
+        for required in &iface.methods {
+            if existing.contains(&required.name) {
+                continue;
+            }
+            if required.default_body.is_none() && required.default_bytecode.is_none() {
+                continue;
+            }
+            to_inject.push(MethodDef {
+                name: required.name.clone(),
+                params: required.params.clone(),
+                body: required
+                    .default_body
+                    .clone()
+                    .unwrap_or(crate::ast::Expr::Literal(crate::ast::Literal::Null)),
+                bytecode: required.default_bytecode.clone(),
+                private: false,
+                owner_class: Some(class_def.name.clone()),
+            });
+        }
+    }
+    class_def.methods.extend(to_inject);
+    Ok(())
+}
+
 pub fn validate_class_interfaces(class_def: &ClassDef, env: &Environment) -> Result<(), String> {
     if class_def.implements.is_empty() {
         return Ok(());
     }
     let methods = collect_class_method_arities(class_def, env)?;
     for iface_name in &class_def.implements {
+        let base = iface_name.split('$').next().unwrap_or(iface_name);
         let iface = env
             .get_interface(iface_name)
+            .or_else(|| env.get_interface(base))
             .ok_or_else(|| format!("Unknown interface: {}", iface_name))?;
+        for assoc in &iface.associated_types {
+            if !class_def
+                .associated_types
+                .iter()
+                .any(|(n, _)| n == assoc)
+            {
+                return Err(format!(
+                    "Class {} does not declare associated type {}.{}",
+                    class_def.name, iface_name, assoc
+                ));
+            }
+        }
         for required in &iface.methods {
             let Some(arity) = methods.get(&required.name) else {
                 return Err(format!(

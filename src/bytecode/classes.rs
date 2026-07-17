@@ -5,7 +5,9 @@ use super::vm::{run_bytecode_fn, run_expr_snippet};
 use crate::class::{
     ClassDef, ClassInstance, FieldDef, InterfaceDef, MethodDef, MethodSignature, SharedClassInstance,
 };
-use crate::evaluator::{create_global_env, validate_class_interfaces};
+use crate::evaluator::{
+    create_global_env, inject_interface_default_methods, validate_class_interfaces,
+};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
 use std::cell::RefCell;
@@ -32,6 +34,7 @@ fn bytecode_class_to_def(class: &BytecodeClassDef) -> ClassDef {
         name: class.name.clone(),
         extends: class.extends.clone(),
         implements: class.implements.clone(),
+        associated_types: class.associated_types.clone(),
         fields: class
             .fields
             .iter()
@@ -79,12 +82,19 @@ pub fn register_module_interfaces(module: &BytecodeModule, env: &mut Environment
     for iface in &module.interfaces {
         env.classes_mut().register_interface(InterfaceDef {
             name: iface.name.clone(),
+            type_params: iface.type_params.clone(),
+            associated_types: iface.associated_types.clone(),
             methods: iface
                 .methods
                 .iter()
                 .map(|m| MethodSignature {
                     name: m.name.clone(),
                     params: m.params.clone(),
+                    default_body: None,
+                    default_bytecode: m
+                        .default_fn
+                        .as_ref()
+                        .map(|f| std::rc::Rc::new(f.clone())),
                 })
                 .collect(),
         });
@@ -93,7 +103,8 @@ pub fn register_module_interfaces(module: &BytecodeModule, env: &mut Environment
 
 pub fn register_module_classes(module: &BytecodeModule, env: &mut Environment) -> Result<(), String> {
     for class in &module.classes {
-        let def = bytecode_class_to_def(class);
+        let mut def = bytecode_class_to_def(class);
+        inject_interface_default_methods(&mut def, env)?;
         validate_class_interfaces(&def, env)?;
         env.classes_mut().register(def);
     }
@@ -172,6 +183,39 @@ fn materialize_class_instance(
                     .insert(method.name.clone(), method_def);
             } else {
                 instance.methods.insert(method.name.clone(), method_def);
+            }
+        }
+
+        // Inject interface default methods not already present on the class.
+        for iface_name in &class.implements {
+            let base = iface_name.split('$').next().unwrap_or(iface_name);
+            let Some(iface) = env
+                .get_interface(iface_name)
+                .or_else(|| env.get_interface(base))
+            else {
+                continue;
+            };
+            for required in &iface.methods {
+                if instance.methods.contains_key(&required.name)
+                    || instance.private_methods.contains_key(&required.name)
+                {
+                    continue;
+                }
+                if required.default_bytecode.is_none() && required.default_body.is_none() {
+                    continue;
+                }
+                let method_def = MethodDef {
+                    name: required.name.clone(),
+                    params: required.params.clone(),
+                    body: required
+                        .default_body
+                        .clone()
+                        .unwrap_or(crate::ast::Expr::Literal(crate::ast::Literal::Null)),
+                    bytecode: required.default_bytecode.clone(),
+                    private: false,
+                    owner_class: Some(class.name.clone()),
+                };
+                instance.methods.insert(required.name.clone(), method_def);
             }
         }
 

@@ -1,10 +1,11 @@
-//! Compile-time ownership check for `@manual` modules (Våg O1–O3).
+//! Compile-time ownership check for `@manual` modules (Våg O1–O4, R2).
 //!
 //! GC modules are skipped. Not Rust lifetimes — affine Owned + borrows.
+//! Struct types are affine in `@manual` (same Place as MemBox Owned).
 
 use crate::ast::*;
 use crate::lang_preprocess::MemoryMode;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Place {
@@ -23,12 +24,29 @@ struct Checker {
     places: HashMap<String, Place>,
     mut_borrows: HashMap<String, usize>,
     shared_borrows: HashMap<String, usize>,
+    struct_types: HashSet<String>,
     errors: Vec<String>,
 }
 
 impl Checker {
     fn err(&mut self, msg: impl Into<String>) {
         self.errors.push(msg.into());
+    }
+
+    fn is_owned_type(&self, t: Option<&KabType>) -> bool {
+        match t {
+            Some(KabType::Named(n)) if n == "Owned" || self.struct_types.contains(n) => true,
+            _ => false,
+        }
+    }
+
+    fn is_ref_owned_type(&self, t: Option<&KabType>) -> bool {
+        match t {
+            Some(KabType::Ref(inner) | KabType::RefMut(inner)) => {
+                matches!(inner.as_ref(), KabType::Named(n) if n == "Owned" || self.struct_types.contains(n))
+            }
+            _ => false,
+        }
     }
 
     fn check_program(&mut self, stmts: &[Stmt]) {
@@ -65,7 +83,15 @@ impl Checker {
                 self.check_expr(e, Consume::Move);
             }
             Stmt::Return(None) | Stmt::Interface { .. } | Stmt::Enum { .. } | Stmt::Import { .. } => {}
-            Stmt::Class { methods, .. } => {
+            Stmt::Class {
+                name,
+                is_struct,
+                methods,
+                ..
+            } => {
+                if *is_struct {
+                    self.struct_types.insert(name.clone());
+                }
                 for m in methods {
                     // ClassMethod params are untyped strings today — still walk body.
                     let params: Vec<FnParam> = m
@@ -89,9 +115,9 @@ impl Checker {
     fn check_fn(&mut self, params: &[FnParam], body: &Expr) {
         let snap = self.snapshot();
         for p in params {
-            if is_owned_type(p.type_ann.as_ref()) {
+            if self.is_owned_type(p.type_ann.as_ref()) {
                 self.places.insert(p.name.clone(), Place::Owned);
-            } else if is_ref_owned_type(p.type_ann.as_ref()) {
+            } else if self.is_ref_owned_type(p.type_ann.as_ref()) {
                 self.places.remove(&p.name);
             }
         }
@@ -158,7 +184,11 @@ impl Checker {
                 let fname = call_name(func);
                 let peek_api = is_peek_api(fname.as_deref());
                 let move_api = is_move_api(fname.as_deref());
-                let produces = is_alloc_api(fname.as_deref()) || move_api;
+                let struct_ctor = matches!(
+                    func.as_ref(),
+                    Expr::Variable(n) if self.struct_types.contains(n)
+                );
+                let produces = is_alloc_api(fname.as_deref()) || move_api || struct_ctor;
 
                 if !matches!(func.as_ref(), Expr::Variable(_)) {
                     self.check_expr(func, Consume::Peek);
@@ -539,19 +569,6 @@ impl Checker {
         }
         self.mut_borrows.clear();
         self.shared_borrows.clear();
-    }
-}
-
-fn is_owned_type(t: Option<&KabType>) -> bool {
-    matches!(t, Some(KabType::Named(n)) if n == "Owned")
-}
-
-fn is_ref_owned_type(t: Option<&KabType>) -> bool {
-    match t {
-        Some(KabType::Ref(inner) | KabType::RefMut(inner)) => {
-            matches!(inner.as_ref(), KabType::Named(n) if n == "Owned")
-        }
-        _ => false,
     }
 }
 

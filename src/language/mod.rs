@@ -389,6 +389,8 @@ const BUILTINS: &[&str] = &[
     "map_new",
     "map_set",
     "map_get",
+    "map_get_or_insert",
+    "map_get_or_insert_computed",
     "map_has",
     "map_delete",
     "map_clear",

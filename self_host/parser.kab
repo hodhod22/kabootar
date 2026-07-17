@@ -67,6 +67,12 @@ let pVariantName = ""
 let pVariantSym = ""
 let pEnumSym = ""
 let pClassSym = ""
+let pIsStruct = 0
+let pIfaceSym = ""
+let pIfaceMethods = []
+let pWhereClause = []
+let pWhereParam = ""
+let pWhereTrait = ""
 let pSnapTypeArgs = []
 let pParamType = ""
 
@@ -216,6 +222,20 @@ fn parsePostfix() {
             bump()
             pSymPool = push(pSymPool, symCopy(pTok.value))
             pLeft = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_SELF {
+            bump()
+            pLeft = { "kind": AST_VAR, "sym": "self" }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_THIS {
+            bump()
+            pLeft = { "kind": AST_VAR, "sym": "this" }
         }
     }
     if pLeft == null {
@@ -589,10 +609,17 @@ fn parseStmt() {
         bump()
         return { "kind": AST_ENUM, "sym": pEnumSym, "typeParams": pTypeParams, "variants": pVariants }
     }
-    if peek().type == TOKEN_CLASS {
+    if peek().type == TOKEN_CLASS || peek().type == TOKEN_STRUCT {
+        pIsStruct = 0
+        if peek().type == TOKEN_STRUCT {
+            pIsStruct = 1
+        }
         bump()
         pTok = peek()
         if pTok.type != TOKEN_IDENT {
+            if pIsStruct == 1 {
+                throw "Expected struct name"
+            }
             throw "Expected class name"
         }
         bump()
@@ -623,23 +650,30 @@ fn parseStmt() {
                 if peek().type != ")" {
                     while true {
                         pTok = peek()
-                        if pTok.type != TOKEN_IDENT {
-                            throw "Expected parameter name"
-                        }
-                        bump()
-                        pSymPool = push(pSymPool, symCopy(pTok.value))
-                        pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
-                        pParamType = ""
-                        if peek().type == ":" {
+                        if pTok.type == TOKEN_SELF {
                             bump()
-                            pTok = peek()
+                            pSymPool = push(pSymPool, "self")
+                            pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                            pMethParamTypes = push(pMethParamTypes, "")
+                        } else {
                             if pTok.type != TOKEN_IDENT {
-                                throw "Expected parameter type"
+                                throw "Expected parameter name"
                             }
                             bump()
-                            pParamType = symCopy(pTok.value)
+                            pSymPool = push(pSymPool, symCopy(pTok.value))
+                            pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                            pParamType = ""
+                            if peek().type == ":" {
+                                bump()
+                                pTok = peek()
+                                if pTok.type != TOKEN_IDENT {
+                                    throw "Expected parameter type"
+                                }
+                                bump()
+                                pParamType = symCopy(pTok.value)
+                            }
+                            pMethParamTypes = push(pMethParamTypes, pParamType)
                         }
-                        pMethParamTypes = push(pMethParamTypes, pParamType)
                         if peek().type == "," {
                             bump()
                         } else {
@@ -715,7 +749,72 @@ fn parseStmt() {
             "sym": pClassSym,
             "typeParams": pTypeParams,
             "fields": pClassFields,
-            "methods": pClassMethods
+            "methods": pClassMethods,
+            "isStruct": pIsStruct
+        }
+    }
+    if peek().type == TOKEN_INTERFACE || peek().type == TOKEN_TRAIT {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected interface/trait name"
+        }
+        bump()
+        pIfaceSym = symCopy(pTok.value)
+        pTypeParams = parseTypeArgs()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pIfaceMethods = []
+        while peek().type != "}" {
+            if peek().type != TOKEN_FN {
+                throw "Expected fn in interface"
+            }
+            bump()
+            pTok = peek()
+            if pTok.type != TOKEN_IDENT {
+                throw "Expected method name"
+            }
+            bump()
+            pFnSym = symCopy(pTok.value)
+            if peek().type != "(" {
+                throw "Expected ("
+            }
+            bump()
+            pMethParams = []
+            if peek().type != ")" {
+                while true {
+                    pTok = peek()
+                    if pTok.type != TOKEN_IDENT {
+                        throw "Expected parameter name"
+                    }
+                    bump()
+                    pSymPool = push(pSymPool, symCopy(pTok.value))
+                    pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                    if peek().type == "," {
+                        bump()
+                    } else {
+                        break
+                    }
+                }
+            }
+            if peek().type != ")" {
+                throw "Expected )"
+            }
+            bump()
+            if peek().type != ";" {
+                throw "Expected ;"
+            }
+            bump()
+            pIfaceMethods = push(pIfaceMethods, { "sym": pFnSym, "params": pMethParams })
+        }
+        bump()
+        return {
+            "kind": AST_INTERFACE,
+            "sym": pIfaceSym,
+            "typeParams": pTypeParams,
+            "methods": pIfaceMethods
         }
     }
     if peek().type == TOKEN_FN {
@@ -775,6 +874,37 @@ fn parseStmt() {
             bump()
             pReturnType = symCopy(pTok.value)
         }
+        pWhereClause = []
+        if peek().type == TOKEN_WHERE {
+            bump()
+            while true {
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected type parameter in where"
+                }
+                bump()
+                pWhereParam = symCopy(pTok.value)
+                if peek().type != ":" {
+                    throw "Expected : in where"
+                }
+                bump()
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected trait name in where"
+                }
+                bump()
+                pWhereTrait = symCopy(pTok.value)
+                pWhereClause = push(pWhereClause, {
+                    "typeParam": pWhereParam,
+                    "traitName": pWhereTrait
+                })
+                if peek().type == "," {
+                    bump()
+                } else {
+                    break
+                }
+            }
+        }
         if peek().type != "{" {
             throw "Expected {"
         }
@@ -802,6 +932,7 @@ fn parseStmt() {
             "params": pParams,
             "paramTypes": pParamTypes,
             "returnType": pReturnType,
+            "whereClause": pWhereClause,
             "body": { "kind": AST_BLOCK, "body": fnBody }
         }
     }

@@ -54,6 +54,11 @@ pub fn get_member_value(obj: &Value, field: &str, env: &mut Environment) -> Resu
         Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
         Value::String(s) if field == "length" => Ok(Value::Number(s.chars().count() as i64)),
         Value::Object(map) => {
+            if crate::runtime::stdlib::map::is_map_value(obj) {
+                if let Some(native) = crate::runtime::stdlib::map::map_instance_method(field) {
+                    return Ok(Value::BoundNative(Box::new(obj.clone()), native));
+                }
+            }
             if crate::runtime::stdlib::async_iterator::needs_async_instance_methods(obj)
                 && crate::runtime::stdlib::async_iterator::is_async_instance_method(field)
             {

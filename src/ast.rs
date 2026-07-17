@@ -249,6 +249,8 @@ pub struct ClassMethod {
 pub struct InterfaceMethod {
     pub name: String,
     pub params: Vec<String>,
+    /// Default method body (`fn id() { … }`); `None` when declared with `;`.
+    pub body: Option<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -278,6 +280,9 @@ pub enum Stmt {
     },
     Interface {
         name: String,
+        type_params: Vec<String>,
+        /// Associated type names (`type Item;`).
+        associated_types: Vec<String>,
         methods: Vec<InterfaceMethod>,
     },
     Enum {
@@ -292,6 +297,8 @@ pub enum Stmt {
         extends_type_args: Vec<String>,
         implements: Vec<String>,
         where_clause: Vec<WhereBound>,
+        /// Associated type bindings (`type Item = Number;`).
+        associated_types: Vec<(String, String)>,
         fields: Vec<ClassField>,
         methods: Vec<ClassMethod>,
         /// `struct` declaration (R1) — methods use `self`, not `this`.

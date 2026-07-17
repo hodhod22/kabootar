@@ -363,35 +363,52 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 
 ## Traits (Våg G5 ✅ subset → Våg T)
 
-`trait` är idag ett alias för `interface`. **Full traits** planeras i ROADMAP **Våg T**:
+`trait` är ett alias för `interface`. **Våg T** status:
 
 | Fas | Innehåll |
 |-----|----------|
 | T0 | `trait` ≈ `interface` + `implements` ✅ |
-| T1 | `where T: Trait` |
-| T2 | Generiska traits `trait Show<T>` |
-| T3 | Associated types |
-| T4 | Default-metoder |
-| T5 | Self-host |
+| T1 | `where T: Trait` ✅ |
+| T2 | Generiska traits `trait Show<T>` ✅ |
+| T3 | Associated types ✅ subset |
+| T4 | Default-metoder ✅ |
+| T5 | Self-host ✅ subset |
 
 ```kabootar
-trait Show {
-    fn show();
+trait Iter {
+    type Item;
+    fn next();
 }
 
-class Box implements Show {
-    fn show() {
-        return "Box"
-    }
+class Counter implements Iter {
+    type Item = Number;
+    n: number;
+    fn init() { this.n = 0 }
+    fn next() { this.n = this.n + 1; return this.n }
 }
+```
+
+Default-metoder i trait-kropp injiceras om klassen saknar metoden:
+
+```kabootar
+trait HasId {
+    fn id() { return 1 }
+}
+
+class Thing implements HasId {
+    fn init() {}
+}
+// Thing().id() → 1
 ```
 
 | Beslut | Status |
 |--------|--------|
 | Syntax | `trait Name { fn … }` ✅ (= interface) |
 | `implements` på klass | ✅ |
-| Bounds `where T: Show` | 📋 T1 |
-| Generiska traits `trait Show<T>` | 📋 T2 |
+| Bounds `where T: Show` | ✅ T1 |
+| Generiska traits `trait Show<T>` | ✅ T2 |
+| Associated types `type Item;` / `type Item = T;` | ✅ T3 subset |
+| Default-metoder | ✅ T4 |
 
 **Icke-mål:** HKT, `dyn Trait`, Rust-coherence.
 

@@ -1,0 +1,37 @@
+name: Self-host bootstrap
+
+on:
+  push:
+    paths:
+      - "self_host/**"
+      - "src/**"
+      - "tests/self_host.rs"
+      - "tests/kv8_lib.rs"
+      - "lib/kv8/**"
+  pull_request:
+    paths:
+      - "self_host/**"
+      - "src/**"
+      - "tests/self_host.rs"
+      - "tests/kv8_lib.rs"
+      - "lib/kv8/**"
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: S3 self-host bootstrap gate
+        run: cargo test --test self_host self_host_bootstrap_compile_and_run -- --test-threads=1
+      - name: Ownership suite (optional)
+        run: cargo test --test self_host self_host_ownership_suite -- --test-threads=1
+        continue-on-error: true
+
+  kv8-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: K1 kv8_lib gate (lexer/parser)
+        run: cargo test --test kv8_lib -- --test-threads=1
