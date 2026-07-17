@@ -243,14 +243,19 @@ fn register_functions(module: &BytecodeModule, env: &mut Environment) -> Result<
             f.name.clone(),
             Value::BytecodeFn(BytecodeFunction {
                 def: Rc::new(f),
-                closure: env.clone(),
+                // Share the module frame — `env.clone()` per fn recurses through prior
+                // BytecodeFn closures and OOMs (~7–14 top-level fns). Mutual visibility
+                // is rebuilt in `refresh_function_closures` after main runs.
+                closure: env.share_bindings(),
             }),
         );
     }
     Ok(())
 }
 
-/// Copy live local slots into `env` so nested `MakeArrowFn` closures capture them.
+/// Copy live local slots into *this* activation frame so `MakeArrowFn` can capture them.
+/// Always `set` on the current frame — never `assign` into a parent/module env (that breaks
+/// reentrant calls that share the same local names).
 fn sync_locals_into_env(locals: &[String], local_vals: &[Value], env: &mut Environment) {
     for (i, name) in locals.iter().enumerate() {
         if name.starts_with("__kab_") {
@@ -262,11 +267,7 @@ fn sync_locals_into_env(locals: &[String], local_vals: &[Value], env: &mut Envir
         if matches!(v, Value::Undefined) {
             continue;
         }
-        if env.get(name).is_some() {
-            let _ = env.assign(name, v.clone());
-        } else {
-            env.set(name.clone(), v.clone());
-        }
+        env.set(name.clone(), v.clone());
     }
 }
 
@@ -337,9 +338,15 @@ fn store_local_to_env(
         return Ok(());
     }
     if immutable_locals.get(i) == Some(&true) {
-        if env.get(name).is_none() {
+        if !env.has_own_binding(name) && env.get(name).is_none() {
             env.set_const(name.clone(), v.clone());
         }
+        return Ok(());
+    }
+    // Fresh fn-local → shadow on this frame. Captured name (visible on parent) → assign
+    // into the shared activation so arrows and the enclosing fn see the same binding.
+    if env.has_own_binding(name) {
+        env.set(name.clone(), v.clone());
     } else if env.get(name).is_some() {
         env.assign(name, v.clone())?;
     } else {
@@ -430,6 +437,21 @@ fn run_chunk(
             for (i, param) in func.params.iter().enumerate() {
                 if let Some(idx) = locals.iter().position(|l| l == param) {
                     local_vals[idx] = arg_vals.get(i).cloned().unwrap_or(Value::Undefined);
+                }
+            }
+            // Captured enclosing locals are LoadLocal slots: seed from the closure env
+            // (MakeArrowFn shares the enclosing activation via share_bindings).
+            for (idx, name) in locals.iter().enumerate() {
+                if name.starts_with("__kab_") {
+                    continue;
+                }
+                if !matches!(local_vals.get(idx), Some(Value::Undefined) | None) {
+                    continue;
+                }
+                if let Some(v) = env.get(name) {
+                    if !matches!(v, Value::Undefined) {
+                        local_vals[idx] = v;
+                    }
                 }
             }
         }
@@ -605,8 +627,10 @@ fn run_chunk(
                 if args.is_none() {
                     pull_env_into_local_vals(locals, &mut local_vals, env);
                 } else {
-                    // Object params are cloned into callees; writeback_object_args merges into
-                    // `env` by oid — sync only those object locals (not scalar slots).
+                    // Nested bytecode fn: refresh captures mutated via shared env, and
+                    // object params written back by oid. Safe once fn-locals no longer
+                    // assign into the caller's frame (L1).
+                    pull_env_into_local_vals(locals, &mut local_vals, env);
                     pull_object_locals_from_env(locals, &mut local_vals, env);
                 }
                 push_stack(stack, result)?;
@@ -815,9 +839,11 @@ fn run_chunk(
                 if f.constants.is_empty() {
                     f.constants = constants.to_vec();
                 }
+                // Share this activation frame so later StoreLocal updates are visible,
+                // without aliasing recursive sibling frames (each call has its own env).
                 push_stack(stack, Value::BytecodeFn(BytecodeFunction {
                     def: Rc::new(f),
-                    closure: env.clone(),
+                    closure: env.share_bindings(),
                 }))?;
             }
             Opcode::JumpUnlessResultOk(off) => {

@@ -29,10 +29,20 @@ pub enum AsyncBody {
 }
 
 /// Bytecode function value with the defining environment for `LoadGlobal`.
-#[derive(Clone)]
 pub struct BytecodeFunction {
     pub def: std::rc::Rc<crate::bytecode::BytecodeFnDef>,
     pub closure: Environment,
+}
+
+impl Clone for BytecodeFunction {
+    fn clone(&self) -> Self {
+        // Alias the activation/module frame — deep-cloning `Environment` here recurses
+        // through every other module fn and OOMs around ~7–14 top-level functions (L2).
+        Self {
+            def: self.def.clone(),
+            closure: self.closure.share_bindings(),
+        }
+    }
 }
 
 impl std::fmt::Debug for BytecodeFunction {
@@ -322,9 +332,13 @@ impl Clone for Environment {
 impl Environment {
     /// Snapshot bindings for closure refresh without embedding other module functions.
     pub fn clone_excluding(&self, names: &[&str]) -> Self {
-        let mut bindings = self.inner.bindings.borrow().clone();
-        for name in names {
-            bindings.remove(*name);
+        let skip: HashSet<&str> = names.iter().copied().collect();
+        let mut bindings = HashMap::new();
+        for (k, v) in self.inner.bindings.borrow().iter() {
+            if skip.contains(k.as_str()) {
+                continue;
+            }
+            bindings.insert(k.clone(), v.clone());
         }
         Self {
             inner: Rc::new(EnvironmentInner {
@@ -685,6 +699,11 @@ impl Environment {
             current = node.parent.as_ref().map(Rc::as_ref);
         }
         None
+    }
+
+    /// True if `name` is bound on this frame only (not merely via parent).
+    pub fn has_own_binding(&self, name: &str) -> bool {
+        self.inner.bindings.borrow().contains_key(name)
     }
 
     pub fn set(&mut self, name: String, value: Value) {

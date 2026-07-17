@@ -4,16 +4,22 @@ use crate::bytecode::BytecodeFnDef;
 use crate::value::{BytecodeFunction, Environment, Value};
 
 pub fn sync_closure_writes(closure: &Environment, call_env: &Environment, root: &mut Environment) {
-    for name in call_env.all_binding_names() {
+    // Only own bindings of the call frame — not the parent chain — and only names that
+    // already exist on `closure` (module / captured). Pure fn-locals must not be written
+    // into the caller's activation (breaks recursive frames with the same local names).
+    for name in call_env.local_names() {
         let Some(v) = call_env.get(&name) else {
             continue;
         };
         if matches!(v, Value::Undefined) {
             continue;
         }
+        if closure.get(&name).is_none() {
+            continue;
+        }
         if root.get(&name).is_some() {
             let _ = root.assign(&name, v);
-        } else if closure.get(&name).is_some() {
+        } else {
             root.set(name, v);
         }
     }
