@@ -482,6 +482,16 @@ pub fn entries_native(args: &[Value], env: &mut Environment) -> Result<Value, St
     }
 }
 
+pub fn array_to_locale_string_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let items = array_arg(args.first().ok_or("array_to_locale_string(arr)")?)?;
+    let parts: Vec<String> = items.iter().map(crate::value::format_value).collect();
+    Ok(Value::String(parts.join(",")))
+}
+
+pub fn array_to_locale_string_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    array_to_locale_string_native(args, env)
+}
+
 pub fn register_array(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("reduce", reduce_native),
@@ -532,6 +542,8 @@ pub fn register_array(env: &mut Environment) {
         ("array_with", array_with_native),
         ("values", values_native),
         ("entries", entries_native),
+        ("array_to_locale_string", array_to_locale_string_native),
+        ("to_locale_string", array_to_locale_string_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));

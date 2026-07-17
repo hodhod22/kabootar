@@ -362,6 +362,33 @@ pub fn text_search_regex(pattern: &str, text: &str) -> Result<i64, String> {
     }
 }
 
+/// JS `String.prototype.matchAll` — all matches as array of capture arrays (global flag implied).
+pub fn text_match_all_regex(pattern: &str, text: &str) -> Result<Vec<Vec<String>>, String> {
+    let (pattern, flags) = parse_pattern_and_flags(pattern);
+    let mut flags = normalize_flags(&flags);
+    if !flags.contains('g') {
+        flags.push('g');
+    }
+    let re = compile_regex(&pattern, &flags)?;
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    loop {
+        let Some((abs_start, abs_end, groups)) = regex_find_at(&re, text, start)? else {
+            break;
+        };
+        out.push(groups);
+        if abs_end <= abs_start {
+            start = abs_start.saturating_add(1);
+        } else {
+            start = abs_end;
+        }
+        if start > text.len() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 /// JS `String.prototype.match` — first match as array (index 0 = full match), or null.
 pub fn text_match_regex(pattern: &str, text: &str) -> Result<Option<Value>, String> {
     let (pattern, flags) = parse_pattern_and_flags(pattern);
@@ -408,5 +435,13 @@ mod tests {
         let re = compile_regex(r"(?<=@)\w+", "").unwrap();
         let caps = regex_captures(&re, "user@host").unwrap().unwrap();
         assert_eq!(caps.get(0).unwrap().as_str(), "host");
+    }
+
+    #[test]
+    fn match_all_finds_all_digits() {
+        let all = text_match_all_regex(r"\d", "a1b22").unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0][0], "1");
+        assert_eq!(all[2][0], "2");
     }
 }

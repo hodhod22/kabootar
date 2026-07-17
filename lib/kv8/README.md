@@ -33,7 +33,7 @@ Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` 
 `import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?, cleanup?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
-- **Live Dom patch:** `hooks["nid"]` (number id from `hostCall("id")`); same-type `setState` calls `setTextById` / `setAttrById` / `clearChildrenById`+`appendTextById` via Rust live registry. `patched: true` when id reuses. Never store `KabootarDom` in `.kab` lets; avoid local name `id` (env writeback clash). Fiber field writes inside `mount` do not stick — keep ids on the hooks bag.
+- **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` (tag mismatch → remount); `setTextById` / `setAttrById` / multi-child append; `onById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
 - `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.
 
@@ -49,7 +49,7 @@ Notes:
 - Always use `--test-threads=1` on Windows; parallel `kv8_lib_slow` fights over `.kbc` / linker.
 - After editing `lib/kv8/*.kab`, set `KABOOTAR_KV8_INVALIDATE=1` (or `rm .kabootar/cache/*.kbc`) so tests refresh bytecode.
 - If `LNK1104` / locked `kv8_lib_slow*.exe`, kill hung `kabootar.exe` / test processes before rebuild.
-- Eval cases share one process-local env (`with_kv8_eval`) so `import "kv8/eval"` runs once.
+- Eval cases share one process-local env (`with_kv8_eval`) so `import "kv8/eval"` runs once; `warm_kv8_module_exports()` + disk `.kbc` warm in `kv8_lib_slow` reuse imports across react smokes.
 - `react.kab`: keep ≤~7 top-level fns; never rebind hook bags — mutate and assign back (`fiber["$hooks"] = hooks`).
 
 ## Cache

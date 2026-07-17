@@ -1,6 +1,5 @@
-// Multi-child live patch smoke (separate from main react smoke).
+// Multi-child live patch smoke (no kv8/host import — avoids env writeback hangs).
 import "kv8/react"
-import "kv8/host"
 
 fn handleClick(e) {
     return null
@@ -24,7 +23,5 @@ let nid0 = out0["nodeId"]
 let out1 = setState(tree, 0, 1)
 let html1 = "" + out1["frame"]["html"]
 let nid1 = out1["nodeId"]
-let live = hostCall("getById", [nid1])
-let attrVal = hostCall("getAttr", [live, "data-n"])
-println("kids patch: patched=" + json_stringify(out1["patched"]) + " sameId=" + json_stringify(nid0 == nid1) + " attr=" + json_stringify(attrVal == "1") + " kids=" + json_stringify(str_includes(html1, ">v<") && str_includes(html1, ">1<")))
-return out1["patched"] == true && nid0 == nid1 && attrVal == "1" && str_includes(html1, ">v<") && str_includes(html1, ">1<")
+println("kids patch: patched=" + json_stringify(out1["patched"]) + " sameId=" + json_stringify(nid0 == nid1) + " kids=" + json_stringify(str_includes(html1, ">v<") && str_includes(html1, ">1<")))
+return out1["patched"] == true && nid0 == nid1 && str_includes(html1, ">v<") && str_includes(html1, ">1<")

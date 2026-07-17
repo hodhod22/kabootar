@@ -358,6 +358,10 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
         Value::NativeFunction(kdom_get_by_id_native),
     );
     env.set(
+        "kdom_on_by_id".to_string(),
+        Value::NativeFunction(kdom_on_by_id_native),
+    );
+    env.set(
         "kdom_clear_children".to_string(),
         Value::NativeFunction(kdom_clear_children_native),
     );
@@ -676,6 +680,25 @@ fn kdom_get_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value
         Some(node) => Value::KabootarDom(node),
         None => Value::Null,
     })
+}
+
+fn kdom_on_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n as u64,
+        _ => return Err("kdom_on_by_id() expects numeric id".into()),
+    };
+    let event = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("kdom_on_by_id() expects event name".into()),
+    };
+    let handler = match args.get(2) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("kdom_on_by_id() expects handler name".into()),
+    };
+    let mut node = live_get(id).ok_or_else(|| format!("kdom_on_by_id: unknown id {id}"))?;
+    node.on(event, handler);
+    live_upsert(&node);
+    Ok(Value::KabootarDom(node))
 }
 
 fn kdom_clear_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

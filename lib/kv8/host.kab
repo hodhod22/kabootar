@@ -34,6 +34,9 @@ pub fn hostCall(hostName, hostArgs) {
     if hostName == "getById" {
         return kdom_get_by_id(hostArgs[0])
     }
+    if hostName == "onById" {
+        return kdom_on_by_id(hostArgs[0], hostArgs[1], hostArgs[2])
+    }
     if hostName == "getAttr" {
         return kdom_get_attr(hostArgs[0], hostArgs[1])
     }

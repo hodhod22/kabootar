@@ -291,6 +291,44 @@ fn str_match_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     }
 }
 
+fn str_match_all_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let text = str_arg(args.first().ok_or("str_match_all(text, pattern)")?)?;
+    let pattern = str_arg(args.get(1).ok_or("str_match_all(text, pattern)")?)?;
+    let matches = crate::runtime::stdlib::regex::text_match_all_regex(pattern, text)?;
+    Ok(Value::Array(
+        matches
+            .into_iter()
+            .map(|groups| Value::Array(groups.into_iter().map(Value::String).collect()))
+            .collect(),
+    ))
+}
+
+fn str_to_locale_string_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let s = str_arg(args.first().ok_or("str_to_locale_string(s, ...locales)")?)?;
+    Ok(Value::String(s.to_string()))
+}
+
+fn str_match_all_bound(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let text = str_arg(args.first().ok_or("matchAll receiver")?)?;
+    let pattern = str_arg(args.get(1).ok_or("matchAll(pattern)")?)?;
+    str_match_all_native(
+        &[Value::String(text.to_string()), Value::String(pattern.to_string())],
+        _env,
+    )
+}
+
+pub fn str_match_all_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_match_all_bound(args, env)
+}
+
+fn str_to_locale_string_bound(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_to_locale_string_native(args, env)
+}
+
+pub fn str_to_locale_string_method(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    str_to_locale_string_bound(args, env)
+}
+
 fn str_locale_compare_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let a = str_arg(args.first().ok_or("str_locale_compare(a, b)")?)?;
     let b = str_arg(args.get(1).ok_or("str_locale_compare(a, b)")?)?;
@@ -344,6 +382,10 @@ pub fn register_string(env: &mut Environment) {
         ("string_search", str_search_native),
         ("str_match", str_match_native),
         ("string_match", str_match_native),
+        ("str_match_all", str_match_all_native),
+        ("string_match_all", str_match_all_native),
+        ("str_to_locale_string", str_to_locale_string_native),
+        ("string_to_locale_string", str_to_locale_string_native),
         ("str_locale_compare", str_locale_compare_native),
         ("string_locale_compare", str_locale_compare_native),
     ];

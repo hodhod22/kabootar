@@ -572,7 +572,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **G1** | **`lib/std/*`**, [STDLIB.md](STDLIB.md), `str_match`/`str_search`, hyperbolic Math | ✅ subset |
-| **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | 🚧 (`arr.push` via `ArrayPush` opcode + writeback; matchAll/toLocaleString kvar) |
+| **G2** | `matchAll`, `toLocaleString`, array member `push` på uttryck (bytecode) | ✅ (`ArrayPush`; `str_match_all` / `.matchAll`; `toLocaleString` på str/array) |
 | **G3** | `import "std"` aggregator, Intl-localeCompare | 🚧 (`pub import "std/*"`) |
 | **G4** | Math rest (`f16round`, `sumPrecise`) | 🚧 |
 | **G5** | **Traits** — `trait Show { fn show<T>(self) }`, bounds i generics ([GENERICS.md#traits](GENERICS.md#traits)) | 🚧 design |
@@ -580,7 +580,7 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G7** | **kbrowser mobil** — Android + iPhone/iOS; touch, viewport, safe area, mobil shell/PWA; se [BROWSER.md#mobil-android--iphone](BROWSER.md#mobil-android--iphone) | 📋 planerat |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | 🚧 |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
-| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`useState`/`useEffect` cleanup arg/`setTextById`+`setAttrById`+multi-child patch/`onClick`) |
+| **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`useState`/`useEffect` cleanup/`ntag` patch/`onById`/`setTextById`+attr+multi-child) |
 | **G10b** | **Ownership v1** — opt-in `@manual` + `owned_*` / `import "os/mem"` (+ `os/display_buf`; GC default orörd) | ✅ subset |
 | **G11** | **kbrowser cross-platform** — samma `kb_*`-API på **kOS** + **4 desktop-värd-OS** + **mobil (Android, iPhone)**; se [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål) | 📋 planerat |
 
