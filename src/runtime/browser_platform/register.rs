@@ -267,6 +267,11 @@ fn webrtc_create_offer_native(args: &[Value], _env: &mut Environment) -> Result<
     Ok(Value::String(webrtc::create_offer(id)?))
 }
 
+fn webrtc_create_answer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    Ok(Value::String(webrtc::create_answer(id)?))
+}
+
 fn webrtc_set_remote_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
     let sdp = expect_str(args, 1, "webrtc_set_remote(id, sdp)")?;
@@ -287,6 +292,25 @@ fn webrtc_gather_ice_native(args: &[Value], _env: &mut Environment) -> Result<Va
             })
             .collect(),
     ))
+}
+
+fn webrtc_add_ice_candidate_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let cand = expect_str(args, 1, "webrtc_add_ice_candidate(peer, candidate, mid?)")?;
+    let mid = args
+        .get(2)
+        .and_then(|v| match v {
+            Value::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .unwrap_or("0");
+    Ok(Value::Bool(webrtc::add_ice_candidate(id, &cand, mid)?))
+}
+
+fn webrtc_connect_peers_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = expect_num(args, 0)? as u64;
+    let b = expect_num(args, 1)? as u64;
+    Ok(Value::Bool(webrtc::connect_peers(a, b)?))
 }
 
 fn webrtc_add_track_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -559,8 +583,20 @@ pub fn browser_platform_globals(env: &mut Environment) {
     env.set("webrtc_info".into(), Value::NativeFunction(webrtc_info_native));
     env.set("webrtc_create_peer".into(), Value::NativeFunction(webrtc_create_peer_native));
     env.set("webrtc_create_offer".into(), Value::NativeFunction(webrtc_create_offer_native));
+    env.set(
+        "webrtc_create_answer".into(),
+        Value::NativeFunction(webrtc_create_answer_native),
+    );
     env.set("webrtc_set_remote".into(), Value::NativeFunction(webrtc_set_remote_native));
     env.set("webrtc_gather_ice".into(), Value::NativeFunction(webrtc_gather_ice_native));
+    env.set(
+        "webrtc_add_ice_candidate".into(),
+        Value::NativeFunction(webrtc_add_ice_candidate_native),
+    );
+    env.set(
+        "webrtc_connect_peers".into(),
+        Value::NativeFunction(webrtc_connect_peers_native),
+    );
     env.set("webrtc_add_track".into(), Value::NativeFunction(webrtc_add_track_native));
     env.set("webrtc_stats".into(), Value::NativeFunction(webrtc_stats_native));
     env.set(

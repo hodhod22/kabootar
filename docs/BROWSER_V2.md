@@ -118,6 +118,12 @@ Kabootar Browser (kbrowser)
 - [x] TURN relay-kandidater
 - [x] `webrtc_send_rtp` / `webrtc_recv_rtp` media pipeline
 
+### C7 — WebRTC DTLS-SRTP
+- [x] SDP med `ice-ufrag` / `ice-pwd` / `fingerprint:sha-256` / `setup`
+- [x] `webrtc_create_answer` + `webrtc_add_ice_candidate`
+- [x] `webrtc_connect_peers` — lokal DTLS/SRTP-brygga
+- [x] SRTP protect/unprotect på RTP-payload
+
 ### v2.57 — WebGL buffers
 - [x] `webgl_create_buffer` / `webgl_create_index_buffer`
 - [x] `webgl_bind_buffer` + `webgl_draw_elements`
