@@ -13,6 +13,12 @@ pub fn hostCall(hostName, hostArgs) {
     if hostName == "text" {
         return text(hostArgs[0])
     }
+    if hostName == "setText" {
+        return kdom_set_text(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "clearChildren" {
+        return kdom_clear_children(hostArgs[0])
+    }
     if hostName == "attach" {
         return attach(hostArgs[0], hostArgs[1], hostArgs[2])
     }

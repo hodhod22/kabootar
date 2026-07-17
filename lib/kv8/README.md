@@ -26,20 +26,17 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+)
 
-Literals, ident, member, index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), call, object literals, let/var/assign, if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` — `${ident}` only), call, object literals, let/var/assign, if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## React stub (G10)
 
-`import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup)`, `setState(fiber, index, next)`, remount `render`.
+`import "kv8/react"`: `createElement`, `useState(hooks, initial)`, `useEffect(hooks, setup, deps?)`, `setState` / `render` → `{ frame, hasClick, patched }`.
 
-- Hook state lives on `fiber["$hooks"]` (plain object). Components receive it via `props["$hooks"]`.
-- `useEffect(hooks, setup)` stub runs `setup` each remount/render and returns a 1-based count (assign onto `hooks` in the component if needed — bytecode may copy call-arg objects). No deps / cleanup yet.
-- Remount-only: `setState` remounts the tree — no DOM reconcile / fiber diff yet.
-- Bytecode may copy objects on read — mutations are written back onto the fiber after the component runs.
-- `onClick` (fn prop) sets `hasClick` on the render result; remount via `setState(tree, 0, next)`.
-- Function components: non-string `type` is invoked (bytecode fns often are not `typeof "function"`).
-
-Keep `react.kab` at ~7 top-level fns (Windows `.kbc` import hangs/OOM above that).
+- Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
+- **Same-type mark:** `setState` sets `patched: true` when the host tag matches the previous render (`rxLastType`). Full remount still happens — do **not** store `KabootarDom` in `.kab` module/fiber slots (hangs/OOM on Windows bytecode). `hostCall("setText")` / `kdom_set_text` exist for a future id-registry patch.
+- `useEffect(hooks, setup, deps?)` — skip when `deps[0]` unchanged; cleanup return values are ignored (fn slots unsafe across modules).
+- `$hooks` survive setState (only hook indices reset).
+- Keep `react.kab` at ~7 top-level fns.
 
 ## Tests / DX
 

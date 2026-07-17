@@ -1,4 +1,4 @@
-// Kv8 react smoke - useState remount + useEffect + onClick wiring
+// Kv8 react smoke - same-type mark + useEffect deps + onClick
 // cargo run --bin kabootar -- examples/kv8_react_smoke.kab
 
 import "kv8/react"
@@ -13,10 +13,10 @@ fn onMount() {
 
 fn Counter(props) {
     let h = props["$hooks"]
-    let fx = useEffect(h, onMount)
+    let pair = useState(h, 0)
+    let fx = useEffect(h, onMount, [pair[0]])
     h["fx"] = fx
     props["$hooks"] = h
-    let pair = useState(h, 0)
     return createElement("button", {
         "id": "c",
         "children": "" + pair[0],
@@ -29,8 +29,10 @@ let out0 = render(tree, 240, 120)
 let frame0 = out0["frame"]
 let html0 = "" + frame0["html"]
 let fx0 = tree["$hooks"]["fx"]
-let frame1 = setState(tree, 0, 1)
+let out1 = setState(tree, 0, 1)
+let frame1 = out1["frame"]
 let html1 = "" + frame1["html"]
 let fx1 = tree["$hooks"]["fx"]
-println("kv8 react: hasClick=" + json_stringify(out0["hasClick"]) + " has0=" + json_stringify(str_includes(html0, ">0<")) + " has1=" + json_stringify(str_includes(html1, ">1<")) + " fx0=" + fx0 + " fx1=" + fx1)
-return out0["hasClick"] && frame0 != null && frame1 != null && str_includes(html0, ">0<") && str_includes(html1, ">1<") && fx0 >= 1 && fx1 >= 1
+let patched = out1["patched"]
+println("kv8 react: hasClick=" + json_stringify(out0["hasClick"]) + " has0=" + json_stringify(str_includes(html0, ">0<")) + " has1=" + json_stringify(str_includes(html1, ">1<")) + " fx0=" + fx0 + " fx1=" + fx1 + " patched=" + json_stringify(patched))
+return out0["hasClick"] && frame0 != null && frame1 != null && str_includes(html0, ">0<") && str_includes(html1, ">1<") && fx0 >= 1 && fx1 >= 1 && patched == true

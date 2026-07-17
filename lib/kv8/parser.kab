@@ -98,9 +98,81 @@ fn parsePostfix() {
     }
     if k8pNode == null {
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type == TOKEN_STRING || k8pTok.type == TOKEN_TEMPLATE {
+        if k8pTok.type == TOKEN_STRING {
             k8pTok = k8pTokAt("bump")
             k8pNode = { "kind": K_LITERAL, "lit": LIT_STRING, "value": k8pTok.value }
+        }
+    }
+    if k8pNode == null {
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type == TOKEN_TEMPLATE {
+            k8pTok = k8pTokAt("bump")
+            let raw = "" + k8pTok.value
+            if !str_includes(raw, "${") {
+                k8pNode = { "kind": K_LITERAL, "lit": LIT_STRING, "value": raw }
+            } else {
+                let parts = []
+                let lit = ""
+                let ti = 0
+                while ti < len(raw) {
+                    if char_at(raw, ti) == "$" && ti + 1 < len(raw) && char_at(raw, ti + 1) == "{" {
+                        parts = push(parts, { "tag": "lit", "value": lit })
+                        lit = ""
+                        ti = ti + 2
+                        let depth = 1
+                        let exprSrc = ""
+                        while ti < len(raw) && depth > 0 {
+                            let ch = char_at(raw, ti)
+                            if ch == "{" {
+                                depth = depth + 1
+                                exprSrc = exprSrc + ch
+                            } else {
+                                if ch == "}" {
+                                    depth = depth - 1
+                                    if depth > 0 {
+                                        exprSrc = exprSrc + ch
+                                    }
+                                } else {
+                                    exprSrc = exprSrc + ch
+                                }
+                            }
+                            ti = ti + 1
+                        }
+                        // Subset: ${ident} only (avoid nested parseExpr re-entry / stack overflow).
+                        let sym = ""
+                        let si = 0
+                        while si < len(exprSrc) {
+                            let ch = char_at(exprSrc, si)
+                            if ch == " " || ch == "\t" || ch == "\n" || ch == "\r" {
+                                si = si + 1
+                                continue
+                            }
+                            break
+                        }
+                        while si < len(exprSrc) {
+                            let ch = char_at(exprSrc, si)
+                            let cd = char_code_at(ch, 0)
+                            let ok = 0
+                            if cd >= 65 && cd <= 90 { ok = 1 }
+                            if cd >= 97 && cd <= 122 { ok = 1 }
+                            if cd >= 48 && cd <= 57 { ok = 1 }
+                            if ch == "_" || ch == "$" { ok = 1 }
+                            if ok == 0 { break }
+                            sym = sym + ch
+                            si = si + 1
+                        }
+                        if sym == "" {
+                            throw "Template ${} expects ident"
+                        }
+                        parts = push(parts, { "tag": "expr", "expr": { "kind": K_IDENT, "sym": sym } })
+                    } else {
+                        lit = lit + char_at(raw, ti)
+                        ti = ti + 1
+                    }
+                }
+                parts = push(parts, { "tag": "lit", "value": lit })
+                k8pNode = { "kind": K_TEMPLATE, "parts": parts }
+            }
         }
     }
     if k8pNode == null {
@@ -301,7 +373,8 @@ fn parsePostfix() {
                     throw "Expected member name"
                 }
                 k8pTok = k8pTokAt("bump")
-                k8pNode = { "kind": K_MEMBER, "object": k8pNode, "field": k8pTok.value, "optional": false }
+                k8pSave = k8pNode
+                k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": k8pTok.value, "optional": false }
             } else {
                 if k8pTok.type == "?." {
                     k8pTokAt("bump")
@@ -310,7 +383,8 @@ fn parsePostfix() {
                         throw "Expected member name after ?."
                     }
                     k8pTok = k8pTokAt("bump")
-                    k8pNode = { "kind": K_MEMBER, "object": k8pNode, "field": k8pTok.value, "optional": true }
+                    k8pSave = k8pNode
+                    k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": k8pTok.value, "optional": true }
                 } else {
                     break
                 }

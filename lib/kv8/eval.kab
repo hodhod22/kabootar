@@ -115,13 +115,35 @@ fn evExpr(node, env) {
         let memField = evMemFieldStack[len(evMemFieldStack) - 1]
         evMemObjStack = evPopStack(evMemObjStack)
         evMemFieldStack = evPopStack(evMemFieldStack)
+        let optional = false
+        if object_has_own(node, "optional") {
+            optional = node.optional
+        }
         if obj == null || obj == undefined {
+            if optional {
+                return undefined
+            }
             throw "TypeError: cannot read property " + memField
         }
         if object_has_own(obj, memField) {
             return obj[memField]
         }
         return undefined
+    }
+    if node.kind == K_TEMPLATE {
+        let out = ""
+        let parts = node.parts
+        let pi = 0
+        while pi < len(parts) {
+            let part = parts[pi]
+            if part["tag"] == "lit" {
+                out = out + part["value"]
+            } else {
+                out = out + ("" + evExpr(part["expr"], env))
+            }
+            pi = pi + 1
+        }
+        return out
     }
     if node.kind == K_INDEX {
         evMemObjStack = push(evMemObjStack, node.object)
