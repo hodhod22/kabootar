@@ -1,0 +1,57 @@
+@version "1.0.0"
+
+// H6e: language bootstrap / compile policy in Kab. import "kab/boot"
+// Rust remains the process loader + VM; product compile policy prefers self_host.
+// KEEP <=~7 top-level fn.
+
+import "self_host/compile"
+import "self_host/lexer"
+import "self_host/lexer_defs"
+
+let preferSelfHost = true
+
+pub fn preferSelfHostCompile() {
+    preferSelfHost = true
+    return true
+}
+
+pub fn selfHostPreferred() {
+    return preferSelfHost
+}
+
+/// Self-hosted lexer entry (Kabootar source → tokens).
+pub fn bootTokenize(source) {
+    return tokenize(source)
+}
+
+/// Self-hosted compile entry (Kabootar source → .kbc text).
+pub fn bootCompile(source) {
+    return compile(source)
+}
+
+/// True when text looks like a kabootar-bytecode/1 module.
+pub fn isBytecode(kbc) {
+    let s = "" + kbc
+    if len(s) < 20 {
+        return false
+    }
+    // Header: kabootar-bytecode…
+    if char_at(s, 0) != "k" {
+        return false
+    }
+    if char_at(s, 1) != "a" {
+        return false
+    }
+    if char_at(s, 2) != "b" {
+        return false
+    }
+    return true
+}
+
+/// Canonical bootstrap probe: tokenize + compile sample → valid .kbc.
+pub fn bootPipelineOk() {
+    let src = "let n = 10" + CHAR_NL + "return n + 32"
+    let toks = bootTokenize(src)
+    let kbc = bootCompile(src)
+    return preferSelfHost && len(toks) > 3 && isBytecode(kbc) && len(kbc) > 30
+}
