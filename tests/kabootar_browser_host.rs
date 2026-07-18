@@ -168,3 +168,24 @@ fn h6c_browser_chrome_smoke() {
         .expect("h6c thread join");
     assert!(ok);
 }
+
+#[test]
+fn h6_delete_gate_smoke() {
+    let path = format!(
+        "{}/examples/h6_delete_gate_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6-delete-gate".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6 delete-gate smoke should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6 delete-gate thread")
+        .join()
+        .expect("h6 delete-gate thread join");
+    assert!(ok);
+}

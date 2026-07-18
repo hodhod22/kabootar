@@ -240,6 +240,50 @@ pub fn compile_file_cached(path: &str) -> Result<CompiledProgram, String> {
     compile_file(path)
 }
 
+/// H6e deepen: product `run_file` prefers self-host compile (same as `kabootar compile`).
+pub fn compile_file_prefer_cached(
+    path: &str,
+    prefer: CompilePrefer,
+) -> Result<(CompiledProgram, &'static str), String> {
+    let mtime = fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok());
+    if let (Some(t), Ok(map)) = (mtime, cache().lock()) {
+        if let Some(cached) = map.get(path) {
+            if cached.mtime == t {
+                return Ok((cached.program.clone(), "cache"));
+            }
+        }
+    }
+    if let Some(t) = mtime {
+        if let Some(bc) = read_bytecode_cache(path, t)? {
+            let program = CompiledProgram {
+                stmts: Vec::new(),
+                bytecode: Some(bc.clone()),
+                stmt_count: rough_stmt_count(
+                    &fs::read_to_string(path).unwrap_or_default(),
+                ),
+                memory_mode: bc.memory_mode,
+            };
+            if let Ok(mut map) = cache().lock() {
+                map.insert(
+                    path.to_string(),
+                    CachedProgram {
+                        mtime: t,
+                        program: program.clone(),
+                    },
+                );
+            }
+            return Ok((program, "disk-cache"));
+        }
+    }
+    let (program, backend) = compile_file_prefer(path, prefer)?;
+    if program.has_bytecode() {
+        let _ = write_compile_marker(path, &program);
+    }
+    Ok((program, backend))
+}
+
 pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<Value, String> {
     crate::runtime::ownership::set_memory_mode(env, program.memory_mode);
     if let Some(bytecode) = &program.bytecode {
@@ -279,7 +323,9 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
 }
 
 pub fn eval_file_cached(path: &str, env: &mut Environment) -> Result<Value, String> {
-    let program = compile_file_cached(path)?;
+    // Product run path: prefer self-host .kbc (KABOOTAR_COMPILE=rust forces host).
+    let prefer = CompilePrefer::from_args_and_env(&[]);
+    let (program, _) = compile_file_prefer_cached(path, prefer)?;
     eval_program(&program, env)
 }
 

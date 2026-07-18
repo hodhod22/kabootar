@@ -1,0 +1,3 @@
+// Tiny app for self-host run_file path (must stay small / not under self_host/)
+// cargo run --bin kabootar -- examples/h6e_run_selfhost_probe.kab
+return 40 + 2
