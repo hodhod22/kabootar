@@ -16,6 +16,12 @@ pub fn kstyle_lang_globals(env: &mut Environment) {
 }
 
 fn kstyle_css_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    // Prefer the thread-local builder so CSS is visible across module envs
+    // after kstyle_commit (theme.applyDark → global kstyle_css).
+    let from_builder = KSTYLE_BUILDER.with(|b| sheet_to_css(&b.borrow()));
+    if !from_builder.is_empty() {
+        return Ok(Value::String(from_builder));
+    }
     Ok(env
         .get("__kstyle")
         .unwrap_or(Value::String(String::new())))

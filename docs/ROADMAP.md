@@ -499,7 +499,7 @@ GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP
 | **O2** | **Signaturer** — `fn f(b: Owned)`, `fn g(b: &Owned)`; call-arg med Owned flyttar (om inte `&`/`&mut`) | ✅ |
 | **O3** | **Borrow** — `&x` / `&mut x`, typer `&Owned` / `&mut Owned`; shared vs exclusive; borrow-scope = call-uttryck | ✅ |
 | **O4** | **Scope drop** — compile-time varning/fel om Owned lever över scope utan `drop`/`move` (leak-lint); runtime drop oförändrad | ✅ |
-| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | ✅ subset |
+| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | ✅ subset (+ `&`/`&mut` peek i `ownership.kab`) |
 
 **Checkpoint O1–O3:** `cargo test --test ownership_check` + `cargo test --test ownership_manual`
 
@@ -516,7 +516,7 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 | **T2** | **Generiska traits** — `trait Show<T> { … }` | ✅ |
 | **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | ✅ |
 | **T4** | **Default-metoder** i trait-kropp | ✅ |
-| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset |
+| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset (+ `type Item;` → `associatedTypes`) |
 
 **Icke-mål:** HKT, `dyn Trait`-objekt, Rust-coherence.
 
@@ -586,7 +586,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **Promise** | `withResolvers` ✅; `Promise.try` ✅ + `Promise` namespace |
 | **Iterator helpers** | `Iterator.from`, `.map`/`.filter`/`.take` (ES2025) ✅ |
 | **Map/Set** | `getOrInsert` / `getOrInsertComputed` ✅ |
-| **RegExp** | kvarvarande unicode/`v`-flagga-luckor |
+| **RegExp** | `u` + `\p{…}` + `v`/`unicodeSets` ✅ subset |
 | **Syntax** | logical assign `||=` `&&=` `??=` ✅ |
 
 **Checkpoint J:** `cargo test --test js_stdlib_gaps` + `cargo test --test kabootar_js_parity`
@@ -603,9 +603,12 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll |
 |-----|----------|
-| **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) — ✅ **subset** (lexer+parser i `lib/kv8`; eval fortfarande hybrid). Gate: `cargo test --test kv8_lib -- --test-threads=1` |
-| **K2** | **DOM + CSS/KSS** — layout/style/paint-orchestration i `.kab` |
-| **K3** | **OS** — schemaläggare/VFS/policy/net i `.kab`; borrowing för buffertar |
+| **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) — ✅ **subset** (lexer+parser i `lib/kv8`; eval hybrid). Gate: `cargo test --test kv8_lib -- --test-threads=1` |
+| **K1c** | **Kv8 Kabootar eval** — ✅ **subset**: `evalSourceKab` → `evalSourceWith` (literals/ops/control); class/async kvar via Rust `evalSource` |
+| **K1d** | **Kv8 class/new/async** — ✅ **subset**: `K_NEW` + `this` + `K_CLASS`/`K_NEW`/`K_AWAIT` i `evalSourceKab` (`k1d_class_new_kab_eval`); async kör sync |
+| **K2** | **DOM + CSS/KSS** — ✅ **subset**: `querySelector` + KSS object→CSS i `.kab` (`kdom_query_kss_smoke`); layout/paint fortfarande Rust |
+| **K2 deepen** | **applyCss + matches** — ✅ **subset**: `kdom_applycss_matches_smoke` (kdom + kss + selectors + theme `applyCss`) |
+| **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` (enqueue/tick/yield/preempt). Gate: `cargo test --test os_lib` |
 | **K4** | **Webläsare** — `lib/kbrowser` + shell helt i Kabootar (GC-UI) |
 | **K5** | **kOS desktop** — G12 Start/Explorer/Settings i `.kab` |
 
@@ -614,6 +617,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 - Inga nya features i Rust  
 - Flytta kvarvarande logik till `.kab` under K  
 - Slutmått: produktkod = Kabootar; Rust borta (eller minimal bootstrap som sedan också skrivs om)
+- **H0** ✅ — stylesheet apply + document `paint` CSS-path prefererar `.kab` (`parseAndApply` via `kstyle/parse`) istället för enbart native `kstyle_parse`
 
 ---
 

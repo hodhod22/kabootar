@@ -24,9 +24,11 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 `src/bytecode/vm.rs`: LoadLocal prefers frame `local_vals`; StoreLocal mirrors to `env` for `__oid` writeback; after Call only object locals refresh by oid.
 
-## Eval subset (Fas 1.3+)
+## Eval subset (Fas 1.3+ / K1c / K1d)
 
-Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` / `` `${a + b}` ``), call, object literals, let/var/assign, if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+**Gates:** `evalSourceKab(source)` — Kabootar interpreter (`evalSourceWith`); `evalSource(source)` — Rust `kv8_eval_source` (fuller class/async/extends).
+
+Literals, ident (incl. `this`), member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` / `` `${a + b}` ``), call, `new` (`K_NEW`), object literals, let/var/assign (incl. member `this.n = n`), if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, `class` + constructor/`this`, `await` (sync stub), async function (body sync), binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## React stub (G10)
 
@@ -34,8 +36,8 @@ Literals, ident, member (incl. `?.`), index (`a[i]`), array literals, unary `!` 
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
 - **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` + `hooks["cnid0"…]` / `ncn` for nested fiber children; `setTextById` / `setAttrById` / multi-text / nested remount via `appendById`; parent live-registry sync so `paint(parent)` sees child text; `onById` + `dispatchById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
-- Stack pop in `kv8/eval` uses native `pop` (C2). **`evalSource` → `kv8_eval_source` (C3 Rust Kv8)** for while/binary/class/async; `evalSourceWith` stays self-host for `extraEnv`. Do not reintroduce Kabootar `evPopStack` rebuild loops.
-- Self-host parser: `class` / `async function` / `await` AST (`K_CLASS` / `K_FN.async` / `K_AWAIT`).
+- Stack pop in `kv8/eval` uses native `pop` (C2). **`evalSource` → `kv8_eval_source` (C3 Rust Kv8)** for fuller class/extends/async; **`evalSourceKab` → `evalSourceWith(source, null)`** (K1c/K1d Kabootar path: literals/ops/control + class/`new`/`this`/`await` stub). `evalSourceWith` stays self-host for `extraEnv`. Do not reintroduce Kabootar `evPopStack` rebuild loops.
+- Self-host parser: `class` / `new` / `async function` / `await` / `this` AST (`K_CLASS` / `K_NEW` / `K_FN.async` / `K_AWAIT`).
 - `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.
 

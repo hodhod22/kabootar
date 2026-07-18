@@ -264,6 +264,16 @@ fn assert_kind(node, kind, msg) {
     assert_eq(len(ast.body[0].methods), 1, "trait method count")
 }
 
+// -- associated type in trait (T5 deepen) --------------------------
+{
+    let src = "trait Iter { type Item; fn next(); }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_INTERFACE, "trait with assoc type")
+    assert_eq(len(ast.body[0].associatedTypes), 1, "assoc type count")
+    assert_eq(ast.body[0].associatedTypes[0], "Item", "assoc type Item")
+    assert_eq(len(ast.body[0].methods), 1, "trait method after assoc")
+}
+
 // -- where clause on fn (T5) ---------------------------------------
 {
     let src = "fn id<T>(x) where T: Show { return x }"

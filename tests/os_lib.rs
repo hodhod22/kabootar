@@ -107,3 +107,25 @@ fn os_async_smoke_example_runs() {
     let result = cli::run_file(&path).expect("examples/os_async_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n == 2));
 }
+
+#[test]
+fn os_sched_enqueue_and_tick() {
+    let code = r#"
+import "os/sched"
+enqueue("paint")
+enqueue("net")
+let t = tick()
+let y = schedYield()
+t != null && y != null
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
+#[test]
+fn os_k3_vfs_smoke_example_runs() {
+    let path = format!("{}/examples/os_k3_vfs_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/os_k3_vfs_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
