@@ -15,6 +15,11 @@ pub fn dispatch(node, event) {
     return kdom_dispatch(node, event)
 }
 
+/// Drain the native event bus (does not invoke handlers — use kos/launch drainKosEvents).
+pub fn pollEvents() {
+    return kb_poll_events()
+}
+
 pub fn id(node) {
     return kdom_id(node)
 }

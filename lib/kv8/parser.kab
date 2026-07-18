@@ -86,6 +86,17 @@ fn parsePostfix() {
     if k8pTok.type == TOKEN_EOF {
         throw "parsePostfix EOF"
     }
+    // H6a: prefix ++/-- and unary +/- 
+    if k8pTok.type == "++" || k8pTok.type == "--" {
+        k8pOp = k8pTokAt("bump").type
+        k8pSave = parsePostfix()
+        return { "kind": K_UPDATE, "op": k8pOp, "arg": k8pSave, "prefix": true }
+    }
+    if k8pTok.type == "-" || k8pTok.type == "+" {
+        k8pOp = k8pTokAt("bump").type
+        k8pSave = parsePostfix()
+        return { "kind": K_UNARY, "op": k8pOp, "arg": k8pSave }
+    }
     if k8pTok.type == "!" || k8pTok.type == "typeof" {
         k8pOp = k8pTokAt("bump").type
         k8pSave = parsePostfix()
@@ -239,8 +250,14 @@ fn parsePostfix() {
                 k8pTokAt("bump")
                 if k8pTokAt("peek").type == "=>" {
                     k8pTokAt("bump")
-                    k8pArrowBody = parseCompare()
-                    k8pNode = { "kind": K_ARROW, "params": k8pParams, "body": k8pArrowBody }
+                    // Snapshot params before body — nested arrows reuse k8pParams.
+                    let arrowParams = k8pSnapList(k8pParams)
+                    if k8pTokAt("peek").type == "{" {
+                        k8pArrowBody = parseStmt()
+                    } else {
+                        k8pArrowBody = parseCompare()
+                    }
+                    k8pNode = { "kind": K_ARROW, "params": arrowParams, "body": k8pArrowBody }
                 } else {
                     k8pPos = saved
                     k8pTokAt("bump")
@@ -255,7 +272,11 @@ fn parsePostfix() {
                     k8pTokAt("bump")
                     if k8pTokAt("peek").type == "=>" {
                         k8pTokAt("bump")
-                        k8pArrowBody = parseCompare()
+                        if k8pTokAt("peek").type == "{" {
+                            k8pArrowBody = parseStmt()
+                        } else {
+                            k8pArrowBody = parseCompare()
+                        }
                         k8pNode = { "kind": K_ARROW, "params": [], "body": k8pArrowBody }
                     } else {
                         k8pPos = saved
@@ -378,23 +399,46 @@ fn parsePostfix() {
             if k8pTok.type == "." {
                 k8pTokAt("bump")
                 k8pTok = k8pTokAt("peek")
-                if k8pTok.type != TOKEN_IDENT {
+                let memName = null
+                if k8pTok.type == TOKEN_IDENT {
+                    memName = k8pTok.value
+                } else {
+                    // IdentifierName: keywords allowed after `.` (Symbol.for, obj.default, …)
+                    if object_has_own(KEYWORDS, k8pTok.type) {
+                        memName = k8pTok.type
+                    }
+                }
+                if memName == null {
                     throw "Expected member name"
                 }
-                k8pTok = k8pTokAt("bump")
+                k8pTokAt("bump")
                 k8pSave = k8pNode
-                k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": k8pTok.value, "optional": false }
+                k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": memName, "optional": false }
             } else {
                 if k8pTok.type == "?." {
                     k8pTokAt("bump")
                     k8pTok = k8pTokAt("peek")
-                    if k8pTok.type != TOKEN_IDENT {
+                    let memName2 = null
+                    if k8pTok.type == TOKEN_IDENT {
+                        memName2 = k8pTok.value
+                    } else {
+                        if object_has_own(KEYWORDS, k8pTok.type) {
+                            memName2 = k8pTok.type
+                        }
+                    }
+                    if memName2 == null {
                         throw "Expected member name after ?."
                     }
-                    k8pTok = k8pTokAt("bump")
+                    k8pTokAt("bump")
                     k8pSave = k8pNode
-                    k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": k8pTok.value, "optional": true }
+                    k8pNode = { "kind": K_MEMBER, "object": k8pSave, "field": memName2, "optional": true }
                 } else {
+                    // H6a: postfix ++ / -- (ends postfix chain)
+                    if k8pTok.type == "++" || k8pTok.type == "--" {
+                        k8pOp = k8pTokAt("bump").type
+                        k8pSave = k8pNode
+                        k8pNode = { "kind": K_UPDATE, "op": k8pOp, "arg": k8pSave, "prefix": false }
+                    }
                     break
                 }
             }
@@ -1185,23 +1229,34 @@ fn parseStmt() {
     if k8pTok.type == TOKEN_IDENT {
         let assignSym = ("" + k8pTok.value)
         k8pTokAt("bump")
-        if k8pTokAt("peek").type == "=" {
-            k8pTokAt("bump")
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type == "=" || k8pTok.type == "+=" || k8pTok.type == "-=" || k8pTok.type == "*=" || k8pTok.type == "/=" {
+            let assignOp = k8pTokAt("bump").type
             k8pLeft = parseExpr()
-            return { "kind": K_ASSIGN, "sym": assignSym, "rhs": k8pLeft }
+            if assignOp == "=" {
+                return { "kind": K_ASSIGN, "sym": assignSym, "rhs": k8pLeft }
+            }
+            return { "kind": K_ASSIGN, "sym": assignSym, "rhs": k8pLeft, "op": assignOp }
         }
         k8pPos = k8pPos - 1
     }
     k8pLeft = parseExpr()
-    if k8pTokAt("peek").type == "=" {
-        k8pTokAt("bump")
+    k8pTok = k8pTokAt("peek")
+    if k8pTok.type == "=" || k8pTok.type == "+=" || k8pTok.type == "-=" || k8pTok.type == "*=" || k8pTok.type == "/=" {
+        let assignOp = k8pTokAt("bump").type
         k8pSave = k8pLeft
         k8pRight = parseExpr()
         if k8pSave.kind == K_IDENT {
-            return { "kind": K_ASSIGN, "sym": k8pSave["sym"], "rhs": k8pRight }
+            if assignOp == "=" {
+                return { "kind": K_ASSIGN, "sym": k8pSave["sym"], "rhs": k8pRight }
+            }
+            return { "kind": K_ASSIGN, "sym": k8pSave["sym"], "rhs": k8pRight, "op": assignOp }
         }
         if k8pSave.kind == K_MEMBER {
-            return { "kind": K_ASSIGN, "object": k8pSave["object"], "field": k8pSave["field"], "rhs": k8pRight }
+            if assignOp == "=" {
+                return { "kind": K_ASSIGN, "object": k8pSave["object"], "field": k8pSave["field"], "rhs": k8pRight }
+            }
+            return { "kind": K_ASSIGN, "object": k8pSave["object"], "field": k8pSave["field"], "rhs": k8pRight, "op": assignOp }
         }
         throw "Invalid assignment target"
     }

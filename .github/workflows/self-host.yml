@@ -7,14 +7,22 @@ on:
       - "src/**"
       - "tests/self_host.rs"
       - "tests/kv8_lib.rs"
+      - "tests/kos_lib.rs"
       - "lib/kv8/**"
+      - "lib/kos/**"
+      - "lib/kdom/**"
+      - "lib/kstyle/**"
   pull_request:
     paths:
       - "self_host/**"
       - "src/**"
       - "tests/self_host.rs"
       - "tests/kv8_lib.rs"
+      - "tests/kos_lib.rs"
       - "lib/kv8/**"
+      - "lib/kos/**"
+      - "lib/kdom/**"
+      - "lib/kstyle/**"
 
 jobs:
   bootstrap:
@@ -35,3 +43,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: K1 kv8_lib gate (lexer/parser)
         run: cargo test --test kv8_lib -- --test-threads=1
+
+  kos-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: K5/G12 kos_lib gate (shell/launch/events)
+        run: cargo test --test kos_lib -- --test-threads=1

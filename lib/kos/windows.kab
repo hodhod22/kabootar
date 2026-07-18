@@ -6,7 +6,7 @@
 import "kdom/document"
 import "kdom/query"
 
-pub fn openWindow(shell, title) {
+pub fn openWindow(shell, title, body) {
     let win = el("div")
     win = attr(win, "class", "kos-window")
     win = attr(win, "data-title", "" + title)
@@ -15,6 +15,17 @@ pub fn openWindow(shell, title) {
     titleBar = attr(titleBar, "class", "kos-window-title")
     titleBar = attach(titleBar, text("" + title), true)
     win = attach(win, titleBar, true)
+    let contentText = ""
+    if body != null && body != undefined {
+        contentText = "" + body
+    }
+    if contentText != "" {
+        let content = el("div")
+        content = attr(content, "class", "kos-window-body")
+        content = attr(content, "data-body", "true")
+        content = attach(content, text(contentText), true)
+        win = attach(win, content, true)
+    }
     // Attach under desktop shell (CoW: return updated shell from attach)
     return attach(shell, win, true)
 }

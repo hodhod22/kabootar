@@ -7,9 +7,18 @@ import "kdom/document"
 import "kdom/events"
 import "kdom/query"
 
-/// Open an app window titled `name` (usually a /apps entry).
+fn appBody(name) {
+    let path = "/apps/" + name
+    if os_exists(path) {
+        return "" + os_read(path)
+    }
+    return ""
+}
+
+/// Open an app window titled `name` (usually a /apps entry); body from VFS when present.
 pub fn launchApp(shell, name) {
-    return openWindow(shell, "" + name)
+    let n = "" + name
+    return openWindow(shell, n, appBody(n))
 }
 
 /// Launch from Start panel entry (same as launchApp; Start lists /apps names).
@@ -25,7 +34,7 @@ fn startAppItems(shell) {
     return domExtra("queryAll", shell, ".kos-start-app")
 }
 
-/// Wire click listeners on Start panel entries (handler name stored; dispatch alone does not launch).
+/// Wire click listeners on Start panel entries (handler name stored; drainKosEvents runs it).
 pub fn wireStartApps(shell) {
     let apps = startAppItems(shell)
     if apps == null || apps == undefined {
@@ -36,10 +45,40 @@ pub fn wireStartApps(shell) {
         on(apps[i], "click", "launchStartApp")
         i = i + 1
     }
+    // Prefer live snapshot so kb_mount keeps listeners on the tree.
+    let sid = id(shell)
+    let fresh = kdom_get_by_id(sid)
+    if fresh != null && fresh != undefined {
+        return fresh
+    }
     return shell
 }
 
-/// Find Start entry by data-app, dispatch click, then launchApp (end-to-end Start → window).
+/// Drain queued kDOM events and run known kos handlers (Start → openWindow).
+pub fn drainKosEvents(shell) {
+    let events = pollEvents()
+    if events == null || events == undefined {
+        return shell
+    }
+    let i = 0
+    while i < len(events) {
+        let e = events[i]
+        let h = "" + e.handler
+        if h == "launchStartApp" {
+            let node = kdom_get_by_id(e.node)
+            if node != null && node != undefined {
+                let app = domExtra("getAttr", node, "data-app")
+                if app != null && app != undefined {
+                    shell = launchApp(shell, "" + app)
+                }
+            }
+        }
+        i = i + 1
+    }
+    return shell
+}
+
+/// Find Start entry by data-app, dispatch click, then drainKosEvents (end-to-end Start → window).
 pub fn clickStartApp(shell, name) {
     let want = "" + name
     let apps = startAppItems(shell)
@@ -50,7 +89,7 @@ pub fn clickStartApp(shell, name) {
             let app = domExtra("getAttr", item, "data-app")
             if ("" + app) == want {
                 dispatch(item, "click")
-                return launchApp(shell, want)
+                return drainKosEvents(shell)
             }
             i = i + 1
         }

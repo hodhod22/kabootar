@@ -1,0 +1,21 @@
+// H6a: events + style + timers (Kab-only)
+// cargo run --bin kabootar -- examples/kv8_h6_events_timers.kab
+
+import "kv8/eval"
+
+preferKabEval()
+
+let clickOk = evalSource("let n = 0; let el = document.createElement(\"button\"); el.addEventListener(\"click\", () => { n = n + 1; }); el.dispatchEvent({ \"type\": \"click\" }); n") == 1
+
+let styleOk = evalSource("let el = document.createElement(\"div\"); el.style.color = \"#ff0000\"; true")
+
+let idOk = evalSource("let el = document.createElement(\"div\"); el.id = \"app\"; document.body.appendChild(el); document.getElementById(\"app\") != null")
+
+let timeoutOk = evalSource("let n = 0; setTimeout(() => { n = n + 1; }, 0); n") == 1
+
+let rafOk = evalSource("let n = 0; requestAnimationFrame(() => { n = n + 1; }); n") == 1
+
+let removeOk = evalSource("let n = 0; let el = document.createElement(\"button\"); let f = () => { n = n + 1; }; el.addEventListener(\"click\", f); el.removeEventListener(\"click\", f); el.dispatchEvent({ \"type\": \"click\" }); n") == 0
+
+println("h6a events click=" + clickOk + " style=" + styleOk + " id=" + idOk + " timeout=" + timeoutOk + " raf=" + rafOk + " remove=" + removeOk)
+return clickOk && styleOk && idOk && timeoutOk && rafOk && removeOk

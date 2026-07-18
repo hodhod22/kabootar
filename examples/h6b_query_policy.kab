@@ -1,0 +1,32 @@
+// H6b: kDOM query policy — descendant + comma in Kab; host uses document.query
+// cargo run --bin kabootar -- examples/h6b_query_policy.kab
+
+import "kdom/document"
+import "kdom/query"
+import "kstyle/parse"
+import "kv8/eval"
+
+preferKabEval()
+
+let root = el("div")
+root = attr(root, "id", "root")
+let child = el("span")
+child = attr(child, "class", "card")
+child = attr(child, "id", "main")
+root = attach(root, child, true)
+let nested = el("p")
+nested = attr(nested, "class", "note")
+root = attach(root, nested, true)
+
+let desc = queryKab(root, "div span")
+let comma = queryKab(root, "p, span")
+let allDesc = queryAllKab(root, "div .card")
+let cssOk = true
+parseAndApply("#main { color: red; }")
+
+// Kv8 host path must prefer Kab query (getElementById / querySelector)
+let viaKv8 = evalSource("let el = document.createElement(\"div\"); el.id = \"app\"; document.body.appendChild(el); document.getElementById(\"app\") != null")
+
+let ok = desc != null && comma != null && allDesc != null && len(allDesc) >= 1 && viaKv8 == true && cssOk
+println("h6b desc=" + (desc != null) + " comma=" + (comma != null) + " all=" + len(allDesc) + " kv8=" + viaKv8)
+return ok

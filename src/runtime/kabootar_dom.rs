@@ -56,7 +56,15 @@ fn live_upsert(node: &DomNode) {
                 if let Some(pid) = parent_id {
                     parents.insert(n.id, pid);
                 }
-                map.insert(n.id, n.clone());
+                let mut merged = n.clone();
+                if let Some(prev) = map.get(&n.id) {
+                    // Preserve listeners registered after the tree snapshot was taken
+                    // (e.g. wireStartApps → on → later kb_mount).
+                    for (k, v) in &prev.listeners {
+                        merged.listeners.entry(k.clone()).or_insert_with(|| v.clone());
+                    }
+                }
+                map.insert(n.id, merged);
                 for child in &n.children {
                     walk(map, parents, child, Some(n.id));
                 }
@@ -109,6 +117,29 @@ fn live_resolve(node: DomNode) -> DomNode {
 
 fn live_get(id: u64) -> Option<DomNode> {
     LIVE_NODES.with(|m| m.borrow().get(&id).cloned())
+}
+
+fn live_parent(id: u64) -> Option<u64> {
+    LIVE_PARENTS.with(|p| p.borrow().get(&id).copied())
+}
+
+/// Resolve a string handler for `event_type` on `id`, bubbling via live parents.
+pub fn resolve_listener(id: u64, event_type: &str) -> Option<(u64, String)> {
+    let mut current = Some(id);
+    while let Some(cid) = current {
+        if let Some(node) = live_get(cid) {
+            if let Some(h) = node.listeners.get(event_type) {
+                return Some((cid, h.clone()));
+            }
+            if event_type.starts_with("touch") {
+                if let Some(h) = node.listeners.get("click") {
+                    return Some((cid, h.clone()));
+                }
+            }
+        }
+        current = live_parent(cid);
+    }
+    None
 }
 
 
@@ -1193,6 +1224,7 @@ fn kdom_on_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     };
     node.on(event, handler);
     live_upsert(&node);
+    live_propagate_to_ancestors(node.id);
     Ok(Value::KabootarDom(node))
 }
 
@@ -1222,20 +1254,20 @@ fn kdom_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
 }
 
 fn kdom_dispatch_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let node = expect_dom(args, 0, "kdom_dispatch()")?;
+    let node = live_resolve(expect_dom(args, 0, "kdom_dispatch()")?);
     let event = match args.get(1) {
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("kdom_dispatch() expects event name".into()),
     };
-    if let Some(handler) = node.listeners.get(event) {
+    if let Some((node_id, handler)) = resolve_listener(node.id, event) {
         crate::runtime::events::enqueue(crate::runtime::events::KabootarEvent {
-            node_id: node.id,
+            node_id,
             event_type: event.to_string(),
             handler: handler.clone(),
             x: 0.0,
             y: 0.0,
         });
-        Ok(Value::String(handler.clone()))
+        Ok(Value::String(handler))
     } else {
         Ok(Value::Null)
     }

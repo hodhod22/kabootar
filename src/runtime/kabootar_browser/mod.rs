@@ -412,30 +412,18 @@ impl KabootarBrowser {
 
     fn dispatch_pointer(&self, x: f64, y: f64, event_type: &str) -> Result<Option<String>, String> {
         self.with_mut(|inner| {
-            let tab = inner.tabs.get(inner.active).ok_or("No active tab")?;
             let node_id = hit_test(&inner.last_layers, x, y);
             let Some(id) = node_id else {
                 return Ok(None);
             };
-            let Some(node) = tab.document.query_id(id) else {
-                return Ok(None);
-            };
-            let handler = node
-                .listeners
-                .get(event_type)
-                .cloned()
-                .or_else(|| {
-                    if event_type.starts_with("touch") {
-                        node.listeners.get("click").cloned()
-                    } else {
-                        None
-                    }
-                });
-            let Some(handler) = handler else {
+            // Prefer live registry + parent bubble so post-mount `kdom_on` works.
+            let Some((target_id, handler)) =
+                crate::runtime::kabootar_dom::resolve_listener(id, event_type)
+            else {
                 return Ok(None);
             };
             events::enqueue(events::KabootarEvent {
-                node_id: id,
+                node_id: target_id,
                 event_type: event_type.into(),
                 handler: handler.clone(),
                 x,

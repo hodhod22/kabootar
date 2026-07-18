@@ -6,6 +6,61 @@ import "kdom/document"
 import "kdom/events"
 import "kstyle/parse"
 
+let hostSymFor = {}
+let hostSymId = 1
+
+fn objectAssign(args) {
+    let target = args[0]
+    let ai = 1
+    while ai < len(args) {
+        let src = args[ai]
+        if src != null && src != undefined {
+            let keys = object_keys(src)
+            let ki = 0
+            while ki < len(keys) {
+                target[keys[ki]] = src[keys[ki]]
+                ki = ki + 1
+            }
+        }
+        ai = ai + 1
+    }
+    return target
+}
+
+fn objectIs(a, b) {
+    if a != null && b != null && typeof(a) == "object" && typeof(b) == "object" {
+        if object_has_own(a, "__k8symbol") && object_has_own(b, "__k8symbol") {
+            return a["id"] == b["id"]
+        }
+    }
+    if a == b {
+        return true
+    }
+    return false
+}
+
+fn symbolNew(args) {
+    let desc = ""
+    if len(args) > 0 {
+        if args[0] != null && args[0] != undefined {
+            desc = "" + args[0]
+        }
+    }
+    let id = hostSymId
+    hostSymId = hostSymId + 1
+    return { "__k8symbol": true, "id": id, "desc": desc }
+}
+
+fn symbolFor(args) {
+    let key = "" + args[0]
+    if object_has_own(hostSymFor, key) {
+        return hostSymFor[key]
+    }
+    let sym = symbolNew([key])
+    hostSymFor[key] = sym
+    return sym
+}
+
 pub fn hostCall(hostName, hostArgs) {
     if hostName == "el" {
         return el(hostArgs[0])
@@ -74,6 +129,46 @@ pub fn hostCall(hostName, hostArgs) {
     }
     if hostName == "dispatch" {
         return dispatch(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "objectKeys" {
+        return object_keys(hostArgs[0])
+    }
+    if hostName == "objectAssign" {
+        return objectAssign(hostArgs)
+    }
+    if hostName == "objectIs" {
+        return objectIs(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "symbolNew" {
+        return symbolNew(hostArgs)
+    }
+    if hostName == "symbolFor" {
+        return symbolFor(hostArgs)
+    }
+    if hostName == "arrayIsArray" {
+        return is_array(hostArgs[0])
+    }
+    if hostName == "mathFloor" {
+        return floor(hostArgs[0])
+    }
+    if hostName == "mathCeil" {
+        return ceil(hostArgs[0])
+    }
+    if hostName == "mathAbs" {
+        return abs(hostArgs[0])
+    }
+    if hostName == "consoleLog" {
+        println("" + hostArgs[0])
+        return null
+    }
+    // H6b: prefer Kab query policy (queryKab → native fallback)
+    if hostName == "docQuery" {
+        return query(hostArgs[0], hostArgs[1])
+    }
+    if hostName == "docGetById" {
+        let root = hostArgs[0]
+        let id = "" + hostArgs[1]
+        return query(root, "#" + id)
     }
     throw "hostCall: unknown " + hostName
 }

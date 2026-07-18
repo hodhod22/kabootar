@@ -137,6 +137,24 @@ fn h3_query_all_kab_smoke() {
 }
 
 #[test]
+fn h6b_query_policy_smoke() {
+    let path = format!("{}/examples/h6b_query_policy.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6b-query".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/h6b_query_policy.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6b thread")
+        .join()
+        .expect("h6b thread join");
+    assert!(ok);
+}
+
+#[test]
 fn k2_layout_smoke() {
     let path = format!("{}/examples/k2_layout_smoke.kab", manifest_dir());
     let result = cli::run_file(&path).expect("examples/k2_layout_smoke.kab should run");

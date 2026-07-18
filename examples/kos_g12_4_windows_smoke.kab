@@ -6,8 +6,8 @@ import "kos/windows"
 import "kdom/document"
 
 let desktop = buildShell()
-desktop = openWindow(desktop, "Alpha")
-desktop = openWindow(desktop, "Beta")
+desktop = openWindow(desktop, "Alpha", "")
+desktop = openWindow(desktop, "Beta", "")
 let wins = listWindows(desktop)
 snapWindow(wins[0], "left")
 focusWindow(desktop, wins[1])

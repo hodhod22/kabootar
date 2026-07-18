@@ -26,13 +26,158 @@ let evThisOut = null
 // K1g: Promise.then microtask queue
 let evMicroQ = []
 let evMicroLast = undefined
-// H4: product path prefers Kab evalSourceWith; Rust only via evalSourceRust / flag off
+// H4: product path is Kab-only (evalSourceWith).
 let useKabEval = true
+// H6a: element listeners (parallel arrays — avoid deep-copy of k8fn in objects)
+let evListenKeys = []
+let evListenCbs = []
+let evTimerQ = []
+let evRafQ = []
+let evTimerId = 1
+// Shared eval env for arrow callbacks (must be the only env object).
+let evActiveEnv = null
 
 // Stack pop uses native `pop` (O(1) slice) — old evPopStack rebuilt arrays in Kabootar (C2 hot path).
 
 fn makeK8Promise(value) {
     return { "__k8promise": true, "value": value, "then": { "tag": "k8then" } }
+}
+
+/// Bindings always go through module `evActiveEnv` — never pass that object as a
+/// fn arg (Kabootar CoW writeback of a stale snapshot clobbers live mutations).
+fn bindHas(sym) {
+    return object_has_own(evActiveEnv, "" + sym)
+}
+
+fn bindGet(sym) {
+    return evActiveEnv["" + sym]
+}
+
+fn bindSet(sym, val) {
+    evActiveEnv["" + sym] = val
+    return val
+}
+
+/// H6a: seed Object/Array/Math/console/document/timers for Kab-only eval path.
+fn seedBuiltinEnv() {
+    evListenKeys = []
+    evListenCbs = []
+    evTimerQ = []
+    evRafQ = []
+    evTimerId = 1
+    evMicroQ = []
+    evMicroLast = undefined
+    bindSet("Promise", { "resolve": { "tag": "k8resolve" } })
+    bindSet("Object", {
+        "keys": { "tag": "k8host", "name": "objectKeys" },
+        "assign": { "tag": "k8host", "name": "objectAssign" },
+        "is": { "tag": "k8host", "name": "objectIs" }
+    })
+    bindSet("Array", {
+        "isArray": { "tag": "k8host", "name": "arrayIsArray" }
+    })
+    bindSet("Math", {
+        "floor": { "tag": "k8host", "name": "mathFloor" },
+        "ceil": { "tag": "k8host", "name": "mathCeil" },
+        "abs": { "tag": "k8host", "name": "mathAbs" },
+        "PI": 3.141592653589793,
+        "E": 2.718281828459045
+    })
+    bindSet("console", {
+        "log": { "tag": "k8host", "name": "consoleLog" }
+    })
+    bindSet("Symbol", {
+        "tag": "k8host",
+        "name": "symbolNew",
+        "for": { "tag": "k8host", "name": "symbolFor" }
+    })
+    bindSet("setTimeout", { "tag": "k8timer", "kind": "timeout" })
+    bindSet("setInterval", { "tag": "k8timer", "kind": "interval" })
+    bindSet("requestAnimationFrame", { "tag": "k8timer", "kind": "raf" })
+    let docBody = hostCall("el", ["body"])
+    bindSet("document", {
+        "__k8document": true,
+        "body": docBody,
+        "createElement": { "tag": "k8host", "name": "el" },
+        "createTextNode": { "tag": "k8host", "name": "text" }
+    })
+    // H6a: globalThis mirrors seeded builtins (no circular self-field).
+    bindSet("globalThis", {
+        "Object": bindGet("Object"),
+        "Array": bindGet("Array"),
+        "Math": bindGet("Math"),
+        "console": bindGet("console"),
+        "Symbol": bindGet("Symbol"),
+        "Promise": bindGet("Promise"),
+        "document": bindGet("document"),
+        "setTimeout": bindGet("setTimeout"),
+        "setInterval": bindGet("setInterval"),
+        "requestAnimationFrame": bindGet("requestAnimationFrame")
+    })
+}
+
+fn listenKey(nid, typ) {
+    // Use type-only key for now: Dom CoW can change id views across calls.
+    return "" + typ
+}
+
+/// Write updated DOM node back into env (ident or document.body member).
+fn writebackDomTarget(target, updated, env) {
+    if target.kind == K_IDENT {
+        bindSet(target["sym"], updated)
+        return null
+    }
+    if target.kind == K_MEMBER {
+        let baseNode = target["object"]
+        let field = "" + target["field"]
+        if baseNode.kind == K_IDENT {
+            let base = bindGet(baseNode["sym"])
+            base[field] = updated
+            bindSet(baseNode["sym"], base)
+        }
+    }
+    return null
+}
+
+fn drainHostTasks() {
+    let tq = evTimerQ
+    evTimerQ = []
+    let ti = 0
+    while ti < len(tq) {
+        let job = tq[ti]
+        let cb = job["cb"]
+        if cb != null && cb != undefined {
+            evCall(cb, [])
+        }
+        ti = ti + 1
+    }
+    let rq = evRafQ
+    evRafQ = []
+    let ri = 0
+    while ri < len(rq) {
+        let job = rq[ri]
+        let cb = job["cb"]
+        if cb != null && cb != undefined {
+            evCall(cb, [0])
+        }
+        ri = ri + 1
+    }
+}
+
+fn applyAssignOp(op, cur, val) {
+    if op == "+=" {
+        return cur + val
+    }
+    if op == "-=" {
+        return cur - val
+    }
+    if op == "*=" {
+        return cur * val
+    }
+    if op == "/=" {
+        return cur / val
+    }
+    return val
 }
 
 fn drainMicrotasks() {
@@ -64,10 +209,10 @@ fn evExpr(node, env) {
     }
     if node.kind == K_IDENT {
         let bindSym = node["sym"]
-        if !object_has_own(env, bindSym) {
+        if !bindHas(bindSym) {
             throw "ReferenceError: " + bindSym
         }
-        return env[bindSym]
+        return bindGet(bindSym)
     }
     if node.kind == K_BINARY {
         evBinOpStack = push(evBinOpStack, node.op)
@@ -154,6 +299,12 @@ fn evExpr(node, env) {
                 return clsMethods[memField]
             }
         }
+        // H6a: el.style → style bag for el.style.color = ...
+        if memField == "style" {
+            if !object_has_own(obj, "__k8document") {
+                return { "__k8style": true, "node": obj }
+            }
+        }
         return undefined
     }
     if node.kind == K_TEMPLATE {
@@ -208,6 +359,12 @@ fn evExpr(node, env) {
         }
         if node.op == "typeof" {
             return typeof(arg)
+        }
+        if node.op == "-" {
+            return 0 - arg
+        }
+        if node.op == "+" {
+            return arg + 0
         }
         throw "Unsupported unary " + node.op
     }
@@ -289,6 +446,95 @@ fn evExpr(node, env) {
             if thisRecv == null || thisRecv == undefined {
                 throw "TypeError: cannot read property " + memField
             }
+            // H6a: DOM methods first (KabootarDom may confuse object_has_own)
+            if memField == "appendChild" {
+                let child = undefined
+                if len(callArgNodes) > 0 {
+                    child = evExpr(callArgNodes[0], env)
+                }
+                if thisRecv != null && object_has_own(thisRecv, "__k8document") {
+                    let updatedBody = hostCall("attach", [thisRecv["body"], child, true])
+                    thisRecv["body"] = updatedBody
+                    writebackDomTarget(calleeNode["object"], thisRecv, env)
+                    return child
+                }
+                let updatedParent = hostCall("attach", [thisRecv, child, true])
+                writebackDomTarget(calleeNode["object"], updatedParent, env)
+                return child
+            }
+            if memField == "querySelector" {
+                let sel = ""
+                if len(callArgNodes) > 0 {
+                    sel = "" + evExpr(callArgNodes[0], env)
+                }
+                let root = thisRecv
+                if thisRecv != null && object_has_own(thisRecv, "__k8document") {
+                    root = thisRecv["body"]
+                }
+                return hostCall("docQuery", [root, sel])
+            }
+            if memField == "getElementById" {
+                let idv = ""
+                if len(callArgNodes) > 0 {
+                    idv = "" + evExpr(callArgNodes[0], env)
+                }
+                let root = thisRecv
+                if thisRecv != null && object_has_own(thisRecv, "__k8document") {
+                    root = thisRecv["body"]
+                }
+                return hostCall("docGetById", [root, idv])
+            }
+            if memField == "addEventListener" {
+                let typ = "" + evExpr(callArgNodes[0], env)
+                let cb = evExpr(callArgNodes[1], env)
+                let nid = hostCall("id", [thisRecv])
+                let key = listenKey(nid, typ)
+                evListenKeys = push(evListenKeys, key)
+                evListenCbs = push(evListenCbs, cb)
+                return undefined
+            }
+            if memField == "removeEventListener" {
+                let typ = "" + evExpr(callArgNodes[0], env)
+                let nid = hostCall("id", [thisRecv])
+                let key = listenKey(nid, typ)
+                let nk = []
+                let nc = []
+                let ri = 0
+                while ri < len(evListenKeys) {
+                    if evListenKeys[ri] != key {
+                        nk = push(nk, evListenKeys[ri])
+                        nc = push(nc, evListenCbs[ri])
+                    }
+                    ri = ri + 1
+                }
+                evListenKeys = nk
+                evListenCbs = nc
+                return undefined
+            }
+            if memField == "dispatchEvent" {
+                let evObj = evExpr(callArgNodes[0], env)
+                let typ = "click"
+                if evObj != null && evObj != undefined && object_has_own(evObj, "type") {
+                    typ = "" + evObj["type"]
+                }
+                let nid = hostCall("id", [thisRecv])
+                let key = listenKey(nid, typ)
+                let li = 0
+                while li < len(evListenKeys) {
+                    if evListenKeys[li] == key {
+                        evCall(evListenCbs[li], [evObj])
+                    }
+                    li = li + 1
+                }
+                return true
+            }
+            if memField == "setAttribute" {
+                let k = "" + evExpr(callArgNodes[0], env)
+                let v = "" + evExpr(callArgNodes[1], env)
+                let updated = hostCall("attr", [thisRecv, k, v])
+                writebackDomTarget(calleeNode["object"], updated, env)
+                return updated
+            }
             if object_has_own(thisRecv, memField) {
                 callee = thisRecv[memField]
             } else {
@@ -299,11 +545,11 @@ fn evExpr(node, env) {
                     }
                 }
             }
-            if callee == null || callee == undefined {
-                callee = undefined
-            }
         } else {
             callee = evExpr(calleeNode, env)
+        }
+        if callee == null || callee == undefined {
+            throw "TypeError: not a function"
         }
         let fnTag = callee["tag"]
         if fnTag == "k8host" {
@@ -334,6 +580,18 @@ fn evExpr(node, env) {
         if callee != null && callee != undefined {
             calleeTag = callee["tag"]
         }
+        // H6a: setTimeout / rAF / setInterval
+        if calleeTag == "k8timer" {
+            let kind = "" + callee["kind"]
+            let tid = evTimerId
+            evTimerId = evTimerId + 1
+            if kind == "raf" {
+                evRafQ = push(evRafQ, { "cb": fnArgs[0], "id": tid })
+                return tid
+            }
+            evTimerQ = push(evTimerQ, { "cb": fnArgs[0], "delay": fnArgs[1], "id": tid })
+            return tid
+        }
         if calleeTag == "k8resolve" {
             return evCall(callee, fnArgs)
         }
@@ -348,6 +606,49 @@ fn evExpr(node, env) {
             return evCallThis(callee, fnArgs, thisRecv)
         }
         return evCall(callee, fnArgs)
+    }
+    // H6: arrow => k8fn; closure "shared" uses evActiveEnv (survives deep-copy)
+    if node.kind == K_ARROW {
+        let bodyNode = node.body
+        if bodyNode.kind == K_BLOCK {
+            return {
+                "tag": "k8fn",
+                "params": node.params,
+                "body": bodyNode.body,
+                "closure": "shared",
+                "arrow": false
+            }
+        }
+        return {
+            "tag": "k8fn",
+            "params": node.params,
+            "body": [bodyNode],
+            "closure": "shared",
+            "arrow": true
+        }
+    }
+    // H6a: ++ / --
+    if node.kind == K_UPDATE {
+        let arg = node.arg
+        if arg.kind != K_IDENT {
+            throw "Update target must be ident"
+        }
+        let bindSym = "" + arg["sym"]
+        if !bindHas(bindSym) {
+            throw "ReferenceError: " + bindSym
+        }
+        let cur = bindGet(bindSym)
+        let next = cur
+        if node.op == "++" {
+            next = cur + 1
+        } else {
+            next = cur - 1
+        }
+        bindSet(bindSym, next)
+        if node.prefix {
+            return next
+        }
+        return cur
     }
     throw "eval expr " + node.kind
 }
@@ -411,23 +712,26 @@ fn evCall(fnVal, args) {
     let fnParams = fnVal["params"]
     let fnClosure = fnVal["closure"]
     let fnArrow = fnVal["arrow"]
-    let scope = {}
-    let keys = object_keys(fnClosure)
-    let ci = 0
-    while ci < len(keys) {
-        scope[keys[ci]] = fnClosure[keys[ci]]
-        ci = ci + 1
+    let saved = null
+    let restore = false
+    if fnClosure != "shared" {
+        saved = evActiveEnv
+        evActiveEnv = fnClosure
+        restore = true
     }
     let pi = 0
     while pi < len(fnParams) {
-        scope[fnParams[pi]] = args[pi]
+        bindSet(fnParams[pi], args[pi])
         pi = pi + 1
     }
     let callRet = undefined
     if fnArrow {
-        callRet = evExpr(fnBody[0], scope)
+        callRet = evExpr(fnBody[0], null)
     } else {
-        callRet = evRunBlock(fnBody, scope)
+        callRet = evRunBlock(fnBody, null)
+    }
+    if restore {
+        evActiveEnv = saved
     }
     if object_has_own(fnVal, "async") {
         if fnVal["async"] == true {
@@ -452,26 +756,29 @@ fn evCallThis(fnVal, args, thisVal) {
     let fnParams = fnVal["params"]
     let fnClosure = fnVal["closure"]
     let fnArrow = fnVal["arrow"]
-    let scope = {}
-    let keys = object_keys(fnClosure)
-    let ci = 0
-    while ci < len(keys) {
-        scope[keys[ci]] = fnClosure[keys[ci]]
-        ci = ci + 1
+    let saved = null
+    let restore = false
+    if fnClosure != "shared" {
+        saved = evActiveEnv
+        evActiveEnv = fnClosure
+        restore = true
     }
-    scope["this"] = thisVal
+    bindSet("this", thisVal)
     let pi = 0
     while pi < len(fnParams) {
-        scope[fnParams[pi]] = args[pi]
+        bindSet(fnParams[pi], args[pi])
         pi = pi + 1
     }
     let callRet = undefined
     if fnArrow {
-        callRet = evExpr(fnBody[0], scope)
+        callRet = evExpr(fnBody[0], null)
     } else {
-        callRet = evRunBlock(fnBody, scope)
+        callRet = evRunBlock(fnBody, null)
     }
-    evThisOut = scope["this"]
+    evThisOut = bindGet("this")
+    if restore {
+        evActiveEnv = saved
+    }
     if object_has_own(fnVal, "async") {
         if fnVal["async"] == true {
             return makeK8Promise(callRet)
@@ -484,10 +791,10 @@ fn evStmt(stmt, env) {
     let stmtKind = stmt.kind
     if stmtKind == K_CLASS {
         let scope = {}
-        let keys = object_keys(env)
+        let keys = object_keys(evActiveEnv)
         let fi = 0
         while fi < len(keys) {
-            scope[keys[fi]] = env[keys[fi]]
+            scope[keys[fi]] = bindGet(keys[fi])
             fi = fi + 1
         }
         let methods = {}
@@ -495,8 +802,8 @@ fn evStmt(stmt, env) {
         let classExt = stmt["extends"]
         if classExt != null && classExt != undefined {
             let parentName = "" + classExt
-            if object_has_own(env, parentName) {
-                let parent = env[parentName]
+            if bindHas(parentName) {
+                let parent = bindGet(parentName)
                 if parent != null && parent != undefined && object_has_own(parent, "__k8class") {
                     let parentMethods = parent["methods"]
                     let pKeys = object_keys(parentMethods)
@@ -517,17 +824,10 @@ fn evStmt(stmt, env) {
             mi = mi + 1
         }
         let classSym = "" + stmt["sym"]
-        env[classSym] = { "__k8class": true, "name": classSym, "methods": methods, "extends": classExt }
+        bindSet(classSym, { "__k8class": true, "name": classSym, "methods": methods, "extends": classExt })
         return undefined
     }
     if stmtKind == K_FN {
-        let scope = {}
-        let keys = object_keys(env)
-        let fi = 0
-        while fi < len(keys) {
-            scope[keys[fi]] = env[keys[fi]]
-            fi = fi + 1
-        }
         let bindSym = stmt["sym"]
         let isAsync = false
         if object_has_own(stmt, "async") {
@@ -535,7 +835,7 @@ fn evStmt(stmt, env) {
                 isAsync = true
             }
         }
-        env["" + bindSym] = { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": scope, "arrow": false, "async": isAsync }
+        bindSet(bindSym, { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": "shared", "arrow": false, "async": isAsync })
         return undefined
     }
     if stmtKind == K_RETURN {
@@ -638,7 +938,7 @@ fn evStmt(stmt, env) {
         let bindSym = "" + stmt["sym"]
         let ki = 0
         while ki < len(keys) {
-            env[bindSym] = keys[ki]
+            bindSet(bindSym, keys[ki])
             let bi = 0
             while bi < len(bodyStmts) {
                 evStmt(bodyStmts[bi], env)
@@ -665,7 +965,7 @@ fn evStmt(stmt, env) {
         let n = len(iterable)
         let ki = 0
         while ki < n {
-            env[bindSym] = iterable[ki]
+            bindSet(bindSym, iterable[ki])
             let bi = 0
             while bi < len(bodyStmts) {
                 evStmt(bodyStmts[bi], env)
@@ -694,7 +994,7 @@ fn evStmt(stmt, env) {
             pending = err
             if stmt.catchBody != null {
                 if stmt.catchParam != null && stmt.catchParam != "" {
-                    env["" + stmt.catchParam] = err
+                    bindSet(stmt.catchParam, err)
                 }
                 try {
                     result = evRunBlock(stmt.catchBody.body, env)
@@ -725,7 +1025,8 @@ fn evStmt(stmt, env) {
     }
     if stmtKind == K_LET || stmtKind == K_VAR {
         let bindSym = stmt["sym"]
-        env["" + bindSym] = evExpr(stmt.init, env)
+        let initVal = evExpr(stmt.init, env)
+        bindSet(bindSym, initVal)
         return undefined
     }
     if stmtKind == K_ASSIGN {
@@ -733,16 +1034,57 @@ fn evStmt(stmt, env) {
             let obj = evExpr(stmt["object"], env)
             let field = "" + stmt["field"]
             let val = evExpr(stmt["rhs"], env)
+            if object_has_own(stmt, "op") {
+                let cur = undefined
+                if object_has_own(obj, field) {
+                    cur = obj[field]
+                }
+                val = applyAssignOp(stmt["op"], cur, val)
+            }
+            // H6a: style bag → inline style prop (el.style.color = ...)
+            if obj != null && object_has_own(obj, "__k8style") {
+                let node = obj["node"]
+                let prev = hostCall("getAttr", [node, "style"])
+                let css = ""
+                if prev != null && prev != undefined {
+                    css = "" + prev
+                    if css != "" {
+                        css = css + ";"
+                    }
+                }
+                css = css + field + ":" + val
+                hostCall("attr", [node, "style", css])
+                return val
+            }
+            // H6a: DOM textContent / id write
+            if field == "textContent" {
+                let updated = hostCall("setText", [obj, val])
+                writebackDomTarget(stmt["object"], updated, env)
+                return val
+            }
+            if field == "id" {
+                let updated = hostCall("attr", [obj, "id", "" + val])
+                writebackDomTarget(stmt["object"], updated, env)
+                return val
+            }
             obj[field] = val
             let target = stmt["object"]
             if target.kind == K_IDENT {
-                env["" + target["sym"]] = obj
+                bindSet(target["sym"], obj)
             }
             return val
         }
         let bindSym = stmt["sym"]
-        env["" + bindSym] = evExpr(stmt["rhs"], env)
-        return undefined
+        let val = evExpr(stmt["rhs"], env)
+        if object_has_own(stmt, "op") {
+            let cur = undefined
+            if bindHas(bindSym) {
+                cur = bindGet(bindSym)
+            }
+            val = applyAssignOp(stmt["op"], cur, val)
+        }
+        bindSet(bindSym, val)
+        return val
     }
     if stmtKind == K_EXPR {
         return evExpr(stmt.expr, env)
@@ -754,12 +1096,13 @@ fn evStmt(stmt, env) {
 }
 
 pub fn evalProgram(ast, extraEnv) {
-    let env = {}
+    evActiveEnv = {}
+    seedBuiltinEnv()
     if extraEnv != null {
         let keys = object_keys(extraEnv)
         let ei = 0
         while ei < len(keys) {
-            env[keys[ei]] = extraEnv[keys[ei]]
+            bindSet(keys[ei], extraEnv[keys[ei]])
             ei = ei + 1
         }
     }
@@ -772,12 +1115,12 @@ pub fn evalProgram(ast, extraEnv) {
             let condNode = st.cond
             let bodyStmts = st.body.body
             while true {
-                if !evExpr(condNode, env) {
+                if !evExpr(condNode, null) {
                     break
                 }
                 let bi = 0
                 while bi < len(bodyStmts) {
-                    last = evStmt(bodyStmts[bi], env)
+                    last = evStmt(bodyStmts[bi], null)
                     if evLoopSig != 0 {
                         break
                     }
@@ -793,7 +1136,7 @@ pub fn evalProgram(ast, extraEnv) {
             }
             last = undefined
         } else {
-            last = evStmt(st, env)
+            last = evStmt(st, null)
             if evLoopSig != 0 {
                 return last
             }
@@ -805,14 +1148,13 @@ pub fn evalProgram(ast, extraEnv) {
 
 pub fn evalSourceWith(source, extraEnv) {
     let ast = parseSource(source)
-    let env = {}
-    // K1f/K1g: Promise.resolve → {__k8promise,value,then}; .then queues microtasks
-    env["Promise"] = { "resolve": { "tag": "k8resolve" } }
+    evActiveEnv = {}
+    seedBuiltinEnv()
     if extraEnv != null {
         let keys = object_keys(extraEnv)
         let ei = 0
         while ei < len(keys) {
-            env[keys[ei]] = extraEnv[keys[ei]]
+            bindSet(keys[ei], extraEnv[keys[ei]])
             ei = ei + 1
         }
     }
@@ -825,12 +1167,12 @@ pub fn evalSourceWith(source, extraEnv) {
             let condNode = st.cond
             let bodyStmts = st.body.body
             while true {
-                if !evExpr(condNode, env) {
+                if !evExpr(condNode, null) {
                     break
                 }
                 let bi = 0
                 while bi < len(bodyStmts) {
-                    last = evStmt(bodyStmts[bi], env)
+                    last = evStmt(bodyStmts[bi], null)
                     if evLoopSig != 0 {
                         break
                     }
@@ -846,37 +1188,31 @@ pub fn evalSourceWith(source, extraEnv) {
             }
             last = undefined
         } else {
-            last = evStmt(st, env)
+            last = evStmt(st, null)
             if evLoopSig != 0 {
                 drainMicrotasks()
+                drainHostTasks()
                 return last
             }
         }
-        // Drain after each top-level stmt so then-cbs run before later checks
+        // Drain after each top-level stmt so then-cbs / timers run before later checks
         drainMicrotasks()
+        drainHostTasks()
         si = si + 1
     }
     drainMicrotasks()
+    drainHostTasks()
     return last
 }
 
-/// H4: prefer Kab path for evalSource (product default).
+/// H6a: Kab path is the only evalSource implementation.
 pub fn preferKabEval() {
     useKabEval = true
     return true
 }
 
 pub fn evalSource(source) {
-    // H4/K1e: product path = Kab evalSourceWith; Rust only when flag off or evalSourceRust.
-    if useKabEval {
-        return evalSourceWith(source, null)
-    }
-    return kv8_eval_source(source)
-}
-
-/// Rust Kv8 fallback (fuller host parity). Prefer evalSource / evalSourceKab.
-pub fn evalSourceRust(source) {
-    return kv8_eval_source(source)
+    return evalSourceWith(source, null)
 }
 
 /// K1c/K1e: pure Kabootar eval path via evalSourceWith.

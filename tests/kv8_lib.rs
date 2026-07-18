@@ -237,3 +237,75 @@ fn h4_prefer_kab_eval() {
         .expect("h4 thread join");
     assert!(ok);
 }
+
+#[test]
+fn h6_arrow_kab_eval() {
+    let path = format!("{}/examples/kv8_h6_arrow.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6-arrow".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_h6_arrow.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6 thread")
+        .join()
+        .expect("h6 thread join");
+    assert!(ok);
+}
+
+#[test]
+fn h6_builtins_kab_eval() {
+    let path = format!("{}/examples/kv8_h6_builtins.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6-builtins".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_h6_builtins.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6b thread")
+        .join()
+        .expect("h6b thread join");
+    assert!(ok);
+}
+
+#[test]
+fn h6_events_timers_kab_eval() {
+    let path = format!("{}/examples/kv8_h6_events_timers.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6-events".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_h6_events_timers.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6e thread")
+        .join()
+        .expect("h6e thread join");
+    assert!(ok);
+}
+
+#[test]
+fn h6a_parity_kab_eval() {
+    let path = format!("{}/examples/kv8_h6a_parity.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6a-parity".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_h6a_parity.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6a parity thread")
+        .join()
+        .expect("h6a parity thread join");
+    assert!(ok);
+}
