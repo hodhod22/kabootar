@@ -649,6 +649,8 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
 **H6e** ✅ **subset** — bootstrap-policy i `.kab`: `kab/boot` (`bootTokenize` / `bootCompile` / `bootPipelineOk` via `self_host`); produkt-eval via Kab `evalSource` (`h6e_boot_policy_smoke`). Rust = processladdare + bytecode-VM; full VM/lexer-port = senare.
+
+**H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity

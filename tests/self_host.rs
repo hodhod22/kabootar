@@ -1700,3 +1700,24 @@ fn h6e_boot_policy_smoke() {
     assert!(ok);
 }
 
+#[test]
+fn h6e_run_selfhost_probe() {
+    let path = format!(
+        "{}/examples/h6e_run_selfhost_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-run-probe".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6e run selfhost probe should run"),
+                kabootar_lib::value::Value::Number(42)
+            )
+        })
+        .expect("spawn h6e run probe thread")
+        .join()
+        .expect("h6e run probe thread join");
+    assert!(ok);
+}
+

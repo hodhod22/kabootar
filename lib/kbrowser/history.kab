@@ -1,0 +1,100 @@
+@version "1.0.0"
+
+// H6c deepen: tab + history session policy in Kab. import "kbrowser/history"
+// Page I/O still via kb_* natives; session stack lives in Kab.
+// KEEP <=~7 top-level fn. Mutators always return session (Kab CoW writeback).
+
+/// New browser session with one tab at `url`.
+pub fn createSession(url) {
+    let u = "" + url
+    return {
+        "tabs": [{ "id": 1, "url": u, "title": "Tab" }],
+        "active": 0,
+        "nextId": 2,
+        "history": [u],
+        "pos": 0,
+        "moved": false
+    }
+}
+
+pub fn currentUrl(session) {
+    return session["history"][session["pos"]]
+}
+
+pub fn sessionNavigate(session, url) {
+    let u = "" + url
+    let hist = session["history"]
+    let pos = session["pos"]
+    let next = []
+    let i = 0
+    while i <= pos {
+        next = push(next, hist[i])
+        i = i + 1
+    }
+    next = push(next, u)
+    session["history"] = next
+    session["pos"] = len(next) - 1
+    let tabs = session["tabs"]
+    let ai = session["active"]
+    let tab = tabs[ai]
+    tab["url"] = u
+    tabs[ai] = tab
+    session["tabs"] = tabs
+    session["moved"] = true
+    return session
+}
+
+pub fn sessionBack(session) {
+    let pos = session["pos"]
+    if pos <= 0 {
+        session["moved"] = false
+        return session
+    }
+    session["pos"] = pos - 1
+    let u = session["history"][session["pos"]]
+    let tabs = session["tabs"]
+    let ai = session["active"]
+    let tab = tabs[ai]
+    tab["url"] = u
+    tabs[ai] = tab
+    session["tabs"] = tabs
+    session["moved"] = true
+    return session
+}
+
+pub fn sessionForward(session) {
+    let hist = session["history"]
+    let pos = session["pos"]
+    if pos + 1 >= len(hist) {
+        session["moved"] = false
+        return session
+    }
+    session["pos"] = pos + 1
+    let u = hist[session["pos"]]
+    let tabs = session["tabs"]
+    let ai = session["active"]
+    let tab = tabs[ai]
+    tab["url"] = u
+    tabs[ai] = tab
+    session["tabs"] = tabs
+    session["moved"] = true
+    return session
+}
+
+pub fn sessionOpenTab(session, url) {
+    let u = "" + url
+    let id = session["nextId"]
+    session["nextId"] = id + 1
+    let tabs = session["tabs"]
+    tabs = push(tabs, { "id": id, "url": u, "title": "Tab" })
+    session["tabs"] = tabs
+    session["active"] = len(tabs) - 1
+    session["history"] = [u]
+    session["pos"] = 0
+    session["moved"] = true
+    return session
+}
+
+pub fn sessionTabCount(session) {
+    return len(session["tabs"])
+}
