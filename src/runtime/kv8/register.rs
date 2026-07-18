@@ -21,17 +21,7 @@ fn kv8_eval_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     Ok(kv8_value_to_kabootar(&result))
 }
 
-/// C3: self-host `evalSource` hot path — run in Rust Kv8 (while/binary/class/async).
-fn kv8_eval_source_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let script = match args.first() {
-        Some(Value::String(s)) => s.as_str(),
-        _ => return Err("kv8_eval_source(script) expects string".into()),
-    };
-    let ctx = Kv8Context::default();
-    let result = eval_script(&ctx, script)?;
-    Ok(kv8_value_to_kabootar(&result))
-}
-
+/// C3: self-host `evalSource` hot path is Kab `evalSourceWith` (H6a — no kv8_eval_source).
 fn kv8_css_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let ctx = expect_ctx(args, 0)?;
     let css = match args.get(1) {
@@ -335,10 +325,6 @@ pub fn kv8_globals(env: &mut Environment) {
     env.set("kv8_info".into(), Value::NativeFunction(kv8_info_native));
     env.set("kv8_create".into(), Value::NativeFunction(kv8_create_native));
     env.set("kv8_eval".into(), Value::NativeFunction(kv8_eval_native));
-    env.set(
-        "kv8_eval_source".into(),
-        Value::NativeFunction(kv8_eval_source_native),
-    );
     env.set("kv8_css".into(), Value::NativeFunction(kv8_css_native));
     env.set("kv8_dom".into(), Value::NativeFunction(kv8_dom_native));
     env.set("kv8_paint".into(), Value::NativeFunction(kv8_paint_native));

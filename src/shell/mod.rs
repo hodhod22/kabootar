@@ -4,6 +4,16 @@
 mod gpu_window;
 
 #[cfg(feature = "shell")]
+use crate::value::Environment;
+#[cfg(feature = "shell")]
+use std::cell::RefCell;
+
+#[cfg(feature = "shell")]
+thread_local! {
+    static SHELL_ENV: RefCell<Option<Environment>> = RefCell::new(None);
+}
+
+#[cfg(feature = "shell")]
 pub fn run_desktop() -> Result<(), String> {
     boot_desktop_frame()?;
 
@@ -24,13 +34,20 @@ fn boot_desktop_frame() -> Result<(), String> {
     const BOOT: &str = r#"
         import "kstyle/parse"
         import "kos/shell"
+        import "kos/launch"
         platform_use("kabootar");
         kb_set_backend("gpu");
         let win = os_window_create("Kabootar OS", 960, 540);
         os_display_register(win, "Kabootar Desktop", 960, 540);
         kb_viewport(960, 540);
-        // Primary UI: kOS desktop (build + theme + kb_mount + kb_paint)
-        let kosShell = bootKosDesktop();
+        // Seed Start apps so pointer click → drainKosEvents can open windows
+        os_mkdir("/apps");
+        os_write("/apps/hello.app", "Hello from Kabootar");
+        let kosShell = buildShell();
+        kosShell = applyKosTheme(kosShell);
+        kosShell = openStart(kosShell);
+        kb_mount(kosShell);
+        kb_paint();
         if kosShell == null {
             // Thin fallback if kos mount path failed
             parseAndApply("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; gap:16px; }
@@ -43,7 +60,37 @@ fn boot_desktop_frame() -> Result<(), String> {
 
     let mut env = create_global_env();
     eval_source(BOOT, &mut env).map_err(|e| format!("boot failed: {e}"))?;
+    SHELL_ENV.with(|slot| {
+        *slot.borrow_mut() = Some(env);
+    });
     Ok(())
+}
+
+/// Map host pointer click → kb_click → drainKosEvents → remount/paint.
+#[cfg(feature = "shell")]
+pub(crate) fn shell_pointer_click(x: f64, y: f64) -> Result<(), String> {
+    use crate::evaluator::eval_source;
+    use crate::runtime::game;
+
+    game::pointer_down(x, y);
+    SHELL_ENV.with(|slot| {
+        let mut guard = slot.borrow_mut();
+        let env = guard
+            .as_mut()
+            .ok_or_else(|| "shell env not booted".to_string())?;
+        let code = format!(
+            r#"
+            kb_click({x}, {y});
+            if kosShell != null && kosShell != undefined {{
+                kosShell = drainKosEvents(kosShell);
+                kb_mount(kosShell);
+                kb_paint();
+            }}
+            "#
+        );
+        eval_source(&code, env).map_err(|e| format!("shell click: {e}"))?;
+        Ok(())
+    })
 }
 
 #[cfg(feature = "shell")]
@@ -52,29 +99,38 @@ fn run_softbuffer_standalone() -> Result<(), String> {
     use crate::runtime::game;
     use softbuffer::{Context, Surface};
     use std::num::NonZeroU32;
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
-    use winit::event::{ElementState, Event, WindowEvent};
+    use winit::event::{ElementState, Event, MouseButton, WindowEvent};
     use winit::event_loop::EventLoop;
-    use winit::keyboard::{KeyCode, PhysicalKey};
+    use winit::keyboard::PhysicalKey;
     use winit::window::WindowBuilder;
 
     let event_loop = EventLoop::new().map_err(|e| format!("event loop: {e}"))?;
-    let window = WindowBuilder::new()
-        .with_title("Kabootar OS")
-        .with_inner_size(winit::dpi::LogicalSize::new(960, 540))
-        .build(&event_loop)
-        .map_err(|e| format!("window: {e}"))?;
+    let window = Arc::new(
+        WindowBuilder::new()
+            .with_title("Kabootar OS")
+            .with_inner_size(winit::dpi::LogicalSize::new(960, 540))
+            .build(&event_loop)
+            .map_err(|e| format!("window: {e}"))?,
+    );
 
-    let context = Context::new(&window).map_err(|e| format!("softbuffer ctx: {e}"))?;
-    let mut surface = Surface::new(&context, &window).map_err(|e| format!("surface: {e}"))?;
+    let context = Context::new(window.clone()).map_err(|e| format!("softbuffer ctx: {e}"))?;
+    let mut surface =
+        Surface::new(&context, window.clone()).map_err(|e| format!("surface: {e}"))?;
 
-    let blit = |surface: &mut Surface<&winit::window::Window, &winit::window::Window>| -> Result<(), String> {
+    let blit = |window: &winit::window::Window,
+                surface: &mut Surface<Arc<winit::window::Window>, Arc<winit::window::Window>>|
+     -> Result<(), String> {
         let (w, h, rgba) = frame_buffer::last_frame_pixels().ok_or("no compositor frame")?;
         let size = window.inner_size();
         let sw = size.width;
         let sh = size.height;
         surface
-            .resize(NonZeroU32::new(sw.max(1)).unwrap(), NonZeroU32::new(sh.max(1)).unwrap())
+            .resize(
+                NonZeroU32::new(sw.max(1)).unwrap(),
+                NonZeroU32::new(sh.max(1)).unwrap(),
+            )
             .map_err(|e| format!("resize: {e}"))?;
         let mut buf = surface.buffer_mut().map_err(|e| format!("buffer: {e}"))?;
         let fw = w.max(1) as usize;
@@ -98,8 +154,9 @@ fn run_softbuffer_standalone() -> Result<(), String> {
         Ok(())
     };
 
-    blit(&mut surface)?;
+    blit(&window, &mut surface)?;
     let mut last_frame = Instant::now();
+    let mut cursor = (0.0_f64, 0.0_f64);
 
     event_loop
         .run(move |event, elwt| {
@@ -107,9 +164,12 @@ fn run_softbuffer_standalone() -> Result<(), String> {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => elwt.exit(),
                     WindowEvent::RedrawRequested => {
-                        let mut env = crate::evaluator::create_global_env();
-                        let _ = game::shell_step(&mut env);
-                        let _ = blit(&mut surface);
+                        SHELL_ENV.with(|slot| {
+                            if let Some(env) = slot.borrow_mut().as_mut() {
+                                let _ = game::shell_step(env);
+                            }
+                        });
+                        let _ = blit(&window, &mut surface);
                     }
                     WindowEvent::KeyboardInput { event, .. } => {
                         if let PhysicalKey::Code(code) = event.physical_key {
@@ -121,7 +181,25 @@ fn run_softbuffer_standalone() -> Result<(), String> {
                         }
                     }
                     WindowEvent::CursorMoved { position, .. } => {
+                        cursor = (position.x, position.y);
                         game::pointer_move(position.x, position.y);
+                    }
+                    WindowEvent::MouseInput {
+                        state: ElementState::Pressed,
+                        button: MouseButton::Left,
+                        ..
+                    } => {
+                        let (x, y) = cursor;
+                        let _ = shell_pointer_click(x, y);
+                        window.request_redraw();
+                    }
+                    WindowEvent::MouseInput {
+                        state: ElementState::Released,
+                        button: MouseButton::Left,
+                        ..
+                    } => {
+                        let (x, y) = cursor;
+                        game::pointer_up(x, y);
                     }
                     _ => {}
                 },
@@ -139,7 +217,8 @@ fn run_softbuffer_standalone() -> Result<(), String> {
 }
 
 #[cfg(feature = "shell")]
-fn winit_key_label(code: KeyCode) -> &'static str {
+fn winit_key_label(code: winit::keyboard::KeyCode) -> &'static str {
+    use winit::keyboard::KeyCode;
     match code {
         KeyCode::ArrowLeft => "ArrowLeft",
         KeyCode::ArrowRight => "ArrowRight",

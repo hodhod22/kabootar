@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// H2: simple selector query in Kabootar (tag / .class / #id).
+// H2/H6b: selector query in Kabootar (tag / .class / #id + descendant + comma).
 // import "kdom/query"
 
 import "kstyle/selectors"
@@ -26,6 +26,17 @@ fn isSimpleSelector(sel) {
         return len(s) > 1
     }
     return true
+}
+
+fn hasChar(s, ch) {
+    let i = 0
+    while i < len(s) {
+        if char_at(s, i) == ch {
+            return true
+        }
+        i = i + 1
+    }
+    return false
 }
 
 fn walkQuery(node, sel) {
@@ -56,12 +67,116 @@ fn walkQuery(node, sel) {
     return null
 }
 
-/// Simple #id / .class / tag query via kstyle/selectors + tree walk.
-pub fn queryKab(root, sel) {
-    if !isSimpleSelector(sel) {
+fn splitComma(sel) {
+    let parts = []
+    let cur = ""
+    let i = 0
+    let s = "" + sel
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == "," {
+            parts = push(parts, trim(cur))
+            cur = ""
+        } else {
+            cur = cur + c
+        }
+        i = i + 1
+    }
+    parts = push(parts, trim(cur))
+    return parts
+}
+
+fn splitSpaces(sel) {
+    let parts = []
+    let cur = ""
+    let i = 0
+    let s = "" + sel
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == " " {
+            if len(cur) > 0 {
+                parts = push(parts, cur)
+                cur = ""
+            }
+        } else {
+            cur = cur + c
+        }
+        i = i + 1
+    }
+    if len(cur) > 0 {
+        parts = push(parts, cur)
+    }
+    return parts
+}
+
+fn queryDescendant(root, bits) {
+    if len(bits) == 0 {
         return null
     }
-    return walkQuery(root, "" + sel)
+    if len(bits) == 1 {
+        if !isSimpleSelector(bits[0]) {
+            return null
+        }
+        return walkQuery(root, bits[0])
+    }
+    let first = bits[0]
+    if !isSimpleSelector(first) {
+        return null
+    }
+    // Collect all matches for the leading simple selector, then search remainder under each.
+    let hitList = walkQueryAll(root, first, [])
+    let rest = []
+    let ri = 1
+    while ri < len(bits) {
+        rest = push(rest, bits[ri])
+        ri = ri + 1
+    }
+    let mi = 0
+    while mi < len(hitList) {
+        let hit = queryDescendant(hitList[mi], rest)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        mi = mi + 1
+    }
+    return null
+}
+
+/// #id / .class / tag, plus descendant (`div span`) and comma lists (`span, p`).
+pub fn queryKab(root, sel) {
+    if sel == null || sel == undefined {
+        return null
+    }
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return null
+    }
+    // Unsupported combinators → null (native fallback in document.query)
+    if hasChar(s, ">") || hasChar(s, "+") || hasChar(s, "~") || hasChar(s, "[") || hasChar(s, ":") {
+        return null
+    }
+    if hasChar(s, ",") {
+        let parts = splitComma(s)
+        let pi = 0
+        while pi < len(parts) {
+            let p = parts[pi]
+            if len(p) > 0 {
+                let hit = queryKab(root, p)
+                if hit != null && hit != undefined {
+                    return hit
+                }
+            }
+            pi = pi + 1
+        }
+        return null
+    }
+    if hasChar(s, " ") {
+        return queryDescendant(root, splitSpaces(s))
+    }
+    if !isSimpleSelector(s) {
+        return null
+    }
+    return walkQuery(root, s)
 }
 
 fn walkQueryAll(node, sel, out) {
@@ -89,10 +204,80 @@ fn walkQueryAll(node, sel, out) {
     return out
 }
 
-/// Collect all simple #id / .class / tag matches (H3).
-pub fn queryAllKab(root, sel) {
-    if !isSimpleSelector(sel) {
+fn queryAllDescendant(root, bits) {
+    if len(bits) == 0 {
+        return []
+    }
+    if len(bits) == 1 {
+        if !isSimpleSelector(bits[0]) {
+            return null
+        }
+        return walkQueryAll(root, bits[0], [])
+    }
+    let first = bits[0]
+    if !isSimpleSelector(first) {
         return null
     }
-    return walkQueryAll(root, "" + sel, [])
+    let hitList = walkQueryAll(root, first, [])
+    let rest = []
+    let ri = 1
+    while ri < len(bits) {
+        rest = push(rest, bits[ri])
+        ri = ri + 1
+    }
+    let out = []
+    let mi = 0
+    while mi < len(hitList) {
+        let sub = queryAllDescendant(hitList[mi], rest)
+        if sub != null && sub != undefined {
+            let si = 0
+            while si < len(sub) {
+                out = push(out, sub[si])
+                si = si + 1
+            }
+        }
+        mi = mi + 1
+    }
+    return out
+}
+
+/// Collect matches for simple / descendant / comma selectors (H3/H6b).
+pub fn queryAllKab(root, sel) {
+    if sel == null || sel == undefined {
+        return null
+    }
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return null
+    }
+    if hasChar(s, ">") || hasChar(s, "+") || hasChar(s, "~") || hasChar(s, "[") || hasChar(s, ":") {
+        return null
+    }
+    if hasChar(s, ",") {
+        let parts = splitComma(s)
+        let out = []
+        let pi = 0
+        while pi < len(parts) {
+            let p = parts[pi]
+            if len(p) > 0 {
+                let sub = queryAllKab(root, p)
+                if sub != null && sub != undefined {
+                    let si = 0
+                    while si < len(sub) {
+                        out = push(out, sub[si])
+                        si = si + 1
+                    }
+                }
+            }
+            pi = pi + 1
+        }
+        return out
+    }
+    if hasChar(s, " ") {
+        return queryAllDescendant(root, splitSpaces(s))
+    }
+    if !isSimpleSelector(s) {
+        return null
+    }
+    return walkQueryAll(root, s, [])
 }

@@ -1,0 +1,18 @@
+// H6a: builtins + += / ++ + minimal document (Kab-only; no evalSourceRust)
+// cargo run --bin kabootar -- examples/kv8_h6_builtins.kab
+
+import "kv8/eval"
+
+preferKabEval()
+
+let mathOk = evalSource("Math.floor(3.9)") == 3
+let arrOk = evalSource("Array.isArray([1, 2])") == true
+let objOk = evalSource("let k = Object.keys({ \"a\": 1, \"b\": 2 }); Array.isArray(k) && k[0] != null")
+let plusOk = evalSource("let n = 1; n += 4; n") == 5
+let incOk = evalSource("let i = 0; i++; i") == 1
+let forOk = evalSource("let s = 0; for (let i = 0; i < 3; i++) { s += i; } s") == 3
+
+let domOk = evalSource("let el = document.createElement(\"div\"); el.textContent = \"hi\"; document.body.appendChild(el); true")
+
+println("h6a math=" + mathOk + " arr=" + arrOk + " obj=" + objOk + " += " + plusOk + " ++ " + incOk + " for=" + forOk + " dom=" + domOk)
+return mathOk && arrOk && objOk && plusOk && incOk && forOk && domOk

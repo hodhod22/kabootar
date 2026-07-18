@@ -1,0 +1,54 @@
+// Start click → dispatch → drainKosEvents → openWindow (no manual launchApp)
+// cargo run --bin kabootar -- examples/kos_event_drain_smoke.kab
+
+import "kos/shell"
+import "kos/launch"
+import "kos/windows"
+import "kdom/document"
+import "kdom/events"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "Hello drain")
+os_write("/apps/notes.app", "Notes body")
+
+let shell = buildShell()
+shell = openStart(shell)
+let startOk = isStartOpen(shell)
+
+let apps = domExtra("queryAll", shell, ".kos-start-app")
+let dispatched = null
+let i = 0
+while i < len(apps) {
+    let item = apps[i]
+    let app = domExtra("getAttr", item, "data-app")
+    if ("" + app) == "hello.app" {
+        dispatched = dispatch(item, "click")
+    }
+    i = i + 1
+}
+
+let before = listWindows(shell)
+let beforeN = 0
+if is_array(before) {
+    beforeN = len(before)
+}
+
+shell = drainKosEvents(shell)
+let wins = listWindows(shell)
+let winOk = is_array(wins) && len(wins) == beforeN + 1
+let titleOk = false
+let bodyOk = false
+if winOk {
+    let t = domExtra("getAttr", wins[len(wins) - 1], "data-title")
+    titleOk = ("" + t) == "hello.app"
+    let bodies = domExtra("queryAll", wins[len(wins) - 1], ".kos-window-body")
+    if is_array(bodies) && len(bodies) >= 1 {
+        let kids = domExtra("children", bodies[0], null)
+        if is_array(kids) && len(kids) >= 1 {
+            bodyOk = true
+        }
+    }
+}
+
+println("drain dispatched=" + dispatched + " win=" + winOk + " title=" + titleOk + " body=" + bodyOk)
+return startOk && dispatched == "launchStartApp" && winOk && titleOk && bodyOk

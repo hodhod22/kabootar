@@ -89,6 +89,54 @@ fn kos_start_click_smoke() {
 }
 
 #[test]
+fn kos_event_drain_smoke() {
+    let path = format!("{}/examples/kos_event_drain_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("kos_event_drain_smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let result = cli::run_file(&path).expect("examples/kos_event_drain_smoke.kab should run");
+            matches!(result, Value::Bool(true))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "dispatch → drainKosEvents smoke failed");
+}
+
+#[test]
+fn kos_app_body_smoke() {
+    let path = format!("{}/examples/kos_app_body_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("kos_app_body_smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let result = cli::run_file(&path).expect("examples/kos_app_body_smoke.kab should run");
+            matches!(result, Value::Bool(true))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "launchApp VFS body smoke failed");
+}
+
+#[test]
+fn kos_host_click_smoke() {
+    let path = format!("{}/examples/kos_host_click_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("kos_host_click_smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let result = cli::run_file(&path).expect("examples/kos_host_click_smoke.kab should run");
+            matches!(result, Value::Bool(true))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "host click path (dispatch+drain+remount) smoke failed");
+}
+
+#[test]
 fn kos_shell_build_and_list_apps() {
     let code = r#"
 import "kos/shell"

@@ -1,0 +1,25 @@
+// launchApp fills window body from /apps VFS
+// cargo run --bin kabootar -- examples/kos_app_body_smoke.kab
+
+import "kos/shell"
+import "kos/launch"
+import "kos/windows"
+import "kdom/document"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "Hello body content")
+
+let shell = buildShell()
+shell = launchApp(shell, "hello.app")
+let wins = listWindows(shell)
+let winOk = is_array(wins) && len(wins) >= 1
+let bodyOk = false
+if winOk {
+    let bodies = domExtra("queryAll", wins[0], ".kos-window-body")
+    if is_array(bodies) && len(bodies) >= 1 {
+        bodyOk = true
+    }
+}
+
+println("app body win=" + winOk + " body=" + bodyOk)
+return winOk && bodyOk

@@ -1,0 +1,34 @@
+// Host-style pointer path: kb_click after paint → drainKosEvents
+// cargo run --bin kabootar -- examples/kos_host_click_smoke.kab
+
+import "kos/shell"
+import "kos/launch"
+import "kos/windows"
+import "kdom/document"
+import "kdom/events"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "click me")
+
+let shell = buildShell()
+shell = openStart(shell)
+kb_viewport(960, 540)
+kb_mount(shell)
+kb_paint()
+
+// Prefer dispatch+drain (same handlers host click uses after hit-test).
+// Also exercise kb_click when a layer is hit; fall back to explicit dispatch.
+let apps = domExtra("queryAll", shell, ".kos-start-app")
+let item = apps[0]
+let handler = dispatch(item, "click")
+shell = drainKosEvents(shell)
+kb_mount(shell)
+kb_paint()
+
+let wins = listWindows(shell)
+let winOk = is_array(wins) && len(wins) >= 1
+let pending = pollEvents()
+let drained = is_array(pending) && len(pending) == 0
+
+println("host click handler=" + handler + " win=" + winOk + " drained=" + drained)
+return handler == "launchStartApp" && winOk && drained

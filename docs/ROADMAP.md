@@ -614,7 +614,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **K2-layout** | **flex/box orchestration** — ✅ **subset**: `lib/kstyle/layout` `flexColumn`/`flexRow`/`gap`/`pad`/`applyFlex` (stil-helpers; native layout engine kvar) (`k2_layout_smoke`) |
 | **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` (enqueue/tick/yield/preempt). Gate: `cargo test --test os_lib` |
 | **K4** | **Webläsare** — ✅ **subset**: `lib/kbrowser` tabs + VFS navigate + paint (`k4_kbrowser_tabs_smoke`) |
-| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5 + launch + Start click): `launchApp` / `clickStartApp` → `openWindow` (`kos_launch_app_smoke`, `kos_start_click_smoke`) |
+| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5 + launch + Start click + event drain + app body): `launchApp` / `clickStartApp` / `drainKosEvents` → `openWindow` med VFS-body (`kos_launch_app_smoke`, `kos_start_click_smoke`, `kos_event_drain_smoke`, `kos_app_body_smoke`) |
 
 ### Våg H — Rust → noll 📋
 
@@ -627,6 +627,22 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 - **H3** ✅ **subset** — `queryAllKab` i `lib/kdom/query`; `document.domExtra(..., "queryAll")` provar Kab först (`h3_query_all_kab_smoke`); används av `kos/windows` `listWindows`
 - **H4** ✅ **subset** — Thin Rust Kv8: produktväg = `evalSource`/`evalSourceKab` → `evalSourceWith`; `evalSourceRust` endast för luckor; `preferKabEval()` sätter flagga (`h4_prefer_kab_eval`)
 - **H5** ✅ **subset** — paint/layout-orchestration i `.kab`: `lib/kdom/paint` `paintNode` / `paintWithCss` / `layoutPaint` (flexColumn via `kstyle/layout` + `paint`) (`h5_layout_paint_smoke`)
+- **H5b** ✅ **subset** — event drain: `pollEvents` + `drainKosEvents` (Start `launchStartApp`); host shell musklick → `kb_click` → drain → remount/paint (`kos_event_drain_smoke`, `kos_host_click_smoke`)
+- **H6** 🚧 **Zero Rust (produkt → bootstrap)** — aktiv huvudlinje. **Regel: inga nya features i Rust.** All produktlogik (Kv8, CSS, DOM, OS, webläsare) → `.kab`; Rust krymper till syscall och sist bootstrap som också skrivs om.
+
+**H6-ordning (mot noll Rust):**
+
+| Fas | Mål | Delete-gate |
+|-----|-----|-------------|
+| **H6a** | Kv8 Kab-parity: arrow, builtins, DOM-host, expr/stmt-luckor | `evalSourceRust` / `kv8_eval_source` bort — smoke på Kab-only |
+| **H6b** | kDOM/KSS-policy i `.kab`; layout/paint-regler | native `kdom_query*` / `kstyle_parse` bara som thin FFI |
+| **H6c** | Browser chrome (tabs/nav) + kOS i `.kab` | `kabootar_browser` = window/pixels/input |
+| **H6d** | OS-policy (sched/VFS/process) i `.kab` | Rust = disk/net/GPU/hw |
+| **H6e** | Bootstrap: evaluator/bytecode/lexer i Kabootar | Rust = minimal laddare; sedan den också i Kab/maskinkod |
+
+**H6a** ✅ — Kab-only `evalSource` (`Object.assign`/`Object.is`/`Symbol`/`globalThis`, events/timers/style); `evalSourceRust` + `kv8_eval_source` bort (`kv8_h6_*`, `kv8_h6a_parity`, `kv8_h4_prefer_kab`).
+
+**H6b** ✅ **subset** — `queryKab`/`queryAllKab` stödjer descendant + comma; `kv8/host` `docQuery`/`docGetById` via `document.query` (Kab först); CSS apply via `parseAndApply` (`h6b_query_policy`). Native `kdom_query*` kvar som FFI-fallback för `>`/`+`/`[`/`:`.
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity
@@ -683,7 +699,7 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 |-----|----------|
 | **C1** ✅ | **kDOM** — MutationObserver + Kv8 Event bubble/capture/remove; selectors |
 | **C2** ✅ | **Kv8** — React 19 esbuild; createRoot `bundle`/`mm`/`shim`; CI wire; full render `#[ignore]` |
-| **C3** ✅ | **Kv8 hot path** — `evalSource` via Kab `.kab` (`evalSourceWith`); Rust kvar som `evalSourceRust` |
+| **C3** ✅ | **Kv8 hot path** — `evalSource` via Kab `.kab` (`evalSourceWith`); H6a: Rust `evalSourceRust` bort |
 | **C4** ✅ | **Layout** — flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple CSS grid |
 | **C5** ✅ | **Canvas 2D** — curves/clip/toDataURL/imageData/setTransform (+ [CANVAS.md](CANVAS.md)) |
 | **C6** ✅ | **WebGL** — textures, FBO, shaders från GLSL-filer (`fixtures/webgl`) |
@@ -833,12 +849,12 @@ Målbild: användaren ska känna igen sig från Windows, men systemet ska **se o
 Milstolpar:
 
 - [x] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster — ✅ **subset** via `lib/kos/shell` (`buildShell` / `listApps`)
-- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart`; **Start → openWindow** via `lib/kos/launch` `launchApp` / `launchStartApp`; **Start click** via `wireStartApps` (från `openStart`) + `clickStartApp` (dispatch + `launchApp`) (`kos_launch_app_smoke`, `kos_start_click_smoke`)
+- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart`; **Start → openWindow** via `lib/kos/launch` `launchApp` / `launchStartApp` / `drainKosEvents`; **Start click** via `wireStartApps` + `clickStartApp` (dispatch → drain) (`kos_launch_app_smoke`, `kos_start_click_smoke`, `kos_event_drain_smoke`); app-body från `os_read(/apps/…)` (`kos_app_body_smoke`)
 - [x] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`) — ✅ **subset**: `lib/kos/explorer` (`kos_g12_3_explorer_smoke`)
 - [x] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay — ✅ **subset**: `lib/kos/windows` (`openWindow` / `snapWindow` / `openAltTab`; `kos_g12_4_windows_smoke`)
 - [x] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema — ✅ **subset** (CSS polish via `lib/kos/theme` `applyKosTheme`; inte full GPU blur) (`kos_g12_5_theme_smoke`)
 
-**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (buildShell + applyKosTheme + `kb_mount`/`kb_paint`). `kabootar shell` (`src/shell/mod.rs` `boot_desktop_frame`) monterar kOS-skrivbordet som primär UI (tunn HTML-fallback om mount misslyckas). ✅ **shell mount subset**. Exempel: `examples/kos_shell_mount_smoke.kab` (`kos_shell_mount_smoke`), `examples/kos_shell_boot.kab` (`kos_shell_boot_smoke`).
+**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (build + theme + `kb_mount`/`kb_paint`). `kabootar shell` monterar Start + `/apps`, mappar vänsterklick → `kb_click` → `drainKosEvents` → remount/paint. CI: `kos_lib` gate i `self-host.yml`. ✅ **shell mount + input subset**. Exempel: `examples/kos_shell_mount_smoke.kab`, `examples/kos_host_click_smoke.kab`.
 
 Beror på: **G11** (kbrowser), **Våg D5** (GPU compositor), **Våg C4** (layout).
 

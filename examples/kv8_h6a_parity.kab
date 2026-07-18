@@ -1,0 +1,15 @@
+// H6a: Kab-only parity — Object.assign / Symbol / globalThis (no evalSourceRust)
+// cargo run --bin kabootar -- examples/kv8_h6a_parity.kab
+
+import "kv8/eval"
+
+preferKabEval()
+
+let assignOk = evalSource("let o = Object.assign({a:1},{b:2,c:3}); o.a + o.b + o.c") == 6
+let isOk = evalSource("Object.is(1,1) && !Object.is(1,2)")
+let symOk = evalSource("Object.is(Symbol.for(\"k\"), Symbol.for(\"k\"))")
+let symNewOk = evalSource("!Object.is(Symbol(\"a\"), Symbol(\"a\"))")
+let gtKeys = evalSource("globalThis.Object.keys({x:1})[0]") == "x"
+
+println("h6a parity assign=" + assignOk + " is=" + isOk + " sym=" + symOk + " symNew=" + symNewOk + " gt=" + gtKeys)
+return assignOk && isOk && symOk && symNewOk && gtKeys

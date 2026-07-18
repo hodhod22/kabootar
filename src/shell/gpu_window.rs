@@ -363,6 +363,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let window = Arc::new(window);
     let mut presenter = GpuPresenter::new(window.clone())?;
     presenter.blit_from_buffer()?;
+    let mut cursor = (0.0_f64, 0.0_f64);
 
     event_loop
         .run(move |event, elwt| {
@@ -378,6 +379,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
                         }
                         WindowEvent::RedrawRequested => {
                             let _ = presenter.blit_from_buffer();
+                        }
+                        WindowEvent::CursorMoved { position, .. } => {
+                            cursor = (position.x, position.y);
+                            crate::runtime::game::pointer_move(position.x, position.y);
+                        }
+                        WindowEvent::MouseInput {
+                            state: winit::event::ElementState::Pressed,
+                            button: winit::event::MouseButton::Left,
+                            ..
+                        } => {
+                            let (x, y) = cursor;
+                            let _ = crate::shell::shell_pointer_click(x, y);
+                            window.request_redraw();
+                        }
+                        WindowEvent::MouseInput {
+                            state: winit::event::ElementState::Released,
+                            button: winit::event::MouseButton::Left,
+                            ..
+                        } => {
+                            let (x, y) = cursor;
+                            crate::runtime::game::pointer_up(x, y);
                         }
                         _ => {}
                     }

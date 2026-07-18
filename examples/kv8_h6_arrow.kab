@@ -1,0 +1,10 @@
+// H6: Kab Kv8 eval — arrow functions (step toward deleting evalSourceRust)
+// cargo run --bin kabootar -- examples/kv8_h6_arrow.kab
+
+import "kv8/eval"
+
+preferKabEval()
+let add = evalSource("let add = (a, b) => a + b; add(2, 3)")
+let id = evalSource("let id = (x) => x; id(7)")
+let block = evalSource("let f = (n) => { return n + 5; }; f(10)")
+return add == 5 && id == 7 && block == 15
