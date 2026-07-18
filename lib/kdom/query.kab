@@ -1,0 +1,98 @@
+@version "1.0.0"
+
+// H2: simple selector query in Kabootar (tag / .class / #id).
+// import "kdom/query"
+
+import "kstyle/selectors"
+
+fn isSimpleSelector(sel) {
+    if sel == null || sel == undefined {
+        return false
+    }
+    let s = "" + sel
+    if len(s) == 0 {
+        return false
+    }
+    let i = 0
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == " " || c == ">" || c == "+" || c == "~" || c == "," || c == "[" || c == ":" {
+            return false
+        }
+        i = i + 1
+    }
+    let head = char_at(s, 0)
+    if head == "#" || head == "." {
+        return len(s) > 1
+    }
+    return true
+}
+
+fn walkQuery(node, sel) {
+    if node == null || node == undefined {
+        return null
+    }
+    let tag = "" + node.tag
+    let classAttr = kdom_get_attr(node, "class")
+    if classAttr == null || classAttr == undefined {
+        classAttr = ""
+    }
+    let idAttr = kdom_get_attr(node, "id")
+    if idAttr == null || idAttr == undefined {
+        idAttr = ""
+    }
+    if matches(sel, tag, classAttr, idAttr) {
+        return node
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        let hit = walkQuery(kids[i], sel)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        i = i + 1
+    }
+    return null
+}
+
+/// Simple #id / .class / tag query via kstyle/selectors + tree walk.
+pub fn queryKab(root, sel) {
+    if !isSimpleSelector(sel) {
+        return null
+    }
+    return walkQuery(root, "" + sel)
+}
+
+fn walkQueryAll(node, sel, out) {
+    if node == null || node == undefined {
+        return out
+    }
+    let tag = "" + node.tag
+    let classAttr = kdom_get_attr(node, "class")
+    if classAttr == null || classAttr == undefined {
+        classAttr = ""
+    }
+    let idAttr = kdom_get_attr(node, "id")
+    if idAttr == null || idAttr == undefined {
+        idAttr = ""
+    }
+    if matches(sel, tag, classAttr, idAttr) {
+        out = push(out, node)
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        out = walkQueryAll(kids[i], sel, out)
+        i = i + 1
+    }
+    return out
+}
+
+/// Collect all simple #id / .class / tag matches (H3).
+pub fn queryAllKab(root, sel) {
+    if !isSimpleSelector(sel) {
+        return null
+    }
+    return walkQueryAll(root, "" + sel, [])
+}

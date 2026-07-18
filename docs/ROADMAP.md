@@ -606,11 +606,13 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) — ✅ **subset** (lexer+parser i `lib/kv8`; eval hybrid). Gate: `cargo test --test kv8_lib -- --test-threads=1` |
 | **K1c** | **Kv8 Kabootar eval** — ✅ **subset**: `evalSourceKab` → `evalSourceWith` (literals/ops/control); class/async kvar via Rust `evalSource` |
 | **K1d** | **Kv8 class/new/async** — ✅ **subset**: `K_NEW` + `this` + `K_CLASS`/`K_NEW`/`K_AWAIT` i `evalSourceKab` (`k1d_class_new_kab_eval`); async kör sync |
+| **K1e** | **Kv8 extends + Kab evalSource** — ✅ **subset**: `extends` mergar parent-metoder; `evalSource` → Kab-path (`evalSourceWith`); Rust kvar som `evalSourceRust` (`k1e_extends_kab_eval`, `k1e_eval_source_prefers_kab`) |
+| **K1f** | **Kv8 async/Promise** — ✅ **subset**: async fn returnerar `{__k8promise,value}`; `K_AWAIT` unwrap; `Promise.resolve` stub i `evalSourceWith` (`k1f_async_promise_kab_eval`) |
 | **K2** | **DOM + CSS/KSS** — ✅ **subset**: `querySelector` + KSS object→CSS i `.kab` (`kdom_query_kss_smoke`); layout/paint fortfarande Rust |
 | **K2 deepen** | **applyCss + matches** — ✅ **subset**: `kdom_applycss_matches_smoke` (kdom + kss + selectors + theme `applyCss`) |
 | **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` (enqueue/tick/yield/preempt). Gate: `cargo test --test os_lib` |
-| **K4** | **Webläsare** — `lib/kbrowser` + shell helt i Kabootar (GC-UI) |
-| **K5** | **kOS desktop** — G12 Start/Explorer/Settings i `.kab` |
+| **K4** | **Webläsare** — ✅ **subset**: `lib/kbrowser` tabs + VFS navigate + paint (`k4_kbrowser_tabs_smoke`) |
+| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5): `lib/kos/shell` Start/`listApps`/`bootKosDesktop`; `explorer`; `windows` snap/Alt+Tab; `theme` KSS polish |
 
 ### Våg H — Rust → noll 📋
 
@@ -618,7 +620,9 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 - Flytta kvarvarande logik till `.kab` under K  
 - Slutmått: produktkod = Kabootar; Rust borta (eller minimal bootstrap som sedan också skrivs om)
 - **H0** ✅ — stylesheet apply + document `paint` CSS-path prefererar `.kab` (`parseAndApply` via `kstyle/parse`) istället för enbart native `kstyle_parse`
-
+- **H1** ✅ **subset** — desktop shell boot CSS via `import "kstyle/parse"` + `parseAndApply` (inte native `kstyle_parse`); gate `h1_shell_boot_css_kab`
+- **H2** ✅ **subset** — `queryKab` i `lib/kdom/query` (#id / .class / tag via `kstyle/selectors` + walk); `document.query` provar Kab först, fallback `kdom_query_selector` (`h2_query_kab_smoke`)
+- **H3** ✅ **subset** — `queryAllKab` i `lib/kdom/query`; `document.domExtra(..., "queryAll")` provar Kab först (`h3_query_all_kab_smoke`); används av `kos/windows` `listWindows`
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity
@@ -675,7 +679,7 @@ Deno-listan i [DENO.md](DENO.md) är i stort sett ✅; kvar är **fördjupning o
 |-----|----------|
 | **C1** ✅ | **kDOM** — MutationObserver + Kv8 Event bubble/capture/remove; selectors |
 | **C2** ✅ | **Kv8** — React 19 esbuild; createRoot `bundle`/`mm`/`shim`; CI wire; full render `#[ignore]` |
-| **C3** ✅ | **Kv8 hot path** — `evalSource` via `kv8_eval_source` |
+| **C3** ✅ | **Kv8 hot path** — `evalSource` via Kab `.kab` (`evalSourceWith`); Rust kvar som `evalSourceRust` |
 | **C4** ✅ | **Layout** — flex (`justify`/`align`/`wrap`/`grow`/`shrink`) + simple CSS grid |
 | **C5** ✅ | **Canvas 2D** — curves/clip/toDataURL/imageData/setTransform (+ [CANVAS.md](CANVAS.md)) |
 | **C6** ✅ | **WebGL** — textures, FBO, shaders från GLSL-filer (`fixtures/webgl`) |
@@ -807,7 +811,7 @@ Mobil (Android, iPhone): se **G7** — samma `lib/kbrowser/`, touch + viewport +
 
 Beror på: **G6–G10** (kDOM/Kv8/kss), **Våg C** (layout/canvas), **`lib/os/*`** (VFS, async, fönster).
 
-| **G12** | **kOS desktop shell** — Windows-lik UX (taskbar, Start, fönster, Explorer) med modern stack (kDOM/KSS, GPU compositor, blur, animationer); se [OS.md#desktop--utseende](OS.md#desktop--utseende) | 📋 planerat |
+| **G12** | **kOS desktop shell** — Windows-lik UX (taskbar, Start, fönster, Explorer) med modern stack (kDOM/KSS, GPU compositor, blur, animationer); se [OS.md#desktop--utseende](OS.md#desktop--utseende) | ✅ **subset** (G12.1–G12.5) |
 
 **G12 — kOS utseende (planering):**
 
@@ -824,11 +828,13 @@ Målbild: användaren ska känna igen sig från Windows, men systemet ska **se o
 
 Milstolpar:
 
-- [ ] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster
-- [ ] **G12.2** — Start + app-lista från VFS (`/apps`)
-- [ ] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`)
-- [ ] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay
-- [ ] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema
+- [x] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster — ✅ **subset** via `lib/kos/shell` (`buildShell` / `listApps`)
+- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart` (`kos_g12_2_start_smoke`)
+- [x] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`) — ✅ **subset**: `lib/kos/explorer` (`kos_g12_3_explorer_smoke`)
+- [x] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay — ✅ **subset**: `lib/kos/windows` (`openWindow` / `snapWindow` / `openAltTab`; `kos_g12_4_windows_smoke`)
+- [x] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema — ✅ **subset** (CSS polish via `lib/kos/theme` `applyKosTheme`; inte full GPU blur) (`kos_g12_5_theme_smoke`)
+
+**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (buildShell + applyKosTheme). `kabootar shell` (`src/shell/mod.rs` `boot_desktop_frame`) anropar `bootKosDesktop` efter paint — kOS DOM-subset; full compositor-mount av kos-trädet kommer senare. Exempel: `examples/kos_shell_boot.kab` (`kos_shell_boot_smoke`).
 
 Beror på: **G11** (kbrowser), **Våg D5** (GPU compositor), **Våg C4** (layout).
 

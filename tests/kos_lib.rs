@@ -1,0 +1,67 @@
+//! lib/kos — kOS desktop shell (G12.1–G12.5 + boot).
+
+use kabootar_lib::cli;
+use kabootar_lib::value::Value;
+
+fn manifest_dir() -> String {
+    env!("CARGO_MANIFEST_DIR").to_string()
+}
+
+#[test]
+fn kos_g12_shell_smoke() {
+    let path = format!("{}/examples/kos_g12_shell_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_g12_shell_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_g12_2_start_smoke() {
+    let path = format!("{}/examples/kos_g12_2_start_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_g12_2_start_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_g12_3_explorer_smoke() {
+    let path = format!("{}/examples/kos_g12_3_explorer_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_g12_3_explorer_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_g12_4_windows_smoke() {
+    let path = format!("{}/examples/kos_g12_4_windows_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_g12_4_windows_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_g12_5_theme_smoke() {
+    let path = format!("{}/examples/kos_g12_5_theme_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_g12_5_theme_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_shell_boot_smoke() {
+    let path = format!("{}/examples/kos_shell_boot.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_shell_boot.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_shell_build_and_list_apps() {
+    let code = r#"
+import "kos/shell"
+import "kdom/document"
+os_mkdir("/apps")
+os_write("/apps/a.app", "x")
+let desktop = buildShell()
+let bar = findTaskbar(desktop)
+let apps = listApps()
+bar != null && len(apps) >= 1
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

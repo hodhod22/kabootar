@@ -1,0 +1,18 @@
+// G12.4 — Multi-window + snap + Alt+Tab
+// cargo run --bin kabootar -- examples/kos_g12_4_windows_smoke.kab
+
+import "kos/shell"
+import "kos/windows"
+import "kdom/document"
+
+let desktop = buildShell()
+desktop = openWindow(desktop, "Alpha")
+desktop = openWindow(desktop, "Beta")
+let wins = listWindows(desktop)
+snapWindow(wins[0], "left")
+focusWindow(desktop, wins[1])
+desktop = openAltTab(desktop)
+wins = listWindows(desktop)
+let ok = len(wins) >= 2 && isAltTabOpen(desktop)
+println("g12.4 windows=" + len(wins) + " alttab=" + isAltTabOpen(desktop))
+return ok

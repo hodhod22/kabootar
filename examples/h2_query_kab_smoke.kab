@@ -1,0 +1,23 @@
+// H2 — queryKab simple selectors (#id / .class / tag)
+// cargo run --bin kabootar -- examples/h2_query_kab_smoke.kab
+
+import "kdom/document"
+import "kdom/query"
+
+let root = el("div")
+root = attr(root, "id", "root")
+let child = el("span")
+child = attr(child, "class", "card")
+child = attr(child, "id", "main")
+root = attach(root, child, true)
+let nested = el("p")
+root = attach(root, nested, true)
+
+let byId = queryKab(root, "#main")
+let byClass = queryKab(root, ".card")
+let byTag = queryKab(root, "span")
+let viaDoc = query(root, "#main")
+let miss = queryKab(root, ".missing")
+let ok = byId != null && byClass != null && byTag != null && viaDoc != null && miss == null
+println("h2 queryKab id=" + (byId != null) + " class=" + (byClass != null) + " tag=" + (byTag != null))
+return ok

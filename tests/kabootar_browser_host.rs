@@ -137,3 +137,13 @@ fn g7_mobile_shell_chrome_back_tabs() {
     );
     assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }
+
+#[test]
+fn k4_kbrowser_tabs_smoke() {
+    let path = format!(
+        "{}/examples/kbrowser_k4_tabs_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let out = kabootar_lib::cli::run_file(&path).expect("k4 tabs smoke should run");
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}

@@ -1,0 +1,9 @@
+// K1f: async function → __k8promise + await unwrap (+ Promise.resolve stub)
+// cargo run --bin kabootar -- examples/kv8_k1f_async.kab
+
+import "kv8/eval"
+
+let viaAwait = evalSourceKab("async function f(){ return 7 } await f()")
+let viaResolve = evalSourceKab("await Promise.resolve(3)")
+let viaAwaitLit = evalSourceKab("async function g(){ return await 9 } await g()")
+return viaAwait == 7 && viaResolve == 3 && viaAwaitLit == 9

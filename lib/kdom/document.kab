@@ -4,6 +4,7 @@
 // import "kdom/document"
 
 import "kstyle/parse"
+import "kdom/query"
 
 pub fn el(tag) {
     return kdom_create(tag)
@@ -27,6 +28,11 @@ pub fn attr(node, key, value) {
 }
 
 pub fn query(root, selector) {
+    // H2: prefer Kabootar walk for simple #id / .class / tag
+    let hit = queryKab(root, selector)
+    if hit != null && hit != undefined {
+        return hit
+    }
     return kdom_query_selector(root, selector)
 }
 
@@ -36,6 +42,11 @@ pub fn domExtra(mode, a, b) {
         return kdom_get_attr(a, b)
     }
     if mode == "queryAll" {
+        // H3: prefer Kabootar walk for simple #id / .class / tag
+        let kab = queryAllKab(a, b)
+        if kab != null && kab != undefined {
+            return kab
+        }
         return kdom_query_selector_all(a, b)
     }
     if mode == "children" {

@@ -1,0 +1,12 @@
+// kOS shell boot — buildShell + theme (+ optional Start)
+// cargo run --bin kabootar -- examples/kos_shell_boot.kab
+
+import "kos/shell"
+import "kdom/document"
+
+let shell = bootKosDesktop()
+shell = openStart(shell)
+let bar = findTaskbar(shell)
+let ok = shell != null && bar != null && isStartOpen(shell)
+println("kos boot taskbar=" + (bar != null) + " start=" + isStartOpen(shell))
+return ok

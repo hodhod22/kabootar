@@ -1,0 +1,27 @@
+// H3 — queryAllKab simple selectors
+// cargo run --bin kabootar -- examples/h3_query_all_kab_smoke.kab
+
+import "kdom/document"
+import "kdom/query"
+
+let root = el("div")
+root = attr(root, "id", "root")
+let a = el("span")
+a = attr(a, "class", "card")
+let b = el("span")
+b = attr(b, "class", "card")
+let c = el("p")
+root = attach(root, a, true)
+root = attach(root, b, true)
+root = attach(root, c, true)
+
+let allCards = queryAllKab(root, ".card")
+let allSpans = queryAllKab(root, "span")
+let viaExtra = domExtra("queryAll", root, ".card")
+let miss = queryAllKab(root, ".missing")
+let ok = is_array(allCards) && len(allCards) == 2
+    && is_array(allSpans) && len(allSpans) == 2
+    && is_array(viaExtra) && len(viaExtra) == 2
+    && is_array(miss) && len(miss) == 0
+println("h3 queryAllKab cards=" + len(allCards) + " spans=" + len(allSpans))
+return ok

@@ -1,0 +1,12 @@
+// H1 — host/shell CSS path via Kabootar parseAndApply (mirrors shell boot)
+// cargo run --bin kabootar -- examples/h1_shell_css_smoke.kab
+
+import "kstyle/parse"
+import "kdom/document"
+
+let n = parseAndApply("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; }
+  h1 { font-size:36px; color:#8ab4f8; } .card { background:#35363a; padding:20px; border-radius:12px; }")
+let ui = domExtra("kml", "<html><body><h1>Kabootar OS</h1><div class='card'><p>H1</p></div></body></html>", "")
+let frame = paint(ui, 960, 540, "")
+let css = kstyle_css()
+return n >= 2 && str_includes(css, ".card") && frame["html"] != undefined

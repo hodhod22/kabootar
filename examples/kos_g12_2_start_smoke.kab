@@ -1,0 +1,18 @@
+// G12.2 — Start panel + app list from /apps
+// cargo run --bin kabootar -- examples/kos_g12_2_start_smoke.kab
+
+import "kos/shell"
+import "kdom/document"
+
+os_mkdir("/apps")
+os_write("/apps/alpha.app", "a")
+os_write("/apps/beta.app", "b")
+
+let desktop = buildShell()
+desktop = openStart(desktop)
+let start = query(desktop, "#kos-start")
+let apps = domExtra("queryAll", desktop, ".kos-start-app")
+let okOpen = isStartOpen(desktop)
+let okApps = is_array(apps) && len(apps) >= 2
+println("g12.2 start open=" + okOpen + " apps=" + len(apps) + " panel=" + (start != null))
+return okOpen && okApps && start != null

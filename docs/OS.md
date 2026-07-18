@@ -34,12 +34,15 @@ kOS ska **kännas igen** för Windows-användare — samma mentala modell (skriv
 ```
 Användare (bekant Windows-UX)
         ↓
-lib/kos/shell.kab  — taskbar, Start, snap, notifieringar
+lib/kos/shell.kab  — taskbar, Start, bootKosDesktop (+ theme)
+lib/kos/windows.kab — multi-fönster, snap, Alt+Tab
         ↓
 kbrowser + kDOM/KSS/Kv8  — appar, Explorer, Settings
         ↓
 os_window_* / GPU compositor  — presentation (winit + wgpu)
 ```
+
+`kabootar shell` kan använda kOS boot-subset via `bootKosDesktop()` (se [ROADMAP G12](ROADMAP.md)); native softbuffer/GPU-path behåller paint-boot och anropar kos DOM-boot efteråt.
 
 Se [RENDERING.md](RENDERING.md), [BROWSER.md](BROWSER.md) och [ROADMAP.md — G12](ROADMAP.md).
 
