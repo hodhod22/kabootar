@@ -1,0 +1,71 @@
+@version "1.0.0"
+
+// H6d: VFS product policy over os/vfs syscalls. import "os/vfs_policy"
+// KEEP <=~7 top-level fn. Host disk I/O stays in Rust natives.
+
+import "os/vfs"
+
+fn parentPath(path) {
+    let s = "" + path
+    let last = -1
+    let i = 0
+    while i < len(s) {
+        if char_at(s, i) == "/" {
+            last = i
+        }
+        i = i + 1
+    }
+    if last <= 0 {
+        return "/"
+    }
+    return str_slice(s, 0, last)
+}
+
+/// True when path is under /apps (product sandbox root).
+pub fn underApps(path) {
+    let s = "" + path
+    if s == "/apps" {
+        return true
+    }
+    if len(s) < 6 {
+        return false
+    }
+    return str_slice(s, 0, 6) == "/apps/"
+}
+
+/// Create directory if missing (and parent when needed, one level).
+pub fn ensureDir(path) {
+    let p = "" + path
+    if exists(p) {
+        return true
+    }
+    let parent = parentPath(p)
+    if parent != "/" && parent != p && !exists(parent) {
+        mkdir(parent)
+    }
+    mkdir(p)
+    return exists(p)
+}
+
+/// Ensure parent dir, then write file (product write helper).
+pub fn writeFile(path, body) {
+    let p = "" + path
+    let parent = parentPath(p)
+    if parent != "/" && !exists(parent) {
+        ensureDir(parent)
+    }
+    write(p, body)
+    return read(p)
+}
+
+/// Seed /apps tree used by kOS Start (policy, not shell UI).
+pub fn ensureAppsRoot() {
+    ensureDir("/apps")
+    return exists("/apps")
+}
+
+/// Copy-like helper: read src, writeFile dst (same VFS).
+pub fn copyFile(src, dst) {
+    let body = read(src)
+    return writeFile(dst, body)
+}

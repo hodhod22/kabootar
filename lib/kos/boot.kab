@@ -6,13 +6,12 @@
 import "kos/shell"
 import "kos/theme"
 import "kos/launch"
+import "os/vfs_policy"
 
 pub fn seedDefaultApps() {
-    if !os_exists("/apps") {
-        os_mkdir("/apps")
-    }
+    ensureAppsRoot()
     if !os_exists("/apps/hello.app") {
-        os_write("/apps/hello.app", "Hello from Kabootar")
+        writeFile("/apps/hello.app", "Hello from Kabootar")
     }
     return true
 }

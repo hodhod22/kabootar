@@ -1,0 +1,31 @@
+@version "1.0.0"
+
+// H6d: scheduler product policy over os/sched. import "os/sched_policy"
+// KEEP <=~7 top-level fn. CFS heap stays native; Kab decides what to enqueue.
+
+import "os/sched"
+
+/// Enqueue each task name, then one fair tick (+ optional yield).
+pub fn runFairTick(names) {
+    let i = 0
+    while i < len(names) {
+        enqueue("" + names[i])
+        i = i + 1
+    }
+    let t = tick()
+    schedYield()
+    return t
+}
+
+/// Single named work unit: enqueue + tick.
+pub fn runOnce(name) {
+    enqueue("" + name)
+    return tick()
+}
+
+/// Prefetch-style batch: enqueue ranked list then preempt check.
+pub fn runPrefetch(names) {
+    let t = runFairTick(names)
+    preempt()
+    return t
+}
