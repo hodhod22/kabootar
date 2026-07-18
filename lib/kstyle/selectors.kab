@@ -1,7 +1,8 @@
 @version "1.0.0"
 
-// KSS selector matching in Kabootar (mirrors kstyle.rs selector_matches).
+// KSS selector matching in Kabootar (mirrors kstyle.rs / DomNode::matches_selector).
 // import "kstyle/selectors"
+// KEEP <=~7 top-level fn.
 
 pub fn matchesTag(sel, tag) {
     return sel == tag
@@ -35,15 +36,115 @@ pub fn matchesId(sel, idAttr) {
     return want == idAttr
 }
 
+/// Simple #id / .class / tag / tag#id / tag.class (no attr / :not).
+pub fn matchesSimple(sel, tag, classAttr, idAttr) {
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return false
+    }
+    if char_at(s, 0) == "#" {
+        return matchesId(s, idAttr)
+    }
+    if char_at(s, 0) == "." {
+        return matchesClass(s, classAttr)
+    }
+    let hash = str_index_of(s, "#")
+    if hash > 0 {
+        let t = str_slice(s, 0, hash)
+        let id = str_slice(s, hash + 1, len(s))
+        return t == tag && id == idAttr
+    }
+    let dot = str_index_of(s, ".")
+    if dot > 0 {
+        let t = str_slice(s, 0, dot)
+        let cls = "." + str_slice(s, dot + 1, len(s))
+        return t == tag && matchesClass(cls, classAttr)
+    }
+    return matchesTag(s, tag)
+}
+
+/// Legacy OR of bare tag / .class / #id (descendant walk still uses this for simple atoms).
 pub fn matches(sel, tag, classAttr, idAttr) {
-    if matchesTag(sel, tag) {
-        return true
+    return matchesSimple(sel, tag, classAttr, idAttr)
+}
+
+fn stripQuotes(v) {
+    let s = trim("" + v)
+    if len(s) >= 2 {
+        let a = char_at(s, 0)
+        let b = char_at(s, len(s) - 1)
+        if (a == "\"" && b == "\"") || (a == "'" && b == "'") {
+            return str_slice(s, 1, len(s) - 1)
+        }
     }
-    if matchesClass(sel, classAttr) {
-        return true
+    return s
+}
+
+/// Full node match: :not(...), [attr]/[attr=value], then simple.
+pub fn matchesNode(sel, node) {
+    if node == null || node == undefined {
+        return false
     }
-    if matchesId(sel, idAttr) {
-        return true
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return false
     }
-    return false
+    let tag = "" + node.tag
+    let classAttr = kdom_get_attr(node, "class")
+    if classAttr == null || classAttr == undefined {
+        classAttr = ""
+    }
+    let idAttr = kdom_get_attr(node, "id")
+    if idAttr == null || idAttr == undefined {
+        idAttr = ""
+    }
+
+    let notAt = str_index_of(s, ":not(")
+    if notAt >= 0 {
+        let base = trim(str_slice(s, 0, notAt))
+        let rest = str_slice(s, notAt + 5, len(s))
+        let end = str_index_of(rest, ")")
+        if end < 0 {
+            return false
+        }
+        let inner = trim(str_slice(rest, 0, end))
+        if matchesNode(inner, node) {
+            return false
+        }
+        if len(base) == 0 {
+            return true
+        }
+        return matchesNode(base, node)
+    }
+
+    let bracket = str_index_of(s, "[")
+    if bracket >= 0 {
+        let prefix = trim(str_slice(s, 0, bracket))
+        let rest = str_slice(s, bracket, len(s))
+        if len(rest) < 2 || char_at(rest, len(rest) - 1) != "]" {
+            return false
+        }
+        let inner = str_slice(rest, 1, len(rest) - 1)
+        let eq = str_index_of(inner, "=")
+        let attrOk = false
+        if eq >= 0 {
+            let name = trim(str_slice(inner, 0, eq))
+            let want = stripQuotes(str_slice(inner, eq + 1, len(inner)))
+            let got = kdom_get_attr(node, name)
+            attrOk = got != null && got != undefined && ("" + got) == want
+        } else {
+            let name = trim(inner)
+            let got = kdom_get_attr(node, name)
+            attrOk = got != null && got != undefined
+        }
+        if !attrOk {
+            return false
+        }
+        if len(prefix) == 0 {
+            return true
+        }
+        return matchesSimple(prefix, tag, classAttr, idAttr)
+    }
+
+    return matchesSimple(s, tag, classAttr, idAttr)
 }

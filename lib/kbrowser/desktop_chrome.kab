@@ -2,7 +2,9 @@
 
 // Desktop browser chrome — tab strip + address + back/forward.
 // import "kbrowser/desktop_chrome"
-// KEEP <=~7 top-level fn. History store stays native (kb_*); chrome UI in Kab.
+// KEEP <=~7 top-level fn. History via kbrowser/nav (Kab session); kb_* = load/paint.
+
+import "kbrowser/nav"
 
 pub fn buildDesktopChrome(url) {
     let root = kdom_create("div")
@@ -54,25 +56,35 @@ pub fn buildDesktopChrome(url) {
 }
 
 pub fn mountDesktopChrome(url) {
+    bootNav(url)
     let chrome = buildDesktopChrome(url)
     kb_mount(chrome)
     return chrome
 }
 
 pub fn goBack() {
-    return kb_back()
+    return navBack()
 }
 
 pub fn goForward() {
-    return kb_forward()
+    return navForward()
 }
 
 pub fn listTabs() {
-    return kb_tabs()
+    return navListTabs()
 }
 
 pub fn openTab(url) {
-    return kb_tab_open(url)
+    return navOpenTab(url)
+}
+
+/// Same-tab navigate through Kab session (then kb_navigate). Prefer over raw kb_navigate.
+pub fn go(url) {
+    return navGo(url)
+}
+
+pub fn chromeUrl() {
+    return navUrl()
 }
 
 pub fn paintChrome() {

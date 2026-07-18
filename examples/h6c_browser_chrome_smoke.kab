@@ -1,8 +1,9 @@
-// H6c: desktop browser chrome + kOS session boot in .kab
+// H6c delete-gate: Kab nav session + load_policy; chrome not kb_back/kb_tab_open
 // cargo run --bin kabootar -- examples/h6c_browser_chrome_smoke.kab
 
 import "kbrowser/desktop_chrome"
 import "kbrowser/theme"
+import "kbrowser/load_policy"
 import "kos/boot"
 import "kos/shell"
 
@@ -14,22 +15,23 @@ os_mkdir("/apps")
 os_write("/apps/h6c.kml", "<html><body><h1>H6c Page</h1></body></html>")
 kb_set_os_mode("kabootar")
 
-openTab("kabootar://home")
-openTab("kabootar://vfs/apps/h6c.kml")
-kb_navigate("kabootar://vfs/apps/h6c.kml")
+go("kabootar://vfs/apps/h6c.kml")
 let wentBack = goBack()
+let urlAfterBack = chromeUrl()
 let wentFwd = goForward()
+openTab("kabootar://home")
 let t = listTabs()
 let painted = paintChrome()
+let policyOk = loadPolicyOk()
 
 let shell = bootKosSession()
 let startOk = isStartOpen(shell)
 
 let okChrome = chrome != null && home != null
 let okTabs = is_array(t) && len(t) >= 2
-let okNav = wentBack == true || wentFwd == true || wentBack == false
+let okNav = wentBack == true && urlAfterBack == "kabootar://home" && wentFwd == true
 let okKos = shell != null && startOk == true
 let okPaint = painted != null
 
-println("h6c chrome=" + okChrome + " tabs=" + len(t) + " kos=" + okKos + " paint=" + okPaint)
-return okChrome && okTabs && okKos && okPaint && okNav
+println("h6c chrome=" + okChrome + " tabs=" + len(t) + " nav=" + okNav + " url=" + urlAfterBack + " policy=" + policyOk + " kos=" + okKos)
+return okChrome && okTabs && okKos && okPaint && okNav && policyOk
