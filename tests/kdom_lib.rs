@@ -114,3 +114,24 @@ fn k2_applycss_matches_smoke() {
     let result = cli::run_file(&path).expect("examples/kdom_applycss_matches_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
+
+#[test]
+fn h1_shell_boot_css_kab() {
+    let path = format!("{}/examples/h1_shell_css_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h1_shell_css_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn h2_query_kab_smoke() {
+    let path = format!("{}/examples/h2_query_kab_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h2_query_kab_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn h3_query_all_kab_smoke() {
+    let path = format!("{}/examples/h3_query_all_kab_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h3_query_all_kab_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}

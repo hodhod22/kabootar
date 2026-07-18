@@ -145,3 +145,59 @@ fn k1d_class_new_kab_eval() {
         .expect("k1d thread join");
     assert!(ok);
 }
+
+#[test]
+fn k1e_extends_kab_eval() {
+    let path = format!("{}/examples/kv8_k1e_extends.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1e-extends".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_k1e_extends.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn k1e thread")
+        .join()
+        .expect("k1e thread join");
+    assert!(ok);
+}
+
+#[test]
+fn k1e_eval_source_prefers_kab() {
+    let code = r#"
+import "kv8/eval"
+evalSource("1 + 2") == 3 && evalSource("class A { a() { return 1 } } class B extends A { } let x = new B(); x.a()") == 1
+"#;
+    let ok = std::thread::Builder::new()
+        .name("k1e-eval-source".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let mut env = kabootar_lib::evaluator::create_global_env();
+            let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+            matches!(v, Value::Bool(true))
+        })
+        .expect("spawn k1e evalSource thread")
+        .join()
+        .expect("k1e evalSource join");
+    assert!(ok);
+}
+
+#[test]
+fn k1f_async_promise_kab_eval() {
+    let path = format!("{}/examples/kv8_k1f_async.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1f-async".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_k1f_async.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn k1f thread")
+        .join()
+        .expect("k1f thread join");
+    assert!(ok);
+}

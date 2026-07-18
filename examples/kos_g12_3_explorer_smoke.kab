@@ -1,0 +1,18 @@
+// G12.3 — Explorer + file CRUD via os_*
+// cargo run --bin kabootar -- examples/kos_g12_3_explorer_smoke.kab
+
+import "kos/explorer"
+import "kdom/document"
+
+os_mkdir("/docs")
+explorerWrite("/docs/note.txt", "hello-explorer")
+let listed = explorerList("/docs")
+let body = explorerRead("/docs/note.txt")
+let panel = openExplorer("/docs")
+let hit = findExplorer(panel)
+let entries = domExtra("queryAll", panel, ".kos-explorer-entry")
+let okList = is_array(listed) && len(listed) >= 1
+let okRead = body == "hello-explorer"
+let okPanel = hit != null && is_array(entries) && len(entries) >= 1
+println("g12.3 list=" + len(listed) + " read=" + okRead + " entries=" + len(entries))
+return okList && okRead && okPanel

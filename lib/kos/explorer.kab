@@ -1,0 +1,44 @@
+@version "1.0.0"
+
+// kOS Explorer (G12.3). import "kos/explorer"
+// KEEP <=~7 top-level fn.
+
+import "kdom/document"
+
+pub fn explorerList(path) {
+    return os_list(path)
+}
+
+pub fn explorerRead(path) {
+    return os_read(path)
+}
+
+pub fn explorerWrite(path, content) {
+    return os_write(path, content)
+}
+
+pub fn openExplorer(path) {
+    let panel = el("div")
+    panel = attr(panel, "id", "kos-explorer")
+    panel = attr(panel, "class", "kos-explorer")
+    panel = attr(panel, "style", "display:block;padding:12px;background:#292a2d;color:#e8eaed;")
+    panel = attr(panel, "data-path", "" + path)
+    let entries = []
+    if os_exists(path) {
+        entries = os_list(path)
+    }
+    let i = 0
+    while i < len(entries) {
+        let name = "" + entries[i]
+        let row = el("div")
+        row = attr(row, "class", "kos-explorer-entry")
+        row = attach(row, text(name), true)
+        panel = attach(panel, row, true)
+        i = i + 1
+    }
+    return panel
+}
+
+pub fn findExplorer(panel) {
+    return query(panel, "#kos-explorer")
+}

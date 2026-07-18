@@ -22,16 +22,20 @@ fn boot_desktop_frame() -> Result<(), String> {
     use crate::evaluator::{create_global_env, eval_source};
 
     const BOOT: &str = r#"
+        import "kstyle/parse"
+        import "kos/shell"
         platform_use("kabootar");
         kb_set_backend("gpu");
         let win = os_window_create("Kabootar OS", 960, 540);
         os_display_register(win, "Kabootar Desktop", 960, 540);
-        kstyle_parse("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; gap:16px; }
+        parseAndApply("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; gap:16px; }
           h1 { font-size:36px; color:#8ab4f8; } .card { background:#35363a; padding:20px; border-radius:12px; }");
         let ui = kml("<html><body><h1>Kabootar OS</h1><div class='card'><p>Native desktop — GPU compositor when available.</p></div></body></html>");
         kb_mount(ui);
         kb_viewport(960, 540);
         kb_paint();
+        // kOS boot subset (lib/kos) — DOM shell + theme; full compositor mount later
+        let kosShell = bootKosDesktop();
     "#;
 
     let mut env = create_global_env();

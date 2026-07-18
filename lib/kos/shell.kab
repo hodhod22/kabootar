@@ -1,0 +1,78 @@
+@version "1.0.0"
+
+// kOS desktop shell (G12.1–G12.2 + boot). import "kos/shell"
+// KEEP <=~7 top-level fn.
+
+import "kdom/document"
+import "kos/theme"
+
+pub fn buildShell() {
+    let desktop = el("div")
+    desktop = attr(desktop, "id", "kos-desktop")
+    desktop = attr(desktop, "class", "kos-desktop")
+    desktop = attr(desktop, "style", "display:flex;flex-direction:column;width:100%;height:100%;background:#292a2d;color:#e8eaed;")
+
+    let taskbar = el("div")
+    taskbar = attr(taskbar, "id", "kos-taskbar")
+    taskbar = attr(taskbar, "class", "kos-taskbar")
+    taskbar = attr(taskbar, "style", "display:flex;gap:8px;padding:8px;background:#35363a;")
+    taskbar = attach(taskbar, text("Start"), true)
+
+    let appsPanel = el("div")
+    appsPanel = attr(appsPanel, "id", "kos-apps")
+    appsPanel = attr(appsPanel, "class", "kos-apps-panel")
+    appsPanel = attr(appsPanel, "style", "flex:1;padding:16px;")
+
+    desktop = attach(desktop, taskbar, true)
+    desktop = attach(desktop, appsPanel, true)
+    return desktop
+}
+
+pub fn listApps() {
+    if !os_exists("/apps") {
+        return []
+    }
+    return os_list("/apps")
+}
+
+pub fn findTaskbar(shell) {
+    return query(shell, "#kos-taskbar")
+}
+
+// G12.2: Start panel under taskbar, apps from /apps via listApps().
+pub fn openStart(shell) {
+    let existing = query(shell, "#kos-start")
+    if existing != null && existing != undefined {
+        return shell
+    }
+    let panel = el("div")
+    panel = attr(panel, "id", "kos-start")
+    panel = attr(panel, "class", "kos-start")
+    panel = attr(panel, "style", "display:block;padding:12px;background:#202124;")
+    let apps = listApps()
+    let i = 0
+    while i < len(apps) {
+        let name = "" + apps[i]
+        let item = el("div")
+        item = attr(item, "class", "kos-start-app")
+        item = attach(item, text(name), true)
+        panel = attach(panel, item, true)
+        i = i + 1
+    }
+    return attach(shell, panel, true)
+}
+
+pub fn isStartOpen(shell) {
+    let panel = query(shell, "#kos-start")
+    return panel != null && panel != undefined
+}
+
+pub fn clickStart(shell) {
+    return openStart(shell)
+}
+
+// Boot subset for `kabootar shell` / examples — build + light theme.
+pub fn bootKosDesktop() {
+    let shell = buildShell()
+    return applyKosTheme(shell)
+}

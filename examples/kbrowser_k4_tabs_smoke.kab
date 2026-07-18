@@ -1,0 +1,22 @@
+// K4 browser subset — multi-tab + VFS navigate + paint
+// cargo run --bin kabootar -- examples/kbrowser_k4_tabs_smoke.kab
+
+import "kbrowser/core"
+import "kbrowser/mobile_chrome"
+
+os_mkdir("/apps")
+os_write("/apps/k4.kml", "<html><body><h1>K4 Tabs</h1></body></html>")
+kb_set_os_mode("kabootar")
+
+openTab("kabootar://home")
+openTab("kabootar://vfs/apps/k4.kml")
+navigate("kabootar://vfs/apps/k4.kml")
+
+let t = listTabs()
+let painted = paint()
+let html = kb_render()
+let okTabs = is_array(t) && len(t) >= 2
+let okPaint = painted != null && painted != undefined
+let okHtml = is_string(html) && len(html) > 0
+println("k4 tabs=" + len(t) + " paint=" + okPaint)
+return okTabs && okPaint && okHtml

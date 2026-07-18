@@ -1,0 +1,16 @@
+// K5 / G12.1 — kOS desktop shell smoke
+// cargo run --bin kabootar -- examples/kos_g12_shell_smoke.kab
+
+import "kos/shell"
+import "kdom/document"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "stub")
+
+let desktop = buildShell()
+let bar = findTaskbar(desktop)
+let apps = listApps()
+let okBar = bar != null && bar != undefined
+let okApps = is_array(apps) && len(apps) >= 1
+println("g12 shell apps=" + len(apps) + " taskbar=" + okBar)
+return okBar && okApps

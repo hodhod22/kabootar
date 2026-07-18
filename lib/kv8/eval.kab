@@ -196,7 +196,24 @@ fn evExpr(node, env) {
         return evExpr(elseN, env)
     }
     if node.kind == K_AWAIT {
-        return evExpr(node.arg, env)
+        let av = evExpr(node.arg, env)
+        if av != null && av != undefined && typeof(av) == "object" {
+            if object_has_own(av, "__k8promise") {
+                if av["__k8promise"] == true {
+                    return av["value"]
+                }
+            }
+            if object_has_own(av, "then") {
+                let thenFn = av["then"]
+                if thenFn != null && thenFn != undefined {
+                    let thenTag = thenFn["tag"]
+                    if thenTag == "k8fn" || thenTag == "k8resolve" {
+                        return evCall(thenFn, [av])
+                    }
+                }
+            }
+        }
+        return av
     }
     if node.kind == K_NEW {
         let cls = evExpr(node.callee, env)
@@ -284,6 +301,13 @@ fn evExpr(node, env) {
             evAiStack = push(evAiStack, evAi)
         }
         evAiStack = pop(evAiStack)
+        let calleeTag = null
+        if callee != null && callee != undefined {
+            calleeTag = callee["tag"]
+        }
+        if calleeTag == "k8resolve" {
+            return evCall(callee, fnArgs)
+        }
         if thisRecv != null {
             return evCallThis(callee, fnArgs, thisRecv)
         }
@@ -341,6 +365,9 @@ fn evCall(fnVal, args) {
         let hostName = fnVal["name"]
         return hostCall(hostName, args)
     }
+    if fnTag == "k8resolve" {
+        return { "__k8promise": true, "value": args[0] }
+    }
     if fnTag != "k8fn" {
         throw "TypeError: not a k8 function"
     }
@@ -360,10 +387,18 @@ fn evCall(fnVal, args) {
         scope[fnParams[pi]] = args[pi]
         pi = pi + 1
     }
+    let callRet = undefined
     if fnArrow {
-        return evExpr(fnBody[0], scope)
+        callRet = evExpr(fnBody[0], scope)
+    } else {
+        callRet = evRunBlock(fnBody, scope)
     }
-    return evRunBlock(fnBody, scope)
+    if object_has_own(fnVal, "async") {
+        if fnVal["async"] == true {
+            return { "__k8promise": true, "value": callRet }
+        }
+    }
+    return callRet
 }
 
 fn evCallThis(fnVal, args, thisVal) {
@@ -371,6 +406,9 @@ fn evCallThis(fnVal, args, thisVal) {
         throw "TypeError: not a function"
     }
     let fnTag = fnVal["tag"]
+    if fnTag == "k8resolve" {
+        return { "__k8promise": true, "value": args[0] }
+    }
     if fnTag != "k8fn" {
         throw "TypeError: not a k8 function"
     }
@@ -391,14 +429,19 @@ fn evCallThis(fnVal, args, thisVal) {
         scope[fnParams[pi]] = args[pi]
         pi = pi + 1
     }
+    let callRet = undefined
     if fnArrow {
-        let arrowRet = evExpr(fnBody[0], scope)
-        evThisOut = scope["this"]
-        return arrowRet
+        callRet = evExpr(fnBody[0], scope)
+    } else {
+        callRet = evRunBlock(fnBody, scope)
     }
-    let blockRet = evRunBlock(fnBody, scope)
     evThisOut = scope["this"]
-    return blockRet
+    if object_has_own(fnVal, "async") {
+        if fnVal["async"] == true {
+            return { "__k8promise": true, "value": callRet }
+        }
+    }
+    return callRet
 }
 
 fn evStmt(stmt, env) {
@@ -412,6 +455,23 @@ fn evStmt(stmt, env) {
             fi = fi + 1
         }
         let methods = {}
+        // K1e: merge parent class methods when extends is set
+        let classExt = stmt["extends"]
+        if classExt != null && classExt != undefined {
+            let parentName = "" + classExt
+            if object_has_own(env, parentName) {
+                let parent = env[parentName]
+                if parent != null && parent != undefined && object_has_own(parent, "__k8class") {
+                    let parentMethods = parent["methods"]
+                    let pKeys = object_keys(parentMethods)
+                    let pi = 0
+                    while pi < len(pKeys) {
+                        methods[pKeys[pi]] = parentMethods[pKeys[pi]]
+                        pi = pi + 1
+                    }
+                }
+            }
+        }
         let methList = stmt["methods"]
         let mi = 0
         while mi < len(methList) {
@@ -421,7 +481,7 @@ fn evStmt(stmt, env) {
             mi = mi + 1
         }
         let classSym = "" + stmt["sym"]
-        env[classSym] = { "__k8class": true, "name": classSym, "methods": methods }
+        env[classSym] = { "__k8class": true, "name": classSym, "methods": methods, "extends": classExt }
         return undefined
     }
     if stmtKind == K_FN {
@@ -433,7 +493,13 @@ fn evStmt(stmt, env) {
             fi = fi + 1
         }
         let bindSym = stmt["sym"]
-        env["" + bindSym] = { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": scope, "arrow": false }
+        let isAsync = false
+        if object_has_own(stmt, "async") {
+            if stmt["async"] == true {
+                isAsync = true
+            }
+        }
+        env["" + bindSym] = { "tag": "k8fn", "params": stmt.params, "body": stmt.body.body, "closure": scope, "arrow": false, "async": isAsync }
         return undefined
     }
     if stmtKind == K_RETURN {
@@ -704,6 +770,8 @@ pub fn evalProgram(ast, extraEnv) {
 pub fn evalSourceWith(source, extraEnv) {
     let ast = parseSource(source)
     let env = {}
+    // K1f: Promise.resolve stub → thenable-like {__k8promise, value}
+    env["Promise"] = { "resolve": { "tag": "k8resolve" } }
     if extraEnv != null {
         let keys = object_keys(extraEnv)
         let ei = 0
@@ -753,12 +821,16 @@ pub fn evalSourceWith(source, extraEnv) {
 }
 
 pub fn evalSource(source) {
-    // C3: Rust Kv8 eval (while/binary/class/async). evalSourceWith stays self-host for extraEnv.
+    // K1e: prefer Kabootar path (extends merge, class/new/await stub).
+    return evalSourceWith(source, null)
+}
+
+/// Rust Kv8 fallback (fuller host parity). Prefer evalSource / evalSourceKab.
+pub fn evalSourceRust(source) {
     return kv8_eval_source(source)
 }
 
-/// K1c: pure Kabootar eval path (literals/ops/control via evalSourceWith).
-/// Class/async still need evalSource → Rust.
+/// K1c/K1e: pure Kabootar eval path via evalSourceWith.
 pub fn evalSourceKab(source) {
     return evalSourceWith(source, null)
 }

@@ -1,0 +1,13 @@
+// G12.5 — Visual polish (KSS theme apply)
+// cargo run --bin kabootar -- examples/kos_g12_5_theme_smoke.kab
+
+import "kos/shell"
+import "kos/theme"
+import "kdom/document"
+
+let desktop = buildShell()
+let themed = applyKosTheme(desktop)
+let bar = findTaskbar(themed)
+let ok = themed != null && bar != null
+println("g12.5 theme ok=" + ok + " taskbar=" + (bar != null))
+return ok

@@ -1,0 +1,86 @@
+@version "1.0.0"
+
+// kOS multi-window + snap + Alt+Tab (G12.4). import "kos/windows"
+// KEEP <=~7 top-level fn.
+
+import "kdom/document"
+import "kdom/query"
+
+pub fn openWindow(shell, title) {
+    let win = el("div")
+    win = attr(win, "class", "kos-window")
+    win = attr(win, "data-title", "" + title)
+    win = attr(win, "style", "position:absolute;width:40%;left:10%;top:10%;background:#35363a;padding:8px;")
+    let titleBar = el("div")
+    titleBar = attr(titleBar, "class", "kos-window-title")
+    titleBar = attach(titleBar, text("" + title), true)
+    win = attach(win, titleBar, true)
+    // Attach under desktop shell (CoW: return updated shell from attach)
+    return attach(shell, win, true)
+}
+
+pub fn listWindows(shell) {
+    let found = queryAllKab(shell, ".kos-window")
+    if found != null && found != undefined {
+        return found
+    }
+    return domExtra("queryAll", shell, ".kos-window")
+}
+
+pub fn focusWindow(shell, win) {
+    let wins = listWindows(shell)
+    let i = 0
+    while i < len(wins) {
+        let w = wins[i]
+        attr(w, "data-active", "false")
+        attr(w, "class", "kos-window")
+        i = i + 1
+    }
+    attr(win, "data-active", "true")
+    attr(win, "class", "kos-window kos-window-active")
+    return win
+}
+
+pub fn snapWindow(win, side) {
+    let s = "" + side
+    if s == "left" {
+        return attr(win, "style", "position:absolute;width:50%;left:0;top:0;height:100%;background:#35363a;padding:8px;")
+    }
+    if s == "right" {
+        return attr(win, "style", "position:absolute;width:50%;left:50%;top:0;height:100%;background:#35363a;padding:8px;")
+    }
+    if s == "max" {
+        return attr(win, "style", "position:absolute;width:100%;left:0;top:0;height:100%;background:#35363a;padding:8px;")
+    }
+    return win
+}
+
+pub fn openAltTab(shell) {
+    let existing = query(shell, "#kos-alttab")
+    if existing != null && existing != undefined {
+        return shell
+    }
+    let overlay = el("div")
+    overlay = attr(overlay, "id", "kos-alttab")
+    overlay = attr(overlay, "class", "kos-alttab")
+    overlay = attr(overlay, "style", "position:absolute;left:20%;top:30%;width:60%;padding:16px;background:#202124;z-index:100;")
+    let wins = listWindows(shell)
+    let i = 0
+    while i < len(wins) {
+        let t = domExtra("getAttr", wins[i], "data-title")
+        if t == null || t == undefined {
+            t = "Window"
+        }
+        let row = el("div")
+        row = attr(row, "class", "kos-alttab-item")
+        row = attach(row, text("" + t), true)
+        overlay = attach(overlay, row, true)
+        i = i + 1
+    }
+    return attach(shell, overlay, true)
+}
+
+pub fn isAltTabOpen(shell) {
+    let overlay = query(shell, "#kos-alttab")
+    return overlay != null && overlay != undefined
+}
