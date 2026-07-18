@@ -1,0 +1,41 @@
+@version "1.0.0"
+
+// kOS session boot orchestration (H6c). import "kos/boot"
+// Shell/window create stays host; policy (apps seed, Start, theme, mount) in Kab.
+
+import "kos/shell"
+import "kos/theme"
+import "kos/launch"
+
+pub fn seedDefaultApps() {
+    if !os_exists("/apps") {
+        os_mkdir("/apps")
+    }
+    if !os_exists("/apps/hello.app") {
+        os_write("/apps/hello.app", "Hello from Kabootar")
+    }
+    return true
+}
+
+/// Full desktop session: seed /apps, shell + theme + Start, mount + paint.
+pub fn bootKosSession() {
+    seedDefaultApps()
+    let shell = buildShell()
+    shell = applyKosTheme(shell)
+    shell = openStart(shell)
+    kb_mount(shell)
+    kb_paint()
+    return shell
+}
+
+/// Host pointer click → kb_click → drain Start/app events → remount/paint.
+pub fn handleShellClick(shell, x, y) {
+    kb_click(x, y)
+    if shell == null || shell == undefined {
+        return shell
+    }
+    let next = drainKosEvents(shell)
+    kb_mount(next)
+    kb_paint()
+    return next
+}

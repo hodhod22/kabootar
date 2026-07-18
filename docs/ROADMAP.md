@@ -643,6 +643,8 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 **H6a** ✅ — Kab-only `evalSource` (`Object.assign`/`Object.is`/`Symbol`/`globalThis`, events/timers/style); `evalSourceRust` + `kv8_eval_source` bort (`kv8_h6_*`, `kv8_h6a_parity`, `kv8_h4_prefer_kab`).
 
 **H6b** ✅ **subset** — `queryKab`/`queryAllKab` stödjer descendant + comma; `kv8/host` `docQuery`/`docGetById` via `document.query` (Kab först); CSS apply via `parseAndApply` (`h6b_query_policy`). Native `kdom_query*` kvar som FFI-fallback för `>`/`+`/`[`/`:`.
+
+**H6c** ✅ **subset** — desktop chrome + browser theme/home i `.kab` (`kbrowser/desktop_chrome`, `kbrowser/theme`); kOS session boot (`kos/boot` `bootKosSession` / `handleShellClick`); shell BOOT tunn (`h6c_browser_chrome_smoke`). Tab-history store + `load_page` kvar som native FFI.
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity
