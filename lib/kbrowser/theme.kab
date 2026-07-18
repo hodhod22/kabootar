@@ -1,0 +1,65 @@
+@version "1.0.0"
+
+// Browser chrome theme + home page in Kab (H6c). import "kbrowser/theme"
+// Product path prefers this over Rust default_chrome_theme_css / default_home_document.
+
+import "kss"
+
+pub fn applyBrowserTheme() {
+    let css = toCss({
+        "body": {
+            "display": "flex",
+            "flex-direction": "column",
+            "background": "#292a2d",
+            "color": "#e8eaed",
+            "padding": "16px"
+        },
+        "h1": {
+            "font-size": "28px",
+            "font-weight": "600",
+            "color": "#8ab4f8",
+            "margin": "8px 0"
+        },
+        "p": {
+            "font-size": "16px",
+            "line-height": "1.5"
+        },
+        ".kb-home": {
+            "display": "flex",
+            "flex-direction": "column",
+            "gap": "12px"
+        },
+        ".kb-desktop-shell": {
+            "background": "#202124",
+            "color": "#e8eaed"
+        },
+        ".kb-tab-strip": {
+            "background": "#292a2d"
+        },
+        "button": {
+            "background": "#8ab4f8",
+            "color": "#202124",
+            "padding": "8px 16px",
+            "border-radius": "8px"
+        }
+    })
+    kss(css)
+    return css
+}
+
+/// Welcome DOM for kabootar://home-style boots (Kab product path).
+pub fn homePage(url) {
+    let root = kdom_create("div")
+    kdom_set_attr(root, "class", "kb-home")
+    kdom_set_attr(root, "id", "kb-home")
+    kdom_set_attr(root, "style", "padding:24px;background:#292a2d;color:#e8eaed;")
+
+    let h1 = kdom_create("h1")
+    kdom_append(h1, kdom_text("Kabootar Browser"))
+    kdom_append(root, h1)
+
+    let p = kdom_create("p")
+    kdom_append(p, kdom_text("Welcome — " + url))
+    kdom_append(root, p)
+    return root
+}

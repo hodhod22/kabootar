@@ -1,0 +1,80 @@
+@version "1.0.0"
+
+// Desktop browser chrome — tab strip + address + back/forward.
+// import "kbrowser/desktop_chrome"
+// KEEP <=~7 top-level fn. History store stays native (kb_*); chrome UI in Kab.
+
+pub fn buildDesktopChrome(url) {
+    let root = kdom_create("div")
+    kdom_set_attr(root, "class", "kb-desktop-shell")
+    kdom_set_attr(root, "id", "kb-desktop-chrome")
+    kdom_set_attr(root, "style", "display:flex;flex-direction:column;width:100%;height:100%;background:#202124;color:#e8eaed;")
+
+    let tabStrip = kdom_create("div")
+    kdom_set_attr(tabStrip, "class", "kb-tab-strip")
+    kdom_set_attr(tabStrip, "id", "kb-tab-strip")
+    kdom_set_attr(tabStrip, "style", "display:flex;gap:4px;padding:6px 8px;background:#292a2d;")
+
+    let tabLabel = kdom_create("div")
+    kdom_set_attr(tabLabel, "class", "kb-tab")
+    kdom_set_attr(tabLabel, "style", "padding:6px 12px;background:#35363a;border-radius:8px 8px 0 0;font-size:13px;")
+    kdom_append(tabLabel, kdom_text("Tab"))
+    kdom_append(tabStrip, tabLabel)
+
+    let newTab = kdom_create("button")
+    kdom_set_attr(newTab, "id", "kb-new-tab")
+    kdom_set_attr(newTab, "style", "padding:4px 10px;background:#8ab4f8;color:#202124;border-radius:8px;")
+    kdom_append(newTab, kdom_text("+"))
+    kdom_append(tabStrip, newTab)
+    kdom_append(root, tabStrip)
+
+    let bar = kdom_create("div")
+    kdom_set_attr(bar, "class", "kb-desktop-chrome")
+    kdom_set_attr(bar, "style", "display:flex;gap:8px;align-items:center;padding:8px;background:#35363a;")
+
+    let backBtn = kdom_create("button")
+    kdom_set_attr(backBtn, "id", "kb-back")
+    kdom_append(backBtn, kdom_text("←"))
+    kdom_append(bar, backBtn)
+
+    let fwdBtn = kdom_create("button")
+    kdom_set_attr(fwdBtn, "id", "kb-forward")
+    kdom_append(fwdBtn, kdom_text("→"))
+    kdom_append(bar, fwdBtn)
+
+    let addr = kdom_create("div")
+    kdom_set_attr(addr, "class", "kb-url")
+    kdom_set_attr(addr, "id", "kb-url")
+    kdom_set_attr(addr, "style", "flex:1;padding:8px 12px;background:#202124;border-radius:8px;font-size:14px;")
+    kdom_append(addr, kdom_text(url))
+    kdom_append(bar, addr)
+
+    kdom_append(root, bar)
+    return root
+}
+
+pub fn mountDesktopChrome(url) {
+    let chrome = buildDesktopChrome(url)
+    kb_mount(chrome)
+    return chrome
+}
+
+pub fn goBack() {
+    return kb_back()
+}
+
+pub fn goForward() {
+    return kb_forward()
+}
+
+pub fn listTabs() {
+    return kb_tabs()
+}
+
+pub fn openTab(url) {
+    return kb_tab_open(url)
+}
+
+pub fn paintChrome() {
+    return kb_paint()
+}

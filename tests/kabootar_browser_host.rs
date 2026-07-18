@@ -147,3 +147,24 @@ fn k4_kbrowser_tabs_smoke() {
     let out = kabootar_lib::cli::run_file(&path).expect("k4 tabs smoke should run");
     assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }
+
+#[test]
+fn h6c_browser_chrome_smoke() {
+    let path = format!(
+        "{}/examples/h6c_browser_chrome_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6c-chrome".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6c chrome smoke should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6c thread")
+        .join()
+        .expect("h6c thread join");
+    assert!(ok);
+}
