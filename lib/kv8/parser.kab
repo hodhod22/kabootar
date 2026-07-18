@@ -96,6 +96,21 @@ fn parsePostfix() {
         k8pSave = parsePostfix()
         return { "kind": K_AWAIT, "arg": k8pSave }
     }
+    if k8pTok.type == "new" {
+        k8pTokAt("bump")
+        k8pSave = parsePostfix()
+        if k8pSave.kind == K_MEMBER {
+            let memObj = k8pSave["object"]
+            if memObj.kind == K_CALL {
+                return { "kind": K_MEMBER, "object": { "kind": K_NEW, "callee": memObj["callee"], "args": memObj["args"] }, "field": k8pSave["field"], "optional": k8pSave["optional"] }
+            }
+            return { "kind": K_MEMBER, "object": { "kind": K_NEW, "callee": memObj, "args": [] }, "field": k8pSave["field"], "optional": k8pSave["optional"] }
+        }
+        if k8pSave.kind == K_CALL {
+            return { "kind": K_NEW, "callee": k8pSave["callee"], "args": k8pSave["args"] }
+        }
+        return { "kind": K_NEW, "callee": k8pSave, "args": [] }
+    }
 
     if k8pTok.type == TOKEN_NUMBER {
         k8pTok = k8pTokAt("bump")
@@ -181,6 +196,13 @@ fn parsePostfix() {
         if k8pTok.type == "undefined" {
             k8pTok = k8pTokAt("bump")
             k8pNode = { "kind": K_LITERAL, "lit": LIT_UNDEF, "value": undefined }
+        }
+    }
+    if k8pNode == null {
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type == "this" {
+            k8pTokAt("bump")
+            k8pNode = { "kind": K_IDENT, "sym": "this" }
         }
     }
     if k8pNode == null {
@@ -1171,6 +1193,18 @@ fn parseStmt() {
         k8pPos = k8pPos - 1
     }
     k8pLeft = parseExpr()
+    if k8pTokAt("peek").type == "=" {
+        k8pTokAt("bump")
+        k8pSave = k8pLeft
+        k8pRight = parseExpr()
+        if k8pSave.kind == K_IDENT {
+            return { "kind": K_ASSIGN, "sym": k8pSave["sym"], "rhs": k8pRight }
+        }
+        if k8pSave.kind == K_MEMBER {
+            return { "kind": K_ASSIGN, "object": k8pSave["object"], "field": k8pSave["field"], "rhs": k8pRight }
+        }
+        throw "Invalid assignment target"
+    }
     return { "kind": K_EXPR, "expr": k8pLeft }
 }
 

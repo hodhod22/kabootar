@@ -1,0 +1,17 @@
+// K2 subset smoke: querySelector + KSS object→CSS in .kab
+// cargo run --bin kabootar -- examples/kdom_query_kss_smoke.kab
+
+import "kdom/document"
+import "kss"
+
+let root = el("div")
+let child = el("span")
+child = attr(child, "class", "x")
+root = attach(root, child, true)
+
+let hit = query(root, ".x")
+let css = toCss({ ".x": { "color": "blue", "font-size": "14px" } })
+let okQuery = hit != null && hit != undefined
+let okCss = str_includes(css, ".x") && str_includes(css, "color:blue")
+println("kdom query+kss: css=" + css)
+return okQuery && okCss

@@ -100,3 +100,17 @@ fn kstyle_parse_smoke_example_runs() {
     let result = cli::run_file(&path).expect("examples/kstyle_parse_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n >= 2));
 }
+
+#[test]
+fn k2_query_and_kss_smoke() {
+    let path = format!("{}/examples/kdom_query_kss_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kdom_query_kss_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}
+
+#[test]
+fn k2_applycss_matches_smoke() {
+    let path = format!("{}/examples/kdom_applycss_matches_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kdom_applycss_matches_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)));
+}

@@ -61,6 +61,16 @@ fn assert_contains(hay, needle, msg) {
     assert_null(err, "alloc then drop")
 }
 
+// O5 deepen: & borrow peeks — drop still ok; use after drop fails
+{
+    let err = checkOwnership("@manual\nlet b = owned_alloc(4, \"t\")\nowned_read(&b, 0, 1)\ndrop(b)\n")
+    assert_null(err, "borrow then drop")
+}
+{
+    let err = checkOwnership("@manual\nlet b = owned_alloc(4, \"t\")\nowned_read(&b, 0, 1)\ndrop(b)\nowned_read(&b, 0, 1)\n")
+    assert_contains(err, "use after move", "use after drop via borrow")
+}
+
 println("")
 println("Self-hosted ownership tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

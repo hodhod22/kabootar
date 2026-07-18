@@ -1,0 +1,20 @@
+@version "1.0.0"
+
+// kOS scheduler wrappers over os_sched_* natives. import "os/sched"
+// KEEP <=~7 top-level fn.
+
+pub fn enqueue(name) {
+    return os_sched_enqueue(name)
+}
+
+pub fn tick() {
+    return os_sched_tick()
+}
+
+pub fn schedYield() {
+    return os_sched_yield()
+}
+
+pub fn preempt() {
+    return os_sched_preempt()
+}

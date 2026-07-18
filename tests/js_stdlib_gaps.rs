@@ -196,3 +196,27 @@ a + b
     assert!(matches!(v, Value::Number(10)), "got {v:?}");
 }
 
+#[test]
+fn regexp_v_flag_and_unicode_property() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+let reV = regexp_new("a", "v")
+reV.unicodeSets == true && reV.unicode == true && reV.flags == "v"
+"#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+
+    let v = eval_source(
+        r#"
+let re = regexp_new("\\p{L}", "u")
+regexp_test(re, "A") && !regexp_test(re, "1")
+"#,
+        &mut env,
+    )
+    .unwrap();
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+

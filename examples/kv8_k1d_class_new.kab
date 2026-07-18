@@ -1,0 +1,6 @@
+// K1d: class / new / this via evalSourceKab
+// cargo run --bin kabootar -- examples/kv8_k1d_class_new.kab
+
+import "kv8/eval"
+
+return evalSourceKab("class Box { constructor(n) { this.n = n } } new Box(3).n") == 3

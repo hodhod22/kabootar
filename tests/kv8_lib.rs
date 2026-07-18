@@ -114,3 +114,34 @@ c.body[0].kind == "Class" && c.body[0].sym == "A" && len(c.body[0].methods) == 2
     let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
     assert!(matches!(v, Value::Bool(true)));
 }
+
+#[test]
+fn k1c_kabootar_eval_path() {
+    let code = r#"
+import "kv8/eval"
+evalSourceKab("let n = 0; while (n < 3) { n = n + 1; } n") == 3 && evalSourceKab("1 + 2") == 3
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)));
+}
+
+#[test]
+fn k1d_class_new_kab_eval() {
+    // Class/new/this path in kv8/eval is mutual-rec heavy; Windows test threads
+    // default to a small stack and overflow. Run on a larger stack (Value is !Send).
+    let path = format!("{}/examples/kv8_k1d_class_new.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1d-class-new".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_k1d_class_new.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn k1d thread")
+        .join()
+        .expect("k1d thread join");
+    assert!(ok);
+}

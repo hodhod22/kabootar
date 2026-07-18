@@ -3,6 +3,8 @@
 // Kabootar kDOM - document tree (max ~7 fn; natives kdom_*, kml are syscalls).
 // import "kdom/document"
 
+import "kstyle/parse"
+
 pub fn el(tag) {
     return kdom_create(tag)
 }
@@ -51,10 +53,10 @@ pub fn domExtra(mode, a, b) {
     throw "domExtra: unknown mode"
 }
 
-// css: pass "" to skip kstyle_parse
+// css: pass "" to skip; non-empty uses Kabootar parseAndApply (H0)
 pub fn paint(node, width, height, css) {
     if css != "" {
-        kstyle_parse(css)
+        parseAndApply(css)
     }
     return kdom_paint(node, width, height)
 }

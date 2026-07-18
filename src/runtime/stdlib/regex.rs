@@ -54,7 +54,7 @@ fn with_record<R>(id: u64, f: impl FnOnce(&mut RegExpRecord) -> R) -> Result<R, 
 fn normalize_flags(flags: &str) -> String {
     let mut out = String::new();
     for c in flags.chars() {
-        if "gimsuyd".contains(c) && !out.contains(c) {
+        if "gimsuyvd".contains(c) && !out.contains(c) {
             out.push(c);
         }
     }
@@ -73,7 +73,8 @@ fn wrap_pattern(pattern: &str, flags: &str) -> String {
     if flags.contains('s') {
         inline.push('s');
     }
-    if flags.contains('u') {
+    // `v` (unicodeSets) implies unicode mode for the engine wrap.
+    if flags.contains('u') || flags.contains('v') {
         inline.push('u');
     }
     if inline.is_empty() {
@@ -145,7 +146,11 @@ fn make_regexp_object(id: u64, source: &str, flags: &str) -> Value {
     map.insert("lastIndex".into(), Value::Number(0));
     map.insert("global".into(), Value::Bool(flags.contains('g')));
     map.insert("dotAll".into(), Value::Bool(flags.contains('s')));
-    map.insert("unicode".into(), Value::Bool(flags.contains('u')));
+    map.insert(
+        "unicode".into(),
+        Value::Bool(flags.contains('u') || flags.contains('v')),
+    );
+    map.insert("unicodeSets".into(), Value::Bool(flags.contains('v')));
     map.insert("ignoreCase".into(), Value::Bool(flags.contains('i')));
     map.insert("multiline".into(), Value::Bool(flags.contains('m')));
     map.insert("sticky".into(), Value::Bool(flags.contains('y')));

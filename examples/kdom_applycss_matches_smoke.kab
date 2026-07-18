@@ -1,0 +1,22 @@
+// K2 deepen: applyCss + selector matches + kdom query
+// cargo run --bin kabootar -- examples/kdom_applycss_matches_smoke.kab
+
+import "kdom/document"
+import "kss"
+import "kstyle/selectors"
+import "kstyle/theme"
+
+let root = el("div")
+let child = el("span")
+child = attr(child, "class", "card")
+root = attach(root, child, true)
+
+let hit = query(root, ".card")
+let n = applyCss(".card { color: #3366cc; padding: 8px; }")
+let css = toCss({ ".card": { "color": "#3366cc" } })
+let okMatch = matches(".card", "span", "card", "")
+let okQuery = hit != null && hit != undefined
+let okApply = n > 0 && str_includes(kstyle_css(), ".card")
+let okCss = str_includes(css, ".card")
+println("kdom applyCss+matches: rules=" + n)
+return okMatch && okQuery && okApply && okCss

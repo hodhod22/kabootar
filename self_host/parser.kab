@@ -70,6 +70,7 @@ let pClassSym = ""
 let pIsStruct = 0
 let pIfaceSym = ""
 let pIfaceMethods = []
+let pAssocTypes = []
 let pWhereClause = []
 let pWhereParam = ""
 let pWhereTrait = ""
@@ -767,54 +768,71 @@ fn parseStmt() {
         }
         bump()
         pIfaceMethods = []
+        pAssocTypes = []
         while peek().type != "}" {
-            if peek().type != TOKEN_FN {
-                throw "Expected fn in interface"
-            }
-            bump()
-            pTok = peek()
-            if pTok.type != TOKEN_IDENT {
-                throw "Expected method name"
-            }
-            bump()
-            pFnSym = symCopy(pTok.value)
-            if peek().type != "(" {
-                throw "Expected ("
-            }
-            bump()
-            pMethParams = []
-            if peek().type != ")" {
-                while true {
-                    pTok = peek()
-                    if pTok.type != TOKEN_IDENT {
-                        throw "Expected parameter name"
-                    }
-                    bump()
-                    pSymPool = push(pSymPool, symCopy(pTok.value))
-                    pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
-                    if peek().type == "," {
+            // T5 deepen: `type Item;` associated type
+            if peek().type == TOKEN_IDENT && peek().value == "type" {
+                bump()
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected associated type name"
+                }
+                bump()
+                pAssocTypes = push(pAssocTypes, symCopy(pTok.value))
+                if peek().type != ";" {
+                    throw "Expected ; after associated type"
+                }
+                bump()
+            } else {
+                if peek().type != TOKEN_FN {
+                    throw "Expected fn in interface"
+                }
+                bump()
+                pTok = peek()
+                if pTok.type != TOKEN_IDENT {
+                    throw "Expected method name"
+                }
+                bump()
+                pFnSym = symCopy(pTok.value)
+                if peek().type != "(" {
+                    throw "Expected ("
+                }
+                bump()
+                pMethParams = []
+                if peek().type != ")" {
+                    while true {
+                        pTok = peek()
+                        if pTok.type != TOKEN_IDENT {
+                            throw "Expected parameter name"
+                        }
                         bump()
-                    } else {
-                        break
+                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                        if peek().type == "," {
+                            bump()
+                        } else {
+                            break
+                        }
                     }
                 }
+                if peek().type != ")" {
+                    throw "Expected )"
+                }
+                bump()
+                if peek().type != ";" {
+                    throw "Expected ;"
+                }
+                bump()
+                pIfaceMethods = push(pIfaceMethods, { "sym": pFnSym, "params": pMethParams })
             }
-            if peek().type != ")" {
-                throw "Expected )"
-            }
-            bump()
-            if peek().type != ";" {
-                throw "Expected ;"
-            }
-            bump()
-            pIfaceMethods = push(pIfaceMethods, { "sym": pFnSym, "params": pMethParams })
         }
         bump()
         return {
             "kind": AST_INTERFACE,
             "sym": pIfaceSym,
             "typeParams": pTypeParams,
-            "methods": pIfaceMethods
+            "methods": pIfaceMethods,
+            "associatedTypes": pAssocTypes
         }
     }
     if peek().type == TOKEN_FN {

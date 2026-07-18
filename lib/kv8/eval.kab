@@ -22,6 +22,7 @@ let evCallArgsStack = []
 let evAiStack = []
 let evAi = 0
 let evLoopSig = 0
+let evThisOut = null
 
 // Stack pop uses native `pop` (O(1) slice) — old evPopStack rebuilt arrays in Kabootar (C2 hot path).
 
@@ -118,6 +119,12 @@ fn evExpr(node, env) {
         if object_has_own(obj, memField) {
             return obj[memField]
         }
+        if object_has_own(obj, "__k8class") {
+            let clsMethods = obj["__k8class"]["methods"]
+            if object_has_own(clsMethods, memField) {
+                return clsMethods[memField]
+            }
+        }
         return undefined
     }
     if node.kind == K_TEMPLATE {
@@ -188,13 +195,70 @@ fn evExpr(node, env) {
         }
         return evExpr(elseN, env)
     }
+    if node.kind == K_AWAIT {
+        return evExpr(node.arg, env)
+    }
+    if node.kind == K_NEW {
+        let cls = evExpr(node.callee, env)
+        if cls == null || cls == undefined || !object_has_own(cls, "__k8class") {
+            throw "TypeError: not a constructor"
+        }
+        let instance = { "__k8class": cls }
+        let callArgNodes = node.args
+        let fnArgs = []
+        evAiStack = push(evAiStack, 0)
+        while evAiStack[len(evAiStack) - 1] < len(callArgNodes) {
+            evAi = evAiStack[len(evAiStack) - 1]
+            fnArgs = push(fnArgs, evExpr(callArgNodes[evAi], env))
+            evAi = evAiStack[len(evAiStack) - 1] + 1
+            evAiStack = pop(evAiStack)
+            evAiStack = push(evAiStack, evAi)
+        }
+        evAiStack = pop(evAiStack)
+        let methods = cls["methods"]
+        if object_has_own(methods, "constructor") {
+            evThisOut = instance
+            let ctorRet = evCallThis(methods["constructor"], fnArgs, instance)
+            if ctorRet != null && ctorRet != undefined && typeof(ctorRet) == "object" {
+                return ctorRet
+            }
+            if evThisOut != null && evThisOut != undefined {
+                return evThisOut
+            }
+        }
+        return instance
+    }
     if node.kind == K_CALL {
         evCallFnStack = push(evCallFnStack, node.callee)
         evCallArgsStack = push(evCallArgsStack, node.args)
-        let callee = evExpr(evCallFnStack[len(evCallFnStack) - 1], env)
+        let calleeNode = evCallFnStack[len(evCallFnStack) - 1]
         let callArgNodes = evCallArgsStack[len(evCallArgsStack) - 1]
         evCallFnStack = pop(evCallFnStack)
         evCallArgsStack = pop(evCallArgsStack)
+        let thisRecv = null
+        let callee = null
+        if calleeNode.kind == K_MEMBER {
+            thisRecv = evExpr(calleeNode["object"], env)
+            let memField = "" + calleeNode["field"]
+            if thisRecv == null || thisRecv == undefined {
+                throw "TypeError: cannot read property " + memField
+            }
+            if object_has_own(thisRecv, memField) {
+                callee = thisRecv[memField]
+            } else {
+                if object_has_own(thisRecv, "__k8class") {
+                    let clsMethods = thisRecv["__k8class"]["methods"]
+                    if object_has_own(clsMethods, memField) {
+                        callee = clsMethods[memField]
+                    }
+                }
+            }
+            if callee == null || callee == undefined {
+                callee = undefined
+            }
+        } else {
+            callee = evExpr(calleeNode, env)
+        }
         let fnTag = callee["tag"]
         if fnTag == "k8host" {
             let hostName = callee["name"]
@@ -220,6 +284,9 @@ fn evExpr(node, env) {
             evAiStack = push(evAiStack, evAi)
         }
         evAiStack = pop(evAiStack)
+        if thisRecv != null {
+            return evCallThis(callee, fnArgs, thisRecv)
+        }
         return evCall(callee, fnArgs)
     }
     throw "eval expr " + node.kind
@@ -299,8 +366,64 @@ fn evCall(fnVal, args) {
     return evRunBlock(fnBody, scope)
 }
 
+fn evCallThis(fnVal, args, thisVal) {
+    if fnVal == null || fnVal == undefined {
+        throw "TypeError: not a function"
+    }
+    let fnTag = fnVal["tag"]
+    if fnTag != "k8fn" {
+        throw "TypeError: not a k8 function"
+    }
+    let fnBody = fnVal["body"]
+    let fnParams = fnVal["params"]
+    let fnClosure = fnVal["closure"]
+    let fnArrow = fnVal["arrow"]
+    let scope = {}
+    let keys = object_keys(fnClosure)
+    let ci = 0
+    while ci < len(keys) {
+        scope[keys[ci]] = fnClosure[keys[ci]]
+        ci = ci + 1
+    }
+    scope["this"] = thisVal
+    let pi = 0
+    while pi < len(fnParams) {
+        scope[fnParams[pi]] = args[pi]
+        pi = pi + 1
+    }
+    if fnArrow {
+        let arrowRet = evExpr(fnBody[0], scope)
+        evThisOut = scope["this"]
+        return arrowRet
+    }
+    let blockRet = evRunBlock(fnBody, scope)
+    evThisOut = scope["this"]
+    return blockRet
+}
+
 fn evStmt(stmt, env) {
     let stmtKind = stmt.kind
+    if stmtKind == K_CLASS {
+        let scope = {}
+        let keys = object_keys(env)
+        let fi = 0
+        while fi < len(keys) {
+            scope[keys[fi]] = env[keys[fi]]
+            fi = fi + 1
+        }
+        let methods = {}
+        let methList = stmt["methods"]
+        let mi = 0
+        while mi < len(methList) {
+            let m = methList[mi]
+            let mName = "" + m["sym"]
+            methods[mName] = { "tag": "k8fn", "params": m.params, "body": m.body.body, "closure": scope, "arrow": false }
+            mi = mi + 1
+        }
+        let classSym = "" + stmt["sym"]
+        env[classSym] = { "__k8class": true, "name": classSym, "methods": methods }
+        return undefined
+    }
     if stmtKind == K_FN {
         let scope = {}
         let keys = object_keys(env)
@@ -504,6 +627,17 @@ fn evStmt(stmt, env) {
         return undefined
     }
     if stmtKind == K_ASSIGN {
+        if object_has_own(stmt, "object") {
+            let obj = evExpr(stmt["object"], env)
+            let field = "" + stmt["field"]
+            let val = evExpr(stmt["rhs"], env)
+            obj[field] = val
+            let target = stmt["object"]
+            if target.kind == K_IDENT {
+                env["" + target["sym"]] = obj
+            }
+            return val
+        }
         let bindSym = stmt["sym"]
         env["" + bindSym] = evExpr(stmt["rhs"], env)
         return undefined
@@ -621,4 +755,10 @@ pub fn evalSourceWith(source, extraEnv) {
 pub fn evalSource(source) {
     // C3: Rust Kv8 eval (while/binary/class/async). evalSourceWith stays self-host for extraEnv.
     return kv8_eval_source(source)
+}
+
+/// K1c: pure Kabootar eval path (literals/ops/control via evalSourceWith).
+/// Class/async still need evalSource → Rust.
+pub fn evalSourceKab(source) {
+    return evalSourceWith(source, null)
 }
