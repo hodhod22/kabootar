@@ -1,0 +1,28 @@
+// H6d: OS product policy (VFS / sched / process) in .kab over syscalls
+// cargo run --bin kabootar -- examples/h6d_os_policy_smoke.kab
+
+import "os/vfs_policy"
+import "os/sched_policy"
+import "os/process_policy"
+import "os/vfs"
+import "os/process"
+
+ensureAppsRoot()
+let body = writeFile("/apps/h6d.txt", "h6d-ok")
+let appsOk = underApps("/apps/h6d.txt") && body == "h6d-ok" && exists("/apps/h6d.txt")
+
+copyFile("/apps/h6d.txt", "/apps/h6d-copy.txt")
+let copyOk = read("/apps/h6d-copy.txt") == "h6d-ok"
+
+let tick = runFairTick(["h6d-a", "h6d-b"])
+let schedOk = tick != null && tick != undefined
+
+let worker = spawnAppsWorker("h6d-worker")
+let capOk = worker > 0 && hasCap(worker, "vfs:read:/apps") == true
+let killOk = canKill(1) == false && canKill(worker) == true
+
+let procs = list()
+let listOk = len(procs) >= 1
+
+println("h6d vfs=" + appsOk + " copy=" + copyOk + " sched=" + schedOk + " proc=" + capOk + " kill=" + killOk)
+return appsOk && copyOk && schedOk && capOk && killOk && listOk

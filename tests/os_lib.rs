@@ -129,3 +129,21 @@ fn os_k3_vfs_smoke_example_runs() {
     let result = cli::run_file(&path).expect("examples/os_k3_vfs_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
+
+#[test]
+fn os_h6d_policy_smoke() {
+    let path = format!("{}/examples/h6d_os_policy_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h6d-os".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/h6d_os_policy_smoke.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h6d thread")
+        .join()
+        .expect("h6d thread join");
+    assert!(ok);
+}

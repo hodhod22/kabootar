@@ -1,0 +1,41 @@
+@version "1.0.0"
+
+// H6d: process sandbox policy over os/process + os_perm_*. import "os/process_policy"
+// KEEP <=~7 top-level fn. Pid table stays native; Kab sets caps.
+
+import "os/process"
+
+/// Spawn then clear inherited caps (empty sandbox).
+pub fn spawnSandbox(name) {
+    let pid = spawn("" + name)
+    os_perm_clear(pid)
+    return pid
+}
+
+/// Spawn sandbox and grant a list of capability strings.
+pub fn spawnWithCaps(name, caps) {
+    let pid = spawnSandbox(name)
+    let i = 0
+    while i < len(caps) {
+        os_perm_grant(pid, "" + caps[i])
+        i = i + 1
+    }
+    return pid
+}
+
+/// Default kOS worker: vfs read under /apps only.
+pub fn spawnAppsWorker(name) {
+    return spawnWithCaps(name, ["vfs:read:/apps"])
+}
+
+/// Refuse killing pid 1 (init) — product policy before any kill FFI.
+pub fn canKill(pid) {
+    if pid == 1 {
+        return false
+    }
+    return true
+}
+
+pub fn hasCap(pid, cap) {
+    return os_perm_check(pid, "" + cap)
+}
