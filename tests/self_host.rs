@@ -1679,3 +1679,24 @@ fn self_host_emit_rust_bytecode_let_probe() {
     assert!(n >= 3, "let x = 1 should emit at least const/store/halt path, got {n} ops");
 }
 
+#[test]
+fn h6e_boot_policy_smoke() {
+    let path = format!(
+        "{}/examples/h6e_boot_policy_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-boot".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6e boot smoke should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn h6e thread")
+        .join()
+        .expect("h6e thread join");
+    assert!(ok);
+}
+
