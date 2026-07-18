@@ -28,14 +28,17 @@ fn boot_desktop_frame() -> Result<(), String> {
         kb_set_backend("gpu");
         let win = os_window_create("Kabootar OS", 960, 540);
         os_display_register(win, "Kabootar Desktop", 960, 540);
-        parseAndApply("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; gap:16px; }
-          h1 { font-size:36px; color:#8ab4f8; } .card { background:#35363a; padding:20px; border-radius:12px; }");
-        let ui = kml("<html><body><h1>Kabootar OS</h1><div class='card'><p>Native desktop — GPU compositor when available.</p></div></body></html>");
-        kb_mount(ui);
         kb_viewport(960, 540);
-        kb_paint();
-        // kOS boot subset (lib/kos) — DOM shell + theme; full compositor mount later
+        // Primary UI: kOS desktop (build + theme + kb_mount + kb_paint)
         let kosShell = bootKosDesktop();
+        if kosShell == null {
+            // Thin fallback if kos mount path failed
+            parseAndApply("body { display:flex; flex-direction:column; padding:32px; background:#292a2d; color:#e8eaed; gap:16px; }
+              h1 { font-size:36px; color:#8ab4f8; } .card { background:#35363a; padding:20px; border-radius:12px; }");
+            let ui = kml("<html><body><h1>Kabootar OS</h1><div class='card'><p>Native desktop — GPU compositor when available.</p></div></body></html>");
+            kb_mount(ui);
+            kb_paint();
+        }
     "#;
 
     let mut env = create_global_env();

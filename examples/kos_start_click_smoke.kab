@@ -1,0 +1,27 @@
+// Start click → launchApp (dispatch + openWindow)
+// cargo run --bin kabootar -- examples/kos_start_click_smoke.kab
+
+import "kos/shell"
+import "kos/launch"
+import "kos/windows"
+import "kdom/document"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "stub")
+os_write("/apps/notes.app", "stub")
+
+let shell = buildShell()
+shell = openStart(shell)
+let startOk = isStartOpen(shell)
+
+shell = clickStartApp(shell, "hello.app")
+let wins = listWindows(shell)
+let winOk = is_array(wins) && len(wins) >= 1
+let titleOk = false
+if winOk {
+    let t = domExtra("getAttr", wins[0], "data-title")
+    titleOk = ("" + t) == "hello.app"
+}
+
+println("start click start=" + startOk + " win=" + winOk + " title=" + titleOk)
+return startOk && winOk && titleOk

@@ -135,3 +135,29 @@ fn h3_query_all_kab_smoke() {
     let result = cli::run_file(&path).expect("examples/h3_query_all_kab_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)), "got {result:?}");
 }
+
+#[test]
+fn k2_layout_smoke() {
+    let path = format!("{}/examples/k2_layout_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/k2_layout_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn h5_layout_paint_smoke() {
+    let code = r#"
+import "kdom/document"
+import "kdom/paint"
+let ui = el("div")
+ui = attr(ui, "class", "root")
+ui = attach(ui, text("H5"), true)
+let frame = layoutPaint(ui, 320, 200)
+let painted = frame["html"] != undefined
+let withCss = paintWithCss(el("div"), 160, 100, "div { color: red; }")
+let nodeOk = paintNode(el("span"), 80, 40)["html"] != undefined
+painted && withCss["html"] != undefined && nodeOk
+"#;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

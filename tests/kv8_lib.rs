@@ -201,3 +201,39 @@ fn k1f_async_promise_kab_eval() {
         .expect("k1f thread join");
     assert!(ok);
 }
+
+#[test]
+fn k1g_promise_then_microtask() {
+    let path = format!("{}/examples/kv8_k1g_promise_then.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1g-promise-then".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_k1g_promise_then.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn k1g thread")
+        .join()
+        .expect("k1g thread join");
+    assert!(ok);
+}
+
+#[test]
+fn h4_prefer_kab_eval() {
+    let path = format!("{}/examples/kv8_h4_prefer_kab.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("h4-prefer-kab".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                cli::run_file(&path).expect("examples/kv8_h4_prefer_kab.kab should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn h4 thread")
+        .join()
+        .expect("h4 thread join");
+    assert!(ok);
+}

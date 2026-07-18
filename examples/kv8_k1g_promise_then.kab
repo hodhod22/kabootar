@@ -1,0 +1,9 @@
+// K1g: Promise.then microtask queue
+// cargo run --bin kabootar -- examples/kv8_k1g_promise_then.kab
+
+import "kv8/eval"
+
+// Callback return value is written onto the then-promise during drainMicrotasks
+// (closures deep-copy objects, so bag.hit mutation is not visible across scopes).
+let hit = evalSourceKab("function setHit(v) { return v }; let p = Promise.resolve(5).then(setHit); p.value")
+return hit == 5

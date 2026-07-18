@@ -1,0 +1,13 @@
+// Shell-mount — bootKosDesktop mounts kos desktop via kb_mount + kb_paint
+// cargo run --bin kabootar -- examples/kos_shell_mount_smoke.kab
+
+import "kos/shell"
+import "kdom/document"
+
+let shell = bootKosDesktop()
+let desktop = query(shell, "#kos-desktop")
+let bar = findTaskbar(shell)
+let html = kb_render()
+let ok = shell != null && desktop != null && bar != null && html != null && html != ""
+println("kos mount desktop=" + (desktop != null) + " taskbar=" + (bar != null) + " render=" + (html != ""))
+return ok

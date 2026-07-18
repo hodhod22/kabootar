@@ -5,6 +5,7 @@
 
 import "kdom/document"
 import "kos/theme"
+import "kos/launch"
 
 pub fn buildShell() {
     let desktop = el("div")
@@ -55,11 +56,14 @@ pub fn openStart(shell) {
         let name = "" + apps[i]
         let item = el("div")
         item = attr(item, "class", "kos-start-app")
+        item = attr(item, "data-app", name)
         item = attach(item, text(name), true)
         panel = attach(panel, item, true)
         i = i + 1
     }
-    return attach(shell, panel, true)
+    // Attach first, then wire clicks on live/queryable .kos-start-app nodes.
+    let attached = attach(shell, panel, true)
+    return wireStartApps(attached)
 }
 
 pub fn isStartOpen(shell) {
@@ -71,8 +75,11 @@ pub fn clickStart(shell) {
     return openStart(shell)
 }
 
-// Boot subset for `kabootar shell` / examples — build + light theme.
+// Boot subset for `kabootar shell` / examples — build, theme, mount + paint.
 pub fn bootKosDesktop() {
     let shell = buildShell()
-    return applyKosTheme(shell)
+    shell = applyKosTheme(shell)
+    kb_mount(shell)
+    kb_paint()
+    return shell
 }

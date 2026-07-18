@@ -26,9 +26,9 @@ kv8/dom  → kv8/eval → kv8/parser → kv8/lexer
 
 ## Eval subset (Fas 1.3+ / K1c–K1f)
 
-**Gates:** `evalSource(source)` / `evalSourceKab(source)` — Kabootar interpreter (`evalSourceWith`); `evalSourceRust(source)` — Rust `kv8_eval_source` fallback.
+**Gates:** `evalSource(source)` / `evalSourceKab(source)` — Kabootar interpreter (`evalSourceWith`); `evalSourceRust(source)` — Rust `kv8_eval_source` fallback. **H4 product path:** prefer Kab (`preferKabEval()`); Rust only for gaps.
 
-Literals, ident (incl. `this`), member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` / `` `${a + b}` ``), call, `new` (`K_NEW`), object literals, let/var/assign (incl. member `this.n = n`), if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, `class` + constructor/`this` + `extends` (parent method merge), `await` (unwrap `__k8promise` / sync `.then`), async function (return `{__k8promise,value}`), `Promise.resolve` stub, binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
+Literals, ident (incl. `this`), member (incl. `?.`), index (`a[i]`), array literals, unary `!` / `typeof`, ternary (`? :`), template literals (`` `a=${n}` `` / `` `${a + b}` ``), call, `new` (`K_NEW`), object literals, let/var/assign (incl. member `this.n = n`), if/else, switch/case/default, while, for, for-in, for-of, break/continue, try/catch/finally, throw, function, `class` + constructor/`this` + `extends` (parent method merge), `await` (unwrap `__k8promise` / sync `.then`), async function (return `{__k8promise,value,then}`), `Promise.resolve` + `.then` microtask queue (`drainMicrotasks`), binary: `+ - * / == === != !== < > <= >= && || ??` (short-circuit for `&&`/`||`/`??`).
 
 ## React stub (G10)
 
@@ -36,7 +36,7 @@ Literals, ident (incl. `this`), member (incl. `?.`), index (`a[i]`), array liter
 
 - Hook state on `fiber["$hooks"]`; components get `props["$hooks"]`.
 - **Live Dom patch:** `hooks["nid"]` + `hooks["ntag"]` + `hooks["cnid0"…]` / `ncn` for nested fiber children; `setTextById` / `setAttrById` / multi-text / nested remount via `appendById`; parent live-registry sync so `paint(parent)` sees child text; `onById` + `dispatchById` for click without remount. Never store `KabootarDom` in `.kab` lets; avoid local name `id`.
-- Stack pop in `kv8/eval` uses native `pop` (C2). **`evalSource` / `evalSourceKab` → `evalSourceWith(source, null)`** (K1c–K1f Kabootar path: literals/ops/control + class/`new`/`this`/`extends` + async/`await`/`Promise.resolve` stub). **`evalSourceRust` → `kv8_eval_source`** fallback. `evalSourceWith` stays self-host for `extraEnv`. Do not reintroduce Kabootar `evPopStack` rebuild loops.
+- Stack pop in `kv8/eval` uses native `pop` (C2). **`evalSource` / `evalSourceKab` → `evalSourceWith(source, null)`** (K1c–K1g Kabootar path: literals/ops/control + class/`new`/`this`/`extends` + async/`await`/`Promise.resolve` + `.then` microtasks). **`evalSourceRust` → `kv8_eval_source`** fallback (H4: gaps only). `preferKabEval()` keeps the Kab flag on. `evalSourceWith` stays self-host for `extraEnv`. Do not reintroduce Kabootar `evPopStack` rebuild loops.
 - Self-host parser: `class` / `new` / `async function` / `await` / `this` AST (`K_CLASS` / `K_NEW` / `K_FN.async` / `K_AWAIT`).
 - `useEffect(hooks, setup, deps?, cleanup?)` — skip when `deps[0]` unchanged; optional `cleanup` runs on deps change (never stored — fn-on-hooks hangs). Bumps `hooks["c"+n]` on each run.
 - Keep `react.kab` at ~7 top-level fns.

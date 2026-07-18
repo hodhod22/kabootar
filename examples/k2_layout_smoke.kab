@@ -1,0 +1,26 @@
+// K2-layout — flex/box style orchestration helpers
+// cargo run --bin kabootar -- examples/k2_layout_smoke.kab
+
+import "kdom/document"
+import "kstyle/layout"
+
+let col = el("div")
+col = flexColumn(col)
+col = gap(col, 8)
+col = pad(col, 12)
+let row = el("div")
+row = flexRow(row)
+row = gap(row, 4)
+let shell = el("div")
+shell = attr(shell, "id", "kos-desktop")
+shell = applyFlex(shell)
+let colStyle = "" + domExtra("getAttr", col, "style")
+let rowStyle = "" + domExtra("getAttr", row, "style")
+let shellStyle = "" + domExtra("getAttr", shell, "style")
+let ok = str_includes(colStyle, "flex-direction:column")
+    && str_includes(colStyle, "gap:8px")
+    && str_includes(colStyle, "padding:12px")
+    && str_includes(rowStyle, "flex-direction:row")
+    && str_includes(shellStyle, "display:flex")
+println("k2 layout ok=" + ok)
+return ok

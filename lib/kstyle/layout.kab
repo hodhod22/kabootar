@@ -1,0 +1,38 @@
+@version "1.0.0"
+
+// K2-layout — thin flex/box style orchestration in .kab (not a native layout engine).
+// import "kstyle/layout"
+
+import "kdom/document"
+
+fn mergeStyle(node, extra) {
+    let prev = domExtra("getAttr", node, "style")
+    if prev == null || prev == undefined {
+        prev = ""
+    }
+    return attr(node, "style", "" + prev + extra)
+}
+
+pub fn flexColumn(node) {
+    return mergeStyle(node, "display:flex;flex-direction:column;")
+}
+
+pub fn flexRow(node) {
+    return mergeStyle(node, "display:flex;flex-direction:row;")
+}
+
+pub fn gap(node, px) {
+    return mergeStyle(node, "gap:" + px + "px;")
+}
+
+pub fn pad(node, px) {
+    return mergeStyle(node, "padding:" + px + "px;")
+}
+
+// Optional shell helper — ensure desktop root is a flex column.
+pub fn applyFlex(shell) {
+    if shell == null || shell == undefined {
+        return shell
+    }
+    return flexColumn(shell)
+}

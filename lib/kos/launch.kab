@@ -1,0 +1,59 @@
+@version "1.0.0"
+
+// Start → openWindow (launch apps from /apps). import "kos/launch"
+
+import "kos/windows"
+import "kdom/document"
+import "kdom/events"
+import "kdom/query"
+
+/// Open an app window titled `name` (usually a /apps entry).
+pub fn launchApp(shell, name) {
+    return openWindow(shell, "" + name)
+}
+
+/// Launch from Start panel entry (same as launchApp; Start lists /apps names).
+pub fn launchStartApp(shell, name) {
+    return launchApp(shell, name)
+}
+
+fn startAppItems(shell) {
+    let apps = queryAllKab(shell, ".kos-start-app")
+    if apps != null && apps != undefined {
+        return apps
+    }
+    return domExtra("queryAll", shell, ".kos-start-app")
+}
+
+/// Wire click listeners on Start panel entries (handler name stored; dispatch alone does not launch).
+pub fn wireStartApps(shell) {
+    let apps = startAppItems(shell)
+    if apps == null || apps == undefined {
+        return shell
+    }
+    let i = 0
+    while i < len(apps) {
+        on(apps[i], "click", "launchStartApp")
+        i = i + 1
+    }
+    return shell
+}
+
+/// Find Start entry by data-app, dispatch click, then launchApp (end-to-end Start → window).
+pub fn clickStartApp(shell, name) {
+    let want = "" + name
+    let apps = startAppItems(shell)
+    if apps != null && apps != undefined {
+        let i = 0
+        while i < len(apps) {
+            let item = apps[i]
+            let app = domExtra("getAttr", item, "data-app")
+            if ("" + app) == want {
+                dispatch(item, "click")
+                return launchApp(shell, want)
+            }
+            i = i + 1
+        }
+    }
+    return launchApp(shell, want)
+}

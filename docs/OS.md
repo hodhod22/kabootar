@@ -42,7 +42,7 @@ kbrowser + kDOM/KSS/Kv8  — appar, Explorer, Settings
 os_window_* / GPU compositor  — presentation (winit + wgpu)
 ```
 
-`kabootar shell` kan använda kOS boot-subset via `bootKosDesktop()` (se [ROADMAP G12](ROADMAP.md)); native softbuffer/GPU-path behåller paint-boot och anropar kos DOM-boot efteråt.
+`kabootar shell` monterar kOS-skrivbordet via `bootKosDesktop()` → `kb_mount`/`kb_paint` (se [ROADMAP G12](ROADMAP.md) shell mount ✅ subset); tunn HTML-fallback om mount misslyckas.
 
 Se [RENDERING.md](RENDERING.md), [BROWSER.md](BROWSER.md) och [ROADMAP.md — G12](ROADMAP.md).
 

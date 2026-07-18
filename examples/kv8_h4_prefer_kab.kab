@@ -1,0 +1,12 @@
+// H4: Thin Rust Kv8 — evalSource / evalSourceKab agree; Rust fallback remains
+// cargo run --bin kabootar -- examples/kv8_h4_prefer_kab.kab
+
+import "kv8/eval"
+
+preferKabEval()
+let a = evalSource("1 + 2")
+let b = evalSourceKab("1 + 2")
+let classA = evalSource("class Box { constructor(n) { this.n = n } } new Box(3).n")
+let classB = evalSourceKab("class Box { constructor(n) { this.n = n } } new Box(3).n")
+let rustOk = evalSourceRust("1 + 2") == 3
+return a == 3 && b == 3 && a == b && classA == 3 && classB == 3 && classA == classB && rustOk
