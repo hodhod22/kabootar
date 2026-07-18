@@ -5,6 +5,7 @@
 
 import "kss"
 import "kdom/document"
+import "kstyle/layout"
 
 pub fn applyKosTheme(shell) {
     let css = toCss({
@@ -30,6 +31,7 @@ pub fn applyKosTheme(shell) {
     kss(css)
     if shell != null && shell != undefined {
         query(shell, "#kos-desktop")
+        shell = applyFlex(shell)
     }
     return shell
 }

@@ -1,0 +1,31 @@
+// Start → openWindow — launch app from /apps as kos window
+// cargo run --bin kabootar -- examples/kos_launch_app_smoke.kab
+
+import "kos/shell"
+import "kos/launch"
+import "kos/windows"
+import "kdom/document"
+
+os_mkdir("/apps")
+os_write("/apps/hello.app", "stub")
+os_write("/apps/notes.app", "stub")
+
+let shell = buildShell()
+shell = openStart(shell)
+let startOk = isStartOpen(shell)
+
+shell = launchApp(shell, "hello.app")
+let wins = listWindows(shell)
+let winOk = is_array(wins) && len(wins) >= 1
+let titleOk = false
+if winOk {
+    let t = domExtra("getAttr", wins[0], "data-title")
+    titleOk = ("" + t) == "hello.app"
+}
+
+shell = launchStartApp(shell, "notes.app")
+let wins2 = listWindows(shell)
+let twoOk = is_array(wins2) && len(wins2) >= 2
+
+println("launch start=" + startOk + " win=" + winOk + " title=" + titleOk + " two=" + twoOk)
+return startOk && winOk && titleOk && twoOk

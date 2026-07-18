@@ -50,6 +50,45 @@ fn kos_shell_boot_smoke() {
 }
 
 #[test]
+fn kos_shell_mount_smoke() {
+    let path = format!("{}/examples/kos_shell_mount_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kos_shell_mount_smoke.kab should run");
+    assert!(matches!(result, Value::Bool(true)), "got {result:?}");
+}
+
+#[test]
+fn kos_launch_app_smoke() {
+    let path = format!("{}/examples/kos_launch_app_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("kos_launch_app_smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let result = cli::run_file(&path).expect("examples/kos_launch_app_smoke.kab should run");
+            matches!(result, Value::Bool(true))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "launch Start → openWindow smoke failed");
+}
+
+#[test]
+fn kos_start_click_smoke() {
+    let path = format!("{}/examples/kos_start_click_smoke.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("kos_start_click_smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            let result = cli::run_file(&path).expect("examples/kos_start_click_smoke.kab should run");
+            matches!(result, Value::Bool(true))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "Start click → launchApp smoke failed");
+}
+
+#[test]
 fn kos_shell_build_and_list_apps() {
     let code = r#"
 import "kos/shell"

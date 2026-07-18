@@ -23,8 +23,37 @@ let evAiStack = []
 let evAi = 0
 let evLoopSig = 0
 let evThisOut = null
+// K1g: Promise.then microtask queue
+let evMicroQ = []
+let evMicroLast = undefined
+// H4: product path prefers Kab evalSourceWith; Rust only via evalSourceRust / flag off
+let useKabEval = true
 
 // Stack pop uses native `pop` (O(1) slice) — old evPopStack rebuilt arrays in Kabootar (C2 hot path).
+
+fn makeK8Promise(value) {
+    return { "__k8promise": true, "value": value, "then": { "tag": "k8then" } }
+}
+
+fn drainMicrotasks() {
+    while len(evMicroQ) > 0 {
+        let job = evMicroQ[0]
+        let rest = []
+        let ri = 1
+        while ri < len(evMicroQ) {
+            rest = push(rest, evMicroQ[ri])
+            ri = ri + 1
+        }
+        evMicroQ = rest
+        let cb = job["cb"]
+        let val = job["value"]
+        let callRet = undefined
+        if cb != null && cb != undefined {
+            callRet = evCall(cb, [val])
+        }
+        evMicroLast = callRet
+    }
+}
 
 fn evExpr(node, env) {
     if node.kind == K_LITERAL {
@@ -308,6 +337,13 @@ fn evExpr(node, env) {
         if calleeTag == "k8resolve" {
             return evCall(callee, fnArgs)
         }
+        // K1g: promise.then(cb) queues microtask; drain before return so value is set
+        // (Kv8 object assign deep-copies — cannot mutate a returned promise later).
+        if calleeTag == "k8then" {
+            evMicroQ = push(evMicroQ, { "cb": fnArgs[0], "value": thisRecv["value"] })
+            drainMicrotasks()
+            return makeK8Promise(evMicroLast)
+        }
         if thisRecv != null {
             return evCallThis(callee, fnArgs, thisRecv)
         }
@@ -366,7 +402,7 @@ fn evCall(fnVal, args) {
         return hostCall(hostName, args)
     }
     if fnTag == "k8resolve" {
-        return { "__k8promise": true, "value": args[0] }
+        return makeK8Promise(args[0])
     }
     if fnTag != "k8fn" {
         throw "TypeError: not a k8 function"
@@ -395,7 +431,7 @@ fn evCall(fnVal, args) {
     }
     if object_has_own(fnVal, "async") {
         if fnVal["async"] == true {
-            return { "__k8promise": true, "value": callRet }
+            return makeK8Promise(callRet)
         }
     }
     return callRet
@@ -407,7 +443,7 @@ fn evCallThis(fnVal, args, thisVal) {
     }
     let fnTag = fnVal["tag"]
     if fnTag == "k8resolve" {
-        return { "__k8promise": true, "value": args[0] }
+        return makeK8Promise(args[0])
     }
     if fnTag != "k8fn" {
         throw "TypeError: not a k8 function"
@@ -438,7 +474,7 @@ fn evCallThis(fnVal, args, thisVal) {
     evThisOut = scope["this"]
     if object_has_own(fnVal, "async") {
         if fnVal["async"] == true {
-            return { "__k8promise": true, "value": callRet }
+            return makeK8Promise(callRet)
         }
     }
     return callRet
@@ -770,7 +806,7 @@ pub fn evalProgram(ast, extraEnv) {
 pub fn evalSourceWith(source, extraEnv) {
     let ast = parseSource(source)
     let env = {}
-    // K1f: Promise.resolve stub → thenable-like {__k8promise, value}
+    // K1f/K1g: Promise.resolve → {__k8promise,value,then}; .then queues microtasks
     env["Promise"] = { "resolve": { "tag": "k8resolve" } }
     if extraEnv != null {
         let keys = object_keys(extraEnv)
@@ -812,17 +848,30 @@ pub fn evalSourceWith(source, extraEnv) {
         } else {
             last = evStmt(st, env)
             if evLoopSig != 0 {
+                drainMicrotasks()
                 return last
             }
         }
+        // Drain after each top-level stmt so then-cbs run before later checks
+        drainMicrotasks()
         si = si + 1
     }
+    drainMicrotasks()
     return last
 }
 
+/// H4: prefer Kab path for evalSource (product default).
+pub fn preferKabEval() {
+    useKabEval = true
+    return true
+}
+
 pub fn evalSource(source) {
-    // K1e: prefer Kabootar path (extends merge, class/new/await stub).
-    return evalSourceWith(source, null)
+    // H4/K1e: product path = Kab evalSourceWith; Rust only when flag off or evalSourceRust.
+    if useKabEval {
+        return evalSourceWith(source, null)
+    }
+    return kv8_eval_source(source)
 }
 
 /// Rust Kv8 fallback (fuller host parity). Prefer evalSource / evalSourceKab.

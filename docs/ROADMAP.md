@@ -608,11 +608,13 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **K1d** | **Kv8 class/new/async** — ✅ **subset**: `K_NEW` + `this` + `K_CLASS`/`K_NEW`/`K_AWAIT` i `evalSourceKab` (`k1d_class_new_kab_eval`); async kör sync |
 | **K1e** | **Kv8 extends + Kab evalSource** — ✅ **subset**: `extends` mergar parent-metoder; `evalSource` → Kab-path (`evalSourceWith`); Rust kvar som `evalSourceRust` (`k1e_extends_kab_eval`, `k1e_eval_source_prefers_kab`) |
 | **K1f** | **Kv8 async/Promise** — ✅ **subset**: async fn returnerar `{__k8promise,value}`; `K_AWAIT` unwrap; `Promise.resolve` stub i `evalSourceWith` (`k1f_async_promise_kab_eval`) |
+| **K1g** | **Promise.then microtask** — ✅ **subset**: `.then(cb)` köar microtask; `drainMicrotasks` efter stmt i `evalSourceWith` (`k1g_promise_then_microtask`) |
 | **K2** | **DOM + CSS/KSS** — ✅ **subset**: `querySelector` + KSS object→CSS i `.kab` (`kdom_query_kss_smoke`); layout/paint fortfarande Rust |
 | **K2 deepen** | **applyCss + matches** — ✅ **subset**: `kdom_applycss_matches_smoke` (kdom + kss + selectors + theme `applyCss`) |
+| **K2-layout** | **flex/box orchestration** — ✅ **subset**: `lib/kstyle/layout` `flexColumn`/`flexRow`/`gap`/`pad`/`applyFlex` (stil-helpers; native layout engine kvar) (`k2_layout_smoke`) |
 | **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` (enqueue/tick/yield/preempt). Gate: `cargo test --test os_lib` |
 | **K4** | **Webläsare** — ✅ **subset**: `lib/kbrowser` tabs + VFS navigate + paint (`k4_kbrowser_tabs_smoke`) |
-| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5): `lib/kos/shell` Start/`listApps`/`bootKosDesktop`; `explorer`; `windows` snap/Alt+Tab; `theme` KSS polish |
+| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5 + launch + Start click): `launchApp` / `clickStartApp` → `openWindow` (`kos_launch_app_smoke`, `kos_start_click_smoke`) |
 
 ### Våg H — Rust → noll 📋
 
@@ -623,6 +625,8 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 - **H1** ✅ **subset** — desktop shell boot CSS via `import "kstyle/parse"` + `parseAndApply` (inte native `kstyle_parse`); gate `h1_shell_boot_css_kab`
 - **H2** ✅ **subset** — `queryKab` i `lib/kdom/query` (#id / .class / tag via `kstyle/selectors` + walk); `document.query` provar Kab först, fallback `kdom_query_selector` (`h2_query_kab_smoke`)
 - **H3** ✅ **subset** — `queryAllKab` i `lib/kdom/query`; `document.domExtra(..., "queryAll")` provar Kab först (`h3_query_all_kab_smoke`); används av `kos/windows` `listWindows`
+- **H4** ✅ **subset** — Thin Rust Kv8: produktväg = `evalSource`/`evalSourceKab` → `evalSourceWith`; `evalSourceRust` endast för luckor; `preferKabEval()` sätter flagga (`h4_prefer_kab_eval`)
+- **H5** ✅ **subset** — paint/layout-orchestration i `.kab`: `lib/kdom/paint` `paintNode` / `paintWithCss` / `layoutPaint` (flexColumn via `kstyle/layout` + `paint`) (`h5_layout_paint_smoke`)
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity
@@ -829,12 +833,12 @@ Målbild: användaren ska känna igen sig från Windows, men systemet ska **se o
 Milstolpar:
 
 - [x] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster — ✅ **subset** via `lib/kos/shell` (`buildShell` / `listApps`)
-- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart` (`kos_g12_2_start_smoke`)
+- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart`; **Start → openWindow** via `lib/kos/launch` `launchApp` / `launchStartApp`; **Start click** via `wireStartApps` (från `openStart`) + `clickStartApp` (dispatch + `launchApp`) (`kos_launch_app_smoke`, `kos_start_click_smoke`)
 - [x] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`) — ✅ **subset**: `lib/kos/explorer` (`kos_g12_3_explorer_smoke`)
 - [x] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay — ✅ **subset**: `lib/kos/windows` (`openWindow` / `snapWindow` / `openAltTab`; `kos_g12_4_windows_smoke`)
 - [x] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema — ✅ **subset** (CSS polish via `lib/kos/theme` `applyKosTheme`; inte full GPU blur) (`kos_g12_5_theme_smoke`)
 
-**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (buildShell + applyKosTheme). `kabootar shell` (`src/shell/mod.rs` `boot_desktop_frame`) anropar `bootKosDesktop` efter paint — kOS DOM-subset; full compositor-mount av kos-trädet kommer senare. Exempel: `examples/kos_shell_boot.kab` (`kos_shell_boot_smoke`).
+**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (buildShell + applyKosTheme + `kb_mount`/`kb_paint`). `kabootar shell` (`src/shell/mod.rs` `boot_desktop_frame`) monterar kOS-skrivbordet som primär UI (tunn HTML-fallback om mount misslyckas). ✅ **shell mount subset**. Exempel: `examples/kos_shell_mount_smoke.kab` (`kos_shell_mount_smoke`), `examples/kos_shell_boot.kab` (`kos_shell_boot_smoke`).
 
 Beror på: **G11** (kbrowser), **Våg D5** (GPU compositor), **Våg C4** (layout).
 

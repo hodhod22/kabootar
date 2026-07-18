@@ -1,0 +1,22 @@
+@version "1.0.0"
+
+// H5: paint / layout orchestration in .kab. import "kdom/paint"
+
+import "kdom/document"
+import "kstyle/layout"
+
+/// Paint a node without stylesheet CSS.
+pub fn paintNode(node, w, h) {
+    return paint(node, w, h, "")
+}
+
+/// Paint with optional CSS (non-empty runs parseAndApply).
+pub fn paintWithCss(node, w, h, css) {
+    return paint(node, w, h, css)
+}
+
+/// Apply flexColumn via kstyle/layout, then paint.
+pub fn layoutPaint(node, w, h) {
+    let laid = flexColumn(node)
+    return paint(laid, w, h, "")
+}
