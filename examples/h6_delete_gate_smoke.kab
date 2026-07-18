@@ -1,7 +1,8 @@
-// H6 deepen: Kab tab/history session + self-host boot probe
+// H6 deepen + delete-gates: Kab history + load_policy + boot (nav via history only here)
 // cargo run --bin kabootar -- examples/h6_delete_gate_smoke.kab
 
 import "kbrowser/history"
+import "kbrowser/load_policy"
 import "kab/boot"
 
 let s = createSession("kabootar://home")
@@ -14,8 +15,10 @@ let fwdOk = s["moved"] == true && currentUrl(s) == "kabootar://vfs/apps/b.kml"
 s = sessionOpenTab(s, "kabootar://home")
 let tabsOk = sessionTabCount(s) == 2 && currentUrl(s) == "kabootar://home"
 
+let policyOk = loadPolicyOk()
+
 preferSelfHostCompile()
 let bootOk = bootPipelineOk()
 
-println("h6 hist back=" + backOk + " fwd=" + fwdOk + " tabs=" + tabsOk + " boot=" + bootOk)
-return backOk && fwdOk && tabsOk && bootOk
+println("h6 hist back=" + backOk + " fwd=" + fwdOk + " tabs=" + tabsOk + " policy=" + policyOk + " boot=" + bootOk)
+return backOk && fwdOk && tabsOk && policyOk && bootOk

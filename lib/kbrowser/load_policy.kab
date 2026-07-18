@@ -1,0 +1,62 @@
+@version "1.0.0"
+
+// H6c delete-gate: load_page policy in Kab (scheme→mode, sniff, title).
+// I/O stays Rust (disk/net/VFS). import "kbrowser/load_policy"
+// KEEP <=~7 top-level fn.
+
+/// Map URL + requested mode → effective browser mode string.
+pub fn effectiveMode(url, mode) {
+    let m = "" + mode
+    if m != "auto" && len(m) > 0 {
+        return m
+    }
+    let u = "" + url
+    if starts_with(u, "kabootar://") {
+        return "kabootar"
+    }
+    if starts_with(u, "file://") || starts_with(u, "host://") || starts_with(u, "http://") || starts_with(u, "https://") {
+        return "host"
+    }
+    return "kabootar"
+}
+
+/// Content sniff: kv8 | kml | text (mirrors host_nav parse_content branching).
+pub fn sniffKind(url, content) {
+    let u = "" + url
+    let c = "" + content
+    if ends_with(u, ".kv8") || str_includes(c, "---kml---") {
+        return "kv8"
+    }
+    if starts_with(trim(c), "<") || ends_with(u, ".kml") || ends_with(u, ".html") {
+        return "kml"
+    }
+    return "text"
+}
+
+pub fn titleFromUrl(url) {
+    let u = "" + url
+    if u == "kabootar://home" || u == "kabootar://new" {
+        return "Home"
+    }
+    let slash = str_last_index_of(u, "/")
+    if slash >= 0 && slash + 1 < len(u) {
+        return str_slice(u, slash + 1, len(u))
+    }
+    return u
+}
+
+pub fn isVirtualHome(url) {
+    let u = "" + url
+    return u == "kabootar://home" || u == "kabootar://new"
+}
+
+pub fn loadPolicyOk() {
+    let m1 = effectiveMode("kabootar://vfs/x", "auto") == "kabootar"
+    let m2 = effectiveMode("https://ex.com", "auto") == "host"
+    let m3 = effectiveMode("file:///tmp/a", "kabootar") == "kabootar"
+    let k1 = sniffKind("a.kv8", "x") == "kv8"
+    let k2 = sniffKind("a.kml", "<html></html>") == "kml"
+    let k3 = sniffKind("a.txt", "plain") == "text"
+    let t = titleFromUrl("kabootar://vfs/apps/demo.kml") == "demo.kml"
+    return m1 && m2 && m3 && k1 && k2 && k3 && t && isVirtualHome("kabootar://home")
+}

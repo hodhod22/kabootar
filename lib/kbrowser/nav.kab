@@ -1,0 +1,71 @@
+@version "1.0.0"
+
+// H6c delete-gate: Kab session is source of truth; kb_navigate loads/paints only.
+// import "kbrowser/nav"
+// KEEP <=~7 top-level fn.
+
+import "kbrowser/history"
+
+let navSession = null
+
+pub fn bootNav(url) {
+    let u = "" + url
+    navSession = createSession(u)
+    kb_navigate(u)
+    return navSession
+}
+
+pub fn navGo(url) {
+    if navSession == null {
+        bootNav(url)
+    }
+    navSession = sessionNavigate(navSession, url)
+    kb_navigate(currentUrl(navSession))
+    return navSession["moved"]
+}
+
+pub fn navBack() {
+    if navSession == null {
+        return false
+    }
+    navSession = sessionBack(navSession)
+    if navSession["moved"] == true {
+        kb_navigate(currentUrl(navSession))
+    }
+    return navSession["moved"]
+}
+
+pub fn navForward() {
+    if navSession == null {
+        return false
+    }
+    navSession = sessionForward(navSession)
+    if navSession["moved"] == true {
+        kb_navigate(currentUrl(navSession))
+    }
+    return navSession["moved"]
+}
+
+pub fn navOpenTab(url) {
+    if navSession == null {
+        bootNav(url)
+        return navSession
+    }
+    navSession = sessionOpenTab(navSession, url)
+    kb_navigate(currentUrl(navSession))
+    return navSession
+}
+
+pub fn navListTabs() {
+    if navSession == null {
+        return []
+    }
+    return navSession["tabs"]
+}
+
+pub fn navUrl() {
+    if navSession == null {
+        return ""
+    }
+    return currentUrl(navSession)
+}

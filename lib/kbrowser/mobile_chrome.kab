@@ -1,7 +1,9 @@
 @version "1.0.0"
 
 // Mobil shell chrome — kompakt adressfält, tillbaka, flikar. import "kbrowser/mobile_chrome"
-// KEEP <=~7 top-level fn. Delar kb_* med desktop (G11).
+// KEEP <=~7 top-level fn. History via kbrowser/nav (same as desktop).
+
+import "kbrowser/nav"
 
 pub fn applyPhoneViewport() {
     return kb_viewport(390, 844, 3, "portrait")
@@ -41,19 +43,20 @@ pub fn buildChrome(url) {
 }
 
 pub fn mountChrome(url) {
+    bootNav(url)
     let chrome = buildChrome(url)
     kb_mount(chrome)
     return chrome
 }
 
 pub fn goBack() {
-    return kb_back()
+    return navBack()
 }
 
 pub fn listTabs() {
-    return kb_tabs()
+    return navListTabs()
 }
 
 pub fn openTab(url) {
-    return kb_tab_open(url)
+    return navOpenTab(url)
 }

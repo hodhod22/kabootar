@@ -1,32 +1,9 @@
 @version "1.0.0"
 
-// H2/H6b: selector query in Kabootar (tag / .class / #id + descendant + comma).
+// H2/H6b delete-gate: tag/.class/#id + descendant/comma + > + ~ + [attr] + :not
 // import "kdom/query"
 
 import "kstyle/selectors"
-
-fn isSimpleSelector(sel) {
-    if sel == null || sel == undefined {
-        return false
-    }
-    let s = "" + sel
-    if len(s) == 0 {
-        return false
-    }
-    let i = 0
-    while i < len(s) {
-        let c = char_at(s, i)
-        if c == " " || c == ">" || c == "+" || c == "~" || c == "," || c == "[" || c == ":" {
-            return false
-        }
-        i = i + 1
-    }
-    let head = char_at(s, 0)
-    if head == "#" || head == "." {
-        return len(s) > 1
-    }
-    return true
-}
 
 fn hasChar(s, ch) {
     let i = 0
@@ -39,32 +16,24 @@ fn hasChar(s, ch) {
     return false
 }
 
-fn walkQuery(node, sel) {
-    if node == null || node == undefined {
-        return null
+/// Atom: no combinators (space > + ~ ,). Attr / :not allowed.
+fn isAtomSelector(sel) {
+    if sel == null || sel == undefined {
+        return false
     }
-    let tag = "" + node.tag
-    let classAttr = kdom_get_attr(node, "class")
-    if classAttr == null || classAttr == undefined {
-        classAttr = ""
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return false
     }
-    let idAttr = kdom_get_attr(node, "id")
-    if idAttr == null || idAttr == undefined {
-        idAttr = ""
-    }
-    if matches(sel, tag, classAttr, idAttr) {
-        return node
-    }
-    let kids = kdom_children(node)
     let i = 0
-    while i < len(kids) {
-        let hit = walkQuery(kids[i], sel)
-        if hit != null && hit != undefined {
-            return hit
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == " " || c == ">" || c == "+" || c == "~" || c == "," {
+            return false
         }
         i = i + 1
     }
-    return null
+    return true
 }
 
 fn splitComma(sel) {
@@ -109,21 +78,80 @@ fn splitSpaces(sel) {
     return parts
 }
 
+fn splitByChar(sel, ch) {
+    let parts = []
+    let cur = ""
+    let i = 0
+    let s = "" + sel
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == ch {
+            let t = trim(cur)
+            if len(t) > 0 {
+                parts = push(parts, t)
+            }
+            cur = ""
+        } else {
+            cur = cur + c
+        }
+        i = i + 1
+    }
+    let t = trim(cur)
+    if len(t) > 0 {
+        parts = push(parts, t)
+    }
+    return parts
+}
+
+fn walkQuery(node, sel) {
+    if node == null || node == undefined {
+        return null
+    }
+    if matchesNode(sel, node) {
+        return node
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        let hit = walkQuery(kids[i], sel)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn walkQueryAll(node, sel, out) {
+    if node == null || node == undefined {
+        return out
+    }
+    if matchesNode(sel, node) {
+        out = push(out, node)
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        out = walkQueryAll(kids[i], sel, out)
+        i = i + 1
+    }
+    return out
+}
+
 fn queryDescendant(root, bits) {
     if len(bits) == 0 {
         return null
     }
     if len(bits) == 1 {
-        if !isSimpleSelector(bits[0]) {
+        if !isAtomSelector(bits[0]) {
             return null
         }
         return walkQuery(root, bits[0])
     }
     let first = bits[0]
-    if !isSimpleSelector(first) {
+    if !isAtomSelector(first) {
         return null
     }
-    // Collect all matches for the leading simple selector, then search remainder under each.
     let hitList = walkQueryAll(root, first, [])
     let rest = []
     let ri = 1
@@ -142,80 +170,18 @@ fn queryDescendant(root, bits) {
     return null
 }
 
-/// #id / .class / tag, plus descendant (`div span`) and comma lists (`span, p`).
-pub fn queryKab(root, sel) {
-    if sel == null || sel == undefined {
-        return null
-    }
-    let s = trim("" + sel)
-    if len(s) == 0 {
-        return null
-    }
-    // Unsupported combinators → null (native fallback in document.query)
-    if hasChar(s, ">") || hasChar(s, "+") || hasChar(s, "~") || hasChar(s, "[") || hasChar(s, ":") {
-        return null
-    }
-    if hasChar(s, ",") {
-        let parts = splitComma(s)
-        let pi = 0
-        while pi < len(parts) {
-            let p = parts[pi]
-            if len(p) > 0 {
-                let hit = queryKab(root, p)
-                if hit != null && hit != undefined {
-                    return hit
-                }
-            }
-            pi = pi + 1
-        }
-        return null
-    }
-    if hasChar(s, " ") {
-        return queryDescendant(root, splitSpaces(s))
-    }
-    if !isSimpleSelector(s) {
-        return null
-    }
-    return walkQuery(root, s)
-}
-
-fn walkQueryAll(node, sel, out) {
-    if node == null || node == undefined {
-        return out
-    }
-    let tag = "" + node.tag
-    let classAttr = kdom_get_attr(node, "class")
-    if classAttr == null || classAttr == undefined {
-        classAttr = ""
-    }
-    let idAttr = kdom_get_attr(node, "id")
-    if idAttr == null || idAttr == undefined {
-        idAttr = ""
-    }
-    if matches(sel, tag, classAttr, idAttr) {
-        out = push(out, node)
-    }
-    let kids = kdom_children(node)
-    let i = 0
-    while i < len(kids) {
-        out = walkQueryAll(kids[i], sel, out)
-        i = i + 1
-    }
-    return out
-}
-
 fn queryAllDescendant(root, bits) {
     if len(bits) == 0 {
         return []
     }
     if len(bits) == 1 {
-        if !isSimpleSelector(bits[0]) {
+        if !isAtomSelector(bits[0]) {
             return null
         }
         return walkQueryAll(root, bits[0], [])
     }
     let first = bits[0]
-    if !isSimpleSelector(first) {
+    if !isAtomSelector(first) {
         return null
     }
     let hitList = walkQueryAll(root, first, [])
@@ -241,8 +207,143 @@ fn queryAllDescendant(root, bits) {
     return out
 }
 
-/// Collect matches for simple / descendant / comma selectors (H3/H6b).
-pub fn queryAllKab(root, sel) {
+fn queryChildFrom(node, bits) {
+    if len(bits) == 0 {
+        return null
+    }
+    if len(bits) == 1 {
+        if matchesNode(bits[0], node) {
+            return node
+        }
+        return null
+    }
+    if !matchesNode(bits[0], node) {
+        return null
+    }
+    let rest = []
+    let ri = 1
+    while ri < len(bits) {
+        rest = push(rest, bits[ri])
+        ri = ri + 1
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        let hit = queryChildFrom(kids[i], rest)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn queryChild(root, bits) {
+    if len(bits) == 0 {
+        return null
+    }
+    if len(bits) == 1 {
+        return walkQuery(root, bits[0])
+    }
+    if matchesNode(bits[0], root) {
+        let rest = []
+        let ri = 1
+        while ri < len(bits) {
+            rest = push(rest, bits[ri])
+            ri = ri + 1
+        }
+        let kids = kdom_children(root)
+        let i = 0
+        while i < len(kids) {
+            let hit = queryChildFrom(kids[i], rest)
+            if hit != null && hit != undefined {
+                return hit
+            }
+            i = i + 1
+        }
+    }
+    let kids = kdom_children(root)
+    let i = 0
+    while i < len(kids) {
+        let hit = queryChild(kids[i], bits)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn queryAdjacent(root, left, right) {
+    let kids = kdom_children(root)
+    let i = 1
+    while i < len(kids) {
+        if matchesNode(left, kids[i - 1]) && matchesNode(right, kids[i]) {
+            return kids[i]
+        }
+        i = i + 1
+    }
+    let j = 0
+    while j < len(kids) {
+        let hit = queryAdjacent(kids[j], left, right)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        j = j + 1
+    }
+    return null
+}
+
+fn querySibling(root, left, right) {
+    let kids = kdom_children(root)
+    let seen = false
+    let i = 0
+    while i < len(kids) {
+        if matchesNode(left, kids[i]) {
+            seen = true
+        } else if seen && matchesNode(right, kids[i]) {
+            return kids[i]
+        }
+        i = i + 1
+    }
+    let j = 0
+    while j < len(kids) {
+        let hit = querySibling(kids[j], left, right)
+        if hit != null && hit != undefined {
+            return hit
+        }
+        j = j + 1
+    }
+    return null
+}
+
+fn queryOne(root, s) {
+    if hasChar(s, "+") && !hasChar(s, ">") {
+        let parts = splitByChar(s, "+")
+        if len(parts) == 2 {
+            return queryAdjacent(root, parts[0], parts[1])
+        }
+    }
+    if hasChar(s, "~") && !hasChar(s, ">") && !hasChar(s, "+") {
+        let parts = splitByChar(s, "~")
+        if len(parts) == 2 {
+            return querySibling(root, parts[0], parts[1])
+        }
+    }
+    if hasChar(s, ">") {
+        return queryChild(root, splitByChar(s, ">"))
+    }
+    if hasChar(s, " ") {
+        return queryDescendant(root, splitSpaces(s))
+    }
+    if !isAtomSelector(s) {
+        return null
+    }
+    return walkQuery(root, s)
+}
+
+/// Public: combinators + attr + :not; null only when unhandled.
+pub fn queryKab(root, sel) {
     if sel == null || sel == undefined {
         return null
     }
@@ -250,7 +351,124 @@ pub fn queryAllKab(root, sel) {
     if len(s) == 0 {
         return null
     }
-    if hasChar(s, ">") || hasChar(s, "+") || hasChar(s, "~") || hasChar(s, "[") || hasChar(s, ":") {
+    if hasChar(s, ",") {
+        let parts = splitComma(s)
+        let pi = 0
+        while pi < len(parts) {
+            let p = parts[pi]
+            if len(p) > 0 {
+                let hit = queryKab(root, p)
+                if hit != null && hit != undefined {
+                    return hit
+                }
+            }
+            pi = pi + 1
+        }
+        return null
+    }
+    return queryOne(root, s)
+}
+
+fn queryAllAdjacent(root, left, right, out) {
+    let kids = kdom_children(root)
+    let i = 1
+    while i < len(kids) {
+        if matchesNode(left, kids[i - 1]) && matchesNode(right, kids[i]) {
+            out = push(out, kids[i])
+        }
+        i = i + 1
+    }
+    let j = 0
+    while j < len(kids) {
+        out = queryAllAdjacent(kids[j], left, right, out)
+        j = j + 1
+    }
+    return out
+}
+
+fn queryAllChildFrom(node, bits, out) {
+    if len(bits) == 0 {
+        return out
+    }
+    if len(bits) == 1 {
+        if matchesNode(bits[0], node) {
+            out = push(out, node)
+        }
+        return out
+    }
+    if !matchesNode(bits[0], node) {
+        return out
+    }
+    let rest = []
+    let ri = 1
+    while ri < len(bits) {
+        rest = push(rest, bits[ri])
+        ri = ri + 1
+    }
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        out = queryAllChildFrom(kids[i], rest, out)
+        i = i + 1
+    }
+    return out
+}
+
+fn queryAllChild(root, bits, out) {
+    if len(bits) == 0 {
+        return out
+    }
+    if len(bits) == 1 {
+        return walkQueryAll(root, bits[0], out)
+    }
+    if matchesNode(bits[0], root) {
+        let rest = []
+        let ri = 1
+        while ri < len(bits) {
+            rest = push(rest, bits[ri])
+            ri = ri + 1
+        }
+        let kids = kdom_children(root)
+        let i = 0
+        while i < len(kids) {
+            out = queryAllChildFrom(kids[i], rest, out)
+            i = i + 1
+        }
+    }
+    let kids = kdom_children(root)
+    let j = 0
+    while j < len(kids) {
+        out = queryAllChild(kids[j], bits, out)
+        j = j + 1
+    }
+    return out
+}
+
+fn queryAllOne(root, s) {
+    if hasChar(s, "+") && !hasChar(s, ">") {
+        let parts = splitByChar(s, "+")
+        if len(parts) == 2 {
+            return queryAllAdjacent(root, parts[0], parts[1], [])
+        }
+    }
+    if hasChar(s, ">") {
+        return queryAllChild(root, splitByChar(s, ">"), [])
+    }
+    if hasChar(s, " ") {
+        return queryAllDescendant(root, splitSpaces(s))
+    }
+    if !isAtomSelector(s) {
+        return null
+    }
+    return walkQueryAll(root, s, [])
+}
+
+pub fn queryAllKab(root, sel) {
+    if sel == null || sel == undefined {
+        return null
+    }
+    let s = trim("" + sel)
+    if len(s) == 0 {
         return null
     }
     if hasChar(s, ",") {
@@ -273,11 +491,5 @@ pub fn queryAllKab(root, sel) {
         }
         return out
     }
-    if hasChar(s, " ") {
-        return queryAllDescendant(root, splitSpaces(s))
-    }
-    if !isSimpleSelector(s) {
-        return null
-    }
-    return walkQueryAll(root, s, [])
+    return queryAllOne(root, s)
 }
