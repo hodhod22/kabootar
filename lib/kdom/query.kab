@@ -451,6 +451,18 @@ fn queryAllOne(root, s) {
             return queryAllAdjacent(root, parts[0], parts[1], [])
         }
     }
+    if hasChar(s, "~") && !hasChar(s, ">") && !hasChar(s, "+") {
+        // Collect via sibling walk (first match path reused for all)
+        let parts = splitByChar(s, "~")
+        if len(parts) == 2 {
+            let out = []
+            let hit = querySibling(root, parts[0], parts[1])
+            if hit != null && hit != undefined {
+                out = push(out, hit)
+            }
+            return out
+        }
+    }
     if hasChar(s, ">") {
         return queryAllChild(root, splitByChar(s, ">"), [])
     }
@@ -461,6 +473,39 @@ fn queryAllOne(root, s) {
         return null
     }
     return walkQueryAll(root, s, [])
+}
+
+/// True when Kab grammar owns the selector (no native fallback needed).
+pub fn queryKabOwns(sel) {
+    if sel == null || sel == undefined {
+        return false
+    }
+    let s = trim("" + sel)
+    if len(s) == 0 {
+        return false
+    }
+    // Only :not(...) among pseudos; other :foo → native
+    let colon = str_index_of(s, ":")
+    while colon >= 0 {
+        let rest = str_slice(s, colon, len(s))
+        if !starts_with(rest, ":not(") {
+            return false
+        }
+        let after = str_index_of(rest, ")")
+        if after < 0 {
+            return false
+        }
+        let nextFrom = colon + after + 1
+        if nextFrom >= len(s) {
+            return true
+        }
+        let next = str_index_of(str_slice(s, nextFrom, len(s)), ":")
+        if next < 0 {
+            return true
+        }
+        colon = nextFrom + next
+    }
+    return true
 }
 
 pub fn queryAllKab(root, sel) {

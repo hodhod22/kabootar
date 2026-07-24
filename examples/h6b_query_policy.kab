@@ -34,6 +34,10 @@ parseAndApply("#main { color: red; }")
 
 let viaKv8 = evalSource("let el = document.createElement(\"div\"); el.id = \"app\"; document.body.appendChild(el); document.getElementById(\"app\") != null")
 
-let ok = desc != null && comma != null && allDesc != null && len(allDesc) >= 1 && childSel != null && adj != null && attrSel != null && notSel != null && viaKv8 == true && cssOk
-println("h6b desc=" + (desc != null) + " child=" + (childSel != null) + " adj=" + (adj != null) + " attr=" + (attrSel != null) + " not=" + (notSel != null) + " kv8=" + viaKv8)
+let ownsOk = queryKabOwns("div > span") == true && queryKabOwns("span:hover") == false
+let miss = query(root, "div > .missing")
+let missOk = miss == null
+
+let ok = desc != null && comma != null && allDesc != null && len(allDesc) >= 1 && childSel != null && adj != null && attrSel != null && notSel != null && viaKv8 == true && cssOk && ownsOk && missOk
+println("h6b desc=" + (desc != null) + " child=" + (childSel != null) + " adj=" + (adj != null) + " attr=" + (attrSel != null) + " not=" + (notSel != null) + " owns=" + ownsOk + " kv8=" + viaKv8)
 return ok

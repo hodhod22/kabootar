@@ -60,3 +60,11 @@ pub fn listTabs() {
 pub fn openTab(url) {
     return navOpenTab(url)
 }
+
+pub fn go(url) {
+    return navGo(url)
+}
+
+pub fn chromeUrl() {
+    return navUrl()
+}

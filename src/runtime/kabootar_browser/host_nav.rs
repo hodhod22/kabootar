@@ -136,6 +136,7 @@ pub fn load_page(
 }
 
 fn effective_mode(url: &str, mode: BrowserOsMode) -> BrowserOsMode {
+    // Mirrors `kbrowser/load_policy` `effectiveMode` (Kab is product policy source).
     match mode {
         BrowserOsMode::Auto => {
             if url.starts_with("kabootar://") {

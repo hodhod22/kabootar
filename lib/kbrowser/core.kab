@@ -1,10 +1,12 @@
 @version "1.0.0"
 
-// Kabootar Browser core wrappers (natives kb_*). import "kbrowser/core"
-// KEEP <=~7 top-level fn. Shared by desktop (G11) and mobil (G7).
+// Kabootar Browser core wrappers. import "kbrowser/core"
+// KEEP <=~7 top-level fn. Nav/tabs via Kab session; kb_navigate = load/paint only.
+
+import "kbrowser/nav"
 
 pub fn navigate(url) {
-    return kb_navigate(url)
+    return navGo(url)
 }
 
 pub fn paint() {
@@ -20,13 +22,13 @@ pub fn info() {
 }
 
 pub fn tabs() {
-    return kb_tabs()
+    return navListTabs()
 }
 
 pub fn back() {
-    return kb_back()
+    return navBack()
 }
 
 pub fn openTab(url) {
-    return kb_tab_open(url)
+    return navOpenTab(url)
 }
