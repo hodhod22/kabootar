@@ -128,11 +128,11 @@ fn g7_mobile_shell_chrome_back_tabs() {
         os_write("/apps/a.kml", "<html><body><h1>A</h1></body></html>");
         os_write("/apps/b.kml", "<html><body><h1>B</h1></body></html>");
         kb_set_os_mode("kabootar");
-        kb_navigate("kabootar://vfs/apps/a.kml");
-        kb_navigate("kabootar://vfs/apps/b.kml");
+        go("kabootar://vfs/apps/a.kml");
+        go("kabootar://vfs/apps/b.kml");
         let went = goBack();
         let tabs = listTabs();
-        went == true && is_array(tabs) && len(tabs) >= 1
+        went == true && chromeUrl() == "kabootar://vfs/apps/a.kml" && is_array(tabs) && len(tabs) >= 1
         "#,
     );
     assert!(matches!(out, Value::Bool(true)), "got {out:?}");

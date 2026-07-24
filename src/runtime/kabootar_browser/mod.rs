@@ -26,8 +26,8 @@ pub struct BrowserTab {
     pub title: String,
     pub url: String,
     pub document: DomNode,
-    pub history: Vec<String>,
-    pub history_pos: usize,
+    // H6c delete-gate: tab/history session lives in Kab (`kbrowser/nav`).
+    // Rust tab is render state only (document + url for load/paint).
     pub kv8_script: Option<String>,
     pub kv8_css: Option<String>,
     pub kv8_parsed_stylesheet: Option<Stylesheet>,
@@ -35,14 +35,11 @@ pub struct BrowserTab {
 
 impl BrowserTab {
     fn new(id: u64, url: &str) -> Self {
-        let history = vec![url.to_string()];
         Self {
             id,
             title: "New Tab".into(),
             url: url.to_string(),
             document: default_home_document(url),
-            history,
-            history_pos: 0,
             kv8_script: None,
             kv8_css: None,
             kv8_parsed_stylesheet: None,
@@ -51,11 +48,6 @@ impl BrowserTab {
 
     fn navigate(&mut self, url: &str, os: Option<&OsHandle>, mode: BrowserOsMode) {
         self.url = url.to_string();
-        if self.history_pos + 1 < self.history.len() {
-            self.history.truncate(self.history_pos + 1);
-        }
-        self.history.push(url.to_string());
-        self.history_pos = self.history.len().saturating_sub(1);
         self.reload_document(os, mode);
         self.title = title_from_url(url);
     }
@@ -66,28 +58,6 @@ impl BrowserTab {
         self.kv8_script = page.kv8_script;
         self.kv8_css = page.kv8_css;
         self.kv8_parsed_stylesheet = page.kv8_parsed_stylesheet;
-    }
-
-    fn go_back(&mut self, os: Option<&OsHandle>, mode: BrowserOsMode) -> bool {
-        if self.history_pos == 0 {
-            return false;
-        }
-        self.history_pos -= 1;
-        self.url = self.history[self.history_pos].clone();
-        self.reload_document(os, mode);
-        self.title = title_from_url(&self.url);
-        true
-    }
-
-    fn go_forward(&mut self, os: Option<&OsHandle>, mode: BrowserOsMode) -> bool {
-        if self.history_pos + 1 >= self.history.len() {
-            return false;
-        }
-        self.history_pos += 1;
-        self.url = self.history[self.history_pos].clone();
-        self.reload_document(os, mode);
-        self.title = title_from_url(&self.url);
-        true
     }
 }
 
@@ -376,20 +346,14 @@ impl KabootarBrowser {
         })
     }
 
-    pub fn go_back(&self, os: Option<&OsHandle>) -> Result<bool, String> {
-        self.with_mut(|inner| {
-            let mode = inner.os_mode;
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
-            Ok(tab.go_back(os, mode))
-        })
+    /// Deprecated native history — always false. Use `kbrowser/nav` (`navBack`/`navForward`).
+    pub fn go_back(&self, _os: Option<&OsHandle>) -> Result<bool, String> {
+        Ok(false)
     }
 
-    pub fn go_forward(&self, os: Option<&OsHandle>) -> Result<bool, String> {
-        self.with_mut(|inner| {
-            let mode = inner.os_mode;
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
-            Ok(tab.go_forward(os, mode))
-        })
+    /// Deprecated native history — always false. Use `kbrowser/nav` (`navBack`/`navForward`).
+    pub fn go_forward(&self, _os: Option<&OsHandle>) -> Result<bool, String> {
+        Ok(false)
     }
 
     pub fn user_agent(&self) -> Result<String, String> {
@@ -637,14 +601,14 @@ fn kb_tabs_native(_args: &[Value], env: &mut Environment) -> Result<Value, Strin
     ))
 }
 
-fn kb_back_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let os = get_os_opt(env);
-    Ok(Value::Bool(get_browser(env)?.go_back(os.as_ref())?))
+fn kb_back_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    // H6c delete-gate: history is Kab-only (`kbrowser/nav`). Prefer navBack().
+    Ok(Value::Bool(false))
 }
 
-fn kb_forward_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let os = get_os_opt(env);
-    Ok(Value::Bool(get_browser(env)?.go_forward(os.as_ref())?))
+fn kb_forward_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    // H6c delete-gate: history is Kab-only (`kbrowser/nav`). Prefer navForward().
+    Ok(Value::Bool(false))
 }
 
 fn kb_reload_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
