@@ -132,6 +132,10 @@ pub fn create_global_env() -> Environment {
         "bytecode_opt_info".to_string(),
         Value::NativeFunction(bytecode_opt_info_native),
     );
+    env.set(
+        "bytecode_run_kbc".to_string(),
+        Value::NativeFunction(bytecode_run_kbc_native),
+    );
     browser_globals(&mut env);
     browser_platform_globals(&mut env);
     kabootar_dom_globals(&mut env);
@@ -553,6 +557,18 @@ fn bytecode_opt_info_native(args: &[Value], _env: &mut Environment) -> Result<Va
         Value::Number(module.constants.len() as i64),
     );
     Ok(Value::Object(m))
+}
+
+/// H6e hard path: thin VM syscall — deserialize `.kbc` text and run (policy in `kab/vm`).
+fn bytecode_run_kbc_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let kbc = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("bytecode_run_kbc(kbc) expects a string".into()),
+    };
+    let module = crate::bytecode::deserialize(kbc)?;
+    let result = crate::bytecode::run_module(&module, env)?;
+    drain_all_microtasks(env)?;
+    Ok(result)
 }
 
 fn index_to_usize(idx: &Value, len: usize) -> Result<usize, String> {

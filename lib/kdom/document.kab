@@ -28,15 +28,8 @@ pub fn attr(node, key, value) {
 }
 
 pub fn query(root, selector) {
-    // H6b delete-gate: Kab owns supported grammar; native only for exotic :pseudos
-    let hit = queryKab(root, selector)
-    if hit != null && hit != undefined {
-        return hit
-    }
-    if queryKabOwns(selector) {
-        return null
-    }
-    return kdom_query_selector(root, selector)
+    // H6b delete-gate: Kab query only (no kdom_query_selector fallback).
+    return queryKab(root, selector)
 }
 
 // mode: getAttr | queryAll | children | kml | render | byTag
@@ -49,10 +42,7 @@ pub fn domExtra(mode, a, b) {
         if kab != null && kab != undefined {
             return kab
         }
-        if queryKabOwns(b) {
-            return []
-        }
-        return kdom_query_selector_all(a, b)
+        return []
     }
     if mode == "children" {
         return kdom_children(a)

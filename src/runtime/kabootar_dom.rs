@@ -703,14 +703,6 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
         Value::NativeFunction(kdom_clear_children_native),
     );
     env.set("kdom_query".to_string(), Value::NativeFunction(kdom_query_native));
-    env.set(
-        "kdom_query_selector".to_string(),
-        Value::NativeFunction(kdom_query_selector_native),
-    );
-    env.set(
-        "kdom_query_selector_all".to_string(),
-        Value::NativeFunction(kdom_query_selector_all_native),
-    );
     env.set("kdom_query_id".to_string(), Value::NativeFunction(kdom_query_id_native));
     env.set("kdom_children".to_string(), Value::NativeFunction(kdom_children_native));
     env.set("kdom_on".to_string(), Value::NativeFunction(kdom_on_native));
@@ -1271,33 +1263,6 @@ fn kdom_dispatch_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     } else {
         Ok(Value::Null)
     }
-}
-
-fn kdom_query_selector_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let node = expect_dom(args, 0, "kdom_query_selector()")?;
-    let selector = match args.get(1) {
-        Some(Value::String(s)) => s.as_str(),
-        _ => return Err("kdom_query_selector() expects CSS selector string".into()),
-    };
-    Ok(match node.query_selector(selector) {
-        Some(found) => Value::KabootarDom(found.clone()),
-        None => Value::Null,
-    })
-}
-
-fn kdom_query_selector_all_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let node = expect_dom(args, 0, "kdom_query_selector_all()")?;
-    let selector = match args.get(1) {
-        Some(Value::String(s)) => s.as_str(),
-        _ => return Err("kdom_query_selector_all() expects CSS selector string".into()),
-    };
-    Ok(Value::Array(
-        node.query_selector_all(selector)
-            .into_iter()
-            .cloned()
-            .map(Value::KabootarDom)
-            .collect(),
-    ))
 }
 
 fn mutation_record_to_value(record: &MutationRecord) -> Value {

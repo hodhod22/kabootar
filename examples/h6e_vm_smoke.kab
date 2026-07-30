@@ -1,0 +1,13 @@
+// H6e hard path: self-host compile + bytecode_run_kbc
+// cargo run --bin kabootar -- examples/h6e_vm_smoke.kab
+
+import "kab/vm"
+import "kab/boot"
+
+preferSelfHostCompile()
+let pipe = bootPipelineOk()
+let vmOk = evalKbcPipelineOk()
+let direct = evalSourceKbc("return 21 + 21")
+
+println("h6e vm pipe=" + pipe + " vm=" + vmOk + " n=" + direct)
+return pipe && vmOk && direct == 42

@@ -323,39 +323,6 @@ impl KabootarBrowser {
         })
     }
 
-    pub fn open_tab(&self, url: &str, os: Option<&OsHandle>) -> Result<u64, String> {
-        self.with_mut(|inner| {
-            let id = inner.next_id;
-            inner.next_id += 1;
-            let mode = inner.os_mode;
-            let mut tab = BrowserTab::new(id, url);
-            tab.navigate(url, os, mode);
-            inner.tabs.push(tab);
-            inner.active = inner.tabs.len() - 1;
-            Ok(id)
-        })
-    }
-
-    pub fn tab_list(&self) -> Result<Vec<(u64, String, String)>, String> {
-        self.with_mut(|inner| {
-            Ok(inner
-                .tabs
-                .iter()
-                .map(|t| (t.id, t.title.clone(), t.url.clone()))
-                .collect())
-        })
-    }
-
-    /// Deprecated native history — always false. Use `kbrowser/nav` (`navBack`/`navForward`).
-    pub fn go_back(&self, _os: Option<&OsHandle>) -> Result<bool, String> {
-        Ok(false)
-    }
-
-    /// Deprecated native history — always false. Use `kbrowser/nav` (`navBack`/`navForward`).
-    pub fn go_forward(&self, _os: Option<&OsHandle>) -> Result<bool, String> {
-        Ok(false)
-    }
-
     pub fn user_agent(&self) -> Result<String, String> {
         self.with_mut(|inner| Ok(inner.user_agent.clone()))
     }
@@ -573,44 +540,6 @@ fn kb_theme_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     Ok(Value::Null)
 }
 
-fn kb_tab_open_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let url = args
-        .first()
-        .and_then(|v| match v {
-            Value::String(s) => Some(s.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| "kabootar://new".into());
-    Ok(Value::Number(
-        get_browser(env)?.open_tab(&url, get_os_opt(env).as_ref())? as i64,
-    ))
-}
-
-fn kb_tabs_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let tabs = get_browser(env)?.tab_list()?;
-    Ok(Value::Array(
-        tabs.into_iter()
-            .map(|(id, title, url)| {
-                let mut m = HashMap::new();
-                m.insert("id".into(), Value::Number(id as i64));
-                m.insert("title".into(), Value::String(title));
-                m.insert("url".into(), Value::String(url));
-                Value::Object(m)
-            })
-            .collect(),
-    ))
-}
-
-fn kb_back_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    // H6c delete-gate: history is Kab-only (`kbrowser/nav`). Prefer navBack().
-    Ok(Value::Bool(false))
-}
-
-fn kb_forward_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    // H6c delete-gate: history is Kab-only (`kbrowser/nav`). Prefer navForward().
-    Ok(Value::Bool(false))
-}
-
 fn kb_reload_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os_opt(env);
     get_browser(env)?.reload(os.as_ref())?;
@@ -819,10 +748,6 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_viewport".into(), Value::NativeFunction(kb_viewport_native));
     env.set("kb_safe_area".into(), Value::NativeFunction(kb_safe_area_native));
     env.set("kb_theme".into(), Value::NativeFunction(kb_theme_native));
-    env.set("kb_tab_open".into(), Value::NativeFunction(kb_tab_open_native));
-    env.set("kb_tabs".into(), Value::NativeFunction(kb_tabs_native));
-    env.set("kb_back".into(), Value::NativeFunction(kb_back_native));
-    env.set("kb_forward".into(), Value::NativeFunction(kb_forward_native));
     env.set("kb_reload".into(), Value::NativeFunction(kb_reload_native));
     env.set("kb_os_mode".into(), Value::NativeFunction(kb_os_mode_native));
     env.set("kb_set_os_mode".into(), Value::NativeFunction(kb_set_os_mode_native));
