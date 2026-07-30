@@ -1,15 +1,17 @@
 //! Parse cache and on-disk `.kbc` bytecode artifacts.
 
 use crate::bytecode::{
-    deserialize, run_module, serialize, BytecodeModule, FORMAT_HEADER,
+    call_value, deserialize, run_module, serialize, BytecodeModule, FORMAT_HEADER,
 };
 use crate::evaluator::{drain_all_microtasks, eval_stmt};
+use crate::modules;
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 
@@ -194,6 +196,65 @@ pub fn compile_file_prefer(
 }
 
 static PARSE_CACHE: OnceLock<Mutex<HashMap<String, CachedProgram>>> = OnceLock::new();
+static KAB_VM_RUN_ENABLED: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
+static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
+static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
+    if KAB_VM_POLICY_PROBE.load(Ordering::Acquire) || KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+        return Ok(false);
+    }
+    if matches!(
+        std::env::var("KABOOTAR_VM").as_deref(),
+        Ok("rust") | Ok("host")
+    ) {
+        return Ok(false);
+    }
+    let mut cache = KAB_VM_RUN_ENABLED
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .map_err(|e| format!("kab vm policy lock: {e}"))?;
+    if let Some(v) = *cache {
+        return Ok(v);
+    }
+    KAB_VM_POLICY_PROBE.store(true, Ordering::Release);
+    let enabled = kab_vm_run_enabled_uncached(env);
+    KAB_VM_POLICY_PROBE.store(false, Ordering::Release);
+    let enabled = enabled?;
+    *cache = Some(enabled);
+    Ok(enabled)
+}
+
+fn kab_vm_run_enabled_uncached(_env: &mut Environment) -> Result<bool, String> {
+    let mut probe_env = crate::evaluator::create_global_env();
+    modules::import_module("kab/vm", &mut probe_env)?;
+    let f = probe_env
+        .get("kabVmRunEnabled")
+        .ok_or("kab/vm: missing kabVmRunEnabled")?;
+    let v = call_value(f, vec![], &[], &[], &[], &[], &mut probe_env)?;
+    Ok(v.is_truthy())
+}
+
+fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String> {
+    KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
+    let result = (|| {
+        modules::import_module("kab/vm", env)?;
+        let f = env.get("evalKbc").ok_or("kab/vm: missing evalKbc")?;
+        let v = call_value(
+            f,
+            vec![Value::String(kbc.to_string())],
+            &[],
+            &[],
+            &[],
+            &[],
+            env,
+        )?;
+        drain_all_microtasks(env)?;
+        Ok(v)
+    })();
+    KAB_VM_EXEC_ACTIVE.store(false, Ordering::Release);
+    result
+}
 
 #[derive(Debug, Clone)]
 struct CachedProgram {
@@ -288,6 +349,15 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
     crate::runtime::ownership::set_memory_mode(env, program.memory_mode);
     if let Some(bytecode) = &program.bytecode {
         if bytecode.uses_bytecode() {
+            if kab_vm_run_enabled(env)? {
+                let kbc = serialize(bytecode);
+                // Kab VM subset: small modules only; large ones stay on host VM.
+                if kbc.len() <= 16384 {
+                    if let Ok(v) = eval_kbc_via_kab_vm(&kbc, env) {
+                        return Ok(v);
+                    }
+                }
+            }
             let result = run_module(bytecode, env)?;
             drain_all_microtasks(env)?;
             return Ok(result);
