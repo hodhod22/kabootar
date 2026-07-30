@@ -80,6 +80,26 @@ fn vIndexSet(container, idx, val) {
     return container
 }
 
+fn vResolveGlobal(globals, idx) {
+    let cur = vGlobals[idx]
+    if cur != undefined {
+        return cur
+    }
+    let name = globals[idx]
+    if name == null || name == undefined {
+        return undefined
+    }
+    let host = bytecode_host_get("" + name)
+    if host != undefined {
+        vGlobals[idx] = host
+    }
+    return host
+}
+
+fn vCallHost(callee, ordered) {
+    return bytecode_host_call(callee, ordered)
+}
+
 fn runFnBody(fnDef, pool, globals, functions, callArgs) {
     let oldStack = vStack
     let oldLocals = vLocals
@@ -141,7 +161,7 @@ fn runOps(ops, pool, globals, functions) {
             let v = vPop()
             vLocals[arg] = v
         } else if name == OP_LOAD_GLOBAL {
-            vPush(vGlobals[arg])
+            vPush(vResolveGlobal(globals, arg))
         } else if name == OP_STORE_GLOBAL {
             vGlobals[arg] = vPop()
         } else if name == OP_ADD {
@@ -164,6 +184,13 @@ fn runOps(ops, pool, globals, functions) {
             let b = vPop()
             let a = vPop()
             vPush(a % b)
+        } else if name == OP_POW {
+            let b = vPop()
+            let a = vPop()
+            vPush(a ** b)
+        } else if name == OP_NEG {
+            let v = vPop()
+            vPush(0 - v)
         } else if name == OP_EQ {
             let b = vPop()
             let a = vPop()
@@ -258,6 +285,12 @@ fn runOps(ops, pool, globals, functions) {
                 vIp = vIp + 1 + arg
                 continue
             }
+        } else if name == OP_JUMP_IF_TRUE {
+            let v = vPop()
+            if vTruthy(v) {
+                vIp = vIp + 1 + arg
+                continue
+            }
         } else if name == OP_CALL {
             let argc = arg
             let callee = vPop()
@@ -271,20 +304,32 @@ fn runOps(ops, pool, globals, functions) {
                 vUnsupported = true
                 break
             }
-            if callee["kab_vm_fn"] == undefined {
-                vUnsupported = true
-                break
-            }
-            let fi = callee["kab_vm_fn"]
-            let fnDef = functions[fi]
             let ordered = []
             let oi = argc - 1
             while oi >= 0 {
                 ordered = push(ordered, rawArgs[oi])
                 oi = oi - 1
             }
-            let ret = runFnBody(fnDef, pool, globals, functions, ordered)
-            vPush(ret)
+            let isVmFn = false
+            if typeof(callee) == "object" {
+                if callee["kab_vm_fn"] != undefined {
+                    isVmFn = true
+                }
+            }
+            if isVmFn {
+                let fi = callee["kab_vm_fn"]
+                let fnDef = functions[fi]
+                let ret = runFnBody(fnDef, pool, globals, functions, ordered)
+                vPush(ret)
+            } else {
+                vPush(vCallHost(callee, ordered))
+            }
+        } else if name == OP_THROW {
+            let reason = null
+            if len(vStack) > 0 {
+                reason = vPop()
+            }
+            throw reason
         } else if name == OP_RETURN {
             if len(vStack) > 0 {
                 vResult = vStack[len(vStack) - 1]

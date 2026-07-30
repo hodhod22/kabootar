@@ -21,7 +21,8 @@ fn refreshKabVmRunOk() {
 fn kabVmCoreOk() {
     let n = evalSourceKabVm("return 40 + 2")
     let callOk = evalSourceKabVm("fn add(a, b) { return a + b }; return add(1, 2)") == 3
-    return n == 42 && callOk
+    let nativeOk = evalSourceKabVm("return len([1, 2, 3])") == 3
+    return n == 42 && callOk && nativeOk
 }
 
 fn tryKabVm(kbc) {
@@ -49,7 +50,7 @@ pub fn kabVmRunEnabled() {
 /// Run `.kbc` — Kab VM when possible, else host VM syscall.
 pub fn evalKbc(kbc) {
     let s = "" + kbc
-    if len(s) > 16384 {
+    if len(s) > 65536 {
         return bytecode_run_kbc(kbc)
     }
     let kab = null
@@ -83,6 +84,8 @@ pub fn evalKbcPipelineOk() {
 pub fn evalKabVmPipelineOk() {
     let core = kabVmCoreOk()
     let objOk = evalSourceKabVm("let o = { \"x\": 7 }; return o[\"x\"]") == 7
+    let arrOk = evalSourceKabVm("let a = [10, 20]; return a[1]") == 20
+    let ifOk = evalSourceKabVm("if 1 < 2 { return 9 } else { return 0 }") == 9
     let kbcPath = evalKbc(bootCompile("return 21 + 21")) == 42
-    return core && objOk && kbcPath
+    return core && objOk && arrOk && ifOk && kbcPath
 }
