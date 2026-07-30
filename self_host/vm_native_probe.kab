@@ -1,0 +1,3 @@
+import "self_host/compile"
+import "self_host/vm"
+return runModule(compileIr("return len([1, 2, 3])")) == 3

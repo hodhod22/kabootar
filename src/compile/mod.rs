@@ -352,7 +352,7 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
             if kab_vm_run_enabled(env)? {
                 let kbc = serialize(bytecode);
                 // Kab VM subset: small modules only; large ones stay on host VM.
-                if kbc.len() <= 16384 {
+                if kbc.len() <= 65536 {
                     if let Ok(v) = eval_kbc_via_kab_vm(&kbc, env) {
                         return Ok(v);
                     }

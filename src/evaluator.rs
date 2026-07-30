@@ -136,6 +136,14 @@ pub fn create_global_env() -> Environment {
         "bytecode_run_kbc".to_string(),
         Value::NativeFunction(bytecode_run_kbc_native),
     );
+    env.set(
+        "bytecode_host_get".to_string(),
+        Value::NativeFunction(bytecode_host_get_native),
+    );
+    env.set(
+        "bytecode_host_call".to_string(),
+        Value::NativeFunction(bytecode_host_call_native),
+    );
     browser_globals(&mut env);
     browser_platform_globals(&mut env);
     kabootar_dom_globals(&mut env);
@@ -569,6 +577,29 @@ fn bytecode_run_kbc_native(args: &[Value], env: &mut Environment) -> Result<Valu
     let result = crate::bytecode::run_module(&module, env)?;
     drain_all_microtasks(env)?;
     Ok(result)
+}
+
+/// H6e Kab VM: resolve a host binding by name (natives / imports in current env).
+fn bytecode_host_get_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let name = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("bytecode_host_get(name) expects a string".into()),
+    };
+    Ok(env.get(name).unwrap_or(Value::Undefined))
+}
+
+/// H6e Kab VM: call a host callable (native / bytecode fn) with an args array.
+fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let callee = args
+        .first()
+        .cloned()
+        .ok_or("bytecode_host_call(callee, args)")?;
+    let call_args = match args.get(1) {
+        Some(Value::Array(items)) => items.clone(),
+        Some(_) => return Err("bytecode_host_call args must be an array".into()),
+        None => Vec::new(),
+    };
+    crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
 }
 
 fn index_to_usize(idx: &Value, len: usize) -> Result<usize, String> {

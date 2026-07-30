@@ -1784,3 +1784,24 @@ fn self_host_vm_probe() {
     assert!(ok);
 }
 
+#[test]
+fn self_host_vm_native_probe() {
+    let path = format!(
+        "{}/self_host/vm_native_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("vm-native".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("vm_native_probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn vm native probe thread")
+        .join()
+        .expect("vm native probe thread join");
+    assert!(ok);
+}
+
