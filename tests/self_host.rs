@@ -1721,3 +1721,24 @@ fn h6e_run_selfhost_probe() {
     assert!(ok);
 }
 
+#[test]
+fn h6e_vm_smoke() {
+    let path = format!(
+        "{}/examples/h6e_vm_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-vm".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6e vm smoke should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn h6e vm thread")
+        .join()
+        .expect("h6e vm thread join");
+    assert!(ok);
+}
+

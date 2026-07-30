@@ -1,0 +1,23 @@
+@version "1.0.0"
+
+// H6e hard path: compile + run policy in Kab; Rust VM = thin bytecode_run_kbc syscall.
+// import "kab/vm"
+// KEEP <=~7 top-level fn.
+
+import "kab/boot"
+
+/// Run serialized `.kbc` text via host VM (deserialize + execute).
+pub fn evalKbc(kbc) {
+    return bytecode_run_kbc(kbc)
+}
+
+/// Self-host compile then run (product bootstrap eval path).
+pub fn evalSourceKbc(source) {
+    return evalKbc(bootCompile(source))
+}
+
+/// Probe: self-host compile + VM run returns expected value.
+pub fn evalKbcPipelineOk() {
+    let n = evalSourceKbc("return 40 + 2")
+    return n == 42 && isBytecode(bootCompile("return 1"))
+}

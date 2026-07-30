@@ -296,11 +296,11 @@
     document.getElementById('run').onclick = () => runKabootar(defaultApp);
     document.getElementById('reload').onclick = () => runKabootar(defaultApp);
     document.getElementById('back').onclick = () => {
-      evaluate('kb_back()');
+      evaluate('import "kbrowser/nav"; navBack()');
       runKabootar('kb_paint();');
     };
     document.getElementById('forward').onclick = () => {
-      evaluate('kb_forward()');
+      evaluate('import "kbrowser/nav"; navForward()');
       runKabootar('kb_paint();');
     };
     urlBox.onkeydown = (e) => {

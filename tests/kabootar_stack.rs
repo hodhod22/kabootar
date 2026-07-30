@@ -62,7 +62,7 @@ fn kb_composite_links_os_windows() {
     let out = eval(
         r#"
         let win = os_window_create("Kabootar", 1024, 768);
-        let tab = kb_tabs();
+        let comp = kb_composite();
         os_window_bind(win, 1);
         kb_composite();
         "#,
@@ -186,6 +186,8 @@ fn host_paint_after_compositor() {
 fn js_wave_c1_query_selector() {
     let out = eval(
         r##"
+        import "kdom/document"
+        import "kdom/query"
         let root = kdom_create("div")
         let child = kdom_create("span")
         child = kdom_set_attr(child, "id", "main")
@@ -195,15 +197,15 @@ fn js_wave_c1_query_selector() {
         let sib = kdom_create("p")
         sib = kdom_set_attr(sib, "class", "next")
         root = kdom_append(root, sib)
-        let by_id = kdom_query_selector(root, "#main")
-        let by_class = kdom_query_selector(root, ".active")
-        let by_attr = kdom_query_selector(root, "[data-x=1]")
-        let by_child = kdom_query_selector(root, "div > span")
-        let by_not = kdom_query_selector(root, "span:not(.missing)")
-        let by_comma = kdom_query_selector(root, "span, p")
-        let by_adj = kdom_query_selector(root, "span + p")
-        let by_sib = kdom_query_selector(root, "span ~ p")
-        let all = kdom_query_selector_all(root, "span, p")
+        let by_id = query(root, "#main")
+        let by_class = query(root, ".active")
+        let by_attr = query(root, "[data-x=1]")
+        let by_child = query(root, "div > span")
+        let by_not = query(root, "span:not(.missing)")
+        let by_comma = query(root, "span, p")
+        let by_adj = query(root, "span + p")
+        let by_sib = query(root, "span ~ p")
+        let all = domExtra("queryAll", root, "span, p")
         kdom_id(by_id) == kdom_id(child)
             && kdom_id(by_class) == kdom_id(child)
             && kdom_id(by_attr) == kdom_id(child)
