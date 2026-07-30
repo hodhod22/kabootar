@@ -1,23 +1,88 @@
 @version "1.0.0"
 
-// H6e hard path: compile + run policy in Kab; Rust VM = thin bytecode_run_kbc syscall.
+// H6e hard path: Kab VM first, Rust bytecode_run_kbc fallback.
 // import "kab/vm"
 // KEEP <=~7 top-level fn.
 
 import "kab/boot"
+import "self_host/deserialize"
+import "self_host/vm"
+import "self_host/compile"
 
-/// Run serialized `.kbc` text via host VM (deserialize + execute).
+let kabVmRunPrefer = true
+let kabVmRunCached = false
+let kabVmRunOk = false
+
+fn refreshKabVmRunOk() {
+    kabVmRunOk = kabVmCoreOk()
+    kabVmRunCached = true
+}
+
+fn kabVmCoreOk() {
+    let n = evalSourceKabVm("return 40 + 2")
+    let callOk = evalSourceKabVm("fn add(a, b) { return a + b }; return add(1, 2)") == 3
+    return n == 42 && callOk
+}
+
+fn tryKabVm(kbc) {
+    let bc = deserializeKbc(kbc)
+    return runModule(bc)
+}
+
+/// Prefer Kab VM for `run_file` / evalKbc when pipeline is ok.
+pub fn preferKabVmRun() {
+    kabVmRunPrefer = true
+    return true
+}
+
+/// Policy gate (Rust `eval_program` calls this once per process).
+pub fn kabVmRunEnabled() {
+    if !kabVmRunPrefer {
+        return false
+    }
+    if !kabVmRunCached {
+        refreshKabVmRunOk()
+    }
+    return kabVmRunOk
+}
+
+/// Run `.kbc` — Kab VM when possible, else host VM syscall.
 pub fn evalKbc(kbc) {
+    let s = "" + kbc
+    if len(s) > 16384 {
+        return bytecode_run_kbc(kbc)
+    }
+    let kab = null
+    let err = null
+    try {
+        kab = tryKabVm(kbc)
+    } catch (e) {
+        err = e
+    }
+    if kab != null && kab != undefined {
+        return kab
+    }
     return bytecode_run_kbc(kbc)
 }
 
-/// Self-host compile then run (product bootstrap eval path).
+/// Self-host compile + Kab VM (fallback host VM).
 pub fn evalSourceKbc(source) {
     return evalKbc(bootCompile(source))
 }
 
-/// Probe: self-host compile + VM run returns expected value.
+/// Kab-only: compile IR + runModule (no host VM).
+pub fn evalSourceKabVm(source) {
+    return runModule(compileIr(source))
+}
+
 pub fn evalKbcPipelineOk() {
     let n = evalSourceKbc("return 40 + 2")
     return n == 42 && isBytecode(bootCompile("return 1"))
+}
+
+pub fn evalKabVmPipelineOk() {
+    let core = kabVmCoreOk()
+    let objOk = evalSourceKabVm("let o = { \"x\": 7 }; return o[\"x\"]") == 7
+    let kbcPath = evalKbc(bootCompile("return 21 + 21")) == 42
+    return core && objOk && kbcPath
 }

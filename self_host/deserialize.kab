@@ -1,0 +1,275 @@
+// Parse kabootar-bytecode/1 text → self_host IR subset. import "self_host/deserialize"
+
+import "self_host/lexer_defs"
+import "self_host/serialize_defs"
+import "self_host/emit_defs"
+
+fn splitLines(text) {
+    let lines = []
+    let cur = ""
+    let i = 0
+    let s = "" + text
+    while i < len(s) {
+        let c = char_at(s, i)
+        if c == CHAR_NL {
+            let t = trim(cur)
+            if len(t) > 0 {
+                lines = push(lines, t)
+            }
+            cur = ""
+        } else {
+            cur = cur + c
+        }
+        i = i + 1
+    }
+    let t = trim(cur)
+    if len(t) > 0 {
+        lines = push(lines, t)
+    }
+    return lines
+}
+
+fn parseConstLine(line) {
+    if !starts_with(line, "const ") {
+        return null
+    }
+    let rest = str_slice(line, 6, len(line))
+    let sp = str_index_of(rest, " ")
+    if sp < 0 {
+        return null
+    }
+    let kind = str_slice(rest, sp + 1, len(rest))
+    if starts_with(kind, "number ") {
+        let num = trim(str_slice(kind, 7, len(kind)))
+        return parse_int(num)
+    }
+    if kind == "null" {
+        return null
+    }
+    if kind == "undefined" {
+        return KAB_UNDEF_CONST
+    }
+    if kind == "bool true" {
+        return true
+    }
+    if kind == "bool false" {
+        return false
+    }
+    if starts_with(kind, "string ") {
+        return trim(str_slice(kind, 7, len(kind)))
+    }
+    throw "deserialize: unsupported const " + kind
+}
+
+fn parseOpLine(line) {
+    if line == "pop" {
+        return { "op": OP_POP, "arg": 0 }
+    }
+    if line == "add" {
+        return { "op": OP_ADD, "arg": 0 }
+    }
+    if line == "sub" {
+        return { "op": OP_SUB, "arg": 0 }
+    }
+    if line == "mul" {
+        return { "op": OP_MUL, "arg": 0 }
+    }
+    if line == "div" {
+        return { "op": OP_DIV, "arg": 0 }
+    }
+    if line == "mod" {
+        return { "op": OP_MOD, "arg": 0 }
+    }
+    if line == "eq" {
+        return { "op": OP_EQ, "arg": 0 }
+    }
+    if line == "ne" {
+        return { "op": OP_NE, "arg": 0 }
+    }
+    if line == "lt" {
+        return { "op": OP_LT, "arg": 0 }
+    }
+    if line == "gt" {
+        return { "op": OP_GT, "arg": 0 }
+    }
+    if line == "le" {
+        return { "op": OP_LE, "arg": 0 }
+    }
+    if line == "ge" {
+        return { "op": OP_GE, "arg": 0 }
+    }
+    if line == "and" {
+        return { "op": OP_AND, "arg": 0 }
+    }
+    if line == "or" {
+        return { "op": OP_OR, "arg": 0 }
+    }
+    if line == "not" {
+        return { "op": OP_NOT, "arg": 0 }
+    }
+    if line == "index_get" {
+        return { "op": OP_INDEX_GET, "arg": 0 }
+    }
+    if line == "index_set" {
+        return { "op": OP_INDEX_SET, "arg": 0 }
+    }
+    if line == "return" {
+        return { "op": OP_RETURN, "arg": 0 }
+    }
+    if line == "halt" {
+        return { "op": OP_HALT, "arg": 0 }
+    }
+    let sp = str_index_of(line, " ")
+    if sp < 0 {
+        throw "deserialize: bad op " + line
+    }
+    let head = str_slice(line, 0, sp)
+    let arg = parse_int(trim(str_slice(line, sp + 1, len(line))))
+    if head == "const" {
+        return { "op": OP_CONST, "arg": arg }
+    }
+    if head == "load_local" {
+        return { "op": OP_LOAD_LOCAL, "arg": arg }
+    }
+    if head == "store_local" {
+        return { "op": OP_STORE_LOCAL, "arg": arg }
+    }
+    if head == "load_global" {
+        return { "op": OP_LOAD_GLOBAL, "arg": arg }
+    }
+    if head == "store_global" {
+        return { "op": OP_STORE_GLOBAL, "arg": arg }
+    }
+    if head == "jump" {
+        return { "op": OP_JUMP, "arg": arg }
+    }
+    if head == "jump_if_false" {
+        return { "op": OP_JUMP_IF_FALSE, "arg": arg }
+    }
+    if head == "call" {
+        return { "op": OP_CALL, "arg": arg }
+    }
+    if head == "get_member" {
+        return { "op": OP_GET_MEMBER, "arg": arg }
+    }
+    if head == "set_member" {
+        return { "op": OP_SET_MEMBER, "arg": arg }
+    }
+    if head == "make_object" {
+        return { "op": OP_MAKE_OBJECT, "arg": arg }
+    }
+    if head == "make_array" {
+        return { "op": OP_MAKE_ARRAY, "arg": arg }
+    }
+    throw "deserialize: unsupported op " + line
+}
+
+fn commaList(s) {
+    if s == "" || s == null || s == undefined {
+        return []
+    }
+    let parts = split(s, ",")
+    let out = []
+    let i = 0
+    while i < len(parts) {
+        out = push(out, trim(parts[i]))
+        i = i + 1
+    }
+    return out
+}
+
+/// Parse .kbc text into IR for `runModule`. Throws on unsupported sections.
+pub fn deserializeKbc(text) {
+    let lines = splitLines(text)
+    if len(lines) == 0 {
+        throw "deserialize: empty"
+    }
+    if lines[0] != KBC_HEADER {
+        throw "deserialize: bad header"
+    }
+    let constants = []
+    let globals = []
+    let functions = []
+    let ops = []
+    let inCode = false
+    let li = 1
+    while li < len(lines) {
+        let line = lines[li]
+        if line == "code" {
+            inCode = true
+            li = li + 1
+            continue
+        }
+        if inCode {
+            if starts_with(line, "source=") || starts_with(line, "statements=") {
+                break
+            }
+            ops = push(ops, parseOpLine(line))
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "constants=") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "const ") {
+            constants = push(constants, parseConstLine(line))
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "global ") {
+            let rest = str_slice(line, 7, len(line))
+            let sp = str_index_of(rest, " ")
+            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            globals = push(globals, name)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "functions=") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "fn ") {
+            let rest = str_slice(line, 3, len(line))
+            let sp = str_index_of(rest, " ")
+            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            functions = push(functions, { "sym": sym, "params": [], "locals": [], "ops": [] })
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "fn_params ") {
+            let rest = str_slice(line, 10, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let list = trim(str_slice(rest, sp + 1, len(rest)))
+            functions[idx]["params"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "fn_locals ") {
+            let rest = str_slice(line, 10, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let list = trim(str_slice(rest, sp + 1, len(rest)))
+            functions[idx]["locals"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "fn_op ") {
+            let rest = str_slice(line, 6, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let opLine = trim(str_slice(rest, sp + 1, len(rest)))
+            let op = parseOpLine(opLine)
+            functions[idx]["ops"] = push(functions[idx]["ops"], op)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "exports=") || starts_with(line, "imports=") || starts_with(line, "classes=") {
+            li = li + 1
+            continue
+        }
+        li = li + 1
+    }
+    return { "constants": constants, "globals": globals, "functions": functions, "ops": ops }
+}

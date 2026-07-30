@@ -38,6 +38,7 @@ let eBxR = null
 let eBxRhs = null
 let eArgs = []
 let eCallee = null
+let eCalleeStack = []
 let eCallI = 0
 let eArgN = 0
 let eLocalI = 0
@@ -208,6 +209,13 @@ fn emitOp(op, arg) {
     } else {
         eOps = push(eOps, { "op": op, "arg": arg })
     }
+}
+
+/// Nested calls: save callee before recursive emitExpr on args (module-global eCallee).
+fn emitCallCallee() {
+    eCallee = eCalleeStack[len(eCalleeStack) - 1]
+    eCalleeStack = pop(eCalleeStack)
+    emitExpr(eCallee)
 }
 
 fn emitSym(store, sym) {
@@ -423,6 +431,7 @@ fn emitExpr(node) {
     }
     if eNode.kind == AST_CALL {
         eArgs = eNode["args"]
+        eCalleeStack = push(eCalleeStack, eNode["callee"])
         eCallee = eNode["callee"]
         if eCallee.kind == AST_MEMBER {
             eMemObj = eCallee["object"]
@@ -959,7 +968,7 @@ fn emitExpr(node) {
         }
         eArgN = len(eArgs)
         if eArgN == 0 {
-            emitExpr(eCallee)
+            emitCallCallee()
             emitOp(OP_CALL, 0)
             return
         }
@@ -976,7 +985,7 @@ fn emitExpr(node) {
                     emitExpr(eBxL)
                 }
             }
-            emitExpr(eCallee)
+            emitCallCallee()
             emitOp(OP_CALL, 1)
             return
         }
@@ -1005,7 +1014,7 @@ fn emitExpr(node) {
                     emitExpr(eBxR)
                 }
             }
-            emitExpr(eCallee)
+            emitCallCallee()
             emitOp(OP_CALL, 2)
             return
         }
@@ -1031,7 +1040,7 @@ fn emitExpr(node) {
         }
         eCallArgIStack = pop(eCallArgIStack)
         eCallArgNStack = pop(eCallArgNStack)
-        emitExpr(eCallee)
+        emitCallCallee()
         emitOp(OP_CALL, eArgN)
         return
     }
@@ -1507,6 +1516,7 @@ pub fn emit(program) {
     eArrNStack = []
     eCallArgIStack = []
     eCallArgNStack = []
+    eCalleeStack = []
     eGenericTemplates = []
     eGenericClassTemplates = []
     eGenericEnumTemplates = []

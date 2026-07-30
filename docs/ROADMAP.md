@@ -648,11 +648,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset** — bootstrap-policy i `.kab`: `kab/boot` + **`kab/vm`** (`evalSourceKbc` / `bytecode_run_kbc`); smoke `h6e_vm_smoke`. Rust = processladdare + bytecode-VM-syscall; full VM-port i Kab = senare.
+**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`** (`evalSourceKbc` / `evalSourceKabVm`, `kabVmRunEnabled` → `run_file` via Kab VM, `bytecode_run_kbc` fallback); **Kab VM** i `self_host/vm` + `self_host/deserialize` (obj/index/member opcodes; `h6e_kab_vm_smoke`, `vm_probe`). Rust = processladdare + VM-syscall för exotiska opcodes. `KABOOTAR_VM=rust` tvingar host-VM.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
-**H6 delete-gates** ✅ — chrome nav Kab; query Kab-only; Rust history + tab/back natives + `kdom_query_selector*` bort (`h6b_query_policy`, `h6c_browser_chrome_smoke`, `h6_delete_gate_smoke`, `h6e_vm_smoke`).
+**H6 delete-gates** ✅ — chrome nav Kab; query Kab-only; Rust history + tab/back + `kdom_query_selector*` bort; Kab VM subset (`h6b_query_policy`, `h6c_browser_chrome_smoke`, `h6_delete_gate_smoke`, `h6e_vm_smoke`, `h6e_kab_vm_smoke`).
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity

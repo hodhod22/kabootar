@@ -1,0 +1,365 @@
+// H6e: Kabootar bytecode VM subset (stack interpreter on self_host IR).
+// import "self_host/vm"
+
+import "self_host/emit_defs"
+
+let vStack = []
+let vLocals = []
+let vGlobals = []
+let vIp = 0
+let vDone = false
+let vResult = null
+let vUnsupported = false
+
+fn vPush(v) {
+    vStack = push(vStack, v)
+}
+
+fn vPop() {
+    if len(vStack) == 0 {
+        throw "vm stack underflow"
+    }
+    let top = vStack[len(vStack) - 1]
+    vStack = pop(vStack)
+    return top
+}
+
+fn vTruthy(v) {
+    if v == false || v == null || v == undefined {
+        return false
+    }
+    return true
+}
+
+fn poolVal(pool, idx) {
+    if idx < 0 || idx >= len(pool) {
+        throw "vm bad const index"
+    }
+    let v = pool[idx]
+    if v == KAB_UNDEF_CONST {
+        return undefined
+    }
+    return v
+}
+
+fn poolKey(pool, idx) {
+    let k = poolVal(pool, idx)
+    if k == null || k == undefined {
+        return ""
+    }
+    return "" + k
+}
+
+fn vMemberGet(obj, key) {
+    if obj == null || obj == undefined {
+        return undefined
+    }
+    return obj[key]
+}
+
+fn vMemberSet(obj, key, val) {
+    if obj == null || obj == undefined {
+        throw "vm cannot set member on nullish"
+    }
+    obj[key] = val
+    return obj
+}
+
+fn vIndexGet(container, idx) {
+    if container == null || container == undefined {
+        return undefined
+    }
+    return container[idx]
+}
+
+fn vIndexSet(container, idx, val) {
+    if container == null || container == undefined {
+        throw "vm cannot index nullish"
+    }
+    container[idx] = val
+    return container
+}
+
+fn runFnBody(fnDef, pool, globals, functions, callArgs) {
+    let oldStack = vStack
+    let oldLocals = vLocals
+    let oldIp = vIp
+    let oldDone = vDone
+    let oldResult = vResult
+    let oldUnsupported = vUnsupported
+
+    vStack = []
+    vLocals = []
+    let li = 0
+    while li < len(fnDef["locals"]) {
+        vLocals = push(vLocals, undefined)
+        li = li + 1
+    }
+    let pi = 0
+    while pi < len(fnDef["params"]) {
+        if pi < len(callArgs) {
+            vLocals[pi] = callArgs[pi]
+        }
+        pi = pi + 1
+    }
+    vIp = 0
+    vDone = false
+    vResult = null
+    vUnsupported = false
+
+    runOps(fnDef["ops"], pool, globals, functions)
+
+    let out = vResult
+    if vDone == false {
+        if len(vStack) > 0 {
+            out = vStack[len(vStack) - 1]
+        }
+    }
+
+    vStack = oldStack
+    vLocals = oldLocals
+    vIp = oldIp
+    vDone = oldDone
+    vResult = oldResult
+    vUnsupported = oldUnsupported
+    if vUnsupported {
+        throw "vm unsupported opcode in fn"
+    }
+    return out
+}
+
+fn runOps(ops, pool, globals, functions) {
+    while vIp < len(ops) && vDone == false && vUnsupported == false {
+        let op = ops[vIp]
+        let name = op["op"]
+        let arg = op["arg"]
+        if name == OP_CONST {
+            vPush(poolVal(pool, arg))
+        } else if name == OP_LOAD_LOCAL {
+            vPush(vLocals[arg])
+        } else if name == OP_STORE_LOCAL {
+            let v = vPop()
+            vLocals[arg] = v
+        } else if name == OP_LOAD_GLOBAL {
+            vPush(vGlobals[arg])
+        } else if name == OP_STORE_GLOBAL {
+            vGlobals[arg] = vPop()
+        } else if name == OP_ADD {
+            let b = vPop()
+            let a = vPop()
+            vPush(a + b)
+        } else if name == OP_SUB {
+            let b = vPop()
+            let a = vPop()
+            vPush(a - b)
+        } else if name == OP_MUL {
+            let b = vPop()
+            let a = vPop()
+            vPush(a * b)
+        } else if name == OP_DIV {
+            let b = vPop()
+            let a = vPop()
+            vPush(a / b)
+        } else if name == OP_MOD {
+            let b = vPop()
+            let a = vPop()
+            vPush(a % b)
+        } else if name == OP_EQ {
+            let b = vPop()
+            let a = vPop()
+            vPush(a == b)
+        } else if name == OP_NE {
+            let b = vPop()
+            let a = vPop()
+            vPush(a != b)
+        } else if name == OP_LT {
+            let b = vPop()
+            let a = vPop()
+            vPush(a < b)
+        } else if name == OP_GT {
+            let b = vPop()
+            let a = vPop()
+            vPush(a > b)
+        } else if name == OP_LE {
+            let b = vPop()
+            let a = vPop()
+            vPush(a <= b)
+        } else if name == OP_GE {
+            let b = vPop()
+            let a = vPop()
+            vPush(a >= b)
+        } else if name == OP_AND {
+            let b = vPop()
+            let a = vPop()
+            vPush(vTruthy(a) && vTruthy(b))
+        } else if name == OP_OR {
+            let b = vPop()
+            let a = vPop()
+            vPush(vTruthy(a) || vTruthy(b))
+        } else if name == OP_NOT {
+            let v = vPop()
+            vPush(!vTruthy(v))
+        } else if name == OP_MAKE_OBJECT {
+            let n = arg
+            let map = {}
+            let ci = 0
+            while ci < n {
+                let key = vPop()
+                let val = vPop()
+                map["" + key] = val
+                ci = ci + 1
+            }
+            vPush(map)
+        } else if name == OP_MAKE_ARRAY {
+            let n = arg
+            let raw = []
+            let ai = 0
+            while ai < n {
+                raw = push(raw, vPop())
+                ai = ai + 1
+            }
+            let arr = []
+            let oi = n - 1
+            while oi >= 0 {
+                arr = push(arr, raw[oi])
+                oi = oi - 1
+            }
+            vPush(arr)
+        } else if name == OP_INDEX_GET {
+            let idx = vPop()
+            let container = vPop()
+            vPush(vIndexGet(container, idx))
+        } else if name == OP_INDEX_SET {
+            let val = vPop()
+            let idx = vPop()
+            let container = vPop()
+            let updated = vIndexSet(container, idx, val)
+            vPush(updated)
+            vPush(val)
+        } else if name == OP_GET_MEMBER {
+            let key = poolKey(pool, arg)
+            let obj = vPop()
+            vPush(vMemberGet(obj, key))
+        } else if name == OP_SET_MEMBER {
+            let key = poolKey(pool, arg)
+            let val = vPop()
+            let obj = vPop()
+            let updated = vMemberSet(obj, key, val)
+            vPush(updated)
+            vPush(val)
+        } else if name == OP_POP {
+            vPop()
+        } else if name == OP_JUMP {
+            vIp = vIp + 1 + arg
+            continue
+        } else if name == OP_JUMP_IF_FALSE {
+            let v = vPop()
+            if !vTruthy(v) {
+                vIp = vIp + 1 + arg
+                continue
+            }
+        } else if name == OP_CALL {
+            let argc = arg
+            let callee = vPop()
+            let rawArgs = []
+            let ai = 0
+            while ai < argc {
+                rawArgs = push(rawArgs, vPop())
+                ai = ai + 1
+            }
+            if callee == null || callee == undefined {
+                vUnsupported = true
+                break
+            }
+            if callee["kab_vm_fn"] == undefined {
+                vUnsupported = true
+                break
+            }
+            let fi = callee["kab_vm_fn"]
+            let fnDef = functions[fi]
+            let ordered = []
+            let oi = argc - 1
+            while oi >= 0 {
+                ordered = push(ordered, rawArgs[oi])
+                oi = oi - 1
+            }
+            let ret = runFnBody(fnDef, pool, globals, functions, ordered)
+            vPush(ret)
+        } else if name == OP_RETURN {
+            if len(vStack) > 0 {
+                vResult = vStack[len(vStack) - 1]
+            } else {
+                vResult = null
+            }
+            vDone = true
+            break
+        } else if name == OP_HALT {
+            if len(vStack) > 0 {
+                vResult = vStack[len(vStack) - 1]
+            }
+            vDone = true
+            break
+        } else {
+            throw "vm unsupported opcode: " + name
+        }
+        vIp = vIp + 1
+    }
+}
+
+/// Run self_host IR module (`emit` output). Throws on unsupported opcode.
+pub fn runModule(bc) {
+    if bc == null || bc == undefined {
+        throw "vm: null module"
+    }
+    let pool = bc["constants"]
+    let globals = bc["globals"]
+    let functions = bc["functions"]
+    if pool == null || pool == undefined {
+        pool = []
+    }
+    if globals == null || globals == undefined {
+        globals = []
+    }
+    if functions == null || functions == undefined {
+        functions = []
+    }
+    vGlobals = []
+    let gi = 0
+    while gi < len(globals) {
+        vGlobals = push(vGlobals, undefined)
+        gi = gi + 1
+    }
+    let fi = 0
+    while fi < len(functions) {
+        let sym = functions[fi]["sym"]
+        let gi2 = 0
+        while gi2 < len(globals) {
+            if globals[gi2] == sym {
+                vGlobals[gi2] = { "kab_vm_fn": fi }
+            }
+            gi2 = gi2 + 1
+        }
+        fi = fi + 1
+    }
+    vStack = []
+    vLocals = []
+    vIp = 0
+    vDone = false
+    vResult = null
+    vUnsupported = false
+    let ops = bc["ops"]
+    if ops == null || ops == undefined {
+        ops = []
+    }
+    runOps(ops, pool, globals, functions)
+    if vUnsupported {
+        throw "vm unsupported opcode in main"
+    }
+    if vDone {
+        return vResult
+    }
+    if len(vStack) > 0 {
+        return vStack[len(vStack) - 1]
+    }
+    return null
+}

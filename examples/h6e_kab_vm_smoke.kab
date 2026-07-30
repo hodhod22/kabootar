@@ -1,0 +1,14 @@
+// H6e Kab VM smoke: self_host VM + deserialize + host fallback
+// cargo run --bin kabootar -- examples/h6e_kab_vm_smoke.kab
+
+import "kab/vm"
+import "kab/boot"
+
+preferSelfHostCompile()
+preferKabVmRun()
+let pipe = bootPipelineOk()
+let kbcOk = evalKbcPipelineOk()
+let kabVmOk = evalKabVmPipelineOk()
+
+println("h6e kabvm pipe=" + pipe + " kbc=" + kbcOk + " kabvm=" + kabVmOk)
+return pipe && kbcOk && kabVmOk

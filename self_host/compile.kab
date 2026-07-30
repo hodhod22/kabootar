@@ -6,3 +6,8 @@ import "self_host/serialize"
 pub fn compile(source) {
     return serialize_bc(emit(parse(source)))
 }
+
+/// IR module for Kab VM (`runModule` in self_host/vm).
+pub fn compileIr(source) {
+    return emit(parse(source))
+}

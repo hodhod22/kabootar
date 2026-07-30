@@ -9,9 +9,9 @@ Host-Chrome använder `document`/`window`; Kabootar-appar använder `kbrowser` +
 | Chrome (host) | Kabootar Browser |
 |---------------|------------------|
 | `window.location.href` | `kb_location()` / `kbrowser.location` |
-| `history.back()` | `kb_back()` |
-| `history.forward()` | `kb_forward()` |
-| Ny flik | `kb_tab_open(url)` |
+| `history.back()` | `import "kbrowser/nav"; navBack()` |
+| `history.forward()` | `import "kbrowser/nav"; navForward()` |
+| Ny flik / fliklista | `import "kbrowser/nav"; navOpenTab(url)` / `navTabs()` |
 | `document.body.innerHTML` | `kb_mount(kdom_node)` + `kb_render()` |
 | `navigator.userAgent` | `kb_user_agent()` |
 
@@ -37,11 +37,12 @@ let scene = kb_composite();    // frame + OS-fönster + aktiv flik
 kb_host_sync();
 host_paint();
 
-// Historik + flikar
-kb_back();
-kb_forward();
-kb_tab_open("kabootar://settings");
-kb_tabs();
+// Historik + flikar (H6c — Kab policy, inte `kb_back`/`kb_tab_*` natives)
+import "kbrowser/nav"
+navBack()
+navForward()
+navOpenTab("kabootar://settings")
+navTabs()
 ```
 
 ## Integration med Kabootar OS och värd-OS
