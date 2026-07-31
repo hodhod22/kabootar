@@ -1805,3 +1805,45 @@ fn self_host_vm_native_probe() {
     assert!(ok);
 }
 
+#[test]
+fn self_host_vm_class_probe() {
+    let path = format!(
+        "{}/self_host/vm_class_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("vm-class".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("vm_class_probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn vm class probe thread")
+        .join()
+        .expect("vm class probe thread join");
+    assert!(ok);
+}
+
+#[test]
+fn h6e_kab_vm_delete_gate() {
+    let path = format!(
+        "{}/examples/h6e_kab_vm_delete_gate.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-delete".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6e kab vm delete gate should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn h6e delete gate thread")
+        .join()
+        .expect("h6e delete gate thread join");
+    assert!(ok);
+}
+

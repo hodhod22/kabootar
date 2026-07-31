@@ -144,6 +144,10 @@ pub fn create_global_env() -> Environment {
         "bytecode_host_call".to_string(),
         Value::NativeFunction(bytecode_host_call_native),
     );
+    env.set(
+        "bytecode_host_import".to_string(),
+        Value::NativeFunction(bytecode_host_import_native),
+    );
     browser_globals(&mut env);
     browser_platform_globals(&mut env);
     kabootar_dom_globals(&mut env);
@@ -600,6 +604,16 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
         None => Vec::new(),
     };
     crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
+}
+
+/// H6e Kab VM: import a module into the current env (binds exports for LOAD_GLOBAL).
+fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let name = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("bytecode_host_import(name) expects a string".into()),
+    };
+    modules::import_module(name, env)?;
+    Ok(Value::Bool(true))
 }
 
 fn index_to_usize(idx: &Value, len: usize) -> Result<usize, String> {
