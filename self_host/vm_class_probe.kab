@@ -1,0 +1,3 @@
+import "self_host/compile"
+import "self_host/vm"
+return runModule(compileIr("class Box { fn init(n) { this.n = n } } return Box(7).n")) == 7

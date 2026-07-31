@@ -102,6 +102,8 @@ let eGenericMethodTemplates = []
 let eClasses = []
 let eEnums = []
 let eClassMethods = []
+let eClassMethodsSrc = []
+let eClassIsStruct = 0
 let eGenTmpl = null
 let eGenSym = ""
 let eMangled = ""
@@ -1149,6 +1151,18 @@ fn emitStmt(node) {
         emitOp(OP_POP, 0)
         return
     }
+    if eNode.kind == AST_MEMBER_ASSIGN {
+        eBxL = eNode["object"]
+        eMemberFld = eNode["field"]
+        eBxRhs = eNode["rhs"]
+        emitExpr(eBxL)
+        emitExpr(eBxRhs)
+        eIdx = symIndex("const", eMemberFld)
+        emitOp(OP_SET_MEMBER, eIdx)
+        emitOp(OP_POP, 0)
+        emitOp(OP_POP, 0)
+        return
+    }
     if eNode.kind == AST_EXPR {
         eExprStmt = eNode["expr"]
         emitExpr(eExprStmt)
@@ -1385,10 +1399,13 @@ fn emitStmt(node) {
             })
             return
         }
+        // Snap before emitStmt — emitStmt overwrites module-global eNode.
+        eClassMethodsSrc = eNode["methods"]
+        eClassIsStruct = eNode["isStruct"]
         eClassMethods = []
         eMi = 0
-        while eMi < len(eNode["methods"]) {
-            eMeth = eNode["methods"][eMi]
+        while eMi < len(eClassMethodsSrc) {
+            eMeth = eClassMethodsSrc[eMi]
             eMethTypeParams = eMeth["typeParams"]
             if eMethTypeParams == undefined {
                 eMethTypeParams = []
@@ -1428,7 +1445,7 @@ fn emitStmt(node) {
         eClasses = push(eClasses, {
             "sym": eFnSave,
             "methods": eClassMethods,
-            "isStruct": eNode["isStruct"]
+            "isStruct": eClassIsStruct
         })
         return
     }

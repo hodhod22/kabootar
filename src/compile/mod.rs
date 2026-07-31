@@ -200,39 +200,17 @@ static KAB_VM_RUN_ENABLED: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
 static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
 static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
 
-fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
+fn kab_vm_run_enabled(_env: &mut Environment) -> Result<bool, String> {
+    // Opt-in only: Kab VM subset is not yet safe for all product modules (Rust opcodes).
+    // Default run_file stays on host VM. Set KABOOTAR_VM=kab to prefer Kab VM for small .kbc.
     if KAB_VM_POLICY_PROBE.load(Ordering::Acquire) || KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
         return Ok(false);
     }
-    if matches!(
-        std::env::var("KABOOTAR_VM").as_deref(),
-        Ok("rust") | Ok("host")
-    ) {
-        return Ok(false);
+    match std::env::var("KABOOTAR_VM").as_deref() {
+        Ok("kab") | Ok("kabootar") | Ok("self") => Ok(true),
+        Ok("rust") | Ok("host") => Ok(false),
+        _ => Ok(false),
     }
-    let mut cache = KAB_VM_RUN_ENABLED
-        .get_or_init(|| Mutex::new(None))
-        .lock()
-        .map_err(|e| format!("kab vm policy lock: {e}"))?;
-    if let Some(v) = *cache {
-        return Ok(v);
-    }
-    KAB_VM_POLICY_PROBE.store(true, Ordering::Release);
-    let enabled = kab_vm_run_enabled_uncached(env);
-    KAB_VM_POLICY_PROBE.store(false, Ordering::Release);
-    let enabled = enabled?;
-    *cache = Some(enabled);
-    Ok(enabled)
-}
-
-fn kab_vm_run_enabled_uncached(_env: &mut Environment) -> Result<bool, String> {
-    let mut probe_env = crate::evaluator::create_global_env();
-    modules::import_module("kab/vm", &mut probe_env)?;
-    let f = probe_env
-        .get("kabVmRunEnabled")
-        .ok_or("kab/vm: missing kabVmRunEnabled")?;
-    let v = call_value(f, vec![], &[], &[], &[], &[], &mut probe_env)?;
-    Ok(v.is_truthy())
 }
 
 fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String> {
@@ -352,7 +330,7 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
             if kab_vm_run_enabled(env)? {
                 let kbc = serialize(bytecode);
                 // Kab VM subset: small modules only; large ones stay on host VM.
-                if kbc.len() <= 65536 {
+                if kbc.len() <= 262144 {
                     if let Ok(v) = eval_kbc_via_kab_vm(&kbc, env) {
                         return Ok(v);
                     }

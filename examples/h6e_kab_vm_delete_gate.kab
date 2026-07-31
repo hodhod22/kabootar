@@ -1,0 +1,12 @@
+// H6e delete-gate: subset runs on Kab VM without bytecode_run_kbc fallback.
+// cargo run --bin kabootar -- examples/h6e_kab_vm_delete_gate.kab
+
+import "kab/vm"
+import "kab/boot"
+
+preferSelfHostCompile()
+preferKabVmRun()
+let kabVmOk = evalKabVmPipelineOk()
+let kbcOk = evalKbcPipelineOk()
+println("h6e delete-gate kabvm=" + kabVmOk + " kbc=" + kbcOk)
+return kabVmOk && kbcOk

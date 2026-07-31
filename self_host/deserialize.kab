@@ -133,7 +133,17 @@ fn parseOpLine(line) {
         throw "deserialize: bad op " + line
     }
     let head = str_slice(line, 0, sp)
-    let arg = parse_int(trim(str_slice(line, sp + 1, len(line))))
+    let argRest = trim(str_slice(line, sp + 1, len(line)))
+    if head == "new_instance" {
+        let sp2 = str_index_of(argRest, " ")
+        if sp2 < 0 {
+            return { "op": OP_NEW_INSTANCE, "arg": parse_int(argRest), "arg2": 0 }
+        }
+        let ci = parse_int(trim(str_slice(argRest, 0, sp2)))
+        let argc = parse_int(trim(str_slice(argRest, sp2 + 1, len(argRest))))
+        return { "op": OP_NEW_INSTANCE, "arg": ci, "arg2": argc }
+    }
+    let arg = parse_int(argRest)
     if head == "const" {
         return { "op": OP_CONST, "arg": arg }
     }
@@ -176,6 +186,12 @@ fn parseOpLine(line) {
     if head == "make_array" {
         return { "op": OP_MAKE_ARRAY, "arg": arg }
     }
+    if head == "dup" {
+        return { "op": "dup", "arg": 0 }
+    }
+    if head == "get_length" {
+        return { "op": "get_length", "arg": 0 }
+    }
     throw "deserialize: unsupported op " + line
 }
 
@@ -205,6 +221,8 @@ pub fn deserializeKbc(text) {
     let constants = []
     let globals = []
     let functions = []
+    let classes = []
+    let imports = []
     let ops = []
     let inCode = false
     let li = 1
@@ -280,11 +298,104 @@ pub fn deserializeKbc(text) {
             li = li + 1
             continue
         }
-        if starts_with(line, "exports=") || starts_with(line, "imports=") || starts_with(line, "classes=") {
+        if starts_with(line, "imports=") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "import ") {
+            let rest = str_slice(line, 7, len(line))
+            let sp = str_index_of(rest, " ")
+            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            imports = push(imports, name)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "classes=") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class ") {
+            let rest = str_slice(line, 6, len(line))
+            let sp = str_index_of(rest, " ")
+            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            classes = push(classes, { "sym": sym, "methods": [], "isStruct": 0 })
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_is_struct ") {
+            let idx = parse_int(trim(str_slice(line, 16, len(line))))
+            classes[idx]["isStruct"] = 1
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_method ") {
+            let rest = str_slice(line, 13, len(line))
+            let sp = str_index_of(rest, " ")
+            let ci = parse_int(trim(str_slice(rest, 0, sp)))
+            let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+            let sp2 = str_index_of(rest2, " ")
+            let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+            let sym = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+            while len(classes[ci]["methods"]) <= mi {
+                classes[ci]["methods"] = push(classes[ci]["methods"], { "sym": "", "params": [], "locals": [], "ops": [] })
+            }
+            classes[ci]["methods"][mi]["sym"] = sym
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_method_params ") {
+            let rest = str_slice(line, 20, len(line))
+            let sp = str_index_of(rest, " ")
+            let ci = parse_int(trim(str_slice(rest, 0, sp)))
+            let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+            let sp2 = str_index_of(rest2, " ")
+            let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+            let list = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+            classes[ci]["methods"][mi]["params"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_method_locals ") {
+            let rest = str_slice(line, 20, len(line))
+            let sp = str_index_of(rest, " ")
+            let ci = parse_int(trim(str_slice(rest, 0, sp)))
+            let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+            let sp2 = str_index_of(rest2, " ")
+            let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+            let list = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+            classes[ci]["methods"][mi]["locals"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_method_globals ") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "class_method_op ") {
+            let rest = str_slice(line, 16, len(line))
+            let sp = str_index_of(rest, " ")
+            let ci = parse_int(trim(str_slice(rest, 0, sp)))
+            let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+            let sp2 = str_index_of(rest2, " ")
+            let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+            let opLine = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+            let op = parseOpLine(opLine)
+            classes[ci]["methods"][mi]["ops"] = push(classes[ci]["methods"][mi]["ops"], op)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "exports=") {
             li = li + 1
             continue
         }
         li = li + 1
     }
-    return { "constants": constants, "globals": globals, "functions": functions, "ops": ops }
+    return {
+        "constants": constants,
+        "globals": globals,
+        "functions": functions,
+        "classes": classes,
+        "imports": imports,
+        "ops": ops
+    }
 }

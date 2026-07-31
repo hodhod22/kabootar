@@ -1094,6 +1094,9 @@ fn parseStmt() {
         if pSave.kind == AST_INDEX {
             return { "kind": AST_INDEX_ASSIGN, "object": pSave["object"], "index": pSave["index"], "rhs": pInit }
         }
+        if pSave.kind == AST_MEMBER {
+            return { "kind": AST_MEMBER_ASSIGN, "object": pSave["object"], "field": pSave["field"], "rhs": pInit }
+        }
         throw "invalid assign lhs"
     }
     pVal = pSave
