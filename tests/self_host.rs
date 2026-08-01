@@ -1869,6 +1869,27 @@ fn self_host_vm_hostops_probe() {
 }
 
 #[test]
+fn self_host_vm_adv_probe() {
+    let path = format!(
+        "{}/self_host/vm_adv_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("vm-adv".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("vm_adv_probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn vm adv probe thread")
+        .join()
+        .expect("vm adv probe thread join");
+    assert!(ok);
+}
+
+#[test]
 fn h6e_kab_vm_delete_gate() {
     let path = format!(
         "{}/examples/h6e_kab_vm_delete_gate.kab",

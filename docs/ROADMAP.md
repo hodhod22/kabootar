@@ -648,7 +648,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`** (`evalSourceKabVm` / `evalKbcKabOnly` delete-gate; `evalKbc` soft-fallback); **Kab VM** (`swap`/`array_push`/bitops/`jump_if_not_nullish`/`concat_array`/`merge_object`/`call_from_array` + class/arith/imports; smokes `h6e_kab_vm_*`, `h6e_kab_only_gate`, `vm_*_probe`). `run_file` prefererar Kab ≤256KB när `kabVmRunEnabled`; **`KABOOTAR_VM=kab-only`** stänger Rust `run_module`/`bytecode_run_kbc`. Self-host compile skippar bara bootstrap-kärnor (`emit`/`parser`/`lexer`/`compile`/`serialize`/`deserialize`/`vm`). Rust = processladdare + thin host-call/import + (mjuk) VM-syscall.
+**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`**; Kab VM: try-regions/`jump_if_result_err`, `make_arrow_fn`+`arrows=`, `iterator_step_in_place` (+ `bytecode_iterator_step_in_place` host), swap/array_push/bitops/class/arith. **`KABOOTAR_VM=kab-only`** stänger host `run_module` (nästlade import under `EXEC_ACTIVE` får host). Soft `evalKbc` fallback kvar som default. Bootstrap-kärnor (`emit`/`parser`/…) fortfarande Rust-compile. Smokes: `h6e_kab_*`, `vm_adv_probe`, `vm_hostops_probe`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 

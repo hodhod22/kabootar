@@ -170,6 +170,9 @@ fn parseOpLine(line) {
     if line == "get_length" {
         return { "op": "get_length", "arg": 0 }
     }
+    if line == "iterator_step_in_place" {
+        return { "op": "iterator_step_in_place", "arg": 0 }
+    }
     let sp = str_index_of(line, " ")
     if sp < 0 {
         throw "deserialize: bad op " + line
@@ -212,6 +215,12 @@ fn parseOpLine(line) {
     }
     if head == "jump_if_not_nullish" {
         return { "op": "jump_if_not_nullish", "arg": arg }
+    }
+    if head == "jump_if_result_err" {
+        return { "op": "jump_if_result_err", "arg": arg }
+    }
+    if head == "make_arrow_fn" {
+        return { "op": "make_arrow_fn", "arg": arg }
     }
     if head == "call" {
         return { "op": OP_CALL, "arg": arg }
@@ -259,9 +268,12 @@ pub fn deserializeKbc(text) {
     }
     let constants = []
     let globals = []
+    let locals = []
     let functions = []
     let classes = []
     let imports = []
+    let arrows = []
+    let tryRegions = []
     let ops = []
     let inCode = false
     let li = 1
@@ -297,6 +309,49 @@ pub fn deserializeKbc(text) {
             li = li + 1
             continue
         }
+        if starts_with(line, "local ") {
+            let rest = str_slice(line, 6, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            while len(locals) <= idx {
+                locals = push(locals, "")
+            }
+            locals[idx] = name
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "main_try_region ") {
+            let rest = trim(str_slice(line, 16, len(line)))
+            let parts = split(rest, " ")
+            tryRegions = push(tryRegions, {
+                "bodyStart": parse_int(parts[1]),
+                "bodyEnd": parse_int(parts[2]),
+                "catchStart": parse_int(parts[3]),
+                "errLocal": parse_int(parts[4])
+            })
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "fn_try_region ") {
+            let rest = trim(str_slice(line, 14, len(line)))
+            let parts = split(rest, " ")
+            let fi = parse_int(parts[0])
+            while len(functions) <= fi {
+                functions = push(functions, { "sym": "", "params": [], "locals": [], "ops": [], "tryRegions": [] })
+            }
+            if functions[fi]["tryRegions"] == undefined {
+                functions[fi]["tryRegions"] = []
+            }
+            functions[fi]["tryRegions"] = push(functions[fi]["tryRegions"], {
+                "bodyStart": parse_int(parts[2]),
+                "bodyEnd": parse_int(parts[3]),
+                "catchStart": parse_int(parts[4]),
+                "errLocal": parse_int(parts[5])
+            })
+            li = li + 1
+            continue
+        }
         if starts_with(line, "functions=") {
             li = li + 1
             continue
@@ -305,7 +360,7 @@ pub fn deserializeKbc(text) {
             let rest = str_slice(line, 3, len(line))
             let sp = str_index_of(rest, " ")
             let sym = trim(str_slice(rest, sp + 1, len(rest)))
-            functions = push(functions, { "sym": sym, "params": [], "locals": [], "ops": [] })
+            functions = push(functions, { "sym": sym, "params": [], "locals": [], "ops": [], "tryRegions": [] })
             li = li + 1
             continue
         }
@@ -334,6 +389,45 @@ pub fn deserializeKbc(text) {
             let opLine = trim(str_slice(rest, sp + 1, len(rest)))
             let op = parseOpLine(opLine)
             functions[idx]["ops"] = push(functions[idx]["ops"], op)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "arrows=") {
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "arrow ") {
+            let rest = str_slice(line, 6, len(line))
+            let sp = str_index_of(rest, " ")
+            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            arrows = push(arrows, { "sym": sym, "params": [], "locals": [], "ops": [] })
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "arrow_params ") {
+            let rest = str_slice(line, 13, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let list = trim(str_slice(rest, sp + 1, len(rest)))
+            arrows[idx]["params"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "arrow_locals ") {
+            let rest = str_slice(line, 13, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let list = trim(str_slice(rest, sp + 1, len(rest)))
+            arrows[idx]["locals"] = commaList(list)
+            li = li + 1
+            continue
+        }
+        if starts_with(line, "arrow_op ") {
+            let rest = str_slice(line, 9, len(line))
+            let sp = str_index_of(rest, " ")
+            let idx = parse_int(trim(str_slice(rest, 0, sp)))
+            let opLine = trim(str_slice(rest, sp + 1, len(rest)))
+            arrows[idx]["ops"] = push(arrows[idx]["ops"], parseOpLine(opLine))
             li = li + 1
             continue
         }
@@ -432,9 +526,12 @@ pub fn deserializeKbc(text) {
     return {
         "constants": constants,
         "globals": globals,
+        "locals": locals,
         "functions": functions,
         "classes": classes,
         "imports": imports,
+        "arrows": arrows,
+        "tryRegions": tryRegions,
         "ops": ops
     }
 }
