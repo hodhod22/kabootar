@@ -1911,6 +1911,52 @@ fn self_host_vm_lang_probe() {
 }
 
 #[test]
+fn self_host_vm_import_probe() {
+    let path = format!(
+        "{}/self_host/vm_import_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("vm-import".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("vm_import_probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn vm import probe thread")
+        .join()
+        .expect("vm import probe thread join");
+    assert!(ok);
+}
+
+/// Heavy cores stay skipped; deserialize/vm are attemptable (full compile is slow — ignored).
+#[test]
+fn self_host_heavy_cores_still_skipped() {
+    use kabootar_lib::compile::compile_file_self_host;
+    for name in ["emit.kab", "parser.kab", "compile.kab", "serialize.kab"] {
+        let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
+        let err = compile_file_self_host(&path).unwrap_err();
+        assert!(
+            err.contains("skipped"),
+            "{name} should stay skipped, got: {err}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "slow: self-host compile of deserialize.kab (H6e core)"]
+fn self_host_deserialize_full_compile() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    let path = format!("{}/self_host/deserialize.kab", env!("CARGO_MANIFEST_DIR"));
+    let (program, backend) =
+        compile_file_prefer(&path, CompilePrefer::SelfHostThenRust).expect("compile");
+    assert!(program.has_bytecode());
+    assert_eq!(backend, "self-host");
+}
+
+#[test]
 fn h6e_kab_vm_delete_gate() {
     let path = format!(
         "{}/examples/h6e_kab_vm_delete_gate.kab",

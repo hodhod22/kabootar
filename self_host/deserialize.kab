@@ -5,26 +5,15 @@ import "self_host/serialize_defs"
 import "self_host/emit_defs"
 
 fn splitLines(text) {
+    let raw = split("" + text, CHAR_NL)
     let lines = []
-    let cur = ""
     let i = 0
-    let s = "" + text
-    while i < len(s) {
-        let c = char_at(s, i)
-        if c == CHAR_NL {
-            let t = trim(cur)
-            if len(t) > 0 {
-                lines = push(lines, t)
-            }
-            cur = ""
-        } else {
-            cur = cur + c
+    while i < len(raw) {
+        let t = trim(raw[i])
+        if len(t) > 0 {
+            lines = push(lines, t)
         }
         i = i + 1
-    }
-    let t = trim(cur)
-    if len(t) > 0 {
-        lines = push(lines, t)
     }
     return lines
 }

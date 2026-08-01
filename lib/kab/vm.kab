@@ -9,7 +9,7 @@ import "self_host/deserialize"
 import "self_host/vm"
 import "self_host/compile"
 
-let kabVmRunPrefer = false
+let kabVmRunPrefer = true
 let kabVmRunCached = false
 let kabVmRunOk = false
 
@@ -60,8 +60,8 @@ pub fn evalKbcKabOnly(kbc) {
     return tryKabVm(kbc)
 }
 
-/// Run `.kbc` — Kab VM when possible, else host VM syscall.
-/// After `preferKabVmRun()` + healthy core probe, skip host fallback (kab-only for .kbc).
+/// Run `.kbc` — Kab VM when possible.
+/// Healthy prefer path: kab-only (no `bytecode_run_kbc`). Soft fallback only while probe cold/failed.
 pub fn evalKbc(kbc) {
     let s = "" + kbc
     if len(s) > 262144 {

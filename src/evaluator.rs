@@ -141,6 +141,10 @@ pub fn create_global_env() -> Environment {
         Value::NativeFunction(bytecode_host_get_native),
     );
     env.set(
+        "bytecode_host_map_get".to_string(),
+        Value::NativeFunction(bytecode_host_map_get_native),
+    );
+    env.set(
         "bytecode_host_call".to_string(),
         Value::NativeFunction(bytecode_host_call_native),
     );
@@ -596,6 +600,18 @@ fn bytecode_host_get_native(args: &[Value], env: &mut Environment) -> Result<Val
     Ok(env.get(name).unwrap_or(Value::Undefined))
 }
 
+/// Plain-object field get; returns undefined for non-maps (BytecodeFn, natives, …).
+fn bytecode_host_map_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Ok(Value::Undefined),
+    };
+    match args.first() {
+        Some(Value::Object(map)) => Ok(map.get(key).cloned().unwrap_or(Value::Undefined)),
+        _ => Ok(Value::Undefined),
+    }
+}
+
 /// H6e Kab VM: call a host callable (native / bytecode fn) with an args array.
 fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let callee = args
@@ -610,20 +626,20 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
     crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
 }
 
-/// H6e Kab VM: import a module into the current env; return `{ name: value, ... }` exports.
+/// H6e Kab VM: import a module into the current env; return `[[name, value], ...]`.
 fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let name = match args.first() {
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("bytecode_host_import(name) expects a string".into()),
     };
     let exported = modules::import_module_exported(name, env)?;
-    let mut map = std::collections::HashMap::new();
+    let mut pairs = Vec::new();
     for en in exported {
         if let Some(v) = env.get(&en) {
-            map.insert(en, v);
+            pairs.push(Value::Array(vec![Value::String(en), v]));
         }
     }
-    Ok(Value::Object(map))
+    Ok(Value::Array(pairs))
 }
 
 /// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.
