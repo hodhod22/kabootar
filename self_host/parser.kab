@@ -406,11 +406,37 @@ fn parsePostfix() {
     return pLeft
 }
 
+fn parseUnary() {
+    if peek().type == "!" {
+        bump()
+        let uInner = parseUnary()
+        return { "kind": AST_UNARY, "op": "!", "expr": uInner }
+    }
+    if peek().type == "-" {
+        bump()
+        let uInner = parseUnary()
+        return { "kind": AST_UNARY, "op": "-", "expr": uInner }
+    }
+    return parsePostfix()
+}
+
+fn parseMul() {
+    pLeft = parseUnary()
+    while peek().type == "*" || peek().type == "/" || peek().type == "%" || peek().type == "**" {
+        pBinOp = peek().type
+        bump()
+        pSave = pLeft
+        pRight = parseUnary()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
+    }
+    return pLeft
+}
+
 fn parseCompare() {
     if peek().type == "EOF" {
         throw "parseCompare EOF"
     }
-    pLeft = parsePostfix()
+    pLeft = parseMul()
     while peek().type == "+" {
         bump()
         pAddLeftStack = push(pAddLeftStack, pLeft)
@@ -493,6 +519,12 @@ fn parseCompare() {
         pExprLeft = pLeft
         pRight = parseCompare()
         pLeft = { "kind": AST_BINARY, "op": "&&", "left": pExprLeft, "right": pRight }
+    }
+    while peek().type == "||" {
+        bump()
+        pExprLeft = pLeft
+        pRight = parseCompare()
+        pLeft = { "kind": AST_BINARY, "op": "||", "left": pExprLeft, "right": pRight }
     }
     return pLeft
 }

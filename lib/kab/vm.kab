@@ -23,7 +23,10 @@ fn kabVmCoreOk() {
     let callOk = evalSourceKabVm("fn add(a, b) { return a + b }; return add(1, 2)") == 3
     let nativeOk = evalSourceKabVm("return len([1, 2, 3])") == 3
     let classOk = evalSourceKabVm("class Box { fn init(n) { this.n = n } } return Box(7).n") == 7
-    return n == 42 && callOk && nativeOk && classOk
+    let arithOk = evalSourceKabVm("return 3 * 4 + 2") == 14
+    let unaryOk = evalSourceKabVm("return !false && -3 + 5 == 2") == true
+    let orOk = evalSourceKabVm("return false || 9") == 9
+    return n == 42 && callOk && nativeOk && classOk && arithOk && unaryOk && orOk
 }
 
 fn tryKabVm(kbc) {
@@ -94,5 +97,7 @@ pub fn evalKabVmPipelineOk() {
     let ifOk = evalSourceKabVm("if 1 < 2 { return 9 } else { return 0 }") == 9
     let classOk = evalKbcKabOnly(bootCompile("class Box { fn init(n) { this.n = n } } return Box(7).n")) == 7
     let kbcPath = evalKbcKabOnly(bootCompile("return 21 + 21")) == 42
-    return core && objOk && arrOk && ifOk && classOk && kbcPath
+    let arithKbc = evalKbcKabOnly(bootCompile("return (2 * 3) ** 2 + 1")) == 37
+    let unaryKbc = evalKbcKabOnly(bootCompile("return !false")) == true
+    return core && objOk && arrOk && ifOk && classOk && kbcPath && arithKbc && unaryKbc
 }
