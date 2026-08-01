@@ -72,7 +72,7 @@ fn compile_file_report_with_self_host() {
 
 #[test]
 fn self_host_path_falls_back_to_rust() {
-    // Compiling the compiler via self-host is skipped → rust fallback.
+    // Compiling bootstrap cores via self-host is skipped → rust fallback.
     let (program, backend) =
         compile_file_prefer("self_host/compile.kab", CompilePrefer::SelfHostThenRust)
             .expect("fallback");

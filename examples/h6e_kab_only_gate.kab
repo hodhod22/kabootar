@@ -1,0 +1,13 @@
+// H6e kab-only delete-gate: no bytecode_run_kbc / host VM fallback.
+// cargo run --bin kabootar -- examples/h6e_kab_only_gate.kab
+// Also: KABOOTAR_VM=kab-only kabootar run <small.kab>
+
+import "kab/vm"
+import "kab/boot"
+
+preferSelfHostCompile()
+preferKabVmRun()
+let kabVmOk = evalKabVmPipelineOk()
+let strictOk = evalKbcKabOnly(bootCompile("return 6 * 7")) == 42
+println("h6e kab-only gate kabvm=" + kabVmOk + " strict=" + strictOk)
+return kabVmOk && strictOk

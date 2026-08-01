@@ -128,6 +128,48 @@ fn parseOpLine(line) {
     if line == "halt" {
         return { "op": OP_HALT, "arg": 0 }
     }
+    if line == "swap" {
+        return { "op": "swap", "arg": 0 }
+    }
+    if line == "array_push" {
+        return { "op": "array_push", "arg": 0 }
+    }
+    if line == "concat_array" {
+        return { "op": "concat_array", "arg": 0 }
+    }
+    if line == "merge_object" {
+        return { "op": "merge_object", "arg": 0 }
+    }
+    if line == "call_from_array" {
+        return { "op": "call_from_array", "arg": 0 }
+    }
+    if line == "bit_and" {
+        return { "op": "bit_and", "arg": 0 }
+    }
+    if line == "bit_or" {
+        return { "op": "bit_or", "arg": 0 }
+    }
+    if line == "bit_xor" {
+        return { "op": "bit_xor", "arg": 0 }
+    }
+    if line == "shl" {
+        return { "op": "shl", "arg": 0 }
+    }
+    if line == "shr" {
+        return { "op": "shr", "arg": 0 }
+    }
+    if line == "ushr" {
+        return { "op": "ushr", "arg": 0 }
+    }
+    if line == "bit_not" {
+        return { "op": "bit_not", "arg": 0 }
+    }
+    if line == "dup" {
+        return { "op": "dup", "arg": 0 }
+    }
+    if line == "get_length" {
+        return { "op": "get_length", "arg": 0 }
+    }
     let sp = str_index_of(line, " ")
     if sp < 0 {
         throw "deserialize: bad op " + line
@@ -168,6 +210,9 @@ fn parseOpLine(line) {
     if head == "jump_if_true" {
         return { "op": OP_JUMP_IF_TRUE, "arg": arg }
     }
+    if head == "jump_if_not_nullish" {
+        return { "op": "jump_if_not_nullish", "arg": arg }
+    }
     if head == "call" {
         return { "op": OP_CALL, "arg": arg }
     }
@@ -185,12 +230,6 @@ fn parseOpLine(line) {
     }
     if head == "make_array" {
         return { "op": OP_MAKE_ARRAY, "arg": arg }
-    }
-    if head == "dup" {
-        return { "op": "dup", "arg": 0 }
-    }
-    if head == "get_length" {
-        return { "op": "get_length", "arg": 0 }
     }
     throw "deserialize: unsupported op " + line
 }

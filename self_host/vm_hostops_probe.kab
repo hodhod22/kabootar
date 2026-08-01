@@ -1,0 +1,73 @@
+import "self_host/vm"
+import "self_host/emit_defs"
+
+let swapOk = runModule({
+    "constants": [10, 20],
+    "globals": [],
+    "functions": [],
+    "classes": [],
+    "imports": [],
+    "ops": [
+        { "op": OP_CONST, "arg": 0 },
+        { "op": OP_CONST, "arg": 1 },
+        { "op": "swap", "arg": 0 },
+        { "op": OP_RETURN, "arg": 0 },
+        { "op": OP_HALT, "arg": 0 }
+    ]
+}) == 10
+
+let pushOk = runModule({
+    "constants": [7],
+    "globals": [],
+    "functions": [],
+    "classes": [],
+    "imports": [],
+    "ops": [
+        { "op": OP_MAKE_ARRAY, "arg": 0 },
+        { "op": OP_CONST, "arg": 0 },
+        { "op": "array_push", "arg": 0 },
+        { "op": OP_POP, "arg": 0 },
+        { "op": "get_length", "arg": 0 },
+        { "op": OP_RETURN, "arg": 0 },
+        { "op": OP_HALT, "arg": 0 }
+    ]
+}) == 1
+
+let bitsOk = runModule({
+    "constants": [5, 3, 1, 2],
+    "globals": [],
+    "functions": [],
+    "classes": [],
+    "imports": [],
+    "ops": [
+        { "op": OP_CONST, "arg": 0 },
+        { "op": OP_CONST, "arg": 1 },
+        { "op": "bit_and", "arg": 0 },
+        { "op": OP_CONST, "arg": 2 },
+        { "op": OP_CONST, "arg": 3 },
+        { "op": "shl", "arg": 0 },
+        { "op": OP_ADD, "arg": 0 },
+        { "op": OP_RETURN, "arg": 0 },
+        { "op": OP_HALT, "arg": 0 }
+    ]
+}) == 5
+
+let concatOk = runModule({
+    "constants": [1, 2],
+    "globals": [],
+    "functions": [],
+    "classes": [],
+    "imports": [],
+    "ops": [
+        { "op": OP_CONST, "arg": 0 },
+        { "op": OP_MAKE_ARRAY, "arg": 1 },
+        { "op": OP_CONST, "arg": 1 },
+        { "op": OP_MAKE_ARRAY, "arg": 1 },
+        { "op": "concat_array", "arg": 0 },
+        { "op": "get_length", "arg": 0 },
+        { "op": OP_RETURN, "arg": 0 },
+        { "op": OP_HALT, "arg": 0 }
+    ]
+}) == 2
+
+return swapOk && pushOk && bitsOk && concatOk
