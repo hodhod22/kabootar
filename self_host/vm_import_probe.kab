@@ -1,0 +1,8 @@
+// H6e: Kab VM must bind imports into globals (allocate vGlobals before bind).
+import "self_host/deserialize"
+import "self_host/vm"
+import "kab/boot"
+
+let kbc = bootCompile("import \"kab/boot\"\nreturn preferSelfHostCompile()")
+let r = runModule(deserializeKbc(kbc))
+return r == true

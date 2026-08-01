@@ -170,6 +170,11 @@ fn vCallHost(callee, ordered) {
     return bytecode_host_call(callee, ordered)
 }
 
+/// Safe map probe — BytecodeFn/native are typeof object but reject string index.
+fn vObjGet(obj, key) {
+    return bytecode_host_map_get(obj, key)
+}
+
 fn vFindTry(regions, ip) {
     if regions == null || regions == undefined {
         return null
@@ -523,26 +528,15 @@ fn runOps(ops, pool, globals, functions) {
                 ordered = push(ordered, argsArr[ai])
                 ai = ai + 1
             }
-            let isVmFn = false
-            let isMeth = false
-            let isArrow = false
-            if typeof(callee) == "object" {
-                if callee["vmFn"] != undefined {
-                    isVmFn = true
-                }
-                if callee["vmM"] != undefined {
-                    isMeth = true
-                }
-                if callee["vmArrow"] != undefined {
-                    isArrow = true
-                }
-            }
-            if isVmFn {
-                vPush(runFnBody(functions[callee["vmFn"]], pool, globals, functions, ordered, null))
-            } else if isArrow {
-                vPush(runFnBody(vArrows[callee["vmArrow"]], pool, globals, functions, ordered, callee["caps"]))
-            } else if isMeth {
-                vPush(runMethodBody(callee["vmM"], pool, globals, functions, callee["vmR"], ordered))
+            let vmFn = vObjGet(callee, "vmFn")
+            let vmM = vObjGet(callee, "vmM")
+            let vmArrow = vObjGet(callee, "vmArrow")
+            if vmFn != undefined {
+                vPush(runFnBody(functions[vmFn], pool, globals, functions, ordered, null))
+            } else if vmArrow != undefined {
+                vPush(runFnBody(vArrows[vmArrow], pool, globals, functions, ordered, vObjGet(callee, "caps")))
+            } else if vmM != undefined {
+                vPush(runMethodBody(vmM, pool, globals, functions, vObjGet(callee, "vmR"), ordered))
             } else {
                 vPush(vCallHost(callee, ordered))
             }
@@ -651,32 +645,15 @@ fn runOps(ops, pool, globals, functions) {
                 ordered = push(ordered, rawArgs[oi])
                 oi = oi - 1
             }
-            let isVmFn = false
-            let isMeth = false
-            let isArrow = false
-            if typeof(callee) == "object" {
-                if callee["vmFn"] != undefined {
-                    isVmFn = true
-                }
-                if callee["vmM"] != undefined {
-                    isMeth = true
-                }
-                if callee["vmArrow"] != undefined {
-                    isArrow = true
-                }
-            }
-            if isVmFn {
-                let fi = callee["vmFn"]
-                let fnDef = functions[fi]
-                vPush(runFnBody(fnDef, pool, globals, functions, ordered, null))
-            } else if isArrow {
-                let ai = callee["vmArrow"]
-                let arrow = vArrows[ai]
-                vPush(runFnBody(arrow, pool, globals, functions, ordered, callee["caps"]))
-            } else if isMeth {
-                let meth = callee["vmM"]
-                let recv = callee["vmR"]
-                vPush(runMethodBody(meth, pool, globals, functions, recv, ordered))
+            let vmFn = vObjGet(callee, "vmFn")
+            let vmM = vObjGet(callee, "vmM")
+            let vmArrow = vObjGet(callee, "vmArrow")
+            if vmFn != undefined {
+                vPush(runFnBody(functions[vmFn], pool, globals, functions, ordered, null))
+            } else if vmArrow != undefined {
+                vPush(runFnBody(vArrows[vmArrow], pool, globals, functions, ordered, vObjGet(callee, "caps")))
+            } else if vmM != undefined {
+                vPush(runMethodBody(vmM, pool, globals, functions, vObjGet(callee, "vmR"), ordered))
             } else {
                 vPush(vCallHost(callee, ordered))
             }
@@ -755,18 +732,44 @@ pub fn runModule(bc) {
     if localNames == null || localNames == undefined {
         localNames = []
     }
+    // Reentrancy: nested runModule (imports / host calls) must not clobber frames.
+    let oldStack = vStack
+    let oldLocals = vLocals
+    let oldGlobals = vGlobals
+    let oldClasses = vClasses
+    let oldArrows = vArrows
+    let oldTry = vTryRegions
+    let oldNames = vLocalNames
+    let oldThis = vThisStack
+    let oldLastThis = vLastThis
+    let oldIp = vIp
+    let oldDone = vDone
+    let oldResult = vResult
+    let oldUnsupported = vUnsupported
+
+    vGlobals = []
+    let gi = 0
+    while gi < len(globals) {
+        vGlobals = push(vGlobals, undefined)
+        gi = gi + 1
+    }
     let ii = 0
     while ii < len(imports) {
-        let exported = bytecode_host_import("" + imports[ii])
-        if exported != null && exported != undefined && typeof(exported) == "object" {
-            let gi3 = 0
-            while gi3 < len(globals) {
-                let gn = globals[gi3]
-                let host = exported[gn]
-                if host != undefined {
-                    vGlobals[gi3] = host
+        let pairs = bytecode_host_import("" + imports[ii])
+        if pairs != null && pairs != undefined {
+            let pi = 0
+            while pi < len(pairs) {
+                let pair = pairs[pi]
+                let en = pair[0]
+                let host = pair[1]
+                let gi3 = 0
+                while gi3 < len(globals) {
+                    if globals[gi3] == en {
+                        vGlobals[gi3] = host
+                    }
+                    gi3 = gi3 + 1
                 }
-                gi3 = gi3 + 1
+                pi = pi + 1
             }
         }
         ii = ii + 1
@@ -775,12 +778,6 @@ pub fn runModule(bc) {
     vArrows = arrows
     vTryRegions = tryRegions
     vLocalNames = localNames
-    vGlobals = []
-    let gi = 0
-    while gi < len(globals) {
-        vGlobals = push(vGlobals, undefined)
-        gi = gi + 1
-    }
     let fi = 0
     while fi < len(functions) {
         let sym = functions[fi]["sym"]
@@ -810,15 +807,40 @@ pub fn runModule(bc) {
     if ops == null || ops == undefined {
         ops = []
     }
+    let fillI = 0
+    while fillI < len(globals) {
+        if vGlobals[fillI] == undefined {
+            let fillH = bytecode_host_get("" + globals[fillI])
+            if fillH != undefined {
+                vGlobals[fillI] = fillH
+            }
+        }
+        fillI = fillI + 1
+    }
     runOps(ops, pool, globals, functions)
-    if vUnsupported {
+    let out = vResult
+    let unsupported = vUnsupported
+    let done = vDone
+    if done == false {
+        if len(vStack) > 0 {
+            out = vStack[len(vStack) - 1]
+        }
+    }
+    vStack = oldStack
+    vLocals = oldLocals
+    vGlobals = oldGlobals
+    vClasses = oldClasses
+    vArrows = oldArrows
+    vTryRegions = oldTry
+    vLocalNames = oldNames
+    vThisStack = oldThis
+    vLastThis = oldLastThis
+    vIp = oldIp
+    vDone = oldDone
+    vResult = oldResult
+    vUnsupported = oldUnsupported
+    if unsupported {
         throw "vm unsupported opcode in main"
     }
-    if vDone {
-        return vResult
-    }
-    if len(vStack) > 0 {
-        return vStack[len(vStack) - 1]
-    }
-    return null
+    return out
 }

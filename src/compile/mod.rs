@@ -48,32 +48,19 @@ impl CompilePrefer {
     }
 }
 
-/// Skip self-host only for heavy bootstrap cores (S3) and very large files.
-/// `deserialize`/`vm` stay skipped by default (self-host emit of them is still slow);
-/// set `KABOOTAR_SELF_HOST_CORES=1` to attempt them when under the size gate.
+/// Skip self-host for heavy emit/parser cores. `deserialize`/`vm` may self-host when ≤64KB
+/// (`import` of those files still uses Rust via `load_program_for_file`).
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
-    let allow_vm_cores = matches!(
-        std::env::var("KABOOTAR_SELF_HOST_CORES").as_deref(),
-        Ok("1") | Ok("true") | Ok("yes")
-    );
     let core = [
         "self_host/emit.kab",
         "self_host/parser.kab",
         "self_host/lexer.kab",
         "self_host/compile.kab",
         "self_host/serialize.kab",
-        "self_host/deserialize.kab",
-        "self_host/vm.kab",
     ];
     for c in core {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
-            if allow_vm_cores
-                && (c.ends_with("deserialize.kab") || c.ends_with("vm.kab"))
-                && source.len() <= 64 * 1024
-            {
-                continue;
-            }
             return false;
         }
     }
@@ -84,21 +71,10 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         .unwrap_or("");
     if matches!(
         base,
-        "emit.kab"
-            | "parser.kab"
-            | "lexer.kab"
-            | "compile.kab"
-            | "serialize.kab"
-            | "deserialize.kab"
-            | "vm.kab"
+        "emit.kab" | "parser.kab" | "lexer.kab" | "compile.kab" | "serialize.kab"
     ) && norm.contains("self_host")
     {
-        if allow_vm_cores && matches!(base, "deserialize.kab" | "vm.kab") && source.len() <= 64 * 1024
-        {
-            // fall through to size check
-        } else {
-            return false;
-        }
+        return false;
     }
     if source.len() > 64 * 1024 {
         return false;
@@ -107,6 +83,8 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
 }
 
 fn kab_vm_only_mode() -> bool {
+    // Process-wide strict only via env. Default delete-gate for `.kbc` lives in
+    // `kab/vm` `evalKbc` when `kabVmRunOk` (Rust may still host-fallback for large/kv8).
     matches!(
         std::env::var("KABOOTAR_VM").as_deref(),
         Ok("kab-only") | Ok("only") | Ok("kab_only")
@@ -131,39 +109,45 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
     // Module resolution is cwd-relative; prefer the package root when available.
     let _cwd_guard = PackageRootGuard::enter();
 
-    let mut env = create_global_env();
-    crate::modules::import_module("self_host/compile", &mut env).map_err(|e| {
-        crate::runtime::stdlib::error::format_runtime_error(&e)
-    })?;
-    let compile_fn = env
-        .get("compile")
-        .ok_or_else(|| "self_host/compile: missing export `compile`".to_string())?;
-    let result = call_value(
-        compile_fn,
-        vec![Value::String(source.to_string())],
-        &[],
-        &[],
-        &[],
-        &[],
-        &mut env,
-    )
-    .map_err(|e| crate::runtime::stdlib::error::format_runtime_error(&e))?;
-    let Value::String(kbc) = result else {
-        return Err(format!(
-            "self_host compile must return .kbc text, got {}",
-            crate::value::format_value(&result)
-        ));
-    };
-    if !kbc.starts_with(FORMAT_HEADER) {
-        return Err("self_host compile did not emit kabootar-bytecode header".into());
-    }
-    let module = deserialize(&kbc)?;
-    Ok(CompiledProgram {
-        stmts: Vec::new(),
-        bytecode: Some(module.clone()),
-        stmt_count: rough_stmt_count(source),
-        memory_mode: module.memory_mode,
-    })
+    // Force host VM while running the self-host toolchain (avoid Kab meta-eval).
+    let prev_exec = KAB_VM_EXEC_ACTIVE.swap(true, Ordering::AcqRel);
+    let compiled = (|| {
+        let mut env = create_global_env();
+        crate::modules::import_module("self_host/compile", &mut env).map_err(|e| {
+            crate::runtime::stdlib::error::format_runtime_error(&e)
+        })?;
+        let compile_fn = env
+            .get("compile")
+            .ok_or_else(|| "self_host/compile: missing export `compile`".to_string())?;
+        let result = call_value(
+            compile_fn,
+            vec![Value::String(source.to_string())],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .map_err(|e| crate::runtime::stdlib::error::format_runtime_error(&e))?;
+        let Value::String(kbc) = result else {
+            return Err(format!(
+                "self_host compile must return .kbc text, got {}",
+                crate::value::format_value(&result)
+            ));
+        };
+        if !kbc.starts_with(FORMAT_HEADER) {
+            return Err("self_host compile did not emit kabootar-bytecode header".into());
+        }
+        let module = deserialize(&kbc)?;
+        Ok(CompiledProgram {
+            stmts: Vec::new(),
+            bytecode: Some(module.clone()),
+            stmt_count: rough_stmt_count(source),
+            memory_mode: module.memory_mode,
+        })
+    })();
+    KAB_VM_EXEC_ACTIVE.store(prev_exec, Ordering::Release);
+    compiled
 }
 
 /// Temporarily set cwd to the package root (directory containing `self_host/`).
