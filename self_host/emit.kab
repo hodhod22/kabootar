@@ -104,6 +104,10 @@ let eEnums = []
 let eClassMethods = []
 let eClassMethodsSrc = []
 let eClassIsStruct = 0
+let eArrows = []
+let eTryRegions = []
+let eFnTryRegions = []
+let eForCounter = 0
 let eGenTmpl = null
 let eGenSym = ""
 let eMangled = ""
@@ -284,6 +288,10 @@ fn emitExpr(node) {
     }
     if eNode.kind == AST_VAR {
         eSym = eNode["sym"]
+        if eSym == "None" {
+            emitOp(OP_MAKE_NONE, 0)
+            return
+        }
         emitSym(0,eSym)
         return
     }
@@ -300,6 +308,46 @@ fn emitExpr(node) {
             return
         }
         throw "Unsupported unary op: " + uOp
+    }
+    if eNode.kind == AST_ARROW {
+        let aParams = eNode["params"]
+        let aBody = eNode["body"]
+        let saveIn = eInFn
+        let saveOps = arrUtil("snap", eFnOps)
+        let saveLocals = arrUtil("snap", eFnLocals)
+        let saveGlobals = arrUtil("snap", eFnGlobals)
+        let saveTry = arrUtil("snap", eFnTryRegions)
+        eInFn = 1
+        eFnOps = []
+        eFnLocals = []
+        eFnGlobals = []
+        eFnTryRegions = []
+        let api = 0
+        while api < len(aParams) {
+            symIndex("local", aParams[api])
+            api = api + 1
+        }
+        if aBody.kind == AST_BLOCK {
+            emitStmt(aBody)
+        } else {
+            emitExpr(aBody)
+            emitOp(OP_RETURN, 0)
+        }
+        let ai = len(eArrows)
+        eArrows = push(eArrows, {
+            "sym": "__arrow_" + ai,
+            "params": arrUtil("snap", aParams),
+            "locals": arrUtil("snap", eFnLocals),
+            "ops": arrUtil("snap", eFnOps),
+            "tryRegions": arrUtil("snap", eFnTryRegions)
+        })
+        eInFn = saveIn
+        eFnOps = saveOps
+        eFnLocals = saveLocals
+        eFnGlobals = saveGlobals
+        eFnTryRegions = saveTry
+        emitOp(OP_MAKE_ARROW, ai)
+        return
     }
     if eNode.kind == AST_BINARY {
         let binOp = eNode["op"]
@@ -469,6 +517,29 @@ fn emitExpr(node) {
         eArgs = eNode["args"]
         eCalleeStack = push(eCalleeStack, eNode["callee"])
         eCallee = eNode["callee"]
+        if eCallee.kind == AST_VAR {
+            let ctorName = eCallee["sym"]
+            if len(eArgs) == 1 {
+                if ctorName == "Ok" {
+                    emitExpr(eArgs[0])
+                    emitOp(OP_MAKE_OK, 0)
+                    eCalleeStack = pop(eCalleeStack)
+                    return
+                }
+                if ctorName == "Err" {
+                    emitExpr(eArgs[0])
+                    emitOp(OP_MAKE_ERR, 0)
+                    eCalleeStack = pop(eCalleeStack)
+                    return
+                }
+                if ctorName == "Some" {
+                    emitExpr(eArgs[0])
+                    emitOp(OP_MAKE_SOME, 0)
+                    eCalleeStack = pop(eCalleeStack)
+                    return
+                }
+            }
+        }
         if eCallee.kind == AST_MEMBER {
             eMemObj = eCallee["object"]
             eMemFld = eCallee["field"]
@@ -1210,6 +1281,107 @@ fn emitStmt(node) {
         emitOp(OP_THROW, 0)
         return
     }
+    if eNode.kind == AST_TRY {
+        if eInFn != 1 {
+            throw "try/catch only supported inside fn (self-host emit)"
+        }
+        let tryBody = eNode["body"]
+        let tryHandler = eNode["handler"]
+        let errName = eNode["errName"]
+        let bodyStart = len(eFnOps)
+        emitStmt(tryBody)
+        let bodyEnd = len(eFnOps)
+        // Statement try: jump over catch on success (throw uses tryRegions).
+        emitOp(OP_JUMP, 0)
+        let jmpEndIdx = bodyEnd
+        let catchStart = len(eFnOps)
+        let errLocal = symIndex("local", errName)
+        eFnTryRegions = push(eFnTryRegions, {
+            "bodyStart": bodyStart,
+            "bodyEnd": bodyEnd,
+            "catchStart": catchStart,
+            "errLocal": errLocal
+        })
+        emitOp(OP_STORE_LOCAL, errLocal)
+        emitStmt(tryHandler)
+        let afterCatch = len(eFnOps)
+        eFnOps[jmpEndIdx] = { "op": OP_JUMP, "arg": afterCatch - jmpEndIdx - 1 }
+        return
+    }
+    if eNode.kind == AST_FOR_OF {
+        if eInFn != 1 {
+            throw "for-of only supported inside fn (self-host emit)"
+        }
+        let forSym = eNode["sym"]
+        let forIter = eNode["iterable"]
+        let forBody = eNode["body"]
+        let n = eForCounter
+        eForCounter = n + 1
+        let src = "__kab_f" + n + "_src"
+        let res = "__kab_f" + n + "_r"
+        let srcIdx = symIndex("local", src)
+        let resIdx = symIndex("local", res)
+        let varIdx = symIndex("local", forSym)
+        emitExpr(forIter)
+        emitOp(OP_STORE_LOCAL, srcIdx)
+        emitOp(OP_LOAD_LOCAL, srcIdx)
+        emitOp(OP_LOAD_GLOBAL, symIndex("global", "iterator_begin"))
+        emitOp(OP_CALL, 1)
+        emitOp(OP_STORE_LOCAL, srcIdx)
+        eBreakFromStack = arrUtil("pushLen", eBreakFromStack, eBreakIdxs)
+        let loopStart = len(eFnOps)
+        eWhileHeads = push(eWhileHeads, loopStart)
+        emitOp(OP_LOAD_LOCAL, srcIdx)
+        emitOp(OP_ITER_STEP, 0)
+        emitOp(OP_STORE_LOCAL, resIdx)
+        emitOp(OP_STORE_LOCAL, srcIdx)
+        emitOp(OP_LOAD_LOCAL, resIdx)
+        emitOp(OP_CONST, symIndex("const", "done"))
+        emitOp(OP_INDEX_GET, 0)
+        let jmpDoneIdx = len(eFnOps)
+        emitOp(OP_JUMP_IF_FALSE, 0)
+        let jmpExitIdx = len(eFnOps)
+        emitOp(OP_JUMP, 0)
+        let bodyStart = len(eFnOps)
+        eFnOps[jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": bodyStart - jmpDoneIdx - 1 }
+        emitOp(OP_LOAD_LOCAL, resIdx)
+        emitOp(OP_CONST, symIndex("const", "value"))
+        emitOp(OP_INDEX_GET, 0)
+        emitOp(OP_STORE_LOCAL, varIdx)
+        emitStmt(forBody)
+        emitOp(OP_JUMP, loopStart - len(eFnOps) - 1)
+        let loopEnd = len(eFnOps)
+        eFnOps[jmpExitIdx] = { "op": OP_JUMP, "arg": loopEnd - jmpExitIdx - 1 }
+        eBf = eBreakFromStack[len(eBreakFromStack) - 1]
+        eBi = eBf
+        while eBi < len(eBreakIdxs) {
+            eJumpOff = loopEnd - eBreakIdxs[eBi] - 1
+            eFnOps[eBreakIdxs[eBi]] = { "op": OP_JUMP, "arg": eJumpOff }
+            eBi = eBi + 1
+        }
+        if eBf > 0 {
+            eWhNew = []
+            eWhI = 0
+            while eWhI < eBf {
+                eWhNew = push(eWhNew, eBreakIdxs[eWhI])
+                eWhI = eWhI + 1
+            }
+            eBreakIdxs = eWhNew
+        } else {
+            eBreakIdxs = []
+        }
+        if len(eWhileHeads) > 0 {
+            eWhileHeads = pop(eWhileHeads)
+        } else {
+            eWhileHeads = []
+        }
+        if len(eBreakFromStack) > 0 {
+            eBreakFromStack = pop(eBreakFromStack)
+        } else {
+            eBreakFromStack = []
+        }
+        return
+    }
     if eNode.kind == AST_RETURN {
         if eNode["value"] == null {
             emitOp(OP_CONST, symIndex("const",null))
@@ -1512,6 +1684,7 @@ fn emitStmt(node) {
         eFnOps = []
         eFnGlobals = []
         eFnLocals = []
+        eFnTryRegions = []
         eParamI = 0
         while eParamI < len(eParams) {
             eLoopSave = eParamI
@@ -1524,9 +1697,11 @@ fn emitStmt(node) {
             "params": arrUtil("snap",eParams),
             "locals": arrUtil("snap",eFnLocals),
             "globals": arrUtil("snap",eFnGlobals),
-            "ops": arrUtil("snap",eFnOps)
+            "ops": arrUtil("snap",eFnOps),
+            "tryRegions": arrUtil("snap", eFnTryRegions)
         })
         eInFn = 0
+        eFnTryRegions = []
         symIndex("global",eFnSave)
         if eFnPub == 1 {
             eExports = push(eExports, ("" + eFnSave) + "")
@@ -1574,6 +1749,10 @@ pub fn emit(program) {
     eGenericMethodTemplates = []
     eClasses = []
     eEnums = []
+    eArrows = []
+    eTryRegions = []
+    eFnTryRegions = []
+    eForCounter = 0
     eSpecMangled = []
     eBindingSyms = []
     eBindingTypes = []
@@ -1599,5 +1778,18 @@ pub fn emit(program) {
         eBlockIStack = push(eBlockIStack, eBlockI)
     }
     emitOp(OP_HALT, 0)
-    return { "constants": eConsts, "globals": eGlobals, "ops": eOps, "functions": eFunctions, "classes": eClasses, "enums": eEnums, "genericMethodTemplates": eGenericMethodTemplates, "exports": eExports, "imports": eImports }
+    return {
+        "constants": eConsts,
+        "globals": eGlobals,
+        "ops": eOps,
+        "functions": eFunctions,
+        "classes": eClasses,
+        "enums": eEnums,
+        "arrows": eArrows,
+        "tryRegions": eTryRegions,
+        "locals": [],
+        "genericMethodTemplates": eGenericMethodTemplates,
+        "exports": eExports,
+        "imports": eImports
+    }
 }

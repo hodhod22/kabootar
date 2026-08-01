@@ -610,14 +610,20 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
     crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
 }
 
-/// H6e Kab VM: import a module into the current env (binds exports for LOAD_GLOBAL).
+/// H6e Kab VM: import a module into the current env; return `{ name: value, ... }` exports.
 fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let name = match args.first() {
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("bytecode_host_import(name) expects a string".into()),
     };
-    modules::import_module(name, env)?;
-    Ok(Value::Bool(true))
+    let exported = modules::import_module_exported(name, env)?;
+    let mut map = std::collections::HashMap::new();
+    for en in exported {
+        if let Some(v) = env.get(&en) {
+            map.insert(en, v);
+        }
+    }
+    Ok(Value::Object(map))
 }
 
 /// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.

@@ -9,7 +9,7 @@ import "self_host/deserialize"
 import "self_host/vm"
 import "self_host/compile"
 
-let kabVmRunPrefer = true
+let kabVmRunPrefer = false
 let kabVmRunCached = false
 let kabVmRunOk = false
 
@@ -61,10 +61,19 @@ pub fn evalKbcKabOnly(kbc) {
 }
 
 /// Run `.kbc` — Kab VM when possible, else host VM syscall.
+/// After `preferKabVmRun()` + healthy core probe, skip host fallback (kab-only for .kbc).
 pub fn evalKbc(kbc) {
     let s = "" + kbc
     if len(s) > 262144 {
         return bytecode_run_kbc(kbc)
+    }
+    if kabVmRunPrefer {
+        if !kabVmRunCached {
+            refreshKabVmRunOk()
+        }
+        if kabVmRunOk {
+            return tryKabVm(kbc)
+        }
     }
     let kab = null
     let err = null

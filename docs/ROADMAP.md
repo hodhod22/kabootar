@@ -648,7 +648,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`**; Kab VM: try-regions/`jump_if_result_err`, `make_arrow_fn`+`arrows=`, `iterator_step_in_place` (+ `bytecode_iterator_step_in_place` host), swap/array_push/bitops/class/arith. **`KABOOTAR_VM=kab-only`** stänger host `run_module` (nästlade import under `EXEC_ACTIVE` får host). Soft `evalKbc` fallback kvar som default. Bootstrap-kärnor (`emit`/`parser`/…) fortfarande Rust-compile. Smokes: `h6e_kab_*`, `vm_adv_probe`, `vm_hostops_probe`.
+**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`**; Kab VM: try-regions, `make_arrow_fn`+`arrows=`, `iterator_step_in_place`, Result/Option (`make_ok`/`err`/`some`/`none`), import-bind via `bytecode_host_import` export-map, swap/array_push/bitops/class/arith. Self-host **parse/emit** for `try`/`catch`, `for…of`, `=>`, `Ok`/`Err`/`Some`/`None`. Kab VM **opt-in** (`preferKabVmRun` / `KABOOTAR_VM=kab|kab-only`); när prefer+`kabVmRunOk`: `evalKbc` utan host-fallback. `KABOOTAR_SELF_HOST_CORES=1` för deserialize/vm self-host. Smokes: `h6e_kab_*`, `vm_lang_probe`, `vm_adv_probe`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 

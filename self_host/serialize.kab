@@ -182,6 +182,27 @@ fn irOpLine(op) {
     if sOp == OP_THROW {
         return "throw"
     }
+    if sOp == OP_JUMP_IF_RESULT_ERR {
+        return "jump_if_result_err " + ("" + op.arg)
+    }
+    if sOp == OP_MAKE_ARROW {
+        return "make_arrow_fn " + ("" + op.arg)
+    }
+    if sOp == OP_ITER_STEP {
+        return "iterator_step_in_place"
+    }
+    if sOp == OP_MAKE_OK {
+        return "make_ok"
+    }
+    if sOp == OP_MAKE_ERR {
+        return "make_err"
+    }
+    if sOp == OP_MAKE_SOME {
+        return "make_some"
+    }
+    if sOp == OP_MAKE_NONE {
+        return "make_none"
+    }
     if sOp == OP_HALT {
         return "halt"
     }
@@ -291,6 +312,15 @@ pub fn serialize_bc(bc) {
             sJ = sJ + 1
         }
         sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + sParams)
+        // Function try regions
+        if sFn["tryRegions"] != undefined {
+            sJ = 0
+            while sJ < len(sFn["tryRegions"]) {
+                let tr = sFn["tryRegions"][sJ]
+                sOut = sOut + CHAR_NL + ("fn_try_region " + ("" + sI) + " " + ("" + sJ) + " " + ("" + tr["bodyStart"]) + " " + ("" + tr["bodyEnd"]) + " " + ("" + tr["catchStart"]) + " " + ("" + tr["errLocal"]))
+                sJ = sJ + 1
+            }
+        }
         // Function ops
         sJ = 0
         while sJ < len(sFn.ops) {
@@ -298,6 +328,54 @@ pub fn serialize_bc(bc) {
             sJ = sJ + 1
         }
         sI = sI + 1
+    }
+    // Module-level arrows
+    if bc.arrows == undefined {
+        sOut = sOut + CHAR_NL + "arrows=0"
+    } else {
+        sOut = sOut + CHAR_NL + ("arrows=" + ("" + len(bc.arrows)))
+        sI = 0
+        while sI < len(bc.arrows) {
+            let arr = bc.arrows[sI]
+            sOut = sOut + CHAR_NL + ("arrow " + ("" + sI) + " " + arr["sym"])
+            sParams = ""
+            sJ = 0
+            while sJ < len(arr["params"]) {
+                if sParams == "" {
+                    sParams = arr["params"][sJ]
+                } else {
+                    sParams = sParams + "," + arr["params"][sJ]
+                }
+                sJ = sJ + 1
+            }
+            sOut = sOut + CHAR_NL + ("arrow_params " + ("" + sI) + " " + sParams)
+            sParams = ""
+            sJ = 0
+            while sJ < len(arr["locals"]) {
+                if sParams == "" {
+                    sParams = arr["locals"][sJ]
+                } else {
+                    sParams = sParams + "," + arr["locals"][sJ]
+                }
+                sJ = sJ + 1
+            }
+            sOut = sOut + CHAR_NL + ("arrow_locals " + ("" + sI) + " " + sParams)
+            sJ = 0
+            while sJ < len(arr["ops"]) {
+                sOut = sOut + CHAR_NL + ("arrow_op " + ("" + sI) + " " + irOpLine(arr["ops"][sJ]))
+                sJ = sJ + 1
+            }
+            sI = sI + 1
+        }
+    }
+    // Main try regions
+    if bc.tryRegions != undefined {
+        sI = 0
+        while sI < len(bc.tryRegions) {
+            let mtr = bc.tryRegions[sI]
+            sOut = sOut + CHAR_NL + ("main_try_region " + ("" + sI) + " " + ("" + mtr["bodyStart"]) + " " + ("" + mtr["bodyEnd"]) + " " + ("" + mtr["catchStart"]) + " " + ("" + mtr["errLocal"]))
+            sI = sI + 1
+        }
     }
     // Exports
     if bc.exports == undefined {

@@ -601,8 +601,24 @@ fn runOps(ops, pool, globals, functions) {
             }
         } else if name == "jump_if_result_err" {
             let v = vPop()
-            // Kab Result Err is rare; non-Result = success path (push back).
-            vPush(v)
+            if typeof(v) == "object" && v != null && v["vmResult"] == "err" {
+                vPush(v["v"])
+                vIp = vIp + 1 + arg
+                continue
+            }
+            if typeof(v) == "object" && v != null && v["vmResult"] == "ok" {
+                vPush(v["v"])
+            } else {
+                vPush(v)
+            }
+        } else if name == "make_ok" {
+            vPush({ "vmResult": "ok", "v": vPop() })
+        } else if name == "make_err" {
+            vPush({ "vmResult": "err", "v": vPop() })
+        } else if name == "make_some" {
+            vPush({ "vmOption": "some", "v": vPop() })
+        } else if name == "make_none" {
+            vPush({ "vmOption": "none" })
         } else if name == "make_arrow_fn" {
             vPush({ "vmArrow": arg, "caps": vSnapCaps() })
         } else if name == "iterator_step_in_place" {
@@ -741,7 +757,18 @@ pub fn runModule(bc) {
     }
     let ii = 0
     while ii < len(imports) {
-        bytecode_host_import("" + imports[ii])
+        let exported = bytecode_host_import("" + imports[ii])
+        if exported != null && exported != undefined && typeof(exported) == "object" {
+            let gi3 = 0
+            while gi3 < len(globals) {
+                let gn = globals[gi3]
+                let host = exported[gn]
+                if host != undefined {
+                    vGlobals[gi3] = host
+                }
+                gi3 = gi3 + 1
+            }
+        }
         ii = ii + 1
     }
     vClasses = classes
