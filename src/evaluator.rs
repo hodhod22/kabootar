@@ -148,6 +148,10 @@ pub fn create_global_env() -> Environment {
         "bytecode_host_import".to_string(),
         Value::NativeFunction(bytecode_host_import_native),
     );
+    env.set(
+        "bytecode_iterator_step_in_place".to_string(),
+        Value::NativeFunction(bytecode_iterator_step_in_place_native),
+    );
     browser_globals(&mut env);
     browser_platform_globals(&mut env);
     kabootar_dom_globals(&mut env);
@@ -614,6 +618,20 @@ fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<
     };
     modules::import_module(name, env)?;
     Ok(Value::Bool(true))
+}
+
+/// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.
+fn bytecode_iterator_step_in_place_native(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let mut it = args
+        .first()
+        .cloned()
+        .ok_or("bytecode_iterator_step_in_place(iterator)")?;
+    let (value, done) = crate::runtime::stdlib::iterator::iterator_next(&mut it, env)?;
+    let result = crate::runtime::stdlib::iterator::iterator_result(value, done);
+    Ok(Value::Array(vec![it, result]))
 }
 
 fn index_to_usize(idx: &Value, len: usize) -> Result<usize, String> {

@@ -1,0 +1,91 @@
+import "self_host/deserialize"
+import "self_host/vm"
+import "self_host/lexer_defs"
+
+let NL = CHAR_NL
+
+fn kbcJoin(parts) {
+    let out = parts[0]
+    let i = 1
+    while i < len(parts) {
+        out = out + NL + parts[i]
+        i = i + 1
+    }
+    return out
+}
+
+let tryKbc = kbcJoin([
+    "kabootar-bytecode/1",
+    "constants=1",
+    "const 0 string x",
+    "local 0 e",
+    "main_try_region 0 0 2 4 0",
+    "code",
+    "const 0",
+    "throw",
+    "jump_if_result_err 1",
+    "jump 3",
+    "store_local 0",
+    "load_local 0",
+    "return",
+    "halt"
+])
+let tryOk = runModule(deserializeKbc(tryKbc)) == "x"
+
+let arrowKbc = kbcJoin([
+    "kabootar-bytecode/1",
+    "constants=1",
+    "const 0 number 1",
+    "arrows=1",
+    "arrow 0 __arrow_0",
+    "arrow_params 0 a",
+    "arrow_locals 0 a",
+    "arrow_op 0 load_local 0",
+    "arrow_op 0 const 0",
+    "arrow_op 0 add",
+    "arrow_op 0 return",
+    "local 0 f",
+    "code",
+    "make_arrow_fn 0",
+    "store_local 0",
+    "const 0",
+    "load_local 0",
+    "call 1",
+    "return",
+    "halt"
+])
+let arrowOk = runModule(deserializeKbc(arrowKbc)) == 2
+
+let it = iterator_begin([10, 20])
+let pair = bytecode_iterator_step_in_place(it)
+let iterOk = pair[1]["value"] == 10 && pair[1]["done"] == false
+
+let stepBc = {
+    "constants": [9, "value"],
+    "globals": ["iterator_begin"],
+    "locals": ["src", "r"],
+    "functions": [],
+    "classes": [],
+    "imports": [],
+    "arrows": [],
+    "tryRegions": [],
+    "ops": [
+        { "op": "const", "arg": 0 },
+        { "op": "make_array", "arg": 1 },
+        { "op": "load_global", "arg": 0 },
+        { "op": "call", "arg": 1 },
+        { "op": "store_local", "arg": 0 },
+        { "op": "load_local", "arg": 0 },
+        { "op": "iterator_step_in_place", "arg": 0 },
+        { "op": "store_local", "arg": 1 },
+        { "op": "store_local", "arg": 0 },
+        { "op": "load_local", "arg": 1 },
+        { "op": "const", "arg": 1 },
+        { "op": "index_get", "arg": 0 },
+        { "op": "return", "arg": 0 },
+        { "op": "halt", "arg": 0 }
+    ]
+}
+let stepOpOk = runModule(stepBc) == 9
+
+return tryOk && arrowOk && iterOk && stepOpOk

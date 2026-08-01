@@ -57,6 +57,8 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "self_host/parser.kab",
         "self_host/lexer.kab",
         "self_host/compile.kab",
+        // serialize/deserialize/vm may self-host when small enough; still skipped as cores
+        // until S3 bootstrap (hours-long emit). Probes are outside this list.
         "self_host/serialize.kab",
         "self_host/deserialize.kab",
         "self_host/vm.kab",
@@ -412,7 +414,10 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
                 }
             }
             if kab_vm_only_mode() {
-                return Err("Kab VM only: host bytecode VM disabled".into());
+                // Nested loads while evaluating via Kab (imports of kab/vm deps) may use host.
+                if !KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+                    return Err("Kab VM only: host bytecode VM disabled".into());
+                }
             }
             let result = run_module(bytecode, env)?;
             drain_all_microtasks(env)?;
