@@ -200,17 +200,39 @@ static KAB_VM_RUN_ENABLED: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
 static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
 static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
 
-fn kab_vm_run_enabled(_env: &mut Environment) -> Result<bool, String> {
-    // Opt-in only: Kab VM subset is not yet safe for all product modules (Rust opcodes).
-    // Default run_file stays on host VM. Set KABOOTAR_VM=kab to prefer Kab VM for small .kbc.
+fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
+    // Prefer Kab VM for small .kbc when policy is healthy; evalKbc falls back to host VM.
+    // KABOOTAR_VM=rust|host forces host; kab|kabootar|self forces prefer Kab.
     if KAB_VM_POLICY_PROBE.load(Ordering::Acquire) || KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
         return Ok(false);
     }
     match std::env::var("KABOOTAR_VM").as_deref() {
-        Ok("kab") | Ok("kabootar") | Ok("self") => Ok(true),
-        Ok("rust") | Ok("host") => Ok(false),
-        _ => Ok(false),
+        Ok("rust") | Ok("host") => return Ok(false),
+        Ok("kab") | Ok("kabootar") | Ok("self") => return Ok(true),
+        _ => {}
     }
+    let slot = KAB_VM_RUN_ENABLED.get_or_init(|| Mutex::new(None));
+    if let Ok(guard) = slot.lock() {
+        if let Some(cached) = *guard {
+            return Ok(cached);
+        }
+    }
+    KAB_VM_POLICY_PROBE.store(true, Ordering::Release);
+    let probed = (|| {
+        modules::import_module("kab/vm", env)?;
+        let f = env
+            .get("kabVmRunEnabled")
+            .ok_or("kab/vm: missing kabVmRunEnabled")?;
+        let v = call_value(f, vec![], &[], &[], &[], &[], env)?;
+        drain_all_microtasks(env)?;
+        Ok::<bool, String>(v.is_truthy())
+    })();
+    KAB_VM_POLICY_PROBE.store(false, Ordering::Release);
+    let enabled = probed.unwrap_or(false);
+    if let Ok(mut guard) = slot.lock() {
+        *guard = Some(enabled);
+    }
+    Ok(enabled)
 }
 
 fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String> {

@@ -287,6 +287,20 @@ fn emitExpr(node) {
         emitSym(0,eSym)
         return
     }
+    if eNode.kind == AST_UNARY {
+        let uOp = eNode["op"]
+        let uInner = eNode["expr"]
+        emitExpr(uInner)
+        if uOp == "!" {
+            emitOp(OP_NOT, 0)
+            return
+        }
+        if uOp == "-" {
+            emitOp(OP_NEG, 0)
+            return
+        }
+        throw "Unsupported unary op: " + uOp
+    }
     if eNode.kind == AST_BINARY {
         let binOp = eNode["op"]
         let binRight = eNode["right"]
@@ -299,6 +313,22 @@ fn emitExpr(node) {
         }
         if eBinOp == "-" {
             emitOp(OP_SUB, 0)
+            return
+        }
+        if eBinOp == "*" {
+            emitOp(OP_MUL, 0)
+            return
+        }
+        if eBinOp == "/" {
+            emitOp(OP_DIV, 0)
+            return
+        }
+        if eBinOp == "%" {
+            emitOp(OP_MOD, 0)
+            return
+        }
+        if eBinOp == "**" {
+            emitOp(OP_POW, 0)
             return
         }
         if eBinOp == "==" {
@@ -327,6 +357,10 @@ fn emitExpr(node) {
         }
         if eBinOp == "&&" {
             emitOp(OP_AND, 0)
+            return
+        }
+        if eBinOp == "||" {
+            emitOp(OP_OR, 0)
             return
         }
         throw "Unsupported binary op: " + eBinOp

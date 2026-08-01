@@ -346,11 +346,19 @@ fn runOps(ops, pool, globals, functions) {
         } else if name == OP_AND {
             let b = vPop()
             let a = vPop()
-            vPush(vTruthy(a) && vTruthy(b))
+            if vTruthy(a) {
+                vPush(b)
+            } else {
+                vPush(a)
+            }
         } else if name == OP_OR {
             let b = vPop()
             let a = vPop()
-            vPush(vTruthy(a) || vTruthy(b))
+            if vTruthy(a) {
+                vPush(a)
+            } else {
+                vPush(b)
+            }
         } else if name == OP_NOT {
             let v = vPop()
             vPush(!vTruthy(v))

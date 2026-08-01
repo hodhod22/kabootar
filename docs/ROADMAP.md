@@ -648,7 +648,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`** (`evalSourceKabVm` / `evalKbcKabOnly` delete-gate utan host-fallback; `evalKbc` med fallback); **Kab VM** i `self_host/vm` + `self_host/deserialize` (obj/index/member/class/`new_instance`/imports + host natives; `h6e_kab_vm_smoke`, `h6e_kab_vm_delete_gate`, `vm_class_probe`). `run_file` host-VM default; `KABOOTAR_VM=kab` opt-in för små `.kbc` (≤256KB). Rust = processladdare + thin host-call/import + VM-syscall.
+**H6e** ✅ **subset** — `kab/boot` + **`kab/vm`** (`evalSourceKabVm` / `evalKbcKabOnly` delete-gate utan host-fallback; `evalKbc` med fallback); **Kab VM** i `self_host/vm` + `self_host/deserialize` (obj/index/member/class/`new_instance`/imports + arith `*`/`/`/`%`/`**`/`!`/`-`/`||` + host natives; `h6e_kab_vm_smoke`, `h6e_kab_vm_delete_gate`, `vm_class_probe`, `vm_arith_probe`). `run_file` prefererar Kab VM för ≤256KB `.kbc` när `kabVmRunEnabled` (fallback host); `KABOOTAR_VM=rust|host` tvingar host. Rust = processladdare + thin host-call/import + VM-syscall.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
