@@ -48,17 +48,53 @@ impl CompilePrefer {
     }
 }
 
-/// Skip self-host for the compiler sources themselves (S3 bootstrap is separate)
-/// and for very large files (subset / time).
+/// Skip self-host only for heavy bootstrap cores (S3) and very large files.
+/// Probes / small self_host helpers may self-host compile.
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
-    if norm.contains("self_host/") {
+    let core = [
+        "self_host/emit.kab",
+        "self_host/parser.kab",
+        "self_host/lexer.kab",
+        "self_host/compile.kab",
+        "self_host/serialize.kab",
+        "self_host/deserialize.kab",
+        "self_host/vm.kab",
+    ];
+    for c in core {
+        if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
+            return false;
+        }
+    }
+    // Legacy basename match when cwd is self_host/
+    let base = Path::new(&norm)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    if matches!(
+        base,
+        "emit.kab"
+            | "parser.kab"
+            | "lexer.kab"
+            | "compile.kab"
+            | "serialize.kab"
+            | "deserialize.kab"
+            | "vm.kab"
+    ) && norm.contains("self_host")
+    {
         return false;
     }
     if source.len() > 64 * 1024 {
         return false;
     }
     true
+}
+
+fn kab_vm_only_mode() -> bool {
+    matches!(
+        std::env::var("KABOOTAR_VM").as_deref(),
+        Ok("kab-only") | Ok("only") | Ok("kab_only")
+    )
 }
 
 fn rough_stmt_count(source: &str) -> usize {
@@ -201,14 +237,17 @@ static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
 static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
-    // Prefer Kab VM for small .kbc when policy is healthy; evalKbc falls back to host VM.
-    // KABOOTAR_VM=rust|host forces host; kab|kabootar|self forces prefer Kab.
+    // Prefer Kab VM for small .kbc when policy is healthy; evalKbc falls back to host VM
+    // unless KABOOTAR_VM=kab-only (strict delete-gate: no Rust run_module).
+    // KABOOTAR_VM=rust|host forces host; kab|kabootar|self|kab-only forces prefer Kab.
     if KAB_VM_POLICY_PROBE.load(Ordering::Acquire) || KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
         return Ok(false);
     }
     match std::env::var("KABOOTAR_VM").as_deref() {
         Ok("rust") | Ok("host") => return Ok(false),
-        Ok("kab") | Ok("kabootar") | Ok("self") => return Ok(true),
+        Ok("kab") | Ok("kabootar") | Ok("self") | Ok("kab-only") | Ok("only") | Ok("kab_only") => {
+            return Ok(true)
+        }
         _ => {}
     }
     let slot = KAB_VM_RUN_ENABLED.get_or_init(|| Mutex::new(None));
@@ -239,7 +278,14 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
     KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
     let result = (|| {
         modules::import_module("kab/vm", env)?;
-        let f = env.get("evalKbc").ok_or("kab/vm: missing evalKbc")?;
+        let fname = if kab_vm_only_mode() {
+            "evalKbcKabOnly"
+        } else {
+            "evalKbc"
+        };
+        let f = env
+            .get(fname)
+            .ok_or_else(|| format!("kab/vm: missing {fname}"))?;
         let v = call_value(
             f,
             vec![Value::String(kbc.to_string())],
@@ -351,12 +397,22 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
         if bytecode.uses_bytecode() {
             if kab_vm_run_enabled(env)? {
                 let kbc = serialize(bytecode);
-                // Kab VM subset: small modules only; large ones stay on host VM.
+                // Kab VM subset: small modules only; large ones stay on host VM
+                // (unless kab-only, which rejects oversized modules).
                 if kbc.len() <= 262144 {
-                    if let Ok(v) = eval_kbc_via_kab_vm(&kbc, env) {
-                        return Ok(v);
+                    match eval_kbc_via_kab_vm(&kbc, env) {
+                        Ok(v) => return Ok(v),
+                        Err(e) if kab_vm_only_mode() => {
+                            return Err(format!("Kab VM only (no host fallback): {e}"))
+                        }
+                        Err(_) => {}
                     }
+                } else if kab_vm_only_mode() {
+                    return Err("Kab VM only: .kbc exceeds 256KB size gate".into());
                 }
+            }
+            if kab_vm_only_mode() {
+                return Err("Kab VM only: host bytecode VM disabled".into());
             }
             let result = run_module(bytecode, env)?;
             drain_all_microtasks(env)?;

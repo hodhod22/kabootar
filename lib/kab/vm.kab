@@ -1,8 +1,8 @@
 @version "1.0.0"
 
-// H6e hard path: Kab VM first, Rust bytecode_run_kbc fallback.
-// import "kab/vm"
-// KEEP <=~7 top-level fn.
+// H6e hard path: Kab VM first; host bytecode_run_kbc only as soft fallback.
+// KABOOTAR_VM=kab-only → Rust eval_program calls evalKbcKabOnly (no host VM).
+// KEEP <=~7 top-level pub fn.
 
 import "kab/boot"
 import "self_host/deserialize"
@@ -51,8 +51,12 @@ pub fn kabVmRunEnabled() {
     return kabVmRunOk
 }
 
-/// Kab-only `.kbc` run — no host VM fallback (H6e delete-gate for subset).
-fn evalKbcKabOnly(kbc) {
+/// Kab-only `.kbc` run — no host VM fallback (H6e / KABOOTAR_VM=kab-only).
+pub fn evalKbcKabOnly(kbc) {
+    let s = "" + kbc
+    if len(s) > 262144 {
+        throw "evalKbcKabOnly: .kbc exceeds 256KB"
+    }
     return tryKabVm(kbc)
 }
 
@@ -73,11 +77,6 @@ pub fn evalKbc(kbc) {
         return kab
     }
     return bytecode_run_kbc(kbc)
-}
-
-/// Self-host compile + Kab VM (fallback host VM).
-pub fn evalSourceKbc(source) {
-    return evalKbc(bootCompile(source))
 }
 
 /// Kab-only: compile IR + runModule (no host VM).
