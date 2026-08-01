@@ -52,6 +52,13 @@ pub let OP_RETURN = "return"
 
 // ----- EXCEPTIONS -----
 pub let OP_THROW = "throw"
+pub let OP_JUMP_IF_RESULT_ERR = "jump_if_result_err"
+pub let OP_MAKE_ARROW = "make_arrow_fn"
+pub let OP_ITER_STEP = "iterator_step_in_place"
+pub let OP_MAKE_OK = "make_ok"
+pub let OP_MAKE_ERR = "make_err"
+pub let OP_MAKE_SOME = "make_some"
+pub let OP_MAKE_NONE = "make_none"
 
 // ----- PROGRAM TERMINATION -----
 pub let OP_HALT = "halt"

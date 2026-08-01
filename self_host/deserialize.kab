@@ -173,6 +173,18 @@ fn parseOpLine(line) {
     if line == "iterator_step_in_place" {
         return { "op": "iterator_step_in_place", "arg": 0 }
     }
+    if line == "make_ok" {
+        return { "op": "make_ok", "arg": 0 }
+    }
+    if line == "make_err" {
+        return { "op": "make_err", "arg": 0 }
+    }
+    if line == "make_some" {
+        return { "op": "make_some", "arg": 0 }
+    }
+    if line == "make_none" {
+        return { "op": "make_none", "arg": 0 }
+    }
     let sp = str_index_of(line, " ")
     if sp < 0 {
         throw "deserialize: bad op " + line

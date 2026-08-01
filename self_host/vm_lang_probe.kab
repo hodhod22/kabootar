@@ -1,0 +1,22 @@
+// H6e: self-host parse/emit for try, for-of, =>, Ok/Err — run via Kab VM IR.
+import "self_host/compile"
+import "self_host/vm"
+
+let tryOk = runModule(compileIr("fn f() { try { throw \"x\" } catch (e) { return e } } return f()")) == "x"
+
+let arrowOk = runModule(compileIr("let f = (a) => a + 1; return f(2)")) == 3
+
+let bareArrowOk = runModule(compileIr("let g = a => a * 2; return g(5)")) == 10
+
+let forOk = runModule(compileIr("fn sum(xs) { let s = 0; for x of xs { s = s + x }; return s } return sum([1, 2, 3])")) == 6
+
+let okRes = runModule(compileIr("return Ok(7)"))
+let resultOk = okRes["vmResult"] == "ok" && okRes["v"] == 7
+
+let someRes = runModule(compileIr("return Some(3)"))
+let optionOk = someRes["vmOption"] == "some" && someRes["v"] == 3
+
+let noneRes = runModule(compileIr("return None"))
+let noneOk = noneRes["vmOption"] == "none"
+
+return tryOk && arrowOk && bareArrowOk && forOk && resultOk && optionOk && noneOk

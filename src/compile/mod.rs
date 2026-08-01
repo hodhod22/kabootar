@@ -49,22 +49,31 @@ impl CompilePrefer {
 }
 
 /// Skip self-host only for heavy bootstrap cores (S3) and very large files.
-/// Probes / small self_host helpers may self-host compile.
+/// `deserialize`/`vm` stay skipped by default (self-host emit of them is still slow);
+/// set `KABOOTAR_SELF_HOST_CORES=1` to attempt them when under the size gate.
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
+    let allow_vm_cores = matches!(
+        std::env::var("KABOOTAR_SELF_HOST_CORES").as_deref(),
+        Ok("1") | Ok("true") | Ok("yes")
+    );
     let core = [
         "self_host/emit.kab",
         "self_host/parser.kab",
         "self_host/lexer.kab",
         "self_host/compile.kab",
-        // serialize/deserialize/vm may self-host when small enough; still skipped as cores
-        // until S3 bootstrap (hours-long emit). Probes are outside this list.
         "self_host/serialize.kab",
         "self_host/deserialize.kab",
         "self_host/vm.kab",
     ];
     for c in core {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
+            if allow_vm_cores
+                && (c.ends_with("deserialize.kab") || c.ends_with("vm.kab"))
+                && source.len() <= 64 * 1024
+            {
+                continue;
+            }
             return false;
         }
     }
@@ -84,7 +93,12 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
             | "vm.kab"
     ) && norm.contains("self_host")
     {
-        return false;
+        if allow_vm_cores && matches!(base, "deserialize.kab" | "vm.kab") && source.len() <= 64 * 1024
+        {
+            // fall through to size check
+        } else {
+            return false;
+        }
     }
     if source.len() > 64 * 1024 {
         return false;

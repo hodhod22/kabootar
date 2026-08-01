@@ -219,6 +219,34 @@ fn parsePostfix() {
     }
     if pLeft == null {
         pTok = peek()
+        if pTok.type == TOKEN_NONE {
+            bump()
+            pLeft = { "kind": AST_VAR, "sym": "None" }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
+        if pTok.type == TOKEN_OK || pTok.type == TOKEN_ERR || pTok.type == TOKEN_SOME {
+            bump()
+            let wrapName = pTok.type
+            if peek().type != "(" {
+                throw "Expected ("
+            }
+            bump()
+            let wrapInner = parseCompare()
+            if peek().type != ")" {
+                throw "Expected )"
+            }
+            bump()
+            pLeft = {
+                "kind": AST_CALL,
+                "callee": { "kind": AST_VAR, "sym": wrapName },
+                "args": [wrapInner]
+            }
+        }
+    }
+    if pLeft == null {
+        pTok = peek()
         if pTok.type == TOKEN_IDENT {
             bump()
             pSymPool = push(pSymPool, symCopy(pTok.value))
@@ -242,12 +270,73 @@ fn parsePostfix() {
     if pLeft == null {
         pTok = peek()
         if pTok.type == "(" {
+            let savePos = pPos
             bump()
-            pLeft = parseCompare()
-            if peek().type != ")" {
-                throw "Expected )"
+            // Arrow: (a, b) => body
+            let arrowParams = []
+            let arrowOk = 1
+            if peek().type == ")" {
+                bump()
+            } else {
+                while peek().type != ")" {
+                    if peek().type != TOKEN_IDENT {
+                        arrowOk = 0
+                        break
+                    }
+                    pTok = peek()
+                    bump()
+                    arrowParams = push(arrowParams, symCopy(pTok.value))
+                    if peek().type == "," {
+                        bump()
+                    } else {
+                        if peek().type != ")" {
+                            arrowOk = 0
+                            break
+                        }
+                    }
+                }
+                if arrowOk == 1 {
+                    if peek().type != ")" {
+                        arrowOk = 0
+                    } else {
+                        bump()
+                    }
+                }
             }
-            bump()
+            if arrowOk == 1 && peek().type == "=>" {
+                bump()
+                let arrowBody = null
+                if peek().type == "{" {
+                    bump()
+                    pBodyStack = push(pBodyStack, pBody)
+                    pBody = []
+                    while peek().type != "}" {
+                        if peek().type == "EOF" {
+                            throw "Unclosed arrow block"
+                        }
+                        pBody = push(pBody, parseStmt())
+                        if peek().type == ";" {
+                            bump()
+                        }
+                    }
+                    bump()
+                    let ab = pBody
+                    pBody = pBodyStack[len(pBodyStack) - 1]
+                    pBodyStack = popStack(pBodyStack)
+                    arrowBody = { "kind": AST_BLOCK, "body": ab }
+                } else {
+                    arrowBody = parseCompare()
+                }
+                pLeft = { "kind": AST_ARROW, "params": arrowParams, "body": arrowBody }
+            } else {
+                pPos = savePos
+                bump()
+                pLeft = parseCompare()
+                if peek().type != ")" {
+                    throw "Expected )"
+                }
+                bump()
+            }
         }
     }
     if pLeft == null {
@@ -301,6 +390,34 @@ fn parsePostfix() {
     }
     if pLeft == null {
         throw json_stringify(peek())
+    }
+    // Bare arrow: a => body
+    if pLeft.kind == AST_VAR && peek().type == "=>" {
+        bump()
+        let bareParams = [pLeft["sym"]]
+        let bareBody = null
+        if peek().type == "{" {
+            bump()
+            pBodyStack = push(pBodyStack, pBody)
+            pBody = []
+            while peek().type != "}" {
+                if peek().type == "EOF" {
+                    throw "Unclosed arrow block"
+                }
+                pBody = push(pBody, parseStmt())
+                if peek().type == ";" {
+                    bump()
+                }
+            }
+            bump()
+            let bb = pBody
+            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBodyStack = popStack(pBodyStack)
+            bareBody = { "kind": AST_BLOCK, "body": bb }
+        } else {
+            bareBody = parseCompare()
+        }
+        pLeft = { "kind": AST_ARROW, "params": bareParams, "body": bareBody }
     }
     while true {
         if peek().type == "<" {
@@ -1029,6 +1146,107 @@ fn parseStmt() {
         pSave = pCondStack[len(pCondStack) - 1]
         pCondStack = popStack(pCondStack)
         return { "kind": AST_IF, "cond": pSave, "then": pThen, "elseBranch": pElse }
+    }
+    if peek().type == TOKEN_TRY {
+        bump()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pBodyStack = push(pBodyStack, pBody)
+        pBody = []
+        while peek().type != "}" {
+            if peek().type == "EOF" {
+                throw "Unclosed try"
+            }
+            pBody = push(pBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        let tryBody = pBody
+        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        if peek().type != TOKEN_CATCH {
+            throw "Expected catch"
+        }
+        bump()
+        if peek().type != "(" {
+            throw "Expected ("
+        }
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected catch binding"
+        }
+        bump()
+        let errSym = symCopy(pTok.value)
+        if peek().type != ")" {
+            throw "Expected )"
+        }
+        bump()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pBodyStack = push(pBodyStack, pBody)
+        pBody = []
+        while peek().type != "}" {
+            if peek().type == "EOF" {
+                throw "Unclosed catch"
+            }
+            pBody = push(pBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        let catchBody = pBody
+        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        return {
+            "kind": AST_TRY,
+            "body": { "kind": AST_BLOCK, "body": tryBody },
+            "errName": errSym,
+            "handler": { "kind": AST_BLOCK, "body": catchBody }
+        }
+    }
+    if peek().type == TOKEN_FOR {
+        bump()
+        pTok = peek()
+        if pTok.type != TOKEN_IDENT {
+            throw "Expected for-of binding"
+        }
+        bump()
+        let forSym = symCopy(pTok.value)
+        if peek().type != TOKEN_OF {
+            throw "Expected of"
+        }
+        bump()
+        let forIter = parseCompare()
+        if peek().type != "{" {
+            throw "Expected {"
+        }
+        bump()
+        pBodyStack = push(pBodyStack, pLoopBody)
+        pLoopBody = []
+        while peek().type != "}" {
+            pLoopBody = push(pLoopBody, parseStmt())
+            if peek().type == ";" {
+                bump()
+            }
+        }
+        bump()
+        let forBody = pLoopBody
+        pLoopBody = pBodyStack[len(pBodyStack) - 1]
+        pBodyStack = popStack(pBodyStack)
+        return {
+            "kind": AST_FOR_OF,
+            "sym": forSym,
+            "iterable": forIter,
+            "body": { "kind": AST_BLOCK, "body": forBody }
+        }
     }
     if peek().type == TOKEN_WHILE {
         bump()
