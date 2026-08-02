@@ -498,6 +498,18 @@ fn runOps(ops, pool, globals, functions) {
             let next = push(arr, item)
             vPush(next)
             vPush(len(next))
+        } else if name == "array_push_local" {
+            let item = vPop()
+            let arr = vLocals[arg]
+            let next = push(arr, item)
+            vLocals[arg] = next
+            vPush(len(next))
+        } else if name == "array_push_global" {
+            let item = vPop()
+            let arr = vResolveGlobal(globals, arg)
+            let next = push(arr, item)
+            vGlobals[arg] = next
+            vPush(len(next))
         } else if name == "concat_array" {
             let right = vPop()
             let left = vPop()

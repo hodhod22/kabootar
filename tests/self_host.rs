@@ -1963,9 +1963,64 @@ fn self_host_vm_cores_not_in_skip_list() {
 fn self_host_deserialize_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/deserialize.kab", env!("CARGO_MANIFEST_DIR"));
-    let (program, backend) =
-        compile_file_prefer(&path, CompilePrefer::SelfHostThenRust).expect("compile");
-    assert!(program.has_bytecode());
+    let path2 = path.clone();
+    let (backend, has_bc) = std::thread::Builder::new()
+        .name("sh-deser".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let (program, backend) =
+                compile_file_prefer(&path2, CompilePrefer::SelfHostThenRust).expect("compile");
+            (backend, program.has_bytecode())
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(has_bc);
+    assert_eq!(backend, "self-host");
+}
+
+#[test]
+#[ignore = "slow: self-host compile of vm.kab (H6e core)"]
+fn self_host_vm_full_compile() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));
+    let path2 = path.clone();
+    let (backend, has_bc) = std::thread::Builder::new()
+        .name("sh-vm".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let (program, backend) =
+                compile_file_prefer(&path2, CompilePrefer::SelfHostThenRust).expect("compile");
+            (backend, program.has_bytecode())
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(has_bc);
+    assert_eq!(backend, "self-host");
+}
+
+/// Verified self-host compile path for an attemptable core (unescape probe).
+#[test]
+fn self_host_unescape_probe_full_compile() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    let path = format!(
+        "{}/self_host/unescape_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let path2 = path.clone();
+    let (backend, has_bc) = std::thread::Builder::new()
+        .name("sh-unescape-compile".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let (program, backend) =
+                compile_file_prefer(&path2, CompilePrefer::SelfHostThenRust).expect("compile");
+            (backend, program.has_bytecode())
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(has_bc);
     assert_eq!(backend, "self-host");
 }
 

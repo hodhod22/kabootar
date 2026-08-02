@@ -284,6 +284,12 @@ fn parseOpLine(line) {
     if head == "make_array" {
         return { "op": OP_MAKE_ARRAY, "arg": arg }
     }
+    if head == "array_push_local" {
+        return { "op": "array_push_local", "arg": arg }
+    }
+    if head == "array_push_global" {
+        return { "op": "array_push_global", "arg": arg }
+    }
     throw "deserialize: unsupported op " + line
 }
 
