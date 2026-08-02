@@ -703,6 +703,52 @@ impl Environment {
         None
     }
 
+    /// Push `item` onto an array binding in place (O(1) amortized). Returns new length.
+    pub fn array_push_inplace(&self, name: &str, item: Value) -> Result<i64, String> {
+        if self.is_immutable(name) {
+            return Err(format!("Cannot assign to const `{name}`"));
+        }
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let mut bindings = node.bindings.borrow_mut();
+            if let Some(v) = bindings.get_mut(name) {
+                match v {
+                    Value::Array(items) => {
+                        items.push(item);
+                        return Ok(items.len() as i64);
+                    }
+                    other => {
+                        return Err(format!(
+                            "array_push_global requires an array (got {})",
+                            crate::value::format_value(other)
+                        ));
+                    }
+                }
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
+    /// In-place `name = name + rhs` (string append or numeric add).
+    pub fn acc_add_inplace(&self, name: &str, rhs: Value) -> Result<(), String> {
+        if self.is_immutable(name) {
+            return Err(format!("Cannot assign to const `{name}`"));
+        }
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let mut bindings = node.bindings.borrow_mut();
+            if let Some(v) = bindings.get_mut(name) {
+                acc_add_value(v, rhs)?;
+                return Ok(());
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
     /// True if `name` is bound on this frame only (not merely via parent).
     pub fn has_own_binding(&self, name: &str) -> bool {
         self.inner.bindings.borrow().contains_key(name)
@@ -801,6 +847,59 @@ impl std::fmt::Debug for Environment {
             .field("bindings", &*self.inner.bindings.borrow())
             .field("has_parent", &self.inner.parent.is_some())
             .finish()
+    }
+}
+
+/// Mutate `left` in place as `left = left + rhs` (string append or numeric add).
+pub(crate) fn acc_add_value(left: &mut Value, rhs: Value) -> Result<(), String> {
+    match left {
+        Value::String(s) => {
+            match rhs {
+                Value::String(r) => s.push_str(&r),
+                other => s.push_str(&format_value(&other)),
+            }
+            Ok(())
+        }
+        Value::Number(n) => match rhs {
+            Value::Number(m) => {
+                *n += m;
+                Ok(())
+            }
+            Value::Float(m) => {
+                *left = Value::Float(*n as f64 + m);
+                Ok(())
+            }
+            Value::String(r) => {
+                *left = Value::String(format!("{}{}", n, r));
+                Ok(())
+            }
+            other => Err(format!(
+                "Cannot add Number and {}",
+                format_value(&other)
+            )),
+        },
+        Value::Float(n) => match rhs {
+            Value::Float(m) => {
+                *n += m;
+                Ok(())
+            }
+            Value::Number(m) => {
+                *n += m as f64;
+                Ok(())
+            }
+            Value::String(r) => {
+                *left = Value::String(format!("{}{}", n, r));
+                Ok(())
+            }
+            other => Err(format!(
+                "Cannot add Float and {}",
+                format_value(&other)
+            )),
+        },
+        other => Err(format!(
+            "acc_add requires string or number (got {})",
+            format_value(other)
+        )),
     }
 }
 

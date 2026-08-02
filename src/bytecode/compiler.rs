@@ -1087,11 +1087,23 @@ impl Compiler {
                         CallArg::Spread(_) => None,
                     })
                     .collect();
-                // G2: arr.push(x) on any receiver (write back when receiver is a variable).
+                // G2: arr.push(x). Existing fn-locals → ArrayPushLocal (no Vec clone).
+                // Module globals keep classic ArrayPush+Store — push/pop stack idioms in
+                // self_host/emit (eCalleeStack / eCallArgIStack) are sensitive to in-place
+                // global mutation vs pop()'s non-mutating return.
                 if !has_spread {
                     if let Expr::Member(obj, method, _) = func.as_ref() {
                         if method == "push" && args.len() == 1 {
                             if let CallArg::Expr(arg) = &args[0] {
+                                if let Expr::Variable(name) = obj.as_ref() {
+                                    if let Some(idx) =
+                                        self.locals.iter().position(|l| l == name)
+                                    {
+                                        self.compile_expr(arg)?;
+                                        self.emit(Opcode::ArrayPushLocal(idx as u16));
+                                        return Ok(());
+                                    }
+                                }
                                 self.compile_expr(obj)?;
                                 self.compile_expr(arg)?;
                                 self.emit(Opcode::ArrayPush);
@@ -2106,6 +2118,56 @@ impl Compiler {
     fn compile_assign(&mut self, target: &AssignTarget, value: &Expr) -> Result<(), CompileError> {
         match target {
             AssignTarget::Name(name) => {
+                // Peephole: `name = push(name, expr)` → ArrayPushLocal / ArrayPushGlobal.
+                // Use position() — never local_index() here (must not create a new local).
+                if let Expr::Call {
+                    func,
+                    args,
+                    type_args,
+                } = value
+                {
+                    if type_args.is_empty()
+                        && args.len() == 2
+                        && matches!(func.as_ref(), Expr::Variable(f) if f == "push")
+                    {
+                        if let (CallArg::Expr(Expr::Variable(arr)), CallArg::Expr(item)) =
+                            (&args[0], &args[1])
+                        {
+                            if arr == name {
+                                if let Some(idx) = self.locals.iter().position(|l| l == name) {
+                                    self.compile_expr(item)?;
+                                    self.emit(Opcode::ArrayPushLocal(idx as u16));
+                                    return Ok(());
+                                }
+                                // Globals: no ArrayPushGlobal here — emit.kab stack
+                                // idioms (`x = pop(x); x = push(x, …)`) need classic store.
+                            }
+                        }
+                    }
+                }
+                // Peephole: `name = name + a + b + …` → AccAdd (string append / numeric add).
+                // Leave Null on the stack (not Load*): loading would clone the whole
+                // string each iteration and reintroduce O(n²).
+                if let Some(pieces) = acc_add_chain_pieces(name, value) {
+                    let null_idx = self.const_index(Constant::Null);
+                    if let Some(idx) = self.locals.iter().position(|l| l == name) {
+                        for piece in pieces {
+                            self.compile_expr(piece)?;
+                            self.emit(Opcode::AccAddLocal(idx as u16));
+                        }
+                        self.emit(Opcode::Const(null_idx));
+                        return Ok(());
+                    }
+                    if !self.is_enclosed_local(name) {
+                        let idx = self.global_index(name);
+                        for piece in pieces {
+                            self.compile_expr(piece)?;
+                            self.emit(Opcode::AccAddGlobal(idx));
+                        }
+                        self.emit(Opcode::Const(null_idx));
+                        return Ok(());
+                    }
+                }
                 self.compile_expr(value)?;
                 self.record_inferred_binding(name, value);
                 self.emit(Opcode::Dup);
@@ -2664,6 +2726,28 @@ fn switch_body_fallthroughs(body: &crate::ast::Expr) -> bool {
 
 fn enums_contains_name(enums: &[BytecodeEnumDef], name: &str) -> bool {
     enums.iter().any(|e| e.name == name)
+}
+
+/// If `expr` is a left-assoc Add chain `name + a + b + …`, return `[a, b, …]`.
+fn acc_add_chain_pieces<'a>(name: &str, expr: &'a Expr) -> Option<Vec<&'a Expr>> {
+    let mut pieces = Vec::new();
+    let mut cur = expr;
+    loop {
+        match cur {
+            Expr::Binary(left, BinaryOp::Add, right) => {
+                pieces.push(right.as_ref());
+                cur = left.as_ref();
+            }
+            Expr::Variable(v) if v == name => {
+                if pieces.is_empty() {
+                    return None;
+                }
+                pieces.reverse();
+                return Some(pieces);
+            }
+            _ => return None,
+        }
+    }
 }
 
 fn patch_jump(code: &mut [Opcode], at: usize, target: usize) {

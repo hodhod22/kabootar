@@ -292,6 +292,35 @@ fn pull_env_into_local_vals(locals: &[String], local_vals: &mut Vec<Value>, env:
     }
 }
 
+/// Like `pull_env_into_local_vals`, but only for captured enclosing slots.
+/// Ordinary fn-locals stay authoritative in `local_vals` (needed for in-place
+/// ops like `ArrayPushLocal` that must not be wiped by a stale env copy).
+fn pull_captured_locals_from_env(
+    locals: &[String],
+    local_captures: &[bool],
+    local_vals: &mut Vec<Value>,
+    env: &Environment,
+) {
+    for (i, name) in locals.iter().enumerate() {
+        if name.starts_with("__kab_") {
+            continue;
+        }
+        if local_captures.get(i).copied() != Some(true) {
+            continue;
+        }
+        let Some(v) = env.get(name) else {
+            continue;
+        };
+        if matches!(v, Value::Undefined) {
+            continue;
+        }
+        if i >= local_vals.len() {
+            local_vals.resize(i + 1, Value::Undefined);
+        }
+        local_vals[i] = v.clone();
+    }
+}
+
 /// Refresh caller object locals after `Call` writeback (by `__oid`), without pulling
 /// scalar locals that nested frames may have clobbered in the shared env.
 fn pull_object_locals_from_env(
@@ -637,9 +666,14 @@ fn run_chunk(
                     pull_env_into_local_vals(locals, &mut local_vals, env);
                 } else {
                     // Nested bytecode fn: refresh captures mutated via shared env, and
-                    // object params written back by oid. Safe once fn-locals no longer
-                    // assign into the caller's frame (L1).
-                    pull_env_into_local_vals(locals, &mut local_vals, env);
+                    // object params written back by oid. Do not pull ordinary fn-locals
+                    // (would wipe in-place ArrayPushLocal / similar).
+                    pull_captured_locals_from_env(
+                        locals,
+                        local_captures,
+                        &mut local_vals,
+                        env,
+                    );
                     pull_object_locals_from_env(locals, &mut local_vals, env);
                 }
                 push_stack(stack, result)?;
@@ -706,6 +740,107 @@ fn run_chunk(
                 let len = items.len() as i64;
                 push_stack(stack, Value::Array(items))?;
                 push_stack(stack, Value::Number(len))?;
+            }
+            Opcode::ArrayPushLocal(idx) => {
+                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                if immutable_locals.get(i) == Some(&true) {
+                    let name = locals
+                        .get(i)
+                        .map(String::as_str)
+                        .unwrap_or("binding");
+                    return Err(format!("Cannot assign to const `{name}`"));
+                }
+                // Module-main: LoadLocal prefers env — mutate the env binding in place.
+                if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    let len = env.array_push_inplace(name, item)?;
+                    push_stack(stack, Value::Number(len))?;
+                } else {
+                    let len = match local_vals.get_mut(i) {
+                        Some(Value::Array(items)) => {
+                            items.push(item);
+                            items.len() as i64
+                        }
+                        other => {
+                            return Err(format!(
+                                "array_push_local requires an array local (got {})",
+                                crate::value::format_value(
+                                    other.map_or(&Value::Undefined, |v| &*v)
+                                )
+                            ));
+                        }
+                    };
+                    // Captured slots are shared via env with nested frames.
+                    if local_captures.get(i).copied() == Some(true) {
+                        let synced = local_vals.get(i).cloned().unwrap_or(Value::Undefined);
+                        store_local_to_env(
+                            locals,
+                            immutable_locals,
+                            local_captures,
+                            i,
+                            &synced,
+                            env,
+                        )?;
+                    }
+                    push_stack(stack, Value::Number(len))?;
+                }
+            }
+            Opcode::ArrayPushGlobal(idx) => {
+                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                let len = env.array_push_inplace(name, item)?;
+                push_stack(stack, Value::Number(len))?;
+            }
+            Opcode::AccAddLocal(idx) => {
+                let rhs = stack.pop().ok_or("Bytecode stack underflow")?;
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                if immutable_locals.get(i) == Some(&true) {
+                    let name = locals
+                        .get(i)
+                        .map(String::as_str)
+                        .unwrap_or("binding");
+                    return Err(format!("Cannot assign to const `{name}`"));
+                }
+                if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    env.acc_add_inplace(name, rhs)?;
+                } else {
+                    crate::value::acc_add_value(
+                        local_vals.get_mut(i).ok_or("Invalid local index")?,
+                        rhs,
+                    )?;
+                    if local_captures.get(i).copied() == Some(true) {
+                        let synced = local_vals.get(i).cloned().unwrap_or(Value::Undefined);
+                        store_local_to_env(
+                            locals,
+                            immutable_locals,
+                            local_captures,
+                            i,
+                            &synced,
+                            env,
+                        )?;
+                    }
+                }
+            }
+            Opcode::AccAddGlobal(idx) => {
+                let rhs = stack.pop().ok_or("Bytecode stack underflow")?;
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                env.acc_add_inplace(name, rhs)?;
             }
             Opcode::GetMember(key_idx) => {
                 let key = member_name(constants, *key_idx)?;
