@@ -1945,6 +1945,19 @@ fn self_host_heavy_cores_still_skipped() {
     }
 }
 
+/// Gate only: deserialize/vm must not hit the skip list (full compile stays #[ignore]).
+#[test]
+fn self_host_vm_cores_not_in_skip_list() {
+    use kabootar_lib::compile::self_host_is_attemptable;
+    for name in ["deserialize.kab", "vm.kab"] {
+        let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
+        assert!(
+            self_host_is_attemptable(&path),
+            "{name} should be self-host attemptable"
+        );
+    }
+}
+
 #[test]
 #[ignore = "slow: self-host compile of deserialize.kab (H6e core)"]
 fn self_host_deserialize_full_compile() {
@@ -1995,6 +2008,55 @@ fn h6e_kab_only_gate() {
         .expect("spawn h6e kab-only gate thread")
         .join()
         .expect("h6e kab-only gate thread join");
+    assert!(ok);
+}
+
+/// Process delete-gate: outer `.kbc` must run on Kab VM (no host fallback).
+#[test]
+fn h6e_kab_only_process_import() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let path = format!(
+        "{}/self_host/vm_import_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-kab-only-import".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("kab-only import probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn kab-only import thread")
+        .join()
+        .expect("kab-only import thread join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(ok);
+}
+
+#[test]
+fn self_host_unescape_probe() {
+    let path = format!(
+        "{}/self_host/unescape_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("unescape".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("unescape_probe should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn unescape probe thread")
+        .join()
+        .expect("unescape probe thread join");
     assert!(ok);
 }
 

@@ -1,0 +1,21 @@
+// Ensure Kab deserialize unescapes .kbc string consts (\s → space, \n → newline).
+import "self_host/deserialize"
+import "self_host/serialize_defs"
+import "self_host/lexer_defs"
+
+let nl = CHAR_NL
+let escSpace = "\\s"
+let escNl = "\\n"
+let kbc = KBC_HEADER + nl
+    + "constants=1" + nl
+    + "const 0 string import" + escSpace + "\"kab/boot\"" + escNl + "return" + escSpace + "1" + nl
+    + "globals=0" + nl
+    + "code" + nl
+    + "const 0" + nl
+    + "return" + nl
+let bc = deserializeKbc(kbc)
+let s = bc["constants"][0]
+let hasSpace = str_index_of(s, " ") >= 0
+let hasNl = str_index_of(s, nl) >= 0
+let noEscS = str_index_of(s, escSpace) < 0
+return hasSpace && hasNl && noEscS && starts_with(s, "import \"kab/boot\"")

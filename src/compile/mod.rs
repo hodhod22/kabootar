@@ -187,6 +187,14 @@ impl Drop for PackageRootGuard {
     }
 }
 
+/// Whether `compile_file_self_host` will attempt this path (not skip-listed / oversize).
+pub fn self_host_is_attemptable(path: &str) -> bool {
+    match fs::read_to_string(path) {
+        Ok(source) => should_attempt_self_host(path, &source),
+        Err(_) => false,
+    }
+}
+
 pub fn compile_file_self_host(path: &str) -> Result<CompiledProgram, String> {
     let source =
         fs::read_to_string(path).map_err(|e| format!("Failed to read {path}: {e}"))?;
@@ -403,7 +411,8 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
                     match eval_kbc_via_kab_vm(&kbc, env) {
                         Ok(v) => return Ok(v),
                         Err(e) if kab_vm_only_mode() => {
-                            return Err(format!("Kab VM only (no host fallback): {e}"))
+                            let detail = crate::runtime::stdlib::error::format_runtime_error(&e);
+                            return Err(format!("Kab VM only (no host fallback): {detail}"))
                         }
                         Err(_) => {}
                     }
