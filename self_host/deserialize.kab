@@ -18,6 +18,49 @@ fn splitLines(text) {
     return lines
 }
 
+/// Inverse of serialize `escStr` / Rust bytecode `escape`.
+fn unescapeKbc(s) {
+    let out = ""
+    let i = 0
+    let text = "" + s
+    while i < len(text) {
+        let c = char_at(text, i)
+        if c == "\\" {
+            i = i + 1
+            if i >= len(text) {
+                out = out + "\\"
+                break
+            }
+            let n = char_at(text, i)
+            if n == "\\" {
+                out = out + "\\"
+            } else {
+                if n == "s" || n == " " {
+                    out = out + " "
+                } else {
+                    if n == "n" {
+                        out = out + CHAR_NL
+                    } else {
+                        if n == "r" {
+                            out = out + CHAR_CR
+                        } else {
+                            if n == "t" {
+                                out = out + CHAR_TAB
+                            } else {
+                                out = out + "\\" + n
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            out = out + c
+        }
+        i = i + 1
+    }
+    return out
+}
+
 fn parseConstLine(line) {
     if !starts_with(line, "const ") {
         return null
@@ -45,7 +88,7 @@ fn parseConstLine(line) {
         return false
     }
     if starts_with(kind, "string ") {
-        return trim(str_slice(kind, 7, len(kind)))
+        return unescapeKbc(str_slice(kind, 7, len(kind)))
     }
     throw "deserialize: unsupported const " + kind
 }
@@ -252,7 +295,7 @@ fn commaList(s) {
     let out = []
     let i = 0
     while i < len(parts) {
-        out = push(out, trim(parts[i]))
+        out = push(out, unescapeKbc(trim(parts[i])))
         i = i + 1
     }
     return out
@@ -305,7 +348,7 @@ pub fn deserializeKbc(text) {
         if starts_with(line, "global ") {
             let rest = str_slice(line, 7, len(line))
             let sp = str_index_of(rest, " ")
-            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             globals = push(globals, name)
             li = li + 1
             continue
@@ -314,7 +357,7 @@ pub fn deserializeKbc(text) {
             let rest = str_slice(line, 6, len(line))
             let sp = str_index_of(rest, " ")
             let idx = parse_int(trim(str_slice(rest, 0, sp)))
-            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             while len(locals) <= idx {
                 locals = push(locals, "")
             }
@@ -360,7 +403,7 @@ pub fn deserializeKbc(text) {
         if starts_with(line, "fn ") {
             let rest = str_slice(line, 3, len(line))
             let sp = str_index_of(rest, " ")
-            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             functions = push(functions, { "sym": sym, "params": [], "locals": [], "ops": [], "tryRegions": [] })
             li = li + 1
             continue
@@ -400,7 +443,7 @@ pub fn deserializeKbc(text) {
         if starts_with(line, "arrow ") {
             let rest = str_slice(line, 6, len(line))
             let sp = str_index_of(rest, " ")
-            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             arrows = push(arrows, { "sym": sym, "params": [], "locals": [], "ops": [] })
             li = li + 1
             continue
@@ -439,7 +482,7 @@ pub fn deserializeKbc(text) {
         if starts_with(line, "import ") {
             let rest = str_slice(line, 7, len(line))
             let sp = str_index_of(rest, " ")
-            let name = trim(str_slice(rest, sp + 1, len(rest)))
+            let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             imports = push(imports, name)
             li = li + 1
             continue
@@ -451,7 +494,7 @@ pub fn deserializeKbc(text) {
         if starts_with(line, "class ") {
             let rest = str_slice(line, 6, len(line))
             let sp = str_index_of(rest, " ")
-            let sym = trim(str_slice(rest, sp + 1, len(rest)))
+            let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
             classes = push(classes, { "sym": sym, "methods": [], "isStruct": 0 })
             li = li + 1
             continue
@@ -469,7 +512,7 @@ pub fn deserializeKbc(text) {
             let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
             let sp2 = str_index_of(rest2, " ")
             let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
-            let sym = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+            let sym = unescapeKbc(trim(str_slice(rest2, sp2 + 1, len(rest2))))
             while len(classes[ci]["methods"]) <= mi {
                 classes[ci]["methods"] = push(classes[ci]["methods"], { "sym": "", "params": [], "locals": [], "ops": [] })
             }
