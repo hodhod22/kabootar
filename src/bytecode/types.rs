@@ -60,6 +60,18 @@ pub enum Opcode {
     GetLength,
     /// `arr.push(x)` — stack: arr, item → mutated_arr, length
     ArrayPush,
+    /// In-place push into an existing function-local array slot.
+    /// Stack: item → length. Used for `name = push(name, x)` / `name.push(x)` when
+    /// `name` is already a fn-local (avoids O(n²) Vec clones in tokenize/parse loops).
+    ArrayPushLocal(u16),
+    /// In-place push into a module/global array binding.
+    /// Stack: item → length. Used for self-host accumulators (`pBody`, `eOps`, …).
+    ArrayPushGlobal(u16),
+    /// In-place `name = name + rhs` for a fn-local (string append or numeric add).
+    /// Stack: rhs → (no value; caller may LoadLocal). Avoids O(n²) string copies in serialize.
+    AccAddLocal(u16),
+    /// In-place `name = name + rhs` for a global/module binding.
+    AccAddGlobal(u16),
     GetMember(u16),
     MemberSet(u16),
     Swap,
@@ -1528,6 +1540,10 @@ fn encode_op(op: &Opcode) -> String {
         Opcode::IndexSet => "index_set".into(),
         Opcode::GetLength => "get_length".into(),
         Opcode::ArrayPush => "array_push".into(),
+        Opcode::ArrayPushLocal(i) => format!("array_push_local {i}"),
+        Opcode::ArrayPushGlobal(i) => format!("array_push_global {i}"),
+        Opcode::AccAddLocal(i) => format!("acc_add_local {i}"),
+        Opcode::AccAddGlobal(i) => format!("acc_add_global {i}"),
         Opcode::GetMember(i) => format!("get_member {i}"),
         Opcode::MemberSet(i) => format!("member_set {i}"),
         Opcode::Swap => "swap".into(),
@@ -1621,6 +1637,10 @@ fn decode_op(line: &str) -> Result<Opcode, String> {
         "index_set" => Opcode::IndexSet,
         "get_length" => Opcode::GetLength,
         "array_push" => Opcode::ArrayPush,
+        "array_push_local" => Opcode::ArrayPushLocal(parse_u16(parts.next(), line)?),
+        "array_push_global" => Opcode::ArrayPushGlobal(parse_u16(parts.next(), line)?),
+        "acc_add_local" => Opcode::AccAddLocal(parse_u16(parts.next(), line)?),
+        "acc_add_global" => Opcode::AccAddGlobal(parse_u16(parts.next(), line)?),
         "get_member" => Opcode::GetMember(parse_u16(parts.next(), line)?),
         "member_set" => Opcode::MemberSet(parse_u16(parts.next(), line)?),
         "swap" => Opcode::Swap,

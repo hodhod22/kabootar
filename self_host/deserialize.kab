@@ -290,6 +290,12 @@ fn parseOpLine(line) {
     if head == "array_push_global" {
         return { "op": "array_push_global", "arg": arg }
     }
+    if head == "acc_add_local" {
+        return { "op": "acc_add_local", "arg": arg }
+    }
+    if head == "acc_add_global" {
+        return { "op": "acc_add_global", "arg": arg }
+    }
     throw "deserialize: unsupported op " + line
 }
 

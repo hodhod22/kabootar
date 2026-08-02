@@ -510,6 +510,13 @@ fn runOps(ops, pool, globals, functions) {
             let next = push(arr, item)
             vGlobals[arg] = next
             vPush(len(next))
+        } else if name == "acc_add_local" {
+            let rhs = vPop()
+            vLocals[arg] = vLocals[arg] + rhs
+        } else if name == "acc_add_global" {
+            let rhs = vPop()
+            let cur = vResolveGlobal(globals, arg)
+            vGlobals[arg] = cur + rhs
         } else if name == "concat_array" {
             let right = vPop()
             let left = vPop()
