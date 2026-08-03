@@ -741,8 +741,7 @@ fn run_chunk(
                 push_stack(stack, Value::Array(items))?;
                 push_stack(stack, Value::Number(len))?;
             }
-            Opcode::ArrayPushLocal(idx) => {
-                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+            Opcode::TakeLocal(idx) => {
                 let i = *idx as usize;
                 if i >= local_vals.len() {
                     local_vals.resize(i + 1, Value::Undefined);
@@ -754,29 +753,137 @@ fn run_chunk(
                         .unwrap_or("binding");
                     return Err(format!("Cannot assign to const `{name}`"));
                 }
-                // Module-main: LoadLocal prefers env — mutate the env binding in place.
+                let taken = if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    if name.starts_with("__kab_") {
+                        std::mem::replace(
+                            local_vals.get_mut(i).ok_or("Invalid local index")?,
+                            Value::Undefined,
+                        )
+                    } else {
+                        env.take_binding(name)?
+                    }
+                } else {
+                    let v = std::mem::replace(
+                        local_vals.get_mut(i).ok_or("Invalid local index")?,
+                        Value::Undefined,
+                    );
+                    if local_captures.get(i).copied() == Some(true) {
+                        store_local_to_env(
+                            locals,
+                            immutable_locals,
+                            local_captures,
+                            i,
+                            &Value::Undefined,
+                            env,
+                        )?;
+                    }
+                    v
+                };
+                push_stack(stack, taken)?;
+            }
+            Opcode::TakeGlobal(idx) => {
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                let taken = env.take_binding(name)?;
+                push_stack(stack, taken)?;
+            }
+            Opcode::ArrayPushLocal(idx) => {
+                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                if immutable_locals.get(i) == Some(&true) {
+                    let name = locals
+                        .get(i)
+                        .map(String::as_str)
+                        .unwrap_or("binding");
+                    return Err(format!("Cannot assign to const `{name}`"));
+                }
+                let Value::Array(mut items) = arr else {
+                    return Err(format!(
+                        "array_push_local requires an array (got {})",
+                        crate::value::format_value(&arr)
+                    ));
+                };
+                items.push(item);
+                let len = items.len() as i64;
+                let stored = Value::Array(items);
                 if args.is_none() {
                     let name = locals
                         .get(i)
                         .ok_or_else(|| format!("Invalid local index {i}"))?;
-                    let len = env.array_push_inplace(name, item)?;
-                    push_stack(stack, Value::Number(len))?;
+                    if name.starts_with("__kab_") {
+                        local_vals[i] = stored;
+                    } else {
+                        env.set(name.to_string(), stored);
+                    }
                 } else {
-                    let len = match local_vals.get_mut(i) {
+                    local_vals[i] = stored.clone();
+                    store_local_to_env(
+                        locals,
+                        immutable_locals,
+                        local_captures,
+                        i,
+                        &stored,
+                        env,
+                    )?;
+                }
+                push_stack(stack, Value::Number(len))?;
+            }
+            Opcode::ArrayPushGlobal(idx) => {
+                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                let Value::Array(mut items) = arr else {
+                    return Err(format!(
+                        "array_push_global requires an array (got {})",
+                        crate::value::format_value(&arr)
+                    ));
+                };
+                items.push(item);
+                let len = items.len() as i64;
+                env.set(name.clone(), Value::Array(items));
+                push_stack(stack, Value::Number(len))?;
+            }
+            Opcode::ArrayPopLocal(idx) => {
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                if immutable_locals.get(i) == Some(&true) {
+                    let name = locals
+                        .get(i)
+                        .map(String::as_str)
+                        .unwrap_or("binding");
+                    return Err(format!("Cannot assign to const `{name}`"));
+                }
+                if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    env.array_pop_inplace(name)?;
+                } else {
+                    match local_vals.get_mut(i) {
                         Some(Value::Array(items)) => {
-                            items.push(item);
-                            items.len() as i64
+                            let _ = items.pop();
                         }
                         other => {
                             return Err(format!(
-                                "array_push_local requires an array local (got {})",
+                                "array_pop_local requires an array local (got {})",
                                 crate::value::format_value(
                                     other.map_or(&Value::Undefined, |v| &*v)
                                 )
                             ));
                         }
-                    };
-                    // Captured slots are shared via env with nested frames.
+                    }
                     if local_captures.get(i).copied() == Some(true) {
                         let synced = local_vals.get(i).cloned().unwrap_or(Value::Undefined);
                         store_local_to_env(
@@ -788,16 +895,15 @@ fn run_chunk(
                             env,
                         )?;
                     }
-                    push_stack(stack, Value::Number(len))?;
                 }
+                push_stack(stack, Value::Null)?;
             }
-            Opcode::ArrayPushGlobal(idx) => {
-                let item = stack.pop().ok_or("Bytecode stack underflow")?;
+            Opcode::ArrayPopGlobal(idx) => {
                 let name = globals
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?;
-                let len = env.array_push_inplace(name, item)?;
-                push_stack(stack, Value::Number(len))?;
+                env.array_pop_inplace(name)?;
+                push_stack(stack, Value::Null)?;
             }
             Opcode::AccAddLocal(idx) => {
                 let rhs = stack.pop().ok_or("Bytecode stack underflow")?;

@@ -77,25 +77,9 @@ let pWhereTrait = ""
 let pSnapTypeArgs = []
 let pParamType = ""
 
-fn popStack(stack) {
-    pPopNew = []
-    pPopI = 0
-    while pPopI < len(stack) - 1 {
-        pPopNew = push(pPopNew, stack[pPopI])
-        pPopI = pPopI + 1
-    }
-    return pPopNew
-}
-
 fn symCopy(name) {
-    pSymOut = ""
-    pSymSrc = "" + name
-    pSymI = 0
-    while pSymI < len(pSymSrc) {
-        pSymOut = pSymOut + char_at(pSymSrc, pSymI)
-        pSymI = pSymI + 1
-    }
-    return pSymOut
+    // Strings are immutable values — no per-char copy needed.
+    return "" + name
 }
 
 fn peek() {
@@ -322,7 +306,7 @@ fn parsePostfix() {
                     bump()
                     let ab = pBody
                     pBody = pBodyStack[len(pBodyStack) - 1]
-                    pBodyStack = popStack(pBodyStack)
+                    pBodyStack = pop(pBodyStack)
                     arrowBody = { "kind": AST_BLOCK, "body": ab }
                 } else {
                     arrowBody = parseCompare()
@@ -412,7 +396,7 @@ fn parsePostfix() {
             bump()
             let bb = pBody
             pBody = pBodyStack[len(pBodyStack) - 1]
-            pBodyStack = popStack(pBodyStack)
+            pBodyStack = pop(pBodyStack)
             bareBody = { "kind": AST_BLOCK, "body": bb }
         } else {
             bareBody = parseCompare()
@@ -562,7 +546,7 @@ fn parseCompare() {
         pInAddSub = 0
         pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
         pLeft = { "kind": AST_BINARY, "op": "+", "left": pAddLeft, "right": pRight }
-        pAddLeftStack = popStack(pAddLeftStack)
+        pAddLeftStack = pop(pAddLeftStack)
     }
     while peek().type == "-" {
         bump()
@@ -572,7 +556,7 @@ fn parseCompare() {
         pInAddSub = 0
         pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
         pLeft = { "kind": AST_BINARY, "op": "-", "left": pAddLeft, "right": pRight }
-        pAddLeftStack = popStack(pAddLeftStack)
+        pAddLeftStack = pop(pAddLeftStack)
     }
     if pInAddSub == 1 {
         return pLeft
@@ -853,7 +837,7 @@ fn parseStmt() {
                 bump()
                 let methBody = pBody
                 pBody = pBodyStack[len(pBodyStack) - 1]
-                pBodyStack = popStack(pBodyStack)
+                pBodyStack = pop(pBodyStack)
                 pVal = {
                     "sym": pFnSym,
                     "typeParams": pMethTypeParams,
@@ -1090,7 +1074,7 @@ fn parseStmt() {
         bump()
         let fnBody = pBody
         pBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         return {
             "kind": AST_FN,
             "sym": pFnSym,
@@ -1122,7 +1106,7 @@ fn parseStmt() {
         bump()
         pThen = { "kind": AST_BLOCK, "body": pBody }
         pBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         pElse = null
         if peek().type == TOKEN_ELSE {
             bump()
@@ -1141,10 +1125,10 @@ fn parseStmt() {
             bump()
             pElse = { "kind": AST_BLOCK, "body": pBody }
             pBody = pBodyStack[len(pBodyStack) - 1]
-            pBodyStack = popStack(pBodyStack)
+            pBodyStack = pop(pBodyStack)
         }
         pSave = pCondStack[len(pCondStack) - 1]
-        pCondStack = popStack(pCondStack)
+        pCondStack = pop(pCondStack)
         return { "kind": AST_IF, "cond": pSave, "then": pThen, "elseBranch": pElse }
     }
     if peek().type == TOKEN_TRY {
@@ -1167,7 +1151,7 @@ fn parseStmt() {
         bump()
         let tryBody = pBody
         pBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         if peek().type != TOKEN_CATCH {
             throw "Expected catch"
         }
@@ -1204,7 +1188,7 @@ fn parseStmt() {
         bump()
         let catchBody = pBody
         pBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         return {
             "kind": AST_TRY,
             "body": { "kind": AST_BLOCK, "body": tryBody },
@@ -1240,7 +1224,7 @@ fn parseStmt() {
         bump()
         let forBody = pLoopBody
         pLoopBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         return {
             "kind": AST_FOR_OF,
             "sym": forSym,
@@ -1267,9 +1251,9 @@ fn parseStmt() {
         bump()
         let whileBody = pLoopBody
         pLoopBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         pSave = pCondStack[len(pCondStack) - 1]
-        pCondStack = popStack(pCondStack)
+        pCondStack = pop(pCondStack)
         return { "kind": AST_WHILE, "cond": pSave, "body": { "kind": AST_BLOCK, "body": whileBody } }
     }
     if peek().type == TOKEN_CONTINUE {
@@ -1315,7 +1299,7 @@ fn parseStmt() {
         bump()
         let blockStmts = pStmts
         pStmts = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = popStack(pBodyStack)
+        pBodyStack = pop(pBodyStack)
         return { "kind": AST_BLOCK, "body": blockStmts }
     }
     if peek().type == TOKEN_IDENT {
@@ -1397,6 +1381,6 @@ pub fn parseTokens(tokens) {
     }
     let programBody = pBody
     pBody = pBodyStack[len(pBodyStack) - 1]
-    pBodyStack = popStack(pBodyStack)
+    pBodyStack = pop(pBodyStack)
     return { "kind": AST_PROGRAM, "body": programBody, "imports": pImports }
 }

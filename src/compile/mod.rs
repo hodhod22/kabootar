@@ -286,14 +286,11 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
     KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
     let result = (|| {
         modules::import_module("kab/vm", env)?;
-        let fname = if kab_vm_only_mode() {
-            "evalKbcKabOnly"
-        } else {
-            "evalKbc"
-        };
+        // When Kab VM path is selected (healthy probe or KABOOTAR_VM=kab*), run
+        // kab-only — no soft host `bytecode_run_kbc` fallback.
         let f = env
-            .get(fname)
-            .ok_or_else(|| format!("kab/vm: missing {fname}"))?;
+            .get("evalKbcKabOnly")
+            .ok_or("kab/vm: missing evalKbcKabOnly")?;
         let v = call_value(
             f,
             vec![Value::String(kbc.to_string())],

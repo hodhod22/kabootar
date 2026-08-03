@@ -60,13 +60,23 @@ pub enum Opcode {
     GetLength,
     /// `arr.push(x)` — stack: arr, item → mutated_arr, length
     ArrayPush,
-    /// In-place push into an existing function-local array slot.
-    /// Stack: item → length. Used for `name = push(name, x)` / `name.push(x)` when
-    /// `name` is already a fn-local (avoids O(n²) Vec clones in tokenize/parse loops).
+    /// Move a fn-local binding onto the stack, leaving Undefined in the slot.
+    /// Pair with ArrayPushLocal so `name = push(name, expr)` captures the array
+    /// before `expr` (which may rebind `name`).
+    TakeLocal(u16),
+    /// Move a global/module binding onto the stack, leaving Undefined in the slot.
+    TakeGlobal(u16),
+    /// Push onto a taken fn-local array and store it back.
+    /// Stack: array, item → length.
     ArrayPushLocal(u16),
-    /// In-place push into a module/global array binding.
-    /// Stack: item → length. Used for self-host accumulators (`pBody`, `eOps`, …).
+    /// Push onto a taken global array and store it back.
+    /// Stack: array, item → length.
     ArrayPushGlobal(u16),
+    /// In-place `name = pop(name)` for a fn-local (drop last element).
+    /// Stack: → null. Matches `pop()` assign semantics without cloning the Vec.
+    ArrayPopLocal(u16),
+    /// In-place `name = pop(name)` for a global/module binding.
+    ArrayPopGlobal(u16),
     /// In-place `name = name + rhs` for a fn-local (string append or numeric add).
     /// Stack: rhs → (no value; caller may LoadLocal). Avoids O(n²) string copies in serialize.
     AccAddLocal(u16),
@@ -1540,8 +1550,12 @@ fn encode_op(op: &Opcode) -> String {
         Opcode::IndexSet => "index_set".into(),
         Opcode::GetLength => "get_length".into(),
         Opcode::ArrayPush => "array_push".into(),
+        Opcode::TakeLocal(i) => format!("take_local {i}"),
+        Opcode::TakeGlobal(i) => format!("take_global {i}"),
         Opcode::ArrayPushLocal(i) => format!("array_push_local {i}"),
         Opcode::ArrayPushGlobal(i) => format!("array_push_global {i}"),
+        Opcode::ArrayPopLocal(i) => format!("array_pop_local {i}"),
+        Opcode::ArrayPopGlobal(i) => format!("array_pop_global {i}"),
         Opcode::AccAddLocal(i) => format!("acc_add_local {i}"),
         Opcode::AccAddGlobal(i) => format!("acc_add_global {i}"),
         Opcode::GetMember(i) => format!("get_member {i}"),
@@ -1637,8 +1651,12 @@ fn decode_op(line: &str) -> Result<Opcode, String> {
         "index_set" => Opcode::IndexSet,
         "get_length" => Opcode::GetLength,
         "array_push" => Opcode::ArrayPush,
+        "take_local" => Opcode::TakeLocal(parse_u16(parts.next(), line)?),
+        "take_global" => Opcode::TakeGlobal(parse_u16(parts.next(), line)?),
         "array_push_local" => Opcode::ArrayPushLocal(parse_u16(parts.next(), line)?),
         "array_push_global" => Opcode::ArrayPushGlobal(parse_u16(parts.next(), line)?),
+        "array_pop_local" => Opcode::ArrayPopLocal(parse_u16(parts.next(), line)?),
+        "array_pop_global" => Opcode::ArrayPopGlobal(parse_u16(parts.next(), line)?),
         "acc_add_local" => Opcode::AccAddLocal(parse_u16(parts.next(), line)?),
         "acc_add_global" => Opcode::AccAddGlobal(parse_u16(parts.next(), line)?),
         "get_member" => Opcode::GetMember(parse_u16(parts.next(), line)?),

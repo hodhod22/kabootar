@@ -290,6 +290,18 @@ fn parseOpLine(line) {
     if head == "array_push_global" {
         return { "op": "array_push_global", "arg": arg }
     }
+    if head == "take_local" {
+        return { "op": "take_local", "arg": arg }
+    }
+    if head == "take_global" {
+        return { "op": "take_global", "arg": arg }
+    }
+    if head == "array_pop_local" {
+        return { "op": "array_pop_local", "arg": arg }
+    }
+    if head == "array_pop_global" {
+        return { "op": "array_pop_global", "arg": arg }
+    }
     if head == "acc_add_local" {
         return { "op": "acc_add_local", "arg": arg }
     }

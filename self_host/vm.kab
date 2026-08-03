@@ -498,18 +498,36 @@ fn runOps(ops, pool, globals, functions) {
             let next = push(arr, item)
             vPush(next)
             vPush(len(next))
-        } else if name == "array_push_local" {
-            let item = vPop()
+        } else if name == "take_local" {
+            // Move binding onto stack (host ArrayPush path expects taken array under item).
             let arr = vLocals[arg]
-            let next = push(arr, item)
+            vLocals[arg] = undefined
+            vPush(arr)
+        } else if name == "take_global" {
+            let arr = vResolveGlobal(globals, arg)
+            vGlobals[arg] = undefined
+            vPush(arr)
+        } else if name == "array_push_local" {
+            // Prefer host O(1) path when available (bytecode_array_push); else push().
+            let item = vPop()
+            let arr = vPop()
+            let next = bytecode_array_push(arr, item)
             vLocals[arg] = next
             vPush(len(next))
         } else if name == "array_push_global" {
             let item = vPop()
-            let arr = vResolveGlobal(globals, arg)
-            let next = push(arr, item)
+            let arr = vPop()
+            let next = bytecode_array_push(arr, item)
             vGlobals[arg] = next
             vPush(len(next))
+        } else if name == "array_pop_local" {
+            let arr = vLocals[arg]
+            vLocals[arg] = pop(arr)
+            vPush(null)
+        } else if name == "array_pop_global" {
+            let arr = vResolveGlobal(globals, arg)
+            vGlobals[arg] = pop(arr)
+            vPush(null)
         } else if name == "acc_add_local" {
             let rhs = vPop()
             vLocals[arg] = vLocals[arg] + rhs

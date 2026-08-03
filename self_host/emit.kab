@@ -197,13 +197,8 @@ fn symIndex(mode, arg) {
 // mode "snap" -> copy array; mode "pushLen" -> push len(arr) onto stack
 fn arrUtil(mode, stack, arr) {
     if mode == "snap" {
-        eSnapOut = []
-        eSnapI = 0
-        while eSnapI < len(stack) {
-            eSnapOut = push(eSnapOut, stack[eSnapI])
-            eSnapI = eSnapI + 1
-        }
-        return eSnapOut
+        // Single O(n) clone via native slice (not O(n²) push loop).
+        return slice(stack, 0)
     }
     eLenScratch = len(arr)
     return push(stack, eLenScratch)
@@ -1360,13 +1355,7 @@ fn emitStmt(node) {
             eBi = eBi + 1
         }
         if eBf > 0 {
-            eWhNew = []
-            eWhI = 0
-            while eWhI < eBf {
-                eWhNew = push(eWhNew, eBreakIdxs[eWhI])
-                eWhI = eWhI + 1
-            }
-            eBreakIdxs = eWhNew
+            eBreakIdxs = slice(eBreakIdxs, 0, eBf)
         } else {
             eBreakIdxs = []
         }
@@ -1555,13 +1544,7 @@ fn emitStmt(node) {
             eBi = eBi + 1
         }
         if eBf > 0 {
-            eWhNew = []
-            eWhI = 0
-            while eWhI < eBf {
-                eWhNew = push(eWhNew, eBreakIdxs[eWhI])
-                eWhI = eWhI + 1
-            }
-            eBreakIdxs = eWhNew
+            eBreakIdxs = slice(eBreakIdxs, 0, eBf)
         } else {
             eBreakIdxs = []
         }
