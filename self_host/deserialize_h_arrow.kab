@@ -1,0 +1,41 @@
+// Part of deserialize line handlers.
+import "self_host/deserialize_ops"
+
+pub fn deserArrow(st, line) {
+    if starts_with(line, "arrows=") {
+        return "ok"
+    }
+    if starts_with(line, "arrow ") {
+        let rest = str_slice(line, 6, len(line))
+        let sp = str_index_of(rest, " ")
+        let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["arrows"] = push(st["arrows"], { "sym": sym, "params": [], "locals": [], "ops": [] })
+        return "ok"
+    }
+    if starts_with(line, "arrow_params ") {
+        let rest = str_slice(line, 13, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let list = trim(str_slice(rest, sp + 1, len(rest)))
+        st["arrows"][idx]["params"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "arrow_locals ") {
+        let rest = str_slice(line, 13, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let list = trim(str_slice(rest, sp + 1, len(rest)))
+        st["arrows"][idx]["locals"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "arrow_op ") {
+        let rest = str_slice(line, 9, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let opLine = trim(str_slice(rest, sp + 1, len(rest)))
+        st["arrows"][idx]["ops"] = push(st["arrows"][idx]["ops"], parseOpLine(opLine))
+        return "ok"
+    }
+    return "skip"
+}
+

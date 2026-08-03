@@ -1959,7 +1959,7 @@ fn self_host_vm_cores_not_in_skip_list() {
 }
 
 #[test]
-#[ignore = "slow: self-host compile of deserialize.kab still >2min debug (Take/Push/pop/snap opts landed; emit volume remains)"]
+#[ignore = "slow: Kab self-host parse of deserialize still multi-minute (char_at/len/emit eList/split landed; keep ignored until Kab parse is CI-fast)"]
 fn self_host_deserialize_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/deserialize.kab", env!("CARGO_MANIFEST_DIR"));
@@ -1980,7 +1980,7 @@ fn self_host_deserialize_full_compile() {
 }
 
 #[test]
-#[ignore = "slow: self-host compile of vm.kab still >2min debug (Take/Push/pop/snap opts landed; emit volume remains)"]
+#[ignore = "slow: Kab self-host compile of vm.kab still multi-minute (keep ignored until Kab parse/emit is CI-fast)"]
 fn self_host_vm_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));

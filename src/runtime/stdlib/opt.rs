@@ -52,7 +52,14 @@ pub fn get_member_value(obj: &Value, field: &str, env: &mut Environment) -> Resu
     match obj {
         Value::ClassInstance(_) => crate::ops::read_member(obj, field, env),
         Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
-        Value::String(s) if field == "length" => Ok(Value::Number(s.chars().count() as i64)),
+        Value::String(s) if field == "length" => {
+            let n = if s.is_ascii() {
+                s.len()
+            } else {
+                s.chars().count()
+            };
+            Ok(Value::Number(n as i64))
+        }
         Value::Object(map) => {
             if crate::runtime::stdlib::map::is_map_value(obj) {
                 if let Some(native) = crate::runtime::stdlib::map::map_instance_method(field) {

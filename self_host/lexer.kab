@@ -5,75 +5,18 @@ import "self_host/lexer_defs"
 
 let lxPos = 0
 let lxSrc = ""
+let lxSrcLen = 0
 let lxLine = 1
 let lxCol = 1
 
 // ----- HELPER FUNCTIONS -----
-// char_code_at: use runtime builtin
-
-fn parse_int(s) {
-    let result = 0
-    let i = 0
-    while i < len(s) {
-        let c = char_at(s, i)
-        let digit = char_code_at(c, 0) - 48
-        if digit >= 0 && digit <= 9 {
-            let tmp = 0
-            let k = 0
-            while k < 10 {
-                tmp = tmp + result
-                k = k + 1
-            }
-            result = tmp + digit
-        }
-        i = i + 1
-    }
-    return result
-}
-
-fn parse_float(s) {
-    let parts = []
-    let current = ""
-    let i = 0
-    while i < len(s) {
-        let c = char_at(s, i)
-        if c == "." {
-            parts = push(parts, current)
-            current = ""
-        } else {
-            current = current + c
-        }
-        i = i + 1
-    }
-    parts = push(parts, current)
-    let intPart = parse_int(parts[0])
-    let fracPart = parse_int(parts[1])
-    let fracLen = len(parts[1])
-    let divisor = 1
-    let j = 0
-    while j < fracLen {
-        let tmp = 0
-        let k = 0
-        while k < 10 {
-            tmp = tmp + divisor
-            k = k + 1
-        }
-        divisor = tmp
-        j = j + 1
-    }
-    let quot = 0
-    let rem = fracPart
-    while rem >= divisor {
-        rem = rem - divisor
-        quot = quot + 1
-    }
-    return intPart + quot
-}
+// Use runtime parse_int / parse_float (local copies were O(digits·10) add-loops).
+// Keep few top-level fns (Windows module-init stack); ident-char checks stay inlined in lxScan.
 
 // ----- MAIN LEXER -----
 
 fn lxScan() {
-    if lxPos >= len(lxSrc) {
+    if lxPos >= lxSrcLen {
         return { "type": TOKEN_EOF, "value": null, "line": lxLine, "column": lxCol }
     }
     let c = char_at(lxSrc, lxPos)
@@ -141,7 +84,7 @@ fn lxScan() {
     if c == "+" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "+=", "value": null, "line": line, "column": col }
@@ -152,12 +95,12 @@ fn lxScan() {
     if c == "-" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "->", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "-=", "value": null, "line": line, "column": col }
@@ -168,12 +111,12 @@ fn lxScan() {
     if c == "*" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "*" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "*" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "**", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "*=", "value": null, "line": line, "column": col }
@@ -184,7 +127,7 @@ fn lxScan() {
     if c == "/" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "/=", "value": null, "line": line, "column": col }
@@ -195,7 +138,7 @@ fn lxScan() {
     if c == "%" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "%=", "value": null, "line": line, "column": col }
@@ -206,12 +149,12 @@ fn lxScan() {
     if c == "?" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "?" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "?" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "??", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "?.", "value": null, "line": line, "column": col }
@@ -222,12 +165,12 @@ fn lxScan() {
     if c == "=" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "==", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "=>", "value": null, "line": line, "column": col }
@@ -238,7 +181,7 @@ fn lxScan() {
     if c == "!" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "!=", "value": null, "line": line, "column": col }
@@ -249,7 +192,7 @@ fn lxScan() {
     if c == "&" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "&" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "&" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "&&", "value": null, "line": line, "column": col }
@@ -260,7 +203,7 @@ fn lxScan() {
     if c == "|" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "|" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "|" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "||", "value": null, "line": line, "column": col }
@@ -271,12 +214,12 @@ fn lxScan() {
     if c == "<" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "<=", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "<" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "<" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": "<<", "value": null, "line": line, "column": col }
@@ -287,15 +230,15 @@ fn lxScan() {
     if c == ">" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "=" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": ">=", "value": null, "line": line, "column": col }
         }
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
-            if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == ">" {
+            if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
                 lxPos = lxPos + 1
                 lxCol = lxCol + 1
                 return { "type": ">>>", "value": null, "line": line, "column": col }
@@ -308,10 +251,10 @@ fn lxScan() {
     if c == "." {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
-            if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+            if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
                 lxPos = lxPos + 1
                 lxCol = lxCol + 1
                 return { "type": "...", "value": null, "line": line, "column": col }
@@ -325,8 +268,8 @@ fn lxScan() {
     if c == "#" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        let name = ""
-        while lxPos < len(lxSrc) {
+        let start = lxPos
+        while lxPos < lxSrcLen {
             let ch = char_at(lxSrc, lxPos)
             let cd = char_code_at(ch, 0)
             let ok = 0
@@ -335,46 +278,71 @@ fn lxScan() {
             if cd >= 48 && cd <= 57 { ok = 1 }
             if ch == "_" { ok = 1 }
             if ok == 0 { break }
-            name = name + ch
             lxPos = lxPos + 1
             lxCol = lxCol + 1
         }
-        if name == "" {
+        if lxPos == start {
             throw "Expected identifier after # at line " + ("" + line) + " col " + ("" + col)
         }
-        return { "type": TOKEN_PRIVATE, "value": name, "line": line, "column": col }
+        return { "type": TOKEN_PRIVATE, "value": str_slice(lxSrc, start, lxPos), "line": line, "column": col }
     }
 
-    // String literal: " ... "
+    // String literal: " ... " — fast path slices when there are no escapes.
     if c == "\"" {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
+        let start = lxPos
+        let i = lxPos
+        let hasEsc = 0
+        while i < lxSrcLen {
+            let ch = char_at(lxSrc, i)
+            if ch == "\\" {
+                hasEsc = 1
+                break
+            }
+            if ch == "\"" {
+                break
+            }
+            i = i + 1
+        }
+        if hasEsc == 0 {
+            if i >= lxSrcLen {
+                throw "Unterminated string at line " + ("" + line) + " col " + ("" + col)
+            }
+            let s = str_slice(lxSrc, start, i)
+            lxCol = lxCol + (i - start) + 1
+            lxPos = i + 1
+            return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
+        }
         let s = ""
-        while lxPos < len(lxSrc) {
+        while lxPos < lxSrcLen {
             let ch = char_at(lxSrc, lxPos)
             if ch == "\\" {
                 lxPos = lxPos + 1
                 lxCol = lxCol + 1
-                if lxPos >= len(lxSrc) {
+                if lxPos >= lxSrcLen {
                     throw "Unterminated string escape at line " + ("" + line) + " col " + ("" + col)
                 }
                 let e = char_at(lxSrc, lxPos)
                 lxPos = lxPos + 1
                 lxCol = lxCol + 1
-                if e == "n" { s = s + "\n" }
-                else {
-                    if e == "r" { s = s + "\r" }
-                    else {
-                        if e == "t" { s = s + "\t" }
-                        else {
-                            if e == "\"" { s = s + "\"" }
-                            else {
-                                if e == "\\" { s = s + "\\" }
-                                else { s = s + "\\" + e }
-                            }
-                        }
-                    }
+                let piece = "\\" + e
+                if e == "n" {
+                    piece = "\n"
                 }
+                if e == "r" {
+                    piece = "\r"
+                }
+                if e == "t" {
+                    piece = "\t"
+                }
+                if e == "\"" {
+                    piece = "\""
+                }
+                if e == "\\" {
+                    piece = "\\"
+                }
+                s = s + piece
                 continue
             }
             lxPos = lxPos + 1
@@ -394,10 +362,10 @@ fn lxScan() {
 
     // Identifier starting with _
     if c == "_" {
+        let start = lxPos
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        let id = "_"
-        while lxPos < len(lxSrc) {
+        while lxPos < lxSrcLen {
             let ch = char_at(lxSrc, lxPos)
             let cd = char_code_at(ch, 0)
             let ok = 0
@@ -406,56 +374,47 @@ fn lxScan() {
             if cd >= 48 && cd <= 57 { ok = 1 }
             if ch == "_" { ok = 1 }
             if ok == 0 { break }
-            id = id + ch
             lxPos = lxPos + 1
             lxCol = lxCol + 1
         }
-        return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+        return { "type": TOKEN_IDENT, "value": str_slice(lxSrc, start, lxPos), "line": line, "column": col }
     }
 
     // Number literal
     let code0 = char_code_at(c, 0)
     if code0 >= 48 && code0 <= 57 {
-        let digits = c
+        let start = lxPos
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        while lxPos < len(lxSrc) {
-            let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
-            if cd < 48 {
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(char_at(lxSrc, lxPos), 0)
+            if cd < 48 || cd > 57 {
                 break
             }
-            if cd > 57 {
-                break
-            }
-            digits = digits + ch
             lxPos = lxPos + 1
             lxCol = lxCol + 1
         }
+        let digits = str_slice(lxSrc, start, lxPos)
         // BigInt: 123n
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "n" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "n" {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
             return { "type": TOKEN_BIGINT, "value": digits, "line": line, "column": col }
         }
         // Float: 123.456
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "." {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
             lxPos = lxPos + 1
             lxCol = lxCol + 1
-            let frac = ""
-            while lxPos < len(lxSrc) {
-                let ch = char_at(lxSrc, lxPos)
-                let cd = char_code_at(ch, 0)
-                if cd < 48 {
+            let fracStart = lxPos
+            while lxPos < lxSrcLen {
+                let cd = char_code_at(char_at(lxSrc, lxPos), 0)
+                if cd < 48 || cd > 57 {
                     break
                 }
-                if cd > 57 {
-                    break
-                }
-                frac = frac + ch
                 lxPos = lxPos + 1
                 lxCol = lxCol + 1
             }
+            let frac = str_slice(lxSrc, fracStart, lxPos)
             return { "type": TOKEN_FLOAT, "value": parse_float(digits + "." + frac), "line": line, "column": col }
         }
         return { "type": TOKEN_NUMBER, "value": parse_int(digits), "line": line, "column": col }
@@ -463,23 +422,17 @@ fn lxScan() {
 
     // Identifier or keyword
     let isAlpha = 0
-    if code0 >= 97 {
-        if code0 <= 122 {
-            isAlpha = 1
-        }
+    if code0 >= 97 && code0 <= 122 {
+        isAlpha = 1
     }
-    if isAlpha == 0 {
-        if code0 >= 65 {
-            if code0 <= 90 {
-                isAlpha = 1
-            }
-        }
+    if isAlpha == 0 && code0 >= 65 && code0 <= 90 {
+        isAlpha = 1
     }
     if isAlpha {
-        let id = c
+        let start = lxPos
         lxPos = lxPos + 1
         lxCol = lxCol + 1
-        while lxPos < len(lxSrc) {
+        while lxPos < lxSrcLen {
             let ch = char_at(lxSrc, lxPos)
             let cd = char_code_at(ch, 0)
             let ok = 0
@@ -488,10 +441,10 @@ fn lxScan() {
             if cd >= 48 && cd <= 57 { ok = 1 }
             if ch == "_" { ok = 1 }
             if ok == 0 { break }
-            id = id + ch
             lxPos = lxPos + 1
             lxCol = lxCol + 1
         }
+        let id = str_slice(lxSrc, start, lxPos)
         let kw = KEYWORDS[id]
         if kw == undefined {
             return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
@@ -507,47 +460,38 @@ fn lxScan() {
 pub fn tokenize(source) {
     lxPos = 0
     lxSrc = source
+    lxSrcLen = len(source)
     lxLine = 1
     lxCol = 1
     let tokens = []
 
     while true {
-        // Skip whitespace
-        while lxPos < len(lxSrc) {
+        // Skip whitespace (flat — nested else hangs / slows self-host)
+        while lxPos < lxSrcLen {
             let ch = char_at(lxSrc, lxPos)
-            if ch == " " {
+            if ch == " " || ch == "\t" || ch == "\r" {
                 lxCol = lxCol + 1
                 lxPos = lxPos + 1
-            } else {
-                if ch == "\t" {
-                    lxCol = lxCol + 1
-                    lxPos = lxPos + 1
-                } else {
-                    if ch == "\r" {
-                        lxCol = lxCol + 1
-                        lxPos = lxPos + 1
-                    } else {
-                        if ch == "\n" {
-                            lxLine = lxLine + 1
-                            lxCol = 1
-                            lxPos = lxPos + 1
-                        } else {
-                            break
-                        }
-                    }
-                }
+                continue
             }
+            if ch == "\n" {
+                lxLine = lxLine + 1
+                lxCol = 1
+                lxPos = lxPos + 1
+                continue
+            }
+            break
         }
 
-        if lxPos >= len(lxSrc) {
+        if lxPos >= lxSrcLen {
             break
         }
 
         // Line comment: //
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "/" {
-            if lxPos + 1 < len(lxSrc) && char_at(lxSrc, lxPos + 1) == "/" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
+            if lxPos + 1 < lxSrcLen && char_at(lxSrc, lxPos + 1) == "/" {
                 lxPos = lxPos + 2
-                while lxPos < len(lxSrc) {
+                while lxPos < lxSrcLen {
                     let ch = char_at(lxSrc, lxPos)
                     if ch == "\n" {
                         lxLine = lxLine + 1
@@ -563,10 +507,10 @@ pub fn tokenize(source) {
         }
 
         // Block comment: /* */
-        if lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "/" {
-            if lxPos + 1 < len(lxSrc) && char_at(lxSrc, lxPos + 1) == "*" {
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
+            if lxPos + 1 < lxSrcLen && char_at(lxSrc, lxPos + 1) == "*" {
                 lxPos = lxPos + 2
-                while lxPos < len(lxSrc) {
+                while lxPos < lxSrcLen {
                     let ch = char_at(lxSrc, lxPos)
                     lxPos = lxPos + 1
                     lxCol = lxCol + 1
@@ -574,7 +518,7 @@ pub fn tokenize(source) {
                         lxLine = lxLine + 1
                         lxCol = 1
                     }
-                    if ch == "*" && lxPos < len(lxSrc) && char_at(lxSrc, lxPos) == "/" {
+                    if ch == "*" && lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
                         lxPos = lxPos + 1
                         lxCol = lxCol + 1
                         break

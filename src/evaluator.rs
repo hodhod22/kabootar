@@ -275,7 +275,14 @@ fn len_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     }
     let n = match v {
         Value::Array(items) => items.len(),
-        Value::String(s) => s.chars().count(),
+        // ASCII (Kab sources) is O(1); non-ASCII still counts Unicode scalars.
+        Value::String(s) => {
+            if s.is_ascii() {
+                s.len()
+            } else {
+                s.chars().count()
+            }
+        }
         Value::Object(map) if crate::runtime::stdlib::iterator::is_iterator_value(v) => {
             return Err("len() on this iterator requires consuming iteration (no known length)".into());
         }

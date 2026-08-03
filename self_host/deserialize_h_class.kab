@@ -1,0 +1,72 @@
+// Part of deserialize line handlers.
+import "self_host/deserialize_ops"
+
+pub fn deserClass(st, line) {
+    if starts_with(line, "classes=") || starts_with(line, "class_method_globals ") {
+        return "ok"
+    }
+    if starts_with(line, "class ") {
+        let rest = str_slice(line, 6, len(line))
+        let sp = str_index_of(rest, " ")
+        let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["classes"] = push(st["classes"], { "sym": sym, "methods": [], "isStruct": 0 })
+        return "ok"
+    }
+    if starts_with(line, "class_is_struct ") {
+        let idx = parse_int(trim(str_slice(line, 16, len(line))))
+        st["classes"][idx]["isStruct"] = 1
+        return "ok"
+    }
+    if starts_with(line, "class_method ") {
+        let rest = str_slice(line, 13, len(line))
+        let sp = str_index_of(rest, " ")
+        let ci = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let sym = unescapeKbc(trim(str_slice(rest2, sp2 + 1, len(rest2))))
+        let methods = st["classes"][ci]["methods"]
+        while len(methods) <= mi {
+            methods = push(methods, { "sym": "", "params": [], "locals": [], "ops": [] })
+        }
+        methods[mi]["sym"] = sym
+        st["classes"][ci]["methods"] = methods
+        return "ok"
+    }
+    if starts_with(line, "class_method_params ") {
+        let rest = str_slice(line, 20, len(line))
+        let sp = str_index_of(rest, " ")
+        let ci = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let list = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+        st["classes"][ci]["methods"][mi]["params"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "class_method_locals ") {
+        let rest = str_slice(line, 20, len(line))
+        let sp = str_index_of(rest, " ")
+        let ci = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let list = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+        st["classes"][ci]["methods"][mi]["locals"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "class_method_op ") {
+        let rest = str_slice(line, 16, len(line))
+        let sp = str_index_of(rest, " ")
+        let ci = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let mi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let opLine = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+        let op = parseOpLine(opLine)
+        st["classes"][ci]["methods"][mi]["ops"] = push(st["classes"][ci]["methods"][mi]["ops"], op)
+        return "ok"
+    }
+    return "skip"
+}
+
