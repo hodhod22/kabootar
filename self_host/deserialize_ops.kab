@@ -1,0 +1,155 @@
+// Parse kabootar-bytecode/1 text → self_host IR subset. import "self_host/deserialize"
+
+import "self_host/lexer_defs"
+import "self_host/serialize_defs"
+import "self_host/emit_defs"
+
+pub fn splitLines(text) {
+    let raw = split("" + text, CHAR_NL)
+    let lines = []
+    let i = 0
+    while i < len(raw) {
+        let t = trim(raw[i])
+        if len(t) > 0 {
+            lines = push(lines, t)
+        }
+        i = i + 1
+    }
+    return lines
+}
+
+/// Inverse of serialize `escStr` / Rust bytecode `escape`.
+/// Keep branches shallow — deep else-if nests hang the self-host parser.
+pub fn unescapeKbc(s) {
+    let out = ""
+    let i = 0
+    let text = "" + s
+    while i < len(text) {
+        let c = char_at(text, i)
+        if c == "\\" {
+            i = i + 1
+            if i >= len(text) {
+                out = out + "\\"
+                break
+            }
+            let n = char_at(text, i)
+            let piece = "\\" + n
+            if n == "\\" {
+                piece = "\\"
+            }
+            if n == "s" {
+                piece = " "
+            }
+            if n == " " {
+                piece = " "
+            }
+            if n == "n" {
+                piece = CHAR_NL
+            }
+            if n == "r" {
+                piece = CHAR_CR
+            }
+            if n == "t" {
+                piece = CHAR_TAB
+            }
+            out = out + piece
+        } else {
+            out = out + c
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn parseConstLine(line) {
+    if !starts_with(line, "const ") {
+        return null
+    }
+    let rest = str_slice(line, 6, len(line))
+    let sp = str_index_of(rest, " ")
+    if sp < 0 {
+        return null
+    }
+    let kind = str_slice(rest, sp + 1, len(rest))
+    if starts_with(kind, "number ") {
+        let num = trim(str_slice(kind, 7, len(kind)))
+        return parse_int(num)
+    }
+    if kind == "null" {
+        return null
+    }
+    if kind == "undefined" {
+        return KAB_UNDEF_CONST
+    }
+    if kind == "bool true" {
+        return true
+    }
+    if kind == "bool false" {
+        return false
+    }
+    if starts_with(kind, "string ") {
+        return unescapeKbc(str_slice(kind, 7, len(kind)))
+    }
+    throw "deserialize: unsupported const " + kind
+}
+
+/// Flat CSV tables — long if-chains / big object literals explode self-host parse time.
+/// Opcode text equals the KBC token for these (see emit_defs).
+let ZERO_ARG_CSV = "pop,add,sub,mul,div,mod,eq,ne,lt,gt,le,ge,and,or,not,neg,pow,throw,index_get,index_set,return,halt,swap,array_push,concat_array,merge_object,call_from_array,bit_and,bit_or,bit_xor,shl,shr,ushr,bit_not,dup,get_length,iterator_step_in_place,make_ok,make_err,make_some,make_none"
+
+let ARG_HEAD_CSV = "const,load_local,store_local,load_global,store_global,jump,jump_if_false,jump_if_true,jump_if_not_nullish,jump_if_result_err,make_arrow_fn,call,get_member,set_member,make_object,make_array,array_push_local,array_push_global,take_local,take_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global"
+
+pub fn csvHas(csv, item) {
+    let parts = split(csv, ",")
+    let i = 0
+    while i < len(parts) {
+        if parts[i] == item {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn parseOpLine(line) {
+    let sp = str_index_of(line, " ")
+    if sp < 0 {
+        if csvHas(ZERO_ARG_CSV, line) {
+            return { "op": line, "arg": 0 }
+        }
+        throw "deserialize: bad op " + line
+    }
+    let head = str_slice(line, 0, sp)
+    let argRest = trim(str_slice(line, sp + 1, len(line)))
+    if head == "new_instance" {
+        let sp2 = str_index_of(argRest, " ")
+        if sp2 < 0 {
+            return { "op": OP_NEW_INSTANCE, "arg": parse_int(argRest), "arg2": 0 }
+        }
+        let ci = parse_int(trim(str_slice(argRest, 0, sp2)))
+        let argc = parse_int(trim(str_slice(argRest, sp2 + 1, len(argRest))))
+        return { "op": OP_NEW_INSTANCE, "arg": ci, "arg2": argc }
+    }
+    if head == "member_set" {
+        return { "op": OP_SET_MEMBER, "arg": parse_int(argRest) }
+    }
+    if csvHas(ARG_HEAD_CSV, head) {
+        return { "op": head, "arg": parse_int(argRest) }
+    }
+    throw "deserialize: unsupported op " + line
+}
+
+pub fn commaList(s) {
+    if s == "" || s == null || s == undefined {
+        return []
+    }
+    let parts = split(s, ",")
+    let out = []
+    let i = 0
+    while i < len(parts) {
+        out = push(out, unescapeKbc(trim(parts[i])))
+        i = i + 1
+    }
+    return out
+}
+

@@ -11,10 +11,26 @@ fn str_arg(v: &Value) -> Result<&str, String> {
     }
 }
 
+/// Character length — O(1) for ASCII (Kab sources are ASCII-heavy).
+fn char_len(s: &str) -> usize {
+    if s.is_ascii() {
+        s.len()
+    } else {
+        s.chars().count()
+    }
+}
+
+fn char_at_idx(s: &str, idx: usize) -> Option<char> {
+    if s.is_ascii() {
+        s.as_bytes().get(idx).copied().map(|b| b as char)
+    } else {
+        s.chars().nth(idx)
+    }
+}
+
 fn substring_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let s = str_arg(args.first().ok_or("substring(s, start, end?)")?)?;
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len() as i64;
+    let len = char_len(s) as i64;
     let start = match args.get(1) {
         Some(Value::Number(n)) => norm(*n, len),
         _ => 0,
@@ -28,12 +44,15 @@ fn substring_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     } else {
         (end as usize, start as usize)
     };
-    let out: String = chars
-        .get(a..b.min(chars.len()))
-        .unwrap_or(&[])
-        .iter()
-        .collect();
-    Ok(Value::String(out))
+    let b = b.min(len as usize);
+    if a >= b {
+        return Ok(Value::String(String::new()));
+    }
+    if s.is_ascii() {
+        Ok(Value::String(s[a..b].to_string()))
+    } else {
+        Ok(Value::String(s.chars().skip(a).take(b - a).collect()))
+    }
 }
 
 fn norm(i: i64, len: i64) -> i64 {
@@ -171,13 +190,12 @@ fn pad_end_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
 
 fn char_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let s = str_arg(args.first().ok_or("char_at(s, index)")?)?;
-    let chars: Vec<char> = s.chars().collect();
+    let len = char_len(s) as i64;
     let idx = match args.get(1) {
-        Some(Value::Number(n)) => norm(*n, chars.len() as i64) as usize,
+        Some(Value::Number(n)) => norm(*n, len) as usize,
         _ => 0,
     };
-    Ok(chars
-        .get(idx)
+    Ok(char_at_idx(s, idx)
         .map(|c| Value::String(c.to_string()))
         .unwrap_or(Value::String(String::new())))
 }
@@ -238,8 +256,7 @@ fn str_normalize_native(args: &[Value], _env: &mut Environment) -> Result<Value,
 
 fn str_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let s = str_arg(args.first().ok_or("str_at(s, index)")?)?;
-    let chars: Vec<char> = s.chars().collect();
-    let len = chars.len() as i64;
+    let len = char_len(s) as i64;
     let idx = match args.get(1) {
         Some(Value::Number(n)) if *n < 0 => len + *n,
         Some(Value::Number(n)) => *n,
@@ -248,7 +265,9 @@ fn str_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String
     if idx < 0 || idx >= len {
         Ok(Value::Undefined)
     } else {
-        Ok(Value::String(chars[idx as usize].to_string()))
+        Ok(char_at_idx(s, idx as usize)
+            .map(|c| Value::String(c.to_string()))
+            .unwrap_or(Value::Undefined))
     }
 }
 
@@ -327,14 +346,13 @@ pub fn to_well_formed_method(args: &[Value], env: &mut Environment) -> Result<Va
 
 fn char_code_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let s = str_arg(args.first().ok_or("char_code_at(s, index)")?)?;
-    let chars: Vec<char> = s.chars().collect();
+    let len = char_len(s) as i64;
     let idx = match args.get(1) {
-        Some(Value::Number(n)) => norm(*n, chars.len() as i64) as usize,
+        Some(Value::Number(n)) => norm(*n, len) as usize,
         _ => 0,
     };
-    Ok(chars
-        .get(idx)
-        .map(|c| Value::Number(*c as u32 as i64))
+    Ok(char_at_idx(s, idx)
+        .map(|c| Value::Number(c as u32 as i64))
         .unwrap_or(Value::Float(f64::NAN)))
 }
 
@@ -353,14 +371,13 @@ fn from_char_code_native(args: &[Value], _env: &mut Environment) -> Result<Value
 
 fn code_point_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let s = str_arg(args.first().ok_or("code_point_at(s, index)")?)?;
-    let chars: Vec<char> = s.chars().collect();
+    let len = char_len(s) as i64;
     let idx = match args.get(1) {
-        Some(Value::Number(n)) => norm(*n, chars.len() as i64) as usize,
+        Some(Value::Number(n)) => norm(*n, len) as usize,
         _ => 0,
     };
-    Ok(chars
-        .get(idx)
-        .map(|c| Value::Number(*c as u32 as i64))
+    Ok(char_at_idx(s, idx)
+        .map(|c| Value::Number(c as u32 as i64))
         .unwrap_or(Value::Undefined))
 }
 

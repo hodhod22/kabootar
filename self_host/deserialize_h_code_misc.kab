@@ -1,0 +1,60 @@
+// Part of deserialize line handlers.
+import "self_host/deserialize_ops"
+
+pub fn deserCode(st, line) {
+    if starts_with(line, "source=") || starts_with(line, "statements=") {
+        return "break"
+    }
+    st["ops"] = push(st["ops"], parseOpLine(line))
+    return "ok"
+}
+
+pub fn deserMisc(st, line) {
+    if starts_with(line, "constants=") || starts_with(line, "exports=") || starts_with(line, "imports=") {
+        return "ok"
+    }
+    if starts_with(line, "const ") {
+        st["constants"] = push(st["constants"], parseConstLine(line))
+        return "ok"
+    }
+    if starts_with(line, "global ") {
+        let rest = str_slice(line, 7, len(line))
+        let sp = str_index_of(rest, " ")
+        let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["globals"] = push(st["globals"], name)
+        return "ok"
+    }
+    if starts_with(line, "local ") {
+        let rest = str_slice(line, 6, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        let locals = st["locals"]
+        while len(locals) <= idx {
+            locals = push(locals, "")
+        }
+        locals[idx] = name
+        st["locals"] = locals
+        return "ok"
+    }
+    if starts_with(line, "main_try_region ") {
+        let rest = trim(str_slice(line, 16, len(line)))
+        let parts = split(rest, " ")
+        st["tryRegions"] = push(st["tryRegions"], {
+            "bodyStart": parse_int(parts[1]),
+            "bodyEnd": parse_int(parts[2]),
+            "catchStart": parse_int(parts[3]),
+            "errLocal": parse_int(parts[4])
+        })
+        return "ok"
+    }
+    if starts_with(line, "import ") {
+        let rest = str_slice(line, 7, len(line))
+        let sp = str_index_of(rest, " ")
+        let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["imports"] = push(st["imports"], name)
+        return "ok"
+    }
+    return "skip"
+}
+

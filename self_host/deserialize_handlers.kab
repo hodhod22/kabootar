@@ -1,0 +1,24 @@
+// Deserialization line handlers facade.
+import "self_host/deserialize_ops"
+import "self_host/deserialize_h_code_misc"
+import "self_host/deserialize_h_fn"
+import "self_host/deserialize_h_arrow"
+import "self_host/deserialize_h_class"
+
+pub fn deserApplyLine(st, line) {
+    if st["inCode"] {
+        return deserCode(st, line)
+    }
+    if starts_with(line, "fn") || starts_with(line, "functions=") {
+        return deserFn(st, line)
+    }
+    if starts_with(line, "arrow") || starts_with(line, "arrows=") {
+        return deserArrow(st, line)
+    }
+    if starts_with(line, "class") || starts_with(line, "classes=") {
+        return deserClass(st, line)
+    }
+    return deserMisc(st, line)
+}
+
+/// Parse .kbc text into IR for `runModule`. Throws on unsupported sections.

@@ -271,6 +271,60 @@ fn emitSym(store, sym) {
     emitOp(OP_STORE_LOCAL, eIdx)
 }
 
+/// Local index if `sym` is an fn-local, else -1.
+fn localSymIndex(sym) {
+    if eInFn != 1 {
+        return -1
+    }
+    let i = 0
+    while i < len(eFnLocals) {
+        if eFnLocals[i] == sym {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// `name = push(name, item)` → Take + ArrayPush* (classic eval order; O(1) in-place).
+fn tryEmitArrayPushAssign(sym, rhs) {
+    if rhs.kind != AST_CALL {
+        return false
+    }
+    let cal = rhs["callee"]
+    let args = rhs["args"]
+    if cal.kind != AST_VAR {
+        return false
+    }
+    if cal["sym"] != "push" {
+        return false
+    }
+    if len(args) != 2 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    if a0["sym"] != sym {
+        return false
+    }
+    let li = localSymIndex(sym)
+    if li >= 0 {
+        emitOp(OP_TAKE_LOCAL, li)
+        emitExpr(args[1])
+        emitOp(OP_ARRAY_PUSH_LOCAL, li)
+        emitOp(OP_POP, 0)
+        return true
+    }
+    let gi = symIndex("global", sym)
+    emitOp(OP_TAKE_GLOBAL, gi)
+    emitExpr(args[1])
+    emitOp(OP_ARRAY_PUSH_GLOBAL, gi)
+    emitOp(OP_POP, 0)
+    return true
+}
+
 fn emitExpr(node) {
     eNode = node
     if eNode == null {
@@ -409,12 +463,13 @@ fn emitExpr(node) {
         throw "Unsupported binary op: " + eBinOp
     }
     if eNode.kind == AST_OBJECT {
-        eList = eNode["fields"]
+        // Use fn-local field list — nested array/object emit must not clobber a shared eList.
+        let objFields = eNode["fields"]
         eObjIStack = push(eObjIStack, 0)
-        eObjNStack = arrUtil("pushLen",eObjNStack, eList)
+        eObjNStack = arrUtil("pushLen",eObjNStack, objFields)
         while eObjIStack[len(eObjIStack) - 1] < eObjNStack[len(eObjNStack) - 1] {
             eObjI = eObjIStack[len(eObjIStack) - 1]
-            eFld = eList[eObjI]
+            eFld = objFields[eObjI]
             emitExpr(eFld["value"])
             eIdx = symIndex("const",eFld["key"])
             emitOp(OP_CONST, eIdx)
@@ -424,23 +479,23 @@ fn emitExpr(node) {
         }
         eObjIStack = pop(eObjIStack)
         eObjNStack = pop(eObjNStack)
-        emitOp(OP_MAKE_OBJECT, len(eList))
+        emitOp(OP_MAKE_OBJECT, len(objFields))
         return
     }
     if eNode.kind == AST_ARRAY {
-        eList = eNode["elems"]
+        let arrElems = eNode["elems"]
         eArrIStack = push(eArrIStack, 0)
-        eArrNStack = arrUtil("pushLen",eArrNStack, eList)
+        eArrNStack = arrUtil("pushLen",eArrNStack, arrElems)
         while eArrIStack[len(eArrIStack) - 1] < eArrNStack[len(eArrNStack) - 1] {
             eObjI = eArrIStack[len(eArrIStack) - 1]
-            emitExpr(eList[eObjI])
+            emitExpr(arrElems[eObjI])
             eObjI = eArrIStack[len(eArrIStack) - 1] + 1
             eArrIStack = pop(eArrIStack)
             eArrIStack = push(eArrIStack, eObjI)
         }
         eArrIStack = pop(eArrIStack)
         eArrNStack = pop(eArrNStack)
-        emitOp(OP_MAKE_ARRAY, len(eList))
+        emitOp(OP_MAKE_ARRAY, len(arrElems))
         return
     }
     if eNode.kind == AST_MEMBER {
@@ -1235,6 +1290,9 @@ fn emitStmt(node) {
     }
     if eNode.kind == AST_ASSIGN {
         eAssignSym = eNode["sym"]
+        if tryEmitArrayPushAssign(eAssignSym, eNode["rhs"]) {
+            return
+        }
         emitExpr(eNode["rhs"])
         emitSym(1,eAssignSym)
         return

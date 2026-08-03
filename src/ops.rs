@@ -227,7 +227,14 @@ pub fn read_index(
 pub fn get_length(value: &Value) -> Result<Value, String> {
     match value {
         Value::Array(items) => Ok(Value::Number(items.len() as i64)),
-        Value::String(s) => Ok(Value::Number(s.chars().count() as i64)),
+        Value::String(s) => {
+            let n = if s.is_ascii() {
+                s.len()
+            } else {
+                s.chars().count()
+            };
+            Ok(Value::Number(n as i64))
+        }
         _ => Err("Member access requires object, array, string, or class instance".into()),
     }
 }
@@ -298,7 +305,14 @@ pub fn read_member(
             Box::new(Value::Array(items.clone())),
             crate::runtime::stdlib::array_to_locale_string_method,
         )),
-        Value::String(s) if field == "length" => Ok(Value::Number(s.chars().count() as i64)),
+        Value::String(s) if field == "length" => {
+            let n = if s.is_ascii() {
+                s.len()
+            } else {
+                s.chars().count()
+            };
+            Ok(Value::Number(n as i64))
+        }
         Value::String(s) if field == "at" => Ok(Value::BoundNative(
             Box::new(Value::String(s.clone())),
             crate::runtime::stdlib::str_at_method,

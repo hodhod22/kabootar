@@ -1,0 +1,62 @@
+// Part of deserialize line handlers.
+import "self_host/deserialize_ops"
+
+pub fn deserFn(st, line) {
+    if starts_with(line, "functions=") {
+        return "ok"
+    }
+    if starts_with(line, "fn_try_region ") {
+        let rest = trim(str_slice(line, 14, len(line)))
+        let parts = split(rest, " ")
+        let fi = parse_int(parts[0])
+        let functions = st["functions"]
+        while len(functions) <= fi {
+            functions = push(functions, { "sym": "", "params": [], "locals": [], "ops": [], "tryRegions": [] })
+        }
+        if functions[fi]["tryRegions"] == undefined {
+            functions[fi]["tryRegions"] = []
+        }
+        functions[fi]["tryRegions"] = push(functions[fi]["tryRegions"], {
+            "bodyStart": parse_int(parts[2]),
+            "bodyEnd": parse_int(parts[3]),
+            "catchStart": parse_int(parts[4]),
+            "errLocal": parse_int(parts[5])
+        })
+        st["functions"] = functions
+        return "ok"
+    }
+    if starts_with(line, "fn ") {
+        let rest = str_slice(line, 3, len(line))
+        let sp = str_index_of(rest, " ")
+        let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["functions"] = push(st["functions"], { "sym": sym, "params": [], "locals": [], "ops": [], "tryRegions": [] })
+        return "ok"
+    }
+    if starts_with(line, "fn_params ") {
+        let rest = str_slice(line, 10, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let list = trim(str_slice(rest, sp + 1, len(rest)))
+        st["functions"][idx]["params"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "fn_locals ") {
+        let rest = str_slice(line, 10, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let list = trim(str_slice(rest, sp + 1, len(rest)))
+        st["functions"][idx]["locals"] = commaList(list)
+        return "ok"
+    }
+    if starts_with(line, "fn_op ") {
+        let rest = str_slice(line, 6, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let opLine = trim(str_slice(rest, sp + 1, len(rest)))
+        let op = parseOpLine(opLine)
+        st["functions"][idx]["ops"] = push(st["functions"][idx]["ops"], op)
+        return "ok"
+    }
+    return "skip"
+}
+
