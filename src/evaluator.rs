@@ -100,6 +100,11 @@ pub fn create_global_env() -> Environment {
     env.set("is_nan".to_string(), Value::NativeFunction(is_nan_native));
     env.set("len".to_string(), Value::NativeFunction(len_native));
     env.set("push".to_string(), Value::NativeFunction(push_native));
+    // Alias used by Kab VM ArrayPushLocal/Global handlers (same semantics as push).
+    env.set(
+        "bytecode_array_push".to_string(),
+        Value::NativeFunction(push_native),
+    );
     env.set("pop".to_string(), Value::NativeFunction(pop_native));
     env.set("map".to_string(), Value::NativeFunction(map_native));
     env.set("array_map".to_string(), Value::NativeFunction(map_native));
@@ -283,20 +288,25 @@ fn len_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 fn push_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let arr = args.first().ok_or("push() expects 2 arguments")?;
     let item = args.get(1).ok_or("push() expects 2 arguments")?;
-    let Value::Array(mut items) = arr.clone() else {
+    let Value::Array(items) = arr else {
         return Err("push() first argument must be an array".into());
     };
-    items.push(item.clone());
-    Ok(Value::Array(items))
+    // One alloc + extend (avoid Array clone + separate push realloc dance).
+    let mut out = Vec::with_capacity(items.len() + 1);
+    out.extend_from_slice(items);
+    out.push(item.clone());
+    Ok(Value::Array(out))
 }
 
 fn pop_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let arr = args.first().ok_or("pop() expects 1 argument")?;
-    let Value::Array(mut items) = arr.clone() else {
+    let Value::Array(items) = arr else {
         return Err("pop() expects an array".into());
     };
-    let _ = items.pop().unwrap_or(Value::Undefined);
-    Ok(Value::Array(items))
+    if items.is_empty() {
+        return Ok(Value::Array(Vec::new()));
+    }
+    Ok(Value::Array(items[..items.len() - 1].to_vec()))
 }
 
 fn call_with_args(func: &Value, args: Vec<Value>, env: &mut Environment) -> Result<Value, String> {

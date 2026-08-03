@@ -703,6 +703,25 @@ impl Environment {
         None
     }
 
+    /// Move a binding out of the environment, leaving `Undefined` in its slot.
+    /// Used so `name = push(name, expr)` can capture the array *before* `expr`
+    /// runs (expr may rebind `name`, e.g. nested `pArgs` in the self-host parser).
+    pub fn take_binding(&self, name: &str) -> Result<Value, String> {
+        if self.is_immutable(name) {
+            return Err(format!("Cannot assign to const `{name}`"));
+        }
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let mut bindings = node.bindings.borrow_mut();
+            if let Some(v) = bindings.get_mut(name) {
+                return Ok(std::mem::replace(v, Value::Undefined));
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
     /// Push `item` onto an array binding in place (O(1) amortized). Returns new length.
     pub fn array_push_inplace(&self, name: &str, item: Value) -> Result<i64, String> {
         if self.is_immutable(name) {
@@ -720,6 +739,34 @@ impl Environment {
                     other => {
                         return Err(format!(
                             "array_push_global requires an array (got {})",
+                            crate::value::format_value(other)
+                        ));
+                    }
+                }
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
+    /// Drop the last element of an array binding in place (`name = pop(name)`).
+    pub fn array_pop_inplace(&self, name: &str) -> Result<(), String> {
+        if self.is_immutable(name) {
+            return Err(format!("Cannot assign to const `{name}`"));
+        }
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let mut bindings = node.bindings.borrow_mut();
+            if let Some(v) = bindings.get_mut(name) {
+                match v {
+                    Value::Array(items) => {
+                        let _ = items.pop();
+                        return Ok(());
+                    }
+                    other => {
+                        return Err(format!(
+                            "array_pop_global requires an array (got {})",
                             crate::value::format_value(other)
                         ));
                     }

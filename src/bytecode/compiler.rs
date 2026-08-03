@@ -547,6 +547,32 @@ impl Compiler {
         }
     }
 
+    /// `name = push(name, item)` with classic eval order: capture array, then item,
+    /// then push+store. Needed so nested parser `pArgs = push(pArgs, parseCompare())`
+    /// does not push onto the inner call's args array.
+    fn emit_array_push_assign(&mut self, name: &str, item: &Expr) -> Result<(), CompileError> {
+        if let Some(idx) = self.locals.iter().position(|l| l == name) {
+            self.emit(Opcode::TakeLocal(idx as u16));
+            self.compile_expr(item)?;
+            self.emit(Opcode::ArrayPushLocal(idx as u16));
+            return Ok(());
+        }
+        if !self.is_enclosed_local(name) {
+            let idx = self.global_index(name);
+            self.emit(Opcode::TakeGlobal(idx));
+            self.compile_expr(item)?;
+            self.emit(Opcode::ArrayPushGlobal(idx));
+            return Ok(());
+        }
+        // Enclosed local: fall back to classic push call.
+        self.emit_load_name(name);
+        self.compile_expr(item)?;
+        self.emit_load_name("push");
+        self.emit(Opcode::Call(2));
+        self.emit_store_name(name);
+        Ok(())
+    }
+
     fn emit_load_name(&mut self, name: &str) {
         if self.locals.iter().any(|l| l == name) {
             let idx = self.local_index(name);
@@ -1087,36 +1113,20 @@ impl Compiler {
                         CallArg::Spread(_) => None,
                     })
                     .collect();
-                // G2: arr.push(x). Existing fn-locals → ArrayPushLocal (no Vec clone).
-                // Module globals keep classic ArrayPush+Store — push/pop stack idioms in
-                // self_host/emit (eCalleeStack / eCallArgIStack) are sensitive to in-place
-                // global mutation vs pop()'s non-mutating return.
+                // G2: arr.push(x) — Take then push so item exprs that rebind `arr` stay correct.
                 if !has_spread {
                     if let Expr::Member(obj, method, _) = func.as_ref() {
                         if method == "push" && args.len() == 1 {
                             if let CallArg::Expr(arg) = &args[0] {
                                 if let Expr::Variable(name) = obj.as_ref() {
-                                    if let Some(idx) =
-                                        self.locals.iter().position(|l| l == name)
-                                    {
-                                        self.compile_expr(arg)?;
-                                        self.emit(Opcode::ArrayPushLocal(idx as u16));
-                                        return Ok(());
-                                    }
+                                    self.emit_array_push_assign(name, arg)?;
+                                    return Ok(());
                                 }
                                 self.compile_expr(obj)?;
                                 self.compile_expr(arg)?;
                                 self.emit(Opcode::ArrayPush);
-                                match obj.as_ref() {
-                                    Expr::Variable(name) => {
-                                        self.emit(Opcode::Swap);
-                                        self.emit_store_name(name);
-                                    }
-                                    _ => {
-                                        self.emit(Opcode::Swap);
-                                        self.emit(Opcode::Pop);
-                                    }
-                                }
+                                self.emit(Opcode::Swap);
+                                self.emit(Opcode::Pop);
                                 return Ok(());
                             }
                         }
@@ -2118,7 +2128,7 @@ impl Compiler {
     fn compile_assign(&mut self, target: &AssignTarget, value: &Expr) -> Result<(), CompileError> {
         match target {
             AssignTarget::Name(name) => {
-                // Peephole: `name = push(name, expr)` → ArrayPushLocal / ArrayPushGlobal.
+                // Peephole: `name = push(name, expr)` — Take then ArrayPush* (classic eval order).
                 // Use position() — never local_index() here (must not create a new local).
                 if let Expr::Call {
                     func,
@@ -2134,13 +2144,27 @@ impl Compiler {
                             (&args[0], &args[1])
                         {
                             if arr == name {
+                                self.emit_array_push_assign(name, item)?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                    // Peephole: `name = pop(name)` → ArrayPopLocal / ArrayPopGlobal.
+                    if type_args.is_empty()
+                        && args.len() == 1
+                        && matches!(func.as_ref(), Expr::Variable(f) if f == "pop")
+                    {
+                        if let CallArg::Expr(Expr::Variable(arr)) = &args[0] {
+                            if arr == name {
                                 if let Some(idx) = self.locals.iter().position(|l| l == name) {
-                                    self.compile_expr(item)?;
-                                    self.emit(Opcode::ArrayPushLocal(idx as u16));
+                                    self.emit(Opcode::ArrayPopLocal(idx as u16));
                                     return Ok(());
                                 }
-                                // Globals: no ArrayPushGlobal here — emit.kab stack
-                                // idioms (`x = pop(x); x = push(x, …)`) need classic store.
+                                if !self.is_enclosed_local(name) {
+                                    let idx = self.global_index(name);
+                                    self.emit(Opcode::ArrayPopGlobal(idx));
+                                    return Ok(());
+                                }
                             }
                         }
                     }

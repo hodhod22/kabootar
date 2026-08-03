@@ -25,10 +25,11 @@ MANIFEST = ROOT.replace("\\", "/")
 
 
 def kabootar_bin() -> str:
-    for sub in ("target-alt3", "target-alt2", "target"):
-        path = os.path.join(ROOT, sub, "debug", "kabootar.exe")
-        if os.path.isfile(path):
-            return path
+    for sub in ("target-h6e5", "target-alt3", "target-alt2", "target"):
+        for name in ("kabootar.exe", "kabootar"):
+            path = os.path.join(ROOT, sub, "debug", name)
+            if os.path.isfile(path):
+                return path
     return os.path.join(ROOT, "target", "debug", "kabootar.exe")
 
 
