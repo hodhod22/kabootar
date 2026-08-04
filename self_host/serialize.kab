@@ -89,6 +89,30 @@ fn irOpLine(op) {
     if sOp == OP_STORE_LOCAL {
         return "store_local " + ("" + op.arg)
     }
+    if sOp == OP_TAKE_LOCAL {
+        return "take_local " + ("" + op.arg)
+    }
+    if sOp == OP_TAKE_GLOBAL {
+        return "take_global " + ("" + op.arg)
+    }
+    if sOp == OP_ARRAY_PUSH_LOCAL {
+        return "array_push_local " + ("" + op.arg)
+    }
+    if sOp == OP_ARRAY_PUSH_GLOBAL {
+        return "array_push_global " + ("" + op.arg)
+    }
+    if sOp == OP_ARRAY_POP_LOCAL {
+        return "array_pop_local " + ("" + op.arg)
+    }
+    if sOp == OP_ARRAY_POP_GLOBAL {
+        return "array_pop_global " + ("" + op.arg)
+    }
+    if sOp == OP_ACC_ADD_LOCAL {
+        return "acc_add_local " + ("" + op.arg)
+    }
+    if sOp == OP_ACC_ADD_GLOBAL {
+        return "acc_add_global " + ("" + op.arg)
+    }
     if sOp == OP_POP {
         return "pop"
     }
@@ -139,6 +163,27 @@ fn irOpLine(op) {
     }
     if sOp == OP_OR {
         return "or"
+    }
+    if sOp == OP_BIT_AND {
+        return "bit_and"
+    }
+    if sOp == OP_BIT_OR {
+        return "bit_or"
+    }
+    if sOp == OP_BIT_XOR {
+        return "bit_xor"
+    }
+    if sOp == OP_SHL {
+        return "shl"
+    }
+    if sOp == OP_SHR {
+        return "shr"
+    }
+    if sOp == OP_USHR {
+        return "ushr"
+    }
+    if sOp == OP_BIT_NOT {
+        return "bit_not"
     }
     if sOp == OP_MAKE_OBJECT {
         return "make_object " + ("" + op.arg)

@@ -5,6 +5,9 @@ import "self_host/ast_defs"
 
 let pPos = 0
 let pToks = []
+let pToksLen = 0
+let pCur = null
+let pEofTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
 let pLeft = null
 let pRight = null
 let pArgs = []
@@ -41,6 +44,7 @@ let pSymOut = ""
 let pSymSrc = ""
 let pSymI = 0
 let pInAddSub = 0
+let pNoBit = 0
 let pAddLeft = null
 let pAddLeftStack = []
 let pNextTok = null
@@ -77,28 +81,25 @@ let pWhereTrait = ""
 let pSnapTypeArgs = []
 let pParamType = ""
 
-fn symCopy(name) {
-    // Strings are immutable values — no per-char copy needed.
-    return "" + name
-}
-
 fn peek() {
-    if pPos >= len(pToks) {
-        return { "type": "EOF", "value": null, "line": 1, "column": 1 }
-    }
-    return pToks[pPos]
+    return pCur
 }
 
 fn bump() {
-    pTok = peek()
-    if pPos < len(pToks) {
+    pTok = pCur
+    if pPos < pToksLen {
         pPos = pPos + 1
+        if pPos < pToksLen {
+            pCur = pToks[pPos]
+        } else {
+            pCur = pEofTok
+        }
     }
     return pTok
 }
 
 fn parseTypeArgs() {
-    if peek().type != "<" {
+    if pCur.type != "<" {
         return []
     }
     pAngleI = pPos + 1
@@ -136,19 +137,19 @@ fn parseTypeArgs() {
     }
     bump()
     pAngleOut = []
-    while peek().type != ">" {
-        pTok = peek()
+    while pCur.type != ">" {
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected type name"
         }
         bump()
-        pSymPool = push(pSymPool, symCopy(pTok.value))
+        pSymPool = push(pSymPool, pTok.value)
         pAngleOut = push(pAngleOut, pSymPool[len(pSymPool) - 1])
-        if peek().type == "," {
+        if pCur.type == "," {
             bump()
         }
     }
-    if peek().type != ">" {
+    if pCur.type != ">" {
         throw "Expected >"
     }
     bump()
@@ -156,69 +157,69 @@ fn parseTypeArgs() {
 }
 
 fn parsePostfix() {
-    if peek().type == "EOF" {
+    if pCur.type == "EOF" {
         throw "parsePostfix EOF"
     }
     pLeft = null
     pTypeArgs = []
-    pTok = peek()
+    pTok = pCur
     if pTok.type == TOKEN_NUMBER {
         bump()
         pLeft = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": pTok.value }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_STRING {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": pTok.value }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_TRUE {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_FALSE {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": false }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_NULL {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_UNDEFINED {
             bump()
             pLeft = { "kind": AST_LITERAL, "lit": LIT_UNDEF, "value": undefined }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_NONE {
             bump()
             pLeft = { "kind": AST_VAR, "sym": "None" }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_OK || pTok.type == TOKEN_ERR || pTok.type == TOKEN_SOME {
             bump()
             let wrapName = pTok.type
-            if peek().type != "(" {
-                throw "Expected ("
+            if pCur.type != "(" {
+                throw "Expected ( at " + ("" + pCur.line) + ":" + ("" + pCur.column) + " tok=" + pCur.type
             }
             bump()
             let wrapInner = parseCompare()
-            if peek().type != ")" {
+            if pCur.type != ")" {
                 throw "Expected )"
             }
             bump()
@@ -230,76 +231,76 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_IDENT {
             bump()
-            pSymPool = push(pSymPool, symCopy(pTok.value))
+            pSymPool = push(pSymPool, pTok.value)
             pLeft = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_SELF {
             bump()
             pLeft = { "kind": AST_VAR, "sym": "self" }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == TOKEN_THIS {
             bump()
             pLeft = { "kind": AST_VAR, "sym": "this" }
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == "(" {
             let savePos = pPos
             bump()
             // Arrow: (a, b) => body
             let arrowParams = []
             let arrowOk = 1
-            if peek().type == ")" {
+            if pCur.type == ")" {
                 bump()
             } else {
-                while peek().type != ")" {
-                    if peek().type != TOKEN_IDENT {
+                while pCur.type != ")" {
+                    if pCur.type != TOKEN_IDENT {
                         arrowOk = 0
                         break
                     }
-                    pTok = peek()
+                    pTok = pCur
                     bump()
-                    arrowParams = push(arrowParams, symCopy(pTok.value))
-                    if peek().type == "," {
+                    arrowParams = push(arrowParams, pTok.value)
+                    if pCur.type == "," {
                         bump()
                     } else {
-                        if peek().type != ")" {
+                        if pCur.type != ")" {
                             arrowOk = 0
                             break
                         }
                     }
                 }
                 if arrowOk == 1 {
-                    if peek().type != ")" {
+                    if pCur.type != ")" {
                         arrowOk = 0
                     } else {
                         bump()
                     }
                 }
             }
-            if arrowOk == 1 && peek().type == "=>" {
+            if arrowOk == 1 && pCur.type == "=>" {
                 bump()
                 let arrowBody = null
-                if peek().type == "{" {
+                if pCur.type == "{" {
                     bump()
                     pBodyStack = push(pBodyStack, pBody)
                     pBody = []
-                    while peek().type != "}" {
-                        if peek().type == "EOF" {
+                    while pCur.type != "}" {
+                        if pCur.type == "EOF" {
                             throw "Unclosed arrow block"
                         }
                         pBody = push(pBody, parseStmt())
-                        if peek().type == ";" {
+                        if pCur.type == ";" {
                             bump()
                         }
                     }
@@ -313,10 +314,16 @@ fn parsePostfix() {
                 }
                 pLeft = { "kind": AST_ARROW, "params": arrowParams, "body": arrowBody }
             } else {
+                // Backtrack to `(` — keep pCur in sync with pPos (peek cache).
                 pPos = savePos
+                if pPos < pToksLen {
+                    pCur = pToks[pPos]
+                } else {
+                    pCur = pEofTok
+                }
                 bump()
                 pLeft = parseCompare()
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     throw "Expected )"
                 }
                 bump()
@@ -324,32 +331,32 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == "{" {
             bump()
             pObjFields = []
-            while peek().type != "}" {
-                pTok = peek()
+            while pCur.type != "}" {
+                pTok = pCur
                 if pTok.type == TOKEN_IDENT {
                     bump()
-                    pSymPool = push(pSymPool, symCopy(pTok.value))
+                    pSymPool = push(pSymPool, pTok.value)
                     pSaveSym = pSymPool[len(pSymPool) - 1]
                 } else {
                     if pTok.type == TOKEN_STRING {
                         bump()
-                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pSymPool = push(pSymPool, pTok.value)
                         pSaveSym = pSymPool[len(pSymPool) - 1]
                     } else {
                         throw "Expected object key"
                     }
                 }
-                if peek().type != ":" {
+                if pCur.type != ":" {
                     throw "Expected :"
                 }
                 bump()
                 pVal = parseCompare()
                 pObjFields = push(pObjFields, { "key": pSaveSym, "value": pVal })
-                if peek().type == "," {
+                if pCur.type == "," {
                     bump()
                 }
             }
@@ -358,13 +365,13 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        pTok = peek()
+        pTok = pCur
         if pTok.type == "[" {
             bump()
             pArgs = []
-            while peek().type != "]" {
+            while pCur.type != "]" {
                 pArgs = push(pArgs, parseCompare())
-                if peek().type == "," {
+                if pCur.type == "," {
                     bump()
                 }
             }
@@ -373,23 +380,23 @@ fn parsePostfix() {
         }
     }
     if pLeft == null {
-        throw json_stringify(peek())
+        throw json_stringify(pCur)
     }
     // Bare arrow: a => body
-    if pLeft.kind == AST_VAR && peek().type == "=>" {
+    if pLeft.kind == AST_VAR && pCur.type == "=>" {
         bump()
         let bareParams = [pLeft["sym"]]
         let bareBody = null
-        if peek().type == "{" {
+        if pCur.type == "{" {
             bump()
             pBodyStack = push(pBodyStack, pBody)
             pBody = []
-            while peek().type != "}" {
-                if peek().type == "EOF" {
+            while pCur.type != "}" {
+                if pCur.type == "EOF" {
                     throw "Unclosed arrow block"
                 }
                 pBody = push(pBody, parseStmt())
-                if peek().type == ";" {
+                if pCur.type == ";" {
                     bump()
                 }
             }
@@ -404,7 +411,7 @@ fn parsePostfix() {
         pLeft = { "kind": AST_ARROW, "params": bareParams, "body": bareBody }
     }
     while true {
-        if peek().type == "<" {
+        if pCur.type == "<" {
             pIsGenericCallee = 0
             if pLeft.kind == AST_VAR {
                 pIsGenericCallee = 1
@@ -423,39 +430,39 @@ fn parsePostfix() {
                 break
             }
         } else {
-            if peek().type == "(" {
+            if pCur.type == "(" {
                 pCallee = pLeft
                 if pCallee.kind == AST_VAR {
-                    pCallee = { "kind": AST_VAR, "sym": symCopy(pCallee["sym"]) }
+                    pCallee = { "kind": AST_VAR, "sym": pCallee["sym"] }
                 }
                 let savedCallee = pCallee
                 let savedTypeArgs = pTypeArgs
                 bump()
                 pArgs = []
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     while true {
                         pArgs = push(pArgs, parseCompare())
-                        if peek().type == "," {
+                        if pCur.type == "," {
                             bump()
                         } else {
                             break
                         }
                     }
                 }
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     throw "Expected )"
                 }
                 bump()
                 pLeft = { "kind": AST_CALL, "callee": savedCallee, "args": pArgs, "typeArgs": savedTypeArgs }
                 pTypeArgs = []
             } else {
-                if peek().type == "." {
+                if pCur.type == "." {
                     bump()
-                    pTok = peek()
+                    pTok = pCur
                     pMemberName = ""
                     if pTok.type == TOKEN_IDENT {
                         bump()
-                        pMemberName = symCopy(pTok.value)
+                        pMemberName = pTok.value
                     } else {
                         if pTok.type == TOKEN_NONE {
                             bump()
@@ -488,11 +495,11 @@ fn parsePostfix() {
                     }
                     pTypeArgs = []
                 } else {
-                    if peek().type == "[" {
+                    if pCur.type == "[" {
                         bump()
                         let indexObj = pLeft
                         pRight = parseCompare()
-                        if peek().type != "]" {
+                        if pCur.type != "]" {
                             throw "Expected ]"
                         }
                         bump()
@@ -508,23 +515,28 @@ fn parsePostfix() {
 }
 
 fn parseUnary() {
-    if peek().type == "!" {
+    if pCur.type == "!" {
         bump()
         let uInner = parseUnary()
         return { "kind": AST_UNARY, "op": "!", "expr": uInner }
     }
-    if peek().type == "-" {
+    if pCur.type == "-" {
         bump()
         let uInner = parseUnary()
         return { "kind": AST_UNARY, "op": "-", "expr": uInner }
+    }
+    if pCur.type == "~" {
+        bump()
+        let uInner = parseUnary()
+        return { "kind": AST_UNARY, "op": "~", "expr": uInner }
     }
     return parsePostfix()
 }
 
 fn parseMul() {
     pLeft = parseUnary()
-    while peek().type == "*" || peek().type == "/" || peek().type == "%" || peek().type == "**" {
-        pBinOp = peek().type
+    while pCur.type == "*" || pCur.type == "/" || pCur.type == "%" || pCur.type == "**" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pRight = parseUnary()
@@ -534,11 +546,11 @@ fn parseMul() {
 }
 
 fn parseCompare() {
-    if peek().type == "EOF" {
+    if pCur.type == "EOF" {
         throw "parseCompare EOF"
     }
     pLeft = parseMul()
-    while peek().type == "+" {
+    while pCur.type == "+" {
         bump()
         pAddLeftStack = push(pAddLeftStack, pLeft)
         pInAddSub = 1
@@ -548,7 +560,7 @@ fn parseCompare() {
         pLeft = { "kind": AST_BINARY, "op": "+", "left": pAddLeft, "right": pRight }
         pAddLeftStack = pop(pAddLeftStack)
     }
-    while peek().type == "-" {
+    while pCur.type == "-" {
         bump()
         pAddLeftStack = push(pAddLeftStack, pLeft)
         pInAddSub = 1
@@ -558,11 +570,21 @@ fn parseCompare() {
         pLeft = { "kind": AST_BINARY, "op": "-", "left": pAddLeft, "right": pRight }
         pAddLeftStack = pop(pAddLeftStack)
     }
+    // Shifts bind tighter than comparisons (and must run even inside + / bit RHS).
+    while pCur.type == "<<" || pCur.type == ">>" || pCur.type == ">>>" {
+        pBinOp = pCur.type
+        bump()
+        pSave = pLeft
+        pInAddSub = 1
+        pRight = parseCompare()
+        pInAddSub = 0
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
+    }
     if pInAddSub == 1 {
         return pLeft
     }
-    while peek().type == "==" {
-        pBinOp = peek().type
+    while pCur.type == "==" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -570,8 +592,8 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == "!=" {
-        pBinOp = peek().type
+    while pCur.type == "!=" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -579,8 +601,8 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == "<" {
-        pBinOp = peek().type
+    while pCur.type == "<" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -588,8 +610,8 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == ">" {
-        pBinOp = peek().type
+    while pCur.type == ">" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -597,8 +619,8 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == ">=" {
-        pBinOp = peek().type
+    while pCur.type == ">=" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -606,8 +628,8 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == "<=" {
-        pBinOp = peek().type
+    while pCur.type == "<=" {
+        pBinOp = pCur.type
         bump()
         pSave = pLeft
         pInAddSub = 1
@@ -615,13 +637,42 @@ fn parseCompare() {
         pInAddSub = 0
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
-    while peek().type == "&&" {
+    if pNoBit == 0 {
+        while pCur.type == "&" {
+            bump()
+            pSave = pLeft
+            pNoBit = 1
+            pRight = parseCompare()
+            pNoBit = 0
+            pLeft = { "kind": AST_BINARY, "op": "&", "left": pSave, "right": pRight }
+        }
+        while pCur.type == "^" {
+            bump()
+            pSave = pLeft
+            pNoBit = 1
+            pRight = parseCompare()
+            pNoBit = 0
+            pLeft = { "kind": AST_BINARY, "op": "^", "left": pSave, "right": pRight }
+        }
+        while pCur.type == "|" {
+            bump()
+            pSave = pLeft
+            pNoBit = 1
+            pRight = parseCompare()
+            pNoBit = 0
+            pLeft = { "kind": AST_BINARY, "op": "|", "left": pSave, "right": pRight }
+        }
+    }
+    if pNoBit == 1 {
+        return pLeft
+    }
+    while pCur.type == "&&" {
         bump()
         pExprLeft = pLeft
         pRight = parseCompare()
         pLeft = { "kind": AST_BINARY, "op": "&&", "left": pExprLeft, "right": pRight }
     }
-    while peek().type == "||" {
+    while pCur.type == "||" {
         bump()
         pExprLeft = pLeft
         pRight = parseCompare()
@@ -631,20 +682,20 @@ fn parseCompare() {
 }
 
 fn parseStmt() {
-    if peek().type == "EOF" {
+    if pCur.type == "EOF" {
         return null
     }
-    if peek().type == TOKEN_LET {
+    if pCur.type == TOKEN_LET {
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected identifier after let"
         }
-        pLetSym = symCopy(pTok.value)
+        pLetSym = pTok.value
         bump()
         pSymPool = push(pSymPool, pLetSym)
         pBindSym = pSymPool[len(pSymPool) - 1]
-        if peek().type != "=" {
+        if pCur.type != "=" {
             throw "Expected ="
         }
         bump()
@@ -652,33 +703,33 @@ fn parseStmt() {
         return { "kind": AST_LET, "sym": pBindSym, "init": pInit }
     }
     pIsPub = 0
-    if peek().type == TOKEN_PUB {
+    if pCur.type == TOKEN_PUB {
         bump()
         pIsPub = 1
     }
-    if peek().type == TOKEN_ENUM {
+    if pCur.type == TOKEN_ENUM {
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected enum name"
         }
         bump()
-        pEnumSym = symCopy(pTok.value)
+        pEnumSym = pTok.value
         pTypeParams = parseTypeArgs()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pVariants = []
-        while peek().type != "}" {
-            if peek().type == "," {
+        while pCur.type != "}" {
+            if pCur.type == "," {
                 bump()
             } else {
-                pTok = peek()
+                pTok = pCur
                 pVariantName = ""
                 if pTok.type == TOKEN_IDENT {
                     bump()
-                    pVariantName = symCopy(pTok.value)
+                    pVariantName = pTok.value
                 } else {
                     if pTok.type == TOKEN_NONE {
                         bump()
@@ -715,17 +766,17 @@ fn parseStmt() {
                 pSymPool = push(pSymPool, pVariantName)
                 pVariantSym = pSymPool[len(pSymPool) - 1]
                 pVariantFields = []
-                if peek().type == "(" {
+                if pCur.type == "(" {
                     bump()
-                    while peek().type != ")" {
-                        pTok = peek()
+                    while pCur.type != ")" {
+                        pTok = pCur
                         if pTok.type != TOKEN_IDENT {
                             throw "Expected variant field type"
                         }
                         bump()
-                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pSymPool = push(pSymPool, pTok.value)
                         pVariantFields = push(pVariantFields, pSymPool[len(pSymPool) - 1])
-                        if peek().type == "," {
+                        if pCur.type == "," {
                             bump()
                         }
                     }
@@ -735,7 +786,7 @@ fn parseStmt() {
                     "name": pVariantSym,
                     "fields": pVariantFields
                 })
-                if peek().type == "," {
+                if pCur.type == "," {
                     bump()
                 }
             }
@@ -743,13 +794,13 @@ fn parseStmt() {
         bump()
         return { "kind": AST_ENUM, "sym": pEnumSym, "typeParams": pTypeParams, "variants": pVariants }
     }
-    if peek().type == TOKEN_CLASS || peek().type == TOKEN_STRUCT {
+    if pCur.type == TOKEN_CLASS || pCur.type == TOKEN_STRUCT {
         pIsStruct = 0
-        if peek().type == TOKEN_STRUCT {
+        if pCur.type == TOKEN_STRUCT {
             pIsStruct = 1
         }
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             if pIsStruct == 1 {
                 throw "Expected struct name"
@@ -757,33 +808,33 @@ fn parseStmt() {
             throw "Expected class name"
         }
         bump()
-        pClassSym = symCopy(pTok.value)
+        pClassSym = pTok.value
         pTypeParams = parseTypeArgs()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pClassFields = []
         pClassMethods = []
-        while peek().type != "}" {
-            if peek().type == TOKEN_FN {
+        while pCur.type != "}" {
+            if pCur.type == TOKEN_FN {
                 bump()
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected method name"
                 }
                 bump()
-                pFnSym = symCopy(pTok.value)
+                pFnSym = pTok.value
                 pMethTypeParams = parseTypeArgs()
-                if peek().type != "(" {
-                    throw "Expected ("
+                if pCur.type != "(" {
+                    throw "Expected ( at " + ("" + pCur.line) + ":" + ("" + pCur.column) + " tok=" + pCur.type
                 }
                 bump()
                 pMethParams = []
                 pMethParamTypes = []
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     while true {
-                        pTok = peek()
+                        pTok = pCur
                         if pTok.type == TOKEN_SELF {
                             bump()
                             pSymPool = push(pSymPool, "self")
@@ -794,43 +845,43 @@ fn parseStmt() {
                                 throw "Expected parameter name"
                             }
                             bump()
-                            pSymPool = push(pSymPool, symCopy(pTok.value))
+                            pSymPool = push(pSymPool, pTok.value)
                             pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
                             pParamType = ""
-                            if peek().type == ":" {
+                            if pCur.type == ":" {
                                 bump()
-                                pTok = peek()
+                                pTok = pCur
                                 if pTok.type != TOKEN_IDENT {
                                     throw "Expected parameter type"
                                 }
                                 bump()
-                                pParamType = symCopy(pTok.value)
+                                pParamType = pTok.value
                             }
                             pMethParamTypes = push(pMethParamTypes, pParamType)
                         }
-                        if peek().type == "," {
+                        if pCur.type == "," {
                             bump()
                         } else {
                             break
                         }
                     }
                 }
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     throw "Expected )"
                 }
                 bump()
-                if peek().type != "{" {
+                if pCur.type != "{" {
                     throw "Expected {"
                 }
                 bump()
                 pBodyStack = push(pBodyStack, pBody)
                 pBody = []
-                while peek().type != "}" {
-                    if peek().type == "EOF" {
+                while pCur.type != "}" {
+                    if pCur.type == "EOF" {
                         throw "Unclosed block"
                     }
                     pBody = push(pBody, parseStmt())
-                    if peek().type == ";" {
+                    if pCur.type == ";" {
                         bump()
                     }
                 }
@@ -848,29 +899,29 @@ fn parseStmt() {
                 }
                 pClassMethods = push(pClassMethods, pVal)
             } else {
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected field name"
                 }
                 bump()
-                pSaveSym = symCopy(pTok.value)
+                pSaveSym = pTok.value
                 pSymPool = push(pSymPool, pSaveSym)
                 pFieldType = ""
-                if peek().type == ":" {
+                if pCur.type == ":" {
                     bump()
-                    pTok = peek()
+                    pTok = pCur
                     if pTok.type != TOKEN_IDENT {
                         throw "Expected field type"
                     }
                     bump()
-                    pFieldType = symCopy(pTok.value)
+                    pFieldType = pTok.value
                 }
                 pFieldDefault = null
-                if peek().type == "=" {
+                if pCur.type == "=" {
                     bump()
                     pFieldDefault = parseCompare()
                 }
-                if peek().type == ";" {
+                if pCur.type == ";" {
                     bump()
                 }
                 pVal = { "name": pSymPool[len(pSymPool) - 1], "type": pFieldType, "default": pFieldDefault }
@@ -887,72 +938,72 @@ fn parseStmt() {
             "isStruct": pIsStruct
         }
     }
-    if peek().type == TOKEN_INTERFACE || peek().type == TOKEN_TRAIT {
+    if pCur.type == TOKEN_INTERFACE || pCur.type == TOKEN_TRAIT {
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected interface/trait name"
         }
         bump()
-        pIfaceSym = symCopy(pTok.value)
+        pIfaceSym = pTok.value
         pTypeParams = parseTypeArgs()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pIfaceMethods = []
         pAssocTypes = []
-        while peek().type != "}" {
+        while pCur.type != "}" {
             // T5 deepen: `type Item;` associated type
-            if peek().type == TOKEN_IDENT && peek().value == "type" {
+            if pCur.type == TOKEN_IDENT && pCur.value == "type" {
                 bump()
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected associated type name"
                 }
                 bump()
-                pAssocTypes = push(pAssocTypes, symCopy(pTok.value))
-                if peek().type != ";" {
+                pAssocTypes = push(pAssocTypes, pTok.value)
+                if pCur.type != ";" {
                     throw "Expected ; after associated type"
                 }
                 bump()
             } else {
-                if peek().type != TOKEN_FN {
+                if pCur.type != TOKEN_FN {
                     throw "Expected fn in interface"
                 }
                 bump()
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected method name"
                 }
                 bump()
-                pFnSym = symCopy(pTok.value)
-                if peek().type != "(" {
-                    throw "Expected ("
+                pFnSym = pTok.value
+                if pCur.type != "(" {
+                    throw "Expected ( at " + ("" + pCur.line) + ":" + ("" + pCur.column) + " tok=" + pCur.type
                 }
                 bump()
                 pMethParams = []
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     while true {
-                        pTok = peek()
+                        pTok = pCur
                         if pTok.type != TOKEN_IDENT {
                             throw "Expected parameter name"
                         }
                         bump()
-                        pSymPool = push(pSymPool, symCopy(pTok.value))
+                        pSymPool = push(pSymPool, pTok.value)
                         pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
-                        if peek().type == "," {
+                        if pCur.type == "," {
                             bump()
                         } else {
                             break
                         }
                     }
                 }
-                if peek().type != ")" {
+                if pCur.type != ")" {
                     throw "Expected )"
                 }
                 bump()
-                if peek().type != ";" {
+                if pCur.type != ";" {
                     throw "Expected ;"
                 }
                 bump()
@@ -968,106 +1019,106 @@ fn parseStmt() {
             "associatedTypes": pAssocTypes
         }
     }
-    if peek().type == TOKEN_FN {
+    if pCur.type == TOKEN_FN {
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected function name"
         }
         bump()
-        pFnSym = symCopy(pTok.value)
+        pFnSym = pTok.value
         pFnPub = pIsPub
         pTypeParams = parseTypeArgs()
-        if peek().type != "(" {
-            throw "Expected ("
+        if pCur.type != "(" {
+            throw "Expected ( at " + ("" + pCur.line) + ":" + ("" + pCur.column) + " tok=" + pCur.type
         }
         bump()
         pParams = []
         pParamTypes = []
-        if peek().type != ")" {
+        if pCur.type != ")" {
             while true {
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected parameter name"
                 }
                 bump()
-                pSymPool = push(pSymPool, symCopy(pTok.value))
+                pSymPool = push(pSymPool, pTok.value)
                 pParams = push(pParams, pSymPool[len(pSymPool) - 1])
                 pParamType = ""
-                if peek().type == ":" {
+                if pCur.type == ":" {
                     bump()
-                    pTok = peek()
+                    pTok = pCur
                     if pTok.type != TOKEN_IDENT {
                         throw "Expected parameter type"
                     }
                     bump()
-                    pParamType = symCopy(pTok.value)
+                    pParamType = pTok.value
                 }
                 pParamTypes = push(pParamTypes, pParamType)
-                if peek().type == "," {
+                if pCur.type == "," {
                     bump()
                 } else {
                     break
                 }
             }
         }
-        if peek().type != ")" {
+        if pCur.type != ")" {
             throw "Expected )"
         }
         bump()
         pReturnType = ""
-        if peek().type == "->" {
+        if pCur.type == "->" {
             bump()
-            pTok = peek()
+            pTok = pCur
             if pTok.type != TOKEN_IDENT {
                 throw "Expected return type"
             }
             bump()
-            pReturnType = symCopy(pTok.value)
+            pReturnType = pTok.value
         }
         pWhereClause = []
-        if peek().type == TOKEN_WHERE {
+        if pCur.type == TOKEN_WHERE {
             bump()
             while true {
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected type parameter in where"
                 }
                 bump()
-                pWhereParam = symCopy(pTok.value)
-                if peek().type != ":" {
+                pWhereParam = pTok.value
+                if pCur.type != ":" {
                     throw "Expected : in where"
                 }
                 bump()
-                pTok = peek()
+                pTok = pCur
                 if pTok.type != TOKEN_IDENT {
                     throw "Expected trait name in where"
                 }
                 bump()
-                pWhereTrait = symCopy(pTok.value)
+                pWhereTrait = pTok.value
                 pWhereClause = push(pWhereClause, {
                     "typeParam": pWhereParam,
                     "traitName": pWhereTrait
                 })
-                if peek().type == "," {
+                if pCur.type == "," {
                     bump()
                 } else {
                     break
                 }
             }
         }
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
         pBody = []
-        while peek().type != "}" {
-            if peek().type == "EOF" {
+        while pCur.type != "}" {
+            if pCur.type == "EOF" {
                 throw "Unclosed block"
             }
             pBody = push(pBody, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1087,64 +1138,81 @@ fn parseStmt() {
             "body": { "kind": AST_BLOCK, "body": fnBody }
         }
     }
-    if peek().type == TOKEN_IF {
+    if pCur.type == TOKEN_IF {
         bump()
-        pCond = parseCompare()
-        pCondStack = push(pCondStack, pCond)
-        if peek().type != "{" {
-            throw "Expected {"
-        }
-        bump()
-        pBodyStack = push(pBodyStack, pBody)
-        pBody = []
-        while peek().type != "}" {
-            pBody = push(pBody, parseStmt())
-            if peek().type == ";" {
-                bump()
-            }
-        }
-        bump()
-        pThen = { "kind": AST_BLOCK, "body": pBody }
-        pBody = pBodyStack[len(pBodyStack) - 1]
-        pBodyStack = pop(pBodyStack)
-        pElse = null
-        if peek().type == TOKEN_ELSE {
-            bump()
-            if peek().type != "{" {
+        // Iterative else-if: avoid deep parseStmt recursion (hangs on long chains).
+        let chainConds = []
+        let chainThens = []
+        let finalElse = null
+        while true {
+            let armCond = parseCompare()
+            if pCur.type != "{" {
                 throw "Expected {"
             }
             bump()
             pBodyStack = push(pBodyStack, pBody)
             pBody = []
-            while peek().type != "}" {
+            while pCur.type != "}" {
                 pBody = push(pBody, parseStmt())
-                if peek().type == ";" {
+                if pCur.type == ";" {
                     bump()
                 }
             }
             bump()
-            pElse = { "kind": AST_BLOCK, "body": pBody }
+            let armThen = { "kind": AST_BLOCK, "body": pBody }
             pBody = pBodyStack[len(pBodyStack) - 1]
             pBodyStack = pop(pBodyStack)
+            chainConds = push(chainConds, armCond)
+            chainThens = push(chainThens, armThen)
+            if pCur.type != TOKEN_ELSE {
+                break
+            }
+            bump()
+            if pCur.type == TOKEN_IF {
+                bump()
+                continue
+            }
+            if pCur.type != "{" {
+                throw "Expected {"
+            }
+            bump()
+            pBodyStack = push(pBodyStack, pBody)
+            pBody = []
+            while pCur.type != "}" {
+                pBody = push(pBody, parseStmt())
+                if pCur.type == ";" {
+                    bump()
+                }
+            }
+            bump()
+            finalElse = { "kind": AST_BLOCK, "body": pBody }
+            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBodyStack = pop(pBodyStack)
+            break
         }
-        pSave = pCondStack[len(pCondStack) - 1]
-        pCondStack = pop(pCondStack)
-        return { "kind": AST_IF, "cond": pSave, "then": pThen, "elseBranch": pElse }
+        let i = len(chainConds) - 1
+        let ifNode = { "kind": AST_IF, "cond": chainConds[i], "then": chainThens[i], "elseBranch": finalElse }
+        i = i - 1
+        while i >= 0 {
+            ifNode = { "kind": AST_IF, "cond": chainConds[i], "then": chainThens[i], "elseBranch": ifNode }
+            i = i - 1
+        }
+        return ifNode
     }
-    if peek().type == TOKEN_TRY {
+    if pCur.type == TOKEN_TRY {
         bump()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
         pBody = []
-        while peek().type != "}" {
-            if peek().type == "EOF" {
+        while pCur.type != "}" {
+            if pCur.type == "EOF" {
                 throw "Unclosed try"
             }
             pBody = push(pBody, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1152,36 +1220,36 @@ fn parseStmt() {
         let tryBody = pBody
         pBody = pBodyStack[len(pBodyStack) - 1]
         pBodyStack = pop(pBodyStack)
-        if peek().type != TOKEN_CATCH {
+        if pCur.type != TOKEN_CATCH {
             throw "Expected catch"
         }
         bump()
-        if peek().type != "(" {
-            throw "Expected ("
+        if pCur.type != "(" {
+            throw "Expected ( at " + ("" + pCur.line) + ":" + ("" + pCur.column) + " tok=" + pCur.type
         }
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected catch binding"
         }
         bump()
-        let errSym = symCopy(pTok.value)
-        if peek().type != ")" {
+        let errSym = pTok.value
+        if pCur.type != ")" {
             throw "Expected )"
         }
         bump()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
         pBody = []
-        while peek().type != "}" {
-            if peek().type == "EOF" {
+        while pCur.type != "}" {
+            if pCur.type == "EOF" {
                 throw "Unclosed catch"
             }
             pBody = push(pBody, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1196,28 +1264,28 @@ fn parseStmt() {
             "handler": { "kind": AST_BLOCK, "body": catchBody }
         }
     }
-    if peek().type == TOKEN_FOR {
+    if pCur.type == TOKEN_FOR {
         bump()
-        pTok = peek()
+        pTok = pCur
         if pTok.type != TOKEN_IDENT {
             throw "Expected for-of binding"
         }
         bump()
-        let forSym = symCopy(pTok.value)
-        if peek().type != TOKEN_OF {
+        let forSym = pTok.value
+        if pCur.type != TOKEN_OF {
             throw "Expected of"
         }
         bump()
         let forIter = parseCompare()
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pLoopBody)
         pLoopBody = []
-        while peek().type != "}" {
+        while pCur.type != "}" {
             pLoopBody = push(pLoopBody, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1232,19 +1300,19 @@ fn parseStmt() {
             "body": { "kind": AST_BLOCK, "body": forBody }
         }
     }
-    if peek().type == TOKEN_WHILE {
+    if pCur.type == TOKEN_WHILE {
         bump()
         pCond = parseCompare()
         pCondStack = push(pCondStack, pCond)
-        if peek().type != "{" {
+        if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pLoopBody)
         pLoopBody = []
-        while peek().type != "}" {
+        while pCur.type != "}" {
             pLoopBody = push(pLoopBody, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1256,43 +1324,43 @@ fn parseStmt() {
         pCondStack = pop(pCondStack)
         return { "kind": AST_WHILE, "cond": pSave, "body": { "kind": AST_BLOCK, "body": whileBody } }
     }
-    if peek().type == TOKEN_CONTINUE {
+    if pCur.type == TOKEN_CONTINUE {
         bump()
         return { "kind": AST_CONTINUE }
     }
-    if peek().type == TOKEN_BREAK {
+    if pCur.type == TOKEN_BREAK {
         bump()
         return { "kind": AST_BREAK }
     }
-    if peek().type == TOKEN_THROW {
+    if pCur.type == TOKEN_THROW {
         bump()
         pVal = parseCompare()
         return { "kind": AST_THROW, "expr": pVal }
     }
-    if peek().type == TOKEN_RETURN {
+    if pCur.type == TOKEN_RETURN {
         bump()
-        if peek().type == ";" {
+        if pCur.type == ";" {
             return { "kind": AST_RETURN, "value": null }
         }
-        if peek().type == "}" {
+        if pCur.type == "}" {
             return { "kind": AST_RETURN, "value": null }
         }
-        if peek().type == "EOF" {
+        if pCur.type == "EOF" {
             return { "kind": AST_RETURN, "value": null }
         }
         pVal = parseCompare()
         return { "kind": AST_RETURN, "value": pVal }
     }
-    if peek().type == "{" {
+    if pCur.type == "{" {
         bump()
         pBodyStack = push(pBodyStack, pStmts)
         pStmts = []
-        while peek().type != "}" {
-            if peek().type == "EOF" {
+        while pCur.type != "}" {
+            if pCur.type == "EOF" {
                 throw "Unclosed block"
             }
             pStmts = push(pStmts, parseStmt())
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }
@@ -1302,15 +1370,15 @@ fn parseStmt() {
         pBodyStack = pop(pBodyStack)
         return { "kind": AST_BLOCK, "body": blockStmts }
     }
-    if peek().type == TOKEN_IDENT {
+    if pCur.type == TOKEN_IDENT {
         if pPos + 1 < len(pToks) {
             pNextTok = pToks[pPos + 1]
         } else {
             pNextTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
         }
         if pNextTok.type == "=" {
-            pTok = peek()
-            pSymPool = push(pSymPool, symCopy(pTok.value))
+            pTok = pCur
+            pSymPool = push(pSymPool, pTok.value)
             pBindSym = pSymPool[len(pSymPool) - 1]
             bump()
             bump()
@@ -1319,7 +1387,7 @@ fn parseStmt() {
         }
     }
     pSave = parseCompare()
-    if peek().type == "=" {
+    if pCur.type == "=" {
         bump()
         pInit = parseCompare()
         if pSave.kind == AST_VAR {
@@ -1339,7 +1407,13 @@ fn parseStmt() {
 
 pub fn parseTokens(tokens) {
     pToks = tokens
+    pToksLen = len(tokens)
     pPos = 0
+    if pToksLen > 0 {
+        pCur = pToks[0]
+    } else {
+        pCur = pEofTok
+    }
     pSymPool = []
     pImports = []
     pCondStack = []
@@ -1348,11 +1422,11 @@ pub fn parseTokens(tokens) {
     pBody = []
     pDone = 0
     while pDone == 0 {
-        if pPos >= len(pToks) {
+        if pPos >= pToksLen {
             pDone = 1
         }
         if pDone == 0 {
-            pTok = peek()
+            pTok = pCur
             if pTok.type == "EOF" {
                 pDone = 1
             }
@@ -1360,12 +1434,12 @@ pub fn parseTokens(tokens) {
         if pDone == 0 {
             if pTok.type == TOKEN_IMPORT {
                 bump()
-                pTok = peek()
+                pTok = pCur
                 if pTok.type == TOKEN_STRING {
                     bump()
-                    pImports = push(pImports, symCopy(pTok.value))
+                    pImports = push(pImports, pTok.value)
                 }
-                if peek().type == ";" {
+                if pCur.type == ";" {
                     bump()
                 }
             } else {
@@ -1374,7 +1448,7 @@ pub fn parseTokens(tokens) {
                     pBody = push(pBody, pVal)
                 }
             }
-            if peek().type == ";" {
+            if pCur.type == ";" {
                 bump()
             }
         }

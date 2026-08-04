@@ -1959,7 +1959,6 @@ fn self_host_vm_cores_not_in_skip_list() {
 }
 
 #[test]
-#[ignore = "slow: Kab self-host parse of deserialize still multi-minute (char_at/len/emit eList/split landed; keep ignored until Kab parse is CI-fast)"]
 fn self_host_deserialize_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/deserialize.kab", env!("CARGO_MANIFEST_DIR"));
@@ -1969,7 +1968,7 @@ fn self_host_deserialize_full_compile() {
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             let (program, backend) =
-                compile_file_prefer(&path2, CompilePrefer::SelfHostThenRust).expect("compile");
+                compile_file_prefer(&path2, CompilePrefer::SelfHostOnly).expect("compile");
             (backend, program.has_bytecode())
         })
         .expect("spawn")
@@ -1979,8 +1978,39 @@ fn self_host_deserialize_full_compile() {
     assert_eq!(backend, "self-host");
 }
 
+/// Else-if chains, AccAdd peephole, and bitwise ops must self-host-parse/emit.
 #[test]
-#[ignore = "slow: Kab self-host compile of vm.kab still multi-minute (keep ignored until Kab parse/emit is CI-fast)"]
+fn self_host_elseif_accadd_bitops_compile() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let src = r#"
+fn f(x) {
+  if x == 1 { return 10 }
+  else if x == 2 { return 20 }
+  else if x == 3 { return 30 }
+  else { return 0 }
+}
+fn acc(n) {
+  let x = 0
+  x = x + n
+  x = x + 1
+  return x
+}
+fn bits() {
+  return (1 & 3) | (2 << 1) | (~0 + 1)
+}
+"#;
+    let program = std::thread::Builder::new()
+        .name("sh-elseif-bits".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(program.has_bytecode());
+}
+
+#[test]
+#[ignore = "slow: self-host compile of monolithic vm.kab still multi-minute"]
 fn self_host_vm_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));
@@ -1990,7 +2020,7 @@ fn self_host_vm_full_compile() {
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             let (program, backend) =
-                compile_file_prefer(&path2, CompilePrefer::SelfHostThenRust).expect("compile");
+                compile_file_prefer(&path2, CompilePrefer::SelfHostOnly).expect("compile");
             (backend, program.has_bytecode())
         })
         .expect("spawn")
