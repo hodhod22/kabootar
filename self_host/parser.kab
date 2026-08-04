@@ -685,6 +685,11 @@ fn parseStmt() {
     if pCur.type == "EOF" {
         return null
     }
+    pIsPub = 0
+    if pCur.type == TOKEN_PUB {
+        bump()
+        pIsPub = 1
+    }
     if pCur.type == TOKEN_LET {
         bump()
         pTok = pCur
@@ -700,12 +705,7 @@ fn parseStmt() {
         }
         bump()
         pInit = parseCompare()
-        return { "kind": AST_LET, "sym": pBindSym, "init": pInit }
-    }
-    pIsPub = 0
-    if pCur.type == TOKEN_PUB {
-        bump()
-        pIsPub = 1
+        return { "kind": AST_LET, "sym": pBindSym, "init": pInit, "isPub": pIsPub }
     }
     if pCur.type == TOKEN_ENUM {
         bump()

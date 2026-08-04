@@ -1353,6 +1353,13 @@ fn emitStmt(node) {
             eIdx = symIndex("global",eAssignSym)
             emitOp(OP_STORE_GLOBAL, eIdx)
         }
+        if eInFn != 1 {
+            // Read isPub from the let stmt before emitExpr clobbers eNode.
+            eLetPub = eStmtNode["isPub"]
+            if eLetPub {
+                eExports = push(eExports, ("" + eAssignSym) + "")
+            }
+        }
         return
     }
     if eNode.kind == AST_ASSIGN {
