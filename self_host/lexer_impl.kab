@@ -1,0 +1,547 @@
+// H6e: self-hosted Kabootar lexer body — heavy impl (skip-listed; see self_host/lexer.kab).
+// mirrors src/lexer.rs.
+// KEEP <=~4 top-level fn (lxScan, tokenizeImpl, tokenTypeNameImpl, tokenValueImpl).
+// More private fn causes stack overflow on module init (Windows); inline helpers in lxScan.
+import "self_host/lexer_defs"
+
+let lxPos = 0
+let lxSrc = ""
+let lxSrcLen = 0
+let lxLine = 1
+let lxCol = 1
+
+// ----- HELPER FUNCTIONS -----
+// Use runtime parse_int / parse_float (local copies were O(digits·10) add-loops).
+// Keep few top-level fns (Windows module-init stack); ident-char checks stay inlined in lxScan.
+
+// ----- MAIN LEXER -----
+
+fn lxScan() {
+    if lxPos >= lxSrcLen {
+        return { "type": TOKEN_EOF, "value": null, "line": lxLine, "column": lxCol }
+    }
+    let c = char_at(lxSrc, lxPos)
+    let line = lxLine
+    let col = lxCol
+
+    // Single-character tokens
+    if c == "(" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "(", "value": null, "line": line, "column": col }
+    }
+    if c == ")" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ")", "value": null, "line": line, "column": col }
+    }
+    if c == "{" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "{", "value": null, "line": line, "column": col }
+    }
+    if c == "}" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "}", "value": null, "line": line, "column": col }
+    }
+    if c == "[" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "[", "value": null, "line": line, "column": col }
+    }
+    if c == "]" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "]", "value": null, "line": line, "column": col }
+    }
+    if c == ";" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ";", "value": null, "line": line, "column": col }
+    }
+    if c == "," {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ",", "value": null, "line": line, "column": col }
+    }
+    if c == ":" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": ":", "value": null, "line": line, "column": col }
+    }
+    if c == "^" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "^", "value": null, "line": line, "column": col }
+    }
+    if c == "~" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        return { "type": "~", "value": null, "line": line, "column": col }
+    }
+
+    // Multi-character tokens
+    if c == "+" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "+=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "+", "value": null, "line": line, "column": col }
+    }
+
+    if c == "-" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "->", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "-=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "-", "value": null, "line": line, "column": col }
+    }
+
+    if c == "*" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "*" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "**", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "*=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "*", "value": null, "line": line, "column": col }
+    }
+
+    if c == "/" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "/=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "/", "value": null, "line": line, "column": col }
+    }
+
+    if c == "%" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "%=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "%", "value": null, "line": line, "column": col }
+    }
+
+    if c == "?" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "?" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "??", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "?.", "value": null, "line": line, "column": col }
+        }
+        return { "type": "?", "value": null, "line": line, "column": col }
+    }
+
+    if c == "=" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "==", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "=>", "value": null, "line": line, "column": col }
+        }
+        return { "type": "=", "value": null, "line": line, "column": col }
+    }
+
+    if c == "!" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "!=", "value": null, "line": line, "column": col }
+        }
+        return { "type": "!", "value": null, "line": line, "column": col }
+    }
+
+    if c == "&" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "&" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "&&", "value": null, "line": line, "column": col }
+        }
+        return { "type": "&", "value": null, "line": line, "column": col }
+    }
+
+    if c == "|" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "|" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "||", "value": null, "line": line, "column": col }
+        }
+        return { "type": "|", "value": null, "line": line, "column": col }
+    }
+
+    if c == "<" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "<=", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "<" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": "<<", "value": null, "line": line, "column": col }
+        }
+        return { "type": "<", "value": null, "line": line, "column": col }
+    }
+
+    if c == ">" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "=" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": ">=", "value": null, "line": line, "column": col }
+        }
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == ">" {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                return { "type": ">>>", "value": null, "line": line, "column": col }
+            }
+            return { "type": ">>", "value": null, "line": line, "column": col }
+        }
+        return { "type": ">", "value": null, "line": line, "column": col }
+    }
+
+    if c == "." {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                return { "type": "...", "value": null, "line": line, "column": col }
+            }
+            throw "Expected ... at line " + ("" + line) + " col " + ("" + col)
+        }
+        return { "type": ".", "value": null, "line": line, "column": col }
+    }
+
+    // Private name: #identifier
+    if c == "#" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let start = lxPos
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
+            let ch = char_at(lxSrc, lxPos)
+            let ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if ch == "_" { ok = 1 }
+            if ok == 0 { break }
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        if lxPos == start {
+            throw "Expected identifier after # at line " + ("" + line) + " col " + ("" + col)
+        }
+        return { "type": TOKEN_PRIVATE, "value": str_slice(lxSrc, start, lxPos), "line": line, "column": col }
+    }
+
+    // String literal: " ... " — fast path slices when there are no escapes.
+    if c == "\"" {
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        let start = lxPos
+        let i = lxPos
+        let hasEsc = 0
+        while i < lxSrcLen {
+            let ch = char_at(lxSrc, i)
+            if ch == "\\" {
+                hasEsc = 1
+                break
+            }
+            if ch == "\"" {
+                break
+            }
+            i = i + 1
+        }
+        if hasEsc == 0 {
+            if i >= lxSrcLen {
+                throw "Unterminated string at line " + ("" + line) + " col " + ("" + col)
+            }
+            let s = str_slice(lxSrc, start, i)
+            lxCol = lxCol + (i - start) + 1
+            lxPos = i + 1
+            return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
+        }
+        let s = ""
+        while lxPos < lxSrcLen {
+            let ch = char_at(lxSrc, lxPos)
+            if ch == "\\" {
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                if lxPos >= lxSrcLen {
+                    throw "Unterminated string escape at line " + ("" + line) + " col " + ("" + col)
+                }
+                let e = char_at(lxSrc, lxPos)
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+                let piece = "\\" + e
+                if e == "n" {
+                    piece = "\n"
+                }
+                if e == "r" {
+                    piece = "\r"
+                }
+                if e == "t" {
+                    piece = "\t"
+                }
+                if e == "\"" {
+                    piece = "\""
+                }
+                if e == "\\" {
+                    piece = "\\"
+                }
+                s = s + piece
+                continue
+            }
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            if ch == "\"" {
+                break
+            }
+            s = s + ch
+        }
+        return { "type": TOKEN_STRING, "value": s, "line": line, "column": col }
+    }
+
+    // Template literal not supported in self-hosted lexer
+    if c == BACKTICK {
+        throw "Template literal not supported at line " + ("" + line) + " col " + ("" + col)
+    }
+
+    // Identifier starting with _
+    if c == "_" {
+        let start = lxPos
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
+            let ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if cd == 95 { ok = 1 }
+            if ok == 0 { break }
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        return { "type": TOKEN_IDENT, "value": str_slice(lxSrc, start, lxPos), "line": line, "column": col }
+    }
+
+    // Number literal
+    let code0 = char_code_at(c, 0)
+    if code0 >= 48 && code0 <= 57 {
+        let start = lxPos
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
+            if cd < 48 || cd > 57 {
+                break
+            }
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        let digits = str_slice(lxSrc, start, lxPos)
+        // BigInt: 123n
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "n" {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            return { "type": TOKEN_BIGINT, "value": digits, "line": line, "column": col }
+        }
+        // Float: 123.456
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "." {
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+            let fracStart = lxPos
+            while lxPos < lxSrcLen {
+                let cd = char_code_at(lxSrc, lxPos)
+                if cd < 48 || cd > 57 {
+                    break
+                }
+                lxPos = lxPos + 1
+                lxCol = lxCol + 1
+            }
+            let frac = str_slice(lxSrc, fracStart, lxPos)
+            return { "type": TOKEN_FLOAT, "value": parse_float(digits + "." + frac), "line": line, "column": col }
+        }
+        return { "type": TOKEN_NUMBER, "value": parse_int(digits), "line": line, "column": col }
+    }
+
+    // Identifier or keyword
+    let isAlpha = 0
+    if code0 >= 97 && code0 <= 122 {
+        isAlpha = 1
+    }
+    if isAlpha == 0 && code0 >= 65 && code0 <= 90 {
+        isAlpha = 1
+    }
+    if isAlpha {
+        let start = lxPos
+        lxPos = lxPos + 1
+        lxCol = lxCol + 1
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
+            let ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if cd == 95 { ok = 1 }
+            if ok == 0 { break }
+            lxPos = lxPos + 1
+            lxCol = lxCol + 1
+        }
+        let id = str_slice(lxSrc, start, lxPos)
+        let kw = KEYWORDS[id]
+        if kw == undefined {
+            return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+        }
+        return { "type": kw, "value": null, "line": line, "column": col }
+    }
+
+    throw "Unknown character: " + c + " at line " + ("" + line) + " col " + ("" + col)
+}
+
+// ----- PUBLIC API -----
+
+pub fn tokenizeImpl(source) {
+    lxPos = 0
+    lxSrc = source
+    lxSrcLen = len(source)
+    lxLine = 1
+    lxCol = 1
+    let tokens = []
+
+    while true {
+        // Skip whitespace (flat — nested else hangs / slows self-host)
+        while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
+            if cd == 32 || cd == 9 || cd == 13 {
+                lxCol = lxCol + 1
+                lxPos = lxPos + 1
+                continue
+            }
+            if cd == 10 {
+                lxLine = lxLine + 1
+                lxCol = 1
+                lxPos = lxPos + 1
+                continue
+            }
+            break
+        }
+
+        if lxPos >= lxSrcLen {
+            break
+        }
+
+        // Line comment: //
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
+            if lxPos + 1 < lxSrcLen && char_at(lxSrc, lxPos + 1) == "/" {
+                lxPos = lxPos + 2
+                while lxPos < lxSrcLen {
+                    let ch = char_at(lxSrc, lxPos)
+                    if ch == "\n" {
+                        lxLine = lxLine + 1
+                        lxCol = 1
+                        lxPos = lxPos + 1
+                        break
+                    }
+                    lxCol = lxCol + 1
+                    lxPos = lxPos + 1
+                }
+                continue
+            }
+        }
+
+        // Block comment: /* */
+        if lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
+            if lxPos + 1 < lxSrcLen && char_at(lxSrc, lxPos + 1) == "*" {
+                lxPos = lxPos + 2
+                while lxPos < lxSrcLen {
+                    let ch = char_at(lxSrc, lxPos)
+                    lxPos = lxPos + 1
+                    lxCol = lxCol + 1
+                    if ch == "\n" {
+                        lxLine = lxLine + 1
+                        lxCol = 1
+                    }
+                    if ch == "*" && lxPos < lxSrcLen && char_at(lxSrc, lxPos) == "/" {
+                        lxPos = lxPos + 1
+                        lxCol = lxCol + 1
+                        break
+                    }
+                }
+                continue
+            }
+        }
+
+        let tok = lxScan()
+        if tok.type == TOKEN_EOF {
+            break
+        }
+        tokens = push(tokens, tok)
+    }
+
+    tokens = push(tokens, { "type": TOKEN_EOF, "value": null, "line": lxLine, "column": lxCol })
+    return tokens
+}
+
+pub fn tokenTypeNameImpl(tok) {
+    return tok.type
+}
+
+pub fn tokenValueImpl(tok) {
+    return tok.value
+}
