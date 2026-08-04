@@ -36,6 +36,7 @@ mod text_encoding;
 pub mod bigint;
 mod base64;
 pub use base64::encode as base64_encode;
+pub use base64::decode as base64_decode;
 mod web_api;
 mod url;
 pub mod deno;

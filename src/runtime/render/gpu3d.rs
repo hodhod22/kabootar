@@ -1,6 +1,8 @@
 //! wgpu 3D render pass — frame + material bind groups, depth buffer, readback to RGBA.
 //! GP0b: group 0 = view_proj; group 1 = model/color/uv_xform (+ texture/sampler).
 
+use std::sync::atomic::{AtomicU8, Ordering};
+
 /// One GPU 3D frame.
 pub struct Gpu3dFrame {
     pub width: u32,
@@ -20,6 +22,8 @@ pub struct Gpu3dFrame {
     pub depth_test: bool,
     /// Optional RGBA texture (width, height, pixels). Enables textured pipeline when set.
     pub texture: Option<(u32, u32, Vec<u8>)>,
+    /// GP0d: instance count for draw / draw_indexed (default 1).
+    pub instance_count: u32,
 }
 
 pub fn gpu3d_available() -> bool {
@@ -51,6 +55,21 @@ pub fn info_line() -> &'static str {
     }
     "wgpu-pipeline"
 }
+
+/// GP0f: last 3D draw path (`none` / `wgpu` / `cpu`).
+pub fn last_draw_line() -> &'static str {
+    match LAST_DRAW_PATH.load(Ordering::Relaxed) {
+        1 => "wgpu",
+        2 => "cpu",
+        _ => "none",
+    }
+}
+
+pub fn note_draw_path(used_gpu: bool) {
+    LAST_DRAW_PATH.store(if used_gpu { 1 } else { 2 }, Ordering::Relaxed);
+}
+
+static LAST_DRAW_PATH: AtomicU8 = AtomicU8::new(0);
 
 pub fn render_frame(frame: &Gpu3dFrame) -> Result<Vec<u8>, String> {
     #[cfg(feature = "gpu")]
@@ -565,14 +584,35 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         Ok(())
     }
 
+    /// wgpu `Queue::write_buffer` requires COPY_BUFFER_ALIGNMENT (4) byte sizes.
+    fn pad_copy_size(n: u64) -> u64 {
+        ((n + 3) / 4) * 4
+    }
+
+    fn pad_copy_bytes(data: &[u8]) -> Vec<u8> {
+        let mut out = data.to_vec();
+        while out.len() % 4 != 0 {
+            out.push(0);
+        }
+        out
+    }
+
     fn pack_vertices(frame: &Gpu3dFrame, textured: bool) -> Result<Vec<u8>, String> {
         let stride = frame.component_count as usize;
+        // GP0d: indexed draws pass vert_count=0 from WebGL; pack full VBO instead.
+        let nverts = if frame.vert_count > 0 {
+            frame.vert_count as usize
+        } else if stride > 0 {
+            frame.vertices.len() / stride
+        } else {
+            0
+        };
         if textured {
             if stride < 5 {
                 return Err("gpu3d textured: need vec5 (xyz+uv)".into());
             }
-            let mut out = Vec::with_capacity(frame.vert_count as usize * 20);
-            for i in 0..frame.vert_count as usize {
+            let mut out = Vec::with_capacity(nverts * 20);
+            for i in 0..nverts {
                 let base = i * stride;
                 if base + 4 >= frame.vertices.len() {
                     break;
@@ -589,8 +629,8 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         if stride < 3 {
             return Err("gpu3d: need vec3 vertices".into());
         }
-        let mut out = Vec::with_capacity(frame.vert_count as usize * 12);
-        for i in 0..frame.vert_count as usize {
+        let mut out = Vec::with_capacity(nverts * 12);
+        for i in 0..nverts {
             let base = i * stride;
             if base + 2 >= frame.vertices.len() {
                 break;
@@ -722,11 +762,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
             let vertex_buf = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("kabootar-3d-vbo"),
-                size: vertex_bytes.len() as u64,
+                size: pad_copy_size(vertex_bytes.len() as u64),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
-            queue.write_buffer(&vertex_buf, 0, &vertex_bytes);
+            queue.write_buffer(&vertex_buf, 0, &pad_copy_bytes(&vertex_bytes));
 
             let index_buf = if let Some(ref indices) = frame.indices {
                 let start = frame.index_offset as usize;
@@ -738,14 +778,16 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                 if index_data.is_empty() {
                     None
                 } else {
+                    let index_count = (index_data.len() / 2) as u32;
+                    let padded = pad_copy_bytes(&index_data);
                     let buf = device.create_buffer(&wgpu::BufferDescriptor {
                         label: Some("kabootar-3d-ibo"),
-                        size: index_data.len() as u64,
+                        size: padded.len() as u64,
                         usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                         mapped_at_creation: false,
                     });
-                    queue.write_buffer(&buf, 0, &index_data);
-                    Some((buf, (index_data.len() / 2) as u32))
+                    queue.write_buffer(&buf, 0, &padded);
+                    Some((buf, index_count))
                 }
             } else {
                 None
@@ -904,10 +946,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
                 if let Some((ref ibo, count)) = index_buf {
                     pass.set_index_buffer(ibo.slice(..), wgpu::IndexFormat::Uint16);
-                    pass.draw_indexed(0..count, 0, 0..1);
+                    let instances = frame.instance_count.max(1);
+                    pass.draw_indexed(0..count, 0, 0..instances);
                 } else {
                     let vert_count = vertex_bytes.len() / vert_stride;
-                    pass.draw(0..vert_count as u32, 0..1);
+                    let instances = frame.instance_count.max(1);
+                    pass.draw(0..vert_count as u32, 0..instances);
                 }
             }
             queue.submit(std::iter::once(encoder.finish()));

@@ -568,20 +568,26 @@ pub fn clear(id: u64, r: u8, g: u8, b: u8, a: u8) -> Result<bool, String> {
 }
 
 pub fn draw_arrays(id: u64, count: u32) -> Result<bool, String> {
+    draw_arrays_instanced(id, count, 1)
+}
+
+pub fn draw_arrays_instanced(id: u64, count: u32, instances: u32) -> Result<bool, String> {
     let gpu_frame = {
         let mut guard = ctx_store()
             .lock()
             .map_err(|_| "webgl lock poisoned".to_string())?;
         let ctx = guard.get_mut(&id).ok_or("webgl: unknown context")?;
-        ctx.draw_count = ctx.draw_count.saturating_add(count);
-        build_gpu_frame(ctx, count, 0, GpuDrawMode::Arrays)
+        ctx.draw_count = ctx.draw_count.saturating_add(count.saturating_mul(instances.max(1)));
+        build_gpu_frame(ctx, count, 0, instances.max(1), GpuDrawMode::Arrays)
     };
     if let Some(frame) = gpu_frame {
         if let Ok(pixels) = gpu3d::render_frame(&frame) {
+            gpu3d::note_draw_path(true);
             publish_pixels_from_gpu(&frame, pixels);
             return Ok(true);
         }
     }
+    gpu3d::note_draw_path(false);
     let mut guard = ctx_store()
         .lock()
         .map_err(|_| "webgl lock poisoned".to_string())?;
@@ -606,6 +612,15 @@ pub fn draw_arrays(id: u64, count: u32) -> Result<bool, String> {
 }
 
 pub fn draw_elements(id: u64, count: u32, offset: u32) -> Result<bool, String> {
+    draw_elements_instanced(id, count, offset, 1)
+}
+
+pub fn draw_elements_instanced(
+    id: u64,
+    count: u32,
+    offset: u32,
+    instances: u32,
+) -> Result<bool, String> {
     let gpu_frame = {
         let mut guard = ctx_store()
             .lock()
@@ -619,19 +634,29 @@ pub fn draw_elements(id: u64, count: u32, offset: u32) -> Result<bool, String> {
             .bound_element
             .and_then(get_buffer)
             .ok_or("webgl: no ELEMENT_ARRAY_BUFFER bound")?;
-        ctx.draw_count = ctx.draw_count.saturating_add(count);
+        ctx.draw_count = ctx
+            .draw_count
+            .saturating_add(count.saturating_mul(instances.max(1)));
         if vbo.component_count >= 3 {
-            build_gpu_frame(ctx, count, offset, GpuDrawMode::Elements { vbo, ibo })
+            build_gpu_frame(
+                ctx,
+                count,
+                offset,
+                instances.max(1),
+                GpuDrawMode::Elements { vbo, ibo },
+            )
         } else {
             None
         }
     };
     if let Some(frame) = gpu_frame {
         if let Ok(pixels) = gpu3d::render_frame(&frame) {
+            gpu3d::note_draw_path(true);
             publish_pixels_from_gpu(&frame, pixels);
             return Ok(true);
         }
     }
+    gpu3d::note_draw_path(false);
     let mut guard = ctx_store()
         .lock()
         .map_err(|_| "webgl lock poisoned".to_string())?;
@@ -673,6 +698,7 @@ fn build_gpu_frame(
     ctx: &WebGlContext,
     count: u32,
     offset: u32,
+    instances: u32,
     mode: GpuDrawMode,
 ) -> Option<Gpu3dFrame> {
     if !gpu3d::gpu3d_available() || !ctx.depth_test {
@@ -732,6 +758,7 @@ fn build_gpu_frame(
                 index_count: 0,
                 depth_test: ctx.depth_test,
                 texture,
+                instance_count: instances.max(1),
             })
         }
         GpuDrawMode::Elements { vbo, ibo } => {
@@ -762,12 +789,13 @@ fn build_gpu_frame(
                 uv_transform: ctx.uv_transform,
                 vertices: read_f32_vec(&vbo),
                 component_count: vbo.component_count,
-                vert_count: 0,
+                vert_count: 0, // pack_vertices fills from full VBO when 0
                 indices: Some(read_u16_vec(&ibo)),
                 index_offset: offset,
                 index_count: count,
                 depth_test: ctx.depth_test,
                 texture,
+                instance_count: instances.max(1),
             })
         }
     }
@@ -1317,6 +1345,7 @@ pub fn info() -> HashMap<String, String> {
     o.insert("matrices".into(), "perspective+lookAt+model".into());
     o.insert("depth".into(), "z-buffer".into());
     o.insert("gpu3d".into(), gpu3d::info_line().into());
+    o.insert("gpu3d_last".into(), gpu3d::last_draw_line().into());
     o.insert("textures".into(), "createTexture+texImage2D".into());
     o.insert("framebuffer".into(), "createFramebuffer+bind+texture2D".into());
     o.insert("glsl_files".into(), "compileShaderFromFiles".into());

@@ -703,16 +703,16 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | ✅ subset (vec5 + bindTexture → textured WGSL; CPU fallback om ingen adapter) |
 | **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | ✅ subset |
 | **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | ✅ subset |
-| **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | 📋 / delvis API |
+| **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | ✅ subset (`drawElements`/`drawElementsInstanced`/`drawArraysInstanced`; indexed pack fix; `game/render` indexed helpers) |
 | **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | 📋 |
-| **GP0f** | **CPU-raster endast fallback** — delete-gate: textured 3D-demo måste gå GPU-path i CI med `gpu` | 📋 |
+| **GP0f** | **CPU-raster endast fallback** — delete-gate: textured 3D-demo måste gå GPU-path i CI med `gpu` | ✅ subset (`gpu3d_last`; soft-skip om ingen adapter) |
 
 #### GP1 — Spelmotor i Kab (logik)
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | ✅ subset (`createNode`/`addChild`/`setLocal`/`worldPos` lokal; parent-walk/layers kvar) |
-| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"`: `createMesh`/`setColor`/`drawMesh`) |
+| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"`: mesh + indexed/instanced draw helpers) |
 | **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | ✅ subset (`import "game/input"`: `createActions`/`actionPressed`; keyboard only) |
 | **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | ✅ subset (`import "game/time"`: `dtSec`/`createFixed`/`fixedTick`) |
 | **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | 📋 |
@@ -722,8 +722,8 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP2a** | **glTF 2.0 import** (mesh + materials + basic animation) | 📋 |
-| **GP2b** | **Bild/atlas bake** — PNG/WebP → GPU-texture + atlas tool i `.kab` | 📋 |
+| **GP2a** | **glTF 2.0 import** (mesh + materials + basic animation) | ✅ subset (`gltf_load_json` / `import "game/gltf"`: POSITION + indices + baseColorFactor + translation channel) |
+| **GP2b** | **Bild/atlas bake** — PNG/WebP → GPU-texture + atlas tool i `.kab` | ✅ subset (`image_decode_png` + `import "game/atlas"` row bake; PNG only) |
 | **GP2c** | **Audio** — load/play/bus; spatial senare; FFI till host audio tills Kab-driver | 📋 |
 | **GP2d** | **Asset database** — VFS-paths, hot reload när fil ändras | 📋 |
 | **GP2e** | **Paketformat** — `kabootar mod` mall `game` / `game3d` | 📋 |
@@ -741,7 +741,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP4a** | **Hot reload** — byt `.kab` / shader / texture utan process-restart | 📋 |
+| **GP4a** | **Hot reload** — byt `.kab` / shader / texture utan process-restart | ✅ subset (`asset_watch` / `asset_poll` / `import "game/hot"`; `.kab` → compile cache invalidate) |
 | **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | 📋 |
 | **GP4c** | **Profiler UI** — CPU/GPU/frame graph i DevTools | 📋 |
 | **GP4d** | **Debug draw** — gizmo lines/colliders | 📋 |

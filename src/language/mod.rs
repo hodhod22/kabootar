@@ -873,6 +873,11 @@ const BUILTINS: &[&str] = &[
     "doc_search",
     "doc_sources",
     "doc_topics",
+    // game assets / hot reload (GP2a, GP2b, GP4a)
+    "gltf_load_json",
+    "image_decode_png",
+    "asset_watch",
+    "asset_poll",
 ];
 
 const HOVER_DOCS: &[(&str, &str)] = &[

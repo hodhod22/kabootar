@@ -1,0 +1,12 @@
+@version "1.0.0"
+
+// Kabootar game/hot — asset mtime watch / poll (GP4a subset).
+// import "game/hot"
+
+pub fn watch(path) {
+    return asset_watch(path)
+}
+
+pub fn poll() {
+    return asset_poll()
+}

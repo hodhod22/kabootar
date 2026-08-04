@@ -1,0 +1,64 @@
+@version "1.0.0"
+
+// Kabootar game/atlas — row atlas bake (GP2b subset).
+// images: array of { w, h, rgba } (rgba = number[] RGBA8).
+// import "game/atlas"
+
+pub fn bakeAtlas(images) {
+    let n = len(images)
+    let totalW = 0
+    let maxH = 0
+    let i = 0
+    while i < n {
+        let im = images[i]
+        totalW = totalW + im["w"]
+        if im["h"] > maxH {
+            maxH = im["h"]
+        }
+        i = i + 1
+    }
+    if totalW < 1 {
+        totalW = 1
+    }
+    if maxH < 1 {
+        maxH = 1
+    }
+    let rgba = []
+    let px = 0
+    while px < totalW * maxH * 4 {
+        rgba = push(rgba, 0)
+        px = px + 1
+    }
+    let uvs = []
+    let x = 0
+    i = 0
+    while i < n {
+        let im = images[i]
+        let w = im["w"]
+        let h = im["h"]
+        let src = im["rgba"]
+        let row = 0
+        while row < h {
+            let col = 0
+            while col < w {
+                let si = (row * w + col) * 4
+                let di = ((row * totalW) + (x + col)) * 4
+                rgba[di] = src[si]
+                rgba[di + 1] = src[si + 1]
+                rgba[di + 2] = src[si + 2]
+                rgba[di + 3] = src[si + 3]
+                col = col + 1
+            }
+            row = row + 1
+        }
+        // Float divisors so integer sizes do not truncate UVs to 0.
+        let u0 = x / (totalW * 1.0)
+        let v0 = 0.0
+        let u1 = (x + w) / (totalW * 1.0)
+        let v1 = h / (maxH * 1.0)
+        uvs = push(uvs, { u0: u0, v0: v0, u1: u1, v1: v1 })
+        x = x + w
+        i = i + 1
+    }
+    return { width: totalW, height: maxH, rgba: rgba, uvs: uvs }
+}

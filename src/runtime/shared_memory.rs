@@ -107,6 +107,16 @@ pub fn fill_uint8_array(view: &Value, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// Copy Uint8Array view bytes into a new `Vec<u8>`.
+pub fn uint8_array_to_vec(view: &Value) -> Result<Vec<u8>, String> {
+    let (sab_id, offset, length) = u8_view_parts(view)?;
+    let block = block_for_sab(sab_id)?;
+    if offset.saturating_add(length) > block.bytes.len() {
+        return Err("Uint8Array range exceeds SharedArrayBuffer".into());
+    }
+    Ok(block.bytes[offset..offset + length].to_vec())
+}
+
 fn u8_view_parts(v: &Value) -> Result<(u64, usize, usize), String> {
     let Value::Object(o) = v else {
         return Err("expected Uint8Array".into());

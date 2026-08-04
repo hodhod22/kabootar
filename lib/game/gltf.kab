@@ -1,0 +1,8 @@
+@version "1.0.0"
+
+// Kabootar game/gltf — glTF 2.0 JSON subset (GP2a).
+// import "game/gltf"
+
+pub fn loadGltfJson(text) {
+    return gltf_load_json(text)
+}

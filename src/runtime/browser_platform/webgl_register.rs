@@ -105,6 +105,17 @@ fn gl_draw_arrays_native(args: &[Value], _env: &mut Environment) -> Result<Value
     Ok(Value::Bool(webgl::draw_arrays(id, count)?))
 }
 
+fn gl_draw_arrays_instanced_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = gl_id_from_receiver(args)?;
+    // gl.drawArraysInstanced(count, instances) or WebGL-like (mode, first, count, primcount)
+    let (count, instances) = if args.len() >= 5 {
+        (num_arg(args, 3)? as u32, num_arg(args, 4)? as u32)
+    } else {
+        (num_arg(args, 1)? as u32, num_arg(args, 2).unwrap_or(1) as u32)
+    };
+    Ok(Value::Bool(webgl::draw_arrays_instanced(id, count, instances)?))
+}
+
 fn gl_draw_elements_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = gl_id_from_receiver(args)?;
     let count = if args.len() >= 5 {
@@ -118,6 +129,20 @@ fn gl_draw_elements_native(args: &[Value], _env: &mut Environment) -> Result<Val
         num_arg(args, 2).unwrap_or(0) as u32
     };
     Ok(Value::Bool(webgl::draw_elements(id, count, offset)?))
+}
+
+fn gl_draw_elements_instanced_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let id = gl_id_from_receiver(args)?;
+    // gl.drawElementsInstanced(count, offset, instances)
+    let count = num_arg(args, 1)? as u32;
+    let offset = num_arg(args, 2).unwrap_or(0) as u32;
+    let instances = num_arg(args, 3).unwrap_or(1) as u32;
+    Ok(Value::Bool(webgl::draw_elements_instanced(
+        id, count, offset, instances,
+    )?))
 }
 
 fn gl_bind_buffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -426,7 +451,15 @@ fn attach_gl_methods(o: &mut HashMap<String, Value>) {
     o.insert("clearColor".into(), Value::NativeFunction(gl_clear_color_native));
     o.insert("clear".into(), Value::NativeFunction(gl_clear_native));
     o.insert("drawArrays".into(), Value::NativeFunction(gl_draw_arrays_native));
+    o.insert(
+        "drawArraysInstanced".into(),
+        Value::NativeFunction(gl_draw_arrays_instanced_native),
+    );
     o.insert("drawElements".into(), Value::NativeFunction(gl_draw_elements_native));
+    o.insert(
+        "drawElementsInstanced".into(),
+        Value::NativeFunction(gl_draw_elements_instanced_native),
+    );
     o.insert("bindBuffer".into(), Value::NativeFunction(gl_bind_buffer_native));
     o.insert("createBuffer".into(), Value::NativeFunction(gl_create_buffer_native));
     o.insert(

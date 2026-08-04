@@ -100,12 +100,17 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | Import | API |
 |--------|-----|
 | `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `worldPos` (lokal pos) |
-| `import "game/render"` | `createMesh`, `setColor`, `drawMesh` |
+| `import "game/render"` | `createMesh`, `createIndexedMesh`, `setColor`, `drawMesh`, `drawIndexedMesh`, `drawMeshInstanced`, `drawIndexedMeshInstanced` |
 | `import "game/input"` | `createActions`, `actionPressed` |
 | `import "game/time"` | `dtSec`, `createFixed`, `fixedTick` |
+| `import "game/gltf"` | `loadGltfJson` → `{ floats, indices?, color, animations }` (glTF 2.0 JSON subset) |
+| `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
+| `import "game/hot"` | `watch(path)`, `poll()` → changed paths (mtime) |
+
+Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`. Fixture: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`.
 
 `createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs`.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups. **GP0c** ✅ subset — MSAA×4 / vsync / present. **GP1a–d** ✅ subset — `lib/game/*`.
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups. **GP0c** ✅ subset — MSAA×4 / vsync / present. **GP0d** ✅ subset — `drawElements` / instancing. **GP0f** ✅ subset — textured GPU delete-gate. **GP1a–d** ✅ subset — `lib/game/*`. **GP2a** ✅ subset — glTF JSON. **GP2b** ✅ subset — PNG + atlas. **GP4a** ✅ subset — asset watch/poll.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).
