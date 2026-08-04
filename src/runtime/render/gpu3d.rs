@@ -40,11 +40,16 @@ pub fn gpu3d_available() -> bool {
 }
 
 pub fn info_line() -> &'static str {
-    if gpu3d_available() {
-        "wgpu-pipeline"
-    } else {
-        "cpu-fallback"
+    if !gpu3d_available() {
+        return "cpu-fallback";
     }
+    #[cfg(feature = "gpu")]
+    {
+        if imp::msaa4_active() {
+            return "wgpu-pipeline+msaa4";
+        }
+    }
+    "wgpu-pipeline"
 }
 
 pub fn render_frame(frame: &Gpu3dFrame) -> Result<Vec<u8>, String> {
@@ -145,8 +150,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     struct Targets {
         width: u32,
         height: u32,
+        /// MSAA color when sample_count > 1; single-sample (COPY_SRC) otherwise.
         color: wgpu::Texture,
         color_view: wgpu::TextureView,
+        /// Single-sample resolve (COPY_SRC); only present when MSAA is active.
+        resolve: Option<wgpu::Texture>,
+        resolve_view: Option<wgpu::TextureView>,
         depth: wgpu::Texture,
         depth_view: wgpu::TextureView,
     }
@@ -157,6 +166,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     }
 
     struct State {
+        sample_count: u32,
         frame_layout: wgpu::BindGroupLayout,
         solid: Pipe,
         textured: Pipe,
@@ -167,6 +177,43 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
     fn state_slot() -> &'static Mutex<Option<State>> {
         STATE.get_or_init(|| Mutex::new(None))
+    }
+
+    pub fn msaa4_active() -> bool {
+        state_slot()
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|s| s.sample_count == 4))
+            .unwrap_or(false)
+    }
+
+    fn detect_sample_count() -> u32 {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+        let Some(adapter) =
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            }))
+        else {
+            return 1;
+        };
+        let color_ok = adapter
+            .get_texture_format_features(wgpu::TextureFormat::Rgba8Unorm)
+            .flags
+            .sample_count_supported(4);
+        let depth_ok = adapter
+            .get_texture_format_features(wgpu::TextureFormat::Depth32Float)
+            .flags
+            .sample_count_supported(4);
+        if color_ok && depth_ok {
+            4
+        } else {
+            1
+        }
     }
 
     fn write_mat4(dst: &mut [u8], mat: &[f32; 16]) {
@@ -268,6 +315,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     fn make_solid_pipe(
         device: &wgpu::Device,
         frame_layout: &wgpu::BindGroupLayout,
+        sample_count: u32,
     ) -> Pipe {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("kabootar-3d-solid"),
@@ -322,7 +370,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
-            multisample: wgpu::MultisampleState::default(),
+            multisample: wgpu::MultisampleState {
+                count: sample_count,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
             multiview: None,
             cache: None,
         });
@@ -335,6 +387,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     fn make_textured_pipe(
         device: &wgpu::Device,
         frame_layout: &wgpu::BindGroupLayout,
+        sample_count: u32,
     ) -> Pipe {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("kabootar-3d-tex"),
@@ -396,7 +449,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
-            multisample: wgpu::MultisampleState::default(),
+            multisample: wgpu::MultisampleState {
+                count: sample_count,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
             multiview: None,
             cache: None,
         });
@@ -413,10 +470,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         if guard.is_some() {
             return Ok(());
         }
+        let sample_count = detect_sample_count();
         let frame_layout = make_frame_layout(device);
-        let solid = make_solid_pipe(device, &frame_layout);
-        let textured = make_textured_pipe(device, &frame_layout);
+        let solid = make_solid_pipe(device, &frame_layout, sample_count);
+        let textured = make_textured_pipe(device, &frame_layout, sample_count);
         *guard = Some(State {
+            sample_count,
             frame_layout,
             solid,
             textured,
@@ -430,6 +489,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
             .lock()
             .map_err(|_| "gpu3d lock poisoned".to_string())?;
         let state = guard.as_mut().ok_or("gpu3d pipeline missing")?;
+        let sample_count = state.sample_count;
         let need_new = state
             .targets
             .as_ref()
@@ -438,30 +498,54 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         if !need_new {
             return Ok(());
         }
-        let color = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("kabootar-3d-color"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let color_view = color.create_view(&wgpu::TextureViewDescriptor::default());
+        let extent = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        let (color, color_view, resolve, resolve_view) = if sample_count > 1 {
+            let color = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("kabootar-3d-color-msaa"),
+                size: extent,
+                mip_level_count: 1,
+                sample_count,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            });
+            let color_view = color.create_view(&wgpu::TextureViewDescriptor::default());
+            let resolve = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("kabootar-3d-resolve"),
+                size: extent,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let resolve_view = resolve.create_view(&wgpu::TextureViewDescriptor::default());
+            (color, color_view, Some(resolve), Some(resolve_view))
+        } else {
+            let color = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("kabootar-3d-color"),
+                size: extent,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let color_view = color.create_view(&wgpu::TextureViewDescriptor::default());
+            (color, color_view, None, None)
+        };
         let depth = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("kabootar-3d-depth"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            size: extent,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -473,6 +557,8 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
             height,
             color,
             color_view,
+            resolve,
+            resolve_view,
             depth,
             depth_view,
         });
@@ -779,11 +865,17 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                 label: Some("kabootar-3d-pass"),
             });
             {
+                let resolve_target = targets.resolve_view.as_ref();
+                let color_store = if resolve_target.is_some() {
+                    wgpu::StoreOp::Discard
+                } else {
+                    wgpu::StoreOp::Store
+                };
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("kabootar-3d"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &targets.color_view,
-                        resolve_target: None,
+                        resolve_target,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
                                 r: frame.clear_color[0] as f64,
@@ -791,7 +883,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                                 b: frame.clear_color[2] as f64,
                                 a: frame.clear_color[3] as f64,
                             }),
-                            store: wgpu::StoreOp::Store,
+                            store: color_store,
                         },
                     })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
@@ -819,7 +911,8 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
                 }
             }
             queue.submit(std::iter::once(encoder.finish()));
-            readback_rgba(device, queue, &targets.color, width, height)
+            let readback_tex = targets.resolve.as_ref().unwrap_or(&targets.color);
+            readback_rgba(device, queue, readback_tex, width, height)
         })
     }
 }

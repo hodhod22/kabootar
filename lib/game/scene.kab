@@ -1,0 +1,27 @@
+@version "1.0.0"
+
+// Kabootar game/scene — shallow scene graph (GP1a subset).
+// Mutators return the node (Kab CoW writeback — reassign at call site).
+// worldPos returns local xyz for this subset (no parent walk yet).
+// import "game/scene"
+
+pub fn createNode(name) {
+    return { name: name, x: 0, y: 0, z: 0, children: [] }
+}
+
+pub fn addChild(parent, child) {
+    parent["children"] = push(parent["children"], child)
+    return parent
+}
+
+pub fn setLocal(node, x, y, z) {
+    node["x"] = x
+    node["y"] = y
+    node["z"] = z
+    return node
+}
+
+// Shallow: local position only (document for GP1a subset).
+pub fn worldPos(node) {
+    return { x: node["x"], y: node["y"], z: node["z"] }
+}

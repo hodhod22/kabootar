@@ -42,6 +42,9 @@ fn float_array_from_value(v: Option<&Value>) -> Result<Vec<f32>, String> {
     let Some(v) = v else {
         return Ok(Vec::new());
     };
+    if crate::runtime::shared_memory::is_float32_array(v) {
+        return crate::runtime::shared_memory::float32_array_to_f32_vec(v);
+    }
     match v {
         Value::Array(items) => items
             .iter()
@@ -53,7 +56,7 @@ fn float_array_from_value(v: Option<&Value>) -> Result<Vec<f32>, String> {
             .collect(),
         Value::Number(n) => Ok(vec![*n as f32]),
         Value::Float(f) => Ok(vec![*f as f32]),
-        _ => Err("buffer data expects array of numbers".into()),
+        _ => Err("buffer data expects array of numbers or Float32Array".into()),
     }
 }
 

@@ -150,3 +150,24 @@ fn webgl_shader_from_files_smoke() {
     );
     assert_eq!(out, "true");
 }
+
+#[test]
+fn webgl_create_buffer_from_float32_array() {
+    let out = eval(
+        r##"
+        let buf = array_buffer_new(24)
+        let f32 = float32_array_new(buf, 0, 6)
+        float32_array_set(f32, 0, -0.5)
+        float32_array_set(f32, 1, -0.5)
+        float32_array_set(f32, 2, 0.5)
+        float32_array_set(f32, 3, -0.5)
+        float32_array_set(f32, 4, 0.0)
+        float32_array_set(f32, 5, 0.5)
+        let gl = webgl_create(32, 32)
+        let vbo = gl.createBuffer("array", f32)
+        gl.bindBuffer(vbo)
+        gl.drawArrays(3)
+    "##,
+    );
+    assert_eq!(out, "true");
+}

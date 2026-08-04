@@ -209,9 +209,11 @@ fn gl_id_from_surface(map: &HashMap<String, Value>) -> Result<u64, String> {
 
 fn present_gl_surface(map: &HashMap<String, Value>) -> Result<Value, String> {
     let gl_id = gl_id_from_surface(map)?;
-    if frame_buffer::last_frame_pixels().is_none() {
-        let _ = webgl::clear(gl_id, 0, 0, 0, 255);
+    // GPU path already published pixels — skip redundant compositor republish.
+    if frame_buffer::last_frame_pixels().is_some() {
+        return Ok(Value::Bool(true));
     }
+    let _ = webgl::clear(gl_id, 0, 0, 0, 255);
     if let Some((w, h, px)) = frame_buffer::last_frame_pixels() {
         frame_buffer::publish_pixels(w as f64, h as f64, px);
         return Ok(Value::Bool(true));

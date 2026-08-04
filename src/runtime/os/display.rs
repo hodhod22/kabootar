@@ -2,6 +2,22 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+
+/// Process-wide vsync mode (`fifo` | `immediate`) so shell present can read it
+/// without an `OsHandle`.
+fn vsync_slot() -> &'static Mutex<String> {
+    static VSYNC: OnceLock<Mutex<String>> = OnceLock::new();
+    VSYNC.get_or_init(|| Mutex::new("fifo".into()))
+}
+
+/// Current DisplayServer vsync mode (`"fifo"` or `"immediate"`).
+pub fn display_vsync_mode() -> String {
+    vsync_slot()
+        .lock()
+        .map(|g| g.clone())
+        .unwrap_or_else(|_| "fifo".into())
+}
 
 #[derive(Debug, Clone)]
 pub struct DisplaySurface {
@@ -109,6 +125,9 @@ impl DisplayServer {
         let m = mode.to_ascii_lowercase();
         if m != "fifo" && m != "immediate" {
             return Err("os_display_vsync expects fifo or immediate".into());
+        }
+        if let Ok(mut g) = vsync_slot().lock() {
+            *g = m.clone();
         }
         self.vsync = m;
         Ok(self.vsync.clone())

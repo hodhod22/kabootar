@@ -111,7 +111,7 @@ fn webgl_gpu_textured_vec5_draw() {
     "##,
     );
     assert!(
-        out == "wgpu-pipeline" || out == "cpu-fallback",
+        out == "wgpu-pipeline" || out == "wgpu-pipeline+msaa4" || out == "cpu-fallback",
         "unexpected gpu3d info: {out}"
     );
 }
@@ -163,7 +163,7 @@ fn webgl_gpu_material_bind_groups() {
     "##,
     );
     assert!(
-        out == "wgpu-pipeline" || out == "cpu-fallback",
+        out == "wgpu-pipeline" || out == "wgpu-pipeline+msaa4" || out == "cpu-fallback",
         "unexpected gpu3d info: {out}"
     );
 }

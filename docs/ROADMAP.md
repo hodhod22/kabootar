@@ -667,9 +667,9 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | 📋 |
+| **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | ✅ subset (`tests/perf_p0_smoke.rs`: `performance.now` + `game_tick`/`delta_ms` < 200 ms CI-smoke; full profiler/histogram kvar) |
 | **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | 📋 |
-| **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | 📋 / delvis via A6 |
+| **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (`float32_array_new/get/set`, bulk `createBuffer` från Float32Array; Array-path kvar; Uint8 zero-copy/audio kvar) |
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | 📋 |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | 📋 |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | 📋 |
@@ -702,7 +702,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | ✅ subset (vec5 + bindTexture → textured WGSL; CPU fallback om ingen adapter) |
 | **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | ✅ subset |
-| **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | 📋 |
+| **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | ✅ subset |
 | **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | 📋 / delvis API |
 | **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | 📋 |
 | **GP0f** | **CPU-raster endast fallback** — delete-gate: textured 3D-demo måste gå GPU-path i CI med `gpu` | 📋 |
@@ -711,10 +711,10 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | 📋 |
-| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | 📋 |
-| **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | 📋 |
-| **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | 📋 |
+| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | ✅ subset (`createNode`/`addChild`/`setLocal`/`worldPos` lokal; parent-walk/layers kvar) |
+| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"`: `createMesh`/`setColor`/`drawMesh`) |
+| **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | ✅ subset (`import "game/input"`: `createActions`/`actionPressed`; keyboard only) |
+| **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | ✅ subset (`import "game/time"`: `dtSec`/`createFixed`/`fixedTick`) |
 | **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | 📋 |
 | **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | 📋 |
 
