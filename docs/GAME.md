@@ -86,6 +86,13 @@ gl.drawArrays(3);
 
 **GPU 3D** (med `--features gpu`): vec3-ritning och **texturerade vec5** (xyz+uv) går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` i `webgl_info()`). CPU-raster används som fallback (ingen adapter, `depth_test` av, eller tom textur).
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **GP0a** ✅ subset — GPU-texturer.
+**GP0b material uniforms / bind groups:**
+- **Group 0 (frame):** `view_proj` mat4
+- **Group 1 (material):** `model` mat4 + `color` vec4 + `uv_xform` vec4 (xy=scale, zw=offset; default `1,1,0,0`) + texture/sampler när texturerat
+- `gl.uniform4f(0, …)` → draw color; `gl.uniform4f(1, sx, sy, ox, oy)` → UV-transform
+- `gl.uniformMatrix4fv(matrix)` / loc 0 → explicit MVP; `gl.uniformMatrix4fv(1, modelMatrix)` → model utan att tvinga explicit MVP
+- `gl.rotateModelY` sätter fortfarande model-matrisen (CPU/GPU)
+
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

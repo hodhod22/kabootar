@@ -701,7 +701,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | ✅ subset (vec5 + bindTexture → textured WGSL; CPU fallback om ingen adapter) |
-| **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | 📋 |
+| **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | ✅ subset |
 | **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | 📋 |
 | **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | 📋 / delvis API |
 | **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | 📋 |
