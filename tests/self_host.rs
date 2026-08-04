@@ -1931,9 +1931,10 @@ fn self_host_vm_import_probe() {
     assert!(ok);
 }
 
-/// H6e: heavy `_impl`/`_run` bodies stay skipped (see should_attempt_self_host);
-/// their thin facades (emit.kab, parser.kab, …) are attemptable — see
-/// `self_host_vm_cores_not_in_skip_list` and the `*_facade_full_compile` tests below.
+/// H6e: heavy leaf shards stay skipped (see should_attempt_self_host); every facade
+/// above them (emit.kab, parser.kab, serialize_impl.kab, vm_run.kab, …) is
+/// attemptable — see `self_host_vm_cores_not_in_skip_list` and the
+/// `*_facade_full_compile` tests below.
 #[test]
 fn self_host_heavy_cores_still_skipped() {
     use kabootar_lib::compile::compile_file_self_host;
@@ -1941,8 +1942,8 @@ fn self_host_heavy_cores_still_skipped() {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_impl.kab",
-        "vm_run.kab",
+        "serialize_body.kab",
+        "vm_run_body.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         let err = compile_file_self_host(&path).unwrap_err();
@@ -1954,9 +1955,10 @@ fn self_host_heavy_cores_still_skipped() {
 }
 
 /// Gate only: deserialize/vm/H6e facades must not hit the skip list (compile.kab
-/// was always tiny; emit/parser/lexer/serialize/vm_impl are now thin facades over
-/// their skip-listed `_impl`/`_run` bodies — see `*_facade_full_compile` tests below
-/// for the actual CI-fast self-host compile+run gate).
+/// was always tiny; emit/parser/lexer/serialize/vm_impl plus the sharded
+/// serialize_impl/vm_run are now thin facades over the skip-listed leaf shards —
+/// see `*_facade_full_compile` tests below for the actual CI-fast self-host
+/// compile+run gate).
 #[test]
 fn self_host_vm_cores_not_in_skip_list() {
     use kabootar_lib::compile::self_host_is_attemptable;
@@ -1969,6 +1971,8 @@ fn self_host_vm_cores_not_in_skip_list() {
         "lexer.kab",
         "serialize.kab",
         "vm_impl.kab",
+        "serialize_impl.kab",
+        "vm_run.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         assert!(
@@ -2036,8 +2040,115 @@ fn self_host_vm_impl_facade_full_compile() {
 }
 
 #[test]
+fn self_host_serialize_impl_facade_full_compile() {
+    assert_facade_self_host_compile_fast("serialize_impl.kab");
+}
+
+#[test]
+fn self_host_vm_run_facade_full_compile() {
+    assert_facade_self_host_compile_fast("vm_run.kab");
+}
+
+#[test]
 fn self_host_compile_facade_full_compile() {
     assert_facade_self_host_compile_fast("compile.kab");
+}
+
+/// H6e: nested calls must restore `eArgN`/`eArgs` (module globals) so
+/// `str_slice(s, 2, len(s))` emits `call 3`, not a clobbered `call 1`.
+#[test]
+fn self_host_emit_nested_call_argn_restore() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let s = \"abcdefgh\"\nreturn str_slice(s, 2, len(s))";
+    let program = std::thread::Builder::new()
+        .name("sh-nested-argn".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile nested call"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("call 3"),
+        "expected call 3 for str_slice arity, kbc snippet:\n{}",
+        kbc.chars().take(400).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "cdefgh");
+}
+
+/// H6e delete-gate: under kab-only, a skip-listed leaf without `.kbc` cache must
+/// not fall through to a live Rust compile.
+#[test]
+fn h6e_skip_listed_kab_only_delete_gate() {
+    use kabootar_lib::compile::{
+        compile_file_prefer_cached, self_host_is_skip_listed, CompilePrefer,
+    };
+
+    let path = format!(
+        "{}/self_host/serialize_body.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(
+        self_host_is_skip_listed(&path),
+        "serialize_body.kab must stay skip-listed"
+    );
+    // Ensure no on-disk cache for this leaf.
+    kabootar_lib::compile::invalidate_file_cache(&path);
+    if let Ok(base) = std::env::current_dir() {
+        let marker = kabootar_lib::compile::cache_path_for(&base, &path);
+        let _ = std::fs::remove_file(marker);
+    }
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let err = compile_file_prefer_cached(&path, CompilePrefer::SelfHostThenRust).unwrap_err();
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("skip-listed") && err.contains("Rust compile"),
+        "expected kab-only skip-list delete-gate, got: {err}"
+    );
+}
+
+/// H6e: module load path prefers self-host for attemptable facades (same as run_file).
+#[test]
+fn h6e_load_program_prefers_self_host_facade() {
+    use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
+
+    let path = format!("{}/self_host/serialize.kab", env!("CARGO_MANIFEST_DIR"));
+    kabootar_lib::compile::invalidate_file_cache(&path);
+    if let Ok(base) = std::env::current_dir() {
+        let marker = kabootar_lib::compile::cache_path_for(&base, &path);
+        let _ = std::fs::remove_file(marker);
+    }
+    let path2 = path.clone();
+    let (backend, has_bc) = std::thread::Builder::new()
+        .name("h6e-load-pref".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let (program, backend) =
+                compile_file_prefer_cached(&path2, CompilePrefer::SelfHostThenRust)
+                    .expect("prefer compile serialize facade");
+            (backend, program.has_bytecode())
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(has_bc);
+    assert_eq!(
+        backend, "self-host",
+        "serialize.kab facade should self-host via prefer path"
+    );
 }
 
 /// H6e stricter kab-only: self-host-compile a tiny snippet via the (now CI-fast)

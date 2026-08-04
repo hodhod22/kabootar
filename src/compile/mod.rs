@@ -48,21 +48,22 @@ impl CompilePrefer {
     }
 }
 
-/// Skip self-host for heavy emit/parser/lexer/serialize/vm cores. H6e: these all
-/// now have thin `pub let X = Ximpl` facades (see e.g. self_host/vm.kab,
-/// self_host/vm_impl.kab) whose own source is tiny, so only the `_impl`/`_run`
-/// bodies below need to stay skip-listed — the facades (`emit.kab`, `parser.kab`,
-/// `lexer.kab`, `serialize.kab`, `vm_impl.kab`, `compile.kab`) self-host-compile
-/// in CI-fast time and are intentionally NOT in this list. `import` of the heavy
-/// cores still uses Rust via `load_program_for_file`.
+/// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
+/// every public core is reached through thin `pub let X = Ximpl` facades
+/// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body`, `serialize` → `serialize_impl` →
+/// `serialize_body`, plus `lexer`/`parser`/`emit` → `*_impl`). Only the leaf shards
+/// below stay skip-listed (self-host AST density makes them CI-slow). Facades above
+/// them self-host-compile in CI-fast time. Product `import` prefers self-host via
+/// `load_program_for_file` → `compile_file_prefer_cached` (Rust only while
+/// `KAB_VM_EXEC_ACTIVE`, or for these leaves / oversize).
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
     let core = [
         "self_host/emit_impl.kab",
         "self_host/parser_impl.kab",
         "self_host/lexer_impl.kab",
-        "self_host/serialize_impl.kab",
-        "self_host/vm_run.kab",
+        "self_host/serialize_body.kab",
+        "self_host/vm_run_body.kab",
     ];
     for c in core {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
@@ -76,7 +77,11 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         .unwrap_or("");
     if matches!(
         base,
-        "emit_impl.kab" | "parser_impl.kab" | "lexer_impl.kab" | "serialize_impl.kab" | "vm_run.kab"
+        "emit_impl.kab"
+            | "parser_impl.kab"
+            | "lexer_impl.kab"
+            | "serialize_body.kab"
+            | "vm_run_body.kab"
     ) && norm.contains("self_host")
     {
         return false;
@@ -85,6 +90,15 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         return false;
     }
     true
+}
+
+/// True when `path` is a skip-listed self-host leaf (needs Rust compile or `.kbc` cache).
+pub fn self_host_is_skip_listed(path: &str) -> bool {
+    match fs::read_to_string(path) {
+        Ok(source) => !should_attempt_self_host(path, &source),
+        // Missing file: not a skip-list concern.
+        Err(_) => false,
+    }
 }
 
 fn kab_vm_only_mode() -> bool {
@@ -394,6 +408,20 @@ pub fn compile_file_prefer_cached(
             return Ok((program, "disk-cache"));
         }
     }
+    // H6e delete-gate: kab-only must not live-Rust-compile skip-listed leaves.
+    // Soften while the self-host toolchain / Kab VM is already executing
+    // (`KAB_VM_EXEC_ACTIVE`), and when the caller forced `--rust` / KABOOTAR_COMPILE=rust.
+    if kab_vm_only_mode()
+        && prefer != CompilePrefer::Rust
+        && !KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire)
+    {
+        let source = fs::read_to_string(path).unwrap_or_default();
+        if !should_attempt_self_host(path, &source) {
+            return Err(format!(
+                "Kab VM only: skip-listed core `{path}` needs Rust compile (no .kbc cache)"
+            ));
+        }
+    }
     let (program, backend) = compile_file_prefer(path, prefer)?;
     if program.has_bytecode() {
         let _ = write_compile_marker(path, &program);
@@ -442,23 +470,17 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
 }
 
 pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram, String> {
-    let mtime = fs::metadata(path)
-        .ok()
-        .and_then(|m| m.modified().ok());
-    if let Some(mtime) = mtime {
-        if let Some(bc) = read_bytecode_cache(path, mtime)? {
-            return Ok(CompiledProgram {
-                stmts: Vec::new(),
-                bytecode: Some(bc.clone()),
-                stmt_count: 0,
-                memory_mode: bc.memory_mode,
-            });
-        }
-    }
-    let program = compile_source(source)?;
-    if program.has_bytecode() {
-        let _ = write_compile_marker(path, &program);
-    }
+    // H6e: product `import` prefers self-host the same way as `run_file`
+    // (`compile_file_prefer_cached`). Force Rust while the self-host toolchain or
+    // Kab VM is already active so nested loads cannot recurse into another
+    // full self-host compile of the compiler.
+    let _ = source; // caller already read; prefer path re-reads + fingerprint/cache.
+    let prefer = if KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+        CompilePrefer::Rust
+    } else {
+        CompilePrefer::from_args_and_env(&[])
+    };
+    let (program, _) = compile_file_prefer_cached(path, prefer)?;
     Ok(program)
 }
 

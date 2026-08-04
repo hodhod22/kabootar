@@ -6,7 +6,7 @@
 //
 // emit_impl.kab stays skip-listed (~68KB, over the 64KB self-host-attempt threshold
 // in `should_attempt_self_host`, and self-hosting cost scales with the AST size of
-// the source anyway — self-host-compiling even the much smaller serialize_impl.kab
+// the source anyway — self-host-compiling even the much smaller serialize_body.kab
 // (~13KB) already takes minutes). Splitting emit_impl.kab further to fit under 64KB
 // is NOT required for CI-speed: name-based skip-listing is checked before the size
 // check in `should_attempt_self_host`, so an oversized skip-listed impl file never

@@ -7,14 +7,15 @@
 // guest has imports — see self_host/vm.kab header for the full explanation (that
 // facade re-exports this one's `runModuleImpl` again as `runModule`).
 //
-// vm_run.kab stays skip-listed: self-host-compiling its ~27KB body (runOpMem/Arith/
-// Cmp/Data/Jump/Call/Ctrl dispatch plus runFnBody/runMethodBody/vNewInstance) is too
-// slow for CI. Its ~15 top-level fns all share module-level interpreter state
-// (vStack, vLocals, vGlobals, vClasses, …) via plain call/return — not via imports —
-// so it cannot be sharded across files without breaking that shared mutable state
-// (Kabootar modules don't share globals across files: each import gets its own copy
-// of exported bindings). This facade's own source is a two-line import + alias, so
-// `compile self_host/vm_impl.kab --self-host` is CI-fast regardless of vm_run.kab.
+// vm_run.kab is itself a thin facade now; the heavy body lives in vm_run_body.kab,
+// which is the only file on the skip list. Self-host-compiling that ~27KB body
+// (runOpMem/Arith/Cmp/Data/Jump/Call/Ctrl dispatch plus runFnBody/runMethodBody/
+// vNewInstance) is too slow for CI, and it cannot be sharded further: its ~15 top-
+// level fns all share module-level interpreter state (vStack, vLocals, vGlobals,
+// vClasses, …) via plain call/return, and Kabootar modules don't share globals
+// across files (each import gets its own copy of exported bindings). This facade's
+// own source is a two-line import + alias, so `compile self_host/vm_impl.kab
+// --self-host` is CI-fast regardless of vm_run_body.kab.
 
 import "self_host/vm_run"
 
