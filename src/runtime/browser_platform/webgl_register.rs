@@ -160,12 +160,12 @@ fn gl_use_program_native(args: &[Value], _env: &mut Environment) -> Result<Value
 
 fn gl_uniform4f_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = gl_id_from_receiver(args)?;
-    let _loc = num_arg(args, 1)?;
+    let loc = num_arg(args, 1)? as i32;
     let r = f64_arg(args, 2)? as f32;
     let g = f64_arg(args, 3)? as f32;
     let b = f64_arg(args, 4)? as f32;
     let a = f64_arg(args, 5)? as f32;
-    Ok(Value::Bool(webgl::uniform4f(id, r, g, b, a)?))
+    Ok(Value::Bool(webgl::uniform4f(id, loc, r, g, b, a)?))
 }
 
 fn mat4_from_value(v: &Value) -> Result<[f32; 16], String> {
@@ -188,8 +188,16 @@ fn mat4_from_value(v: &Value) -> Result<[f32; 16], String> {
 
 fn gl_uniform_matrix4fv_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = gl_id_from_receiver(args)?;
-    let matrix = mat4_from_value(args.get(1).ok_or("uniformMatrix4fv(matrix)")?)?;
-    Ok(Value::Bool(webgl::uniform_matrix4fv(id, matrix)?))
+    // args: [self, matrix] → loc 0; [self, loc, matrix] → loc
+    let (loc, matrix) = if args.len() >= 3 {
+        let loc = num_arg(args, 1)? as i32;
+        let matrix = mat4_from_value(args.get(2).ok_or("uniformMatrix4fv(loc, matrix)")?)?;
+        (loc, matrix)
+    } else {
+        let matrix = mat4_from_value(args.get(1).ok_or("uniformMatrix4fv(matrix)")?)?;
+        (0, matrix)
+    };
+    Ok(Value::Bool(webgl::uniform_matrix4fv_at(id, loc, matrix)?))
 }
 
 fn gl_perspective_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

@@ -64,6 +64,8 @@ pub struct WebGlContext {
     pub model: Mat4,
     pub explicit_mvp: Mat4,
     pub use_explicit_mvp: bool,
+    /// xy = scale, zw = offset; default 1,1,0,0
+    pub uv_transform: [f32; 4],
     pub depth_test: bool,
 }
 
@@ -182,6 +184,7 @@ pub fn create_context(width: u32, height: u32) -> Result<WebGlContext, String> {
         model: mat4_identity(),
         explicit_mvp: mat4_identity(),
         use_explicit_mvp: false,
+        uv_transform: [1.0, 1.0, 0.0, 0.0],
         depth_test: true,
     };
     ctx_store()
@@ -461,28 +464,42 @@ pub fn compile_shader_from_files(vert_path: &str, frag_path: &str) -> Result<Sha
     compile_shader(&vertex, &fragment)
 }
 
-pub fn uniform4f(id: u64, r: f32, g: f32, b: f32, a: f32) -> Result<bool, String> {
+pub fn uniform4f(id: u64, location: i32, r: f32, g: f32, b: f32, a: f32) -> Result<bool, String> {
     let mut guard = ctx_store()
         .lock()
         .map_err(|_| "webgl lock poisoned".to_string())?;
     let ctx = guard.get_mut(&id).ok_or("webgl: unknown context")?;
-    ctx.draw_color = [
-        (r.clamp(0.0, 1.0) * 255.0) as u8,
-        (g.clamp(0.0, 1.0) * 255.0) as u8,
-        (b.clamp(0.0, 1.0) * 255.0) as u8,
-        (a.clamp(0.0, 1.0) * 255.0) as u8,
-    ];
+    if location == 1 {
+        ctx.uv_transform = [r, g, b, a];
+    } else {
+        // location 0 or negative: draw color
+        ctx.draw_color = [
+            (r.clamp(0.0, 1.0) * 255.0) as u8,
+            (g.clamp(0.0, 1.0) * 255.0) as u8,
+            (b.clamp(0.0, 1.0) * 255.0) as u8,
+            (a.clamp(0.0, 1.0) * 255.0) as u8,
+        ];
+    }
+    Ok(true)
+}
+
+pub fn uniform_matrix4fv_at(id: u64, location: i32, matrix: Mat4) -> Result<bool, String> {
+    let mut guard = ctx_store()
+        .lock()
+        .map_err(|_| "webgl lock poisoned".to_string())?;
+    let ctx = guard.get_mut(&id).ok_or("webgl: unknown context")?;
+    if location == 1 {
+        ctx.model = matrix;
+        // Do not force use_explicit_mvp — model stays separate from view_proj.
+    } else {
+        ctx.explicit_mvp = matrix;
+        ctx.use_explicit_mvp = true;
+    }
     Ok(true)
 }
 
 pub fn uniform_matrix4fv(id: u64, matrix: Mat4) -> Result<bool, String> {
-    let mut guard = ctx_store()
-        .lock()
-        .map_err(|_| "webgl lock poisoned".to_string())?;
-    let ctx = guard.get_mut(&id).ok_or("webgl: unknown context")?;
-    ctx.explicit_mvp = matrix;
-    ctx.use_explicit_mvp = true;
-    Ok(true)
+    uniform_matrix4fv_at(id, 0, matrix)
 }
 
 pub fn set_perspective(id: u64, fov_deg: f32, aspect: f32, near: f32, far: f32) -> Result<bool, String> {
@@ -672,7 +689,11 @@ fn build_gpu_frame(
     } else {
         None
     };
-    let mvp = mvp_for(ctx);
+    let (view_proj, model) = if ctx.use_explicit_mvp {
+        (ctx.explicit_mvp, mat4_identity())
+    } else {
+        (mat4_mul(&ctx.projection, &ctx.view), ctx.model)
+    };
     let [cr, cg, cb, ca] = ctx.clear_color;
     let [dr, dg, db, da] = ctx.draw_color;
     match mode {
@@ -694,13 +715,15 @@ fn build_gpu_frame(
                     cb as f32 / 255.0,
                     ca as f32 / 255.0,
                 ],
-                mvp,
+                view_proj,
+                model,
                 draw_color: [
                     dr as f32 / 255.0,
                     dg as f32 / 255.0,
                     db as f32 / 255.0,
                     da as f32 / 255.0,
                 ],
+                uv_transform: ctx.uv_transform,
                 vertices: read_f32_vec(&vbo),
                 component_count: vbo.component_count,
                 vert_count: count,
@@ -728,13 +751,15 @@ fn build_gpu_frame(
                     cb as f32 / 255.0,
                     ca as f32 / 255.0,
                 ],
-                mvp,
+                view_proj,
+                model,
                 draw_color: [
                     dr as f32 / 255.0,
                     dg as f32 / 255.0,
                     db as f32 / 255.0,
                     da as f32 / 255.0,
                 ],
+                uv_transform: ctx.uv_transform,
                 vertices: read_f32_vec(&vbo),
                 component_count: vbo.component_count,
                 vert_count: 0,
@@ -940,10 +965,12 @@ fn triangles_from_ibo_3d(
     tris
 }
 
-fn sample_texture(tex: &GlTexture, u: f32, v: f32) -> [u8; 4] {
+fn sample_texture(tex: &GlTexture, u: f32, v: f32, xform: [f32; 4]) -> [u8; 4] {
     if tex.width == 0 || tex.height == 0 || tex.pixels.is_empty() {
         return [255, 255, 255, 255];
     }
+    let u = u * xform[0] + xform[2];
+    let v = v * xform[1] + xform[3];
     let x = ((u.clamp(0.0, 1.0)) * (tex.width.saturating_sub(1)) as f32) as u32;
     let y = ((1.0 - v.clamp(0.0, 1.0)) * (tex.height.saturating_sub(1)) as f32) as u32;
     let i = ((y * tex.width + x) * 4) as usize;
@@ -983,6 +1010,7 @@ fn publish_frame(ctx: &WebGlContext, triangles2d: Option<Vec<Tri2d>>, triangles3
         entry.fill(1.0);
     }
     let draw_color = ctx.draw_color;
+    let uv_xform = ctx.uv_transform;
     let bound_tex = ctx.bound_texture.and_then(get_texture);
     if let Some(ref mut depth_buf) = depth_guard.as_mut().and_then(|g| g.get_mut(&ctx.id)) {
         if let Some(tris) = triangles3d {
@@ -1005,6 +1033,7 @@ fn publish_frame(ctx: &WebGlContext, triangles2d: Option<Vec<Tri2d>>, triangles3
                         uv1,
                         uv2,
                         draw_color,
+                        uv_xform,
                     );
                 } else {
                     rasterize_triangle_depth(
@@ -1027,7 +1056,7 @@ fn publish_frame(ctx: &WebGlContext, triangles2d: Option<Vec<Tri2d>>, triangles3
             for (v0, v1, v2, uv0, uv1, uv2) in tris {
                 if let Some(ref tex) = bound_tex {
                     rasterize_textured_triangle(
-                        &mut pixels, w, h, tex, v0, v1, v2, uv0, uv1, uv2, draw_color,
+                        &mut pixels, w, h, tex, v0, v1, v2, uv0, uv1, uv2, draw_color, uv_xform,
                     );
                 } else {
                     rasterize_triangle(&mut pixels, w, h, v0, v1, v2, draw_color);
@@ -1118,6 +1147,7 @@ fn rasterize_textured_triangle_depth(
     uv1: Option<[f32; 2]>,
     uv2: Option<[f32; 2]>,
     fallback: [u8; 4],
+    uv_xform: [f32; 4],
 ) {
     let to_px = |v: [f32; 2]| -> (i32, i32) {
         let x = ((v[0] * 0.5 + 0.5) * (w.saturating_sub(1)) as f32) as i32;
@@ -1147,7 +1177,7 @@ fn rasterize_textured_triangle_depth(
                 let z = z0 * w0 + z1 * w1 + z2 * w2;
                 let u = uv0[0] * w0 + uv1[0] * w1 + uv2[0] * w2;
                 let v = uv0[1] * w0 + uv1[1] * w1 + uv2[1] * w2;
-                let mut color = sample_texture(tex, u, v);
+                let mut color = sample_texture(tex, u, v, uv_xform);
                 if fallback[3] < 255 {
                     color[3] = ((color[3] as f32) * (fallback[3] as f32 / 255.0)) as u8;
                 }
@@ -1176,6 +1206,7 @@ fn rasterize_textured_triangle(
     uv1: Option<[f32; 2]>,
     uv2: Option<[f32; 2]>,
     fallback: [u8; 4],
+    uv_xform: [f32; 4],
 ) {
     let to_px = |v: [f32; 2]| -> (i32, i32) {
         let x = ((v[0] * 0.5 + 0.5) * (w.saturating_sub(1)) as f32) as i32;
@@ -1204,7 +1235,7 @@ fn rasterize_textured_triangle(
             if w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0 {
                 let u = uv0[0] * w0 + uv1[0] * w1 + uv2[0] * w2;
                 let v = uv0[1] * w0 + uv1[1] * w1 + uv2[1] * w2;
-                let mut color = sample_texture(tex, u, v);
+                let mut color = sample_texture(tex, u, v, uv_xform);
                 if fallback[3] < 255 {
                     color[3] = ((color[3] as f32) * (fallback[3] as f32 / 255.0)) as u8;
                 }
@@ -1279,7 +1310,10 @@ pub fn info() -> HashMap<String, String> {
     o.insert("phase".into(), "v2.60-3d".into());
     o.insert("shaders".into(), "true".into());
     o.insert("buffers".into(), "vec2+vec3+vec5+element_array".into());
-    o.insert("uniforms".into(), "uniform4f+uniformMatrix4fv".into());
+    o.insert(
+        "uniforms".into(),
+        "uniform4f+uniformMatrix4fv+material-bind-groups(loc1=uv_xform/model)".into(),
+    );
     o.insert("matrices".into(), "perspective+lookAt+model".into());
     o.insert("depth".into(), "z-buffer".into());
     o.insert("gpu3d".into(), gpu3d::info_line().into());
