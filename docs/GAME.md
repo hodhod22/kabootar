@@ -86,6 +86,6 @@ gl.drawArrays(3);
 
 **GPU 3D** (med `--features gpu`): vec3-ritning utan textur går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` i `webgl_info()`). CPU-raster används som fallback (texturer, `depth_test` av, eller utan GPU).
 
-Framtida förbättringar: texturer på GPU, fler uniform-typer.
+**Roadmap (produktion):** alla nästa steg för snabbare runtime, självständighet och spelproduktion — inkl. mål att slå C#/C++ i *produktionskedjan* — ligger i [ROADMAP.md](ROADMAP.md) under **Våg P (Performance)** och **Våg GP (Game production)** (GPU-texturer, scen/motor, assets, hot reload, ship).
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).
