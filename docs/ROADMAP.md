@@ -648,11 +648,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset** — Kab VM: import-bind (`vGlobals` före bind), **CALL** via `bytecode_host_map_get` (BytecodeFn = `typeof object`), reentrancy, Result/Option, try/arrow/for-of. **Default prefer Kab**; `.kbc` delete-gate i `evalKbc` när `kabVmRunOk` (`KABOOTAR_VM=kab-only` = process-strict). Self-host **deserialize/vm** tillåtna (≤64KB). Linear `splitLines`. Smokes: `h6e_kab_*`, `vm_import_probe`, `vm_lang_probe`.
+**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader (`lexer`/`parser`/`emit`/`serialize`/`vm` + `serialize_impl`/`vm_run`) self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_body`, `vm_run_body` (AST-täthet; delas inte utan `st`-bag). **Delete-gate:** `KABOOTAR_VM=kab-only` failar om skip-listat löv behöver live-Rust-compile (saknar `.kbc`-cache). **Mål:** Rust = bytecode-laddare + FFI — tömma skip-listan. Smokes: `h6e_kab_*`, `*_facade_full_compile`, `h6e_skip_listed_kab_only_delete_gate`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
-**H6 delete-gates** ✅ — chrome nav Kab; query Kab-only; Rust history + tab/back + `kdom_query_selector*` bort; Kab VM subset (`h6b_query_policy`, `h6c_browser_chrome_smoke`, `h6_delete_gate_smoke`, `h6e_vm_smoke`, `h6e_kab_vm_smoke`).
+**H6 delete-gates** ✅ — chrome nav Kab; query Kab-only; Rust history + tab/back + `kdom_query_selector*` bort; Kab VM subset; **import prefer self-host** + kab-only skip-list-gate (`h6b_query_policy`, `h6c_browser_chrome_smoke`, `h6_delete_gate_smoke`, `h6e_vm_smoke`, `h6e_kab_vm_smoke`).
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity

@@ -5,12 +5,12 @@
 // host `call_value` frame. Under KABOOTAR_VM=kab-only that breaks reentrancy the same
 // way a wrapped `runModule` does in self_host/vm.kab — see that file's header.
 //
-// serialize_impl.kab stays skip-listed: self-host-compiling its ~13KB body already
-// takes multiple minutes (self-hosting cost scales with the AST size of the source
-// being compiled, not file size alone), so it must never be attempted directly.
-// This facade is the only file fed through the self-hosted compiler; its own source
-// is a two-line import + alias, so `compile self_host/serialize.kab --self-host` is
-// CI-fast regardless of how heavy serialize_impl.kab is.
+// serialize_impl.kab is itself a thin facade now; the heavy body lives in
+// serialize_body.kab, which is the only file on the skip list. Self-host-compiling
+// that ~13KB body takes multiple minutes (self-hosting cost scales with the AST size
+// of the source being compiled, not file size alone), so it must never be attempted
+// directly. Both facades above it are two-line import + alias files, so `compile
+// self_host/serialize.kab --self-host` is CI-fast regardless of serialize_body.kab.
 
 import "self_host/serialize_impl"
 
