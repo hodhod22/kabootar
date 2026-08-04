@@ -1,0 +1,30 @@
+@version "1.0.0"
+
+// Kabootar game/shader — WGSL pipeline load / hot reload helpers (GP0e subset).
+// import "game/shader"
+
+pub fn loadSolid(source) {
+    return gpu3d_load_wgsl("solid", source)
+}
+
+pub fn loadTextured(source) {
+    return gpu3d_load_wgsl("textured", source)
+}
+
+pub fn loadSolidFromFile(path) {
+    asset_watch(path)
+    return gpu3d_load_wgsl_from_file("solid", path)
+}
+
+pub fn loadTexturedFromFile(path) {
+    asset_watch(path)
+    return gpu3d_load_wgsl_from_file("textured", path)
+}
+
+pub fn info() {
+    return gpu3d_shader_info()
+}
+
+pub fn pollReload() {
+    return asset_poll()
+}

@@ -168,6 +168,47 @@ fn webgl_use_program_native(args: &[Value], _env: &mut Environment) -> Result<Va
     Ok(Value::Bool(webgl::use_program(ctx_id, shader_id)?))
 }
 
+fn hashmap_str_to_value(m: std::collections::HashMap<String, String>) -> Value {
+    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+}
+
+fn gpu3d_load_wgsl_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let kind = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("gpu3d_load_wgsl(kind, source)".into()),
+    };
+    let source = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("gpu3d_load_wgsl(kind, source)".into()),
+    };
+    Ok(hashmap_str_to_value(crate::runtime::render::gpu3d::load_wgsl(
+        kind, source, None,
+    )?))
+}
+
+fn gpu3d_load_wgsl_from_file_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let kind = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("gpu3d_load_wgsl_from_file(kind, path)".into()),
+    };
+    let path = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("gpu3d_load_wgsl_from_file(kind, path)".into()),
+    };
+    Ok(hashmap_str_to_value(
+        crate::runtime::render::gpu3d::load_wgsl_from_file(kind, path)?,
+    ))
+}
+
+fn gpu3d_shader_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(hashmap_str_to_value(
+        crate::runtime::render::gpu3d::shader_cache_info(),
+    ))
+}
+
 fn webgl_clear_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
     let r = args.get(1).and_then(num).unwrap_or(0) as u8;
@@ -780,6 +821,18 @@ pub fn browser_platform_globals(env: &mut Environment) {
         Value::NativeFunction(webgl_shader_from_files_native),
     );
     env.set("webgl_use_program".into(), Value::NativeFunction(webgl_use_program_native));
+    env.set(
+        "gpu3d_load_wgsl".into(),
+        Value::NativeFunction(gpu3d_load_wgsl_native),
+    );
+    env.set(
+        "gpu3d_load_wgsl_from_file".into(),
+        Value::NativeFunction(gpu3d_load_wgsl_from_file_native),
+    );
+    env.set(
+        "gpu3d_shader_info".into(),
+        Value::NativeFunction(gpu3d_shader_info_native),
+    );
     env.set("webgl_clear".into(), Value::NativeFunction(webgl_clear_native));
     env.set("webgl_draw".into(), Value::NativeFunction(webgl_draw_native));
     env.set(

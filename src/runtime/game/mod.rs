@@ -19,7 +19,7 @@ pub fn info() -> HashMap<String, String> {
     m.insert("version".into(), "0.1".into());
     m.insert(
         "features".into(),
-        "rAF,input,surface,present,3d,gltf,png,atlas,hot".into(),
+        "rAF,input,surface,present,3d,gltf,png,atlas,hot,shader,batch,physics".into(),
     );
     m
 }

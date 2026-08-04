@@ -878,6 +878,9 @@ const BUILTINS: &[&str] = &[
     "image_decode_png",
     "asset_watch",
     "asset_poll",
+    "gpu3d_load_wgsl",
+    "gpu3d_load_wgsl_from_file",
+    "gpu3d_shader_info",
 ];
 
 const HOVER_DOCS: &[(&str, &str)] = &[

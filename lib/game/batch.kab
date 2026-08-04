@@ -1,0 +1,105 @@
+@version "1.0.0"
+
+// Kabootar game/batch — sprite atlas / tilemap batch on GPU path (GP1f subset).
+// import "game/batch"
+// sprites: [{ x, y, w, h, uv }] where uv = { u0, v0, u1, v1 } from bakeAtlas.
+
+pub fn buildSpriteQuads(sprites) {
+    let floats = []
+    let indices = []
+    let i = 0
+    let n = len(sprites)
+    while i < n {
+        let s = sprites[i]
+        let x0 = s["x"]
+        let y0 = s["y"]
+        let x1 = x0 + s["w"]
+        let y1 = y0 + s["h"]
+        let uv = s["uv"]
+        let u0 = uv["u0"]
+        let v0 = uv["v0"]
+        let u1 = uv["u1"]
+        let v1 = uv["v1"]
+        let base = len(floats) / 5
+        // vec5: xyz + uv (z = 0)
+        floats = push(floats, x0)
+        floats = push(floats, y0)
+        floats = push(floats, 0.0)
+        floats = push(floats, u0)
+        floats = push(floats, v0)
+        floats = push(floats, x1)
+        floats = push(floats, y0)
+        floats = push(floats, 0.0)
+        floats = push(floats, u1)
+        floats = push(floats, v0)
+        floats = push(floats, x1)
+        floats = push(floats, y1)
+        floats = push(floats, 0.0)
+        floats = push(floats, u1)
+        floats = push(floats, v1)
+        floats = push(floats, x0)
+        floats = push(floats, y1)
+        floats = push(floats, 0.0)
+        floats = push(floats, u0)
+        floats = push(floats, v1)
+        indices = push(indices, base)
+        indices = push(indices, base + 1)
+        indices = push(indices, base + 2)
+        indices = push(indices, base)
+        indices = push(indices, base + 2)
+        indices = push(indices, base + 3)
+        i = i + 1
+    }
+    return { floats: floats, indices: indices, count: len(indices) }
+}
+
+pub fn createSpriteBatch(gl, atlas, sprites) {
+    let quads = buildSpriteQuads(sprites)
+    let tex = gl.createTexture()
+    gl.texImage2D(tex, atlas["width"], atlas["height"], atlas["rgba"])
+    gl.bindTexture(tex)
+    let vbo = gl.createBuffer("array", quads["floats"])
+    let ibo = gl.createIndexBuffer(quads["indices"])
+    return {
+        gl: gl,
+        tex: tex,
+        vbo: vbo,
+        ibo: ibo,
+        indexCount: quads["count"]
+    }
+}
+
+pub fn drawSpriteBatch(batch) {
+    let gl = batch["gl"]
+    gl.bindTexture(batch["tex"])
+    gl.bindBuffer(batch["vbo"])
+    gl.bindBuffer(batch["ibo"])
+    return gl.drawElements(batch["indexCount"], 0)
+}
+
+// tiles: 2D array of atlas uv-index; tileW/tileH in world units.
+pub fn buildTilemapSprites(tiles, atlasUvs, tileW, tileH) {
+    let sprites = []
+    let row = 0
+    let rows = len(tiles)
+    while row < rows {
+        let cols = tiles[row]
+        let col = 0
+        let n = len(cols)
+        while col < n {
+            let idx = cols[col]
+            if idx >= 0 {
+                sprites = push(sprites, {
+                    x: col * tileW,
+                    y: row * tileH,
+                    w: tileW,
+                    h: tileH,
+                    uv: atlasUvs[idx]
+                })
+            }
+            col = col + 1
+        }
+        row = row + 1
+    }
+    return sprites
+}

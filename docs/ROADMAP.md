@@ -704,7 +704,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | ✅ subset |
 | **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | ✅ subset |
 | **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | ✅ subset (`drawElements`/`drawElementsInstanced`/`drawArraysInstanced`; indexed pack fix; `game/render` indexed helpers) |
-| **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | 📋 |
+| **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | ✅ subset (`gpu3d_load_wgsl` / `loadWgslFromFile`; solid\|textured cache by hash; `.wgsl` via `asset_poll`) |
 | **GP0f** | **CPU-raster endast fallback** — delete-gate: textured 3D-demo måste gå GPU-path i CI med `gpu` | ✅ subset (`gpu3d_last`; soft-skip om ingen adapter) |
 
 #### GP1 — Spelmotor i Kab (logik)
@@ -716,7 +716,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | ✅ subset (`import "game/input"`: `createActions`/`actionPressed`; keyboard only) |
 | **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | ✅ subset (`import "game/time"`: `dtSec`/`createFixed`/`fixedTick`) |
 | **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | 📋 |
-| **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | 📋 |
+| **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | ✅ subset (`import "game/batch"`: sprite quads + tilemap → textured drawElements) |
 
 #### GP2 — Assets & pipeline
 
@@ -726,13 +726,13 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP2b** | **Bild/atlas bake** — PNG/WebP → GPU-texture + atlas tool i `.kab` | ✅ subset (`image_decode_png` + `import "game/atlas"` row bake; PNG only) |
 | **GP2c** | **Audio** — load/play/bus; spatial senare; FFI till host audio tills Kab-driver | 📋 |
 | **GP2d** | **Asset database** — VFS-paths, hot reload när fil ändras | 📋 |
-| **GP2e** | **Paketformat** — `kabootar mod` mall `game` / `game3d` | 📋 |
+| **GP2e** | **Paketformat** — `kabootar mod` mall `game` / `game3d` | ✅ subset (`kabootar mod init game\|game3d`) |
 
 #### GP3 — Physics, AI, nät (produktion)
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP3a** | **2D physics** — AABB/cirklar; senare box2d-lik FFI eller ren Kab | 📋 |
+| **GP3a** | **2D physics** — AABB/cirklar; senare box2d-lik FFI eller ren Kab | ✅ subset (`import "game/physics"`: aabb/circle + resolveAabb) |
 | **GP3b** | **3D physics subset** — raycast, character controller | 📋 |
 | **GP3c** | **Navigation** — grid/navmesh subset | 📋 |
 | **GP3d** | **Multiplayer hooks** — ticks + snapshot (bygg på HTTP/WebRTC som finns) | 📋 |
@@ -745,7 +745,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | 📋 |
 | **GP4c** | **Profiler UI** — CPU/GPU/frame graph i DevTools | 📋 |
 | **GP4d** | **Debug draw** — gizmo lines/colliders | 📋 |
-| **GP4e** | **Dokumentation & samples** — [GAME.md](GAME.md) + `examples/game_*` shippable demos | 📋 |
+| **GP4e** | **Dokumentation & samples** — [GAME.md](GAME.md) + `examples/game_*` shippable demos | ✅ subset (`examples/game_2d_smoke.kab`, `examples/game_3d_triangle.kab`) |
 
 #### GP5 — Ship & plattformar
 

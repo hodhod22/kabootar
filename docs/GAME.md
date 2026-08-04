@@ -93,7 +93,16 @@ gl.drawArrays(3);
 - `gl.uniformMatrix4fv(matrix)` / loc 0 → explicit MVP; `gl.uniformMatrix4fv(1, modelMatrix)` → model utan att tvinga explicit MVP
 - `gl.rotateModelY` sätter fortfarande model-matrisen (CPU/GPU)
 
-## Kab-spel-lib (GP1 subset)
+## Samples
+
+```bash
+kabootar run examples/game_2d_smoke.kab
+kabootar run examples/game_3d_triangle.kab
+kabootar mod init game    # 2D loop + physics scaffold
+kabootar mod init game3d  # 3D mesh + shaders/solid.wgsl
+```
+
+## Kab-spel-lib (GP1–GP3 subset)
 
 Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — `root = setLocal(root, …)`):
 
@@ -105,12 +114,17 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/time"` | `dtSec`, `createFixed`, `fixedTick` |
 | `import "game/gltf"` | `loadGltfJson` → `{ floats, indices?, color, animations }` (glTF 2.0 JSON subset) |
 | `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
+| `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
+| `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb` |
 | `import "game/hot"` | `watch(path)`, `poll()` → changed paths (mtime) |
+| `import "game/shader"` | `loadSolid`/`loadTextured`/`loadSolidFromFile`/`loadTexturedFromFile`, `info`, `pollReload` |
 
-Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`. Fixture: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`.
+Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
 
 `createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs`.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups. **GP0c** ✅ subset — MSAA×4 / vsync / present. **GP0d** ✅ subset — `drawElements` / instancing. **GP0f** ✅ subset — textured GPU delete-gate. **GP1a–d** ✅ subset — `lib/game/*`. **GP2a** ✅ subset — glTF JSON. **GP2b** ✅ subset — PNG + atlas. **GP4a** ✅ subset — asset watch/poll.
+**WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
+
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a–f** ✅ subset — GPU-texturer, materials, MSAA, index/instancing, WGSL cache, delete-gate. **GP1a–d/f** ✅ subset — `lib/game/*` + sprite batch. **GP2a/b/e** ✅ subset — glTF, atlas, mod mallar. **GP3a** ✅ subset — AABB/cirklar. **GP4a/e** ✅ subset — hot reload + examples.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).
