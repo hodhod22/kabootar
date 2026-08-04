@@ -447,18 +447,21 @@ Se [BROWSER_V2.md](BROWSER_V2.md).
 
 ## Strategi (2026-07) — Kabootar-only (Rust fasas ut)
 
-**Slutmål:** hela plattformen i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell. Rust försvinner **småningom** tills bara (möjligen) en minimal bootstrap/FFI finns kvar; ny produktlogik skrivs **aldrig** i Rust.
+**Slutmål:** hela plattformen i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell, **spelmotor**. Rust försvinner **småningom** tills bara (möjligen) en minimal bootstrap/GPU-FFI finns kvar; ny produktlogik skrivs **aldrig** i Rust.
+
+**Produktambition (spel):** Kabootar ska bli **bättre än C# och C++ för spelproduktion** — inte genom att vinna rå pointer-aritmetik, utan genom att vinna **hela produktionskedjan**: ett språk från OS→UI→gameplay, snabbare iteration (hot reload / self-host), säkrare än C++ (O + GC-val), mer integrerat än C#/Unity (browser + kOS + 3D i samma runtime), och **GPU-först** så frame-budgeten matchar native motorer.
 
 **Minnesmodell:**
-- **Borrowing / `@manual` / `owned_*`** — systemutveckling (OS, drivrutiner, buffertar, netstack). **Compile-time ownership = Våg O** (L5 var bara runtime MemBox).
-- **GC (default)** — webutveckling (DOM, Kv8, appar, shell-UI)
+- **Borrowing / `@manual` / `owned_*`** — systemutveckling (OS, drivrutiner, buffertar, netstack, **spel-hotpath-buffers**). **Compile-time ownership = Våg O** (L5 var bara runtime MemBox).
+- **GC (default)** — webutveckling (DOM, Kv8, appar, shell-UI, gameplay-script)
 
-Ordning (strikt) — **just nu: endast språk**:
+Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallellt med K/H:
 
 0. **Komplettera Kabootar-språket** (L + O + **T** traits + **J** JS-stdlib + **R** struct) — optimera, paritet, ownership  
 1. **Self-host som produktionskompilator** (S) — pausad tills J/T/R landat tillräckligt  
 2. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
-3. **Tunna bort Rust** (H) tills hosten är trivial
+3. **Tunna bort Rust** (H) tills hosten är trivial  
+4. **Prestanda + spelproduktion** (P + GP) — snabb VM/AOT, GPU-3D, asset-pipeline; se nedan
 
 | Våg | Namn | Mål |
 |-----|------|-----|
@@ -470,8 +473,10 @@ Ordning (strikt) — **just nu: endast språk**:
 | **S** | Self-host | `self_host/` bygger produkten |
 | **K** | Kabootar libs | kv8 + DOM + CSS + OS + webläsare i `.kab` |
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
+| **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
+| **GP** | Game production | GPU-3D, scen/motor, assets, audio — redo för spelproduktion |
 
-**Aktivt fokus (2026-07):** vågorna **O / T / J / R** — ingen ny OS/browser/Kv8-produktlogik förrän språket är komplett.
+**Aktivt fokus (2026-07):** vågorna **O / T / J / R** — ingen ny OS/browser/Kv8-produktlogik förrän språket är komplett. **P/GP** planeras nu (roadmap); aktivt arbete efter stabil S/H6e-subset eller parallellt på GPU-FFI (tillåten hot path, som H6d).
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -653,11 +658,113 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
 **H6 delete-gates** ✅ — chrome nav Kab; query Kab-only; Rust history + tab/back + `kdom_query_selector*` bort; Kab VM subset; **import prefer self-host** + kab-only skip-list-gate (`h6b_query_policy`, `h6c_browser_chrome_smoke`, `h6_delete_gate_smoke`, `h6e_vm_smoke`, `h6e_kab_vm_smoke`).
+
+### Våg P — Performance (snabbare, mer självständig runtime) 📋
+
+**Mål:** Kabootar ska kännas snabbare än typiska scriptmotorer i spel/verktyg, och **inte** behöva C#/C++ för hot paths i produktkoden. Gameplay + editor i `.kab`; tunga loops → bytecode/AOT/`@manual`; ritning → GPU.
+
+**Princip:** mät först (`Deno.bench` / `performance.now` / frame-timing), optimera flaskhalsar, behåll delete-gates (ingen ny produktlogik i Rust utöver tunn GPU/FFI).
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | 📋 |
+| **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | 📋 |
+| **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | 📋 / delvis via A6 |
+| **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | 📋 |
+| **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | 📋 |
+| **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | 📋 |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc` | 🚧 H6e |
+| **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | 📋 |
+| **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | 📋 |
+| **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | 📋 |
+
+**Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
+
+### Våg GP — Game production (3D, motor, pipeline) 📋
+
+**Mål:** Kabootar redo för **spelproduktion** — från prototyp till shippable 2D/3D — med högre utvecklartakt än C#/C++-stackar (Unity/Unreal/custom), utan att offra native-liknande GPU-prestanda.
+
+**Nuläge (bas):** `game_*` loop, canvas 2D, WebGL-subset, wgpu vec3 utan textur (`--features gpu`). Se [GAME.md](GAME.md), [CANVAS.md](CANVAS.md).
+
+**Hur Kab vinner mot C# / C++ (produktkrav, inte slogan):**
+
+| Dimension | Kabootar-mål | Mot C# | Mot C++ |
+|-----------|--------------|--------|---------|
+| Iteration | Hot reload + self-host `.kab` → `.kbc` | Snabbare än full domain reload | Snabbare än compile/link |
+| Stack | Ett språk: OS + UI + net + game | Mindre “C# + native plugin”-split | Mindre toolchain-helvete |
+| Säkerhet | GC default + `@manual` där det behövs | Paritet / tydligare systems-läge | Färre UB-klasser i gameplay |
+| 3D-cost | GPU-först (wgpu); Kab = scen/script | Matcha MonoBehaviour-nivå scriptkostnad | Matcha engine-script, inte rå C++ inner loop |
+| Leverans | Samma binär: kOS / browser / WASM | En runtime | Inget separat engine-fork-krav |
+
+#### GP0 — GPU-först 3D (render)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | 📋 |
+| **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | 📋 |
+| **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | 📋 |
+| **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | 📋 / delvis API |
+| **GP0e** | **Shader-workflow** — WGSL/GLSL → pipeline cache; hot reload av shader | 📋 |
+| **GP0f** | **CPU-raster endast fallback** — delete-gate: textured 3D-demo måste gå GPU-path i CI med `gpu` | 📋 |
+
+#### GP1 — Spelmotor i Kab (logik)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | 📋 |
+| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | 📋 |
+| **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | 📋 |
+| **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | 📋 |
+| **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | 📋 |
+| **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | 📋 |
+
+#### GP2 — Assets & pipeline
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP2a** | **glTF 2.0 import** (mesh + materials + basic animation) | 📋 |
+| **GP2b** | **Bild/atlas bake** — PNG/WebP → GPU-texture + atlas tool i `.kab` | 📋 |
+| **GP2c** | **Audio** — load/play/bus; spatial senare; FFI till host audio tills Kab-driver | 📋 |
+| **GP2d** | **Asset database** — VFS-paths, hot reload när fil ändras | 📋 |
+| **GP2e** | **Paketformat** — `kabootar mod` mall `game` / `game3d` | 📋 |
+
+#### GP3 — Physics, AI, nät (produktion)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP3a** | **2D physics** — AABB/cirklar; senare box2d-lik FFI eller ren Kab | 📋 |
+| **GP3b** | **3D physics subset** — raycast, character controller | 📋 |
+| **GP3c** | **Navigation** — grid/navmesh subset | 📋 |
+| **GP3d** | **Multiplayer hooks** — ticks + snapshot (bygg på HTTP/WebRTC som finns) | 📋 |
+
+#### GP4 — Verktyg & DX (slå C#/C++ i produktionstakt)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP4a** | **Hot reload** — byt `.kab` / shader / texture utan process-restart | 📋 |
+| **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | 📋 |
+| **GP4c** | **Profiler UI** — CPU/GPU/frame graph i DevTools | 📋 |
+| **GP4d** | **Debug draw** — gizmo lines/colliders | 📋 |
+| **GP4e** | **Dokumentation & samples** — [GAME.md](GAME.md) + `examples/game_*` shippable demos | 📋 |
+
+#### GP5 — Ship & plattformar
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP5a** | **Desktop ship** — en binär (`kabootar run` / kOS-app) med GPU | 📋 |
+| **GP5b** | **WASM host** — `platform_use("host")` + WebGPU/WebGL present | 📋 |
+| **GP5c** | **Performance budgets i CI** — 60 FPS smoke (timing), max alloc/frame | 📋 |
+| **GP5d** | **Självständighet** — spel + editor kör utan extern Unity/Unreal/C#-toolchain | 📋 |
+
+**GP-ordning (rekommenderad):** GP0a–c → P0/P2 → GP1a–d → GP2a–b → GP4a → GP0f delete-gate → GP3 → GP5.
+
+**Checkpoint GP:** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; docs uppdaterade. **Slutmått:** kan producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline, med GPU-prestanda i samma klass som native scriptade motorer.
+
 ---
 
 ## Master fetch-plan (2026–2027) — historik / parity
 
-Nedan är **hämtad parity** (JS/Deno/DOM/OS). Den är **underordnad** Våg L→S→K→H ovan. Inget nytt i D/G som utökar Rust-ytan utan språkbehov.
+Nedan är **hämtad parity** (JS/Deno/DOM/OS). Den är **underordnad** Våg L→S→K→H respektive **P/GP** (prestanda/spel). Inget nytt i D/G som utökar Rust-ytan utan språkbehov; GPU/FFI-hotpath för GP0 tillåts som i H6d.
 
 ### Våg A — JavaScript (hämtningsbar rest, ~10–15 %) ✅
 
@@ -744,10 +851,12 @@ Våg L (språk)  ████████░░░░░░░░  nu — L1 fö
 Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
+Våg P (perf)   ░░░░░░░░████████  VM/AOT/GC — parallellt med H6e/GP0
+Våg GP (spel)  ░░░░░░░░████████  GPU-3D → motor → ship
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
 
-**Checkpoint efter varje våg:** språk-/self_host-tester först; `cargo test` full suite + [FEATURES.md](FEATURES.md).
+**Checkpoint efter varje våg:** språk-/self_host-tester först; `cargo test` full suite + [FEATURES.md](FEATURES.md). Spel: [GAME.md](GAME.md) + GP-budgets.
 
 ### Våg E — Self-host bootstrap + generics ✅
 
