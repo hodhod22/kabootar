@@ -408,6 +408,25 @@ pub fn compile_file_prefer_cached(
             return Ok((program, "disk-cache"));
         }
     }
+    // H6e: committed seed `.kbc` for skip-listed leaves (no live Rust compile).
+    if let Some(bc) = read_seed_bytecode(path)? {
+        let program = CompiledProgram {
+            stmts: Vec::new(),
+            bytecode: Some(bc.clone()),
+            stmt_count: rough_stmt_count(&fs::read_to_string(path).unwrap_or_default()),
+            memory_mode: bc.memory_mode,
+        };
+        if let (Some(t), Ok(mut map)) = (mtime, cache().lock()) {
+            map.insert(
+                path.to_string(),
+                CachedProgram {
+                    mtime: t,
+                    program: program.clone(),
+                },
+            );
+        }
+        return Ok((program, "seed"));
+    }
     // H6e delete-gate: kab-only must not live-Rust-compile skip-listed leaves.
     // Soften while the self-host toolchain / Kab VM is already executing
     // (`KAB_VM_EXEC_ACTIVE`), and when the caller forced `--rust` / KABOOTAR_COMPILE=rust.
@@ -418,7 +437,7 @@ pub fn compile_file_prefer_cached(
         let source = fs::read_to_string(path).unwrap_or_default();
         if !should_attempt_self_host(path, &source) {
             return Err(format!(
-                "Kab VM only: skip-listed core `{path}` needs Rust compile (no .kbc cache)"
+                "Kab VM only: skip-listed core `{path}` needs Rust compile (no .kbc cache/seed)"
             ));
         }
     }
@@ -503,6 +522,62 @@ pub fn invalidate_file_cache(path: &str) {
 
 pub fn cache_dir() -> PathBuf {
     PathBuf::from(".kabootar").join("cache")
+}
+
+/// Committed seed `.kbc` for H6e skip-listed leaves (`self_host/seed/<file>.kbc`).
+/// Lets kab-only load heavy cores without a live Rust compile when the fingerprint matches.
+pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
+    let norm = path.replace('\\', "/");
+    let leaves = [
+        "emit_impl.kab",
+        "parser_impl.kab",
+        "lexer_impl.kab",
+        "serialize_body.kab",
+        "vm_run_body.kab",
+    ];
+    let base_name = Path::new(&norm)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    if !leaves.contains(&base_name) {
+        return None;
+    }
+    if !(norm.contains("self_host/") || norm.ends_with(&format!("self_host/{base_name}"))) {
+        // Basename alone is not enough (cwd may be self_host/).
+        if !norm.contains("self_host") {
+            return None;
+        }
+    }
+    let parent = Path::new(path).parent()?;
+    Some(parent.join("seed").join(format!("{base_name}.kbc")))
+}
+
+/// Load committed seed bytecode when fingerprint matches current source.
+pub fn read_seed_bytecode(path: &str) -> Result<Option<BytecodeModule>, String> {
+    let Some(seed) = seed_kbc_path(path) else {
+        return Ok(None);
+    };
+    let text = match fs::read_to_string(&seed) {
+        Ok(t) => t,
+        Err(_) => return Ok(None),
+    };
+    if !text.starts_with(FORMAT_HEADER) {
+        return Ok(None);
+    }
+    let source = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return Ok(None),
+    };
+    let expected = source_fingerprint(path, &source);
+    if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
+        let got = line.trim_start_matches("fingerprint=");
+        if got != expected {
+            return Ok(None);
+        }
+    } else {
+        return Ok(None);
+    }
+    Ok(Some(deserialize(&text)?))
 }
 
 pub fn cache_path_for(base: &Path, path: &str) -> PathBuf {

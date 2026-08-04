@@ -84,8 +84,8 @@ gl.bindBuffer(vbo);
 gl.drawArrays(3);
 ```
 
-**GPU 3D** (med `--features gpu`): vec3-ritning utan textur går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` i `webgl_info()`). CPU-raster används som fallback (texturer, `depth_test` av, eller utan GPU).
+**GPU 3D** (med `--features gpu`): vec3-ritning och **texturerade vec5** (xyz+uv) går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` i `webgl_info()`). CPU-raster används som fallback (ingen adapter, `depth_test` av, eller tom textur).
 
-**Roadmap (produktion):** alla nästa steg för snabbare runtime, självständighet och spelproduktion — inkl. mål att slå C#/C++ i *produktionskedjan* — ligger i [ROADMAP.md](ROADMAP.md) under **Våg P (Performance)** och **Våg GP (Game production)** (GPU-texturer, scen/motor, assets, hot reload, ship).
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **GP0a** ✅ subset — GPU-texturer.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

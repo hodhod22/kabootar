@@ -1,0 +1,2194 @@
+kabootar-bytecode/1
+constants=84
+const 0 number 0
+const 1 string 
+const 2 number 1
+const 3 string type
+const 4 null
+const 5 string value
+const 6 string line
+const 7 string column
+const 8 string (
+const 9 string )
+const 10 string {
+const 11 string }
+const 12 string [
+const 13 string ]
+const 14 string ;
+const 15 string ,
+const 16 string :
+const 17 string ^
+const 18 string ~
+const 19 string +
+const 20 string =
+const 21 string +=
+const 22 string -
+const 23 string >
+const 24 string ->
+const 25 string -=
+const 26 string *
+const 27 string **
+const 28 string *=
+const 29 string /
+const 30 string /=
+const 31 string %
+const 32 string %=
+const 33 string ?
+const 34 string ??
+const 35 string .
+const 36 string ?.
+const 37 string ==
+const 38 string =>
+const 39 string !
+const 40 string !=
+const 41 string &
+const 42 string &&
+const 43 string |
+const 44 string ||
+const 45 string <
+const 46 string <=
+const 47 string <<
+const 48 string >=
+const 49 string >>>
+const 50 string >>
+const 51 string ...
+const 52 string Expected\s...\sat\sline\s
+const 53 string \scol\s
+const 54 string #
+const 55 number 65
+const 56 number 90
+const 57 number 97
+const 58 number 122
+const 59 number 48
+const 60 number 57
+const 61 string _
+const 62 string Expected\sidentifier\safter\s#\sat\sline\s
+const 63 string "
+const 64 string \\
+const 65 string Unterminated\sstring\sat\sline\s
+const 66 string Unterminated\sstring\sescape\sat\sline\s
+const 67 string n
+const 68 string \n
+const 69 string r
+const 70 string \r
+const 71 string t
+const 72 string \t
+const 73 string Template\sliteral\snot\ssupported\sat\sline\s
+const 74 number 95
+const 75 undefined
+const 76 string Unknown\scharacter:\s
+const 77 string \sat\sline\s
+const 78 bool true
+const 79 number 32
+const 80 number 9
+const 81 number 13
+const 82 number 10
+const 83 number 2
+global 0 lxPos
+global 1 lxSrcLen
+global 2 TOKEN_EOF
+global 3 lxLine
+global 4 lxCol
+global 5 lxSrc
+global 6 char_at
+global 7 char_code_at
+global 8 TOKEN_PRIVATE
+global 9 str_slice
+global 10 TOKEN_STRING
+global 11 BACKTICK
+global 12 TOKEN_IDENT
+global 13 TOKEN_BIGINT
+global 14 TOKEN_FLOAT
+global 15 parse_float
+global 16 TOKEN_NUMBER
+global 17 parse_int
+global 18 KEYWORDS
+global 19 lxScan
+global 20 len
+global 21 tokenizeImpl
+global 22 tokenTypeNameImpl
+global 23 tokenValueImpl
+local 0 lxPos
+local 1 lxSrc
+local 2 lxSrcLen
+local 3 lxLine
+local 4 lxCol
+functions=4
+fn 0 lxScan
+fn_params 0 
+fn_locals 0 c,line,col,start,cd,ch,ok,i,hasEsc,s,e,piece,code0,digits,fracStart,frac,isAlpha,id,kw
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 ge
+fn_op 0 jump_if_false 10
+fn_op 0 load_global 2
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_global 3
+fn_op 0 const 6
+fn_op 0 load_global 4
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 store_local 0
+fn_op 0 load_global 3
+fn_op 0 store_local 1
+fn_op 0 load_global 4
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 8
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 8
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 9
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 10
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 11
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 11
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 12
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 13
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 13
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 14
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 14
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 15
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 16
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 17
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 17
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 18
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 18
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 19
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 21
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 19
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 22
+fn_op 0 eq
+fn_op 0 jump_if_false 68
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 23
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 24
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 25
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 22
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 26
+fn_op 0 eq
+fn_op 0 jump_if_false 68
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 26
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 27
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 28
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 26
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 29
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 30
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 29
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 31
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 32
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 31
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 33
+fn_op 0 eq
+fn_op 0 jump_if_false 68
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 33
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 34
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 35
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 36
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 33
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 68
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 37
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 23
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 38
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 20
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 39
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 40
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 39
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 41
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 41
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 42
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 41
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 43
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 43
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 44
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 43
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 45
+fn_op 0 eq
+fn_op 0 jump_if_false 68
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 46
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 45
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 47
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 45
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 23
+fn_op 0 eq
+fn_op 0 jump_if_false 95
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 20
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 48
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 23
+fn_op 0 eq
+fn_op 0 jump_if_false 41
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 23
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 49
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 50
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 23
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 35
+fn_op 0 eq
+fn_op 0 jump_if_false 71
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 35
+fn_op 0 eq
+fn_op 0 jump_if_false 44
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 35
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 51
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 52
+fn_op 0 throw
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 const 35
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 54
+fn_op 0 eq
+fn_op 0 jump_if_false 113
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 store_local 3
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 72
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 const 0
+fn_op 0 store_local 6
+fn_op 0 load_local 4
+fn_op 0 const 55
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 56
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 57
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 58
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 59
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 60
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 5
+fn_op 0 const 61
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 6
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 5
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 jump -76
+fn_op 0 load_global 0
+fn_op 0 load_local 3
+fn_op 0 eq
+fn_op 0 jump_if_false 13
+fn_op 0 const 62
+fn_op 0 throw
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 load_global 8
+fn_op 0 const 3
+fn_op 0 load_global 5
+fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 63
+fn_op 0 eq
+fn_op 0 jump_if_false 199
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 store_local 3
+fn_op 0 load_global 0
+fn_op 0 store_local 7
+fn_op 0 const 0
+fn_op 0 store_local 8
+fn_op 0 load_local 7
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 22
+fn_op 0 load_global 5
+fn_op 0 load_local 7
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 64
+fn_op 0 eq
+fn_op 0 jump_if_false 5
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 8
+fn_op 0 pop
+fn_op 0 jump 8
+fn_op 0 load_local 5
+fn_op 0 const 63
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 3
+fn_op 0 const 2
+fn_op 0 acc_add_local 7
+fn_op 0 jump -26
+fn_op 0 load_local 8
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 45
+fn_op 0 load_local 7
+fn_op 0 load_global 1
+fn_op 0 ge
+fn_op 0 jump_if_false 13
+fn_op 0 const 65
+fn_op 0 throw
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_local 3
+fn_op 0 load_local 7
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 store_local 9
+fn_op 0 load_local 7
+fn_op 0 load_local 3
+fn_op 0 sub
+fn_op 0 acc_add_global 4
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_local 7
+fn_op 0 const 2
+fn_op 0 add
+fn_op 0 dup
+fn_op 0 store_global 0
+fn_op 0 pop
+fn_op 0 load_global 10
+fn_op 0 const 3
+fn_op 0 load_local 9
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 1
+fn_op 0 store_local 9
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 98
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 64
+fn_op 0 eq
+fn_op 0 jump_if_false 77
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 ge
+fn_op 0 jump_if_false 13
+fn_op 0 const 66
+fn_op 0 throw
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 store_local 10
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 const 64
+fn_op 0 load_local 10
+fn_op 0 add
+fn_op 0 store_local 11
+fn_op 0 load_local 10
+fn_op 0 const 67
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 68
+fn_op 0 dup
+fn_op 0 store_local 11
+fn_op 0 pop
+fn_op 0 load_local 10
+fn_op 0 const 69
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 70
+fn_op 0 dup
+fn_op 0 store_local 11
+fn_op 0 pop
+fn_op 0 load_local 10
+fn_op 0 const 71
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 72
+fn_op 0 dup
+fn_op 0 store_local 11
+fn_op 0 pop
+fn_op 0 load_local 10
+fn_op 0 const 63
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 63
+fn_op 0 dup
+fn_op 0 store_local 11
+fn_op 0 pop
+fn_op 0 load_local 10
+fn_op 0 const 64
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 64
+fn_op 0 dup
+fn_op 0 store_local 11
+fn_op 0 pop
+fn_op 0 load_local 11
+fn_op 0 acc_add_local 9
+fn_op 0 jump -90
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_local 5
+fn_op 0 const 63
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 3
+fn_op 0 load_local 5
+fn_op 0 acc_add_local 9
+fn_op 0 jump -102
+fn_op 0 load_global 10
+fn_op 0 const 3
+fn_op 0 load_local 9
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 11
+fn_op 0 eq
+fn_op 0 jump_if_false 13
+fn_op 0 const 73
+fn_op 0 throw
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 61
+fn_op 0 eq
+fn_op 0 jump_if_false 91
+fn_op 0 load_global 0
+fn_op 0 store_local 3
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 67
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 const 0
+fn_op 0 store_local 6
+fn_op 0 load_local 4
+fn_op 0 const 55
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 56
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 57
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 58
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 59
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 60
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 74
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 6
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 5
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 jump -71
+fn_op 0 load_global 12
+fn_op 0 const 3
+fn_op 0 load_global 5
+fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 12
+fn_op 0 load_local 12
+fn_op 0 const 59
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 12
+fn_op 0 const 60
+fn_op 0 le
+fn_op 0 jump_if_false 144
+fn_op 0 load_global 0
+fn_op 0 store_local 3
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 22
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_local 4
+fn_op 0 const 59
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 60
+fn_op 0 gt
+fn_op 0 jump_if_false 1
+fn_op 0 jump 5
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 jump -26
+fn_op 0 load_global 5
+fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 store_local 13
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 67
+fn_op 0 eq
+fn_op 0 jump_if_false 14
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 13
+fn_op 0 const 3
+fn_op 0 load_local 13
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 7
+fn_op 0 pop
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 const 35
+fn_op 0 eq
+fn_op 0 jump_if_false 54
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 store_local 14
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 22
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_local 4
+fn_op 0 const 59
+fn_op 0 lt
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 60
+fn_op 0 gt
+fn_op 0 jump_if_false 1
+fn_op 0 jump 5
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 jump -26
+fn_op 0 load_global 5
+fn_op 0 load_local 14
+fn_op 0 load_global 0
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 store_local 15
+fn_op 0 load_global 14
+fn_op 0 const 3
+fn_op 0 load_local 13
+fn_op 0 const 35
+fn_op 0 add
+fn_op 0 load_local 15
+fn_op 0 add
+fn_op 0 load_global 15
+fn_op 0 call 1
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_global 16
+fn_op 0 const 3
+fn_op 0 load_local 13
+fn_op 0 load_global 17
+fn_op 0 call 1
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 0
+fn_op 0 store_local 16
+fn_op 0 load_local 12
+fn_op 0 const 57
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 12
+fn_op 0 const 58
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 16
+fn_op 0 pop
+fn_op 0 load_local 16
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 12
+fn_op 0 const 55
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 12
+fn_op 0 const 56
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 16
+fn_op 0 pop
+fn_op 0 load_local 16
+fn_op 0 jump_if_false 111
+fn_op 0 load_global 0
+fn_op 0 store_local 3
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 load_global 0
+fn_op 0 load_global 1
+fn_op 0 lt
+fn_op 0 jump_if_false 67
+fn_op 0 load_global 5
+fn_op 0 load_global 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 const 0
+fn_op 0 store_local 6
+fn_op 0 load_local 4
+fn_op 0 const 55
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 56
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 57
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 58
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 59
+fn_op 0 ge
+fn_op 0 dup
+fn_op 0 jump_if_false 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 60
+fn_op 0 le
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 74
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 2
+fn_op 0 dup
+fn_op 0 store_local 6
+fn_op 0 pop
+fn_op 0 load_local 6
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 5
+fn_op 0 const 2
+fn_op 0 acc_add_global 0
+fn_op 0 const 2
+fn_op 0 acc_add_global 4
+fn_op 0 jump -71
+fn_op 0 load_global 5
+fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 load_global 9
+fn_op 0 call 3
+fn_op 0 store_local 17
+fn_op 0 load_global 18
+fn_op 0 load_local 17
+fn_op 0 index_get
+fn_op 0 store_local 18
+fn_op 0 load_local 18
+fn_op 0 const 75
+fn_op 0 eq
+fn_op 0 jump_if_false 10
+fn_op 0 load_global 12
+fn_op 0 const 3
+fn_op 0 load_local 17
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 load_local 18
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 const 7
+fn_op 0 make_object 4
+fn_op 0 return
+fn_op 0 const 76
+fn_op 0 throw
+fn_op 0 load_local 0
+fn_op 0 add
+fn_op 0 const 77
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 53
+fn_op 0 add
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+fn 1 tokenizeImpl
+fn_params 1 source
+fn_locals 1 source,tokens,cd,ch,tok
+fn_op 1 const 0
+fn_op 1 dup
+fn_op 1 store_global 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 dup
+fn_op 1 store_global 5
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_global 20
+fn_op 1 call 1
+fn_op 1 dup
+fn_op 1 store_global 1
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 dup
+fn_op 1 store_global 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 dup
+fn_op 1 store_global 4
+fn_op 1 pop
+fn_op 1 make_array 0
+fn_op 1 store_local 1
+fn_op 1 const 78
+fn_op 1 jump_if_false 207
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 jump_if_false 43
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 7
+fn_op 1 call 2
+fn_op 1 store_local 2
+fn_op 1 load_local 2
+fn_op 1 const 79
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 1
+fn_op 1 jump 4
+fn_op 1 pop
+fn_op 1 load_local 2
+fn_op 1 const 80
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 1
+fn_op 1 jump 4
+fn_op 1 pop
+fn_op 1 load_local 2
+fn_op 1 const 81
+fn_op 1 eq
+fn_op 1 jump_if_false 5
+fn_op 1 const 2
+fn_op 1 acc_add_global 4
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 jump -32
+fn_op 1 load_local 2
+fn_op 1 const 82
+fn_op 1 eq
+fn_op 1 jump_if_false 9
+fn_op 1 const 2
+fn_op 1 acc_add_global 3
+fn_op 1 const 2
+fn_op 1 dup
+fn_op 1 store_global 4
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 jump -45
+fn_op 1 jump 1
+fn_op 1 jump -47
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 ge
+fn_op 1 jump_if_false 1
+fn_op 1 jump 155
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 dup
+fn_op 1 jump_if_false 7
+fn_op 1 pop
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 const 29
+fn_op 1 eq
+fn_op 1 jump_if_false 47
+fn_op 1 load_global 0
+fn_op 1 const 2
+fn_op 1 add
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 dup
+fn_op 1 jump_if_false 9
+fn_op 1 pop
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 const 2
+fn_op 1 add
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 const 29
+fn_op 1 eq
+fn_op 1 jump_if_false 30
+fn_op 1 const 83
+fn_op 1 acc_add_global 0
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 jump_if_false 23
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 store_local 3
+fn_op 1 load_local 3
+fn_op 1 const 68
+fn_op 1 eq
+fn_op 1 jump_if_false 9
+fn_op 1 const 2
+fn_op 1 acc_add_global 3
+fn_op 1 const 2
+fn_op 1 dup
+fn_op 1 store_global 4
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 jump 5
+fn_op 1 const 2
+fn_op 1 acc_add_global 4
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 jump -27
+fn_op 1 jump -114
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 dup
+fn_op 1 jump_if_false 7
+fn_op 1 pop
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 const 29
+fn_op 1 eq
+fn_op 1 jump_if_false 68
+fn_op 1 load_global 0
+fn_op 1 const 2
+fn_op 1 add
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 dup
+fn_op 1 jump_if_false 9
+fn_op 1 pop
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 const 2
+fn_op 1 add
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 const 26
+fn_op 1 eq
+fn_op 1 jump_if_false 51
+fn_op 1 const 83
+fn_op 1 acc_add_global 0
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 jump_if_false 44
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 store_local 3
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 const 2
+fn_op 1 acc_add_global 4
+fn_op 1 load_local 3
+fn_op 1 const 68
+fn_op 1 eq
+fn_op 1 jump_if_false 6
+fn_op 1 const 2
+fn_op 1 acc_add_global 3
+fn_op 1 const 2
+fn_op 1 dup
+fn_op 1 store_global 4
+fn_op 1 pop
+fn_op 1 load_local 3
+fn_op 1 const 26
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 4
+fn_op 1 pop
+fn_op 1 load_global 0
+fn_op 1 load_global 1
+fn_op 1 lt
+fn_op 1 dup
+fn_op 1 jump_if_false 7
+fn_op 1 pop
+fn_op 1 load_global 5
+fn_op 1 load_global 0
+fn_op 1 load_global 6
+fn_op 1 call 2
+fn_op 1 const 29
+fn_op 1 eq
+fn_op 1 jump_if_false 5
+fn_op 1 const 2
+fn_op 1 acc_add_global 0
+fn_op 1 const 2
+fn_op 1 acc_add_global 4
+fn_op 1 jump 1
+fn_op 1 jump -48
+fn_op 1 jump -195
+fn_op 1 load_global 19
+fn_op 1 call 0
+fn_op 1 store_local 4
+fn_op 1 load_local 4
+fn_op 1 get_member 3
+fn_op 1 load_global 2
+fn_op 1 eq
+fn_op 1 jump_if_false 1
+fn_op 1 jump 5
+fn_op 1 take_local 1
+fn_op 1 load_local 4
+fn_op 1 array_push_local 1
+fn_op 1 pop
+fn_op 1 jump -209
+fn_op 1 take_local 1
+fn_op 1 load_global 2
+fn_op 1 const 3
+fn_op 1 const 4
+fn_op 1 const 5
+fn_op 1 load_global 3
+fn_op 1 const 6
+fn_op 1 load_global 4
+fn_op 1 const 7
+fn_op 1 make_object 4
+fn_op 1 array_push_local 1
+fn_op 1 pop
+fn_op 1 load_local 1
+fn_op 1 return
+fn_arrows 1 0
+fn 2 tokenTypeNameImpl
+fn_params 2 tok
+fn_locals 2 tok
+fn_op 2 load_local 0
+fn_op 2 get_member 3
+fn_op 2 return
+fn_arrows 2 0
+fn 3 tokenValueImpl
+fn_params 3 tok
+fn_locals 3 tok
+fn_op 3 load_local 0
+fn_op 3 get_member 5
+fn_op 3 return
+fn_arrows 3 0
+arrows=0
+imports=1
+import 0 self_host/lexer_defs
+pub_imports=0
+exports=3
+export 0 tokenizeImpl
+export 1 tokenTypeNameImpl
+export 2 tokenValueImpl
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+const 1
+store_local 1
+const 0
+store_local 2
+const 2
+store_local 3
+const 2
+store_local 4
+halt
+
+source=self_host/lexer_impl.kab
+statements=10
+fingerprint=dc6673f5a3c0f893
