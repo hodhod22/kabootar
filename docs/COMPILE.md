@@ -23,7 +23,9 @@ Cache: `.kabootar/cache/<path-with-__>.kbc` (cwd-relative, mtime + fingerprint +
 Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gamla platta `lexer.kab.kbc`.
 `.kbc`-strängkonstanter escapar `\n`/`\r`/`\t`/`\s` så whitespace inte bryter radformatet.
 
-Self-host full compile av `emit.kab` kan ta **30–90 min** — undvik i varje edit-loop; `self_host/`-sökvägar använder Rust-host.
+**H6e seeds:** skip-listade löv har committed bytecode under `self_host/seed/*.kbc` (fingerprint-validerad). Kab-only laddar dem utan live Rust. Regenerera: `scripts/regen_self_host_seeds.sh`.
+
+Self-host full compile av heavy leaves kan ta **minuter–timmar** — undvik i varje edit-loop; facader + seeds är CI-vägen.
 
 ---
 

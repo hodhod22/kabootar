@@ -2084,10 +2084,10 @@ fn self_host_emit_nested_call_argn_restore() {
     assert_eq!(format_value(&v), "cdefgh");
 }
 
-/// H6e delete-gate: under kab-only, a skip-listed leaf without `.kbc` cache must
-/// not fall through to a live Rust compile.
+/// H6e: kab-only loads skip-listed leaves from committed `self_host/seed/*.kbc`
+/// (no live Rust compile). Stale/missing seed still hard-fails.
 #[test]
-fn h6e_skip_listed_kab_only_delete_gate() {
+fn h6e_skip_listed_kab_only_uses_seed() {
     use kabootar_lib::compile::{
         compile_file_prefer_cached, self_host_is_skip_listed, CompilePrefer,
     };
@@ -2100,7 +2100,6 @@ fn h6e_skip_listed_kab_only_delete_gate() {
         self_host_is_skip_listed(&path),
         "serialize_body.kab must stay skip-listed"
     );
-    // Ensure no on-disk cache for this leaf.
     kabootar_lib::compile::invalidate_file_cache(&path);
     if let Ok(base) = std::env::current_dir() {
         let marker = kabootar_lib::compile::cache_path_for(&base, &path);
@@ -2109,7 +2108,37 @@ fn h6e_skip_listed_kab_only_delete_gate() {
 
     let prev = std::env::var("KABOOTAR_VM").ok();
     std::env::set_var("KABOOTAR_VM", "kab-only");
-    let err = compile_file_prefer_cached(&path, CompilePrefer::SelfHostThenRust).unwrap_err();
+    let (program, backend) =
+        compile_file_prefer_cached(&path, CompilePrefer::SelfHostThenRust).expect("seed load");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(program.has_bytecode(), "seed must provide bytecode");
+    assert_eq!(
+        backend, "seed",
+        "kab-only skip-listed leaf should load committed seed, got {backend}"
+    );
+}
+
+/// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
+#[test]
+fn h6e_skip_listed_kab_only_no_seed_fails() {
+    use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
+
+    let dir = std::env::temp_dir().join("kab_h6e_noseed");
+    let _ = std::fs::create_dir_all(&dir);
+    // Path must look like a self_host skip-listed leaf.
+    let sh = dir.join("self_host");
+    let _ = std::fs::create_dir_all(&sh);
+    let path = sh.join("serialize_body.kab");
+    std::fs::write(&path, "// not a real leaf\nreturn 1\n").expect("write fake leaf");
+    let path_s = path.to_string_lossy().to_string();
+
+    kabootar_lib::compile::invalidate_file_cache(&path_s);
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let err = compile_file_prefer_cached(&path_s, CompilePrefer::SelfHostThenRust).unwrap_err();
     match prev {
         Some(v) => std::env::set_var("KABOOTAR_VM", v),
         None => std::env::remove_var("KABOOTAR_VM"),

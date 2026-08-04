@@ -1,4 +1,5 @@
 //! wgpu 3D render pass — offscreen MVP + depth buffer, readback to RGBA.
+//! GP0a: optional textured draws (vec5 xyz+uv) via a second WGSL pipeline.
 
 /// One GPU 3D frame.
 pub struct Gpu3dFrame {
@@ -14,11 +15,19 @@ pub struct Gpu3dFrame {
     pub index_offset: u32,
     pub index_count: u32,
     pub depth_test: bool,
+    /// Optional RGBA texture (width, height, pixels). Enables textured pipeline when set.
+    pub texture: Option<(u32, u32, Vec<u8>)>,
 }
 
 pub fn gpu3d_available() -> bool {
     #[cfg(feature = "gpu")]
     {
+        if super::gpu_available() {
+            return true;
+        }
+        // Lazy probe so the first WebGL 3D draw can take the GPU path without
+        // requiring an explicit compositor upload first.
+        super::probe_gpu();
         return super::gpu_available();
     }
     #[cfg(not(feature = "gpu"))]
@@ -53,7 +62,7 @@ mod imp {
     use crate::runtime::render::gpu;
     use std::sync::{Mutex, OnceLock};
 
-    const SHADER: &str = r#"
+    const SHADER_SOLID: &str = r#"
 struct Uniforms {
     mvp: mat4x4<f32>,
     color: vec4<f32>,
@@ -82,6 +91,42 @@ fn fs_main() -> @location(0) vec4<f32> {
 }
 "#;
 
+    const SHADER_TEXTURED: &str = r#"
+struct Uniforms {
+    mvp: mat4x4<f32>,
+    color: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var tex: texture_2d<f32>;
+@group(0) @binding(2) var samp: sampler;
+
+struct VertexIn {
+    @location(0) position: vec3<f32>,
+    @location(1) uv: vec2<f32>,
+}
+
+struct VertexOut {
+    @builtin(position) clip: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@vertex
+fn vs_main(in: VertexIn) -> VertexOut {
+    var out: VertexOut;
+    out.clip = u.mvp * vec4<f32>(in.position, 1.0);
+    out.uv = in.uv;
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+    // Match CPU sample_texture V-flip.
+    let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    return textureSample(tex, samp, uv) * u.color;
+}
+"#;
+
     struct Targets {
         width: u32,
         height: u32,
@@ -91,16 +136,21 @@ fn fs_main() -> @location(0) vec4<f32> {
         depth_view: wgpu::TextureView,
     }
 
-    struct Pipeline {
+    struct Pipe {
         pipeline: wgpu::RenderPipeline,
         bind_layout: wgpu::BindGroupLayout,
+    }
+
+    struct State {
+        solid: Pipe,
+        textured: Pipe,
         targets: Option<Targets>,
     }
 
-    static PIPELINE: OnceLock<Mutex<Option<Pipeline>>> = OnceLock::new();
+    static STATE: OnceLock<Mutex<Option<State>>> = OnceLock::new();
 
-    fn pipeline_slot() -> &'static Mutex<Option<Pipeline>> {
-        PIPELINE.get_or_init(|| Mutex::new(None))
+    fn state_slot() -> &'static Mutex<Option<State>> {
+        STATE.get_or_init(|| Mutex::new(None))
     }
 
     fn uniform_bytes(mvp: &[f32; 16], color: [f32; 4]) -> [u8; 80] {
@@ -114,19 +164,13 @@ fn fs_main() -> @location(0) vec4<f32> {
         b
     }
 
-    fn ensure_pipeline(device: &wgpu::Device) -> Result<(), String> {
-        let mut guard = pipeline_slot()
-            .lock()
-            .map_err(|_| "gpu3d lock poisoned".to_string())?;
-        if guard.is_some() {
-            return Ok(());
-        }
+    fn make_solid_pipe(device: &wgpu::Device) -> Pipe {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("kabootar-3d"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER)),
+            label: Some("kabootar-3d-solid"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER_SOLID)),
         });
         let bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("kabootar-3d-uniforms"),
+            label: Some("kabootar-3d-solid-bind"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
@@ -139,12 +183,12 @@ fn fs_main() -> @location(0) vec4<f32> {
             }],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("kabootar-3d-layout"),
+            label: Some("kabootar-3d-solid-layout"),
             bind_group_layouts: &[&bind_layout],
             push_constant_ranges: &[],
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("kabootar-3d-pipeline"),
+            label: Some("kabootar-3d-solid-pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -190,16 +234,130 @@ fn fs_main() -> @location(0) vec4<f32> {
             multiview: None,
             cache: None,
         });
-        *guard = Some(Pipeline {
+        Pipe {
             pipeline,
             bind_layout,
+        }
+    }
+
+    fn make_textured_pipe(device: &wgpu::Device) -> Pipe {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("kabootar-3d-tex"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER_TEXTURED)),
+        });
+        let bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("kabootar-3d-tex-bind"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("kabootar-3d-tex-layout"),
+            bind_group_layouts: &[&bind_layout],
+            push_constant_ranges: &[],
+        });
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("kabootar-3d-tex-pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: 20,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &[
+                        wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x3,
+                            offset: 0,
+                            shader_location: 0,
+                        },
+                        wgpu::VertexAttribute {
+                            format: wgpu::VertexFormat::Float32x2,
+                            offset: 12,
+                            shader_location: 1,
+                        },
+                    ],
+                }],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+        Pipe {
+            pipeline,
+            bind_layout,
+        }
+    }
+
+    fn ensure_state(device: &wgpu::Device) -> Result<(), String> {
+        let mut guard = state_slot()
+            .lock()
+            .map_err(|_| "gpu3d lock poisoned".to_string())?;
+        if guard.is_some() {
+            return Ok(());
+        }
+        *guard = Some(State {
+            solid: make_solid_pipe(device),
+            textured: make_textured_pipe(device),
             targets: None,
         });
         Ok(())
     }
 
     fn ensure_targets(device: &wgpu::Device, width: u32, height: u32) -> Result<(), String> {
-        let mut guard = pipeline_slot()
+        let mut guard = state_slot()
             .lock()
             .map_err(|_| "gpu3d lock poisoned".to_string())?;
         let state = guard.as_mut().ok_or("gpu3d pipeline missing")?;
@@ -252,8 +410,27 @@ fn fs_main() -> @location(0) vec4<f32> {
         Ok(())
     }
 
-    fn pack_vertices(frame: &Gpu3dFrame) -> Result<Vec<u8>, String> {
+    fn pack_vertices(frame: &Gpu3dFrame, textured: bool) -> Result<Vec<u8>, String> {
         let stride = frame.component_count as usize;
+        if textured {
+            if stride < 5 {
+                return Err("gpu3d textured: need vec5 (xyz+uv)".into());
+            }
+            let mut out = Vec::with_capacity(frame.vert_count as usize * 20);
+            for i in 0..frame.vert_count as usize {
+                let base = i * stride;
+                if base + 4 >= frame.vertices.len() {
+                    break;
+                }
+                for k in 0..5 {
+                    out.extend_from_slice(&frame.vertices[base + k].to_le_bytes());
+                }
+            }
+            if out.is_empty() {
+                return Err("gpu3d: no vertices".into());
+            }
+            return Ok(out);
+        }
         if stride < 3 {
             return Err("gpu3d: need vec3 vertices".into());
         }
@@ -342,15 +519,20 @@ fn fs_main() -> @location(0) vec4<f32> {
         if !gpu::gpu_available() {
             return Err("gpu not available".into());
         }
-        if frame.component_count < 3 {
+        let textured = frame.texture.is_some();
+        if textured && frame.component_count < 5 {
+            return Err("gpu3d textured requires vec5 vertices".into());
+        }
+        if !textured && frame.component_count < 3 {
             return Err("gpu3d requires vec3 vertices".into());
         }
         let width = frame.width.max(1);
         let height = frame.height.max(1);
-        let vertex_bytes = pack_vertices(frame)?;
+        let vertex_bytes = pack_vertices(frame, textured)?;
+        let vert_stride = if textured { 20 } else { 12 };
 
         gpu::with_gpu(|device, queue| {
-            ensure_pipeline(device)?;
+            ensure_state(device)?;
             ensure_targets(device, width, height)?;
 
             let uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
@@ -365,11 +547,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                 frame.draw_color[2],
                 frame.draw_color[3],
             ];
-            queue.write_buffer(
-                &uniform_buf,
-                0,
-                &uniform_bytes(&frame.mvp, color),
-            );
+            queue.write_buffer(&uniform_buf, 0, &uniform_bytes(&frame.mvp, color));
 
             let vertex_buf = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("kabootar-3d-vbo"),
@@ -379,19 +557,106 @@ fn fs_main() -> @location(0) vec4<f32> {
             });
             queue.write_buffer(&vertex_buf, 0, &vertex_bytes);
 
-            let mut guard = pipeline_slot()
+            // Optional sample texture (keep alive for bind group).
+            let sample_tex;
+            let sample_view;
+            let sample_samp;
+            if let Some((tw, th, ref pixels)) = frame.texture {
+                let expected = (tw as usize) * (th as usize) * 4;
+                if pixels.len() < expected {
+                    return Err("gpu3d texture pixel buffer too small".into());
+                }
+                sample_tex = Some(device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("kabootar-3d-sample"),
+                    size: wgpu::Extent3d {
+                        width: tw.max(1),
+                        height: th.max(1),
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                }));
+                let tex = sample_tex.as_ref().unwrap();
+                queue.write_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: tex,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &pixels[..expected],
+                    wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(tw.max(1) * 4),
+                        rows_per_image: Some(th.max(1)),
+                    },
+                    wgpu::Extent3d {
+                        width: tw.max(1),
+                        height: th.max(1),
+                        depth_or_array_layers: 1,
+                    },
+                );
+                sample_view = Some(tex.create_view(&wgpu::TextureViewDescriptor::default()));
+                sample_samp = Some(device.create_sampler(&wgpu::SamplerDescriptor {
+                    label: Some("kabootar-3d-sampler"),
+                    mag_filter: wgpu::FilterMode::Nearest,
+                    min_filter: wgpu::FilterMode::Nearest,
+                    ..Default::default()
+                }));
+            } else {
+                sample_tex = None;
+                sample_view = None;
+                sample_samp = None;
+            }
+            let _keep_tex = sample_tex;
+
+            let mut guard = state_slot()
                 .lock()
                 .map_err(|_| "gpu3d lock poisoned".to_string())?;
             let state = guard.as_mut().ok_or("gpu3d pipeline missing")?;
             let targets = state.targets.as_ref().ok_or("gpu3d targets missing")?;
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("kabootar-3d-bind"),
-                layout: &state.bind_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: uniform_buf.as_entire_binding(),
-                }],
-            });
+
+            let bind_group = if textured {
+                let view = sample_view.as_ref().ok_or("gpu3d missing sample view")?;
+                let samp = sample_samp.as_ref().ok_or("gpu3d missing sampler")?;
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("kabootar-3d-tex-bind"),
+                    layout: &state.textured.bind_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: uniform_buf.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Sampler(samp),
+                        },
+                    ],
+                })
+            } else {
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("kabootar-3d-solid-bind"),
+                    layout: &state.solid.bind_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: uniform_buf.as_entire_binding(),
+                    }],
+                })
+            };
+
+            let pipeline = if textured {
+                &state.textured.pipeline
+            } else {
+                &state.solid.pipeline
+            };
 
             let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("kabootar-3d-pass"),
@@ -423,7 +688,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                     occlusion_query_set: None,
                     timestamp_writes: None,
                 });
-                pass.set_pipeline(&state.pipeline);
+                pass.set_pipeline(pipeline);
                 pass.set_bind_group(0, &bind_group, &[]);
                 pass.set_vertex_buffer(0, vertex_buf.slice(..));
 
@@ -446,7 +711,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                         pass.draw_indexed(0..(index_data.len() / 2) as u32, 0, 0..1);
                     }
                 } else {
-                    let vert_count = vertex_bytes.len() / 12;
+                    let vert_count = vertex_bytes.len() / vert_stride;
                     pass.draw(0..vert_count as u32, 0..1);
                 }
             }

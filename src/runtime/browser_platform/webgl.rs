@@ -249,7 +249,8 @@ pub fn create_buffer(kind: &str, floats: &[f32]) -> Result<GlBuffer, String> {
         data.extend_from_slice(&f.to_le_bytes());
     }
     let id = NEXT_BUFFER.fetch_add(1, Ordering::Relaxed);
-    let gpu_uploaded = false;
+    #[allow(unused_mut)]
+    let mut gpu_uploaded = false;
     #[cfg(feature = "gpu")]
     {
         if gpu_available() && kind == BufferKind::Array {
@@ -657,16 +658,31 @@ fn build_gpu_frame(
     offset: u32,
     mode: GpuDrawMode,
 ) -> Option<Gpu3dFrame> {
-    if !gpu3d::gpu3d_available() || ctx.bound_texture.is_some() || !ctx.depth_test {
+    if !gpu3d::gpu3d_available() || !ctx.depth_test {
         return None;
     }
+    // GP0a: bound texture stays on GPU when pixels exist and VBO is vec5 (xyz+uv).
+    // Empty / missing tex or non-UV verts → CPU fallback.
+    let texture = if let Some(tid) = ctx.bound_texture {
+        let tex = get_texture(tid)?;
+        if tex.pixels.is_empty() || tex.width == 0 || tex.height == 0 {
+            return None;
+        }
+        Some((tex.width, tex.height, tex.pixels.clone()))
+    } else {
+        None
+    };
     let mvp = mvp_for(ctx);
     let [cr, cg, cb, ca] = ctx.clear_color;
     let [dr, dg, db, da] = ctx.draw_color;
     match mode {
         GpuDrawMode::Arrays => {
             let vbo = ctx.bound_array.and_then(get_buffer)?;
-            if vbo.component_count < 3 {
+            if texture.is_some() {
+                if vbo.component_count < 5 {
+                    return None;
+                }
+            } else if vbo.component_count < 3 {
                 return None;
             }
             Some(Gpu3dFrame {
@@ -692,32 +708,43 @@ fn build_gpu_frame(
                 index_offset: 0,
                 index_count: 0,
                 depth_test: ctx.depth_test,
+                texture,
             })
         }
-        GpuDrawMode::Elements { vbo, ibo } => Some(Gpu3dFrame {
-            width: ctx.width.max(1),
-            height: ctx.height.max(1),
-            clear_color: [
-                cr as f32 / 255.0,
-                cg as f32 / 255.0,
-                cb as f32 / 255.0,
-                ca as f32 / 255.0,
-            ],
-            mvp,
-            draw_color: [
-                dr as f32 / 255.0,
-                dg as f32 / 255.0,
-                db as f32 / 255.0,
-                da as f32 / 255.0,
-            ],
-            vertices: read_f32_vec(&vbo),
-            component_count: vbo.component_count,
-            vert_count: 0,
-            indices: Some(read_u16_vec(&ibo)),
-            index_offset: offset,
-            index_count: count,
-            depth_test: ctx.depth_test,
-        }),
+        GpuDrawMode::Elements { vbo, ibo } => {
+            if texture.is_some() {
+                if vbo.component_count < 5 {
+                    return None;
+                }
+            } else if vbo.component_count < 3 {
+                return None;
+            }
+            Some(Gpu3dFrame {
+                width: ctx.width.max(1),
+                height: ctx.height.max(1),
+                clear_color: [
+                    cr as f32 / 255.0,
+                    cg as f32 / 255.0,
+                    cb as f32 / 255.0,
+                    ca as f32 / 255.0,
+                ],
+                mvp,
+                draw_color: [
+                    dr as f32 / 255.0,
+                    dg as f32 / 255.0,
+                    db as f32 / 255.0,
+                    da as f32 / 255.0,
+                ],
+                vertices: read_f32_vec(&vbo),
+                component_count: vbo.component_count,
+                vert_count: 0,
+                indices: Some(read_u16_vec(&ibo)),
+                index_offset: offset,
+                index_count: count,
+                depth_test: ctx.depth_test,
+                texture,
+            })
+        }
     }
 }
 

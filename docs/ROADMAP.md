@@ -653,7 +653,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader (`lexer`/`parser`/`emit`/`serialize`/`vm` + `serialize_impl`/`vm_run`) self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_body`, `vm_run_body` (AST-täthet; delas inte utan `st`-bag). **Delete-gate:** `KABOOTAR_VM=kab-only` failar om skip-listat löv behöver live-Rust-compile (saknar `.kbc`-cache). **Mål:** Rust = bytecode-laddare + FFI — tömma skip-listan. Smokes: `h6e_kab_*`, `*_facade_full_compile`, `h6e_skip_listed_kab_only_delete_gate`.
+**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_body`, `vm_run_body`. **Committed seeds:** `self_host/seed/*.kbc` (fingerprint) — kab-only laddar löv utan live-Rust (`backend=seed`); saknas/stale seed → delete-gate. Regenerera: `scripts/regen_self_host_seeds.sh`. **Mål:** tömma skip-listan (P6) eller behåll seed-only. Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
@@ -673,7 +673,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | 📋 |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | 📋 |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | 📋 |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc` | 🚧 H6e |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | 🚧 seed ✅ / empty list 📋 |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | 📋 |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | 📋 |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | 📋 |
@@ -700,7 +700,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | 📋 |
+| **GP0a** | **GPU-texturer** på wgpu-pipeline (nuvarande lucka i GAME.md) | ✅ subset (vec5 + bindTexture → textured WGSL; CPU fallback om ingen adapter) |
 | **GP0b** | **Fler uniforms** — mat4/vec4/sampler; material-bind groups | 📋 |
 | **GP0c** | **Depth/MSAA/vsync** — stabil present; `game_surface_create_3d` → GPU present utan onödig compositor-blit | 📋 |
 | **GP0d** | **Index + instancing** — `drawElements` / instanced draws på GPU | 📋 / delvis API |
