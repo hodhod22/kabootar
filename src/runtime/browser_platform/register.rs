@@ -183,6 +183,13 @@ fn webgl_draw_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
     Ok(Value::Bool(webgl::draw_arrays(id, count)?))
 }
 
+fn webgl_draw_instanced_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let count = args.get(1).and_then(num).unwrap_or(3) as u32;
+    let instances = args.get(2).and_then(num).unwrap_or(1) as u32;
+    Ok(Value::Bool(webgl::draw_arrays_instanced(id, count, instances)?))
+}
+
 fn webgl_create_buffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let kind = args
         .get(0)
@@ -213,6 +220,19 @@ fn webgl_draw_elements_native(args: &[Value], _env: &mut Environment) -> Result<
     let count = args.get(1).and_then(num).unwrap_or(3) as u32;
     let offset = args.get(2).and_then(num).unwrap_or(0) as u32;
     Ok(Value::Bool(webgl::draw_elements(id, count, offset)?))
+}
+
+fn webgl_draw_elements_instanced_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let id = expect_num(args, 0)? as u64;
+    let count = args.get(1).and_then(num).unwrap_or(3) as u32;
+    let offset = args.get(2).and_then(num).unwrap_or(0) as u32;
+    let instances = args.get(3).and_then(num).unwrap_or(1) as u32;
+    Ok(Value::Bool(webgl::draw_elements_instanced(
+        id, count, offset, instances,
+    )?))
 }
 
 fn float_array_from_value(v: Option<&Value>) -> Result<Vec<f32>, String> {
@@ -762,6 +782,10 @@ pub fn browser_platform_globals(env: &mut Environment) {
     env.set("webgl_use_program".into(), Value::NativeFunction(webgl_use_program_native));
     env.set("webgl_clear".into(), Value::NativeFunction(webgl_clear_native));
     env.set("webgl_draw".into(), Value::NativeFunction(webgl_draw_native));
+    env.set(
+        "webgl_draw_instanced".into(),
+        Value::NativeFunction(webgl_draw_instanced_native),
+    );
     env.set("webgl_create_buffer".into(), Value::NativeFunction(webgl_create_buffer_native));
     env.set(
         "webgl_create_index_buffer".into(),
@@ -769,6 +793,10 @@ pub fn browser_platform_globals(env: &mut Environment) {
     );
     env.set("webgl_bind_buffer".into(), Value::NativeFunction(webgl_bind_buffer_native));
     env.set("webgl_draw_elements".into(), Value::NativeFunction(webgl_draw_elements_native));
+    env.set(
+        "webgl_draw_elements_instanced".into(),
+        Value::NativeFunction(webgl_draw_elements_instanced_native),
+    );
     env.set(
         "webgl_create_texture".into(),
         Value::NativeFunction(webgl_create_texture_native),

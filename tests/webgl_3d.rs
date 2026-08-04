@@ -87,7 +87,12 @@ fn game_surface_3d_cube_frame() {
 #[cfg(feature = "gpu")]
 #[test]
 fn webgl_gpu_textured_vec5_draw() {
-    // GP0a: bound texture + vec5 (xyz+uv) stays on wgpu path when GPU is available.
+    // GP0a + GP0f: textured vec5 must stay on wgpu when adapter exists.
+    let avail = eval(r##"webgl_info()["gpu3d"]"##);
+    if avail == "cpu-fallback" {
+        // Soft-skip: no GPU adapter in this environment.
+        return;
+    }
     let out = eval(
         r##"
         let src = canvas_create(4, 4);
@@ -107,12 +112,16 @@ fn webgl_gpu_textured_vec5_draw() {
         ]);
         gl.bindBuffer(vbo);
         gl.drawArrays(3);
-        webgl_info()["gpu3d"]
+        webgl_info()["gpu3d"] + "|" + webgl_info()["gpu3d_last"]
     "##,
     );
     assert!(
-        out == "wgpu-pipeline" || out == "wgpu-pipeline+msaa4" || out == "cpu-fallback",
-        "unexpected gpu3d info: {out}"
+        out.starts_with("wgpu-pipeline"),
+        "GP0f delete-gate: gpu3d must be wgpu path, got {out}"
+    );
+    assert!(
+        out.ends_with("|wgpu"),
+        "GP0f delete-gate: textured draw must use wgpu, got {out}"
     );
 }
 
@@ -139,6 +148,10 @@ fn webgl_material_uv_xform_and_model_uniform() {
 #[cfg(feature = "gpu")]
 #[test]
 fn webgl_gpu_material_bind_groups() {
+    let avail = eval(r##"webgl_info()["gpu3d"]"##);
+    if avail == "cpu-fallback" {
+        return;
+    }
     let out = eval(
         r##"
         let src = canvas_create(4, 4);
@@ -159,11 +172,85 @@ fn webgl_gpu_material_bind_groups() {
         ]);
         gl.bindBuffer(vbo);
         gl.drawArrays(3);
-        webgl_info()["gpu3d"]
+        webgl_info()["gpu3d_last"]
     "##,
     );
-    assert!(
-        out == "wgpu-pipeline" || out == "wgpu-pipeline+msaa4" || out == "cpu-fallback",
-        "unexpected gpu3d info: {out}"
+    assert_eq!(out, "wgpu", "material textured draw must use GPU: {out}");
+}
+
+#[test]
+fn webgl_draw_elements_indexed_triangle() {
+    // GP0d: indexed draw via ELEMENT_ARRAY_BUFFER.
+    let out = eval(
+        r##"
+        let gl = webgl_create(64, 64);
+        gl.lookAt(0, 0, 3, 0, 0, 0, 0, 1, 0);
+        gl.uniform4f(0, 0.2, 0.8, 1.0, 1.0);
+        let vbo = gl.createBuffer("array", [
+            -0.5, -0.5, 0.5,
+             0.5, -0.5, 0.5,
+             0.0,  0.5, 0.5
+        ]);
+        let ibo = gl.createIndexBuffer([0, 1, 2]);
+        gl.bindBuffer(vbo);
+        gl.bindBuffer(ibo);
+        gl.drawElements(3, 0)
+    "##,
     );
+    assert_eq!(out, "true");
+}
+
+#[test]
+fn webgl_draw_arrays_instanced() {
+    // GP0d: instanced arrays (same mesh N times).
+    let out = eval(
+        r##"
+        let gl = webgl_create(64, 64);
+        gl.lookAt(0, 0, 3, 0, 0, 0, 0, 1, 0);
+        gl.uniform4f(0, 1.0, 0.4, 0.2, 1.0);
+        let vbo = gl.createBuffer("array", [
+            -0.3, -0.3, 0.5,
+             0.3, -0.3, 0.5,
+             0.0,  0.3, 0.5
+        ]);
+        gl.bindBuffer(vbo);
+        gl.drawArraysInstanced(3, 4)
+    "##,
+    );
+    assert_eq!(out, "true");
+}
+
+#[cfg(feature = "gpu")]
+#[test]
+fn webgl_gpu_draw_elements_textured() {
+    // GP0d + GP0f: indexed textured draw on GPU path when adapter exists.
+    let avail = eval(r##"webgl_info()["gpu3d"]"##);
+    if avail == "cpu-fallback" {
+        return;
+    }
+    let out = eval(
+        r##"
+        let src = canvas_create(4, 4);
+        src.fillStyle = "#4488ff";
+        src.fillRect(0, 0, 4, 4);
+        let gl = webgl_create(32, 32);
+        gl.lookAt(0, 0, 2.5, 0, 0, 0, 0, 1, 0);
+        gl.clearColor(0, 0, 0, 255);
+        gl.uniform4f(0, 1.0, 1.0, 1.0, 1.0);
+        let tex = gl.createTexture();
+        gl.texImage2D(tex, src);
+        gl.bindTexture(tex);
+        let vbo = gl.createBuffer("array", [
+            -0.8, -0.8, 0.0, 0.0, 0.0,
+             0.8, -0.8, 0.0, 1.0, 0.0,
+             0.0,  0.8, 0.0, 0.5, 1.0
+        ]);
+        let ibo = gl.createIndexBuffer([0, 1, 2]);
+        gl.bindBuffer(vbo);
+        gl.bindBuffer(ibo);
+        gl.drawElements(3, 0);
+        webgl_info()["gpu3d_last"]
+    "##,
+    );
+    assert_eq!(out, "wgpu", "indexed textured draw must use GPU: {out}");
 }

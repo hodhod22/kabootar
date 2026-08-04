@@ -1,6 +1,9 @@
 //! Game runtime — frame loop, input, unified surface (v2.59).
 
 mod frame;
+pub mod gltf;
+mod hot_reload;
+pub mod image_png;
 mod input;
 mod surface;
 
@@ -14,7 +17,10 @@ pub fn info() -> HashMap<String, String> {
     let mut m = HashMap::new();
     m.insert("api".into(), "kabootar-game".into());
     m.insert("version".into(), "0.1".into());
-    m.insert("features".into(), "rAF,input,surface,present,3d".into());
+    m.insert(
+        "features".into(),
+        "rAF,input,surface,present,3d,gltf,png,atlas,hot".into(),
+    );
     m
 }
 
@@ -199,6 +205,10 @@ pub fn game_globals(env: &mut Environment) {
         ("input_poll", input_poll_native),
         ("input_is_down", input_is_down_native),
         ("game_info", game_info_native),
+        ("gltf_load_json", gltf::gltf_load_json_native),
+        ("image_decode_png", image_png::image_decode_png_native),
+        ("asset_watch", hot_reload::asset_watch_native),
+        ("asset_poll", hot_reload::asset_poll_native),
     ];
     for (name, f) in fns {
         env.set((*name).into(), Value::NativeFunction(*f));
@@ -208,4 +218,5 @@ pub fn game_globals(env: &mut Environment) {
 pub fn reset_all() {
     frame::reset_for_tests();
     input::reset_for_tests();
+    hot_reload::reset_for_tests();
 }

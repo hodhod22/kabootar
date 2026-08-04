@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar game/render — thin WebGL mesh helpers (GP1b subset).
+// Kabootar game/render — thin WebGL mesh helpers (GP1b + GP0d subset).
 // floats: Array or Float32Array of vertex components (vec2/vec3/…).
 // import "game/render"
 
@@ -20,6 +20,15 @@ pub fn createMesh(gl, floats) {
     return { gl: gl, vbo: vbo, count: count }
 }
 
+pub fn createIndexedMesh(gl, floats, indices) {
+    let mesh = createMesh(gl, floats)
+    let ibo = gl.createIndexBuffer(indices)
+    gl.bindBuffer(ibo)
+    mesh["ibo"] = ibo
+    mesh["indexCount"] = indices.length
+    return mesh
+}
+
 pub fn setColor(gl, r, g, b, a) {
     return gl.uniform4f(0, r, g, b, a)
 }
@@ -28,4 +37,24 @@ pub fn drawMesh(mesh) {
     let gl = mesh["gl"]
     gl.bindBuffer(mesh["vbo"])
     return gl.drawArrays(mesh["count"])
+}
+
+pub fn drawIndexedMesh(mesh) {
+    let gl = mesh["gl"]
+    gl.bindBuffer(mesh["vbo"])
+    gl.bindBuffer(mesh["ibo"])
+    return gl.drawElements(mesh["indexCount"], 0)
+}
+
+pub fn drawMeshInstanced(mesh, instances) {
+    let gl = mesh["gl"]
+    gl.bindBuffer(mesh["vbo"])
+    return gl.drawArraysInstanced(mesh["count"], instances)
+}
+
+pub fn drawIndexedMeshInstanced(mesh, instances) {
+    let gl = mesh["gl"]
+    gl.bindBuffer(mesh["vbo"])
+    gl.bindBuffer(mesh["ibo"])
+    return gl.drawElementsInstanced(mesh["indexCount"], 0, instances)
 }
