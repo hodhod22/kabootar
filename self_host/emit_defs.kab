@@ -26,6 +26,13 @@ pub let OP_DIV = "div"
 pub let OP_MOD = "mod"
 pub let OP_POW = "pow"
 pub let OP_NEG = "neg"
+pub let OP_BIT_AND = "bit_and"
+pub let OP_BIT_OR = "bit_or"
+pub let OP_BIT_XOR = "bit_xor"
+pub let OP_SHL = "shl"
+pub let OP_SHR = "shr"
+pub let OP_USHR = "ushr"
+pub let OP_BIT_NOT = "bit_not"
 
 // ----- LOGICAL -----
 pub let OP_NOT = "not"

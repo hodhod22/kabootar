@@ -270,8 +270,8 @@ fn lxScan() {
         lxCol = lxCol + 1
         let start = lxPos
         while lxPos < lxSrcLen {
+            let cd = char_code_at(lxSrc, lxPos)
             let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
             let ok = 0
             if cd >= 65 && cd <= 90 { ok = 1 }
             if cd >= 97 && cd <= 122 { ok = 1 }
@@ -366,13 +366,12 @@ fn lxScan() {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
         while lxPos < lxSrcLen {
-            let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(lxSrc, lxPos)
             let ok = 0
             if cd >= 65 && cd <= 90 { ok = 1 }
             if cd >= 97 && cd <= 122 { ok = 1 }
             if cd >= 48 && cd <= 57 { ok = 1 }
-            if ch == "_" { ok = 1 }
+            if cd == 95 { ok = 1 }
             if ok == 0 { break }
             lxPos = lxPos + 1
             lxCol = lxCol + 1
@@ -387,7 +386,7 @@ fn lxScan() {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
         while lxPos < lxSrcLen {
-            let cd = char_code_at(char_at(lxSrc, lxPos), 0)
+            let cd = char_code_at(lxSrc, lxPos)
             if cd < 48 || cd > 57 {
                 break
             }
@@ -407,7 +406,7 @@ fn lxScan() {
             lxCol = lxCol + 1
             let fracStart = lxPos
             while lxPos < lxSrcLen {
-                let cd = char_code_at(char_at(lxSrc, lxPos), 0)
+                let cd = char_code_at(lxSrc, lxPos)
                 if cd < 48 || cd > 57 {
                     break
                 }
@@ -433,13 +432,12 @@ fn lxScan() {
         lxPos = lxPos + 1
         lxCol = lxCol + 1
         while lxPos < lxSrcLen {
-            let ch = char_at(lxSrc, lxPos)
-            let cd = char_code_at(ch, 0)
+            let cd = char_code_at(lxSrc, lxPos)
             let ok = 0
             if cd >= 65 && cd <= 90 { ok = 1 }
             if cd >= 97 && cd <= 122 { ok = 1 }
             if cd >= 48 && cd <= 57 { ok = 1 }
-            if ch == "_" { ok = 1 }
+            if cd == 95 { ok = 1 }
             if ok == 0 { break }
             lxPos = lxPos + 1
             lxCol = lxCol + 1
@@ -468,13 +466,13 @@ pub fn tokenize(source) {
     while true {
         // Skip whitespace (flat — nested else hangs / slows self-host)
         while lxPos < lxSrcLen {
-            let ch = char_at(lxSrc, lxPos)
-            if ch == " " || ch == "\t" || ch == "\r" {
+            let cd = char_code_at(lxSrc, lxPos)
+            if cd == 32 || cd == 9 || cd == 13 {
                 lxCol = lxCol + 1
                 lxPos = lxPos + 1
                 continue
             }
-            if ch == "\n" {
+            if cd == 10 {
                 lxLine = lxLine + 1
                 lxCol = 1
                 lxPos = lxPos + 1

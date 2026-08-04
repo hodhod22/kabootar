@@ -325,6 +325,45 @@ fn tryEmitArrayPushAssign(sym, rhs) {
     return true
 }
 
+/// `name = name + a + b + …` → AccAdd* (in-place; leave null on stack).
+fn tryEmitAccAddAssign(sym, rhs) {
+    let pieces = []
+    let cur = rhs
+    while cur.kind == AST_BINARY && cur["op"] == "+" {
+        pieces = push(pieces, cur["right"])
+        cur = cur["left"]
+    }
+    if cur.kind != AST_VAR {
+        return false
+    }
+    if cur["sym"] != sym {
+        return false
+    }
+    if len(pieces) == 0 {
+        return false
+    }
+    // pieces collected right-to-left; reverse for left-to-right AccAdd order
+    let i = len(pieces) - 1
+    let li = localSymIndex(sym)
+    if li >= 0 {
+        while i >= 0 {
+            emitExpr(pieces[i])
+            emitOp(OP_ACC_ADD_LOCAL, li)
+            i = i - 1
+        }
+        emitOp(OP_CONST, symIndex("const", null))
+        return true
+    }
+    let gi = symIndex("global", sym)
+    while i >= 0 {
+        emitExpr(pieces[i])
+        emitOp(OP_ACC_ADD_GLOBAL, gi)
+        i = i - 1
+    }
+    emitOp(OP_CONST, symIndex("const", null))
+    return true
+}
+
 fn emitExpr(node) {
     eNode = node
     if eNode == null {
@@ -354,6 +393,10 @@ fn emitExpr(node) {
         }
         if uOp == "-" {
             emitOp(OP_NEG, 0)
+            return
+        }
+        if uOp == "~" {
+            emitOp(OP_BIT_NOT, 0)
             return
         }
         throw "Unsupported unary op: " + uOp
@@ -458,6 +501,30 @@ fn emitExpr(node) {
         }
         if eBinOp == "||" {
             emitOp(OP_OR, 0)
+            return
+        }
+        if eBinOp == "&" {
+            emitOp(OP_BIT_AND, 0)
+            return
+        }
+        if eBinOp == "|" {
+            emitOp(OP_BIT_OR, 0)
+            return
+        }
+        if eBinOp == "^" {
+            emitOp(OP_BIT_XOR, 0)
+            return
+        }
+        if eBinOp == "<<" {
+            emitOp(OP_SHL, 0)
+            return
+        }
+        if eBinOp == ">>" {
+            emitOp(OP_SHR, 0)
+            return
+        }
+        if eBinOp == ">>>" {
+            emitOp(OP_USHR, 0)
             return
         }
         throw "Unsupported binary op: " + eBinOp
@@ -1291,6 +1358,9 @@ fn emitStmt(node) {
     if eNode.kind == AST_ASSIGN {
         eAssignSym = eNode["sym"]
         if tryEmitArrayPushAssign(eAssignSym, eNode["rhs"]) {
+            return
+        }
+        if tryEmitAccAddAssign(eAssignSym, eNode["rhs"]) {
             return
         }
         emitExpr(eNode["rhs"])
