@@ -84,7 +84,7 @@ gl.bindBuffer(vbo);
 gl.drawArrays(3);
 ```
 
-**GPU 3D** (med `--features gpu`): vec3-ritning och **texturerade vec5** (xyz+uv) går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` i `webgl_info()`). CPU-raster används som fallback (ingen adapter, `depth_test` av, eller tom textur).
+**GPU 3D** (med `--features gpu`): vec3-ritning och **texturerade vec5** (xyz+uv) går via wgpu WGSL-pipeline (`gpu3d: wgpu-pipeline` / `wgpu-pipeline+msaa4` i `webgl_info()`). MSAA×4 när adaptern stödjer det (resolve → readback); shell-present mappar DisplayServer-vsync (`fifo`/`immediate`) till wgpu `PresentMode`; `surf.present()` på 3D-yta undviker redundant compositor-publish om pixels redan finns. CPU-raster används som fallback (ingen adapter, `depth_test` av, eller tom textur).
 
 **GP0b material uniforms / bind groups:**
 - **Group 0 (frame):** `view_proj` mat4
@@ -93,6 +93,19 @@ gl.drawArrays(3);
 - `gl.uniformMatrix4fv(matrix)` / loc 0 → explicit MVP; `gl.uniformMatrix4fv(1, modelMatrix)` → model utan att tvinga explicit MVP
 - `gl.rotateModelY` sätter fortfarande model-matrisen (CPU/GPU)
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups.
+## Kab-spel-lib (GP1 subset)
+
+Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — `root = setLocal(root, …)`):
+
+| Import | API |
+|--------|-----|
+| `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `worldPos` (lokal pos) |
+| `import "game/render"` | `createMesh`, `setColor`, `drawMesh` |
+| `import "game/input"` | `createActions`, `actionPressed` |
+| `import "game/time"` | `dtSec`, `createFixed`, `fixedTick` |
+
+`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs`.
+
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a** ✅ subset — GPU-texturer. **GP0b** ✅ subset — material bind groups. **GP0c** ✅ subset — MSAA×4 / vsync / present. **GP1a–d** ✅ subset — `lib/game/*`.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

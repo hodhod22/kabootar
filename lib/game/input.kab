@@ -1,0 +1,25 @@
+@version "1.0.0"
+
+// Kabootar game/input — action maps over input_* (GP1c subset).
+// map: action name → array of key codes (e.g. { jump: ["Space"] }).
+// import "game/input"
+
+pub fn createActions(map) {
+    return map
+}
+
+pub fn actionPressed(actions, name) {
+    let keys = actions[name]
+    if keys == undefined {
+        return false
+    }
+    let i = 0
+    let n = len(keys)
+    while i < n {
+        if input_is_down(keys[i]) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

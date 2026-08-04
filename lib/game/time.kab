@@ -1,0 +1,24 @@
+@version "1.0.0"
+
+// Kabootar game/time — dt + fixed step (GP1d subset).
+// import "game/time"
+
+pub fn dtSec(delta_ms) {
+    // Float divisor so integer ms does not truncate to 0.
+    return delta_ms / 1000.0
+}
+
+pub fn createFixed(stepSec) {
+    return { step: stepSec, acc: 0 }
+}
+
+pub fn fixedTick(state, dt, onFixed) {
+    state["acc"] = state["acc"] + dt
+    let count = 0
+    while state["acc"] >= state["step"] {
+        state["acc"] = state["acc"] - state["step"]
+        onFixed(state["step"])
+        count = count + 1
+    }
+    return count
+}

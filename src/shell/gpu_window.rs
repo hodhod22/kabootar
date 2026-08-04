@@ -72,12 +72,23 @@ pub fn run_with_gpu(
                 .copied()
                 .find(|f| f.is_srgb())
                 .unwrap_or(caps.formats[0]);
+            let want_immediate =
+                crate::runtime::os::display_vsync_mode().eq_ignore_ascii_case("immediate");
+            let present_mode = if want_immediate
+                && caps
+                    .present_modes
+                    .contains(&wgpu::PresentMode::Immediate)
+            {
+                wgpu::PresentMode::Immediate
+            } else {
+                wgpu::PresentMode::Fifo
+            };
             let config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format,
                 width: size.width.max(1),
                 height: size.height.max(1),
-                present_mode: wgpu::PresentMode::Fifo,
+                present_mode,
                 alpha_mode: caps.alpha_modes[0],
                 view_formats: vec![],
                 desired_maximum_frame_latency: 2,

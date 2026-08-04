@@ -450,6 +450,142 @@ fn float64_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Va
     Ok(Value::Undefined)
 }
 
+fn f32_view_parts(v: &Value) -> Result<(u64, usize, usize), String> {
+    let Value::Object(o) = v else {
+        return Err("expected Float32Array".into());
+    };
+    if !matches!(o.get("__kab_f32"), Some(Value::Bool(true))) {
+        return Err("expected Float32Array".into());
+    }
+    let sab_id = match o.get("__kab_sab_id") {
+        Some(Value::Number(n)) if *n > 0 => *n as u64,
+        _ => return Err("invalid Float32Array".into()),
+    };
+    let offset = match o.get("byteOffset") {
+        Some(Value::Number(n)) if *n >= 0 => *n as usize,
+        _ => 0,
+    };
+    let length = match o.get("length") {
+        Some(Value::Number(n)) if *n >= 0 => *n as usize,
+        _ => return Err("invalid Float32Array length".into()),
+    };
+    Ok((sab_id, offset, length))
+}
+
+fn f32_index_byte_offset(view: &Value, index: usize) -> Result<(u64, usize), String> {
+    let (sab_id, byte_offset, length) = f32_view_parts(view)?;
+    if index >= length {
+        return Err("Float32Array index out of range".into());
+    }
+    Ok((sab_id, byte_offset + index * 4))
+}
+
+fn read_f32_le(bytes: &[u8], offset: usize) -> Result<f32, String> {
+    if offset.saturating_add(4) > bytes.len() {
+        return Err("Float32Array read out of range".into());
+    }
+    let mut arr = [0u8; 4];
+    arr.copy_from_slice(&bytes[offset..offset + 4]);
+    Ok(f32::from_le_bytes(arr))
+}
+
+fn write_f32_le(bytes: &mut [u8], offset: usize, value: f32) -> Result<(), String> {
+    if offset.saturating_add(4) > bytes.len() {
+        return Err("Float32Array write out of range".into());
+    }
+    bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+fn float32_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let sab = args.first().ok_or("float32_array_new(buffer, offset?, length?)")?;
+    let sab_id = sab_id(sab)?;
+    let total = block_for_sab(sab_id)?.bytes.len();
+    let offset = match args.get(1) {
+        Some(v) => usize_arg(v, "float32_array_new offset")?,
+        None => 0,
+    };
+    if offset % 4 != 0 {
+        return Err("Float32Array byteOffset must be 4-byte aligned".into());
+    }
+    let length = match args.get(2) {
+        Some(v) => usize_arg(v, "float32_array_new length")?,
+        None => (total.saturating_sub(offset)) / 4,
+    };
+    if offset.saturating_add(length.saturating_mul(4)) > total {
+        return Err("Float32Array range exceeds ArrayBuffer".into());
+    }
+    let mut m = HashMap::new();
+    m.insert("__kab_f32".into(), Value::Bool(true));
+    m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
+    m.insert("byteOffset".into(), Value::Number(offset as i64));
+    m.insert("length".into(), Value::Number(length as i64));
+    m.insert("BYTES_PER_ELEMENT".into(), Value::Number(4));
+    Ok(Value::Object(m))
+}
+
+fn float32_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let view = args.first().ok_or("float32_array_get(view, index)")?;
+    let index = usize_arg(args.get(1).ok_or("float32_array_get(view, index)")?, "index")?;
+    let (sab_id, byte_offset) = f32_index_byte_offset(view, index)?;
+    let block = block_for_sab(sab_id)?;
+    Ok(Value::Float(read_f32_le(&block.bytes, byte_offset)? as f64))
+}
+
+fn float32_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let view = args.first().ok_or("float32_array_set(view, index, value)")?;
+    let index = usize_arg(
+        args.get(1).ok_or("float32_array_set(view, index, value)")?,
+        "index",
+    )?;
+    let value = match args.get(2) {
+        Some(Value::Float(f)) => *f as f32,
+        Some(Value::Number(n)) => *n as f32,
+        _ => return Err("float32_array_set value must be number".into()),
+    };
+    let (sab_id, byte_offset) = f32_index_byte_offset(view, index)?;
+    let block = block_for_sab(sab_id)?;
+    let ptr = block.bytes.as_ptr() as *mut u8;
+    unsafe {
+        let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
+        write_f32_le(slice, byte_offset, value)?;
+    }
+    Ok(Value::Undefined)
+}
+
+pub fn is_float32_array(v: &Value) -> bool {
+    matches!(
+        v,
+        Value::Object(o) if matches!(o.get("__kab_f32"), Some(Value::Bool(true)))
+    )
+}
+
+/// Bulk-copy Float32Array view bytes into a `Vec<f32>` (little-endian).
+pub fn float32_array_to_f32_vec(v: &Value) -> Result<Vec<f32>, String> {
+    let (sab_id, offset, length) = f32_view_parts(v)?;
+    let block = block_for_sab(sab_id)?;
+    let end = offset.saturating_add(length.saturating_mul(4));
+    if end > block.bytes.len() {
+        return Err("Float32Array range exceeds ArrayBuffer".into());
+    }
+    let mut out = Vec::with_capacity(length);
+    for i in 0..length {
+        out.push(read_f32_le(&block.bytes, offset + i * 4)?);
+    }
+    Ok(out)
+}
+
+/// Bulk-copy raw little-endian bytes of a Float32Array view.
+pub fn float32_array_to_bytes(v: &Value) -> Result<Vec<u8>, String> {
+    let (sab_id, offset, length) = f32_view_parts(v)?;
+    let block = block_for_sab(sab_id)?;
+    let end = offset.saturating_add(length.saturating_mul(4));
+    if end > block.bytes.len() {
+        return Err("Float32Array range exceeds ArrayBuffer".into());
+    }
+    Ok(block.bytes[offset..end].to_vec())
+}
+
 fn data_view_parts(v: &Value) -> Result<(u64, usize, usize), String> {
     let Value::Object(o) = v else {
         return Err("expected DataView".into());
@@ -767,6 +903,9 @@ pub fn register_shared_memory(env: &mut Environment) {
         ("float64_array_new", float64_array_new_native),
         ("float64_array_get", float64_array_get_native),
         ("float64_array_set", float64_array_set_native),
+        ("float32_array_new", float32_array_new_native),
+        ("float32_array_get", float32_array_get_native),
+        ("float32_array_set", float32_array_set_native),
         ("data_view_new", data_view_new_native),
         ("data_view_get_float64", data_view_get_float64_native),
         ("data_view_set_float64", data_view_set_float64_native),

@@ -28,7 +28,7 @@ mod vfs;
 mod window;
 mod xcut;
 
-pub use display::DisplaySurface;
+pub use display::{display_vsync_mode, DisplaySurface};
 pub use drivers::{
     device_list_value, gpu_info_value, net_ifaces_value, DeviceDescriptor, DeviceManager,
     DriverKind,
