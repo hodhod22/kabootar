@@ -1935,7 +1935,13 @@ fn self_host_vm_import_probe() {
 #[test]
 fn self_host_heavy_cores_still_skipped() {
     use kabootar_lib::compile::compile_file_self_host;
-    for name in ["emit.kab", "parser.kab", "compile.kab", "serialize.kab"] {
+    for name in [
+        "emit.kab",
+        "parser.kab",
+        "compile.kab",
+        "serialize.kab",
+        "vm_impl.kab",
+    ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         let err = compile_file_self_host(&path).unwrap_err();
         assert!(
@@ -2010,7 +2016,6 @@ fn bits() {
 }
 
 #[test]
-#[ignore = "slow: self-host compile of monolithic vm.kab still multi-minute"]
 fn self_host_vm_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
     let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));

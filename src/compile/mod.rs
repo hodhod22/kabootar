@@ -48,8 +48,9 @@ impl CompilePrefer {
     }
 }
 
-/// Skip self-host for heavy emit/parser cores. `deserialize`/`vm` may self-host when ≤64KB
-/// (`import` of those files still uses Rust via `load_program_for_file`).
+/// Skip self-host for heavy emit/parser/vm_impl cores. Thin `vm.kab` and
+/// `deserialize` may self-host when ≤64KB (`import` of heavy cores still uses
+/// Rust via `load_program_for_file`).
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
     let core = [
@@ -58,6 +59,7 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "self_host/lexer.kab",
         "self_host/compile.kab",
         "self_host/serialize.kab",
+        "self_host/vm_impl.kab",
     ];
     for c in core {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
@@ -71,7 +73,12 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         .unwrap_or("");
     if matches!(
         base,
-        "emit.kab" | "parser.kab" | "lexer.kab" | "compile.kab" | "serialize.kab"
+        "emit.kab"
+            | "parser.kab"
+            | "lexer.kab"
+            | "compile.kab"
+            | "serialize.kab"
+            | "vm_impl.kab"
     ) && norm.contains("self_host")
     {
         return false;
