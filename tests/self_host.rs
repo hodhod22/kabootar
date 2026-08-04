@@ -1931,16 +1931,18 @@ fn self_host_vm_import_probe() {
     assert!(ok);
 }
 
-/// Heavy cores stay skipped; deserialize/vm are attemptable (full compile is slow — ignored).
+/// H6e: heavy `_impl`/`_run` bodies stay skipped (see should_attempt_self_host);
+/// their thin facades (emit.kab, parser.kab, …) are attemptable — see
+/// `self_host_vm_cores_not_in_skip_list` and the `*_facade_full_compile` tests below.
 #[test]
 fn self_host_heavy_cores_still_skipped() {
     use kabootar_lib::compile::compile_file_self_host;
     for name in [
-        "emit.kab",
-        "parser.kab",
-        "compile.kab",
-        "serialize.kab",
-        "vm_impl.kab",
+        "emit_impl.kab",
+        "parser_impl.kab",
+        "lexer_impl.kab",
+        "serialize_impl.kab",
+        "vm_run.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         let err = compile_file_self_host(&path).unwrap_err();
@@ -1951,17 +1953,150 @@ fn self_host_heavy_cores_still_skipped() {
     }
 }
 
-/// Gate only: deserialize/vm must not hit the skip list (full compile stays #[ignore]).
+/// Gate only: deserialize/vm/H6e facades must not hit the skip list (compile.kab
+/// was always tiny; emit/parser/lexer/serialize/vm_impl are now thin facades over
+/// their skip-listed `_impl`/`_run` bodies — see `*_facade_full_compile` tests below
+/// for the actual CI-fast self-host compile+run gate).
 #[test]
 fn self_host_vm_cores_not_in_skip_list() {
     use kabootar_lib::compile::self_host_is_attemptable;
-    for name in ["deserialize.kab", "vm.kab"] {
+    for name in [
+        "deserialize.kab",
+        "vm.kab",
+        "compile.kab",
+        "emit.kab",
+        "parser.kab",
+        "lexer.kab",
+        "serialize.kab",
+        "vm_impl.kab",
+    ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         assert!(
             self_host_is_attemptable(&path),
             "{name} should be self-host attemptable"
         );
     }
+}
+
+/// H6e: each heavy core's thin facade must self-host-compile in CI-fast time
+/// (<10s) — the facade's own source is a two-line import + `pub let` alias, so
+/// `compile self_host/X.kab --self-host` never touches the skip-listed `_impl`
+/// body (which is loaded by the Rust module loader when the compiled bytecode
+/// is later run/imported).
+fn assert_facade_self_host_compile_fast(name: &str) {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    use std::time::Instant;
+
+    let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
+    let path2 = path.clone();
+    let name2 = name.to_string();
+    let (backend, has_bc, elapsed_ms) = std::thread::Builder::new()
+        .name("sh-facade".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let t0 = Instant::now();
+            let (program, backend) =
+                compile_file_prefer(&path2, CompilePrefer::SelfHostOnly).expect("compile");
+            (backend, program.has_bytecode(), t0.elapsed().as_millis())
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(has_bc, "{name2} facade should produce bytecode");
+    assert_eq!(backend, "self-host", "{name2} facade should self-host-compile");
+    assert!(
+        elapsed_ms < 10_000,
+        "{name2} facade self-host compile took {elapsed_ms}ms, expected <10s"
+    );
+}
+
+#[test]
+fn self_host_serialize_facade_full_compile() {
+    assert_facade_self_host_compile_fast("serialize.kab");
+}
+
+#[test]
+fn self_host_lexer_facade_full_compile() {
+    assert_facade_self_host_compile_fast("lexer.kab");
+}
+
+#[test]
+fn self_host_parser_facade_full_compile() {
+    assert_facade_self_host_compile_fast("parser.kab");
+}
+
+#[test]
+fn self_host_emit_facade_full_compile() {
+    assert_facade_self_host_compile_fast("emit.kab");
+}
+
+#[test]
+fn self_host_vm_impl_facade_full_compile() {
+    assert_facade_self_host_compile_fast("vm_impl.kab");
+}
+
+#[test]
+fn self_host_compile_facade_full_compile() {
+    assert_facade_self_host_compile_fast("compile.kab");
+}
+
+/// H6e stricter kab-only: self-host-compile a tiny snippet via the (now CI-fast)
+/// facade pipeline, then run the resulting bytecode under KABOOTAR_VM=kab-only
+/// (no Rust host `run_module` fallback allowed).
+#[test]
+fn h6e_kab_only_selfhost_compile_run() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::{compile_source_self_host, CompilePrefer};
+    use kabootar_lib::value::{format_value, Value};
+
+    let _ = CompilePrefer::SelfHostOnly; // documents intent; compile_source_self_host is always self-host
+    let src = "let n = 10\nreturn n + 32";
+    let program = std::thread::Builder::new()
+        .name("h6e-kab-only-sh".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile tiny snippet"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(program.has_bytecode(), "tiny snippet should self-host-compile to bytecode");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize self-host .kbc");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    // `Value` (Rc-based) is not Send — format to a String inside the thread before
+    // crossing the join boundary.
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("h6e-kab-only-run".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 2,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run self-host-compiled snippet under kab-only");
+    assert_eq!(
+        formatted, "42",
+        "let n = 10; return n + 32 under kab-only via self-host facade pipeline"
+    );
+    let _: Option<Value> = None;
 }
 
 #[test]

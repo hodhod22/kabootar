@@ -48,18 +48,21 @@ impl CompilePrefer {
     }
 }
 
-/// Skip self-host for heavy emit/parser/vm_impl cores. Thin `vm.kab` and
-/// `deserialize` may self-host when ≤64KB (`import` of heavy cores still uses
-/// Rust via `load_program_for_file`).
+/// Skip self-host for heavy emit/parser/lexer/serialize/vm cores. H6e: these all
+/// now have thin `pub let X = Ximpl` facades (see e.g. self_host/vm.kab,
+/// self_host/vm_impl.kab) whose own source is tiny, so only the `_impl`/`_run`
+/// bodies below need to stay skip-listed — the facades (`emit.kab`, `parser.kab`,
+/// `lexer.kab`, `serialize.kab`, `vm_impl.kab`, `compile.kab`) self-host-compile
+/// in CI-fast time and are intentionally NOT in this list. `import` of the heavy
+/// cores still uses Rust via `load_program_for_file`.
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
     let core = [
-        "self_host/emit.kab",
-        "self_host/parser.kab",
-        "self_host/lexer.kab",
-        "self_host/compile.kab",
-        "self_host/serialize.kab",
-        "self_host/vm_impl.kab",
+        "self_host/emit_impl.kab",
+        "self_host/parser_impl.kab",
+        "self_host/lexer_impl.kab",
+        "self_host/serialize_impl.kab",
+        "self_host/vm_run.kab",
     ];
     for c in core {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
@@ -73,12 +76,7 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         .unwrap_or("");
     if matches!(
         base,
-        "emit.kab"
-            | "parser.kab"
-            | "lexer.kab"
-            | "compile.kab"
-            | "serialize.kab"
-            | "vm_impl.kab"
+        "emit_impl.kab" | "parser_impl.kab" | "lexer_impl.kab" | "serialize_impl.kab" | "vm_run.kab"
     ) && norm.contains("self_host")
     {
         return false;
