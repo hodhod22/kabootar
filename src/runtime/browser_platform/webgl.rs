@@ -1346,6 +1346,9 @@ pub fn info() -> HashMap<String, String> {
     o.insert("depth".into(), "z-buffer".into());
     o.insert("gpu3d".into(), gpu3d::info_line().into());
     o.insert("gpu3d_last".into(), gpu3d::last_draw_line().into());
+    for (k, v) in gpu3d::shader_cache_info() {
+        o.insert(format!("wgsl_{k}"), v);
+    }
     o.insert("textures".into(), "createTexture+texImage2D".into());
     o.insert("framebuffer".into(), "createFramebuffer+bind+texture2D".into());
     o.insert("glsl_files".into(), "compileShaderFromFiles".into());

@@ -4,6 +4,7 @@
 
 ```bash
 kabootar mod init api
+# or: kabootar mod init game | game3d
 kabootar compile main.kab  # bytecode-cache (v2.18)
 kabootar serve --watch --port 8080 main.kab
 ```
@@ -23,7 +24,7 @@ greet = "1.0.0"
 | Fält | Beskrivning |
 |------|-------------|
 | `version` | Projektsversion |
-| `template` | `web` eller `api` |
+| `template` | `web`, `api`, `game` eller `game3d` |
 | `entry` | Startfil (standard `main.kab`) |
 | `port` | HTTP-port för `kabootar serve` |
 | `[dependencies]` | Modulversioner (matchar `@version` i `.kab`) |

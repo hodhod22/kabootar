@@ -46,6 +46,28 @@ fn mod_init_writes_template_files() {
 }
 
 #[test]
+fn mod_init_game_and_game3d_templates() {
+    let dir = std::env::temp_dir().join(format!("kabootar_game_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    templates::write_project("game", &dir).unwrap();
+    assert!(dir.join("main.kab").is_file());
+    let toml = fs::read_to_string(dir.join("kabootar.toml")).unwrap();
+    assert!(toml.contains("template = \"game\""));
+
+    let dir3 = std::env::temp_dir().join(format!("kabootar_game3d_{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir3);
+    fs::create_dir_all(&dir3).unwrap();
+    templates::write_project("game3d", &dir3).unwrap();
+    assert!(dir3.join("main.kab").is_file());
+    assert!(dir3.join("shaders/solid.wgsl").is_file());
+    let toml3 = fs::read_to_string(dir3.join("kabootar.toml")).unwrap();
+    assert!(toml3.contains("template = \"game3d\""));
+    let _ = fs::remove_dir_all(&dir);
+    let _ = fs::remove_dir_all(&dir3);
+}
+
+#[test]
 fn run_file_evaluates_expression() {
     let dir = std::env::temp_dir().join(format!("kabootar_run_{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);

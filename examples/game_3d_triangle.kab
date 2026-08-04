@@ -1,0 +1,16 @@
+// GP4e — textured 3D triangle smoke (one present).
+import "game/render"
+
+platform_use("kabootar")
+let surf = game_surface_create_3d(64, 64)
+let gl = surf["gl"]
+gl.lookAt(0, 0, 2.5, 0, 0, 0, 0, 1, 0)
+setColor(gl, 0.15, 0.7, 1.0, 1.0)
+let mesh = createMesh(gl, [
+    -0.6, -0.5, 0.0,
+     0.6, -0.5, 0.0,
+     0.0,  0.6, 0.0
+])
+drawMesh(mesh)
+surf.present()
+surf["mode"]

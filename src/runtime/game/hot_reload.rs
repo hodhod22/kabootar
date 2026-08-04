@@ -52,6 +52,9 @@ pub fn poll() -> Result<Vec<String>, String> {
                 crate::compile::invalidate_file_cache(&key);
                 crate::modules::invalidate_module_export_cache(&key);
             }
+            if key.ends_with(".wgsl") {
+                let _ = crate::runtime::render::gpu3d::reload_wgsl_path(&key);
+            }
             changed.push(key);
         }
     }

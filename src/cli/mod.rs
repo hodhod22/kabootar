@@ -457,7 +457,7 @@ fn mod_cmd(args: &[String]) -> i32 {
         Some("init") => mod_init(&args[1..]),
         Some("run") => mod_run(),
         _ => {
-            eprintln!("Usage: kabootar mod init <web|api> | kabootar mod run");
+            eprintln!("Usage: kabootar mod init <web|api|game|game3d> | kabootar mod run");
             1
         }
     }
@@ -514,14 +514,24 @@ pub mod templates {
     use std::path::Path;
 
     pub fn write_project(template: &str, dir: &Path) -> Result<(), String> {
-        let (toml, main_kab, extra): (&str, &str, Option<(&str, &str)>) = match template {
+        let (toml, main_kab, extras): (&str, &str, &[(&str, &str)]) = match template {
             "web" => (
                 TEMPLATE_TOML_WEB,
                 TEMPLATE_MAIN_WEB,
-                Some(("index.html", TEMPLATE_INDEX_HTML)),
+                &[("index.html", TEMPLATE_INDEX_HTML)],
             ),
-            "api" => (TEMPLATE_TOML_API, TEMPLATE_MAIN_API, None),
-            _ => return Err(format!("Unknown template \"{template}\". Use web or api.")),
+            "api" => (TEMPLATE_TOML_API, TEMPLATE_MAIN_API, &[]),
+            "game" => (TEMPLATE_TOML_GAME, TEMPLATE_MAIN_GAME, &[]),
+            "game3d" => (
+                TEMPLATE_TOML_GAME3D,
+                TEMPLATE_MAIN_GAME3D,
+                &[("shaders/solid.wgsl", TEMPLATE_SOLID_WGSL)],
+            ),
+            _ => {
+                return Err(format!(
+                    "Unknown template \"{template}\". Use web, api, game, or game3d."
+                ))
+            }
         };
 
         write_if_missing(&dir.join("kabootar.toml"), toml)?;
@@ -529,8 +539,13 @@ pub mod templates {
         fs::create_dir_all(dir.join("lib"))
             .map_err(|e| format!("Failed to create lib/: {e}"))?;
 
-        if let Some((name, content)) = extra {
-            write_if_missing(&dir.join(name), content)?;
+        for (name, content) in extras {
+            let path = dir.join(name);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create {}: {e}", parent.display()))?;
+            }
+            write_if_missing(&path, content)?;
         }
         Ok(())
     }
@@ -598,5 +613,111 @@ pub fn create_item() {
   <p>Backend körs med <code>kabootar serve --watch main.kab</code></p>
 </body>
 </html>
+"#;
+
+    const TEMPLATE_TOML_GAME: &str = r#"version = "0.1.0"
+template = "game"
+entry = "main.kab"
+
+[dependencies]
+"#;
+
+    const TEMPLATE_TOML_GAME3D: &str = r#"version = "0.1.0"
+template = "game3d"
+entry = "main.kab"
+
+[dependencies]
+"#;
+
+    const TEMPLATE_MAIN_GAME: &str = r##"@version "0.1.0"
+import "game/input"
+import "game/time"
+import "game/physics"
+
+platform_use("kabootar")
+let surf = game_surface_create(320, 240)
+let ctx = surf["ctx"]
+let player = { x: 40.0, y: 100.0, w: 24.0, h: 24.0 }
+let wall = { x: 200.0, y: 80.0, w: 40.0, h: 80.0 }
+let actions = createActions({ left: ["ArrowLeft", "KeyA"], right: ["ArrowRight", "KeyD"] })
+let clock = createFixed(1.0 / 60.0)
+
+fn onFixed(dt) {
+    let dx = 0.0
+    if actionPressed(actions, "left") { dx = dx - 120.0 * dt }
+    if actionPressed(actions, "right") { dx = dx + 120.0 * dt }
+    player["x"] = player["x"] + dx
+    if aabbOverlap(player, wall) {
+        player = resolveAabb(player, wall)
+    }
+}
+
+fn game_loop(dtMs) {
+    fixedTick(clock, dtSec(dtMs), onFixed)
+    ctx.fillStyle = "#101820"
+    ctx.fillRect(0, 0, 320, 240)
+    ctx.fillStyle = "#44cc88"
+    ctx.fillRect(player["x"], player["y"], player["w"], player["h"])
+    ctx.fillStyle = "#cc5544"
+    ctx.fillRect(wall["x"], wall["y"], wall["w"], wall["h"])
+    surf.present()
+    requestAnimationFrame(game_loop)
+}
+
+requestAnimationFrame(game_loop)
+"##;
+
+    const TEMPLATE_MAIN_GAME3D: &str = r#"@version "0.1.0"
+import "game/render"
+import "game/shader"
+
+platform_use("kabootar")
+let surf = game_surface_create_3d(320, 240)
+let gl = surf["gl"]
+loadSolidFromFile("shaders/solid.wgsl")
+gl.lookAt(0, 0, 3, 0, 0, 0, 0, 1, 0)
+setColor(gl, 0.2, 0.7, 1.0, 1.0)
+let mesh = createMesh(gl, [
+    -0.5, -0.5, 0.5,
+     0.5, -0.5, 0.5,
+     0.0,  0.5, 0.5
+])
+drawMesh(mesh)
+surf.present()
+"game3d-ok"
+"#;
+
+    const TEMPLATE_SOLID_WGSL: &str = r#"struct FrameUniforms {
+    view_proj: mat4x4<f32>,
+}
+
+struct MaterialUniforms {
+    model: mat4x4<f32>,
+    color: vec4<f32>,
+    uv_xform: vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> frame: FrameUniforms;
+@group(1) @binding(0) var<uniform> mat: MaterialUniforms;
+
+struct VertexIn {
+    @location(0) position: vec3<f32>,
+}
+
+struct VertexOut {
+    @builtin(position) clip: vec4<f32>,
+}
+
+@vertex
+fn vs_main(in: VertexIn) -> VertexOut {
+    var out: VertexOut;
+    out.clip = frame.view_proj * mat.model * vec4<f32>(in.position, 1.0);
+    return out;
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4<f32> {
+    return mat.color;
+}
 "#;
 }

@@ -83,6 +83,63 @@ pub fn render_frame(frame: &Gpu3dFrame) -> Result<Vec<u8>, String> {
     }
 }
 
+/// GP0e: compile/cache WGSL for `solid` or `textured` pipeline.
+/// Returns `{ hash, cache_hit, kind, reload_count }`.
+pub fn load_wgsl(
+    kind: &str,
+    source: &str,
+    path: Option<&str>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    #[cfg(feature = "gpu")]
+    {
+        let (hash, hit) = imp::load_wgsl(kind, source, path)?;
+        let mut o = imp::shader_cache_info();
+        o.insert("hash".into(), format!("{hash:x}"));
+        o.insert("cache_hit".into(), if hit { "true" } else { "false" }.into());
+        o.insert("kind".into(), kind.to_ascii_lowercase());
+        return Ok(o);
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        let _ = (kind, source, path);
+        Err("gpu feature disabled".into())
+    }
+}
+
+pub fn load_wgsl_from_file(
+    kind: &str,
+    path: &str,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let source = std::fs::read_to_string(path)
+        .map_err(|e| format!("gpu3d load_wgsl_from_file {path}: {e}"))?;
+    load_wgsl(kind, &source, Some(path))
+}
+
+pub fn reload_wgsl_path(path: &str) -> Result<bool, String> {
+    #[cfg(feature = "gpu")]
+    {
+        return imp::reload_from_path(path);
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        let _ = path;
+        Ok(false)
+    }
+}
+
+pub fn shader_cache_info() -> std::collections::HashMap<String, String> {
+    #[cfg(feature = "gpu")]
+    {
+        return imp::shader_cache_info();
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        let mut o = std::collections::HashMap::new();
+        o.insert("status".into(), "gpu-disabled".into());
+        o
+    }
+}
+
 #[cfg(feature = "gpu")]
 mod imp {
     use super::Gpu3dFrame;
@@ -190,6 +247,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         solid: Pipe,
         textured: Pipe,
         targets: Option<Targets>,
+        /// GP0e: content hash of active solid WGSL (0 = built-in default).
+        solid_hash: u64,
+        textured_hash: u64,
+        /// Watched path → "solid" | "textured"
+        wgsl_paths: std::collections::HashMap<String, String>,
+        reload_count: u32,
     }
 
     static STATE: OnceLock<Mutex<Option<State>>> = OnceLock::new();
@@ -335,10 +398,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         device: &wgpu::Device,
         frame_layout: &wgpu::BindGroupLayout,
         sample_count: u32,
+        wgsl: &str,
     ) -> Pipe {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("kabootar-3d-solid"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER_SOLID)),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl)),
         });
         let material_layout = make_solid_material_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -407,10 +471,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         device: &wgpu::Device,
         frame_layout: &wgpu::BindGroupLayout,
         sample_count: u32,
+        wgsl: &str,
     ) -> Pipe {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("kabootar-3d-tex"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(SHADER_TEXTURED)),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl)),
         });
         let material_layout = make_textured_material_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -482,6 +547,14 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         }
     }
 
+    fn hash_wgsl(source: &str) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut h = DefaultHasher::new();
+        source.hash(&mut h);
+        h.finish()
+    }
+
     fn ensure_state(device: &wgpu::Device) -> Result<(), String> {
         let mut guard = state_slot()
             .lock()
@@ -491,16 +564,103 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
         }
         let sample_count = detect_sample_count();
         let frame_layout = make_frame_layout(device);
-        let solid = make_solid_pipe(device, &frame_layout, sample_count);
-        let textured = make_textured_pipe(device, &frame_layout, sample_count);
+        let solid = make_solid_pipe(device, &frame_layout, sample_count, SHADER_SOLID);
+        let textured = make_textured_pipe(device, &frame_layout, sample_count, SHADER_TEXTURED);
         *guard = Some(State {
             sample_count,
             frame_layout,
             solid,
             textured,
             targets: None,
+            solid_hash: hash_wgsl(SHADER_SOLID),
+            textured_hash: hash_wgsl(SHADER_TEXTURED),
+            wgsl_paths: std::collections::HashMap::new(),
+            reload_count: 0,
         });
         Ok(())
+    }
+
+    /// GP0e: load WGSL for solid|textured pipeline; rebuild only on content change.
+    pub fn load_wgsl(kind: &str, source: &str, path: Option<&str>) -> Result<(u64, bool), String> {
+        if !gpu::gpu_available() {
+            crate::runtime::render::probe_gpu();
+        }
+        if !gpu::gpu_available() {
+            return Err("gpu3d: no adapter for WGSL load".into());
+        }
+        let kind = kind.to_ascii_lowercase();
+        if kind != "solid" && kind != "textured" {
+            return Err("gpu3d load_wgsl kind must be solid or textured".into());
+        }
+        let new_hash = hash_wgsl(source);
+        gpu::with_gpu(|device, _queue| {
+            ensure_state(device)?;
+            let mut guard = state_slot()
+                .lock()
+                .map_err(|_| "gpu3d lock poisoned".to_string())?;
+            let state = guard.as_mut().ok_or("gpu3d pipeline missing")?;
+            let cache_hit = if kind == "solid" {
+                state.solid_hash == new_hash
+            } else {
+                state.textured_hash == new_hash
+            };
+            if !cache_hit {
+                if kind == "solid" {
+                    state.solid =
+                        make_solid_pipe(device, &state.frame_layout, state.sample_count, source);
+                    state.solid_hash = new_hash;
+                } else {
+                    state.textured =
+                        make_textured_pipe(device, &state.frame_layout, state.sample_count, source);
+                    state.textured_hash = new_hash;
+                }
+                state.reload_count = state.reload_count.saturating_add(1);
+            }
+            if let Some(p) = path {
+                state
+                    .wgsl_paths
+                    .insert(p.replace('\\', "/"), kind.clone());
+            }
+            Ok((new_hash, cache_hit))
+        })
+    }
+
+    pub fn reload_from_path(path: &str) -> Result<bool, String> {
+        let key = path.replace('\\', "/");
+        let kind = {
+            let guard = state_slot()
+                .lock()
+                .map_err(|_| "gpu3d lock poisoned".to_string())?;
+            guard
+                .as_ref()
+                .and_then(|s| s.wgsl_paths.get(&key).cloned())
+        };
+        let Some(kind) = kind else {
+            return Ok(false);
+        };
+        let source = std::fs::read_to_string(&key)
+            .map_err(|e| format!("gpu3d reload {key}: {e}"))?;
+        let (_hash, hit) = load_wgsl(&kind, &source, Some(&key))?;
+        Ok(!hit)
+    }
+
+    pub fn shader_cache_info() -> std::collections::HashMap<String, String> {
+        let mut o = std::collections::HashMap::new();
+        let Ok(guard) = state_slot().lock() else {
+            o.insert("status".into(), "lock-error".into());
+            return o;
+        };
+        let Some(state) = guard.as_ref() else {
+            o.insert("status".into(), "uninitialized".into());
+            o.insert("reload_count".into(), "0".into());
+            return o;
+        };
+        o.insert("status".into(), "ready".into());
+        o.insert("reload_count".into(), state.reload_count.to_string());
+        o.insert("solid_hash".into(), format!("{:x}", state.solid_hash));
+        o.insert("textured_hash".into(), format!("{:x}", state.textured_hash));
+        o.insert("watched".into(), state.wgsl_paths.len().to_string());
+        o
     }
 
     fn ensure_targets(device: &wgpu::Device, width: u32, height: u32) -> Result<(), String> {

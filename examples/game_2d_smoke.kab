@@ -1,0 +1,22 @@
+// GP4e — 2D game smoke: surface + input + physics AABB (one frame).
+import "game/physics"
+import "game/input"
+
+platform_use("kabootar")
+let surf = game_surface_create(160, 120)
+let ctx = surf["ctx"]
+let player = { x: 20.0, y: 40.0, w: 16.0, h: 16.0 }
+let wall = { x: 28.0, y: 40.0, w: 20.0, h: 20.0 }
+input_key_down("ArrowRight")
+player["x"] = player["x"] + 12.0
+if aabbOverlap(player, wall) {
+    player = resolveAabb(player, wall)
+}
+ctx.fillStyle = "#102030"
+ctx.fillRect(0, 0, 160, 120)
+ctx.fillStyle = "#40c080"
+ctx.fillRect(player["x"], player["y"], player["w"], player["h"])
+ctx.fillStyle = "#c05040"
+ctx.fillRect(wall["x"], wall["y"], wall["w"], wall["h"])
+surf.present()
+aabbOverlap(player, wall) == false

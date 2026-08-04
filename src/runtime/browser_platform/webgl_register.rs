@@ -447,6 +447,28 @@ fn gl_compile_shader_from_files_native(
     Ok(Value::Object(o))
 }
 
+fn hashmap_str_to_value(m: std::collections::HashMap<String, String>) -> Value {
+    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+}
+
+fn gl_load_wgsl_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _id = gl_id_from_receiver(args)?;
+    let kind = str_arg(args, 1)?;
+    let source = str_arg(args, 2)?;
+    Ok(hashmap_str_to_value(crate::runtime::render::gpu3d::load_wgsl(
+        &kind, &source, None,
+    )?))
+}
+
+fn gl_load_wgsl_from_file_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _id = gl_id_from_receiver(args)?;
+    let kind = str_arg(args, 1)?;
+    let path = str_arg(args, 2)?;
+    Ok(hashmap_str_to_value(
+        crate::runtime::render::gpu3d::load_wgsl_from_file(&kind, &path)?,
+    ))
+}
+
 fn attach_gl_methods(o: &mut HashMap<String, Value>) {
     o.insert("clearColor".into(), Value::NativeFunction(gl_clear_color_native));
     o.insert("clear".into(), Value::NativeFunction(gl_clear_native));
@@ -493,6 +515,11 @@ fn attach_gl_methods(o: &mut HashMap<String, Value>) {
     o.insert(
         "compileShaderFromFiles".into(),
         Value::NativeFunction(gl_compile_shader_from_files_native),
+    );
+    o.insert("loadWgsl".into(), Value::NativeFunction(gl_load_wgsl_native));
+    o.insert(
+        "loadWgslFromFile".into(),
+        Value::NativeFunction(gl_load_wgsl_from_file_native),
     );
     o.insert("TEXTURE_2D".into(), Value::String("texture_2d".into()));
     o.insert("ARRAY_BUFFER".into(), Value::String("array".into()));

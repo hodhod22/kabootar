@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// Kabootar game/physics — 2D AABB / circle overlap (GP3a subset).
+// Bodies: { x, y, w, h } or { x, y, r }.
+// import "game/physics"
+
+pub fn aabbOverlap(a, b) {
+    return a["x"] < b["x"] + b["w"]
+        && a["x"] + a["w"] > b["x"]
+        && a["y"] < b["y"] + b["h"]
+        && a["y"] + a["h"] > b["y"]
+}
+
+pub fn circleOverlap(a, b) {
+    let dx = a["x"] - b["x"]
+    let dy = a["y"] - b["y"]
+    let rr = a["r"] + b["r"]
+    return dx * dx + dy * dy <= rr * rr
+}
+
+// Push `moving` out of `solid` along the shallowest axis. Returns updated body.
+pub fn resolveAabb(moving, solid) {
+    let ax0 = moving["x"]
+    let ay0 = moving["y"]
+    let ax1 = ax0 + moving["w"]
+    let ay1 = ay0 + moving["h"]
+    let bx0 = solid["x"]
+    let by0 = solid["y"]
+    let bx1 = bx0 + solid["w"]
+    let by1 = by0 + solid["h"]
+    let overlapLeft = ax1 - bx0
+    let overlapRight = bx1 - ax0
+    let overlapX = overlapLeft
+    if overlapRight < overlapX {
+        overlapX = overlapRight
+    }
+    let overlapTop = ay1 - by0
+    let overlapBottom = by1 - ay0
+    let overlapY = overlapTop
+    if overlapBottom < overlapY {
+        overlapY = overlapBottom
+    }
+    let out = {
+        x: moving["x"],
+        y: moving["y"],
+        w: moving["w"],
+        h: moving["h"]
+    }
+    if overlapX < overlapY {
+        let midA = (ax0 + ax1) / 2.0
+        let midB = (bx0 + bx1) / 2.0
+        if midA < midB {
+            out["x"] = bx0 - moving["w"]
+        } else {
+            out["x"] = bx1
+        }
+    } else {
+        let midA = (ay0 + ay1) / 2.0
+        let midB = (by0 + by1) / 2.0
+        if midA < midB {
+            out["y"] = by0 - moving["h"]
+        } else {
+            out["y"] = by1
+        }
+    }
+    return out
+}
