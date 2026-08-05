@@ -415,6 +415,104 @@ fn job_map(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     Ok(Value::Array(out))
 }
 
+fn apply_f64_op(x: f64, op: &str) -> Result<f64, String> {
+    match op {
+        "id" | "identity" => Ok(x),
+        "neg" => Ok(-x),
+        "abs" => Ok(x.abs()),
+        "square" | "sq" => Ok(x * x),
+        "double" => Ok(x * 2.0),
+        "sqrt" => Ok(x.max(0.0).sqrt()),
+        "relu" => Ok(x.max(0.0)),
+        _ => Err(format!("job_map_parallel: unknown op '{op}'")),
+    }
+}
+
+fn parallel_f64_map(xs: &[f64], op: &str, n_workers: usize) -> Result<Vec<f64>, String> {
+    let _ = apply_f64_op(0.0, op)?; // validate op early
+    let n = xs.len();
+    if n == 0 {
+        return Ok(vec![]);
+    }
+    let workers = n_workers.clamp(1, 32).min(n);
+    if workers == 1 || n < 64 {
+        return xs.iter().map(|x| apply_f64_op(*x, op)).collect();
+    }
+    let mut out = vec![0.0; n];
+    let chunk = (n + workers - 1) / workers;
+    let op = op.to_string();
+    std::thread::scope(|scope| {
+        let mut starts = Vec::new();
+        for w in 0..workers {
+            let start = w * chunk;
+            if start >= n {
+                break;
+            }
+            starts.push(start);
+        }
+        let mut rest = out.as_mut_slice();
+        let mut offset = 0usize;
+        for (idx, start) in starts.iter().enumerate() {
+            let end = if idx + 1 < starts.len() {
+                starts[idx + 1]
+            } else {
+                n
+            };
+            let len = end - start;
+            let (dst, tail) = rest.split_at_mut(len);
+            rest = tail;
+            let src = &xs[*start..end];
+            let op = op.clone();
+            let _ = offset;
+            offset = end;
+            scope.spawn(move || {
+                for (i, x) in src.iter().enumerate() {
+                    dst[i] = apply_f64_op(*x, &op).unwrap_or(*x);
+                }
+            });
+        }
+    });
+    Ok(out)
+}
+
+/// job_map_parallel(items, fn|op, nWorkers?)
+/// - String op on number arrays → real OS-thread chunk map (SC4c)
+/// - Function → sequential Kab fallback (Environment is !Send)
+fn job_map_parallel(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let items = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("job_map_parallel(items, fn|op) expects array".into()),
+    };
+    let n_workers = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|n| n.get() as f64)
+                .unwrap_or(4.0)
+                .min(8.0)
+        })
+        .clamp(1.0, 32.0) as usize;
+
+    match args.get(1) {
+        Some(Value::String(op)) => {
+            let xs: Vec<f64> = items.iter().map(num).collect::<Result<_, _>>()?;
+            let out = parallel_f64_map(&xs, op, n_workers)?;
+            Ok(vector_out(&out))
+        }
+        Some(f) => {
+            let mut out = Vec::with_capacity(items.len());
+            for item in items {
+                let v =
+                    crate::bytecode::call_value(f.clone(), vec![item], &[], &[], &[], &[], env)?;
+                out.push(v);
+            }
+            Ok(Value::Array(out))
+        }
+        None => Err("job_map_parallel: missing fn|op".into()),
+    }
+}
+
 fn value_to_json(v: &Value) -> Result<serde_json::Value, String> {
     match v {
         Value::Null | Value::Undefined => Ok(serde_json::Value::Null),
@@ -541,4 +639,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         ml_load_checkpoint,
     );
     bind(&["science_job_map", "job_map"], job_map);
+    bind(&["science_job_map_parallel", "job_map_parallel"], job_map_parallel);
 }

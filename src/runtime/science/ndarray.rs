@@ -735,6 +735,30 @@ fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     ))
 }
 
+/// Blocked GEMM (SC4a) — cache-friendly BLAS-style hotpath.
+fn gemm_blocked(m: usize, k: usize, n: usize, a: &[f64], b: &[f64]) -> Vec<f64> {
+    const BS: usize = 32;
+    let mut out = vec![0.0; m * n];
+    for ii in (0..m).step_by(BS) {
+        for jj in (0..n).step_by(BS) {
+            for kk in (0..k).step_by(BS) {
+                let i_lim = (ii + BS).min(m);
+                let j_lim = (jj + BS).min(n);
+                let k_lim = (kk + BS).min(k);
+                for i in ii..i_lim {
+                    for t in kk..k_lim {
+                        let av = a[i * k + t];
+                        for j in jj..j_lim {
+                            out[i * n + j] += av * b[t * n + j];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 fn nd_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_matmul")?;
     let (sb, b) = nd_at(args, 1, "nd_matmul")?;
@@ -746,17 +770,21 @@ fn nd_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     if k != k2 {
         return Err("nd_matmul: inner dims must match".into());
     }
-    let mut out = vec![0.0; m * n];
-    for i in 0..m {
-        for j in 0..n {
-            let mut s = 0.0;
-            for t in 0..k {
-                s += a[i * k + t] * b[t * n + j];
-            }
-            out[i * n + j] = s;
-        }
-    }
+    let out = gemm_blocked(m, k, n, &a, &b);
     Ok(nd_out(&[m, n], &out))
+}
+
+/// sci_gemm(aFlat, m, k, bFlat, n) — flat blocked GEMM hotpath (SC4a).
+fn sci_gemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = vector_at(args, 0, "sci_gemm")?;
+    let m = num_at(args, 1, "sci_gemm")? as usize;
+    let k = num_at(args, 2, "sci_gemm")? as usize;
+    let b = vector_at(args, 3, "sci_gemm")?;
+    let n = num_at(args, 4, "sci_gemm")? as usize;
+    if m == 0 || k == 0 || n == 0 || a.len() != m * k || b.len() != k * n {
+        return Err("sci_gemm: size mismatch".into());
+    }
+    Ok(vector_out(&gemm_blocked(m, k, n, &a, &b)))
 }
 
 /// Gaussian elimination with partial pivoting for square Ax=b (SC1b).
@@ -1082,4 +1110,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sci_vadd", "sci_vadd"], sci_vadd);
     bind(&["science_sci_vmul", "sci_vmul"], sci_vmul);
     bind(&["science_sci_dot", "sci_dot"], sci_dot);
+    bind(&["science_sci_gemm", "sci_gemm"], sci_gemm);
 }

@@ -21,3 +21,11 @@ pub fn rk4(f, y0, t0, dt) {
 pub fn odeint(f, y0, t0, t1, nSteps) {
     return num_odeint(f, y0, t0, t1, nSteps)
 }
+
+pub fn odeintAdaptive(f, y0, t0, t1, atol, rtol, maxSteps) {
+    return num_odeint_adaptive(f, y0, t0, t1, atol, rtol, maxSteps)
+}
+
+pub fn quad(f, a, b, tol, maxDepth) {
+    return num_quad(f, a, b, tol, maxDepth)
+}
