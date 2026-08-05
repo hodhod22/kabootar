@@ -216,9 +216,47 @@ pub enum Value {
     DeviceHandle(DeviceHandle),
     /// Opt-in `@manual` memory buffer (os_mem region). Move/drop via shared slot.
     Owned(OwnedBuf),
+    /// Shared f64 buffer for ndarray views (`Rc` — no dangling while any view/owner lives).
+    NdShared(NdShared),
     Break,
     Continue,
     Fallthrough,
+}
+
+/// Refcounted f64 storage for zero-copy ndarray views (SC0f).
+/// Cloning an `NdShared` increments `Rc` — views stay valid until the last handle drops.
+#[derive(Debug, Clone)]
+pub struct NdShared {
+    pub data: Rc<Vec<f64>>,
+}
+
+impl NdShared {
+    pub fn new(data: Vec<f64>) -> Self {
+        Self {
+            data: Rc::new(data),
+        }
+    }
+
+    pub fn from_rc(data: Rc<Vec<f64>>) -> Self {
+        Self { data }
+    }
+
+    pub fn as_slice(&self) -> &[f64] {
+        &self.data
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn strong_count(&self) -> usize {
+        Rc::strong_count(&self.data)
+    }
+
+    /// Copy-on-write when other views share the buffer.
+    pub fn make_mut(&mut self) -> &mut Vec<f64> {
+        Rc::make_mut(&mut self.data)
+    }
 }
 
 /// Manual-heap buffer handle. Cloning shares the slot; `take_move` / `take_drop` empty it.
@@ -1047,6 +1085,7 @@ pub fn format_value(val: &Value) -> String {
                 "<owned (moved)>".to_string()
             }
         }
+        Value::NdShared(buf) => format!("<nd buf len={} rc={}>", buf.len(), buf.strong_count()),
         Value::Range { start, end, step } => {
             if *step == 1 && *start == 0 {
                 format!("range({})", end)

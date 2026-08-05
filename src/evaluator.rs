@@ -1522,6 +1522,32 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
             let idx = eval_expr(idx_expr, env)?;
             crate::ops::read_index(&obj, &idx, env)
         }
+        Expr::Slice { start, stop, step } => {
+            let mut m = std::collections::HashMap::new();
+            m.insert("__kab_slice".into(), Value::Bool(true));
+            m.insert(
+                "start".into(),
+                match start {
+                    Some(e) => eval_expr(e, env)?,
+                    None => Value::Null,
+                },
+            );
+            m.insert(
+                "stop".into(),
+                match stop {
+                    Some(e) => eval_expr(e, env)?,
+                    None => Value::Null,
+                },
+            );
+            m.insert(
+                "step".into(),
+                match step {
+                    Some(e) => eval_expr(e, env)?,
+                    None => Value::Number(1),
+                },
+            );
+            Ok(Value::Object(m))
+        }
         Expr::Member(obj_expr, field, _) => {
             if matches!(obj_expr.as_ref(), Expr::Super) {
                 let this_val = env

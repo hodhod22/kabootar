@@ -204,6 +204,19 @@ pub fn read_index(
             let ch = s.chars().nth(i).unwrap();
             Ok(Value::String(ch.to_string()))
         }
+        (Value::Object(map), idx)
+            if matches!(map.get("__kab_nd"), Some(Value::Bool(true)))
+                && (matches!(idx, Value::Array(_))
+                    || matches!(
+                        idx,
+                        Value::Object(m) if matches!(m.get("__kab_slice"), Some(Value::Bool(true)))
+                    )) =>
+        {
+            crate::runtime::science::ndarray::nd_index_view_public(
+                &[container.clone(), idx.clone()],
+                env,
+            )
+        }
         (Value::Object(map), idx) => {
             if let Some(sym_id) = crate::runtime::stdlib::symbol::symbol_id(idx) {
                 return crate::runtime::stdlib::descriptor::get_own_symbol(

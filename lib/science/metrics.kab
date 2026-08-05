@@ -218,3 +218,12 @@ pub fn prAuc(y, scores) {
     }
     return area
 }
+
+/// MAE / R² over ndarray predictions (flat or matching shape).
+pub fn maeNd(y, pred) {
+    return mae(nd_to_array(y), nd_to_array(pred))
+}
+
+pub fn r2Nd(y, pred) {
+    return r2(nd_to_array(y), nd_to_array(pred))
+}

@@ -225,3 +225,24 @@ pub fn polyFeatures(x, degree) {
     }
     return out
 }
+
+/// Scale a 2D ndarray (rows×cols) via standardScale on nested arrays.
+pub fn standardScaleNd(a) {
+    let sh = nd_shape(a)
+    if len(sh) != 2 {
+        return null
+    }
+    let mat = []
+    let r = 0
+    while r < sh[0] {
+        let row = []
+        let c = 0
+        while c < sh[1] {
+            row = push(row, nd_get(a, [r, c]))
+            c = c + 1
+        }
+        mat = push(mat, row)
+        r = r + 1
+    }
+    return standardScale(mat)
+}

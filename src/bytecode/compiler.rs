@@ -1283,6 +1283,33 @@ impl Compiler {
                 self.emit(Opcode::IndexGet);
                 Ok(())
             }
+            Expr::Slice { start, stop, step } => {
+                // Args first, then callee (same as other Call sites).
+                match start {
+                    Some(e) => self.compile_expr(e)?,
+                    None => {
+                        let idx = self.const_index(Constant::Null);
+                        self.emit(Opcode::Const(idx));
+                    }
+                }
+                match stop {
+                    Some(e) => self.compile_expr(e)?,
+                    None => {
+                        let idx = self.const_index(Constant::Null);
+                        self.emit(Opcode::Const(idx));
+                    }
+                }
+                match step {
+                    Some(e) => self.compile_expr(e)?,
+                    None => {
+                        let idx = self.const_index(Constant::Number(1));
+                        self.emit(Opcode::Const(idx));
+                    }
+                }
+                self.emit_load_name("__nd_slice_spec");
+                self.emit(Opcode::Call(3));
+                Ok(())
+            }
             Expr::Member(obj, field, member_type_args) => {
                 if matches!(obj.as_ref(), Expr::Super) {
                     let idx = self.const_index(Constant::String(field.clone()));

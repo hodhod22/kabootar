@@ -408,6 +408,18 @@ impl Checker {
             | Expr::Pass
             | Expr::Fallthrough
             | Expr::ImportMeta => false,
+            Expr::Slice { start, stop, step } => {
+                if let Some(e) = start {
+                    self.check_expr(e, Consume::Peek);
+                }
+                if let Some(e) = stop {
+                    self.check_expr(e, Consume::Peek);
+                }
+                if let Some(e) = step {
+                    self.check_expr(e, Consume::Peek);
+                }
+                false
+            }
         }
     }
 

@@ -1,7 +1,11 @@
 @version "1.0.0"
 
-// Kabootar science/nd — ndarray wrappers (SC0d/e/f).
+// Kabootar science/nd — ndarray / tensor API (SC0 + zero-copy views).
 // Call after `import "science"` so nd_* natives exist.
+//
+// Zero-copy: `slice` / `a[1:10, :]` share an Rc buffer (`__buf`). Ownership =
+// refcount — buffers cannot dangle while any view lives. Mutate via
+// `ensureOwned` (COW) when you need a unique buffer.
 
 pub fn zeros(shape) {
     return nd_zeros(shape)
@@ -17,6 +21,26 @@ pub fn from(data, shape) {
 
 pub fn fromVec(data) {
     return nd_from(data)
+}
+
+pub fn shape(a) {
+    return nd_shape(a)
+}
+
+pub fn size(a) {
+    return nd_size(a)
+}
+
+pub fn reshape(a, shape) {
+    return nd_reshape(a, shape)
+}
+
+pub fn get(a, i) {
+    return nd_get(a, i)
+}
+
+pub fn set(a, i, v) {
+    return nd_set(a, i, v)
 }
 
 pub fn matmul(a, b) {
@@ -63,8 +87,26 @@ pub fn select(cond, x, y) {
     return nd_where(cond, x, y)
 }
 
+/// Zero-copy view: `slice(a, [[1,10], [0,3]])` shares parent buffer.
 pub fn slice(a, ranges) {
     return nd_slice(a, ranges)
+}
+
+pub fn isView(a) {
+    return nd_is_view(a)
+}
+
+pub fn bufRc(a) {
+    return nd_buf_rc(a)
+}
+
+/// Materialize a unique owned copy (COW for mutation).
+pub fn ensureOwned(a) {
+    return nd_ensure_owned(a)
+}
+
+pub fn toArray(a) {
+    return nd_to_array(a)
 }
 
 pub fn concat(arrays, axis) {
@@ -81,6 +123,14 @@ pub fn split(a, sections, axis) {
 
 pub fn mean(a) {
     return nd_mean(a)
+}
+
+pub fn sum(a) {
+    return nd_sum(a)
+}
+
+pub fn dot(a, b) {
+    return nd_dot(a, b)
 }
 
 pub fn dtype(a) {
@@ -115,7 +165,19 @@ pub fn gemm(a, m, k, b, n) {
     return sci_gemm(a, m, k, b, n)
 }
 
-/// BLAS-style DGEMM: C := alpha*A*B + beta*C (row-major flat).
+/// BLAS-style DGEMM (matrixmultiply SIMD kernels): C := alpha*A*B + beta*C.
 pub fn blasDgemm(a, m, k, b, n, alpha, beta, c) {
     return sci_blas_dgemm(a, m, k, b, n, alpha, beta, c)
+}
+
+pub fn vadd(a, b) {
+    return sci_vadd(a, b)
+}
+
+pub fn vmul(a, b) {
+    return sci_vmul(a, b)
+}
+
+pub fn vdot(a, b) {
+    return sci_dot(a, b)
 }

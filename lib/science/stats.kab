@@ -1,0 +1,88 @@
+@version "1.0.0"
+
+// SC6a / stats wrappers — import "science" then "science/stats".
+
+pub fn mean(data) {
+    return stat_mean(data)
+}
+
+pub fn sum(data) {
+    return stat_sum(data)
+}
+
+pub fn count(data) {
+    return stat_count(data)
+}
+
+pub fn min(data) {
+    return stat_min(data)
+}
+
+pub fn max(data) {
+    return stat_max(data)
+}
+
+pub fn median(data) {
+    return stat_median(data)
+}
+
+pub fn variance(data) {
+    return stat_var(data)
+}
+
+pub fn std(data) {
+    return stat_std(data)
+}
+
+pub fn sampleVar(data) {
+    return stat_sample_var(data)
+}
+
+pub fn sampleStd(data) {
+    return stat_sample_std(data)
+}
+
+pub fn percentile(data, p) {
+    return stat_percentile(data, p)
+}
+
+pub fn quantile(data, q) {
+    return stat_quantile(data, q)
+}
+
+pub fn corr(x, y) {
+    return stat_corr(x, y)
+}
+
+pub fn cov(x, y) {
+    return stat_cov(x, y)
+}
+
+pub fn ttest(a, b) {
+    return stat_ttest(a, b)
+}
+
+pub fn chi2(observed, expected) {
+    return stat_chi2(observed, expected)
+}
+
+pub fn normPdf(x, mean, std) {
+    return stat_norm_pdf(x, mean, std)
+}
+
+pub fn normCdf(x, mean, std) {
+    return stat_norm_cdf(x, mean, std)
+}
+
+/// Stats over an ndarray (materializes view to contiguous if needed).
+pub fn meanNd(a) {
+    return mean(nd_to_array(a))
+}
+
+pub fn stdNd(a) {
+    return std(nd_to_array(a))
+}
+
+pub fn sumNd(a) {
+    return sum(nd_to_array(a))
+}
