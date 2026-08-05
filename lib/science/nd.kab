@@ -193,7 +193,7 @@ pub fn vmul(a, b) {
     return sci_vmul(a, b)
 }
 
-/// BLAS backend label (matrixmultiply SIMD today; system BLAS later).
+/// BLAS backend label: openblas / mkl / system_blas / matrixmultiply.
 pub fn blasBackend() {
-    return "matrixmultiply"
+    return sci_blas_backend()
 }

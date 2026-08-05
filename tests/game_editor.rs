@@ -55,7 +55,8 @@ fn editor_mvp_scene_game_dnd_live() {
         ed = dragDropOnNode(ed, ed["root"])
         ed = liveSet(ed, "layer", 2)
         let lay = editorLayout(ed)
-        ed["sceneView"]["camX"] == 1.0 && ed["gameView"]["playing"] == true && ed["gameView"]["time"] > 0.0 && lay["sceneView"]["mode"] == "scene" && ed["selected"]["name"] == "crate" && ed["selected"]["layer"] == 2 && ed["toolbarUi"] != null
+        let gpu = lay["sceneView"]["gpu"]
+        ed["sceneView"]["camX"] == 1.0 && ed["gameView"]["playing"] == true && ed["gameView"]["time"] > 0.0 && lay["sceneView"]["mode"] == "scene" && ed["selected"]["name"] == "crate" && ed["selected"]["layer"] == 2 && ed["toolbarUi"] != null && gpu["kind"] == "gpu_viewport" && gpu["vertCount"] > 0 && len(gpu["draws"]) >= 1
         "#,
         &mut env,
     )

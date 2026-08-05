@@ -553,7 +553,7 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `gpu_matmul_kernel` / `gpu_available_kernels` / `gpu_conv2d_kernel` | GPU kernel path |
 | `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
 | `gpu_compute::try_matmul_compute` / `try_conv2d_compute` | WGSL f32 matmul+conv (`--features gpu`) |
-| `sci_gemm` / `sci_blas_dgemm` / blocked `nd_matmul` | SC4a GEMM via `matrixmultiply` SIMD + BLAS-style API |
+| `sci_gemm` / `sci_blas_dgemm` / blocked `nd_matmul` | SC4a GEMM — system OpenBLAS/MKL via `cblas_dgemm` when found (`KABOOTAR_BLAS_LIB`), else `matrixmultiply`; `sci_blas_backend` / `blasBackend()` |
 | `job_map_parallel` / `job_map_chunks` | SC4c parallel f64 map + Kab-closure chunks |
 | `NdShared` / `nd_slice` views / `a[1:10, :]` | SC0f zero-copy Rc views (no dangling) |
 | `nd_take` / `Tensor` / `science/lazy` | Buffer ownership move + GC lazy graphs |
@@ -615,7 +615,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | GEMM / workers | `matrixmultiply` dgemm; `sci_v*`/`job_map_*` | `nd.kab` gemm/blasDgemm/vadd; `ml.kab` jobMap* |
 | Nd views | `NdShared` Rc buffer + strided views | `nd.kab` slice/isView/bufRc/ensureOwned; syntax `a[1:10, :]` |
 | Tensor ownership + lazy | `nd_take` unique buffer move; GC graph nodes | `tensor.kab` Tensor/take/meta; `lazy.kab` realize |
-| SC7 surface | I/O, local parallel, viz, nd↔GPU | `io.kab`, `parallel.kab`, `visualize.kab`, `nd_gpu.kab` |
+| SC7 surface | I/O (KND/CSV/JSONL/KPQT1), local parallel, viz, nd↔GPU | `io.kab`, `parallel.kab`, `visualize.kab`, `nd_gpu.kab` |
 | ODE / quad | `num_odeint_adaptive` / `num_quad` | `optimize.kab` |
 | signal FIR/IIR | `num_fir`/`num_iir` natives | `signal.kab`; boxcar also in `kab_algo.movingAvgKab` |
 

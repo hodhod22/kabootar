@@ -58,7 +58,7 @@ fn transformer_backprop_reduces_loss() {
         let s0 = backpropStep(weights, ids, targets, 0.0, 1)
         let s1 = backpropStep(s0["weights"], ids, targets, 0.15, 1)
         let s2 = backpropStep(s1["weights"], ids, targets, 0.15, 1)
-        s0["loss"] > 0.0 && s2["loss"] <= s0["loss"] && len(s2["layers"]) == 3
+        s0["loss"] > 0.0 && s2["loss"] <= s0["loss"] && len(s2["layers"]) == 4 && s2["layers"][2] == "attn_qkv"
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
