@@ -1,0 +1,17 @@
+@version "1.0.0"
+
+pub fn hann(n) {
+    return num_window_hann(n)
+}
+
+pub fn hamming(n) {
+    return num_window_hamming(n)
+}
+
+pub fn stft(signal, winSize, hop) {
+    return num_stft(signal, winSize, hop)
+}
+
+pub fn fft2d(matrix) {
+    return num_fft2d(matrix)
+}

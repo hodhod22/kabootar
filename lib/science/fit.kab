@@ -1,0 +1,109 @@
+@version "1.0.0"
+
+// Training DX — fit loop, schedulers, early stop (SC2j). Kab-first.
+// import "science" then `import "science/fit"`.
+
+pub fn lrStep(init, stepSize, decay, epoch) {
+    if stepSize <= 0 {
+        return init
+    }
+    let steps = 0
+    let rem = epoch
+    while rem >= stepSize {
+        steps = steps + 1
+        rem = rem - stepSize
+    }
+    return init * pow(decay, steps)
+}
+
+pub fn lrCosine(init, minLr, epoch, totalEpochs) {
+    if totalEpochs <= 0 {
+        return init
+    }
+    let t = epoch / totalEpochs
+    if t > 1.0 {
+        t = 1.0
+    }
+    let c = 0.5 * (1.0 + cos(t * 3.141592653589793))
+    return minLr + (init - minLr) * c
+}
+
+pub fn trainLog(epoch, loss, metrics, opts) {
+    return ml_train_log(epoch, loss, metrics, opts)
+}
+
+/// Generic training loop: stepFn(state, epoch) → { state, loss, metrics? }.
+pub fn fit(state, stepFn, opts) {
+    let epochs = 10
+    let patience = 0
+    let minDelta = 0.0
+    let verbose = true
+    if opts != null && opts != undefined {
+        if opts["epochs"] != null && opts["epochs"] != undefined {
+            epochs = opts["epochs"]
+        }
+        if opts["patience"] != null && opts["patience"] != undefined {
+            patience = opts["patience"]
+        }
+        if opts["minDelta"] != null && opts["minDelta"] != undefined {
+            minDelta = opts["minDelta"]
+        }
+        if opts["verbose"] != null && opts["verbose"] != undefined {
+            verbose = opts["verbose"]
+        }
+    }
+    let history = []
+    let epoch = 0
+    let bestLoss = pow(10.0, 12.0)
+    let wait = 0
+    let stoppedEarly = false
+    while epoch < epochs && !stoppedEarly {
+        let res = stepFn(state, epoch)
+        state = res["state"]
+        let loss = res["loss"]
+        history = push(history, loss)
+        if verbose {
+            ml_train_log(epoch, loss, res["metrics"], opts)
+        }
+        if patience > 0 {
+            if loss < bestLoss - minDelta {
+                bestLoss = loss
+                wait = 0
+            } else {
+                wait = wait + 1
+                if wait >= patience {
+                    stoppedEarly = true
+                }
+            }
+        }
+        epoch = epoch + 1
+    }
+    return {
+        "state": state,
+        "history": history,
+        "bestLoss": bestLoss,
+        "stoppedEarly": stoppedEarly,
+        "epochsRun": epoch
+    }
+}
+
+/// Mini-batch helper: batchFn(state, batchIdx, slice) → { state, loss }.
+pub fn fitBatches(state, batchFn, n, batchSize, epochStepFn, opts) {
+    let slices = ml_batch_slices(n, batchSize)
+    let i = 0
+    let lossSum = 0.0
+    let count = 0
+    while i < len(slices) {
+        let sl = slices[i]
+        let res = batchFn(state, i, sl)
+        state = res["state"]
+        lossSum = lossSum + res["loss"]
+        count = count + 1
+        i = i + 1
+    }
+    let avg = 0.0
+    if count > 0 {
+        avg = lossSum / count
+    }
+    return epochStepFn(state, avg)
+}

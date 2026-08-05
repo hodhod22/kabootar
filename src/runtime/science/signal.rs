@@ -1,6 +1,6 @@
 //! FFT + SVD subset (SC1c/d).
 
-use super::helpers::{matrix_at, matrix_out, require_square, vector_at, vector_out};
+use super::helpers::{float_out, int_out, matrix_at, matrix_out, num, num_at, require_square, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
 
@@ -153,9 +153,129 @@ fn eigenvec2(a: f64, b: f64, lambda: f64) -> (f64, f64) {
     }
 }
 
+/// num_window_hann(n)
+fn num_window_hann(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "num_window_hann")? as usize;
+    if n == 0 {
+        return Err("num_window_hann: n > 0".into());
+    }
+    let out: Vec<f64> = (0..n)
+        .map(|i| 0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / (n as f64 - 1.0).max(1.0)).cos())
+        .collect();
+    Ok(vector_out(&out))
+}
+
+/// num_window_hamming(n)
+fn num_window_hamming(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "num_window_hamming")? as usize;
+    if n == 0 {
+        return Err("num_window_hamming: n > 0".into());
+    }
+    let out: Vec<f64> = (0..n)
+        .map(|i| {
+            0.54 - 0.46 * (2.0 * std::f64::consts::PI * i as f64 / (n as f64 - 1.0).max(1.0)).cos()
+        })
+        .collect();
+    Ok(vector_out(&out))
+}
+
+fn next_pow2(n: usize) -> usize {
+    let mut p = 1;
+    while p < n {
+        p *= 2;
+    }
+    p
+}
+
+fn fft_mag(signal: &[f64]) -> Result<Vec<f64>, String> {
+    let n = next_pow2(signal.len());
+    let mut re: Vec<f64> = signal.iter().copied().chain(std::iter::repeat(0.0)).take(n).collect();
+    let mut im = vec![0.0; n];
+    fft_radix2(&mut re, &mut im)?;
+    let mut mag = Vec::with_capacity(n);
+    for i in 0..n {
+        mag.push((re[i] * re[i] + im[i] * im[i]).sqrt());
+    }
+    Ok(mag)
+}
+
+/// num_stft(signal, winSize, hop?) → {frames, freqs, data[magnitude rows]}
+fn num_stft(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let sig = vector_at(args, 0, "num_stft")?;
+    let win_size = num_at(args, 1, "num_stft")? as usize;
+    let hop = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(win_size as f64 / 2.0)
+        .max(1.0) as usize;
+    if win_size == 0 || sig.is_empty() {
+        return Err("num_stft: invalid".into());
+    }
+    let window = num_window_hann(&[float_out(win_size as f64)], _env)?;
+    let w = vector_at(&[window], 0, "w")?;
+    let mut frames = 0usize;
+    let mut start = 0usize;
+    while start + win_size <= sig.len() {
+        frames += 1;
+        start += hop;
+    }
+    if frames == 0 {
+        return Err("num_stft: signal shorter than window".into());
+    }
+    let nfft = next_pow2(win_size);
+    let mut rows = Vec::new();
+    start = 0;
+    for _ in 0..frames {
+        let mut chunk = Vec::with_capacity(win_size);
+        for i in 0..win_size {
+            chunk.push(sig[start + i] * w[i]);
+        }
+        let mag = fft_mag(&chunk)?;
+        rows.push(Value::Array(mag.iter().map(|v| float_out(*v)).collect()));
+        start += hop;
+    }
+    let mut out = HashMap::new();
+    out.insert("frames".into(), int_out(frames as i64));
+    out.insert("freqs".into(), int_out(nfft as i64));
+    out.insert("data".into(), Value::Array(rows));
+    Ok(Value::Object(out))
+}
+
+/// num_fft2d(matrix) — separable 2D FFT magnitude
+fn num_fft2d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let m = matrix_at(args, 0, "num_fft2d")?;
+    let rows = m.len();
+    let cols = m.first().map(|r| r.len()).unwrap_or(0);
+    if rows == 0 || cols == 0 {
+        return Err("num_fft2d: empty".into());
+    }
+    let mut data = m.clone();
+    for r in 0..rows {
+        let mag = fft_mag(&data[r])?;
+        for c in 0..cols {
+            data[r][c] = mag[c];
+        }
+    }
+    let ncols = next_pow2(cols);
+    for c in 0..ncols {
+        let col: Vec<f64> = data.iter().map(|row| row.get(c).copied().unwrap_or(0.0)).collect();
+        let mag = fft_mag(&col)?;
+        for r in 0..rows {
+            if c < data[r].len() {
+                data[r][c] = mag[r];
+            }
+        }
+    }
+    Ok(matrix_out(&data))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_num_fft", "num_fft"], num_fft);
     bind(&["science_num_ifft", "num_ifft"], num_ifft);
     bind(&["science_num_conv1d", "num_conv1d"], num_conv1d);
     bind(&["science_mat_svd2", "mat_svd2"], mat_svd2);
+    bind(&["science_num_window_hann", "num_window_hann"], num_window_hann);
+    bind(&["science_num_window_hamming", "num_window_hamming"], num_window_hamming);
+    bind(&["science_num_stft", "num_stft"], num_stft);
+    bind(&["science_num_fft2d", "num_fft2d"], num_fft2d);
 }

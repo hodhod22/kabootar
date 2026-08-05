@@ -365,6 +365,29 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
                 return Ok(Value::Object(out));
             }
         }
+        if matches!(m.get("kind"), Some(Value::String(k)) if k == "train_progress") {
+            let epoch = match m.get("epoch") {
+                Some(v) => num(v).unwrap_or(0.0) as i64,
+                _ => 0,
+            };
+            let loss = match m.get("loss") {
+                Some(v) => num(v).unwrap_or(0.0),
+                _ => 0.0,
+            };
+            let bar_pct = (100.0 * (1.0 - loss.min(1.0))).clamp(0.0, 100.0);
+            let html = format!(
+                "<div class=\"kab-train\"><div><b>epoch {}</b> loss={}</div>\
+                 <div class=\"kab-train-bar\" style=\"width:{}%;max-width:100%\"></div></div>",
+                epoch, loss, bar_pct
+            );
+            out.insert("mime".into(), Value::String("text/html".into()));
+            out.insert("html".into(), Value::String(html));
+            out.insert(
+                "text".into(),
+                Value::String(format!("epoch {} loss={}", epoch, loss)),
+            );
+            return Ok(Value::Object(out));
+        }
         if matches!(m.get("__kab_df"), Some(Value::Bool(true))) {
             if let Some(Value::Object(cols)) = m.get("columns") {
                 let names: Vec<String> = match m.get("names") {

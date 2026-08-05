@@ -1,0 +1,9 @@
+@version "1.0.0"
+
+pub fn bench(label, n, cb) {
+    return sci_bench(label, n, cb)
+}
+
+pub fn report(benches) {
+    return sci_bench_report(benches)
+}

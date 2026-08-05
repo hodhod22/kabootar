@@ -840,9 +840,9 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr`/`mat_svd`/`mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
 | **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
 | **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | ✅ subset (`num_rk4`/`num_odeint`; adaptive/quad kvar) |
-| **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | 📋 |
-| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | 📋 |
-| **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | 📋 |
+| **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | ✅ subset (`num_interp_spline*`/`num_erf`/`num_gamma`/`num_bessel_j0`) |
+| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`; FIR/IIR kvar) |
+| **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | ✅ subset (`sparse_*` CSR/COO/SpMV/lstsq) |
 
 #### SC2 — ML / AI (ersätt sklearn + PyTorch-subset)
 
@@ -857,9 +857,9 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_accuracy`/`ml_f1`/`ml_confusion`; AdamW/ROC kvar) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`; tree/pipeline kvar) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
-| **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | 📋 |
-| **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | 📋 |
-| **SC2l** | **AI delete-gate** — tränings-/inference-smoke **utan** Python/PyTorch i CI | 📋 |
+| **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | ✅ subset (`science/fit` + `ml_train_log` + rich progress) |
+| **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | ✅ subset (`tok_*`/`tf_transformer_forward`; train kvar) |
+| **SC2l** | **AI delete-gate** — tränings-/inference-smoke **utan** Python/PyTorch i CI | ✅ subset (`science_freedom_demo.kab` + `science_sc_wave6`) |
 
 #### SC3 — Data, viz, notebooks-DX
 
@@ -883,7 +883,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ sequential API; 📋 parallel |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
 | **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`; real wgpu kernel kvar) |
-| **SC4f** | **Bench harness** — Kab vs NumPy/PyTorch timing i CI (dokumenterad, inte blocker) | 📋 |
+| **SC4f** | **Bench harness** — Kab vs NumPy/PyTorch timing i CI (dokumenterad, inte blocker) | ✅ subset (`sci_bench`/`sci_bench_report`; Python-baslinje dokumenterad) |
 
 #### SC5 — Science self-host (Kab-only, fri från Rust)
 
@@ -891,17 +891,17 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **SC5a** | **Kab-algoritmer** — linalg/optimize/stats/ML-träningsloopar i `lib/science/*.kab` (anropa bara tunna primitives) | 📋 |
+| **SC5a** | **Kab-algoritmer** — linalg/optimize/stats/ML-träningsloopar i `lib/science/*.kab` (anropa bara tunna primitives) | ✅ subset (`fit.kab`, tokenizer/transformer wrappers) |
 | **SC5b** | **Port natives → Kab** — `nd_*`/`ml_*`/`num_*` logik som kan vara ren Kab flyttas; Rust krymper till buffer/SIMD/GPU | 📋 |
 | **SC5c** | **Inga nya Rust-science-API** — CI/policy: nya exports bara via `lib/science` | 📋 |
-| **SC5d** | **Hotpath-kontrakt** — dokumenterad lista: vilka ops får native (matmul, FFT, GPU); resten Kab | 📋 |
+| **SC5d** | **Hotpath-kontrakt** — dokumenterad lista: vilka ops får native (matmul, FFT, GPU); resten Kab | ✅ subset (SCIENCE.md hotpath-tabell) |
 | **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | 📋 |
-| **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | 📋 |
+| **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | ✅ subset (`examples/science_freedom_demo.kab`) |
 
 **SC-ordning:** SC2j → SC1h–j → SC2k → SC4f → **SC5** (Kab-first parallellt).
 
-**Checkpoint SC (nästa):** training DX (`fit`) + tokenizer/transformer + SC5 Kab-only.  
-**Checkpoint SC (landad 2026-08):** **Conv2d/MHA + ODE + stats++ + GPU device sync path**.  
+**Checkpoint SC (nästa):** SC5b–e full Kab-port + trees + real GPU kernels.  
+**Checkpoint SC (landad 2026-08):** **spline/special/sparse + signal++ + AI delete-gate + sci_bench + SC5f demo**.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees.  
 **Checkpoint SC (AI-parity):** tokenizer/transformer-inference + SC2l + real GPU kernels.  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
@@ -1030,7 +1030,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  ██████████████░░  SC1g/SC2i/SC3g/SC4e landad; fit/tokenizer/SC5 kvar
+Våg SC (STEM)  ████████████████  SC1h–j/SC2l/SC4f/SC5f landad; SC5b–e + trees kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

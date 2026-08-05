@@ -543,6 +543,13 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `stat_quantile` / `stat_ttest` / `stat_chi2` / `stat_norm_pdf` / `stat_norm_cdf` | Stats++ |
 | `gpu_to_device` / `gpu_to_host` / `gpu_linear` / `gpu_conv2d` | GPU train/infer path |
 | `gpu_tensor_*` | GPU staging tensors |
+| `ml_train_log` | Training progress (rich notebook) |
+| `tok_build_vocab` / `tok_encode` / `tok_decode` / `tok_bpe_*` | Tokenizer subset |
+| `tf_sinusoidal_pos` / `tf_transformer_forward` | Transformer inference-lite |
+| `num_interp_spline` / `num_erf` / `num_gamma` / `num_bessel_j0` | Interpolate + special |
+| `num_window_hann` / `num_window_hamming` / `num_stft` / `num_fft2d` | Signal++ |
+| `sparse_from_coo` / `sparse_spmv` / `sparse_lstsq` | Sparse CSR/COO |
+| `sci_bench` / `sci_bench_report` | Science bench harness |
 
 ## ML / AI (SC2)
 
@@ -571,9 +578,22 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab` — **Kab-first**
+- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab`, `fit.kab`, `tokenizer.kab`, `transformer.kab`, `special.kab`, `interpolate.kab`, `signal.kab`, `sparse.kab`, `bench.kab` — **Kab-first**
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`, `science_sc_wave4.rs`
+- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`, `science_sc_wave4.rs`, `science_sc_wave5.rs`, `science_sc_wave6.rs`
+- Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 - Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
+
+### Hotpath-kontrakt (SC5d)
+
+| Lager | Rust-native (tillfällig) | Kab (`lib/science`) |
+|-------|--------------------------|---------------------|
+| ndarray bulk | `nd_*`, `nd_from_f64`, matmul, FFT | wrappers, slice/stack, I/O API |
+| linalg heavy | QR/SVD/eig, solve | `optimize.kab`, future spline |
+| NN hotpath | conv2d, mha, embedding, GPU tensors | `fit.kab`, `ml.kab` training loop |
+| tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
+| training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
+
+Ny **produktlogik** (fit-loop, schedulers, tokenize-pipeline) ska landa i Kab; Rust får bara nya tunna primitives om hotpath kräver det.
 

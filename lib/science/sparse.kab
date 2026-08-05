@@ -1,0 +1,21 @@
+@version "1.0.0"
+
+pub fn fromCoo(rows, cols, data, nrows, ncols) {
+    return sparse_from_coo(rows, cols, data, nrows, ncols)
+}
+
+pub fn fromCsr(data, indices, indptr, nrows, ncols) {
+    return sparse_from_csr(data, indices, indptr, nrows, ncols)
+}
+
+pub fn toCsr(coo) {
+    return sparse_to_csr(coo)
+}
+
+pub fn spmv(a, x) {
+    return sparse_spmv(a, x)
+}
+
+pub fn lstsq(a, b, iters) {
+    return sparse_lstsq(a, b, iters)
+}

@@ -1,0 +1,11 @@
+@version "1.0.0"
+
+// Transformer inference wrappers (SC2k). import "science" first.
+
+pub fn sinusoidalPos(dModel, maxLen) {
+    return tf_sinusoidal_pos(dModel, maxLen)
+}
+
+pub fn forward(weights, inputIds, nHeads) {
+    return tf_transformer_forward(weights, inputIds, nHeads)
+}
