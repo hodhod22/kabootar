@@ -171,3 +171,104 @@ pub fn forecastMae(yTrue, yHat) {
     }
     return s / n
 }
+
+pub fn diff1(xs) {
+    let out = []
+    let i = 1
+    while i < len(xs) {
+        out = push(out, xs[i] - xs[i - 1])
+        i = i + 1
+    }
+    return out
+}
+
+/// ARIMA(1,1,0)-lite: difference once, fit AR(1), store last level.
+pub fn arima110Fit(xs) {
+    let d = diff1(xs)
+    let ar = ar1Fit(d)
+    return {
+        "a": ar["a"],
+        "b": ar["b"],
+        "last": xs[len(xs) - 1],
+        "last_diff": d[len(d) - 1],
+        "order": [1, 1, 0]
+    }
+}
+
+pub fn arima110Forecast(model, steps) {
+    let out = []
+    let level = model["last"]
+    let diff = model["last_diff"]
+    let i = 0
+    while i < steps {
+        diff = model["a"] + model["b"] * diff
+        level = level + diff
+        out = push(out, level)
+        i = i + 1
+    }
+    return out
+}
+
+/// ARIMA(1,1,1)-lite: ARIMA(1,1,0) + residual MA(1) on differenced series.
+pub fn arima111Fit(xs) {
+    let base = arima110Fit(xs)
+    let d = diff1(xs)
+    let resid = []
+    let prev = 0.0
+    let i = 1
+    while i < len(d) {
+        let pred = base["a"] + base["b"] * d[i - 1]
+        let e = d[i] - pred
+        resid = push(resid, e)
+        i = i + 1
+    }
+    // MA(1) coef ≈ corr(e_t, e_{t-1})
+    let theta = 0.0
+    if len(resid) > 2 {
+        let sx = 0.0
+        let sy = 0.0
+        let sxx = 0.0
+        let sxy = 0.0
+        let c = 0.0
+        i = 1
+        while i < len(resid) {
+            let x = resid[i - 1]
+            let y = resid[i]
+            sx = sx + x
+            sy = sy + y
+            sxx = sxx + x * x
+            sxy = sxy + x * y
+            c = c + 1.0
+            i = i + 1
+        }
+        let den = c * sxx - sx * sx
+        if den > 0.000000000001 || den < 0.0 - 0.000000000001 {
+            theta = (c * sxy - sx * sy) / den
+        }
+    }
+    base["theta"] = theta
+    base["last_resid"] = 0.0
+    if len(resid) > 0 {
+        base["last_resid"] = resid[len(resid) - 1]
+    }
+    base["order"] = [1, 1, 1]
+    let _ = prev
+    return base
+}
+
+pub fn arima111Forecast(model, steps) {
+    let out = []
+    let level = model["last"]
+    let diff = model["last_diff"]
+    let resid = model["last_resid"]
+    let i = 0
+    while i < steps {
+        let innov = 0.0
+        diff = model["a"] + model["b"] * diff + model["theta"] * resid
+        resid = innov
+        level = level + diff
+        out = push(out, level)
+        i = i + 1
+    }
+    return out
+}

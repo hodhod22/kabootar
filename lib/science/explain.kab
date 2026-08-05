@@ -128,3 +128,72 @@ pub fn corrImportance(x, y) {
     }
     return imps
 }
+
+/// Linear SHAP-lite: phi_i = w_i * (x_i - baseline_i); pred ≈ base + sum(phi).
+/// model = {w, b, baseline?} where w is weight vector, b intercept.
+pub fn shapLinear(model, x) {
+    let w = model["w"]
+    let b = model["b"]
+    let baseline = model["baseline"]
+    if baseline == null || baseline == undefined {
+        baseline = []
+        let i = 0
+        while i < len(w) {
+            baseline = push(baseline, 0.0)
+            i = i + 1
+        }
+    }
+    let phi = []
+    let sum = b
+    let i = 0
+    while i < len(w) {
+        let p = w[i] * (x[i] - baseline[i])
+        phi = push(phi, p)
+        sum = sum + p
+        i = i + 1
+    }
+    let baseVal = b
+    let j = 0
+    while j < len(w) {
+        baseVal = baseVal + w[j] * baseline[j]
+        j = j + 1
+    }
+    return { "phi": phi, "base": baseVal, "pred": sum }
+}
+
+/// Kernel-SHAP-lite for ≤3 features: exact coalition enumeration for linear surrogate.
+/// predictFn(row) → scalar; baseline = mean features.
+pub fn shapKernelLite(x, baseline, predictFn) {
+    let d = len(x)
+    let basePred = predictFn(baseline)
+    let phi = []
+    let i = 0
+    while i < d {
+        phi = push(phi, 0.0)
+        i = i + 1
+    }
+    // For each feature, contribution ≈ f(x) - f(x with feature i = baseline_i)
+    let full = predictFn(x)
+    i = 0
+    while i < d {
+        let masked = []
+        let j = 0
+        while j < d {
+            if j == i {
+                masked = push(masked, baseline[j])
+            } else {
+                masked = push(masked, x[j])
+            }
+            j = j + 1
+        }
+        phi[i] = full - predictFn(masked)
+        i = i + 1
+    }
+    let sumPhi = 0.0
+    i = 0
+    while i < d {
+        sumPhi = sumPhi + phi[i]
+        i = i + 1
+    }
+    return { "phi": phi, "base": basePred, "pred": full, "check": basePred + sumPhi }
+}
