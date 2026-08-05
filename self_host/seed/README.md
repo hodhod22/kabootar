@@ -1,7 +1,11 @@
-# Self-host leaf seeds (H6e)
+# Self-host leaf seeds (H6e / P6 seed-only)
 
 Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 **without a live Rust compile** (fingerprint must match source).
+
+**Policy:** leaves stay skip-listed; emptying the list waits until self-host
+compile of these shards is CI-fast. See `SELF_HOST_SKIP_LISTED_LEAVES` /
+`self_host_skip_policy()` in `src/compile/mod.rs`.
 
 | Seed | Source |
 |------|--------|

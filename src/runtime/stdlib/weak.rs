@@ -19,6 +19,12 @@ const FINREG_CTOR: &str = "__kab_finreg_ctor";
 static NEXT_FINREG_ID: AtomicU64 = AtomicU64::new(1);
 static NEXT_REG_TOKEN: AtomicU64 = AtomicU64::new(1);
 
+/// P3: heap allocs since last `gc_frame_begin` (MakeObject / MakeArray / …).
+static FRAME_ALLOCS: AtomicU64 = AtomicU64::new(0);
+/// Soft budget: when exceeded on frame tick, run a GC sweep.
+static FRAME_ALLOC_BUDGET: AtomicU64 = AtomicU64::new(2_048);
+static FRAME_SWEEPS: AtomicU64 = AtomicU64::new(0);
+
 #[derive(Clone)]
 struct Registration {
     registry_id: u64,
@@ -373,6 +379,8 @@ pub fn run_gc_sweep(env: &mut Environment) -> Result<(), String> {
         return Ok(());
     }
 
+    FRAME_SWEEPS.fetch_add(1, Ordering::Relaxed);
+
     let callbacks: Vec<(Value, Value)> = with_state(|s| {
         let mut out = Vec::new();
         for oid in &newly_dead {
@@ -396,6 +404,53 @@ pub fn run_gc_sweep(env: &mut Environment) -> Result<(), String> {
     }
     let _ = newly_dead;
     Ok(())
+}
+
+/// Count a heap allocation toward the current frame budget (P3).
+pub fn note_heap_alloc(n: u64) {
+    FRAME_ALLOCS.fetch_add(n, Ordering::Relaxed);
+}
+
+/// Reset per-frame alloc counter (call at start of `game_tick`).
+pub fn gc_frame_begin() {
+    FRAME_ALLOCS.store(0, Ordering::Relaxed);
+}
+
+/// If allocs since `gc_frame_begin` exceed soft budget, run a sweep.
+pub fn gc_frame_maybe_sweep(env: &mut Environment) -> Result<bool, String> {
+    let allocs = FRAME_ALLOCS.load(Ordering::Relaxed);
+    let budget = FRAME_ALLOC_BUDGET.load(Ordering::Relaxed);
+    if budget > 0 && allocs >= budget {
+        run_gc_sweep(env)?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+pub fn set_frame_alloc_budget(budget: u64) {
+    FRAME_ALLOC_BUDGET.store(budget, Ordering::Relaxed);
+}
+
+/// `{ allocs, budget, sweeps, over_budget }` for the current/last frame window.
+pub fn gc_frame_stats_value() -> Value {
+    let allocs = FRAME_ALLOCS.load(Ordering::Relaxed);
+    let budget = FRAME_ALLOC_BUDGET.load(Ordering::Relaxed);
+    let sweeps = FRAME_SWEEPS.load(Ordering::Relaxed);
+    let mut m = HashMap::new();
+    m.insert("allocs".into(), Value::Number(allocs as i64));
+    m.insert("budget".into(), Value::Number(budget as i64));
+    m.insert("sweeps".into(), Value::Number(sweeps as i64));
+    m.insert(
+        "over_budget".into(),
+        Value::Bool(budget > 0 && allocs >= budget),
+    );
+    Value::Object(m)
+}
+
+pub fn gc_frame_reset_for_tests() {
+    FRAME_ALLOCS.store(0, Ordering::Relaxed);
+    FRAME_SWEEPS.store(0, Ordering::Relaxed);
+    FRAME_ALLOC_BUDGET.store(2_048, Ordering::Relaxed);
 }
 
 fn finreg_cleanup_microtask_native(
@@ -509,6 +564,22 @@ pub fn register_weak(env: &mut Environment) {
     env.set(
         "FinalizationRegistry".to_string(),
         build_finreg_namespace(),
+    );
+    env.set(
+        "gc_frame_stats".to_string(),
+        Value::NativeFunction(|_args, _env| Ok(gc_frame_stats_value())),
+    );
+    env.set(
+        "gc_set_frame_budget".to_string(),
+        Value::NativeFunction(|args, _env| {
+            let n = match args.first() {
+                Some(Value::Number(n)) if *n >= 0 => *n as u64,
+                Some(Value::Float(f)) if *f >= 0.0 => *f as u64,
+                _ => return Err("gc_set_frame_budget(n) expects non-negative number".into()),
+            };
+            set_frame_alloc_budget(n);
+            Ok(Value::Null)
+        }),
     );
 }
 

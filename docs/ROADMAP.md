@@ -653,7 +653,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_body`, `vm_run_body`. **Committed seeds:** `self_host/seed/*.kbc` (fingerprint) — kab-only laddar löv utan live-Rust (`backend=seed`); saknas/stale seed → delete-gate. Regenerera: `scripts/regen_self_host_seeds.sh`. **Mål:** tömma skip-listan (P6) eller behåll seed-only. Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`.
+**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_body`, `vm_run_body`. **Committed seeds:** `self_host/seed/*.kbc` (fingerprint) — kab-only laddar löv utan live-Rust (`backend=seed`); saknas/stale seed → delete-gate. Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** seed-only (empty skip-list deferred). Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`, `p6_seed_only_all_leaves_have_seeds`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
@@ -667,16 +667,16 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | ✅ subset (`tests/perf_p0_smoke.rs`: `performance.now` + `game_tick`/`delta_ms` < 200 ms CI-smoke; full profiler/histogram kvar) |
-| **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | 📋 |
+| **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | ✅ subset (`tests/perf_p0_smoke.rs`: `performance.now` + `game_tick`/`delta_ms` < 100 ms CI-smoke; full profiler/histogram kvar) |
+| **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | ✅ subset (`member_name` → `&str`; GetMember monomorphic IC; CALL skip arg-clone utan Object; MakeArray O(n); IndexGet array-fastpath; `tests/perf_p1_smoke.rs`) |
 | **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (`float32_array_new/get/set`, bulk `createBuffer` från Float32Array; Array-path kvar; Uint8 zero-copy/audio kvar) |
-| **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | 📋 |
+| **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | 📋 |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | 📋 |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | 🚧 seed ✅ / empty list 📋 |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | ✅ seed-only (`SELF_HOST_SKIP_LISTED_LEAVES` + `p6_seed_only_all_leaves_have_seeds`; empty list kvar 📋) |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | 📋 |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | 📋 |
-| **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | 📋 |
+| **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
 
 **Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
 

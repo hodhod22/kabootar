@@ -17,7 +17,8 @@ fn frame_budget_smoke_delta_ms_finite() {
         let c = game_tick()
         let t1 = performance.now()
         let d = c["delta_ms"]
-        d == d && typeof(d) == "number" && d < 200 && t1 >= t0 && a["frame"] >= 1
+        // P9: tighter CI budget (was 200ms).
+        d == d && typeof(d) == "number" && d < 100 && t1 >= t0 && a["frame"] >= 1
         "#,
         &mut env,
     )
