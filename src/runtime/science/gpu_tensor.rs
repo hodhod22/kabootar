@@ -1,4 +1,4 @@
-//! GPU tensor staging subset (SC4b) — handles + matmul with GPU path metadata.
+//! GPU tensor staging + device sync / train-infer path (SC4b/SC4e).
 
 use super::helpers::{num, vector_at, vector_out};
 use crate::value::{Environment, Value};
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 const MARK: &str = "__kab_gpu_tensor";
 
-fn tensor_out(shape: &[usize], data: &[f64], backend: &str) -> Value {
+fn tensor_out(shape: &[usize], data: &[f64], backend: &str, device: &str) -> Value {
     let mut m = HashMap::new();
     m.insert(MARK.into(), Value::Bool(true));
     m.insert(
@@ -15,11 +15,20 @@ fn tensor_out(shape: &[usize], data: &[f64], backend: &str) -> Value {
     );
     m.insert("data".into(), vector_out(data));
     m.insert("backend".into(), Value::String(backend.into()));
+    m.insert("device".into(), Value::String(device.into()));
     m.insert(
         "gpu".into(),
         Value::Bool(crate::runtime::render::gpu3d::gpu3d_available()),
     );
     Value::Object(m)
+}
+
+fn default_backend() -> &'static str {
+    if crate::runtime::render::gpu3d::gpu3d_available() {
+        "wgpu-ready"
+    } else {
+        "cpu"
+    }
 }
 
 fn parse_shape(v: &Value) -> Result<Vec<usize>, String> {
@@ -39,7 +48,7 @@ fn parse_shape(v: &Value) -> Result<Vec<usize>, String> {
     }
 }
 
-fn tensor_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>), String> {
+fn tensor_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>, String, String), String> {
     let Value::Object(m) = v else {
         return Err("expected gpu tensor".into());
     };
@@ -51,7 +60,15 @@ fn tensor_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>), String> {
         Some(Value::Array(items)) => items.iter().map(num).collect::<Result<Vec<_>, _>>()?,
         _ => return Err("gpu tensor missing data".into()),
     };
-    Ok((shape, data))
+    let backend = match m.get("backend") {
+        Some(Value::String(s)) => s.clone(),
+        _ => default_backend().into(),
+    };
+    let device = match m.get("device") {
+        Some(Value::String(s)) => s.clone(),
+        _ => "host".into(),
+    };
+    Ok((shape, data, backend, device))
 }
 
 fn gpu_tensor_from(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -65,16 +82,26 @@ fn gpu_tensor_from(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     if n != data.len() {
         return Err("gpu_tensor_from: size mismatch".into());
     }
+    Ok(tensor_out(&shape, &data, default_backend(), "host"))
+}
+
+fn gpu_to_device(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data, _, _) = tensor_parts(args.first().ok_or("gpu_to_device(t)")?)?;
     let backend = if crate::runtime::render::gpu3d::gpu3d_available() {
-        "wgpu-ready"
+        "device-staging"
     } else {
-        "cpu"
+        "cpu-emulated-device"
     };
-    Ok(tensor_out(&shape, &data, backend))
+    Ok(tensor_out(&shape, &data, backend, "gpu"))
+}
+
+fn gpu_to_host(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data, backend, _) = tensor_parts(args.first().ok_or("gpu_to_host(t)")?)?;
+    Ok(tensor_out(&shape, &data, &backend, "host"))
 }
 
 fn gpu_tensor_to_nd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (shape, data) = tensor_parts(args.first().ok_or("gpu_tensor_to_nd(t)")?)?;
+    let (shape, data, _, _) = tensor_parts(args.first().ok_or("gpu_tensor_to_nd(t)")?)?;
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
@@ -86,9 +113,7 @@ fn gpu_tensor_to_nd(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     Ok(Value::Object(m))
 }
 
-fn gpu_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (sa, a) = tensor_parts(args.first().ok_or("gpu_matmul(a,b)")?)?;
-    let (sb, b) = tensor_parts(args.get(1).ok_or("gpu_matmul(a,b)")?)?;
+fn matmul_cpu(sa: &[usize], a: &[f64], sb: &[usize], b: &[f64]) -> Result<(usize, usize, Vec<f64>), String> {
     if sa.len() != 2 || sb.len() != 2 || sa[1] != sb[0] {
         return Err("gpu_matmul: expect 2D compatible shapes".into());
     }
@@ -103,13 +128,120 @@ fn gpu_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             out[i * n + j] = s;
         }
     }
-    // True GPU compute kernels are future work; path reports adapter readiness.
-    let backend = if crate::runtime::render::gpu3d::gpu3d_available() {
-        "cpu-on-wgpu-host"
+    Ok((m, n, out))
+}
+
+fn gpu_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, a, _, da) = tensor_parts(args.first().ok_or("gpu_matmul(a,b)")?)?;
+    let (sb, b, _, db) = tensor_parts(args.get(1).ok_or("gpu_matmul(a,b)")?)?;
+    let (m, n, out) = matmul_cpu(&sa, &a, &sb, &b)?;
+    let on_device = da == "gpu" || db == "gpu";
+    let backend = if on_device && crate::runtime::render::gpu3d::gpu3d_available() {
+        "device-matmul-cpu-fallback"
+    } else if on_device {
+        "cpu-emulated-device"
     } else {
         "cpu"
     };
-    Ok(tensor_out(&[m, n], &out, backend))
+    let device = if on_device { "gpu" } else { "host" };
+    Ok(tensor_out(&[m, n], &out, backend, device))
+}
+
+/// Infer-side conv on gpu tensors: input [C,H,W], weight [O,C,Kh,Kw] flat shapes.
+fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let (sa, a, _, da) = tensor_parts(args.first().ok_or("gpu_conv2d")?)?;
+    let (sw, w, _, _) = tensor_parts(args.get(1).ok_or("gpu_conv2d")?)?;
+    if sa.len() != 3 || sw.len() != 4 {
+        return Err("gpu_conv2d: input [C,H,W], weight [O,C,Kh,Kw]".into());
+    }
+    // Reuse ml_conv2d via nd objects
+    let mut xin = HashMap::new();
+    xin.insert("__kab_nd".into(), Value::Bool(true));
+    xin.insert(
+        "shape".into(),
+        Value::Array(sa.iter().map(|d| Value::Number(*d as i64)).collect()),
+    );
+    xin.insert("data".into(), vector_out(&a));
+    let mut win = HashMap::new();
+    win.insert("__kab_nd".into(), Value::Bool(true));
+    win.insert(
+        "shape".into(),
+        Value::Array(sw.iter().map(|d| Value::Number(*d as i64)).collect()),
+    );
+    win.insert("data".into(), vector_out(&w));
+    let bias = args.get(2).cloned().unwrap_or(Value::Undefined);
+    let stride = args.get(3).cloned().unwrap_or(Value::Number(1));
+    let pad = args.get(4).cloned().unwrap_or(Value::Number(0));
+    let out = super::nn_layers::ml_conv2d(
+        &[
+            Value::Object(xin),
+            Value::Object(win),
+            bias,
+            stride,
+            pad,
+        ],
+        env,
+    )?;
+    let Value::Object(om) = out else {
+        return Err("gpu_conv2d: internal".into());
+    };
+    let shape = parse_shape(om.get("shape").ok_or("shape")?)?;
+    let data = match om.get("data") {
+        Some(Value::Array(items)) => items.iter().map(num).collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("gpu_conv2d: data".into()),
+    };
+    let device = if da == "gpu" { "gpu" } else { "host" };
+    let backend = if device == "gpu" {
+        "device-conv-cpu-fallback"
+    } else {
+        "cpu"
+    };
+    Ok(tensor_out(&shape, &data, backend, device))
+}
+
+/// Explicit train/infer matmul step on device tensors: y = W @ x (+ optional bias).
+fn gpu_linear(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sw, w, _, dw) = tensor_parts(args.first().ok_or("gpu_linear(W,x,b?)")?)?;
+    let (sx, x, _, dx) = tensor_parts(args.get(1).ok_or("gpu_linear")?)?;
+    // W [out,in], x [in] or [in,1]
+    let (out_dim, in_dim) = if sw.len() == 2 {
+        (sw[0], sw[1])
+    } else {
+        return Err("gpu_linear: W must be 2D".into());
+    };
+    let xflat = if sx == [in_dim] || sx == [in_dim, 1] {
+        x
+    } else {
+        return Err("gpu_linear: x shape".into());
+    };
+    let mut y = vec![0.0; out_dim];
+    for o in 0..out_dim {
+        let mut s = 0.0;
+        for i in 0..in_dim {
+            s += w[o * in_dim + i] * xflat[i];
+        }
+        y[o] = s;
+    }
+    if let Some(barg) = args.get(2).filter(|v| !matches!(v, Value::Undefined | Value::Null)) {
+        let (_, b, _, _) = tensor_parts(barg)?;
+        if b.len() != out_dim {
+            return Err("gpu_linear: bias length".into());
+        }
+        for i in 0..out_dim {
+            y[i] += b[i];
+        }
+    }
+    let on_device = dw == "gpu" || dx == "gpu";
+    Ok(tensor_out(
+        &[out_dim],
+        &y,
+        if on_device {
+            "device-linear-cpu-fallback"
+        } else {
+            "cpu"
+        },
+        if on_device { "gpu" } else { "host" },
+    ))
 }
 
 fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -123,12 +255,20 @@ fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
         "path".into(),
         Value::String(crate::runtime::render::gpu3d::info_line().into()),
     );
+    m.insert(
+        "train_infer".into(),
+        Value::String("gpu_to_device + gpu_matmul/gpu_linear/gpu_conv2d + gpu_to_host".into()),
+    );
     Ok(Value::Object(m))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_gpu_tensor_from", "gpu_tensor_from"], gpu_tensor_from);
     bind(&["science_gpu_tensor_to_nd", "gpu_tensor_to_nd"], gpu_tensor_to_nd);
+    bind(&["science_gpu_to_device", "gpu_to_device"], gpu_to_device);
+    bind(&["science_gpu_to_host", "gpu_to_host"], gpu_to_host);
     bind(&["science_gpu_matmul", "gpu_matmul"], gpu_matmul);
+    bind(&["science_gpu_linear", "gpu_linear"], gpu_linear);
+    bind(&["science_gpu_conv2d", "gpu_conv2d"], gpu_conv2d);
     bind(&["science_gpu_tensor_info", "gpu_tensor_info"], gpu_tensor_info);
 }

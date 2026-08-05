@@ -839,7 +839,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1d** | **FFT / signal subset** — 1D FFT + conv | ✅ subset (`num_fft` / `num_ifft` / `num_conv1d`) |
 | **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr`/`mat_svd`/`mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
 | **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
-| **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | 📋 |
+| **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | ✅ subset (`num_rk4`/`num_odeint`; adaptive/quad kvar) |
 | **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | 📋 |
 | **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | 📋 |
 | **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | 📋 |
