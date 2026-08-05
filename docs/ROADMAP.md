@@ -863,6 +863,21 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 **Checkpoint APP (landad):** `lib/app.kab`, `lib/app/{ui,nav,lifecycle,offline,i18n,sensors,share}.kab`, `examples/app_shell.kab`, `tests/app_module.rs`, [APP.md](APP.md).  
 **Checkpoint APP (nästa):** native shell hooks + `app/notify` + `app/ship`.
 
+### Våg DX-TOOL — CLI / doc / test / log / auth / registry web 🚧 ✅ MVP subset
+
+**Mål:** sista DX-verktygen för produktutveckling i Kab — `kabootar doc|repl|fmt|test --coverage|registry web` plus Kab-moduler `cli`, `log`, `validate`, `auth`, `test`/`test/mock`.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **DXT0** | `import "cli"` / `log` / `validate` / `auth` / `test` / `test/mock` | ✅ |
+| **DXT1** | `kabootar repl` alias; `fmt --check`; `doc` (`///` → MD) | ✅ |
+| **DXT2** | `kabootar test` + `--coverage` (module-hit) | ✅ |
+| **DXT3** | `kabootar registry web` + `registry list` | ✅ |
+| **DXT4** | Line-accurate coverage; JWT; AST fmt; remote registry | 📋 |
+
+**Checkpoint DX-TOOL (landad):** `lib/{cli,log,validate,auth,test}.kab`, `lib/test/mock.kab`, `src/cli/{doc,test_runner,registry_web}.rs`, `tests/dx_smoke_test.kab`, `tests/dx_tooling.rs`, [DX_TOOLING.md](DX_TOOLING.md).  
+**Checkpoint DX-TOOL (nästa):** line coverage instrumentation + signed JWT auth.
+
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
 
 **Mål:** `import "science"` (+ `science/nd` / `science/ml` / `science/data`) ska vara det **första valet** för forskning, dataanalys och AI — inte en “lite NumPy”. Kabootar är snabbare än Python; vi ska också vinna **ekosystemet och arbetsflödet** så att forskare och AI-team **inte behöver Python**.

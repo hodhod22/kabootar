@@ -1,0 +1,52 @@
+@version "1.0.0"
+
+// test — lightweight asserts for kabootar test runner.
+// import "test"
+// Prefer: end the file with `true` or summary object { ok: true }.
+
+pub fn assertTrue(cond, message) {
+    if cond {
+        return true
+    }
+    if message == null || message == undefined {
+        message = "assertTrue failed"
+    }
+    throw message
+}
+
+pub fn assertEq(a, b, message) {
+    if a == b {
+        return true
+    }
+    if message == null || message == undefined {
+        message = "assertEq: " + a + " != " + b
+    }
+    throw message
+}
+
+pub fn assertNeq(a, b, message) {
+    if a != b {
+        return true
+    }
+    if message == null || message == undefined {
+        message = "assertNeq failed"
+    }
+    throw message
+}
+
+/// Build a summary object the CLI treats as pass/fail.
+pub fn summary(passed, failed) {
+    if passed == null || passed == undefined {
+        passed = 0
+    }
+    if failed == null || failed == undefined {
+        failed = 0
+    }
+    return {
+        "kind": "test_summary",
+        "pass": passed,
+        "fail": failed,
+        "total": passed + failed,
+        "ok": failed == 0
+    }
+}

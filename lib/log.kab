@@ -1,0 +1,79 @@
+@version "1.0.0"
+
+// log — leveled logging for apps and tools.
+// import "log"
+
+/// Create a logger with level: debug|info|warn|error|silent
+pub fn create(level) {
+    if level == null || level == undefined {
+        level = "info"
+    }
+    return {
+        "kind": "logger",
+        "level": level
+    }
+}
+
+fn rank(level) {
+    if level == "debug" {
+        return 10
+    }
+    if level == "info" {
+        return 20
+    }
+    if level == "warn" {
+        return 30
+    }
+    if level == "error" {
+        return 40
+    }
+    if level == "silent" {
+        return 100
+    }
+    return 20
+}
+
+fn shouldLog(logger, level) {
+    return rank(level) >= rank(logger["level"])
+}
+
+fn emit(logger, level, msg) {
+    if !shouldLog(logger, level) {
+        return false
+    }
+    println("[" + level + "] " + msg)
+    return true
+}
+
+pub fn setLevel(logger, level) {
+    logger["level"] = level
+    return logger
+}
+
+pub fn debug(logger, msg) {
+    return emit(logger, "debug", "" + msg)
+}
+
+pub fn info(logger, msg) {
+    return emit(logger, "info", "" + msg)
+}
+
+pub fn warn(logger, msg) {
+    return emit(logger, "warn", "" + msg)
+}
+
+pub fn error(logger, msg) {
+    return emit(logger, "error", "" + msg)
+}
+
+pub fn entry(level, msg, fields) {
+    if fields == null || fields == undefined {
+        fields = {}
+    }
+    return {
+        "kind": "log_entry",
+        "level": level,
+        "msg": "" + msg,
+        "fields": fields
+    }
+}

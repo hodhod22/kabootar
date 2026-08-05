@@ -1,0 +1,63 @@
+@version "1.0.0"
+
+// test/mock — callable mocks with call history.
+// import "test/mock"
+
+/// Create a mock function handle.
+pub fn mockFn(name) {
+    if name == null || name == undefined {
+        name = "anonymous"
+    }
+    return {
+        "kind": "mock_fn",
+        "name": name,
+        "calls": [],
+        "returnValue": null,
+        "impl": null
+    }
+}
+
+pub fn returns(mock, value) {
+    mock["returnValue"] = value
+    return mock
+}
+
+/// Invoke mock; records args and returns configured value.
+pub fn call(mock, args) {
+    if args == null || args == undefined {
+        args = []
+    }
+    let calls = mock["calls"]
+    calls = push(calls, args)
+    mock["calls"] = calls
+    return mock["returnValue"]
+}
+
+pub fn called(mock) {
+    return len(mock["calls"]) > 0
+}
+
+pub fn calledTimes(mock, n) {
+    return len(mock["calls"]) == n
+}
+
+pub fn lastArgs(mock) {
+    let calls = mock["calls"]
+    if len(calls) == 0 {
+        return null
+    }
+    return calls[len(calls) - 1]
+}
+
+pub fn reset(mock) {
+    mock["calls"] = []
+    return mock
+}
+
+/// Spy on an object method name: replaces with mock that records then returns returnValue.
+pub fn spyOn(obj, method, returnValue) {
+    let m = mockFn(method)
+    m = returns(m, returnValue)
+    obj[method] = m
+    return m
+}

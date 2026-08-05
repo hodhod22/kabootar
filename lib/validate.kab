@@ -1,0 +1,92 @@
+@version "1.0.0"
+
+// validate — schema-ish validators (extends validation).
+// import "validate"
+
+pub import "validation"
+
+pub fn isString(v) {
+    return typeof(v) == "string"
+}
+
+pub fn isNumber(v) {
+    return typeof(v) == "number"
+}
+
+pub fn isBool(v) {
+    return typeof(v) == "boolean"
+}
+
+pub fn isArray(v) {
+    return is_array(v)
+}
+
+pub fn minLength(s, n) {
+    return len("" + s) >= n
+}
+
+pub fn maxLength(s, n) {
+    return len("" + s) <= n
+}
+
+pub fn oneOf(v, options) {
+    let i = 0
+    while i < len(options) {
+        if v == options[i] {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Validate object against simple schema: { field: "string"|"number"|"email"|"required" }.
+pub fn object(data, schema) {
+    if data == null || data == undefined {
+        return { "ok": false, "errors": ["data is null"] }
+    }
+    let errors = []
+    let keys = object_keys(schema)
+    let i = 0
+    while i < len(keys) {
+        let key = keys[i]
+        let rule = schema[key]
+        let val = data[key]
+        if rule == "required" {
+            if val == null || val == undefined {
+                errors = push(errors, key + " is required")
+            }
+        } else {
+            if rule == "string" {
+                if val != null && val != undefined && !isString(val) {
+                    errors = push(errors, key + " must be string")
+                }
+            } else {
+                if rule == "number" {
+                    if val != null && val != undefined && !isNumber(val) {
+                        errors = push(errors, key + " must be number")
+                    }
+                } else {
+                    if rule == "email" {
+                        if val != null && val != undefined && !is_email(val) {
+                            errors = push(errors, key + " must be email")
+                        }
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return {
+        "ok": len(errors) == 0,
+        "errors": errors
+    }
+}
+
+/// Throw-style guard: returns value or throws message.
+pub fn require(cond, message) {
+    if cond {
+        return true
+    }
+    throw message
+}
