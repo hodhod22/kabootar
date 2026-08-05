@@ -767,11 +767,11 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 | Fas | Modul (mål) | Innehåll | Status |
 |-----|-------------|----------|--------|
-| **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | 📋 |
+| **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | ✅ subset (clip/sample/tween/state; skeletal kvar) |
 | **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | 📋 |
-| **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | 📋 |
+| **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | ✅ subset (CPU emitter/burst/step; GPU kvar) |
 | **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | 📋 |
-| **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | 📋 |
+| **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | ✅ subset (panel/button/label/layoutRow/hitTest) |
 | **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | 📋 |
 | **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | 📋 |
 | **GP6h** | `game/audio`++ | **Audio-utökning** — spatial 3D, buses/groups, ducking, streaming; ovanpå nuvarande PCM/tone | 📋 |
@@ -784,26 +784,26 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
-#### GP7 — Killer feature: Scene Editor 🎯 📋
+#### GP7 — Killer feature: Scene Editor 🎯 ✅ MVP subset
 
 **Mål:** En **fullständig scen-editor** som körs **i Kabootar** (samma runtime som spelet) — inte en extern Unity/Unreal/Godot-editor. Det är GP:s **killer feature** och det som ska göra Kab konkurrenskraftig för spelproduktion.
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP7a** | **`game_editor.kab` / `import "game/editor"` deepen** — dockad shell: hierarchy + **inspector** + toolbar; bygger på GP4b descriptors | 📋 (GP4b = precursor) |
-| **GP7b** | **Scene view** — 3D/2D viewport, orbit/pan/zoom, pick/select, gizmo move/rotate/scale (kopplat `game/debug` + GPU) | 📋 |
-| **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | 📋 |
-| **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | 📋 |
-| **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | 📋 |
-| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | 📋 |
+| **GP7a** | **`game_editor.kab` / `import "game/editor"` deepen** — dockad shell: hierarchy + **inspector** + toolbar; bygger på GP4b descriptors | ✅ subset (`bootEditor` + layout descriptors) |
+| **GP7b** | **Scene view** — 3D/2D viewport, orbit/pan/zoom, pick/select, gizmo move/rotate/scale (kopplat `game/debug` + GPU) | ✅ subset (orbit/zoom + gizmo descriptors; GPU viewport kvar) |
+| **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | ✅ subset (play/pause/stop/stepGame) |
+| **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | ✅ subset (dragStart/dragDropOnNode asset+reparent) |
+| **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | ✅ subset (`liveSet`; hot-reload sync kvar) |
+| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | 📋 (undo stack partial; scene I/O kvar) |
 | **GP7g** | **Editor UX i kOS** — fönsterlayout, shortcuts, multi-select; delete-gate: skapa → redigera → play → spara utan extern toolchain | 📋 |
 
 **Varför killer:** Unity/Godot vinner på *editor-loop*. Kab vinner om editor + runtime + ship är **samma språk och binär** — GP7 är därför prioriterad framför “feature-paritet” i GP6 när resurser konkurrerar.
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (landad):** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; GP0–GP5 subset.  
-**Checkpoint GP (nästa):** **GP7 editor MVP** (hierarchy + inspector + scene/game view + live edit) + första GP6-moduler (`ui`, `anim`, `particles`).  
+**Checkpoint GP (landad):** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; GP0–GP5 subset; **GP7a–e MVP** + GP6a/c/e (`anim`/`particles`/`ui`).  
+**Checkpoint GP (nästa):** GP7f–g (scene I/O + kOS UX) + GP6b physics3 / postfx / light.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
@@ -899,7 +899,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
 | **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | ✅ subset (`science/fit` + `ml_train_log` + rich progress) |
-| **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | ✅ subset (`tok_*`/`tf_transformer_forward`/`tf_lm_sgd_step` last-layer train) |
+| **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | ✅ subset (`tok_*`/`tf_transformer_forward`/`tf_lm_sgd_step` + `tf_lm_backprop_step` multi-layer) |
 | **SC2l** | **AI delete-gate** — tränings-/inference-smoke **utan** Python/PyTorch i CI | ✅ subset (`science_freedom_demo.kab` + `science_sc_wave6`) |
 
 #### SC3 — Data, viz, notebooks-DX
@@ -919,9 +919,9 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*`/`sci_gemm` blocked GEMM; extern BLAS kvar) |
+| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*`/`sci_gemm` blocked GEMM + `sci_blas_dgemm` BLAS-API; extern BLAS kvar) |
 | **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul+conv2d f32 + CPU fallback; `gpu_zeros`/`ones`/`scale`/`add`) |
-| **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map_parallel` OS-threads för f64-ops; Kab-fn sekventiell fallback) |
+| **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map_parallel` OS-threads för f64-ops; `job_map_chunks` Kab-closure chunk plan) |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
 | **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`/`gpu_conv2d_kernel`; WGSL när `--features gpu`) |
 | **SC4f** | **Bench harness** — Kab vs NumPy/PyTorch timing i CI (dokumenterad, inte blocker) | ✅ subset (`sci_bench`/`sci_bench_report`; Python-baslinje dokumenterad) |
@@ -959,8 +959,8 @@ Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i
 
 **SC-ordning:** SC0–SC6 ✅ subset (beta/Bayes, ARIMA, SHAP, chem landade).
 
-**Checkpoint SC (nästa):** extern BLAS-FFI + full TF backprop + Kab-closure workers; SC6 polish (PPF, full KernelSHAP, REINFORCE).  
-**Checkpoint SC (landad 2026-08):** **SC6 deepen** — beta/Bayes + ARIMA(1,1,*) + SHAP-lite + chem + wave11 modules + wave10 ODE/GEMM/TF.  
+**Checkpoint SC (nästa):** extern BLAS-FFI (crate) + attention BP / full KernelSHAP / REINFORCE; SC6 polish.  
+**Checkpoint SC (landad 2026-08):** BLAS-API (`sci_blas_dgemm`) + TF multi-layer BP + `job_map_chunks` + SC6 deepen + wave10–12.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
 **Checkpoint SC (AI-parity):** tokenizer/transformer + SC2l + GPU kernels (landad subset).  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6 production modules**, och **helt självständig** stack (SC5f).
@@ -1088,8 +1088,8 @@ Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
-Våg GP (spel)  ████████████░░░░  GP0–GP5 ✅; **GP6 systems + GP7 editor** planerad
-Våg SC (STEM)  ███████████████░  SC0–SC6 ✅ (+ beta/Bayes/ARIMA/SHAP/chem); BLAS/TF-BP kvar
+Våg GP (spel)  █████████████░░░  GP0–GP5 ✅; GP7a–e MVP + GP6a/c/e; GP6b/f–n kvar
+Våg SC (STEM)  ███████████████░  SC0–SC6 ✅; BLAS-API + TF-BP + chunks; extern BLAS kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

@@ -13,3 +13,7 @@ pub fn forward(weights, inputIds, nHeads) {
 pub fn trainStep(weights, inputIds, targetIds, lr, nHeads) {
     return tf_lm_sgd_step(weights, inputIds, targetIds, lr, nHeads)
 }
+
+pub fn backpropStep(weights, inputIds, targetIds, lr, nHeads) {
+    return tf_lm_backprop_step(weights, inputIds, targetIds, lr, nHeads)
+}

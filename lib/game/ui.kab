@@ -1,0 +1,73 @@
+@version "1.0.0"
+
+// GP6e — UI-system (panels/buttons/layout). import "game/ui"
+
+pub fn createPanel(id, x, y, w, h) {
+    return { "id": id, "kind": "panel", "x": x, "y": y, "w": w, "h": h, "children": [], "visible": true }
+}
+
+pub fn createButton(id, label, x, y, w, h) {
+    return { "id": id, "kind": "button", "label": label, "x": x, "y": y, "w": w, "h": h, "pressed": false }
+}
+
+pub fn createLabel(id, text, x, y) {
+    return { "id": id, "kind": "label", "text": text, "x": x, "y": y }
+}
+
+pub fn addWidget(panel, widget) {
+    panel["children"] = push(panel["children"], widget)
+    return panel
+}
+
+/// Flex-row layout: place children left-to-right with gap.
+pub fn layoutRow(panel, gap) {
+    let x = panel["x"]
+    let y = panel["y"]
+    let i = 0
+    let kids = panel["children"]
+    while i < len(kids) {
+        let w = kids[i]
+        w["x"] = x
+        w["y"] = y
+        kids[i] = w
+        let ww = w["w"]
+        if ww == null || ww == undefined {
+            ww = 80
+        }
+        x = x + ww + gap
+        i = i + 1
+    }
+    panel["children"] = kids
+    return panel
+}
+
+pub fn hitTest(panel, px, py) {
+    let i = 0
+    while i < len(panel["children"]) {
+        let w = panel["children"][i]
+        let ww = w["w"]
+        let hh = w["h"]
+        if ww == null || ww == undefined {
+            ww = 80
+        }
+        if hh == null || hh == undefined {
+            hh = 24
+        }
+        if px >= w["x"] && px <= w["x"] + ww && py >= w["y"] && py <= w["y"] + hh {
+            return w
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn pressAt(panel, px, py) {
+    let hit = hitTest(panel, px, py)
+    if hit == null {
+        return panel
+    }
+    if hit["kind"] == "button" {
+        hit["pressed"] = true
+    }
+    return panel
+}

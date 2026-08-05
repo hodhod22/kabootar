@@ -395,6 +395,213 @@ fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String
     Ok(Value::Object(out))
 }
 
+/// tf_lm_backprop_step — multi-layer CE backprop: wout/bout + FF (w2/b2,w1/b1) + embed (SC2k).
+fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_lm_backprop_step")?
+    else {
+        return Err("tf_lm_backprop_step: weights object".into());
+    };
+    let ids = match args.get(1) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tf_lm_backprop_step: inputIds".into()),
+    };
+    let targets = match args.get(2) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tf_lm_backprop_step: targetIds".into()),
+    };
+    if ids.is_empty() || ids.len() != targets.len() {
+        return Err("tf_lm_backprop_step: length".into());
+    }
+    let lr = num_at(args, 3, "tf_lm_backprop_step")?;
+    let n_heads = args
+        .get(4)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(1.0)
+        .max(1.0) as usize;
+
+    let embed = weights.get("embed").ok_or("weights.embed")?;
+    let (vocab, d_model, mut embed_data) = parse_embed_table(embed)?;
+    let seq = ids.len();
+    let mut x = Vec::with_capacity(seq * d_model);
+    for &id in &ids {
+        if id >= vocab {
+            return Err("tf_lm_backprop_step: id OOB".into());
+        }
+        x.extend_from_slice(&embed_data[id * d_model..(id + 1) * d_model]);
+    }
+    // sinusoidal pos
+    let pos = tf_sinusoidal_pos(
+        &[float_out(d_model as f64), float_out(seq as f64)],
+        env,
+    )?;
+    let (_, _, pos_data) = parse_nd2(&pos, "sin_pos")?;
+    for i in 0..x.len() {
+        x[i] += pos_data[i];
+    }
+
+    let w1_v = vector_at(&[weights.get("w1").ok_or("w1")?.clone()], 0, "w1")?;
+    let w2_v = vector_at(&[weights.get("w2").ok_or("w2")?.clone()], 0, "w2")?;
+    let wout_v = vector_at(&[weights.get("wout").ok_or("wout")?.clone()], 0, "wout")?;
+    let ff_dim = if w1_v.len() % d_model == 0 {
+        w1_v.len() / d_model
+    } else {
+        d_model
+    };
+    let mut b1 = vector_at(
+        &[weights.get("b1").cloned().unwrap_or(Value::Array(vec![]))],
+        0,
+        "b1",
+    )
+    .unwrap_or_else(|_| vec![0.0; ff_dim]);
+    let mut b2 = vector_at(
+        &[weights.get("b2").cloned().unwrap_or(Value::Array(vec![]))],
+        0,
+        "b2",
+    )
+    .unwrap_or_else(|_| vec![0.0; d_model]);
+    let mut bout = vector_at(
+        &[weights.get("bout").cloned().unwrap_or(Value::Array(vec![]))],
+        0,
+        "bout",
+    )
+    .unwrap_or_else(|_| vec![0.0; vocab]);
+    if b1.len() != ff_dim {
+        b1 = vec![0.0; ff_dim];
+    }
+    if b2.len() != d_model {
+        b2 = vec![0.0; d_model];
+    }
+    if bout.len() != vocab {
+        bout = vec![0.0; vocab];
+    }
+    let _ = n_heads; // identity attn path for BP subset
+    let x_pre = x.clone();
+    let h1 = linear_rows(&x_pre, seq, d_model, &w1_v, ff_dim, &b1);
+    let h1r = relu_vec(&h1);
+    let h2 = linear_rows(&h1r, seq, ff_dim, &w2_v, d_model, &b2);
+    x = add_mat(&x_pre, &h2);
+    let mut wout_m = wout_v.clone();
+    let logits = linear_rows(&x, seq, d_model, &wout_m, vocab, &bout);
+
+    let mut loss = 0.0;
+    let mut g_logits = vec![0.0; seq * vocab];
+    let inv = 1.0 / seq as f64;
+    for s in 0..seq {
+        let row = &logits[s * vocab..(s + 1) * vocab];
+        let probs = softmax_row(row);
+        let t = targets[s];
+        if t >= vocab {
+            return Err("tf_lm_backprop_step: target OOB".into());
+        }
+        loss -= probs[t].max(1e-12).ln() * inv;
+        for o in 0..vocab {
+            let mut g = probs[o] * inv;
+            if o == t {
+                g -= inv;
+            }
+            g_logits[s * vocab + o] = g;
+        }
+    }
+
+    let mut gwout = vec![0.0; vocab * d_model];
+    let mut gbout = vec![0.0; vocab];
+    let mut gx = vec![0.0; seq * d_model];
+    for s in 0..seq {
+        for o in 0..vocab {
+            let g = g_logits[s * vocab + o];
+            gbout[o] += g;
+            for i in 0..d_model {
+                gwout[o * d_model + i] += g * x[s * d_model + i];
+                gx[s * d_model + i] += g * wout_m[o * d_model + i];
+            }
+        }
+    }
+
+    // Residual: d_h2 = gx, d_x_pre += gx
+    let gh2 = gx.clone();
+    let mut gx_pre = gx.clone();
+    let mut gw2 = vec![0.0; w2_v.len()];
+    let mut gb2 = vec![0.0; d_model];
+    let mut gh1r = vec![0.0; seq * ff_dim];
+    for s in 0..seq {
+        for o in 0..d_model {
+            let g = gh2[s * d_model + o];
+            gb2[o] += g;
+            for i in 0..ff_dim {
+                gw2[o * ff_dim + i] += g * h1r[s * ff_dim + i];
+                gh1r[s * ff_dim + i] += g * w2_v[o * ff_dim + i];
+            }
+        }
+    }
+    let mut gh1 = vec![0.0; seq * ff_dim];
+    for i in 0..gh1r.len() {
+        gh1[i] = if h1[i] > 0.0 { gh1r[i] } else { 0.0 };
+    }
+    let mut gw1 = vec![0.0; w1_v.len()];
+    let mut gb1 = vec![0.0; ff_dim];
+    for s in 0..seq {
+        for o in 0..ff_dim {
+            let g = gh1[s * ff_dim + o];
+            gb1[o] += g;
+            for i in 0..d_model {
+                gw1[o * d_model + i] += g * x_pre[s * d_model + i];
+                gx_pre[s * d_model + i] += g * w1_v[o * d_model + i];
+            }
+        }
+    }
+
+    for i in 0..wout_m.len() {
+        wout_m[i] -= lr * gwout[i];
+    }
+    for i in 0..bout.len() {
+        bout[i] -= lr * gbout[i];
+    }
+    let mut w2_m = w2_v.clone();
+    let mut w1_m = w1_v.clone();
+    for i in 0..w2_m.len() {
+        w2_m[i] -= lr * gw2[i];
+    }
+    for i in 0..b2.len() {
+        b2[i] -= lr * gb2[i];
+    }
+    for i in 0..w1_m.len() {
+        w1_m[i] -= lr * gw1[i];
+    }
+    for i in 0..gb1.len().min(b1.len()) {
+        b1[i] -= lr * gb1[i];
+    }
+    for s in 0..seq {
+        let id = ids[s];
+        for i in 0..d_model {
+            embed_data[id * d_model + i] -= lr * gx_pre[s * d_model + i];
+        }
+    }
+
+    set_weight_vec(&mut weights, "wout", &wout_m);
+    set_weight_vec(&mut weights, "bout", &bout);
+    set_weight_vec(&mut weights, "w2", &w2_m);
+    set_weight_vec(&mut weights, "b2", &b2);
+    set_weight_vec(&mut weights, "w1", &w1_m);
+    set_weight_vec(&mut weights, "b1", &b1);
+    set_embed_nd(&mut weights, vocab, d_model, &embed_data);
+
+    let mut out = HashMap::new();
+    out.insert("weights".into(), Value::Object(weights));
+    out.insert("loss".into(), float_out(loss));
+    out.insert("layers".into(), Value::Array(vec![
+        Value::String("wout".into()),
+        Value::String("ff".into()),
+        Value::String("embed".into()),
+    ]));
+    Ok(Value::Object(out))
+}
+
 fn identity_flat(d: usize) -> Vec<f64> {
     let mut v = vec![0.0; d * d];
     for i in 0..d {
@@ -446,4 +653,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         tf_transformer_forward,
     );
     bind(&["science_tf_lm_sgd_step", "tf_lm_sgd_step"], tf_lm_sgd_step);
+    bind(
+        &["science_tf_lm_backprop_step", "tf_lm_backprop_step"],
+        tf_lm_backprop_step,
+    );
 }
