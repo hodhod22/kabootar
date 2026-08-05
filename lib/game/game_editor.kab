@@ -1,21 +1,33 @@
 @version "1.0.0"
 
-// GP7 entry — full editor shell composition. import after game modules.
+// GP7 entry — full editor shell composition.
 // kabootar run examples/game_editor.kab  (or import "game/game_editor")
 
 pub import "game/scene"
 pub import "game/editor"
+pub import "game/save"
 pub import "game/ui"
 pub import "game/anim"
 pub import "game/particles"
+pub import "game/physics3"
+pub import "game/postfx"
+pub import "game/light"
 
 pub fn bootEditor(rootName) {
     let root = createNode(rootName)
     let ed = createEditor(root)
-    let panel = createPanel("tools", 0, 0, 320, 40)
+    let panel = createPanel("tools", 0, 0, 420, 40)
     panel = addWidget(panel, createButton("play", "Play", 0, 0, 64, 28))
     panel = addWidget(panel, createButton("pause", "Pause", 0, 0, 64, 28))
+    panel = addWidget(panel, createButton("save", "Save", 0, 0, 64, 28))
     panel = layoutRow(panel, 8)
     ed["toolbarUi"] = panel
+    let lights = createLightList()
+    lights = addLight(lights, createDirectional({ "x": -0.4, "y": -1.0, "z": -0.2 }, [1.0, 1.0, 0.95], 1.0))
+    ed["lights"] = lights
+    let fx = createPipeline()
+    fx = addPass(fx, tonemapPass(1.0))
+    fx = addPass(fx, bloomPass(0.8, 0.4))
+    ed["postfx"] = fx
     return refresh(ed)
 }

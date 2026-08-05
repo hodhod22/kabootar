@@ -768,14 +768,14 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | Fas | Modul (mål) | Innehåll | Status |
 |-----|-------------|----------|--------|
 | **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | ✅ subset (clip/sample/tween/state; skeletal kvar) |
-| **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | 📋 |
+| **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | ✅ subset (rigidbody/box/sphere/capsule + distance constraint + stepWorld) |
 | **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | ✅ subset (CPU emitter/burst/step; GPU kvar) |
 | **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | 📋 |
 | **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | ✅ subset (panel/button/label/layoutRow/hitTest) |
-| **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | 📋 |
-| **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | 📋 |
+| **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | ✅ subset (pipeline descriptors + CPU tonemap/bloom stubs; GPU pass kvar) |
+| **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | ✅ subset (light list + shadow descriptors + Lambert stub; GPU shadow kvar) |
 | **GP6h** | `game/audio`++ | **Audio-utökning** — spatial 3D, buses/groups, ducking, streaming; ovanpå nuvarande PCM/tone | 📋 |
-| **GP6i** | `game/save` | **Save/Load** — serialiserad scen/state (VFS/JSON/bin), checkpoints, versioned slots | 📋 |
+| **GP6i** | `game/save` | **Save/Load** — serialiserad scen/state (VFS/JSON/bin), checkpoints, versioned slots | ✅ subset (`.kscene`/`.ksave` via json+os_write; checkpoints) |
 | **GP6j** | `game/i18n` | **Localisation** — string tables, locale switch, ICU-lite plural/format subset | 📋 |
 | **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | 📋 |
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | 📋 |
@@ -795,15 +795,15 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | ✅ subset (play/pause/stop/stepGame) |
 | **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | ✅ subset (dragStart/dragDropOnNode asset+reparent) |
 | **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | ✅ subset (`liveSet`; hot-reload sync kvar) |
-| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | 📋 (undo stack partial; scene I/O kvar) |
-| **GP7g** | **Editor UX i kOS** — fönsterlayout, shortcuts, multi-select; delete-gate: skapa → redigera → play → spara utan extern toolchain | 📋 |
+| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | ✅ subset (`saveScene`/`loadScene` + undo/redo; prefab kvar) |
+| **GP7g** | **Editor UX i kOS** — fönsterlayout, shortcuts, multi-select; delete-gate: skapa → redigera → play → spara utan extern toolchain | ✅ subset (`kosEditorLayout`/`handleShortcut`/`selectAdd`/`deleteGateStatus`) |
 
 **Varför killer:** Unity/Godot vinner på *editor-loop*. Kab vinner om editor + runtime + ship är **samma språk och binär** — GP7 är därför prioriterad framför “feature-paritet” i GP6 när resurser konkurrerar.
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (landad):** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; GP0–GP5 subset; **GP7a–e MVP** + GP6a/c/e (`anim`/`particles`/`ui`).  
-**Checkpoint GP (nästa):** GP7f–g (scene I/O + kOS UX) + GP6b physics3 / postfx / light.  
+**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GP6a/b/c/e/f/g/i (`anim`/`physics3`/`particles`/`ui`/`postfx`/`light`/`save`).  
+**Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; GPU viewport/shadows/postfx.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
@@ -1088,7 +1088,7 @@ Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
-Våg GP (spel)  █████████████░░░  GP0–GP5 ✅; GP7a–e MVP + GP6a/c/e; GP6b/f–n kvar
+Våg GP (spel)  ██████████████░░  GP0–GP5 ✅; GP7a–g + GP6a/b/c/e/f/g/i; terrain/audio/XR kvar
 Våg SC (STEM)  ███████████████░  SC0–SC6 ✅; BLAS-API + TF-BP + chunks; extern BLAS kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)

@@ -1,7 +1,8 @@
-// GP7 smoke — scene editor shell with scene/game view + DnD + live edit.
+// GP7 smoke — scene editor + save + lights/postfx.
 import "game/scene"
 import "game/game_editor"
 
+os_mkdir("/scenes")
 let ed = bootEditor("world")
 let hero = createNode("hero")
 hero = setLocal(hero, 1, 2, 0)
@@ -15,8 +16,11 @@ ed = stepGame(ed, 0.016)
 ed = liveSet(ed, "layer", 2)
 ed = dragStart(ed, { "kind": "asset", "name": "crate", "x": 3, "y": 0, "z": 0 })
 ed = dragDropOnNode(ed, ed["root"])
+let saved = saveScene(ed, "/scenes/demo.kscene")
+ed = saved["editor"]
 let layout = editorLayout(ed)
 println(layout["toolbar"])
 println(len(layout["hierarchy"]))
 println(layout["gameView"]["playing"])
 println(layout["sceneView"]["mode"])
+println(layout["deleteGate"]["ready"])

@@ -1,21 +1,39 @@
 @version "1.0.0"
 
-// GP7 — Scene editor MVP (hierarchy, inspector, scene/game view, DnD, live-edit).
-// import "game/scene" + "game/editor" (this module deepens editor).
+// GP7 — Scene editor (MVP + I/O + undo/redo + kOS UX descriptors).
+// import "game/scene" + "game/editor"
 
 import "game/scene"
+import "game/save"
 
 pub fn createEditor(root) {
     return {
         "root": root,
         "selected": null,
+        "selection": [],
         "hierarchy": [],
         "inspector": null,
         "sceneView": { "camX": 0, "camY": 0, "camZ": 10, "zoom": 1.0, "mode": "scene" },
         "gameView": { "playing": false, "paused": false, "time": 0.0 },
         "undo": [],
+        "redo": [],
         "clipboard": null,
-        "drag": null
+        "drag": null,
+        "layout": {
+            "hierarchyW": 240,
+            "inspectorW": 280,
+            "sceneH": 0.6,
+            "focused": "scene"
+        },
+        "shortcuts": {
+            "Ctrl+S": "save",
+            "Ctrl+Z": "undo",
+            "Ctrl+Y": "redo",
+            "Delete": "delete",
+            "Ctrl+D": "duplicate",
+            "F": "focus"
+        },
+        "scenePath": null
     }
 }
 
@@ -78,12 +96,92 @@ pub fn refresh(editor) {
 
 pub fn selectNode(editor, node) {
     editor["selected"] = node
+    editor["selection"] = [node]
     editor["inspector"] = buildInspector(node)
     return editor
 }
 
+pub fn selectAdd(editor, node) {
+    editor["selection"] = push(editor["selection"], node)
+    editor["selected"] = node
+    editor["inspector"] = buildInspector(node)
+    return editor
+}
+
+pub fn clearSelection(editor) {
+    editor["selected"] = null
+    editor["selection"] = []
+    editor["inspector"] = { "empty": true }
+    return editor
+}
+
+pub fn multiSelectNames(editor) {
+    let names = []
+    let i = 0
+    while i < len(editor["selection"]) {
+        names = push(names, editor["selection"][i]["name"])
+        i = i + 1
+    }
+    return names
+}
+
 pub fn pushUndo(editor, snap) {
     editor["undo"] = push(editor["undo"], snap)
+    editor["redo"] = []
+    return editor
+}
+
+pub fn snapshotRoot(editor) {
+    return serializeScene(editor["root"], { "kind": "undo" })
+}
+
+pub fn undo(editor) {
+    if len(editor["undo"]) == 0 {
+        return editor
+    }
+    let rest = []
+    let i = 0
+    while i < len(editor["undo"]) - 1 {
+        rest = push(rest, editor["undo"][i])
+        i = i + 1
+    }
+    let snap = editor["undo"][len(editor["undo"]) - 1]
+    editor["undo"] = rest
+    editor["redo"] = push(editor["redo"], snapshotRoot(editor))
+    if snap["format"] == "kscene" {
+        editor["root"] = deserializeScene(snap)
+        editor["selected"] = null
+        editor["selection"] = []
+        editor = refresh(editor)
+    } else {
+        if snap["node"] != null {
+            snap["node"] = setLocal(snap["node"], snap["x"], snap["y"], snap["z"])
+            editor["selected"] = snap["node"]
+            editor["inspector"] = buildInspector(snap["node"])
+        }
+    }
+    return editor
+}
+
+pub fn redo(editor) {
+    if len(editor["redo"]) == 0 {
+        return editor
+    }
+    let rest = []
+    let i = 0
+    while i < len(editor["redo"]) - 1 {
+        rest = push(rest, editor["redo"][i])
+        i = i + 1
+    }
+    let snap = editor["redo"][len(editor["redo"]) - 1]
+    editor["redo"] = rest
+    editor["undo"] = push(editor["undo"], snapshotRoot(editor))
+    if snap["format"] == "kscene" {
+        editor["root"] = deserializeScene(snap)
+        editor["selected"] = null
+        editor["selection"] = []
+        editor = refresh(editor)
+    }
     return editor
 }
 
@@ -102,7 +200,6 @@ pub fn inspectSetLocal(editor, x, y, z) {
     return editor
 }
 
-/// Scene view camera orbit/pan/zoom descriptors.
 pub fn sceneOrbit(editor, dx, dy) {
     editor["sceneView"]["camX"] = editor["sceneView"]["camX"] + dx
     editor["sceneView"]["camY"] = editor["sceneView"]["camY"] + dy
@@ -124,16 +221,25 @@ pub fn buildSceneView(editor) {
         editor = refresh(editor)
         rows = editor["hierarchy"]
     }
+    let selNames = multiSelectNames(editor)
     let gizmos = []
     let i = 0
     while i < len(rows) {
         let r = rows[i]
+        let selected = false
+        let si = 0
+        while si < len(selNames) {
+            if selNames[si] == r["name"] {
+                selected = true
+            }
+            si = si + 1
+        }
         gizmos = push(gizmos, {
             "name": r["name"],
             "x": r["x"],
             "y": r["y"],
             "z": r["z"],
-            "selected": editor["selected"] != null && editor["selected"]["name"] == r["name"]
+            "selected": selected
         })
         i = i + 1
     }
@@ -179,7 +285,6 @@ pub fn buildGameView(editor) {
     }
 }
 
-/// Drag-and-drop: start dragging a hierarchy node or asset descriptor.
 pub fn dragStart(editor, payload) {
     editor["drag"] = payload
     return editor
@@ -191,6 +296,7 @@ pub fn dragDropOnNode(editor, targetNode) {
     }
     let payload = editor["drag"]
     editor["drag"] = null
+    editor = pushUndo(editor, snapshotRoot(editor))
     if payload["kind"] == "reparent" && payload["node"] != null {
         targetNode = addChild(targetNode, payload["node"])
         editor = refresh(editor)
@@ -207,7 +313,6 @@ pub fn dragDropOnNode(editor, targetNode) {
     return editor
 }
 
-/// Live-edit: apply property while game view may be playing.
 pub fn liveSet(editor, prop, value) {
     if editor["selected"] == null {
         return editor
@@ -217,6 +322,91 @@ pub fn liveSet(editor, prop, value) {
     return editor
 }
 
+pub fn saveScene(editor, path) {
+    if path == null || path == undefined {
+        path = editor["scenePath"]
+    }
+    if path == null || path == undefined {
+        path = "/scenes/untitled.kscene"
+    }
+    editor["scenePath"] = path
+    let res = writeScene(path, editor["root"], { "editor": true })
+    return { "editor": editor, "result": res }
+}
+
+pub fn loadScene(editor, path) {
+    let res = readScene(path)
+    if res["ok"] {
+        editor = pushUndo(editor, snapshotRoot(editor))
+        editor["root"] = res["root"]
+        editor["scenePath"] = path
+        editor["selected"] = null
+        editor["selection"] = []
+        editor = refresh(editor)
+    }
+    return { "editor": editor, "result": res }
+}
+
+pub fn handleShortcut(editor, chord) {
+    let action = editor["shortcuts"][chord]
+    if action == null || action == undefined {
+        return { "editor": editor, "action": null }
+    }
+    if action == "undo" {
+        editor = undo(editor)
+    }
+    if action == "redo" {
+        editor = redo(editor)
+    }
+    if action == "save" {
+        let r = saveScene(editor, editor["scenePath"])
+        editor = r["editor"]
+    }
+    if action == "focus" {
+        editor["layout"]["focused"] = "scene"
+    }
+    return { "editor": editor, "action": action }
+}
+
+pub fn setLayout(editor, hierarchyW, inspectorW, sceneH) {
+    editor["layout"]["hierarchyW"] = hierarchyW
+    editor["layout"]["inspectorW"] = inspectorW
+    editor["layout"]["sceneH"] = sceneH
+    return editor
+}
+
+pub fn kosEditorLayout(editor) {
+    editor = refresh(editor)
+    return {
+        "kind": "kos-editor",
+        "panels": [
+            { "id": "hierarchy", "w": editor["layout"]["hierarchyW"], "dock": "left" },
+            { "id": "scene", "h": editor["layout"]["sceneH"], "dock": "center" },
+            { "id": "game", "dock": "center-bottom" },
+            { "id": "inspector", "w": editor["layout"]["inspectorW"], "dock": "right" },
+            { "id": "toolbar", "dock": "top" }
+        ],
+        "shortcuts": editor["shortcuts"],
+        "focused": editor["layout"]["focused"],
+        "multiSelect": multiSelectNames(editor)
+    }
+}
+
+/// Delete-gate checklist: create → edit → play → save (no external toolchain).
+pub fn deleteGateStatus(editor) {
+    let hasRoot = editor["root"] != null
+    let edited = len(editor["undo"]) > 0 || editor["selected"] != null
+    let played = editor["gameView"]["playing"] || editor["gameView"]["time"] > 0.0
+    let saved = editor["scenePath"] != null
+    return {
+        "create": hasRoot,
+        "edit": edited,
+        "play": played,
+        "save": saved,
+        "ready": hasRoot && edited && played && saved
+    }
+}
+
 pub fn editorLayout(editor) {
     editor = refresh(editor)
     return {
@@ -224,6 +414,8 @@ pub fn editorLayout(editor) {
         "inspector": editor["inspector"],
         "sceneView": buildSceneView(editor),
         "gameView": buildGameView(editor),
-        "toolbar": ["play", "pause", "stop", "undo"]
+        "toolbar": ["play", "pause", "stop", "undo", "redo", "save"],
+        "kos": kosEditorLayout(editor),
+        "deleteGate": deleteGateStatus(editor)
     }
 }
