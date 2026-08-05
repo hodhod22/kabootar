@@ -19,3 +19,15 @@ pub fn table(rows) {
 pub fn plot(ys) {
     return ascii_plot(ys)
 }
+
+pub fn line(ys, width, height) {
+    return plot_line(ys, width, height)
+}
+
+pub fn scatter(xs, ys, width, height) {
+    return plot_scatter(xs, ys, width, height)
+}
+
+pub fn hist(ys, bins, width, height) {
+    return plot_hist(ys, bins, width, height)
+}

@@ -355,34 +355,346 @@ fn nd_set(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(nd_out(&shape, &data))
 }
 
-fn zip_binop(
-    a: &[f64],
-    b: &[f64],
-    name: &str,
-    f: impl Fn(f64, f64) -> f64,
-) -> Result<Vec<f64>, String> {
-    if a.len() != b.len() {
-        return Err(format!("{name}: size mismatch (broadcast later)"));
+fn strides_of(shape: &[usize]) -> Vec<usize> {
+    let mut stride = 1usize;
+    let mut strides = vec![0; shape.len()];
+    for i in (0..shape.len()).rev() {
+        strides[i] = stride;
+        stride = stride.saturating_mul(shape[i]);
     }
-    Ok(a.iter().zip(b.iter()).map(|(x, y)| f(*x, *y)).collect())
+    strides
+}
+
+fn broadcast_shapes(a: &[usize], b: &[usize]) -> Result<Vec<usize>, String> {
+    let ndim = a.len().max(b.len());
+    let mut out = vec![0usize; ndim];
+    for i in 0..ndim {
+        let da = if i + a.len() < ndim {
+            1
+        } else {
+            a[i + a.len() - ndim]
+        };
+        let db = if i + b.len() < ndim {
+            1
+        } else {
+            b[i + b.len() - ndim]
+        };
+        if da == db || da == 1 || db == 1 {
+            out[i] = da.max(db);
+        } else {
+            return Err(format!(
+                "broadcast: incompatible shapes {:?} vs {:?}",
+                a, b
+            ));
+        }
+    }
+    Ok(out)
+}
+
+fn unravel(flat: usize, shape: &[usize], strides: &[usize]) -> Vec<usize> {
+    let mut idx = vec![0usize; shape.len()];
+    let mut rem = flat;
+    for i in 0..shape.len() {
+        if strides[i] == 0 {
+            idx[i] = 0;
+        } else {
+            idx[i] = rem / strides[i];
+            rem %= strides[i];
+        }
+    }
+    idx
+}
+
+fn map_broadcast_index(
+    out_idx: &[usize],
+    src_shape: &[usize],
+    out_ndim: usize,
+) -> usize {
+    let offset = out_ndim - src_shape.len();
+    let src_strides = strides_of(src_shape);
+    let mut flat = 0usize;
+    for i in 0..src_shape.len() {
+        let oi = out_idx[i + offset];
+        let si = if src_shape[i] == 1 { 0 } else { oi };
+        flat += si * src_strides[i];
+    }
+    flat
+}
+
+fn broadcast_binop(
+    sa: &[usize],
+    a: &[f64],
+    sb: &[usize],
+    b: &[f64],
+    f: impl Fn(f64, f64) -> f64,
+) -> Result<(Vec<usize>, Vec<f64>), String> {
+    let so = broadcast_shapes(sa, sb)?;
+    let n = shape_product(&so);
+    let out_strides = strides_of(&so);
+    let mut out = vec![0.0; n];
+    for flat in 0..n {
+        let idx = unravel(flat, &so, &out_strides);
+        let ia = map_broadcast_index(&idx, sa, so.len());
+        let ib = map_broadcast_index(&idx, sb, so.len());
+        out[flat] = f(a[ia], b[ib]);
+    }
+    Ok((so, out))
 }
 
 fn nd_add(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_add")?;
     let (sb, b) = nd_at(args, 1, "nd_add")?;
-    if sa != sb {
-        return Err("nd_add: shape mismatch".into());
-    }
-    Ok(nd_out(&sa, &zip_binop(&a, &b, "nd_add", |x, y| x + y)?))
+    let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x + y)?;
+    Ok(nd_out(&so, &out))
 }
 
 fn nd_mul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_mul")?;
     let (sb, b) = nd_at(args, 1, "nd_mul")?;
-    if sa != sb {
-        return Err("nd_mul: shape mismatch".into());
+    let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x * y)?;
+    Ok(nd_out(&so, &out))
+}
+
+fn nd_sub(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, a) = nd_at(args, 0, "nd_sub")?;
+    let (sb, b) = nd_at(args, 1, "nd_sub")?;
+    let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x - y)?;
+    Ok(nd_out(&so, &out))
+}
+
+fn nd_div(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, a) = nd_at(args, 0, "nd_div")?;
+    let (sb, b) = nd_at(args, 1, "nd_div")?;
+    let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x / y)?;
+    Ok(nd_out(&so, &out))
+}
+
+fn nd_ufunc(args: &[Value], name: &str, f: impl Fn(f64) -> f64) -> Result<Value, String> {
+    let (shape, a) = nd_at(args, 0, name)?;
+    Ok(nd_out(
+        &shape,
+        &a.iter().map(|x| f(*x)).collect::<Vec<_>>(),
+    ))
+}
+
+fn nd_abs(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    nd_ufunc(args, "nd_abs", |x| x.abs())
+}
+
+fn nd_exp(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    nd_ufunc(args, "nd_exp", |x| x.exp())
+}
+
+fn nd_log(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    nd_ufunc(args, "nd_log", |x| x.ln())
+}
+
+fn nd_sqrt(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    nd_ufunc(args, "nd_sqrt", |x| x.sqrt())
+}
+
+fn nd_clip(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, a) = nd_at(args, 0, "nd_clip")?;
+    let lo = num_at(args, 1, "nd_clip")?;
+    let hi = num_at(args, 2, "nd_clip")?;
+    Ok(nd_out(
+        &shape,
+        &a.iter().map(|x| x.clamp(lo, hi)).collect::<Vec<_>>(),
+    ))
+}
+
+fn nd_where(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sc, c) = nd_at(args, 0, "nd_where")?;
+    let (sx, x) = nd_at(args, 1, "nd_where")?;
+    let (sy, y) = nd_at(args, 2, "nd_where")?;
+    let so = broadcast_shapes(&sc, &broadcast_shapes(&sx, &sy)?)?;
+    let n = shape_product(&so);
+    let out_strides = strides_of(&so);
+    let mut out = vec![0.0; n];
+    for flat in 0..n {
+        let idx = unravel(flat, &so, &out_strides);
+        let ic = map_broadcast_index(&idx, &sc, so.len());
+        let ix = map_broadcast_index(&idx, &sx, so.len());
+        let iy = map_broadcast_index(&idx, &sy, so.len());
+        out[flat] = if c[ic] != 0.0 { x[ix] } else { y[iy] };
     }
-    Ok(nd_out(&sa, &zip_binop(&a, &b, "nd_mul", |x, y| x * y)?))
+    Ok(nd_out(&so, &out))
+}
+
+/// Copy-slice: ranges as [[start, stop], ...] (stop exclusive). Missing dims = full.
+fn nd_slice(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_slice")?;
+    let ranges = match args.get(1) {
+        Some(Value::Array(items)) => items,
+        _ => return Err("nd_slice(a, [[start,stop], ...])".into()),
+    };
+    if ranges.len() > shape.len() {
+        return Err("nd_slice: too many ranges".into());
+    }
+    let mut starts = vec![0usize; shape.len()];
+    let mut stops = shape.clone();
+    for (i, r) in ranges.iter().enumerate() {
+        let Value::Array(pair) = r else {
+            return Err("nd_slice: each range must be [start, stop]".into());
+        };
+        let start = if pair.is_empty() {
+            0usize
+        } else {
+            num(&pair[0])? as usize
+        };
+        let stop = if pair.len() < 2 {
+            shape[i]
+        } else {
+            num(&pair[1])? as usize
+        };
+        if start > stop || stop > shape[i] {
+            return Err("nd_slice: bad range".into());
+        }
+        starts[i] = start;
+        stops[i] = stop;
+    }
+    let out_shape: Vec<usize> = starts
+        .iter()
+        .zip(stops.iter())
+        .map(|(a, b)| b - a)
+        .collect();
+    let n = shape_product(&out_shape);
+    let in_strides = strides_of(&shape);
+    let out_strides = strides_of(&out_shape);
+    let mut out = vec![0.0; n];
+    for flat in 0..n {
+        let oidx = unravel(flat, &out_shape, &out_strides);
+        let mut iflat = 0usize;
+        for d in 0..shape.len() {
+            iflat += (starts[d] + oidx[d]) * in_strides[d];
+        }
+        out[flat] = data[iflat];
+    }
+    Ok(nd_out(&out_shape, &out))
+}
+
+fn nd_concat(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let arrays = match args.first() {
+        Some(Value::Array(items)) => items,
+        _ => return Err("nd_concat([a,b,...], axis?)".into()),
+    };
+    if arrays.is_empty() {
+        return Err("nd_concat: empty".into());
+    }
+    let axis = args
+        .get(1)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(0.0) as usize;
+    let mut parts: Vec<(Vec<usize>, Vec<f64>)> = Vec::new();
+    for a in arrays {
+        parts.push(nd_parts(a)?);
+    }
+    let rank = parts[0].0.len();
+    if axis >= rank {
+        return Err("nd_concat: axis out of range".into());
+    }
+    for (s, _) in &parts {
+        if s.len() != rank {
+            return Err("nd_concat: rank mismatch".into());
+        }
+        for d in 0..rank {
+            if d != axis && s[d] != parts[0].0[d] {
+                return Err("nd_concat: shape mismatch on non-concat axis".into());
+            }
+        }
+    }
+    let mut out_shape = parts[0].0.clone();
+    out_shape[axis] = parts.iter().map(|(s, _)| s[axis]).sum();
+    let n = shape_product(&out_shape);
+    let mut out = vec![0.0; n];
+    let out_strides = strides_of(&out_shape);
+    let mut axis_off = 0usize;
+    for (shape, data) in &parts {
+        let in_strides = strides_of(shape);
+        let pn = shape_product(shape);
+        for flat in 0..pn {
+            let idx = unravel(flat, shape, &in_strides);
+            let mut oidx = idx.clone();
+            oidx[axis] += axis_off;
+            let mut oflat = 0usize;
+            for d in 0..rank {
+                oflat += oidx[d] * out_strides[d];
+            }
+            out[oflat] = data[flat];
+        }
+        axis_off += shape[axis];
+    }
+    Ok(nd_out(&out_shape, &out))
+}
+
+fn nd_stack(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let arrays = match args.first() {
+        Some(Value::Array(items)) => items,
+        _ => return Err("nd_stack([a,b,...], axis?)".into()),
+    };
+    if arrays.is_empty() {
+        return Err("nd_stack: empty".into());
+    }
+    let axis = args
+        .get(1)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(0.0) as usize;
+    let mut parts: Vec<(Vec<usize>, Vec<f64>)> = Vec::new();
+    for a in arrays {
+        parts.push(nd_parts(a)?);
+    }
+    let base = parts[0].0.clone();
+    for (s, _) in &parts {
+        if *s != base {
+            return Err("nd_stack: all arrays must share shape".into());
+        }
+    }
+    if axis > base.len() {
+        return Err("nd_stack: axis out of range".into());
+    }
+    let mut out_shape = base.clone();
+    out_shape.insert(axis, parts.len());
+    // Expand each to have size-1 on new axis, then concat.
+    let mut expanded = Vec::new();
+    for (s, d) in &parts {
+        let mut es = s.clone();
+        es.insert(axis, 1);
+        expanded.push(nd_out(&es, d));
+    }
+    nd_concat(&[Value::Array(expanded), Value::Number(axis as i64)], _env)
+}
+
+fn nd_split(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_split")?;
+    let sections = num_at(args, 1, "nd_split")? as usize;
+    let axis = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(0.0) as usize;
+    if sections == 0 || axis >= shape.len() || shape[axis] % sections != 0 {
+        return Err("nd_split: axis size must divide sections".into());
+    }
+    let chunk = shape[axis] / sections;
+    let mut out = Vec::with_capacity(sections);
+    for i in 0..sections {
+        let mut ranges = Vec::new();
+        for d in 0..shape.len() {
+            if d == axis {
+                let start = i * chunk;
+                ranges.push(Value::Array(vec![
+                    Value::Number(start as i64),
+                    Value::Number((start + chunk) as i64),
+                ]));
+            } else {
+                ranges.push(Value::Array(vec![
+                    Value::Number(0),
+                    Value::Number(shape[d] as i64),
+                ]));
+            }
+        }
+        out.push(nd_slice(&[nd_out(&shape, &data), Value::Array(ranges)], _env)?);
+    }
+    Ok(Value::Array(out))
 }
 
 fn nd_scale(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -546,8 +858,20 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_get", "nd_get"], nd_get);
     bind(&["science_nd_set", "nd_set"], nd_set);
     bind(&["science_nd_add", "nd_add"], nd_add);
+    bind(&["science_nd_sub", "nd_sub"], nd_sub);
     bind(&["science_nd_mul", "nd_mul"], nd_mul);
+    bind(&["science_nd_div", "nd_div"], nd_div);
     bind(&["science_nd_scale", "nd_scale"], nd_scale);
+    bind(&["science_nd_abs", "nd_abs"], nd_abs);
+    bind(&["science_nd_exp", "nd_exp"], nd_exp);
+    bind(&["science_nd_log", "nd_log"], nd_log);
+    bind(&["science_nd_sqrt", "nd_sqrt"], nd_sqrt);
+    bind(&["science_nd_clip", "nd_clip"], nd_clip);
+    bind(&["science_nd_where", "nd_where"], nd_where);
+    bind(&["science_nd_slice", "nd_slice"], nd_slice);
+    bind(&["science_nd_concat", "nd_concat"], nd_concat);
+    bind(&["science_nd_stack", "nd_stack"], nd_stack);
+    bind(&["science_nd_split", "nd_split"], nd_split);
     bind(&["science_nd_sum", "nd_sum"], nd_sum);
     bind(&["science_nd_mean", "nd_mean"], nd_mean);
     bind(&["science_nd_dot", "nd_dot"], nd_dot);

@@ -23,7 +23,7 @@ import "science";
 13. [ML / AI (SC2)](#ml--ai-sc2)
 14. [Felsökning](#felsökning)
 
-**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — mål: bättre än Python för STEM/AI i samma runtime.
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** (byggs i Kabootar, inte Rust; fri stack).
 ---
 
 ## Kom igång
@@ -526,9 +526,14 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_sum` / `nd_mean` | Reductions |
 | `nd_dot` / `nd_matmul` / `nd_solve` | Linalg |
 | `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
+| `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
+| `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
+| `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
+| `mat_qr` / `mat_svd` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e) |
 | `ag_*` | Autograd-lite tape |
-| `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD |
-| `csv_*` / `ascii_plot` / `pretty` | Data + pretty |
+| `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
+| `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD2 |
+| `csv_*` / `ascii_plot` / `plot_line` / `plot_scatter` / `plot_hist` / `pretty` | Data + viz |
 | `gpu_tensor_*` | GPU staging tensors |
 
 ## ML / AI (SC2)
@@ -557,9 +562,10 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 
 ## Implementation
 
-- Motor: `src/runtime/science/` (`mod`, `ndarray`, `ml`, `matrix`, `stats`, `numerics`)
-- Kab: `lib/science/nd.kab`, `lib/science/ml.kab`
+- Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
+- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab` — **Kab-first**
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`
+- Tester: `tests/science_sc.rs`, `tests/science_sc_next.rs`
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
+- Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
 
