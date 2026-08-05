@@ -478,10 +478,11 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
 | **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
 | **GP** | Game production | GPU-3D, scen/motor, assets + **GP6 system** + **GP7 scene editor** (killer) |
+| **SIM** | Simulation / robotics | Digital twin, joints/ODE, robot arm — `import "sim"` (killer cross-cut GP∩SC) |
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **Spelbyggare / sandlåda** (GP ∩ editor ∩ STEM) + språk **O/T/J/R** polish; GP6 terrain/audio/XR; Apache Parquet FFI. **P/GP0–GP5** + **SC0–SC7** + **DX0–DX7** subset landad.
+**Aktivt fokus (2026-08):** **`import "sim"`** (robotik / digital twin) + Spelbyggare/sandlåda + språk **O/T/J/R** polish; GP6 terrain/audio/XR; Apache Parquet FFI. **P/GP0–GP5** + **SC0–SC7** + **DX0–DX7** subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -803,8 +804,22 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
 **Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; shadows/postfx polish.  
-**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + **sandbox force-puzzle session** (canvas Play↔Edit↔Learn + multi-level) + GP6a/b/c/e/f/g/i.  
+**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + sandbox session + **`import "sim"` robot twin MVP** + GP6a/b/c/e/f/g/i.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
+
+### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset
+
+**Mål:** en modul `import "sim"` (+ `sim/robot`) som kombinerar led-/slider-leder, joint-space ODE (Euler/RK4), FK, sensor-stubs och twin→editor — utan separat Gazebo/MuJoCo/Python-stack.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SIM0** | `World` / `Body` / `hinge` / `slider` + `step` / `stepN` | ✅ |
+| **SIM1** | Joint ODE (PD + damping; Euler \| RK4) + serial FK | ✅ |
+| **SIM2** | `sim/robot` 3-DOF arm + encoders/IMU stubs + `worldToEditor` | ✅ |
+| **SIM3** | Contact/soft-body / full multibody ABA; hardware twin I/O | 📋 |
+
+**Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
+**Checkpoint SIM (nästa):** contact + inverse kinematics + live editor teleop.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
 

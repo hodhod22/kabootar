@@ -1,0 +1,72 @@
+@version "1.0.0"
+
+// sim/robot — 3-DOF arm digital twin helpers.
+// import "sim/robot"
+
+import "sim"
+
+/// Default arm geometry / control.
+pub fn defaultArmParams() {
+    let p = defaultSimParams()
+    p["L1"] = 1.0
+    p["L2"] = 0.8
+    p["L3"] = 0.5
+    p["m1"] = 1.0
+    p["m2"] = 0.8
+    p["m3"] = 0.4
+    p["kp"] = 32.0
+    p["kd"] = 5.0
+    return p
+}
+
+/// Build a 3-DOF serial arm (base + shoulder yaw + elbow pitch + wrist pitch).
+pub fn createArm3(params) {
+    if params == null || params == undefined {
+        params = defaultArmParams()
+    }
+    let world = createWorld(params)
+    world = addBody(world, createFixedBase("base", 0.0, 0.0, 0.0))
+    world = addBody(world, createBody("link1", params["m1"], params["L1"], 0.0, 0.0))
+    world = addBody(world, createBody("link2", params["m2"], params["L1"] + params["L2"], 0.0, 0.0))
+    world = addBody(world, createBody("link3", params["m3"], params["L1"] + params["L2"] + params["L3"], 0.0, 0.0))
+    world = addJoint(world, createHinge("j1", "base", "link1", "z", params["L1"], 0.5))
+    world = addJoint(world, createHinge("j2", "link1", "link2", "z", params["L2"], 0.35))
+    world = addJoint(world, createHinge("j3", "link2", "link3", "z", params["L3"], 0.2))
+    world = updateForwardKinematics(world)
+    world["sensors"] = sampleSensors(world)
+    world["robot"] = { "kind": "arm3", "dof": 3 }
+    return world
+}
+
+/// Pose targets (radians) for the three hinges.
+pub fn setArmTargets(world, q1, q2, q3) {
+    world = setJointTarget(world, "j1", q1)
+    world = setJointTarget(world, "j2", q2)
+    world = setJointTarget(world, "j3", q3)
+    return world
+}
+
+/// Drive arm toward targets for n steps; returns world.
+pub fn simulateArm(world, dt, n) {
+    return stepN(world, dt, n)
+}
+
+/// End-effector body (last link).
+pub fn endEffector(world) {
+    return findBody(world, "link3")
+}
+
+/// Twin lesson after a motion (Learn surface).
+pub fn buildTwinLesson(world) {
+    let enc = readEncoders(world)
+    let imu = readImu(world)
+    return {
+        "title": "Robot twin — joint ODE + FK",
+        "code": "tau = kp*(q* - q) - kd*qd\nqdd = tau/I\nFK(q) → link poses",
+        "hint": "Ändra kp/kd via applyLiveParams; kör simulateArm igen.",
+        "encoders": enc,
+        "imu": imu,
+        "params": world["params"],
+        "dof": world["robot"]["dof"]
+    }
+}
