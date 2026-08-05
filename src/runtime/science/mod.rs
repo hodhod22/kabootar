@@ -1,9 +1,12 @@
 //! Science & engineering toolbox — loaded via `import "science"`.
 //!
-//! Complex numbers, math, physics, chemistry, economics, and digital/bit ops.
+//! Complex numbers, math, physics, chemistry, economics, digital/bit ops,
+//! ndarray (SC0), ML subset (SC2).
 
 pub mod helpers;
 pub mod matrix;
+pub mod ml;
+pub mod ndarray;
 pub mod numerics;
 pub mod stats;
 
@@ -481,6 +484,8 @@ pub fn register(env: &mut Environment) {
     stats::register(&mut bind);
     matrix::register(&mut bind);
     numerics::register(&mut bind);
+    ndarray::register(&mut bind);
+    ml::register(&mut bind);
 }
 
 #[cfg(test)]
