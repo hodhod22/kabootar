@@ -945,22 +945,22 @@ Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i
 
 | Fas | Modul (mål) | Innehåll | Status |
 |-----|-------------|----------|--------|
-| **SC6a** | `science/stats`++ / `science/prob` | **Statistik & sannolikhet** — fler fördelningar (expon/poisson/beta/binom), CDF/PDF/PPF, Monte Carlo, bootstrap CI, Bayes-lite | ✅ subset (`science/prob`: poisson/binom/expon/norm + bootstrapCi/monteCarloMean; beta/Bayes kvar) |
+| **SC6a** | `science/stats`++ / `science/prob` | **Statistik & sannolikhet** — fler fördelningar (expon/poisson/beta/binom), CDF/PDF/PPF, Monte Carlo, bootstrap CI, Bayes-lite | ✅ subset (`prob`: poisson/binom/expon/norm/beta + bootstrap/MC + `bayesBetaUpdate`/`bayesOdds`) |
 | **SC6b** | `science/preprocess` | **Förbearbetning & feature engineering** — scale/standardize, impute, one-hot/ordinal, polynomial/interaction, train/test leakage-safe pipeline hooks | ✅ subset (`standardScale`/`minmaxScale`/`imputeMean`/`oneHot`/`polyFeatures`) |
 | **SC6c** | `science/metrics` | **Utvärdering & metriker** — precision/recall/Fβ, PR-AUC, log-loss, R²/MAE/MAPE, calibration; ovanpå `ml_accuracy`/`f1`/`roc_auc` | ✅ subset (`precision`/`recall`/`fbeta`/`r2`/`mae`/`mape`/`logLoss`/`prAuc`) |
 | **SC6d** | `science/graph` | **Grafer & GNN** — adjacency/CSR graph, message-passing-lite (GCN/GraphSAGE-subset), node embed; sparse SpMV reuse | ✅ subset (`fromEdges`/`meanAggregate`/`gcnLayer`/`degreeFeatures`) |
-| **SC6e** | `science/timeseries` | **Tidsserieanalys** — lag/rolling, ACF/PACF-lite, AR/ARIMA-subset, seasonal decompose, forecast metrics | ✅ subset (`lag`/`rollingMean`/`acf`/`seasonalDecompose`/`ar1Fit`/`ar1Forecast`) |
+| **SC6e** | `science/timeseries` | **Tidsserieanalys** — lag/rolling, ACF/PACF-lite, AR/ARIMA-subset, seasonal decompose, forecast metrics | ✅ subset (`acf`/`ar1*`/`arima110*`/`arima111*`/`seasonalDecompose`) |
 | **SC6f** | `science/rl` | **Förstärkningsinlärning** — env-API (reset/step), replay buffer, Q-learning / REINFORCE-lite, gym-style smoke | ✅ subset (`createEnv`/`step`/`replay*`/`qLearnUpdate`/`greedyAction`) |
-| **SC6g** | `science/viz` / `explain` | **Visualisering & tolkningsbarhet** — confusion heatmaps, learning curves, feature importance / permutation, SHAP-lite; canvas/notebook rich | ✅ subset (`science/explain`: confusionHeat/learningCurve/permutationImportance/corrImportance) |
+| **SC6g** | `science/viz` / `explain` | **Visualisering & tolkningsbarhet** — confusion heatmaps, learning curves, feature importance / permutation, SHAP-lite; canvas/notebook rich | ✅ subset (`explain`: heat/curves/perm/corr + `shapLinear`/`shapKernelLite`) |
 | **SC6h** | `science/dist` | **Distribuerad / parallell beräkning** — chunked `map`/`reduce` över workers (SC4c/P8), parameter-server-lite / AllReduce-stub; GPU multi-buffer senare | ✅ subset (`chunk`/`parallelMapF64`/`allReduceMean`/`mapReduce`) |
-| **SC6i** | `science/domain/*` | **Domänspecifika moduler** — t.ex. `bio` (sekvens-lite), `finance` (returns/vol), `chem` (molekyl-featurize-lite), `nlp` (ovanpå tok/tf); tunna Kab-paket | ✅ subset (`domain/finance`/`bio`/`nlp`; chem kvar) |
+| **SC6i** | `science/domain/*` | **Domänspecifika moduler** — t.ex. `bio` (sekvens-lite), `finance` (returns/vol), `chem` (molekyl-featurize-lite), `nlp` (ovanpå tok/tf); tunna Kab-paket | ✅ subset (`domain/finance`/`bio`/`nlp`/`chem`) |
 
 **SC6-policy:** samma SC5c — nya exports via `lib/science/*.kab` (+ `science/domain/…`); natives bara om hotpath kräver det. Smokes: `tests/science_sc_wave11.rs`.
 
-**SC-ordning:** SC0–SC5 ✅ subset → **SC6a–i ✅ subset** (fördjupa beta/Bayes, ARIMA, SHAP, chem, Kab-closure workers).
+**SC-ordning:** SC0–SC6 ✅ subset (beta/Bayes, ARIMA, SHAP, chem landade).
 
-**Checkpoint SC (nästa):** fördjupa SC6 (beta/Bayes, ARIMA, SHAP-lite, chem) + extern BLAS + full TF backprop.  
-**Checkpoint SC (landad 2026-08):** **SC6 MVP** — prob/preprocess/metrics/timeseries/explain/graph/rl/dist/domain + wave10 ODE/GEMM/TF-train + WGSL.  
+**Checkpoint SC (nästa):** extern BLAS-FFI + full TF backprop + Kab-closure workers; SC6 polish (PPF, full KernelSHAP, REINFORCE).  
+**Checkpoint SC (landad 2026-08):** **SC6 deepen** — beta/Bayes + ARIMA(1,1,*) + SHAP-lite + chem + wave11 modules + wave10 ODE/GEMM/TF.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
 **Checkpoint SC (AI-parity):** tokenizer/transformer + SC2l + GPU kernels (landad subset).  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6 production modules**, och **helt självständig** stack (SC5f).
@@ -1089,7 +1089,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████░░░░  GP0–GP5 ✅; **GP6 systems + GP7 editor** planerad
-Våg SC (STEM)  ██████████████░░  SC0–SC6 ✅ subset; fördjupa beta/ARIMA/SHAP/chem + BLAS/TF-BP
+Våg SC (STEM)  ███████████████░  SC0–SC6 ✅ (+ beta/Bayes/ARIMA/SHAP/chem); BLAS/TF-BP kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

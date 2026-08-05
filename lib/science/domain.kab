@@ -4,3 +4,4 @@
 pub import "science/domain/finance"
 pub import "science/domain/bio"
 pub import "science/domain/nlp"
+pub import "science/domain/chem"

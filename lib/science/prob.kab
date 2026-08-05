@@ -204,3 +204,71 @@ pub fn monteCarloMean(n, seed, cb) {
     }
     return { "mean": m, "std": sd, "n": n }
 }
+
+pub fn betaLn(a, b) {
+    // Prefer factorial path for positive integer shapes (more stable than gamma).
+    if a == floor(a) && b == floor(b) && a >= 1.0 && b >= 1.0 {
+        return log(fact(a - 1)) + log(fact(b - 1)) - log(fact(a + b - 1))
+    }
+    return log(num_gamma(a)) + log(num_gamma(b)) - log(num_gamma(a + b))
+}
+
+/// Beta PDF on (0,1).
+pub fn betaPdf(x, a, b) {
+    if x <= 0.0 || x >= 1.0 {
+        return 0.0
+    }
+    if a <= 0.0 || b <= 0.0 {
+        return 0.0
+    }
+    return exp((a - 1.0) * log(x) + (b - 1.0) * log(1.0 - x) - betaLn(a, b))
+}
+
+/// Beta CDF via trapezoid on [0,x] (SC6a deepen).
+pub fn betaCdf(x, a, b) {
+    if x <= 0.0 {
+        return 0.0
+    }
+    if x >= 1.0 {
+        return 1.0
+    }
+    let n = 64
+    let h = x / n
+    let s = 0.5 * betaPdf(0.0000001, a, b) + 0.5 * betaPdf(x, a, b)
+    let i = 1
+    while i < n {
+        s = s + betaPdf(i * h, a, b)
+        i = i + 1
+    }
+    let v = s * h
+    if v < 0.0 {
+        return 0.0
+    }
+    if v > 1.0 {
+        return 1.0
+    }
+    return v
+}
+
+pub fn betaMean(a, b) {
+    return a / (a + b)
+}
+
+/// Conjugate Bernoulli–Beta update: prior Beta(a,b) + s successes / f failures.
+pub fn bayesBetaUpdate(a, b, successes, failures) {
+    return {
+        "alpha": a + successes,
+        "beta": b + failures,
+        "mean": (a + successes) / (a + successes + b + failures)
+    }
+}
+
+/// Odds form: posteriorOdds = priorOdds * likelihoodRatio.
+pub fn bayesOdds(priorOdds, likelihoodRatio) {
+    return priorOdds * likelihoodRatio
+}
+
+/// Posterior probability from odds: o/(1+o).
+pub fn oddsToProb(odds) {
+    return odds / (1.0 + odds)
+}
