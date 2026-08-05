@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "cells": [
+    {
+      "id": "setup",
+      "source": "let xs = [1.0, 2.0, 3.0, 4.0]\nlet ys = [3.0, 5.0, 7.0, 9.0]"
+    },
+    {
+      "id": "train",
+      "source": "let params = [0.0, 0.0]\nlet epoch = 0\nwhile epoch < 80 {\n  let i = 0\n  while i < 4 {\n    params = ml_linreg_step(params, [xs[i]], ys[i], 0.08)\n    i = i + 1\n  }\n  epoch = epoch + 1\n}\nparams"
+    },
+    {
+      "id": "check",
+      "source": "let pred = params[0] * 2.0 + params[1]\npred > 4.0 && pred < 6.0"
+    }
+  ]
+}

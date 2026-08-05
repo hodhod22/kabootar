@@ -1,13 +1,17 @@
 //! Science & engineering toolbox — loaded via `import "science"`.
 //!
 //! Complex numbers, math, physics, chemistry, economics, digital/bit ops,
-//! ndarray (SC0), ML subset (SC2).
+//! ndarray (SC0), ML/autograd (SC2), FFT/SVD, CSV/plot, GPU tensors.
 
+pub mod autograd;
+pub mod data;
+pub mod gpu_tensor;
 pub mod helpers;
 pub mod matrix;
 pub mod ml;
 pub mod ndarray;
 pub mod numerics;
+pub mod signal;
 pub mod stats;
 
 use crate::value::{Environment, Value};
@@ -486,6 +490,10 @@ pub fn register(env: &mut Environment) {
     numerics::register(&mut bind);
     ndarray::register(&mut bind);
     ml::register(&mut bind);
+    autograd::register(&mut bind);
+    signal::register(&mut bind);
+    data::register(&mut bind);
+    gpu_tensor::register(&mut bind);
 }
 
 #[cfg(test)]

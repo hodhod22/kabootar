@@ -563,11 +563,44 @@ fn float32_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Va
     Ok(Value::Undefined)
 }
 
-pub fn is_float32_array(v: &Value) -> bool {
+/// Bulk-copy Float64Array view into a `Vec<f64>` (little-endian).
+pub fn float64_array_to_f64_vec(v: &Value) -> Result<Vec<f64>, String> {
+    let (sab_id, offset, length) = f64_view_parts(v)?;
+    let block = block_for_sab(sab_id)?;
+    let end = offset.saturating_add(length.saturating_mul(8));
+    if end > block.bytes.len() {
+        return Err("Float64Array range exceeds ArrayBuffer".into());
+    }
+    let mut out = Vec::with_capacity(length);
+    for i in 0..length {
+        out.push(read_f64_le(&block.bytes, offset + i * 8)?);
+    }
+    Ok(out)
+}
+
+pub fn is_float64_array(v: &Value) -> bool {
     matches!(
         v,
-        Value::Object(o) if matches!(o.get("__kab_f32"), Some(Value::Bool(true)))
+        Value::Object(o) if matches!(o.get("__kab_f64"), Some(Value::Bool(true)))
     )
+}
+
+/// Write `data` into an existing Float64Array view (in-place / zero-copy target).
+pub fn float64_array_write_slice(view: &Value, data: &[f64]) -> Result<(), String> {
+    let (sab_id, offset, length) = f64_view_parts(view)?;
+    if data.len() > length {
+        return Err("float64_array_write_slice: data longer than view".into());
+    }
+    let block = block_for_sab(sab_id)?;
+    // SAFETY: SharedArrayBuffer block is process-local; science writes are single-threaded here.
+    unsafe {
+        let ptr = block.bytes.as_ptr() as *mut u8;
+        let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
+        for (i, v) in data.iter().enumerate() {
+            write_f64_le(slice, offset + i * 8, *v)?;
+        }
+    }
+    Ok(())
 }
 
 /// Bulk-copy Float32Array view bytes into a `Vec<f32>` (little-endian).
@@ -583,6 +616,13 @@ pub fn float32_array_to_f32_vec(v: &Value) -> Result<Vec<f32>, String> {
         out.push(read_f32_le(&block.bytes, offset + i * 4)?);
     }
     Ok(out)
+}
+
+pub fn is_float32_array(v: &Value) -> bool {
+    matches!(
+        v,
+        Value::Object(o) if matches!(o.get("__kab_f32"), Some(Value::Bool(true)))
+    )
 }
 
 /// Bulk-copy raw little-endian bytes of a Float32Array view.
@@ -678,13 +718,6 @@ fn data_view_set_float64_native(args: &[Value], _env: &mut Environment) -> Resul
         write_f64_le(slice, base + rel, value)?;
     }
     Ok(Value::Undefined)
-}
-
-pub fn is_float64_array(v: &Value) -> bool {
-    matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_f64"), Some(Value::Bool(true)))
-    )
 }
 
 pub fn is_data_view(v: &Value) -> bool {

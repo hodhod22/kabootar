@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kabootar Notebook</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --ink: #e7eef7;
+      --muted: #8aa0b5;
+      --accent: #3dd68c;
+      --code: #0b1016;
+      --err: #ff7b72;
+      --table: #9ecbff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1c3a2e 0%, var(--bg) 55%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      padding: 1.5rem 1.25rem 0.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header h1 {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      margin: 0 0 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    header p { margin: 0; color: var(--muted); max-width: 42rem; }
+    main { max-width: 960px; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+    .cell {
+      background: var(--panel);
+      border: 1px solid #2a3644;
+      margin: 0.85rem 0;
+      overflow: hidden;
+    }
+    .cell-bar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.45rem 0.65rem;
+      border-bottom: 1px solid #2a3644;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .cell-bar button, .toolbar button {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid #2f5a45;
+      padding: 0.25rem 0.7rem;
+      cursor: pointer;
+      font: inherit;
+    }
+    .toolbar button.primary {
+      background: var(--accent);
+      color: #062016;
+      border-color: transparent;
+      font-weight: 600;
+      padding: 0.55rem 0.95rem;
+    }
+    textarea {
+      width: 100%;
+      min-height: 5.5rem;
+      border: 0;
+      resize: vertical;
+      padding: 0.85rem;
+      background: var(--code);
+      color: #d7e6ff;
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+    .out {
+      padding: 0.65rem 0.85rem;
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+      border-top: 1px solid #2a3644;
+      color: var(--accent);
+    }
+    .out.err { color: var(--err); }
+    .out.table { color: var(--table); }
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; align-items: center; }
+    .status { color: var(--muted); font-size: 0.85rem; }
+    .note { color: var(--muted); font-size: 0.85rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kabootar Notebook</h1>
+    <p>Delad WASM-session (<code>session_eval</code>) — samma env mellan celler. STEM via <code>session_science</code>.</p>
+  </header>
+  <main>
+    <div class="toolbar">
+      <button type="button" class="primary" id="run-all">Run all</button>
+      <button type="button" id="add-cell">Add cell</button>
+      <button type="button" id="reset">Reset session</button>
+      <button type="button" id="science">Import science</button>
+      <span class="status" id="status">Loading…</span>
+    </div>
+    <div id="cells"></div>
+    <p class="note">CLI: <code>kabootar notebook run examples/explore_smoke.knb --science</code> · REPL: <code>kabootar</code></p>
+  </main>
+  <script type="module">
+    const cellsEl = document.getElementById("cells");
+    const statusEl = document.getElementById("status");
+    let cellId = 0;
+    let api = null;
+
+    async function tryLoadWasm() {
+      try {
+        const mod = await import("./pkg/kabootar_lib.js");
+        await mod.default();
+        api = {
+          eval: (src) => (mod.session_eval ? mod.session_eval(src) : mod.evaluate(src)),
+          reset: () => mod.session_reset && mod.session_reset(),
+          science: () => mod.session_science ? mod.session_science() : "no session_science",
+        };
+        statusEl.textContent = "WASM session ready";
+      } catch (_) {
+        api = null;
+        statusEl.textContent = "No WASM — demo mode (build pkg/ for full session)";
+      }
+    }
+
+    function demoEval(src) {
+      const t = src.trim();
+      if (t === "1 + 2") return "3";
+      if (t.includes("ascii_plot") || t.includes("format_table")) return "(needs WASM + science)";
+      return "(demo) " + t.slice(0, 48);
+    }
+
+    function addCell(source = "1 + 2") {
+      const id = ++cellId;
+      const wrap = document.createElement("section");
+      wrap.className = "cell";
+      wrap.innerHTML = `
+        <div class="cell-bar">
+          <span>In [${id}]</span>
+          <button type="button" data-run>Run</button>
+        </div>
+        <textarea></textarea>
+        <div class="out" hidden></div>`;
+      wrap.querySelector("textarea").value = source;
+      wrap.querySelector("[data-run]").addEventListener("click", () => runCell(wrap));
+      cellsEl.appendChild(wrap);
+    }
+
+    async function runCell(wrap) {
+      const src = wrap.querySelector("textarea").value;
+      const out = wrap.querySelector(".out");
+      out.hidden = false;
+      out.classList.remove("err", "table");
+      try {
+        let result = api ? api.eval(src) : demoEval(src);
+        if (api && !String(result).startsWith("Error")) {
+          // Prefer pretty table/plot when science is loaded.
+          const pretty = api.eval("pretty(_)");
+          if (pretty && !String(pretty).startsWith("Error") && pretty !== "undefined") {
+            result = pretty;
+          }
+        }
+        out.textContent = "=> " + result;
+        if (String(result).includes("\t") || String(result).includes("\nmin=")) {
+          out.classList.add("table");
+        }
+        if (String(result).startsWith("Error")) out.classList.add("err");
+      } catch (e) {
+        out.classList.add("err");
+        out.textContent = String(e);
+      }
+    }
+
+    document.getElementById("add-cell").addEventListener("click", () => addCell(""));
+    document.getElementById("run-all").addEventListener("click", async () => {
+      for (const wrap of cellsEl.querySelectorAll(".cell")) await runCell(wrap);
+    });
+    document.getElementById("reset").addEventListener("click", () => {
+      if (api?.reset) api.reset();
+      statusEl.textContent = "Session reset";
+    });
+    document.getElementById("science").addEventListener("click", () => {
+      const r = api?.science ? api.science() : "no wasm";
+      statusEl.textContent = "science: " + r;
+    });
+
+    await tryLoadWasm();
+    addCell("1 + 2");
+    addCell("let rows = [[1, 2], [3, 4]]\nformat_table(rows)");
+    addCell("ascii_plot([1.0, 3.0, 2.0, 5.0, 4.0], 48, 8)");
+  </script>
+</body>
+</html>
