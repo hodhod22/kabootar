@@ -82,3 +82,31 @@ pub fn split(a, sections, axis) {
 pub fn mean(a) {
     return nd_mean(a)
 }
+
+pub fn dtype(a) {
+    return nd_dtype(a)
+}
+
+pub fn astype(a, dt) {
+    return nd_astype(a, dt)
+}
+
+pub fn seed(n) {
+    return nd_seed(n)
+}
+
+pub fn randUniform(shape, low, high) {
+    return nd_rand_uniform(shape, low, high)
+}
+
+pub fn randNormal(shape, mean, std) {
+    return nd_rand_normal(shape, mean, std)
+}
+
+pub fn save(a, path) {
+    return nd_save(a, path)
+}
+
+pub fn load(path) {
+    return nd_load(path)
+}

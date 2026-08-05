@@ -1,0 +1,31 @@
+@version "1.0.0"
+
+// DataFrame-lite wrappers (SC3f). Call after `import "science"`.
+
+pub fn from(colsOrRows, names) {
+    return df_from(colsOrRows, names)
+}
+
+pub fn select(df, names) {
+    return df_select(df, names)
+}
+
+pub fn filter(df, col, op, value) {
+    return df_filter(df, col, op, value)
+}
+
+pub fn groupby(df, key, agg, how) {
+    return df_groupby(df, key, agg, how)
+}
+
+pub fn join(left, right, onCol) {
+    return df_join(left, right, onCol)
+}
+
+pub fn nrows(df) {
+    return df_nrows(df)
+}
+
+pub fn head(df, n) {
+    return df_head(df, n)
+}

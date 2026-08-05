@@ -529,11 +529,14 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
 | `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
+| `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
 | `mat_qr` / `mat_svd` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e) |
-| `ag_*` | Autograd-lite tape |
+| `ag_*` (+ matmul/softmax/ce/no_grad) | Autograd tape |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
+| `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
 | `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD2 |
 | `csv_*` / `ascii_plot` / `plot_line` / `plot_scatter` / `plot_hist` / `pretty` | Data + viz |
+| `df_*` | DataFrame-lite |
 | `gpu_tensor_*` | GPU staging tensors |
 
 ## ML / AI (SC2)
@@ -563,9 +566,9 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab` — **Kab-first**
+- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab` — **Kab-first**
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`, `tests/science_sc_next.rs`
+- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 - Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
 
