@@ -480,7 +480,32 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     if bout.len() != vocab {
         bout = vec![0.0; vocab];
     }
-    let _ = n_heads; // identity attn path for BP subset
+
+    // Attention forward (real MHA) + BP through output projection `wo` (SC checkpoint subset).
+    let wq_v = match weights.get("wq") {
+        Some(v) => vector_at(&[v.clone()], 0, "wq").unwrap_or_else(|_| identity_flat(d_model)),
+        None => identity_flat(d_model),
+    };
+    let wk_v = match weights.get("wk") {
+        Some(v) => vector_at(&[v.clone()], 0, "wk").unwrap_or_else(|_| identity_flat(d_model)),
+        None => identity_flat(d_model),
+    };
+    let wv_v = match weights.get("wv") {
+        Some(v) => vector_at(&[v.clone()], 0, "wv").unwrap_or_else(|_| identity_flat(d_model)),
+        None => identity_flat(d_model),
+    };
+    let wo_v = match weights.get("wo") {
+        Some(v) => vector_at(&[v.clone()], 0, "wo").unwrap_or_else(|_| identity_flat(d_model)),
+        None => identity_flat(d_model),
+    };
+    let x_emb = x.clone();
+    let q = linear_rows(&x_emb, seq, d_model, &wq_v, d_model, &vec![0.0; d_model]);
+    let k = linear_rows(&x_emb, seq, d_model, &wk_v, d_model, &vec![0.0; d_model]);
+    let v = linear_rows(&x_emb, seq, d_model, &wv_v, d_model, &vec![0.0; d_model]);
+    let attn = mha_forward(&q, &k, &v, seq, seq, d_model, n_heads);
+    let proj = linear_rows(&attn, seq, d_model, &wo_v, d_model, &vec![0.0; d_model]);
+    x = add_mat(&x_emb, &proj);
+
     let x_pre = x.clone();
     let h1 = linear_rows(&x_pre, seq, d_model, &w1_v, ff_dim, &b1);
     let h1r = relu_vec(&h1);
@@ -583,22 +608,45 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         }
     }
 
+    // Attention residual BP: update `wo` (attn treated as constant for QKV — subset).
+    let mut gwo = vec![0.0; wo_v.len()];
+    let mut g_attn = vec![0.0; seq * d_model];
+    for s in 0..seq {
+        for o in 0..d_model {
+            let g = gx_pre[s * d_model + o];
+            for i in 0..d_model {
+                gwo[o * d_model + i] += g * attn[s * d_model + i];
+                g_attn[s * d_model + i] += g * wo_v[o * d_model + i];
+            }
+        }
+    }
+    let mut wo_m = wo_v.clone();
+    for i in 0..wo_m.len() {
+        wo_m[i] -= lr * gwo[i];
+    }
+    let _ = g_attn; // QKV/softmax BP deferred — wo + residual embed path landed
+
     set_weight_vec(&mut weights, "wout", &wout_m);
     set_weight_vec(&mut weights, "bout", &bout);
     set_weight_vec(&mut weights, "w2", &w2_m);
     set_weight_vec(&mut weights, "b2", &b2);
     set_weight_vec(&mut weights, "w1", &w1_m);
     set_weight_vec(&mut weights, "b1", &b1);
+    set_weight_vec(&mut weights, "wo", &wo_m);
     set_embed_nd(&mut weights, vocab, d_model, &embed_data);
 
     let mut out = HashMap::new();
     out.insert("weights".into(), Value::Object(weights));
     out.insert("loss".into(), float_out(loss));
-    out.insert("layers".into(), Value::Array(vec![
-        Value::String("wout".into()),
-        Value::String("ff".into()),
-        Value::String("embed".into()),
-    ]));
+    out.insert(
+        "layers".into(),
+        Value::Array(vec![
+            Value::String("wout".into()),
+            Value::String("ff".into()),
+            Value::String("attn_wo".into()),
+            Value::String("embed".into()),
+        ]),
+    );
     Ok(Value::Object(out))
 }
 

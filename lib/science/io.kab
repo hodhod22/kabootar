@@ -1,0 +1,102 @@
+@version "1.0.0"
+
+// science/io — SC7c unified science I/O.
+// Requires `import "science"`. Thin Kab surface over nd/CSV/checkpoint natives.
+
+/// Save ndarray (KND1 binary).
+pub fn saveNd(a, path) {
+    return nd_save(a, path)
+}
+
+/// Load ndarray from KND1 path.
+pub fn loadNd(path) {
+    return nd_load(path)
+}
+
+/// Parse CSV text → rows.
+pub fn parseCsv(text) {
+    return csv_parse(text)
+}
+
+/// Load CSV from path/VFS.
+pub fn loadCsv(path) {
+    return csv_load(path)
+}
+
+/// Describe tabular rows (stats summary).
+pub fn describe(rows) {
+    return table_describe(rows)
+}
+
+/// Save ML weights checkpoint (JSON/VFS).
+pub fn saveCheckpoint(path, weights) {
+    return ml_save_checkpoint(path, weights)
+}
+
+/// Load ML weights checkpoint.
+pub fn loadCheckpoint(path) {
+    return ml_load_checkpoint(path)
+}
+
+/// Encode value as JSON string.
+pub fn toJson(value) {
+    return json_stringify(value)
+}
+
+/// Parse JSON string.
+pub fn fromJson(text) {
+    return json_parse(text)
+}
+
+/// Convenience: save nd + return path meta (GC object).
+pub fn writeNd(a, path) {
+    nd_save(a, path)
+    return { "kind": "nd_file", "path": path, "size": nd_size(a), "shape": nd_shape(a) }
+}
+
+/// Convenience: load nd + wrap meta.
+pub fn readNd(path) {
+    let a = nd_load(path)
+    return { "kind": "nd_file", "path": path, "array": a, "size": nd_size(a), "shape": nd_shape(a) }
+}
+
+/// Parse JSON Lines text → array of objects.
+pub fn parseJsonl(text) {
+    let lines = string_split(text, "\n")
+    let out = []
+    let i = 0
+    while i < len(lines) {
+        let line = string_trim(lines[i])
+        if line != "" {
+            out = push(out, json_parse(line))
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Serialize rows to JSONL text.
+pub fn toJsonl(rows) {
+    let text = ""
+    let i = 0
+    while i < len(rows) {
+        text = text + json_stringify(rows[i])
+        if i + 1 < len(rows) {
+            text = text + "\n"
+        }
+        i = i + 1
+    }
+    return text
+}
+
+/// Save JSONL via VFS/host write.
+pub fn saveJsonl(path, rows) {
+    let text = toJsonl(rows)
+    return os_write(path, text)
+}
+
+/// Load JSONL from path.
+pub fn loadJsonl(path) {
+    let text = os_read(path)
+    return parseJsonl(text)
+}

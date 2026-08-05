@@ -1,0 +1,198 @@
+@version "1.0.0"
+
+// science/nd_gpu — SC7a ndarray/Tensor ↔ GPU (CuPy-like surface).
+// Requires `import "science"`. Lower-level wrappers remain in science/gpu.
+
+fn isGpuTensor(t) {
+    if t == null || t == undefined {
+        return false
+    }
+    let b = t["backend"]
+    if b == null || b == undefined {
+        return false
+    }
+    return t["shape"] != null
+}
+
+fn ndShapeOf(a) {
+    if isGpuTensor(a) {
+        return a["shape"]
+    }
+    return nd_shape(a)
+}
+
+fn ndFlat(a) {
+    if isGpuTensor(a) {
+        return a["data"]
+    }
+    return nd_to_array(a)
+}
+
+/// Upload nd/array → GPU staging tensor (device).
+pub fn toDevice(a) {
+    if isGpuTensor(a) {
+        return gpu_to_device(a)
+    }
+    let data = ndFlat(a)
+    let shape = ndShapeOf(a)
+    let g = gpu_tensor_from(data, shape)
+    return gpu_to_device(g)
+}
+
+/// Download GPU tensor → host staging (still gpu-tensor object).
+pub fn toHost(t) {
+    return gpu_to_host(t)
+}
+
+/// GPU tensor → owned ndarray (CPU).
+pub fn toNd(t) {
+    if !isGpuTensor(t) {
+        return t
+    }
+    let h = gpu_to_host(t)
+    return nd_from(h["data"], h["shape"])
+}
+
+/// Create GPU tensor from flat data + shape (host, then optional device).
+pub fn from(data, shape) {
+    return gpu_tensor_from(data, shape)
+}
+
+pub fn zeros(shape) {
+    return gpu_zeros(shape)
+}
+
+pub fn ones(shape) {
+    return gpu_ones(shape)
+}
+
+/// Ensure both args are GPU tensors, then matmul (stays on device when possible).
+pub fn matmul(a, b) {
+    let ga = a
+    let gb = b
+    if !isGpuTensor(a) {
+        ga = toDevice(a)
+    }
+    if !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_matmul(ga, gb)
+}
+
+pub fn add(a, b) {
+    let ga = a
+    let gb = b
+    if !isGpuTensor(a) {
+        ga = toDevice(a)
+    }
+    if !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_add(ga, gb)
+}
+
+pub fn scale(a, s) {
+    let ga = a
+    if !isGpuTensor(a) {
+        ga = toDevice(a)
+    }
+    return gpu_scale(ga, s)
+}
+
+pub fn linear(w, x, b) {
+    let gw = w
+    let gx = x
+    let gb = b
+    if !isGpuTensor(w) {
+        gw = toDevice(w)
+    }
+    if !isGpuTensor(x) {
+        gx = toDevice(x)
+    }
+    if b != null && !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_linear(gw, gx, gb)
+}
+
+pub fn conv2d(x, w, b, stride, pad) {
+    let gx = x
+    let gw = w
+    let gb = b
+    if !isGpuTensor(x) {
+        gx = toDevice(x)
+    }
+    if !isGpuTensor(w) {
+        gw = toDevice(w)
+    }
+    if b != null && !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_conv2d(gx, gw, gb, stride, pad)
+}
+
+pub fn matmulKernel(a, b) {
+    let ga = a
+    let gb = b
+    if !isGpuTensor(a) {
+        ga = toDevice(a)
+    }
+    if !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_matmul_kernel(ga, gb)
+}
+
+pub fn conv2dKernel(x, w, b, stride, pad) {
+    let gx = x
+    let gw = w
+    let gb = b
+    if !isGpuTensor(x) {
+        gx = toDevice(x)
+    }
+    if !isGpuTensor(w) {
+        gw = toDevice(w)
+    }
+    if b != null && !isGpuTensor(b) {
+        gb = toDevice(b)
+    }
+    return gpu_conv2d_kernel(gx, gw, gb, stride, pad)
+}
+
+/// Elementwise relu on device (CPU-emulated when no GPU): max(0, x).
+pub fn relu(a) {
+    let ga = a
+    if !isGpuTensor(a) {
+        ga = toDevice(a)
+    }
+    let data = ga["data"]
+    let out = []
+    let i = 0
+    while i < len(data) {
+        let v = data[i]
+        if v < 0.0 {
+            v = 0.0
+        }
+        out = push(out, v)
+        i = i + 1
+    }
+    let g = gpu_tensor_from(out, ga["shape"])
+    if ga["device"] == "gpu" {
+        return gpu_to_device(g)
+    }
+    return g
+}
+
+pub fn info() {
+    return gpu_tensor_info()
+}
+
+pub fn kernels() {
+    return gpu_available_kernels()
+}
+
+/// Round-trip smoke: nd → device → host nd.
+pub fn roundTrip(a) {
+    let d = toDevice(a)
+    return toNd(d)
+}

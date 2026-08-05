@@ -71,12 +71,12 @@ pub fn allReduceMean(vectors) {
 
 /// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).
 pub fn mapReduce(xs, nChunks, mapFn, reduceFn) {
-    let parts = chunk(xs, nChunks)
-    let mapped = []
-    let i = 0
-    while i < len(parts) {
-        mapped = push(mapped, mapFn(parts[i]))
-        i = i + 1
+    let mrParts = chunk(xs, nChunks)
+    let mrMapped = []
+    let mrI = 0
+    while mrI < len(mrParts) {
+        mrMapped = push(mrMapped, mapFn(mrParts[mrI]))
+        mrI = mrI + 1
     }
-    return reduceFn(mapped)
+    return reduceFn(mrMapped)
 }

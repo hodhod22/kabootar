@@ -368,6 +368,41 @@ pub fn handleShortcut(editor, chord) {
     return { "editor": editor, "action": action }
 }
 
+/// Create a prefab descriptor from a node subtree (JSON-serializable).
+pub fn createPrefab(name, node) {
+    return {
+        "kind": "prefab",
+        "name": name,
+        "scene": serializeScene(node, { "kind": "prefab", "name": name })
+    }
+}
+
+/// Instantiate prefab under editor root (push undo + select).
+pub fn instantiatePrefab(editor, prefab, x, y, z) {
+    if prefab == null || prefab["scene"] == null {
+        return editor
+    }
+    editor = pushUndo(editor, snapshotRoot(editor))
+    let n = deserializeScene(prefab["scene"])
+    if x != null {
+        n = setLocal(n, x, y, z)
+    }
+    editor["root"] = addChild(editor["root"], n)
+    editor = refresh(editor)
+    editor = selectNode(editor, n)
+    return editor
+}
+
+/// Hot-reload descriptor: pairs liveSet with optional asset poll stamp.
+pub fn syncHotReload(editor, pollStamp) {
+    editor["hotReload"] = {
+        "stamp": pollStamp,
+        "selected": editor["selected"] != null,
+        "path": editor["scenePath"]
+    }
+    return editor
+}
+
 pub fn setLayout(editor, hierarchyW, inspectorW, sceneH) {
     editor["layout"]["hierarchyW"] = hierarchyW
     editor["layout"]["inspectorW"] = inspectorW

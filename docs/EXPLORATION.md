@@ -61,4 +61,4 @@ Celler delar `Session` (samma env). Flagga `--science` förladdar science-native
 
 ## Roadmap
 
-Se [ROADMAP.md](ROADMAP.md) **Våg DX** (DX0–DX6 ✅; DX7 Kab-session 📋) och **Våg SC**. Rich display: `session_eval_rich` + `rich_display` (HTML-tabell / plot-image). Readline: `~/.kabootar_history`. WASM: `session_eval` / `session_eval_rich` / `session_science` / `session_reset`.
+Se [ROADMAP.md](ROADMAP.md) **Våg DX** (DX0–DX7 ✅ subset) och **Våg SC**. Rich display: `session_eval_rich` + `rich_display` (HTML-tabell / plot-image). Readline: `~/.kabootar_history`. WASM: `session_eval` / `session_eval_rich` / `session_science` / `session_reset`. DX7: `import "dx/session"` (`helpText`/`commands`/`listVars`/`summarizeValue`).

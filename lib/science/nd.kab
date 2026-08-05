@@ -3,9 +3,11 @@
 // Kabootar science/nd — ndarray / tensor API (SC0 + zero-copy views).
 // Call after `import "science"` so nd_* natives exist.
 //
-// Zero-copy: `slice` / `a[1:10, :]` share an Rc buffer (`__buf`). Ownership =
-// refcount — buffers cannot dangle while any view lives. Mutate via
-// `ensureOwned` (COW) when you need a unique buffer.
+// Memory split:
+//   • Buffer (`__buf` / NdShared): ownership-steered when unique — `ensureOwned`,
+//     `take` (move). Views share the Rc (GC handles; cannot dangle).
+//   • Graphs / models / metadata: GC (`science/lazy`, `science/tensor` meta).
+// Mutate shared buffers via `ensureOwned` (COW).
 
 pub fn zeros(shape) {
     return nd_zeros(shape)
@@ -105,6 +107,19 @@ pub fn ensureOwned(a) {
     return nd_ensure_owned(a)
 }
 
+/// Move unique buffer to a new ndarray; source becomes `__moved`.
+pub fn take(a) {
+    return nd_take(a)
+}
+
+pub fn isMoved(a) {
+    return nd_is_moved(a)
+}
+
+pub fn isOwner(a) {
+    return nd_is_owner(a)
+}
+
 pub fn toArray(a) {
     return nd_to_array(a)
 }
@@ -178,6 +193,7 @@ pub fn vmul(a, b) {
     return sci_vmul(a, b)
 }
 
-pub fn vdot(a, b) {
-    return sci_dot(a, b)
+/// BLAS backend label (matrixmultiply SIMD today; system BLAS later).
+pub fn blasBackend() {
+    return "matrixmultiply"
 }

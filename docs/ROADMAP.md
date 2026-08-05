@@ -478,10 +478,10 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
 | **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
 | **GP** | Game production | GPU-3D, scen/motor, assets + **GP6 system** + **GP7 scene editor** (killer) |
-| **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production modules |
+| **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **SC6** (`lib/science` production modules) + **SC5** deepen; **DX**; därefter **GP6/GP7**. Språk **O/T/J/R** långsiktig bas. **P/GP0–GP5** + **SC0–SC5** subset landad.
+**Aktivt fokus (2026-08):** SC polish (system BLAS / full MHA BP) + GP7 viewport; språk **O/T/J/R**. **P/GP0–GP5** + **SC0–SC7** + **DX0–DX7** subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -795,7 +795,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | ✅ subset (play/pause/stop/stepGame) |
 | **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | ✅ subset (dragStart/dragDropOnNode asset+reparent) |
 | **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | ✅ subset (`liveSet`; hot-reload sync kvar) |
-| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | ✅ subset (`saveScene`/`loadScene` + undo/redo; prefab kvar) |
+| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | ✅ subset (`saveScene`/`loadScene` + undo/redo + `createPrefab`/`instantiatePrefab`) |
 | **GP7g** | **Editor UX i kOS** — fönsterlayout, shortcuts, multi-select; delete-gate: skapa → redigera → play → spara utan extern toolchain | ✅ subset (`kosEditorLayout`/`handleShortcut`/`selectAdd`/`deleteGateStatus`) |
 
 **Varför killer:** Unity/Godot vinner på *editor-loop*. Kab vinner om editor + runtime + ship är **samma språk och binär** — GP7 är därför prioriterad framför “feature-paritet” i GP6 när resurser konkurrerar.
@@ -836,8 +836,10 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 1D FFT/IFFT, conv1d | 2D FFT, FIR/IIR, window, STFT |
 | **Sparse** | `scipy.sparse` + sparse linalg | ❌ | CSR/COO + SpMV + sparse solve subset |
 | **Stats** | `scipy.stats` / pandas describe | 🟡 mean/var + `table_describe` | Fördelningar, hypotest, corr/cov, quantiles, groupby |
-| **Tabell / I/O** | pandas, CSV/Parquet | 🟡 CSV parse/load | Typed columns, join/groupby, Parquet/JSONL, `nd_save`/`nd_load` |
-| **Viz** | Matplotlib / Plotly | 🟡 ASCII + pretty; canvas kvar | Canvas2d line/scatter/hist + notebook-inline |
+| **Tabell / I/O** | pandas, CSV/Parquet | 🟡 CSV parse/load + KND | **SC7c** `science/io`; typed columns, join/groupby, Parquet/JSONL |
+| **Visualisering** | matplotlib / seaborn | 🟡 ASCII + canvas plots | **SC7b** `science/visualize`; heatmaps/imshow/notebook rich |
+| **GPU ndarray** | CuPy / torch.cuda | 🟡 `gpu.kab` + WGSL subset | **SC7a** `science/nd_gpu` (nd/Tensor-parity) |
+| **Parallellism** | joblib / Dask (lokal) | 🟡 `job_map_*` + `dist` | **SC7d** `science/parallel` (lokal); `dist` = multi-node stub |
 | **Klassisk ML** | scikit-learn | 🟡 dense/SGD/linreg + activations | Metrics, train/test split, PCA, k-means, trees/logreg, pipeline |
 | **Deep learning** | PyTorch / JAX / TF | 🟡 dense + autograd-lite + GPU staging | Adam, Conv2d, attention-lite, DataLoader, checkpoint, riktig GPU |
 | **LLM / modern AI** | transformers, tokenizers, CUDA | ❌ (CodAI i IDE separat) | Tokenizer + embedding + transformer-block inference (sedan train) |
@@ -866,6 +868,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
 | **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
 | **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`NdShared` Rc views + `a[1:10, :]` + `nd_slice` zero-copy; `concat`/`stack`/`split`) |
+| **SC0j** | **Tensor ownership + lazy graphs** — unique buffer `take`; GC lazy realize | ✅ subset (`nd_take` / `science/tensor` / `science/lazy`) |
 | **SC0g** | **Dtypes** — f32/f64/i32/i64/bool (+ complex64 senare); cast | ✅ subset (`nd_dtype`/`nd_astype`; complex kvar) |
 | **SC0h** | **Random** — seed, uniform/normal, shuffle (Kab-API) | ✅ subset (`nd_seed`/`nd_rand_uniform`/`nd_rand_normal`; shuffle via `ml_shuffle`) |
 | **SC0i** | **I/O** — `nd_save` / `nd_load` (binär/VFS; npy-inspirerat) | ✅ subset (KND1 binary) |
@@ -957,13 +960,37 @@ Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i
 
 **SC6-policy:** samma SC5c — nya exports via `lib/science/*.kab` (+ `science/domain/…`); natives bara om hotpath kräver det. Smokes: `tests/science_sc_wave11.rs`.
 
-**SC-ordning:** SC0–SC6 ✅ subset (beta/Bayes, ARIMA, SHAP, chem landade).
+#### SC7 — Science surface modules (tydlig produkt-yta) ✅ subset
 
-**Checkpoint SC (nästa):** extern BLAS-FFI (crate) + attention BP / full KernelSHAP / REINFORCE; SC6 polish.  
-**Checkpoint SC (landad 2026-08):** BLAS-API (`sci_blas_dgemm`) + TF multi-layer BP + `job_map_chunks` + SC6 deepen + wave10–12.  
+Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen. Befintliga `gpu.kab`, `explain.kab`, `dist.kab`, `data.kab`/`nd` I/O **förblir** (alias / lägre lager); SC7 ger **rena produktnamn** och nd/Tensor-parity.
+
+| Fas | Modul (mål) | Innehåll | Status |
+|-----|-------------|----------|--------|
+| **SC7a** | `science/nd_gpu` | **Ndarray ↔ GPU** — `toDevice`/`toHost`/`toNd`; `matmul`/`add`/`relu`/`matmulKernel`/`conv2dKernel` | ✅ subset (+ deepen) |
+| **SC7b** | `science/visualize` | **Visualisering** — line/scatter/hist/heatmap/`plotNd`/`imshow`/`imshowNd` | ✅ subset (+ deepen) |
+| **SC7c** | `science/io` | **Science I/O** — KND, CSV, checkpoint, JSON, **JSONL** | ✅ subset (+ deepen) |
+| **SC7d** | `science/parallel` | **Lokal parallellism** — `mapItems`/`mapParallel`/`mapNdParallel`/`vmap`/`mapReduce` | ✅ subset (+ deepen) |
+
+**SC7-policy / lager:**
+
+| Lager | Modul | Ansvar |
+|-------|--------|--------|
+| Produkt (importera först) | `nd_gpu`, `visualize`, `io`, `parallel` | Stabil Kab-API, nd/Tensor-shapes, docs/examples |
+| Befintligt / smalare | `gpu`, `explain`, `dist`, `data` | Låga wrappers, interpretability, distribuerad stub, CSV/plot primitives |
+| Hotpath | Rust natives | SIMD/GPU/FFT/workers — inga nya produktnamn i Rust (SC5c) |
+
+**SC7-ordning:** **SC7c** (`io`) → **SC7d** (`parallel`) → **SC7b** (`visualize`) → **SC7a** (`nd_gpu`).
+
+**Bootstrap:** `science/bootstrap` importerar `io` / `parallel` / `visualize`. `nd_gpu` är **explicit** `import "science/nd_gpu"` (annars skuggas `nd.from`/`matmul`/`zeros`).
+
+**SC-ordning:** SC0–SC7 ✅ subset.
+
+**Checkpoint SC (nästa):** system BLAS-FFI (OpenBLAS/MKL); full MHA QKV/softmax BP; Parquet.  
+**Checkpoint SC (landad 2026-08):** SC7 deepen (JSONL/imshow/vmap/nd_gpu kernels) + REINFORCE + exact `shapKernel` (d≤4) + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab.  
+**Checkpoint SC (landad tidigare):** BLAS-API (`sci_blas_dgemm`) + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership + SC7 surface.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
 **Checkpoint SC (AI-parity):** tokenizer/transformer + SC2l + GPU kernels (landad subset).  
-**Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6 production modules**, och **helt självständig** stack (SC5f).
+**Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6–SC7 modules**, och **helt självständig** stack (SC5f).
 
 ### Våg DX — Exploration (REPL / notebook vs Python) 🚧
 
@@ -990,7 +1017,7 @@ Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i
 | **DX4** | **Science-REPL presets** — `:science`, plot/table pretty | ✅ subset (`:science`, `pretty`/`format_table`/`ascii_plot`) |
 | **DX5** | **History / readline** — line-edit + historikfil | ✅ subset (`rustyline` + `~/.kabootar_history`) |
 | **DX6** | **Rich display** — plot/table inline i notebook/WASM (kopplat SC3h); Kab-UI inte Rust | ✅ subset (`session_eval_rich` + `kabootar-notebook.html`) |
-| **DX7** | **DX self-host** — REPL/session-hjälpare i `.kab` där det går; thin host kvar | 📋 |
+| **DX7** | **DX self-host** — REPL/session-hjälpare i `.kab` där det går; thin host kvar | ✅ subset (`lib/dx/session.kab` + REPL `:help` hooks) |
 
 **DX-ordning:** DX0–DX5 → DX6 → DX7 (parallellt SC5).
 

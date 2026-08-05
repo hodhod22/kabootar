@@ -197,3 +197,74 @@ pub fn shapKernelLite(x, baseline, predictFn) {
     }
     return { "phi": phi, "base": basePred, "pred": full, "check": basePred + sumPhi }
 }
+
+/// Exact Shapley values for small d (≤4) via all coalitions (KernelSHAP-equivalent).
+pub fn shapKernel(x, baseline, predictFn) {
+    let d = len(x)
+    if d < 1 || d > 4 {
+        throw "shapKernel: expect 1..4 features"
+    }
+    let n = 1
+    let i = 0
+    while i < d {
+        n = n * 2
+        i = i + 1
+    }
+    let fact = [1.0, 1.0, 2.0, 6.0, 24.0]
+    let phi = []
+    i = 0
+    while i < d {
+        phi = push(phi, 0.0)
+        i = i + 1
+    }
+    let m = 0
+    while m < n {
+        let bits = 0
+        let j = 0
+        while j < d {
+            let bit = floor(m / pow(2, j)) % 2
+            if bit == 1 {
+                bits = bits + 1
+            }
+            j = j + 1
+        }
+        i = 0
+        while i < d {
+            let bitI = floor(m / pow(2, i)) % 2
+            if bitI == 0 {
+                let rowS = []
+                let rowSi = []
+                j = 0
+                while j < d {
+                    let bj = floor(m / pow(2, j)) % 2
+                    if j == i {
+                        rowS = push(rowS, baseline[j])
+                        rowSi = push(rowSi, x[j])
+                    } else {
+                        if bj == 1 {
+                            rowS = push(rowS, x[j])
+                            rowSi = push(rowSi, x[j])
+                        } else {
+                            rowS = push(rowS, baseline[j])
+                            rowSi = push(rowSi, baseline[j])
+                        }
+                    }
+                    j = j + 1
+                }
+                let w = fact[bits] * fact[d - bits - 1] / fact[d]
+                phi[i] = phi[i] + w * (predictFn(rowSi) - predictFn(rowS))
+            }
+            i = i + 1
+        }
+        m = m + 1
+    }
+    let basePred = predictFn(baseline)
+    let full = predictFn(x)
+    let sumPhi = 0.0
+    i = 0
+    while i < d {
+        sumPhi = sumPhi + phi[i]
+        i = i + 1
+    }
+    return { "phi": phi, "base": basePred, "pred": full, "check": basePred + sumPhi, "coalitions": n }
+}
