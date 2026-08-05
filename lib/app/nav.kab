@@ -1,0 +1,104 @@
+@version "1.0.0"
+
+// app/nav — navigation stack + simple tabs (app shell MVP).
+
+/// Create an empty navigation stack.
+pub fn createStack(rootRoute) {
+    let stack = []
+    if rootRoute != null && rootRoute != undefined {
+        stack = push(stack, {
+            "name": rootRoute,
+            "params": {}
+        })
+    }
+    return {
+        "kind": "nav_stack",
+        "stack": stack,
+        "tabs": [],
+        "tabIndex": 0
+    }
+}
+
+/// Push a route onto the stack (not array push).
+pub fn pushRoute(nav, name, params) {
+    if params == null || params == undefined {
+        params = {}
+    }
+    let stack = nav["stack"]
+    stack = push(stack, { "name": name, "params": params })
+    nav["stack"] = stack
+    return nav
+}
+
+pub fn popRoute(nav) {
+    let stack = nav["stack"]
+    if len(stack) <= 1 {
+        return nav
+    }
+    let next = []
+    let i = 0
+    while i < len(stack) - 1 {
+        next = push(next, stack[i])
+        i = i + 1
+    }
+    nav["stack"] = next
+    return nav
+}
+
+pub fn replaceRoute(nav, name, params) {
+    if params == null || params == undefined {
+        params = {}
+    }
+    let stack = nav["stack"]
+    if len(stack) == 0 {
+        stack = push(stack, { "name": name, "params": params })
+    } else {
+        stack[len(stack) - 1] = { "name": name, "params": params }
+    }
+    nav["stack"] = stack
+    return nav
+}
+
+pub fn currentRoute(nav) {
+    let stack = nav["stack"]
+    if len(stack) == 0 {
+        return null
+    }
+    return stack[len(stack) - 1]
+}
+
+pub fn depth(nav) {
+    return len(nav["stack"])
+}
+
+pub fn canGoBack(nav) {
+    return len(nav["stack"]) > 1
+}
+
+/// Attach tab bar routes (names only).
+pub fn setTabs(nav, tabNames) {
+    nav["tabs"] = tabNames
+    if nav["tabIndex"] >= len(tabNames) {
+        nav["tabIndex"] = 0
+    }
+    return nav
+}
+
+pub fn selectTab(nav, index) {
+    let tabs = nav["tabs"]
+    if tabs == null || tabs == undefined || index < 0 || index >= len(tabs) {
+        return nav
+    }
+    nav["tabIndex"] = index
+    let name = tabs[index]
+    nav["stack"] = [{ "name": name, "params": {} }]
+    return nav
+}
+
+pub fn currentTab(nav) {
+    let tabs = nav["tabs"]
+    if tabs == null || tabs == undefined || len(tabs) == 0 {
+        return null
+    }
+    return tabs[nav["tabIndex"]]
+}

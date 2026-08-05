@@ -1,0 +1,80 @@
+@version "1.0.0"
+
+// iot/radio — Zigbee / BLE stubs (pairs with USB/HID OS layer later).
+
+pub fn createBleAdapter(name) {
+    if name == null {
+        name = "kab-ble"
+    }
+    return {
+        "kind": "ble_adapter",
+        "mode": "stub",
+        "name": name,
+        "powered": true,
+        "devices": []
+    }
+}
+
+pub fn bleScan(adapter, timeoutMs) {
+    if timeoutMs == null {
+        timeoutMs = 1000
+    }
+    return {
+        "adapter": adapter["name"],
+        "mode": "stub",
+        "timeoutMs": timeoutMs,
+        "devices": [
+            {
+                "id": "stub-temp-01",
+                "name": "KabTemp",
+                "rssi": -55,
+                "services": ["environmental"]
+            }
+        ],
+        "reason": "BLE scan stub — enable host BLE backend later"
+    }
+}
+
+pub fn bleConnect(adapter, deviceId) {
+    return {
+        "ok": true,
+        "mode": "stub",
+        "adapter": adapter["name"],
+        "deviceId": deviceId,
+        "connected": true
+    }
+}
+
+pub fn createZigbeeNet(panId) {
+    if panId == null {
+        panId = 0x1a2b
+    }
+    return {
+        "kind": "zigbee_net",
+        "mode": "stub",
+        "panId": panId,
+        "nodes": []
+    }
+}
+
+pub fn zigbeePermitJoin(net, seconds) {
+    if seconds == null {
+        seconds = 60
+    }
+    net["permitJoin"] = seconds
+    return net
+}
+
+pub fn zigbeeNodes(net) {
+    return {
+        "mode": "stub",
+        "panId": net["panId"],
+        "nodes": [
+            {
+                "addr": "0xabcd",
+                "type": "end_device",
+                "model": "KabHumidity"
+            }
+        ]
+    }
+}

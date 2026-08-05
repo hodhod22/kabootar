@@ -1,0 +1,194 @@
+@version "1.0.0"
+
+// app/ui — app widgets (panels/buttons/labels) for Kab-first apps.
+// Builds on game/ui patterns; no native OS widgets yet.
+
+/// Create a screen root (full-bleed panel).
+pub fn createScreen(id, width, height) {
+    if width == null || width == undefined {
+        width = 390
+    }
+    if height == null || height == undefined {
+        height = 844
+    }
+    return {
+        "kind": "screen",
+        "id": id,
+        "w": width,
+        "h": height,
+        "children": [],
+        "safeArea": { "top": 0, "bottom": 0, "left": 0, "right": 0 }
+    }
+}
+
+pub fn createPanel(id, x, y, w, h) {
+    return {
+        "kind": "panel",
+        "id": id,
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": h,
+        "children": [],
+        "visible": true
+    }
+}
+
+pub fn createButton(id, label, x, y, w, h) {
+    if w == null || w == undefined {
+        w = 120
+    }
+    if h == null || h == undefined {
+        h = 44
+    }
+    return {
+        "kind": "button",
+        "id": id,
+        "label": label,
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": h,
+        "pressed": false
+    }
+}
+
+pub fn createLabel(id, text, x, y) {
+    return {
+        "kind": "label",
+        "id": id,
+        "text": text,
+        "x": x,
+        "y": y
+    }
+}
+
+pub fn createTextField(id, placeholder, x, y, w) {
+    if w == null || w == undefined {
+        w = 200
+    }
+    return {
+        "kind": "textfield",
+        "id": id,
+        "placeholder": placeholder,
+        "value": "",
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": 40
+    }
+}
+
+pub fn addChild(parent, child) {
+    let kids = parent["children"]
+    if kids == null || kids == undefined {
+        kids = []
+    }
+    kids = push(kids, child)
+    parent["children"] = kids
+    return parent
+}
+
+/// Place children in a vertical stack with gap.
+pub fn layoutColumn(panel, gap) {
+    if gap == null || gap == undefined {
+        gap = 8
+    }
+    let y = panel["y"]
+    if y == null || y == undefined {
+        y = 0
+    }
+    let x = panel["x"]
+    if x == null || x == undefined {
+        x = 0
+    }
+    let kids = panel["children"]
+    let i = 0
+    while i < len(kids) {
+        let w = kids[i]
+        w["x"] = x
+        w["y"] = y
+        kids[i] = w
+        let hh = w["h"]
+        if hh == null || hh == undefined {
+            hh = 24
+        }
+        y = y + hh + gap
+        i = i + 1
+    }
+    panel["children"] = kids
+    return panel
+}
+
+pub fn layoutRow(panel, gap) {
+    if gap == null || gap == undefined {
+        gap = 8
+    }
+    let x = panel["x"]
+    if x == null || x == undefined {
+        x = 0
+    }
+    let y = panel["y"]
+    if y == null || y == undefined {
+        y = 0
+    }
+    let kids = panel["children"]
+    let i = 0
+    while i < len(kids) {
+        let w = kids[i]
+        w["x"] = x
+        w["y"] = y
+        kids[i] = w
+        let ww = w["w"]
+        if ww == null || ww == undefined {
+            ww = 80
+        }
+        x = x + ww + gap
+        i = i + 1
+    }
+    panel["children"] = kids
+    return panel
+}
+
+pub fn hitTest(panel, px, py) {
+    let kids = panel["children"]
+    if kids == null || kids == undefined {
+        return null
+    }
+    let i = 0
+    while i < len(kids) {
+        let w = kids[i]
+        let ww = w["w"]
+        let hh = w["h"]
+        if ww == null || ww == undefined {
+            ww = 80
+        }
+        if hh == null || hh == undefined {
+            hh = 24
+        }
+        let wx = w["x"]
+        let wy = w["y"]
+        if wx == null {
+            wx = 0
+        }
+        if wy == null {
+            wy = 0
+        }
+        if px >= wx && px <= wx + ww && py >= wy && py <= wy + hh {
+            return w
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn pressAt(panel, px, py) {
+    let hit = hitTest(panel, px, py)
+    if hit == null {
+        return panel
+    }
+    if hit["kind"] == "button" {
+        hit["pressed"] = true
+    }
+    return panel
+}

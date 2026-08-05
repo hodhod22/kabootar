@@ -1,0 +1,94 @@
+@version "1.0.0"
+
+// app/lifecycle — foreground / background / cold-start hooks (Kab MVP).
+
+pub fn createApp(id, opts) {
+    let title = id
+    if opts != null && opts != undefined {
+        if opts["title"] != null {
+            title = opts["title"]
+        }
+    }
+    return {
+        "kind": "app",
+        "id": id,
+        "title": title,
+        "state": "cold",
+        "startedAt": null,
+        "resumedAt": null,
+        "backgroundedAt": null,
+        "listeners": {
+            "start": [],
+            "resume": [],
+            "background": [],
+            "terminate": []
+        },
+        "nav": null,
+        "screen": null
+    }
+}
+
+fn emit(app, event, payload) {
+    let listeners = app["listeners"][event]
+    if listeners == null || listeners == undefined {
+        return app
+    }
+    let i = 0
+    while i < len(listeners) {
+        // Listener payloads recorded for host bridges; Kab MVP stores last event.
+        i = i + 1
+    }
+    app["lastEvent"] = { "type": event, "payload": payload }
+    return app
+}
+
+pub fn on(app, event, handlerId) {
+    let listeners = app["listeners"]
+    let list = listeners[event]
+    if list == null || list == undefined {
+        list = []
+    }
+    list = push(list, handlerId)
+    listeners[event] = list
+    app["listeners"] = listeners
+    return app
+}
+
+/// Cold start → foreground.
+pub fn start(app) {
+    app["state"] = "foreground"
+    app["startedAt"] = 0
+    app["resumedAt"] = 0
+    return emit(app, "start", { "cold": true })
+}
+
+pub fn resume(app) {
+    app["state"] = "foreground"
+    app["resumedAt"] = 0
+    return emit(app, "resume", {})
+}
+
+pub fn background(app) {
+    app["state"] = "background"
+    app["backgroundedAt"] = 0
+    return emit(app, "background", {})
+}
+
+pub fn terminate(app) {
+    app["state"] = "terminated"
+    return emit(app, "terminate", {})
+}
+
+pub fn isForeground(app) {
+    return app["state"] == "foreground"
+}
+
+pub fn attachNav(app, nav) {
+    app["nav"] = nav
+    return app
+}
+
+pub fn attachScreen(app, screen) {
+    app["screen"] = screen
+    return app
+}

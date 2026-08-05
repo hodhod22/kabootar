@@ -1,0 +1,51 @@
+// Data MVP — DataFrame, CSV/JSON/Parquet, groupby, pivot, interactive plot.
+// kabootar run examples/data_analysis.kab
+import "science"
+import "data"
+
+os_mkdir("/data")
+
+let df = from([
+    ["north", "apple", 10.0],
+    ["north", "pear", 4.0],
+    ["south", "apple", 7.0],
+    ["south", "pear", 9.0],
+    ["north", "apple", 3.0]
+], ["region", "fruit", "qty"])
+
+let g = groupby(df, "region", "qty", "sum")
+let gOk = nrows(g) == 2
+
+let pv = pivot(df, "region", "fruit", "qty", "sum")
+let pvOk = nrows(pv) == 2 && columns(pv) != null
+
+let csvPath = "/data/sales.csv"
+writeCsv(csvPath, df)
+let df2 = readCsv(csvPath)
+let csvOk = nrows(df2) == 5
+
+let jsonPath = "/data/sales.json"
+writeJson(jsonPath, df)
+let df3 = readJson(jsonPath)
+let jsonOk = nrows(df3) == 5
+
+let rows = toRows(df)
+let back = fromRows(rows)
+let roundOk = nrows(back) == 5
+
+let ys = [1.0, 2.0, 1.5, 3.0, 2.5, 4.0]
+let fig = interactiveLine(ys, "qty trend", 320, 160)
+let plotOk = fig["mime"] == "text/html" && fig["n"] == 6 && fig["html"] != null
+
+let filtered = filter(df, "qty", ">", 5.0)
+let filtOk = nrows(filtered) == 3
+
+println(gOk)
+println(pvOk)
+println(csvOk)
+println(jsonOk)
+println(roundOk)
+println(plotOk)
+println(filtOk)
+
+gOk && pvOk && csvOk && jsonOk && roundOk && plotOk && filtOk

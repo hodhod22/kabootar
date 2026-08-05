@@ -1,0 +1,63 @@
+@version "1.0.0"
+
+// app/offline — facade over pwa_* natives (VFS install + fetch cache).
+
+/// Parse a PWA-style manifest JSON string.
+pub fn parseManifest(json) {
+    return pwa_parse(json)
+}
+
+/// Install manifest into OS VFS (/apps/<slug>/). Requires `os` handle in env.
+pub fn install(manifestJson) {
+    return pwa_install(manifestJson)
+}
+
+/// Register a service-worker-like script for a scope.
+pub fn registerWorker(scope, script) {
+    return pwa_register_worker(scope, script)
+}
+
+/// Set fetch strategy: cache-first | offline-only | network-stub.
+pub fn onFetch(scope, strategy) {
+    return pwa_on_fetch(scope, strategy)
+}
+
+pub fn fetchCached(url) {
+    return pwa_fetch_cached(url)
+}
+
+pub fn dispatchFetch(url) {
+    return pwa_dispatch_fetch(url)
+}
+
+pub fn info() {
+    return pwa_info()
+}
+
+/// Kab-friendly offline session object (no host required for local cache map).
+pub fn createOfflineCache() {
+    return {
+        "kind": "offline_cache",
+        "entries": {}
+    }
+}
+
+pub fn cachePut(cache, url, body) {
+    let entries = cache["entries"]
+    entries[url] = body
+    cache["entries"] = entries
+    return cache
+}
+
+pub fn cacheGet(cache, url) {
+    let entries = cache["entries"]
+    let v = entries[url]
+    if v == null || v == undefined {
+        return null
+    }
+    return v
+}
+
+pub fn cacheHas(cache, url) {
+    return cacheGet(cache, url) != null
+}

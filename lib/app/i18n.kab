@@ -1,0 +1,79 @@
+@version "1.0.0"
+
+// app/i18n — string tables + locale switch (ICU-lite deferred).
+
+pub fn createCatalog(locale, messages) {
+    if locale == null || locale == undefined {
+        locale = "en"
+    }
+    if messages == null || messages == undefined {
+        messages = {}
+    }
+    return {
+        "kind": "i18n",
+        "locale": locale,
+        "fallback": "en",
+        "tables": {
+            // locale → { key → string }
+        },
+        "messages": messages
+    }
+}
+
+pub fn addLocale(catalog, locale, messages) {
+    let tables = catalog["tables"]
+    tables[locale] = messages
+    catalog["tables"] = tables
+    if catalog["locale"] == locale {
+        catalog["messages"] = messages
+    }
+    return catalog
+}
+
+pub fn setLocale(catalog, locale) {
+    catalog["locale"] = locale
+    let tables = catalog["tables"]
+    let m = tables[locale]
+    if m == null || m == undefined {
+        m = tables[catalog["fallback"]]
+    }
+    if m == null || m == undefined {
+        m = catalog["messages"]
+    }
+    if m == null || m == undefined {
+        m = {}
+    }
+    catalog["messages"] = m
+    return catalog
+}
+
+/// Translate key; optional vars object for simple {name} substitution.
+pub fn t(catalog, key, vars) {
+    let messages = catalog["messages"]
+    let s = messages[key]
+    if s == null || s == undefined {
+        let tables = catalog["tables"]
+        let fb = tables[catalog["fallback"]]
+        if fb != null && fb != undefined {
+            s = fb[key]
+        }
+    }
+    if s == null || s == undefined {
+        return key
+    }
+    if vars == null || vars == undefined {
+        return s
+    }
+    let keys = object_keys(vars)
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        s = replace_all(s, "{" + k + "}", "" + vars[k])
+        i = i + 1
+    }
+    return s
+}
+
+pub fn locale(catalog) {
+    return catalog["locale"]
+}

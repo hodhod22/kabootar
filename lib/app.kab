@@ -1,0 +1,15 @@
+@version "1.0.0"
+
+// Kabootar app — mobile/desktop app shell MVP.
+// import "app"
+//
+// Groups: ui, nav, lifecycle, offline, i18n, sensors, share.
+// Native widgets / push / store packaging deferred (APP3+).
+
+pub import "app/ui"
+pub import "app/nav"
+pub import "app/lifecycle"
+pub import "app/offline"
+pub import "app/i18n"
+pub import "app/sensors"
+pub import "app/share"

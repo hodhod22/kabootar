@@ -1,0 +1,52 @@
+@version "1.0.0"
+
+// iot/coap — CoAP stub (UDP IoT). Real codec deferred.
+
+pub fn createEndpoint(host, port) {
+    if host == null {
+        host = "127.0.0.1"
+    }
+    if port == null {
+        port = 5683
+    }
+    return {
+        "kind": "coap_endpoint",
+        "mode": "stub",
+        "host": host,
+        "port": port,
+        "resources": {}
+    }
+}
+
+pub fn get(endpoint, path) {
+    return {
+        "ok": false,
+        "code": "4.04",
+        "mode": "stub",
+        "path": path,
+        "endpoint": endpoint["host"],
+        "reason": "CoAP GET stub — wire protocol deferred"
+    }
+}
+
+pub fn put(endpoint, path, payload) {
+    let resources = endpoint["resources"]
+    resources[path] = payload
+    endpoint["resources"] = resources
+    return {
+        "ok": true,
+        "code": "2.04",
+        "mode": "stub",
+        "path": path,
+        "endpoint": endpoint
+    }
+}
+
+pub fn observe(endpoint, path) {
+    return {
+        "ok": false,
+        "mode": "stub",
+        "path": path,
+        "reason": "CoAP observe stub"
+    }
+}

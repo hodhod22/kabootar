@@ -821,6 +821,48 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 **Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
 **Checkpoint SIM (nästa):** contact + inverse kinematics + live editor teleop.
 
+### Våg DATA — DataFrame / I/O / viz (pandas-klass) 🚧 ✅ MVP subset
+
+**Mål:** `import "data"` som seriöst alternativ till pandas för tabellanalys — ovanpå `science/df` + CSV/JSON/KPQT1, med pivot, aggregering och interaktiva HTML-plotter.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **DATA0** | `data/frame` — from/select/filter/groupby/join + `toRows`/`fromRows` | ✅ |
+| **DATA1** | `pivot` + `aggregate` (min/max i Kab); tidy `readCsv`/`readJson`/`readParquet` | ✅ |
+| **DATA2** | `interactiveLine` / `interactiveScatter` (text/html) | ✅ |
+| **DATA3** | Typed columns, outer join, Apache Parquet FFI, notebook rich bind | 📋 |
+
+**Checkpoint DATA (landad):** `lib/data.kab`, `lib/data/{frame,io,plot}.kab`, `examples/data_analysis.kab`, `tests/data_module.rs`, [DATA.md](DATA.md).  
+**Checkpoint DATA (nästa):** typed dtypes + outer/left join + Plotly-klass zoom/brush.
+
+### Våg IOT — Internet of Things 🚧 ✅ MVP subset
+
+**Mål:** `import "iot"` med MQTT-formad bus, sensor-abstraktioner och CoAP/BLE/Zigbee-stubbar — passar OS USB/HID och `sim`-twin.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **IOT0** | MQTT memory broker: connect/subscribe/publish/poll | ✅ |
+| **IOT1** | Sensors: temperature / humidity / accelerometer + `attachUsb` | ✅ |
+| **IOT2** | CoAP + BLE + Zigbee stubs; `connectTcp` stub | ✅ |
+| **IOT3** | Real TCP MQTT 3.1.1 + CoAP UDP codec; host BLE/Zigbee backends | 📋 |
+
+**Checkpoint IOT (landad):** `lib/iot.kab`, `lib/iot/{mqtt,sensors,coap,radio}.kab`, `examples/iot_sensors_mqtt.kab`, `tests/iot_module.rs`, [IOT.md](IOT.md).  
+**Checkpoint IOT (nästa):** TCP MQTT client + sensor→sim twin bridge.
+
+### Våg APP — App shell (mobil/desktop produkt) 🚧 ✅ MVP subset
+
+**Mål:** `import "app"` som produktlager för apputveckling — nav-stack, livscykel, UI-widgets, offline/i18n, samt stubs för sensors/share — ovanpå kdom/kbrowser/PWA utan Flutter/RN-runtime.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **APP0** | `app/ui` + `app/nav` (stack/tabs) + `app/lifecycle` | ✅ |
+| **APP1** | `app/offline` (cache + `pwa_*`) + `app/i18n` | ✅ |
+| **APP2** | `app/sensors` + `app/share` stubs (kamera/GPS/mic/motion/share/URL) | ✅ |
+| **APP3** | Host bridges: push, real camera/GPS/BLE, intents, store packaging | 📋 |
+
+**Checkpoint APP (landad):** `lib/app.kab`, `lib/app/{ui,nav,lifecycle,offline,i18n,sensors,share}.kab`, `examples/app_shell.kab`, `tests/app_module.rs`, [APP.md](APP.md).  
+**Checkpoint APP (nästa):** native shell hooks + `app/notify` + `app/ship`.
+
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
 
 **Mål:** `import "science"` (+ `science/nd` / `science/ml` / `science/data`) ska vara det **första valet** för forskning, dataanalys och AI — inte en “lite NumPy”. Kabootar är snabbare än Python; vi ska också vinna **ekosystemet och arbetsflödet** så att forskare och AI-team **inte behöver Python**.

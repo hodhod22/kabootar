@@ -1,0 +1,63 @@
+// App MVP — nav stack, lifecycle, ui, i18n, offline cache, sensor/share stubs.
+// kabootar run examples/app_shell.kab
+import "app"
+
+let app = createApp("demo", { "title": "Demo App" })
+app = on(app, "start", "onStart")
+app = start(app)
+let lifeOk = isForeground(app) && app["lastEvent"]["type"] == "start"
+
+let nav = createStack("home")
+nav = pushRoute(nav, "details", { "id": 42 })
+nav = setTabs(nav, ["home", "settings"])
+let navOk = canGoBack(nav) && currentRoute(nav)["name"] == "details" && depth(nav) == 2
+nav = popRoute(nav)
+navOk = navOk && currentRoute(nav)["name"] == "home"
+nav = selectTab(nav, 1)
+navOk = navOk && currentTab(nav) == "settings"
+
+app = attachNav(app, nav)
+
+let screen = createScreen("main", 390, 844)
+let panel = createPanel("root", 16, 80, 360, 600)
+panel = addChild(panel, createLabel("title", "Hello", 0, 0))
+panel = addChild(panel, createButton("go", "Open", 0, 0, 120, 44))
+panel = layoutColumn(panel, 12)
+panel = pressAt(panel, 20, 40)
+screen = addChild(screen, panel)
+app = attachScreen(app, screen)
+let uiOk = screen["kind"] == "screen" && len(panel["children"]) == 2
+
+let catalog = createCatalog("en", { "hello": "Hello {name}" })
+catalog = addLocale(catalog, "sv", { "hello": "Hej {name}" })
+catalog = setLocale(catalog, "sv")
+let i18nOk = t(catalog, "hello", { "name": "Kab" }) == "Hej Kab" && locale(catalog) == "sv"
+
+let cache = createOfflineCache()
+cache = cachePut(cache, "/api/x", "{\"ok\":true}")
+let offOk = cacheHas(cache, "/api/x") && cacheGet(cache, "/api/x") != null
+
+let geo = getCurrentPosition(createGeolocation())
+let motion = sampleMotion(createMotion(), 0.1)
+let cam = takePhoto(createCamera())
+let sensOk = geo["coords"]["latitude"] > 50.0 && motion["accel"]["z"] > 9.0 && cam["mode"] == "stub"
+
+let share = shareText("hi", "Demo")
+let link = openUrl("myapp://home")
+let shareOk = share["mode"] == "stub" && link["mode"] == "stub" && canShare() == false
+
+app = background(app)
+let bgOk = app["state"] == "background"
+app = resume(app)
+bgOk = bgOk && isForeground(app)
+
+println(lifeOk)
+println(navOk)
+println(uiOk)
+println(i18nOk)
+println(offOk)
+println(sensOk)
+println(shareOk)
+println(bgOk)
+
+lifeOk && navOk && uiOk && i18nOk && offOk && sensOk && shareOk && bgOk

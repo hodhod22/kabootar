@@ -1,0 +1,154 @@
+@version "1.0.0"
+
+// data/plot — ASCII + interactive HTML figures for notebooks / DX.
+
+import "science"
+
+/// ASCII / canvas line via science natives.
+pub fn line(ys, width, height) {
+    return plot_line(ys, width, height)
+}
+
+pub fn scatter(xs, ys, width, height) {
+    return plot_scatter(xs, ys, width, height)
+}
+
+pub fn hist(ys, bins, width, height) {
+    return plot_hist(ys, bins, width, height)
+}
+
+pub fn spark(ys) {
+    return ascii_plot(ys)
+}
+
+fn seriesMinMax(ys) {
+    let n = len(ys)
+    if n == 0 {
+        return { "min": 0.0, "max": 1.0 }
+    }
+    let mn = ys[0]
+    let mx = ys[0]
+    let i = 1
+    while i < n {
+        let v = ys[i]
+        if v < mn {
+            mn = v
+        }
+        if v > mx {
+            mx = v
+        }
+        i = i + 1
+    }
+    if mn == mx {
+        mx = mn + 1.0
+    }
+    return { "min": mn, "max": mx }
+}
+
+/// Interactive HTML line chart (hover tooltip). mime text/html for notebooks.
+pub fn interactiveLine(ys, title, width, height) {
+    if title == null {
+        title = "line"
+    }
+    if width == null {
+        width = 480
+    }
+    if height == null {
+        height = 240
+    }
+    let pad = 28
+    let mm = seriesMinMax(ys)
+    let mn = mm["min"]
+    let mx = mm["max"]
+    let n = len(ys)
+    let points = ""
+    let i = 0
+    while i < n {
+        let x = pad
+        if n > 1 {
+            x = pad + (width - 2 * pad) * i / (n - 1)
+        }
+        let y = height - pad - (height - 2 * pad) * (ys[i] - mn) / (mx - mn)
+        if i > 0 {
+            points = points + " "
+        }
+        points = points + x + "," + y
+        i = i + 1
+    }
+    let dataJson = json_stringify(ys)
+    let html = ""
+    html = html + "<div class=\"kab-plot\" data-kind=\"interactive_line\" style=\"font-family:system-ui,sans-serif;max-width:" + width + "px\">"
+    html = html + "<div style=\"font-weight:600;margin-bottom:4px\">" + title + "</div>"
+    html = html + "<svg id=\"kab-svg\" width=\"" + width + "\" height=\"" + height + "\" style=\"background:#fafafa;border:1px solid #ddd;touch-action:none\">"
+    html = html + "<polyline fill=\"none\" stroke=\"#2563eb\" stroke-width=\"2\" points=\"" + points + "\"/>"
+    html = html + "<circle id=\"kab-dot\" r=\"4\" fill=\"#dc2626\" opacity=\"0\"/>"
+    html = html + "</svg>"
+    html = html + "<div id=\"kab-tip\" style=\"font-size:12px;color:#444;min-height:1.2em\"></div>"
+    html = html + "<script>(function(){"
+    html = html + "var ys=" + dataJson + ";"
+    html = html + "var w=" + width + ",h=" + height + ",pad=" + pad + ",mn=" + mn + ",mx=" + mx + ";"
+    html = html + "var svg=document.currentScript.parentElement.querySelector('svg');"
+    html = html + "var tip=document.currentScript.parentElement.querySelector('#kab-tip');"
+    html = html + "var dot=document.currentScript.parentElement.querySelector('#kab-dot');"
+    html = html + "svg.addEventListener('mousemove',function(e){"
+    html = html + "var r=svg.getBoundingClientRect();"
+    html = html + "var x=e.clientX-r.left;"
+    html = html + "var n=ys.length; if(n<1)return;"
+    html = html + "var i=Math.round((x-pad)/(w-2*pad)*(n-1));"
+    html = html + "if(i<0)i=0; if(i>n-1)i=n-1;"
+    html = html + "var px=pad+(w-2*pad)*i/Math.max(n-1,1);"
+    html = html + "var py=h-pad-(h-2*pad)*(ys[i]-mn)/(mx-mn);"
+    html = html + "dot.setAttribute('cx',px);dot.setAttribute('cy',py);dot.setAttribute('opacity','1');"
+    html = html + "tip.textContent='i='+i+'  y='+ys[i];"
+    html = html + "});"
+    html = html + "svg.addEventListener('mouseleave',function(){dot.setAttribute('opacity','0');tip.textContent='';});"
+    html = html + "})();</script></div>"
+    return {
+        "kind": "figure",
+        "type": "interactive_line",
+        "mime": "text/html",
+        "title": title,
+        "n": n,
+        "html": html,
+        "ascii": ascii_plot(ys)
+    }
+}
+
+/// Interactive scatter (HTML). xs/ys same length.
+pub fn interactiveScatter(xs, ys, title, width, height) {
+    if title == null {
+        title = "scatter"
+    }
+    if width == null {
+        width = 480
+    }
+    if height == null {
+        height = 240
+    }
+    let pad = 28
+    let mm = seriesMinMax(ys)
+    let xmm = seriesMinMax(xs)
+    let n = len(ys)
+    if len(xs) < n {
+        n = len(xs)
+    }
+    let circles = ""
+    let i = 0
+    while i < n {
+        let x = pad + (width - 2 * pad) * (xs[i] - xmm["min"]) / (xmm["max"] - xmm["min"])
+        let y = height - pad - (height - 2 * pad) * (ys[i] - mm["min"]) / (mm["max"] - mm["min"])
+        circles = circles + "<circle cx=\"" + x + "\" cy=\"" + y + "\" r=\"3\" fill=\"#2563eb\" opacity=\"0.85\"/>"
+        i = i + 1
+    }
+    let html = "<div class=\"kab-plot\" data-kind=\"interactive_scatter\"><div style=\"font-weight:600\">" + title + "</div>"
+    html = html + "<svg width=\"" + width + "\" height=\"" + height + "\" style=\"background:#fafafa;border:1px solid #ddd\">" + circles + "</svg></div>"
+    return {
+        "kind": "figure",
+        "type": "interactive_scatter",
+        "mime": "text/html",
+        "title": title,
+        "n": n,
+        "html": html,
+        "ascii": plot_scatter(xs, ys, 40, 12)
+    }
+}

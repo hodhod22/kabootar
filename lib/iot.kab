@@ -1,0 +1,10 @@
+@version "1.0.0"
+
+// Kabootar IoT — MQTT bus, sensors, CoAP/BLE/Zigbee stubs.
+// import "iot"
+// Fits OS USB stubs + future digital-twin (sim) pipelines.
+
+pub import "iot/mqtt"
+pub import "iot/sensors"
+pub import "iot/coap"
+pub import "iot/radio"
