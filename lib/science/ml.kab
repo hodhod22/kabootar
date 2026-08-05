@@ -126,3 +126,11 @@ pub fn loadCheckpoint(path) {
 pub fn crossEntropy(pred, target) {
     return ml_cross_entropy(pred, target)
 }
+
+pub fn jobMap(items, f) {
+    return job_map(items, f)
+}
+
+pub fn jobMapParallel(items, f, nWorkers) {
+    return job_map_parallel(items, f, nWorkers)
+}

@@ -184,3 +184,101 @@ pub fn movingAvgKab(xs, window) {
     }
     return out
 }
+
+pub fn sigmoidKab(xs) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        out = push(out, 1.0 / (1.0 + exp(0.0 - xs[i])))
+        i = i + 1
+    }
+    return out
+}
+
+pub fn argmaxKab(xs) {
+    if len(xs) == 0 {
+        return 0
+    }
+    let best = 0
+    let i = 1
+    while i < len(xs) {
+        if xs[i] > xs[best] {
+            best = i
+        }
+        i = i + 1
+    }
+    return best
+}
+
+pub fn accuracyKab(y, pred) {
+    let n = len(y)
+    if n == 0 || n != len(pred) {
+        return 0.0
+    }
+    let ok = 0.0
+    let i = 0
+    while i < n {
+        if y[i] == pred[i] {
+            ok = ok + 1.0
+        }
+        i = i + 1
+    }
+    return ok / n
+}
+
+pub fn covKab(xs, ys) {
+    let n = len(xs)
+    if n < 2 || n != len(ys) {
+        return 0.0
+    }
+    let mx = mean(xs)
+    let my = mean(ys)
+    let s = 0.0
+    let i = 0
+    while i < n {
+        s = s + (xs[i] - mx) * (ys[i] - my)
+        i = i + 1
+    }
+    return s / (n - 1)
+}
+
+pub fn corrKab(xs, ys) {
+    let sx = std(xs)
+    let sy = std(ys)
+    if sx < 0.000000000001 || sy < 0.000000000001 {
+        return 0.0
+    }
+    return covKab(xs, ys) / (sx * sy)
+}
+
+pub fn trapzKab(xs, ys) {
+    let n = len(xs)
+    if n < 2 || n != len(ys) {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n - 1 {
+        s = s + 0.5 * (xs[i + 1] - xs[i]) * (ys[i] + ys[i + 1])
+        i = i + 1
+    }
+    return s
+}
+
+pub fn lerpKab(a, b, t) {
+    return a + (b - a) * t
+}
+
+pub fn normalizeL2Kab(xs) {
+    let nrm = sqrt(dotKab(xs, xs))
+    if nrm < 0.000000000001 {
+        return xs
+    }
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        out = push(out, xs[i] / nrm)
+        i = i + 1
+    }
+    return out
+}

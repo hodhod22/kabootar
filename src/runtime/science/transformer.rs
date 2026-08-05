@@ -265,6 +265,136 @@ fn tf_transformer_forward(args: &[Value], _env: &mut Environment) -> Result<Valu
     Ok(Value::Object(out))
 }
 
+fn softmax_row(logits: &[f64]) -> Vec<f64> {
+    let maxv = logits.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let mut ex: Vec<f64> = logits.iter().map(|x| (x - maxv).exp()).collect();
+    let sum: f64 = ex.iter().sum();
+    if sum > 0.0 {
+        for e in &mut ex {
+            *e /= sum;
+        }
+    }
+    ex
+}
+
+fn set_weight_vec(weights: &mut HashMap<String, Value>, key: &str, data: &[f64]) {
+    weights.insert(key.into(), vector_out(data));
+}
+
+fn set_embed_nd(weights: &mut HashMap<String, Value>, vocab: usize, d: usize, data: &[f64]) {
+    weights.insert("embed".into(), nd2(vocab, d, data));
+}
+
+/// tf_lm_sgd_step(weights, inputIds, targetIds, lr, nHeads?) → {weights, loss}
+/// Last-layer CE + SGD on wout/bout (+ light embed nudge). SC2k train subset.
+fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_lm_sgd_step(weights,...)")?
+    else {
+        return Err("tf_lm_sgd_step: weights object".into());
+    };
+    let ids = match args.get(1) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tf_lm_sgd_step: inputIds".into()),
+    };
+    let targets = match args.get(2) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tf_lm_sgd_step: targetIds".into()),
+    };
+    if ids.is_empty() || ids.len() != targets.len() {
+        return Err("tf_lm_sgd_step: ids/targets length".into());
+    }
+    let lr = num_at(args, 3, "tf_lm_sgd_step")?;
+    let n_heads = args.get(4).cloned().unwrap_or(Value::Number(1));
+
+    let fwd = tf_transformer_forward(
+        &[
+            Value::Object(weights.clone()),
+            Value::Array(ids.iter().map(|i| Value::Number(*i as i64)).collect()),
+            n_heads,
+        ],
+        env,
+    )?;
+    let Value::Object(fwd_m) = fwd else {
+        return Err("tf_lm_sgd_step: forward".into());
+    };
+    let (_, vocab, logits) = parse_nd2(fwd_m.get("logits").ok_or("logits")?, "logits")?;
+    let (_, d_model, hidden) = parse_nd2(fwd_m.get("hidden").ok_or("hidden")?, "hidden")?;
+    let seq = ids.len();
+    if logits.len() != seq * vocab || hidden.len() != seq * d_model {
+        return Err("tf_lm_sgd_step: shape".into());
+    }
+
+    let wout = weights.get("wout").ok_or("wout")?;
+    let mut wout_v = vector_at(&[wout.clone()], 0, "wout")?;
+    if wout_v.len() != vocab * d_model {
+        return Err("tf_lm_sgd_step: wout size".into());
+    }
+    let mut bout = match weights.get("bout") {
+        Some(v) => vector_at(&[v.clone()], 0, "bout").unwrap_or_else(|_| vec![0.0; vocab]),
+        None => vec![0.0; vocab],
+    };
+    if bout.len() != vocab {
+        bout = vec![0.0; vocab];
+    }
+
+    let mut loss = 0.0;
+    let mut gw = vec![0.0; vocab * d_model];
+    let mut gb = vec![0.0; vocab];
+    let inv = 1.0 / seq as f64;
+    for s in 0..seq {
+        let row = &logits[s * vocab..(s + 1) * vocab];
+        let probs = softmax_row(row);
+        let t = targets[s];
+        if t >= vocab {
+            return Err("tf_lm_sgd_step: target OOB".into());
+        }
+        loss -= probs[t].max(1e-12).ln() * inv;
+        for o in 0..vocab {
+            let mut g = probs[o] * inv;
+            if o == t {
+                g -= inv;
+            }
+            gb[o] += g;
+            for i in 0..d_model {
+                gw[o * d_model + i] += g * hidden[s * d_model + i];
+            }
+        }
+    }
+
+    for i in 0..wout_v.len() {
+        wout_v[i] -= lr * gw[i];
+    }
+    for i in 0..bout.len() {
+        bout[i] -= lr * gb[i];
+    }
+    set_weight_vec(&mut weights, "wout", &wout_v);
+    set_weight_vec(&mut weights, "bout", &bout);
+
+    // Light embed nudge along last hidden residual direction (subset, not full BP).
+    if let Ok((vocab_e, d_e, mut embed)) = parse_embed_table(weights.get("embed").ok_or("embed")?) {
+        if vocab_e == vocab && d_e == d_model {
+            for s in 0..seq {
+                let id = ids[s];
+                for i in 0..d_model {
+                    embed[id * d_model + i] -= lr * 0.01 * gw[targets[s] * d_model + i];
+                }
+            }
+            set_embed_nd(&mut weights, vocab, d_model, &embed);
+        }
+    }
+
+    let mut out = HashMap::new();
+    out.insert("weights".into(), Value::Object(weights));
+    out.insert("loss".into(), float_out(loss));
+    Ok(Value::Object(out))
+}
+
 fn identity_flat(d: usize) -> Vec<f64> {
     let mut v = vec![0.0; d * d];
     for i in 0..d {
@@ -315,4 +445,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         &["science_tf_transformer_forward", "tf_transformer_forward"],
         tf_transformer_forward,
     );
+    bind(&["science_tf_lm_sgd_step", "tf_lm_sgd_step"], tf_lm_sgd_step);
 }

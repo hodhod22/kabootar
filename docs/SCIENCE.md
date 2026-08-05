@@ -531,6 +531,7 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
 | `mat_qr` / `mat_svd` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e) |
+| `num_rk4` / `num_odeint` / `num_odeint_adaptive` / `num_quad` | ODE + adaptive + quadrature |
 | `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/no_grad) | Autograd tape |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
 | `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
@@ -545,7 +546,15 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `gpu_tensor_*` / `gpu_zeros` / `gpu_ones` / `gpu_scale` / `gpu_add` | GPU staging tensors |
 | `ml_train_log` | Training progress (rich notebook) |
 | `tok_build_vocab` / `tok_encode` / `tok_decode` / `tok_bpe_*` | Tokenizer subset |
-| `tf_sinusoidal_pos` / `tf_transformer_forward` | Transformer inference-lite |
+| `tf_sinusoidal_pos` / `tf_transformer_forward` / `tf_lm_sgd_step` | Transformer inference + last-layer train |
+| `sci_bench` / `sci_bench_report` | Science bench harness |
+| `ml_stump_fit` / `ml_tree_fit` / `ml_tree_predict` | Decision stump/tree |
+| `ml_adamw_update` / `ml_roc_auc` | AdamW + ROC-AUC |
+| `gpu_matmul_kernel` / `gpu_available_kernels` / `gpu_conv2d_kernel` | GPU kernel path |
+| `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
+| `gpu_compute::try_matmul_compute` / `try_conv2d_compute` | WGSL f32 matmul+conv (`--features gpu`) |
+| `sci_gemm` / blocked `nd_matmul` | SC4a GEMM hotpath |
+| `job_map_parallel` | SC4c parallel f64 map (string ops) |
 | `num_interp_spline` / `num_erf` / `num_gamma` / `num_bessel_j0` | Interpolate + special |
 | `num_window_hann` / `num_window_hamming` / `num_stft` / `num_fft2d` | Signal++ |
 | `sparse_from_coo` / `sparse_spmv` / `sparse_lstsq` | Sparse CSR/COO |
@@ -555,6 +564,8 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `gpu_matmul_kernel` / `gpu_available_kernels` / `gpu_conv2d_kernel` | GPU kernel path |
 | `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
 | `gpu_compute::try_matmul_compute` / `try_conv2d_compute` | WGSL f32 matmul+conv (`--features gpu`) |
+| `sci_gemm` / blocked `nd_matmul` | SC4a GEMM hotpath |
+| `job_map_parallel` | SC4c parallel f64 map (string ops) |
 
 ## ML / AI (SC2)
 
@@ -566,7 +577,8 @@ ml_softmax([1.0, 2.0, 3.0]);
 let params = [0.0, 0.0];
 params = ml_linreg_step(params, [2.0], 5.0, 0.05);
 ml_dense(W, x, b, true);   // relu
-job_map([1, 2, 3], double); // P8 API (sekventiell)
+job_map([1, 2, 3], double); // P8 API
+job_map_parallel([1, 2, 3], "square", 4); // SC4c OS-threads
 ```
 
 Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
@@ -607,6 +619,8 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
 | training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
 | GPU compute | WGSL matmul+conv2d (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
+| GEMM / workers | `sci_gemm` blocked GEMM; `job_map_parallel` | `nd.kab` matmul; `ml.kab` jobMapParallel |
+| ODE / quad | `num_odeint_adaptive` / `num_quad` | `optimize.kab` |
 | signal FIR/IIR | `num_fir`/`num_iir` natives | `signal.kab`; boxcar also in `kab_algo.movingAvgKab` |
 
 Ny **produktlogik** (fit-loop, schedulers, tokenize-pipeline) ska landa i Kab; Rust får bara nya tunna primitives om hotpath kräver det.
