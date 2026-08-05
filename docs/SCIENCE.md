@@ -588,7 +588,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`; **SC7:** `io`, `parallel`, `visualize`, `nd_gpu`)
+- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`; **SC7:** `io`, `parallel`, `visualize`, `nd_gpu`; **STEM sandlåda:** `mechanics`)
 - Registrering: `science_register` vid `import "science"`
 - Tester: `tests/science_sc*.rs` inkl. `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)

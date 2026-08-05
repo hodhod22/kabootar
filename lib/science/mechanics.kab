@@ -1,0 +1,85 @@
+@version "1.0.0"
+
+// STEM classical mechanics helpers for sandbox / education.
+// Pure Kab — F=ma, Hooke, gravity. import "science/mechanics"
+
+import "science/nd"
+
+/// Default puzzle / sim parameters (Learn surface).
+pub fn defaultParams() {
+    return {
+        "k": 40.0,
+        "m": 1.0,
+        "g": 9.81,
+        "drag": 0.15,
+        "rest": 0.0
+    }
+}
+
+/// Hooke's law spring force toward anchor: F = -k * (pos - anchor), 2D.
+pub fn springForce(k, x, y, ax, ay) {
+    let fx = -k * (x - ax)
+    let fy = -k * (y - ay)
+    return { "fx": fx, "fy": fy, "kind": "spring" }
+}
+
+/// Gravity force on mass m (down = +y in screen space).
+pub fn gravityForce(m, g) {
+    return { "fx": 0.0, "fy": m * g, "kind": "gravity" }
+}
+
+/// Linear drag opposing velocity.
+pub fn dragForce(drag, vx, vy) {
+    return { "fx": -drag * vx, "fy": -drag * vy, "kind": "drag" }
+}
+
+/// Sum force components → nd vector [fx, fy] (STEM bridge).
+pub fn forceToNd(fx, fy) {
+    return nd_from([fx, fy], [2])
+}
+
+/// a = F/m from force object or nd length-2.
+pub fn accelFromForce(force, m) {
+    if m == null || m == 0.0 {
+        m = 1.0
+    }
+    let fx = force["fx"]
+    let fy = force["fy"]
+    if fx == null {
+        fx = nd_get(force, 0)
+        fy = nd_get(force, 1)
+    }
+    return { "ax": fx / m, "ay": fy / m }
+}
+
+/// Semi-implicit Euler step for a point mass body {x,y,vx,vy,m}.
+pub fn integrateBody(body, fx, fy, dt) {
+    let m = body["m"]
+    if m == null || m == 0.0 {
+        m = 1.0
+    }
+    let ax = fx / m
+    let ay = fy / m
+    body["vx"] = body["vx"] + ax * dt
+    body["vy"] = body["vy"] + ay * dt
+    body["x"] = body["x"] + body["vx"] * dt
+    body["y"] = body["y"] + body["vy"] * dt
+    return body
+}
+
+/// One STEM force sample for documentation / Learn panel.
+pub fn explainForces(params, body, anchor) {
+    let s = springForce(params["k"], body["x"], body["y"], anchor["x"], anchor["y"])
+    let g = gravityForce(params["m"], params["g"])
+    let d = dragForce(params["drag"], body["vx"], body["vy"])
+    let fx = s["fx"] + g["fx"] + d["fx"]
+    let fy = s["fy"] + g["fy"] + d["fy"]
+    return {
+        "spring": s,
+        "gravity": g,
+        "drag": d,
+        "total": forceToNd(fx, fy),
+        "accel": accelFromForce({ "fx": fx, "fy": fy }, params["m"]),
+        "code": "F_spring = -k*(p-a); F_g = m*g; a = F/m"
+    }
+}
