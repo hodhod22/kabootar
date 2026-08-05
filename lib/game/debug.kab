@@ -1,0 +1,39 @@
+@version "1.0.0"
+
+// Kabootar game/debug — 2D gizmo helpers on canvas2d (GP4d subset).
+// import "game/debug"
+
+pub fn drawLine2d(ctx, x0, y0, x1, y1) {
+    ctx.beginPath()
+    ctx.moveTo(x0, y0)
+    ctx.lineTo(x1, y1)
+    ctx.stroke()
+    return true
+}
+
+pub fn drawAabb(ctx, body) {
+    ctx.strokeRect(body["x"], body["y"], body["w"], body["h"])
+    return true
+}
+
+pub fn drawCircleApprox(ctx, cx, cy, r, segments) {
+    if segments == undefined || segments < 3 {
+        segments = 12
+    }
+    let twoPi = 6.283185307179586
+    ctx.beginPath()
+    let i = 0
+    while i <= segments {
+        let a = (twoPi * i) / segments
+        let x = cx + cos(a) * r
+        let y = cy + sin(a) * r
+        if i == 0 {
+            ctx.moveTo(x, y)
+        } else {
+            ctx.lineTo(x, y)
+        }
+        i = i + 1
+    }
+    ctx.stroke()
+    return true
+}

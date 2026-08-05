@@ -108,14 +108,17 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 
 | Import | API |
 |--------|-----|
-| `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `worldPos` (lokal pos) |
+| `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `setLayer`, `worldPos` (Parent-walk) |
 | `import "game/render"` | `createMesh`, `createIndexedMesh`, `setColor`, `drawMesh`, `drawIndexedMesh`, `drawMeshInstanced`, `drawIndexedMeshInstanced` |
 | `import "game/input"` | `createActions`, `actionPressed` |
 | `import "game/time"` | `dtSec`, `createFixed`, `fixedTick` |
 | `import "game/gltf"` | `loadGltfJson` → `{ floats, indices?, color, animations }` (glTF 2.0 JSON subset) |
 | `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
 | `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
-| `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb` |
+| `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep` |
+| `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` |
+| `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone` |
+| `import "game/debug"` | `drawLine2d`, `drawAabb`, `drawCircleApprox` |
 | `import "game/hot"` | `watch(path)`, `poll()` → changed paths (mtime) |
 | `import "game/shader"` | `loadSolid`/`loadTextured`/`loadSolidFromFile`/`loadTexturedFromFile`, `info`, `pollReload` |
 
@@ -125,6 +128,6 @@ Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `gpu
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a–f** ✅ subset — GPU-texturer, materials, MSAA, index/instancing, WGSL cache, delete-gate. **GP1a–d/f** ✅ subset — `lib/game/*` + sprite batch. **GP2a/b/e** ✅ subset — glTF, atlas, mod mallar. **GP3a** ✅ subset — AABB/cirklar. **GP4a/e** ✅ subset — hot reload + examples.
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a–f** ✅ subset — GPU-texturer, materials, MSAA, index/instancing, WGSL cache, delete-gate. **GP1a–f** ✅ subset — scene Parent-walk, ECS, batch. **GP2a–e** ✅ subset — glTF, atlas, audio, mod mallar. **GP3a–b** ✅ subset — 2D/3D physics. **GP4a/d/e** ✅ subset — hot reload, debug draw, examples. **GP5a/c** ✅ subset — [SHIP.md](SHIP.md) + frame budgets.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

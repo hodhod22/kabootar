@@ -39,6 +39,24 @@ fn game_scene_create_and_world_pos() {
 }
 
 #[test]
+fn game_scene_parent_walk_world_pos() {
+    let v = eval(
+        r#"
+        import "game/scene"
+        let root = createNode("root")
+        root = setLocal(root, 10, 20, 30)
+        let child = createNode("child")
+        child = setLocal(child, 1, 2, 3)
+        root = addChild(root, child)
+        let c = root["children"][0]
+        let w = worldPos(c)
+        w["x"] == 11 && w["y"] == 22 && w["z"] == 33
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
 fn game_input_action_pressed() {
     let v = eval(
         r#"
