@@ -1,0 +1,85 @@
+@version "1.0.0"
+
+// auth — sessions / password hashing on top of crypto.
+// import "auth"
+
+import "crypto"
+
+/// Hash password with argon2 (salt required).
+pub fn hashPassword(password, salt) {
+    return crypto_argon2(password, salt)
+}
+
+/// Compare password to stored hash (re-hash with same salt).
+pub fn verifyPassword(password, salt, hash) {
+    let h = crypto_argon2(password, salt)
+    return h == hash
+}
+
+fn tokenFrom(seed) {
+    let dig = crypto_sha3_256("" + seed)
+    return json_stringify(dig)
+}
+
+/// Create a session object for userId.
+pub fn createSession(userId, opts) {
+    let ttl = 3600
+    if opts != null && opts != undefined {
+        if opts["ttl"] != null && opts["ttl"] != undefined {
+            ttl = opts["ttl"]
+        }
+    }
+    let token = tokenFrom(userId + ":" + ttl + ":kab")
+    return {
+        "kind": "auth_session",
+        "userId": userId,
+        "token": token,
+        "ttl": ttl,
+        "revoked": false
+    }
+}
+
+pub fn verifySession(session, token) {
+    if session == null || session == undefined {
+        return false
+    }
+    if session["revoked"] == true {
+        return false
+    }
+    return session["token"] == token
+}
+
+pub fn revokeSession(session) {
+    session["revoked"] = true
+    return session
+}
+
+/// Issue a bearer-like credential map (JWT-shaped stub without crypto JWT).
+pub fn issueToken(claims) {
+    if claims == null || claims == undefined {
+        claims = {}
+    }
+    let payload = json_stringify(claims)
+    let sig = crypto_sha3_256(payload)
+    return {
+        "kind": "auth_token",
+        "mode": "kab-mac",
+        "payload": payload,
+        "sig": sig
+    }
+}
+
+pub fn verifyToken(tokenObj) {
+    if tokenObj == null || tokenObj == undefined {
+        return false
+    }
+    let expect = crypto_sha3_256(tokenObj["payload"])
+    return expect == tokenObj["sig"]
+}
+
+pub fn parseClaims(tokenObj) {
+    if !verifyToken(tokenObj) {
+        return null
+    }
+    return json_parse(tokenObj["payload"])
+}

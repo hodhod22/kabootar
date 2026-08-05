@@ -1,0 +1,81 @@
+@version "1.0.0"
+
+// cli — argv helpers for Kab scripts / tools.
+// import "cli"
+
+/// Parse args into { flags: {name: true|string}, positional: [...] }.
+/// Supports --flag, --key=value, --key value, and bare positionals.
+pub fn parseArgs(args) {
+    if args == null || args == undefined {
+        args = []
+    }
+    let flags = {}
+    let positionals = []
+    let i = 0
+    while i < len(args) {
+        let a = args[i]
+        if string_starts_with(a, "--") {
+            let body = string_slice(a, 2, len(a))
+            let eq = str_index_of(body, "=")
+            if eq >= 0 {
+                let key = string_slice(body, 0, eq)
+                let val = string_slice(body, eq + 1, len(body))
+                flags[key] = val
+            } else {
+                let next = null
+                if i + 1 < len(args) {
+                    next = args[i + 1]
+                }
+                if next != null && next != undefined && !string_starts_with(next, "-") {
+                    flags[body] = next
+                    i = i + 1
+                } else {
+                    flags[body] = true
+                }
+            }
+        } else {
+            if string_starts_with(a, "-") && len(a) == 2 {
+                flags[string_slice(a, 1, 2)] = true
+            } else {
+                positionals = push(positionals, a)
+            }
+        }
+        i = i + 1
+    }
+    return {
+        "kind": "cli_args",
+        "flags": flags,
+        "positional": positionals
+    }
+}
+
+pub fn hasFlag(parsed, name) {
+    let v = parsed["flags"][name]
+    return v != null && v != undefined
+}
+
+pub fn flag(parsed, name, defaultValue) {
+    let v = parsed["flags"][name]
+    if v == null || v == undefined {
+        return defaultValue
+    }
+    return v
+}
+
+pub fn positional(parsed, index, defaultValue) {
+    let p = parsed["positional"]
+    if index < 0 || index >= len(p) {
+        return defaultValue
+    }
+    return p[index]
+}
+
+pub fn usage(name, lines) {
+    let text = "Usage: " + name + "\n"
+    let i = 0
+    while i < len(lines) {
+        text = text + "  " + lines[i] + "\n"
+        i = i + 1
+    }
+    return text
+}

@@ -1,6 +1,12 @@
 //! Kabootar CLI — `mod init`, `mod run`, `serve`, `run`, `compile`, REPL, notebook.
 
+mod doc;
+mod registry_web;
 mod repl;
+mod test_runner;
+
+pub use doc::{extract_kab_docs, DocItem};
+pub use registry_web::render_index as registry_render_index;
 
 use crate::compile::{self};
 use crate::evaluator::create_global_env;
@@ -26,6 +32,10 @@ pub fn run(args: &[String]) -> i32 {
         "notebook" | "nb" => notebook_cmd(&args[1..]),
         "compile" => compile_cmd(&args[1..]),
         "fmt" => fmt_cmd(&args[1..]),
+        "doc" => doc_cmd(&args[1..]),
+        "test" => test_cmd(&args[1..]),
+        "repl" => repl::run_repl(),
+        "registry" => registry_cmd(&args[1..]),
         "install" => install_cmd(&args[1..]),
         "publish" => publish_cmd(&args[1..]),
         "mod" => mod_cmd(&args[1..]),
@@ -53,10 +63,14 @@ fn print_help() {
 
 Usage:
   kabootar                         Interactive exploration REPL
+  kabootar repl                    Same as bare kabootar (explicit REPL)
   kabootar run <file.kab>          Run a Kabootar script
   kabootar notebook run <file.knb> [--science]   Run notebook cells
   kabootar compile <file.kab> [--self-host|--rust]   Compile via self-host (default; Rust fallback)
-  kabootar fmt <file.kab>          Format Kabootar source (basic)
+  kabootar fmt [--check] <file.kab>   Format Kabootar source (basic)
+  kabootar doc [path] [--out FILE] Extract /// docs to Markdown
+  kabootar test [path] [--coverage]  Run *_test.kab (default: tests)
+  kabootar registry web [--port N] Browse local package registry in browser
   kabootar install [name@ver]      Install deps from local registry
   kabootar publish <file.kab>      Publish module to local registry
   kabootar serve [opts] <file>     Start HTTP server
@@ -65,6 +79,8 @@ Usage:
   kabootar mod run                 Run project entry (kabootar.toml)
   kabootar <file.kab|.knb>         Shorthand for run / notebook run
 
+Kab modules: import \"cli\" | \"log\" | \"validate\" | \"auth\" | \"test\" | \"test/mock\"
+
 Serve options:
   --port <n>       Port (default 8080 or kabootar.toml)
   --bind <addr>    Bind address (default 0.0.0.0)
@@ -72,6 +88,10 @@ Serve options:
 
 Examples:
   kabootar
+  kabootar repl
+  kabootar doc lib/data --out docs/api-data.md
+  kabootar test tests --coverage
+  kabootar registry web --port 8787
   kabootar notebook run examples/explore_smoke.knb --science
   kabootar mod init science-ai
   kabootar serve --watch main.kab
@@ -191,20 +211,36 @@ pub fn compile_file_report_with(
 }
 
 fn fmt_cmd(args: &[String]) -> i32 {
-    let Some(path) = args.first() else {
-        eprintln!("Usage: kabootar fmt <file.kab>");
+    let check = args.iter().any(|a| a == "--check");
+    let path = args.iter().find(|a| !a.starts_with('-')).map(String::as_str);
+    let Some(path) = path else {
+        eprintln!("Usage: kabootar fmt [--check] <file.kab>");
         return 1;
     };
-    match fmt_file(path) {
-        Ok(()) => {
+    match fmt_file(path, check) {
+        Ok(FmtOutcome::Wrote) => {
             println!("Formatted {path}");
             0
+        }
+        Ok(FmtOutcome::CheckedOk) => {
+            println!("Already formatted: {path}");
+            0
+        }
+        Ok(FmtOutcome::CheckFailed) => {
+            eprintln!("Needs formatting: {path}");
+            1
         }
         Err(e) => {
             eprintln!("Fmt error: {e}");
             1
         }
     }
+}
+
+enum FmtOutcome {
+    Wrote,
+    CheckedOk,
+    CheckFailed,
 }
 
 pub fn format_kabootar_source(source: &str) -> String {
@@ -231,10 +267,207 @@ pub fn format_kabootar_source(source: &str) -> String {
     out
 }
 
-fn fmt_file(path: &str) -> Result<(), String> {
+fn fmt_file(path: &str, check: bool) -> Result<FmtOutcome, String> {
     let raw = fs::read_to_string(path).map_err(|e| format!("read {path}: {e}"))?;
     let formatted = format_kabootar_source(&raw);
-    fs::write(path, formatted).map_err(|e| format!("write {path}: {e}"))
+    if check {
+        if normalize_newlines(&raw) == normalize_newlines(&formatted) {
+            Ok(FmtOutcome::CheckedOk)
+        } else {
+            Ok(FmtOutcome::CheckFailed)
+        }
+    } else {
+        fs::write(path, formatted).map_err(|e| format!("write {path}: {e}"))?;
+        Ok(FmtOutcome::Wrote)
+    }
+}
+
+fn normalize_newlines(s: &str) -> String {
+    s.replace("\r\n", "\n")
+}
+
+fn doc_cmd(args: &[String]) -> i32 {
+    let mut out_path: Option<String> = None;
+    let mut path = "lib".to_string();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" => {
+                i += 1;
+                if let Some(p) = args.get(i) {
+                    out_path = Some(p.clone());
+                }
+            }
+            a if !a.starts_with('-') => path = a.to_string(),
+            other => {
+                eprintln!("Unknown doc argument: {other}");
+                eprintln!("Usage: kabootar doc [path] [--out FILE]");
+                return 1;
+            }
+        }
+        i += 1;
+    }
+    match doc::generate_docs(Path::new(&path)) {
+        Ok((n, md)) => {
+            if let Some(out) = out_path {
+                if let Some(parent) = Path::new(&out).parent() {
+                    if !parent.as_os_str().is_empty() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                }
+                if let Err(e) = fs::write(&out, &md) {
+                    eprintln!("doc write error: {e}");
+                    return 1;
+                }
+                println!("Wrote {n} doc items → {out}");
+            } else {
+                print!("{md}");
+                eprintln!("({n} doc items)");
+            }
+            0
+        }
+        Err(e) => {
+            eprintln!("doc error: {e}");
+            1
+        }
+    }
+}
+
+fn test_cmd(args: &[String]) -> i32 {
+    let coverage = args.iter().any(|a| a == "--coverage");
+    let path = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .map(String::as_str)
+        .unwrap_or("tests");
+    let root = Path::new(path);
+    let tests = match test_runner::discover_tests(root) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("test error: {e}");
+            return 1;
+        }
+    };
+    if tests.is_empty() {
+        eprintln!("No *_test.kab files under {path}");
+        return 1;
+    }
+    let (pass, fail, results) = test_runner::run_tests(&tests);
+    for r in &results {
+        if r.ok {
+            println!("ok {}", r.path);
+        } else {
+            println!("FAIL {} — {}", r.path, r.message);
+        }
+    }
+    println!("{pass} passed, {fail} failed");
+    if coverage {
+        let cov_roots = if root.is_dir() && path == "tests" {
+            vec![PathBuf::from("lib")]
+        } else {
+            vec![PathBuf::from("lib")]
+        };
+        match test_runner::coverage_for(&cov_roots, &tests) {
+            Ok(rep) => print!("{}", test_runner::format_coverage(&rep)),
+            Err(e) => eprintln!("coverage error: {e}"),
+        }
+    }
+    if fail > 0 {
+        1
+    } else {
+        0
+    }
+}
+
+fn registry_cmd(args: &[String]) -> i32 {
+    match args.first().map(String::as_str) {
+        Some("web") => registry_web_cmd(&args[1..]),
+        Some("list") => registry_list_cmd(),
+        Some("--help") | Some("-h") | None => {
+            eprintln!("Usage: kabootar registry web [--port N] [--bind ADDR]");
+            eprintln!("       kabootar registry list");
+            0
+        }
+        Some(other) => {
+            eprintln!("Unknown registry subcommand: {other}");
+            1
+        }
+    }
+}
+
+fn registry_list_cmd() -> i32 {
+    let base = match std::env::current_dir() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
+    match crate::registry::list_registry(&base) {
+        Ok(pkgs) => {
+            if pkgs.is_empty() {
+                println!("(empty registry)");
+            } else {
+                for p in pkgs {
+                    println!("{}@{}", p.name, p.version);
+                }
+            }
+            0
+        }
+        Err(e) => {
+            eprintln!("registry list error: {e}");
+            1
+        }
+    }
+}
+
+fn registry_web_cmd(args: &[String]) -> i32 {
+    let mut port: u16 = 8787;
+    let mut bind = "127.0.0.1".to_string();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--port" => {
+                i += 1;
+                port = args
+                    .get(i)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(port);
+            }
+            "--bind" => {
+                i += 1;
+                if let Some(b) = args.get(i) {
+                    bind = b.clone();
+                }
+            }
+            other => {
+                eprintln!("Unknown argument: {other}");
+                return 1;
+            }
+        }
+        i += 1;
+    }
+    let base = match std::env::current_dir() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Err(e) = registry_web::serve_registry_web(&base, &bind, port) {
+            eprintln!("registry web error: {e}");
+            return 1;
+        }
+        0
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (base, bind, port);
+        eprintln!("registry web not available on wasm32");
+        1
+    }
 }
 
 fn install_cmd(args: &[String]) -> i32 {

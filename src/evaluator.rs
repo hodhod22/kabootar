@@ -1048,6 +1048,9 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                     bind_call_params(&params, &defaults, &rest, &arg_vals, &mut new_env)?;
                     eval_expr(&body, &mut new_env)
                 }
+                Value::BytecodeFn(func) => {
+                    crate::bytecode::run_bytecode_fn(func.def.as_ref(), arg_vals, env)
+                }
                 Value::BoundMethod(instance, method) => {
                     if method.params.len() != arg_vals.len() {
                         return Err(format!(

@@ -1,0 +1,26 @@
+// DX smoke — exercised by `kabootar test`
+import "cli"
+import "log"
+import "validate"
+import "auth"
+import "test/mock"
+
+let parsed = parseArgs(["--coverage", "--port", "9", "file.kab"])
+let logger = create("error")
+let v = object({ "email": "a@b.co" }, { "email": "email" })
+let session = createSession("u1", { "ttl": 60 })
+let m = mockFn("add")
+m = returns(m, 42)
+let got = call(m, [1, 2])
+
+let ok1 = hasFlag(parsed, "coverage") == true
+let ok2 = flag(parsed, "port", "0") == "9"
+let ok3 = positional(parsed, 0, "") == "file.kab"
+let ok4 = debug(logger, "x") == false
+let ok5 = is_email("a@b.co") == true
+let ok6 = v["ok"] == true
+let ok7 = verifySession(session, session["token"]) == true
+let ok8 = got == 42
+let ok9 = calledTimes(m, 1) == true
+
+ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7 && ok8 && ok9
