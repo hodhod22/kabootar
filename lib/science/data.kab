@@ -1,0 +1,21 @@
+@version "1.0.0"
+
+pub fn parseCsv(text) {
+    return csv_parse(text)
+}
+
+pub fn loadCsv(path) {
+    return csv_load(path)
+}
+
+pub fn describe(rows) {
+    return table_describe(rows)
+}
+
+pub fn table(rows) {
+    return format_table(rows)
+}
+
+pub fn plot(ys) {
+    return ascii_plot(ys)
+}

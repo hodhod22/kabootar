@@ -39,6 +39,9 @@ fn shape_product(shape: &[usize]) -> usize {
 }
 
 fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
+    if crate::runtime::shared_memory::is_float64_array(v) {
+        return crate::runtime::shared_memory::float64_array_to_f64_vec(v);
+    }
     match v {
         Value::Array(items) => {
             // Nested matrix → row-major flat, or flat vector.
@@ -62,11 +65,71 @@ fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
             }
         }
         Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            if let Some(view) = m.get("f64") {
+                if crate::runtime::shared_memory::is_float64_array(view) {
+                    return crate::runtime::shared_memory::float64_array_to_f64_vec(view);
+                }
+            }
             let data = m.get("data").ok_or("nd missing data")?;
             flat_from_value(data)
         }
-        _ => Err("expected array or ndarray".into()),
+        _ => Err("expected array, Float64Array, or ndarray".into()),
     }
+}
+
+/// SC0c: wrap a Float64Array as ndarray without copying element storage into Kab Array.
+fn nd_from_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let view = args.first().ok_or("nd_from_f64(float64Array, shape?)")?;
+    if !crate::runtime::shared_memory::is_float64_array(view) {
+        return Err("nd_from_f64: expected Float64Array".into());
+    }
+    let data = crate::runtime::shared_memory::float64_array_to_f64_vec(view)?;
+    let shape = if let Some(s) = args.get(1).filter(|s| !matches!(s, Value::Undefined | Value::Null))
+    {
+        let shape = parse_shape(s)?;
+        if shape_product(&shape) != data.len() {
+            return Err("nd_from_f64: shape product must match view length".into());
+        }
+        shape
+    } else {
+        vec![data.len()]
+    };
+    let mut m = HashMap::new();
+    m.insert(ND_MARK.into(), Value::Bool(true));
+    m.insert("shape".into(), shape_val(&shape));
+    m.insert("size".into(), Value::Number(data.len() as i64));
+    m.insert("f64".into(), view.clone());
+    // Keep a sync snapshot for ops that don't touch the view; prefer f64 view when present.
+    m.insert("data".into(), vector_out(&data));
+    m.insert("zero_copy".into(), Value::Bool(true));
+    Ok(Value::Object(m))
+}
+
+/// Materialize / sync ndarray into a Float64Array (in-place write when view supplied).
+fn nd_to_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_to_f64")?;
+    if let Some(view) = args.get(1) {
+        crate::runtime::shared_memory::float64_array_write_slice(view, &data)?;
+        let mut m = HashMap::new();
+        m.insert(ND_MARK.into(), Value::Bool(true));
+        m.insert("shape".into(), shape_val(&shape));
+        m.insert("size".into(), Value::Number(data.len() as i64));
+        m.insert("f64".into(), view.clone());
+        m.insert("data".into(), vector_out(&data));
+        m.insert("zero_copy".into(), Value::Bool(true));
+        return Ok(Value::Object(m));
+    }
+    let bytes = data.len().saturating_mul(8).max(8);
+    let buf = crate::runtime::shared_memory::sab_new(bytes)?;
+    let sab_id = crate::runtime::shared_memory::sab_id(&buf)?;
+    let mut view_map = HashMap::new();
+    view_map.insert("__kab_f64".into(), Value::Bool(true));
+    view_map.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
+    view_map.insert("byteOffset".into(), Value::Number(0));
+    view_map.insert("length".into(), Value::Number(data.len() as i64));
+    let view = Value::Object(view_map);
+    crate::runtime::shared_memory::float64_array_write_slice(&view, &data)?;
+    nd_from_f64(&[view, shape_val(&shape)], _env)
 }
 
 fn nd_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>), String> {
@@ -475,6 +538,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_full", "nd_full"], nd_full);
     bind(&["science_nd_arange", "nd_arange"], nd_arange);
     bind(&["science_nd_from", "nd_from"], nd_from);
+    bind(&["science_nd_from_f64", "nd_from_f64"], nd_from_f64);
+    bind(&["science_nd_to_f64", "nd_to_f64"], nd_to_f64);
     bind(&["science_nd_shape", "nd_shape"], nd_shape);
     bind(&["science_nd_size", "nd_size"], nd_size);
     bind(&["science_nd_reshape", "nd_reshape"], nd_reshape);

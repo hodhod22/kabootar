@@ -477,8 +477,9 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
 | **GP** | Game production | GPU-3D, scen/motor, assets, audio — redo för spelproduktion |
 | **SC** | Science / AI | Ndarray + linalg + ML — slå Python-stacken för STEM/AI i samma runtime |
+| **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **SC** (science/AI vs Python) parallellt med kvarvarande **P4/P5/P7/P8**; språk **O/T/J/R** kvar som långsiktig bas. **P/GP** subset redan landad.
+**Aktivt fokus (2026-08):** **SC** + **DX** (REPL/notebook vs Python exploration) parallellt med kvarvarande **P**; språk **O/T/J/R** kvar som långsiktig bas. **P/GP** subset redan landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -785,7 +786,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **SC0a** | **`nd_*` contiguous array** — shape, flat data, zeros/ones/arange/reshape/get/set | ✅ subset |
 | **SC0b** | **Elementvis + reductions** — add/mul/scale, sum/mean/max, broadcast subset | ✅ subset (add/mul/scale/sum/mean; broadcast kvar) |
-| **SC0c** | **Float64/32 bulk** — zero-copy mot `Float64Array` / `@manual` buffers | 📋 |
+| **SC0c** | **Float64/32 bulk** — zero-copy mot `Float64Array` / `@manual` buffers | ✅ subset (`nd_from_f64` / `nd_to_f64` + `Float64Array` view) |
 | **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
 
 #### SC1 — Linear algebra & numerik (SciPy-klass)
@@ -794,8 +795,8 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **SC1a** | **matmul / tensordot subset** på ndarray (utöver `mat_mul`) | ✅ subset (`nd_matmul` / `nd_dot`) |
 | **SC1b** | **Solve / LU** — `nd_solve` / `mat_solve` för Ax=b | ✅ subset (`nd_solve` Gauss+partial pivot) |
-| **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2 eig finns; utöka) | 📋 (`mat_eigen2` kvar) |
-| **SC1d** | **FFT / signal subset** — 1D FFT + conv | 📋 |
+| **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2 eig finns; utöka) | ✅ subset (`mat_svd2` + `mat_eigen2`) |
+| **SC1d** | **FFT / signal subset** — 1D FFT + conv | ✅ subset (`num_fft` / `num_ifft` / `num_conv1d`) |
 
 #### SC2 — ML / AI (PyTorch/sklearn-klass, produkt-subset)
 
@@ -803,7 +804,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **SC2a** | **Aktiveringar + loss** — relu/sigmoid/softmax, mse/cross-entropy | ✅ subset (relu/sigmoid/softmax/mse) |
 | **SC2b** | **Dense forward + SGD** — `ml_dense`, `ml_sgd_update` | ✅ subset (+ `ml_linreg_step`) |
-| **SC2c** | **Autograd-lite** — tape för dense/relu (senare) | 📋 |
+| **SC2c** | **Autograd-lite** — tape för dense/relu (senare) | ✅ subset (`ag_tensor`/`ag_dense`/`ag_relu`/`ag_mse`/`ag_backward`) |
 | **SC2d** | **Dataset / batch helpers** — shuffle, mini-batch i Kab | 📋 |
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS) | 📋 |
 
@@ -811,23 +812,53 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **SC3a** | **CSV/JSON tabular** — `science/data` load/describe | 📋 |
-| **SC3b** | **Plot subset** — canvas2d line/scatter helpers | 📋 |
+| **SC3a** | **CSV/JSON tabular** — `science/data` load/describe | ✅ subset (`csv_parse`/`csv_load`/`table_describe`) |
+| **SC3b** | **Plot subset** — canvas2d line/scatter helpers | ✅ subset (`ascii_plot` / `format_table` / `pretty`; canvas kvar) |
 | **SC3c** | **`kabootar mod init science-ai`** — mall + examples | ✅ subset |
 | **SC3d** | **Docs & benches** — SCIENCE.md + CI smoke vs Python-baslinjer | ✅ subset (`tests/science_sc.rs`, `examples/science_ai_linreg.kab`) |
+| **SC3e** | **Exploration DX** — REPL/notebook (se **Våg DX**) | ✅ DX0–DX4 subset |
 
 #### SC4 — Scale & hardware
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*` bulk; BLAS kvar) |
-| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | 📋 |
+| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_tensor_*` staging + matmul; compute kernel kvar) |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map` sequential API) |
 | **SC4d** | **Delete-gate** — typisk ML-smoke utan Python/NumPy i CI | ✅ subset (`science_sc` / linreg example) |
 
 **SC-ordning:** SC0a–b → SC1a–b → SC2a–b → SC3 → SC0c/SC4.
 
 **Checkpoint SC:** ndarray + dense+SGD trenar linjär modell; docs; CI-smoke. **Slutmått:** STEM/AI-prototyp → shipbar app i Kabootar snabbare och mer integrerat än Python+pip+notebook, med numerisk hotpath i samma klass som NumPy för vanliga storlekar.
+
+### Våg DX — Exploration (REPL / notebook vs Python) 🚧
+
+**Problem:** Python vinner *utforskning* (REPL, Jupyter, snabb “prova → se”). Kabootars gamla REPL var enradig och Debug-print — inte konkurrenskraftig.
+
+**Mål:** Kabootar ska kännas **bättre än Python för exploration-to-ship**: samma session kan importera `science`, rita canvas, hosta HTTP och gå till `kabootar run` / kOS **utan** notebook→script→venv-omstart.
+
+**Hur Kab vinner mot Python (utforskning):**
+
+| Dimension | Kabootar-mål | Mot IPython / Jupyter |
+|-----------|--------------|------------------------|
+| Session | Persistent env + `_` + multiline + `:load` | Paritet med IPython-basics |
+| Notebook | `.knb` celler + HTML/WASM runner | Mindre toolchain än Jupyter+kernel |
+| Stack | En runtime: STEM + UI + OS i samma cell | Ingen “kernel vs app”-split |
+| Deploy | Cell → `.kab` / mod utan omskrivning | Snabbare än “kopiera ur notebook” |
+| AI-DX | DocAI/CodAI i samma IDE-session | Integrerat, inte separat Colab |
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **DX0** | **Modern REPL** — multiline, pretty-print, `_`, `:help`/`:load`/`:reset`/`:vars` | ✅ subset |
+| **DX1** | **Session API** — `Session::eval_cell` delad av CLI + notebook + tester | ✅ subset (`src/session.rs`) |
+| **DX2** | **`.knb` notebook** — JSON-celler, `kabootar notebook run` | ✅ subset |
+| **DX3** | **HTML/WASM notebook** — web UI som kör celler (samma eval) | ✅ subset (`kabootar-notebook.html` + `session_eval`/`session_science`) |
+| **DX4** | **Science-REPL presets** — `:science`, plot/table pretty | ✅ subset (`:science`, `pretty`/`format_table`/`ascii_plot`) |
+| **DX5** | **History / readline** — line-edit + historikfil (senare) | ✅ subset (`rustyline` + `~/.kabootar_history`) |
+
+**DX-ordning:** DX0–DX2 → DX3 → DX4.
+
+**Checkpoint DX:** REPL + `.knb` smoke; docs [EXPLORATION.md](EXPLORATION.md).
 
 ---
 
@@ -923,6 +954,7 @@ Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
 Våg SC (STEM)  ████████░░░░░░░░  SC0–SC2 + mall; Float64/autograd/GPU kvar
+Våg DX (explore)████████████░░░░  REPL + .knb + HTML; readline kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
 

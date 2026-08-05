@@ -9,8 +9,12 @@
 ## Snabbstart
 
 ```bash
-# REPL (CLI)
+# Exploration REPL (persistent env, :science, _)
 cargo run
+# eller: kabootar
+
+# Notebook
+kabootar notebook run examples/explore_smoke.knb --science
 
 # Tester
 cargo test
@@ -49,7 +53,8 @@ wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir p
 | [SQL.md](SQL.md) | Inbyggd SQL-databas |
 | [LSP.md](LSP.md) | Language Server, VS Code-extension |
 | [SECURITY.md](SECURITY.md) | Krypto, secure memory, enheter, providers |
-| [SCIENCE.md](SCIENCE.md) | `import "science"` — komplexa tal & STEM |
+| [SCIENCE.md](SCIENCE.md) | `import "science"` — komplexa tal, ndarray, ML |
+| [EXPLORATION.md](EXPLORATION.md) | REPL + `.knb` notebook — vs Python/Jupyter |
 | [DOCAI.md](DOCAI.md) | DocAI — fråga dokumentationen (`kabootar-docai`) |
 | [RUNTIME.md](RUNTIME.md) | DOM, OS, databas |
 | [ROADMAP.md](ROADMAP.md) | Implementationsplan |

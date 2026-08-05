@@ -1,10 +1,11 @@
-//! Kabootar CLI — `mod init`, `mod run`, `serve`, `run`, `compile`.
+//! Kabootar CLI — `mod init`, `mod run`, `serve`, `run`, `compile`, REPL, notebook.
+
+mod repl;
 
 use crate::compile::{self};
 use crate::evaluator::create_global_env;
 use crate::project::manifest::load_manifest_cwd;
 use std::fs;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -16,12 +17,13 @@ fn format_user_error(e: &str) -> String {
 
 pub fn run(args: &[String]) -> i32 {
     if args.is_empty() {
-        return run_repl();
+        return repl::run_repl();
     }
     match args[0].as_str() {
         "run" => run_file_cmd(&args[1..]),
         "serve" => serve_cmd(&args[1..]),
         "shell" => shell_cmd(&args[1..]),
+        "notebook" | "nb" => notebook_cmd(&args[1..]),
         "compile" => compile_cmd(&args[1..]),
         "fmt" => fmt_cmd(&args[1..]),
         "install" => install_cmd(&args[1..]),
@@ -36,6 +38,7 @@ pub fn run(args: &[String]) -> i32 {
             0
         }
         path if path.ends_with(".kab") || path.ends_with(".kabootar") => run_file_cmd(args),
+        path if path.ends_with(".knb") => notebook_run_file(path, false),
         _ => {
             eprintln!("Unknown command: {}", args[0]);
             print_help();
@@ -49,17 +52,18 @@ fn print_help() {
         "Kabootar v{VERSION}
 
 Usage:
-  kabootar                         Interactive REPL
+  kabootar                         Interactive exploration REPL
   kabootar run <file.kab>          Run a Kabootar script
+  kabootar notebook run <file.knb> [--science]   Run notebook cells
   kabootar compile <file.kab> [--self-host|--rust]   Compile via self-host (default; Rust fallback)
   kabootar fmt <file.kab>          Format Kabootar source (basic)
   kabootar install [name@ver]      Install deps from local registry
   kabootar publish <file.kab>      Publish module to local registry
   kabootar serve [opts] <file>     Start HTTP server
   kabootar shell                   Open Kabootar OS desktop window
-  kabootar mod init <web|api>  Create a new project
+  kabootar mod init <web|api|game|game3d|science-ai>
   kabootar mod run                 Run project entry (kabootar.toml)
-  kabootar <file.kab>              Shorthand for run
+  kabootar <file.kab|.knb>         Shorthand for run / notebook run
 
 Serve options:
   --port <n>       Port (default 8080 or kabootar.toml)
@@ -67,55 +71,61 @@ Serve options:
   --watch          Hot reload on file changes
 
 Examples:
-  kabootar mod init api
-  kabootar compile main.kab
+  kabootar
+  kabootar notebook run examples/explore_smoke.knb --science
+  kabootar mod init science-ai
   kabootar serve --watch main.kab
 "
     );
 }
 
-pub fn run_repl() -> i32 {
-    use crate::evaluator::eval_stmt;
-    use crate::lexer::tokenize;
-    use crate::parser::Parser;
-
-    println!("Kabootar v{VERSION} (type :quit to exit)");
-    let mut env = create_global_env();
-    loop {
-        print!("> ");
-        let _ = io::stdout().flush();
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            break;
-        }
-        let input = input.trim();
-        if input == ":quit" {
-            break;
-        }
-        if input.is_empty() || input.starts_with("=>") {
-            continue;
-        }
-        let tokens = match tokenize(input) {
-            Ok(tokens) => tokens,
-            Err(e) => {
-                println!("Lexer error: {}", e);
-                continue;
-            }
-        };
-        let mut parser = Parser::with_eof(tokens);
-        match parser.parse_program() {
-            Ok(stmts) => {
-                for stmt in stmts {
-                    match eval_stmt(&stmt, &mut env) {
-                        Ok(v) => println!("=> {:?}", v),
-                        Err(e) => println!("Error: {}", e),
-                    }
+fn notebook_cmd(args: &[String]) -> i32 {
+    match args.first().map(String::as_str) {
+        Some("run") => {
+            let mut science = false;
+            let mut path: Option<&str> = None;
+            for a in &args[1..] {
+                if a == "--science" || a == "-s" {
+                    science = true;
+                } else if !a.starts_with('-') {
+                    path = Some(a.as_str());
                 }
             }
-            Err(e) => println!("Parse error: {}", e),
+            match path {
+                Some(p) => notebook_run_file(p, science),
+                None => {
+                    eprintln!("Usage: kabootar notebook run <file.knb> [--science]");
+                    1
+                }
+            }
+        }
+        Some("--help") | Some("-h") | None => {
+            eprintln!("Usage: kabootar notebook run <file.knb> [--science]");
+            0
+        }
+        Some(other) if other.ends_with(".knb") => {
+            let science = args.iter().any(|a| a == "--science" || a == "-s");
+            notebook_run_file(other, science)
+        }
+        Some(other) => {
+            eprintln!("Unknown notebook subcommand: {other}");
+            eprintln!("Usage: kabootar notebook run <file.knb> [--science]");
+            1
         }
     }
-    0
+}
+
+fn notebook_run_file(path: &str, preload_science: bool) -> i32 {
+    match crate::notebook::run_notebook_file(Path::new(path), preload_science) {
+        Ok(v) => {
+            println!("=> {}", crate::value::format_value(&v));
+            0
+        }
+        Err(e) => {
+            eprintln!("{}", format_user_error(&e));
+            1
+        }
+    }
 }
 
 fn run_file_cmd(args: &[String]) -> i32 {

@@ -525,7 +525,11 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_add` / `nd_mul` / `nd_scale` | Elementvis |
 | `nd_sum` / `nd_mean` | Reductions |
 | `nd_dot` / `nd_matmul` / `nd_solve` | Linalg |
-| `sci_vadd` / `sci_vmul` / `sci_dot` | Bulk-vektorer (P5) |
+| `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
+| `ag_*` | Autograd-lite tape |
+| `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD |
+| `csv_*` / `ascii_plot` / `pretty` | Data + pretty |
+| `gpu_tensor_*` | GPU staging tensors |
 
 ## ML / AI (SC2)
 
