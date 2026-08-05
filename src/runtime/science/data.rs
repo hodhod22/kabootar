@@ -43,6 +43,205 @@ fn csv_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     csv_parse(&[Value::String(text)], _env)
 }
 
+/// KPQT1 — Kab Parquet-lite columnar (SC7c). Array of row-objects → binary file.
+/// Magic KPQT | ver u32 LE=1 | ncols | (name_len, name, dtype u8)* | nrows | column payloads.
+/// dtype: 1=f64, 2=i64, 3=utf8.
+fn parquet_save(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("parquet_save(path, rows)".into()),
+    };
+    let rows = match args.get(1) {
+        Some(Value::Array(items)) => items,
+        _ => return Err("parquet_save: rows array".into()),
+    };
+    if rows.is_empty() {
+        return Err("parquet_save: empty".into());
+    }
+    let mut col_names: Vec<String> = Vec::new();
+    if let Value::Object(first) = &rows[0] {
+        for k in first.keys() {
+            if k.starts_with("__kab_") {
+                continue;
+            }
+            col_names.push(k.clone());
+        }
+        col_names.sort();
+    } else {
+        return Err("parquet_save: expect array of objects".into());
+    }
+    let ncols = col_names.len();
+    let nrows = rows.len();
+    let mut dtypes = vec![1u8; ncols]; // default f64; promote to str/i64 as needed
+    let mut cols: Vec<Vec<Value>> = vec![Vec::with_capacity(nrows); ncols];
+    for row in rows {
+        let Value::Object(m) = row else {
+            return Err("parquet_save: jagged rows".into());
+        };
+        for (ci, name) in col_names.iter().enumerate() {
+            let cell = m.get(name).cloned().unwrap_or(Value::Null);
+            match &cell {
+                Value::String(_) => dtypes[ci] = 3,
+                Value::Number(_) | Value::BigInt(_) => {
+                    if dtypes[ci] == 1 {
+                        dtypes[ci] = 2;
+                    }
+                }
+                Value::Float(_) => {
+                    if dtypes[ci] == 2 {
+                        dtypes[ci] = 1;
+                    }
+                }
+                Value::Bool(_) | Value::Null => {}
+                _ => {
+                    if dtypes[ci] != 3 {
+                        dtypes[ci] = 3;
+                    }
+                }
+            }
+            cols[ci].push(cell);
+        }
+    }
+    // Mixed int/float column → f64.
+    for (ci, col) in cols.iter().enumerate() {
+        if dtypes[ci] == 2 {
+            for c in col {
+                if matches!(c, Value::Float(_)) {
+                    dtypes[ci] = 1;
+                    break;
+                }
+            }
+        }
+    }
+    let mut buf = Vec::new();
+    buf.extend_from_slice(b"KPQT");
+    buf.extend_from_slice(&1u32.to_le_bytes());
+    buf.extend_from_slice(&(ncols as u32).to_le_bytes());
+    for (ci, name) in col_names.iter().enumerate() {
+        let nb = name.as_bytes();
+        buf.extend_from_slice(&(nb.len() as u32).to_le_bytes());
+        buf.extend_from_slice(nb);
+        buf.push(dtypes[ci]);
+    }
+    buf.extend_from_slice(&(nrows as u32).to_le_bytes());
+    for (ci, col) in cols.iter().enumerate() {
+        match dtypes[ci] {
+            1 => {
+                for c in col {
+                    let v = num(c).unwrap_or(0.0);
+                    buf.extend_from_slice(&v.to_le_bytes());
+                }
+            }
+            2 => {
+                for c in col {
+                    let v = num(c).unwrap_or(0.0) as i64;
+                    buf.extend_from_slice(&v.to_le_bytes());
+                }
+            }
+            _ => {
+                for c in col {
+                    let s = match c {
+                        Value::String(s) => s.clone(),
+                        Value::Null => String::new(),
+                        other => crate::value::format_value(other),
+                    };
+                    let sb = s.as_bytes();
+                    buf.extend_from_slice(&(sb.len() as u32).to_le_bytes());
+                    buf.extend_from_slice(sb);
+                }
+            }
+        }
+    }
+    std::fs::write(path, &buf).map_err(|e| format!("parquet_save({path}): {e}"))?;
+    Ok(int_out(nrows as i64))
+}
+
+fn parquet_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("parquet_load(path)".into()),
+    };
+    let buf = std::fs::read(path).map_err(|e| format!("parquet_load({path}): {e}"))?;
+    if buf.len() < 12 || &buf[0..4] != b"KPQT" {
+        return Err("parquet_load: bad magic (expect KPQT1)".into());
+    }
+    let ver = u32::from_le_bytes(buf[4..8].try_into().unwrap());
+    if ver != 1 {
+        return Err(format!("parquet_load: unsupported version {ver}"));
+    }
+    let mut off = 8usize;
+    let take_u32 = |buf: &[u8], off: &mut usize| -> Result<u32, String> {
+        if *off + 4 > buf.len() {
+            return Err("parquet_load: truncated".into());
+        }
+        let v = u32::from_le_bytes(buf[*off..*off + 4].try_into().unwrap());
+        *off += 4;
+        Ok(v)
+    };
+    let ncols = take_u32(&buf, &mut off)? as usize;
+    let mut names = Vec::with_capacity(ncols);
+    let mut dtypes = Vec::with_capacity(ncols);
+    for _ in 0..ncols {
+        let nlen = take_u32(&buf, &mut off)? as usize;
+        if off + nlen + 1 > buf.len() {
+            return Err("parquet_load: truncated name".into());
+        }
+        let name = String::from_utf8_lossy(&buf[off..off + nlen]).into_owned();
+        off += nlen;
+        dtypes.push(buf[off]);
+        off += 1;
+        names.push(name);
+    }
+    let nrows = take_u32(&buf, &mut off)? as usize;
+    let mut cols: Vec<Vec<Value>> = Vec::with_capacity(ncols);
+    for di in 0..ncols {
+        let mut col = Vec::with_capacity(nrows);
+        match dtypes[di] {
+            1 => {
+                for _ in 0..nrows {
+                    if off + 8 > buf.len() {
+                        return Err("parquet_load: truncated f64".into());
+                    }
+                    let v = f64::from_le_bytes(buf[off..off + 8].try_into().unwrap());
+                    off += 8;
+                    col.push(float_out(v));
+                }
+            }
+            2 => {
+                for _ in 0..nrows {
+                    if off + 8 > buf.len() {
+                        return Err("parquet_load: truncated i64".into());
+                    }
+                    let v = i64::from_le_bytes(buf[off..off + 8].try_into().unwrap());
+                    off += 8;
+                    col.push(int_out(v));
+                }
+            }
+            _ => {
+                for _ in 0..nrows {
+                    let nlen = take_u32(&buf, &mut off)? as usize;
+                    if off + nlen > buf.len() {
+                        return Err("parquet_load: truncated str".into());
+                    }
+                    let s = String::from_utf8_lossy(&buf[off..off + nlen]).into_owned();
+                    off += nlen;
+                    col.push(Value::String(s));
+                }
+            }
+        }
+        cols.push(col);
+    }
+    let mut out_rows = Vec::with_capacity(nrows);
+    for r in 0..nrows {
+        let mut m = HashMap::new();
+        for c in 0..ncols {
+            m.insert(names[c].clone(), cols[c][r].clone());
+        }
+        out_rows.push(Value::Object(m));
+    }
+    Ok(Value::Array(out_rows))
+}
+
 fn table_describe(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let rows = match args.first() {
         Some(Value::Array(items)) => items,
@@ -457,6 +656,8 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_csv_parse", "csv_parse"], csv_parse);
     bind(&["science_csv_load", "csv_load"], csv_load);
+    bind(&["science_parquet_save", "parquet_save"], parquet_save);
+    bind(&["science_parquet_load", "parquet_load"], parquet_load);
     bind(&["science_table_describe", "table_describe"], table_describe);
     bind(&["science_format_table", "format_table"], format_table);
     bind(&["science_ascii_plot", "ascii_plot"], ascii_plot);

@@ -38,14 +38,18 @@ fn sc7_deepen_jsonl_imshow_mapnd_gpu() {
         let g = matmulKernel(a, eye)
         let r = relu(toDevice(nd_from([-1.0, 2.0], [2])))
         let rd = toNd(r)
-        blasBackend() == "matrixmultiply" && len(back) == 2 && back[1]["a"] == 2 && im["type"] == "imshow" && nd_size(sq) == 4 && g["shape"][0] == 2 && nd_get(rd, 0) == 0.0 && nd_get(rd, 1) == 2.0
+        let blasOk = sci_blas_backend() == "matrixmultiply"
+        if sci_blas_backend() == "openblas" { blasOk = true }
+        if sci_blas_backend() == "mkl" { blasOk = true }
+        if sci_blas_backend() == "system_blas" { blasOk = true }
+        blasOk && len(back) == 2 && back[1]["a"] == 2 && im["type"] == "imshow" && nd_size(sq) == 4 && g["shape"][0] == 2 && nd_get(rd, 0) == 0.0 && nd_get(rd, 1) == 2.0
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
 
 #[test]
-fn sc_checkpoint_reinforce_shap_attn_wo() {
+fn sc_checkpoint_reinforce_shap_attn_qkv() {
     let v = eval(
         r#"
         import "science"
@@ -65,12 +69,34 @@ fn sc_checkpoint_reinforce_shap_attn_wo() {
             "b1": [0.0, 0.0],
             "b2": [0.0, 0.0],
             "bout": [0.0, 0.0, 0.0, 0.0],
+            "wq": [1.0, 0.0, 0.0, 1.0],
+            "wk": [1.0, 0.0, 0.0, 1.0],
+            "wv": [1.0, 0.0, 0.0, 1.0],
             "wo": [1.0, 0.0, 0.0, 1.0]
         }
         let step = backpropStep(w, [0, 1], [1, 0], 0.01, 1)
-        prefs[1] > prefs[0] && sk["coalitions"] == 4 && step["layers"][2] == "attn_wo"
+        prefs[1] > prefs[0] && sk["coalitions"] == 4 && step["layers"][2] == "attn_qkv" && step["weights"]["wq"] != null
         "#,
     );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn sc7_parquet_kpqt_roundtrip() {
+    let dir = std::env::temp_dir();
+    let path = dir.join("kab_sc7_parquet_smoke.kpqt");
+    let path_s = path.to_string_lossy().replace('\\', "/");
+    let v = eval(&format!(
+        r#"
+        import "science"
+        import "science/io"
+        let rows = [{{ "x": 1.5, "n": 2, "s": "a" }}, {{ "x": 3.0, "n": 4, "s": "b" }}]
+        let n = parquetSave("{path_s}", rows)
+        let back = parquetLoad("{path_s}")
+        n == 2 && back[0]["s"] == "a" && back[1]["x"] == 3.0 && back[1]["n"] == 4
+        "#
+    ));
+    let _ = std::fs::remove_file(&path);
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
 

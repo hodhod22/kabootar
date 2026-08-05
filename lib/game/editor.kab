@@ -243,11 +243,28 @@ pub fn buildSceneView(editor) {
         })
         i = i + 1
     }
+    let cam = editor["sceneView"]
+    let gpu = editor_scene_gpu_viewport({
+        "width": cam["width"] != null ? cam["width"] : 640,
+        "height": cam["height"] != null ? cam["height"] : 360,
+        "camX": cam["camX"],
+        "camY": cam["camY"],
+        "camZ": cam["camZ"],
+        "zoom": cam["zoom"],
+        "gizmos": gizmos
+    })
     return {
         "mode": "scene",
-        "camera": editor["sceneView"],
-        "gizmos": gizmos
+        "camera": cam,
+        "gizmos": gizmos,
+        "gpu": gpu
     }
+}
+
+/// Explicit GPU viewport refresh (GP7b).
+pub fn renderSceneGpu(editor) {
+    let view = buildSceneView(editor)
+    return view["gpu"]
 }
 
 pub fn play(editor) {

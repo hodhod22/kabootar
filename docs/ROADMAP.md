@@ -481,7 +481,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** SC polish (system BLAS / full MHA BP) + GP7 viewport; språk **O/T/J/R**. **P/GP0–GP5** + **SC0–SC7** + **DX0–DX7** subset landad.
+**Aktivt fokus (2026-08):** språk **O/T/J/R** polish; GP6 terrain/audio/XR; Apache Parquet FFI. **P/GP0–GP5** + **SC0–SC7** + **DX0–DX7** subset landad (inkl. full MHA BP, system BLAS, KPQT1, GPU viewport).
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -791,7 +791,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **GP7a** | **`game_editor.kab` / `import "game/editor"` deepen** — dockad shell: hierarchy + **inspector** + toolbar; bygger på GP4b descriptors | ✅ subset (`bootEditor` + layout descriptors) |
-| **GP7b** | **Scene view** — 3D/2D viewport, orbit/pan/zoom, pick/select, gizmo move/rotate/scale (kopplat `game/debug` + GPU) | ✅ subset (orbit/zoom + gizmo descriptors; GPU viewport kvar) |
+| **GP7b** | **Scene view** — 3D/2D viewport, orbit/pan/zoom, pick/select, gizmo move/rotate/scale (kopplat `game/debug` + GPU) | ✅ subset (orbit/zoom + gizmo + **GPU viewport descriptor** / optional wgpu frame) |
 | **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | ✅ subset (play/pause/stop/stepGame) |
 | **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | ✅ subset (dragStart/dragDropOnNode asset+reparent) |
 | **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | ✅ subset (`liveSet`; hot-reload sync kvar) |
@@ -802,8 +802,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GP6a/b/c/e/f/g/i (`anim`/`physics3`/`particles`/`ui`/`postfx`/`light`/`save`).  
-**Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; GPU viewport/shadows/postfx.  
+**Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; shadows/postfx polish.  
+**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + GP6a/b/c/e/f/g/i (`anim`/`physics3`/`particles`/`ui`/`postfx`/`light`/`save`).  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
@@ -836,7 +836,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 1D FFT/IFFT, conv1d | 2D FFT, FIR/IIR, window, STFT |
 | **Sparse** | `scipy.sparse` + sparse linalg | ❌ | CSR/COO + SpMV + sparse solve subset |
 | **Stats** | `scipy.stats` / pandas describe | 🟡 mean/var + `table_describe` | Fördelningar, hypotest, corr/cov, quantiles, groupby |
-| **Tabell / I/O** | pandas, CSV/Parquet | 🟡 CSV parse/load + KND | **SC7c** `science/io`; typed columns, join/groupby, Parquet/JSONL |
+| **Tabell / I/O** | pandas, CSV/Parquet | 🟡 CSV + **KPQT1 Parquet-lite** + KND | **SC7c** `science/io`; typed columns, join/groupby, Apache Parquet FFI |
 | **Visualisering** | matplotlib / seaborn | 🟡 ASCII + canvas plots | **SC7b** `science/visualize`; heatmaps/imshow/notebook rich |
 | **GPU ndarray** | CuPy / torch.cuda | 🟡 `gpu.kab` + WGSL subset | **SC7a** `science/nd_gpu` (nd/Tensor-parity) |
 | **Parallellism** | joblib / Dask (lokal) | 🟡 `job_map_*` + `dist` | **SC7d** `science/parallel` (lokal); `dist` = multi-node stub |
@@ -922,7 +922,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*` chunked; `matrixmultiply` DGEMM + `sci_blas_dgemm` API; system BLAS kvar) |
+| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ (`sci_v*` chunked; `matrixmultiply` + **runtime OpenBLAS/MKL** via `cblas_dgemm`; `sci_blas_backend`) |
 | **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul+conv2d f32 + CPU fallback; `gpu_zeros`/`ones`/`scale`/`add`) |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map_parallel` OS-threads för f64-ops; `job_map_chunks` Kab-closure chunk plan) |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
@@ -968,7 +968,7 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 |-----|-------------|----------|--------|
 | **SC7a** | `science/nd_gpu` | **Ndarray ↔ GPU** — `toDevice`/`toHost`/`toNd`; `matmul`/`add`/`relu`/`matmulKernel`/`conv2dKernel` | ✅ subset (+ deepen) |
 | **SC7b** | `science/visualize` | **Visualisering** — line/scatter/hist/heatmap/`plotNd`/`imshow`/`imshowNd` | ✅ subset (+ deepen) |
-| **SC7c** | `science/io` | **Science I/O** — KND, CSV, checkpoint, JSON, **JSONL** | ✅ subset (+ deepen) |
+| **SC7c** | `science/io` | **Science I/O** — KND, CSV, checkpoint, JSON, JSONL, **Parquet-lite (KPQT1)** | ✅ subset (+ deepen) |
 | **SC7d** | `science/parallel` | **Lokal parallellism** — `mapItems`/`mapParallel`/`mapNdParallel`/`vmap`/`mapReduce` | ✅ subset (+ deepen) |
 
 **SC7-policy / lager:**
@@ -985,9 +985,9 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 
 **SC-ordning:** SC0–SC7 ✅ subset.
 
-**Checkpoint SC (nästa):** system BLAS-FFI (OpenBLAS/MKL); full MHA QKV/softmax BP; Parquet.  
-**Checkpoint SC (landad 2026-08):** SC7 deepen (JSONL/imshow/vmap/nd_gpu kernels) + REINFORCE + exact `shapKernel` (d≤4) + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab.  
-**Checkpoint SC (landad tidigare):** BLAS-API (`sci_blas_dgemm`) + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership + SC7 surface.  
+**Checkpoint SC (nästa):** Apache Parquet FFI / MKL thread control; multi-layer TF stack.  
+**Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
+**Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
 **Checkpoint SC (AI-parity):** tokenizer/transformer + SC2l + GPU kernels (landad subset).  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6–SC7 modules**, och **helt självständig** stack (SC5f).
@@ -1116,7 +1116,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ██████████████░░  GP0–GP5 ✅; GP7a–g + GP6a/b/c/e/f/g/i; terrain/audio/XR kvar
-Våg SC (STEM)  ███████████████░  SC0–SC6 ✅; BLAS-API + TF-BP + chunks; extern BLAS kvar
+Våg SC (STEM)  ████████████████  SC0–SC7 ✅; system BLAS-FFI + full MHA BP + KPQT1
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

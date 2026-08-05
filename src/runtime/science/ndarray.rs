@@ -1246,10 +1246,276 @@ fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     ))
 }
 
-/// BLAS-class DGEMM via `matrixmultiply` (SIMD kernels) with blocked fallback.
+/// BLAS-class DGEMM: prefer system OpenBLAS/MKL via cblas_dgemm FFI; else matrixmultiply.
 fn gemm_blocked(m: usize, k: usize, n: usize, a: &[f64], b: &[f64]) -> Vec<f64> {
     let mut out = vec![0.0; m * n];
-    // matrixmultiply::dgemm: C = alpha*A*B + beta*C (row-major).
+    if try_system_dgemm(m, n, k, 1.0, a, b, 0.0, &mut out) {
+        return out;
+    }
+    unsafe {
+        matrixmultiply::dgemm(
+            m,
+            k,
+            n,
+            1.0,
+            a.as_ptr(),
+            k as isize,
+            1,
+            b.as_ptr(),
+            n as isize,
+            1,
+            0.0,
+            out.as_mut_ptr(),
+            n as isize,
+            1,
+        );
+    }
+    out
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+mod system_blas {
+    use libloading::{Library, Symbol};
+    use std::sync::OnceLock;
+
+    type CblasDgemm = unsafe extern "C" fn(
+        order: i32,
+        trans_a: i32,
+        trans_b: i32,
+        m: i32,
+        n: i32,
+        k: i32,
+        alpha: f64,
+        a: *const f64,
+        lda: i32,
+        b: *const f64,
+        ldb: i32,
+        beta: f64,
+        c: *mut f64,
+        ldc: i32,
+    );
+
+    const CBLAS_ROW_MAJOR: i32 = 101;
+    const CBLAS_NO_TRANS: i32 = 111;
+
+    struct BlasLib {
+        _lib: Library,
+        name: &'static str,
+        dgemm: CblasDgemm,
+    }
+
+    unsafe impl Send for BlasLib {}
+    unsafe impl Sync for BlasLib {}
+
+    static BLAS: OnceLock<Option<BlasLib>> = OnceLock::new();
+
+    fn candidate_libs() -> Vec<String> {
+        let mut out = Vec::new();
+        if let Ok(p) = std::env::var("KABOOTAR_BLAS_LIB") {
+            if !p.is_empty() {
+                out.push(p);
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            out.extend(
+                [
+                    "openblas.dll",
+                    "libopenblas.dll",
+                    "libopenblas_omp.dll",
+                    "mkl_rt.2.dll",
+                    "mkl_rt.dll",
+                    "libblas.dll",
+                ]
+                .map(String::from),
+            );
+        }
+        #[cfg(target_os = "linux")]
+        {
+            out.extend(
+                [
+                    "libopenblas.so",
+                    "libopenblas.so.0",
+                    "libmkl_rt.so",
+                    "libmkl_rt.so.2",
+                    "libblas.so.3",
+                    "libblas.so",
+                ]
+                .map(String::from),
+            );
+        }
+        #[cfg(target_os = "macos")]
+        {
+            out.extend(
+                [
+                    "libopenblas.dylib",
+                    "libopenblas.0.dylib",
+                    "/usr/local/opt/openblas/lib/libopenblas.dylib",
+                    "/opt/homebrew/opt/openblas/lib/libopenblas.dylib",
+                ]
+                .map(String::from),
+            );
+        }
+        out
+    }
+
+    fn probe() -> Option<BlasLib> {
+        for path in candidate_libs() {
+            let Ok(lib) = (unsafe { Library::new(&path) }) else {
+                continue;
+            };
+            let sym: Result<Symbol<CblasDgemm>, _> = unsafe { lib.get(b"cblas_dgemm") };
+            if let Ok(sym) = sym {
+                let dgemm = *sym;
+                let name = if path.to_ascii_lowercase().contains("mkl") {
+                    "mkl"
+                } else if path.to_ascii_lowercase().contains("openblas") {
+                    "openblas"
+                } else {
+                    "system_blas"
+                };
+                // Leak library into OnceLock via storing Library in BlasLib
+                return Some(BlasLib {
+                    _lib: lib,
+                    name,
+                    dgemm,
+                });
+            }
+        }
+        None
+    }
+
+    pub fn backend_name() -> &'static str {
+        match BLAS.get_or_init(probe) {
+            Some(b) => b.name,
+            None => "matrixmultiply",
+        }
+    }
+
+    pub fn dgemm(
+        m: usize,
+        n: usize,
+        k: usize,
+        alpha: f64,
+        a: &[f64],
+        b: &[f64],
+        beta: f64,
+        c: &mut [f64],
+    ) -> bool {
+        let Some(blas) = BLAS.get_or_init(probe).as_ref() else {
+            return false;
+        };
+        if a.len() < m * k || b.len() < k * n || c.len() < m * n {
+            return false;
+        }
+        unsafe {
+            (blas.dgemm)(
+                CBLAS_ROW_MAJOR,
+                CBLAS_NO_TRANS,
+                CBLAS_NO_TRANS,
+                m as i32,
+                n as i32,
+                k as i32,
+                alpha,
+                a.as_ptr(),
+                k as i32,
+                b.as_ptr(),
+                n as i32,
+                beta,
+                c.as_mut_ptr(),
+                n as i32,
+            );
+        }
+        true
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn try_system_dgemm(
+    m: usize,
+    n: usize,
+    k: usize,
+    alpha: f64,
+    a: &[f64],
+    b: &[f64],
+    beta: f64,
+    c: &mut [f64],
+) -> bool {
+    system_blas::dgemm(m, n, k, alpha, a, b, beta, c)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn try_system_dgemm(
+    _m: usize,
+    _n: usize,
+    _k: usize,
+    _alpha: f64,
+    _a: &[f64],
+    _b: &[f64],
+    _beta: f64,
+    _c: &mut [f64],
+) -> bool {
+    false
+}
+
+fn sci_blas_backend(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Ok(Value::String(system_blas::backend_name().into()))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(Value::String("matrixmultiply".into()))
+    }
+}
+
+/// sci_blas_dgemm(a, m, k, b, n, alpha?, beta?, c?) — BLAS-style DGEMM API (SC4a).
+/// Computes alpha*A*B + beta*C (C optional zeros). System BLAS when available.
+fn sci_blas_dgemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = vector_at(args, 0, "sci_blas_dgemm")?;
+    let m = num_at(args, 1, "sci_blas_dgemm")? as usize;
+    let k = num_at(args, 2, "sci_blas_dgemm")? as usize;
+    let b = vector_at(args, 3, "sci_blas_dgemm")?;
+    let n = num_at(args, 4, "sci_blas_dgemm")? as usize;
+    let alpha = args.get(5).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    let beta = args.get(6).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    if m == 0 || k == 0 || n == 0 || a.len() != m * k || b.len() != k * n {
+        return Err("sci_blas_dgemm: size mismatch".into());
+    }
+    let mut out = if beta.abs() > 1e-15 {
+        if let Some(cv) = args.get(7) {
+            let c = vector_at(&[cv.clone()], 0, "sci_blas_dgemm C")?;
+            if c.len() != m * n {
+                return Err("sci_blas_dgemm: C size".into());
+            }
+            c
+        } else {
+            vec![0.0; m * n]
+        }
+    } else {
+        vec![0.0; m * n]
+    };
+    if try_system_dgemm(m, n, k, alpha, &a, &b, beta, &mut out) {
+        return Ok(vector_out(&out));
+    }
+    // Fallback: matrixmultiply then scale/add.
+    let mut prod = gemm_matrixmultiply(m, k, n, &a, &b);
+    if (alpha - 1.0).abs() > 1e-15 {
+        for v in &mut prod {
+            *v *= alpha;
+        }
+    }
+    if beta.abs() > 1e-15 {
+        for i in 0..prod.len() {
+            prod[i] += beta * out[i];
+        }
+        return Ok(vector_out(&prod));
+    }
+    Ok(vector_out(&prod))
+}
+
+fn gemm_matrixmultiply(m: usize, k: usize, n: usize, a: &[f64], b: &[f64]) -> Vec<f64> {
+    let mut out = vec![0.0; m * n];
     unsafe {
         matrixmultiply::dgemm(
             m,
@@ -1297,41 +1563,6 @@ fn sci_gemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         return Err("sci_gemm: size mismatch".into());
     }
     Ok(vector_out(&gemm_blocked(m, k, n, &a, &b)))
-}
-
-/// sci_blas_dgemm(a, m, k, b, n, alpha?, beta?, c?) — BLAS-style DGEMM API (SC4a).
-/// Computes alpha*A*B + beta*C (C optional zeros). Pure blocked f64; no external lib yet.
-fn sci_blas_dgemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let a = vector_at(args, 0, "sci_blas_dgemm")?;
-    let m = num_at(args, 1, "sci_blas_dgemm")? as usize;
-    let k = num_at(args, 2, "sci_blas_dgemm")? as usize;
-    let b = vector_at(args, 3, "sci_blas_dgemm")?;
-    let n = num_at(args, 4, "sci_blas_dgemm")? as usize;
-    let alpha = args.get(5).and_then(|v| num(v).ok()).unwrap_or(1.0);
-    let beta = args.get(6).and_then(|v| num(v).ok()).unwrap_or(0.0);
-    if m == 0 || k == 0 || n == 0 || a.len() != m * k || b.len() != k * n {
-        return Err("sci_blas_dgemm: size mismatch".into());
-    }
-    let mut out = gemm_blocked(m, k, n, &a, &b);
-    if (alpha - 1.0).abs() > 1e-15 {
-        for v in &mut out {
-            *v *= alpha;
-        }
-    }
-    if beta.abs() > 1e-15 {
-        let c = if let Some(cv) = args.get(7) {
-            vector_at(&[cv.clone()], 0, "sci_blas_dgemm C")?
-        } else {
-            vec![0.0; m * n]
-        };
-        if c.len() != m * n {
-            return Err("sci_blas_dgemm: C size".into());
-        }
-        for i in 0..out.len() {
-            out[i] += beta * c[i];
-        }
-    }
-    Ok(vector_out(&out))
 }
 
 /// Gaussian elimination with partial pivoting for square Ax=b (SC1b).
@@ -1685,4 +1916,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sci_dot", "sci_dot"], sci_dot);
     bind(&["science_sci_gemm", "sci_gemm"], sci_gemm);
     bind(&["science_sci_blas_dgemm", "sci_blas_dgemm"], sci_blas_dgemm);
+    bind(&["science_sci_blas_backend", "sci_blas_backend"], sci_blas_backend);
 }

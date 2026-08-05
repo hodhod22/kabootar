@@ -100,3 +100,23 @@ pub fn loadJsonl(path) {
     let text = os_read(path)
     return parseJsonl(text)
 }
+
+/// Save rows as KPQT1 Parquet-lite columnar (SC7c).
+pub fn parquetSave(path, rows) {
+    return parquet_save(path, rows)
+}
+
+/// Load KPQT1 Parquet-lite → array of objects.
+pub fn parquetLoad(path) {
+    return parquet_load(path)
+}
+
+/// Alias: saveParquet.
+pub fn saveParquet(path, rows) {
+    return parquetSave(path, rows)
+}
+
+/// Alias: loadParquet.
+pub fn loadParquet(path) {
+    return parquetLoad(path)
+}

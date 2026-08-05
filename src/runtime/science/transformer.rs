@@ -112,10 +112,26 @@ fn mha_forward(
     d: usize,
     n_heads: usize,
 ) -> Vec<f64> {
-    let head_dim = d / n_heads;
+    let (out, _) = mha_forward_cached(q, k, v, seq_q, seq_k, d, n_heads);
+    out
+}
+
+/// Per-head attention weights [n_heads][seq_q][seq_k] for BP.
+fn mha_forward_cached(
+    q: &[f64],
+    k: &[f64],
+    v: &[f64],
+    seq_q: usize,
+    seq_k: usize,
+    d: usize,
+    n_heads: usize,
+) -> (Vec<f64>, Vec<Vec<Vec<f64>>>) {
+    let head_dim = d / n_heads.max(1);
     let scale = 1.0 / (head_dim as f64).sqrt();
     let mut out = vec![0.0; seq_q * d];
+    let mut attn_cache = Vec::with_capacity(n_heads);
     for h in 0..n_heads {
+        let mut head_attn = Vec::with_capacity(seq_q);
         for i in 0..seq_q {
             let mut scores = vec![0.0; seq_k];
             for j in 0..seq_k {
@@ -128,7 +144,7 @@ fn mha_forward(
             let max = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
             let ex: Vec<f64> = scores.iter().map(|s| (s - max).exp()).collect();
             let sum: f64 = ex.iter().sum();
-            let attn: Vec<f64> = ex.iter().map(|e| e / sum).collect();
+            let attn: Vec<f64> = ex.iter().map(|e| e / sum.max(1e-30)).collect();
             for t in 0..head_dim {
                 let mut s = 0.0;
                 for j in 0..seq_k {
@@ -136,9 +152,81 @@ fn mha_forward(
                 }
                 out[i * d + h * head_dim + t] = s;
             }
+            head_attn.push(attn);
+        }
+        attn_cache.push(head_attn);
+    }
+    (out, attn_cache)
+}
+
+/// Full MHA backprop through softmax + Q/K/V (given dout on attention output).
+fn mha_backward(
+    dout: &[f64],
+    q: &[f64],
+    k: &[f64],
+    v: &[f64],
+    attn_cache: &[Vec<Vec<f64>>],
+    seq: usize,
+    d: usize,
+    n_heads: usize,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    let head_dim = d / n_heads.max(1);
+    let scale = 1.0 / (head_dim as f64).sqrt();
+    let mut gq = vec![0.0; seq * d];
+    let mut gk = vec![0.0; seq * d];
+    let mut gv = vec![0.0; seq * d];
+    for h in 0..n_heads {
+        for i in 0..seq {
+            let attn = &attn_cache[h][i];
+            // g_v[j] += attn[j] * dout_i; g_attn[j] = dout_i · v_j
+            let mut g_attn = vec![0.0; seq];
+            for t in 0..head_dim {
+                let g = dout[i * d + h * head_dim + t];
+                for j in 0..seq {
+                    gv[j * d + h * head_dim + t] += attn[j] * g;
+                    g_attn[j] += g * v[j * d + h * head_dim + t];
+                }
+            }
+            // Softmax Jacobian: ds_j = a_j * (ga_j - sum_k a_k ga_k)
+            let dot: f64 = attn.iter().zip(g_attn.iter()).map(|(a, g)| a * g).sum();
+            let mut g_scores = vec![0.0; seq];
+            for j in 0..seq {
+                g_scores[j] = attn[j] * (g_attn[j] - dot);
+            }
+            for j in 0..seq {
+                let gs = g_scores[j] * scale;
+                for t in 0..head_dim {
+                    gq[i * d + h * head_dim + t] += gs * k[j * d + h * head_dim + t];
+                    gk[j * d + h * head_dim + t] += gs * q[i * d + h * head_dim + t];
+                }
+            }
         }
     }
-    out
+    (gq, gk, gv)
+}
+
+fn linear_rows_backward(
+    gout: &[f64],
+    x: &[f64],
+    w: &[f64],
+    seq: usize,
+    in_dim: usize,
+    out_dim: usize,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    let mut gw = vec![0.0; out_dim * in_dim];
+    let mut gb = vec![0.0; out_dim];
+    let mut gx = vec![0.0; seq * in_dim];
+    for s in 0..seq {
+        for o in 0..out_dim {
+            let g = gout[s * out_dim + o];
+            gb[o] += g;
+            for i in 0..in_dim {
+                gw[o * in_dim + i] += g * x[s * in_dim + i];
+                gx[s * in_dim + i] += g * w[o * in_dim + i];
+            }
+        }
+    }
+    (gw, gb, gx)
 }
 
 /// tf_transformer_forward(weights, inputIds, nHeads?) → {logits, hidden}
@@ -481,7 +569,7 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         bout = vec![0.0; vocab];
     }
 
-    // Attention forward (real MHA) + BP through output projection `wo` (SC checkpoint subset).
+    // Attention forward (real MHA) — full QKV + softmax + wo BP below.
     let wq_v = match weights.get("wq") {
         Some(v) => vector_at(&[v.clone()], 0, "wq").unwrap_or_else(|_| identity_flat(d_model)),
         None => identity_flat(d_model),
@@ -498,11 +586,14 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         Some(v) => vector_at(&[v.clone()], 0, "wo").unwrap_or_else(|_| identity_flat(d_model)),
         None => identity_flat(d_model),
     };
+    if d_model % n_heads != 0 {
+        return Err("tf_lm_backprop_step: d_model % nHeads != 0".into());
+    }
     let x_emb = x.clone();
     let q = linear_rows(&x_emb, seq, d_model, &wq_v, d_model, &vec![0.0; d_model]);
     let k = linear_rows(&x_emb, seq, d_model, &wk_v, d_model, &vec![0.0; d_model]);
     let v = linear_rows(&x_emb, seq, d_model, &wv_v, d_model, &vec![0.0; d_model]);
-    let attn = mha_forward(&q, &k, &v, seq, seq, d_model, n_heads);
+    let (attn, attn_cache) = mha_forward_cached(&q, &k, &v, seq, seq, d_model, n_heads);
     let proj = linear_rows(&attn, seq, d_model, &wo_v, d_model, &vec![0.0; d_model]);
     x = add_mat(&x_emb, &proj);
 
@@ -601,30 +692,41 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     for i in 0..gb1.len().min(b1.len()) {
         b1[i] -= lr * gb1[i];
     }
-    for s in 0..seq {
-        let id = ids[s];
-        for i in 0..d_model {
-            embed_data[id * d_model + i] -= lr * gx_pre[s * d_model + i];
-        }
-    }
 
-    // Attention residual BP: update `wo` (attn treated as constant for QKV — subset).
-    let mut gwo = vec![0.0; wo_v.len()];
-    let mut g_attn = vec![0.0; seq * d_model];
-    for s in 0..seq {
-        for o in 0..d_model {
-            let g = gx_pre[s * d_model + o];
-            for i in 0..d_model {
-                gwo[o * d_model + i] += g * attn[s * d_model + i];
-                g_attn[s * d_model + i] += g * wo_v[o * d_model + i];
-            }
-        }
+    // Attention residual BP: wo + MHA (softmax/QKV) + wq/wk/wv; residual + QKV → embed.
+    let (gwo, _, g_attn) =
+        linear_rows_backward(&gx_pre, &attn, &wo_v, seq, d_model, d_model);
+    let (gq, gk, gv) =
+        mha_backward(&g_attn, &q, &k, &v, &attn_cache, seq, d_model, n_heads);
+    let (gwq, _, gx_q) = linear_rows_backward(&gq, &x_emb, &wq_v, seq, d_model, d_model);
+    let (gwk, _, gx_k) = linear_rows_backward(&gk, &x_emb, &wk_v, seq, d_model, d_model);
+    let (gwv, _, gx_v) = linear_rows_backward(&gv, &x_emb, &wv_v, seq, d_model, d_model);
+    let mut gx_emb = gx_pre;
+    for i in 0..gx_emb.len() {
+        gx_emb[i] += gx_q[i] + gx_k[i] + gx_v[i];
     }
     let mut wo_m = wo_v.clone();
+    let mut wq_m = wq_v.clone();
+    let mut wk_m = wk_v.clone();
+    let mut wv_m = wv_v.clone();
     for i in 0..wo_m.len() {
         wo_m[i] -= lr * gwo[i];
     }
-    let _ = g_attn; // QKV/softmax BP deferred — wo + residual embed path landed
+    for i in 0..wq_m.len() {
+        wq_m[i] -= lr * gwq[i];
+    }
+    for i in 0..wk_m.len() {
+        wk_m[i] -= lr * gwk[i];
+    }
+    for i in 0..wv_m.len() {
+        wv_m[i] -= lr * gwv[i];
+    }
+    for s in 0..seq {
+        let id = ids[s];
+        for i in 0..d_model {
+            embed_data[id * d_model + i] -= lr * gx_emb[s * d_model + i];
+        }
+    }
 
     set_weight_vec(&mut weights, "wout", &wout_m);
     set_weight_vec(&mut weights, "bout", &bout);
@@ -633,6 +735,9 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     set_weight_vec(&mut weights, "w1", &w1_m);
     set_weight_vec(&mut weights, "b1", &b1);
     set_weight_vec(&mut weights, "wo", &wo_m);
+    set_weight_vec(&mut weights, "wq", &wq_m);
+    set_weight_vec(&mut weights, "wk", &wk_m);
+    set_weight_vec(&mut weights, "wv", &wv_m);
     set_embed_nd(&mut weights, vocab, d_model, &embed_data);
 
     let mut out = HashMap::new();
@@ -643,7 +748,7 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         Value::Array(vec![
             Value::String("wout".into()),
             Value::String("ff".into()),
-            Value::String("attn_wo".into()),
+            Value::String("attn_qkv".into()),
             Value::String("embed".into()),
         ]),
     );

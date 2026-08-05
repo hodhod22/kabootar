@@ -179,6 +179,182 @@ fn game_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
     ))
 }
 
+fn f64_from(v: &Value, default: f64) -> f64 {
+    match v {
+        Value::Number(n) => *n as f64,
+        Value::Float(f) => *f,
+        _ => default,
+    }
+}
+
+/// GP7b — GPU scene viewport descriptor (+ optional wgpu frame when `gpu` feature).
+/// editor_scene_gpu_viewport({width,height,camX,camY,camZ,zoom,gizmos}) → gpu view object
+fn editor_scene_gpu_viewport_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let desc = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("editor_scene_gpu_viewport(descriptor)".into()),
+    };
+    let width = f64_from(desc.get("width").unwrap_or(&Value::Null), 640.0)
+        .clamp(16.0, 4096.0) as u32;
+    let height = f64_from(desc.get("height").unwrap_or(&Value::Null), 360.0)
+        .clamp(16.0, 4096.0) as u32;
+    let cam_x = f64_from(desc.get("camX").unwrap_or(&Value::Null), 0.0) as f32;
+    let cam_y = f64_from(desc.get("camY").unwrap_or(&Value::Null), 0.0) as f32;
+    let cam_z = f64_from(desc.get("camZ").unwrap_or(&Value::Null), 10.0) as f32;
+    let zoom = f64_from(desc.get("zoom").unwrap_or(&Value::Null), 1.0).max(0.05) as f32;
+    let gizmos = match desc.get("gizmos") {
+        Some(Value::Array(items)) => items.as_slice(),
+        _ => &[],
+    };
+
+    let view_proj = scene_view_proj(cam_x, cam_y, cam_z, zoom, width, height);
+    let mut draws = Vec::new();
+    let mut vertices: Vec<f32> = Vec::new();
+    let mut indices: Vec<u16> = Vec::new();
+    for (gi, g) in gizmos.iter().enumerate() {
+        let Value::Object(gm) = g else {
+            continue;
+        };
+        let x = f64_from(gm.get("x").unwrap_or(&Value::Null), 0.0) as f32;
+        let y = f64_from(gm.get("y").unwrap_or(&Value::Null), 0.0) as f32;
+        let z = f64_from(gm.get("z").unwrap_or(&Value::Null), 0.0) as f32;
+        let selected = matches!(gm.get("selected"), Some(Value::Bool(true)));
+        let name = match gm.get("name") {
+            Some(Value::String(s)) => s.clone(),
+            _ => format!("gizmo_{gi}"),
+        };
+        let color = if selected {
+            [0.2f32, 0.85, 0.35, 1.0]
+        } else {
+            [0.55, 0.6, 0.75, 1.0]
+        };
+        let mut draw = HashMap::new();
+        draw.insert("name".into(), Value::String(name));
+        draw.insert("x".into(), Value::Float(x as f64));
+        draw.insert("y".into(), Value::Float(y as f64));
+        draw.insert("z".into(), Value::Float(z as f64));
+        draw.insert("selected".into(), Value::Bool(selected));
+        draw.insert(
+            "color".into(),
+            Value::Array(color.iter().map(|c| Value::Float(*c as f64)).collect()),
+        );
+        draws.push(Value::Object(draw));
+
+        // Unit diamond (4 verts) centered at gizmo position — solid pipeline xyz.
+        let base = (vertices.len() / 3) as u16;
+        let s = 0.35;
+        vertices.extend_from_slice(&[x, y + s, z, x - s, y, z, x + s, y, z, x, y - s, z]);
+        indices.extend_from_slice(&[base, base + 1, base + 2, base + 1, base + 3, base + 2]);
+    }
+    if vertices.is_empty() {
+        // Default ground tri so the viewport always has a drawable.
+        vertices.extend_from_slice(&[0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
+        indices.extend_from_slice(&[0, 1, 2]);
+    }
+
+    let available = crate::runtime::render::gpu3d::gpu3d_available();
+    let mut rendered = false;
+    let mut pixel_count = 0i64;
+    if available && !vertices.is_empty() {
+        let frame = crate::runtime::render::gpu3d::Gpu3dFrame {
+            width,
+            height,
+            clear_color: [0.12, 0.13, 0.16, 1.0],
+            view_proj,
+            model: [
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
+            draw_color: [0.55, 0.7, 0.95, 1.0],
+            uv_transform: [1.0, 1.0, 0.0, 0.0],
+            vertices: vertices.clone(),
+            component_count: 3,
+            vert_count: (vertices.len() / 3) as u32,
+            indices: Some(indices.clone()),
+            index_offset: 0,
+            index_count: indices.len() as u32,
+            depth_test: true,
+            texture: None,
+            instance_count: 1,
+        };
+        if let Ok(px) = crate::runtime::render::gpu3d::render_frame(&frame) {
+            rendered = true;
+            pixel_count = px.len() as i64;
+        }
+    }
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("gpu_viewport".into()));
+    out.insert("mode".into(), Value::String("scene".into()));
+    out.insert("available".into(), Value::Bool(available));
+    out.insert(
+        "backend".into(),
+        Value::String(if available {
+            crate::runtime::render::gpu3d::info_line().into()
+        } else {
+            "cpu_descriptor".into()
+        }),
+    );
+    out.insert("width".into(), Value::Number(width as i64));
+    out.insert("height".into(), Value::Number(height as i64));
+    out.insert(
+        "viewProj".into(),
+        Value::Array(view_proj.iter().map(|f| Value::Float(*f as f64)).collect()),
+    );
+    out.insert("draws".into(), Value::Array(draws));
+    out.insert("vertCount".into(), Value::Number((vertices.len() / 3) as i64));
+    out.insert("indexCount".into(), Value::Number(indices.len() as i64));
+    out.insert("rendered".into(), Value::Bool(rendered));
+    out.insert("pixelBytes".into(), Value::Number(pixel_count));
+    Ok(Value::Object(out))
+}
+
+fn scene_view_proj(cx: f32, cy: f32, cz: f32, zoom: f32, w: u32, h: u32) -> [f32; 16] {
+    let aspect = (w as f32 / h.max(1) as f32).max(0.1);
+    let fovy = (0.8 / zoom).clamp(0.2, 2.0);
+    let f = 1.0 / (fovy * 0.5).tan();
+    let near = 0.1f32;
+    let far = 200.0f32;
+    let persp = [
+        f / aspect,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        f,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        (far + near) / (near - far),
+        -1.0,
+        0.0,
+        0.0,
+        (2.0 * far * near) / (near - far),
+        0.0,
+    ];
+    // Translate world by -camera (look toward origin along -Z from (cx,cy,cz)).
+    let view = [
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -cx, -cy, -cz, 1.0,
+    ];
+    mat4_mul(persp, view)
+}
+
+fn mat4_mul(a: [f32; 16], b: [f32; 16]) -> [f32; 16] {
+    let mut o = [0.0f32; 16];
+    for col in 0..4 {
+        for row in 0..4 {
+            o[col * 4 + row] = a[row] * b[col * 4]
+                + a[4 + row] * b[col * 4 + 1]
+                + a[8 + row] * b[col * 4 + 2]
+                + a[12 + row] * b[col * 4 + 3];
+        }
+    }
+    o
+}
+
 fn f64_arg(args: &[Value], i: usize) -> Result<f64, String> {
     match args.get(i) {
         Some(Value::Number(n)) => Ok(*n as f64),
@@ -205,6 +381,7 @@ pub fn game_globals(env: &mut Environment) {
         ("input_poll", input_poll_native),
         ("input_is_down", input_is_down_native),
         ("game_info", game_info_native),
+        ("editor_scene_gpu_viewport", editor_scene_gpu_viewport_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
