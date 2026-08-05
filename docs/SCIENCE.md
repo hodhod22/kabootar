@@ -19,8 +19,11 @@ import "science";
 9. [Statistik](#statistik)
 10. [Matriser](#matriser)
 11. [Numerisk analys](#numerisk-analys)
-12. [Felsökning](#felsökning)
+12. [Ndarray (SC0)](#ndarray-sc0)
+13. [ML / AI (SC2)](#ml--ai-sc2)
+14. [Felsökning](#felsökning)
 
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — mål: bättre än Python för STEM/AI i samma runtime.
 ---
 
 ## Kom igång
@@ -501,17 +504,58 @@ x = num_newton_step(x, fx, dfx);
 
 ---
 
+## Ndarray (SC0)
+
+Kontiguösa arrayer med `shape` + flat `data` (NumPy-klass subset). Kräver `import "science"`. Valfritt: `import "science/nd"`.
+
+```kabootar
+import "science";
+let a = nd_from([[1.0, 2.0], [3.0, 4.0]]);
+nd_shape(a);                 // [2, 2]
+let eye = nd_from([[1.0, 0.0], [0.0, 1.0]]);
+let b = nd_matmul(a, eye);
+let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
+```
+
+| API | Beskrivning |
+|-----|-------------|
+| `nd_zeros` / `nd_ones` / `nd_full` / `nd_arange` | Skapa |
+| `nd_from` / `nd_reshape` / `nd_shape` / `nd_size` | Layout |
+| `nd_get` / `nd_set` | Index (flat eller multi) |
+| `nd_add` / `nd_mul` / `nd_scale` | Elementvis |
+| `nd_sum` / `nd_mean` | Reductions |
+| `nd_dot` / `nd_matmul` / `nd_solve` | Linalg |
+| `sci_vadd` / `sci_vmul` / `sci_dot` | Bulk-vektorer (P5) |
+
+## ML / AI (SC2)
+
+```kabootar
+import "science";
+import "science/ml";
+ml_relu([-1.0, 2.0]);
+ml_softmax([1.0, 2.0, 3.0]);
+let params = [0.0, 0.0];
+params = ml_linreg_step(params, [2.0], 5.0, 0.05);
+ml_dense(W, x, b, true);   // relu
+job_map([1, 2, 3], double); // P8 API (sekventiell)
+```
+
+Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
+
 ## Felsökning
 
 | Meddelande | Orsak | Åtgärd |
 |------------|-------|--------|
 | `expected number` | Fel typ till numerisk funktion | Skicka tal, inte sträng |
 | `expected complex number [re, im]` | Fel format till `c_*` | Använd `cplx()` eller array med 2 flyttal |
+| `nd_solve: singular matrix` | Ax=b ej lösbar | Kontrollera A |
 | `Module not found` | Fel importnamn | `import "science";` |
 
 ## Implementation
 
-- Motor: `src/runtime/science/mod.rs`
+- Motor: `src/runtime/science/` (`mod`, `ndarray`, `ml`, `matrix`, `stats`, `numerics`)
+- Kab: `lib/science/nd.kab`, `lib/science/ml.kab`
 - Registrering: `science_register` vid `import "science"`
+- Tester: `tests/science_sc.rs`
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 

@@ -22,7 +22,7 @@ Modulnamn är strängliteraler. Importerade bindingar läggs i den aktuella milj
 | `math` | `add(a, b)`, `mul(a, b)` |
 | `http` | `ok`, `not_found`, **alla verb** (`route_*`, `request_*`, `fetch_*`, `method_get()` …) — se [HTTP.md](HTTP.md) |
 | `crypto` | `sha256(data)`, `secure(data)` — wrappers för kryptofunktioner |
-| `science` | Komplexa tal, fysik, kemi, ekonomi, digital, statistik — se [SCIENCE.md](SCIENCE.md) |
+| `science` | fysik, kemi, statistik, **ndarray**, **ML** — se [SCIENCE.md](SCIENCE.md) / Våg SC |
 | `docai` | Dokumentations-AI — `doc_ask`, `doc_search` — se [DOCAI.md](DOCAI.md) |
 | `codai` | Kodassistent (utility-first) — `code_util`, `code_suggest` — se [CODAI.md](CODAI.md) |
 

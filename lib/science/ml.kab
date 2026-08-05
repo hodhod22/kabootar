@@ -1,0 +1,36 @@
+@version "1.0.0"
+
+// Kabootar science/ml — thin ML helpers (SC2).
+// Call after `import "science"`.
+
+pub fn relu(x) {
+    return ml_relu(x)
+}
+
+pub fn sigmoid(x) {
+    return ml_sigmoid(x)
+}
+
+pub fn softmax(x) {
+    return ml_softmax(x)
+}
+
+pub fn mse(y, pred) {
+    return ml_mse(y, pred)
+}
+
+pub fn dense(w, x, b) {
+    return ml_dense(w, x, b)
+}
+
+pub fn denseRelu(w, x, b) {
+    return ml_dense(w, x, b, true)
+}
+
+pub fn sgdUpdate(w, grad, lr) {
+    return ml_sgd_update(w, grad, lr)
+}
+
+pub fn linregStep(params, x, y, lr) {
+    return ml_linreg_step(params, x, y, lr)
+}

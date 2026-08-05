@@ -461,7 +461,8 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 1. **Self-host som produktionskompilator** (S) — pausad tills J/T/R landat tillräckligt  
 2. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
 3. **Tunna bort Rust** (H) tills hosten är trivial  
-4. **Prestanda + spelproduktion** (P + GP) — snabb VM/AOT, GPU-3D, asset-pipeline; se nedan
+4. **Prestanda + spelproduktion** (P + GP) — snabb VM/AOT, GPU-3D, asset-pipeline; se nedan  
+5. **Science / AI** (SC) — ndarray + ML som slår Python-ekosystemet i *produktionskedjan* (ett språk, ingen pip-helvete)
 
 | Våg | Namn | Mål |
 |-----|------|-----|
@@ -475,8 +476,9 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
 | **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
 | **GP** | Game production | GPU-3D, scen/motor, assets, audio — redo för spelproduktion |
+| **SC** | Science / AI | Ndarray + linalg + ML — slå Python-stacken för STEM/AI i samma runtime |
 
-**Aktivt fokus (2026-07):** vågorna **O / T / J / R** — ingen ny OS/browser/Kv8-produktlogik förrän språket är komplett. **P/GP** planeras nu (roadmap); aktivt arbete efter stabil S/H6e-subset eller parallellt på GPU-FFI (tillåten hot path, som H6d).
+**Aktivt fokus (2026-08):** **SC** (science/AI vs Python) parallellt med kvarvarande **P4/P5/P7/P8**; språk **O/T/J/R** kvar som långsiktig bas. **P/GP** subset redan landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -671,11 +673,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | ✅ subset (`member_name` → `&str`; GetMember monomorphic IC; CALL skip arg-clone utan Object; MakeArray O(n); IndexGet array-fastpath; `tests/perf_p1_smoke.rs`) |
 | **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (`float32_array_new/get/set`, bulk `createBuffer` från Float32Array; Array-path kvar; Uint8 zero-copy/audio kvar) |
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
-| **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | 📋 |
-| **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | 📋 |
+| **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
+| **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
 | **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | ✅ seed-only (`SELF_HOST_SKIP_LISTED_LEAVES` + `p6_seed_only_all_leaves_have_seeds`; empty list kvar 📋) |
-| **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | 📋 |
-| **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | 📋 |
+| **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
+| **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` sequential API; parallel workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
 
 **Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
@@ -759,6 +761,73 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 **GP-ordning (rekommenderad):** GP0a–c → P0/P2 → GP1a–d → GP2a–b → GP4a → GP0f delete-gate → GP3 → GP5.
 
 **Checkpoint GP:** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; docs uppdaterade. **Slutmått:** kan producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline, med GPU-prestanda i samma klass som native scriptade motorer.
+
+### Våg SC — Science / AI (slå Python) 🚧
+
+**Mål:** `import "science"` (+ `import "science/nd"` / `science/ml`) ska vara **bättre än Python** för vetenskap och AI-utveckling — inte genom att kopiera hela PyPI, utan genom att vinna **hela kedjan**: ett språk (OS→UI→data→modell→deploy), snabbare iteration, typad bytecode/`@manual`, GPU/FFI-hotpath, ingen `venv`/`pip`/`conda`-fragmentering.
+
+**Nuläge (bas):** `import "science"` — komplex, fysik/kemi/ekonomi, statistik, matriser (`mat_*`), numerik (`num_*`), **ndarray** (`nd_*`), **ML** (`ml_*`). Se [SCIENCE.md](SCIENCE.md).
+
+**Hur Kab vinner mot Python (produktkrav):**
+
+| Dimension | Kabootar-mål | Mot Python / NumPy / PyTorch |
+|-----------|--------------|------------------------------|
+| Iteration | `.kab` → `.kbc` + hot reload; samma binär som UI/OS | Snabbare än notebook↔script↔deploy-split |
+| Stack | Ett språk: data + ML + spel + browser | Mindre “Python + C-ext + Jupyter + Flask” |
+| Prestanda | Kontiguös ndarray + Rust/SIMD/GPU-hotpath | Matcha NumPy inner loop; slå pure-Python |
+| Typer / säkerhet | Bytecode + valfri `@manual` | Färre runtime-överraskningar än dynamisk duck-typing i hot path |
+| Distribuering | En runtime / WASM / kOS | Inget separat conda-env per projekt |
+| AI-DX | `science/ml` + CodAI/DocAI i IDE | Snabbare scaffold än “börja om i Colab” |
+
+#### SC0 — Ndarray-kärna (NumPy-klass)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SC0a** | **`nd_*` contiguous array** — shape, flat data, zeros/ones/arange/reshape/get/set | ✅ subset |
+| **SC0b** | **Elementvis + reductions** — add/mul/scale, sum/mean/max, broadcast subset | ✅ subset (add/mul/scale/sum/mean; broadcast kvar) |
+| **SC0c** | **Float64/32 bulk** — zero-copy mot `Float64Array` / `@manual` buffers | 📋 |
+| **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
+
+#### SC1 — Linear algebra & numerik (SciPy-klass)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SC1a** | **matmul / tensordot subset** på ndarray (utöver `mat_mul`) | ✅ subset (`nd_matmul` / `nd_dot`) |
+| **SC1b** | **Solve / LU** — `nd_solve` / `mat_solve` för Ax=b | ✅ subset (`nd_solve` Gauss+partial pivot) |
+| **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2 eig finns; utöka) | 📋 (`mat_eigen2` kvar) |
+| **SC1d** | **FFT / signal subset** — 1D FFT + conv | 📋 |
+
+#### SC2 — ML / AI (PyTorch/sklearn-klass, produkt-subset)
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SC2a** | **Aktiveringar + loss** — relu/sigmoid/softmax, mse/cross-entropy | ✅ subset (relu/sigmoid/softmax/mse) |
+| **SC2b** | **Dense forward + SGD** — `ml_dense`, `ml_sgd_update` | ✅ subset (+ `ml_linreg_step`) |
+| **SC2c** | **Autograd-lite** — tape för dense/relu (senare) | 📋 |
+| **SC2d** | **Dataset / batch helpers** — shuffle, mini-batch i Kab | 📋 |
+| **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS) | 📋 |
+
+#### SC3 — Data, viz, notebooks-DX
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SC3a** | **CSV/JSON tabular** — `science/data` load/describe | 📋 |
+| **SC3b** | **Plot subset** — canvas2d line/scatter helpers | 📋 |
+| **SC3c** | **`kabootar mod init science-ai`** — mall + examples | ✅ subset |
+| **SC3d** | **Docs & benches** — SCIENCE.md + CI smoke vs Python-baslinjer | ✅ subset (`tests/science_sc.rs`, `examples/science_ai_linreg.kab`) |
+
+#### SC4 — Scale & hardware
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*` bulk; BLAS kvar) |
+| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | 📋 |
+| **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map` sequential API) |
+| **SC4d** | **Delete-gate** — typisk ML-smoke utan Python/NumPy i CI | ✅ subset (`science_sc` / linreg example) |
+
+**SC-ordning:** SC0a–b → SC1a–b → SC2a–b → SC3 → SC0c/SC4.
+
+**Checkpoint SC:** ndarray + dense+SGD trenar linjär modell; docs; CI-smoke. **Slutmått:** STEM/AI-prototyp → shipbar app i Kabootar snabbare och mer integrerat än Python+pip+notebook, med numerisk hotpath i samma klass som NumPy för vanliga storlekar.
 
 ---
 
@@ -851,8 +920,9 @@ Våg L (språk)  ████████░░░░░░░░  nu — L1 fö
 Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
-Våg P (perf)   ░░░░░░░░████████  VM/AOT/GC — parallellt med H6e/GP0
-Våg GP (spel)  ░░░░░░░░████████  GPU-3D → motor → ship
+Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
+Våg GP (spel)  ████████████████  GP0–GP5 subset
+Våg SC (STEM)  ████████░░░░░░░░  SC0–SC2 + mall; Float64/autograd/GPU kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
 

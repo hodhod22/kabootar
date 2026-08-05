@@ -457,7 +457,7 @@ fn mod_cmd(args: &[String]) -> i32 {
         Some("init") => mod_init(&args[1..]),
         Some("run") => mod_run(),
         _ => {
-            eprintln!("Usage: kabootar mod init <web|api|game|game3d> | kabootar mod run");
+            eprintln!("Usage: kabootar mod init <web|api|game|game3d|science-ai> | kabootar mod run");
             1
         }
     }
@@ -527,9 +527,14 @@ pub mod templates {
                 TEMPLATE_MAIN_GAME3D,
                 &[("shaders/solid.wgsl", TEMPLATE_SOLID_WGSL)],
             ),
+            "science-ai" => (
+                TEMPLATE_TOML_SCIENCE_AI,
+                TEMPLATE_MAIN_SCIENCE_AI,
+                &[],
+            ),
             _ => {
                 return Err(format!(
-                    "Unknown template \"{template}\". Use web, api, game, or game3d."
+                    "Unknown template \"{template}\". Use web, api, game, game3d, or science-ai."
                 ))
             }
         };
@@ -719,5 +724,30 @@ fn vs_main(in: VertexIn) -> VertexOut {
 fn fs_main() -> @location(0) vec4<f32> {
     return mat.color;
 }
+"#;
+
+    const TEMPLATE_TOML_SCIENCE_AI: &str = r#"version = "0.1.0"
+template = "science-ai"
+entry = "main.kab"
+
+[dependencies]
+"#;
+
+    const TEMPLATE_MAIN_SCIENCE_AI: &str = r#"@version "0.1.0"
+import "science"
+import "science/nd"
+import "science/ml"
+
+// Train y ≈ 2x + 1 with SGD (SC2 subset).
+let params = [0.0, 0.0]
+let i = 0
+while i < 200 {
+    params = linregStep(params, [2.0], 5.0, 0.05)
+    i = i + 1
+}
+let a = nd_from([[1.0, 2.0], [3.0, 4.0]])
+let b = nd_from([[1.0, 0.0], [0.0, 1.0]])
+let c = matmul(a, b)
+nd_get(c, [0, 1]) == 2.0 && params[0] > 1.5
 "#;
 }
