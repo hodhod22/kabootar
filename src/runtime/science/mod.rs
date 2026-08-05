@@ -8,6 +8,7 @@ pub mod bench;
 pub mod classic_ml;
 pub mod data;
 pub mod dataframe;
+pub mod gpu_compute;
 pub mod gpu_tensor;
 pub mod helpers;
 pub mod interpolate;

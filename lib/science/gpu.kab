@@ -1,0 +1,35 @@
+@version "1.0.0"
+
+// GPU tensor wrappers (SC4b/e). import "science" first.
+
+pub fn from(data, shape) {
+    return gpu_tensor_from(data, shape)
+}
+
+pub fn toDevice(t) {
+    return gpu_to_device(t)
+}
+
+pub fn toHost(t) {
+    return gpu_to_host(t)
+}
+
+pub fn matmul(a, b) {
+    return gpu_matmul(a, b)
+}
+
+pub fn matmulKernel(a, b) {
+    return gpu_matmul_kernel(a, b)
+}
+
+pub fn linear(w, x, b) {
+    return gpu_linear(w, x, b)
+}
+
+pub fn kernels() {
+    return gpu_available_kernels()
+}
+
+pub fn info() {
+    return gpu_tensor_info()
+}

@@ -51,6 +51,18 @@ pub fn logregPredict(model, x, threshold) {
     return ml_logreg_predict(model, x, threshold)
 }
 
+pub fn stumpFit(x, y) {
+    return ml_stump_fit(x, y)
+}
+
+pub fn treeFit(x, y, maxDepth) {
+    return ml_tree_fit(x, y, maxDepth)
+}
+
+pub fn treePredict(tree, x) {
+    return ml_tree_predict(tree, x)
+}
+
 pub fn conv2d(input, weight, bias, stride, pad) {
     return ml_conv2d(input, weight, bias, stride, pad)
 }
@@ -71,12 +83,20 @@ pub fn adamUpdate(w, grad, m, v, t, lr, beta1, beta2, eps) {
     return ml_adam_update(w, grad, m, v, t, lr, beta1, beta2, eps)
 }
 
+pub fn adamwUpdate(w, grad, m, v, t, lr, beta1, beta2, eps, wd) {
+    return ml_adamw_update(w, grad, m, v, t, lr, beta1, beta2, eps, wd)
+}
+
 pub fn accuracy(y, pred) {
     return ml_accuracy(y, pred)
 }
 
 pub fn f1(y, pred) {
     return ml_f1(y, pred)
+}
+
+pub fn rocAuc(y, scores) {
+    return ml_roc_auc(y, scores)
 }
 
 pub fn confusion(y, pred, nClasses) {

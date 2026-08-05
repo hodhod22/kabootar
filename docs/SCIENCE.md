@@ -550,6 +550,11 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `num_window_hann` / `num_window_hamming` / `num_stft` / `num_fft2d` | Signal++ |
 | `sparse_from_coo` / `sparse_spmv` / `sparse_lstsq` | Sparse CSR/COO |
 | `sci_bench` / `sci_bench_report` | Science bench harness |
+| `ml_stump_fit` / `ml_tree_fit` / `ml_tree_predict` | Decision stump/tree |
+| `ml_adamw_update` / `ml_roc_auc` | AdamW + ROC-AUC |
+| `gpu_matmul_kernel` / `gpu_available_kernels` | GPU kernel path |
+| `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
+| `gpu_compute::try_matmul_compute` | WGSL f32 matmul (`--features gpu`) |
 
 ## ML / AI (SC2)
 
@@ -578,10 +583,17 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab`, `fit.kab`, `tokenizer.kab`, `transformer.kab`, `special.kab`, `interpolate.kab`, `signal.kab`, `sparse.kab`, `bench.kab` — **Kab-first**
+- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `gpu`, …)
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`, `science_sc_wave4.rs`, `science_sc_wave5.rs`, `science_sc_wave6.rs`
+- Tester: `tests/science_sc*.rs` inkl. `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
+
+### Policy SC5c (inga nya Rust-produkt-API)
+
+1. **Nya science-features** exporteras via `lib/science/*.kab` (wrappers / Kab-algoritmer).
+2. **Rust** får bara nya natives om hotpath kräver det (buffer, SIMD, FFT, GPU kernel) — dokumentera i hotpath-tabellen.
+3. **Bootstrap:** `import "science"` (natives) + `import "science/bootstrap"` (Kab-yta).
+4. **CI:** wave-tester ska köra Kab-imports, inte bara raw natives, där produkt-API finns.
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 - Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
 
@@ -594,6 +606,8 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | NN hotpath | conv2d, mha, embedding, GPU tensors | `fit.kab`, `ml.kab` training loop |
 | tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
 | training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
+| GPU compute | WGSL matmul (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
+| signal FIR/IIR | `num_fir`/`num_iir` natives | `signal.kab`; boxcar also in `kab_algo.movingAvgKab` |
 
 Ny **produktlogik** (fit-loop, schedulers, tokenize-pipeline) ska landa i Kab; Rust får bara nya tunna primitives om hotpath kräver det.
 
