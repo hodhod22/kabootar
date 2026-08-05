@@ -573,7 +573,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
 - Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab` — **Kab-first**
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`
+- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`, `science_sc_wave4.rs`
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 - Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
 
