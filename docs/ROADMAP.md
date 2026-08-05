@@ -856,7 +856,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`; conv kvar) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_accuracy`/`ml_f1`/`ml_confusion`; AdamW/ROC kvar) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`; tree/pipeline kvar) |
-| **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | 📋 |
+| **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
 | **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | 📋 |
 | **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | 📋 |
 | **SC2l** | **AI delete-gate** — tränings-/inference-smoke **utan** Python/PyTorch i CI | 📋 |
@@ -871,7 +871,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC3d** | **Docs & benches** — SCIENCE.md + CI vs Python-baslinjer | ✅ subset; 📋 utökade benches |
 | **SC3e** | **Exploration DX** — REPL/notebook (se **Våg DX**) | ✅ DX0–DX5 subset |
 | **SC3f** | **DataFrame-lite** — kolumntyper, select/filter, groupby/agg, join | ✅ subset (`df_from`/`df_select`/`df_filter`/`df_groupby`/`df_join`/`df_head`) |
-| **SC3g** | **Stats++** — fördelningar, t-test/χ², corr/cov, quantiles | 📋 |
+| **SC3g** | **Stats++** — fördelningar, t-test/χ², corr/cov, quantiles | ✅ subset (`stat_quantile`/`stat_ttest`/`stat_chi2`/`stat_norm_*`/`stat_corr`) |
 | **SC3h** | **Notebook rich display** — plot/table inline i `.knb` / WASM | ✅ subset (`rich_display` + `session_eval_rich` + notebook HTML) |
 
 #### SC4 — Scale & hardware
@@ -882,7 +882,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ staging; 📋 riktig compute kernel |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ sequential API; 📋 parallel |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
-| **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | 📋 |
+| **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`; real wgpu kernel kvar) |
 | **SC4f** | **Bench harness** — Kab vs NumPy/PyTorch timing i CI (dokumenterad, inte blocker) | 📋 |
 
 #### SC5 — Science self-host (Kab-only, fri från Rust)
@@ -898,12 +898,12 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | 📋 |
 | **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | 📋 |
 
-**SC-ordning:** SC2i–j → SC1g–j → SC3g → SC2k → SC4e → **SC5** (Kab-first parallellt).
+**SC-ordning:** SC2j → SC1h–j → SC2k → SC4f → **SC5** (Kab-first parallellt).
 
-**Checkpoint SC (nästa):** Conv2d/attention-lite + ODE/stats++ + GPU train path.  
-**Checkpoint SC (landad 2026-08):** dtypes/I/O/autograd++/DataFrame; **PCA/k-means/logreg + optimize + rich notebook display**.  
-**Checkpoint SC (research-parity):** ODE + stats++ + Conv2d.  
-**Checkpoint SC (AI-parity):** GPU matmul + tokenizer/transformer-inference + SC2l.  
+**Checkpoint SC (nästa):** training DX (`fit`) + tokenizer/transformer + SC5 Kab-only.  
+**Checkpoint SC (landad 2026-08):** **Conv2d/MHA + ODE + stats++ + GPU device sync path**.  
+**Checkpoint SC (research-parity):** spline/special/sparse + trees.  
+**Checkpoint SC (AI-parity):** tokenizer/transformer-inference + SC2l + real GPU kernels.  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
 
 ### Våg DX — Exploration (REPL / notebook vs Python) 🚧
@@ -1030,7 +1030,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  █████████████░░░  SC1f/SC2h/SC3h landad; Conv/ODE/SC5 kvar
+Våg SC (STEM)  ██████████████░░  SC1g/SC2i/SC3g/SC4e landad; fit/tokenizer/SC5 kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
