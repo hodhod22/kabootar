@@ -51,6 +51,22 @@ pub fn logregPredict(model, x, threshold) {
     return ml_logreg_predict(model, x, threshold)
 }
 
+pub fn conv2d(input, weight, bias, stride, pad) {
+    return ml_conv2d(input, weight, bias, stride, pad)
+}
+
+pub fn maxpool2d(input, ksize, stride) {
+    return ml_maxpool2d(input, ksize, stride)
+}
+
+pub fn embedding(table, indices) {
+    return ml_embedding(table, indices)
+}
+
+pub fn mha(q, k, v, nHeads) {
+    return ml_mha(q, k, v, nHeads)
+}
+
 pub fn adamUpdate(w, grad, m, v, t, lr, beta1, beta2, eps) {
     return ml_adam_update(w, grad, m, v, t, lr, beta1, beta2, eps)
 }

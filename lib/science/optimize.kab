@@ -13,3 +13,11 @@ pub fn minimize(f, x0, maxIter, step) {
 pub fn leastSquares(f, x0, maxIter, eps) {
     return num_least_squares(f, x0, maxIter, eps)
 }
+
+pub fn rk4(f, y0, t0, dt) {
+    return num_rk4(f, y0, t0, dt)
+}
+
+pub fn odeint(f, y0, t0, t1, nSteps) {
+    return num_odeint(f, y0, t0, t1, nSteps)
+}

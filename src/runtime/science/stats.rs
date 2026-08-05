@@ -1,6 +1,6 @@
 //! Descriptive statistics for `import "science"`.
 
-use super::helpers::{float_out, int_out, num_at, vector_at, vector_out};
+use super::helpers::{float_out, int_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
 
 fn sorted_copy(data: &[f64]) -> Vec<f64> {
@@ -183,6 +183,103 @@ fn stat_linreg(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
     Ok(vector_out(&[slope, intercept, r2]))
 }
 
+/// stat_quantile(data, q) — q in [0,1]
+fn stat_quantile(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let data = args.first().cloned().ok_or("stat_quantile(data, q)")?;
+    let q = num_at(args, 1, "stat_quantile")?;
+    if !(0.0..=1.0).contains(&q) {
+        return Err("stat_quantile: q must be 0..1".into());
+    }
+    stat_percentile(&[data, float_out(q * 100.0)], env)
+}
+
+fn erf_approx(x: f64) -> f64 {
+    // Abramowitz & Stegun 7.1.26
+    let sign = if x < 0.0 { -1.0 } else { 1.0 };
+    let x = x.abs();
+    let t = 1.0 / (1.0 + 0.3275911 * x);
+    let a1 = 0.254829592;
+    let a2 = -0.284496736;
+    let a3 = 1.421413741;
+    let a4 = -1.453152027;
+    let a5 = 1.061405429;
+    let y = 1.0
+        - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * (-x * x).exp();
+    sign * y
+}
+
+fn stat_norm_pdf(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = num_at(args, 0, "stat_norm_pdf")?;
+    let mean = args.get(1).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    let std = args.get(2).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    if std <= 0.0 {
+        return Err("stat_norm_pdf: std > 0".into());
+    }
+    let z = (x - mean) / std;
+    let dens = (-0.5 * z * z).exp() / (std * (2.0 * std::f64::consts::PI).sqrt());
+    Ok(float_out(dens))
+}
+
+fn stat_norm_cdf(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = num_at(args, 0, "stat_norm_cdf")?;
+    let mean = args.get(1).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    let std = args.get(2).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    if std <= 0.0 {
+        return Err("stat_norm_cdf: std > 0".into());
+    }
+    let z = (x - mean) / (std * std::f64::consts::SQRT_2);
+    Ok(float_out(0.5 * (1.0 + erf_approx(z))))
+}
+
+/// Two-sample Welch t-test → {t, df, mean_a, mean_b}
+fn stat_ttest(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = vector_at(args, 0, "stat_ttest")?;
+    let b = vector_at(args, 1, "stat_ttest")?;
+    if a.len() < 2 || b.len() < 2 {
+        return Err("stat_ttest: need >=2 samples each".into());
+    }
+    let na = a.len() as f64;
+    let nb = b.len() as f64;
+    let ma = a.iter().sum::<f64>() / na;
+    let mb = b.iter().sum::<f64>() / nb;
+    let va = a.iter().map(|x| (x - ma).powi(2)).sum::<f64>() / (na - 1.0);
+    let vb = b.iter().map(|x| (x - mb).powi(2)).sum::<f64>() / (nb - 1.0);
+    let se = (va / na + vb / nb).sqrt();
+    if se < 1e-15 {
+        return Err("stat_ttest: zero pooled SE".into());
+    }
+    let t = (ma - mb) / se;
+    let num = (va / na + vb / nb).powi(2);
+    let den = (va / na).powi(2) / (na - 1.0) + (vb / nb).powi(2) / (nb - 1.0);
+    let df = if den > 0.0 { num / den } else { na + nb - 2.0 };
+    let mut out = std::collections::HashMap::new();
+    out.insert("t".into(), float_out(t));
+    out.insert("df".into(), float_out(df));
+    out.insert("mean_a".into(), float_out(ma));
+    out.insert("mean_b".into(), float_out(mb));
+    Ok(Value::Object(out))
+}
+
+/// Pearson chi-square goodness of fit: observed vs expected counts.
+fn stat_chi2(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let obs = vector_at(args, 0, "stat_chi2")?;
+    let exp = vector_at(args, 1, "stat_chi2")?;
+    if obs.len() != exp.len() || obs.is_empty() {
+        return Err("stat_chi2: length mismatch".into());
+    }
+    let mut chi = 0.0;
+    for (o, e) in obs.iter().zip(exp.iter()) {
+        if *e <= 0.0 {
+            return Err("stat_chi2: expected > 0".into());
+        }
+        chi += (o - e).powi(2) / e;
+    }
+    let mut out = std::collections::HashMap::new();
+    out.insert("chi2".into(), float_out(chi));
+    out.insert("df".into(), float_out((obs.len() as f64 - 1.0).max(0.0)));
+    Ok(Value::Object(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_stat_mean", "stat_mean"], stat_mean);
     bind(&["science_stat_sum", "stat_sum"], stat_sum);
@@ -195,7 +292,14 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_stat_sample_var", "stat_sample_var"], stat_sample_var);
     bind(&["science_stat_sample_std", "stat_sample_std"], stat_sample_std);
     bind(&["science_stat_percentile", "stat_percentile"], stat_percentile);
+    bind(&["science_stat_quantile", "stat_quantile"], stat_quantile);
     bind(&["science_stat_covariance", "stat_covariance"], stat_covariance);
+    bind(&["science_stat_corr", "stat_corr"], stat_correlation);
     bind(&["science_stat_correlation", "stat_correlation"], stat_correlation);
+    bind(&["science_stat_cov", "stat_cov"], stat_covariance);
     bind(&["science_stat_linreg", "stat_linreg"], stat_linreg);
+    bind(&["science_stat_norm_pdf", "stat_norm_pdf"], stat_norm_pdf);
+    bind(&["science_stat_norm_cdf", "stat_norm_cdf"], stat_norm_cdf);
+    bind(&["science_stat_ttest", "stat_ttest"], stat_ttest);
+    bind(&["science_stat_chi2", "stat_chi2"], stat_chi2);
 }

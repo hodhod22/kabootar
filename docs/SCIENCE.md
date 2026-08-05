@@ -538,7 +538,10 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `csv_*` / `ascii_plot` / `plot_line` / `plot_scatter` / `plot_hist` / `pretty` | Data + viz |
 | `ml_pca` / `ml_kmeans` / `ml_logreg_fit` / `ml_logreg_predict` | Klassisk ML |
 | `num_root` / `num_minimize` / `num_least_squares` | Optimize |
-| `rich_display` | Notebook MIME (text/html/image) |
+| `ml_conv2d` / `ml_maxpool2d` / `ml_embedding` / `ml_mha` | NN-lager |
+| `num_rk4` / `num_odeint` | ODE |
+| `stat_quantile` / `stat_ttest` / `stat_chi2` / `stat_norm_pdf` / `stat_norm_cdf` | Stats++ |
+| `gpu_to_device` / `gpu_to_host` / `gpu_linear` / `gpu_conv2d` | GPU train/infer path |
 | `gpu_tensor_*` | GPU staging tensors |
 
 ## ML / AI (SC2)
