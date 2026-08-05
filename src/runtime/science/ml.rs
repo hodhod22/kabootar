@@ -336,11 +336,108 @@ fn job_map(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     Ok(Value::Array(out))
 }
 
+fn value_to_json(v: &Value) -> Result<serde_json::Value, String> {
+    match v {
+        Value::Null | Value::Undefined => Ok(serde_json::Value::Null),
+        Value::Bool(b) => Ok(serde_json::Value::Bool(*b)),
+        Value::Number(n) => Ok(serde_json::json!(*n)),
+        Value::Float(f) => Ok(serde_json::json!(*f)),
+        Value::String(s) => Ok(serde_json::Value::String(s.clone())),
+        Value::Array(items) => {
+            let mut arr = Vec::new();
+            for it in items {
+                arr.push(value_to_json(it)?);
+            }
+            Ok(serde_json::Value::Array(arr))
+        }
+        Value::Object(m) => {
+            let mut map = serde_json::Map::new();
+            for (k, val) in m {
+                map.insert(k.clone(), value_to_json(val)?);
+            }
+            Ok(serde_json::Value::Object(map))
+        }
+        _ => Err("ml_save_checkpoint: unsupported value type".into()),
+    }
+}
+
+fn json_to_value(v: &serde_json::Value) -> Value {
+    match v {
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Value::Number(i)
+            } else if let Some(f) = n.as_f64() {
+                Value::Float(f)
+            } else {
+                Value::Float(0.0)
+            }
+        }
+        serde_json::Value::String(s) => Value::String(s.clone()),
+        serde_json::Value::Array(items) => {
+            Value::Array(items.iter().map(json_to_value).collect())
+        }
+        serde_json::Value::Object(m) => {
+            let mut out = HashMap::new();
+            for (k, val) in m {
+                out.insert(k.clone(), json_to_value(val));
+            }
+            Value::Object(out)
+        }
+    }
+}
+
+/// ml_save_checkpoint(path, weightsObj) — JSON checkpoint.
+fn ml_save_checkpoint(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("ml_save_checkpoint(path, obj)".into()),
+    };
+    let obj = args.get(1).ok_or("ml_save_checkpoint: missing object")?;
+    let mut root = serde_json::Map::new();
+    root.insert("format".into(), serde_json::json!("kab-ml-v1"));
+    root.insert("weights".into(), value_to_json(obj)?);
+    let text = serde_json::to_string_pretty(&serde_json::Value::Object(root))
+        .map_err(|e| format!("ml_save_checkpoint: {e}"))?;
+    std::fs::write(path, text).map_err(|e| format!("ml_save_checkpoint({path}): {e}"))?;
+    Ok(Value::Bool(true))
+}
+
+fn ml_load_checkpoint(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("ml_load_checkpoint(path)".into()),
+    };
+    let text = std::fs::read_to_string(path).map_err(|e| format!("ml_load_checkpoint({path}): {e}"))?;
+    let v: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("ml_load_checkpoint: {e}"))?;
+    let weights = v
+        .get("weights")
+        .cloned()
+        .unwrap_or(v);
+    Ok(json_to_value(&weights))
+}
+
+fn ml_cross_entropy(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let pred = vector_at(args, 0, "ml_cross_entropy")?;
+    let target = vector_at(args, 1, "ml_cross_entropy")?;
+    if pred.len() != target.len() || pred.is_empty() {
+        return Err("ml_cross_entropy: length mismatch".into());
+    }
+    let mut loss = 0.0;
+    for (p, y) in pred.iter().zip(target.iter()) {
+        loss -= y * p.max(1e-12).ln();
+    }
+    Ok(float_out(loss / pred.len() as f64))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_ml_relu", "ml_relu"], ml_relu);
     bind(&["science_ml_sigmoid", "ml_sigmoid"], ml_sigmoid);
     bind(&["science_ml_softmax", "ml_softmax"], ml_softmax);
     bind(&["science_ml_mse", "ml_mse"], ml_mse);
+    bind(&["science_ml_cross_entropy", "ml_cross_entropy"], ml_cross_entropy);
     bind(&["science_ml_dense", "ml_dense"], ml_dense);
     bind(&["science_ml_sgd_update", "ml_sgd_update"], ml_sgd_update);
     bind(&["science_ml_linreg_step", "ml_linreg_step"], ml_linreg_step);
@@ -353,6 +450,14 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(
         &["science_ml_train_test_split", "ml_train_test_split"],
         ml_train_test_split,
+    );
+    bind(
+        &["science_ml_save_checkpoint", "ml_save_checkpoint"],
+        ml_save_checkpoint,
+    );
+    bind(
+        &["science_ml_load_checkpoint", "ml_load_checkpoint"],
+        ml_load_checkpoint,
     );
     bind(&["science_job_map", "job_map"], job_map);
 }

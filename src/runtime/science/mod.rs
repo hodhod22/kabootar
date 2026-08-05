@@ -5,6 +5,7 @@
 
 pub mod autograd;
 pub mod data;
+pub mod dataframe;
 pub mod gpu_tensor;
 pub mod helpers;
 pub mod linalg;
@@ -495,6 +496,7 @@ pub fn register(env: &mut Environment) {
     signal::register(&mut bind);
     linalg::register(&mut bind);
     data::register(&mut bind);
+    dataframe::register(&mut bind);
     gpu_tensor::register(&mut bind);
 }
 

@@ -62,3 +62,15 @@ pub fn batchSlices(n, batchSize) {
 pub fn trainTestSplit(x, y, testRatio, seed) {
     return ml_train_test_split(x, y, testRatio, seed)
 }
+
+pub fn saveCheckpoint(path, weights) {
+    return ml_save_checkpoint(path, weights)
+}
+
+pub fn loadCheckpoint(path) {
+    return ml_load_checkpoint(path)
+}
+
+pub fn crossEntropy(pred, target) {
+    return ml_cross_entropy(pred, target)
+}

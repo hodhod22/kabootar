@@ -825,9 +825,9 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
 | **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
 | **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`nd_slice`/`nd_concat`/`nd_stack`/`nd_split`; view-semantik kvar) |
-| **SC0g** | **Dtypes** — f32/f64/i32/i64/bool (+ complex64 senare); cast | 📋 |
-| **SC0h** | **Random** — seed, uniform/normal, shuffle (Kab-API) | 📋 |
-| **SC0i** | **I/O** — `nd_save` / `nd_load` (binär/VFS; npy-inspirerat) | 📋 |
+| **SC0g** | **Dtypes** — f32/f64/i32/i64/bool (+ complex64 senare); cast | ✅ subset (`nd_dtype`/`nd_astype`; complex kvar) |
+| **SC0h** | **Random** — seed, uniform/normal, shuffle (Kab-API) | ✅ subset (`nd_seed`/`nd_rand_uniform`/`nd_rand_normal`; shuffle via `ml_shuffle`) |
+| **SC0i** | **I/O** — `nd_save` / `nd_load` (binär/VFS; npy-inspirerat) | ✅ subset (KND1 binary) |
 
 #### SC1 — Linear algebra & numerik (SciPy-klass)
 
@@ -852,8 +852,8 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2b** | **Dense forward + SGD** — `ml_dense`, `ml_sgd_update` | ✅ subset (+ `ml_linreg_step`) |
 | **SC2c** | **Autograd-lite** — tape för dense/relu/mse | ✅ subset (`ag_*`); **bredda ops → SC2f** |
 | **SC2d** | **Dataset / batch** — shuffle, mini-batch, train/test split (**i Kab**) | ✅ subset (`ml_shuffle`/`ml_batch_slices`/`ml_train_test_split`) |
-| **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | 📋 |
-| **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | 📋 |
+| **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
+| **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`; conv kvar) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_accuracy`/`ml_f1`/`ml_confusion`; AdamW/ROC kvar) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | 📋 |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | 📋 |
@@ -870,7 +870,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC3c** | **`kabootar mod init science-ai`** — mall + examples | ✅ subset |
 | **SC3d** | **Docs & benches** — SCIENCE.md + CI vs Python-baslinjer | ✅ subset; 📋 utökade benches |
 | **SC3e** | **Exploration DX** — REPL/notebook (se **Våg DX**) | ✅ DX0–DX5 subset |
-| **SC3f** | **DataFrame-lite** — kolumntyper, select/filter, groupby/agg, join | 📋 |
+| **SC3f** | **DataFrame-lite** — kolumntyper, select/filter, groupby/agg, join | ✅ subset (`df_from`/`df_select`/`df_filter`/`df_groupby`/`df_join`/`df_head`) |
 | **SC3g** | **Stats++** — fördelningar, t-test/χ², corr/cov, quantiles | 📋 |
 | **SC3h** | **Notebook rich display** — plot/table inline i `.knb` / WASM | 📋 |
 
@@ -898,12 +898,12 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | 📋 |
 | **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | 📋 |
 
-**SC-ordning:** SC0g–i → SC2e/f → SC3f/h → SC2h–j → SC1f–j → SC2k → SC4e → **SC5** (Kab-first parallellt).
+**SC-ordning:** SC2h–j → SC1f–j → SC3g/h → SC2k → SC4e → **SC5** (Kab-first parallellt).
 
-**Checkpoint SC (nästa):** dtypes + random + model I/O + DataFrame-lite + autograd++.  
-**Checkpoint SC (landad 2026-08):** broadcast + Adam + metrics + canvas-plot + allmän SVD/QR.  
+**Checkpoint SC (nästa):** klassisk ML (PCA/k-means) + optimize + notebook rich display.  
+**Checkpoint SC (landad 2026-08):** broadcast + Adam + canvas-plot + SVD/QR; **dtypes/random/nd I/O + checkpoint + autograd++ + DataFrame-lite**.  
 **Checkpoint SC (research-parity):** optimize + ODE + PCA/k-means + Conv2d.  
-**Checkpoint SC (AI-parity):** autograd++ + GPU matmul + tokenizer/transformer-inference + SC2l.  
+**Checkpoint SC (AI-parity):** GPU matmul + tokenizer/transformer-inference + SC2l.  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
 
 ### Våg DX — Exploration (REPL / notebook vs Python) 🚧
@@ -1030,7 +1030,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  ██████████░░░░░░  SC0e–f/SC1e/SC2d/g/SC3b landad; dtypes/optimize/SC5 kvar
+Våg SC (STEM)  ████████████░░░░  SC0g–i/SC2e–f/SC3f landad; klassisk ML/optimize/SC5 kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline; rich display kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

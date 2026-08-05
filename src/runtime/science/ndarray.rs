@@ -155,11 +155,16 @@ fn nd_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>), String> {
 }
 
 fn nd_out(shape: &[usize], data: &[f64]) -> Value {
+    nd_out_dtype(shape, data, "f64")
+}
+
+fn nd_out_dtype(shape: &[usize], data: &[f64], dtype: &str) -> Value {
     let mut m = HashMap::new();
     m.insert(ND_MARK.into(), Value::Bool(true));
     m.insert("shape".into(), shape_val(shape));
     m.insert("data".into(), vector_out(data));
     m.insert("size".into(), Value::Number(data.len() as i64));
+    m.insert("dtype".into(), Value::String(dtype.into()));
     Value::Object(m)
 }
 
@@ -844,6 +849,195 @@ fn sci_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(float_out(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()))
 }
 
+fn parse_dtype(v: &Value) -> Result<&'static str, String> {
+    match v {
+        Value::String(s) => match s.as_str() {
+            "f64" | "float64" => Ok("f64"),
+            "f32" | "float32" => Ok("f32"),
+            "i32" | "int32" => Ok("i32"),
+            "i64" | "int64" => Ok("i64"),
+            "bool" => Ok("bool"),
+            other => Err(format!("nd: unknown dtype {other}")),
+        },
+        _ => Err("nd: dtype must be string".into()),
+    }
+}
+
+fn nd_dtype(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let v = args.first().ok_or("nd_dtype(a)")?;
+    match v {
+        Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            Ok(m
+                .get("dtype")
+                .cloned()
+                .unwrap_or(Value::String("f64".into())))
+        }
+        _ => Err("nd_dtype: expected ndarray".into()),
+    }
+}
+
+fn nd_astype(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_astype")?;
+    let dtype = parse_dtype(args.get(1).ok_or("nd_astype(a, dtype)")?)?;
+    let casted: Vec<f64> = match dtype {
+        "f64" | "f32" => data,
+        "i32" => data
+            .iter()
+            .map(|x| (*x as i32) as f64)
+            .collect(),
+        "i64" => data
+            .iter()
+            .map(|x| (*x as i64) as f64)
+            .collect(),
+        "bool" => data
+            .iter()
+            .map(|x| if *x != 0.0 { 1.0 } else { 0.0 })
+            .collect(),
+        _ => data,
+    };
+    Ok(nd_out_dtype(&shape, &casted, dtype))
+}
+
+thread_local! {
+    static ND_RNG: std::cell::RefCell<u64> = std::cell::RefCell::new(0xC0FFEE_u64);
+}
+
+fn rng_next() -> u64 {
+    ND_RNG.with(|r| {
+        let mut s = r.borrow_mut();
+        // xorshift64*
+        let mut x = *s;
+        x ^= x >> 12;
+        x ^= x << 25;
+        x ^= x >> 27;
+        *s = x;
+        x.wrapping_mul(0x2545F4914F6CDD1D)
+    })
+}
+
+fn rng_f64() -> f64 {
+    (rng_next() >> 11) as f64 / ((1u64 << 53) as f64)
+}
+
+fn nd_seed(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let seed = num_at(args, 0, "nd_seed")? as u64;
+    ND_RNG.with(|r| {
+        *r.borrow_mut() = if seed == 0 { 1 } else { seed };
+    });
+    Ok(Value::Null)
+}
+
+fn nd_rand_uniform(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let shape = parse_shape(args.first().ok_or("nd_rand_uniform(shape, low?, high?)")?)?;
+    let low = args.get(1).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    let high = args.get(2).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    let n = shape_product(&shape);
+    let mut data = Vec::with_capacity(n);
+    for _ in 0..n {
+        data.push(low + (high - low) * rng_f64());
+    }
+    Ok(nd_out(&shape, &data))
+}
+
+fn nd_rand_normal(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let shape = parse_shape(args.first().ok_or("nd_rand_normal(shape, mean?, std?)")?)?;
+    let mean = args.get(1).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    let std = args.get(2).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    let n = shape_product(&shape);
+    let mut data = Vec::with_capacity(n);
+    // Box–Muller
+    let mut i = 0usize;
+    while i < n {
+        let u1 = rng_f64().max(1e-12);
+        let u2 = rng_f64();
+        let r = (-2.0 * u1.ln()).sqrt();
+        let z0 = r * (2.0 * std::f64::consts::PI * u2).cos();
+        data.push(mean + std * z0);
+        i += 1;
+        if i < n {
+            let z1 = r * (2.0 * std::f64::consts::PI * u2).sin();
+            data.push(mean + std * z1);
+            i += 1;
+        }
+    }
+    Ok(nd_out(&shape, &data))
+}
+
+/// Binary format: magic KND1 | dtype u8 | ndim u32 LE | dims u64 LE… | f64 LE payload.
+fn nd_save(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_save")?;
+    let path = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("nd_save(a, path)".into()),
+    };
+    let dtype = match args.first() {
+        Some(Value::Object(m)) => match m.get("dtype") {
+            Some(Value::String(s)) => s.as_str(),
+            _ => "f64",
+        },
+        _ => "f64",
+    };
+    let dtype_tag: u8 = match dtype {
+        "f32" => 2,
+        "i32" => 3,
+        "i64" => 4,
+        "bool" => 5,
+        _ => 1,
+    };
+    let mut buf = Vec::new();
+    buf.extend_from_slice(b"KND1");
+    buf.push(dtype_tag);
+    buf.extend_from_slice(&(shape.len() as u32).to_le_bytes());
+    for d in &shape {
+        buf.extend_from_slice(&(*d as u64).to_le_bytes());
+    }
+    for x in &data {
+        buf.extend_from_slice(&x.to_le_bytes());
+    }
+    std::fs::write(path, &buf).map_err(|e| format!("nd_save({path}): {e}"))?;
+    Ok(int_out(data.len() as i64))
+}
+
+fn nd_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("nd_load(path)".into()),
+    };
+    let buf = std::fs::read(path).map_err(|e| format!("nd_load({path}): {e}"))?;
+    if buf.len() < 9 || &buf[0..4] != b"KND1" {
+        return Err("nd_load: bad magic".into());
+    }
+    let dtype = match buf[4] {
+        2 => "f32",
+        3 => "i32",
+        4 => "i64",
+        5 => "bool",
+        _ => "f64",
+    };
+    let ndim = u32::from_le_bytes(buf[5..9].try_into().unwrap()) as usize;
+    let mut off = 9usize;
+    let mut shape = Vec::with_capacity(ndim);
+    for _ in 0..ndim {
+        if off + 8 > buf.len() {
+            return Err("nd_load: truncated shape".into());
+        }
+        let d = u64::from_le_bytes(buf[off..off + 8].try_into().unwrap()) as usize;
+        shape.push(d);
+        off += 8;
+    }
+    let n = shape_product(&shape);
+    if off + n * 8 > buf.len() {
+        return Err("nd_load: truncated data".into());
+    }
+    let mut data = Vec::with_capacity(n);
+    for _ in 0..n {
+        let x = f64::from_le_bytes(buf[off..off + 8].try_into().unwrap());
+        data.push(x);
+        off += 8;
+    }
+    Ok(nd_out_dtype(&shape, &data, dtype))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_nd_zeros", "nd_zeros"], nd_zeros);
     bind(&["science_nd_ones", "nd_ones"], nd_ones);
@@ -878,6 +1072,13 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_matmul", "nd_matmul"], nd_matmul);
     bind(&["science_nd_solve", "nd_solve"], nd_solve);
     bind(&["science_nd_to_array", "nd_to_array"], nd_to_array);
+    bind(&["science_nd_dtype", "nd_dtype"], nd_dtype);
+    bind(&["science_nd_astype", "nd_astype"], nd_astype);
+    bind(&["science_nd_seed", "nd_seed"], nd_seed);
+    bind(&["science_nd_rand_uniform", "nd_rand_uniform"], nd_rand_uniform);
+    bind(&["science_nd_rand_normal", "nd_rand_normal"], nd_rand_normal);
+    bind(&["science_nd_save", "nd_save"], nd_save);
+    bind(&["science_nd_load", "nd_load"], nd_load);
     bind(&["science_sci_vadd", "sci_vadd"], sci_vadd);
     bind(&["science_sci_vmul", "sci_vmul"], sci_vmul);
     bind(&["science_sci_dot", "sci_dot"], sci_dot);
