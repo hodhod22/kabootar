@@ -4,6 +4,7 @@
 //! ndarray (SC0), ML/autograd (SC2), FFT/SVD, CSV/plot, GPU tensors.
 
 pub mod autograd;
+pub mod classic_ml;
 pub mod data;
 pub mod dataframe;
 pub mod gpu_tensor;
@@ -13,6 +14,7 @@ pub mod matrix;
 pub mod ml;
 pub mod ndarray;
 pub mod numerics;
+pub mod optimize;
 pub mod signal;
 pub mod stats;
 
@@ -492,9 +494,11 @@ pub fn register(env: &mut Environment) {
     numerics::register(&mut bind);
     ndarray::register(&mut bind);
     ml::register(&mut bind);
+    classic_ml::register(&mut bind);
     autograd::register(&mut bind);
     signal::register(&mut bind);
     linalg::register(&mut bind);
+    optimize::register(&mut bind);
     data::register(&mut bind);
     dataframe::register(&mut bind);
     gpu_tensor::register(&mut bind);

@@ -59,6 +59,50 @@ impl Session {
         import_module("science", &mut self.env)
     }
 
+    /// Build rich-display JSON object for notebook/WASM UI.
+    pub fn rich_of(&mut self, val: &Value) -> serde_json::Value {
+        use serde_json::json;
+        if let Some(rd) = self.env.get("rich_display") {
+            if let Ok(out) = crate::bytecode::call_value(
+                rd,
+                vec![val.clone()],
+                &[],
+                &[],
+                &[],
+                &[],
+                &mut self.env,
+            ) {
+                if let Value::Object(m) = out {
+                    let mime = match m.get("mime") {
+                        Some(Value::String(s)) => s.clone(),
+                        _ => "text/plain".into(),
+                    };
+                    let text = match m.get("text") {
+                        Some(Value::String(s)) => s.clone(),
+                        _ => format_value(val),
+                    };
+                    let mut obj = json!({
+                        "ok": true,
+                        "mime": mime,
+                        "text": text,
+                    });
+                    if let Some(Value::String(h)) = m.get("html") {
+                        obj["html"] = json!(h);
+                    }
+                    if let Some(Value::String(img)) = m.get("image") {
+                        obj["image"] = json!(img);
+                    }
+                    return obj;
+                }
+            }
+        }
+        json!({
+            "ok": true,
+            "mime": "text/plain",
+            "text": format_value(val),
+        })
+    }
+
     /// Binding names suitable for `:vars` (skip internal `__kab_*`).
     pub fn var_names(&self) -> Vec<String> {
         let mut names = self.env.all_binding_names();

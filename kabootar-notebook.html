@@ -89,6 +89,33 @@
     }
     .out.err { color: var(--err); }
     .out.table { color: var(--table); }
+    .out.rich { white-space: normal; }
+    .out.rich table.kab-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.85rem;
+      color: var(--ink);
+    }
+    .out.rich table.kab-table th,
+    .out.rich table.kab-table td {
+      border: 1px solid #2a3644;
+      padding: 0.35rem 0.55rem;
+      text-align: left;
+    }
+    .out.rich table.kab-table th { color: var(--table); }
+    .out.rich img.kab-plot {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin-top: 0.35rem;
+      background: #fff;
+    }
+    .out.rich pre.kab-ascii {
+      margin: 0;
+      color: var(--table);
+      font-family: inherit;
+      white-space: pre;
+    }
     .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; align-items: center; }
     .status { color: var(--muted); font-size: 0.85rem; }
     .note { color: var(--muted); font-size: 0.85rem; margin-top: 1rem; }
@@ -122,6 +149,7 @@
         await mod.default();
         api = {
           eval: (src) => (mod.session_eval ? mod.session_eval(src) : mod.evaluate(src)),
+          evalRich: (src) => (mod.session_eval_rich ? mod.session_eval_rich(src) : null),
           reset: () => mod.session_reset && mod.session_reset(),
           science: () => mod.session_science ? mod.session_science() : "no session_science",
         };
@@ -159,11 +187,33 @@
       const src = wrap.querySelector("textarea").value;
       const out = wrap.querySelector(".out");
       out.hidden = false;
-      out.classList.remove("err", "table");
+      out.classList.remove("err", "table", "rich");
+      out.innerHTML = "";
       try {
+        if (api?.evalRich) {
+          const raw = api.evalRich(src);
+          let rich;
+          try { rich = JSON.parse(raw); } catch (_) { rich = { ok: true, text: String(raw), mime: "text/plain" }; }
+          if (!rich.ok) {
+            out.classList.add("err");
+            out.textContent = rich.text || "Error";
+            return;
+          }
+          if (rich.html || rich.image) {
+            out.classList.add("rich");
+            if (rich.image && !rich.html) {
+              out.innerHTML = `<img class="kab-plot" alt="plot" src="${rich.image}" />`;
+            } else {
+              out.innerHTML = rich.html || "";
+            }
+            return;
+          }
+          out.textContent = "=> " + (rich.text ?? "");
+          if (String(rich.text || "").includes("\t")) out.classList.add("table");
+          return;
+        }
         let result = api ? api.eval(src) : demoEval(src);
         if (api && !String(result).startsWith("Error")) {
-          // Prefer pretty table/plot when science is loaded.
           const pretty = api.eval("pretty(_)");
           if (pretty && !String(pretty).startsWith("Error") && pretty !== "undefined") {
             result = pretty;
@@ -197,6 +247,7 @@
     addCell("1 + 2");
     addCell("let rows = [[1, 2], [3, 4]]\nformat_table(rows)");
     addCell("ascii_plot([1.0, 3.0, 2.0, 5.0, 4.0], 48, 8)");
+    addCell("plot_line([1.0, 3.0, 2.0, 5.0], 240, 120)");
   </script>
 </body>
 </html>

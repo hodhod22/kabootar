@@ -536,7 +536,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
 | `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD2 |
 | `csv_*` / `ascii_plot` / `plot_line` / `plot_scatter` / `plot_hist` / `pretty` | Data + viz |
-| `df_*` | DataFrame-lite |
+| `ml_pca` / `ml_kmeans` / `ml_logreg_fit` / `ml_logreg_predict` | Klassisk ML |
+| `num_root` / `num_minimize` / `num_least_squares` | Optimize |
+| `rich_display` | Notebook MIME (text/html/image) |
 | `gpu_tensor_*` | GPU staging tensors |
 
 ## ML / AI (SC2)
@@ -568,7 +570,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
 - Kab (produkt-API): `lib/science/nd.kab`, `ml.kab`, `data.kab`, `df.kab` — **Kab-first**
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`
+- Tester: `tests/science_sc.rs`, `science_sc_next.rs`, `science_sc_checkpoint.rs`, `science_sc_wave2.rs`, `science_sc_wave3.rs`
 - IDE-stub: `src/modules/mod.rs` (goto-definition i LSP)
 - Ambition & gap: [ROADMAP.md](ROADMAP.md) Våg SC (NumPy / SciPy / Python-AI → Kab-only)
 

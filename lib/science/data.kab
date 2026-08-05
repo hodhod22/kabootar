@@ -31,3 +31,7 @@ pub fn scatter(xs, ys, width, height) {
 pub fn hist(ys, bins, width, height) {
     return plot_hist(ys, bins, width, height)
 }
+
+pub fn rich(value) {
+    return rich_display(value)
+}

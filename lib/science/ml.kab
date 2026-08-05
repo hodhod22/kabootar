@@ -35,6 +35,22 @@ pub fn linregStep(params, x, y, lr) {
     return ml_linreg_step(params, x, y, lr)
 }
 
+pub fn pca(x, k) {
+    return ml_pca(x, k)
+}
+
+pub fn kmeans(x, k, maxIter, seed) {
+    return ml_kmeans(x, k, maxIter, seed)
+}
+
+pub fn logregFit(x, y, lr, epochs) {
+    return ml_logreg_fit(x, y, lr, epochs)
+}
+
+pub fn logregPredict(model, x, threshold) {
+    return ml_logreg_predict(model, x, threshold)
+}
+
 pub fn adamUpdate(w, grad, m, v, t, lr, beta1, beta2, eps) {
     return ml_adam_update(w, grad, m, v, t, lr, beta1, beta2, eps)
 }

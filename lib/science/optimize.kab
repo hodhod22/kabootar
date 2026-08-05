@@ -1,0 +1,15 @@
+@version "1.0.0"
+
+// Optimize wrappers (SC1f). Call after `import "science"`.
+
+pub fn root(f, a, b, tol, maxIter) {
+    return num_root(f, a, b, tol, maxIter)
+}
+
+pub fn minimize(f, x0, maxIter, step) {
+    return num_minimize(f, x0, maxIter, step)
+}
+
+pub fn leastSquares(f, x0, maxIter, eps) {
+    return num_least_squares(f, x0, maxIter, eps)
+}
