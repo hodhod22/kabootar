@@ -135,6 +135,8 @@ Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `hos
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP** — GP0–GP5 ✅ subset (se ROADMAP). Ship: [SHIP.md](SHIP.md).
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg GP** — GP0–GP5 ✅ subset; **GP6** production systems (anim/physics3/particles/terrain/ui/postfx/light/audio++/save/i18n/stats/procgen/net++/xr); **GP7 killer:** full scen-editor (`game_editor` — scene view, game view, inspector, DnD, live-edit). Ship: [SHIP.md](SHIP.md).
+
+Nuvarande editor-precursor: `import "game/editor"` (hierarchy/inspector descriptors). Full editor = GP7.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).
