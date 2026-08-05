@@ -1,0 +1,86 @@
+@version "1.0.0"
+
+// GP6f — Post-processing / VFX pass chain (descriptors + CPU stubs).
+// import "game/postfx"
+
+pub fn createPipeline() {
+    return { "passes": [], "enabled": true }
+}
+
+pub fn addPass(pipeline, stage) {
+    pipeline["passes"] = push(pipeline["passes"], stage)
+    return pipeline
+}
+
+pub fn tonemapPass(exposure) {
+    if exposure == null || exposure == undefined {
+        exposure = 1.0
+    }
+    return { "kind": "tonemap", "exposure": exposure }
+}
+
+pub fn bloomPass(threshold, strength) {
+    if threshold == null || threshold == undefined {
+        threshold = 0.8
+    }
+    if strength == null || strength == undefined {
+        strength = 0.5
+    }
+    return { "kind": "bloom", "threshold": threshold, "strength": strength }
+}
+
+pub fn fxaaPass() {
+    return { "kind": "fxaa", "quality": "medium" }
+}
+
+pub fn materialVfxHook(name, params) {
+    if params == null || params == undefined {
+        params = {}
+    }
+    return { "kind": "material", "name": name, "params": params }
+}
+
+/// CPU stub: Reinhard tonemap on RGB array [[r,g,b], ...]
+pub fn applyTonemap(colors, exposure) {
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let c = colors[i]
+        let r = c[0] * exposure
+        let g = c[1] * exposure
+        let b = c[2] * exposure
+        out = push(out, [
+            r / (1.0 + r),
+            g / (1.0 + g),
+            b / (1.0 + b)
+        ])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn applyBloomThreshold(colors, threshold) {
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let c = colors[i]
+        let lum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+        if lum >= threshold {
+            out = push(out, c)
+        } else {
+            out = push(out, [0.0, 0.0, 0.0])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn describePipeline(pipeline) {
+    let names = []
+    let i = 0
+    while i < len(pipeline["passes"]) {
+        names = push(names, pipeline["passes"][i]["kind"])
+        i = i + 1
+    }
+    return { "enabled": pipeline["enabled"], "passes": names, "count": len(names) }
+}

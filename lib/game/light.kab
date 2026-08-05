@@ -1,0 +1,136 @@
+@version "1.0.0"
+
+// GP6g — Lights & shadow descriptors. import "game/light"
+// GPU shadow maps later via wgpu; Kab owns product API.
+
+pub fn createAmbient(color, intensity) {
+    if intensity == null || intensity == undefined {
+        intensity = 0.2
+    }
+    return { "kind": "ambient", "color": color, "intensity": intensity }
+}
+
+pub fn createDirectional(dir, color, intensity) {
+    if intensity == null || intensity == undefined {
+        intensity = 1.0
+    }
+    return {
+        "kind": "directional",
+        "dir": dir,
+        "color": color,
+        "intensity": intensity,
+        "castShadow": false
+    }
+}
+
+pub fn createPoint(pos, color, intensity, maxRange) {
+    if intensity == null || intensity == undefined {
+        intensity = 1.0
+    }
+    if maxRange == null || maxRange == undefined {
+        maxRange = 10.0
+    }
+    return {
+        "kind": "point",
+        "pos": pos,
+        "color": color,
+        "intensity": intensity,
+        "range": maxRange,
+        "castShadow": false
+    }
+}
+
+pub fn createSpot(pos, dir, color, intensity, angle, maxRange) {
+    if intensity == null || intensity == undefined {
+        intensity = 1.0
+    }
+    if angle == null || angle == undefined {
+        angle = 0.5
+    }
+    if maxRange == null || maxRange == undefined {
+        maxRange = 20.0
+    }
+    return {
+        "kind": "spot",
+        "pos": pos,
+        "dir": dir,
+        "color": color,
+        "intensity": intensity,
+        "angle": angle,
+        "range": maxRange,
+        "castShadow": false
+    }
+}
+
+pub fn enableShadow(light, mapSize) {
+    if mapSize == null || mapSize == undefined {
+        mapSize = 1024
+    }
+    light["castShadow"] = true
+    light["shadow"] = { "mapSize": mapSize, "bias": 0.005 }
+    return light
+}
+
+pub fn createLightList() {
+    return { "lights": [], "ambient": createAmbient([1.0, 1.0, 1.0], 0.15) }
+}
+
+pub fn addLight(list, light) {
+    list["lights"] = push(list["lights"], light)
+    return list
+}
+
+pub fn setAmbient(list, ambient) {
+    list["ambient"] = ambient
+    return list
+}
+
+/// Lambert-style contribution descriptor (CPU stub for one directional).
+pub fn directionalContribution(light, normal) {
+    let dx = 0.0 - light["dir"]["x"]
+    let dy = 0.0 - light["dir"]["y"]
+    let dz = 0.0 - light["dir"]["z"]
+    let length = sqrt(dx * dx + dy * dy + dz * dz)
+    if length < 0.000001 {
+        return { "r": 0.0, "g": 0.0, "b": 0.0, "ndotl": 0.0 }
+    }
+    dx = dx / length
+    dy = dy / length
+    dz = dz / length
+    let ndotl = normal["x"] * dx + normal["y"] * dy + normal["z"] * dz
+    if ndotl < 0.0 {
+        ndotl = 0.0
+    }
+    let intensity = light["intensity"] * ndotl
+    return {
+        "r": light["color"][0] * intensity,
+        "g": light["color"][1] * intensity,
+        "b": light["color"][2] * intensity,
+        "ndotl": ndotl
+    }
+}
+
+pub fn iblLite(ambient, strength) {
+    if strength == null || strength == undefined {
+        strength = 1.0
+    }
+    return {
+        "kind": "ibl-lite",
+        "color": ambient["color"],
+        "intensity": ambient["intensity"] * strength
+    }
+}
+
+pub fn describeLights(list) {
+    let kinds = []
+    let i = 0
+    while i < len(list["lights"]) {
+        kinds = push(kinds, list["lights"][i]["kind"])
+        i = i + 1
+    }
+    return {
+        "ambient": list["ambient"]["kind"],
+        "count": len(kinds),
+        "kinds": kinds
+    }
+}

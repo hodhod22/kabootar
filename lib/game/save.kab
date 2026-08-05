@@ -1,0 +1,124 @@
+@version "1.0.0"
+
+// GP6i — Save/Load slots + scene serialization. import "game/save"
+// Uses json_stringify / json_parse + os_write / os_read (VFS or host).
+
+import "game/scene"
+
+pub fn createSlot(id, version) {
+    if version == null || version == undefined {
+        version = 1
+    }
+    return { "id": id, "version": version, "path": null, "meta": {} }
+}
+
+pub fn serializeNode(node) {
+    let kids = []
+    let i = 0
+    while i < len(node["children"]) {
+        kids = push(kids, serializeNode(node["children"][i]))
+        i = i + 1
+    }
+    return {
+        "name": node["name"],
+        "x": node["x"],
+        "y": node["y"],
+        "z": node["z"],
+        "layer": node["layer"],
+        "children": kids
+    }
+}
+
+pub fn deserializeNode(data) {
+    let n = createNode(data["name"])
+    n = setLocal(n, data["x"], data["y"], data["z"])
+    if data["layer"] != null && data["layer"] != undefined {
+        n = setLayer(n, data["layer"])
+    }
+    let kids = data["children"]
+    if kids == null || kids == undefined {
+        kids = []
+    }
+    let i = 0
+    while i < len(kids) {
+        let c = deserializeNode(kids[i])
+        n = addChild(n, c)
+        i = i + 1
+    }
+    return n
+}
+
+pub fn serializeScene(root, meta) {
+    if meta == null || meta == undefined {
+        meta = {}
+    }
+    return {
+        "format": "kscene",
+        "version": 1,
+        "meta": meta,
+        "root": serializeNode(root)
+    }
+}
+
+pub fn deserializeScene(doc) {
+    if doc["format"] != "kscene" {
+        return null
+    }
+    return deserializeNode(doc["root"])
+}
+
+pub fn sceneToJson(root, meta) {
+    return json_stringify(serializeScene(root, meta))
+}
+
+pub fn sceneFromJson(text) {
+    let doc = json_parse(text)
+    return deserializeScene(doc)
+}
+
+pub fn writeScene(path, root, meta) {
+    let text = sceneToJson(root, meta)
+    os_write(path, text)
+    return { "ok": true, "path": path, "bytes": len(text) }
+}
+
+pub fn readScene(path) {
+    let text = os_read(path)
+    let root = sceneFromJson(text)
+    return { "ok": root != null, "root": root, "path": path }
+}
+
+pub fn saveState(slot, state) {
+    let path = slot["path"]
+    if path == null || path == undefined {
+        path = "/saves/" + slot["id"] + ".ksave"
+        slot["path"] = path
+    }
+    let payload = {
+        "format": "ksave",
+        "version": slot["version"],
+        "id": slot["id"],
+        "state": state
+    }
+    let text = json_stringify(payload)
+    os_write(path, text)
+    return { "slot": slot, "ok": true, "path": path }
+}
+
+pub fn loadState(slot) {
+    let path = slot["path"]
+    if path == null || path == undefined {
+        path = "/saves/" + slot["id"] + ".ksave"
+    }
+    let text = os_read(path)
+    let payload = json_parse(text)
+    return { "slot": slot, "ok": true, "state": payload["state"], "path": path }
+}
+
+pub fn checkpoint(name, root, extra) {
+    if extra == null || extra == undefined {
+        extra = {}
+    }
+    extra["checkpoint"] = name
+    return serializeScene(root, extra)
+}

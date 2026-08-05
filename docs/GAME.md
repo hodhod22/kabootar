@@ -135,8 +135,8 @@ Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `hos
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg GP** — GP0–GP5 ✅ subset; **GP6** production systems (anim/particles/ui ✅ subset; physics3/terrain/postfx/… kvar); **GP7 killer:** scen-editor MVP (`import "game/editor"` + `game/game_editor` — scene/game view, DnD, live-edit). Ship: [SHIP.md](SHIP.md).
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg GP** — GP0–GP5 ✅; **GP6** (`anim`/`physics3`/`particles`/`ui`/`postfx`/`light`/`save` ✅ subset; terrain/audio++/… kvar); **GP7** editor a–g ✅ subset (scene I/O, undo/redo, kOS layout, delete-gate). Ship: [SHIP.md](SHIP.md).
 
-Editor MVP: `bootEditor`, hierarchy/inspector, sceneOrbit/zoom, play/pause/step, dragDrop, liveSet. Tester: `tests/game_editor.rs`.
+Editor: `import "game/game_editor"` — `bootEditor`, save/load `.kscene`, multi-select, shortcuts. Tester: `tests/game_editor.rs`, `tests/game_gp6_gp7.rs`.
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

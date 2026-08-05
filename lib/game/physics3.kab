@@ -1,0 +1,258 @@
+@version "1.0.0"
+
+// GP6b — 3D physics (rigidbody + colliders). import "game/physics3"
+// Builds on game/physics rayAabb; pure Kab (no natives).
+
+import "game/physics"
+
+pub fn createRigidBody(x, y, z, mass) {
+    if mass == null || mass == undefined {
+        mass = 1.0
+    }
+    return {
+        "x": x, "y": y, "z": z,
+        "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "mass": mass,
+        "invMass": 1.0 / mass,
+        "kind": "dynamic",
+        "collider": null
+    }
+}
+
+pub fn createStaticBody(x, y, z) {
+    return {
+        "x": x, "y": y, "z": z,
+        "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "mass": 0.0,
+        "invMass": 0.0,
+        "kind": "static",
+        "collider": null
+    }
+}
+
+pub fn createBoxCollider(hx, hy, hz) {
+    return { "type": "box", "hx": hx, "hy": hy, "hz": hz }
+}
+
+pub fn createSphereCollider(r) {
+    return { "type": "sphere", "r": r }
+}
+
+pub fn createCapsuleCollider(r, halfH) {
+    return { "type": "capsule", "r": r, "halfH": halfH }
+}
+
+pub fn setCollider(body, collider) {
+    body["collider"] = collider
+    return body
+}
+
+pub fn bodyAabb(body) {
+    let c = body["collider"]
+    if c == null || c == undefined {
+        return {
+            "minx": body["x"] - 0.5, "miny": body["y"] - 0.5, "minz": body["z"] - 0.5,
+            "maxx": body["x"] + 0.5, "maxy": body["y"] + 0.5, "maxz": body["z"] + 0.5
+        }
+    }
+    if c["type"] == "sphere" {
+        let r = c["r"]
+        return {
+            "minx": body["x"] - r, "miny": body["y"] - r, "minz": body["z"] - r,
+            "maxx": body["x"] + r, "maxy": body["y"] + r, "maxz": body["z"] + r
+        }
+    }
+    if c["type"] == "capsule" {
+        let r = c["r"]
+        let hh = c["halfH"]
+        return {
+            "minx": body["x"] - r, "miny": body["y"] - hh - r, "minz": body["z"] - r,
+            "maxx": body["x"] + r, "maxy": body["y"] + hh + r, "maxz": body["z"] + r
+        }
+    }
+    let hx = c["hx"]
+    let hy = c["hy"]
+    let hz = c["hz"]
+    return {
+        "minx": body["x"] - hx, "miny": body["y"] - hy, "minz": body["z"] - hz,
+        "maxx": body["x"] + hx, "maxy": body["y"] + hy, "maxz": body["z"] + hz
+    }
+}
+
+pub fn aabbOverlap3(a, b) {
+    return a["minx"] < b["maxx"] && a["maxx"] > b["minx"]
+        && a["miny"] < b["maxy"] && a["maxy"] > b["miny"]
+        && a["minz"] < b["maxz"] && a["maxz"] > b["minz"]
+}
+
+pub fn sphereOverlap3(a, ar, b, br) {
+    let dx = a["x"] - b["x"]
+    let dy = a["y"] - b["y"]
+    let dz = a["z"] - b["z"]
+    let rr = ar + br
+    return dx * dx + dy * dy + dz * dz <= rr * rr
+}
+
+pub fn integrateBody(body, dt, gravity) {
+    if body["kind"] == "static" || body["invMass"] == 0.0 {
+        return body
+    }
+    body["vy"] = body["vy"] + gravity * dt
+    body["x"] = body["x"] + body["vx"] * dt
+    body["y"] = body["y"] + body["vy"] * dt
+    body["z"] = body["z"] + body["vz"] * dt
+    return body
+}
+
+/// Separate dynamic body from static AABB along shallowest axis.
+pub fn resolveBodyAabb(body, box) {
+    if body["kind"] == "static" {
+        return body
+    }
+    let a = bodyAabb(body)
+    if aabbOverlap3(a, box) == false {
+        return body
+    }
+    let overlapLeft = a["maxx"] - box["minx"]
+    let overlapRight = box["maxx"] - a["minx"]
+    let ox = overlapLeft
+    if overlapRight < ox {
+        ox = overlapRight
+    }
+    let overlapBottom = a["maxy"] - box["miny"]
+    let overlapTop = box["maxy"] - a["miny"]
+    let oy = overlapBottom
+    if overlapTop < oy {
+        oy = overlapTop
+    }
+    let overlapNear = a["maxz"] - box["minz"]
+    let overlapFar = box["maxz"] - a["minz"]
+    let oz = overlapNear
+    if overlapFar < oz {
+        oz = overlapFar
+    }
+    if ox <= oy && ox <= oz {
+        let midA = (a["minx"] + a["maxx"]) / 2.0
+        let midB = (box["minx"] + box["maxx"]) / 2.0
+        if midA < midB {
+            body["x"] = body["x"] - ox
+        } else {
+            body["x"] = body["x"] + ox
+        }
+        body["vx"] = 0.0
+    } else {
+        if oy <= oz {
+            let midAy = (a["miny"] + a["maxy"]) / 2.0
+            let midBy = (box["miny"] + box["maxy"]) / 2.0
+            if midAy < midBy {
+                body["y"] = body["y"] - oy
+            } else {
+                body["y"] = body["y"] + oy
+            }
+            body["vy"] = 0.0
+        } else {
+            let midAz = (a["minz"] + a["maxz"]) / 2.0
+            let midBz = (box["minz"] + box["maxz"]) / 2.0
+            if midAz < midBz {
+                body["z"] = body["z"] - oz
+            } else {
+                body["z"] = body["z"] + oz
+            }
+            body["vz"] = 0.0
+        }
+    }
+    return body
+}
+
+pub fn createWorld3(gravity) {
+    if gravity == null || gravity == undefined {
+        gravity = -9.81
+    }
+    return { "bodies": [], "statics": [], "gravity": gravity, "constraints": [] }
+}
+
+pub fn addBody(world, body) {
+    world["bodies"] = push(world["bodies"], body)
+    return world
+}
+
+pub fn addStatic(world, box) {
+    world["statics"] = push(world["statics"], box)
+    return world
+}
+
+pub fn addDistanceConstraint(world, i, j, rest) {
+    world["constraints"] = push(world["constraints"], {
+        "type": "distance", "i": i, "j": j, "rest": rest
+    })
+    return world
+}
+
+pub fn applyDistanceConstraints(world) {
+    let bodies = world["bodies"]
+    let cs = world["constraints"]
+    let ci = 0
+    while ci < len(cs) {
+        let c = cs[ci]
+        if c["type"] == "distance" {
+            let a = bodies[c["i"]]
+            let b = bodies[c["j"]]
+            let dx = b["x"] - a["x"]
+            let dy = b["y"] - a["y"]
+            let dz = b["z"] - a["z"]
+            let dist = sqrt(dx * dx + dy * dy + dz * dz)
+            if dist > 0.000001 {
+                let diff = (dist - c["rest"]) / dist
+                let corr = 0.5 * diff
+                if a["invMass"] > 0.0 {
+                    a["x"] = a["x"] + dx * corr
+                    a["y"] = a["y"] + dy * corr
+                    a["z"] = a["z"] + dz * corr
+                }
+                if b["invMass"] > 0.0 {
+                    b["x"] = b["x"] - dx * corr
+                    b["y"] = b["y"] - dy * corr
+                    b["z"] = b["z"] - dz * corr
+                }
+                bodies[c["i"]] = a
+                bodies[c["j"]] = b
+            }
+        }
+        ci = ci + 1
+    }
+    world["bodies"] = bodies
+    return world
+}
+
+pub fn stepWorld(world, dt) {
+    let bodies = world["bodies"]
+    let g = world["gravity"]
+    let i = 0
+    while i < len(bodies) {
+        bodies[i] = integrateBody(bodies[i], dt, g)
+        let si = 0
+        while si < len(world["statics"]) {
+            bodies[i] = resolveBodyAabb(bodies[i], world["statics"][si])
+            si = si + 1
+        }
+        i = i + 1
+    }
+    world["bodies"] = bodies
+    world = applyDistanceConstraints(world)
+    return world
+}
+
+pub fn raycastStatics(world, origin, dir) {
+    let best = { "hit": false, "t": null, "x": 0.0, "y": 0.0, "z": 0.0 }
+    let i = 0
+    while i < len(world["statics"]) {
+        let hit = rayAabb(origin, dir, world["statics"][i])
+        if hit["hit"] {
+            if best["hit"] == false || hit["t"] < best["t"] {
+                best = hit
+            }
+        }
+        i = i + 1
+    }
+    return best
+}
