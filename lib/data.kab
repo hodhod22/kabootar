@@ -1,0 +1,12 @@
+@version "1.0.0"
+
+// Kabootar data — DataFrame + I/O + interactive plots (pandas-class MVP).
+// import "science"
+// import "data"
+//
+// Aggregator re-exports submodules (same pattern as import "std").
+
+import "science"
+pub import "data/frame"
+pub import "data/io"
+pub import "data/plot"

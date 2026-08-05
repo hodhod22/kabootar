@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// app/share — share sheet + URL schemes (stubs until host intents).
+
+pub fn shareText(text, title) {
+    if title == null || title == undefined {
+        title = "Share"
+    }
+    return {
+        "ok": false,
+        "mode": "stub",
+        "kind": "text",
+        "title": title,
+        "text": text,
+        "reason": "host share sheet deferred (Android Intent / iOS UIActivityViewController)"
+    }
+}
+
+pub fn shareImage(path, title) {
+    if title == null || title == undefined {
+        title = "Share"
+    }
+    return {
+        "ok": false,
+        "mode": "stub",
+        "kind": "image",
+        "title": title,
+        "path": path,
+        "reason": "host share sheet deferred"
+    }
+}
+
+/// Open a URL / custom scheme (https, kabootar://, myapp://).
+pub fn openUrl(url) {
+    return {
+        "ok": false,
+        "mode": "stub",
+        "url": url,
+        "reason": "URL scheme handoff deferred — register schemes in host shell"
+    }
+}
+
+/// Describe incoming share / deep link (cold start payload).
+pub fn parseIncoming(payload) {
+    if payload == null || payload == undefined {
+        return { "kind": "none" }
+    }
+    if payload["url"] != null {
+        return {
+            "kind": "link",
+            "url": payload["url"],
+            "mode": "stub"
+        }
+    }
+    if payload["text"] != null {
+        return {
+            "kind": "share_text",
+            "text": payload["text"],
+            "mode": "stub"
+        }
+    }
+    return { "kind": "unknown", "payload": payload }
+}
+
+pub fn canShare() {
+    return false
+}

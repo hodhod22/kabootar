@@ -1,0 +1,63 @@
+// IoT MVP — sensors → MQTT memory bus (+ CoAP/BLE stubs).
+// kabootar run examples/iot_sensors_mqtt.kab
+import "iot"
+
+let bus = createBroker()
+let linked = connect(bus, "edge-1")
+bus = linked["broker"]
+let client = linked["client"]
+
+bus = subscribe(bus, client["id"], "iot/sensors/#")
+
+let temp = createTemperature({ "base": 21.0, "amp": 1.0 })
+let hum = createHumidity({ "base": 50.0 })
+let accel = createAccelerometer({})
+temp = attachUsb(temp, "usb-hid-0")
+
+let i = 0
+while i < 5 {
+    let ts = sample(temp, 0.2)
+    temp = ts["sensor"]
+    bus = publish(bus, topicFor(temp), ts["reading"])
+    let hs = sample(hum, 0.2)
+    hum = hs["sensor"]
+    bus = publish(bus, topicFor(hum), hs["reading"])
+    i = i + 1
+}
+
+let polled = poll(bus, client["id"])
+bus = polled["broker"]
+let msgs = polled["messages"]
+let mqttOk = client["transport"] == "memory" && len(msgs) == 10
+
+let lastTemp = msgs[0]["payload"]
+let sensorOk = lastTemp["type"] == "temperature" && temp["backend"] == "usb-stub"
+
+let as = sample(accel, 0.1)
+let accelOk = as["reading"]["z"] > 9.0
+
+let ep = createEndpoint("127.0.0.1", 5683)
+let putRes = put(ep, "/temp", { "c": 21.5 })
+let coapOk = putRes["ok"] == true && putRes["mode"] == "stub"
+
+let ble = createBleAdapter("lab")
+let scan = bleScan(ble, 500)
+let bleOk = scan["mode"] == "stub" && len(scan["devices"]) >= 1
+
+let zb = createZigbeeNet(0x1001)
+zb = zigbeePermitJoin(zb, 30)
+let nodes = zigbeeNodes(zb)
+let zbOk = nodes["mode"] == "stub" && zb["permitJoin"] == 30
+
+let tcp = connectTcp("127.0.0.1", 1883, "tcp-1")
+let stubOk = tcp["transport"] == "stub" && tcp["connected"] == false
+
+println(mqttOk)
+println(sensorOk)
+println(accelOk)
+println(coapOk)
+println(bleOk)
+println(zbOk)
+println(stubOk)
+
+mqttOk && sensorOk && accelOk && coapOk && bleOk && zbOk && stubOk

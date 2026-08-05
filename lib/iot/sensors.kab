@@ -1,0 +1,156 @@
+@version "1.0.0"
+
+// iot/sensors — temperature, humidity, accelerometer abstractions (+ USB stub hook).
+
+/// Temperature sensor (°C). Deterministic sine + optional USB backend label.
+pub fn createTemperature(opts) {
+    let base = 22.0
+    let amp = 1.5
+    let unit = "C"
+    let backend = "sim"
+    if opts != null && opts != undefined {
+        if opts["base"] != null && opts["base"] != undefined {
+            base = opts["base"]
+        }
+        if opts["amp"] != null && opts["amp"] != undefined {
+            amp = opts["amp"]
+        }
+        if opts["unit"] != null && opts["unit"] != undefined {
+            unit = opts["unit"]
+        }
+        if opts["backend"] != null && opts["backend"] != undefined {
+            backend = opts["backend"]
+        }
+    }
+    return {
+        "kind": "sensor",
+        "type": "temperature",
+        "unit": unit,
+        "base": base,
+        "amp": amp,
+        "backend": backend,
+        "t": 0.0,
+        "last": null
+    }
+}
+
+pub fn createHumidity(opts) {
+    let base = 45.0
+    let amp = 8.0
+    let backend = "sim"
+    if opts != null && opts != undefined {
+        if opts["base"] != null && opts["base"] != undefined {
+            base = opts["base"]
+        }
+        if opts["amp"] != null && opts["amp"] != undefined {
+            amp = opts["amp"]
+        }
+        if opts["backend"] != null && opts["backend"] != undefined {
+            backend = opts["backend"]
+        }
+    }
+    return {
+        "kind": "sensor",
+        "type": "humidity",
+        "unit": "%RH",
+        "base": base,
+        "amp": amp,
+        "backend": backend,
+        "t": 0.0,
+        "last": null
+    }
+}
+
+/// 3-axis accelerometer (m/s²). Gravity on Z by default.
+pub fn createAccelerometer(opts) {
+    let g = 9.81
+    let backend = "sim"
+    if opts != null && opts != undefined {
+        if opts["g"] != null && opts["g"] != undefined {
+            g = opts["g"]
+        }
+        if opts["backend"] != null && opts["backend"] != undefined {
+            backend = opts["backend"]
+        }
+    }
+    return {
+        "kind": "sensor",
+        "type": "accelerometer",
+        "unit": "m/s2",
+        "g": g,
+        "backend": backend,
+        "t": 0.0,
+        "last": null
+    }
+}
+
+/// Mark sensor as USB-backed stub (pairs with os USB/HID when available).
+pub fn attachUsb(sensor, deviceId) {
+    sensor["backend"] = "usb-stub"
+    sensor["deviceId"] = deviceId
+    return sensor
+}
+
+/// Advance sensor by dt seconds; returns { sensor, reading }.
+pub fn sample(sensor, dt) {
+    if dt == null || dt == undefined {
+        dt = 0.1
+    }
+    sensor["t"] = sensor["t"] + dt
+    let t = sensor["t"]
+    let typ = sensor["type"]
+    let reading = null
+    if typ == "temperature" {
+        let v = sensor["base"] + sensor["amp"] * sin(t * 0.7)
+        reading = {
+            "type": "temperature",
+            "unit": sensor["unit"],
+            "value": v,
+            "t": t,
+            "backend": sensor["backend"]
+        }
+    } else {
+        if typ == "humidity" {
+            let v = sensor["base"] + sensor["amp"] * sin(t * 0.35 + 1.0)
+            if v < 0.0 {
+                v = 0.0
+            }
+            if v > 100.0 {
+                v = 100.0
+            }
+            reading = {
+                "type": "humidity",
+                "unit": sensor["unit"],
+                "value": v,
+                "t": t,
+                "backend": sensor["backend"]
+            }
+        } else {
+            if typ == "accelerometer" {
+                let g = sensor["g"]
+                reading = {
+                    "type": "accelerometer",
+                    "unit": sensor["unit"],
+                    "x": 0.05 * sin(t * 2.0),
+                    "y": 0.05 * cos(t * 2.0),
+                    "z": g + 0.02 * sin(t),
+                    "t": t,
+                    "backend": sensor["backend"]
+                }
+            }
+        }
+    }
+    sensor["last"] = reading
+    return {
+        "sensor": sensor,
+        "reading": reading
+    }
+}
+
+/// MQTT topic helper for a sensor type.
+pub fn topicFor(sensor, prefix) {
+    if prefix == null || prefix == undefined {
+        prefix = "iot/sensors"
+    }
+    return prefix + "/" + sensor["type"]
+}

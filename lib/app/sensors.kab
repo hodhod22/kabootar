@@ -1,0 +1,101 @@
+@version "1.0.0"
+
+// app/sensors — phone-oriented sensor stubs (distinct from iot edge sims).
+
+pub fn createGeolocation() {
+    return {
+        "kind": "geolocation",
+        "mode": "stub",
+        "lat": 59.33,
+        "lon": 18.07,
+        "accuracy": 12.0,
+        "watching": false
+    }
+}
+
+pub fn getCurrentPosition(geo) {
+    return {
+        "coords": {
+            "latitude": geo["lat"],
+            "longitude": geo["lon"],
+            "accuracy": geo["accuracy"]
+        },
+        "mode": geo["mode"],
+        "timestamp": 0
+    }
+}
+
+pub fn createCamera() {
+    return {
+        "kind": "camera",
+        "mode": "stub",
+        "facing": "back",
+        "active": false
+    }
+}
+
+pub fn takePhoto(camera) {
+    return {
+        "ok": true,
+        "mode": "stub",
+        "facing": camera["facing"],
+        "mime": "image/jpeg",
+        "bytes": 0,
+        "reason": "camera capture deferred — host bridge"
+    }
+}
+
+pub fn createMicrophone() {
+    return {
+        "kind": "microphone",
+        "mode": "stub",
+        "active": false
+    }
+}
+
+pub fn startRecording(mic) {
+    mic["active"] = true
+    return {
+        "mic": mic,
+        "ok": true,
+        "mode": "stub"
+    }
+}
+
+pub fn stopRecording(mic) {
+    mic["active"] = false
+    return {
+        "mic": mic,
+        "ok": true,
+        "mode": "stub",
+        "mime": "audio/wav",
+        "bytes": 0
+    }
+}
+
+pub fn createMotion() {
+    return {
+        "kind": "motion",
+        "mode": "stub",
+        "accel": { "x": 0.0, "y": 0.0, "z": 9.81 },
+        "gyro": { "x": 0.0, "y": 0.0, "z": 0.0 }
+    }
+}
+
+pub fn sampleMotion(motion, dt) {
+    if dt == null || dt == undefined {
+        dt = 0.016
+    }
+    // Tiny deterministic wobble
+    motion["accel"] = {
+        "x": 0.02 * sin(dt * 10.0),
+        "y": 0.02 * cos(dt * 10.0),
+        "z": 9.81
+    }
+    motion["gyro"] = {
+        "x": 0.001,
+        "y": -0.001,
+        "z": 0.0
+    }
+    return motion
+}

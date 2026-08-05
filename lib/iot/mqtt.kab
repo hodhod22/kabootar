@@ -1,0 +1,205 @@
+@version "1.0.0"
+
+// iot/mqtt — in-process MQTT-shaped pub/sub (MVP).
+// Transport: memory broker (lab/tests). TCP mqtt:// stub returns mode:"stub".
+
+/// Create an in-memory MQTT broker (topics + client inboxes).
+pub fn createBroker() {
+    return {
+        "kind": "mqtt_broker",
+        "clients": {},
+        "retained": {},
+        "seq": 0
+    }
+}
+
+fn ensureClient(broker, clientId) {
+    let clients = broker["clients"]
+    let c = clients[clientId]
+    if c == null || c == undefined {
+        c = {
+            "id": clientId,
+            "subs": [],
+            "inbox": []
+        }
+        clients[clientId] = c
+        broker["clients"] = clients
+    }
+    return broker
+}
+
+/// Register a client on the broker. Returns updated broker + client handle.
+pub fn connect(broker, clientId) {
+    if clientId == null || clientId == undefined {
+        clientId = "kab-" + broker["seq"]
+    }
+    broker["seq"] = broker["seq"] + 1
+    broker = ensureClient(broker, clientId)
+    let client = {
+        "kind": "mqtt_client",
+        "id": clientId,
+        "transport": "memory",
+        "connected": true
+    }
+    return {
+        "broker": broker,
+        "client": client
+    }
+}
+
+/// Stub TCP MQTT connect (real broker deferred). Does not open sockets.
+pub fn connectTcp(host, port, clientId) {
+    if port == null {
+        port = 1883
+    }
+    if clientId == null {
+        clientId = "kab-tcp"
+    }
+    return {
+        "kind": "mqtt_client",
+        "id": clientId,
+        "transport": "stub",
+        "connected": false,
+        "host": host,
+        "port": port,
+        "reason": "tcp mqtt deferred — use createBroker()/connect for MVP"
+    }
+}
+
+fn topicMatch(filter, topic) {
+    if filter == topic {
+        return true
+    }
+    if filter == "#" {
+        return true
+    }
+    if string_ends_with(filter, "/#") {
+        let prefix = string_slice(filter, 0, len(filter) - 1)
+        if topic == string_slice(filter, 0, len(filter) - 2) {
+            return true
+        }
+        return string_starts_with(topic, prefix)
+    }
+    if string_ends_with(filter, "/+") {
+        let prefix = string_slice(filter, 0, len(filter) - 1)
+        if !string_starts_with(topic, prefix) {
+            return false
+        }
+        let rest = string_slice(topic, len(prefix), len(topic))
+        return !string_includes(rest, "/")
+    }
+    return false
+}
+
+/// Subscribe clientId to topic filter. Returns broker.
+pub fn subscribe(broker, clientId, topic) {
+    broker = ensureClient(broker, clientId)
+    let clients = broker["clients"]
+    let c = clients[clientId]
+    let subs = c["subs"]
+    let i = 0
+    let found = false
+    while i < len(subs) {
+        if subs[i] == topic {
+            found = true
+        }
+        i = i + 1
+    }
+    if !found {
+        subs = push(subs, topic)
+        c["subs"] = subs
+        clients[clientId] = c
+        broker["clients"] = clients
+    }
+    let retained = broker["retained"][topic]
+    if retained != null && retained != undefined {
+        let inbox = c["inbox"]
+        inbox = push(inbox, {
+            "topic": topic,
+            "payload": retained,
+            "retain": true
+        })
+        c["inbox"] = inbox
+        clients[clientId] = c
+        broker["clients"] = clients
+    }
+    return broker
+}
+
+/// Publish payload to topic; deliver to matching subscribers. opts.retain → store.
+pub fn publish(broker, topic, payload, opts) {
+    let retain = false
+    if opts != null && opts != undefined {
+        if opts["retain"] == true {
+            retain = true
+        }
+    }
+    if retain {
+        let retained = broker["retained"]
+        retained[topic] = payload
+        broker["retained"] = retained
+    }
+    let clients = broker["clients"]
+    let ids = object_keys(clients)
+    let i = 0
+    while i < len(ids) {
+        let id = ids[i]
+        let c = clients[id]
+        let subs = c["subs"]
+        let j = 0
+        let matched = false
+        while j < len(subs) {
+            if topicMatch(subs[j], topic) {
+                matched = true
+            }
+            j = j + 1
+        }
+        if matched {
+            let inbox = c["inbox"]
+            inbox = push(inbox, {
+                "topic": topic,
+                "payload": payload,
+                "retain": false
+            })
+            c["inbox"] = inbox
+            clients[id] = c
+        }
+        i = i + 1
+    }
+    broker["clients"] = clients
+    return broker
+}
+
+/// Drain inbox for clientId. Returns { broker, messages }.
+pub fn poll(broker, clientId) {
+    broker = ensureClient(broker, clientId)
+    let clients = broker["clients"]
+    let c = clients[clientId]
+    let messages = c["inbox"]
+    c["inbox"] = []
+    clients[clientId] = c
+    broker["clients"] = clients
+    return {
+        "broker": broker,
+        "messages": messages
+    }
+}
+
+/// Disconnect client (clear subs + inbox). Returns broker.
+pub fn disconnect(broker, clientId) {
+    let clients = broker["clients"]
+    clients[clientId] = null
+    // rebuild without nulls
+    let ids = object_keys(clients)
+    let next = {}
+    let i = 0
+    while i < len(ids) {
+        let id = ids[i]
+        if clients[id] != null && id != clientId {
+            next[id] = clients[id]
+        }
+        i = i + 1
+    }
+    broker["clients"] = next
+    return broker
+}
