@@ -1,6 +1,6 @@
-//! Autograd tape (SC2c/SC2f) — dense/relu/mse + matmul/softmax/CE/add/mul + no_grad.
+//! Autograd tape (SC2c/SC2f) — dense/relu/mse + matmul/conv/softmax/CE/add/mul + no_grad.
 
-use super::helpers::{num, vector_at, vector_out};
+use super::helpers::{num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -9,6 +9,7 @@ use std::collections::HashMap;
 enum Node {
     Leaf { id: u64, value: Vec<f64> },
     Relu { id: u64, parent: u64, value: Vec<f64> },
+    Sigmoid { id: u64, parent: u64, value: Vec<f64> },
     Dense {
         id: u64,
         w: u64,
@@ -26,6 +27,22 @@ enum Node {
         m: usize,
         k: usize,
         n: usize,
+    },
+    /// Conv2d: input [C,H,W], weight [O,C,Kh,Kw], bias [O]; stride=1, pad=0.
+    Conv2d {
+        id: u64,
+        x: u64,
+        w: u64,
+        b: u64,
+        value: Vec<f64>,
+        cin: usize,
+        hin: usize,
+        win: usize,
+        cout: usize,
+        kh: usize,
+        kw: usize,
+        hout: usize,
+        wout: usize,
     },
     Softmax { id: u64, parent: u64, value: Vec<f64> },
     Add { id: u64, left: u64, right: u64, value: Vec<f64> },
@@ -84,8 +101,10 @@ fn node_value(t: &Tape, id: u64) -> Result<Vec<f64>, String> {
     match t.nodes.get(&id) {
         Some(Node::Leaf { value, .. })
         | Some(Node::Relu { value, .. })
+        | Some(Node::Sigmoid { value, .. })
         | Some(Node::Dense { value, .. })
         | Some(Node::Matmul { value, .. })
+        | Some(Node::Conv2d { value, .. })
         | Some(Node::Softmax { value, .. })
         | Some(Node::Add { value, .. })
         | Some(Node::Mul { value, .. }) => Ok(value.clone()),
@@ -165,6 +184,22 @@ fn ag_relu(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     })
 }
 
+fn ag_sigmoid(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let parent = tensor_id(args.first().ok_or("ag_sigmoid(t)")?)?;
+    with_tape(|t| {
+        let parent_val = node_value(t, parent)?;
+        let out: Vec<f64> = parent_val
+            .iter()
+            .map(|x| 1.0 / (1.0 + (-x).exp()))
+            .collect();
+        Ok(detach_or_track(t, parent, out.clone(), |id| Node::Sigmoid {
+            id,
+            parent,
+            value: out,
+        }))
+    })
+}
+
 fn ag_dense(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let w_id = tensor_id(args.first().ok_or("ag_dense(w,x,b)")?)?;
     let x_id = tensor_id(args.get(1).ok_or("ag_dense(w,x,b)")?)?;
@@ -231,6 +266,79 @@ fn ag_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             m,
             k,
             n,
+        }))
+    })
+}
+
+fn idx3(c: usize, h: usize, w: usize, ci: usize, hi: usize, wi: usize) -> usize {
+    let _ = c;
+    ci * h * w + hi * w + wi
+}
+
+/// ag_conv2d(x, w, b, cin, hin, win, cout, kh, kw) — flat tensors; stride=1 pad=0.
+fn ag_conv2d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x_id = tensor_id(args.first().ok_or("ag_conv2d")?)?;
+    let w_id = tensor_id(args.get(1).ok_or("ag_conv2d")?)?;
+    let b_id = tensor_id(args.get(2).ok_or("ag_conv2d")?)?;
+    let cin = num_at(args, 3, "ag_conv2d")? as usize;
+    let hin = num_at(args, 4, "ag_conv2d")? as usize;
+    let win = num_at(args, 5, "ag_conv2d")? as usize;
+    let cout = num_at(args, 6, "ag_conv2d")? as usize;
+    let kh = num_at(args, 7, "ag_conv2d")? as usize;
+    let kw = num_at(args, 8, "ag_conv2d")? as usize;
+    if cin == 0 || hin == 0 || win == 0 || cout == 0 || kh == 0 || kw == 0 {
+        return Err("ag_conv2d: dims > 0".into());
+    }
+    let hout = hin + 1 - kh;
+    let wout = win + 1 - kw;
+    if hout == 0 || wout == 0 {
+        return Err("ag_conv2d: output spatial 0".into());
+    }
+    with_tape(|t| {
+        let x = node_value(t, x_id)?;
+        let w = node_value(t, w_id)?;
+        let b = node_value(t, b_id)?;
+        if x.len() != cin * hin * win {
+            return Err("ag_conv2d: x size".into());
+        }
+        if w.len() != cout * cin * kh * kw {
+            return Err("ag_conv2d: w size".into());
+        }
+        if b.len() != cout {
+            return Err("ag_conv2d: bias size".into());
+        }
+        let mut out = vec![0.0; cout * hout * wout];
+        for oc in 0..cout {
+            for oh in 0..hout {
+                for ow in 0..wout {
+                    let mut s = b[oc];
+                    for ic in 0..cin {
+                        for kh_i in 0..kh {
+                            for kw_i in 0..kw {
+                                let xv = x[idx3(cin, hin, win, ic, oh + kh_i, ow + kw_i)];
+                                let wv = w[oc * (cin * kh * kw) + ic * (kh * kw) + kh_i * kw + kw_i];
+                                s += xv * wv;
+                            }
+                        }
+                    }
+                    out[idx3(cout, hout, wout, oc, oh, ow)] = s;
+                }
+            }
+        }
+        Ok(detach_or_track(t, x_id, out.clone(), |id| Node::Conv2d {
+            id,
+            x: x_id,
+            w: w_id,
+            b: b_id,
+            value: out,
+            cin,
+            hin,
+            win,
+            cout,
+            kh,
+            kw,
+            hout,
+            wout,
         }))
     })
 }
@@ -408,6 +516,16 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                         accumulate(t, parent, &gin);
                     }
                 }
+                Node::Sigmoid { parent, value, .. } => {
+                    if let Some(gout) = t.grads.get(&id).cloned() {
+                        let gin: Vec<f64> = gout
+                            .iter()
+                            .zip(value.iter())
+                            .map(|(g, s)| g * s * (1.0 - s))
+                            .collect();
+                        accumulate(t, parent, &gin);
+                    }
+                }
                 Node::Dense {
                     w,
                     x,
@@ -457,6 +575,52 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                             }
                         }
                         accumulate(t, a, &ga);
+                        accumulate(t, b, &gb);
+                    }
+                }
+                Node::Conv2d {
+                    x,
+                    w,
+                    b,
+                    cin,
+                    hin,
+                    win,
+                    cout,
+                    kh,
+                    kw,
+                    hout,
+                    wout,
+                    ..
+                } => {
+                    if let Some(gy) = t.grads.get(&id).cloned() {
+                        let xv = node_value(t, x)?;
+                        let wv = node_value(t, w)?;
+                        let mut gx = vec![0.0; cin * hin * win];
+                        let mut gw = vec![0.0; cout * cin * kh * kw];
+                        let mut gb = vec![0.0; cout];
+                        for oc in 0..cout {
+                            for oh in 0..hout {
+                                for ow in 0..wout {
+                                    let g = gy[idx3(cout, hout, wout, oc, oh, ow)];
+                                    gb[oc] += g;
+                                    for ic in 0..cin {
+                                        for kh_i in 0..kh {
+                                            for kw_i in 0..kw {
+                                                let xi = idx3(cin, hin, win, ic, oh + kh_i, ow + kw_i);
+                                                let wi = oc * (cin * kh * kw)
+                                                    + ic * (kh * kw)
+                                                    + kh_i * kw
+                                                    + kw_i;
+                                                gw[wi] += g * xv[xi];
+                                                gx[xi] += g * wv[wi];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        accumulate(t, x, &gx);
+                        accumulate(t, w, &gw);
                         accumulate(t, b, &gb);
                     }
                 }
@@ -522,8 +686,10 @@ fn ag_clear(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_ag_tensor", "ag_tensor"], ag_tensor);
     bind(&["science_ag_relu", "ag_relu"], ag_relu);
+    bind(&["science_ag_sigmoid", "ag_sigmoid"], ag_sigmoid);
     bind(&["science_ag_dense", "ag_dense"], ag_dense);
     bind(&["science_ag_matmul", "ag_matmul"], ag_matmul);
+    bind(&["science_ag_conv2d", "ag_conv2d"], ag_conv2d);
     bind(&["science_ag_softmax", "ag_softmax"], ag_softmax);
     bind(&["science_ag_add", "ag_add"], ag_add);
     bind(&["science_ag_mul", "ag_mul"], ag_mul);

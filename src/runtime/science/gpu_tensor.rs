@@ -203,16 +203,106 @@ fn gpu_available_kernels(args: &[Value], _env: &mut Environment) -> Result<Value
         Value::String("matmul_f64_v1".into()),
         Value::String("linear_f64_v1".into()),
         Value::String("conv2d_f64_v1".into()),
+        Value::String("wgpu-compute-matmul_f32_v1".into()),
+        Value::String("wgpu-compute-conv2d_f32_v1".into()),
     ]))
+}
+
+fn gpu_zeros(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let shape = parse_shape(args.first().ok_or("gpu_zeros(shape)")?)?;
+    let n: usize = shape.iter().product();
+    Ok(tensor_out(&shape, &vec![0.0; n], default_backend(), "host"))
+}
+
+fn gpu_ones(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let shape = parse_shape(args.first().ok_or("gpu_ones(shape)")?)?;
+    let n: usize = shape.iter().product();
+    Ok(tensor_out(&shape, &vec![1.0; n], default_backend(), "host"))
+}
+
+fn gpu_scale(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data, backend, device) = tensor_parts(args.first().ok_or("gpu_scale(t,s)")?)?;
+    let s = num(args.get(1).ok_or("gpu_scale: scalar")?)?;
+    let out: Vec<f64> = data.iter().map(|x| x * s).collect();
+    Ok(tensor_out(&shape, &out, &backend, &device))
+}
+
+fn gpu_add(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, a, ba, da) = tensor_parts(args.first().ok_or("gpu_add(a,b)")?)?;
+    let (sb, b, _, db) = tensor_parts(args.get(1).ok_or("gpu_add(a,b)")?)?;
+    if sa != sb || a.len() != b.len() {
+        return Err("gpu_add: shape mismatch".into());
+    }
+    let out: Vec<f64> = a.iter().zip(b.iter()).map(|(x, y)| x + y).collect();
+    let device = if da == "gpu" || db == "gpu" {
+        "gpu"
+    } else {
+        "host"
+    };
+    Ok(tensor_out(&sa, &out, &ba, device))
+}
+
+fn bias_vec(args: &[Value], cout: usize) -> Result<Vec<f64>, String> {
+    match args.get(2) {
+        None | Some(Value::Undefined) | Some(Value::Null) => Ok(vec![0.0; cout]),
+        Some(v) => {
+            if let Ok((_, b, _, _)) = tensor_parts(v) {
+                if b.len() != cout {
+                    return Err("gpu_conv2d: bias length".into());
+                }
+                return Ok(b);
+            }
+            match v {
+                Value::Array(items) => {
+                    let b: Vec<f64> = items.iter().map(num).collect::<Result<_, _>>()?;
+                    if b.len() != cout {
+                        return Err("gpu_conv2d: bias length".into());
+                    }
+                    Ok(b)
+                }
+                _ => Err("gpu_conv2d: bias".into()),
+            }
+        }
+    }
 }
 
 /// Infer-side conv on gpu tensors: input [C,H,W], weight [O,C,Kh,Kw] flat shapes.
 fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let (sa, a, _, da) = tensor_parts(args.first().ok_or("gpu_conv2d")?)?;
-    let (sw, w, _, _) = tensor_parts(args.get(1).ok_or("gpu_conv2d")?)?;
+    let (sw, w, _, dw) = tensor_parts(args.get(1).ok_or("gpu_conv2d")?)?;
     if sa.len() != 3 || sw.len() != 4 {
         return Err("gpu_conv2d: input [C,H,W], weight [O,C,Kh,Kw]".into());
     }
+    let (cin, hin, win) = (sa[0], sa[1], sa[2]);
+    let (cout, c2, kh, kw) = (sw[0], sw[1], sw[2], sw[3]);
+    if c2 != cin {
+        return Err("gpu_conv2d: channel mismatch".into());
+    }
+    let bias = bias_vec(args, cout)?;
+    let on_device = da == "gpu" || dw == "gpu";
+    let stride = match args.get(3) {
+        Some(Value::Number(n)) => *n,
+        _ => 1,
+    };
+    let pad = match args.get(4) {
+        Some(Value::Number(n)) => *n,
+        _ => 0,
+    };
+
+    if on_device && stride == 1 && pad == 0 {
+        if let Some((out, shape, kid)) =
+            super::gpu_compute::try_conv2d_compute(cin, hin, win, cout, kh, kw, &a, &w, &bias)
+        {
+            return Ok(tensor_out_kernel(
+                &shape,
+                &out,
+                "wgpu-compute",
+                "gpu",
+                Some(kid),
+            ));
+        }
+    }
+
     // Reuse ml_conv2d via nd objects
     let mut xin = HashMap::new();
     xin.insert("__kab_nd".into(), Value::Bool(true));
@@ -221,23 +311,21 @@ fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         Value::Array(sa.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
     xin.insert("data".into(), vector_out(&a));
-    let mut win = HashMap::new();
-    win.insert("__kab_nd".into(), Value::Bool(true));
-    win.insert(
+    let mut win_o = HashMap::new();
+    win_o.insert("__kab_nd".into(), Value::Bool(true));
+    win_o.insert(
         "shape".into(),
         Value::Array(sw.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
-    win.insert("data".into(), vector_out(&w));
-    let bias = args.get(2).cloned().unwrap_or(Value::Undefined);
-    let stride = args.get(3).cloned().unwrap_or(Value::Number(1));
-    let pad = args.get(4).cloned().unwrap_or(Value::Number(0));
+    win_o.insert("data".into(), vector_out(&w));
+    let bias_v = vector_out(&bias);
     let out = super::nn_layers::ml_conv2d(
         &[
             Value::Object(xin),
-            Value::Object(win),
-            bias,
-            stride,
-            pad,
+            Value::Object(win_o),
+            bias_v,
+            args.get(3).cloned().unwrap_or(Value::Number(1)),
+            args.get(4).cloned().unwrap_or(Value::Number(0)),
         ],
         env,
     )?;
@@ -249,13 +337,33 @@ fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         Some(Value::Array(items)) => items.iter().map(num).collect::<Result<Vec<_>, _>>()?,
         _ => return Err("gpu_conv2d: data".into()),
     };
-    let device = if da == "gpu" { "gpu" } else { "host" };
-    let backend = if device == "gpu" {
-        "device-conv-cpu-fallback"
+    let device = if on_device { "gpu" } else { "host" };
+    let (backend, kernel) = if on_device && crate::runtime::render::gpu3d::gpu3d_available() {
+        ("device-conv-cpu-fallback", Some("conv2d_f64_v1"))
+    } else if on_device {
+        ("cpu-emulated-device", Some("conv2d_f64_v1_cpu"))
     } else {
-        "cpu"
+        ("cpu", None)
     };
-    Ok(tensor_out(&shape, &data, backend, device))
+    Ok(tensor_out_kernel(&shape, &data, backend, device, kernel))
+}
+
+fn gpu_conv2d_kernel(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let mut out = gpu_conv2d(args, env)?;
+    if let Value::Object(ref mut m) = out {
+        if !m.contains_key("kernel") {
+            m.insert("kernel".into(), Value::String("conv2d_f64_v1_cpu".into()));
+        }
+        m.insert(
+            "kernel_dispatch".into(),
+            Value::String(if crate::runtime::render::gpu3d::gpu3d_available() {
+                "wgpu-ready".into()
+            } else {
+                "cpu-fallback".into()
+            }),
+        );
+    }
+    Ok(out)
 }
 
 /// Explicit train/infer matmul step on device tensors: y = W @ x (+ optional bias).
@@ -324,6 +432,8 @@ fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
             Value::String("matmul_f64_v1".into()),
             Value::String("linear_f64_v1".into()),
             Value::String("conv2d_f64_v1".into()),
+            Value::String("wgpu-compute-matmul_f32_v1".into()),
+            Value::String("wgpu-compute-conv2d_f32_v1".into()),
         ]),
     );
     Ok(Value::Object(m))
@@ -332,6 +442,10 @@ fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_gpu_tensor_from", "gpu_tensor_from"], gpu_tensor_from);
     bind(&["science_gpu_tensor_to_nd", "gpu_tensor_to_nd"], gpu_tensor_to_nd);
+    bind(&["science_gpu_zeros", "gpu_zeros"], gpu_zeros);
+    bind(&["science_gpu_ones", "gpu_ones"], gpu_ones);
+    bind(&["science_gpu_scale", "gpu_scale"], gpu_scale);
+    bind(&["science_gpu_add", "gpu_add"], gpu_add);
     bind(&["science_gpu_to_device", "gpu_to_device"], gpu_to_device);
     bind(&["science_gpu_to_host", "gpu_to_host"], gpu_to_host);
     bind(&["science_gpu_matmul", "gpu_matmul"], gpu_matmul);
@@ -342,5 +456,6 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     );
     bind(&["science_gpu_linear", "gpu_linear"], gpu_linear);
     bind(&["science_gpu_conv2d", "gpu_conv2d"], gpu_conv2d);
+    bind(&["science_gpu_conv2d_kernel", "gpu_conv2d_kernel"], gpu_conv2d_kernel);
     bind(&["science_gpu_tensor_info", "gpu_tensor_info"], gpu_tensor_info);
 }

@@ -531,7 +531,7 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
 | `mat_qr` / `mat_svd` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e) |
-| `ag_*` (+ matmul/softmax/ce/no_grad) | Autograd tape |
+| `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/no_grad) | Autograd tape |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
 | `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
 | `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD2 |
@@ -541,8 +541,8 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `ml_conv2d` / `ml_maxpool2d` / `ml_embedding` / `ml_mha` | NN-lager |
 | `num_rk4` / `num_odeint` | ODE |
 | `stat_quantile` / `stat_ttest` / `stat_chi2` / `stat_norm_pdf` / `stat_norm_cdf` | Stats++ |
-| `gpu_to_device` / `gpu_to_host` / `gpu_linear` / `gpu_conv2d` | GPU train/infer path |
-| `gpu_tensor_*` | GPU staging tensors |
+| `gpu_to_device` / `gpu_to_host` / `gpu_linear` / `gpu_conv2d` / `gpu_conv2d_kernel` | GPU train/infer path |
+| `gpu_tensor_*` / `gpu_zeros` / `gpu_ones` / `gpu_scale` / `gpu_add` | GPU staging tensors |
 | `ml_train_log` | Training progress (rich notebook) |
 | `tok_build_vocab` / `tok_encode` / `tok_decode` / `tok_bpe_*` | Tokenizer subset |
 | `tf_sinusoidal_pos` / `tf_transformer_forward` | Transformer inference-lite |
@@ -552,9 +552,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `sci_bench` / `sci_bench_report` | Science bench harness |
 | `ml_stump_fit` / `ml_tree_fit` / `ml_tree_predict` | Decision stump/tree |
 | `ml_adamw_update` / `ml_roc_auc` | AdamW + ROC-AUC |
-| `gpu_matmul_kernel` / `gpu_available_kernels` | GPU kernel path |
+| `gpu_matmul_kernel` / `gpu_available_kernels` / `gpu_conv2d_kernel` | GPU kernel path |
 | `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
-| `gpu_compute::try_matmul_compute` | WGSL f32 matmul (`--features gpu`) |
+| `gpu_compute::try_matmul_compute` / `try_conv2d_compute` | WGSL f32 matmul+conv (`--features gpu`) |
 
 ## ML / AI (SC2)
 
@@ -583,7 +583,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `gpu`, …)
+- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …)
 - Registrering: `science_register` vid `import "science"`
 - Tester: `tests/science_sc*.rs` inkl. `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
@@ -606,7 +606,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | NN hotpath | conv2d, mha, embedding, GPU tensors | `fit.kab`, `ml.kab` training loop |
 | tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
 | training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
-| GPU compute | WGSL matmul (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
+| GPU compute | WGSL matmul+conv2d (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
 | signal FIR/IIR | `num_fir`/`num_iir` natives | `signal.kab`; boxcar also in `kab_algo.movingAvgKab` |
 
 Ny **produktlogik** (fit-loop, schedulers, tokenize-pipeline) ska landa i Kab; Rust får bara nya tunna primitives om hotpath kräver det.
