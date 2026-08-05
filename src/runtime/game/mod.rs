@@ -19,7 +19,7 @@ pub fn info() -> HashMap<String, String> {
     m.insert("version".into(), "0.1".into());
     m.insert(
         "features".into(),
-        "rAF,input,surface,present,3d,gltf,png,atlas,hot,shader,batch,physics,audio,ecs,debug".into(),
+        "rAF,input,surface,present,3d,gltf,png,atlas,hot,shader,batch,physics,audio,ecs,debug,assets,nav,net,editor,profiler,host".into(),
     );
     m
 }
@@ -209,10 +209,22 @@ pub fn game_globals(env: &mut Environment) {
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
         ("asset_poll", hot_reload::asset_poll_native),
+        ("host_read_bytes", host_read_bytes_native),
     ];
     for (name, f) in fns {
         env.set((*name).into(), Value::NativeFunction(*f));
     }
+}
+
+fn host_read_bytes_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("host_read_bytes(path) expects string".into()),
+    };
+    let bytes = std::fs::read(path).map_err(|e| format!("host_read_bytes({path}): {e}"))?;
+    Ok(Value::Array(
+        bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
+    ))
 }
 
 pub fn reset_all() {

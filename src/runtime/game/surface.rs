@@ -25,9 +25,8 @@ pub fn active_layer(env: &Environment) -> RuntimeLayer {
 pub fn create_surface(env: &Environment, width: u32, height: u32) -> Result<Value, String> {
     let w = width.clamp(1, 4096);
     let h = height.clamp(1, 4096);
-    let _layer = active_layer(env);
+    let layer = active_layer(env);
 
-    #[cfg(target_arch = "wasm32")]
     if matches!(layer, RuntimeLayer::Host) {
         return create_host_surface(w, h);
     }
@@ -38,9 +37,8 @@ pub fn create_surface(env: &Environment, width: u32, height: u32) -> Result<Valu
 pub fn create_gl_surface(env: &Environment, width: u32, height: u32) -> Result<Value, String> {
     let w = width.clamp(1, 4096);
     let h = height.clamp(1, 4096);
-    let _layer = active_layer(env);
+    let layer = active_layer(env);
 
-    #[cfg(target_arch = "wasm32")]
     if matches!(layer, RuntimeLayer::Host) {
         return create_host_gl_surface(w, h);
     }
@@ -79,7 +77,15 @@ fn create_host_gl_surface(width: u32, height: u32) -> Result<Value, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn create_host_gl_surface(width: u32, height: u32) -> Result<Value, String> {
-    create_kabootar_gl_surface(width, height)
+    let mut surf = create_kabootar_gl_surface(width, height)?;
+    if let Value::Object(ref mut o) = surf {
+        o.insert("layer".into(), Value::String("host".into()));
+        o.insert(
+            "hostPresent".into(),
+            Value::String("native-fallback-wgpu-kdom".into()),
+        );
+    }
+    Ok(surf)
 }
 
 fn create_kabootar_surface(width: u32, height: u32) -> Result<Value, String> {
@@ -124,7 +130,15 @@ fn create_host_surface(width: u32, height: u32) -> Result<Value, String> {
 #[cfg(not(target_arch = "wasm32"))]
 fn create_host_surface(width: u32, height: u32) -> Result<Value, String> {
     // Native host preference still uses KDOM compositor (visible in shell + kb_paint).
-    create_kabootar_surface(width, height)
+    let mut surf = create_kabootar_surface(width, height)?;
+    if let Value::Object(ref mut o) = surf {
+        o.insert("layer".into(), Value::String("host".into()));
+        o.insert(
+            "hostPresent".into(),
+            Value::String("native-fallback-kdom".into()),
+        );
+    }
+    Ok(surf)
 }
 
 pub fn present_surface(env: &mut Environment, surface: &Value) -> Result<Value, String> {

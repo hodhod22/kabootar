@@ -1,0 +1,82 @@
+@version "1.0.0"
+
+// Kabootar game/editor — scene hierarchy + inspector panels (GP4b subset).
+// Plain object UI descriptors (no full kOS required for smoke).
+// import "game/editor"
+
+import "game/scene"
+
+pub fn createEditor(root) {
+    return { root: root, selected: null, hierarchy: [], inspector: null }
+}
+
+pub fn selectNode(editor, node) {
+    editor["selected"] = node
+    editor["inspector"] = buildInspector(node)
+    return editor
+}
+
+pub fn buildHierarchy(root) {
+    let rows = []
+    let stack = [{ node: root, depth: 0 }]
+    while len(stack) > 0 {
+        let top = stack[len(stack) - 1]
+        let rest = []
+        let si = 0
+        while si < len(stack) - 1 {
+            rest = push(rest, stack[si])
+            si = si + 1
+        }
+        stack = rest
+        let node = top["node"]
+        let depth = top["depth"]
+        rows = push(rows, {
+            name: node["name"],
+            depth: depth,
+            x: node["x"],
+            y: node["y"],
+            z: node["z"],
+            layer: node["layer"],
+            childCount: len(node["children"])
+        })
+        // push children in reverse so left-to-right order when popping
+        let i = len(node["children"]) - 1
+        while i >= 0 {
+            stack = push(stack, { node: node["children"][i], depth: depth + 1 })
+            i = i - 1
+        }
+    }
+    return rows
+}
+
+pub fn buildInspector(node) {
+    if node == null || node == undefined {
+        return { empty: true }
+    }
+    return {
+        empty: false,
+        name: node["name"],
+        x: node["x"],
+        y: node["y"],
+        z: node["z"],
+        layer: node["layer"],
+        world: worldPos(node)
+    }
+}
+
+pub fn refresh(editor) {
+    editor["hierarchy"] = buildHierarchy(editor["root"])
+    if editor["selected"] != null {
+        editor["inspector"] = buildInspector(editor["selected"])
+    }
+    return editor
+}
+
+pub fn inspectSetLocal(editor, x, y, z) {
+    if editor["selected"] == null {
+        return editor
+    }
+    editor["selected"] = setLocal(editor["selected"], x, y, z)
+    editor["inspector"] = buildInspector(editor["selected"])
+    return editor
+}

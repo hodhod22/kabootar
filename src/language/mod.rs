@@ -881,6 +881,7 @@ const BUILTINS: &[&str] = &[
     "gpu3d_load_wgsl",
     "gpu3d_load_wgsl_from_file",
     "gpu3d_shader_info",
+    "host_read_bytes",
 ];
 
 const HOVER_DOCS: &[(&str, &str)] = &[

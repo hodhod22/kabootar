@@ -1,0 +1,64 @@
+@version "1.0.0"
+
+// Kabootar game/net — multiplayer tick/snapshot hooks (GP3d subset).
+// HTTP-first; RTC optional later. import "game/net"
+
+pub fn createSession(mode) {
+    if mode == undefined || mode == null {
+        mode = "local"
+    }
+    return { mode: mode, tick: 0, inbox: [], outbox: [], peer: null, url: null }
+}
+
+pub fn encodeSnapshot(world, tick) {
+    return json_stringify({ tick: tick, world: world })
+}
+
+pub fn applySnapshot(world, snapText) {
+    let snap = json_parse(snapText)
+    if snap["world"] != undefined && snap["world"] != null {
+        return snap["world"]
+    }
+    return world
+}
+
+pub fn queueOutgoing(session, snapText) {
+    session["outbox"] = push(session["outbox"], snapText)
+    return session
+}
+
+pub fn drainOutgoing(session) {
+    let out = session["outbox"]
+    session["outbox"] = []
+    return out
+}
+
+pub fn receiveRemote(session, snapText) {
+    session["inbox"] = push(session["inbox"], snapText)
+    return session
+}
+
+pub fn drainInbox(session) {
+    let inn = session["inbox"]
+    session["inbox"] = []
+    return inn
+}
+
+// Advance local tick and encode ECS/world snapshot into outbox.
+pub fn sendTick(session, world) {
+    session["tick"] = session["tick"] + 1
+    let snap = encodeSnapshot(world, session["tick"])
+    session = queueOutgoing(session, snap)
+    return session
+}
+
+// Apply all inbox snapshots (last wins). Returns { session, world }.
+pub fn pollRemote(session, world) {
+    let msgs = drainInbox(session)
+    let i = 0
+    while i < len(msgs) {
+        world = applySnapshot(world, msgs[i])
+        i = i + 1
+    }
+    return { session: session, world: world }
+}
