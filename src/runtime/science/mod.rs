@@ -4,11 +4,13 @@
 //! ndarray (SC0), ML/autograd (SC2), FFT/SVD, CSV/plot, GPU tensors.
 
 pub mod autograd;
+pub mod bench;
 pub mod classic_ml;
 pub mod data;
 pub mod dataframe;
 pub mod gpu_tensor;
 pub mod helpers;
+pub mod interpolate;
 pub mod linalg;
 pub mod matrix;
 pub mod ml;
@@ -18,7 +20,12 @@ pub mod numerics;
 pub mod ode;
 pub mod optimize;
 pub mod signal;
+pub mod sparse;
+pub mod special;
 pub mod stats;
+pub mod tokenizer;
+pub mod training;
+pub mod transformer;
 
 use crate::value::{Environment, Value};
 
@@ -501,11 +508,18 @@ pub fn register(env: &mut Environment) {
     autograd::register(&mut bind);
     signal::register(&mut bind);
     linalg::register(&mut bind);
+    interpolate::register(&mut bind);
+    special::register(&mut bind);
+    sparse::register(&mut bind);
     optimize::register(&mut bind);
     ode::register(&mut bind);
     data::register(&mut bind);
     dataframe::register(&mut bind);
     gpu_tensor::register(&mut bind);
+    training::register(&mut bind);
+    tokenizer::register(&mut bind);
+    transformer::register(&mut bind);
+    bench::register(&mut bind);
 }
 
 #[cfg(test)]

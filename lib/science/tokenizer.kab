@@ -1,0 +1,27 @@
+@version "1.0.0"
+
+// Tokenizer wrappers (SC2k). import "science" first.
+
+pub fn buildVocab(texts, maxVocab) {
+    return tok_build_vocab(texts, maxVocab)
+}
+
+pub fn encode(vocab, text) {
+    return tok_encode(vocab, text)
+}
+
+pub fn decode(vocab, ids) {
+    return tok_decode(vocab, ids)
+}
+
+pub fn bpeTrain(texts, numMerges, maxVocab) {
+    return tok_bpe_train(texts, numMerges, maxVocab)
+}
+
+pub fn bpeEncode(model, text) {
+    return tok_bpe_encode(model, text)
+}
+
+pub fn bpeDecode(model, ids) {
+    return tok_bpe_decode(model, ids)
+}

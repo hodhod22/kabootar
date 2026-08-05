@@ -1,0 +1,13 @@
+@version "1.0.0"
+
+pub fn erf(x) {
+    return num_erf(x)
+}
+
+pub fn gamma(x) {
+    return num_gamma(x)
+}
+
+pub fn besselJ0(x) {
+    return num_bessel_j0(x)
+}

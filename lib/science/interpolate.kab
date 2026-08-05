@@ -1,0 +1,9 @@
+@version "1.0.0"
+
+pub fn spline(xs, ys, x) {
+    return num_interp_spline(xs, ys, x)
+}
+
+pub fn splineVec(xs, ys, xsNew) {
+    return num_interp_spline_vec(xs, ys, xsNew)
+}
