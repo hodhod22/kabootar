@@ -23,7 +23,7 @@ import "science";
 13. [ML / AI (SC2)](#ml--ai-sc2)
 14. [Felsökning](#felsökning)
 
-**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** (byggs i Kabootar, inte Rust; fri stack).
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 production modules** (stats/prob, preprocess, metrics, graph/GNN, timeseries, RL, viz/explain, dist, domain).
 ---
 
 ## Kom igång
@@ -595,7 +595,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 ## Implementation
 
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
-- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …)
+- Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `viz`/`explain`, `dist`, `domain/*`)
 - Registrering: `science_register` vid `import "science"`
 - Tester: `tests/science_sc*.rs` inkl. `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)

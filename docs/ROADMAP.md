@@ -477,11 +477,11 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **K** | Kabootar libs | kv8 + DOM + CSS + OS + webläsare i `.kab` |
 | **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
 | **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
-| **GP** | Game production | GPU-3D, scen/motor, assets, audio — redo för spelproduktion |
-| **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass i Kab — ta över forskning & AI; SC5 = Kab-only |
+| **GP** | Game production | GPU-3D, scen/motor, assets + **GP6 system** + **GP7 scene editor** (killer) |
+| **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **SC** (gap → NumPy/SciPy/AI + **SC5 Kab-only**) + **DX** parallellt med **P**; språk **O/T/J/R** långsiktig bas. **P/GP** subset landad.
+**Aktivt fokus (2026-08):** **SC6** (`lib/science` production modules) + **SC5** deepen; **DX**; därefter **GP6/GP7**. Språk **O/T/J/R** långsiktig bas. **P/GP0–GP5** + **SC0–SC5** subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -680,7 +680,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
 | **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | ✅ seed-only (`SELF_HOST_SKIP_LISTED_LEAVES` + `p6_seed_only_all_leaves_have_seeds`; empty list kvar 📋) |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
-| **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` sequential API; parallel workers kvar) |
+| **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
 
 **Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
@@ -747,7 +747,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **GP4a** | **Hot reload** — byt `.kab` / shader / texture utan process-restart | ✅ subset (`asset_watch` / `asset_poll` / `import "game/hot"`; `.kab` → compile cache invalidate) |
-| **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | ✅ subset (`import "game/editor"`: hierarchy/inspector descriptors) |
+| **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | ✅ subset (`import "game/editor"`: hierarchy/inspector descriptors) → **fördjupas i GP7** |
 | **GP4c** | **Profiler UI** — CPU/GPU/frame graph i DevTools | ✅ subset (`import "game/profiler"`: ring buffer + canvas overlay + `devtools_profile_start`) |
 | **GP4d** | **Debug draw** — gizmo lines/colliders | ✅ subset (`import "game/debug"`: line/AABB/circle på canvas2d) |
 | **GP4e** | **Dokumentation & samples** — [GAME.md](GAME.md) + `examples/game_*` shippable demos | ✅ subset (`examples/game_2d_smoke.kab`, `examples/game_3d_triangle.kab`) |
@@ -759,11 +759,52 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP5a** | **Desktop ship** — en binär (`kabootar run` / kOS-app) med GPU | ✅ subset ([SHIP.md](SHIP.md) + `tests/ship_desktop_smoke.rs`) |
 | **GP5b** | **WASM host** — `platform_use("host")` + WebGPU/WebGL present | ✅ subset (`import "game/host"`; native fallback `layer=host`; wasm32 web_sys) |
 | **GP5c** | **Performance budgets i CI** — 60 FPS smoke (timing), max alloc/frame | ✅ subset (`tests/perf_gp5c_smoke.rs`: avg Δt < 50 ms + `os_mem_stats`) |
-| **GP5d** | **Självständighet** — spel + editor kör utan extern Unity/Unreal/C#-toolchain | ✅ subset ([SHIP.md](SHIP.md) GP5d-checklista) |
+| **GP5d** | **Självständighet** — spel + editor kör utan extern Unity/Unreal/C#-toolchain | ✅ subset ([SHIP.md](SHIP.md) GP5d-checklista); **full editor = GP7** |
 
-**GP-ordning (rekommenderad):** GP0a–c → P0/P2 → GP1a–d → GP2a–b → GP4a → GP0f delete-gate → GP3 → GP5.
+#### GP6 — Spelproduktionssystem (`lib/game/*`) 📋
 
-**Checkpoint GP:** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; docs uppdaterade. **Slutmått:** kan producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline, med GPU-prestanda i samma klass som native scriptade motorer.
+Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samma H6-regel). Status: planerad — **implementeras efter ROADMAP-landning**.
+
+| Fas | Modul (mål) | Innehåll | Status |
+|-----|-------------|----------|--------|
+| **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | 📋 |
+| **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | 📋 |
+| **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | 📋 |
+| **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | 📋 |
+| **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | 📋 |
+| **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | 📋 |
+| **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | 📋 |
+| **GP6h** | `game/audio`++ | **Audio-utökning** — spatial 3D, buses/groups, ducking, streaming; ovanpå nuvarande PCM/tone | 📋 |
+| **GP6i** | `game/save` | **Save/Load** — serialiserad scen/state (VFS/JSON/bin), checkpoints, versioned slots | 📋 |
+| **GP6j** | `game/i18n` | **Localisation** — string tables, locale switch, ICU-lite plural/format subset | 📋 |
+| **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | 📋 |
+| **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | 📋 |
+| **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | 📋 |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | 📋 |
+
+**GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
+
+#### GP7 — Killer feature: Scene Editor 🎯 📋
+
+**Mål:** En **fullständig scen-editor** som körs **i Kabootar** (samma runtime som spelet) — inte en extern Unity/Unreal/Godot-editor. Det är GP:s **killer feature** och det som ska göra Kab konkurrenskraftig för spelproduktion.
+
+| Fas | Innehåll | Status |
+|-----|----------|--------|
+| **GP7a** | **`game_editor.kab` / `import "game/editor"` deepen** — dockad shell: hierarchy + **inspector** + toolbar; bygger på GP4b descriptors | 📋 (GP4b = precursor) |
+| **GP7b** | **Scene view** — 3D/2D viewport, orbit/pan/zoom, pick/select, gizmo move/rotate/scale (kopplat `game/debug` + GPU) | 📋 |
+| **GP7c** | **Game view** — play/pause/step i editor; samma scen körs live utan separat process | 📋 |
+| **GP7d** | **Drag-and-drop** — assets → scen (mesh/prefab/audio), hierarchy reparent, inspector drop targets | 📋 |
+| **GP7e** | **Live-editing** — ändra properties medan Game view kör; hot reload av `.kab`/shader/texture (GP4a) synkas till editor | 📋 |
+| **GP7f** | **Prefab / scene I/O** — spara/ladda `.kscene` (eller JSON-scen) via `game/save`; undo/redo stack | 📋 |
+| **GP7g** | **Editor UX i kOS** — fönsterlayout, shortcuts, multi-select; delete-gate: skapa → redigera → play → spara utan extern toolchain | 📋 |
+
+**Varför killer:** Unity/Godot vinner på *editor-loop*. Kab vinner om editor + runtime + ship är **samma språk och binär** — GP7 är därför prioriterad framför “feature-paritet” i GP6 när resurser konkurrerar.
+
+**GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
+
+**Checkpoint GP (landad):** textured 3D demo @ stabil frame-tid; `game` mall; hot reload smoke; GP0–GP5 subset.  
+**Checkpoint GP (nästa):** **GP7 editor MVP** (hierarchy + inspector + scene/game view + live edit) + första GP6-moduler (`ui`, `anim`, `particles`).  
+**Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
 
@@ -898,14 +939,32 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | ✅ subset (`import "science/bootstrap"`) |
 | **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | ✅ subset (`examples/science_freedom_demo.kab`) |
 
-**SC-ordning:** SC2j → SC1h–j → SC2k → SC4f → **SC5** (Kab-first parallellt).
+#### SC6 — Science production modules (`lib/science/*`) 📋
 
-**Checkpoint SC (nästa):** extern BLAS-FFI + full TF backprop + SC4c Kab-closure workers.  
-**Checkpoint SC (landad 2026-08):** **adaptive ODE/quad + deeper kab_algo + parallel f64 jobs + blocked GEMM + TF last-layer train**.  
-**Checkpoint SC (landad tidigare):** FIR/IIR + WGSL matmul/conv + SC2c/SC4b.  
-**Checkpoint SC (research-parity):** spline/special/sparse + trees.  
-**Checkpoint SC (AI-parity):** tokenizer/transformer-inference + SC2l + real GPU kernels.  
-**Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
+Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i `.kab`**. Rust bara för hotpath (SIMD/GPU/FFT/graph kernels). Status: planerad — **implementeras efter ROADMAP-landning** (därefter “gör alla”).
+
+| Fas | Modul (mål) | Innehåll | Status |
+|-----|-------------|----------|--------|
+| **SC6a** | `science/stats`++ / `science/prob` | **Statistik & sannolikhet** — fler fördelningar (expon/poisson/beta/binom), CDF/PDF/PPF, Monte Carlo, bootstrap CI, Bayes-lite | 📋 (SC3g precursor) |
+| **SC6b** | `science/preprocess` | **Förbearbetning & feature engineering** — scale/standardize, impute, one-hot/ordinal, polynomial/interaction, train/test leakage-safe pipeline hooks | 📋 |
+| **SC6c** | `science/metrics` | **Utvärdering & metriker** — precision/recall/Fβ, PR-AUC, log-loss, R²/MAE/MAPE, calibration; ovanpå `ml_accuracy`/`f1`/`roc_auc` | 📋 (SC2g precursor) |
+| **SC6d** | `science/graph` | **Grafer & GNN** — adjacency/CSR graph, message-passing-lite (GCN/GraphSAGE-subset), node embed; sparse SpMV reuse | 📋 |
+| **SC6e** | `science/timeseries` | **Tidsserieanalys** — lag/rolling, ACF/PACF-lite, AR/ARIMA-subset, seasonal decompose, forecast metrics | 📋 |
+| **SC6f** | `science/rl` | **Förstärkningsinlärning** — env-API (reset/step), replay buffer, Q-learning / REINFORCE-lite, gym-style smoke | 📋 |
+| **SC6g** | `science/viz` / `explain` | **Visualisering & tolkningsbarhet** — confusion heatmaps, learning curves, feature importance / permutation, SHAP-lite; canvas/notebook rich | 📋 (SC3b precursor) |
+| **SC6h** | `science/dist` | **Distribuerad / parallell beräkning** — chunked `map`/`reduce` över workers (SC4c/P8), parameter-server-lite / AllReduce-stub; GPU multi-buffer senare | 📋 |
+| **SC6i** | `science/domain/*` | **Domänspecifika moduler** — t.ex. `bio` (sekvens-lite), `finance` (returns/vol), `chem` (molekyl-featurize-lite), `nlp` (ovanpå tok/tf); tunna Kab-paket | 📋 |
+
+**SC6-policy:** samma SC5c — nya exports via `lib/science/*.kab` (+ `science/domain/…`); natives bara om hotpath kräver det. Smokes per modul i `tests/science_sc_wave*`.
+
+**SC-ordning:** SC0–SC5 ✅ subset → **SC6a–c** (stats/preprocess/metrics, hög ROI vs sklearn) → SC6e timeseries → SC6g viz/explain → SC6d graph → SC6f RL → SC6h dist → SC6i domain.
+
+**Checkpoint SC (nästa):** **SC6 MVP** — `preprocess` + `metrics` + `prob/stats++` + timeseries-lite; därefter graph/RL/viz.  
+**Checkpoint SC (hotpath kvar):** extern BLAS-FFI + full TF backprop + Kab-closure workers.  
+**Checkpoint SC (landad 2026-08):** adaptive ODE/quad + deeper kab_algo + parallel f64 jobs + blocked GEMM + TF last-layer train + WGSL matmul/conv.  
+**Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
+**Checkpoint SC (AI-parity):** tokenizer/transformer + SC2l + GPU kernels (landad subset).  
+**Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass, **SC6 production modules**, och **helt självständig** stack (SC5f).
 
 ### Våg DX — Exploration (REPL / notebook vs Python) 🚧
 
@@ -1030,8 +1089,8 @@ Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
-Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  ████████████████  FIR/IIR + WGSL-matmul + kab_algo++ landad; conv-WGSL kvar
+Våg GP (spel)  ████████████░░░░  GP0–GP5 ✅; **GP6 systems + GP7 editor** planerad
+Våg SC (STEM)  ████████████░░░░  SC0–SC5 ✅; **SC6** production modules planerad (preprocess/metrics/…)
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
