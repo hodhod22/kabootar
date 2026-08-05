@@ -1,0 +1,346 @@
+@version "1.0.0"
+
+// Spelbyggare / sandlåda — GP + editor + STEM i samma loop.
+// import "game/sandbox"
+// Play: fjäder/drag + målzon. Edit: GP7 placera bodies → .kscene.
+// Learn: parametrar (k,m,g) + hot-reload efter clear.
+
+import "game/scene"
+import "game/editor"
+import "game/save"
+import "game/physics"
+import "game/hot"
+import "science/mechanics"
+
+/// Create a force-puzzle world (Play).
+pub fn createPuzzle(params) {
+    if params == null || params == undefined {
+        params = defaultParams()
+    }
+    return {
+        "kind": "force_puzzle",
+        "params": params,
+        "mode": "play",
+        "cleared": false,
+        "dragging": false,
+        "anchor": { "x": 40.0, "y": 80.0 },
+        "body": {
+            "name": "ball",
+            "x": 40.0,
+            "y": 80.0,
+            "vx": 0.0,
+            "vy": 0.0,
+            "w": 16.0,
+            "h": 16.0,
+            "m": params["m"],
+            "r": 8.0
+        },
+        "goal": { "name": "goal", "x": 180.0, "y": 70.0, "w": 36.0, "h": 36.0 },
+        "walls": [
+            { "x": 0.0, "y": 140.0, "w": 240.0, "h": 20.0 }
+        ],
+        "ticks": 0,
+        "lesson": null,
+        "paramsPath": null
+    }
+}
+
+pub fn setParams(world, params) {
+    world["params"] = params
+    world["body"]["m"] = params["m"]
+    return world
+}
+
+/// Apply live Learn edits (k / m / g / drag) without restarting.
+pub fn applyLiveParams(world, patch) {
+    let p = world["params"]
+    if patch["k"] != null { p["k"] = patch["k"] }
+    if patch["m"] != null { p["m"] = patch["m"] }
+    if patch["g"] != null { p["g"] = patch["g"] }
+    if patch["drag"] != null { p["drag"] = patch["drag"] }
+    if patch["rest"] != null { p["rest"] = patch["rest"] }
+    world["params"] = p
+    world["body"]["m"] = p["m"]
+    return world
+}
+
+pub fn startDrag(world, x, y) {
+    world["dragging"] = true
+    world["anchor"] = { "x": x, "y": y }
+    return world
+}
+
+pub fn moveDrag(world, x, y) {
+    if world["dragging"] {
+        world["anchor"] = { "x": x, "y": y }
+    }
+    return world
+}
+
+pub fn endDrag(world) {
+    world["dragging"] = false
+    return world
+}
+
+fn accumulateForces(world) {
+    let p = world["params"]
+    let b = world["body"]
+    let fx = 0.0
+    let fy = 0.0
+    if world["dragging"] {
+        let s = springForce(p["k"], b["x"], b["y"], world["anchor"]["x"], world["anchor"]["y"])
+        fx = fx + s["fx"]
+        fy = fy + s["fy"]
+    }
+    let g = gravityForce(p["m"], p["g"])
+    fx = fx + g["fx"]
+    fy = fy + g["fy"]
+    let d = dragForce(p["drag"], b["vx"], b["vy"])
+    fx = fx + d["fx"]
+    fy = fy + d["fy"]
+    return { "fx": fx, "fy": fy }
+}
+
+/// Fixed-step Play tick.
+pub fn stepPuzzle(world, dt) {
+    if world["cleared"] {
+        return world
+    }
+    if dt == null || dt <= 0.0 {
+        dt = 1.0 / 60.0
+    }
+    let f = accumulateForces(world)
+    world["body"] = integrateBody(world["body"], f["fx"], f["fy"], dt)
+    let b = world["body"]
+    let i = 0
+    while i < len(world["walls"]) {
+        let wall = world["walls"][i]
+        let box = { "x": b["x"] - b["w"] / 2.0, "y": b["y"] - b["h"] / 2.0, "w": b["w"], "h": b["h"] }
+        if aabbOverlap(box, wall) {
+            let fixed = resolveAabb(box, wall)
+            b["x"] = fixed["x"] + b["w"] / 2.0
+            b["y"] = fixed["y"] + b["h"] / 2.0
+            if b["vy"] > 0.0 {
+                b["vy"] = -b["vy"] * 0.35
+            }
+        }
+        i = i + 1
+    }
+    world["body"] = b
+    world["ticks"] = world["ticks"] + 1
+    if inGoal(world) {
+        world = clearLevel(world)
+    }
+    return world
+}
+
+pub fn inGoal(world) {
+    let b = world["body"]
+    let box = { "x": b["x"] - b["w"] / 2.0, "y": b["y"] - b["h"] / 2.0, "w": b["w"], "h": b["h"] }
+    return aabbOverlap(box, world["goal"])
+}
+
+/// Mark cleared + attach Learn lesson (code + params).
+pub fn clearLevel(world) {
+    world["cleared"] = true
+    world["dragging"] = false
+    world["mode"] = "learn"
+    world["lesson"] = buildLesson(world)
+    return world
+}
+
+pub fn buildLesson(world) {
+    let p = world["params"]
+    let expl = explainForces(p, world["body"], world["anchor"])
+    return {
+        "title": "Hur banan räknades",
+        "params": p,
+        "forces": expl,
+        "code": "let F = springForce(k, x, y, ax, ay)\nlet G = gravityForce(m, g)\nbody = integrateBody(body, Fx, Fy, dt)",
+        "hint": "Ändra k / m / g via applyLiveParams eller params-fil + hot-reload, kör om."
+    }
+}
+
+pub fn isCleared(world) {
+    return world["cleared"] == true
+}
+
+/// Edit: map puzzle → GP7 editor scene graph.
+pub fn puzzleToEditor(world) {
+    let root = createNode("sandbox")
+    let ball = createNode(world["body"]["name"])
+    ball = setLocal(ball, world["body"]["x"], world["body"]["y"], 0)
+    ball = setLayer(ball, 1)
+    let goal = createNode(world["goal"]["name"])
+    goal = setLocal(goal, world["goal"]["x"], world["goal"]["y"], 0)
+    goal = setLayer(goal, 2)
+    root = addChild(root, ball)
+    root = addChild(root, goal)
+    let ed = createEditor(root)
+    ed["sandbox"] = {
+        "params": world["params"],
+        "kind": "force_puzzle"
+    }
+    return refresh(ed)
+}
+
+/// Place / move a named body in the editor (Edit).
+pub fn editorPlaceBody(editor, name, x, y) {
+    editor = pushUndo(editor, snapshotRoot(editor))
+    let root = editor["root"]
+    let kids = root["children"]
+    let i = 0
+    let found = false
+    let newKids = []
+    while i < len(kids) {
+        let child = kids[i]
+        if child["name"] == name {
+            child["x"] = x
+            child["y"] = y
+            child["z"] = 0
+            found = true
+        }
+        newKids = push(newKids, child)
+        i = i + 1
+    }
+    if found == false {
+        let n = createNode(name)
+        n["x"] = x
+        n["y"] = y
+        n["z"] = 0
+        newKids = push(newKids, n)
+    }
+    root["children"] = newKids
+    editor["root"] = root
+    editor = refresh(editor)
+    let rows = editor["hierarchy"]
+    let si = 0
+    while si < len(rows) {
+        if rows[si]["name"] == name {
+            editor = selectNode(editor, rows[si]["node"])
+        }
+        si = si + 1
+    }
+    return editor
+}
+
+/// Learn stamp on editor (hot-reload descriptor).
+pub fn stampLearnReload(editor, path) {
+    editor = syncHotReload(editor, path)
+    editor["hotReload"]["stamp"] = path
+    editor["hotReload"]["learnPath"] = path
+    return editor
+}
+
+/// Editor scene → puzzle world (keeps params).
+pub fn editorToPuzzle(editor, params) {
+    if params == null || params == undefined {
+        if editor["sandbox"] != null {
+            params = editor["sandbox"]["params"]
+        }
+    }
+    if params == null || params == undefined {
+        params = defaultParams()
+    }
+    let world = createPuzzle(params)
+    editor = refresh(editor)
+    let rows = editor["hierarchy"]
+    let i = 0
+    while i < len(rows) {
+        let r = rows[i]
+        if r["name"] == "ball" {
+            world["body"]["x"] = r["x"]
+            world["body"]["y"] = r["y"]
+        }
+        if r["name"] == "goal" {
+            world["goal"]["x"] = r["x"]
+            world["goal"]["y"] = r["y"]
+        }
+        i = i + 1
+    }
+    return world
+}
+
+/// Save puzzle as .kscene via GP7 save.
+pub fn savePuzzleScene(editor, path) {
+    let r = saveScene(editor, path)
+    return r
+}
+
+pub fn loadPuzzleScene(path, params) {
+    let ed = createEditor(createNode("sandbox"))
+    let loaded = loadScene(ed, path)
+    ed = loaded["editor"]
+    if loaded["result"]["ok"] != true {
+        return { "ok": false, "world": null, "editor": ed }
+    }
+    let world = editorToPuzzle(ed, params)
+    return { "ok": true, "world": world, "editor": ed }
+}
+
+/// Learn: write params JSON (hot-reload via `enableParamsHotReload` on host paths).
+pub fn writeParamsFile(path, params) {
+    let text = json_stringify(params)
+    os_write(path, text)
+    return { "ok": true, "path": path, "params": params }
+}
+
+pub fn readParamsFile(path) {
+    let text = os_read(path)
+    return json_parse(text)
+}
+
+/// Watch a host filesystem params file for mtime changes (`game/hot`).
+pub fn enableParamsHotReload(path) {
+    watch(path)
+    return { "ok": true, "path": path }
+}
+
+/// Poll hot-reload; if params path changed, apply into world + editor stamp.
+pub fn pollParamsReload(world, editor) {
+    let changed = poll()
+    let path = world["paramsPath"]
+    let hit = false
+    let i = 0
+    while i < len(changed) {
+        if path != null && changed[i] == path {
+            hit = true
+        }
+        i = i + 1
+    }
+    if hit {
+        let p = readParamsFile(path)
+        world = setParams(world, p)
+        if editor != null {
+            editor = syncHotReload(editor, path)
+            if editor["sandbox"] != null {
+                editor["sandbox"]["params"] = p
+            }
+        }
+    }
+    return { "world": world, "editor": editor, "reloaded": hit, "changed": changed }
+}
+
+pub fn attachParamsWatch(world, path) {
+    world["paramsPath"] = path
+    writeParamsFile(path, world["params"])
+    return world
+}
+
+/// Auto-play helper for tests: drag toward goal and step until clear or maxTicks.
+pub fn autoSolveTowardGoal(world, maxTicks) {
+    if maxTicks == null {
+        maxTicks = 240
+    }
+    let gx = world["goal"]["x"]
+    let gy = world["goal"]["y"]
+    world = startDrag(world, gx, gy)
+    let t = 0
+    while t < maxTicks && world["cleared"] == false {
+        world = moveDrag(world, gx, gy)
+        world = stepPuzzle(world, 1.0 / 60.0)
+        t = t + 1
+    }
+    world = endDrag(world)
+    return world
+}

@@ -1,0 +1,40 @@
+// Spelbyggare / sandlåda — GP + editor + STEM showcase.
+// kabootar run examples/sandbox_force_puzzle.kab
+import "science"
+import "science/mechanics"
+import "game/sandbox"
+import "game/hot"
+
+os_mkdir("/sandbox")
+os_mkdir("/scenes")
+
+// --- Play: STEM forces toward goal ---
+let world = createPuzzle(defaultParams())
+world = autoSolveTowardGoal(world, 300)
+let playOk = isCleared(world) && world["lesson"] != null
+
+// --- Edit: place bodies in GP7, save .kscene, reload ---
+let ed = puzzleToEditor(world)
+ed = editorPlaceBody(ed, "ball", 50.0, 90.0)
+ed = editorPlaceBody(ed, "goal", 200.0, 80.0)
+let saved = savePuzzleScene(ed, "/scenes/force_puzzle.kscene")
+let loaded = loadPuzzleScene("/scenes/force_puzzle.kscene", defaultParams())
+let editOk = saved["result"]["ok"] && loaded["ok"] && loaded["world"]["body"]["x"] == 50.0 && loaded["world"]["goal"]["x"] == 200.0
+
+// --- Learn: tweak params + hot-reload file watch ---
+world = loaded["world"]
+world = applyLiveParams(world, { "k": 55.0, "g": 12.0 })
+world = attachParamsWatch(world, "/sandbox/params.json")
+let written = readParamsFile("/sandbox/params.json")
+os_write("/sandbox/params.json", json_stringify({ "k": 60.0, "m": 1.0, "g": 8.0, "drag": 0.1, "rest": 0.0 }))
+world = applyLiveParams(world, readParamsFile("/sandbox/params.json"))
+ed = stampLearnReload(ed, "/sandbox/params.json")
+let lesson = buildLesson(world)
+let learnOk = written["k"] == 55.0 && world["params"]["k"] == 60.0 && lesson["code"] != null && explainForces(world["params"], world["body"], world["anchor"])["total"] != null && ed["hotReload"]["learnPath"] == "/sandbox/params.json"
+
+println(playOk)
+println(editOk)
+println(learnOk)
+println(lesson["hint"])
+
+playOk && editOk && learnOk
