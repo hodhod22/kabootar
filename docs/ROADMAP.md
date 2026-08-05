@@ -850,10 +850,10 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 |-----|----------|--------|
 | **SC2a** | **Aktiveringar + loss** — relu/sigmoid/softmax, mse/cross-entropy | ✅ subset (relu/sigmoid/softmax/mse; **CE kvar**) |
 | **SC2b** | **Dense forward + SGD** — `ml_dense`, `ml_sgd_update` | ✅ subset (+ `ml_linreg_step`) |
-| **SC2c** | **Autograd-lite** — tape för dense/relu/mse | ✅ subset (`ag_*`); **bredda ops → SC2f** |
+| **SC2c** | **Autograd-lite** — tape för dense/relu/mse | ✅ subset (`ag_*` + `science/autograd`; bredda → SC2f) |
 | **SC2d** | **Dataset / batch** — shuffle, mini-batch, train/test split (**i Kab**) | ✅ subset (`ml_shuffle`/`ml_batch_slices`/`ml_train_test_split`) |
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
-| **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`; conv kvar) |
+| **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_conv2d`/`ag_sigmoid`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_adamw_update`/`ml_accuracy`/`ml_f1`/`ml_roc_auc`/`ml_confusion`) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
@@ -879,10 +879,10 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*`; **BLAS kvar**) |
-| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul f32 + CPU fallback; conv WGSL kvar) |
+| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul+conv2d f32 + CPU fallback; `gpu_zeros`/`ones`/`scale`/`add`) |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ sequential API; 📋 parallel |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
-| **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`; real wgpu kernel kvar) |
+| **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`/`gpu_conv2d_kernel`; WGSL när `--features gpu`) |
 | **SC4f** | **Bench harness** — Kab vs NumPy/PyTorch timing i CI (dokumenterad, inte blocker) | ✅ subset (`sci_bench`/`sci_bench_report`; Python-baslinje dokumenterad) |
 
 #### SC5 — Science self-host (Kab-only, fri från Rust)

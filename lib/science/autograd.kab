@@ -1,0 +1,71 @@
+@version "1.0.0"
+
+// Autograd wrappers (SC2c/SC2f). import "science" first.
+
+pub fn tensor(data) {
+    return ag_tensor(data)
+}
+
+pub fn relu(t) {
+    return ag_relu(t)
+}
+
+pub fn sigmoid(t) {
+    return ag_sigmoid(t)
+}
+
+pub fn dense(w, x, b) {
+    return ag_dense(w, x, b)
+}
+
+pub fn matmul(a, b) {
+    return ag_matmul(a, b)
+}
+
+pub fn conv2d(x, w, b, cin, hin, win, cout, kh, kw) {
+    return ag_conv2d(x, w, b, cin, hin, win, cout, kh, kw)
+}
+
+pub fn softmax(t) {
+    return ag_softmax(t)
+}
+
+pub fn add(a, b) {
+    return ag_add(a, b)
+}
+
+pub fn mul(a, b) {
+    return ag_mul(a, b)
+}
+
+pub fn mse(pred, target) {
+    return ag_mse(pred, target)
+}
+
+pub fn ce(pred, target) {
+    return ag_ce(pred, target)
+}
+
+pub fn noGrad(on) {
+    return ag_no_grad(on)
+}
+
+pub fn enableGrad(on) {
+    return ag_enable_grad(on)
+}
+
+pub fn backward(loss) {
+    return ag_backward(loss)
+}
+
+pub fn grad(t) {
+    return ag_grad(t)
+}
+
+pub fn value(t) {
+    return ag_value(t)
+}
+
+pub fn clear() {
+    return ag_clear()
+}
