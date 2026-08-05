@@ -1,0 +1,206 @@
+@version "1.0.0"
+
+// SC6a — Statistik & sannolikhet (Kab-first). import "science" first.
+
+pub fn normPdf(x, mean, std) {
+    return stat_norm_pdf(x, mean, std)
+}
+
+pub fn normCdf(x, mean, std) {
+    return stat_norm_cdf(x, mean, std)
+}
+
+pub fn exponPdf(x, rate) {
+    if x < 0.0 {
+        return 0.0
+    }
+    return rate * exp(0.0 - rate * x)
+}
+
+pub fn exponCdf(x, rate) {
+    if x < 0.0 {
+        return 0.0
+    }
+    return 1.0 - exp(0.0 - rate * x)
+}
+
+pub fn fact(n) {
+    let r = 1.0
+    let i = 2
+    while i <= n {
+        r = r * i
+        i = i + 1
+    }
+    return r
+}
+
+pub fn poissonPdf(k, lambda) {
+    if k < 0 {
+        return 0.0
+    }
+    return exp(0.0 - lambda) * pow(lambda, k) / fact(k)
+}
+
+pub fn poissonCdf(k, lambda) {
+    let s = 0.0
+    let i = 0
+    while i <= k {
+        s = s + poissonPdf(i, lambda)
+        i = i + 1
+    }
+    return s
+}
+
+pub fn binomCoef(n, k) {
+    let kk = k
+    if kk < 0 || kk > n {
+        return 0.0
+    }
+    if kk > n - kk {
+        kk = n - kk
+    }
+    let r = 1.0
+    let i = 1
+    while i <= kk {
+        r = r * (n - kk + i) / i
+        i = i + 1
+    }
+    return r
+}
+
+pub fn binomPdf(k, n, p) {
+    return binomCoef(n, k) * pow(p, k) * pow(1.0 - p, n - k)
+}
+
+pub fn binomCdf(k, n, p) {
+    let s = 0.0
+    let i = 0
+    while i <= k {
+        s = s + binomPdf(i, n, p)
+        i = i + 1
+    }
+    return s
+}
+
+/// Simple LCG for reproducible Monte Carlo / bootstrap.
+pub fn lcgNext(state) {
+    let a = 1664525.0
+    let c = 1013904223.0
+    let m = 4294967296.0
+    let s = (a * state + c) % m
+    if s < 0.0 {
+        s = s + m
+    }
+    return s
+}
+
+pub fn lcgUnit(state) {
+    let s = lcgNext(state)
+    return [s / 4294967296.0, s]
+}
+
+pub fn meanArr(xs) {
+    let n = len(xs)
+    if n == 0 {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        s = s + xs[i]
+        i = i + 1
+    }
+    return s / n
+}
+
+pub fn percentileArr(xs, p) {
+    let n = len(xs)
+    if n == 0 {
+        return 0.0
+    }
+    let sorted = []
+    let i = 0
+    while i < n {
+        sorted = push(sorted, xs[i])
+        i = i + 1
+    }
+    // insertion sort
+    i = 1
+    while i < n {
+        let key = sorted[i]
+        let j = i - 1
+        while j >= 0 && sorted[j] > key {
+            sorted[j + 1] = sorted[j]
+            j = j - 1
+        }
+        sorted[j + 1] = key
+        i = i + 1
+    }
+    let idx = floor((n - 1) * p)
+    if idx < 0 {
+        idx = 0
+    }
+    if idx >= n {
+        idx = n - 1
+    }
+    return sorted[idx]
+}
+
+/// bootstrapCi(xs, nBoot, alpha, seed) → {low, high, mean}
+pub fn bootstrapCi(xs, nBoot, alpha, seed) {
+    let n = len(xs)
+    let boots = []
+    let state = seed
+    if state == null || state == undefined {
+        state = 42.0
+    }
+    let b = 0
+    while b < nBoot {
+        let sample = []
+        let i = 0
+        while i < n {
+            let u = lcgUnit(state)
+            state = u[1]
+            let j = floor(u[0] * n)
+            if j >= n {
+                j = n - 1
+            }
+            sample = push(sample, xs[j])
+            i = i + 1
+        }
+        boots = push(boots, meanArr(sample))
+        b = b + 1
+    }
+    let lo = percentileArr(boots, alpha / 2.0)
+    let hi = percentileArr(boots, 1.0 - alpha / 2.0)
+    return { "low": lo, "high": hi, "mean": meanArr(xs), "n_boot": nBoot }
+}
+
+/// monteCarloMean(n, seed, fn) — fn(u) with u in [0,1); returns {mean, std}
+pub fn monteCarloMean(n, seed, cb) {
+    let state = seed
+    if state == null || state == undefined {
+        state = 1.0
+    }
+    let vals = []
+    let i = 0
+    while i < n {
+        let u = lcgUnit(state)
+        state = u[1]
+        vals = push(vals, cb(u[0]))
+        i = i + 1
+    }
+    let m = meanArr(vals)
+    let s = 0.0
+    i = 0
+    while i < n {
+        let d = vals[i] - m
+        s = s + d * d
+        i = i + 1
+    }
+    let sd = 0.0
+    if n > 1 {
+        sd = sqrt(s / (n - 1))
+    }
+    return { "mean": m, "std": sd, "n": n }
+}

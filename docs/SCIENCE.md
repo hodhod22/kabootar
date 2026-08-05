@@ -23,7 +23,7 @@ import "science";
 13. [ML / AI (SC2)](#ml--ai-sc2)
 14. [Felsökning](#felsökning)
 
-**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 production modules** (stats/prob, preprocess, metrics, graph/GNN, timeseries, RL, viz/explain, dist, domain).
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 ✅ subset** (`prob`, `preprocess`, `metrics`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`).
 ---
 
 ## Kom igång

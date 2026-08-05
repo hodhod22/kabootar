@@ -1,0 +1,220 @@
+@version "1.0.0"
+
+// SC6c — Utvärdering & metriker. import "science" first.
+
+pub fn accuracy(y, pred) {
+    return ml_accuracy(y, pred)
+}
+
+pub fn f1(y, pred) {
+    return ml_f1(y, pred)
+}
+
+pub fn rocAuc(y, scores) {
+    return ml_roc_auc(y, scores)
+}
+
+pub fn confusion(y, pred, nClasses) {
+    return ml_confusion(y, pred, nClasses)
+}
+
+pub fn binaryCounts(y, pred) {
+    let tp = 0.0
+    let fp = 0.0
+    let falseNeg = 0.0
+    let tn = 0.0
+    let i = 0
+    while i < len(y) {
+        if y[i] == 1 && pred[i] == 1 {
+            tp = tp + 1.0
+        }
+        if y[i] == 0 && pred[i] == 1 {
+            fp = fp + 1.0
+        }
+        if y[i] == 1 && pred[i] == 0 {
+            falseNeg = falseNeg + 1.0
+        }
+        if y[i] == 0 && pred[i] == 0 {
+            tn = tn + 1.0
+        }
+        i = i + 1
+    }
+    return { "tp": tp, "fp": fp, "fn": falseNeg, "tn": tn }
+}
+
+pub fn precision(y, pred) {
+    let c = binaryCounts(y, pred)
+    let den = c["tp"] + c["fp"]
+    if den < 0.000000000001 {
+        return 0.0
+    }
+    return c["tp"] / den
+}
+
+pub fn recall(y, pred) {
+    let c = binaryCounts(y, pred)
+    let den = c["tp"] + c["fn"]
+    if den < 0.000000000001 {
+        return 0.0
+    }
+    return c["tp"] / den
+}
+
+pub fn fbeta(y, pred, beta) {
+    let p = precision(y, pred)
+    let r = recall(y, pred)
+    let b2 = beta * beta
+    let den = b2 * p + r
+    if den < 0.000000000001 {
+        return 0.0
+    }
+    return (1.0 + b2) * p * r / den
+}
+
+pub fn mae(y, pred) {
+    let n = len(y)
+    if n == 0 {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        let d = y[i] - pred[i]
+        if d < 0.0 {
+            d = 0.0 - d
+        }
+        s = s + d
+        i = i + 1
+    }
+    return s / n
+}
+
+pub fn mse(y, pred) {
+    return ml_mse(y, pred)
+}
+
+pub fn mape(y, pred) {
+    let n = len(y)
+    if n == 0 {
+        return 0.0
+    }
+    let s = 0.0
+    let c = 0.0
+    let i = 0
+    while i < n {
+        if y[i] != 0.0 {
+            let d = (y[i] - pred[i]) / y[i]
+            if d < 0.0 {
+                d = 0.0 - d
+            }
+            s = s + d
+            c = c + 1.0
+        }
+        i = i + 1
+    }
+    if c < 0.000000000001 {
+        return 0.0
+    }
+    return s / c
+}
+
+pub fn r2(y, pred) {
+    let n = len(y)
+    if n == 0 {
+        return 0.0
+    }
+    let my = 0.0
+    let i = 0
+    while i < n {
+        my = my + y[i]
+        i = i + 1
+    }
+    my = my / n
+    let ssTot = 0.0
+    let ssRes = 0.0
+    i = 0
+    while i < n {
+        let a = y[i] - my
+        let b = y[i] - pred[i]
+        ssTot = ssTot + a * a
+        ssRes = ssRes + b * b
+        i = i + 1
+    }
+    if ssTot < 0.000000000001 {
+        return 0.0
+    }
+    return 1.0 - ssRes / ssTot
+}
+
+pub fn logLoss(y, probs) {
+    let n = len(y)
+    if n == 0 {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        let p = probs[i]
+        if p < 0.000000000001 {
+            p = 0.000000000001
+        }
+        if p > 0.999999999999 {
+            p = 0.999999999999
+        }
+        s = s + 0.0 - (y[i] * log(p) + (1.0 - y[i]) * log(1.0 - p))
+        i = i + 1
+    }
+    return s / n
+}
+
+/// Lightweight PR-AUC via sorted scores (trapz on precision-recall).
+pub fn prAuc(y, scores) {
+    let n = len(y)
+    let idx = []
+    let i = 0
+    while i < n {
+        idx = push(idx, i)
+        i = i + 1
+    }
+    // insertion sort indices by score desc
+    i = 1
+    while i < n {
+        let key = idx[i]
+        let j = i - 1
+        while j >= 0 && scores[idx[j]] < scores[key] {
+            idx[j + 1] = idx[j]
+            j = j - 1
+        }
+        idx[j + 1] = key
+        i = i + 1
+    }
+    let pos = 0.0
+    i = 0
+    while i < n {
+        if y[i] == 1 {
+            pos = pos + 1.0
+        }
+        i = i + 1
+    }
+    if pos < 0.000000000001 {
+        return 0.0
+    }
+    let tp = 0.0
+    let fp = 0.0
+    let prevR = 0.0
+    let area = 0.0
+    i = 0
+    while i < n {
+        if y[idx[i]] == 1 {
+            tp = tp + 1.0
+        } else {
+            fp = fp + 1.0
+        }
+        let rec = tp / pos
+        let prec = tp / (tp + fp)
+        area = area + (rec - prevR) * prec
+        prevR = rec
+        i = i + 1
+    }
+    return area
+}

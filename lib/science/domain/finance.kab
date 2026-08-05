@@ -1,0 +1,32 @@
+@version "1.0.0"
+
+// SC6i domain — finance-lite. import "science" first.
+
+pub fn returns(prices) {
+    let out = []
+    let i = 1
+    while i < len(prices) {
+        if prices[i - 1] == 0.0 {
+            out = push(out, 0.0)
+        } else {
+            out = push(out, prices[i] / prices[i - 1] - 1.0)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn volatility(prices) {
+    let r = returns(prices)
+    return stat_std(r)
+}
+
+pub fn sharpe(prices, riskFree) {
+    let r = returns(prices)
+    let m = stat_mean(r)
+    let s = stat_std(r)
+    if s < 0.000000000001 {
+        return 0.0
+    }
+    return (m - riskFree) / s
+}

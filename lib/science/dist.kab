@@ -1,0 +1,82 @@
+@version "1.0.0"
+
+// SC6h — Distribuerad / parallell beräkning-lite. import "science" first.
+
+/// Split array into nChunks contiguous chunks.
+pub fn chunk(xs, nChunks) {
+    let n = len(xs)
+    if nChunks < 1 {
+        nChunks = 1
+    }
+    let size = floor((n + nChunks - 1) / nChunks)
+    if size < 1 {
+        size = 1
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        let end = i + size
+        if end > n {
+            end = n
+        }
+        let part = []
+        let j = i
+        while j < end {
+            part = push(part, xs[j])
+            j = j + 1
+        }
+        out = push(out, part)
+        i = end
+    }
+    return out
+}
+
+/// Map string op over chunks via job_map_parallel, then concat.
+pub fn parallelMapF64(xs, op, nWorkers) {
+    return job_map_parallel(xs, op, nWorkers)
+}
+
+/// Reduce-sum of f64 array (local).
+pub fn reduceSum(xs) {
+    let s = 0.0
+    let i = 0
+    while i < len(xs) {
+        s = s + xs[i]
+        i = i + 1
+    }
+    return s
+}
+
+/// AllReduce-stub: average of local vectors (parameter-server lite).
+pub fn allReduceMean(vectors) {
+    let n = len(vectors)
+    if n == 0 {
+        return []
+    }
+    let dim = len(vectors[0])
+    let out = []
+    let d = 0
+    while d < dim {
+        let s = 0.0
+        let i = 0
+        while i < n {
+            s = s + vectors[i][d]
+            i = i + 1
+        }
+        out = push(out, s / n)
+        d = d + 1
+    }
+    return out
+}
+
+/// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).
+pub fn mapReduce(xs, nChunks, mapFn, reduceFn) {
+    let parts = chunk(xs, nChunks)
+    let mapped = []
+    let i = 0
+    while i < len(parts) {
+        mapped = push(mapped, mapFn(parts[i]))
+        i = i + 1
+    }
+    return reduceFn(mapped)
+}
