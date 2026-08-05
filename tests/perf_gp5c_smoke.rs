@@ -1,4 +1,4 @@
-//! GP5c — performance budget smoke (frame timing + coarse mem).
+//! GP5c / P9 — performance budget smoke (frame timing + coarse mem).
 
 use kabootar_lib::evaluator::{create_global_env, eval_source};
 use kabootar_lib::value::Value;
@@ -26,9 +26,8 @@ fn gp5c_idle_frame_budget() {
         let t1 = performance.now()
         let mem1 = os_mem_stats()
         let avg = sum / 8.0
-        // CI-loose budget: avg frame delta under 50ms after warm-up.
-        // os_mem_stats → [regions, used, limit]
-        avg < 50.0 && t1 >= t0 && mem1[1] >= 0 && mem0[1] >= 0
+        // P9: tighter CI budget (was 50ms after warm-up).
+        avg < 25.0 && t1 >= t0 && mem1[1] >= 0 && mem0[1] >= 0
         "#,
         &mut env,
     )

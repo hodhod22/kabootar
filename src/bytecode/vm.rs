@@ -7,11 +7,49 @@ use super::types::{BytecodeClassDef, BytecodeFnDef, BytecodeModule, Constant, Ge
 use crate::lang_preprocess::MemoryMode;
 use crate::ops::{eval_binary_op, get_length, read_index, read_member, write_index, write_member};
 use crate::runtime::ownership;
+use crate::runtime::stdlib::object::object_oid_of;
 use crate::value::{AsyncBody, BytecodeFunction, Environment, Microtask, PromiseValue, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const MAX_BYTECODE_STACK: usize = 8192;
+
+/// P1: monomorphic GetMember inline cache (oid + const key index).
+struct MemberIc {
+    oid: Option<u64>,
+    key_idx: u16,
+}
+
+impl Default for MemberIc {
+    fn default() -> Self {
+        Self {
+            oid: None,
+            key_idx: 0,
+        }
+    }
+}
+
+thread_local! {
+    static MEMBER_IC: RefCell<MemberIc> = RefCell::new(MemberIc::default());
+}
+
+static MEMBER_IC_HITS: AtomicU64 = AtomicU64::new(0);
+static MEMBER_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+
+/// Diagnostic counters for GetMember IC (tests / `gc_frame_stats`-style probes).
+pub fn member_ic_stats() -> (u64, u64) {
+    (
+        MEMBER_IC_HITS.load(Ordering::Relaxed),
+        MEMBER_IC_MISSES.load(Ordering::Relaxed),
+    )
+}
+
+pub fn member_ic_reset_for_tests() {
+    MEMBER_IC_HITS.store(0, Ordering::Relaxed);
+    MEMBER_IC_MISSES.store(0, Ordering::Relaxed);
+    MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
+}
 
 fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
     if let Some(m) = module {
@@ -629,6 +667,7 @@ fn run_chunk(
                     return Err("Bytecode stack underflow on call".into());
                 }
                 let callee = stack.pop().ok_or("Bytecode stack underflow")?;
+                // Pop args in reverse order into a pre-sized vec (no insert(0)).
                 let mut call_args = Vec::with_capacity(n);
                 for _ in 0..n {
                     call_args.push(stack.pop().ok_or("Bytecode stack underflow")?);
@@ -692,8 +731,10 @@ fn run_chunk(
                 }
                 let mut items = Vec::with_capacity(count);
                 for _ in 0..count {
-                    items.insert(0, stack.pop().ok_or("Bytecode stack underflow")?);
+                    items.push(stack.pop().ok_or("Bytecode stack underflow")?);
                 }
+                items.reverse();
+                crate::runtime::stdlib::weak::note_heap_alloc(1);
                 push_stack(stack, Value::Array(items))?;
             }
             Opcode::MakeObject(n) => {
@@ -711,12 +752,39 @@ fn run_chunk(
                     map.insert(key, val);
                 }
                 crate::runtime::stdlib::object::object_oid(&mut map);
+                crate::runtime::stdlib::weak::note_heap_alloc(1);
                 push_stack(stack, Value::Object(map))?;
             }
             Opcode::IndexGet => {
                 let idx = stack.pop().ok_or("Bytecode stack underflow")?;
                 let container = stack.pop().ok_or("Bytecode stack underflow")?;
-                push_stack(stack, read_index(&container, &idx, env)?)?;
+                // P1: fast path for array[number] without symbol/proxy checks.
+                let fast = match (&container, &idx) {
+                    (Value::Array(items), Value::Number(n)) if *n >= 0 => {
+                        let i = *n as usize;
+                        if i < items.len() {
+                            Some(items[i].clone())
+                        } else {
+                            None
+                        }
+                    }
+                    (Value::Array(items), Value::Float(f))
+                        if *f >= 0.0 && f.fract() == 0.0 =>
+                    {
+                        let i = *f as usize;
+                        if i < items.len() {
+                            Some(items[i].clone())
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                if let Some(v) = fast {
+                    push_stack(stack, v)?;
+                } else {
+                    push_stack(stack, read_index(&container, &idx, env)?)?;
+                }
             }
             Opcode::IndexSet => {
                 let val = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -952,9 +1020,37 @@ fn run_chunk(
                 let key = member_name(constants, *key_idx)?;
                 let container = stack.pop().ok_or("Bytecode stack underflow")?;
                 let val = if let Value::EnumNamespace(type_name) = &container {
-                    crate::class::resolve_enum_member(type_name, &key, env)?
+                    crate::class::resolve_enum_member(type_name, key, env)?
+                } else if let Value::Object(map) = &container {
+                    // P1: monomorphic IC — own-map data property hit skips full read_member.
+                    let oid = object_oid_of(map);
+                    let ic_hit = oid
+                        .map(|oid| {
+                            MEMBER_IC.with(|ic| {
+                                let mut ic = ic.borrow_mut();
+                                if ic.oid == Some(oid) && ic.key_idx == *key_idx {
+                                    MEMBER_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                                    true
+                                } else {
+                                    MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+                                    ic.oid = Some(oid);
+                                    ic.key_idx = *key_idx;
+                                    false
+                                }
+                            })
+                        })
+                        .unwrap_or(false);
+                    if ic_hit {
+                        if let Some(v) = map.get(key) {
+                            v.clone()
+                        } else {
+                            read_member(&container, key, env)?
+                        }
+                    } else {
+                        read_member(&container, key, env)?
+                    }
                 } else {
-                    read_member(&container, &key, env)?
+                    read_member(&container, key, env)?
                 };
                 push_stack(
                     stack,
@@ -971,12 +1067,23 @@ fn run_chunk(
                         .map_err(|e| format!("class instance borrow: {e}"))?;
                     crate::class::type_check::validate_class_field_write(
                         &guard,
-                        &key,
+                        key,
                         &val,
                         env.classes(),
                     )?;
                 }
-                write_member(&mut container, &key, val.clone(), env)?;
+                // Invalidate IC for this object on write.
+                if let Value::Object(map) = &container {
+                    if let Some(oid) = object_oid_of(map) {
+                        MEMBER_IC.with(|ic| {
+                            let mut ic = ic.borrow_mut();
+                            if ic.oid == Some(oid) {
+                                ic.oid = None;
+                            }
+                        });
+                    }
+                }
+                write_member(&mut container, key, val.clone(), env)?;
                 push_stack(stack, container)?;
                 push_stack(stack, val)?;
             }
@@ -1164,8 +1271,8 @@ fn run_chunk(
                         variant: vr,
                         ..
                     } => {
-                        vr == &variant
-                            && (tn == &type_name
+                        vr == variant
+                            && (tn == type_name
                                 || tn.starts_with(&format!("{type_name}$")))
                     }
                     _ => false,
@@ -1233,7 +1340,7 @@ fn run_chunk(
             Opcode::JumpUnlessHasMember(key_idx, off) => {
                 let key = member_name(constants, *key_idx)?;
                 let v = stack.last().ok_or("Bytecode stack underflow")?;
-                let has = matches!(v, Value::Object(map) if map.contains_key(&key));
+                let has = matches!(v, Value::Object(map) if map.contains_key(key));
                 if !has {
                     *ip = ((*ip as i32 + 1) + off) as usize;
                     continue;
@@ -1374,14 +1481,14 @@ fn run_chunk(
                 push_stack(stack, instance)?;
             }
             Opcode::GetSuperMethod(key_idx) => {
-                let member_name = member_name(constants, *key_idx)?;
+                let member = member_name(constants, *key_idx)?;
                 let this_val = env
                     .get("this")
                     .ok_or_else(|| "`super` used outside of method".to_string())?;
                 let Value::ClassInstance(inst) = this_val else {
                     return Err("`super` requires class instance `this`".into());
                 };
-                let v = crate::evaluator::resolve_super_member(&inst, &member_name, env)?;
+                let v = crate::evaluator::resolve_super_member(&inst, member, env)?;
                 push_stack(stack, v)?;
             }
             Opcode::ResultQuestion => {
@@ -1822,7 +1929,13 @@ pub fn call_value(
                 );
             }
             let mut call_env = Environment::child_from(&func.closure);
-            let orig_args = args.clone();
+            // P1: skip cloning call args unless an Object may need oid writeback.
+            let needs_obj_writeback = args.iter().any(|a| matches!(a, Value::Object(_)));
+            let orig_args = if needs_obj_writeback {
+                args.clone()
+            } else {
+                Vec::new()
+            };
             let (result, local_vals) = run_bytecode_fn_with_locals(
                 func.def.as_ref(),
                 args,
@@ -1843,12 +1956,14 @@ pub fn call_value(
                 Some(&capture_names),
             );
             crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
-            crate::runtime::closure_sync::writeback_object_args(
-                func.def.as_ref(),
-                &orig_args,
-                &local_vals,
-                env,
-            );
+            if needs_obj_writeback {
+                crate::runtime::closure_sync::writeback_object_args(
+                    func.def.as_ref(),
+                    &orig_args,
+                    &local_vals,
+                    env,
+                );
+            }
             Ok(result)
         }
         Value::NativeFunction(f) => f(&args, env),
@@ -1983,9 +2098,9 @@ pub fn call_value(
     }
 }
 
-fn member_name(constants: &[Constant], idx: u16) -> Result<String, String> {
+fn member_name(constants: &[Constant], idx: u16) -> Result<&str, String> {
     match constants.get(idx as usize) {
-        Some(Constant::String(s)) => Ok(s.clone()),
+        Some(Constant::String(s)) => Ok(s.as_str()),
         _ => Err(format!("Invalid member name const index {idx}")),
     }
 }

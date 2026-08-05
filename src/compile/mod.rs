@@ -56,16 +56,21 @@ impl CompilePrefer {
 /// them self-host-compile in CI-fast time. Product `import` prefers self-host via
 /// `load_program_for_file` → `compile_file_prefer_cached` (Rust only while
 /// `KAB_VM_EXEC_ACTIVE`, or for these leaves / oversize).
+///
+/// P6 policy: **seed-only** — leaves stay skip-listed; kab-only loads committed
+/// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
+/// of these shards is CI-fast.
+pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
+    "self_host/emit_impl.kab",
+    "self_host/parser_impl.kab",
+    "self_host/lexer_impl.kab",
+    "self_host/serialize_body.kab",
+    "self_host/vm_run_body.kab",
+];
+
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
-    let core = [
-        "self_host/emit_impl.kab",
-        "self_host/parser_impl.kab",
-        "self_host/lexer_impl.kab",
-        "self_host/serialize_body.kab",
-        "self_host/vm_run_body.kab",
-    ];
-    for c in core {
+    for c in SELF_HOST_SKIP_LISTED_LEAVES {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
             return false;
         }
@@ -90,6 +95,11 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         return false;
     }
     true
+}
+
+/// P6: documented policy string for skip-listed leaves (`seed-only`).
+pub fn self_host_skip_policy() -> &'static str {
+    "seed-only"
 }
 
 /// True when `path` is a skip-listed self-host leaf (needs Rust compile or `.kbc` cache).

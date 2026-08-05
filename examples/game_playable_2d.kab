@@ -1,0 +1,67 @@
+// Playable 2D mini-demo: move with arrows, AABB wall, fixed timestep, few ticks.
+import "game/physics"
+import "game/input"
+import "game/time"
+
+platform_use("kabootar")
+let surf = game_surface_create(240, 160)
+let ctx = surf["ctx"]
+
+let player = { x: 40.0, y: 80.0, w: 16.0, h: 16.0 }
+let wall = { x: 120.0, y: 70.0, w: 24.0, h: 40.0 }
+let actions = createActions({
+    left: ["ArrowLeft"],
+    right: ["ArrowRight"],
+    up: ["ArrowUp"],
+    down: ["ArrowDown"],
+})
+let fixed = createFixed(1.0 / 60.0)
+let frames = 0
+let ok = true
+
+fn stepPhysics(dt) {
+    let speed = 90.0 * dt
+    if actionPressed(actions, "left") {
+        player["x"] = player["x"] - speed
+    }
+    if actionPressed(actions, "right") {
+        player["x"] = player["x"] + speed
+    }
+    if actionPressed(actions, "up") {
+        player["y"] = player["y"] - speed
+    }
+    if actionPressed(actions, "down") {
+        player["y"] = player["y"] + speed
+    }
+    if aabbOverlap(player, wall) {
+        player = resolveAabb(player, wall)
+    }
+}
+
+fn onFrame(delta_ms) {
+    let dt = dtSec(delta_ms)
+    fixedTick(fixed, dt, stepPhysics)
+    ctx.fillStyle = "#0a1520"
+    ctx.fillRect(0, 0, 240, 160)
+    ctx.fillStyle = "#c05040"
+    ctx.fillRect(wall["x"], wall["y"], wall["w"], wall["h"])
+    ctx.fillStyle = "#40c080"
+    ctx.fillRect(player["x"], player["y"], player["w"], player["h"])
+    surf.present()
+    frames = frames + 1
+}
+
+input_key_down("ArrowRight")
+requestAnimationFrame(onFrame)
+game_tick()
+requestAnimationFrame(onFrame)
+game_tick()
+requestAnimationFrame(onFrame)
+game_tick()
+input_key_up("ArrowRight")
+input_key_down("ArrowDown")
+requestAnimationFrame(onFrame)
+game_tick()
+
+ok = frames >= 4 && aabbOverlap(player, wall) == false && player["x"] > 40.0
+ok

@@ -2121,6 +2121,31 @@ fn h6e_skip_listed_kab_only_uses_seed() {
     );
 }
 
+/// P6: seed-only policy — every skip-listed leaf has a committed fingerprint seed.
+#[test]
+fn p6_seed_only_all_leaves_have_seeds() {
+    use kabootar_lib::compile::{
+        seed_kbc_path, self_host_is_skip_listed, self_host_skip_policy, SELF_HOST_SKIP_LISTED_LEAVES,
+    };
+
+    assert_eq!(self_host_skip_policy(), "seed-only");
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 5);
+    let root = env!("CARGO_MANIFEST_DIR");
+    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+        let path = format!("{root}/{rel}");
+        assert!(
+            self_host_is_skip_listed(&path),
+            "{rel} must remain skip-listed under seed-only policy"
+        );
+        let seed = seed_kbc_path(&path).expect("seed path");
+        assert!(
+            seed.is_file(),
+            "missing committed seed for {rel}: {}",
+            seed.display()
+        );
+    }
+}
+
 /// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
 #[test]
 fn h6e_skip_listed_kab_only_no_seed_fails() {

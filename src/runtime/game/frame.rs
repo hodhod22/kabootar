@@ -55,6 +55,8 @@ pub fn has_pending_frames() -> bool {
 }
 
 pub fn tick(env: &mut Environment) -> Result<Value, String> {
+    crate::runtime::stdlib::weak::gc_frame_begin();
+
     let (delta_ms, frame_no, time_ms, callbacks) = FRAME_STATE.with(|s| {
         let mut s = s.borrow_mut();
         let now = unix_ms_now();
@@ -76,6 +78,9 @@ pub fn tick(env: &mut Environment) -> Result<Value, String> {
         call_value(cb, vec![delta_val.clone()], &[], &[], &[], &[], env)?;
     }
 
+    // P3: soft GC budget — sweep if this frame allocated heavily.
+    let _ = crate::runtime::stdlib::weak::gc_frame_maybe_sweep(env)?;
+
     Ok(frame_info_object(delta_ms, frame_no, time_ms))
 }
 
@@ -96,4 +101,5 @@ pub fn reset_for_tests() {
         s.last_tick_ms = unix_ms_now();
     });
     NEXT_FRAME_ID.with(|n| *n.borrow_mut() = 1);
+    crate::runtime::stdlib::weak::gc_frame_reset_for_tests();
 }
