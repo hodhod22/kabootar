@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// science/tensor — ownership-steered data buffers + GC metadata.
+//
+// Policy:
+//   • Tensor *data* (`__buf` / NdShared): unique ownership when not viewed.
+//     `Tensor(...)` always materializes a unique buffer; `take` moves it.
+//   • Views (`slice` / `viewOf`): explicit shared (GC) handles on the same buffer.
+//   • Models, autograd/lazy graphs, and `meta`: ordinary GC objects.
+// Requires `import "science"` (nd_* natives).
+
+/// Create a tensor with a unique owned buffer. Optional `shape`; otherwise 1-D.
+pub fn Tensor(data, shape) {
+    if shape == null || shape == undefined {
+        return nd_tensor(data)
+    }
+    return nd_tensor(data, shape)
+}
+
+pub fn isTensor(t) {
+    return t != null && t["kind"] == "tensor"
+}
+
+pub fn isOwner(t) {
+    return nd_is_owner(t)
+}
+
+pub fn isMoved(t) {
+    return nd_is_moved(t)
+}
+
+/// Move unique buffer ownership. Source is marked `__moved` (use-after-move errors).
+pub fn take(t) {
+    return nd_take(t)
+}
+
+/// Explicit shared view (GC). Prefer this over accidental aliasing.
+pub fn viewOf(t, ranges) {
+    return nd_slice(t, ranges)
+}
+
+/// Materialize a unique owned copy (COW).
+pub fn owned(t) {
+    let a = nd_ensure_owned(t)
+    a["kind"] = "tensor"
+    if t["meta"] != null {
+        a["meta"] = t["meta"]
+    } else {
+        a["meta"] = {}
+    }
+    return a
+}
+
+pub fn setMeta(t, key, val) {
+    if t["meta"] == null {
+        t["meta"] = {}
+    }
+    t["meta"][key] = val
+    return t
+}
+
+pub fn getMeta(t, key) {
+    if t["meta"] == null {
+        return null
+    }
+    return t["meta"][key]
+}

@@ -9,11 +9,19 @@
 | **GC (default)** | Web, Kv8, UI, de flesta `.kab` | Referenser + GC. Ingen ownership-syntax. |
 | **`@manual`** | kOS, buffertar, netstack | Affine **Owned** + borrow. Compile-time check + runtime safety net. |
 
-## Vad som *inte* finns (medvetet)
+## Science tensors (buffer ownership ≠ `@manual`)
 
-- Lifetimes / lifetime-elision
-- Ownership i GC-moduler
-- Implicit copy av `Owned` (det är felet — använd `owned_move` / move via assign/call, eller `&`)
+Science keeps a **hybrid** memory model (not full `@manual` affine on every array):
+
+| Piece | Model | API |
+|-------|--------|-----|
+| **Tensor / nd buffer** (`__buf`, `NdShared`) | Ownership-steered when unique | `Tensor(...)`, `ensureOwned`, `take` / `nd_take`, `isOwner` |
+| **Views** | Shared Rc (GC handles) | `slice` / `viewOf` — cannot dangle while any handle lives |
+| **Lazy graphs, models, `meta`** | GC objects | `science/lazy`, `tensor.meta` |
+
+`take` moves a unique buffer and marks the source `__moved` (use-after-move errors). Shared views must be dropped or `ensureOwned` first (view creation is recorded so `take` rejects even when sibling locals are outside the callee env).
+
+For OS/netstacks use `@manual` + `Owned` (MemBox). Science tensors stay on the GC product surface with explicit buffer ownership.
 
 ## Typer (O2–O3)
 

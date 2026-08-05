@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// DX7 — Kab session helpers (self-host subset). Thin Rust REPL may call these.
+
+/// Help text for exploration REPL / notebook chrome.
+pub fn helpText() {
+    return "Kabootar session helpers\n  helpText() / commands()\n  listVars(envNames)\n  summarizeValue(v)\n  sciencePreset()\n"
+}
+
+/// Canonical colon-command names (docs parity with CLI REPL).
+pub fn commands() {
+    return [
+        ":help",
+        ":quit",
+        ":reset",
+        ":load",
+        ":vars",
+        ":science",
+        ":type",
+        ":history"
+    ]
+}
+
+/// Filter binding names for :vars-style listing (drop internals).
+pub fn listVars(names) {
+    let out = []
+    let i = 0
+    while i < len(names) {
+        let n = names[i]
+        if n != null && len(n) > 0 {
+            if !(len(n) >= 1 && string_starts_with(n, "_")) {
+                out = push(out, n)
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Rough kind string for a value (Kab-side :type helper).
+pub fn summarizeValue(v) {
+    if v == null {
+        return "null"
+    }
+    if v == undefined {
+        return "undefined"
+    }
+    let t = typeof(v)
+    if t == "object" && v["shape"] != null && v["size"] != null {
+        return "ndarray"
+    }
+    if t == "object" && v["kind"] == "figure" {
+        return "figure"
+    }
+    if t == "object" && v["backend"] != null {
+        return "gpu_tensor"
+    }
+    return t
+}
+
+/// Suggested imports for :science preset.
+pub fn sciencePreset() {
+    return {
+        "imports": ["science", "science/nd", "science/io", "science/visualize", "science/parallel"],
+        "hint": "import \"science\"; import \"science/bootstrap\""
+    }
+}

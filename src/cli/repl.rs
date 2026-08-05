@@ -145,7 +145,14 @@ fn handle_command(cmd: &str, session: &mut Session, rl: &rustyline::DefaultEdito
 
     match head {
         ":quit" | ":exit" | ":q" => return true,
-        ":help" | ":h" | ":?" => println!("{HELP}"),
+        ":help" | ":h" | ":?" => {
+            println!("{HELP}");
+            if let Ok(Value::String(extra)) =
+                session.eval_cell("import \"dx/session\"; helpText()")
+            {
+                println!("{extra}");
+            }
+        }
         ":reset" => {
             session.reset();
             println!("(reset)");

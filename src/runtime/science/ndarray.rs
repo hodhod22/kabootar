@@ -3,17 +3,44 @@
 //! Zero-copy views share an `NdShared` (`Rc<Vec<f64>>`) buffer — cloning a view
 //! increments the Rc, so buffers cannot dangle while any view/owner lives.
 //! Mutating ops copy-on-write when `strong_count > 1`.
+//!
+//! Buffer ownership: `nd_take` moves a unique buffer (rc ≤ 2 during the call =
+//! caller binding + arg clone) and marks the source `__moved` via OID writeback.
+//! Computation graphs / models / metadata stay GC objects (`science/lazy`,
+//! `science/tensor` meta).
 
 use super::helpers::{float_out, int_out, num, num_at, vector_at, vector_out};
+use crate::runtime::stdlib::object::{object_oid, object_oid_of, writeback_object_by_oid};
 use crate::value::{Environment, NdShared, Value};
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 const ND_MARK: &str = "__kab_nd";
 const ND_BUF: &str = "__buf";
 const ND_VIEW: &str = "view";
 const ND_OFFSET: &str = "offset";
 const ND_STRIDES: &str = "strides";
+const ND_MOVED: &str = "__moved";
 const SLICE_MARK: &str = "__kab_slice";
+
+thread_local! {
+    /// Outstanding zero-copy views per buffer pointer (incremented on view create).
+    /// Not decremented on drop — after views, `ensureOwned` / new data gets a new ptr.
+    static ND_VIEW_COUNTS: RefCell<HashMap<*const Vec<f64>, usize>> = RefCell::new(HashMap::new());
+}
+
+fn note_view_buf(buf: &NdShared) {
+    let ptr = Rc::as_ptr(&buf.data);
+    ND_VIEW_COUNTS.with(|m| {
+        *m.borrow_mut().entry(ptr).or_insert(0) += 1;
+    });
+}
+
+fn buffer_has_recorded_view(buf: &NdShared) -> bool {
+    let ptr = Rc::as_ptr(&buf.data);
+    ND_VIEW_COUNTS.with(|m| m.borrow().get(&ptr).copied().unwrap_or(0) > 0)
+}
 
 fn shape_val(shape: &[usize]) -> Value {
     Value::Array(
@@ -130,8 +157,12 @@ impl NdView {
 
     fn into_value_flag(self, force_view: Option<bool>) -> Value {
         let is_view = force_view.unwrap_or_else(|| !self.is_c_contiguous());
+        if is_view {
+            note_view_buf(&self.buf);
+        }
         let mut m = HashMap::new();
         m.insert(ND_MARK.into(), Value::Bool(true));
+        m.insert(ND_MOVED.into(), Value::Bool(false));
         m.insert(ND_BUF.into(), Value::NdShared(self.buf.clone()));
         m.insert("shape".into(), shape_val(&self.shape));
         m.insert(ND_STRIDES.into(), strides_val(&self.strides));
@@ -143,11 +174,19 @@ impl NdView {
         if !is_view {
             m.insert("data".into(), vector_out(self.buf.as_slice()));
         }
+        object_oid(&mut m);
         Value::Object(m)
     }
 }
 
+fn is_moved_map(m: &HashMap<String, Value>) -> bool {
+    matches!(m.get(ND_MOVED), Some(Value::Bool(true)))
+}
+
 fn nd_from_object(m: &HashMap<String, Value>) -> Result<NdView, String> {
+    if is_moved_map(m) {
+        return Err("nd: use after move (buffer taken)".into());
+    }
     let shape = parse_shape(m.get("shape").ok_or("nd missing shape")?)?;
     let dtype = match m.get("dtype") {
         Some(Value::String(s)) => s.clone(),
@@ -823,8 +862,231 @@ fn nd_buf_rc(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 }
 
 fn nd_ensure_owned(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    if let Some(Value::Object(m)) = args.first() {
+        if is_moved_map(m) {
+            return Err("nd_ensure_owned: use after move".into());
+        }
+    }
     let (shape, data) = nd_at(args, 0, "nd_ensure_owned")?;
     Ok(NdView::owned(shape, data, "f64").into_value())
+}
+
+/// Product constructor: unique buffer + GC `meta` in one object (no Kab MemberSet).
+fn nd_tensor(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let data = vector_at(args, 0, "nd_tensor")?;
+    let shape = if let Some(s) = args.get(1).filter(|s| !matches!(s, Value::Undefined | Value::Null))
+    {
+        let shape = parse_shape(s)?;
+        if shape_product(&shape) != data.len() {
+            return Err("nd_tensor: shape product must match data length".into());
+        }
+        shape
+    } else {
+        vec![data.len()]
+    };
+    let mut out = NdView::owned(shape, data, "f64").into_value();
+    if let Value::Object(ref mut m) = out {
+        m.insert("kind".into(), Value::String("tensor".into()));
+        m.insert("meta".into(), Value::Object(HashMap::new()));
+    }
+    Ok(out)
+}
+
+fn nd_is_moved(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    match args.first() {
+        Some(Value::Object(m)) => Ok(Value::Bool(is_moved_map(m))),
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn buf_ptr(buf: &NdShared) -> *const Vec<f64> {
+    Rc::as_ptr(&buf.data)
+}
+
+/// How many env object bindings currently hold this buffer (ignores stack temps).
+fn env_buffer_holders(env: &Environment, ptr: *const Vec<f64>) -> usize {
+    let mut n = 0usize;
+    for name in env.all_binding_names() {
+        let Some(live) = env.get(&name) else {
+            continue;
+        };
+        let Value::Object(m) = &live else {
+            continue;
+        };
+        if let Some(Value::NdShared(buf)) = m.get(ND_BUF) {
+            if buf_ptr(buf) == ptr {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+fn buffer_has_env_view(env: &Environment, ptr: *const Vec<f64>) -> bool {
+    for name in env.all_binding_names() {
+        let Some(live) = env.get(&name) else {
+            continue;
+        };
+        let Value::Object(m) = &live else {
+            continue;
+        };
+        if !matches!(m.get(ND_VIEW), Some(Value::Bool(true))) {
+            continue;
+        }
+        if let Some(Value::NdShared(buf)) = m.get(ND_BUF) {
+            if buf_ptr(buf) == ptr {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Count NdShared handles for `ptr` reachable from a value (object fields, arrays).
+fn count_buf_in_value(v: &Value, ptr: *const Vec<f64>, depth: usize) -> usize {
+    if depth > 6 {
+        return 0;
+    }
+    match v {
+        Value::NdShared(buf) if buf_ptr(buf) == ptr => 1,
+        Value::Object(m) => {
+            let mut n = 0;
+            for val in m.values() {
+                n += count_buf_in_value(val, ptr, depth + 1);
+            }
+            n
+        }
+        Value::Array(items) => items
+            .iter()
+            .map(|x| count_buf_in_value(x, ptr, depth + 1))
+            .sum(),
+        _ => 0,
+    }
+}
+
+fn env_buffer_mentions(env: &Environment, ptr: *const Vec<f64>) -> usize {
+    let mut n = 0usize;
+    for name in env.all_binding_names() {
+        if let Some(live) = env.get(&name) {
+            n += count_buf_in_value(&live, ptr, 0);
+        }
+    }
+    n
+}
+
+/// Unique buffer owner relative to env bindings (stack clones ignored).
+fn nd_is_owner(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    match args.first() {
+        Some(Value::Object(m))
+            if matches!(m.get(ND_MARK), Some(Value::Bool(true))) && !is_moved_map(m) =>
+        {
+            let is_view = matches!(m.get(ND_VIEW), Some(Value::Bool(true)));
+            let Some(Value::NdShared(buf)) = m.get(ND_BUF) else {
+                return Ok(Value::Bool(false));
+            };
+            let holders = env_buffer_holders(env, buf_ptr(buf));
+            // Call arg may or may not already be an env binding; unique ⇒ ≤1 env holder.
+            Ok(Value::Bool(!is_view && holders <= 1))
+        }
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+/// Move unique buffer ownership to a new ndarray; mark source `__moved` (OID writeback).
+///
+/// Uniqueness is based on env bindings that hold the buffer (not raw Rc — bytecode
+/// MemberSet/stack temps inflate Rc without true aliases).
+fn nd_take(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let arg0 = args.first().ok_or("nd_take(a)")?;
+    let Value::Object(m) = arg0 else {
+        return Err("nd_take: expected ndarray".into());
+    };
+    if !matches!(m.get(ND_MARK), Some(Value::Bool(true))) {
+        return Err("nd_take: expected ndarray".into());
+    }
+    if is_moved_map(m) {
+        return Err("nd_take: buffer already moved".into());
+    }
+    if matches!(m.get(ND_VIEW), Some(Value::Bool(true))) {
+        return Err("nd_take: cannot take a view (ensureOwned first)".into());
+    }
+    let shape = parse_shape(m.get("shape").ok_or("nd_take: missing shape")?)?;
+    let offset = m
+        .get(ND_OFFSET)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(0.0) as usize;
+    let strides = if let Some(s) = m.get(ND_STRIDES) {
+        parse_strides(s)?
+    } else {
+        strides_of(&shape)
+    };
+    let dtype = match m.get("dtype") {
+        Some(Value::String(s)) => s.clone(),
+        _ => "f64".into(),
+    };
+    if offset != 0 || strides != strides_of(&shape) {
+        return Err("nd_take: non-contiguous buffer (ensureOwned first)".into());
+    }
+    let Some(Value::NdShared(buf_ref)) = m.get(ND_BUF) else {
+        return Err("nd_take: missing buffer".into());
+    };
+    let ptr = buf_ptr(buf_ref);
+    if buffer_has_recorded_view(buf_ref) {
+        return Err(
+            "nd_take: buffer has a live view; ensureOwned or drop views first".into(),
+        );
+    }
+    let holders = env_buffer_holders(env, ptr);
+    let mentions = env_buffer_mentions(env, ptr);
+    let has_view = buffer_has_env_view(env, ptr);
+    // Unique: one logical owner. Shared: a live view or multiple env holders.
+    // (Raw Rc is inflated by bytecode stack temps — do not use it here.)
+    if has_view || holders > 1 || mentions > 1 {
+        return Err(format!(
+            "nd_take: buffer is shared (holders={holders}, mentions={mentions}, view={has_view}); ensureOwned or drop views first"
+        ));
+    }
+
+    let oid = match object_oid_of(m) {
+        Some(id) => id,
+        None => {
+            let mut stamped = m.clone();
+            let id = object_oid(&mut stamped);
+            writeback_object_by_oid(&Value::Object(stamped), env);
+            id
+        }
+    };
+
+    let buf = match m.get(ND_BUF) {
+        Some(Value::NdShared(b)) => b.clone(),
+        _ => return Err("nd_take: missing buffer".into()),
+    };
+
+    let mut emptied = m.clone();
+    emptied.insert("__kab_oid".into(), Value::Number(oid as i64));
+    emptied.insert(ND_MOVED.into(), Value::Bool(true));
+    emptied.insert(ND_BUF.into(), Value::Null);
+    emptied.insert("rc".into(), Value::Number(0));
+    emptied.insert("data".into(), Value::Array(vec![]));
+    writeback_object_by_oid(&Value::Object(emptied), env);
+
+    let mut out = NdView {
+        buf,
+        offset: 0,
+        shape,
+        strides,
+        dtype,
+    }
+    .into_value();
+    if let Value::Object(ref mut om) = out {
+        if matches!(m.get("kind"), Some(Value::String(k)) if k == "tensor") {
+            om.insert("kind".into(), Value::String("tensor".into()));
+        }
+        if let Some(meta) = m.get("meta") {
+            om.insert("meta".into(), meta.clone());
+        }
+    }
+    Ok(out)
 }
 
 fn nd_concat(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1398,6 +1660,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_is_view", "nd_is_view"], nd_is_view);
     bind(&["science_nd_buf_rc", "nd_buf_rc"], nd_buf_rc);
     bind(&["science_nd_ensure_owned", "nd_ensure_owned"], nd_ensure_owned);
+    bind(&["science_nd_tensor", "nd_tensor"], nd_tensor);
+    bind(&["science_nd_take", "nd_take"], nd_take);
+    bind(&["science_nd_is_moved", "nd_is_moved"], nd_is_moved);
+    bind(&["science_nd_is_owner", "nd_is_owner"], nd_is_owner);
     bind(&["science_nd_concat", "nd_concat"], nd_concat);
     bind(&["science_nd_stack", "nd_stack"], nd_stack);
     bind(&["science_nd_split", "nd_split"], nd_split);

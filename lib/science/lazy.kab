@@ -1,0 +1,150 @@
+@version "1.0.0"
+
+// science/lazy — GC computation graph with lazy realize.
+//
+// Nodes are ordinary GC objects (`kind: "lazy"`). Tensor *buffers* stay on the
+// ownership path (`science/tensor` / `nd_take`); the graph itself is GC.
+// Autograd (`science/autograd`) remains an eager tape for backprop.
+// Requires `import "science"` (nd_* natives). Do not use `__kab_*` keys from Kab.
+
+fn lazyMark(node) {
+    node["kind"] = "lazy"
+    return node
+}
+
+/// Wrap an eager value / ndarray / tensor as a realized leaf.
+pub fn lazy(x) {
+    return lazyMark({
+        "op": "leaf",
+        "value": x,
+        "done": true
+    })
+}
+
+pub fn isLazy(n) {
+    return n != null && n["kind"] == "lazy"
+}
+
+pub fn lazyAdd(a, b) {
+    return lazyMark({ "op": "add", "a": a, "b": b, "done": false, "value": null })
+}
+
+pub fn lazySub(a, b) {
+    return lazyMark({ "op": "sub", "a": a, "b": b, "done": false, "value": null })
+}
+
+pub fn lazyMul(a, b) {
+    return lazyMark({ "op": "mul", "a": a, "b": b, "done": false, "value": null })
+}
+
+pub fn lazyDiv(a, b) {
+    return lazyMark({ "op": "div", "a": a, "b": b, "done": false, "value": null })
+}
+
+pub fn lazyMatmul(a, b) {
+    return lazyMark({ "op": "matmul", "a": a, "b": b, "done": false, "value": null })
+}
+
+pub fn lazyScale(a, s) {
+    return lazyMark({ "op": "scale", "a": a, "s": s, "done": false, "value": null })
+}
+
+pub fn lazyRelu(a) {
+    return lazyMark({ "op": "relu", "a": a, "done": false, "value": null })
+}
+
+fn asNd(x) {
+    // `__kab_nd` is not readable from Kab; use public shape/size.
+    if x != null && x["shape"] != null && x["size"] != null {
+        return x
+    }
+    return nd_from(x)
+}
+
+fn applyOp(op, a, b, s) {
+    if op == "add" {
+        return nd_add(asNd(a), asNd(b))
+    }
+    if op == "sub" {
+        return nd_sub(asNd(a), asNd(b))
+    }
+    if op == "mul" {
+        return nd_mul(asNd(a), asNd(b))
+    }
+    if op == "div" {
+        return nd_div(asNd(a), asNd(b))
+    }
+    if op == "matmul" {
+        return nd_matmul(asNd(a), asNd(b))
+    }
+    if op == "scale" {
+        return nd_scale(asNd(a), s)
+    }
+    if op == "relu" {
+        return nd_clip(asNd(a), 0.0, 1.0e308)
+    }
+    throw "lazy: unknown op"
+}
+
+/// Recursively evaluate a lazy node; memoizes `value` / `done` on the GC node.
+pub fn realize(node) {
+    if !isLazy(node) {
+        return node
+    }
+    if node["done"] == true {
+        return node["value"]
+    }
+    let op = node["op"]
+    if op == "leaf" {
+        node["done"] = true
+        return node["value"]
+    }
+    let left = null
+    let right = null
+    if node["a"] != null {
+        left = realize(node["a"])
+    }
+    if node["b"] != null {
+        right = realize(node["b"])
+    }
+    let out = applyOp(op, left, right, node["s"])
+    node["value"] = out
+    node["done"] = true
+    return out
+}
+
+pub fn evalLazy(node) {
+    return realize(node)
+}
+
+/// Clear memo so the node re-runs on next realize (structure kept).
+pub fn clearLazy(node) {
+    if !isLazy(node) {
+        return node
+    }
+    if node["op"] != "leaf" {
+        node["done"] = false
+        node["value"] = null
+        if node["a"] != null {
+            clearLazy(node["a"])
+        }
+        if node["b"] != null {
+            clearLazy(node["b"])
+        }
+    }
+    return node
+}
+
+/// Tiny GC "model": named lazy outputs (metadata + graph; weights as tensors).
+pub fn LazyModel(outputs) {
+    return {
+        "kind": "lazy_model",
+        "outputs": outputs,
+        "meta": {}
+    }
+}
+
+pub fn modelRealize(model, name) {
+    let node = model["outputs"][name]
+    return realize(node)
+}

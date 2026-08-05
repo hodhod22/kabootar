@@ -105,3 +105,75 @@ pub fn greedyAction(q, s, nActions) {
     }
     return best
 }
+
+/// Softmax over a preference vector.
+pub fn softmaxPrefs(prefs) {
+    let maxv = prefs[0]
+    let i = 1
+    while i < len(prefs) {
+        if prefs[i] > maxv {
+            maxv = prefs[i]
+        }
+        i = i + 1
+    }
+    let ex = []
+    let sum = 0.0
+    i = 0
+    while i < len(prefs) {
+        let e = exp(prefs[i] - maxv)
+        ex = push(ex, e)
+        sum = sum + e
+        i = i + 1
+    }
+    let out = []
+    i = 0
+    while i < len(ex) {
+        out = push(out, ex[i] / sum)
+        i = i + 1
+    }
+    return out
+}
+
+/// Sample action from softmax prefs (deterministic argmax if rng is null).
+pub fn sampleAction(prefs, rng) {
+    let p = softmaxPrefs(prefs)
+    if rng == null || rng == undefined {
+        let best = 0
+        let i = 1
+        while i < len(p) {
+            if p[i] > p[best] {
+                best = i
+            }
+            i = i + 1
+        }
+        return best
+    }
+    let u = rng
+    let cum = 0.0
+    let i = 0
+    while i < len(p) {
+        cum = cum + p[i]
+        if u <= cum {
+            return i
+        }
+        i = i + 1
+    }
+    return len(p) - 1
+}
+
+/// REINFORCE update: prefs[a] += lr * advantage * (1 - pi[a]); others -= lr * advantage * pi[i].
+/// Returns updated preference vector.
+pub fn reinforceUpdate(prefs, action, advantage, lr) {
+    let pi = softmaxPrefs(prefs)
+    let out = []
+    let i = 0
+    while i < len(prefs) {
+        let g = 0.0 - pi[i]
+        if i == action {
+            g = 1.0 - pi[i]
+        }
+        out = push(out, prefs[i] + lr * advantage * g)
+        i = i + 1
+    }
+    return out
+}
