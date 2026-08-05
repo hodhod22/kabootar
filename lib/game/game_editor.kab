@@ -1,0 +1,21 @@
+@version "1.0.0"
+
+// GP7 entry — full editor shell composition. import after game modules.
+// kabootar run examples/game_editor.kab  (or import "game/game_editor")
+
+pub import "game/scene"
+pub import "game/editor"
+pub import "game/ui"
+pub import "game/anim"
+pub import "game/particles"
+
+pub fn bootEditor(rootName) {
+    let root = createNode(rootName)
+    let ed = createEditor(root)
+    let panel = createPanel("tools", 0, 0, 320, 40)
+    panel = addWidget(panel, createButton("play", "Play", 0, 0, 64, 28))
+    panel = addWidget(panel, createButton("pause", "Pause", 0, 0, 64, 28))
+    panel = layoutRow(panel, 8)
+    ed["toolbarUi"] = panel
+    return refresh(ed)
+}

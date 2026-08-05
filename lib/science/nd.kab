@@ -110,3 +110,12 @@ pub fn save(a, path) {
 pub fn load(path) {
     return nd_load(path)
 }
+
+pub fn gemm(a, m, k, b, n) {
+    return sci_gemm(a, m, k, b, n)
+}
+
+/// BLAS-style DGEMM: C := alpha*A*B + beta*C (row-major flat).
+pub fn blasDgemm(a, m, k, b, n, alpha, beta, c) {
+    return sci_blas_dgemm(a, m, k, b, n, alpha, beta, c)
+}

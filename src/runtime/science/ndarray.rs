@@ -787,6 +787,41 @@ fn sci_gemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(vector_out(&gemm_blocked(m, k, n, &a, &b)))
 }
 
+/// sci_blas_dgemm(a, m, k, b, n, alpha?, beta?, c?) — BLAS-style DGEMM API (SC4a).
+/// Computes alpha*A*B + beta*C (C optional zeros). Pure blocked f64; no external lib yet.
+fn sci_blas_dgemm(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = vector_at(args, 0, "sci_blas_dgemm")?;
+    let m = num_at(args, 1, "sci_blas_dgemm")? as usize;
+    let k = num_at(args, 2, "sci_blas_dgemm")? as usize;
+    let b = vector_at(args, 3, "sci_blas_dgemm")?;
+    let n = num_at(args, 4, "sci_blas_dgemm")? as usize;
+    let alpha = args.get(5).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    let beta = args.get(6).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    if m == 0 || k == 0 || n == 0 || a.len() != m * k || b.len() != k * n {
+        return Err("sci_blas_dgemm: size mismatch".into());
+    }
+    let mut out = gemm_blocked(m, k, n, &a, &b);
+    if (alpha - 1.0).abs() > 1e-15 {
+        for v in &mut out {
+            *v *= alpha;
+        }
+    }
+    if beta.abs() > 1e-15 {
+        let c = if let Some(cv) = args.get(7) {
+            vector_at(&[cv.clone()], 0, "sci_blas_dgemm C")?
+        } else {
+            vec![0.0; m * n]
+        };
+        if c.len() != m * n {
+            return Err("sci_blas_dgemm: C size".into());
+        }
+        for i in 0..out.len() {
+            out[i] += beta * c[i];
+        }
+    }
+    Ok(vector_out(&out))
+}
+
 /// Gaussian elimination with partial pivoting for square Ax=b (SC1b).
 fn nd_solve(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a_flat) = nd_at(args, 0, "nd_solve")?;
@@ -1111,4 +1146,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sci_vmul", "sci_vmul"], sci_vmul);
     bind(&["science_sci_dot", "sci_dot"], sci_dot);
     bind(&["science_sci_gemm", "sci_gemm"], sci_gemm);
+    bind(&["science_sci_blas_dgemm", "sci_blas_dgemm"], sci_blas_dgemm);
 }

@@ -1,0 +1,71 @@
+@version "1.0.0"
+
+// GP6c — Partikelsystem. import "game/particles"
+
+pub fn createEmitter(x, y, z, rate) {
+    return {
+        "x": x, "y": y, "z": z,
+        "rate": rate,
+        "particles": [],
+        "acc": 0.0,
+        "life": 1.0,
+        "speed": 50.0
+    }
+}
+
+pub fn emitBurst(emitter, n) {
+    let i = 0
+    let parts = emitter["particles"]
+    while i < n {
+        let ang = i * 0.785
+        parts = push(parts, {
+            "x": emitter["x"],
+            "y": emitter["y"],
+            "z": emitter["z"],
+            "vx": cos(ang) * emitter["speed"],
+            "vy": sin(ang) * emitter["speed"],
+            "vz": 0.0,
+            "life": emitter["life"],
+            "age": 0.0
+        })
+        i = i + 1
+    }
+    emitter["particles"] = parts
+    return emitter
+}
+
+pub fn stepEmitter(emitter, dt) {
+    emitter["acc"] = emitter["acc"] + emitter["rate"] * dt
+    while emitter["acc"] >= 1.0 {
+        emitter = emitBurst(emitter, 1)
+        emitter["acc"] = emitter["acc"] - 1.0
+    }
+    let alive = []
+    let i = 0
+    let parts = emitter["particles"]
+    while i < len(parts) {
+        let p = parts[i]
+        p["age"] = p["age"] + dt
+        p["x"] = p["x"] + p["vx"] * dt
+        p["y"] = p["y"] + p["vy"] * dt
+        p["z"] = p["z"] + p["vz"] * dt
+        p["vy"] = p["vy"] - 80.0 * dt
+        if p["age"] < p["life"] {
+            alive = push(alive, p)
+        }
+        i = i + 1
+    }
+    emitter["particles"] = alive
+    return emitter
+}
+
+pub fn particlePositions(emitter) {
+    let out = []
+    let i = 0
+    while i < len(emitter["particles"]) {
+        let p = emitter["particles"][i]
+        out = push(out, { "x": p["x"], "y": p["y"], "z": p["z"] })
+        i = i + 1
+    }
+    return out
+}

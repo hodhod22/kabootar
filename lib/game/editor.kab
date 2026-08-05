@@ -1,24 +1,27 @@
 @version "1.0.0"
 
-// Kabootar game/editor — scene hierarchy + inspector panels (GP4b subset).
-// Plain object UI descriptors (no full kOS required for smoke).
-// import "game/editor"
+// GP7 — Scene editor MVP (hierarchy, inspector, scene/game view, DnD, live-edit).
+// import "game/scene" + "game/editor" (this module deepens editor).
 
 import "game/scene"
 
 pub fn createEditor(root) {
-    return { root: root, selected: null, hierarchy: [], inspector: null }
-}
-
-pub fn selectNode(editor, node) {
-    editor["selected"] = node
-    editor["inspector"] = buildInspector(node)
-    return editor
+    return {
+        "root": root,
+        "selected": null,
+        "hierarchy": [],
+        "inspector": null,
+        "sceneView": { "camX": 0, "camY": 0, "camZ": 10, "zoom": 1.0, "mode": "scene" },
+        "gameView": { "playing": false, "paused": false, "time": 0.0 },
+        "undo": [],
+        "clipboard": null,
+        "drag": null
+    }
 }
 
 pub fn buildHierarchy(root) {
     let rows = []
-    let stack = [{ node: root, depth: 0 }]
+    let stack = [{ "node": root, "depth": 0 }]
     while len(stack) > 0 {
         let top = stack[len(stack) - 1]
         let rest = []
@@ -31,18 +34,18 @@ pub fn buildHierarchy(root) {
         let node = top["node"]
         let depth = top["depth"]
         rows = push(rows, {
-            name: node["name"],
-            depth: depth,
-            x: node["x"],
-            y: node["y"],
-            z: node["z"],
-            layer: node["layer"],
-            childCount: len(node["children"])
+            "name": node["name"],
+            "depth": depth,
+            "x": node["x"],
+            "y": node["y"],
+            "z": node["z"],
+            "layer": node["layer"],
+            "childCount": len(node["children"]),
+            "node": node
         })
-        // push children in reverse so left-to-right order when popping
         let i = len(node["children"]) - 1
         while i >= 0 {
-            stack = push(stack, { node: node["children"][i], depth: depth + 1 })
+            stack = push(stack, { "node": node["children"][i], "depth": depth + 1 })
             i = i - 1
         }
     }
@@ -51,16 +54,17 @@ pub fn buildHierarchy(root) {
 
 pub fn buildInspector(node) {
     if node == null || node == undefined {
-        return { empty: true }
+        return { "empty": true }
     }
     return {
-        empty: false,
-        name: node["name"],
-        x: node["x"],
-        y: node["y"],
-        z: node["z"],
-        layer: node["layer"],
-        world: worldPos(node)
+        "empty": false,
+        "name": node["name"],
+        "x": node["x"],
+        "y": node["y"],
+        "z": node["z"],
+        "layer": node["layer"],
+        "world": worldPos(node),
+        "fields": ["name", "x", "y", "z", "layer"]
     }
 }
 
@@ -72,11 +76,154 @@ pub fn refresh(editor) {
     return editor
 }
 
+pub fn selectNode(editor, node) {
+    editor["selected"] = node
+    editor["inspector"] = buildInspector(node)
+    return editor
+}
+
+pub fn pushUndo(editor, snap) {
+    editor["undo"] = push(editor["undo"], snap)
+    return editor
+}
+
 pub fn inspectSetLocal(editor, x, y, z) {
     if editor["selected"] == null {
         return editor
     }
+    editor = pushUndo(editor, {
+        "node": editor["selected"],
+        "x": editor["selected"]["x"],
+        "y": editor["selected"]["y"],
+        "z": editor["selected"]["z"]
+    })
     editor["selected"] = setLocal(editor["selected"], x, y, z)
     editor["inspector"] = buildInspector(editor["selected"])
     return editor
+}
+
+/// Scene view camera orbit/pan/zoom descriptors.
+pub fn sceneOrbit(editor, dx, dy) {
+    editor["sceneView"]["camX"] = editor["sceneView"]["camX"] + dx
+    editor["sceneView"]["camY"] = editor["sceneView"]["camY"] + dy
+    return editor
+}
+
+pub fn sceneZoom(editor, delta) {
+    let z = editor["sceneView"]["zoom"] + delta
+    if z < 0.1 {
+        z = 0.1
+    }
+    editor["sceneView"]["zoom"] = z
+    return editor
+}
+
+pub fn buildSceneView(editor) {
+    let rows = editor["hierarchy"]
+    if rows == null || len(rows) == 0 {
+        editor = refresh(editor)
+        rows = editor["hierarchy"]
+    }
+    let gizmos = []
+    let i = 0
+    while i < len(rows) {
+        let r = rows[i]
+        gizmos = push(gizmos, {
+            "name": r["name"],
+            "x": r["x"],
+            "y": r["y"],
+            "z": r["z"],
+            "selected": editor["selected"] != null && editor["selected"]["name"] == r["name"]
+        })
+        i = i + 1
+    }
+    return {
+        "mode": "scene",
+        "camera": editor["sceneView"],
+        "gizmos": gizmos
+    }
+}
+
+pub fn play(editor) {
+    editor["gameView"]["playing"] = true
+    editor["gameView"]["paused"] = false
+    return editor
+}
+
+pub fn pause(editor) {
+    editor["gameView"]["paused"] = true
+    return editor
+}
+
+pub fn stop(editor) {
+    editor["gameView"]["playing"] = false
+    editor["gameView"]["paused"] = false
+    editor["gameView"]["time"] = 0.0
+    return editor
+}
+
+pub fn stepGame(editor, dt) {
+    if editor["gameView"]["playing"] && editor["gameView"]["paused"] == false {
+        editor["gameView"]["time"] = editor["gameView"]["time"] + dt
+    }
+    return editor
+}
+
+pub fn buildGameView(editor) {
+    return {
+        "mode": "game",
+        "playing": editor["gameView"]["playing"],
+        "paused": editor["gameView"]["paused"],
+        "time": editor["gameView"]["time"],
+        "root": editor["root"]
+    }
+}
+
+/// Drag-and-drop: start dragging a hierarchy node or asset descriptor.
+pub fn dragStart(editor, payload) {
+    editor["drag"] = payload
+    return editor
+}
+
+pub fn dragDropOnNode(editor, targetNode) {
+    if editor["drag"] == null {
+        return editor
+    }
+    let payload = editor["drag"]
+    editor["drag"] = null
+    if payload["kind"] == "reparent" && payload["node"] != null {
+        targetNode = addChild(targetNode, payload["node"])
+        editor = refresh(editor)
+    }
+    if payload["kind"] == "asset" && payload["name"] != null {
+        let n = createNode(payload["name"])
+        if payload["x"] != null {
+            n = setLocal(n, payload["x"], payload["y"], payload["z"])
+        }
+        editor["root"] = addChild(editor["root"], n)
+        editor = refresh(editor)
+        editor = selectNode(editor, n)
+    }
+    return editor
+}
+
+/// Live-edit: apply property while game view may be playing.
+pub fn liveSet(editor, prop, value) {
+    if editor["selected"] == null {
+        return editor
+    }
+    editor["selected"][prop] = value
+    editor["inspector"] = buildInspector(editor["selected"])
+    return editor
+}
+
+pub fn editorLayout(editor) {
+    editor = refresh(editor)
+    return {
+        "hierarchy": editor["hierarchy"],
+        "inspector": editor["inspector"],
+        "sceneView": buildSceneView(editor),
+        "gameView": buildGameView(editor),
+        "toolbar": ["play", "pause", "stop", "undo"]
+    }
 }

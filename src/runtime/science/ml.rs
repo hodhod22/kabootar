@@ -513,6 +513,48 @@ fn job_map_parallel(args: &[Value], env: &mut Environment) -> Result<Value, Stri
     }
 }
 
+/// job_map_chunks(items, fn, nChunks?) — Kab-closure map with chunk metadata (SC4c).
+/// Closures run on the host thread (Environment is !Send); reports worker plan.
+fn job_map_chunks(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let items = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("job_map_chunks(items, fn, nChunks?)".into()),
+    };
+    let f = args
+        .get(1)
+        .cloned()
+        .ok_or_else(|| "job_map_chunks: missing fn".to_string())?;
+    let n_chunks = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(4.0)
+        .clamp(1.0, 64.0) as usize;
+    let n = items.len();
+    let chunk = ((n + n_chunks - 1) / n_chunks).max(1);
+    let mut out = Vec::with_capacity(n);
+    let mut chunk_sizes = Vec::new();
+    let mut i = 0;
+    while i < n {
+        let end = (i + chunk).min(n);
+        chunk_sizes.push(Value::Number((end - i) as i64));
+        for item in &items[i..end] {
+            let v =
+                crate::bytecode::call_value(f.clone(), vec![item.clone()], &[], &[], &[], &[], env)?;
+            out.push(v);
+        }
+        i = end;
+    }
+    let mut m = HashMap::new();
+    m.insert("data".into(), Value::Array(out));
+    m.insert("mode".into(), Value::String("sequential-chunked".into()));
+    m.insert(
+        "workers".into(),
+        Value::Number(chunk_sizes.len() as i64),
+    );
+    m.insert("chunk_sizes".into(), Value::Array(chunk_sizes));
+    Ok(Value::Object(m))
+}
+
 fn value_to_json(v: &Value) -> Result<serde_json::Value, String> {
     match v {
         Value::Null | Value::Undefined => Ok(serde_json::Value::Null),
@@ -640,4 +682,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     );
     bind(&["science_job_map", "job_map"], job_map);
     bind(&["science_job_map_parallel", "job_map_parallel"], job_map_parallel);
+    bind(&["science_job_map_chunks", "job_map_chunks"], job_map_chunks);
 }

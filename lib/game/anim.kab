@@ -1,0 +1,92 @@
+@version "1.0.0"
+
+// GP6a — Animation (clip/tween/state). import "game/anim"
+
+pub fn createClip(name, keys) {
+    return { "name": name, "keys": keys, "duration": keys[len(keys) - 1]["t"] }
+}
+
+pub fn lerp(a, b, t) {
+    return a + (b - a) * t
+}
+
+pub fn sampleClip(clip, t) {
+    let keys = clip["keys"]
+    if len(keys) == 0 {
+        return { "x": 0, "y": 0, "z": 0 }
+    }
+    if t <= keys[0]["t"] {
+        return { "x": keys[0]["x"], "y": keys[0]["y"], "z": keys[0]["z"] }
+    }
+    let last = keys[len(keys) - 1]
+    if t >= last["t"] {
+        return { "x": last["x"], "y": last["y"], "z": last["z"] }
+    }
+    let i = 0
+    while i < len(keys) - 1 {
+        let a = keys[i]
+        let b = keys[i + 1]
+        if t >= a["t"] && t <= b["t"] {
+            let u = (t - a["t"]) / (b["t"] - a["t"])
+            return {
+                "x": lerp(a["x"], b["x"], u),
+                "y": lerp(a["y"], b["y"], u),
+                "z": lerp(a["z"], b["z"], u)
+            }
+        }
+        i = i + 1
+    }
+    return { "x": last["x"], "y": last["y"], "z": last["z"] }
+}
+
+pub fn createTween(from, to, duration, easing) {
+    return { "from": from, "to": to, "duration": duration, "easing": easing, "t": 0.0 }
+}
+
+pub fn easeLinear(u) {
+    return u
+}
+
+pub fn easeInOut(u) {
+    if u < 0.5 {
+        return 2.0 * u * u
+    }
+    return 1.0 - pow(0.0 - 2.0 * u + 2.0, 2) / 2.0
+}
+
+pub fn stepTween(tween, dt) {
+    tween["t"] = tween["t"] + dt
+    let u = tween["t"] / tween["duration"]
+    if u > 1.0 {
+        u = 1.0
+    }
+    if tween["easing"] == "inOut" {
+        u = easeInOut(u)
+    } else {
+        u = easeLinear(u)
+    }
+    let from = tween["from"]
+    let to = tween["to"]
+    return {
+        "tween": tween,
+        "value": {
+            "x": lerp(from["x"], to["x"], u),
+            "y": lerp(from["y"], to["y"], u),
+            "z": lerp(from["z"], to["z"], u)
+        },
+        "done": tween["t"] >= tween["duration"]
+    }
+}
+
+pub fn createStateMachine(initial, transitions) {
+    return { "state": initial, "transitions": transitions }
+}
+
+pub fn smTrigger(sm, event) {
+    let key = ("" + sm["state"]) + ":" + event
+    let nxt = sm["transitions"][key]
+    if nxt != null && nxt != undefined {
+        sm["state"] = nxt
+    }
+    return sm
+}

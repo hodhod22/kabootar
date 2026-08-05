@@ -134,3 +134,7 @@ pub fn jobMap(items, f) {
 pub fn jobMapParallel(items, f, nWorkers) {
     return job_map_parallel(items, f, nWorkers)
 }
+
+pub fn jobMapChunks(items, f, nChunks) {
+    return job_map_chunks(items, f, nChunks)
+}
