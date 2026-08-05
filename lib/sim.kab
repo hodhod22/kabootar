@@ -1,0 +1,405 @@
+@version "1.0.0"
+
+// Kabootar sim — simulation / robotics / digital-twin MVP.
+// import "sim"
+// World + bodies + hinge/slider joints + joint-space ODE step + FK.
+// Builds on science mechanics concepts + game/physics3 scene placement.
+
+import "game/scene"
+import "game/physics3"
+import "science/mechanics"
+
+/// Default sim / twin parameters (Learn surface).
+pub fn defaultSimParams() {
+    return {
+        "gravity": -9.81,
+        "kp": 28.0,
+        "kd": 4.0,
+        "damping": 0.05,
+        "solver": "euler"
+    }
+}
+
+pub fn createWorld(params) {
+    if params == null || params == undefined {
+        params = defaultSimParams()
+    }
+    return {
+        "kind": "sim_world",
+        "params": params,
+        "bodies": [],
+        "joints": [],
+        "t": 0.0,
+        "ticks": 0,
+        "sensors": []
+    }
+}
+
+pub fn createBody(name, mass, x, y, z) {
+    if mass == null || mass == undefined {
+        mass = 1.0
+    }
+    if x == null { x = 0.0 }
+    if y == null { y = 0.0 }
+    if z == null { z = 0.0 }
+    let b = createRigidBody(x, y, z, mass)
+    b["name"] = name
+    b["role"] = "link"
+    return b
+}
+
+pub fn createFixedBase(name, x, y, z) {
+    let b = createStaticBody(x, y, z)
+    b["name"] = name
+    b["role"] = "base"
+    return b
+}
+
+/// Hinge joint in joint-space (articulated chain). axis: "y"|"z"|"x"
+pub fn createHinge(name, parentName, childName, axis, length, inertia) {
+    if axis == null { axis = "z" }
+    if length == null { length = 1.0 }
+    if inertia == null { inertia = 0.35 }
+    return {
+        "kind": "hinge",
+        "name": name,
+        "parent": parentName,
+        "child": childName,
+        "axis": axis,
+        "length": length,
+        "inertia": inertia,
+        "q": 0.0,
+        "qd": 0.0,
+        "qTarget": 0.0,
+        "tau": 0.0,
+        "qMin": -3.14,
+        "qMax": 3.14
+    }
+}
+
+/// Prismatic / slider joint (1D translation along axis).
+pub fn createSlider(name, parentName, childName, axis, stroke, inertia) {
+    if axis == null { axis = "y" }
+    if stroke == null { stroke = 1.0 }
+    if inertia == null { inertia = 1.0 }
+    return {
+        "kind": "slider",
+        "name": name,
+        "parent": parentName,
+        "child": childName,
+        "axis": axis,
+        "length": stroke,
+        "inertia": inertia,
+        "q": 0.0,
+        "qd": 0.0,
+        "qTarget": 0.0,
+        "tau": 0.0,
+        "qMin": 0.0,
+        "qMax": stroke
+    }
+}
+
+pub fn addBody(world, body) {
+    world["bodies"] = push(world["bodies"], body)
+    return world
+}
+
+pub fn addJoint(world, joint) {
+    world["joints"] = push(world["joints"], joint)
+    return world
+}
+
+pub fn findBody(world, name) {
+    let i = 0
+    while i < len(world["bodies"]) {
+        if world["bodies"][i]["name"] == name {
+            return world["bodies"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn findJoint(world, name) {
+    let i = 0
+    while i < len(world["joints"]) {
+        if world["joints"][i]["name"] == name {
+            return world["joints"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn setJointTarget(world, name, target) {
+    let joints = world["joints"]
+    let i = 0
+    let out = []
+    while i < len(joints) {
+        let j = joints[i]
+        if j["name"] == name {
+            j["qTarget"] = target
+        }
+        out = push(out, j)
+        i = i + 1
+    }
+    world["joints"] = out
+    return world
+}
+
+pub fn setJointTargets(world, targets) {
+    let joints = world["joints"]
+    let i = 0
+    let out = []
+    while i < len(joints) {
+        let j = joints[i]
+        let t = targets[j["name"]]
+        if t != null && t != undefined {
+            j["qTarget"] = t
+        }
+        out = push(out, j)
+        i = i + 1
+    }
+    world["joints"] = out
+    return world
+}
+
+pub fn applyLiveParams(world, patch) {
+    let p = world["params"]
+    if patch["gravity"] != null { p["gravity"] = patch["gravity"] }
+    if patch["kp"] != null { p["kp"] = patch["kp"] }
+    if patch["kd"] != null { p["kd"] = patch["kd"] }
+    if patch["damping"] != null { p["damping"] = patch["damping"] }
+    if patch["solver"] != null { p["solver"] = patch["solver"] }
+    world["params"] = p
+    return world
+}
+
+fn clampJoint(j) {
+    if j["q"] < j["qMin"] {
+        j["q"] = j["qMin"]
+        j["qd"] = 0.0
+    }
+    if j["q"] > j["qMax"] {
+        j["q"] = j["qMax"]
+        j["qd"] = 0.0
+    }
+    return j
+}
+
+/// PD torque + viscous damping → joint acceleration (ODE lite).
+fn jointAccelAt(j, params, q, qd) {
+    let kp = params["kp"]
+    let kd = params["kd"]
+    let damp = params["damping"]
+    if damp == null || damp == undefined {
+        damp = 0.05
+    }
+    let inertia = j["inertia"]
+    if inertia == null || inertia == 0.0 {
+        inertia = 0.35
+    }
+    let tau = kp * (j["qTarget"] - q) - kd * qd
+    return (tau - damp * qd) / inertia
+}
+
+fn jointAccel(j, params) {
+    let qdd = jointAccelAt(j, params, j["q"], j["qd"])
+    j["tau"] = params["kp"] * (j["qTarget"] - j["q"]) - params["kd"] * j["qd"]
+    return qdd
+}
+
+/// One Euler step of joint-space ODE.
+fn stepJointEuler(j, params, dt) {
+    let qdd = jointAccel(j, params)
+    j["qd"] = j["qd"] + qdd * dt
+    j["q"] = j["q"] + j["qd"] * dt
+    return clampJoint(j)
+}
+
+/// RK4 on joint state (q, qd).
+fn stepJointRk4(j, params, dt) {
+    let q0 = j["q"]
+    let qd0 = j["qd"]
+    let k1q = qd0
+    let k1d = jointAccelAt(j, params, q0, qd0)
+    let k2q = qd0 + 0.5 * dt * k1d
+    let k2d = jointAccelAt(j, params, q0 + 0.5 * dt * k1q, qd0 + 0.5 * dt * k1d)
+    let k3q = qd0 + 0.5 * dt * k2d
+    let k3d = jointAccelAt(j, params, q0 + 0.5 * dt * k2q, qd0 + 0.5 * dt * k2d)
+    let k4q = qd0 + dt * k3d
+    let k4d = jointAccelAt(j, params, q0 + dt * k3q, qd0 + dt * k3d)
+    j["q"] = q0 + (dt / 6.0) * (k1q + 2.0 * k2q + 2.0 * k3q + k4q)
+    j["qd"] = qd0 + (dt / 6.0) * (k1d + 2.0 * k2d + 2.0 * k3d + k4d)
+    j["tau"] = params["kp"] * (j["qTarget"] - j["q"]) - params["kd"] * j["qd"]
+    return clampJoint(j)
+}
+
+/// Forward kinematics for serial chain (planar XY hinges + optional yaw about Y).
+pub fn updateForwardKinematics(world) {
+    let bodies = world["bodies"]
+    let base = null
+    let bi = 0
+    while bi < len(bodies) {
+        if bodies[bi]["role"] == "base" {
+            base = bodies[bi]
+        }
+        bi = bi + 1
+    }
+    if base == null {
+        return world
+    }
+    let px = base["x"]
+    let py = base["y"]
+    let pz = base["z"]
+    let angle = 0.0
+    let yaw = 0.0
+    let ji = 0
+    while ji < len(world["joints"]) {
+        let j = world["joints"][ji]
+        let ci = 0
+        let childIdx = null
+        while ci < len(bodies) {
+            if bodies[ci]["name"] == j["child"] {
+                childIdx = ci
+            }
+            ci = ci + 1
+        }
+        if childIdx != null {
+            if j["kind"] == "hinge" {
+                if j["axis"] == "y" {
+                    yaw = yaw + j["q"]
+                    let cY = cos(yaw)
+                    let sY = sin(yaw)
+                    px = px + j["length"] * cY
+                    pz = pz + j["length"] * sY
+                } else {
+                    angle = angle + j["q"]
+                    px = px + j["length"] * cos(angle)
+                    py = py + j["length"] * sin(angle)
+                }
+            }
+            if j["kind"] == "slider" {
+                if j["axis"] == "x" { px = px + j["q"] }
+                if j["axis"] == "y" { py = py + j["q"] }
+                if j["axis"] == "z" { pz = pz + j["q"] }
+            }
+            let child = bodies[childIdx]
+            child["x"] = px
+            child["y"] = py
+            child["z"] = pz
+            bodies[childIdx] = child
+        }
+        ji = ji + 1
+    }
+    world["bodies"] = bodies
+    return world
+}
+
+/// Advance simulation by dt (joint ODE + FK). Optional physics3 gravity on free bodies.
+pub fn step(world, dt) {
+    if dt == null || dt <= 0.0 {
+        dt = 1.0 / 60.0
+    }
+    let params = world["params"]
+    let ji = 0
+    let joints = world["joints"]
+    while ji < len(joints) {
+        if params["solver"] == "rk4" {
+            joints[ji] = stepJointRk4(joints[ji], params, dt)
+        } else {
+            joints[ji] = stepJointEuler(joints[ji], params, dt)
+        }
+        ji = ji + 1
+    }
+    world["joints"] = joints
+    world = updateForwardKinematics(world)
+    world["t"] = world["t"] + dt
+    world["ticks"] = world["ticks"] + 1
+    world["sensors"] = sampleSensors(world)
+    return world
+}
+
+pub fn stepN(world, dt, n) {
+    let i = 0
+    while i < n {
+        world = step(world, dt)
+        i = i + 1
+    }
+    return world
+}
+
+/// Encoder + IMU stubs (digital twin sensors).
+pub fn sampleSensors(world) {
+    let encoders = []
+    let ji = 0
+    while ji < len(world["joints"]) {
+        let j = world["joints"][ji]
+        encoders = push(encoders, {
+            "joint": j["name"],
+            "q": j["q"],
+            "qd": j["qd"],
+            "tau": j["tau"],
+            "kind": "encoder"
+        })
+        ji = ji + 1
+    }
+    let ee = null
+    if len(world["joints"]) > 0 {
+        let last = world["joints"][len(world["joints"]) - 1]
+        ee = findBody(world, last["child"])
+    }
+    let imu = {
+        "kind": "imu",
+        "ax": 0.0,
+        "ay": world["params"]["gravity"],
+        "az": 0.0,
+        "wx": 0.0,
+        "wy": 0.0,
+        "wz": 0.0
+    }
+    if ee != null {
+        imu["x"] = ee["x"]
+        imu["y"] = ee["y"]
+        imu["z"] = ee["z"]
+    }
+    return { "encoders": encoders, "imu": imu }
+}
+
+pub fn readEncoders(world) {
+    world["sensors"] = sampleSensors(world)
+    return world["sensors"]["encoders"]
+}
+
+pub fn readImu(world) {
+    world["sensors"] = sampleSensors(world)
+    return world["sensors"]["imu"]
+}
+
+/// Map sim world → GP7 editor scene (digital twin view).
+pub fn worldToEditor(world) {
+    let root = createNode("sim_twin")
+    let i = 0
+    while i < len(world["bodies"]) {
+        let b = world["bodies"][i]
+        let n = createNode(b["name"])
+        n = setLocal(n, b["x"], b["y"], b["z"])
+        if b["role"] == "base" {
+            n = setLayer(n, 0)
+        } else {
+            n = setLayer(n, 1)
+        }
+        root = addChild(root, n)
+        i = i + 1
+    }
+    return root
+}
+
+pub fn writeParamsFile(path, params) {
+    os_write(path, json_stringify(params))
+    return { "ok": true, "path": path }
+}
+
+pub fn readParamsFile(path) {
+    return json_parse(os_read(path))
+}
