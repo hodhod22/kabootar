@@ -1,0 +1,48 @@
+@version "1.0.0"
+
+// SC2h pipeline — compose transform + estimator (Kab-first).
+// import "science" then `import "science/pipeline"`.
+
+/// steps: [{name, fit?, transform?, predict?}, ...]
+/// fit(pipe, X, y) → fitted pipe (steps mutated with models)
+pub fn fit(pipe, x, y) {
+    let steps = pipe["steps"]
+    let cur = x
+    let i = 0
+    while i < len(steps) {
+        let step = steps[i]
+        if step["fit"] != null && step["fit"] != undefined {
+            let model = step["fit"](cur, y)
+            step["model"] = model
+            steps[i] = step
+            if step["transform"] != null && step["transform"] != undefined {
+                cur = step["transform"](model, cur)
+            }
+        }
+        i = i + 1
+    }
+    pipe["steps"] = steps
+    pipe["fitted"] = true
+    return pipe
+}
+
+pub fn predict(pipe, x) {
+    let steps = pipe["steps"]
+    let cur = x
+    let i = 0
+    while i < len(steps) {
+        let step = steps[i]
+        if step["transform"] != null && step["transform"] != undefined && step["model"] != null {
+            cur = step["transform"](step["model"], cur)
+        }
+        if step["predict"] != null && step["predict"] != undefined && step["model"] != null {
+            cur = step["predict"](step["model"], cur)
+        }
+        i = i + 1
+    }
+    return cur
+}
+
+pub fn make(steps) {
+    return { "steps": steps, "fitted": false }
+}

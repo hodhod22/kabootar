@@ -1,0 +1,9 @@
+@version "1.0.0"
+
+// SC5e — science bootstrap: product surface lives in lib/science/*.kab
+// After `import "science"` (natives), import this for Kab-first APIs.
+
+pub import "science/fit"
+pub import "science/kab_algo"
+pub import "science/pipeline"
+pub import "science/bench"

@@ -1,0 +1,186 @@
+@version "1.0.0"
+
+// SC5b — algorithms in pure Kab (call only thin natives where needed).
+// import "science" then `import "science/kab_algo"`.
+
+pub fn mean(xs) {
+    let n = len(xs)
+    if n == 0 {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        s = s + xs[i]
+        i = i + 1
+    }
+    return s / n
+}
+
+pub fn variance(xs) {
+    let n = len(xs)
+    if n < 2 {
+        return 0.0
+    }
+    let m = mean(xs)
+    let s = 0.0
+    let i = 0
+    while i < n {
+        let d = xs[i] - m
+        s = s + d * d
+        i = i + 1
+    }
+    return s / (n - 1)
+}
+
+pub fn std(xs) {
+    return sqrt(variance(xs))
+}
+
+pub fn zscore(xs) {
+    let m = mean(xs)
+    let s = std(xs)
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        let z = 0.0
+        if s > 0.000000000001 {
+            z = (xs[i] - m) / s
+        }
+        out = push(out, z)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn reluKab(xs) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        let v = xs[i]
+        if v < 0.0 {
+            v = 0.0
+        }
+        out = push(out, v)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn mseKab(y, pred) {
+    let n = len(y)
+    if n == 0 || n != len(pred) {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        let d = y[i] - pred[i]
+        s = s + d * d
+        i = i + 1
+    }
+    return s / n
+}
+
+pub fn clipKab(xs, lo, hi) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        let v = xs[i]
+        if v < lo {
+            v = lo
+        }
+        if v > hi {
+            v = hi
+        }
+        out = push(out, v)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn softmaxKab(xs) {
+    let maxv = xs[0]
+    let i = 1
+    while i < len(xs) {
+        if xs[i] > maxv {
+            maxv = xs[i]
+        }
+        i = i + 1
+    }
+    let ex = []
+    let sum = 0.0
+    i = 0
+    while i < len(xs) {
+        let e = exp(xs[i] - maxv)
+        ex = push(ex, e)
+        sum = sum + e
+        i = i + 1
+    }
+    let out = []
+    i = 0
+    while i < len(ex) {
+        out = push(out, ex[i] / sum)
+        i = i + 1
+    }
+    return out
+}
+
+/// Simple 1D linreg in Kab: returns [slope, intercept].
+pub fn linregKab(xs, ys) {
+    let n = len(xs)
+    if n == 0 || n != len(ys) {
+        return [0.0, 0.0]
+    }
+    let mx = mean(xs)
+    let my = mean(ys)
+    let num = 0.0
+    let den = 0.0
+    let i = 0
+    while i < n {
+        num = num + (xs[i] - mx) * (ys[i] - my)
+        den = den + (xs[i] - mx) * (xs[i] - mx)
+        i = i + 1
+    }
+    let slope = 0.0
+    if den > 0.000000000001 {
+        slope = num / den
+    }
+    return [slope, my - slope * mx]
+}
+
+/// Dot product in Kab (small vectors).
+pub fn dotKab(a, b) {
+    let n = len(a)
+    if n != len(b) {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        s = s + a[i] * b[i]
+        i = i + 1
+    }
+    return s
+}
+
+/// Moving average via Kab loop (SC5b port of boxcar).
+pub fn movingAvgKab(xs, window) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        let s = 0.0
+        let c = 0
+        let k = 0
+        while k < window {
+            if i >= k {
+                s = s + xs[i - k]
+                c = c + 1
+            }
+            k = k + 1
+        }
+        out = push(out, s / c)
+        i = i + 1
+    }
+    return out
+}

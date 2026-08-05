@@ -378,6 +378,177 @@ fn ml_logreg_predict(args: &[Value], _env: &mut Environment) -> Result<Value, St
     Ok(Value::Array(out))
 }
 
+fn class_ids_f(y: &[f64]) -> Vec<i64> {
+    y.iter().map(|v| v.round() as i64).collect()
+}
+
+fn gini(counts: &HashMap<i64, usize>, n: usize) -> f64 {
+    if n == 0 {
+        return 0.0;
+    }
+    let mut impurity = 1.0;
+    for c in counts.values() {
+        let p = *c as f64 / n as f64;
+        impurity -= p * p;
+    }
+    impurity
+}
+
+fn count_labels(y: &[i64], idx: &[usize]) -> HashMap<i64, usize> {
+    let mut m = HashMap::new();
+    for &i in idx {
+        *m.entry(y[i]).or_insert(0) += 1;
+    }
+    m
+}
+
+fn majority(counts: &HashMap<i64, usize>) -> i64 {
+    counts
+        .iter()
+        .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.cmp(a.0)))
+        .map(|(k, _)| *k)
+        .unwrap_or(0)
+}
+
+fn best_split(x: &[Vec<f64>], y: &[i64], idx: &[usize]) -> Option<(usize, f64, f64)> {
+    let d = x[0].len();
+    let parent = count_labels(y, idx);
+    let parent_gini = gini(&parent, idx.len());
+    let mut best: Option<(usize, f64, f64)> = None;
+    for feat in 0..d {
+        let mut vals: Vec<f64> = idx.iter().map(|&i| x[i][feat]).collect();
+        vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        vals.dedup_by(|a, b| (*a - *b).abs() < 1e-12);
+        for w in vals.windows(2) {
+            let thr = 0.5 * (w[0] + w[1]);
+            let mut left = Vec::new();
+            let mut right = Vec::new();
+            for &i in idx {
+                if x[i][feat] <= thr {
+                    left.push(i);
+                } else {
+                    right.push(i);
+                }
+            }
+            if left.is_empty() || right.is_empty() {
+                continue;
+            }
+            let lg = gini(&count_labels(y, &left), left.len());
+            let rg = gini(&count_labels(y, &right), right.len());
+            let n = idx.len() as f64;
+            let gain = parent_gini
+                - (left.len() as f64 / n) * lg
+                - (right.len() as f64 / n) * rg;
+            if best.as_ref().map(|b| gain > b.2).unwrap_or(true) {
+                best = Some((feat, thr, gain));
+            }
+        }
+    }
+    best.filter(|b| b.2 > 1e-12)
+}
+
+fn leaf_obj(label: i64) -> Value {
+    let mut m = HashMap::new();
+    m.insert("leaf".into(), Value::Bool(true));
+    m.insert("label".into(), int_out(label));
+    Value::Object(m)
+}
+
+fn build_tree(x: &[Vec<f64>], y: &[i64], idx: &[usize], depth: usize, max_depth: usize) -> Value {
+    let counts = count_labels(y, idx);
+    if depth >= max_depth || idx.len() <= 1 || counts.len() <= 1 {
+        return leaf_obj(majority(&counts));
+    }
+    let Some((feat, thr, _)) = best_split(x, y, idx) else {
+        return leaf_obj(majority(&counts));
+    };
+    let mut left_idx = Vec::new();
+    let mut right_idx = Vec::new();
+    for &i in idx {
+        if x[i][feat] <= thr {
+            left_idx.push(i);
+        } else {
+            right_idx.push(i);
+        }
+    }
+    let mut m = HashMap::new();
+    m.insert("leaf".into(), Value::Bool(false));
+    m.insert("feature".into(), int_out(feat as i64));
+    m.insert("threshold".into(), float_out(thr));
+    m.insert(
+        "left".into(),
+        build_tree(x, y, &left_idx, depth + 1, max_depth),
+    );
+    m.insert(
+        "right".into(),
+        build_tree(x, y, &right_idx, depth + 1, max_depth),
+    );
+    Value::Object(m)
+}
+
+fn predict_one(node: &Value, row: &[f64]) -> Result<i64, String> {
+    let Value::Object(m) = node else {
+        return Err("tree node".into());
+    };
+    if matches!(m.get("leaf"), Some(Value::Bool(true))) {
+        return match m.get("label") {
+            Some(v) => Ok(num(v)? as i64),
+            _ => Err("leaf label".into()),
+        };
+    }
+    let feat = num(m.get("feature").ok_or("feature")?)? as usize;
+    let thr = num(m.get("threshold").ok_or("threshold")?)?;
+    if feat >= row.len() {
+        return Err("feature OOB".into());
+    }
+    if row[feat] <= thr {
+        predict_one(m.get("left").ok_or("left")?, row)
+    } else {
+        predict_one(m.get("right").ok_or("right")?, row)
+    }
+}
+
+/// ml_stump_fit(X, y) → {feature, threshold, left, right} (depth-1 tree)
+fn ml_stump_fit(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = matrix_rows(args.first().ok_or("ml_stump_fit(X, y)")?)?;
+    let yf = vector_at(args, 1, "ml_stump_fit")?;
+    if x.len() != yf.len() || x.is_empty() {
+        return Err("ml_stump_fit: length mismatch".into());
+    }
+    let y = class_ids_f(&yf);
+    let idx: Vec<usize> = (0..x.len()).collect();
+    let tree = build_tree(&x, &y, &idx, 0, 1);
+    Ok(tree)
+}
+
+/// ml_tree_fit(X, y, maxDepth?) → decision tree object
+fn ml_tree_fit(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = matrix_rows(args.first().ok_or("ml_tree_fit(X, y)")?)?;
+    let yf = vector_at(args, 1, "ml_tree_fit")?;
+    if x.len() != yf.len() || x.is_empty() {
+        return Err("ml_tree_fit: length mismatch".into());
+    }
+    let max_depth = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(3.0)
+        .max(1.0) as usize;
+    let y = class_ids_f(&yf);
+    let idx: Vec<usize> = (0..x.len()).collect();
+    Ok(build_tree(&x, &y, &idx, 0, max_depth))
+}
+
+/// ml_tree_predict(tree, X) → class ids
+fn ml_tree_predict(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let tree = args.first().ok_or("ml_tree_predict(tree, X)")?;
+    let x = matrix_rows(args.get(1).ok_or("ml_tree_predict: X")?)?;
+    let mut out = Vec::with_capacity(x.len());
+    for row in &x {
+        out.push(int_out(predict_one(tree, row)?));
+    }
+    Ok(Value::Array(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_ml_pca", "ml_pca"], ml_pca);
     bind(&["science_ml_kmeans", "ml_kmeans"], ml_kmeans);
@@ -386,4 +557,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         &["science_ml_logreg_predict", "ml_logreg_predict"],
         ml_logreg_predict,
     );
+    bind(&["science_ml_stump_fit", "ml_stump_fit"], ml_stump_fit);
+    bind(&["science_ml_tree_fit", "ml_tree_fit"], ml_tree_fit);
+    bind(&["science_ml_tree_predict", "ml_tree_predict"], ml_tree_predict);
 }

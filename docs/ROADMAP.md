@@ -841,7 +841,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
 | **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | ✅ subset (`num_rk4`/`num_odeint`; adaptive/quad kvar) |
 | **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | ✅ subset (`num_interp_spline*`/`num_erf`/`num_gamma`/`num_bessel_j0`) |
-| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`; FIR/IIR kvar) |
+| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`/`num_fir`/`num_iir`/`num_biquad`) |
 | **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | ✅ subset (`sparse_*` CSR/COO/SpMV/lstsq) |
 
 #### SC2 — ML / AI (ersätt sklearn + PyTorch-subset)
@@ -854,8 +854,8 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2d** | **Dataset / batch** — shuffle, mini-batch, train/test split (**i Kab**) | ✅ subset (`ml_shuffle`/`ml_batch_slices`/`ml_train_test_split`) |
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`; conv kvar) |
-| **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_accuracy`/`ml_f1`/`ml_confusion`; AdamW/ROC kvar) |
-| **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`; tree/pipeline kvar) |
+| **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_adamw_update`/`ml_accuracy`/`ml_f1`/`ml_roc_auc`/`ml_confusion`) |
+| **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
 | **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | ✅ subset (`science/fit` + `ml_train_log` + rich progress) |
 | **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | ✅ subset (`tok_*`/`tf_transformer_forward`; train kvar) |
@@ -879,7 +879,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*`; **BLAS kvar**) |
-| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ staging; 📋 riktig compute kernel |
+| **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul f32 + CPU fallback; conv WGSL kvar) |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ sequential API; 📋 parallel |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
 | **SC4e** | **GPU train/infer path** — matmul/conv på device; host sync explicit | ✅ subset (`gpu_to_device`/`gpu_to_host`/`gpu_linear`/`gpu_conv2d`; real wgpu kernel kvar) |
@@ -892,16 +892,16 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **SC5a** | **Kab-algoritmer** — linalg/optimize/stats/ML-träningsloopar i `lib/science/*.kab` (anropa bara tunna primitives) | ✅ subset (`fit.kab`, tokenizer/transformer wrappers) |
-| **SC5b** | **Port natives → Kab** — `nd_*`/`ml_*`/`num_*` logik som kan vara ren Kab flyttas; Rust krymper till buffer/SIMD/GPU | 📋 |
-| **SC5c** | **Inga nya Rust-science-API** — CI/policy: nya exports bara via `lib/science` | 📋 |
+| **SC5b** | **Port natives → Kab** — `nd_*`/`ml_*`/`num_*` logik som kan vara ren Kab flyttas; Rust krymper till buffer/SIMD/GPU | ✅ subset (`kab_algo`: mean/std/zscore/softmax/linreg/dot/movingAvg; vidare port kvar) |
+| **SC5c** | **Inga nya Rust-science-API** — CI/policy: nya exports bara via `lib/science` | ✅ subset (policy i SCIENCE.md; wrappers obligatoriska för produkt-API) |
 | **SC5d** | **Hotpath-kontrakt** — dokumenterad lista: vilka ops får native (matmul, FFT, GPU); resten Kab | ✅ subset (SCIENCE.md hotpath-tabell) |
-| **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | 📋 |
+| **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | ✅ subset (`import "science/bootstrap"`) |
 | **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | ✅ subset (`examples/science_freedom_demo.kab`) |
 
 **SC-ordning:** SC2j → SC1h–j → SC2k → SC4f → **SC5** (Kab-first parallellt).
 
-**Checkpoint SC (nästa):** SC5b–e full Kab-port + trees + real GPU kernels.  
-**Checkpoint SC (landad 2026-08):** **spline/special/sparse + signal++ + AI delete-gate + sci_bench + SC5f demo**.  
+**Checkpoint SC (nästa):** conv WGSL kernels + deeper Kab-port + adaptive ODE/quad.  
+**Checkpoint SC (landad 2026-08):** **FIR/IIR + WGSL matmul compute + deeper kab_algo**.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees.  
 **Checkpoint SC (AI-parity):** tokenizer/transformer-inference + SC2l + real GPU kernels.  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
@@ -1030,7 +1030,7 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  ████████████████  SC1h–j/SC2l/SC4f/SC5f landad; SC5b–e + trees kvar
+Våg SC (STEM)  ████████████████  FIR/IIR + WGSL-matmul + kab_algo++ landad; conv-WGSL kvar
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```

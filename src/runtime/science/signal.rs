@@ -269,6 +269,87 @@ fn num_fft2d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(matrix_out(&data))
 }
 
+/// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
+fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let signal = vector_at(args, 0, "num_fir")?;
+    let coeffs = vector_at(args, 1, "num_fir")?;
+    if signal.is_empty() || coeffs.is_empty() {
+        return Err("num_fir: empty".into());
+    }
+    let m = coeffs.len();
+    let mut out = vec![0.0; signal.len()];
+    for n in 0..signal.len() {
+        let mut s = 0.0;
+        for k in 0..m {
+            if n >= k {
+                s += coeffs[k] * signal[n - k];
+            }
+        }
+        out[n] = s;
+    }
+    Ok(vector_out(&out))
+}
+
+/// num_moving_average(signal, window) — boxcar FIR.
+fn num_moving_average(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let signal = vector_at(args, 0, "num_moving_average")?;
+    let w = num_at(args, 1, "num_moving_average")? as usize;
+    if w == 0 {
+        return Err("num_moving_average: window > 0".into());
+    }
+    let coeffs = vec![1.0 / w as f64; w];
+    num_fir(&[vector_out(&signal), vector_out(&coeffs)], _env)
+}
+
+/// num_iir(signal, b, a) — Direct Form I; a[0] is a0 (normalized if needed).
+fn num_iir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let signal = vector_at(args, 0, "num_iir")?;
+    let b = vector_at(args, 1, "num_iir")?;
+    let a = vector_at(args, 2, "num_iir")?;
+    if signal.is_empty() || b.is_empty() || a.is_empty() {
+        return Err("num_iir: empty".into());
+    }
+    if a[0].abs() < 1e-15 {
+        return Err("num_iir: a0 near zero".into());
+    }
+    let a0 = a[0];
+    let mut y = vec![0.0; signal.len()];
+    for n in 0..signal.len() {
+        let mut s = 0.0;
+        for k in 0..b.len() {
+            if n >= k {
+                s += b[k] * signal[n - k];
+            }
+        }
+        for k in 1..a.len() {
+            if n >= k {
+                s -= a[k] * y[n - k];
+            }
+        }
+        y[n] = s / a0;
+    }
+    Ok(vector_out(&y))
+}
+
+/// num_biquad(signal, b0,b1,b2,a0,a1,a2) — second-order IIR convenience.
+fn num_biquad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let signal = args.first().ok_or("num_biquad")?.clone();
+    let b0 = num_at(args, 1, "num_biquad")?;
+    let b1 = num_at(args, 2, "num_biquad")?;
+    let b2 = num_at(args, 3, "num_biquad")?;
+    let a0 = num_at(args, 4, "num_biquad")?;
+    let a1 = num_at(args, 5, "num_biquad")?;
+    let a2 = num_at(args, 6, "num_biquad")?;
+    num_iir(
+        &[
+            signal,
+            vector_out(&[b0, b1, b2]),
+            vector_out(&[a0, a1, a2]),
+        ],
+        env,
+    )
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_num_fft", "num_fft"], num_fft);
     bind(&["science_num_ifft", "num_ifft"], num_ifft);
@@ -278,4 +359,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_num_window_hamming", "num_window_hamming"], num_window_hamming);
     bind(&["science_num_stft", "num_stft"], num_stft);
     bind(&["science_num_fft2d", "num_fft2d"], num_fft2d);
+    bind(&["science_num_fir", "num_fir"], num_fir);
+    bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);
+    bind(&["science_num_iir", "num_iir"], num_iir);
+    bind(&["science_num_biquad", "num_biquad"], num_biquad);
 }

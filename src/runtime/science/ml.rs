@@ -319,6 +319,85 @@ fn ml_train_test_split(args: &[Value], _env: &mut Environment) -> Result<Value, 
     Ok(Value::Object(out))
 }
 
+/// AdamW: returns {w, m, v, t} with decoupled weight decay.
+fn ml_adamw_update(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let w = vector_at(args, 0, "ml_adamw_update")?;
+    let grad = vector_at(args, 1, "ml_adamw_update")?;
+    let mut m = vector_at(args, 2, "ml_adamw_update")?;
+    let mut v = vector_at(args, 3, "ml_adamw_update")?;
+    let t = num_at(args, 4, "ml_adamw_update")? as i64;
+    let lr = args.get(5).and_then(|x| num(x).ok()).unwrap_or(0.001);
+    let beta1 = args.get(6).and_then(|x| num(x).ok()).unwrap_or(0.9);
+    let beta2 = args.get(7).and_then(|x| num(x).ok()).unwrap_or(0.999);
+    let eps = args.get(8).and_then(|x| num(x).ok()).unwrap_or(1e-8);
+    let wd = args.get(9).and_then(|x| num(x).ok()).unwrap_or(0.01);
+    if w.len() != grad.len() || w.len() != m.len() || w.len() != v.len() {
+        return Err("ml_adamw_update: length mismatch".into());
+    }
+    let t_new = t + 1;
+    let mut w_new = w.clone();
+    for i in 0..w.len() {
+        m[i] = beta1 * m[i] + (1.0 - beta1) * grad[i];
+        v[i] = beta2 * v[i] + (1.0 - beta2) * grad[i] * grad[i];
+        let mhat = m[i] / (1.0 - beta1.powi(t_new as i32));
+        let vhat = v[i] / (1.0 - beta2.powi(t_new as i32));
+        w_new[i] -= lr * mhat / (vhat.sqrt() + eps);
+        w_new[i] -= lr * wd * w[i];
+    }
+    let mut out = HashMap::new();
+    out.insert("w".into(), vector_out(&w_new));
+    out.insert("m".into(), vector_out(&m));
+    out.insert("v".into(), vector_out(&v));
+    out.insert("t".into(), int_out(t_new));
+    Ok(Value::Object(out))
+}
+
+/// Binary ROC-AUC (Mann–Whitney / trapezoid on sorted scores).
+fn ml_roc_auc(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let y = class_ids(args.first().ok_or("ml_roc_auc(y, scores)")?)?;
+    let scores = vector_at(args, 1, "ml_roc_auc")?;
+    if y.len() != scores.len() || y.is_empty() {
+        return Err("ml_roc_auc: length mismatch".into());
+    }
+    let mut pos = 0usize;
+    let mut neg = 0usize;
+    for &yi in &y {
+        if yi == 1 {
+            pos += 1;
+        } else {
+            neg += 1;
+        }
+    }
+    if pos == 0 || neg == 0 {
+        return Err("ml_roc_auc: need both classes".into());
+    }
+    let mut pairs: Vec<(f64, i64)> = scores.iter().copied().zip(y.iter().copied()).collect();
+    pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    let mut tp = 0.0;
+    let mut fp = 0.0;
+    let mut prev_tpr = 0.0;
+    let mut prev_fpr = 0.0;
+    let mut auc = 0.0;
+    let mut i = 0usize;
+    while i < pairs.len() {
+        let s = pairs[i].0;
+        while i < pairs.len() && (pairs[i].0 - s).abs() < 1e-15 {
+            if pairs[i].1 == 1 {
+                tp += 1.0;
+            } else {
+                fp += 1.0;
+            }
+            i += 1;
+        }
+        let tpr = tp / pos as f64;
+        let fpr = fp / neg as f64;
+        auc += (fpr - prev_fpr) * (tpr + prev_tpr) / 2.0;
+        prev_tpr = tpr;
+        prev_fpr = fpr;
+    }
+    Ok(float_out(auc))
+}
+
 fn job_map(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let items = match args.first() {
         Some(Value::Array(a)) => a.clone(),
@@ -442,8 +521,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_ml_sgd_update", "ml_sgd_update"], ml_sgd_update);
     bind(&["science_ml_linreg_step", "ml_linreg_step"], ml_linreg_step);
     bind(&["science_ml_adam_update", "ml_adam_update"], ml_adam_update);
+    bind(&["science_ml_adamw_update", "ml_adamw_update"], ml_adamw_update);
     bind(&["science_ml_accuracy", "ml_accuracy"], ml_accuracy);
     bind(&["science_ml_f1", "ml_f1"], ml_f1);
+    bind(&["science_ml_roc_auc", "ml_roc_auc"], ml_roc_auc);
     bind(&["science_ml_confusion", "ml_confusion"], ml_confusion);
     bind(&["science_ml_shuffle", "ml_shuffle"], ml_shuffle);
     bind(&["science_ml_batch_slices", "ml_batch_slices"], ml_batch_slices);
