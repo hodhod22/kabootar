@@ -124,7 +124,7 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
 | `import "game/net"` | `createSession`, `encodeSnapshot`/`applySnapshot`, `sendTick`/`pollRemote` |
 | `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `buildSceneView` (+ **GPU viewport**), `selectNode`, `refresh` |
-| `import "game/sandbox"` | **Spelbyggare** — `createPuzzle`/`stepPuzzle`/`autoSolveTowardGoal`, `puzzleToEditor`/`editorPlaceBody`/`savePuzzleScene`, `applyLiveParams`/`attachParamsWatch`/`stampLearnReload`/`buildLesson` |
+| `import "game/sandbox"` | **Spelbyggare** — session/canvas, Play↔Edit↔Learn, level pack (`ksandbox`), `applyLiveParams`/`setLearnParam` |
 | `import "game/profiler"` | `createProfiler`, `beginFrame`/`endFrame`, `sample`, `drawOverlay` |
 | `import "game/host"` | `useHost`, `createHostSurface`, `presentOnce` |
 | `import "game/hot"` | `watch(path)`, `poll()` → changed paths (mtime) |
@@ -132,7 +132,7 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 
 Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `host_read_bytes`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
 
-`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game_playable_2d.kab`. **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — Play (fjäder/gravitation) + Edit (GP7 → `.kscene`) + Learn (params + hot-reload); exempel `examples/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`.
+`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game_playable_2d.kab`. **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — **session** (`createSession`/`stepSession`/`runSessionFrames`: canvas + pointer), Play↔Edit↔Learn (`enterEdit`/`applyEditorAndPlay`/`enterLearnMode`/`setLearnParam`), multi-level (`defaultLevelPack`/`nextLevel`/`saveLevelPack`). Exempel `examples/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`.
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 

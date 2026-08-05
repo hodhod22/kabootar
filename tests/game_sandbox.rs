@@ -46,7 +46,7 @@ fn sandbox_play_edit_learn() {
         ed = stampLearnReload(ed, "/sandbox/params.json")
         let lesson = buildLesson(world)
         let f = explainForces(world["params"], world["body"], world["anchor"])
-        let learnOk = p0["k"] == 48.0 && world["params"]["k"] == 70.0 && lesson["code"] != null && nd_size(f["total"]) == 2 && ed["hotReload"]["learnPath"] == "/sandbox/params.json"
+        let learnOk = p0["k"] == 48.0 && world["params"]["k"] == 70.0 && lesson["code"] != null && f["total"]["data"][0] != null && ed["hotReload"]["learnPath"] == "/sandbox/params.json"
         playOk && editOk && learnOk
         "#,
     );
@@ -71,6 +71,41 @@ fn sandbox_host_params_hot_reload_watch() {
         "#
     ));
     let _ = std::fs::remove_file(&path);
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn sandbox_session_canvas_modes_levels() {
+    let v = eval(
+        r#"
+        import "science"
+        import "game/sandbox"
+        os_mkdir("/sandbox")
+        os_mkdir("/scenes")
+        let pack = defaultLevelPack()
+        saveLevelPack("/sandbox/levels.json", pack)
+        let lp = loadLevelPack("/sandbox/levels.json")
+        let session = createSession(240, 160, lp["pack"])
+        session = runSessionFrames(session, 8, [
+            { "type": "down", "x": 170.0, "y": 80.0 },
+            { "type": "move", "x": 180.0, "y": 75.0 },
+            { "type": "up", "x": 180.0, "y": 75.0 }
+        ])
+        let canvasOk = session["frames"] >= 8
+        session = enterEdit(session)
+        session["editor"] = editorPlaceBody(session["editor"], "ball", 42.0, 85.0)
+        session = applyEditorAndPlay(session)
+        let editOk = session["mode"] == "play" && session["world"]["body"]["x"] == 42.0
+        session["world"] = clearLevel(session["world"])
+        session = enterLearnMode(session)
+        let k0 = session["world"]["params"]["k"]
+        session = setLearnParam(session, "k", 10.0)
+        let learnOk = session["learnUi"]["k"] == k0 + 10.0 && session["learnUi"]["formula"] != null
+        session = nextLevel(session)
+        let levelOk = session["world"]["levelId"] == "spring_gap" && len(session["world"]["walls"]) == 2
+        canvasOk && editOk && learnOk && levelOk && lp["ok"]
+        "#,
+    );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
 

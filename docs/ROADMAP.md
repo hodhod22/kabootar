@@ -803,7 +803,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
 **Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; shadows/postfx polish.  
-**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + **sandbox force-puzzle** (Play/Edit/Learn) + GP6a/b/c/e/f/g/i.  
+**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + **sandbox force-puzzle session** (canvas Play↔Edit↔Learn + multi-level) + GP6a/b/c/e/f/g/i.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧

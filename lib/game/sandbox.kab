@@ -10,6 +10,7 @@ import "game/editor"
 import "game/save"
 import "game/physics"
 import "game/hot"
+import "game/ui"
 import "science/mechanics"
 
 /// Create a force-puzzle world (Play).
@@ -179,7 +180,9 @@ pub fn puzzleToEditor(world) {
     let ed = createEditor(root)
     ed["sandbox"] = {
         "params": world["params"],
-        "kind": "force_puzzle"
+        "kind": "force_puzzle",
+        "walls": world["walls"],
+        "levelId": world["levelId"]
     }
     return refresh(ed)
 }
@@ -243,6 +246,15 @@ pub fn editorToPuzzle(editor, params) {
         params = defaultParams()
     }
     let world = createPuzzle(params)
+    let sb = editor["sandbox"]
+    if sb != null && sb != undefined {
+        if sb["walls"] != null {
+            world["walls"] = sb["walls"]
+        }
+        if sb["levelId"] != null {
+            world["levelId"] = sb["levelId"]
+        }
+    }
     editor = refresh(editor)
     let rows = editor["hierarchy"]
     let i = 0
@@ -261,21 +273,38 @@ pub fn editorToPuzzle(editor, params) {
     return world
 }
 
-/// Save puzzle as .kscene via GP7 save.
+/// Save puzzle as .kscene via GP7 save (keeps sandbox walls/params in meta).
 pub fn savePuzzleScene(editor, path) {
-    let r = saveScene(editor, path)
-    return r
+    if path == null || path == undefined {
+        path = editor["scenePath"]
+    }
+    if path == null || path == undefined {
+        path = "/scenes/untitled.kscene"
+    }
+    editor["scenePath"] = path
+    let meta = { "editor": true }
+    if editor["sandbox"] != null {
+        meta["sandbox"] = editor["sandbox"]
+    }
+    let res = writeScene(path, editor["root"], meta)
+    return { "editor": editor, "result": res }
 }
 
 pub fn loadPuzzleScene(path, params) {
+    let text = os_read(path)
+    let doc = json_parse(text)
     let ed = createEditor(createNode("sandbox"))
-    let loaded = loadScene(ed, path)
-    ed = loaded["editor"]
-    if loaded["result"]["ok"] != true {
-        return { "ok": false, "world": null, "editor": ed }
+    if doc["format"] == "kscene" {
+        ed["root"] = deserializeScene(doc)
+        ed["scenePath"] = path
+        if doc["meta"] != null && doc["meta"]["sandbox"] != null {
+            ed["sandbox"] = doc["meta"]["sandbox"]
+        }
+        ed = refresh(ed)
+        let world = editorToPuzzle(ed, params)
+        return { "ok": true, "world": world, "editor": ed }
     }
-    let world = editorToPuzzle(ed, params)
-    return { "ok": true, "world": world, "editor": ed }
+    return { "ok": false, "world": null, "editor": ed }
 }
 
 /// Learn: write params JSON (hot-reload via `enableParamsHotReload` on host paths).
@@ -344,3 +373,447 @@ pub fn autoSolveTowardGoal(world, maxTicks) {
     world = endDrag(world)
     return world
 }
+
+// ---------------------------------------------------------------------------
+// Levels (multi-bane)
+// ---------------------------------------------------------------------------
+
+pub fn serializeLevel(world, id) {
+    if id == null || id == undefined {
+        id = "level"
+    }
+    return {
+        "id": id,
+        "params": world["params"],
+        "body": { "x": world["body"]["x"], "y": world["body"]["y"], "w": world["body"]["w"], "h": world["body"]["h"] },
+        "goal": world["goal"],
+        "walls": world["walls"],
+        "anchor": world["anchor"]
+    }
+}
+
+pub fn loadLevelSpec(spec, params) {
+    if params == null || params == undefined {
+        params = spec["params"]
+    }
+    if params == null || params == undefined {
+        params = defaultParams()
+    }
+    let world = createPuzzle(params)
+    if spec["body"] != null {
+        world["body"]["x"] = spec["body"]["x"]
+        world["body"]["y"] = spec["body"]["y"]
+        if spec["body"]["w"] != null { world["body"]["w"] = spec["body"]["w"] }
+        if spec["body"]["h"] != null { world["body"]["h"] = spec["body"]["h"] }
+    }
+    if spec["goal"] != null {
+        world["goal"] = spec["goal"]
+        if world["goal"]["name"] == null { world["goal"]["name"] = "goal" }
+    }
+    if spec["walls"] != null {
+        world["walls"] = spec["walls"]
+    }
+    if spec["anchor"] != null {
+        world["anchor"] = spec["anchor"]
+    }
+    world["cleared"] = false
+    world["dragging"] = false
+    world["mode"] = "play"
+    world["lesson"] = null
+    world["ticks"] = 0
+    world["levelId"] = spec["id"]
+    return world
+}
+
+pub fn createLevelPack(levels) {
+    return { "format": "ksandbox", "version": 1, "levels": levels }
+}
+
+pub fn defaultLevelPack() {
+    let a = serializeLevel(createPuzzle(defaultParams()), "intro")
+    let hard = createPuzzle({ "k": 55.0, "m": 1.2, "g": 14.0, "drag": 0.08, "rest": 0.0 })
+    hard["body"]["x"] = 30.0
+    hard["body"]["y"] = 40.0
+    hard["goal"]["x"] = 190.0
+    hard["goal"]["y"] = 100.0
+    hard["walls"] = [
+        { "x": 0.0, "y": 140.0, "w": 240.0, "h": 20.0 },
+        { "x": 100.0, "y": 60.0, "w": 20.0, "h": 60.0 }
+    ]
+    let b = serializeLevel(hard, "spring_gap")
+    return createLevelPack([a, b])
+}
+
+pub fn saveLevelPack(path, pack) {
+    os_write(path, json_stringify(pack))
+    return { "ok": true, "path": path, "count": len(pack["levels"]) }
+}
+
+pub fn loadLevelPack(path) {
+    let pack = json_parse(os_read(path))
+    if pack["format"] != "ksandbox" {
+        return { "ok": false, "pack": null }
+    }
+    return { "ok": true, "pack": pack }
+}
+
+pub fn levelFromPack(pack, index) {
+    if index < 0 || index >= len(pack["levels"]) {
+        return null
+    }
+    return loadLevelSpec(pack["levels"][index], null)
+}
+
+// ---------------------------------------------------------------------------
+// Session: Play ↔ Edit ↔ Learn (+ canvas)
+// ---------------------------------------------------------------------------
+
+pub fn createSession(width, height, pack) {
+    if width == null { width = 240 }
+    if height == null { height = 160 }
+    if pack == null || pack == undefined {
+        pack = defaultLevelPack()
+    }
+    let world = levelFromPack(pack, 0)
+    let surf = game_surface_create(width, height)
+    return {
+        "kind": "sandbox_session",
+        "width": width,
+        "height": height,
+        "surf": surf,
+        "ctx": surf["ctx"],
+        "world": world,
+        "editor": null,
+        "mode": "play",
+        "pack": pack,
+        "levelIndex": 0,
+        "frames": 0,
+        "pointerWasDown": false,
+        "toolbar": buildModeToolbar(),
+        "learnUi": null,
+        "scenePath": "/scenes/sandbox_current.kscene",
+        "paramsPath": "/sandbox/params.json"
+    }
+}
+
+pub fn buildModeToolbar() {
+    let panel = createPanel("modes", 4, 4, 220, 28)
+    panel = addWidget(panel, createButton("play", "Play", 0, 0, 52, 24))
+    panel = addWidget(panel, createButton("edit", "Edit", 0, 0, 52, 24))
+    panel = addWidget(panel, createButton("learn", "Learn", 0, 0, 56, 24))
+    panel = addWidget(panel, createButton("next", "Next", 0, 0, 52, 24))
+    return layoutRow(panel, 6)
+}
+
+/// Learn UI descriptors (labels + “sliders” as value buttons).
+pub fn buildLearnUi(world) {
+    let p = world["params"]
+    let lesson = world["lesson"]
+    if lesson == null {
+        lesson = buildLesson(world)
+    }
+    let panel = createPanel("learn", 8, 8, 224, 140)
+    panel = addWidget(panel, createLabel("title", lesson["title"], 8, 8))
+    panel = addWidget(panel, createLabel("code", "F=-k(p-a); a=F/m", 8, 28))
+    panel = addWidget(panel, createLabel("k", "k (stiffness)", 8, 50))
+    panel = addWidget(panel, createLabel("m", "m (mass)", 8, 70))
+    panel = addWidget(panel, createLabel("g", "g (gravity)", 8, 90))
+    panel = addWidget(panel, createButton("k_up", "k+", 140, 48, 36, 22))
+    panel = addWidget(panel, createButton("k_dn", "k-", 180, 48, 36, 22))
+    panel = addWidget(panel, createButton("g_up", "g+", 140, 88, 36, 22))
+    panel = addWidget(panel, createButton("g_dn", "g-", 180, 88, 36, 22))
+    panel = addWidget(panel, createButton("retry", "Retry", 8, 112, 64, 22))
+    return {
+        "panel": panel,
+        "lesson": lesson,
+        "hint": lesson["hint"],
+        "formula": lesson["code"],
+        "k": p["k"],
+        "m": p["m"],
+        "g": p["g"]
+    }
+}
+
+pub fn setLearnParam(session, key, delta) {
+    let p = session["world"]["params"]
+    if key == "k" {
+        session["world"] = applyLiveParams(session["world"], { "k": p["k"] + delta })
+    }
+    if key == "m" {
+        session["world"] = applyLiveParams(session["world"], { "m": p["m"] + delta })
+    }
+    if key == "g" {
+        session["world"] = applyLiveParams(session["world"], { "g": p["g"] + delta })
+    }
+    if key == "drag" {
+        session["world"] = applyLiveParams(session["world"], { "drag": p["drag"] + delta })
+    }
+    session["learnUi"] = buildLearnUi(session["world"])
+    writeParamsFile(session["paramsPath"], session["world"]["params"])
+    if session["editor"] != null {
+        session["editor"] = stampLearnReload(session["editor"], session["paramsPath"])
+    }
+    return session
+}
+
+pub fn enterPlay(session) {
+    if session["mode"] == "edit" && session["editor"] != null {
+        session["world"] = editorToPuzzle(session["editor"], session["world"]["params"])
+    }
+    session["world"]["cleared"] = false
+    session["world"]["dragging"] = false
+    session["world"]["body"]["vx"] = 0.0
+    session["world"]["body"]["vy"] = 0.0
+    session["world"]["mode"] = "play"
+    session["world"]["lesson"] = null
+    session["mode"] = "play"
+    session["learnUi"] = null
+    return session
+}
+
+pub fn enterEdit(session) {
+    session["editor"] = puzzleToEditor(session["world"])
+    session["mode"] = "edit"
+    session["world"]["mode"] = "edit"
+    return session
+}
+
+pub fn enterLearnMode(session) {
+    if session["world"]["lesson"] == null {
+        session["world"]["lesson"] = buildLesson(session["world"])
+    }
+    session["mode"] = "learn"
+    session["world"]["mode"] = "learn"
+    session["world"] = attachParamsWatch(session["world"], session["paramsPath"])
+    session["learnUi"] = buildLearnUi(session["world"])
+    if session["editor"] != null {
+        session["editor"] = stampLearnReload(session["editor"], session["paramsPath"])
+    }
+    return session
+}
+
+pub fn applyEditorAndPlay(session) {
+    if session["editor"] == null {
+        session["editor"] = puzzleToEditor(session["world"])
+    }
+    let saved = savePuzzleScene(session["editor"], session["scenePath"])
+    session["editor"] = saved["editor"]
+    session["world"] = editorToPuzzle(session["editor"], session["world"]["params"])
+    return enterPlay(session)
+}
+
+pub fn nextLevel(session) {
+    let i = session["levelIndex"] + 1
+    if i >= len(session["pack"]["levels"]) {
+        i = 0
+    }
+    session["levelIndex"] = i
+    session["world"] = levelFromPack(session["pack"], i)
+    session["editor"] = null
+    session["learnUi"] = null
+    session["mode"] = "play"
+    return session
+}
+
+pub fn drawPuzzle(ctx, world, width, height) {
+    ctx.fillStyle = "#0a1520"
+    ctx.fillRect(0, 0, width, height)
+    let wi = 0
+    while wi < len(world["walls"]) {
+        let wall = world["walls"][wi]
+        ctx.fillStyle = "#4a5568"
+        ctx.fillRect(wall["x"], wall["y"], wall["w"], wall["h"])
+        wi = wi + 1
+    }
+    let g = world["goal"]
+    ctx.fillStyle = "#2f6fed"
+    ctx.fillRect(g["x"], g["y"], g["w"], g["h"])
+    let b = world["body"]
+    ctx.fillStyle = "#40c080"
+    ctx.fillRect(b["x"] - b["w"] / 2.0, b["y"] - b["h"] / 2.0, b["w"], b["h"])
+    if world["dragging"] {
+        ctx.fillStyle = "#f0c040"
+        ctx.fillRect(world["anchor"]["x"] - 3.0, world["anchor"]["y"] - 3.0, 6.0, 6.0)
+        // spring cord approximation (segment dots)
+        let ax = world["anchor"]["x"]
+        let ay = world["anchor"]["y"]
+        let bx = b["x"]
+        let by = b["y"]
+        let s = 0
+        while s < 8 {
+            let t = s / 8.0
+            let px = bx + (ax - bx) * t
+            let py = by + (ay - by) * t
+            ctx.fillRect(px - 1.0, py - 1.0, 2.0, 2.0)
+            s = s + 1
+        }
+    }
+    return true
+}
+
+pub fn drawLearnOverlay(ctx, learnUi, width, height) {
+    ctx.fillStyle = "rgba(10,20,30,0.82)"
+    ctx.fillRect(0, 0, width, height)
+    ctx.fillStyle = "#e8eef7"
+    let lesson = learnUi["lesson"]
+    // Minimal text via fillRect bars (canvas text may vary); labels live in learnUi panel.
+    ctx.fillStyle = "#1b2838"
+    ctx.fillRect(12, 20, width - 24, 100)
+    ctx.fillStyle = "#40c080"
+    ctx.fillRect(20, 36, 8, 8)
+    return learnUi
+}
+
+pub fn drawToolbar(ctx, toolbar) {
+    let kids = toolbar["children"]
+    let i = 0
+    while i < len(kids) {
+        let w = kids[i]
+        if w["kind"] == "button" {
+            ctx.fillStyle = "#243044"
+            if w["pressed"] {
+                ctx.fillStyle = "#3d5a80"
+            }
+            ctx.fillRect(w["x"], w["y"], w["w"], w["h"])
+        }
+        i = i + 1
+    }
+    return toolbar
+}
+
+fn hitBall(world, x, y) {
+    let b = world["body"]
+    let dx = x - b["x"]
+    let dy = y - b["y"]
+    return dx * dx + dy * dy <= (b["r"] * 3.0) * (b["r"] * 3.0)
+}
+
+/// Pointer / toolbar handling for one frame.
+pub fn handleSessionPointer(session, pointer) {
+    let x = pointer["x"]
+    let y = pointer["y"]
+    let down = pointer["down"]
+    let was = session["pointerWasDown"]
+    if session["mode"] == "play" {
+        if down && was == false {
+            let hit = hitTest(session["toolbar"], x, y)
+            if hit != null {
+                session["toolbar"] = pressAt(session["toolbar"], x, y)
+                if hit["id"] == "edit" { session = enterEdit(session) }
+                if hit["id"] == "learn" { session = enterLearnMode(session) }
+                if hit["id"] == "next" { session = nextLevel(session) }
+            } else {
+                if hitBall(session["world"], x, y) {
+                    session["world"] = startDrag(session["world"], x, y)
+                } else {
+                    // Pull from empty space toward cursor (sandbox feel).
+                    session["world"] = startDrag(session["world"], x, y)
+                }
+            }
+        }
+        if down && session["world"]["dragging"] {
+            session["world"] = moveDrag(session["world"], x, y)
+        }
+        if down == false && was {
+            session["world"] = endDrag(session["world"])
+            // clear button pressed flags
+            let kids = session["toolbar"]["children"]
+            let i = 0
+            while i < len(kids) {
+                kids[i]["pressed"] = false
+                i = i + 1
+            }
+            session["toolbar"]["children"] = kids
+        }
+    }
+    if session["mode"] == "edit" {
+        if down && was == false {
+            let hit = hitTest(session["toolbar"], x, y)
+            if hit != null {
+                session["toolbar"] = pressAt(session["toolbar"], x, y)
+                if hit["id"] == "play" {
+                    session = applyEditorAndPlay(session)
+                }
+                if hit["id"] == "learn" { session = enterLearnMode(session) }
+                if hit["id"] == "next" { session = nextLevel(session) }
+            } else {
+                if session["editor"] == null {
+                    session["editor"] = puzzleToEditor(session["world"])
+                }
+                // Place ball under cursor (simple edit tool).
+                session["editor"] = editorPlaceBody(session["editor"], "ball", x, y)
+                session["world"] = editorToPuzzle(session["editor"], session["world"]["params"])
+            }
+        }
+    }
+    if session["mode"] == "learn" {
+        if down && was == false {
+            let hit = hitTest(session["toolbar"], x, y)
+            if hit != null {
+                session["toolbar"] = pressAt(session["toolbar"], x, y)
+                if hit["id"] == "play" { session = enterPlay(session) }
+                if hit["id"] == "edit" { session = enterEdit(session) }
+                if hit["id"] == "next" { session = nextLevel(session) }
+            } else {
+                if session["learnUi"] == null {
+                    session["learnUi"] = buildLearnUi(session["world"])
+                }
+                let lh = hitTest(session["learnUi"]["panel"], x, y)
+                if lh != null {
+                    if lh["id"] == "k_up" { session = setLearnParam(session, "k", 5.0) }
+                    if lh["id"] == "k_dn" { session = setLearnParam(session, "k", -5.0) }
+                    if lh["id"] == "g_up" { session = setLearnParam(session, "g", 1.0) }
+                    if lh["id"] == "g_dn" { session = setLearnParam(session, "g", -1.0) }
+                    if lh["id"] == "retry" { session = enterPlay(session) }
+                }
+            }
+        }
+    }
+    session["pointerWasDown"] = down
+    return session
+}
+
+/// One session frame: input → step → draw → present.
+pub fn stepSession(session, dt) {
+    let pollState = input_poll()
+    session = handleSessionPointer(session, pollState["pointer"])
+    if session["mode"] == "play" {
+        session["world"] = stepPuzzle(session["world"], dt)
+        if isCleared(session["world"]) {
+            session = enterLearnMode(session)
+        }
+    }
+    let ctx = session["ctx"]
+    drawPuzzle(ctx, session["world"], session["width"], session["height"])
+    if session["mode"] == "learn" && session["learnUi"] != null {
+        drawLearnOverlay(ctx, session["learnUi"], session["width"], session["height"])
+        drawToolbar(ctx, session["learnUi"]["panel"])
+    }
+    drawToolbar(ctx, session["toolbar"])
+    session["surf"].present()
+    session["frames"] = session["frames"] + 1
+    return session
+}
+
+/// Headless smoke: N frames with optional pointer script.
+pub fn runSessionFrames(session, n, script) {
+    let i = 0
+    while i < n {
+        if script != null && i < len(script) {
+            let ev = script[i]
+            if ev["type"] == "down" {
+                input_pointer_down(ev["x"], ev["y"])
+            }
+            if ev["type"] == "move" {
+                input_pointer_move(ev["x"], ev["y"])
+            }
+            if ev["type"] == "up" {
+                input_pointer_up(ev["x"], ev["y"])
+            }
+        }
+        session = stepSession(session, 1.0 / 60.0)
+        i = i + 1
+    }
+    return session
+}
+
