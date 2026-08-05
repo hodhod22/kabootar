@@ -1,7 +1,8 @@
-//! ML / AI subset for `import "science"` (SC2 — activations, dense, SGD).
+//! ML / AI subset for `import "science"` (SC2 — activations, dense, SGD, Adam, metrics, batch).
 
-use super::helpers::{float_out, num_at, vector_at, vector_out};
+use super::helpers::{float_out, int_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
+use std::collections::HashMap;
 
 fn ml_relu(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let x = vector_at(args, 0, "ml_relu")?;
@@ -47,8 +48,6 @@ fn ml_mse(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(float_out(s / y.len() as f64))
 }
 
-/// y = relu(W @ x + b) if activate, else W @ x + b.
-/// W flat row-major [out, in], x [in], b [out].
 fn ml_dense(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let w = vector_at(args, 0, "ml_dense")?;
     let x = vector_at(args, 1, "ml_dense")?;
@@ -81,7 +80,6 @@ fn ml_dense(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(vector_out(&y))
 }
 
-/// w := w - lr * grad  (elementwise).
 fn ml_sgd_update(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let w = vector_at(args, 0, "ml_sgd_update")?;
     let grad = vector_at(args, 1, "ml_sgd_update")?;
@@ -97,8 +95,6 @@ fn ml_sgd_update(args: &[Value], _env: &mut Environment) -> Result<Value, String
     ))
 }
 
-/// One linear regression SGD step on MSE: pred = w·x + b.
-/// Returns [w_new..., b_new] given flat params [w..., b], x, y_true, lr.
 fn ml_linreg_step(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let params = vector_at(args, 0, "ml_linreg_step")?;
     let x = vector_at(args, 1, "ml_linreg_step")?;
@@ -121,7 +117,208 @@ fn ml_linreg_step(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     Ok(vector_out(&out))
 }
 
-/// P8 subset: map `fn` over array items (sequential now; parallel later).
+/// Adam: returns {w, m, v, t}.
+fn ml_adam_update(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let w = vector_at(args, 0, "ml_adam_update")?;
+    let grad = vector_at(args, 1, "ml_adam_update")?;
+    let mut m = vector_at(args, 2, "ml_adam_update")?;
+    let mut v = vector_at(args, 3, "ml_adam_update")?;
+    let t = num_at(args, 4, "ml_adam_update")? as i64;
+    let lr = args.get(5).and_then(|x| num(x).ok()).unwrap_or(0.001);
+    let beta1 = args.get(6).and_then(|x| num(x).ok()).unwrap_or(0.9);
+    let beta2 = args.get(7).and_then(|x| num(x).ok()).unwrap_or(0.999);
+    let eps = args.get(8).and_then(|x| num(x).ok()).unwrap_or(1e-8);
+    if w.len() != grad.len() || w.len() != m.len() || w.len() != v.len() {
+        return Err("ml_adam_update: length mismatch".into());
+    }
+    let t_new = t + 1;
+    let mut w_new = w.clone();
+    for i in 0..w.len() {
+        m[i] = beta1 * m[i] + (1.0 - beta1) * grad[i];
+        v[i] = beta2 * v[i] + (1.0 - beta2) * grad[i] * grad[i];
+        let mhat = m[i] / (1.0 - beta1.powi(t_new as i32));
+        let vhat = v[i] / (1.0 - beta2.powi(t_new as i32));
+        w_new[i] -= lr * mhat / (vhat.sqrt() + eps);
+    }
+    let mut out = HashMap::new();
+    out.insert("w".into(), vector_out(&w_new));
+    out.insert("m".into(), vector_out(&m));
+    out.insert("v".into(), vector_out(&v));
+    out.insert("t".into(), int_out(t_new));
+    Ok(Value::Object(out))
+}
+
+fn class_ids(v: &Value) -> Result<Vec<i64>, String> {
+    match v {
+        Value::Array(items) => items
+            .iter()
+            .map(|x| match x {
+                Value::Number(n) => Ok(*n),
+                Value::Float(f) => Ok(f.round() as i64),
+                _ => Err("expected class id array".into()),
+            })
+            .collect(),
+        _ => Err("expected class id array".into()),
+    }
+}
+
+fn ml_accuracy(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let y = class_ids(args.first().ok_or("ml_accuracy(y, pred)")?)?;
+    let p = class_ids(args.get(1).ok_or("ml_accuracy(y, pred)")?)?;
+    if y.len() != p.len() || y.is_empty() {
+        return Err("ml_accuracy: length mismatch".into());
+    }
+    let ok = y.iter().zip(p.iter()).filter(|(a, b)| a == b).count();
+    Ok(float_out(ok as f64 / y.len() as f64))
+}
+
+fn ml_f1(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let y = class_ids(args.first().ok_or("ml_f1(y, pred)")?)?;
+    let p = class_ids(args.get(1).ok_or("ml_f1(y, pred)")?)?;
+    if y.len() != p.len() || y.is_empty() {
+        return Err("ml_f1: length mismatch".into());
+    }
+    let mut tp = 0.0;
+    let mut fp = 0.0;
+    let mut fn_ = 0.0;
+    for (yt, yp) in y.iter().zip(p.iter()) {
+        if *yp == 1 && *yt == 1 {
+            tp += 1.0;
+        } else if *yp == 1 && *yt == 0 {
+            fp += 1.0;
+        } else if *yp == 0 && *yt == 1 {
+            fn_ += 1.0;
+        }
+    }
+    let prec = if tp + fp == 0.0 { 0.0 } else { tp / (tp + fp) };
+    let rec = if tp + fn_ == 0.0 { 0.0 } else { tp / (tp + fn_) };
+    let f1 = if prec + rec == 0.0 {
+        0.0
+    } else {
+        2.0 * prec * rec / (prec + rec)
+    };
+    Ok(float_out(f1))
+}
+
+fn ml_confusion(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let y = class_ids(args.first().ok_or("ml_confusion")?)?;
+    let p = class_ids(args.get(1).ok_or("ml_confusion")?)?;
+    let n_classes = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or_else(|| {
+            y.iter()
+                .chain(p.iter())
+                .copied()
+                .max()
+                .unwrap_or(0)
+                .max(0) as f64
+                + 1.0
+        }) as usize;
+    if y.len() != p.len() {
+        return Err("ml_confusion: length mismatch".into());
+    }
+    let mut mat = vec![vec![0i64; n_classes]; n_classes];
+    for (yt, yp) in y.iter().zip(p.iter()) {
+        let r = (*yt).clamp(0, n_classes as i64 - 1) as usize;
+        let c = (*yp).clamp(0, n_classes as i64 - 1) as usize;
+        mat[r][c] += 1;
+    }
+    Ok(Value::Array(
+        mat.into_iter()
+            .map(|row| Value::Array(row.into_iter().map(int_out).collect()))
+            .collect(),
+    ))
+}
+
+fn lcg_next(state: &mut u64) -> u64 {
+    *state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+    *state
+}
+
+fn ml_shuffle(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let items = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("ml_shuffle(items, seed?)".into()),
+    };
+    let mut seed = args
+        .get(1)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(42.0) as u64;
+    if seed == 0 {
+        seed = 1;
+    }
+    let mut out = items;
+    for i in (1..out.len()).rev() {
+        let j = (lcg_next(&mut seed) as usize) % (i + 1);
+        out.swap(i, j);
+    }
+    Ok(Value::Array(out))
+}
+
+fn ml_batch_slices(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "ml_batch_slices")? as usize;
+    let batch = num_at(args, 1, "ml_batch_slices")? as usize;
+    if batch == 0 {
+        return Err("ml_batch_slices: batch_size > 0".into());
+    }
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    while start < n {
+        let end = (start + batch).min(n);
+        out.push(Value::Array(vec![
+            int_out(start as i64),
+            int_out(end as i64),
+        ]));
+        start = end;
+    }
+    Ok(Value::Array(out))
+}
+
+fn ml_train_test_split(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("ml_train_test_split(x, y, test_ratio?, seed?)".into()),
+    };
+    let y = match args.get(1) {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("ml_train_test_split: y array".into()),
+    };
+    if x.len() != y.len() || x.is_empty() {
+        return Err("ml_train_test_split: length mismatch".into());
+    }
+    let ratio = args.get(2).and_then(|v| num(v).ok()).unwrap_or(0.25);
+    let seed = args.get(3).and_then(|v| num(v).ok()).unwrap_or(42.0);
+    let n = x.len();
+    let idx: Vec<Value> = (0..n).map(|i| int_out(i as i64)).collect();
+    let shuffled = ml_shuffle(&[Value::Array(idx), float_out(seed)], _env)?;
+    let Value::Array(order) = shuffled else {
+        return Err("ml_train_test_split: internal".into());
+    };
+    let n_test = ((n as f64) * ratio).round() as usize;
+    let n_test = n_test.clamp(1, n.saturating_sub(1));
+    let mut x_train = Vec::new();
+    let mut y_train = Vec::new();
+    let mut x_test = Vec::new();
+    let mut y_test = Vec::new();
+    for (k, iv) in order.iter().enumerate() {
+        let i = num(iv)? as usize;
+        if k < n_test {
+            x_test.push(x[i].clone());
+            y_test.push(y[i].clone());
+        } else {
+            x_train.push(x[i].clone());
+            y_train.push(y[i].clone());
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("x_train".into(), Value::Array(x_train));
+    out.insert("y_train".into(), Value::Array(y_train));
+    out.insert("x_test".into(), Value::Array(x_test));
+    out.insert("y_test".into(), Value::Array(y_test));
+    Ok(Value::Object(out))
+}
+
 fn job_map(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let items = match args.first() {
         Some(Value::Array(a)) => a.clone(),
@@ -147,5 +344,15 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_ml_dense", "ml_dense"], ml_dense);
     bind(&["science_ml_sgd_update", "ml_sgd_update"], ml_sgd_update);
     bind(&["science_ml_linreg_step", "ml_linreg_step"], ml_linreg_step);
+    bind(&["science_ml_adam_update", "ml_adam_update"], ml_adam_update);
+    bind(&["science_ml_accuracy", "ml_accuracy"], ml_accuracy);
+    bind(&["science_ml_f1", "ml_f1"], ml_f1);
+    bind(&["science_ml_confusion", "ml_confusion"], ml_confusion);
+    bind(&["science_ml_shuffle", "ml_shuffle"], ml_shuffle);
+    bind(&["science_ml_batch_slices", "ml_batch_slices"], ml_batch_slices);
+    bind(
+        &["science_ml_train_test_split", "ml_train_test_split"],
+        ml_train_test_split,
+    );
     bind(&["science_job_map", "job_map"], job_map);
 }

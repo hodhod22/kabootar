@@ -7,6 +7,7 @@ pub mod autograd;
 pub mod data;
 pub mod gpu_tensor;
 pub mod helpers;
+pub mod linalg;
 pub mod matrix;
 pub mod ml;
 pub mod ndarray;
@@ -492,6 +493,7 @@ pub fn register(env: &mut Environment) {
     ml::register(&mut bind);
     autograd::register(&mut bind);
     signal::register(&mut bind);
+    linalg::register(&mut bind);
     data::register(&mut bind);
     gpu_tensor::register(&mut bind);
 }

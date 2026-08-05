@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar science/nd — ndarray wrappers (SC0d).
+// Kabootar science/nd — ndarray wrappers (SC0d/e/f).
 // Call after `import "science"` so nd_* natives exist.
 
 pub fn zeros(shape) {
@@ -29,6 +29,54 @@ pub fn solve(a, b) {
 
 pub fn add(a, b) {
     return nd_add(a, b)
+}
+
+pub fn sub(a, b) {
+    return nd_sub(a, b)
+}
+
+pub fn mul(a, b) {
+    return nd_mul(a, b)
+}
+
+pub fn div(a, b) {
+    return nd_div(a, b)
+}
+
+pub fn abs(a) {
+    return nd_abs(a)
+}
+
+pub fn exp(a) {
+    return nd_exp(a)
+}
+
+pub fn log(a) {
+    return nd_log(a)
+}
+
+pub fn clip(a, lo, hi) {
+    return nd_clip(a, lo, hi)
+}
+
+pub fn select(cond, x, y) {
+    return nd_where(cond, x, y)
+}
+
+pub fn slice(a, ranges) {
+    return nd_slice(a, ranges)
+}
+
+pub fn concat(arrays, axis) {
+    return nd_concat(arrays, axis)
+}
+
+pub fn stack(arrays, axis) {
+    return nd_stack(arrays, axis)
+}
+
+pub fn split(a, sections, axis) {
+    return nd_split(a, sections, axis)
 }
 
 pub fn mean(a) {

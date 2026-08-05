@@ -34,3 +34,31 @@ pub fn sgdUpdate(w, grad, lr) {
 pub fn linregStep(params, x, y, lr) {
     return ml_linreg_step(params, x, y, lr)
 }
+
+pub fn adamUpdate(w, grad, m, v, t, lr, beta1, beta2, eps) {
+    return ml_adam_update(w, grad, m, v, t, lr, beta1, beta2, eps)
+}
+
+pub fn accuracy(y, pred) {
+    return ml_accuracy(y, pred)
+}
+
+pub fn f1(y, pred) {
+    return ml_f1(y, pred)
+}
+
+pub fn confusion(y, pred, nClasses) {
+    return ml_confusion(y, pred, nClasses)
+}
+
+pub fn shuffle(items, seed) {
+    return ml_shuffle(items, seed)
+}
+
+pub fn batchSlices(n, batchSize) {
+    return ml_batch_slices(n, batchSize)
+}
+
+pub fn trainTestSplit(x, y, testRatio, seed) {
+    return ml_train_test_split(x, y, testRatio, seed)
+}
