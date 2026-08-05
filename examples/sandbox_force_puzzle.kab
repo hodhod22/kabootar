@@ -1,40 +1,53 @@
-// Spelbyggare / sandlåda — GP + editor + STEM showcase.
+// Spelbyggare / sandlåda — playbar canvas + Play↔Edit↔Learn + multi-level.
 // kabootar run examples/sandbox_force_puzzle.kab
+platform_use("kabootar")
 import "science"
 import "science/mechanics"
 import "game/sandbox"
-import "game/hot"
 
 os_mkdir("/sandbox")
 os_mkdir("/scenes")
 
-// --- Play: STEM forces toward goal ---
-let world = createPuzzle(defaultParams())
-world = autoSolveTowardGoal(world, 300)
-let playOk = isCleared(world) && world["lesson"] != null
+let pack = defaultLevelPack()
+saveLevelPack("/sandbox/levels.json", pack)
+let loadedPack = loadLevelPack("/sandbox/levels.json")
+let packOk = loadedPack["ok"] && len(loadedPack["pack"]["levels"]) == 2
 
-// --- Edit: place bodies in GP7, save .kscene, reload ---
-let ed = puzzleToEditor(world)
-ed = editorPlaceBody(ed, "ball", 50.0, 90.0)
-ed = editorPlaceBody(ed, "goal", 200.0, 80.0)
-let saved = savePuzzleScene(ed, "/scenes/force_puzzle.kscene")
-let loaded = loadPuzzleScene("/scenes/force_puzzle.kscene", defaultParams())
-let editOk = saved["result"]["ok"] && loaded["ok"] && loaded["world"]["body"]["x"] == 50.0 && loaded["world"]["goal"]["x"] == 200.0
+let session = createSession(240, 160, loadedPack["pack"])
 
-// --- Learn: tweak params + hot-reload file watch ---
-world = loaded["world"]
-world = applyLiveParams(world, { "k": 55.0, "g": 12.0 })
-world = attachParamsWatch(world, "/sandbox/params.json")
-let written = readParamsFile("/sandbox/params.json")
-os_write("/sandbox/params.json", json_stringify({ "k": 60.0, "m": 1.0, "g": 8.0, "drag": 0.1, "rest": 0.0 }))
-world = applyLiveParams(world, readParamsFile("/sandbox/params.json"))
-ed = stampLearnReload(ed, "/sandbox/params.json")
-let lesson = buildLesson(world)
-let learnOk = written["k"] == 55.0 && world["params"]["k"] == 60.0 && lesson["code"] != null && explainForces(world["params"], world["body"], world["anchor"])["total"] != null && ed["hotReload"]["learnPath"] == "/sandbox/params.json"
+// Play: pointer drag toward goal for a few frames
+session = runSessionFrames(session, 12, [
+    { "type": "down", "x": 180.0, "y": 80.0 },
+    { "type": "move", "x": 185.0, "y": 78.0 },
+    { "type": "move", "x": 190.0, "y": 75.0 },
+    { "type": "move", "x": 195.0, "y": 72.0 },
+    { "type": "up", "x": 195.0, "y": 72.0 }
+])
+let playFramesOk = session["frames"] >= 12 && (session["mode"] == "play" || session["mode"] == "learn")
 
-println(playOk)
+// Edit: switch mode, place ball, apply back to play
+session = enterEdit(session)
+session["editor"] = editorPlaceBody(session["editor"], "ball", 48.0, 90.0)
+session["editor"] = editorPlaceBody(session["editor"], "goal", 200.0, 70.0)
+session = applyEditorAndPlay(session)
+let editOk = session["mode"] == "play" && session["world"]["body"]["x"] == 48.0 && session["world"]["goal"]["x"] == 200.0
+
+// Learn: after clear (or force), tweak k/g via UI helpers
+session["world"] = clearLevel(session["world"])
+session = enterLearnMode(session)
+let k0 = session["world"]["params"]["k"]
+session = setLearnParam(session, "k", 5.0)
+session = setLearnParam(session, "g", -1.0)
+let learnOk = session["mode"] == "learn" && session["learnUi"]["formula"] != null && session["world"]["params"]["k"] == k0 + 5.0 && session["learnUi"]["k"] == k0 + 5.0
+
+// Multi-level: next level loads spring_gap
+session = nextLevel(session)
+let levelOk = session["levelIndex"] == 1 && session["world"]["levelId"] == "spring_gap" && len(session["world"]["walls"]) == 2
+
+println(packOk)
+println(playFramesOk)
 println(editOk)
 println(learnOk)
-println(lesson["hint"])
+println(levelOk)
 
-playOk && editOk && learnOk
+packOk && playFramesOk && editOk && learnOk && levelOk

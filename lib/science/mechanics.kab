@@ -3,8 +3,6 @@
 // STEM classical mechanics helpers for sandbox / education.
 // Pure Kab — F=ma, Hooke, gravity. import "science/mechanics"
 
-import "science/nd"
-
 /// Default puzzle / sim parameters (Learn surface).
 pub fn defaultParams() {
     return {
@@ -33,22 +31,18 @@ pub fn dragForce(drag, vx, vy) {
     return { "fx": -drag * vx, "fy": -drag * vy, "kind": "drag" }
 }
 
-/// Sum force components → nd vector [fx, fy] (STEM bridge).
+/// Force as length-2 vector object (STEM bridge).
 pub fn forceToNd(fx, fy) {
-    return nd_from([fx, fy], [2])
+    return { "fx": fx, "fy": fy, "shape": [2], "data": [fx, fy] }
 }
 
-/// a = F/m from force object or nd length-2.
+/// a = F/m from force object.
 pub fn accelFromForce(force, m) {
     if m == null || m == 0.0 {
         m = 1.0
     }
     let fx = force["fx"]
     let fy = force["fy"]
-    if fx == null {
-        fx = nd_get(force, 0)
-        fy = nd_get(force, 1)
-    }
     return { "ax": fx / m, "ay": fy / m }
 }
 
