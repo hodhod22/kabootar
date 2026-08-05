@@ -57,6 +57,24 @@ pub fn session_eval(code: &str) -> String {
     })
 }
 
+/// Rich MIME display for notebook UI (DX6 / SC3h). JSON: ok, text, mime, html?, image?
+#[wasm_bindgen]
+pub fn session_eval_rich(code: &str) -> String {
+    use serde_json::json;
+    WASM_SESSION.with(|s| {
+        let mut session = s.borrow_mut();
+        match session.eval_cell(code) {
+            Ok(val) => {
+                let rich = session.rich_of(&val);
+                serde_json::to_string(&rich).unwrap_or_else(|_| {
+                    json!({"ok": true, "text": format_value(&val), "mime": "text/plain"}).to_string()
+                })
+            }
+            Err(e) => json!({"ok": false, "text": format!("Error: {e}"), "mime": "text/plain"}).to_string(),
+        }
+    })
+}
+
 #[wasm_bindgen]
 pub fn session_reset() {
     WASM_SESSION.with(|s| s.borrow_mut().reset());

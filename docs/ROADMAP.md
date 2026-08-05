@@ -838,7 +838,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2; utöka) | ✅ subset (`mat_svd2` + `mat_eigen2`; allmän → **SC1e**) |
 | **SC1d** | **FFT / signal subset** — 1D FFT + conv | ✅ subset (`num_fft` / `num_ifft` / `num_conv1d`) |
 | **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr`/`mat_svd`/`mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
-| **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | 📋 |
+| **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
 | **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | 📋 |
 | **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | 📋 |
 | **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | 📋 |
@@ -855,7 +855,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`; conv kvar) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_accuracy`/`ml_f1`/`ml_confusion`; AdamW/ROC kvar) |
-| **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | 📋 |
+| **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`; tree/pipeline kvar) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | 📋 |
 | **SC2j** | **Training DX** — `fit`-loop, early stop, schedulers, progress i REPL/notebook | 📋 |
 | **SC2k** | **Tokenizer + transformer inference** — BPE/WordPiece subset + forward (train senare) | 📋 |
@@ -872,7 +872,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC3e** | **Exploration DX** — REPL/notebook (se **Våg DX**) | ✅ DX0–DX5 subset |
 | **SC3f** | **DataFrame-lite** — kolumntyper, select/filter, groupby/agg, join | ✅ subset (`df_from`/`df_select`/`df_filter`/`df_groupby`/`df_join`/`df_head`) |
 | **SC3g** | **Stats++** — fördelningar, t-test/χ², corr/cov, quantiles | 📋 |
-| **SC3h** | **Notebook rich display** — plot/table inline i `.knb` / WASM | 📋 |
+| **SC3h** | **Notebook rich display** — plot/table inline i `.knb` / WASM | ✅ subset (`rich_display` + `session_eval_rich` + notebook HTML) |
 
 #### SC4 — Scale & hardware
 
@@ -898,11 +898,11 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | **SC5e** | **Science bootstrap** — `import "science"` fungerar i kab-only/seed-läge utan att växa Rust-ytan | 📋 |
 | **SC5f** | **Frihets-gate** — research+AI demo (data→train→plot→HTTP) 100 % Kab-toolchain; dokumentera “no Python required” | 📋 |
 
-**SC-ordning:** SC2h–j → SC1f–j → SC3g/h → SC2k → SC4e → **SC5** (Kab-first parallellt).
+**SC-ordning:** SC2i–j → SC1g–j → SC3g → SC2k → SC4e → **SC5** (Kab-first parallellt).
 
-**Checkpoint SC (nästa):** klassisk ML (PCA/k-means) + optimize + notebook rich display.  
-**Checkpoint SC (landad 2026-08):** broadcast + Adam + canvas-plot + SVD/QR; **dtypes/random/nd I/O + checkpoint + autograd++ + DataFrame-lite**.  
-**Checkpoint SC (research-parity):** optimize + ODE + PCA/k-means + Conv2d.  
+**Checkpoint SC (nästa):** Conv2d/attention-lite + ODE/stats++ + GPU train path.  
+**Checkpoint SC (landad 2026-08):** dtypes/I/O/autograd++/DataFrame; **PCA/k-means/logreg + optimize + rich notebook display**.  
+**Checkpoint SC (research-parity):** ODE + stats++ + Conv2d.  
 **Checkpoint SC (AI-parity):** GPU matmul + tokenizer/transformer-inference + SC2l.  
 **Slutmått:** forskare och AI-utvecklare använder Kabootar **istället för Python** — från notebook till ship — med numerisk hotpath i NumPy/PyTorch-klass och **helt självständig** stack (SC5f).
 
@@ -930,7 +930,7 @@ Målet: science-modulen blir **självständig** — skriven och underhållen i K
 | **DX3** | **HTML/WASM notebook** — web UI som kör celler (samma eval) | ✅ subset (`kabootar-notebook.html` + `session_eval`/`session_science`) |
 | **DX4** | **Science-REPL presets** — `:science`, plot/table pretty | ✅ subset (`:science`, `pretty`/`format_table`/`ascii_plot`) |
 | **DX5** | **History / readline** — line-edit + historikfil | ✅ subset (`rustyline` + `~/.kabootar_history`) |
-| **DX6** | **Rich display** — plot/table inline i notebook/WASM (kopplat SC3h); Kab-UI inte Rust | 📋 |
+| **DX6** | **Rich display** — plot/table inline i notebook/WASM (kopplat SC3h); Kab-UI inte Rust | ✅ subset (`session_eval_rich` + `kabootar-notebook.html`) |
 | **DX7** | **DX self-host** — REPL/session-hjälpare i `.kab` där det går; thin host kvar | 📋 |
 
 **DX-ordning:** DX0–DX5 → DX6 → DX7 (parallellt SC5).
@@ -1030,8 +1030,8 @@ Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ████████████████  GP0–GP5 subset
-Våg SC (STEM)  ████████████░░░░  SC0g–i/SC2e–f/SC3f landad; klassisk ML/optimize/SC5 kvar
-Våg DX (explore)████████████████  REPL + .knb + WASM + readline; rich display kvar
+Våg SC (STEM)  █████████████░░░  SC1f/SC2h/SC3h landad; Conv/ODE/SC5 kvar
+Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
 Våg A–G        (parity-historik — underordnad L/S/K)
 ```
 

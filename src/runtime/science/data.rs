@@ -305,6 +305,132 @@ fn plot_hist(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     plot_canvas_result(id, w, h)
 }
 
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+fn rows_to_html(rows: &[Value]) -> String {
+    let mut html = String::from("<table class=\"kab-table\">");
+    for (i, row) in rows.iter().enumerate() {
+        html.push_str("<tr>");
+        match row {
+            Value::Array(cells) => {
+                for c in cells {
+                    let tag = if i == 0 { "th" } else { "td" };
+                    html.push_str(&format!(
+                        "<{tag}>{}</{tag}>",
+                        html_escape(&crate::value::format_value(c))
+                    ));
+                }
+            }
+            other => {
+                html.push_str(&format!(
+                    "<td>{}</td>",
+                    html_escape(&crate::value::format_value(other))
+                ));
+            }
+        }
+        html.push_str("</tr>");
+    }
+    html.push_str("</table>");
+    html
+}
+
+/// rich_display(value) → {mime, text, html?, image?}
+fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let v = args.first().ok_or("rich_display(value)")?;
+    let mut out = HashMap::new();
+    let text = match pretty(args, env)? {
+        Value::String(s) => s,
+        other => crate::value::format_value(&other),
+    };
+    out.insert("text".into(), Value::String(text.clone()));
+    out.insert("mime".into(), Value::String("text/plain".into()));
+
+    if let Value::Object(m) = v {
+        if matches!(m.get("kind"), Some(Value::String(k)) if k == "canvas2d") {
+            if let Some(Value::String(url)) = m.get("dataUrl") {
+                out.insert("mime".into(), Value::String("image/png".into()));
+                out.insert("image".into(), Value::String(url.clone()));
+                out.insert(
+                    "html".into(),
+                    Value::String(format!(
+                        "<img class=\"kab-plot\" alt=\"plot\" src=\"{}\" />",
+                        html_escape(url)
+                    )),
+                );
+                return Ok(Value::Object(out));
+            }
+        }
+        if matches!(m.get("__kab_df"), Some(Value::Bool(true))) {
+            if let Some(Value::Object(cols)) = m.get("columns") {
+                let names: Vec<String> = match m.get("names") {
+                    Some(Value::Array(ns)) => ns
+                        .iter()
+                        .filter_map(|n| match n {
+                            Value::String(s) => Some(s.clone()),
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => cols.keys().cloned().collect(),
+                };
+                let nrows = match m.get("nrows") {
+                    Some(Value::Number(n)) => *n as usize,
+                    _ => 0,
+                };
+                let mut rows = Vec::new();
+                rows.push(Value::Array(
+                    names.iter().map(|n| Value::String(n.clone())).collect(),
+                ));
+                for i in 0..nrows {
+                    let mut row = Vec::new();
+                    for name in &names {
+                        if let Some(Value::Array(series)) = cols.get(name) {
+                            row.push(series.get(i).cloned().unwrap_or(Value::Null));
+                        } else {
+                            row.push(Value::Null);
+                        }
+                    }
+                    rows.push(Value::Array(row));
+                }
+                let html = rows_to_html(&rows);
+                out.insert("mime".into(), Value::String("text/html".into()));
+                out.insert("html".into(), Value::String(html));
+                return Ok(Value::Object(out));
+            }
+        }
+    }
+
+    if let Value::Array(items) = v {
+        if items
+            .first()
+            .map(|x| matches!(x, Value::Array(_)))
+            .unwrap_or(false)
+        {
+            let html = rows_to_html(items);
+            out.insert("mime".into(), Value::String("text/html".into()));
+            out.insert("html".into(), Value::String(html));
+            return Ok(Value::Object(out));
+        }
+    }
+
+    if text.contains("min=") && text.contains("max=") {
+        out.insert("mime".into(), Value::String("text/html".into()));
+        out.insert(
+            "html".into(),
+            Value::String(format!(
+                "<pre class=\"kab-ascii\">{}</pre>",
+                html_escape(&text)
+            )),
+        );
+    }
+
+    Ok(Value::Object(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_csv_parse", "csv_parse"], csv_parse);
     bind(&["science_csv_load", "csv_load"], csv_load);
@@ -315,4 +441,5 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_plot_scatter", "plot_scatter"], plot_scatter);
     bind(&["science_plot_hist", "plot_hist"], plot_hist);
     bind(&["science_pretty", "pretty"], pretty);
+    bind(&["science_rich_display", "rich_display"], rich_display);
 }
