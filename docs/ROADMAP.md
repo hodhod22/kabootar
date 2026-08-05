@@ -919,7 +919,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*`/`sci_gemm` blocked GEMM + `sci_blas_dgemm` BLAS-API; extern BLAS kvar) |
+| **SC4a** | **SIMD / BLAS-FFI** — matmul hotpath (kopplat P5) | ✅ subset (`sci_v*` chunked; `matrixmultiply` DGEMM + `sci_blas_dgemm` API; system BLAS kvar) |
 | **SC4b** | **GPU tensors** — wgpu compute för matmul/conv (kopplat GP0) | ✅ subset (`gpu_compute` WGSL matmul+conv2d f32 + CPU fallback; `gpu_zeros`/`ones`/`scale`/`add`) |
 | **SC4c** | **Workers** — parallell map över batch (kopplat P8) | ✅ subset (`job_map_parallel` OS-threads för f64-ops; `job_map_chunks` Kab-closure chunk plan) |
 | **SC4d** | **Delete-gate** — ML-smoke utan Python/NumPy i CI | ✅ subset |
