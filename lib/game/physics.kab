@@ -1,7 +1,7 @@
 @version "1.0.0"
 
-// Kabootar game/physics — 2D AABB / circle overlap (GP3a subset).
-// Bodies: { x, y, w, h } or { x, y, r }.
+// Kabootar game/physics — 2D AABB/circle (GP3a) + 3D ray/character (GP3b).
+// Bodies 2D: { x, y, w, h } or { x, y, r }.
 // import "game/physics"
 
 pub fn aabbOverlap(a, b) {
@@ -64,4 +64,141 @@ pub fn resolveAabb(moving, solid) {
         }
     }
     return out
+}
+
+// --- GP3b: 3D ray / AABB + simple character step ---
+
+// box: { minx, miny, minz, maxx, maxy, maxz }
+// ray: origin {x,y,z}, dir {x,y,z} (need not be unit)
+// returns { hit, t, x, y, z } ; hit=false → t=null
+pub fn rayAabb(origin, dir, box) {
+    let ox = origin["x"]
+    let oy = origin["y"]
+    let oz = origin["z"]
+    let dx = dir["x"]
+    let dy = dir["y"]
+    let dz = dir["z"]
+    let tmin = 0.0
+    let tmax = 1000000000.0
+
+    // X slab
+    if dx == 0.0 {
+        if ox < box["minx"] || ox > box["maxx"] {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    } else {
+        let tx1 = (box["minx"] - ox) / dx
+        let tx2 = (box["maxx"] - ox) / dx
+        let txn = tx1
+        let txf = tx2
+        if tx1 > tx2 {
+            txn = tx2
+            txf = tx1
+        }
+        if txn > tmin {
+            tmin = txn
+        }
+        if txf < tmax {
+            tmax = txf
+        }
+        if tmin > tmax {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    }
+
+    // Y slab
+    if dy == 0.0 {
+        if oy < box["miny"] || oy > box["maxy"] {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    } else {
+        let ty1 = (box["miny"] - oy) / dy
+        let ty2 = (box["maxy"] - oy) / dy
+        let tyn = ty1
+        let tyf = ty2
+        if ty1 > ty2 {
+            tyn = ty2
+            tyf = ty1
+        }
+        if tyn > tmin {
+            tmin = tyn
+        }
+        if tyf < tmax {
+            tmax = tyf
+        }
+        if tmin > tmax {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    }
+
+    // Z slab
+    if dz == 0.0 {
+        if oz < box["minz"] || oz > box["maxz"] {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    } else {
+        let tz1 = (box["minz"] - oz) / dz
+        let tz2 = (box["maxz"] - oz) / dz
+        let tzn = tz1
+        let tzf = tz2
+        if tz1 > tz2 {
+            tzn = tz2
+            tzf = tz1
+        }
+        if tzn > tmin {
+            tmin = tzn
+        }
+        if tzf < tmax {
+            tmax = tzf
+        }
+        if tmin > tmax {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+    }
+
+    if tmin < 0.0 {
+        if tmax < 0.0 {
+            return { hit: false, t: null, x: 0.0, y: 0.0, z: 0.0 }
+        }
+        tmin = 0.0
+    }
+    return {
+        hit: true,
+        t: tmin,
+        x: ox + dx * tmin,
+        y: oy + dy * tmin,
+        z: oz + dz * tmin
+    }
+}
+
+// Simple kinematic step: apply wish xz, gravity, ground via downward ray.
+// controller: { x, y, z, radius, height, vy }
+// groundBoxes: array of AABB boxes
+pub fn characterStep(controller, wishX, wishZ, dt, gravity, groundBoxes) {
+    let x = controller["x"] + wishX * dt
+    let z = controller["z"] + wishZ * dt
+    let vy = controller["vy"] + gravity * dt
+    let y = controller["y"] + vy * dt
+    let feet = { x: x, y: y, z: z }
+    let down = { x: 0.0, y: -1.0, z: 0.0 }
+    let i = 0
+    let grounded = false
+    while i < len(groundBoxes) {
+        let hit = rayAabb(feet, down, groundBoxes[i])
+        if hit["hit"] && hit["t"] != null && hit["t"] >= 0.0 && hit["t"] <= controller["height"] {
+            y = hit["y"]
+            vy = 0.0
+            grounded = true
+        }
+        i = i + 1
+    }
+    return {
+        x: x,
+        y: y,
+        z: z,
+        radius: controller["radius"],
+        height: controller["height"],
+        vy: vy,
+        grounded: grounded
+    }
 }

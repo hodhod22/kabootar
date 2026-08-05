@@ -1,0 +1,48 @@
+@version "1.0.0"
+
+// Kabootar game/audio — PCM bus over OS audio driver (GP2c subset).
+// Uses virtual audio-out-0 (no hw feature required).
+// import "game/audio"
+
+pub fn createBus(name) {
+    let h = os_dev_open("audio-out-0")
+    return { name: name, handle: h, volume: 1.0 }
+}
+
+pub fn setBusVolume(bus, volume) {
+    os_dev_ioctl(bus["handle"], "volume", volume)
+    bus["volume"] = volume
+    return bus
+}
+
+pub fn playPcm(bus, samples) {
+    return os_dev_ioctl(bus["handle"], "write", samples)
+}
+
+// Generate mono i16 PCM tone (sine). rate default 22050.
+pub fn makeTone(freq, ms, rate) {
+    if rate == undefined || rate == null || rate <= 0 {
+        rate = 22050
+    }
+    let n = (rate * ms) / 1000
+    if n < 1 {
+        n = 1
+    }
+    if n > 22050 {
+        n = 22050
+    }
+    let samples = []
+    let i = 0
+    let twoPi = 6.283185307179586
+    while i < n {
+        let t = i / (rate * 1.0)
+        let v = sin(twoPi * freq * t) * 8000
+        samples = push(samples, floor(v))
+        i = i + 1
+    }
+    return samples
+}
+
+pub fn playTone(bus, freq, ms) {
+    return playPcm(bus, makeTone(freq, ms, 22050))
+}

@@ -711,11 +711,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | ✅ subset (`createNode`/`addChild`/`setLocal`/`worldPos` lokal; parent-walk/layers kvar) |
+| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | ✅ subset (`Object.setParent` walk + `worldPos` sum; `layer` fält) |
 | **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"`: mesh + indexed/instanced draw helpers) |
 | **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | ✅ subset (`import "game/input"`: `createActions`/`actionPressed`; keyboard only) |
 | **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | ✅ subset (`import "game/time"`: `dtSec`/`createFixed`/`fixedTick`) |
-| **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | 📋 |
+| **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | ✅ subset (`import "game/ecs"`: spawn/add/query AoS) |
 | **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | ✅ subset (`import "game/batch"`: sprite quads + tilemap → textured drawElements) |
 
 #### GP2 — Assets & pipeline
@@ -724,7 +724,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **GP2a** | **glTF 2.0 import** (mesh + materials + basic animation) | ✅ subset (`gltf_load_json` / `import "game/gltf"`: POSITION + indices + baseColorFactor + translation channel) |
 | **GP2b** | **Bild/atlas bake** — PNG/WebP → GPU-texture + atlas tool i `.kab` | ✅ subset (`image_decode_png` + `import "game/atlas"` row bake; PNG only) |
-| **GP2c** | **Audio** — load/play/bus; spatial senare; FFI till host audio tills Kab-driver | 📋 |
+| **GP2c** | **Audio** — load/play/bus; spatial senare; FFI till host audio tills Kab-driver | ✅ subset (`import "game/audio"` → `audio-out-0` PCM bus + tone) |
 | **GP2d** | **Asset database** — VFS-paths, hot reload när fil ändras | 📋 |
 | **GP2e** | **Paketformat** — `kabootar mod` mall `game` / `game3d` | ✅ subset (`kabootar mod init game\|game3d`) |
 
@@ -733,7 +733,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **GP3a** | **2D physics** — AABB/cirklar; senare box2d-lik FFI eller ren Kab | ✅ subset (`import "game/physics"`: aabb/circle + resolveAabb) |
-| **GP3b** | **3D physics subset** — raycast, character controller | 📋 |
+| **GP3b** | **3D physics subset** — raycast, character controller | ✅ subset (`rayAabb` + `characterStep` i `game/physics`) |
 | **GP3c** | **Navigation** — grid/navmesh subset | 📋 |
 | **GP3d** | **Multiplayer hooks** — ticks + snapshot (bygg på HTTP/WebRTC som finns) | 📋 |
 
@@ -744,16 +744,16 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **GP4a** | **Hot reload** — byt `.kab` / shader / texture utan process-restart | ✅ subset (`asset_watch` / `asset_poll` / `import "game/hot"`; `.kab` → compile cache invalidate) |
 | **GP4b** | **Editor-shell** — scenhierarki + inspector i kOS/kbrowser | 📋 |
 | **GP4c** | **Profiler UI** — CPU/GPU/frame graph i DevTools | 📋 |
-| **GP4d** | **Debug draw** — gizmo lines/colliders | 📋 |
+| **GP4d** | **Debug draw** — gizmo lines/colliders | ✅ subset (`import "game/debug"`: line/AABB/circle på canvas2d) |
 | **GP4e** | **Dokumentation & samples** — [GAME.md](GAME.md) + `examples/game_*` shippable demos | ✅ subset (`examples/game_2d_smoke.kab`, `examples/game_3d_triangle.kab`) |
 
 #### GP5 — Ship & plattformar
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP5a** | **Desktop ship** — en binär (`kabootar run` / kOS-app) med GPU | 📋 |
+| **GP5a** | **Desktop ship** — en binär (`kabootar run` / kOS-app) med GPU | ✅ subset ([SHIP.md](SHIP.md) + `tests/ship_desktop_smoke.rs`) |
 | **GP5b** | **WASM host** — `platform_use("host")` + WebGPU/WebGL present | 📋 |
-| **GP5c** | **Performance budgets i CI** — 60 FPS smoke (timing), max alloc/frame | 📋 |
+| **GP5c** | **Performance budgets i CI** — 60 FPS smoke (timing), max alloc/frame | ✅ subset (`tests/perf_gp5c_smoke.rs`: avg Δt < 50 ms + `os_mem_stats`) |
 | **GP5d** | **Självständighet** — spel + editor kör utan extern Unity/Unreal/C#-toolchain | 📋 |
 
 **GP-ordning (rekommenderad):** GP0a–c → P0/P2 → GP1a–d → GP2a–b → GP4a → GP0f delete-gate → GP3 → GP5.

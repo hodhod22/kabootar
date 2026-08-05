@@ -1,15 +1,16 @@
 @version "1.0.0"
 
-// Kabootar game/scene — shallow scene graph (GP1a subset).
-// Mutators return the node (Kab CoW writeback — reassign at call site).
-// worldPos returns local xyz for this subset (no parent walk yet).
+// Kabootar game/scene — scene graph with Parent walk (GP1a).
+// Mutators return the node (Kab CoW — reassign at call site).
+// Parent chain via Object.setParent / Object.getParent (not prototype).
 // import "game/scene"
 
 pub fn createNode(name) {
-    return { name: name, x: 0, y: 0, z: 0, children: [] }
+    return { name: name, x: 0, y: 0, z: 0, layer: 0, children: [] }
 }
 
 pub fn addChild(parent, child) {
+    child = Object.setParent(child, parent)
     parent["children"] = push(parent["children"], child)
     return parent
 }
@@ -21,7 +22,24 @@ pub fn setLocal(node, x, y, z) {
     return node
 }
 
-// Shallow: local position only (document for GP1a subset).
+pub fn setLayer(node, layer) {
+    node["layer"] = layer
+    return node
+}
+
+// Walk Object.getParent and sum local xyz.
 pub fn worldPos(node) {
-    return { x: node["x"], y: node["y"], z: node["z"] }
+    let x = node["x"]
+    let y = node["y"]
+    let z = node["z"]
+    let cur = Object.getParent(node)
+    let guard = 0
+    while cur != null && guard < 256 {
+        x = x + cur["x"]
+        y = y + cur["y"]
+        z = z + cur["z"]
+        cur = Object.getParent(cur)
+        guard = guard + 1
+    }
+    return { x: x, y: y, z: z }
 }
