@@ -119,15 +119,21 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` |
 | `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone` |
 | `import "game/debug"` | `drawLine2d`, `drawAabb`, `drawCircleApprox` |
+| `import "game/assets"` | `createDb`, `registerVfs`/`registerHost`, `loadText`/`loadBytes`/`loadPng`/`loadGltf`, `watchAll`/`pollReload` |
+| `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
+| `import "game/net"` | `createSession`, `encodeSnapshot`/`applySnapshot`, `sendTick`/`pollRemote` |
+| `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `selectNode`, `refresh` |
+| `import "game/profiler"` | `createProfiler`, `beginFrame`/`endFrame`, `sample`, `drawOverlay` |
+| `import "game/host"` | `useHost`, `createHostSurface`, `presentOnce` |
 | `import "game/hot"` | `watch(path)`, `poll()` → changed paths (mtime) |
 | `import "game/shader"` | `loadSolid`/`loadTextured`/`loadSolidFromFile`/`loadTexturedFromFile`, `info`, `pollReload` |
 
-Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
+Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `host_read_bytes`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
 
 `createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs`.
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP**. **P0** ✅ subset — frame-budget smoke. **P2** ✅ subset — Float32Array → WebGL. **GP0a–f** ✅ subset — GPU-texturer, materials, MSAA, index/instancing, WGSL cache, delete-gate. **GP1a–f** ✅ subset — scene Parent-walk, ECS, batch. **GP2a–e** ✅ subset — glTF, atlas, audio, mod mallar. **GP3a–b** ✅ subset — 2D/3D physics. **GP4a/d/e** ✅ subset — hot reload, debug draw, examples. **GP5a/c** ✅ subset — [SHIP.md](SHIP.md) + frame budgets.
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg P** / **Våg GP** — GP0–GP5 ✅ subset (se ROADMAP). Ship: [SHIP.md](SHIP.md).
 
 Se [CANVAS.md](CANVAS.md) och [BROWSER_V2.md](BROWSER_V2.md).

@@ -1,0 +1,101 @@
+@version "1.0.0"
+
+// Kabootar game/assets — asset DB over VFS + host paths (GP2d subset).
+// import "game/assets"
+
+pub fn createDb(root) {
+    if root == undefined || root == null {
+        root = "/game"
+    }
+    return { root: root, entries: {}, byId: {} }
+}
+
+pub fn registerVfs(db, id, vfsPath, kind) {
+    let entry = { id: id, path: vfsPath, kind: kind, host: false }
+    db["byId"][id] = entry
+    db["entries"][id] = entry
+    return db
+}
+
+pub fn registerHost(db, id, hostPath, kind) {
+    let entry = { id: id, path: hostPath, kind: kind, host: true }
+    db["byId"][id] = entry
+    db["entries"][id] = entry
+    return db
+}
+
+// Alias: VFS register under db.root if path is relative-looking (no leading /).
+pub fn register(db, id, path, kind) {
+    return registerVfs(db, id, path, kind)
+}
+
+pub fn resolve(db, id) {
+    let e = db["byId"][id]
+    if e == undefined || e == null {
+        return null
+    }
+    return e["path"]
+}
+
+pub fn loadText(db, id) {
+    let e = db["byId"][id]
+    if e == undefined || e == null {
+        return null
+    }
+    if e["host"] {
+        return read_text_file(e["path"])
+    }
+    return os_read(e["path"])
+}
+
+pub fn loadBytes(db, id) {
+    let e = db["byId"][id]
+    if e == undefined || e == null {
+        return null
+    }
+    if e["host"] {
+        return host_read_bytes(e["path"])
+    }
+    return read_file(e["path"])
+}
+
+pub fn loadPng(db, id) {
+    return image_decode_png(loadBytes(db, id))
+}
+
+pub fn loadGltf(db, id) {
+    return gltf_load_json(loadText(db, id))
+}
+
+pub fn watchAll(db) {
+    let ids = Object.keys(db["byId"])
+    let i = 0
+    while i < len(ids) {
+        let e = db["byId"][ids[i]]
+        if e["host"] {
+            asset_watch(e["path"])
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn pollReload(db) {
+    let changed = asset_poll()
+    let out = []
+    let ids = Object.keys(db["byId"])
+    let i = 0
+    while i < len(changed) {
+        let p = changed[i]
+        let j = 0
+        while j < len(ids) {
+            let e = db["byId"][ids[j]]
+            if e["host"] && e["path"] == p {
+                out = push(out, ids[j])
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return out
+}

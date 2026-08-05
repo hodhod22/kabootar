@@ -1,0 +1,40 @@
+@version "1.0.0"
+
+// Kabootar game/host — WASM/host present helpers (GP5b subset).
+// Marks surface.layer = "host". On wasm32 + platform_use("host"), Rust uses web_sys;
+// on native the compositor is still KDOM but layer is host for API parity.
+// import "game/host"
+
+pub fn useHost() {
+    // Prefer calling platform_use from top-level scripts (module call frames
+    // may shadow __platform). Still invoke for return value / wasm paths.
+    return platform_use("host")
+}
+
+pub fn createHostSurface(w, h) {
+    let surf = game_surface_create(w, h)
+    surf["layer"] = "host"
+    surf["hostPresent"] = "marked"
+    return surf
+}
+
+pub fn createHostSurface3d(w, h) {
+    let surf = game_surface_create_3d(w, h)
+    surf["layer"] = "host"
+    surf["hostPresent"] = "marked"
+    return surf
+}
+
+pub fn isHostLayer(surf) {
+    return surf["layer"] == "host"
+}
+
+pub fn presentOnce(surf) {
+    let ctx = surf["ctx"]
+    if ctx != undefined && ctx != null {
+        ctx.fillStyle = "#203040"
+        ctx.fillRect(0, 0, surf["width"], surf["height"])
+    }
+    surf.present()
+    return surf["layer"]
+}

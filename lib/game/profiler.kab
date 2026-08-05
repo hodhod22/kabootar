@@ -1,0 +1,80 @@
+@version "1.0.0"
+
+// Kabootar game/profiler — frame timing ring + overlay helpers (GP4c subset).
+// import "game/profiler"
+
+pub fn createProfiler(capacity) {
+    if capacity == undefined || capacity < 1 {
+        capacity = 60
+    }
+    return { capacity: capacity, samples: [], last: 0.0, markT0: 0.0, labeling: false }
+}
+
+pub fn beginFrame(prof) {
+    prof["markT0"] = performance.now()
+    return prof
+}
+
+pub fn endFrame(prof) {
+    let t1 = performance.now()
+    let dt = t1 - prof["markT0"]
+    if dt < 0 {
+        dt = 0
+    }
+    prof["last"] = dt
+    prof["samples"] = push(prof["samples"], dt)
+    while len(prof["samples"]) > prof["capacity"] {
+        let rest = []
+        let i = 1
+        while i < len(prof["samples"]) {
+            rest = push(rest, prof["samples"][i])
+            i = i + 1
+        }
+        prof["samples"] = rest
+    }
+    return prof
+}
+
+pub fn sample(prof) {
+    let n = len(prof["samples"])
+    if n == 0 {
+        return { avg: 0.0, max: 0.0, last: prof["last"], count: 0 }
+    }
+    let sum = 0.0
+    let mx = prof["samples"][0]
+    let i = 0
+    while i < n {
+        let v = prof["samples"][i]
+        sum = sum + v
+        if v > mx {
+            mx = v
+        }
+        i = i + 1
+    }
+    return { avg: sum / n, max: mx, last: prof["last"], count: n }
+}
+
+pub fn drawOverlay(ctx, samp) {
+    ctx.fillStyle = "#000000"
+    ctx.fillRect(0, 0, 120, 36)
+    ctx.fillStyle = "#40ff80"
+    let w = samp["avg"]
+    if w > 100 {
+        w = 100
+    }
+    ctx.fillRect(4, 4, w, 10)
+    ctx.fillStyle = "#ff8040"
+    let m = samp["max"]
+    if m > 100 {
+        m = 100
+    }
+    ctx.fillRect(4, 18, m, 10)
+    return true
+}
+
+pub fn bindDevtools(label) {
+    if label == undefined {
+        label = "game-frame"
+    }
+    return devtools_profile_start(label)
+}

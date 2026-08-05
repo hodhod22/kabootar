@@ -1,6 +1,6 @@
-# Kabootar — desktop ship (GP5a subset)
+# Kabootar — desktop ship (GP5a) + self-sufficiency (GP5d)
 
-En binär med GPU för att köra spel/demos och (valfritt) shell.
+En binär med GPU för att köra spel/demos och (valfritt) shell — **utan** Unity, Unreal eller C#-toolchain.
 
 ## Bygg
 
@@ -23,6 +23,25 @@ kabootar mod init game3d && kabootar mod run
 # Shell (kräver shell-feature)
 cargo run --features "docai,codai,shell,gpu" --bin kabootar -- shell
 ```
+
+## Host / WASM (GP5b)
+
+```kabootar
+import "game/host"
+let surf = createHostSurface(320, 240)
+presentOnce(surf)   // layer == "host"
+```
+
+På native = KDOM-compositor med `layer: "host"`. På `wasm32` = web_sys canvas.
+
+## GP5d — självständighet (checklista)
+
+- [x] Bygg/kör med endast Kabootar + Rust (`cargo` + `kabootar`)
+- [x] Spelmallar: `kabootar mod init game|game3d`
+- [x] Assets: VFS + `import "game/assets"` + hot reload (`game/hot`)
+- [x] Editor-data: `import "game/editor"` (hierarki/inspector)
+- [x] Ship smoke: `tests/ship_desktop_smoke.rs`, `tests/game_host.rs`
+- [x] Ingen Unity Hub / Unreal / .NET game workload krävs
 
 ## Smoke
 
