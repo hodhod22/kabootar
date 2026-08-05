@@ -1,0 +1,89 @@
+@version "1.0.0"
+
+// SC6d — Grafer & GNN-lite. import "science" first.
+
+/// Create graph from edge list [[u,v], ...] undirected.
+pub fn fromEdges(n, edges) {
+    let adj = []
+    let i = 0
+    while i < n {
+        adj = push(adj, [])
+        i = i + 1
+    }
+    let e = 0
+    while e < len(edges) {
+        let u = edges[e][0]
+        let v = edges[e][1]
+        adj[u] = push(adj[u], v)
+        adj[v] = push(adj[v], u)
+        e = e + 1
+    }
+    return { "n": n, "adj": adj, "edges": edges }
+}
+
+pub fn degree(g, u) {
+    return len(g["adj"][u])
+}
+
+/// Mean-aggregate neighbor features (1-hop). X[i] = feature vec for node i.
+pub fn meanAggregate(g, x) {
+    let n = g["n"]
+    let out = []
+    let i = 0
+    while i < n {
+        let neigh = g["adj"][i]
+        let dim = len(x[i])
+        let acc = []
+        let d = 0
+        while d < dim {
+            acc = push(acc, x[i][d])
+            d = d + 1
+        }
+        let c = 1.0
+        let j = 0
+        while j < len(neigh) {
+            let v = neigh[j]
+            d = 0
+            while d < dim {
+                acc[d] = acc[d] + x[v][d]
+                d = d + 1
+            }
+            c = c + 1.0
+            j = j + 1
+        }
+        d = 0
+        let row = []
+        while d < dim {
+            row = push(row, acc[d] / c)
+            d = d + 1
+        }
+        out = push(out, row)
+        i = i + 1
+    }
+    return out
+}
+
+/// GCN-lite: H' = relu(meanAggregate(H) @ W + b) for each node (dense W).
+pub fn gcnLayer(g, h, w, b) {
+    let agg = meanAggregate(g, h)
+    let out = []
+    let i = 0
+    while i < len(agg) {
+        let row = ml_dense(w, agg[i], b, true)
+        out = push(out, row)
+        i = i + 1
+    }
+    return out
+}
+
+/// Random-walk node embedding seed: degree-normalized one-hot-ish features.
+pub fn degreeFeatures(g) {
+    let n = g["n"]
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, [degree(g, i) * 1.0 / n])
+        i = i + 1
+    }
+    return out
+}

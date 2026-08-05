@@ -1,0 +1,31 @@
+@version "1.0.0"
+
+// SC6i domain — nlp-lite above tokenizer. import "science" + tokenizer first.
+
+pub fn bagOfWords(vocab, text) {
+    let ids = tok_encode(vocab, text)
+    let n = 0
+    let i = 0
+    while i < len(ids) {
+        if ids[i] + 1 > n {
+            n = ids[i] + 1
+        }
+        i = i + 1
+    }
+    if n < 1 {
+        n = 1
+    }
+    let bow = []
+    i = 0
+    while i < n {
+        bow = push(bow, 0.0)
+        i = i + 1
+    }
+    i = 0
+    while i < len(ids) {
+        let id = ids[i]
+        bow[id] = bow[id] + 1.0
+        i = i + 1
+    }
+    return bow
+}

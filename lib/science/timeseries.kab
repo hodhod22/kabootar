@@ -1,0 +1,173 @@
+@version "1.0.0"
+
+// SC6e — Tidsserieanalys (Kab-first). import "science" first.
+
+pub fn lag(xs, k) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        if i < k {
+            out = push(out, null)
+        } else {
+            out = push(out, xs[i - k])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn rollingMean(xs, window) {
+    let out = []
+    let i = 0
+    while i < len(xs) {
+        let s = 0.0
+        let c = 0.0
+        let j = 0
+        while j < window {
+            if i >= j {
+                s = s + xs[i - j]
+                c = c + 1.0
+            }
+            j = j + 1
+        }
+        out = push(out, s / c)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn meanSlice(xs, a, b) {
+    let s = 0.0
+    let n = 0.0
+    let i = a
+    while i < b {
+        s = s + xs[i]
+        n = n + 1.0
+        i = i + 1
+    }
+    if n < 1.0 {
+        return 0.0
+    }
+    return s / n
+}
+
+/// ACF at lag k (Pearson on overlapping pairs).
+pub fn acf(xs, k) {
+    let n = len(xs)
+    if k <= 0 || k >= n {
+        return 0.0
+    }
+    let m = meanSlice(xs, 0, n)
+    let num = 0.0
+    let den = 0.0
+    let i = 0
+    while i < n {
+        let d = xs[i] - m
+        den = den + d * d
+        i = i + 1
+    }
+    i = k
+    while i < n {
+        num = num + (xs[i] - m) * (xs[i - k] - m)
+        i = i + 1
+    }
+    if den < 0.000000000001 {
+        return 0.0
+    }
+    return num / den
+}
+
+/// Naive seasonal decompose: trend = rolling mean, seasonal = mean residual per season, resid = rest.
+pub fn seasonalDecompose(xs, period) {
+    let trend = rollingMean(xs, period)
+    let seas = []
+    let p = 0
+    while p < period {
+        let s = 0.0
+        let c = 0.0
+        let i = p
+        while i < len(xs) {
+            s = s + (xs[i] - trend[i])
+            c = c + 1.0
+            i = i + period
+        }
+        let v = 0.0
+        if c > 0.0 {
+            v = s / c
+        }
+        seas = push(seas, v)
+        p = p + 1
+    }
+    let seasonal = []
+    let resid = []
+    let i = 0
+    while i < len(xs) {
+        let sv = seas[i % period]
+        seasonal = push(seasonal, sv)
+        resid = push(resid, xs[i] - trend[i] - sv)
+        i = i + 1
+    }
+    return { "trend": trend, "seasonal": seasonal, "resid": resid, "period": period }
+}
+
+/// AR(1) least-squares: y_t = a + b * y_{t-1}
+pub fn ar1Fit(xs) {
+    let n = len(xs)
+    if n < 3 {
+        return { "a": 0.0, "b": 0.0 }
+    }
+    let sx = 0.0
+    let sy = 0.0
+    let sxx = 0.0
+    let sxy = 0.0
+    let c = 0.0
+    let i = 1
+    while i < n {
+        let x = xs[i - 1]
+        let y = xs[i]
+        sx = sx + x
+        sy = sy + y
+        sxx = sxx + x * x
+        sxy = sxy + x * y
+        c = c + 1.0
+        i = i + 1
+    }
+    let den = c * sxx - sx * sx
+    let b = 0.0
+    let a = 0.0
+    if den > 0.000000000001 || den < 0.0 - 0.000000000001 {
+        b = (c * sxy - sx * sy) / den
+        a = (sy - b * sx) / c
+    }
+    return { "a": a, "b": b }
+}
+
+pub fn ar1Forecast(model, last, steps) {
+    let out = []
+    let y = last
+    let i = 0
+    while i < steps {
+        y = model["a"] + model["b"] * y
+        out = push(out, y)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn forecastMae(yTrue, yHat) {
+    let n = len(yTrue)
+    if n == 0 || n != len(yHat) {
+        return 0.0
+    }
+    let s = 0.0
+    let i = 0
+    while i < n {
+        let d = yTrue[i] - yHat[i]
+        if d < 0.0 {
+            d = 0.0 - d
+        }
+        s = s + d
+        i = i + 1
+    }
+    return s / n
+}
