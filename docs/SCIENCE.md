@@ -553,8 +553,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `gpu_matmul_kernel` / `gpu_available_kernels` / `gpu_conv2d_kernel` | GPU kernel path |
 | `num_fir` / `num_moving_average` / `num_iir` / `num_biquad` | FIR/IIR filters |
 | `gpu_compute::try_matmul_compute` / `try_conv2d_compute` | WGSL f32 matmul+conv (`--features gpu`) |
-| `sci_gemm` / `sci_blas_dgemm` / blocked `nd_matmul` | SC4a GEMM + BLAS-style API |
+| `sci_gemm` / `sci_blas_dgemm` / blocked `nd_matmul` | SC4a GEMM via `matrixmultiply` SIMD + BLAS-style API |
 | `job_map_parallel` / `job_map_chunks` | SC4c parallel f64 map + Kab-closure chunks |
+| `NdShared` / `nd_slice` views / `a[1:10, :]` | SC0f zero-copy Rc views (no dangling) |
 
 ## ML / AI (SC2)
 
@@ -610,7 +611,8 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
 | training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
 | GPU compute | WGSL matmul+conv2d (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
-| GEMM / workers | `sci_gemm`/`sci_blas_dgemm`; `job_map_parallel`/`job_map_chunks` | `nd.kab` gemm/blasDgemm; `ml.kab` jobMap* |
+| GEMM / workers | `matrixmultiply` dgemm; `sci_v*`/`job_map_*` | `nd.kab` gemm/blasDgemm/vadd; `ml.kab` jobMap* |
+| Nd views | `NdShared` Rc buffer + strided views | `nd.kab` slice/isView/bufRc/ensureOwned; syntax `a[1:10, :]` |
 | ODE / quad | `num_odeint_adaptive` / `num_quad` | `optimize.kab` |
 | signal FIR/IIR | `num_fir`/`num_iir` natives | `signal.kab`; boxcar also in `kab_algo.movingAvgKab` |
 

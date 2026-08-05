@@ -1742,6 +1742,105 @@ impl Parser {
         }
     }
 
+    /// Subscript inside `a[...]` — supports `1:10`, `:`, `1:10, :` (NumPy-style).
+    fn parse_subscript(&mut self) -> Result<Expr, ParseError> {
+        let mut parts = Vec::new();
+        let mut any_slice = false;
+        if self.at(Token::RBracket) {
+            return Err(self.err("Empty index []"));
+        }
+        loop {
+            let (part, is_slice) = self.parse_slice_or_index()?;
+            if is_slice {
+                any_slice = true;
+            }
+            parts.push(part);
+            if self.at(Token::Comma) {
+                self.bump();
+                if self.at(Token::RBracket) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+        if parts.len() == 1 && !any_slice {
+            Ok(parts.pop().unwrap())
+        } else {
+            Ok(Expr::Literal(crate::ast::Literal::Array(
+                parts
+                    .into_iter()
+                    .map(crate::ast::ArrayPiece::Item)
+                    .collect(),
+            )))
+        }
+    }
+
+    /// One index dim: `expr` or `start?:stop?:step?`.
+    fn parse_slice_or_index(&mut self) -> Result<(Expr, bool), ParseError> {
+        if self.at(Token::Colon) {
+            self.bump();
+            let stop = if self.at(Token::Colon)
+                || self.at(Token::Comma)
+                || self.at(Token::RBracket)
+            {
+                None
+            } else {
+                Some(Box::new(self.parse_or()?))
+            };
+            let step = if self.at(Token::Colon) {
+                self.bump();
+                if self.at(Token::Comma) || self.at(Token::RBracket) {
+                    None
+                } else {
+                    Some(Box::new(self.parse_or()?))
+                }
+            } else {
+                None
+            };
+            return Ok((
+                Expr::Slice {
+                    start: None,
+                    stop,
+                    step,
+                },
+                true,
+            ));
+        }
+        // Bound or full expression; peek for `:` → slice.
+        let start = self.parse_or()?;
+        if !self.at(Token::Colon) {
+            return Ok((start, false));
+        }
+        self.bump();
+        let stop = if self.at(Token::Colon)
+            || self.at(Token::Comma)
+            || self.at(Token::RBracket)
+        {
+            None
+        } else {
+            Some(Box::new(self.parse_or()?))
+        };
+        let step = if self.at(Token::Colon) {
+            self.bump();
+            if self.at(Token::Comma) || self.at(Token::RBracket) {
+                None
+            } else {
+                Some(Box::new(self.parse_or()?))
+            }
+        } else {
+            None
+        };
+        Ok((
+            Expr::Slice {
+                start: Some(Box::new(start)),
+                stop,
+                step,
+            },
+            true,
+        ))
+    }
+
     fn parse_postfix(&mut self, mut left: Expr) -> Result<Expr, ParseError> {
         let mut pending_type_args = Vec::new();
         loop {
@@ -1755,7 +1854,7 @@ impl Parser {
                         break;
                     }
                     self.bump();
-                    let index = self.parse_expr()?;
+                    let index = self.parse_subscript()?;
                     self.expect(Token::RBracket)?;
                     left = Expr::Index(Box::new(left), Box::new(index));
                 }

@@ -180,6 +180,24 @@ fn std_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
     Ok(Value::Object(info))
 }
 
+fn nd_slice_spec_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut m = std::collections::HashMap::new();
+    m.insert("__kab_slice".into(), Value::Bool(true));
+    m.insert(
+        "start".into(),
+        args.first().cloned().unwrap_or(Value::Null),
+    );
+    m.insert(
+        "stop".into(),
+        args.get(1).cloned().unwrap_or(Value::Null),
+    );
+    m.insert(
+        "step".into(),
+        args.get(2).cloned().unwrap_or(Value::Number(1)),
+    );
+    Ok(Value::Object(m))
+}
+
 /// Register all stdlib natives on the global environment.
 pub fn register_globals(env: &mut Environment) {
     env.set("json_parse".to_string(), Value::NativeFunction(json_parse_native));
@@ -188,6 +206,10 @@ pub fn register_globals(env: &mut Environment) {
         Value::NativeFunction(json_stringify_native),
     );
     env.set("std_info".to_string(), Value::NativeFunction(std_info_native));
+    env.set(
+        "__nd_slice_spec".to_string(),
+        Value::NativeFunction(nd_slice_spec_native),
+    );
     array::register_array(env);
     string::register_string(env);
     map::register_map_set(env);

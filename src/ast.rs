@@ -91,6 +91,12 @@ pub enum Expr {
     Assign(AssignTarget, Box<Expr>),
     Member(Box<Expr>, String, Vec<String>),
     Index(Box<Expr>, Box<Expr>),
+    /// NumPy-style slice in `a[start:stop:step]` / `a[1:10, :]` (bounds optional).
+    Slice {
+        start: Option<Box<Expr>>,
+        stop: Option<Box<Expr>>,
+        step: Option<Box<Expr>>,
+    },
     OptionalMember(Box<Expr>, String),
     OptionalIndex(Box<Expr>, Box<Expr>),
     OptionalCall(Box<Expr>, Vec<CallArg>),

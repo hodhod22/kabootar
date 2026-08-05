@@ -865,7 +865,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC0c** | **Float64/32 bulk** — zero-copy mot `Float64Array` / `@manual` buffers | ✅ subset (`nd_from_f64` / `nd_to_f64`) |
 | **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
 | **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
-| **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`nd_slice`/`nd_concat`/`nd_stack`/`nd_split`; view-semantik kvar) |
+| **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`NdShared` Rc views + `a[1:10, :]` + `nd_slice` zero-copy; `concat`/`stack`/`split`) |
 | **SC0g** | **Dtypes** — f32/f64/i32/i64/bool (+ complex64 senare); cast | ✅ subset (`nd_dtype`/`nd_astype`; complex kvar) |
 | **SC0h** | **Random** — seed, uniform/normal, shuffle (Kab-API) | ✅ subset (`nd_seed`/`nd_rand_uniform`/`nd_rand_normal`; shuffle via `ml_shuffle`) |
 | **SC0i** | **I/O** — `nd_save` / `nd_load` (binär/VFS; npy-inspirerat) | ✅ subset (KND1 binary) |

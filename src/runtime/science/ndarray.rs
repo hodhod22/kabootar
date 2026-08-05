@@ -1,14 +1,32 @@
 //! Contiguous ndarray for `import "science"` (SC0 — NumPy-class core).
+//!
+//! Zero-copy views share an `NdShared` (`Rc<Vec<f64>>`) buffer — cloning a view
+//! increments the Rc, so buffers cannot dangle while any view/owner lives.
+//! Mutating ops copy-on-write when `strong_count > 1`.
 
 use super::helpers::{float_out, int_out, num, num_at, vector_at, vector_out};
-use crate::value::{Environment, Value};
+use crate::value::{Environment, NdShared, Value};
 use std::collections::HashMap;
 
 const ND_MARK: &str = "__kab_nd";
+const ND_BUF: &str = "__buf";
+const ND_VIEW: &str = "view";
+const ND_OFFSET: &str = "offset";
+const ND_STRIDES: &str = "strides";
+const SLICE_MARK: &str = "__kab_slice";
 
 fn shape_val(shape: &[usize]) -> Value {
     Value::Array(
         shape
+            .iter()
+            .map(|d| Value::Number(*d as i64))
+            .collect(),
+    )
+}
+
+fn strides_val(strides: &[usize]) -> Value {
+    Value::Array(
+        strides
             .iter()
             .map(|d| Value::Number(*d as i64))
             .collect(),
@@ -34,8 +52,132 @@ fn parse_shape(v: &Value) -> Result<Vec<usize>, String> {
     }
 }
 
+fn parse_strides(v: &Value) -> Result<Vec<usize>, String> {
+    match v {
+        Value::Array(items) => items
+            .iter()
+            .map(|it| {
+                let n = num(it)?;
+                if n < 0.0 {
+                    return Err("nd strides must be non-negative".into());
+                }
+                Ok(n as usize)
+            })
+            .collect(),
+        _ => Err("nd strides must be array".into()),
+    }
+}
+
 fn shape_product(shape: &[usize]) -> usize {
     shape.iter().product::<usize>().max(if shape.is_empty() { 1 } else { 0 })
+}
+
+/// View metadata + shared buffer (zero-copy).
+struct NdView {
+    buf: NdShared,
+    offset: usize,
+    shape: Vec<usize>,
+    strides: Vec<usize>,
+    dtype: String,
+}
+
+impl NdView {
+    fn owned(shape: Vec<usize>, data: Vec<f64>, dtype: &str) -> Self {
+        let strides = strides_of(&shape);
+        Self {
+            buf: NdShared::new(data),
+            offset: 0,
+            shape,
+            strides,
+            dtype: dtype.into(),
+        }
+    }
+
+    fn is_c_contiguous(&self) -> bool {
+        self.offset == 0 && self.strides == strides_of(&self.shape)
+    }
+
+    fn numel(&self) -> usize {
+        shape_product(&self.shape)
+    }
+
+    fn to_vec(&self) -> Vec<f64> {
+        let n = self.numel();
+        if self.is_c_contiguous() && self.buf.len() >= n {
+            return self.buf.as_slice()[..n].to_vec();
+        }
+        let data = self.buf.as_slice();
+        let out_strides = strides_of(&self.shape);
+        let mut out = vec![0.0; n];
+        for flat in 0..n {
+            let idx = unravel(flat, &self.shape, &out_strides);
+            let mut off = self.offset;
+            for d in 0..self.shape.len() {
+                off += idx[d] * self.strides[d];
+            }
+            out[flat] = data[off];
+        }
+        out
+    }
+
+    fn into_value(self) -> Value {
+        self.into_value_flag(None)
+    }
+
+    fn into_value_as_view(self) -> Value {
+        self.into_value_flag(Some(true))
+    }
+
+    fn into_value_flag(self, force_view: Option<bool>) -> Value {
+        let is_view = force_view.unwrap_or_else(|| !self.is_c_contiguous());
+        let mut m = HashMap::new();
+        m.insert(ND_MARK.into(), Value::Bool(true));
+        m.insert(ND_BUF.into(), Value::NdShared(self.buf.clone()));
+        m.insert("shape".into(), shape_val(&self.shape));
+        m.insert(ND_STRIDES.into(), strides_val(&self.strides));
+        m.insert(ND_OFFSET.into(), Value::Number(self.offset as i64));
+        m.insert("size".into(), Value::Number(self.numel() as i64));
+        m.insert("dtype".into(), Value::String(self.dtype));
+        m.insert(ND_VIEW.into(), Value::Bool(is_view));
+        m.insert("rc".into(), Value::Number(self.buf.strong_count() as i64));
+        if !is_view {
+            m.insert("data".into(), vector_out(self.buf.as_slice()));
+        }
+        Value::Object(m)
+    }
+}
+
+fn nd_from_object(m: &HashMap<String, Value>) -> Result<NdView, String> {
+    let shape = parse_shape(m.get("shape").ok_or("nd missing shape")?)?;
+    let dtype = match m.get("dtype") {
+        Some(Value::String(s)) => s.clone(),
+        _ => "f64".into(),
+    };
+    if let Some(Value::NdShared(buf)) = m.get(ND_BUF) {
+        let offset = m
+            .get(ND_OFFSET)
+            .and_then(|v| num(v).ok())
+            .unwrap_or(0.0) as usize;
+        let strides = if let Some(s) = m.get(ND_STRIDES) {
+            parse_strides(s)?
+        } else {
+            strides_of(&shape)
+        };
+        return Ok(NdView {
+            buf: buf.clone(),
+            offset,
+            shape,
+            strides,
+            dtype,
+        });
+    }
+    // Legacy object: owned Array data
+    let data = flat_from_value(m.get("data").ok_or("nd missing data")?)?;
+    let n = shape_product(&shape);
+    if data.len() != n {
+        return Err(format!("nd shape product {n} != data length {}", data.len()));
+    }
+    Ok(NdView::owned(shape, data, &dtype))
 }
 
 fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
@@ -44,7 +186,6 @@ fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
     }
     match v {
         Value::Array(items) => {
-            // Nested matrix → row-major flat, or flat vector.
             if items
                 .first()
                 .map(|x| matches!(x, Value::Array(_)))
@@ -65,14 +206,9 @@ fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
             }
         }
         Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
-            if let Some(view) = m.get("f64") {
-                if crate::runtime::shared_memory::is_float64_array(view) {
-                    return crate::runtime::shared_memory::float64_array_to_f64_vec(view);
-                }
-            }
-            let data = m.get("data").ok_or("nd missing data")?;
-            flat_from_value(data)
+            Ok(nd_from_object(m)?.to_vec())
         }
+        Value::NdShared(buf) => Ok(buf.as_slice().to_vec()),
         _ => Err("expected array, Float64Array, or ndarray".into()),
     }
 }
@@ -135,16 +271,8 @@ fn nd_to_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 fn nd_parts(v: &Value) -> Result<(Vec<usize>, Vec<f64>), String> {
     match v {
         Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
-            let shape = parse_shape(m.get("shape").ok_or("nd missing shape")?)?;
-            let data = flat_from_value(m.get("data").ok_or("nd missing data")?)?;
-            let n = shape_product(&shape);
-            if data.len() != n {
-                return Err(format!(
-                    "nd shape product {n} != data length {}",
-                    data.len()
-                ));
-            }
-            Ok((shape, data))
+            let view = nd_from_object(m)?;
+            Ok((view.shape.clone(), view.to_vec()))
         }
         Value::Array(_) => {
             let data = flat_from_value(v)?;
@@ -159,13 +287,7 @@ fn nd_out(shape: &[usize], data: &[f64]) -> Value {
 }
 
 fn nd_out_dtype(shape: &[usize], data: &[f64], dtype: &str) -> Value {
-    let mut m = HashMap::new();
-    m.insert(ND_MARK.into(), Value::Bool(true));
-    m.insert("shape".into(), shape_val(shape));
-    m.insert("data".into(), vector_out(data));
-    m.insert("size".into(), Value::Number(data.len() as i64));
-    m.insert("dtype".into(), Value::String(dtype.into()));
-    Value::Object(m)
+    NdView::owned(shape.to_vec(), data.to_vec(), dtype).into_value()
 }
 
 fn nd_at(args: &[Value], i: usize, name: &str) -> Result<(Vec<usize>, Vec<f64>), String> {
@@ -526,33 +648,62 @@ fn nd_where(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(nd_out(&so, &out))
 }
 
-/// Copy-slice: ranges as [[start, stop], ...] (stop exclusive). Missing dims = full.
+/// Zero-copy view-slice: ranges as [[start, stop], ...] (stop exclusive).
+/// Shares parent `NdShared` buffer via Rc — no dangling while any view lives.
 fn nd_slice(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (shape, data) = nd_at(args, 0, "nd_slice")?;
+    let parent = match args.first() {
+        Some(Value::Object(m)) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            nd_from_object(m)?
+        }
+        Some(v) => {
+            let (shape, data) = nd_parts(v)?;
+            NdView::owned(shape, data, "f64")
+        }
+        None => return Err("nd_slice(a, ranges)".into()),
+    };
     let ranges = match args.get(1) {
         Some(Value::Array(items)) => items,
         _ => return Err("nd_slice(a, [[start,stop], ...])".into()),
     };
-    if ranges.len() > shape.len() {
+    view_from_ranges(&parent, ranges)
+}
+
+fn view_from_ranges(parent: &NdView, ranges: &[Value]) -> Result<Value, String> {
+    if ranges.len() > parent.shape.len() {
         return Err("nd_slice: too many ranges".into());
     }
-    let mut starts = vec![0usize; shape.len()];
-    let mut stops = shape.clone();
+    let mut starts = vec![0usize; parent.shape.len()];
+    let mut stops = parent.shape.clone();
     for (i, r) in ranges.iter().enumerate() {
+        if is_slice_spec(r) {
+            let (start, stop, _step) = parse_slice_spec(r, parent.shape[i])?;
+            starts[i] = start;
+            stops[i] = stop;
+            continue;
+        }
         let Value::Array(pair) = r else {
-            return Err("nd_slice: each range must be [start, stop]".into());
+            // Single index → size-1 slice
+            let idx = num(r)? as usize;
+            if idx >= parent.shape[i] {
+                return Err("nd_slice: index OOB".into());
+            }
+            starts[i] = idx;
+            stops[i] = idx + 1;
+            continue;
         };
         let start = if pair.is_empty() {
+            0usize
+        } else if matches!(pair[0], Value::Null | Value::Undefined) {
             0usize
         } else {
             num(&pair[0])? as usize
         };
-        let stop = if pair.len() < 2 {
-            shape[i]
+        let stop = if pair.len() < 2 || matches!(pair[1], Value::Null | Value::Undefined) {
+            parent.shape[i]
         } else {
             num(&pair[1])? as usize
         };
-        if start > stop || stop > shape[i] {
+        if start > stop || stop > parent.shape[i] {
             return Err("nd_slice: bad range".into());
         }
         starts[i] = start;
@@ -563,19 +714,117 @@ fn nd_slice(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         .zip(stops.iter())
         .map(|(a, b)| b - a)
         .collect();
-    let n = shape_product(&out_shape);
-    let in_strides = strides_of(&shape);
-    let out_strides = strides_of(&out_shape);
-    let mut out = vec![0.0; n];
-    for flat in 0..n {
-        let oidx = unravel(flat, &out_shape, &out_strides);
-        let mut iflat = 0usize;
-        for d in 0..shape.len() {
-            iflat += (starts[d] + oidx[d]) * in_strides[d];
-        }
-        out[flat] = data[iflat];
+    let mut offset = parent.offset;
+    for d in 0..parent.shape.len() {
+        offset += starts[d] * parent.strides[d];
     }
-    Ok(nd_out(&out_shape, &out))
+    let out = NdView {
+        buf: parent.buf.clone(),
+        offset,
+        shape: out_shape,
+        strides: parent.strides.clone(),
+        dtype: parent.dtype.clone(),
+    };
+    Ok(out.into_value_as_view())
+}
+
+fn is_slice_spec(v: &Value) -> bool {
+    matches!(
+        v,
+        Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true)))
+    )
+}
+
+fn parse_slice_spec(v: &Value, dim: usize) -> Result<(usize, usize, usize), String> {
+    let Value::Object(m) = v else {
+        return Err("slice spec".into());
+    };
+    let start = match m.get("start") {
+        Some(Value::Null) | Some(Value::Undefined) | None => 0usize,
+        Some(x) => {
+            let n = num(x)? as i64;
+            if n < 0 {
+                (dim as i64 + n).max(0) as usize
+            } else {
+                n as usize
+            }
+        }
+    };
+    let stop = match m.get("stop") {
+        Some(Value::Null) | Some(Value::Undefined) | None => dim,
+        Some(x) => {
+            let n = num(x)? as i64;
+            if n < 0 {
+                (dim as i64 + n).max(0) as usize
+            } else {
+                (n as usize).min(dim)
+            }
+        }
+    };
+    let step = match m.get("step") {
+        Some(Value::Null) | Some(Value::Undefined) | None => 1usize,
+        Some(x) => {
+            let n = num(x)? as usize;
+            if n == 0 {
+                return Err("slice step must be != 0".into());
+            }
+            n
+        }
+    };
+    if start > stop || stop > dim {
+        return Err("slice: bad range".into());
+    }
+    Ok((start, stop, step))
+}
+
+/// Public entry for IndexGet on nd + slice/multi-index (used by ops::read_index).
+pub fn nd_index_view_public(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    nd_index_view(args, env)
+}
+
+fn nd_index_view(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("nd_index_view(a, idx)")?;
+    let idx = args.get(1).ok_or("nd_index_view: missing idx")?;
+    match idx {
+        Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true))) => {
+            nd_slice(&[a.clone(), Value::Array(vec![idx.clone()])], env)
+        }
+        Value::Array(items) => nd_slice(&[a.clone(), Value::Array(items.clone())], env),
+        Value::Number(_) | Value::Float(_) => nd_get(&[a.clone(), idx.clone()], env),
+        _ => Err("nd_index_view: bad index".into()),
+    }
+}
+
+fn nd_is_view(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    match args.first() {
+        Some(Value::Object(m)) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            Ok(Value::Bool(matches!(
+                m.get(ND_VIEW),
+                Some(Value::Bool(true))
+            )))
+        }
+        _ => Ok(Value::Bool(false)),
+    }
+}
+
+fn nd_buf_rc(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    match args.first() {
+        Some(Value::Object(m)) => {
+            if let Some(Value::NdShared(buf)) = m.get(ND_BUF) {
+                return Ok(Value::Number(buf.strong_count() as i64));
+            }
+            Ok(Value::Number(1))
+        }
+        _ => Err("nd_buf_rc(a)".into()),
+    }
+}
+
+fn nd_ensure_owned(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_ensure_owned")?;
+    Ok(NdView::owned(shape, data, "f64").into_value())
 }
 
 fn nd_concat(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -735,26 +984,27 @@ fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     ))
 }
 
-/// Blocked GEMM (SC4a) — cache-friendly BLAS-style hotpath.
+/// BLAS-class DGEMM via `matrixmultiply` (SIMD kernels) with blocked fallback.
 fn gemm_blocked(m: usize, k: usize, n: usize, a: &[f64], b: &[f64]) -> Vec<f64> {
-    const BS: usize = 32;
     let mut out = vec![0.0; m * n];
-    for ii in (0..m).step_by(BS) {
-        for jj in (0..n).step_by(BS) {
-            for kk in (0..k).step_by(BS) {
-                let i_lim = (ii + BS).min(m);
-                let j_lim = (jj + BS).min(n);
-                let k_lim = (kk + BS).min(k);
-                for i in ii..i_lim {
-                    for t in kk..k_lim {
-                        let av = a[i * k + t];
-                        for j in jj..j_lim {
-                            out[i * n + j] += av * b[t * n + j];
-                        }
-                    }
-                }
-            }
-        }
+    // matrixmultiply::dgemm: C = alpha*A*B + beta*C (row-major).
+    unsafe {
+        matrixmultiply::dgemm(
+            m,
+            k,
+            n,
+            1.0,
+            a.as_ptr(),
+            k as isize,
+            1,
+            b.as_ptr(),
+            n as isize,
+            1,
+            0.0,
+            out.as_mut_ptr(),
+            n as isize,
+            1,
+        );
     }
     out
 }
@@ -874,19 +1124,28 @@ fn nd_to_array(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
     Ok(vector_out(&data))
 }
 
-/// P5: bulk vector add (SIMD-friendly tight loop).
+/// P5/SC4a: SIMD-friendly vector add (chunked; auto-vectorized).
 fn sci_vadd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let a = vector_at(args, 0, "sci_vadd")?;
     let b = vector_at(args, 1, "sci_vadd")?;
     if a.len() != b.len() {
         return Err("sci_vadd: length mismatch".into());
     }
-    Ok(vector_out(
-        &a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| x + y)
-            .collect::<Vec<_>>(),
-    ))
+    let mut out = vec![0.0; a.len()];
+    let n = a.len();
+    let mut i = 0;
+    while i + 4 <= n {
+        out[i] = a[i] + b[i];
+        out[i + 1] = a[i + 1] + b[i + 1];
+        out[i + 2] = a[i + 2] + b[i + 2];
+        out[i + 3] = a[i + 3] + b[i + 3];
+        i += 4;
+    }
+    while i < n {
+        out[i] = a[i] + b[i];
+        i += 1;
+    }
+    Ok(vector_out(&out))
 }
 
 fn sci_vmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -895,12 +1154,21 @@ fn sci_vmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     if a.len() != b.len() {
         return Err("sci_vmul: length mismatch".into());
     }
-    Ok(vector_out(
-        &a.iter()
-            .zip(b.iter())
-            .map(|(x, y)| x * y)
-            .collect::<Vec<_>>(),
-    ))
+    let mut out = vec![0.0; a.len()];
+    let n = a.len();
+    let mut i = 0;
+    while i + 4 <= n {
+        out[i] = a[i] * b[i];
+        out[i + 1] = a[i + 1] * b[i + 1];
+        out[i + 2] = a[i + 2] * b[i + 2];
+        out[i + 3] = a[i + 3] * b[i + 3];
+        i += 4;
+    }
+    while i < n {
+        out[i] = a[i] * b[i];
+        i += 1;
+    }
+    Ok(vector_out(&out))
 }
 
 fn sci_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1126,6 +1394,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_clip", "nd_clip"], nd_clip);
     bind(&["science_nd_where", "nd_where"], nd_where);
     bind(&["science_nd_slice", "nd_slice"], nd_slice);
+    bind(&["science_nd_index_view", "nd_index_view"], nd_index_view);
+    bind(&["science_nd_is_view", "nd_is_view"], nd_is_view);
+    bind(&["science_nd_buf_rc", "nd_buf_rc"], nd_buf_rc);
+    bind(&["science_nd_ensure_owned", "nd_ensure_owned"], nd_ensure_owned);
     bind(&["science_nd_concat", "nd_concat"], nd_concat);
     bind(&["science_nd_stack", "nd_stack"], nd_stack);
     bind(&["science_nd_split", "nd_split"], nd_split);
