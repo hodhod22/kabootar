@@ -1063,7 +1063,9 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 
 **Checkpoint SC (landad 2026-08-06):** MKL/OpenBLAS thread control (`sci_blas_set_num_threads` / `blasInfo`); multi-layer TF stack (`tf_stack_forward` / `tf_stack_backprop_step`); nested Parquet List/Struct roundtrip (`tests/science_sc_checkpoint_next.rs`).
 **Checkpoint SC (landad 2026-08-06b):** fancy indexing (`nd_gather` / `nd_compress`); `complex64` dtype + KND tag 6; threaded in-process AllReduce (`sci_allreduce_f64` / `allReduce*`) — `tests/science_sc_checkpoint_parity.rs`.
-**Checkpoint SC (nästa):** SC5b vidare Kab-port; multi-node AllReduce; complex gather/compress; full broadcast fancy multi-axis.
+**Checkpoint SC (landad 2026-08-06c):** complex gather/compress + `nd_nonzero` / `nd_fancy_index`; SC5b Kab-port (`median`/`percentile`/`crossEntropy`/`oneHot`/`matmul`/`f1`/`confusion`); multi-rank AllReduce (`allReduceRanks`) — `tests/science_sc_checkpoint_sc5.rs`.
+**Checkpoint SC (landad 2026-08-06d):** outer multi-axis fancy (`fancyOuter`); mailbox multi-node AllReduce (`allReduceStar`/`allReduceRing`); Kab `pcaKab`/`stumpKab`/`kmeansKab` — `tests/science_sc_checkpoint_sc5d.rs`.
+**Checkpoint SC (nästa):** network/socket multi-node transport; deeper tree ensembles in Kab; sparse fancy views.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

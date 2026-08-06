@@ -99,6 +99,27 @@ pub fn compress(a, mask) {
     return nd_compress(a, mask)
 }
 
+/// Flat indices of non-zero / true elements.
+pub fn nonzero(a) {
+    return nd_nonzero(a)
+}
+
+/// Gather along axis (alias of gather for NumPy take_along_axis lite).
+pub fn takeAlong(a, indices, axis) {
+    return nd_take_along(a, indices, axis)
+}
+
+/// Advanced indexing: one integer array per leading axis.
+/// mode: "broadcast" (default) or "outer" (cartesian / multi-axis result).
+pub fn fancyIndex(a, indexArrays, mode) {
+    return nd_fancy_index(a, indexArrays, mode)
+}
+
+/// Outer fancy indexing (cartesian product of index arrays).
+pub fn fancyOuter(a, indexArrays) {
+    return nd_fancy_index(a, indexArrays, "outer")
+}
+
 /// Complex conjugate (no-op for real dtypes).
 pub fn conj(a) {
     return nd_conj(a)
