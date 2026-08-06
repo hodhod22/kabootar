@@ -649,6 +649,9 @@ fn xr_bind_headset_native(args: &[Value], _env: &mut Environment) -> Result<Valu
             out.insert("openxrLoader".into(), Value::Bool(st.openxr_loader));
             out.insert("openxrRuntime".into(), Value::Bool(st.openxr_runtime));
             out.insert("webxr".into(), Value::Bool(st.webxr));
+            out.insert("hmdConnected".into(), Value::Bool(st.hmd_connected));
+            out.insert("vendor".into(), Value::String(st.vendor));
+            out.insert("formFactor".into(), Value::String(st.form_factor));
             Ok(Value::Object(out))
         }
         Err(e) => {
@@ -660,6 +663,13 @@ fn xr_bind_headset_native(args: &[Value], _env: &mut Environment) -> Result<Valu
             Ok(Value::Object(out))
         }
     }
+}
+
+fn xr_hmd_driver_present_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let composition = args
+        .first()
+        .ok_or_else(|| "xr_hmd_driver_present(composition)".to_string())?;
+    xr_ffi::present_to_hmd(composition)
 }
 
 fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1139,6 +1149,7 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_host_present", xr_host_present_native),
         ("xr_ffi_probe", xr_ffi_probe_native),
         ("xr_bind_headset", xr_bind_headset_native),
+        ("xr_hmd_driver_present", xr_hmd_driver_present_native),
         ("xr_create_swapchain", xr_create_swapchain_native),
         ("xr_wait_frame", xr_wait_frame_native),
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
