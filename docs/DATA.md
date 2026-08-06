@@ -1,6 +1,6 @@
 # Data (`import "data"`)
 
-Kab-first **DataFrame** module for analysis — pandas-class MVP on top of `science` natives (`df_*`, CSV, KPQT1 Parquet-lite, plots).
+Kab-first **DataFrame** module for analysis — pandas-class MVP on top of `science` natives (`df_*`, CSV, Apache Parquet + KPQT1, plots).
 
 ## Quick start
 
@@ -25,7 +25,7 @@ let fig = interactiveLine([1.0, 2.0, 1.5], "trend")
 | Area | Functions |
 |------|-----------|
 | Frame | `from`, `fromRows`, `toRows`, `select`, `filter`, `groupby`, `join`, `pivot`, `aggregate`, `nrows`, `head`, `columns` |
-| I/O | `readCsv` / `readCsvText`, `readJson` / `readJsonText`, `readParquet`, `writeCsv`, `writeJson`, `writeParquet`, `describe` |
+| I/O | `readCsv` / `readCsvText`, `readJson` / `readJsonText`, `readParquet` (`.parquet` Apache / `.kpqt` KPQT1), `writeCsv`, `writeJson`, `writeParquet`, `describe` |
 | Plot | `line`, `scatter`, `hist`, `spark`, `interactiveLine`, `interactiveScatter` |
 
 `groupby` how: `mean` \| `sum` \| `count`. `pivot` / `aggregate` also support `min` \| `max` in Kab.

@@ -219,6 +219,74 @@ fn jointAccel(j, params) {
     return qdd
 }
 
+/// ABA-lite: diagonal articulated FD (base→tip). Not full spatial ABA / CRBA.
+fn jointAccelAba(j, params, parentQdd) {
+    let inertia = j["inertia"]
+    if inertia == null || inertia == 0.0 {
+        inertia = 0.35
+    }
+    let damp = params["damping"]
+    if damp == null || damp == undefined {
+        damp = 0.05
+    }
+    let tau = j["tau"]
+    if tau == null || tau == undefined {
+        tau = params["kp"] * (j["qTarget"] - j["q"]) - params["kd"] * j["qd"]
+        j["tau"] = tau
+    }
+    // Bias: viscous damping + small coupling from parent acceleration (stub).
+    let bias = damp * j["qd"] + 0.15 * parentQdd * inertia
+    return (tau - bias) / inertia
+}
+
+fn stepJointAba(j, params, dt, parentQdd) {
+    let qdd = jointAccelAba(j, params, parentQdd)
+    j["qdd"] = qdd
+    j["qd"] = j["qd"] + qdd * dt
+    j["q"] = j["q"] + j["qd"] * dt
+    return clampJoint(j)
+}
+
+/// Apply explicit joint torques (for ABA / feed-forward). lengths may be shorter than joints.
+pub fn abaApplyTorques(world, taus) {
+    let joints = world["joints"]
+    let i = 0
+    let out = []
+    while i < len(joints) {
+        let j = joints[i]
+        if taus != null && i < len(taus) {
+            j["tau"] = taus[i]
+        }
+        out = push(out, j)
+        i = i + 1
+    }
+    world["joints"] = out
+    world["params"]["solver"] = "aba"
+    world["aba"] = { "mode": "aba_diagonal_stub" }
+    return world
+}
+
+/// Wrap world joints as articulated body descriptor.
+pub fn createArticulatedBody(world) {
+    let links = []
+    let i = 0
+    while i < len(world["joints"]) {
+        let j = world["joints"][i]
+        links = push(links, {
+            "joint": j["name"],
+            "inertia": j["inertia"],
+            "parent": j["parent"],
+            "child": j["child"]
+        })
+        i = i + 1
+    }
+    return {
+        "kind": "articulated_body",
+        "mode": "aba_diagonal_stub",
+        "links": links
+    }
+}
+
 /// One Euler step of joint-space ODE.
 fn stepJointEuler(j, params, dt) {
     let qdd = jointAccel(j, params)
@@ -314,13 +382,25 @@ pub fn step(world, dt) {
     let params = world["params"]
     let ji = 0
     let joints = world["joints"]
-    while ji < len(joints) {
-        if params["solver"] == "rk4" {
-            joints[ji] = stepJointRk4(joints[ji], params, dt)
-        } else {
-            joints[ji] = stepJointEuler(joints[ji], params, dt)
+    if params["solver"] == "aba" {
+        let parentQdd = 0.0
+        while ji < len(joints) {
+            joints[ji] = stepJointAba(joints[ji], params, dt, parentQdd)
+            parentQdd = joints[ji]["qdd"]
+            if parentQdd == null || parentQdd == undefined {
+                parentQdd = 0.0
+            }
+            ji = ji + 1
         }
-        ji = ji + 1
+    } else {
+        while ji < len(joints) {
+            if params["solver"] == "rk4" {
+                joints[ji] = stepJointRk4(joints[ji], params, dt)
+            } else {
+                joints[ji] = stepJointEuler(joints[ji], params, dt)
+            }
+            ji = ji + 1
+        }
     }
     world["joints"] = joints
     world = updateForwardKinematics(world)
@@ -405,6 +485,16 @@ pub fn worldToEditor(world) {
     return root
 }
 
+pub fn addSoftBody(world, soft) {
+    let softs = world["softBodies"]
+    if softs == null || softs == undefined {
+        softs = []
+    }
+    softs = push(softs, soft)
+    world["softBodies"] = softs
+    return world
+}
+
 pub fn writeParamsFile(path, params) {
     os_write(path, json_stringify(params))
     return { "ok": true, "path": path }
@@ -414,7 +504,7 @@ pub fn readParamsFile(path) {
     return json_parse(os_read(path))
 }
 
-/// Ground-plane contact stub (y=0). Soft-body / ABA deferred (SIM3 full).
+/// Ground-plane contact stub (y=0).
 pub fn resolveGroundContact(world, restitution) {
     if restitution == null || restitution == undefined {
         restitution = 0.0

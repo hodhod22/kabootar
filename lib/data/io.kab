@@ -124,11 +124,14 @@ fn valueToFrame(v) {
     return df_from(v)
 }
 
+/// Load Parquet path → DataFrame.
+/// `.parquet` / `.parq` → Apache Parquet (host); `.kpqt` / other → KPQT1.
 pub fn readParquet(path) {
     let rows = parquet_load(path)
     return fromRowsLocal(rows)
 }
 
+/// Write DataFrame as Parquet. Extension selects Apache vs KPQT1.
 pub fn writeParquet(path, df) {
     let rows = toRowsLocal(df)
     return parquet_save(path, rows)

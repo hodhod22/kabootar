@@ -771,7 +771,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | ✅ subset (clip/sample/tween/state; skeletal kvar) |
 | **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | ✅ subset (rigidbody/box/sphere/capsule + distance constraint + stepWorld) |
 | **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | ✅ subset (CPU emitter/burst/step; GPU kvar) |
-| **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | 📋 |
+| **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | ✅ subset (heightmap + bilinear + LOD mesh; splat/streaming stub) |
 | **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | ✅ subset (panel/button/label/layoutRow/hitTest) |
 | **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | ✅ subset (pipeline descriptors + CPU tonemap/bloom stubs; GPU pass kvar) |
 | **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | ✅ subset (light list + shadow descriptors + Lambert stub; GPU shadow kvar) |
@@ -803,7 +803,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** GP6d terrain + GP6h audio++ + GP6l procgen; shadows/postfx polish.  
+**Checkpoint GP (nästa):** GP6h audio++ + GP6l procgen; shadows/postfx polish; terrain splat/streaming.  
 **Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + sandbox session + **`import "sim"` robot twin MVP** + GP6a/b/c/e/f/g/i.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
@@ -818,9 +818,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **SIM2** | `sim/robot` 3-DOF arm + encoders/IMU stubs + `worldToEditor` | ✅ |
 | **SIM3** | Contact stub + planar IK + `iot/twin` bridge (ABA/soft-body deferred) | ✅ subset |
 | **SIM4** | Live editor teleop — `sim/teleop` arm↔GP7 (joint/IK/Learn + step+refresh) | ✅ subset |
+| **SIM5** | Soft-body springs (`sim/soft`) + ABA-lite diagonal FD (`solver:"aba"`) | ✅ subset |
 
-**Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `lib/sim/teleop.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
-**Checkpoint SIM (nästa):** soft-body / ABA (multibody).
+**Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/{robot,teleop,soft}.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
+**Checkpoint SIM (nästa):** full spatial ABA / CRBA + soft-body collision.
 
 ### Våg DATA — DataFrame / I/O / viz (pandas-klass) 🚧 ✅ MVP subset
 
@@ -831,10 +832,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **DATA0** | `data/frame` — from/select/filter/groupby/join + `toRows`/`fromRows` | ✅ |
 | **DATA1** | `pivot` + `aggregate` (min/max i Kab); tidy `readCsv`/`readJson`/`readParquet` | ✅ |
 | **DATA2** | `interactiveLine` / `interactiveScatter` (text/html) | ✅ |
-| **DATA3** | Typed columns (`dtypes`/`cast`), left/outer join, bars/heatmap viz (Parquet FFI deferred) | ✅ subset |
+| **DATA3** | Typed columns (`dtypes`/`cast`), left/outer join, bars/heatmap viz; Apache Parquet via `parquet` crate (`.parquet`) + KPQT1 fallback | ✅ subset |
 
 **Checkpoint DATA (landad):** `lib/data.kab`, `lib/data/{frame,io,plot}.kab`, `examples/data_analysis.kab`, `tests/data_module.rs`, [DATA.md](DATA.md).  
-**Checkpoint DATA (nästa):** Apache Parquet FFI + Plotly-klass zoom/brush.
+**Checkpoint DATA (nästa):** nested Parquet types + Plotly-klass zoom/brush.
 
 ### Våg IOT — Internet of Things 🚧 ✅ MVP subset
 
@@ -1058,7 +1059,7 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 
 **SC-ordning:** SC0–SC7 ✅ subset.
 
-**Checkpoint SC (nästa):** Apache Parquet FFI / MKL thread control; multi-layer TF stack.  
+**Checkpoint SC (nästa):** MKL thread control; multi-layer TF stack; nested Parquet.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

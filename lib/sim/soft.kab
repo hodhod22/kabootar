@@ -1,0 +1,192 @@
+@version "1.0.0"
+
+// sim/soft — particle–spring soft body (SIM soft-body subset).
+// import "sim/soft"
+
+/// Particle: { x,y,z, vx,vy,vz, mass, fixed? }
+pub fn createParticle(x, y, z, mass, fixed) {
+    if mass == null || mass == undefined {
+        mass = 1.0
+    }
+    if fixed == null || fixed == undefined {
+        fixed = false
+    }
+    return {
+        "x": x,
+        "y": y,
+        "z": z,
+        "vx": 0.0,
+        "vy": 0.0,
+        "vz": 0.0,
+        "mass": mass,
+        "fixed": fixed
+    }
+}
+
+pub fn createSpring(i, j, rest, k, damp) {
+    if k == null || k == undefined {
+        k = 40.0
+    }
+    if damp == null || damp == undefined {
+        damp = 2.0
+    }
+    return {
+        "i": i,
+        "j": j,
+        "rest": rest,
+        "k": k,
+        "damp": damp,
+        "strain": 0.0
+    }
+}
+
+/// Soft body cloth / tetra from particles + springs.
+pub fn createSoftBody(name, particles, springs) {
+    if particles == null {
+        particles = []
+    }
+    if springs == null {
+        springs = []
+    }
+    return {
+        "kind": "soft_body",
+        "name": name,
+        "particles": particles,
+        "springs": springs,
+        "t": 0.0
+    }
+}
+
+/// 2×2 cloth patch in XY (z=0), fixed top edge.
+pub fn createCloth2x2(name, size, mass) {
+    if size == null {
+        size = 1.0
+    }
+    if mass == null {
+        mass = 0.5
+    }
+    let particles = [
+        createParticle(0.0, size, 0.0, mass, true),
+        createParticle(size, size, 0.0, mass, true),
+        createParticle(0.0, 0.0, 0.0, mass, false),
+        createParticle(size, 0.0, 0.0, mass, false)
+    ]
+    let springs = [
+        createSpring(0, 1, size, 50.0, 2.0),
+        createSpring(0, 2, size, 50.0, 2.0),
+        createSpring(1, 3, size, 50.0, 2.0),
+        createSpring(2, 3, size, 50.0, 2.0),
+        createSpring(0, 3, size * 1.414, 30.0, 1.5),
+        createSpring(1, 2, size * 1.414, 30.0, 1.5)
+    ]
+    return createSoftBody(name, particles, springs)
+}
+
+fn dist3(a, b) {
+    let dx = a["x"] - b["x"]
+    let dy = a["y"] - b["y"]
+    let dz = a["z"] - b["z"]
+    return sqrt(dx * dx + dy * dy + dz * dz)
+}
+
+/// One Euler soft-body step with gravity (default -9.81 on Y).
+pub fn stepSoftBody(soft, dt, gravity) {
+    if dt == null || dt <= 0.0 {
+        dt = 1.0 / 60.0
+    }
+    if gravity == null || gravity == undefined {
+        gravity = -9.81
+    }
+    let particles = soft["particles"]
+    let springs = soft["springs"]
+    let n = len(particles)
+    let fx = []
+    let fy = []
+    let fz = []
+    let i = 0
+    while i < n {
+        fx = push(fx, 0.0)
+        fy = push(fy, particles[i]["mass"] * gravity)
+        fz = push(fz, 0.0)
+        i = i + 1
+    }
+    let si = 0
+    let newSprings = []
+    while si < len(springs) {
+        let s = springs[si]
+        let a = particles[s["i"]]
+        let b = particles[s["j"]]
+        let d = dist3(a, b)
+        if d < 0.0001 {
+            d = 0.0001
+        }
+        let strain = (d - s["rest"]) / s["rest"]
+        s["strain"] = strain
+        let f = s["k"] * (d - s["rest"])
+        let nx = (b["x"] - a["x"]) / d
+        let ny = (b["y"] - a["y"]) / d
+        let nz = (b["z"] - a["z"]) / d
+        let rvx = b["vx"] - a["vx"]
+        let rvy = b["vy"] - a["vy"]
+        let rvz = b["vz"] - a["vz"]
+        let dampF = s["damp"] * (rvx * nx + rvy * ny + rvz * nz)
+        let ft = f + dampF
+        fx[s["i"]] = fx[s["i"]] + ft * nx
+        fy[s["i"]] = fy[s["i"]] + ft * ny
+        fz[s["i"]] = fz[s["i"]] + ft * nz
+        fx[s["j"]] = fx[s["j"]] - ft * nx
+        fy[s["j"]] = fy[s["j"]] - ft * ny
+        fz[s["j"]] = fz[s["j"]] - ft * nz
+        newSprings = push(newSprings, s)
+        si = si + 1
+    }
+    soft["springs"] = newSprings
+    let out = []
+    i = 0
+    while i < n {
+        let p = particles[i]
+        if p["fixed"] == true {
+            out = push(out, p)
+        } else {
+            let ax = fx[i] / p["mass"]
+            let ay = fy[i] / p["mass"]
+            let az = fz[i] / p["mass"]
+            p["vx"] = p["vx"] + ax * dt
+            p["vy"] = p["vy"] + ay * dt
+            p["vz"] = p["vz"] + az * dt
+            p["x"] = p["x"] + p["vx"] * dt
+            p["y"] = p["y"] + p["vy"] * dt
+            p["z"] = p["z"] + p["vz"] * dt
+            out = push(out, p)
+        }
+        i = i + 1
+    }
+    soft["particles"] = out
+    soft["t"] = soft["t"] + dt
+    return soft
+}
+
+pub fn stepSoftBodyN(soft, dt, n, gravity) {
+    let i = 0
+    while i < n {
+        soft = stepSoftBody(soft, dt, gravity)
+        i = i + 1
+    }
+    return soft
+}
+
+/// Step all soft bodies on a sim world (after joint step).
+pub fn stepWorldSoft(world, dt, gravity) {
+    let softs = world["softBodies"]
+    if softs == null || softs == undefined {
+        return world
+    }
+    let i = 0
+    let next = []
+    while i < len(softs) {
+        next = push(next, stepSoftBody(softs[i], dt, gravity))
+        i = i + 1
+    }
+    world["softBodies"] = next
+    return world
+}

@@ -4,6 +4,7 @@ version = "2.1.0"
 edition = "2021"
 description = "Kabootar — fullstack programming language (formerly Nova)"
 authors = ["Kabootar Contributors"]
+license-file = "LICENSE"
 build = "build.rs"
 
 [lints.rust]
@@ -84,6 +85,10 @@ libloading = "0.8"
 flate2 = "1"
 tar = "0.4"
 rustyline = "14"
+# DATA/SC — Apache Parquet (host); KPQT1 remains for .kpqt / wasm
+parquet = { version = "54", default-features = false, features = ["arrow", "snap"] }
+arrow-array = { version = "54", default-features = false }
+arrow-schema = { version = "54", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["Document", "Window", "Element", "HtmlElement", "HtmlIFrameElement", "Node", "HtmlCollection", "HtmlCanvasElement", "CanvasRenderingContext2d"] }

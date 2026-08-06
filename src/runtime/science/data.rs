@@ -46,6 +46,7 @@ fn csv_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 /// KPQT1 — Kab Parquet-lite columnar (SC7c). Array of row-objects → binary file.
 /// Magic KPQT | ver u32 LE=1 | ncols | (name_len, name, dtype u8)* | nrows | column payloads.
 /// dtype: 1=f64, 2=i64, 3=utf8.
+/// Paths ending in `.parquet` / `.parq` use Apache Parquet (host); otherwise KPQT1.
 fn parquet_save(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let path = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -55,6 +56,13 @@ fn parquet_save(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         Some(Value::Array(items)) => items,
         _ => return Err("parquet_save: rows array".into()),
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if crate::runtime::science::apache_parquet::path_wants_apache(path) {
+            let n = crate::runtime::science::apache_parquet::apache_parquet_save(path, rows)?;
+            return Ok(int_out(n));
+        }
+    }
     if rows.is_empty() {
         return Err("parquet_save: empty".into());
     }
@@ -162,8 +170,17 @@ fn parquet_load(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         _ => return Err("parquet_load(path)".into()),
     };
     let buf = std::fs::read(path).map_err(|e| format!("parquet_load({path}): {e}"))?;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if crate::runtime::science::apache_parquet::is_apache_magic(&buf)
+            || crate::runtime::science::apache_parquet::path_wants_apache(path)
+        {
+            let rows = crate::runtime::science::apache_parquet::apache_parquet_load(path)?;
+            return Ok(Value::Array(rows));
+        }
+    }
     if buf.len() < 12 || &buf[0..4] != b"KPQT" {
-        return Err("parquet_load: bad magic (expect KPQT1)".into());
+        return Err("parquet_load: bad magic (expect KPQT1 or Apache PAR1)".into());
     }
     let ver = u32::from_le_bytes(buf[4..8].try_into().unwrap());
     if ver != 1 {

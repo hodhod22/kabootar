@@ -59,6 +59,32 @@ fn data_frame_pivot_groupby_io_plot() {
 }
 
 #[test]
+fn data_apache_parquet_roundtrip() {
+    let dir = std::env::temp_dir();
+    let pq = dir.join("kab_data_apache.parquet");
+    let pq_path = pq.to_string_lossy().replace('\\', "/");
+    let code = format!(
+        r#"
+        import "science"
+        import "data"
+        let df = from([
+            ["a", 1.5],
+            ["b", 2.5],
+            ["c", 3.0]
+        ], ["name", "v"])
+        writeParquet("{pq}", df)
+        let df2 = readParquet("{pq}")
+        let rows = toRows(df2)
+        nrows(df2) == 3 && rows[0]["v"] == 1.5 && rows[2]["name"] == "c"
+        "#,
+        pq = pq_path
+    );
+    let v = eval(&code);
+    let _ = std::fs::remove_file(&pq);
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
 fn data_from_rows_filter() {
     let v = eval(
         r#"
