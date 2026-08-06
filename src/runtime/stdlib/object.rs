@@ -799,6 +799,22 @@ fn insert_native(
     map.insert(js_name.into(), Value::NativeFunction(func));
 }
 
+fn object_get_prototype_of_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = args;
+    Err(
+        "Object.getPrototypeOf is not supported; use Object.getParent (Kabootar Parent model)"
+            .into(),
+    )
+}
+
+fn object_set_prototype_of_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = args;
+    Err(
+        "Object.setPrototypeOf is not supported; use Object.setParent (Kabootar Parent model)"
+            .into(),
+    )
+}
+
 fn build_object_namespace() -> Value {
     let mut m = HashMap::new();
     insert_native(&mut m, "assign", assign_native);
@@ -813,6 +829,8 @@ fn build_object_namespace() -> Value {
     insert_native(&mut m, "getOwnPropertyNames", object_get_own_property_names_native);
     insert_native(&mut m, "getParent", object_get_parent_native);
     insert_native(&mut m, "setParent", object_set_parent_native);
+    insert_native(&mut m, "getPrototypeOf", object_get_prototype_of_native);
+    insert_native(&mut m, "setPrototypeOf", object_set_prototype_of_native);
     insert_native(&mut m, "defineProperties", object_define_properties_native);
     insert_native(
         &mut m,

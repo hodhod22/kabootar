@@ -46,3 +46,149 @@ pub fn makeTone(freq, ms, rate) {
 pub fn playTone(bus, freq, ms) {
     return playPcm(bus, makeTone(freq, ms, 22050))
 }
+
+/// Bus group for shared volume (GP6h).
+pub fn createGroup(name) {
+    return {
+        "kind": "audio_group",
+        "name": name,
+        "buses": [],
+        "volume": 1.0
+    }
+}
+
+pub fn addBusToGroup(group, bus) {
+    let buses = group["buses"]
+    buses = push(buses, bus)
+    group["buses"] = buses
+    return group
+}
+
+pub fn setGroupVolume(group, volume) {
+    group["volume"] = volume
+    let i = 0
+    let buses = group["buses"]
+    let next = []
+    while i < len(buses) {
+        let b = setBusVolume(buses[i], volume)
+        next = push(next, b)
+        i = i + 1
+    }
+    group["buses"] = next
+    return group
+}
+
+/// 3D listener for spatial attenuation stubs.
+pub fn createListener(x, y, z) {
+    if x == null { x = 0.0 }
+    if y == null { y = 0.0 }
+    if z == null { z = 0.0 }
+    return {
+        "kind": "audio_listener",
+        "x": x,
+        "y": y,
+        "z": z,
+        "fx": 0.0,
+        "fy": 0.0,
+        "fz": -1.0
+    }
+}
+
+pub fn setListener(listener, x, y, z, fx, fy, fz) {
+    listener["x"] = x
+    listener["y"] = y
+    listener["z"] = z
+    if fx != null && fx != undefined {
+        listener["fx"] = fx
+    }
+    if fy != null && fy != undefined {
+        listener["fy"] = fy
+    }
+    if fz != null && fz != undefined {
+        listener["fz"] = fz
+    }
+    return listener
+}
+
+fn spatialGain(sx, sy, sz, listener) {
+    let dx = sx - listener["x"]
+    let dy = sy - listener["y"]
+    let dz = sz - listener["z"]
+    let d2 = dx * dx + dy * dy + dz * dz
+    if d2 < 0.01 {
+        d2 = 0.01
+    }
+    let g = 1.0 / d2
+    if g > 1.0 {
+        g = 1.0
+    }
+    if g < 0.02 {
+        g = 0.02
+    }
+    return g
+}
+
+/// Attenuate PCM by 1/r² toward listener, then play.
+pub fn playSpatial(bus, samples, sx, sy, sz, listener) {
+    let g = spatialGain(sx, sy, sz, listener)
+    let out = []
+    let i = 0
+    while i < len(samples) {
+        out = push(out, floor(samples[i] * g))
+        i = i + 1
+    }
+    let n = playPcm(bus, out)
+    return { "written": n, "gain": g }
+}
+
+/// Instant duck (volume jump). ms kept for API; host ramp deferred.
+pub fn duck(bus, targetVol, ms) {
+    if bus["prevVolume"] == null || bus["prevVolume"] == undefined {
+        bus["prevVolume"] = bus["volume"]
+    }
+    if targetVol == null {
+        targetVol = 0.2
+    }
+    bus = setBusVolume(bus, targetVol)
+    bus["ducked"] = true
+    bus["duckMs"] = ms
+    return bus
+}
+
+pub fn unduck(bus) {
+    let v = bus["prevVolume"]
+    if v == null || v == undefined {
+        v = 1.0
+    }
+    bus = setBusVolume(bus, v)
+    bus["ducked"] = false
+    bus["prevVolume"] = null
+    return bus
+}
+
+/// Chunk queue stream over playPcm (no decode).
+pub fn createStream(bus, chunks) {
+    if chunks == null {
+        chunks = []
+    }
+    return {
+        "kind": "audio_stream",
+        "bus": bus,
+        "chunks": chunks,
+        "index": 0
+    }
+}
+
+pub fn streamPump(stream) {
+    if stream["index"] >= len(stream["chunks"]) {
+        return { "stream": stream, "done": true, "written": 0 }
+    }
+    let chunk = stream["chunks"][stream["index"]]
+    let n = playPcm(stream["bus"], chunk)
+    stream["index"] = stream["index"] + 1
+    return {
+        "stream": stream,
+        "done": stream["index"] >= len(stream["chunks"]),
+        "written": n
+    }
+}

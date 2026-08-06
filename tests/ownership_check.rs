@@ -166,6 +166,7 @@ owned_write(b, 0, [1])
         err.contains("leak-lint") || err.contains("dropped out of scope"),
         "{err}"
     );
+    assert!(err.contains("hint:"), "{err}");
 }
 
 #[test]

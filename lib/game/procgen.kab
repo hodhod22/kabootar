@@ -1,0 +1,282 @@
+@version "1.0.0"
+
+// game/procgen — seeded noise, dungeon, scatter (GP6l).
+// import "game/procgen"
+
+import "game/terrain"
+
+fn lcgStep(state) {
+    let a = 1664525.0
+    let c = 1013904223.0
+    let m = 4294967296.0
+    let s = (a * state + c) % m
+    if s < 0.0 {
+        s = s + m
+    }
+    return s
+}
+
+/// Seeded RNG handle.
+pub fn createRng(seed) {
+    if seed == null || seed == undefined {
+        seed = 1.0
+    }
+    return { "kind": "rng", "seed": seed, "state": seed }
+}
+
+pub fn rngNext(rng) {
+    let s = lcgStep(rng["state"])
+    rng["state"] = s
+    return rng
+}
+
+pub fn rngFloat(rng) {
+    rng = rngNext(rng)
+    return { "rng": rng, "value": rng["state"] / 4294967296.0 }
+}
+
+pub fn rngInt(rng, lo, hi) {
+    let fr = rngFloat(rng)
+    rng = fr["rng"]
+    let span = hi - lo + 1
+    if span < 1 {
+        span = 1
+    }
+    let v = lo + floor(fr["value"] * span)
+    if v > hi {
+        v = hi
+    }
+    return { "rng": rng, "value": v }
+}
+
+fn hash2(x, y, seed) {
+    let s = seed + x * 374761393.0 + y * 668265263.0
+    s = lcgStep(s)
+    s = lcgStep(s + x * 127.1 + y * 311.7)
+    return (s / 4294967296.0) * 2.0 - 1.0
+}
+
+fn fade(t) {
+    return t * t * (3.0 - 2.0 * t)
+}
+
+/// Value noise in [-1, 1], seed-reproducible.
+pub fn noise2d(x, y, seed) {
+    if seed == null || seed == undefined {
+        seed = 1.0
+    }
+    let x0 = floor(x)
+    let y0 = floor(y)
+    let tx = x - x0
+    let ty = y - y0
+    let u = fade(tx)
+    let v = fade(ty)
+    let n00 = hash2(x0, y0, seed)
+    let n10 = hash2(x0 + 1.0, y0, seed)
+    let n01 = hash2(x0, y0 + 1.0, seed)
+    let n11 = hash2(x0 + 1.0, y0 + 1.0, seed)
+    let nx0 = n00 * (1.0 - u) + n10 * u
+    let nx1 = n01 * (1.0 - u) + n11 * u
+    return nx0 * (1.0 - v) + nx1 * v
+}
+
+pub fn fbm2d(x, y, seed, octaves) {
+    if octaves == null || octaves < 1 {
+        octaves = 4
+    }
+    let amp = 1.0
+    let freq = 1.0
+    let sum = 0.0
+    let norm = 0.0
+    let i = 0
+    while i < octaves {
+        sum = sum + noise2d(x * freq, y * freq, seed + i * 19.0) * amp
+        norm = norm + amp
+        amp = amp * 0.5
+        freq = freq * 2.0
+        i = i + 1
+    }
+    if norm == 0.0 {
+        return 0.0
+    }
+    return sum / norm
+}
+
+/// Scatter points with optional min distance (rejection sampling).
+pub fn scatterPoints(count, minx, maxx, minz, maxz, seed, minDist) {
+    if count == null || count < 0 {
+        count = 0
+    }
+    if minDist == null || minDist == undefined {
+        minDist = 0.0
+    }
+    let rng = createRng(seed)
+    let pts = []
+    let tries = 0
+    let maxTries = count * 40 + 10
+    while len(pts) < count && tries < maxTries {
+        let fx = rngFloat(rng)
+        rng = fx["rng"]
+        let fz = rngFloat(rng)
+        rng = fz["rng"]
+        let x = minx + fx["value"] * (maxx - minx)
+        let z = minz + fz["value"] * (maxz - minz)
+        let ok = true
+        if minDist > 0.0 {
+            let j = 0
+            while j < len(pts) {
+                let dx = pts[j]["x"] - x
+                let dz = pts[j]["z"] - z
+                if dx * dx + dz * dz < minDist * minDist {
+                    ok = false
+                }
+                j = j + 1
+            }
+        }
+        if ok {
+            pts = push(pts, { "x": x, "z": z })
+        }
+        tries = tries + 1
+    }
+    return { "points": pts, "seed": seed, "rng": rng }
+}
+
+fn setCell(cells, w, x, y, v) {
+    cells[y * w + x] = v
+    return cells
+}
+
+fn carveRoom(cells, w, room) {
+    let y = room["y"]
+    while y < room["y"] + room["h"] {
+        let x = room["x"]
+        while x < room["x"] + room["w"] {
+            cells = setCell(cells, w, x, y, 0)
+            x = x + 1
+        }
+        y = y + 1
+    }
+    return cells
+}
+
+fn carveCorridor(cells, w, x0, y0, x1, y1) {
+    let x = x0
+    let y = y0
+    while x != x1 {
+        cells = setCell(cells, w, x, y, 0)
+        if x < x1 {
+            x = x + 1
+        } else {
+            x = x - 1
+        }
+    }
+    while y != y1 {
+        cells = setCell(cells, w, x, y, 0)
+        if y < y1 {
+            y = y + 1
+        } else {
+            y = y - 1
+        }
+    }
+    cells = setCell(cells, w, x1, y1, 0)
+    return cells
+}
+
+/// Room+corridor dungeon. cells: 1=wall, 0=floor. Seed-reproducible.
+pub fn generateDungeon(width, height, seed, roomCount) {
+    if width == null || width < 8 {
+        width = 16
+    }
+    if height == null || height < 8 {
+        height = 12
+    }
+    if seed == null {
+        seed = 42.0
+    }
+    if roomCount == null || roomCount < 1 {
+        roomCount = 5
+    }
+    let cells = []
+    let i = 0
+    while i < width * height {
+        cells = push(cells, 1)
+        i = i + 1
+    }
+    let rng = createRng(seed)
+    let rooms = []
+    let r = 0
+    while r < roomCount {
+        let rw = rngInt(rng, 3, 5)
+        rng = rw["rng"]
+        let rh = rngInt(rng, 3, 5)
+        rng = rh["rng"]
+        let rx = rngInt(rng, 1, width - rw["value"] - 2)
+        rng = rx["rng"]
+        let ry = rngInt(rng, 1, height - rh["value"] - 2)
+        rng = ry["rng"]
+        let room = {
+            "x": rx["value"],
+            "y": ry["value"],
+            "w": rw["value"],
+            "h": rh["value"]
+        }
+        cells = carveRoom(cells, width, room)
+        if len(rooms) > 0 {
+            let prev = rooms[len(rooms) - 1]
+            let cx0 = prev["x"] + floor(prev["w"] / 2)
+            let cy0 = prev["y"] + floor(prev["h"] / 2)
+            let cx1 = room["x"] + floor(room["w"] / 2)
+            let cy1 = room["y"] + floor(room["h"] / 2)
+            cells = carveCorridor(cells, width, cx0, cy0, cx1, cy1)
+        }
+        rooms = push(rooms, room)
+        r = r + 1
+    }
+    return {
+        "kind": "dungeon",
+        "width": width,
+        "height": height,
+        "cells": cells,
+        "rooms": rooms,
+        "seed": seed
+    }
+}
+
+pub fn dungeonFloorCount(dungeon) {
+    let n = 0
+    let i = 0
+    let cells = dungeon["cells"]
+    while i < len(cells) {
+        if cells[i] == 0 {
+            n = n + 1
+        }
+        i = i + 1
+    }
+    return n
+}
+
+/// Fill heightmap from fBm noise (terrain integrate).
+pub fn fillHeightmapFromNoise(hm, seed, scale, amplitude) {
+    if scale == null || scale == undefined {
+        scale = 0.25
+    }
+    if amplitude == null || amplitude == undefined {
+        amplitude = 2.0
+    }
+    if seed == null {
+        seed = 1.0
+    }
+    let w = hm["width"]
+    let d = hm["depth"]
+    let iz = 0
+    while iz < d {
+        let ix = 0
+        while ix < w {
+            let n = fbm2d(ix * scale, iz * scale, seed, 4)
+            hm = setHeight(hm, ix, iz, n * amplitude)
+            ix = ix + 1
+        }
+        iz = iz + 1
+    }
+    return hm
+}
