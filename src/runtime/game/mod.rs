@@ -550,6 +550,53 @@ fn xr_stub_enabled() -> bool {
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
+/// OpenXR/WebXR-like runtime swapchain state (host stub until real headset FFI).
+struct XrRuntimeState {
+    next_id: i64,
+    frame_index: i64,
+    predicted_display_time_ns: i64,
+    waiting: bool,
+    acquired: HashMap<i64, i64>, // swapchain_id -> image_index
+    swapchains: HashMap<i64, XrSwapchain>,
+}
+
+struct XrSwapchain {
+    id: i64,
+    eye: String,
+    width: u32,
+    height: u32,
+    image_count: i64,
+    next_image: i64,
+}
+
+static XR_RUNTIME: Mutex<Option<XrRuntimeState>> = Mutex::new(None);
+
+fn xr_runtime_mut() -> Result<std::sync::MutexGuard<'static, Option<XrRuntimeState>>, String> {
+    XR_RUNTIME
+        .lock()
+        .map_err(|_| "xr runtime lock poisoned".into())
+}
+
+fn ensure_xr_runtime(guard: &mut Option<XrRuntimeState>) -> &mut XrRuntimeState {
+    if guard.is_none() {
+        *guard = Some(XrRuntimeState {
+            next_id: 1,
+            frame_index: 0,
+            predicted_display_time_ns: 0,
+            waiting: false,
+            acquired: HashMap::new(),
+            swapchains: HashMap::new(),
+        });
+    }
+    guard.as_mut().unwrap()
+}
+
+fn xr_reset_runtime() {
+    if let Ok(mut g) = XR_RUNTIME.lock() {
+        *g = None;
+    }
+}
+
 /// GP6n — XR host capability probe (OpenXR/WebXR subset).
 fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let stub = xr_stub_enabled();
@@ -568,7 +615,207 @@ fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     out.insert("backend".into(), Value::String(backend.into()));
     out.insert("openxr".into(), Value::Bool(openxr));
     out.insert("webxr".into(), Value::Bool(webxr));
+    out.insert("runtime".into(), Value::String("kab-xr-runtime".into()));
     Ok(Value::Object(out))
+}
+
+fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let desc = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("xr_create_swapchain(descriptor)".into()),
+    };
+    let eye = match desc.get("eye") {
+        Some(Value::String(s)) => s.clone(),
+        _ => "left".into(),
+    };
+    let width = f64_from(desc.get("width").unwrap_or(&Value::Null), 1280.0)
+        .clamp(320.0, 4096.0) as u32;
+    let height = f64_from(desc.get("height").unwrap_or(&Value::Null), 720.0)
+        .clamp(240.0, 4096.0) as u32;
+    let image_count = f64_from(desc.get("imageCount").unwrap_or(&Value::Null), 3.0)
+        .clamp(2.0, 4.0) as i64;
+
+    let mut guard = xr_runtime_mut()?;
+    let rt = ensure_xr_runtime(&mut guard);
+    let id = rt.next_id;
+    rt.next_id += 1;
+    rt.swapchains.insert(
+        id,
+        XrSwapchain {
+            id,
+            eye: eye.clone(),
+            width,
+            height,
+            image_count,
+            next_image: 0,
+        },
+    );
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_swapchain".into()));
+    out.insert("id".into(), Value::Number(id));
+    out.insert("eye".into(), Value::String(eye));
+    out.insert("width".into(), Value::Number(width as i64));
+    out.insert("height".into(), Value::Number(height as i64));
+    out.insert("imageCount".into(), Value::Number(image_count));
+    out.insert("format".into(), Value::String("rgba8".into()));
+    Ok(Value::Object(out))
+}
+
+fn xr_wait_frame_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut guard = xr_runtime_mut()?;
+    let rt = ensure_xr_runtime(&mut guard);
+    rt.waiting = true;
+    rt.frame_index += 1;
+    // 90 Hz predicted display time (OpenXR-style ns).
+    rt.predicted_display_time_ns = rt.frame_index * 11_111_111;
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_frame_state".into()));
+    out.insert("shouldRender".into(), Value::Bool(true));
+    out.insert("frameIndex".into(), Value::Number(rt.frame_index));
+    out.insert(
+        "predictedDisplayTime".into(),
+        Value::Number(rt.predicted_display_time_ns),
+    );
+    out.insert("periodNs".into(), Value::Number(11_111_111));
+    Ok(Value::Object(out))
+}
+
+fn xr_acquire_swapchain_image_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n,
+        Some(Value::Object(m)) => match m.get("id") {
+            Some(Value::Number(n)) => *n,
+            _ => return Err("xr_acquire_swapchain_image(id|swapchain)".into()),
+        },
+        _ => return Err("xr_acquire_swapchain_image(id|swapchain)".into()),
+    };
+    let mut guard = xr_runtime_mut()?;
+    let rt = ensure_xr_runtime(&mut guard);
+    if !rt.waiting {
+        return Err("xr_acquire_swapchain_image: call xr_wait_frame first".into());
+    }
+    let sc = rt
+        .swapchains
+        .get_mut(&id)
+        .ok_or_else(|| format!("xr_acquire_swapchain_image: unknown swapchain {id}"))?;
+    let image = sc.next_image % sc.image_count;
+    sc.next_image += 1;
+    rt.acquired.insert(id, image);
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_swapchain_image".into()));
+    out.insert("swapchainId".into(), Value::Number(id));
+    out.insert("imageIndex".into(), Value::Number(image));
+    out.insert("eye".into(), Value::String(sc.eye.clone()));
+    out.insert("width".into(), Value::Number(sc.width as i64));
+    out.insert("height".into(), Value::Number(sc.height as i64));
+    Ok(Value::Object(out))
+}
+
+fn xr_release_swapchain_image_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n,
+        Some(Value::Object(m)) => match m.get("swapchainId").or_else(|| m.get("id")) {
+            Some(Value::Number(n)) => *n,
+            _ => return Err("xr_release_swapchain_image(id|image)".into()),
+        },
+        _ => return Err("xr_release_swapchain_image(id|image)".into()),
+    };
+    let mut guard = xr_runtime_mut()?;
+    let rt = ensure_xr_runtime(&mut guard);
+    let image = rt
+        .acquired
+        .remove(&id)
+        .ok_or_else(|| format!("xr_release_swapchain_image: swapchain {id} not acquired"))?;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("swapchainId".into(), Value::Number(id));
+    out.insert("imageIndex".into(), Value::Number(image));
+    Ok(Value::Object(out))
+}
+
+fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let layers = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Object(_)) => vec![args[0].clone()],
+        None => Vec::new(),
+        _ => return Err("xr_end_frame(layers?)".into()),
+    };
+    let mut guard = xr_runtime_mut()?;
+    let rt = ensure_xr_runtime(&mut guard);
+    if !rt.waiting {
+        return Err("xr_end_frame: call xr_wait_frame first".into());
+    }
+    if !rt.acquired.is_empty() {
+        return Err("xr_end_frame: release all acquired images first".into());
+    }
+    let frame_index = rt.frame_index;
+    let display_time = rt.predicted_display_time_ns;
+    rt.waiting = false;
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_end_frame".into()));
+    out.insert("submitted".into(), Value::Bool(true));
+    out.insert("frameIndex".into(), Value::Number(frame_index));
+    out.insert("displayTime".into(), Value::Number(display_time));
+    out.insert("layerCount".into(), Value::Number(layers.len() as i64));
+    Ok(Value::Object(out))
+}
+
+fn render_eye_swapchain(
+    eye: &str,
+    cx: f32,
+    width: u32,
+    height: u32,
+    stub: bool,
+    gpu: bool,
+) -> (bool, i64) {
+    let mut rendered = false;
+    let mut pixel_bytes = 0i64;
+    if gpu || stub {
+        let view_proj = scene_view_proj(cx, 1.6, 10.0, 1.0, width, height);
+        let vertices: Vec<f32> = vec![0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0];
+        let indices: Vec<u16> = vec![0, 1, 2];
+        if gpu {
+            let frame = crate::runtime::render::gpu3d::Gpu3dFrame {
+                width,
+                height,
+                clear_color: if eye == "left" {
+                    [0.15, 0.18, 0.28, 1.0]
+                } else {
+                    [0.18, 0.15, 0.28, 1.0]
+                },
+                view_proj,
+                model: [
+                    1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ],
+                draw_color: [0.55, 0.7, 0.95, 1.0],
+                uv_transform: [1.0, 1.0, 0.0, 0.0],
+                vertices,
+                component_count: 3,
+                vert_count: 3,
+                indices: Some(indices),
+                index_offset: 0,
+                index_count: 3,
+                depth_test: true,
+                texture: None,
+                instance_count: 1,
+            };
+            if let Ok(px) = crate::runtime::render::gpu3d::render_frame(&frame) {
+                rendered = true;
+                pixel_bytes = px.len() as i64;
+            }
+        } else {
+            rendered = true;
+            pixel_bytes = (width as i64) * (height as i64) * 4;
+        }
+    }
+    (rendered, pixel_bytes)
 }
 
 /// GP6n — XR present (stereo swapchain + optional GPU probe).
@@ -592,55 +839,13 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     let mut swapchains = Vec::new();
     let mut total_pixels = 0i64;
     for (eye, cx) in eye_offsets {
+        let (rendered, pixel_bytes) = render_eye_swapchain(eye, cx, width, height, stub, gpu);
+        total_pixels += pixel_bytes;
         let mut chain = HashMap::new();
         chain.insert("eye".into(), Value::String(eye.into()));
         chain.insert("width".into(), Value::Number(width as i64));
         chain.insert("height".into(), Value::Number(height as i64));
         chain.insert("format".into(), Value::String("rgba8".into()));
-        let mut rendered = false;
-        let mut pixel_bytes = 0i64;
-        if gpu || stub {
-            let view_proj = scene_view_proj(cx, 1.6, 10.0, 1.0, width, height);
-            let vertices: Vec<f32> = vec![
-                0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0,
-            ];
-            let indices: Vec<u16> = vec![0, 1, 2];
-            if gpu {
-                let frame = crate::runtime::render::gpu3d::Gpu3dFrame {
-                    width,
-                    height,
-                    clear_color: if eye == "left" {
-                        [0.15, 0.18, 0.28, 1.0]
-                    } else {
-                        [0.18, 0.15, 0.28, 1.0]
-                    },
-                    view_proj,
-                    model: [
-                        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                        0.0, 1.0,
-                    ],
-                    draw_color: [0.55, 0.7, 0.95, 1.0],
-                    uv_transform: [1.0, 1.0, 0.0, 0.0],
-                    vertices,
-                    component_count: 3,
-                    vert_count: 3,
-                    indices: Some(indices),
-                    index_offset: 0,
-                    index_count: 3,
-                    depth_test: true,
-                    texture: None,
-                    instance_count: 1,
-                };
-                if let Ok(px) = crate::runtime::render::gpu3d::render_frame(&frame) {
-                    rendered = true;
-                    pixel_bytes = px.len() as i64;
-                }
-            } else {
-                rendered = true;
-                pixel_bytes = (width as i64) * (height as i64) * 4;
-            }
-        }
-        total_pixels += pixel_bytes;
         chain.insert("rendered".into(), Value::Bool(rendered));
         chain.insert("pixelBytes".into(), Value::Number(pixel_bytes));
         swapchains.push(Value::Object(chain));
@@ -758,6 +963,11 @@ pub fn game_globals(env: &mut Environment) {
         ("net_http_session_serve_once", net_http_session_serve_once_native),
         ("xr_host_info", xr_host_info_native),
         ("xr_host_present", xr_host_present_native),
+        ("xr_create_swapchain", xr_create_swapchain_native),
+        ("xr_wait_frame", xr_wait_frame_native),
+        ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
+        ("xr_release_swapchain_image", xr_release_swapchain_image_native),
+        ("xr_end_frame", xr_end_frame_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
@@ -787,4 +997,5 @@ pub fn reset_all() {
     if let Ok(mut q) = NET_HTTP_HUB.lock() {
         q.clear();
     }
+    xr_reset_runtime();
 }

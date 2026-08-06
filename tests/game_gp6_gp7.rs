@@ -274,3 +274,25 @@ fn shadow_lit_pipeline_and_xr_present() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_runtime_swapchain_frame() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBegin(createXrSession("vr"))
+        xr = createStereoSwapchains(xr, 640, 360)
+        let out = xrRuntimeFrame(xr, 640, 360)
+        let d = describeXr(out["session"])
+        return out["frame"]["shouldRender"] == true && out["ended"]["submitted"] == true && d["swapchainCount"] == 2 && out["frame"]["frameIndex"] == 1
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
