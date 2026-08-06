@@ -19,3 +19,18 @@ pub fn spmv(a, x) {
 pub fn lstsq(a, b, iters) {
     return sparse_lstsq(a, b, iters)
 }
+
+/// Fancy gather of sparse rows → CSR.
+pub fn gatherRows(a, rowIndices) {
+    return sparse_gather_rows(a, rowIndices)
+}
+
+/// Boolean row compress → CSR.
+pub fn compressRows(a, mask) {
+    return sparse_compress_rows(a, mask)
+}
+
+/// Dense rows + mask → COO of kept nonzeros (sparse fancy view).
+pub fn fromDenseMask(rows, mask) {
+    return sparse_from_dense_mask(rows, mask)
+}

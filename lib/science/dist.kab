@@ -306,6 +306,15 @@ pub fn allReduceStar(cluster, vectors, op) {
     return allReduceCluster(cluster, vectors, op, "star")
 }
 
+/// Socket AllReduce over loopback TCP (real TCP bytes on the wire).
+/// Returns { result, transport, port, nRanks, op }.
+pub fn allReduceTcp(vectors, op) {
+    if op == null || op == undefined {
+        op = "mean"
+    }
+    return sci_allreduce_tcp(vectors, op)
+}
+
 /// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).
 pub fn mapReduce(xs, nChunks, mapFn, reduceFn) {
     let mrParts = chunk(xs, nChunks)
