@@ -237,7 +237,33 @@ pub fn xrRequestSession(session, mode) {
     return session
 }
 
-/// One runtime frame: wait → acquire → compose → release → endFrame → HMD driver present.
+/// Spawn vendor OpenXR compositor process (drains IPC like a separate compositor).
+pub fn xrStartCompositorProcess(session) {
+    if session["compositor"] == null || session["compositor"] == undefined {
+        session = xrCompositorOpen(session)
+    }
+    let proc = xr_compositor_process_spawn()
+    session["compositorProcess"] = proc
+    return session
+}
+
+pub fn xrCompositorProcessTick() {
+    return xr_compositor_process_tick()
+}
+
+pub fn xrStopCompositorProcess(session) {
+    let stopped = xr_compositor_process_stop()
+    if session != null && session != undefined {
+        session["compositorProcess"] = stopped
+    }
+    return stopped
+}
+
+pub fn xrCompositorProcessStatus() {
+    return xr_compositor_process_status()
+}
+
+/// One runtime frame: wait → acquire → compose → release → endFrame → HMD present → compositor.
 pub fn xrRuntimeFrame(session, width, height) {
     if session["swapchains"] == null || len(session["swapchains"]) < 2 {
         session = createStereoSwapchains(session, width, height)
@@ -273,7 +299,15 @@ pub fn xrRuntimeFrame(session, width, height) {
         session = hp["session"]
         hmd = hp["hmd"]
     }
-    let ack = xrCompositorPoll()
+    let procSt = xr_compositor_process_status()
+    let ack = null
+    let procTick = null
+    if procSt["running"] == true {
+        procTick = xr_compositor_process_tick()
+        ack = procTick["ack"]
+    } else {
+        ack = xrCompositorPoll()
+    }
     session["lastFrame"] = {
         "frame": frame,
         "left": imgL,
@@ -282,7 +316,8 @@ pub fn xrRuntimeFrame(session, width, height) {
         "present": present,
         "ended": ended,
         "hmd": hmd,
-        "compositorAck": ack
+        "compositorAck": ack,
+        "compositorTick": procTick
     }
     return {
         "session": session,
@@ -291,8 +326,96 @@ pub fn xrRuntimeFrame(session, width, height) {
         "present": present,
         "composition": composition,
         "hmd": hmd,
-        "compositorAck": ack
+        "compositorAck": ack,
+        "compositorTick": procTick
     }
+}
+
+/// Start full WebXR-style immersive loop (requestSession + compositor process + begin).
+pub fn xrStartImmersiveLoop(session, width, height, mode) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    if width == null || width == undefined {
+        width = 1280
+    }
+    if height == null || height == undefined {
+        height = 720
+    }
+    session = xrRequestSession(session, mode)
+    session = xrStartCompositorProcess(session)
+    session = xrBegin(session)
+    if session["swapchains"] == null || len(session["swapchains"]) < 2 {
+        session = createStereoSwapchains(session, width, height)
+    }
+    session["immersive"] = {
+        "running": true,
+        "mode": mode,
+        "width": width,
+        "height": height,
+        "frameCount": 0,
+        "lastFrameIndex": 0
+    }
+    return session
+}
+
+/// One immersive-loop frame (XRFrame analogue).
+pub fn xrImmersiveFrame(session) {
+    let imm = session["immersive"]
+    if imm == null || imm == undefined || imm["running"] != true {
+        return { "ok": false, "error": "immersive loop not running", "session": session }
+    }
+    let out = xrRuntimeFrame(session, imm["width"], imm["height"])
+    session = out["session"]
+    imm = session["immersive"]
+    imm["frameCount"] = imm["frameCount"] + 1
+    if out["frame"] != null && out["frame"]["frameIndex"] != null {
+        imm["lastFrameIndex"] = out["frame"]["frameIndex"]
+    }
+    session["immersive"] = imm
+    out["session"] = session
+    out["ok"] = true
+    out["immersive"] = imm
+    return out
+}
+
+/// Run N immersive frames (full WebXR immersive loop batch).
+pub fn xrRunImmersiveFrames(session, count, width, height, mode) {
+    if count == null || count == undefined || count < 1 {
+        count = 1
+    }
+    session = xrStartImmersiveLoop(session, width, height, mode)
+    let frames = []
+    let i = 0
+    while i < count {
+        let step = xrImmersiveFrame(session)
+        session = step["session"]
+        frames = push(frames, {
+            "frameIndex": step["frame"]["frameIndex"],
+            "acked": step["compositorAck"]["acked"] == true,
+            "presented": step["hmd"]["presented"] == true,
+            "drained": step["compositorTick"] != null && step["compositorTick"]["drained"] == true
+        })
+        i = i + 1
+    }
+    return {
+        "ok": true,
+        "session": session,
+        "frames": frames,
+        "frameCount": session["immersive"]["frameCount"],
+        "compositor": xrCompositorProcessStatus()
+    }
+}
+
+pub fn xrStopImmersiveLoop(session) {
+    let stopped = xrStopCompositorProcess(session)
+    if session["immersive"] != null && session["immersive"] != undefined {
+        session["immersive"]["running"] = false
+    }
+    if session["active"] == true {
+        session = xrEnd(session)
+    }
+    return { "session": session, "compositor": stopped }
 }
 
 pub fn describeXr(session) {
@@ -306,6 +429,8 @@ pub fn describeXr(session) {
         "swapchainCount": len(session["swapchains"]),
         "headsetBound": session["headsetBound"] == true,
         "hmdConnected": session["hmdConnected"] == true,
-        "vendor": session["vendor"]
+        "vendor": session["vendor"],
+        "immersiveRunning": session["immersive"] != null && session["immersive"]["running"] == true,
+        "compositorProcess": session["compositorProcess"] != null
     }
 }

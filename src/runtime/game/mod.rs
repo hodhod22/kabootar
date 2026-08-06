@@ -695,6 +695,34 @@ fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<V
     xr_ffi::request_session(mode)
 }
 
+fn xr_compositor_process_spawn_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    xr_ffi::compositor_process_spawn()
+}
+
+fn xr_compositor_process_tick_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    xr_ffi::compositor_process_tick()
+}
+
+fn xr_compositor_process_stop_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    xr_ffi::compositor_process_stop()
+}
+
+fn xr_compositor_process_status_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Ok(xr_ffi::compositor_process_status())
+}
+
 fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let desc = match args.first() {
         Some(Value::Object(m)) => m,
@@ -1177,6 +1205,22 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_compositor_submit", xr_compositor_submit_native),
         ("xr_compositor_poll", xr_compositor_poll_native),
         ("xr_request_session", xr_request_session_native),
+        (
+            "xr_compositor_process_spawn",
+            xr_compositor_process_spawn_native,
+        ),
+        (
+            "xr_compositor_process_tick",
+            xr_compositor_process_tick_native,
+        ),
+        (
+            "xr_compositor_process_stop",
+            xr_compositor_process_stop_native,
+        ),
+        (
+            "xr_compositor_process_status",
+            xr_compositor_process_status_native,
+        ),
         ("xr_create_swapchain", xr_create_swapchain_native),
         ("xr_wait_frame", xr_wait_frame_native),
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),

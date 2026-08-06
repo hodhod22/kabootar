@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b empty skip-list when self-host leaf compile is CI-fast; real OpenXR compositor IPC. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6b empty skip-list when self-host leaf compile is CI-fast; real OpenXR loader end-frame / WebXR rAF. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -783,7 +783,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
 | **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + HTTP hub + remote session server; WAN server kvar) |
-| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (compositor IPC + requestSession + HMD present; vendor compositor process kvar) |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (immersive loop + compositor process/IPC + requestSession + HMD present) |
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
@@ -805,8 +805,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** vendor OpenXR compositor process / full WebXR immersive loop; P6b empty skip-list when leaf self-host <10s.  
-**Checkpoint GP (landad):** compositor IPC submit/poll + `xrRequestSession`; HMD driver present; projection composition; P6 seed-only + P6b gate.  
+**Checkpoint GP (nästa):** real OpenXR loader end-frame path / wasm WebXR rAF binding; P6b empty skip-list when leaf self-host <10s.  
+**Checkpoint GP (landad):** vendor compositor process + full immersive loop (`xrRunImmersiveFrames`); compositor IPC; `xrRequestSession`; HMD present; P6 seed-only + P6b gate.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset
