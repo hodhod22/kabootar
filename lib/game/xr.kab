@@ -233,6 +233,44 @@ pub fn xrRequestSession(session, mode) {
         session["available"] = true
         session["active"] = req["active"] == true
         session["backend"] = req["backend"]
+        if req["live"] != null && req["live"] != undefined {
+            session["live"] = req["live"]
+        }
+    }
+    return session
+}
+
+pub fn xrCreateLiveSession(session, mode) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    let live = xr_create_live_session(mode)
+    session["live"] = live
+    if live["ok"] == true {
+        session["available"] = true
+        session["active"] = true
+    }
+    return session
+}
+
+pub fn xrDestroyLiveSession(session) {
+    let gone = xr_destroy_live_session()
+    session["live"] = gone
+    return { "session": session, "live": gone }
+}
+
+pub fn xrLiveSessionStatus() {
+    return xr_live_session_status()
+}
+
+pub fn xrGrantWebxrSession(session) {
+    let g = xr_grant_webxr_session()
+    session["webxrGranted"] = g["webxrGranted"] == true
+    if session["live"] == null || session["live"] == undefined {
+        session["live"] = g
+    } else {
+        session["live"]["webxrGranted"] = true
+        session["live"]["backend"] = g["backend"]
     }
     return session
 }
@@ -476,6 +514,8 @@ pub fn xrRunImmersiveRaf(session, count, width, height, mode) {
             "acked": step["compositorAck"]["acked"] == true,
             "presented": step["hmd"]["presented"] == true,
             "loaderPath": step["ended"]["loaderEndFrame"]["path"],
+            "ffiInvoked": step["ended"]["loaderEndFrame"]["ffiInvoked"] == true,
+            "ffiMode": step["ended"]["loaderEndFrame"]["ffiMode"],
             "rafTime": meta["time"],
             "rafBackend": meta["backend"]
         })
@@ -488,11 +528,20 @@ pub fn xrRunImmersiveRaf(session, count, width, height, mode) {
         "frameCount": session["immersive"]["frameCount"],
         "raf": xrAnimationFrameStatus(),
         "loader": xrLoaderEndFrameStatus(),
+        "live": xrLiveSessionStatus(),
         "compositor": xrCompositorProcessStatus()
     }
 }
 
 pub fn describeXr(session) {
+    let immersiveRunning = false
+    if session["immersive"] != null && session["immersive"] != undefined {
+        immersiveRunning = session["immersive"]["running"] == true
+    }
+    let rafBound = false
+    if session["raf"] != null && session["raf"] != undefined {
+        rafBound = session["raf"]["bound"] == true
+    }
     return {
         "mode": session["mode"],
         "active": session["active"],
@@ -504,8 +553,8 @@ pub fn describeXr(session) {
         "headsetBound": session["headsetBound"] == true,
         "hmdConnected": session["hmdConnected"] == true,
         "vendor": session["vendor"],
-        "immersiveRunning": session["immersive"] != null && session["immersive"]["running"] == true,
-        "compositorProcess": session["compositorProcess"] != null,
-        "rafBound": session["raf"] != null && session["raf"]["bound"] == true
+        "immersiveRunning": immersiveRunning,
+        "compositorProcess": session["compositorProcess"] != null && session["compositorProcess"] != undefined,
+        "rafBound": rafBound
     }
 }
