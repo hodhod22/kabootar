@@ -126,8 +126,8 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/debug"` | `drawLine2d`, `drawAabb`, `drawCircleApprox` |
 | `import "game/assets"` | `createDb`, `registerVfs`/`registerHost`, `loadText`/`loadBytes`/`loadPng`/`loadGltf`, `watchAll`/`pollReload` |
 | `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
-| `import "game/net"` | session/snapshot, lobby/AOI/predict, relay transport (`flushSessionTransport`) (GP6m) |
-| `import "game/xr"` | XR session, stereo cameras, controllers, present descriptor (GP6n subset) |
+| `import "game/net"` | session/snapshot, lobby/AOI/predict, relay + HTTP hub transport (GP6m) |
+| `import "game/xr"` | XR session, stereo cameras, `xrPresent` / host present (GP6n) |
 | `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `buildSceneView` (+ **GPU viewport**), `selectNode`, `refresh` |
 | `import "game/sandbox"` | **Spelbyggare** — session/canvas, Play↔Edit↔Learn, level pack (`ksandbox`), `applyLiveParams`/`setLearnParam` |
 | `import "sim"` / `sim/robot` | **Sim/robotik** — `createWorld`/`createHinge`/`createSlider`/`step`, 3-DOF `createArm3`, encoders/IMU, `worldToEditor` |

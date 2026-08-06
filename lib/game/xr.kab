@@ -87,6 +87,14 @@ pub fn xrPresentDescriptor(session, width, height) {
     }
 }
 
+/// Host present (OpenXR/WebXR subset via `xr_host_present`).
+pub fn xrPresent(session, width, height) {
+    let desc = xrPresentDescriptor(session, width, height)
+    let host = xr_host_present(desc)
+    session["lastPresent"] = host
+    return { "session": session, "present": host }
+}
+
 pub fn describeXr(session) {
     return {
         "mode": session["mode"],

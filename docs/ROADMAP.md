@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** Self-host/P polish + GPU shadow sampling / OpenXR present. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6 empty skip-list when CI-fast; real OpenXR/WebXR swapchain; remote HTTP net wire. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -774,7 +774,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | ✅ subset (heightmap + splat + async streaming poll; GPU terrain kvar) |
 | **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | ✅ subset (panel/button/label/layoutRow/hitTest) |
 | **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | ✅ subset (pipeline + vignette/bloom radius + CPU stubs; GPU pass kvar) |
-| **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | ✅ subset (soft shadow descriptors + `game_gpu_shadow_render`; full shadow sampling kvar) |
+| **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | ✅ subset (`directionalLit`/`litSurface` + GPU shadow sample; full scene shadowing kvar) |
 | **GP6h** | `game/audio`++ | **Audio-utökning** — spatial 3D, buses/groups, ducking, streaming; ovanpå nuvarande PCM/tone | ✅ subset (spatial gain, groups, duck, chunk stream) |
 
 | **GP6i** | `game/save` | **Save/Load** — serialiserad scen/state (VFS/JSON/bin), checkpoints, versioned slots | ✅ subset (`.kscene`/`.ksave` via json+os_write; checkpoints) |
@@ -782,8 +782,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | ✅ subset |
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
-| **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (lobby/AOI/predict + relay transport; HTTP wire kvar) |
-| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (session/stereo/controllers descriptors; host present kvar) |
+| **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + in-process HTTP hub transport; remote HTTP wire kvar) |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (`xr_host_present` + stereo descriptors; real headset swapchain kvar) |
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
@@ -805,8 +805,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** shadow sampling in lit pipeline; HTTP net transport; OpenXR/WebXR present; P6 empty skip-list when CI-fast.  
-**Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + sandbox session + **`import "sim"` robot twin MVP** + GP6a–n subset (async terrain, GPU shadow pass, relay transport, XR descriptors).  
+**Checkpoint GP (nästa):** P6 empty skip-list when CI-fast; real XR swapchain; remote HTTP session server.  
+**Checkpoint GP (landad):** GP6a–n subset complete — async terrain, GPU shadow pass + lit sampling, relay/HTTP transport, XR present descriptors.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset

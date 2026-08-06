@@ -175,6 +175,101 @@ pub fn directionalContribution(light, normal) {
     }
 }
 
+/// Shadow-map UV for directional light (XZ projection stub).
+pub fn shadowUvDirectional(light, point) {
+    let u = (point["x"] + 5.0) / 10.0
+    let v = (point["z"] + 5.0) / 10.0
+  return { "u": u, "v": v }
+}
+
+/// CPU shadow visibility sample (0 = fully shadowed, 1 = lit).
+pub fn sampleShadowCpu(shadow, u, v) {
+    if u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0 {
+        return 1.0
+    }
+    let du = u - 0.5
+    let dv = v - 0.5
+    let dist = sqrt(du * du + dv * dv)
+    let factor = 1.0
+    if dist > 0.35 {
+        factor = 0.25
+    }
+    if shadow["soft"] == true {
+        let r = shadow["radius"]
+        if r == null || r == undefined {
+            r = 1.5
+        }
+        let t = dist / (0.35 + r * 0.08)
+        if t > 1.0 {
+            t = 1.0
+        }
+        factor = factor + (1.0 - factor) * t
+    }
+    return factor
+}
+
+pub fn shadowFactorDirectional(light, point) {
+    if light["castShadow"] != true {
+        return 1.0
+    }
+    let shadow = light["shadow"]
+    if shadow == null || shadow == undefined {
+        return 1.0
+    }
+    let uv = shadowUvDirectional(light, point)
+    let factor = sampleShadowCpu(shadow, uv["u"], uv["v"])
+    if shadow["gpu"] != null && shadow["gpu"] != undefined && shadow["gpu"]["rendered"] == true {
+        let gpu = game_gpu_shadow_sample({
+            "shadow": shadow,
+            "point": point,
+            "lightDir": light["dir"],
+            "u": uv["u"],
+            "v": uv["v"]
+        })
+        if gpu["factor"] != null && gpu["factor"] != undefined {
+            factor = gpu["factor"]
+        }
+    }
+    return factor
+}
+
+pub fn applyShadow(contrib, factor) {
+    return {
+        "r": contrib["r"] * factor,
+        "g": contrib["g"] * factor,
+        "b": contrib["b"] * factor,
+        "ndotl": contrib["ndotl"],
+        "shadow": factor
+    }
+}
+
+/// Directional Lambert + shadow sampling.
+pub fn directionalLit(light, normal, point) {
+    let contrib = directionalContribution(light, normal)
+    let factor = shadowFactorDirectional(light, point)
+    return applyShadow(contrib, factor)
+}
+
+/// Ambient + directional lights with shadow factors.
+pub fn litSurface(lights, normal, point) {
+    let amb = lights["ambient"]
+    let r = amb["color"][0] * amb["intensity"]
+    let g = amb["color"][1] * amb["intensity"]
+    let b = amb["color"][2] * amb["intensity"]
+    let i = 0
+    while i < len(lights["lights"]) {
+        let L = lights["lights"][i]
+        if L["kind"] == "directional" {
+            let c = directionalLit(L, normal, point)
+            r = r + c["r"]
+            g = g + c["g"]
+            b = b + c["b"]
+        }
+        i = i + 1
+    }
+    return { "r": r, "g": g, "b": b }
+}
+
 pub fn iblLite(ambient, strength) {
     if strength == null || strength == undefined {
         strength = 1.0

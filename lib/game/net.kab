@@ -384,3 +384,92 @@ pub fn syncTransport(session, world, transport, relay) {
         "relay": relay
     }
 }
+
+/// In-process HTTP hub for snapshot transport (uses http_route + hub natives).
+pub fn createHttpHub() {
+    net_http_hub_reset()
+    return {
+        "kind": "net_http_hub",
+        "pushPath": "/kab/net/push",
+        "pollPath": "/kab/net/pull",
+        "registered": false
+    }
+}
+
+pub fn netHttpPushHandler() {
+    net_http_hub_push(req_body)
+    return http_response(200, "ok")
+}
+
+pub fn netHttpPullHandler() {
+    let msgs = net_http_hub_poll(1)
+    if len(msgs) == 0 {
+        return http_response(204, "")
+    }
+    return http_response(200, msgs[0])
+}
+
+pub fn registerHttpHub(hub) {
+    http_route("POST", hub["pushPath"], netHttpPushHandler)
+    http_route("GET", hub["pollPath"], netHttpPullHandler)
+    hub["registered"] = true
+    return hub
+}
+
+pub fn createHttpTransport(hub) {
+    let t = createTransport("http", hub["pushPath"])
+    t["pollPath"] = hub["pollPath"]
+    t["hub"] = hub
+    return transportConnect(t)
+}
+
+pub fn flushSessionHttp(session, transport) {
+    let out = drainOutgoing(session)
+    let i = 0
+    while i < len(out) {
+        let path = transport["endpoint"]
+        if path != null && path != undefined {
+            http_request("POST", path, out[i])
+        }
+        i = i + 1
+    }
+    return { "session": session, "transport": transport }
+}
+
+pub fn pullSessionHttp(session, transport) {
+    let path = transport["pollPath"]
+    if path != null && path != undefined {
+        let res = http_request("GET", path, "")
+        if http_status(res) == 200 {
+            let body = http_body(res)
+            if body != null && body != "" {
+                session = receiveRemote(session, body)
+            }
+        }
+    }
+    return { "session": session, "transport": transport }
+}
+
+pub async fn transportHttpPushAsync(transport, payload) {
+    let path = transport["endpoint"]
+    if path == null || path == undefined {
+        return transport
+    }
+    await http_request_async("POST", path, payload)
+    return transport
+}
+
+pub async fn transportHttpPollAsync(transport) {
+    let path = transport["pollPath"]
+    if path == null || path == undefined {
+        return transport
+    }
+    let res = await http_request_async("GET", path, "")
+    if http_status(res) == 200 {
+        let body = http_body(res)
+        if body != null && body != "" {
+            transport["inbox"] = push(transport["inbox"], body)
+        }
+    }
+    return transport
+}
