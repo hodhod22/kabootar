@@ -2167,6 +2167,30 @@ fn p6_seed_fingerprint_all_leaves_load() {
     }
 }
 
+/// P6: skip-list stays until every leaf self-host-compiles under CI-fast gate.
+#[test]
+fn p6_skip_list_stays_until_ci_fast_gate() {
+    use kabootar_lib::compile::{
+        compile_file_self_host, self_host_is_skip_listed, self_host_skip_policy,
+        P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
+    };
+
+    assert_eq!(self_host_skip_policy(), "seed-only");
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 5);
+    assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
+
+    let root = env!("CARGO_MANIFEST_DIR");
+    let emit = format!("{root}/self_host/emit_impl.kab");
+    let emit_src = std::fs::read_to_string(&emit).expect("read emit_impl");
+    assert!(
+        emit_src.len() > 64 * 1024,
+        "emit_impl still oversize for self-host attempt gate"
+    );
+    assert!(self_host_is_skip_listed(&emit));
+    let err = compile_file_self_host(&emit).unwrap_err();
+    assert!(err.contains("skipped"), "emit_impl should stay skipped: {err}");
+}
+
 /// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
 #[test]
 fn h6e_skip_listed_kab_only_no_seed_fails() {

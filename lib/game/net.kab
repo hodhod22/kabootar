@@ -473,3 +473,68 @@ pub async fn transportHttpPollAsync(transport) {
     }
     return transport
 }
+
+/// Remote HTTP session server (TCP `net_http_session_serve_once` per request).
+pub fn createHttpSessionServer(port) {
+    net_http_hub_reset()
+    return {
+        "kind": "net_http_server",
+        "port": port,
+        "hub": createHttpHub(),
+        "registered": false
+    }
+}
+
+pub fn registerHttpSessionServer(server) {
+    server["hub"] = registerHttpHub(server["hub"])
+    server["registered"] = true
+    return server
+}
+
+pub fn serveHttpSessionOnce(server) {
+    net_http_session_serve_once(server["port"])
+    return server
+}
+
+pub fn createRemoteHttpTransport(baseUrl) {
+    let pushUrl = baseUrl + "/kab/net/push"
+    let pullUrl = baseUrl + "/kab/net/pull"
+    let t = createTransport("http-remote", pushUrl)
+    t["pollPath"] = pullUrl
+    t["baseUrl"] = baseUrl
+    return transportConnect(t)
+}
+
+pub async fn flushSessionRemoteHttp(session, transport) {
+    let out = drainOutgoing(session)
+    let i = 0
+    while i < len(out) {
+        let path = transport["endpoint"]
+        if starts_with(path, "http") {
+            await http_fetch_async("POST", path, out[i])
+        } else {
+            http_request("POST", path, out[i])
+        }
+        i = i + 1
+    }
+    return { "session": session, "transport": transport }
+}
+
+pub async fn pullSessionRemoteHttp(session, transport) {
+    let path = transport["pollPath"]
+    if path != null && path != undefined {
+        let res = null
+        if starts_with(path, "http") {
+            res = await http_fetch_async("GET", path, "")
+        } else {
+            res = http_request("GET", path, "")
+        }
+        if http_status(res) == 200 {
+            let body = http_body(res)
+            if body != null && body != "" {
+                session = receiveRemote(session, body)
+            }
+        }
+    }
+    return { "session": session, "transport": transport }
+}

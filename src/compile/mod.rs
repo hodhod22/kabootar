@@ -102,6 +102,9 @@ pub fn self_host_skip_policy() -> &'static str {
     "seed-only"
 }
 
+/// P6 gate: max self-host compile time (ms) per leaf before emptying skip-list.
+pub const P6_SELF_HOST_LEAF_CI_FAST_MS: u64 = 10_000;
+
 /// True when `path` is a skip-listed self-host leaf (needs Rust compile or `.kbc` cache).
 pub fn self_host_is_skip_listed(path: &str) -> bool {
     match fs::read_to_string(path) {

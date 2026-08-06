@@ -571,7 +571,7 @@ fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     Ok(Value::Object(out))
 }
 
-/// GP6n — XR present (stereo framebuffer descriptor + optional GPU probe).
+/// GP6n — XR present (stereo swapchain + optional GPU probe).
 fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let desc = match args.first() {
         Some(Value::Object(m)) => m,
@@ -587,22 +587,66 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     };
     let stub = xr_stub_enabled();
     let gpu = crate::runtime::render::gpu3d::gpu3d_available();
-    let presented = stub || gpu;
+    let eye_offsets: [(&str, f32); 2] = [("left", -0.032), ("right", 0.032)];
 
-    let mut eyes = Vec::new();
-    if let Some(Value::Object(em)) = desc.get("eyes") {
-        if let Some(Value::Object(left)) = em.get("left") {
-            eyes.push(Value::String("left".into()));
-            let _ = left;
+    let mut swapchains = Vec::new();
+    let mut total_pixels = 0i64;
+    for (eye, cx) in eye_offsets {
+        let mut chain = HashMap::new();
+        chain.insert("eye".into(), Value::String(eye.into()));
+        chain.insert("width".into(), Value::Number(width as i64));
+        chain.insert("height".into(), Value::Number(height as i64));
+        chain.insert("format".into(), Value::String("rgba8".into()));
+        let mut rendered = false;
+        let mut pixel_bytes = 0i64;
+        if gpu || stub {
+            let view_proj = scene_view_proj(cx, 1.6, 10.0, 1.0, width, height);
+            let vertices: Vec<f32> = vec![
+                0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0,
+            ];
+            let indices: Vec<u16> = vec![0, 1, 2];
+            if gpu {
+                let frame = crate::runtime::render::gpu3d::Gpu3dFrame {
+                    width,
+                    height,
+                    clear_color: if eye == "left" {
+                        [0.15, 0.18, 0.28, 1.0]
+                    } else {
+                        [0.18, 0.15, 0.28, 1.0]
+                    },
+                    view_proj,
+                    model: [
+                        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                        0.0, 1.0,
+                    ],
+                    draw_color: [0.55, 0.7, 0.95, 1.0],
+                    uv_transform: [1.0, 1.0, 0.0, 0.0],
+                    vertices,
+                    component_count: 3,
+                    vert_count: 3,
+                    indices: Some(indices),
+                    index_offset: 0,
+                    index_count: 3,
+                    depth_test: true,
+                    texture: None,
+                    instance_count: 1,
+                };
+                if let Ok(px) = crate::runtime::render::gpu3d::render_frame(&frame) {
+                    rendered = true;
+                    pixel_bytes = px.len() as i64;
+                }
+            } else {
+                rendered = true;
+                pixel_bytes = (width as i64) * (height as i64) * 4;
+            }
         }
-        if let Some(Value::Object(_right)) = em.get("right") {
-            eyes.push(Value::String("right".into()));
-        }
+        total_pixels += pixel_bytes;
+        chain.insert("rendered".into(), Value::Bool(rendered));
+        chain.insert("pixelBytes".into(), Value::Number(pixel_bytes));
+        swapchains.push(Value::Object(chain));
     }
-    if eyes.is_empty() {
-        eyes.push(Value::String("left".into()));
-        eyes.push(Value::String("right".into()));
-    }
+
+    let presented = stub || total_pixels > 0;
 
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_present_host".into()));
@@ -610,19 +654,81 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     out.insert("mode".into(), Value::String(mode));
     out.insert("width".into(), Value::Number(width as i64));
     out.insert("height".into(), Value::Number(height as i64));
-    out.insert("eyeCount".into(), Value::Number(eyes.len() as i64));
-    out.insert("eyes".into(), Value::Array(eyes));
+    out.insert("eyeCount".into(), Value::Number(2));
+    out.insert("swapchains".into(), Value::Array(swapchains));
+    out.insert("pixelBytes".into(), Value::Number(total_pixels));
     out.insert(
         "backend".into(),
         Value::String(if stub {
-            "xr-stub".into()
+            "xr-stub-swapchain".into()
         } else if gpu {
-            crate::runtime::render::gpu3d::info_line().into()
+            format!("{}-swapchain", crate::runtime::render::gpu3d::info_line())
         } else {
             "descriptor".into()
         }),
     );
     Ok(Value::Object(out))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn net_http_session_serve_once_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let port = match args.first() {
+        Some(Value::Number(n)) if *n > 0 && *n < 65536 => *n as u16,
+        _ => return Err("net_http_session_serve_once(port)".into()),
+    };
+
+    let listener = TcpListener::bind(("127.0.0.1", port))
+        .map_err(|e| format!("net_http_session_serve_once bind {port}: {e}"))?;
+    let (mut stream, _) = listener
+        .accept()
+        .map_err(|e| format!("net_http_session_serve_once accept: {e}"))?;
+
+    let mut buffer = [0u8; 8192];
+    let n = stream
+        .read(&mut buffer)
+        .map_err(|e| format!("net_http_session_serve_once read: {e}"))?;
+    let raw = String::from_utf8_lossy(&buffer[..n]);
+    let req = crate::runtime::http::parse_http_request(&raw)?;
+
+    let res = if req.path.contains("/kab/net/push") && req.method.eq_ignore_ascii_case("POST") {
+        net_http_hub_push_native(
+            &[Value::String(req.body.clone())],
+            &mut crate::value::Environment::new(),
+        )?;
+        crate::runtime::http::HttpResponse::new(200, "ok")
+    } else if req.path.contains("/kab/net/pull") && req.method.eq_ignore_ascii_case("GET") {
+        let polled = net_http_hub_poll_native(&[Value::Number(1)], &mut crate::value::Environment::new())?;
+        if let Value::Array(items) = polled {
+            if let Some(Value::String(body)) = items.first() {
+                crate::runtime::http::HttpResponse::new(200, body.clone())
+            } else {
+                crate::runtime::http::HttpResponse::new(204, "")
+            }
+        } else {
+            crate::runtime::http::HttpResponse::new(204, "")
+        }
+    } else {
+        crate::runtime::http::HttpResponse::not_found()
+    };
+
+    stream
+        .write_all(res.to_http_string().as_bytes())
+        .map_err(|e| format!("net_http_session_serve_once write: {e}"))?;
+    Ok(Value::Number(res.status))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn net_http_session_serve_once_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Err("net_http_session_serve_once unavailable on wasm32".into())
 }
 
 pub fn game_globals(env: &mut Environment) {
@@ -649,6 +755,7 @@ pub fn game_globals(env: &mut Environment) {
         ("net_http_hub_reset", net_http_hub_reset_native),
         ("net_http_hub_push", net_http_hub_push_native),
         ("net_http_hub_poll", net_http_hub_poll_native),
+        ("net_http_session_serve_once", net_http_session_serve_once_native),
         ("xr_host_info", xr_host_info_native),
         ("xr_host_present", xr_host_present_native),
         ("gltf_load_json", gltf::gltf_load_json_native),

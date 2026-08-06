@@ -138,3 +138,52 @@ fn net_http_transport_roundtrip() {
     .expect("eval");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn net_remote_http_session_server() {
+    test_runtime_env();
+    kabootar_lib::runtime::game::reset_all();
+    let port: i64 = 19881;
+    let port_copy = port;
+    let server = std::thread::spawn(move || {
+        let mut env = create_global_env();
+        for _ in 0..2 {
+            eval_source(
+                &format!("net_http_session_serve_once({port_copy})"),
+                &mut env,
+            )
+            .expect("serve once");
+        }
+    });
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let mut env = create_global_env();
+    let v = eval_source(
+        &format!(
+            r#"
+        async fn run() {{
+            import "game/net"
+            import "game/ecs"
+            let remote = createRemoteHttpTransport("http://127.0.0.1:{port}")
+            let hostS = createSession("local")
+            let peerS = createSession("local")
+            let w = createWorld()
+            let id = spawn(w)
+            w = add(w, id, "pos", {{ x: 42, y: 3 }})
+            hostS = sendTick(hostS, w)
+            let flushed = await flushSessionRemoteHttp(hostS, remote)
+            hostS = flushed["session"]
+            let pulled = await pullSessionRemoteHttp(peerS, remote)
+            peerS = pulled["session"]
+            let applied = pollRemote(peerS, createWorld())
+            let got = get(applied["world"], id, "pos")
+            return got["x"] == 42 && got["y"] == 3
+        }}
+        await run()
+        "#
+        ),
+        &mut env,
+    )
+    .expect("eval");
+    server.join().expect("server join");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
