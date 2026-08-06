@@ -1200,6 +1200,47 @@ fn nd_fancy_index(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     Ok(nd_out_dtype(&[out_len], &out, &dtype))
 }
 
+/// nd_broadcast_shapes(shapeA, shapeB) → broadcast result shape.
+fn nd_broadcast_shapes_api(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let sa = parse_shape(args.first().ok_or("nd_broadcast_shapes(a,b)")?)?;
+    let sb = parse_shape(args.get(1).ok_or("nd_broadcast_shapes(a,b)")?)?;
+    Ok(shape_val(&broadcast_shapes(&sa, &sb)?))
+}
+
+/// nd_broadcast_to(a, shape) — expand with NumPy broadcasting rules (copy).
+fn nd_broadcast_to(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, data) = nd_at(args, 0, "nd_broadcast_to")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let so = parse_shape(args.get(1).ok_or("nd_broadcast_to(a, shape)")?)?;
+    let bc = broadcast_shapes(&sa, &so)?;
+    if bc != so {
+        return Err(format!(
+            "nd_broadcast_to: {:?} does not broadcast exactly to {:?}",
+            sa, so
+        ));
+    }
+    let ndim = so.len();
+    let n_out = shape_product(&so);
+    let out_strides = strides_of(&so);
+    let in_strides = strides_of(&sa);
+    let mut out = vec![0.0; n_out.saturating_mul(w)];
+    for flat in 0..n_out {
+        let idx = unravel(flat, &so, &out_strides);
+        let mut src = 0usize;
+        let offset = ndim - sa.len();
+        for d in 0..sa.len() {
+            let out_i = idx[offset + d];
+            let in_i = if sa[d] == 1 { 0 } else { out_i };
+            src += in_i * in_strides[d];
+        }
+        for t in 0..w {
+            out[flat * w + t] = data.get(src * w + t).copied().unwrap_or(0.0);
+        }
+    }
+    Ok(nd_out_dtype(&so, &out, &dtype))
+}
+
 fn nd_is_view(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     match args.first() {
         Some(Value::Object(m)) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
@@ -2438,6 +2479,11 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_nonzero", "nd_nonzero"], nd_nonzero);
     bind(&["science_nd_take_along", "nd_take_along"], nd_take_along);
     bind(&["science_nd_fancy_index", "nd_fancy_index"], nd_fancy_index);
+    bind(&["science_nd_broadcast_to", "nd_broadcast_to"], nd_broadcast_to);
+    bind(
+        &["science_nd_broadcast_shapes", "nd_broadcast_shapes"],
+        nd_broadcast_shapes_api,
+    );
     bind(&["science_nd_conj", "nd_conj"], nd_conj);
     bind(&["science_nd_slice", "nd_slice"], nd_slice);
     bind(&["science_nd_index_view", "nd_index_view"], nd_index_view);

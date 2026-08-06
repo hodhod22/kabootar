@@ -1,4 +1,4 @@
-//! Autograd tape (SC2c/SC2f) — dense/relu/mse + matmul/conv/softmax/CE/add/mul + no_grad.
+//! Autograd tape (SC2c/SC2f/SC2g) — dense/relu/mse + matmul/conv/softmax/CE + add/mul/sub/div/sum/exp + no_grad.
 
 use super::helpers::{num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
@@ -46,7 +46,11 @@ enum Node {
     },
     Softmax { id: u64, parent: u64, value: Vec<f64> },
     Add { id: u64, left: u64, right: u64, value: Vec<f64> },
+    Sub { id: u64, left: u64, right: u64, value: Vec<f64> },
     Mul { id: u64, left: u64, right: u64, value: Vec<f64> },
+    Div { id: u64, left: u64, right: u64, value: Vec<f64> },
+    Sum { id: u64, parent: u64, value: f64 },
+    Exp { id: u64, parent: u64, value: Vec<f64> },
     Mse { id: u64, pred: u64, target: Vec<f64>, value: f64 },
     Ce { id: u64, pred: u64, target: Vec<f64>, value: f64 },
 }
@@ -107,8 +111,13 @@ fn node_value(t: &Tape, id: u64) -> Result<Vec<f64>, String> {
         | Some(Node::Conv2d { value, .. })
         | Some(Node::Softmax { value, .. })
         | Some(Node::Add { value, .. })
-        | Some(Node::Mul { value, .. }) => Ok(value.clone()),
-        Some(Node::Mse { value, .. }) | Some(Node::Ce { value, .. }) => Ok(vec![*value]),
+        | Some(Node::Sub { value, .. })
+        | Some(Node::Mul { value, .. })
+        | Some(Node::Div { value, .. })
+        | Some(Node::Exp { value, .. }) => Ok(value.clone()),
+        Some(Node::Sum { value, .. })
+        | Some(Node::Mse { value, .. })
+        | Some(Node::Ce { value, .. }) => Ok(vec![*value]),
         None => Err("unknown autograd id".into()),
     }
 }
@@ -400,6 +409,90 @@ fn ag_mul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     })
 }
 
+fn ag_sub(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let left = tensor_id(args.first().ok_or("ag_sub(a,b)")?)?;
+    let right = tensor_id(args.get(1).ok_or("ag_sub(a,b)")?)?;
+    with_tape(|t| {
+        let a = node_value(t, left)?;
+        let b = node_value(t, right)?;
+        if a.len() != b.len() {
+            return Err("ag_sub: length mismatch".into());
+        }
+        let out: Vec<f64> = a.iter().zip(b.iter()).map(|(x, y)| x - y).collect();
+        Ok(detach_or_track(t, left, out.clone(), |id| Node::Sub {
+            id,
+            left,
+            right,
+            value: out,
+        }))
+    })
+}
+
+fn ag_div(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let left = tensor_id(args.first().ok_or("ag_div(a,b)")?)?;
+    let right = tensor_id(args.get(1).ok_or("ag_div(a,b)")?)?;
+    with_tape(|t| {
+        let a = node_value(t, left)?;
+        let b = node_value(t, right)?;
+        if a.len() != b.len() {
+            return Err("ag_div: length mismatch".into());
+        }
+        let out: Vec<f64> = a
+            .iter()
+            .zip(b.iter())
+            .map(|(x, y)| {
+                if y.abs() < 1e-15 {
+                    x / 1e-15
+                } else {
+                    x / y
+                }
+            })
+            .collect();
+        Ok(detach_or_track(t, left, out.clone(), |id| Node::Div {
+            id,
+            left,
+            right,
+            value: out,
+        }))
+    })
+}
+
+fn ag_sum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let parent = tensor_id(args.first().ok_or("ag_sum(t)")?)?;
+    with_tape(|t| {
+        let v = node_value(t, parent)?;
+        let s: f64 = v.iter().sum();
+        if !t.grad_enabled {
+            let id = push_leaf(t, vec![s]);
+            return Ok(tensor_out(id, &[s]));
+        }
+        let id = t.next_id;
+        t.next_id += 1;
+        t.nodes.insert(
+            id,
+            Node::Sum {
+                id,
+                parent,
+                value: s,
+            },
+        );
+        Ok(tensor_out(id, &[s]))
+    })
+}
+
+fn ag_exp(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let parent = tensor_id(args.first().ok_or("ag_exp(t)")?)?;
+    with_tape(|t| {
+        let parent_val = node_value(t, parent)?;
+        let out: Vec<f64> = parent_val.iter().map(|x| x.exp()).collect();
+        Ok(detach_or_track(t, parent, out.clone(), |id| Node::Exp {
+            id,
+            parent,
+            value: out,
+        }))
+    })
+}
+
 fn ag_mse(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let pred_id = tensor_id(args.first().ok_or("ag_mse(pred, target)")?)?;
     let target = vector_at(args, 1, "ag_mse")?;
@@ -498,7 +591,15 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                     .collect();
                 t.grads.insert(pred, g_pred);
             }
-            _ => return Err("ag_backward: root must be mse or ce".into()),
+            Node::Sum { parent, .. } => {
+                let pv = node_value(t, parent)?;
+                t.grads.insert(parent, vec![1.0; pv.len()]);
+            }
+            _ => {
+                // Scalar or vector root: seed ones matching root value length.
+                let rv = node_value(t, loss_id)?;
+                t.grads.insert(loss_id, vec![1.0; rv.len()]);
+            }
         }
 
         let mut ids: Vec<u64> = t.nodes.keys().copied().collect();
@@ -641,6 +742,13 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                         accumulate(t, right, &gout);
                     }
                 }
+                Node::Sub { left, right, .. } => {
+                    if let Some(gout) = t.grads.get(&id).cloned() {
+                        let gr: Vec<f64> = gout.iter().map(|g| -g).collect();
+                        accumulate(t, left, &gout);
+                        accumulate(t, right, &gr);
+                    }
+                }
                 Node::Mul { left, right, value: _, .. } => {
                     if let Some(gout) = t.grads.get(&id).cloned() {
                         let lv = node_value(t, left)?;
@@ -649,6 +757,48 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                         let gr: Vec<f64> = gout.iter().zip(lv.iter()).map(|(g, l)| g * l).collect();
                         accumulate(t, left, &gl);
                         accumulate(t, right, &gr);
+                    }
+                }
+                Node::Div { left, right, .. } => {
+                    if let Some(gout) = t.grads.get(&id).cloned() {
+                        let lv = node_value(t, left)?;
+                        let rv = node_value(t, right)?;
+                        let gl: Vec<f64> = gout
+                            .iter()
+                            .zip(rv.iter())
+                            .map(|(g, r)| {
+                                let d = if r.abs() < 1e-15 { 1e-15 } else { *r };
+                                g / d
+                            })
+                            .collect();
+                        let gr: Vec<f64> = gout
+                            .iter()
+                            .zip(lv.iter())
+                            .zip(rv.iter())
+                            .map(|((g, l), r)| {
+                                let d = if r.abs() < 1e-15 { 1e-15 } else { *r };
+                                -g * l / (d * d)
+                            })
+                            .collect();
+                        accumulate(t, left, &gl);
+                        accumulate(t, right, &gr);
+                    }
+                }
+                Node::Sum { parent, .. } => {
+                    if let Some(gout) = t.grads.get(&id).cloned() {
+                        let g0 = gout.first().copied().unwrap_or(1.0);
+                        let pv = node_value(t, parent)?;
+                        accumulate(t, parent, &vec![g0; pv.len()]);
+                    }
+                }
+                Node::Exp { parent, value, .. } => {
+                    if let Some(gout) = t.grads.get(&id).cloned() {
+                        let gin: Vec<f64> = gout
+                            .iter()
+                            .zip(value.iter())
+                            .map(|(g, e)| g * e)
+                            .collect();
+                        accumulate(t, parent, &gin);
                     }
                 }
                 Node::Mse { .. } | Node::Ce { .. } if id == loss_id => {}
@@ -692,7 +842,11 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_ag_conv2d", "ag_conv2d"], ag_conv2d);
     bind(&["science_ag_softmax", "ag_softmax"], ag_softmax);
     bind(&["science_ag_add", "ag_add"], ag_add);
+    bind(&["science_ag_sub", "ag_sub"], ag_sub);
     bind(&["science_ag_mul", "ag_mul"], ag_mul);
+    bind(&["science_ag_div", "ag_div"], ag_div);
+    bind(&["science_ag_sum", "ag_sum"], ag_sum);
+    bind(&["science_ag_exp", "ag_exp"], ag_exp);
     bind(&["science_ag_mse", "ag_mse"], ag_mse);
     bind(&["science_ag_ce", "ag_ce"], ag_ce);
     bind(&["science_ag_no_grad", "ag_no_grad"], ag_no_grad);

@@ -942,7 +942,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC0b** | **Elementvis + reductions** — add/mul/scale, sum/mean/max, broadcast subset | ✅ subset (add/mul/scale/sum/mean; broadcast → **SC0e**) |
 | **SC0c** | **Float64/32 bulk** — zero-copy mot `Float64Array` / `@manual` buffers | ✅ subset (`nd_from_f64` / `nd_to_f64`) |
 | **SC0d** | **Kab-API** — `import "science/nd"` wrappers ovanpå natives | ✅ subset |
-| **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
+| **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_broadcast_to`/`nd_broadcast_shapes`; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
 | **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`NdShared` Rc views + `a[1:10, :]` + `nd_slice` zero-copy; `concat`/`stack`/`split`) |
 | **SC0j** | **Tensor ownership + lazy graphs** — unique buffer `take`; GC lazy realize | ✅ subset (`nd_take` / `science/tensor` / `science/lazy`) |
 | **SC0g** | **Dtypes** — f32/f64/i32/i64/bool/complex64; cast | ✅ subset (`nd_dtype`/`nd_astype`; c64 interleaved + KND tag 6) |
@@ -957,11 +957,11 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1b** | **Solve / LU** — `nd_solve` / `mat_solve` för Ax=b | ✅ subset (`nd_solve` Gauss+partial pivot) |
 | **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2; utöka) | ✅ subset (`mat_svd2` + `mat_eigen2`; allmän → **SC1e**) |
 | **SC1d** | **FFT / signal subset** — 1D FFT + conv | ✅ subset (`num_fft` / `num_ifft` / `num_conv1d`) |
-| **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr`/`mat_svd`/`mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
+| **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr` thin/full + `mat_qr_err`; `mat_svd` thin/full + `mat_pinv`; `mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
 | **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
 | **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | ✅ subset (`num_rk4`/`num_odeint`/`num_odeint_adaptive`/`num_quad`) |
 | **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | ✅ subset (`num_interp_spline*`/`num_erf`/`num_gamma`/`num_bessel_j0`) |
-| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`/`num_fir`/`num_iir`/`num_biquad`) |
+| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`/`num_fir`/`num_iir`/`num_biquad`; `num_rfft`/`num_irfft`/`num_fft_c`/`num_fft_pad`) |
 | **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | ✅ subset (`sparse_*` CSR/COO/SpMV/lstsq) |
 
 #### SC2 — ML / AI (ersätt sklearn + PyTorch-subset)
@@ -974,6 +974,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2d** | **Dataset / batch** — shuffle, mini-batch, train/test split (**i Kab**) | ✅ subset (`ml_shuffle`/`ml_batch_slices`/`ml_train_test_split`) |
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_conv2d`/`ag_sigmoid`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`) |
+| **SC2g** | **Autograd arithmetic** — sub/div/sum/exp; backward from sum/generic root | ✅ subset (`ag_sub`/`ag_div`/`ag_sum`/`ag_exp`) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_adamw_update`/`ml_accuracy`/`ml_f1`/`ml_roc_auc`/`ml_confusion`) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
@@ -1066,7 +1067,8 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 **Checkpoint SC (landad 2026-08-06c):** complex gather/compress + `nd_nonzero` / `nd_fancy_index`; SC5b Kab-port (`median`/`percentile`/`crossEntropy`/`oneHot`/`matmul`/`f1`/`confusion`); multi-rank AllReduce (`allReduceRanks`) — `tests/science_sc_checkpoint_sc5.rs`.
 **Checkpoint SC (landad 2026-08-06d):** outer multi-axis fancy (`fancyOuter`); mailbox multi-node AllReduce (`allReduceStar`/`allReduceRing`); Kab `pcaKab`/`stumpKab`/`kmeansKab` — `tests/science_sc_checkpoint_sc5d.rs`.
 **Checkpoint SC (landad 2026-08-06e):** TCP socket AllReduce (`sci_allreduce_tcp` / `allReduceTcp`); Kab bagging/boost/tree ensembles; sparse row gather/compress + dense-mask COO view — `tests/science_sc_checkpoint_sc5e.rs`.
-**Checkpoint SC (nästa):** multi-host TCP (not only loopback); gradient-boosted trees; sparse column fancy / slice views.
+**Checkpoint SC (landad 2026-08-06f):** `broadcastTo`/`nd_broadcast_shapes`; autograd sub/div/sum/exp; QR/SVD thin·full + `qrErr`/`pinv`; `rfft`/`irfft`/`fftC`/`fftPad` — `tests/science_sc_checkpoint_deepen.rs`.
+**Checkpoint SC (nästa):** multi-host TCP (not only loopback); gradient-boosted trees; sparse column fancy / slice views; higher-order autograd.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
