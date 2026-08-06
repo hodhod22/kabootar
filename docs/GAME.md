@@ -105,10 +105,29 @@ kabootar mod init game3d  # 3D mesh + shaders/solid.wgsl
 
 ## Kab-spel-lib (GP1–GP3 subset)
 
+`lib/game/` är **motorgrunden** (ECS, scene, render, physics, …).  
+Gameplay-komponenter (Health, AI, inventory, …) ligger i det **separata** repot [`bazi`](../../bazi/) — importera bara det spelet behöver (Unity-lik modell).
+
+```bash
+export KABOOTAR_PATH="/path/to/bazi/lib"
+# import "game/ecs"
+# import "bazi/core"
+# import "bazi/extras/vehicle"
+```
+
 Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — `root = setLocal(root, …)`):
+
+```
+lib/game/
+  ├── core/          # ECS, scene, render
+  ├── core.kab       # aggregator
+  ├── ecs.kab / scene.kab / render.kab   # shims → game/core/*
+  └── …              # physics, audio, editor, xr, …
+```
 
 | Import | API |
 |--------|-----|
+| `import "game/core"` | ECS + scene + render |
 | `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `setLayer`, `worldPos` (Parent-walk) |
 | `import "game/render"` | `createMesh`, `createIndexedMesh`, `setColor`, `drawMesh`, `drawIndexedMesh`, `drawMeshInstanced`, `drawIndexedMeshInstanced` |
 | `import "game/input"` | `createActions`, `actionPressed` |
@@ -117,7 +136,7 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
 | `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
 | `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep` |
-| `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` |
+| `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` (shim → `game/core/ecs`) |
 | `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
 | `import "game/terrain"` | heightmap, LOD mesh, splat, async streaming poll (`beginAsyncLoad`/`pollStreamingLoads`) (GP6d) |
 | `import "game/procgen"` | seeded RNG, `noise2d`/`fbm2d`, dungeon, scatter, heightmap fill (GP6l) |

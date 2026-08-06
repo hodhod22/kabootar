@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b empty skip-list when self-host leaf compile is CI-fast; wire real wgpu device into OpenXR swapchain images. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6b empty skip-list when self-host leaf compile is CI-fast; XR layer submit with wgpu/Vulkan images. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -717,11 +717,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
-| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"`) | ✅ subset (`Object.setParent` walk + `worldPos` sum; `layer` fält) |
-| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"`: mesh + indexed/instanced draw helpers) |
+| **GP1a** | **Scen-graf** — nodes, transform hierarchy, layers (`import "game/scene"` / `game/core/scene`) | ✅ subset (`Object.setParent` walk + `worldPos` sum; `layer` fält) |
+| **GP1b** | **Mesh / material / camera** — Tunna wrappers över WebGL/wgpu | ✅ subset (`import "game/render"` / `game/core/render`) |
 | **GP1c** | **Input-lager** — action maps (keyboard/gamepad/touch) ovanpå `input_*` | ✅ subset (`import "game/input"`: `createActions`/`actionPressed`; keyboard only) |
 | **GP1d** | **Time & fixed update** — `dt`, fixed physics step, frame skip-policy | ✅ subset (`import "game/time"`: `dtSec`/`createFixed`/`fixedTick`) |
-| **GP1e** | **ECS eller komponent-subset** — data-oriented gameplay utan GC-churn | ✅ subset (`import "game/ecs"`: spawn/add/query AoS) |
+| **GP1e** | **ECS (motor)** + **Bazi (externt komponent-ramverk)** | ✅ ECS i `game/ecs` / `game/core/ecs`; gameplay-komponenter i separat repo `bazi` (`import "bazi/…"`) |
 | **GP1f** | **2D-batch** — sprite atlas / tilemap på samma GPU-väg | ✅ subset (`import "game/batch"`: sprite quads + tilemap → textured drawElements) |
 
 #### GP2 — Assets & pipeline
@@ -783,7 +783,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
 | **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + HTTP hub + remote session server; WAN server kvar) |
-| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (Vulkan/D3D11 binding + Promise.then + getSystem/await/create/end-frame) |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (wgpu device → swapchain images + Promise.then reject + Vulkan/D3D11/await/create/end-frame) |
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
@@ -805,8 +805,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** real GPU device handles from wgpu/Vulkan into OpenXR swapchain images; Promise.then rejection path; P6b empty skip-list when leaf self-host <10s.  
-**Checkpoint GP (landad):** Vulkan/D3D11 graphics binding structs → HMD swapchain; `xrSessionThen` / `promise_then`; xrGetSystem + await rAF; P6 seed-only + P6b gate.  
+**Checkpoint GP (nästa):** XR layer submit with real wgpu/Vulkan image handles; full WebXR input sources; P6b empty skip-list when leaf self-host <10s.  
+**Checkpoint GP (landad):** wgpu device handles → OpenXR swapchain images; `xrSessionThen` rejection / `xrSessionThenReject`; Vulkan/D3D11 binding + await rAF; P6 seed-only + P6b gate.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset

@@ -1,0 +1,7 @@
+@version "1.0.0"
+
+// game/core — engine aggregator (ECS + scene + render).
+// Prefer: import "game/core"  |  also: import "game/core/ecs" etc.
+pub import "game/core/ecs"
+pub import "game/core/scene"
+pub import "game/core/render"
