@@ -1,0 +1,28 @@
+@version "1.0.0"
+
+// Generic CAD graph (nodes + edges). import "cad/graph"
+
+pub fn createCadGraph(name) {
+    if name == null || name == undefined { name = "cad" }
+    return { "kind": "CadGraph", "name": name, "nodes": [], "edges": [] }
+}
+
+pub fn cadAddNode(g, id, data) {
+    if data == null || data == undefined { data = {} }
+    g["nodes"] = push(g["nodes"], { "id": id, "data": data })
+    return g
+}
+
+pub fn cadAddEdge(g, id, a, b, data) {
+    if data == null || data == undefined { data = {} }
+    g["edges"] = push(g["edges"], { "id": id, "a": a, "b": b, "data": data })
+    return g
+}
+
+pub fn cadNodeCount(g) {
+    return len(g["nodes"])
+}
+
+pub fn cadEdgeCount(g) {
+    return len(g["edges"])
+}

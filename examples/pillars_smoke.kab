@@ -1,0 +1,53 @@
+@version "1.0.0"
+
+// Smoke all MIT pillars that back commercial frameworks.
+import "doc/model"
+import "doc/block"
+import "web/app"
+import "web/router"
+import "cad/geom"
+import "cad/aero"
+import "cad/arch"
+import "cad/circuit"
+import "cad/power"
+
+let doc = createDocument("Manual")
+doc = docAddPage(doc, "cover")
+doc = docAddTextBlock(doc, 0, "Hello")
+doc = docEditTextBlock(doc, 0, 0, "Hello Doc")
+println(docReadPageText(doc, 0) == "Hello Doc")
+
+let app = createWebApp("site")
+app = webAddRoute(app, "/home", "Home")
+app = webAddRoute(app, "/about", "About")
+app = webSetRouteBody(app, "/about", "Next-like")
+app = webNavigate(app, "/about")
+let page = webMatchRoute(app, "/about")
+println(page["body"] == "Next-like")
+let rendered = webRenderRoute(app, "/about")
+println(rendered["ok"] == true)
+let miss = webRenderRoute(app, "/missing")
+println(miss["ok"] == false)
+
+let d2 = cadDist2(0.0, 0.0, 3.0, 4.0)
+println(d2 == 25.0)
+let aero = createAeroModel("wing")
+aero = aeroAddAirfoil(aero, "main", 1.2, 10.0)
+aero = aeroSetFlow(aero, 40.0, 5.0, 1.225)
+let L = aeroEstimateLift(aero, 0)
+println(L > 0.0)
+
+let b = createBuilding("villa")
+b = archAddRoom(b, "living", 5.0, 4.0)
+b = archAddRoom(b, "kitchen", 3.0, 3.0)
+println(archFloorArea(b) == 29.0)
+
+let board = createBoard("div")
+board = circuitAddPart(board, "R1", "R", 1000.0)
+board = circuitAddPart(board, "R2", "R", 1000.0)
+println(circuitDividerVout(5.0, 1000.0, 1000.0) == 2.5)
+
+let inst = createInstall("flat")
+inst = powerAddCircuit(inst, "G1", 16.0)
+inst = powerAddDevice(inst, "heater", "G1", 4000.0)
+println(powerCircuitOk(inst, "G1") == false)

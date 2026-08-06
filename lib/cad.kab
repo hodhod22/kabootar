@@ -1,0 +1,11 @@
+@version "1.0.0"
+
+// CAD motor pillar (MIT) - foundations for rasme* kits.
+// Prefer leaf imports in apps (cad/aero, cad/arch, ...).
+// import "cad"
+pub import "cad/geom"
+pub import "cad/graph"
+pub import "cad/aero"
+pub import "cad/arch"
+pub import "cad/circuit"
+pub import "cad/power"

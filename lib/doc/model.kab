@@ -1,0 +1,26 @@
+@version "1.0.0"
+
+// Motor document model (MIT). Commercial kit: nabz.
+// import "doc/model"
+
+pub fn createDocument(title) {
+    if title == null || title == undefined { title = "Untitled" }
+    return {
+        "kind": "Document",
+        "title": title,
+        "pages": [],
+        "rev": 0.0
+    }
+}
+
+pub fn docAddPage(doc, name) {
+    if name == null || name == undefined { name = "page" }
+    let page = { "kind": "DocPage", "name": name, "blocks": [] }
+    doc["pages"] = push(doc["pages"], page)
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docPageCount(doc) {
+    return len(doc["pages"])
+}

@@ -1,0 +1,35 @@
+@version "1.0.0"
+
+// Electronics CAD pillar (MIT). Commercial kit: rasmemadar.
+// import "cad/circuit"
+
+pub fn createBoard(name) {
+    if name == null || name == undefined { name = "board" }
+    return { "kind": "Board", "name": name, "parts": [], "nets": [] }
+}
+
+pub fn circuitAddPart(board, id, kind, value) {
+    if kind == null || kind == undefined { kind = "R" }
+    if value == null || value == undefined { value = 1000.0 }
+    board["parts"] = push(board["parts"], {
+        "id": id, "kind": kind, "value": value, "pins": ["a", "b"]
+    })
+    return board
+}
+
+pub fn circuitAddNet(board, name, a, b) {
+    board["nets"] = push(board["nets"], { "name": name, "a": a, "b": b })
+    return board
+}
+
+pub fn circuitDividerVout(vin, r1, r2) {
+    if r1 == null || r1 == undefined { r1 = 1000.0 }
+    if r2 == null || r2 == undefined { r2 = 1000.0 }
+    if vin == null || vin == undefined { vin = 5.0 }
+    return vin * r2 / (r1 + r2)
+}
+
+pub fn circuitOhmCurrent(volts, ohms) {
+    if ohms == null || ohms == undefined || ohms == 0.0 { return 0.0 }
+    return volts / ohms
+}
