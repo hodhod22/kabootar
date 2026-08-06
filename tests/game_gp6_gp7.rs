@@ -288,7 +288,43 @@ fn xr_runtime_swapchain_frame() {
         xr = createStereoSwapchains(xr, 640, 360)
         let out = xrRuntimeFrame(xr, 640, 360)
         let d = describeXr(out["session"])
-        return out["frame"]["shouldRender"] == true && out["ended"]["submitted"] == true && d["swapchainCount"] == 2 && out["frame"]["frameIndex"] == 1
+        return out["frame"]["shouldRender"] == true && out["ended"]["submitted"] == true && d["swapchainCount"] == 2 && out["frame"]["frameIndex"] == 1 && out["composition"]["viewCount"] == 2 && out["ended"]["composition"]["kind"] == "xr_hmd_composition"
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn xr_hmd_projection_layer_composition() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrBegin(xr)
+        xr = createStereoSwapchains(xr, 1280, 720)
+        let frame = xr_wait_frame()
+        let imgL = xr_acquire_swapchain_image(xr["swapchains"][0])
+        let imgR = xr_acquire_swapchain_image(xr["swapchains"][1])
+        imgL["width"] = 640
+        imgL["height"] = 720
+        imgR["width"] = 640
+        imgR["height"] = 720
+        let layer = createProjectionLayer([
+            createProjectionView("left", imgL, null, null),
+            createProjectionView("right", imgR, null, null)
+        ], "stage")
+        let composed = composeHmdLayers([layer])
+        xr_release_swapchain_image(imgL)
+        xr_release_swapchain_image(imgR)
+        let ended = xr_end_frame([layer])
+        return composed["viewCount"] == 2 && composed["sideBySideWidth"] == 1280 && ended["composition"]["submittedToHmd"] == true && frame["shouldRender"] == true
         "#,
         &mut env,
     )

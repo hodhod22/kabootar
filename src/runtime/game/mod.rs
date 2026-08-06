@@ -801,13 +801,144 @@ fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     let frame_index = rt.frame_index;
     let display_time = rt.predicted_display_time_ns;
     rt.waiting = false;
+    drop(guard);
+
+    let composed = compose_projection_layers(&layers)?;
+
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_end_frame".into()));
     out.insert("submitted".into(), Value::Bool(true));
     out.insert("frameIndex".into(), Value::Number(frame_index));
     out.insert("displayTime".into(), Value::Number(display_time));
     out.insert("layerCount".into(), Value::Number(layers.len() as i64));
+    out.insert("composition".into(), composed);
     Ok(Value::Object(out))
+}
+
+/// OpenXR-style projection layer composition (stereo views → HMD submit descriptor).
+fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
+    let mut views_out = Vec::new();
+    let mut layer_kinds = Vec::new();
+    let mut total_w = 0u32;
+    let mut total_h = 0u32;
+    let stub = xr_stub_enabled() || xr_ffi::status().bound;
+    let gpu = crate::runtime::render::gpu3d::gpu3d_available();
+
+    for layer in layers {
+        let Value::Object(lm) = layer else {
+            continue;
+        };
+        let kind = match lm.get("type").or_else(|| lm.get("kind")) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "projection".into(),
+        };
+        layer_kinds.push(Value::String(kind.clone()));
+
+        if kind == "projection" || kind == "COMPOSITION_LAYER_PROJECTION" {
+            let views = match lm.get("views") {
+                Some(Value::Array(v)) => v.as_slice(),
+                _ => &[],
+            };
+            for view in views {
+                let Value::Object(vm) = view else {
+                    continue;
+                };
+                let eye = match vm.get("eye") {
+                    Some(Value::String(s)) => s.clone(),
+                    _ => "left".into(),
+                };
+                let width = f64_from(vm.get("width").unwrap_or(&Value::Null), 640.0)
+                    .clamp(64.0, 4096.0) as u32;
+                let height = f64_from(vm.get("height").unwrap_or(&Value::Null), 720.0)
+                    .clamp(64.0, 4096.0) as u32;
+                let cx = if eye == "right" { 0.032 } else { -0.032 };
+                let (rendered, pixel_bytes) =
+                    render_eye_swapchain(&eye, cx as f32, width, height, stub, gpu);
+                total_w += width;
+                total_h = total_h.max(height);
+
+                let pose = match vm.get("pose") {
+                    Some(v) => v.clone(),
+                    None => {
+                        let mut p = HashMap::new();
+                        p.insert("x".into(), Value::Float(cx));
+                        p.insert("y".into(), Value::Float(1.6));
+                        p.insert("z".into(), Value::Float(0.0));
+                        p.insert("qx".into(), Value::Float(0.0));
+                        p.insert("qy".into(), Value::Float(0.0));
+                        p.insert("qz".into(), Value::Float(0.0));
+                        p.insert("qw".into(), Value::Float(1.0));
+                        Value::Object(p)
+                    }
+                };
+                let fov = match vm.get("fov") {
+                    Some(v) => v.clone(),
+                    None => {
+                        let mut f = HashMap::new();
+                        f.insert("angleLeft".into(), Value::Float(-0.785));
+                        f.insert("angleRight".into(), Value::Float(0.785));
+                        f.insert("angleUp".into(), Value::Float(0.785));
+                        f.insert("angleDown".into(), Value::Float(-0.785));
+                        Value::Object(f)
+                    }
+                };
+                let mut vo = HashMap::new();
+                vo.insert("eye".into(), Value::String(eye));
+                vo.insert("width".into(), Value::Number(width as i64));
+                vo.insert("height".into(), Value::Number(height as i64));
+                vo.insert("pose".into(), pose);
+                vo.insert("fov".into(), fov);
+                vo.insert("rendered".into(), Value::Bool(rendered));
+                vo.insert("pixelBytes".into(), Value::Number(pixel_bytes));
+                if let Some(sub) = vm.get("subImage") {
+                    vo.insert("subImage".into(), sub.clone());
+                }
+                views_out.push(Value::Object(vo));
+            }
+        } else {
+            // Quad / cylinder layers: record only (composition deferred).
+            let mut vo = HashMap::new();
+            vo.insert("kind".into(), Value::String(kind));
+            vo.insert("composed".into(), Value::Bool(false));
+            views_out.push(Value::Object(vo));
+        }
+    }
+
+    // Side-by-side composite size (left|right).
+    let sbs_w = if total_w > 0 { total_w } else { 1280 };
+    let sbs_h = if total_h > 0 { total_h } else { 720 };
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_hmd_composition".into()));
+    out.insert("layerTypes".into(), Value::Array(layer_kinds));
+    out.insert("views".into(), Value::Array(views_out.clone()));
+    out.insert("viewCount".into(), Value::Number(views_out.len() as i64));
+    out.insert("sideBySideWidth".into(), Value::Number(sbs_w as i64));
+    out.insert("sideBySideHeight".into(), Value::Number(sbs_h as i64));
+    out.insert(
+        "submittedToHmd".into(),
+        Value::Bool(stub || xr_ffi::status().openxr_runtime || xr_ffi::status().webxr),
+    );
+    out.insert(
+        "backend".into(),
+        Value::String(if xr_ffi::status().bound {
+            xr_ffi::status().backend
+        } else if stub {
+            "xr-stub-compose".into()
+        } else {
+            "descriptor-compose".into()
+        }),
+    );
+    Ok(Value::Object(out))
+}
+
+fn xr_compose_hmd_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let layers = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Object(_)) => vec![args[0].clone()],
+        _ => return Err("xr_compose_hmd(layers)".into()),
+    };
+    compose_projection_layers(&layers)
 }
 
 fn render_eye_swapchain(
@@ -1013,6 +1144,7 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
         ("xr_release_swapchain_image", xr_release_swapchain_image_native),
         ("xr_end_frame", xr_end_frame_native),
+        ("xr_compose_hmd", xr_compose_hmd_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),

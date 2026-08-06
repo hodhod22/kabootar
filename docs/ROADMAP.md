@@ -783,7 +783,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
 | **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + HTTP hub + remote session server; WAN server kvar) |
-| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (OpenXR loader / WebXR `navigator.xr` FFI + runtime swapchain; HMD composition kvar) |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (FFI bind + projection layer composition + runtime swapchain; vendor HMD driver kvar) |
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
@@ -805,8 +805,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** OpenXR HMD layer composition; P6b empty skip-list when leaf self-host <10s.  
-**Checkpoint GP (landad):** OpenXR loader / WebXR FFI bind (`xr_bind_headset`); runtime swapchain; remote HTTP; P6 seed-only product path finalized.  
+**Checkpoint GP (nästa):** vendor OpenXR HMD driver present; P6b empty skip-list when leaf self-host <10s (`P6B_EMPTY_SKIP_LIST_READY`).  
+**Checkpoint GP (landad):** projection layer composition (`composeHmdLayers` / `xr_compose_hmd`); OpenXR/WebXR FFI; P6 seed-only + P6b gate flag.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset

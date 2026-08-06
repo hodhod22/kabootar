@@ -2172,12 +2172,16 @@ fn p6_seed_fingerprint_all_leaves_load() {
 fn p6_skip_list_stays_until_ci_fast_gate() {
     use kabootar_lib::compile::{
         compile_file_self_host, self_host_is_skip_listed, self_host_skip_policy,
-        P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
+        P6B_EMPTY_SKIP_LIST_READY, P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
     assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 5);
     assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
+    assert!(
+        !P6B_EMPTY_SKIP_LIST_READY,
+        "P6b not ready — do not empty skip-list until leaf self-host compile is CI-fast"
+    );
 
     let root = env!("CARGO_MANIFEST_DIR");
     let emit = format!("{root}/self_host/emit_impl.kab");
