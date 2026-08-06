@@ -140,6 +140,9 @@ struct LiveSession {
     system_enumerated: bool,
     graphics_bound: bool,
     graphics_api: String,
+    graphics_device: u64,
+    graphics_binding_type: String,
+    swapchain_graphics_bound: bool,
     create_instance_rc: i32,
     get_system_rc: i32,
     create_session_rc: i32,
@@ -163,6 +166,9 @@ static LIVE_SESSION: Mutex<LiveSession> = Mutex::new(LiveSession {
     system_enumerated: false,
     graphics_bound: false,
     graphics_api: String::new(),
+    graphics_device: 0,
+    graphics_binding_type: String::new(),
+    swapchain_graphics_bound: false,
     create_instance_rc: 0,
     get_system_rc: 0,
     create_session_rc: 0,
@@ -216,6 +222,10 @@ const XR_TYPE_SYSTEM_GET_INFO: i32 = 5;
 /// Kab stub graphics binding (chained on XrSessionCreateInfo::next).
 #[cfg(not(target_arch = "wasm32"))]
 const XR_TYPE_GRAPHICS_BINDING_KABOOTAR: i32 = 100_099_0000;
+#[cfg(not(target_arch = "wasm32"))]
+const XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR: i32 = 1_000_090_000;
+#[cfg(not(target_arch = "wasm32"))]
+const XR_TYPE_GRAPHICS_BINDING_D3D11_KHR: i32 = 1_000_027_000;
 #[cfg(not(target_arch = "wasm32"))]
 const XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY: i32 = 1;
 #[cfg(not(target_arch = "wasm32"))]
@@ -291,6 +301,26 @@ struct XrGraphicsBindingKabootar {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[repr(C)]
+struct XrGraphicsBindingVulkanKHR {
+    ty: i32,
+    next: *const std::os::raw::c_void,
+    instance: u64,
+    physical_device: u64,
+    device: u64,
+    queue_family_index: u32,
+    queue_index: u32,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[repr(C)]
+struct XrGraphicsBindingD3D11KHR {
+    ty: i32,
+    next: *const std::os::raw::c_void,
+    device: u64,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[repr(C)]
 struct XrSessionCreateInfo {
     ty: i32,
     next: *const std::os::raw::c_void,
@@ -328,10 +358,17 @@ unsafe extern "system" fn stub_xr_create_session(
     if !create_info.is_null() {
         let info = &*create_info;
         if info.system_id == 0 {
-            return -2; // XR_ERROR_FORM_FACTOR_UNAVAILABLE-ish
+            return -2;
         }
         if info.next.is_null() {
             return -3; // missing graphics binding
+        }
+        let ty = *(info.next as *const i32);
+        if ty != XR_TYPE_GRAPHICS_BINDING_KABOOTAR
+            && ty != XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR
+            && ty != XR_TYPE_GRAPHICS_BINDING_D3D11_KHR
+        {
+            return -4; // unsupported graphics binding
         }
     }
     if !session.is_null() {
@@ -866,6 +903,61 @@ fn live_env_forced() -> bool {
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
+/// Preferred graphics API for OpenXR session binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GraphicsApiKind {
+    Vulkan,
+    D3D11,
+    Stub,
+}
+
+fn detect_graphics_api(force_stub_default: bool) -> GraphicsApiKind {
+    if let Ok(v) = std::env::var("KABOOTAR_XR_GRAPHICS") {
+        let s = v.to_ascii_lowercase();
+        if s == "vulkan" || s == "vk" {
+            return GraphicsApiKind::Vulkan;
+        }
+        if s == "d3d11" || s == "dx11" || s == "d3d" {
+            return GraphicsApiKind::D3D11;
+        }
+        if s == "stub" || s == "kabootar" {
+            return GraphicsApiKind::Stub;
+        }
+    }
+    // Prefer wgpu when a GPU 3D path is already up (backend string via env/platform otherwise).
+    if crate::runtime::render::gpu3d::gpu3d_available() {
+        // Without exposing private compositor backend names, prefer platform defaults below
+        // unless the caller set KABOOTAR_XR_GRAPHICS.
+    }
+    if force_stub_default {
+        return GraphicsApiKind::Stub;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        GraphicsApiKind::D3D11
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        GraphicsApiKind::Vulkan
+    }
+}
+
+fn graphics_api_name(kind: GraphicsApiKind) -> &'static str {
+    match kind {
+        GraphicsApiKind::Vulkan => "vulkan",
+        GraphicsApiKind::D3D11 => "d3d11",
+        GraphicsApiKind::Stub => "stub",
+    }
+}
+
+fn graphics_binding_type_name(kind: GraphicsApiKind) -> &'static str {
+    match kind {
+        GraphicsApiKind::Vulkan => "XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR",
+        GraphicsApiKind::D3D11 => "XR_TYPE_GRAPHICS_BINDING_D3D11_KHR",
+        GraphicsApiKind::Stub => "XR_TYPE_GRAPHICS_BINDING_KABOOTAR",
+    }
+}
+
 #[derive(Debug, Clone)]
 struct OpenXrCreateResult {
     instance: u64,
@@ -880,6 +972,8 @@ struct OpenXrCreateResult {
     system_enumerated: bool,
     graphics_bound: bool,
     graphics_api: String,
+    graphics_device: u64,
+    graphics_binding_type: String,
 }
 
 /// Run xrCreateInstance → xrGetSystem → graphics binding → xrCreateSession.
@@ -900,6 +994,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
             system_enumerated: false,
             graphics_bound: false,
             graphics_api: String::new(),
+            graphics_device: 0,
+            graphics_binding_type: String::new(),
         };
     }
 
@@ -951,6 +1047,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                         system_enumerated: false,
                         graphics_bound: false,
                         graphics_api: String::new(),
+                        graphics_device: 0,
+                        graphics_binding_type: String::new(),
                     };
                 }
             };
@@ -994,6 +1092,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                 system_enumerated: false,
                 graphics_bound: false,
                 graphics_api: String::new(),
+                graphics_device: 0,
+                graphics_binding_type: String::new(),
             };
         }
 
@@ -1032,11 +1132,10 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
         let mut rc_sess: i32 = -1;
         let mut session_ok = false;
         let mut graphics_bound = false;
-        let graphics_api = if force_stub {
-            "stub".to_string()
-        } else {
-            "openxr".to_string()
-        };
+        let mut graphics_device: u64 = 0;
+        let gfx_kind = detect_graphics_api(force_stub);
+        let graphics_api = graphics_api_name(gfx_kind).to_string();
+        let graphics_binding_type = graphics_binding_type_name(gfx_kind).to_string();
 
         if rc_inst == 0 && instance != 0 {
             let sys_info = XrSystemGetInfo {
@@ -1049,27 +1148,63 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
             system_enumerated = rc_get_system == 0 && system_id != 0;
 
             if system_enumerated {
-                let gfx = XrGraphicsBindingKabootar {
-                    ty: XR_TYPE_GRAPHICS_BINDING_KABOOTAR,
-                    next: std::ptr::null(),
-                    api: if force_stub { 4 } else { 1 },
-                    device: if force_stub {
-                        0x6B_0000_0001
-                    } else {
-                        0
-                    },
-                };
-                graphics_bound = true;
-                let sess_info = XrSessionCreateInfo {
-                    ty: XR_TYPE_SESSION_CREATE_INFO,
-                    next: &gfx as *const XrGraphicsBindingKabootar
-                        as *const std::os::raw::c_void,
-                    create_flags: 0,
-                    system_id,
-                };
                 let create_session: XrCreateSessionFn =
                     unsafe { std::mem::transmute(create_sess_addr) };
-                rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
+                match gfx_kind {
+                    GraphicsApiKind::Vulkan => {
+                        let gfx = XrGraphicsBindingVulkanKHR {
+                            ty: XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR,
+                            next: std::ptr::null(),
+                            instance: 0x76_0000_0001, // synthetic VkInstance
+                            physical_device: 0x76_0000_0002,
+                            device: 0x76_0000_0003,
+                            queue_family_index: 0,
+                            queue_index: 0,
+                        };
+                        graphics_device = gfx.device;
+                        graphics_bound = true;
+                        let sess_info = XrSessionCreateInfo {
+                            ty: XR_TYPE_SESSION_CREATE_INFO,
+                            next: &gfx as *const _ as *const std::os::raw::c_void,
+                            create_flags: 0,
+                            system_id,
+                        };
+                        rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
+                    }
+                    GraphicsApiKind::D3D11 => {
+                        let gfx = XrGraphicsBindingD3D11KHR {
+                            ty: XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
+                            next: std::ptr::null(),
+                            device: 0x11_0000_0001, // synthetic ID3D11Device*
+                        };
+                        graphics_device = gfx.device;
+                        graphics_bound = true;
+                        let sess_info = XrSessionCreateInfo {
+                            ty: XR_TYPE_SESSION_CREATE_INFO,
+                            next: &gfx as *const _ as *const std::os::raw::c_void,
+                            create_flags: 0,
+                            system_id,
+                        };
+                        rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
+                    }
+                    GraphicsApiKind::Stub => {
+                        let gfx = XrGraphicsBindingKabootar {
+                            ty: XR_TYPE_GRAPHICS_BINDING_KABOOTAR,
+                            next: std::ptr::null(),
+                            api: 4,
+                            device: 0x6B_0000_0001,
+                        };
+                        graphics_device = gfx.device;
+                        graphics_bound = true;
+                        let sess_info = XrSessionCreateInfo {
+                            ty: XR_TYPE_SESSION_CREATE_INFO,
+                            next: &gfx as *const _ as *const std::os::raw::c_void,
+                            create_flags: 0,
+                            system_id,
+                        };
+                        rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
+                    }
+                }
                 session_ok = rc_sess == 0 && session != 0;
             }
 
@@ -1095,6 +1230,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
             system_enumerated,
             graphics_bound,
             graphics_api,
+            graphics_device,
+            graphics_binding_type,
         }
     }
 }
@@ -1123,6 +1260,8 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
             system_enumerated: false,
             graphics_bound: false,
             graphics_api: "webxr".into(),
+            graphics_device: 0,
+            graphics_binding_type: String::new(),
         }
     } else {
         openxr_create_instance_and_session(use_stub || stub)
@@ -1173,6 +1312,9 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     live.system_enumerated = created.system_enumerated;
     live.graphics_bound = created.graphics_bound;
     live.graphics_api = created.graphics_api.clone();
+    live.graphics_device = created.graphics_device;
+    live.graphics_binding_type = created.graphics_binding_type.clone();
+    live.swapchain_graphics_bound = false;
     live.create_instance_rc = created.rc_inst;
     live.get_system_rc = created.rc_get_system;
     live.create_session_rc = created.rc_sess;
@@ -1203,6 +1345,14 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     out.insert(
         "graphicsApi".into(),
         Value::String(created.graphics_api),
+    );
+    out.insert(
+        "graphicsDevice".into(),
+        Value::Number(created.graphics_device as i64),
+    );
+    out.insert(
+        "graphicsBindingType".into(),
+        Value::String(created.graphics_binding_type),
     );
     out.insert(
         "createInstanceRc".into(),
@@ -1265,6 +1415,9 @@ pub fn destroy_live_session() -> Result<Value, String> {
     live.system_enumerated = false;
     live.graphics_bound = false;
     live.graphics_api.clear();
+    live.graphics_device = 0;
+    live.graphics_binding_type.clear();
+    live.swapchain_graphics_bound = false;
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("active".into(), Value::Bool(false));
@@ -1310,6 +1463,18 @@ pub fn live_session_status() -> Value {
                 Value::String(live.graphics_api.clone()),
             );
             out.insert(
+                "graphicsDevice".into(),
+                Value::Number(live.graphics_device as i64),
+            );
+            out.insert(
+                "graphicsBindingType".into(),
+                Value::String(live.graphics_binding_type.clone()),
+            );
+            out.insert(
+                "swapchainGraphicsBound".into(),
+                Value::Bool(live.swapchain_graphics_bound),
+            );
+            out.insert(
                 "createInstanceRc".into(),
                 Value::Number(live.create_instance_rc as i64),
             );
@@ -1329,6 +1494,80 @@ pub fn live_session_status() -> Value {
     }
     out.insert("kind".into(), Value::String("xr_live_session".into()));
     Value::Object(out)
+}
+
+/// Attach live-session graphics binding to an HMD swapchain descriptor (Vulkan/D3D11/stub).
+pub fn bind_hmd_swapchain(width: i64, height: i64, eye: &str) -> Result<Value, String> {
+    let live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    if !live.active {
+        return Err("xr_bind_hmd_swapchain: no live session".into());
+    }
+    if !live.graphics_bound {
+        return Err("xr_bind_hmd_swapchain: graphics not bound on session".into());
+    }
+    let w = if width < 64 { 1280 } else { width };
+    let h = if height < 64 { 720 } else { height };
+    let eye = if eye.is_empty() { "left" } else { eye };
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("eye".into(), Value::String(eye.into()));
+    out.insert("width".into(), Value::Number(w));
+    out.insert("height".into(), Value::Number(h));
+    out.insert("imageCount".into(), Value::Number(3));
+    out.insert("format".into(), Value::String("rgba8".into()));
+    out.insert(
+        "graphicsApi".into(),
+        Value::String(live.graphics_api.clone()),
+    );
+    out.insert(
+        "graphicsDevice".into(),
+        Value::Number(live.graphics_device as i64),
+    );
+    out.insert(
+        "graphicsBindingType".into(),
+        Value::String(live.graphics_binding_type.clone()),
+    );
+    out.insert("hmdSwapchain".into(), Value::Bool(true));
+    out.insert("kind".into(), Value::String("xr_hmd_swapchain_desc".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn mark_swapchain_graphics_bound() -> Result<Value, String> {
+    let mut live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    live.swapchain_graphics_bound = live.graphics_bound;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert(
+        "swapchainGraphicsBound".into(),
+        Value::Bool(live.swapchain_graphics_bound),
+    );
+    out.insert(
+        "graphicsApi".into(),
+        Value::String(live.graphics_api.clone()),
+    );
+    Ok(Value::Object(out))
+}
+
+/// Start requestSession as a Kab `Promise` (for `promise_then` / browser then-chains).
+pub fn start_session_promise_value(
+    mode: &str,
+    env: &mut crate::value::Environment,
+) -> Result<Value, String> {
+    use crate::runtime::stdlib::promise::settle_promise;
+    use crate::value::PromiseValue;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let _ = request_session_promise(mode)?;
+    // Resolve on a microtask boundary: settle after poll (stub/browser grant path).
+    let resolved = poll_session_promise()?;
+    let promise = Rc::new(RefCell::new(PromiseValue::Pending));
+    settle_promise(&promise, resolved, false, env)?;
+    Ok(Value::Promise(promise))
 }
 
 /// Mark WebXR session as granted (wasm path / tests) so rAF binds to XRSession.rAF.
