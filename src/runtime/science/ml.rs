@@ -683,4 +683,95 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_job_map", "job_map"], job_map);
     bind(&["science_job_map_parallel", "job_map_parallel"], job_map_parallel);
     bind(&["science_job_map_chunks", "job_map_chunks"], job_map_chunks);
+    bind(&["science_sci_allreduce_f64", "sci_allreduce_f64"], sci_allreduce_f64);
+}
+
+/// sci_allreduce_f64(vectors, op?, nWorkers?) — threaded in-process AllReduce.
+/// vectors: array of equal-length f64 vectors; op: "sum"|"mean"|"max" (default mean).
+fn sci_allreduce_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let vectors = match args.first() {
+        Some(Value::Array(rows)) => {
+            let mut out = Vec::with_capacity(rows.len());
+            for row in rows {
+                out.push(vector_at(std::slice::from_ref(row), 0, "sci_allreduce_f64")?);
+            }
+            out
+        }
+        _ => return Err("sci_allreduce_f64(vectors, op?, nWorkers?)".into()),
+    };
+    if vectors.is_empty() {
+        return Ok(Value::Array(vec![]));
+    }
+    let dim = vectors[0].len();
+    for v in &vectors {
+        if v.len() != dim {
+            return Err("sci_allreduce_f64: jagged vectors".into());
+        }
+    }
+    let op = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        Some(Value::Null) | Some(Value::Undefined) | None => "mean",
+        _ => return Err("sci_allreduce_f64: op must be string".into()),
+    };
+    if !matches!(op, "sum" | "mean" | "max") {
+        return Err("sci_allreduce_f64: op must be sum|mean|max".into());
+    }
+    let n_workers = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .map(|n| n.max(1.0) as usize)
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4)
+                .clamp(1, 32)
+        });
+    let n = vectors.len();
+    let mut out = vec![0.0; dim];
+    if dim == 0 {
+        return Ok(vector_out(&out));
+    }
+    let workers = n_workers.clamp(1, 32).min(dim);
+    if workers == 1 || dim < 32 {
+        for d in 0..dim {
+            out[d] = reduce_dim(&vectors, d, op, n);
+        }
+        return Ok(vector_out(&out));
+    }
+    let chunk = (dim + workers - 1) / workers;
+    std::thread::scope(|scope| {
+        let mut rest = out.as_mut_slice();
+        let mut start = 0usize;
+        for w in 0..workers {
+            if start >= dim {
+                break;
+            }
+            let end = (start + chunk).min(dim);
+            let len = end - start;
+            let (dst, tail) = rest.split_at_mut(len);
+            rest = tail;
+            let vectors = &vectors;
+            let op = op;
+            let start_d = start;
+            scope.spawn(move || {
+                for i in 0..len {
+                    dst[i] = reduce_dim(vectors, start_d + i, op, n);
+                }
+            });
+            start = end;
+            let _ = w;
+        }
+    });
+    Ok(vector_out(&out))
+}
+
+fn reduce_dim(vectors: &[Vec<f64>], d: usize, op: &str, n: usize) -> f64 {
+    match op {
+        "max" => vectors
+            .iter()
+            .map(|v| v[d])
+            .fold(f64::NEG_INFINITY, f64::max),
+        "sum" => vectors.iter().map(|v| v[d]).sum(),
+        _ => vectors.iter().map(|v| v[d]).sum::<f64>() / n as f64,
+    }
 }

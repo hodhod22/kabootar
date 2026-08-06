@@ -1,0 +1,81 @@
+@version "1.0.0"
+
+// Document form fields. import "doc/form"
+
+pub fn docAddField(doc, pageIndex, name, fieldType, value) {
+    if name == null || name == undefined { name = "field" }
+    if fieldType == null || fieldType == undefined { fieldType = "text" }
+    if value == null || value == undefined { value = "" }
+    let pages = doc["pages"]
+    let page = pages[pageIndex]
+    let block = {
+        "kind": "formField",
+        "id": len(page["blocks"]) + 1,
+        "name": name,
+        "fieldType": fieldType,
+        "value": value
+    }
+    page["blocks"] = push(page["blocks"], block)
+    pages[pageIndex] = page
+    doc["pages"] = pages
+    if doc["forms"] == null || doc["forms"] == undefined {
+        doc["forms"] = []
+    }
+    doc["forms"] = push(doc["forms"], {
+        "name": name,
+        "page": pageIndex,
+        "fieldType": fieldType
+    })
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docSetField(doc, name, value) {
+    let pages = doc["pages"]
+    let pi = 0
+    while pi < len(pages) {
+        let page = pages[pi]
+        let blocks = page["blocks"]
+        let bi = 0
+        while bi < len(blocks) {
+            let b = blocks[bi]
+            if b["kind"] == "formField" && b["name"] == name {
+                b["value"] = value
+                blocks[bi] = b
+                page["blocks"] = blocks
+                pages[pi] = page
+                doc["pages"] = pages
+                doc["rev"] = doc["rev"] + 1.0
+                return doc
+            }
+            bi = bi + 1
+        }
+        pi = pi + 1
+    }
+    return doc
+}
+
+pub fn docGetFields(doc) {
+    let out = []
+    let pages = doc["pages"]
+    let pi = 0
+    while pi < len(pages) {
+        let page = pages[pi]
+        let blocks = page["blocks"]
+        let bi = 0
+        while bi < len(blocks) {
+            let b = blocks[bi]
+            if b["kind"] == "formField" {
+                out = push(out, {
+                    "name": b["name"],
+                    "value": b["value"],
+                    "fieldType": b["fieldType"],
+                    "page": pi
+                })
+            }
+            bi = bi + 1
+        }
+        pi = pi + 1
+    }
+    return out
+}

@@ -1,0 +1,47 @@
+@version "1.0.0"
+
+// Page format / layout meta. import "doc/format"
+
+pub fn docSetPageSize(doc, size) {
+    if size == null || size == undefined { size = "A4" }
+    if doc["meta"] == null || doc["meta"] == undefined {
+        doc["meta"] = {}
+    }
+    doc["meta"]["pageSize"] = size
+    let i = 0
+    while i < len(doc["pages"]) {
+        doc["pages"][i]["size"] = size
+        i = i + 1
+    }
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docSetMargins(doc, margin) {
+    if margin == null || margin == undefined { margin = 48.0 }
+    if doc["meta"] == null || doc["meta"] == undefined {
+        doc["meta"] = {}
+    }
+    doc["meta"]["margin"] = margin
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docSetFont(doc, font, fontSize) {
+    if font == null || font == undefined { font = "Helvetica" }
+    if fontSize == null || fontSize == undefined { fontSize = 12.0 }
+    if doc["meta"] == null || doc["meta"] == undefined {
+        doc["meta"] = {}
+    }
+    doc["meta"]["font"] = font
+    doc["meta"]["fontSize"] = fontSize
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docGetFormat(doc) {
+    if doc["meta"] == null || doc["meta"] == undefined {
+        return { "pageSize": "A4", "margin": 48.0, "font": "Helvetica", "fontSize": 12.0 }
+    }
+    return doc["meta"]
+}

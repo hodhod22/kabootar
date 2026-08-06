@@ -1,6 +1,7 @@
 @version "1.0.0"
 
 // SC6h — Distribuerad / parallell beräkning-lite. import "science" first.
+// AllReduce uses threaded in-process reduce (real OS workers); not multi-node yet.
 
 /// Split array into nChunks contiguous chunks.
 pub fn chunk(xs, nChunks) {
@@ -47,26 +48,27 @@ pub fn reduceSum(xs) {
     return s
 }
 
-/// AllReduce-stub: average of local vectors (parameter-server lite).
-pub fn allReduceMean(vectors) {
-    let n = len(vectors)
-    if n == 0 {
-        return []
+/// Threaded AllReduce: op is "sum" | "mean" | "max" (default mean).
+pub fn allReduce(vectors, op, nWorkers) {
+    if op == null || op == undefined {
+        op = "mean"
     }
-    let dim = len(vectors[0])
-    let out = []
-    let d = 0
-    while d < dim {
-        let s = 0.0
-        let i = 0
-        while i < n {
-            s = s + vectors[i][d]
-            i = i + 1
-        }
-        out = push(out, s / n)
-        d = d + 1
-    }
-    return out
+    return sci_allreduce_f64(vectors, op, nWorkers)
+}
+
+/// AllReduce mean of local rank vectors (parameter-server lite).
+pub fn allReduceMean(vectors, nWorkers) {
+    return sci_allreduce_f64(vectors, "mean", nWorkers)
+}
+
+/// AllReduce sum.
+pub fn allReduceSum(vectors, nWorkers) {
+    return sci_allreduce_f64(vectors, "sum", nWorkers)
+}
+
+/// AllReduce max.
+pub fn allReduceMax(vectors, nWorkers) {
+    return sci_allreduce_f64(vectors, "max", nWorkers)
 }
 
 /// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).

@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Editable text blocks for documents. import "doc/block"
+// Editable blocks for documents. import "doc/block"
 
 pub fn docAddTextBlock(doc, pageIndex, text) {
     if text == null || text == undefined { text = "" }
@@ -10,6 +10,24 @@ pub fn docAddTextBlock(doc, pageIndex, text) {
         "kind": "text",
         "id": len(page["blocks"]) + 1,
         "text": text
+    }
+    page["blocks"] = push(page["blocks"], block)
+    pages[pageIndex] = page
+    doc["pages"] = pages
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docAddImageBlock(doc, pageIndex, src, alt) {
+    if src == null || src == undefined { src = "" }
+    if alt == null || alt == undefined { alt = "" }
+    let pages = doc["pages"]
+    let page = pages[pageIndex]
+    let block = {
+        "kind": "image",
+        "id": len(page["blocks"]) + 1,
+        "src": src,
+        "alt": alt
     }
     page["blocks"] = push(page["blocks"], block)
     pages[pageIndex] = page
@@ -32,6 +50,25 @@ pub fn docEditTextBlock(doc, pageIndex, blockIndex, text) {
     return doc
 }
 
+pub fn docRemoveBlock(doc, pageIndex, blockIndex) {
+    let pages = doc["pages"]
+    let page = pages[pageIndex]
+    let blocks = page["blocks"]
+    let out = []
+    let i = 0
+    while i < len(blocks) {
+        if i != blockIndex {
+            out = push(out, blocks[i])
+        }
+        i = i + 1
+    }
+    page["blocks"] = out
+    pages[pageIndex] = page
+    doc["pages"] = pages
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
 pub fn docReadPageText(doc, pageIndex) {
     let page = doc["pages"][pageIndex]
     let out = ""
@@ -43,6 +80,16 @@ pub fn docReadPageText(doc, pageIndex) {
                 out = b["text"]
             } else {
                 out = out + "\n" + b["text"]
+            }
+        }
+        if b["kind"] == "formField" {
+            let v = b["value"]
+            if v == null || v == undefined { v = "" }
+            let line = "[" + b["name"] + "] " + v
+            if out == "" {
+                out = line
+            } else {
+                out = out + "\n" + line
             }
         }
         i = i + 1

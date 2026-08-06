@@ -1,0 +1,38 @@
+@version "1.0.0"
+
+// OCR-lite: extract text blocks; image OCR is a stub. import "doc/ocr"
+import "doc/block"
+
+pub fn docOcrPageText(doc, pageIndex) {
+    return docReadPageText(doc, pageIndex)
+}
+
+pub fn docOcrAll(doc) {
+    let out = []
+    let i = 0
+    while i < len(doc["pages"]) {
+        out = push(out, {
+            "page": i,
+            "text": docOcrPageText(doc, i),
+            "source": "blocks"
+        })
+        i = i + 1
+    }
+    return out
+}
+
+// Image OCR stub: returns alt text or empty until a vision backend is wired.
+pub fn docOcrImageBlock(doc, pageIndex, blockIndex) {
+    let b = doc["pages"][pageIndex]["blocks"][blockIndex]
+    if b["kind"] != "image" {
+        return { "ok": false, "text": "", "reason": "not-image" }
+    }
+    let alt = b["alt"]
+    if alt == null || alt == undefined { alt = "" }
+    return {
+        "ok": true,
+        "text": alt,
+        "source": "alt-stub",
+        "note": "image OCR backend not wired"
+    }
+}

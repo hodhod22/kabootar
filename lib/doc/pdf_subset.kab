@@ -1,0 +1,182 @@
+@version "1.0.0"
+
+// Minimal text PDF read/write subset. import "doc/pdf_subset"
+import "doc/model"
+import "doc/block"
+
+fn pdfEscape(s) {
+    let out = ""
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let ch = string_slice(s, i, i + 1)
+        if ch == "\\" {
+            out = out + "\\\\"
+        } else {
+            if ch == "(" {
+                out = out + "\\("
+            } else {
+                if ch == ")" {
+                    out = out + "\\)"
+                } else {
+                    out = out + ch
+                }
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+fn pageContentStream(lines) {
+    let y = 750.0
+    let body = "BT /F1 12 Tf 50 " + y + " Td\n"
+    let i = 0
+    while i < len(lines) {
+        if i > 0 {
+            body = body + "0 -16 Td\n"
+        }
+        body = body + "(" + pdfEscape(lines[i]) + ") Tj\n"
+        i = i + 1
+    }
+    body = body + "ET\n"
+    return body
+}
+
+fn collectPageLines(doc, pageIndex) {
+    let text = docReadPageText(doc, pageIndex)
+    let lines = []
+    let cur = ""
+    let i = 0
+    let n = len(text)
+    while i < n {
+        let ch = string_slice(text, i, i + 1)
+        if ch == "\n" {
+            lines = push(lines, cur)
+            cur = ""
+        } else {
+            cur = cur + ch
+        }
+        i = i + 1
+    }
+    lines = push(lines, cur)
+    if len(lines) == 0 {
+        lines = push(lines, "")
+    }
+    return lines
+}
+
+/// Write a simple multi-page text PDF. Returns bytes written (os_write result).
+pub fn pdfWriteTextDoc(path, doc) {
+    let pageCount = len(doc["pages"])
+    if pageCount < 1 {
+        pageCount = 1
+        doc = docAddPage(doc, "page")
+    }
+    let objects = []
+    // 1: catalog, 2: pages, 3: font, then per page content+page
+    objects = push(objects, "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n")
+    let kids = ""
+    let pi = 0
+    let nextObj = 4
+    let pageObjs = []
+    while pi < pageCount {
+        let contentObj = nextObj
+        let pageObj = nextObj + 1
+        nextObj = nextObj + 2
+        pageObjs = push(pageObjs, pageObj)
+        if kids == "" {
+            kids = "" + pageObj + " 0 R"
+        } else {
+            kids = kids + " " + pageObj + " 0 R"
+        }
+        let lines = collectPageLines(doc, pi)
+        let stream = pageContentStream(lines)
+        let content = "" + contentObj + " 0 obj<< /Length " + len(stream) + " >>stream\n" + stream + "endstream\nendobj\n"
+        let page = "" + pageObj + " 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents " + contentObj + " 0 R /Resources << /Font << /F1 3 0 R >> >> >>endobj\n"
+        objects = push(objects, content)
+        objects = push(objects, page)
+        pi = pi + 1
+    }
+    let pagesObj = "2 0 obj<< /Type /Pages /Kids [" + kids + "] /Count " + pageCount + " >>endobj\n"
+    let fontObj = "3 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj\n"
+    // Rebuild ordered body: catalog, pages, font, then content/page pairs
+    let body = "%PDF-1.4\n"
+    body = body + objects[0]
+    body = body + pagesObj
+    body = body + fontObj
+    let oi = 1
+    while oi < len(objects) {
+        body = body + objects[oi]
+        oi = oi + 1
+    }
+    // xref omitted for subset readers that scan objects; add trailer
+    body = body + "trailer<< /Size " + nextObj + " /Root 1 0 R >>\nstartxref\n0\n%%EOF\n"
+    return os_write(path, body)
+}
+
+fn extractTjStrings(text) {
+    let out = []
+    let i = 0
+    let n = len(text)
+    while i < n {
+        // find "("
+        if string_slice(text, i, i + 1) == "(" {
+            let j = i + 1
+            let s = ""
+            while j < n {
+                let ch = string_slice(text, j, j + 1)
+                if ch == "\\" && j + 1 < n {
+                    s = s + string_slice(text, j + 1, j + 2)
+                    j = j + 2
+                } else {
+                    if ch == ")" {
+                        break
+                    }
+                    s = s + ch
+                    j = j + 1
+                }
+            }
+            // check Tj after )
+            let rest = string_slice(text, j, j + 6)
+            if string_slice(rest, 0, 3) == ") T" || string_slice(rest, 0, 4) == ") Tj" {
+                out = push(out, s)
+            }
+            i = j + 1
+        } else {
+            i = i + 1
+        }
+    }
+    return out
+}
+
+/// Read a text-subset PDF into a Document (best-effort Tj extraction).
+pub fn pdfReadTextDoc(path) {
+    let text = os_read(path)
+    let doc = createDocument("PDF")
+    let strings = extractTjStrings(text)
+    if len(strings) == 0 {
+        doc = docAddPage(doc, "page1")
+        doc = docAddTextBlock(doc, 0, "")
+        return doc
+    }
+    // Group into pages by ET markers roughly: one page for all for subset
+    doc = docAddPage(doc, "page1")
+    let i = 0
+    while i < len(strings) {
+        doc = docAddTextBlock(doc, 0, strings[i])
+        i = i + 1
+    }
+    return doc
+}
+
+pub fn isPdfPath(path) {
+    if path == null || path == undefined { return false }
+    let p = "" + path
+    let n = len(p)
+    if n < 4 { return false }
+    let ext = string_slice(p, n - 4, n)
+    if ext == ".pdf" { return true }
+    if ext == ".PDF" { return true }
+    return false
+}

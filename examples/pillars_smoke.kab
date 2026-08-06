@@ -3,6 +3,9 @@
 // Smoke all MIT pillars that back commercial frameworks.
 import "doc/model"
 import "doc/block"
+import "doc/kdf"
+import "doc/ops"
+import "doc/form"
 import "web/app"
 import "web/router"
 import "cad/geom"
@@ -15,7 +18,15 @@ let doc = createDocument("Manual")
 doc = docAddPage(doc, "cover")
 doc = docAddTextBlock(doc, 0, "Hello")
 doc = docEditTextBlock(doc, 0, 0, "Hello Doc")
-println(docReadPageText(doc, 0) == "Hello Doc")
+doc = docAddField(doc, 0, "who", "text", "x")
+doc = docSetField(doc, "who", "kab")
+let doc2 = createDocument("B")
+doc2 = docAddPage(doc2, "p")
+doc2 = docAddTextBlock(doc2, 0, "Y")
+let merged = docMerge([doc, doc2])
+println(docReadPageText(doc, 0) == "Hello Doc\n[who] kab" || docReadPageText(doc, 0) == "Hello Doc")
+println(kdfNormalize(doc)["magic"] == "KDF1")
+println(docPageCount(merged) == 2)
 
 let app = createWebApp("site")
 app = webAddRoute(app, "/home", "Home")

@@ -99,6 +99,40 @@ fn shape_product(shape: &[usize]) -> usize {
     shape.iter().product::<usize>().max(if shape.is_empty() { 1 } else { 0 })
 }
 
+fn dtype_width(dtype: &str) -> usize {
+    match dtype {
+        "complex64" | "c64" => 2,
+        _ => 1,
+    }
+}
+
+/// Strides in f64 buffer units (complex64 uses width 2 per logical element).
+fn strides_of_elems(shape: &[usize], width: usize) -> Vec<usize> {
+    let mut stride = width.max(1);
+    let mut strides = vec![0; shape.len()];
+    for i in (0..shape.len()).rev() {
+        strides[i] = stride;
+        stride = stride.saturating_mul(shape[i]);
+    }
+    strides
+}
+
+fn is_complex_dtype(dtype: &str) -> bool {
+    matches!(dtype, "complex64" | "c64")
+}
+
+fn dtype_of_value(v: &Value) -> String {
+    match v {
+        Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            match m.get("dtype") {
+                Some(Value::String(s)) => s.clone(),
+                _ => "f64".into(),
+            }
+        }
+        _ => "f64".into(),
+    }
+}
+
 /// View metadata + shared buffer (zero-copy).
 struct NdView {
     buf: NdShared,
@@ -110,7 +144,8 @@ struct NdView {
 
 impl NdView {
     fn owned(shape: Vec<usize>, data: Vec<f64>, dtype: &str) -> Self {
-        let strides = strides_of(&shape);
+        let w = dtype_width(dtype);
+        let strides = strides_of_elems(&shape, w);
         Self {
             buf: NdShared::new(data),
             offset: 0,
@@ -120,8 +155,12 @@ impl NdView {
         }
     }
 
+    fn width(&self) -> usize {
+        dtype_width(&self.dtype)
+    }
+
     fn is_c_contiguous(&self) -> bool {
-        self.offset == 0 && self.strides == strides_of(&self.shape)
+        self.offset == 0 && self.strides == strides_of_elems(&self.shape, self.width())
     }
 
     fn numel(&self) -> usize {
@@ -130,19 +169,23 @@ impl NdView {
 
     fn to_vec(&self) -> Vec<f64> {
         let n = self.numel();
-        if self.is_c_contiguous() && self.buf.len() >= n {
-            return self.buf.as_slice()[..n].to_vec();
+        let w = self.width();
+        let need = n.saturating_mul(w);
+        if self.is_c_contiguous() && self.buf.len() >= self.offset + need {
+            return self.buf.as_slice()[self.offset..self.offset + need].to_vec();
         }
         let data = self.buf.as_slice();
-        let out_strides = strides_of(&self.shape);
-        let mut out = vec![0.0; n];
+        let elem_strides = strides_of(&self.shape);
+        let mut out = vec![0.0; need];
         for flat in 0..n {
-            let idx = unravel(flat, &self.shape, &out_strides);
+            let idx = unravel(flat, &self.shape, &elem_strides);
             let mut off = self.offset;
             for d in 0..self.shape.len() {
                 off += idx[d] * self.strides[d];
             }
-            out[flat] = data[off];
+            for t in 0..w {
+                out[flat * w + t] = data.get(off + t).copied().unwrap_or(0.0);
+            }
         }
         out
     }
@@ -212,9 +255,9 @@ fn nd_from_object(m: &HashMap<String, Value>) -> Result<NdView, String> {
     }
     // Legacy object: owned Array data
     let data = flat_from_value(m.get("data").ok_or("nd missing data")?)?;
-    let n = shape_product(&shape);
+    let n = shape_product(&shape).saturating_mul(dtype_width(&dtype));
     if data.len() != n {
-        return Err(format!("nd shape product {n} != data length {}", data.len()));
+        return Err(format!("nd buffer length {n} != data length {}", data.len()));
     }
     Ok(NdView::owned(shape, data, &dtype))
 }
@@ -438,47 +481,61 @@ fn nd_shape(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 }
 
 fn nd_size(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (_, data) = nd_at(args, 0, "nd_size")?;
-    Ok(int_out(data.len() as i64))
+    let (shape, _) = nd_at(args, 0, "nd_size")?;
+    Ok(int_out(shape_product(&shape) as i64))
 }
 
 fn nd_reshape(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (_, data) = nd_at(args, 0, "nd_reshape")?;
+    let (old_shape, data) = nd_at(args, 0, "nd_reshape")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
     let shape = parse_shape(args.get(1).ok_or("nd_reshape(a, shape)")?)?;
-    if shape_product(&shape) != data.len() {
+    let w = dtype_width(&dtype);
+    if shape_product(&shape).saturating_mul(w) != data.len() {
         return Err("nd_reshape: size mismatch".into());
     }
-    Ok(nd_out(&shape, &data))
+    let _ = old_shape;
+    Ok(nd_out_dtype(&shape, &data, &dtype))
 }
 
-fn nd_get(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let (shape, data) = nd_at(args, 0, "nd_get")?;
-    let idx = args.get(1).ok_or("nd_get(a, index|indices)")?;
-    let flat = match idx {
-        Value::Number(n) if *n >= 0 => *n as usize,
-        Value::Float(f) if *f >= 0.0 => *f as usize,
+fn flat_index_from(idx: &Value, shape: &[usize], name: &str) -> Result<usize, String> {
+    match idx {
+        Value::Number(n) if *n >= 0 => Ok(*n as usize),
+        Value::Float(f) if *f >= 0.0 => Ok(*f as usize),
         Value::Array(items) => {
             if items.len() != shape.len() {
-                return Err("nd_get: index rank must match shape".into());
+                return Err(format!("{name}: index rank must match shape"));
             }
-            let mut stride = 1usize;
-            let mut strides = vec![0; shape.len()];
-            for i in (0..shape.len()).rev() {
-                strides[i] = stride;
-                stride *= shape[i];
-            }
+            let strides = strides_of(shape);
             let mut flat = 0usize;
             for (i, it) in items.iter().enumerate() {
                 let j = num(it)? as usize;
                 if j >= shape[i] {
-                    return Err("nd_get: index out of bounds".into());
+                    return Err(format!("{name}: index out of bounds"));
                 }
                 flat += j * strides[i];
             }
-            flat
+            Ok(flat)
         }
-        _ => return Err("nd_get: bad index".into()),
-    };
+        _ => Err(format!("{name}: bad index")),
+    }
+}
+
+fn nd_get(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_get")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let idx = args.get(1).ok_or("nd_get(a, index|indices)")?;
+    let flat = flat_index_from(idx, &shape, "nd_get")?;
+    let w = dtype_width(&dtype);
+    if is_complex_dtype(&dtype) {
+        let base = flat.saturating_mul(w);
+        if base + 1 >= data.len() {
+            return Err("nd_get: index out of bounds".into());
+        }
+        return Ok(Value::Array(vec![
+            float_out(data[base]),
+            float_out(data[base + 1]),
+        ]));
+    }
     data.get(flat)
         .copied()
         .map(float_out)
@@ -487,38 +544,30 @@ fn nd_get(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 
 fn nd_set(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (shape, mut data) = nd_at(args, 0, "nd_set")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
     let idx = args.get(1).ok_or("nd_set(a, index, value)")?;
-    let value = num_at(args, 2, "nd_set")?;
-    let flat = match idx {
-        Value::Number(n) if *n >= 0 => *n as usize,
-        Value::Float(f) if *f >= 0.0 => *f as usize,
-        Value::Array(items) => {
-            if items.len() != shape.len() {
-                return Err("nd_set: index rank must match shape".into());
-            }
-            let mut stride = 1usize;
-            let mut strides = vec![0; shape.len()];
-            for i in (0..shape.len()).rev() {
-                strides[i] = stride;
-                stride *= shape[i];
-            }
-            let mut flat = 0usize;
-            for (i, it) in items.iter().enumerate() {
-                let j = num(it)? as usize;
-                if j >= shape[i] {
-                    return Err("nd_set: index out of bounds".into());
-                }
-                flat += j * strides[i];
-            }
-            flat
+    let flat = flat_index_from(idx, &shape, "nd_set")?;
+    let w = dtype_width(&dtype);
+    if is_complex_dtype(&dtype) {
+        let base = flat.saturating_mul(w);
+        if base + 1 >= data.len() {
+            return Err("nd_set: index out of bounds".into());
         }
-        _ => return Err("nd_set: bad index".into()),
-    };
+        let (re, im) = match args.get(2) {
+            Some(Value::Array(pair)) if pair.len() >= 2 => (num(&pair[0])?, num(&pair[1])?),
+            Some(v) => (num(v)?, 0.0),
+            None => return Err("nd_set: missing value".into()),
+        };
+        data[base] = re;
+        data[base + 1] = im;
+        return Ok(nd_out_dtype(&shape, &data, &dtype));
+    }
+    let value = num_at(args, 2, "nd_set")?;
     if flat >= data.len() {
         return Err("nd_set: index out of bounds".into());
     }
     data[flat] = value;
-    Ok(nd_out(&shape, &data))
+    Ok(nd_out_dtype(&shape, &data, &dtype))
 }
 
 fn strides_of(shape: &[usize]) -> Vec<usize> {
@@ -607,30 +656,92 @@ fn broadcast_binop(
     Ok((so, out))
 }
 
+fn complex_binop(
+    sa: &[usize],
+    a: &[f64],
+    sb: &[usize],
+    b: &[f64],
+    op: &str,
+) -> Result<(Vec<usize>, Vec<f64>), String> {
+    let so = broadcast_shapes(sa, sb)?;
+    let n = shape_product(&so);
+    let out_strides = strides_of(&so);
+    let mut out = vec![0.0; n * 2];
+    for flat in 0..n {
+        let idx = unravel(flat, &so, &out_strides);
+        let ia = map_broadcast_index(&idx, sa, so.len());
+        let ib = map_broadcast_index(&idx, sb, so.len());
+        let ar = a[ia * 2];
+        let ai = a[ia * 2 + 1];
+        let br = b[ib * 2];
+        let bi = b[ib * 2 + 1];
+        let (rr, ri) = match op {
+            "add" => (ar + br, ai + bi),
+            "sub" => (ar - br, ai - bi),
+            "mul" => (ar * br - ai * bi, ar * bi + ai * br),
+            "div" => {
+                let den = br * br + bi * bi;
+                if den == 0.0 {
+                    return Err("nd: complex divide by zero".into());
+                }
+                ((ar * br + ai * bi) / den, (ai * br - ar * bi) / den)
+            }
+            _ => return Err("nd: bad complex op".into()),
+        };
+        out[flat * 2] = rr;
+        out[flat * 2 + 1] = ri;
+    }
+    Ok((so, out))
+}
+
 fn nd_add(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let da = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let db = dtype_of_value(args.get(1).unwrap_or(&Value::Null));
     let (sa, a) = nd_at(args, 0, "nd_add")?;
     let (sb, b) = nd_at(args, 1, "nd_add")?;
+    if is_complex_dtype(&da) && is_complex_dtype(&db) {
+        let (so, out) = complex_binop(&sa, &a, &sb, &b, "add")?;
+        return Ok(nd_out_dtype(&so, &out, "complex64"));
+    }
     let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x + y)?;
     Ok(nd_out(&so, &out))
 }
 
 fn nd_mul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let da = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let db = dtype_of_value(args.get(1).unwrap_or(&Value::Null));
     let (sa, a) = nd_at(args, 0, "nd_mul")?;
     let (sb, b) = nd_at(args, 1, "nd_mul")?;
+    if is_complex_dtype(&da) && is_complex_dtype(&db) {
+        let (so, out) = complex_binop(&sa, &a, &sb, &b, "mul")?;
+        return Ok(nd_out_dtype(&so, &out, "complex64"));
+    }
     let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x * y)?;
     Ok(nd_out(&so, &out))
 }
 
 fn nd_sub(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let da = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let db = dtype_of_value(args.get(1).unwrap_or(&Value::Null));
     let (sa, a) = nd_at(args, 0, "nd_sub")?;
     let (sb, b) = nd_at(args, 1, "nd_sub")?;
+    if is_complex_dtype(&da) && is_complex_dtype(&db) {
+        let (so, out) = complex_binop(&sa, &a, &sb, &b, "sub")?;
+        return Ok(nd_out_dtype(&so, &out, "complex64"));
+    }
     let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x - y)?;
     Ok(nd_out(&so, &out))
 }
 
 fn nd_div(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let da = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let db = dtype_of_value(args.get(1).unwrap_or(&Value::Null));
     let (sa, a) = nd_at(args, 0, "nd_div")?;
     let (sb, b) = nd_at(args, 1, "nd_div")?;
+    if is_complex_dtype(&da) && is_complex_dtype(&db) {
+        let (so, out) = complex_binop(&sa, &a, &sb, &b, "div")?;
+        return Ok(nd_out_dtype(&so, &out, "complex64"));
+    }
     let (so, out) = broadcast_binop(&sa, &a, &sb, &b, |x, y| x / y)?;
     Ok(nd_out(&so, &out))
 }
@@ -644,7 +755,32 @@ fn nd_ufunc(args: &[Value], name: &str, f: impl Fn(f64) -> f64) -> Result<Value,
 }
 
 fn nd_abs(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    if is_complex_dtype(&dtype) {
+        let (shape, data) = nd_at(args, 0, "nd_abs")?;
+        let n = shape_product(&shape);
+        let mut out = vec![0.0; n];
+        for i in 0..n {
+            let re = data[i * 2];
+            let im = data[i * 2 + 1];
+            out[i] = (re * re + im * im).sqrt();
+        }
+        return Ok(nd_out(&shape, &out));
+    }
     nd_ufunc(args, "nd_abs", |x| x.abs())
+}
+
+fn nd_conj(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let (shape, mut data) = nd_at(args, 0, "nd_conj")?;
+    if !is_complex_dtype(&dtype) {
+        return Ok(nd_out_dtype(&shape, &data, &dtype));
+    }
+    let n = shape_product(&shape);
+    for i in 0..n {
+        data[i * 2 + 1] = -data[i * 2 + 1];
+    }
+    Ok(nd_out_dtype(&shape, &data, "complex64"))
 }
 
 fn nd_exp(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -831,10 +967,122 @@ fn nd_index_view(args: &[Value], env: &mut Environment) -> Result<Value, String>
         Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true))) => {
             nd_slice(&[a.clone(), Value::Array(vec![idx.clone()])], env)
         }
+        Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            let dtype = match m.get("dtype") {
+                Some(Value::String(s)) => s.as_str(),
+                _ => "f64",
+            };
+            if dtype == "bool" {
+                nd_compress(&[a.clone(), idx.clone()], env)
+            } else {
+                nd_gather(&[a.clone(), idx.clone()], env)
+            }
+        }
+        Value::Array(items)
+            if !items.is_empty()
+                && items
+                    .iter()
+                    .all(|x| matches!(x, Value::Number(_) | Value::Float(_))) =>
+        {
+            nd_gather(&[a.clone(), idx.clone()], env)
+        }
         Value::Array(items) => nd_slice(&[a.clone(), Value::Array(items.clone())], env),
         Value::Number(_) | Value::Float(_) => nd_get(&[a.clone(), idx.clone()], env),
         _ => Err("nd_index_view: bad index".into()),
     }
+}
+
+fn parse_index_list(v: &Value, name: &str) -> Result<Vec<usize>, String> {
+    match v {
+        Value::Array(items) => items
+            .iter()
+            .map(|x| {
+                let n = num(x)?;
+                if n < 0.0 {
+                    return Err(format!("{name}: negative index"));
+                }
+                Ok(n as usize)
+            })
+            .collect(),
+        Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            let view = nd_from_object(m)?;
+            let data = view.to_vec();
+            data.into_iter()
+                .map(|x| {
+                    if x < 0.0 {
+                        return Err(format!("{name}: negative index"));
+                    }
+                    Ok(x as usize)
+                })
+                .collect()
+        }
+        _ => Err(format!("{name}: expect index array")),
+    }
+}
+
+/// Integer-array gather along axis (default 0). NumPy-like fancy indexing subset.
+fn nd_gather(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_gather")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    if is_complex_dtype(&dtype) {
+        return Err("nd_gather: complex64 not supported yet".into());
+    }
+    let indices = parse_index_list(args.get(1).ok_or("nd_gather(a, indices, axis?)")?, "nd_gather")?;
+    let axis = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(0.0)
+        .max(0.0) as usize;
+    if shape.is_empty() {
+        return Err("nd_gather: scalar".into());
+    }
+    if axis >= shape.len() {
+        return Err("nd_gather: axis OOB".into());
+    }
+    for &i in &indices {
+        if i >= shape[axis] {
+            return Err("nd_gather: index OOB".into());
+        }
+    }
+    let mut out_shape = shape.clone();
+    out_shape[axis] = indices.len();
+    let n_out = shape_product(&out_shape);
+    let in_strides = strides_of(&shape);
+    let out_strides = strides_of(&out_shape);
+    let mut out = vec![0.0; n_out];
+    for flat in 0..n_out {
+        let mut idx = unravel(flat, &out_shape, &out_strides);
+        let gather_pos = idx[axis];
+        idx[axis] = indices[gather_pos];
+        let mut src = 0usize;
+        for d in 0..shape.len() {
+            src += idx[d] * in_strides[d];
+        }
+        out[flat] = data[src];
+    }
+    Ok(nd_out_dtype(&out_shape, &out, &dtype))
+}
+
+/// Boolean mask compress → 1D of true positions (NumPy `a[mask]` subset).
+fn nd_compress(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_compress")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    if is_complex_dtype(&dtype) {
+        return Err("nd_compress: complex64 not supported yet".into());
+    }
+    let (_mshape, mask) = nd_at(args, 1, "nd_compress")?;
+    if mask.len() != data.len() {
+        return Err("nd_compress: mask length must match array size".into());
+    }
+    let mut out = Vec::new();
+    for i in 0..data.len() {
+        if mask[i] != 0.0 {
+            out.push(data[i]);
+        }
+    }
+    let n = out.len();
+    let _ = shape;
+    Ok(nd_out_dtype(&[n], &out, &dtype))
 }
 
 fn nd_is_view(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1298,16 +1546,23 @@ mod system_blas {
     const CBLAS_ROW_MAJOR: i32 = 101;
     const CBLAS_NO_TRANS: i32 = 111;
 
+    type SetThreadsFn = unsafe extern "C" fn(n: i32);
+    type GetThreadsFn = unsafe extern "C" fn() -> i32;
+
     struct BlasLib {
         _lib: Library,
         name: &'static str,
         dgemm: CblasDgemm,
+        set_threads: Option<SetThreadsFn>,
+        get_threads: Option<GetThreadsFn>,
     }
 
     unsafe impl Send for BlasLib {}
     unsafe impl Sync for BlasLib {}
 
     static BLAS: OnceLock<Option<BlasLib>> = OnceLock::new();
+    static THREAD_OVERRIDE: std::sync::atomic::AtomicI32 =
+        std::sync::atomic::AtomicI32::new(0);
 
     fn candidate_libs() -> Vec<String> {
         let mut out = Vec::new();
@@ -1359,6 +1614,56 @@ mod system_blas {
         out
     }
 
+    fn resolve_thread_fns(
+        lib: &Library,
+        name: &str,
+    ) -> (Option<SetThreadsFn>, Option<GetThreadsFn>) {
+        unsafe {
+            if name == "mkl" {
+                let set = lib
+                    .get::<SetThreadsFn>(b"MKL_Set_Num_Threads")
+                    .ok()
+                    .map(|s| *s)
+                    .or_else(|| {
+                        lib.get::<SetThreadsFn>(b"mkl_set_num_threads")
+                            .ok()
+                            .map(|s| *s)
+                    });
+                let get = lib
+                    .get::<GetThreadsFn>(b"MKL_Get_Max_Threads")
+                    .ok()
+                    .map(|s| *s)
+                    .or_else(|| {
+                        lib.get::<GetThreadsFn>(b"mkl_get_max_threads")
+                            .ok()
+                            .map(|s| *s)
+                    });
+                return (set, get);
+            }
+            if name == "openblas" {
+                let set = lib
+                    .get::<SetThreadsFn>(b"openblas_set_num_threads")
+                    .ok()
+                    .map(|s| *s);
+                let get = lib
+                    .get::<GetThreadsFn>(b"openblas_get_num_threads")
+                    .ok()
+                    .map(|s| *s);
+                return (set, get);
+            }
+            // Generic OpenMP fallback used by many BLAS builds.
+            let set = lib
+                .get::<SetThreadsFn>(b"omp_set_num_threads")
+                .ok()
+                .map(|s| *s);
+            let get = lib
+                .get::<GetThreadsFn>(b"omp_get_max_threads")
+                .ok()
+                .map(|s| *s);
+            (set, get)
+        }
+    }
+
     fn probe() -> Option<BlasLib> {
         for path in candidate_libs() {
             let Ok(lib) = (unsafe { Library::new(&path) }) else {
@@ -1374,11 +1679,13 @@ mod system_blas {
                 } else {
                     "system_blas"
                 };
-                // Leak library into OnceLock via storing Library in BlasLib
+                let (set_threads, get_threads) = resolve_thread_fns(&lib, name);
                 return Some(BlasLib {
                     _lib: lib,
                     name,
                     dgemm,
+                    set_threads,
+                    get_threads,
                 });
             }
         }
@@ -1389,6 +1696,47 @@ mod system_blas {
         match BLAS.get_or_init(probe) {
             Some(b) => b.name,
             None => "matrixmultiply",
+        }
+    }
+
+    pub fn set_num_threads(n: i32) -> bool {
+        let n = n.max(1);
+        THREAD_OVERRIDE.store(n, std::sync::atomic::Ordering::Relaxed);
+        match BLAS.get_or_init(probe) {
+            Some(b) => {
+                if let Some(f) = b.set_threads {
+                    unsafe { f(n) };
+                    true
+                } else {
+                    // Soft success: remember override even without vendor symbol.
+                    false
+                }
+            }
+            None => false,
+        }
+    }
+
+    pub fn num_threads() -> i32 {
+        let override_n = THREAD_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed);
+        if override_n > 0 {
+            return override_n;
+        }
+        match BLAS.get_or_init(probe) {
+            Some(b) => {
+                if let Some(f) = b.get_threads {
+                    unsafe { f() }.max(1)
+                } else {
+                    1
+                }
+            }
+            None => 1,
+        }
+    }
+
+    pub fn threads_controllable() -> bool {
+        match BLAS.get_or_init(probe) {
+            Some(b) => b.set_threads.is_some(),
+            None => false,
         }
     }
 
@@ -1467,6 +1815,77 @@ fn sci_blas_backend(_args: &[Value], _env: &mut Environment) -> Result<Value, St
     {
         Ok(Value::String("matrixmultiply".into()))
     }
+}
+
+/// sci_blas_set_num_threads(n) — OpenBLAS/MKL/OMP thread control when available.
+fn sci_blas_set_num_threads(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "sci_blas_set_num_threads")? as i32;
+    if n < 1 {
+        return Err("sci_blas_set_num_threads: n >= 1".into());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let ok = system_blas::set_num_threads(n);
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(ok));
+        out.insert("threads".into(), Value::Number(n as i64));
+        out.insert(
+            "controllable".into(),
+            Value::Bool(system_blas::threads_controllable()),
+        );
+        out.insert(
+            "backend".into(),
+            Value::String(system_blas::backend_name().into()),
+        );
+        Ok(Value::Object(out))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("threads".into(), Value::Number(1));
+        out.insert("controllable".into(), Value::Bool(false));
+        out.insert("backend".into(), Value::String("matrixmultiply".into()));
+        Ok(Value::Object(out))
+    }
+}
+
+fn sci_blas_num_threads(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Ok(Value::Number(system_blas::num_threads() as i64))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(Value::Number(1))
+    }
+}
+
+/// sci_blas_info() → { backend, threads, controllable }
+fn sci_blas_info(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut out = HashMap::new();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        out.insert(
+            "backend".into(),
+            Value::String(system_blas::backend_name().into()),
+        );
+        out.insert(
+            "threads".into(),
+            Value::Number(system_blas::num_threads() as i64),
+        );
+        out.insert(
+            "controllable".into(),
+            Value::Bool(system_blas::threads_controllable()),
+        );
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        out.insert("backend".into(), Value::String("matrixmultiply".into()));
+        out.insert("threads".into(), Value::Number(1));
+        out.insert("controllable".into(), Value::Bool(false));
+    }
+    Ok(Value::Object(out))
 }
 
 /// sci_blas_dgemm(a, m, k, b, n, alpha?, beta?, c?) — BLAS-style DGEMM API (SC4a).
@@ -1681,6 +2100,7 @@ fn parse_dtype(v: &Value) -> Result<&'static str, String> {
             "i32" | "int32" => Ok("i32"),
             "i64" | "int64" => Ok("i64"),
             "bool" => Ok("bool"),
+            "complex64" | "c64" => Ok("complex64"),
             other => Err(format!("nd: unknown dtype {other}")),
         },
         _ => Err("nd: dtype must be string".into()),
@@ -1702,22 +2122,32 @@ fn nd_dtype(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 
 fn nd_astype(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (shape, data) = nd_at(args, 0, "nd_astype")?;
+    let src_dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
     let dtype = parse_dtype(args.get(1).ok_or("nd_astype(a, dtype)")?)?;
-    let casted: Vec<f64> = match dtype {
-        "f64" | "f32" => data,
-        "i32" => data
-            .iter()
-            .map(|x| (*x as i32) as f64)
-            .collect(),
-        "i64" => data
-            .iter()
-            .map(|x| (*x as i64) as f64)
-            .collect(),
-        "bool" => data
-            .iter()
-            .map(|x| if *x != 0.0 { 1.0 } else { 0.0 })
-            .collect(),
-        _ => data,
+    let n = shape_product(&shape);
+    let casted: Vec<f64> = if is_complex_dtype(dtype) && !is_complex_dtype(&src_dtype) {
+        let mut out = vec![0.0; n * 2];
+        for i in 0..n {
+            out[i * 2] = data.get(i).copied().unwrap_or(0.0);
+            out[i * 2 + 1] = 0.0;
+        }
+        out
+    } else if !is_complex_dtype(dtype) && is_complex_dtype(&src_dtype) {
+        // complex → real: take real part
+        (0..n).map(|i| data[i * 2]).collect()
+    } else if is_complex_dtype(dtype) && is_complex_dtype(&src_dtype) {
+        data
+    } else {
+        match dtype {
+            "f64" | "f32" => data,
+            "i32" => data.iter().map(|x| (*x as i32) as f64).collect(),
+            "i64" => data.iter().map(|x| (*x as i64) as f64).collect(),
+            "bool" => data
+                .iter()
+                .map(|x| if *x != 0.0 { 1.0 } else { 0.0 })
+                .collect(),
+            _ => data,
+        }
     };
     Ok(nd_out_dtype(&shape, &casted, dtype))
 }
@@ -1806,6 +2236,7 @@ fn nd_save(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         "i32" => 3,
         "i64" => 4,
         "bool" => 5,
+        "complex64" | "c64" => 6,
         _ => 1,
     };
     let mut buf = Vec::new();
@@ -1836,6 +2267,7 @@ fn nd_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         3 => "i32",
         4 => "i64",
         5 => "bool",
+        6 => "complex64",
         _ => "f64",
     };
     let ndim = u32::from_le_bytes(buf[5..9].try_into().unwrap()) as usize;
@@ -1849,7 +2281,7 @@ fn nd_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         shape.push(d);
         off += 8;
     }
-    let n = shape_product(&shape);
+    let n = shape_product(&shape).saturating_mul(dtype_width(dtype));
     if off + n * 8 > buf.len() {
         return Err("nd_load: truncated data".into());
     }
@@ -1886,6 +2318,9 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_sqrt", "nd_sqrt"], nd_sqrt);
     bind(&["science_nd_clip", "nd_clip"], nd_clip);
     bind(&["science_nd_where", "nd_where"], nd_where);
+    bind(&["science_nd_gather", "nd_gather"], nd_gather);
+    bind(&["science_nd_compress", "nd_compress"], nd_compress);
+    bind(&["science_nd_conj", "nd_conj"], nd_conj);
     bind(&["science_nd_slice", "nd_slice"], nd_slice);
     bind(&["science_nd_index_view", "nd_index_view"], nd_index_view);
     bind(&["science_nd_is_view", "nd_is_view"], nd_is_view);
@@ -1917,4 +2352,13 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sci_gemm", "sci_gemm"], sci_gemm);
     bind(&["science_sci_blas_dgemm", "sci_blas_dgemm"], sci_blas_dgemm);
     bind(&["science_sci_blas_backend", "sci_blas_backend"], sci_blas_backend);
+    bind(
+        &["science_sci_blas_set_num_threads", "sci_blas_set_num_threads"],
+        sci_blas_set_num_threads,
+    );
+    bind(
+        &["science_sci_blas_num_threads", "sci_blas_num_threads"],
+        sci_blas_num_threads,
+    );
+    bind(&["science_sci_blas_info", "sci_blas_info"], sci_blas_info);
 }

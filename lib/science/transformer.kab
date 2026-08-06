@@ -17,3 +17,13 @@ pub fn trainStep(weights, inputIds, targetIds, lr, nHeads) {
 pub fn backpropStep(weights, inputIds, targetIds, lr, nHeads) {
     return tf_lm_backprop_step(weights, inputIds, targetIds, lr, nHeads)
 }
+
+/// N-block stack forward (weights.layers or nLayers).
+pub fn stackForward(weights, inputIds, nHeads, nLayers) {
+    return tf_stack_forward(weights, inputIds, nHeads, nLayers)
+}
+
+/// Train last block + LM head; early blocks frozen.
+pub fn stackBackpropStep(weights, inputIds, targetIds, lr, nHeads, nLayers) {
+    return tf_stack_backprop_step(weights, inputIds, targetIds, lr, nHeads, nLayers)
+}
