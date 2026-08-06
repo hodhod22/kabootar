@@ -68,6 +68,22 @@ pub fn polyphaseDecompose(h, n) {
     return num_polyphase_decompose(h, n)
 }
 
+pub fn polyphaseAnalyze(x, h, n) {
+    return num_polyphase_analyze(x, h, n)
+}
+
+pub fn polyphaseSynthesize(bands, h, n) {
+    return num_polyphase_synthesize(bands, h, n)
+}
+
+pub fn dwtHaar(x) {
+    return num_dwt_haar(x)
+}
+
+pub fn idwtHaar(a, d) {
+    return num_idwt_haar(a, d)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

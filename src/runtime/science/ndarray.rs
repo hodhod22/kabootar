@@ -1860,127 +1860,124 @@ fn nd_tensordot(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     Ok(nd_out_dtype(&out_shape, &out, &dtype))
 }
 
-/// nd_einsum(subscripts, a, b?) — practical subset of NumPy einsum.
-/// Supported: ij,jk->ik | ij->ji | ii-> | i,i-> | ij,ij-> | ij,ij->ij | i-> | ij->i | ij->j
-fn nd_einsum(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+/// nd_einsum(subscripts, a, b, c?) — general einsum parser (NumPy-style labels).
+/// Examples: ij,jk->ik | ijk,kl->ijl | ii-> | i,i-> | ij,ij->ij
+fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let subs = match args.first() {
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("nd_einsum(subscripts, ...)".into()),
     };
     let normalized: String = subs.chars().filter(|c| !c.is_whitespace()).collect();
-    match normalized.as_str() {
-        "ij,jk->ik" => {
-            if args.len() < 3 {
-                return Err("nd_einsum: need two operands".into());
-            }
-            nd_tensordot(&[args[1].clone(), args[2].clone()], env)
+    let (left, right) = normalized
+        .split_once("->")
+        .ok_or_else(|| format!("nd_einsum: missing '->' in '{normalized}'"))?;
+    let op_labels: Vec<&str> = left.split(',').filter(|s| !s.is_empty()).collect();
+    if op_labels.is_empty() {
+        return Err("nd_einsum: no operands".into());
+    }
+    if args.len() < 1 + op_labels.len() {
+        return Err(format!(
+            "nd_einsum: need {} operand(s)",
+            op_labels.len()
+        ));
+    }
+    let out_labels: Vec<char> = right.chars().filter(|c| c.is_ascii_alphabetic()).collect();
+
+    let mut label_size: HashMap<char, usize> = HashMap::new();
+    let mut operands: Vec<(Vec<usize>, Vec<f64>, Vec<char>)> = Vec::new();
+    let dtype = dtype_of_value(&args[1]);
+    for (i, labs) in op_labels.iter().enumerate() {
+        let (shape, data) = nd_at(args, 1 + i, "nd_einsum")?;
+        let labels: Vec<char> = labs.chars().filter(|c| c.is_ascii_alphabetic()).collect();
+        if labels.len() != shape.len() {
+            return Err(format!(
+                "nd_einsum: operand {} label rank {} != shape rank {}",
+                i,
+                labels.len(),
+                shape.len()
+            ));
         }
-        "ij->ji" => {
-            if args.len() < 2 {
-                return Err("nd_einsum: need one operand".into());
-            }
-            nd_transpose(&[args[1].clone()], env)
-        }
-        "ii->" => {
-            if args.len() < 2 {
-                return Err("nd_einsum: need one operand".into());
-            }
-            let (sa, data) = nd_at(args, 1, "nd_einsum")?;
-            if sa.len() != 2 || sa[0] != sa[1] {
-                return Err("nd_einsum ii->: square 2D".into());
-            }
-            let n = sa[0];
-            let mut s = 0.0;
-            for i in 0..n {
-                s += data[i * n + i];
-            }
-            Ok(float_out(s))
-        }
-        "i,i->" => {
-            // vector dot
-            if args.len() < 3 {
-                return Err("nd_einsum i,i->: need two vectors".into());
-            }
-            nd_dot(&[args[1].clone(), args[2].clone()], env)
-        }
-        "ij,ij->" => {
-            // Frobenius inner product
-            if args.len() < 3 {
-                return Err("nd_einsum ij,ij->: need two matrices".into());
-            }
-            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
-            let (sb, b) = nd_at(args, 2, "nd_einsum")?;
-            if sa != sb {
-                return Err("nd_einsum ij,ij->: shape mismatch".into());
-            }
-            Ok(float_out(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()))
-        }
-        "ij,ij->ij" => {
-            // Hadamard product
-            if args.len() < 3 {
-                return Err("nd_einsum ij,ij->ij: need two matrices".into());
-            }
-            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
-            let (sb, b) = nd_at(args, 2, "nd_einsum")?;
-            let dtype = dtype_of_value(&args[1]);
-            if sa != sb {
-                return Err("nd_einsum ij,ij->ij: shape mismatch".into());
-            }
-            let out: Vec<f64> = a.iter().zip(b.iter()).map(|(x, y)| x * y).collect();
-            Ok(nd_out_dtype(&sa, &out, &dtype))
-        }
-        "i->" => {
-            // sum of 1D
-            if args.len() < 2 {
-                return Err("nd_einsum i->: need one vector".into());
-            }
-            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
-            if sa.len() != 1 {
-                return Err("nd_einsum i->: expect 1D".into());
-            }
-            Ok(float_out(a.iter().sum()))
-        }
-        "ij->i" => {
-            // row sums
-            if args.len() < 2 {
-                return Err("nd_einsum ij->i: need one matrix".into());
-            }
-            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
-            let dtype = dtype_of_value(&args[1]);
-            if sa.len() != 2 {
-                return Err("nd_einsum ij->i: expect 2D".into());
-            }
-            let (m, n) = (sa[0], sa[1]);
-            let mut out = vec![0.0; m];
-            for i in 0..m {
-                for j in 0..n {
-                    out[i] += a[i * n + j];
+        for (lab, &dim) in labels.iter().zip(shape.iter()) {
+            if let Some(prev) = label_size.get(lab) {
+                if *prev != dim {
+                    return Err(format!(
+                        "nd_einsum: label '{lab}' size mismatch ({prev} vs {dim})"
+                    ));
                 }
+            } else {
+                label_size.insert(*lab, dim);
             }
-            Ok(nd_out_dtype(&[m], &out, &dtype))
         }
-        "ij->j" => {
-            // column sums
-            if args.len() < 2 {
-                return Err("nd_einsum ij->j: need one matrix".into());
-            }
-            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
-            let dtype = dtype_of_value(&args[1]);
-            if sa.len() != 2 {
-                return Err("nd_einsum ij->j: expect 2D".into());
-            }
-            let (m, n) = (sa[0], sa[1]);
-            let mut out = vec![0.0; n];
-            for i in 0..m {
-                for j in 0..n {
-                    out[j] += a[i * n + j];
-                }
-            }
-            Ok(nd_out_dtype(&[n], &out, &dtype))
+        operands.push((shape, data, labels));
+    }
+    for lab in &out_labels {
+        if !label_size.contains_key(lab) {
+            return Err(format!("nd_einsum: output label '{lab}' missing from inputs"));
         }
-        _ => Err(format!(
-            "nd_einsum: unsupported '{normalized}' (see SCIENCE.md einsum subset)"
-        )),
+    }
+
+    let mut all_labels: Vec<char> = Vec::new();
+    for (_, _, labs) in &operands {
+        for lab in labs {
+            if !all_labels.contains(lab) {
+                all_labels.push(*lab);
+            }
+        }
+    }
+    let sizes: Vec<usize> = all_labels
+        .iter()
+        .map(|c| *label_size.get(c).unwrap_or(&1))
+        .collect();
+    let out_shape: Vec<usize> = out_labels.iter().map(|c| label_size[c]).collect();
+    let out_len = if out_shape.is_empty() {
+        1
+    } else {
+        out_shape.iter().product()
+    };
+    let mut out = vec![0.0; out_len];
+
+    let mut idxs = vec![0usize; all_labels.len()];
+    loop {
+        let mut prod = 1.0;
+        for (shape, data, labels) in &operands {
+            let mut flat = 0usize;
+            for (axis, lab) in labels.iter().enumerate() {
+                let li = all_labels.iter().position(|c| c == lab).unwrap();
+                let stride: usize = shape[axis + 1..].iter().product();
+                flat += idxs[li] * stride;
+            }
+            prod *= data[flat];
+        }
+        let mut oflat = 0usize;
+        for (axis, lab) in out_labels.iter().enumerate() {
+            let li = all_labels.iter().position(|c| c == lab).unwrap();
+            let stride: usize = out_shape[axis + 1..].iter().product();
+            oflat += idxs[li] * stride;
+        }
+        out[oflat] += prod;
+
+        // odometer increment
+        let mut carry = true;
+        for d in (0..idxs.len()).rev() {
+            if !carry {
+                break;
+            }
+            idxs[d] += 1;
+            if idxs[d] < sizes[d] {
+                carry = false;
+            } else {
+                idxs[d] = 0;
+            }
+        }
+        if carry {
+            break;
+        }
+    }
+
+    if out_shape.is_empty() {
+        Ok(float_out(out[0]))
+    } else {
+        Ok(nd_out_dtype(&out_shape, &out, &dtype))
     }
 }
 

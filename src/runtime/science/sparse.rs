@@ -2,7 +2,7 @@
 
 use super::helpers::{int_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn sparse_out(
     fmt: &str,
@@ -760,6 +760,162 @@ fn sparse_icc0(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     Ok(Value::Object(out))
 }
 
+fn ensure_csr(a: &Value, env: &mut Environment) -> Result<Value, String> {
+    match parse_sparse(a)?.0.as_str() {
+        "csr" => Ok(a.clone()),
+        _ => sparse_to_csr(&[a.clone()], env),
+    }
+}
+
+/// sparse_ilut(A, droptol, fillFactor?) — ILU with threshold dropping.
+fn sparse_ilut(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_in = args.first().ok_or("sparse_ilut(A, droptol, fill?)")?;
+    let droptol = num_at(args, 1, "sparse_ilut")?.abs();
+    let fill = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(2.0)
+        .max(1.0) as usize;
+    let csr = ensure_csr(a_in, env)?;
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_ilut: square required".into());
+    }
+    let mut a = csr_to_dense(n, n, &data, &indices, &indptr);
+    let max_keep = ((fill as f64) * (data.len() as f64 / n.max(1) as f64)).ceil() as usize + 1;
+    for i in 1..n {
+        for k in 0..i {
+            if a[i][k].abs() < droptol {
+                a[i][k] = 0.0;
+                continue;
+            }
+            if a[k][k].abs() < 1e-15 {
+                return Err("sparse_ilut: zero pivot".into());
+            }
+            a[i][k] /= a[k][k];
+            for j in k + 1..n {
+                a[i][j] -= a[i][k] * a[k][j];
+            }
+        }
+        // Drop small entries and keep largest off-diagonals.
+        let mut offs: Vec<(usize, f64)> = (0..n)
+            .filter(|&j| j != i && a[i][j].abs() >= droptol)
+            .map(|j| (j, a[i][j].abs()))
+            .collect();
+        offs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let keep: HashSet<usize> = offs.into_iter().take(max_keep).map(|(j, _)| j).collect();
+        for j in 0..n {
+            if j != i && !keep.contains(&j) {
+                a[i][j] = 0.0;
+            }
+        }
+    }
+    let mut l = vec![vec![0.0; n]; n];
+    let mut u = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    let mut up = vec![vec![false; n]; n];
+    for i in 0..n {
+        l[i][i] = 1.0;
+        lp[i][i] = true;
+        for j in 0..n {
+            if i > j && a[i][j].abs() > 0.0 {
+                l[i][j] = a[i][j];
+                lp[i][j] = true;
+            }
+            if i <= j && a[i][j].abs() > 0.0 {
+                u[i][j] = a[i][j];
+                up[i][j] = true;
+            }
+        }
+        if !up[i][i] {
+            u[i][i] = a[i][i];
+            up[i][i] = true;
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("u".into(), dense_to_csr_pattern(&u, &up));
+    out.insert("kind".into(), Value::String("ilut".into()));
+    Ok(Value::Object(out))
+}
+
+/// sparse_ic_k(A, level) — incomplete Cholesky with level-of-fill k (0 = icc0).
+fn sparse_ic_k(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_in = args.first().ok_or("sparse_ic_k(A, level)")?;
+    let level = num_at(args, 1, "sparse_ic_k")?.max(0.0) as i32;
+    let csr = ensure_csr(a_in, env)?;
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_ic_k: square required".into());
+    }
+    // Level-of-fill pattern: start from A, allow fill when level(i,j) <= k.
+    let mut lev = vec![vec![i32::MAX; n]; n];
+    for i in 0..n {
+        lev[i][i] = 0;
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            let j = indices[k] as usize;
+            lev[i][j] = 0;
+            lev[j][i] = 0;
+        }
+    }
+    if level > 0 {
+        for _ in 0..level {
+            let mut nxt = lev.clone();
+            for i in 0..n {
+                for k in 0..i {
+                    if lev[i][k] > level {
+                        continue;
+                    }
+                    for j in 0..=i {
+                        if lev[k][j] > level {
+                            continue;
+                        }
+                        let cand = lev[i][k] + lev[k][j] + 1;
+                        if cand <= level && cand < nxt[i][j] {
+                            nxt[i][j] = cand;
+                            nxt[j][i] = cand;
+                        }
+                    }
+                }
+            }
+            lev = nxt;
+        }
+    }
+    let a = csr_to_dense(n, n, &data, &indices, &indptr);
+    let mut l = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    for i in 0..n {
+        for j in 0..=i {
+            if lev[i][j] > level {
+                continue;
+            }
+            let mut s = a[i][j];
+            for k in 0..j {
+                s -= l[i][k] * l[j][k];
+            }
+            if i == j {
+                if s <= 0.0 {
+                    return Err("sparse_ic_k: not SPD / zero pivot".into());
+                }
+                l[i][j] = s.sqrt();
+            } else {
+                if l[j][j].abs() < 1e-15 {
+                    return Err("sparse_ic_k: zero pivot".into());
+                }
+                l[i][j] = s / l[j][j];
+            }
+            lp[i][j] = true;
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("kind".into(), Value::String("ic_k".into()));
+    out.insert("level".into(), Value::Number(level as i64));
+    Ok(Value::Object(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
@@ -768,6 +924,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sparse_to_csc", "sparse_to_csc"], sparse_to_csc);
     bind(&["science_sparse_ilu0", "sparse_ilu0"], sparse_ilu0);
     bind(&["science_sparse_icc0", "sparse_icc0"], sparse_icc0);
+    bind(&["science_sparse_ilut", "sparse_ilut"], sparse_ilut);
+    bind(&["science_sparse_ic_k", "sparse_ic_k"], sparse_ic_k);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
     bind(

@@ -343,37 +343,70 @@ fn transpose(a: &[Vec<f64>]) -> Vec<Vec<f64>> {
     t
 }
 
-/// SVD via AᵀA eig (compact). Returns {u, s, vt, mode}.
-/// mode: "thin" (default) or "full" (pad U to m×m).
+/// SVD via eig of AᵀA or AAᵀ. Returns {u, s, vt, mode}.
+/// mode: "thin" (default) | "econ" (economy k=min(m,n)) | "full" (pad U to m×m).
 fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (m, n, data) = matrix_dims(args, 0, "mat_svd")?;
     let mode = match args.get(1) {
-        Some(Value::String(s)) => s.as_str(),
+        Some(Value::String(s)) => match s.as_str() {
+            "full" => "full",
+            "econ" | "economy" => "econ",
+            _ => "thin",
+        },
         _ => "thin",
     };
     let a = mat_from_flat(m, n, &data);
-    let at = transpose(&a);
-    let ata = matmul_nn(&at, &a)?;
-    let (evals, v) = jacobi_sym(&ata)?;
-    let mut s = Vec::with_capacity(n);
-    for e in &evals {
-        s.push(e.max(0.0).sqrt());
-    }
-    // U = A V S^{+}
     let k = n.min(m);
-    let mut u = vec![vec![0.0; k]; m];
-    for j in 0..k {
-        if s[j] < 1e-12 {
-            continue;
-        }
-        for i in 0..m {
-            let mut sum = 0.0;
-            for t in 0..n {
-                sum += a[i][t] * v[t][j];
+    let (mut u, s, vt) = if mode == "econ" && m < n {
+        // Economy wide: eig of AAᵀ → U (m×m), S (m), VT (m×n).
+        let at = transpose(&a);
+        let aat = matmul_nn(&a, &at)?;
+        let (evals, u_m) = jacobi_sym(&aat)?;
+        let s_vec: Vec<f64> = evals.iter().map(|e| e.max(0.0).sqrt()).collect();
+        let mut vt_m = vec![vec![0.0; n]; k];
+        for j in 0..k {
+            if s_vec[j] < 1e-12 {
+                continue;
             }
-            u[i][j] = sum / s[j];
+            for col in 0..n {
+                let mut sum = 0.0;
+                for row in 0..m {
+                    sum += u_m[row][j] * a[row][col];
+                }
+                vt_m[j][col] = sum / s_vec[j];
+            }
         }
-    }
+        let u_out: Vec<Vec<f64>> = (0..m)
+            .map(|i| (0..k).map(|j| u_m[i][j]).collect())
+            .collect();
+        (u_out, s_vec[..k].to_vec(), vt_m)
+    } else {
+        // Tall/square (or thin/full): eig of AᵀA.
+        let at = transpose(&a);
+        let ata = matmul_nn(&at, &a)?;
+        let (evals, v) = jacobi_sym(&ata)?;
+        let mut s_vec: Vec<f64> = evals.iter().map(|e| e.max(0.0).sqrt()).collect();
+        let mut u_m = vec![vec![0.0; k]; m];
+        for j in 0..k {
+            if s_vec[j] < 1e-12 {
+                continue;
+            }
+            for i in 0..m {
+                let mut sum = 0.0;
+                for t in 0..n {
+                    sum += a[i][t] * v[t][j];
+                }
+                u_m[i][j] = sum / s_vec[j];
+            }
+        }
+        let mut vt_m = transpose(&v);
+        if mode == "econ" {
+            s_vec.truncate(k);
+            vt_m.truncate(k);
+        }
+        (u_m, s_vec, vt_m)
+    };
+
     if mode == "full" && m > k {
         let mut u_full = vec![vec![0.0; m]; m];
         for i in 0..m {
@@ -411,19 +444,11 @@ fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         }
         u = u_full;
     }
-    let vt = transpose(&v);
     let mut out = HashMap::new();
     out.insert("u".into(), matrix_out(&u));
     out.insert("s".into(), vector_out(&s));
     out.insert("vt".into(), matrix_out(&vt));
-    out.insert(
-        "mode".into(),
-        Value::String(if mode == "full" {
-            "full".into()
-        } else {
-            "thin".into()
-        }),
-    );
+    out.insert("mode".into(), Value::String(mode.into()));
     Ok(Value::Object(out))
 }
 
@@ -698,13 +723,15 @@ fn mat_batch_qr(args: &[Value], env: &mut Environment) -> Result<Value, String> 
     Ok(Value::Object(out))
 }
 
-/// mat_batch_svd(batch, mode?) -> { u, s, vt arrays }
+/// mat_batch_svd(batch, mode?) -> { u, s, vt, mode, n }
 fn mat_batch_svd(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let batch = batch_matrices(args, "mat_batch_svd")?;
     let mode = args.get(1).cloned().unwrap_or(Value::Undefined);
+    let n_batch = batch.len() as i64;
     let mut us = Vec::new();
     let mut ss = Vec::new();
     let mut vts = Vec::new();
+    let mut mode_s = "thin".to_string();
     for m in batch {
         let svd = if matches!(mode, Value::Undefined | Value::Null) {
             mat_svd(&[m], env)?
@@ -717,11 +744,16 @@ fn mat_batch_svd(args: &[Value], env: &mut Environment) -> Result<Value, String>
         us.push(map.get("u").cloned().ok_or("mat_batch_svd: u")?);
         ss.push(map.get("s").cloned().ok_or("mat_batch_svd: s")?);
         vts.push(map.get("vt").cloned().ok_or("mat_batch_svd: vt")?);
+        if let Some(Value::String(s)) = map.get("mode") {
+            mode_s = s.clone();
+        }
     }
     let mut out = HashMap::new();
     out.insert("u".into(), Value::Array(us));
     out.insert("s".into(), Value::Array(ss));
     out.insert("vt".into(), Value::Array(vts));
+    out.insert("mode".into(), Value::String(mode_s));
+    out.insert("n".into(), Value::Number(n_batch));
     Ok(Value::Object(out))
 }
 

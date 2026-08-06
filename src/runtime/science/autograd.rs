@@ -44,6 +44,36 @@ enum Node {
         hout: usize,
         wout: usize,
     },
+    /// create_graph: dL/dx as a tape node (parents gy, w).
+    Conv2dGradX {
+        id: u64,
+        gy: u64,
+        w: u64,
+        value: Vec<f64>,
+        cin: usize,
+        hin: usize,
+        win: usize,
+        cout: usize,
+        kh: usize,
+        kw: usize,
+        hout: usize,
+        wout: usize,
+    },
+    /// create_graph: dL/dw as a tape node (parents gy, x).
+    Conv2dGradW {
+        id: u64,
+        gy: u64,
+        x: u64,
+        value: Vec<f64>,
+        cin: usize,
+        hin: usize,
+        win: usize,
+        cout: usize,
+        kh: usize,
+        kw: usize,
+        hout: usize,
+        wout: usize,
+    },
     Softmax { id: u64, parent: u64, value: Vec<f64> },
     Add { id: u64, left: u64, right: u64, value: Vec<f64> },
     Sub { id: u64, left: u64, right: u64, value: Vec<f64> },
@@ -112,6 +142,8 @@ fn node_value(t: &Tape, id: u64) -> Result<Vec<f64>, String> {
         | Some(Node::Dense { value, .. })
         | Some(Node::Matmul { value, .. })
         | Some(Node::Conv2d { value, .. })
+        | Some(Node::Conv2dGradX { value, .. })
+        | Some(Node::Conv2dGradW { value, .. })
         | Some(Node::Softmax { value, .. })
         | Some(Node::Add { value, .. })
         | Some(Node::Sub { value, .. })
@@ -572,6 +604,8 @@ fn push_node(t: &mut Tape, node: Node) -> u64 {
         | Node::Dense { id, .. }
         | Node::Matmul { id, .. }
         | Node::Conv2d { id, .. }
+        | Node::Conv2dGradX { id, .. }
+        | Node::Conv2dGradW { id, .. }
         | Node::Softmax { id, .. }
         | Node::Add { id, .. }
         | Node::Sub { id, .. }
@@ -946,20 +980,42 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                             }
                         }
                         if create_graph {
+                            let gyn = ensure_grad_node(t, id, &gy, true)
+                                .ok_or("conv create_graph: gy")?;
                             let gx_id = alloc_id(t);
                             push_node(
                                 t,
-                                Node::Leaf {
+                                Node::Conv2dGradX {
                                     id: gx_id,
+                                    gy: gyn,
+                                    w,
                                     value: gx.clone(),
+                                    cin,
+                                    hin,
+                                    win,
+                                    cout,
+                                    kh,
+                                    kw,
+                                    hout,
+                                    wout,
                                 },
                             );
                             let gw_id = alloc_id(t);
                             push_node(
                                 t,
-                                Node::Leaf {
+                                Node::Conv2dGradW {
                                     id: gw_id,
+                                    gy: gyn,
+                                    x,
                                     value: gw.clone(),
+                                    cin,
+                                    hin,
+                                    win,
+                                    cout,
+                                    kh,
+                                    kw,
+                                    hout,
+                                    wout,
                                 },
                             );
                             let gb_id = alloc_id(t);
@@ -977,6 +1033,153 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                             accumulate(t, x, &gx);
                             accumulate(t, w, &gw);
                             accumulate(t, b, &gb);
+                        }
+                    }
+                }
+                Node::Conv2dGradX {
+                    gy,
+                    w,
+                    cin,
+                    hin,
+                    win,
+                    cout,
+                    kh,
+                    kw,
+                    hout,
+                    wout,
+                    ..
+                } => {
+                    // value = dL/dx; incoming gout = d²L path through gx.
+                    if let Some(g2) = t.grads.get(&id).cloned() {
+                        let wv = node_value(t, w)?;
+                        let mut dgy = vec![0.0; cout * hout * wout];
+                        let mut dw = vec![0.0; cout * cin * kh * kw];
+                        for oc in 0..cout {
+                            for oh in 0..hout {
+                                for ow in 0..wout {
+                                    for ic in 0..cin {
+                                        for kh_i in 0..kh {
+                                            for kw_i in 0..kw {
+                                                let xi = idx3(cin, hin, win, ic, oh + kh_i, ow + kw_i);
+                                                let wi = oc * (cin * kh * kw)
+                                                    + ic * (kh * kw)
+                                                    + kh_i * kw
+                                                    + kw_i;
+                                                let g = g2[xi];
+                                                dgy[idx3(cout, hout, wout, oc, oh, ow)] += g * wv[wi];
+                                                // Need gy for dw: d(gx)/dw * g2
+                                                // gx[xi] includes gy[oc,oh,ow]*w[wi] so dw += g2[xi]*gy[...]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        let gyv = node_value(t, gy)?;
+                        for oc in 0..cout {
+                            for oh in 0..hout {
+                                for ow in 0..wout {
+                                    let gyy = gyv[idx3(cout, hout, wout, oc, oh, ow)];
+                                    for ic in 0..cin {
+                                        for kh_i in 0..kh {
+                                            for kw_i in 0..kw {
+                                                let xi = idx3(cin, hin, win, ic, oh + kh_i, ow + kw_i);
+                                                let wi = oc * (cin * kh * kw)
+                                                    + ic * (kh * kw)
+                                                    + kh_i * kw
+                                                    + kw_i;
+                                                dw[wi] += g2[xi] * gyy;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if create_graph {
+                            let dgy_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: dgy_id,
+                                    value: dgy.clone(),
+                                },
+                            );
+                            let dw_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: dw_id,
+                                    value: dw.clone(),
+                                },
+                            );
+                            accumulate_graph(t, gy, &dgy, dgy_id, true);
+                            accumulate_graph(t, w, &dw, dw_id, true);
+                        } else {
+                            accumulate(t, gy, &dgy);
+                            accumulate(t, w, &dw);
+                        }
+                    }
+                }
+                Node::Conv2dGradW {
+                    gy,
+                    x,
+                    cin,
+                    hin,
+                    win,
+                    cout,
+                    kh,
+                    kw,
+                    hout,
+                    wout,
+                    ..
+                } => {
+                    if let Some(g2) = t.grads.get(&id).cloned() {
+                        let xv = node_value(t, x)?;
+                        let gyv = node_value(t, gy)?;
+                        let mut dgy = vec![0.0; cout * hout * wout];
+                        let mut dx = vec![0.0; cin * hin * win];
+                        for oc in 0..cout {
+                            for oh in 0..hout {
+                                for ow in 0..wout {
+                                    for ic in 0..cin {
+                                        for kh_i in 0..kh {
+                                            for kw_i in 0..kw {
+                                                let xi = idx3(cin, hin, win, ic, oh + kh_i, ow + kw_i);
+                                                let wi = oc * (cin * kh * kw)
+                                                    + ic * (kh * kw)
+                                                    + kh_i * kw
+                                                    + kw_i;
+                                                let g = g2[wi];
+                                                dgy[idx3(cout, hout, wout, oc, oh, ow)] += g * xv[xi];
+                                                dx[xi] += g * gyv[idx3(cout, hout, wout, oc, oh, ow)];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if create_graph {
+                            let dgy_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: dgy_id,
+                                    value: dgy.clone(),
+                                },
+                            );
+                            let dx_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: dx_id,
+                                    value: dx.clone(),
+                                },
+                            );
+                            accumulate_graph(t, gy, &dgy, dgy_id, true);
+                            accumulate_graph(t, x, &dx, dx_id, true);
+                        } else {
+                            accumulate(t, gy, &dgy);
+                            accumulate(t, x, &dx);
                         }
                     }
                 }

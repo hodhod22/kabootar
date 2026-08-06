@@ -1073,7 +1073,8 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 **Checkpoint SC (landad 2026-08-06h):** pillar deepen — ndarray max/transpose/tensordot; LU/slogdet/normOrd; erfc/j1/gradient; fftfreq/resample/hilbert; ANOVA/MW/ppf; logistic GBDT/dropout/BN/dataloader; mechanics/chem — `tests/science_sc_checkpoint_pillars.rs`.
 **Checkpoint SC (landad 2026-08-06i):** `einsum` subset; `batchQr`/`batchSvd`/`batchSolve`; `fftN`/`firwin`/`butterBiquad`; sparse CSC; dense/conv `create_graph`; `domain/pde` heat/wave/poisson — `tests/science_sc_checkpoint_sc6.rs`.
 **Checkpoint SC (landad 2026-08-06j):** richer einsum; `batchEig`; polyphase resample/decompose; `ilu0`/`icc0`; matmul `create_graph`; 2D PDE heat/poisson — `tests/science_sc_checkpoint_sc6b.rs`.
-**Checkpoint SC (nästa):** full einsum parser; batched SVD economy modes; wavelet/polyphase FIR banks; ILUT/IC(k); conv HOAD deepen; 3D PDE / FEM lite.
+**Checkpoint SC (landad 2026-08-06k):** general einsum parser; `batchSvd` econ; polyphase analyze/synthesize + Haar DWT; `ilut`/`icK`; conv HOAD graph; 3D PDE + FEM lite — `tests/science_sc_checkpoint_sc6c.rs`.
+**Checkpoint SC (nästa):** einsum ellipsis/broadcast; randomized SVD; multi-level DWT/wavelet packets; sparse direct solvers; attention HOAD; FEM 2D triangles.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  
