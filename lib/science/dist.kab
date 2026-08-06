@@ -1,7 +1,7 @@
 @version "1.0.0"
 
-// SC6h — Distribuerad / parallell beräkning-lite. import "science" first.
-// AllReduce uses threaded in-process reduce (real OS workers); not multi-node yet.
+// SC6h — distributed / parallel compute lite. import "science" first.
+// Threaded AllReduce + multi-rank + ring transport (in-process multi-node sim).
 
 /// Split array into nChunks contiguous chunks.
 pub fn chunk(xs, nChunks) {
@@ -56,19 +56,254 @@ pub fn allReduce(vectors, op, nWorkers) {
     return sci_allreduce_f64(vectors, op, nWorkers)
 }
 
-/// AllReduce mean of local rank vectors (parameter-server lite).
 pub fn allReduceMean(vectors, nWorkers) {
     return sci_allreduce_f64(vectors, "mean", nWorkers)
 }
 
-/// AllReduce sum.
 pub fn allReduceSum(vectors, nWorkers) {
     return sci_allreduce_f64(vectors, "sum", nWorkers)
 }
 
-/// AllReduce max.
 pub fn allReduceMax(vectors, nWorkers) {
     return sci_allreduce_f64(vectors, "max", nWorkers)
+}
+
+/// Multi-rank AllReduce: ranks is [{ "rank": i, "vector": [...] }, ...].
+pub fn allReduceRanks(ranks, op, nWorkers) {
+    if op == null || op == undefined {
+        op = "mean"
+    }
+    let vectors = []
+    let i = 0
+    while i < len(ranks) {
+        let r = ranks[i]
+        vectors = push(vectors, r["vector"])
+        i = i + 1
+    }
+    let result = sci_allreduce_f64(vectors, op, nWorkers)
+    let broadcast = []
+    i = 0
+    while i < len(ranks) {
+        broadcast = push(broadcast, result)
+        i = i + 1
+    }
+    return {
+        "op": op,
+        "nRanks": len(ranks),
+        "result": result,
+        "broadcast": broadcast
+    }
+}
+
+pub fn makeRanks(vectors) {
+    let ranks = []
+    let i = 0
+    while i < len(vectors) {
+        ranks = push(ranks, { "rank": i, "vector": vectors[i] })
+        i = i + 1
+    }
+    return ranks
+}
+
+/// Create an in-process multi-node cluster with mailboxes (transport sim).
+pub fn createCluster(nNodes) {
+    if nNodes == null || nNodes < 1 {
+        nNodes = 1
+    }
+    let mail = []
+    let i = 0
+    while i < nNodes {
+        mail = push(mail, [])
+        i = i + 1
+    }
+    return {
+        "kind": "DistCluster",
+        "nNodes": nNodes,
+        "mail": mail,
+        "transport": "ring-mailbox"
+    }
+}
+
+/// Send a message to node dst (appends to mailbox).
+pub fn clusterSend(cluster, dst, msg) {
+    let mail = cluster["mail"]
+    mail[dst] = push(mail[dst], msg)
+    cluster["mail"] = mail
+    return cluster
+}
+
+/// Pop one message from node src mailbox (FIFO), or null if empty.
+pub fn clusterRecv(cluster, src) {
+    let mail = cluster["mail"]
+    let box = mail[src]
+    if len(box) == 0 {
+        return { "cluster": cluster, "msg": null }
+    }
+    let msg = box[0]
+    let rest = []
+    let i = 1
+    while i < len(box) {
+        rest = push(rest, box[i])
+        i = i + 1
+    }
+    mail[src] = rest
+    cluster["mail"] = mail
+    return { "cluster": cluster, "msg": msg }
+}
+
+fn combineVec(a, b, op) {
+    let out = []
+    let i = 0
+    while i < len(a) {
+        if op == "max" {
+            if a[i] > b[i] {
+                out = push(out, a[i])
+            } else {
+                out = push(out, b[i])
+            }
+        } else {
+            out = push(out, a[i] + b[i])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+fn scaleVec(v, s) {
+    let out = []
+    let i = 0
+    while i < len(v) {
+        out = push(out, v[i] * s)
+        i = i + 1
+    }
+    return out
+}
+
+fn copyVec(v) {
+    let out = []
+    let i = 0
+    while i < len(v) {
+        out = push(out, v[i])
+        i = i + 1
+    }
+    return out
+}
+
+/// Drain all pending messages for a node.
+fn clusterDrain(cluster, src) {
+    let msgs = []
+    while true {
+        let got = clusterRecv(cluster, src)
+        cluster = got["cluster"]
+        if got["msg"] == null {
+            break
+        }
+        msgs = push(msgs, got["msg"])
+    }
+    return { "cluster": cluster, "msgs": msgs }
+}
+
+/// Multi-node AllReduce via mailbox transport.
+/// mode "star" (default): gather to 0, reduce, broadcast.
+/// mode "ring": each vector hops along the ring to 0, then result hops around.
+pub fn allReduceCluster(cluster, vectors, op, mode) {
+    if op == null || op == undefined {
+        op = "sum"
+    }
+    if mode == null || mode == undefined {
+        mode = "star"
+    }
+    let n = cluster["nNodes"]
+    if n != len(vectors) {
+        return { "ok": false, "error": "nNodes != len(vectors)" }
+    }
+    if n == 0 {
+        return { "ok": true, "cluster": cluster, "result": [], "hops": 0, "op": op, "mode": mode }
+    }
+    let hops = 0
+    let i = 0
+    if mode == "ring" {
+        // Hop each payload along decreasing ranks until node 0; intermediates forward.
+        i = 1
+        while i < n {
+            let payload = { "kind": "vec", "vec": copyVec(vectors[i]), "origin": i }
+            let at = i
+            while at > 0 {
+                let nxt = at - 1
+                cluster = clusterSend(cluster, nxt, payload)
+                hops = hops + 1
+                if nxt > 0 {
+                    let got = clusterRecv(cluster, nxt)
+                    cluster = got["cluster"]
+                    payload = got["msg"]
+                }
+                at = nxt
+            }
+            i = i + 1
+        }
+    } else {
+        i = 1
+        while i < n {
+            cluster = clusterSend(cluster, 0, { "kind": "vec", "vec": copyVec(vectors[i]), "origin": i })
+            hops = hops + 1
+            i = i + 1
+        }
+    }
+    let drained = clusterDrain(cluster, 0)
+    cluster = drained["cluster"]
+    let acc = copyVec(vectors[0])
+    let mi = 0
+    while mi < len(drained["msgs"]) {
+        let m = drained["msgs"][mi]
+        if m["kind"] == "vec" {
+            acc = combineVec(acc, m["vec"], op)
+        }
+        mi = mi + 1
+    }
+    let result = acc
+    if op == "mean" {
+        result = scaleVec(acc, 1.0 / n)
+    }
+    // Broadcast: walk result 0->1->...->n-1 along the ring (or star direct).
+    if mode == "ring" {
+        let at = 0
+        while at < n - 1 {
+            let nxt = at + 1
+            cluster = clusterSend(cluster, nxt, { "kind": "bcast", "vec": copyVec(result) })
+            hops = hops + 1
+            let got = clusterRecv(cluster, nxt)
+            cluster = got["cluster"]
+            at = nxt
+        }
+    } else {
+        i = 1
+        while i < n {
+            cluster = clusterSend(cluster, i, { "kind": "bcast", "vec": copyVec(result) })
+            hops = hops + 1
+            let got = clusterRecv(cluster, i)
+            cluster = got["cluster"]
+            i = i + 1
+        }
+    }
+    return {
+        "ok": true,
+        "cluster": cluster,
+        "result": result,
+        "hops": hops,
+        "op": op,
+        "mode": mode,
+        "transport": "mailbox"
+    }
+}
+
+/// Ring-mode helper.
+pub fn allReduceRing(cluster, vectors, op) {
+    return allReduceCluster(cluster, vectors, op, "ring")
+}
+
+/// Star-mode helper.
+pub fn allReduceStar(cluster, vectors, op) {
+    return allReduceCluster(cluster, vectors, op, "star")
 }
 
 /// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).

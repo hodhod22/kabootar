@@ -282,3 +282,442 @@ pub fn normalizeL2Kab(xs) {
     }
     return out
 }
+
+fn sortCopyKab(xs) {
+    let sorted = []
+    let i = 0
+    while i < len(xs) {
+        sorted = push(sorted, xs[i])
+        i = i + 1
+    }
+    let n = len(sorted)
+    i = 1
+    while i < n {
+        let key = sorted[i]
+        let j = i
+        while j > 0 {
+            if sorted[j - 1] <= key {
+                break
+            }
+            sorted[j] = sorted[j - 1]
+            j = j - 1
+        }
+        sorted[j] = key
+        i = i + 1
+    }
+    return sorted
+}
+
+pub fn medianKab(xs) {
+    let n = len(xs)
+    if n == 0 {
+        return 0.0
+    }
+    let sorted = sortCopyKab(xs)
+    if n % 2 == 1 {
+        return sorted[floor(n / 2)]
+    }
+    let a = sorted[floor(n / 2) - 1]
+    let b = sorted[floor(n / 2)]
+    return 0.5 * (a + b)
+}
+
+pub fn percentileKab(xs, p) {
+    let n = len(xs)
+    if n == 0 {
+        return 0.0
+    }
+    if p < 0.0 {
+        p = 0.0
+    }
+    if p > 100.0 {
+        p = 100.0
+    }
+    let sorted = sortCopyKab(xs)
+    let rank = (p / 100.0) * (n - 1)
+    let lo = floor(rank)
+    let hi = lo + 1
+    if hi >= n {
+        return sorted[n - 1]
+    }
+    let t = rank - lo
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * t
+}
+
+pub fn crossEntropyKab(logits, target) {
+    let probs = softmaxKab(logits)
+    let t = floor(target)
+    if t < 0 {
+        t = 0
+    }
+    if t >= len(probs) {
+        t = len(probs) - 1
+    }
+    let p = probs[t]
+    if p < 0.000000000001 {
+        p = 0.000000000001
+    }
+    return 0.0 - log(p)
+}
+
+pub fn oneHotKab(index, nClasses) {
+    let out = []
+    let i = 0
+    let idx = floor(index)
+    while i < nClasses {
+        if i == idx {
+            out = push(out, 1.0)
+        } else {
+            out = push(out, 0.0)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn matmulKab(a, m, k, b, n) {
+    // a: m*k row-major, b: k*n -> c: m*n
+    let out = []
+    let i = 0
+    while i < m {
+        let j = 0
+        while j < n {
+            let s = 0.0
+            let t = 0
+            while t < k {
+                s = s + a[i * k + t] * b[t * n + j]
+                t = t + 1
+            }
+            out = push(out, s)
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn f1Kab(y, pred) {
+    let n = len(y)
+    if n == 0 || n != len(pred) {
+        return 0.0
+    }
+    let tp = 0.0
+    let fp = 0.0
+    let fnv = 0.0
+    let i = 0
+    while i < n {
+        if pred[i] == 1.0 && y[i] == 1.0 {
+            tp = tp + 1.0
+        }
+        if pred[i] == 1.0 && y[i] != 1.0 {
+            fp = fp + 1.0
+        }
+        if pred[i] != 1.0 && y[i] == 1.0 {
+            fnv = fnv + 1.0
+        }
+        i = i + 1
+    }
+    let prec = 0.0
+    if tp + fp > 0.0 {
+        prec = tp / (tp + fp)
+    }
+    let rec = 0.0
+    if tp + fnv > 0.0 {
+        rec = tp / (tp + fnv)
+    }
+    if prec + rec < 0.000000000001 {
+        return 0.0
+    }
+    return 2.0 * prec * rec / (prec + rec)
+}
+
+pub fn confusionKab(y, pred, nClasses) {
+    let mat = []
+    let r = 0
+    while r < nClasses {
+        let row = []
+        let c = 0
+        while c < nClasses {
+            row = push(row, 0.0)
+            c = c + 1
+        }
+        mat = push(mat, row)
+        r = r + 1
+    }
+    let i = 0
+    while i < len(y) {
+        let yi = floor(y[i])
+        let pi = floor(pred[i])
+        if yi >= 0 && yi < nClasses && pi >= 0 && pi < nClasses {
+            mat[yi][pi] = mat[yi][pi] + 1.0
+        }
+        i = i + 1
+    }
+    return mat
+}
+
+fn rowMeanKab(X) {
+    let n = len(X)
+    let d = len(X[0])
+    let mean = []
+    let j = 0
+    while j < d {
+        mean = push(mean, 0.0)
+        j = j + 1
+    }
+    let i = 0
+    while i < n {
+        j = 0
+        while j < d {
+            mean[j] = mean[j] + X[i][j]
+            j = j + 1
+        }
+        i = i + 1
+    }
+    j = 0
+    while j < d {
+        mean[j] = mean[j] / n
+        j = j + 1
+    }
+    return mean
+}
+
+/// PCA-lite via power iteration on covariance (top component).
+/// X: array of rows. Returns { mean, component, scores }.
+pub fn pcaKab(X, nIter) {
+    if nIter == null || nIter == undefined {
+        nIter = 40
+    }
+    let n = len(X)
+    let d = len(X[0])
+    let mean = rowMeanKab(X)
+    let xc = []
+    let i = 0
+    while i < n {
+        let row = []
+        let j = 0
+        while j < d {
+            row = push(row, X[i][j] - mean[j])
+            j = j + 1
+        }
+        xc = push(xc, row)
+        i = i + 1
+    }
+    // init component
+    let w = []
+    let j = 0
+    while j < d {
+        w = push(w, 1.0 / d)
+        j = j + 1
+    }
+    let it = 0
+    while it < nIter {
+        let tw = []
+        j = 0
+        while j < d {
+            tw = push(tw, 0.0)
+            j = j + 1
+        }
+        i = 0
+        while i < n {
+            let proj = 0.0
+            j = 0
+            while j < d {
+                proj = proj + xc[i][j] * w[j]
+                j = j + 1
+            }
+            j = 0
+            while j < d {
+                tw[j] = tw[j] + proj * xc[i][j]
+                j = j + 1
+            }
+            i = i + 1
+        }
+        w = normalizeL2Kab(tw)
+        it = it + 1
+    }
+    let scores = []
+    i = 0
+    while i < n {
+        let proj = 0.0
+        j = 0
+        while j < d {
+            proj = proj + xc[i][j] * w[j]
+            j = j + 1
+        }
+        scores = push(scores, proj)
+        i = i + 1
+    }
+    return { "mean": mean, "component": w, "scores": scores }
+}
+
+/// Decision stump on one feature: scan thresholds midpoints.
+/// X rows, y labels 0/1. Returns { feature, threshold, left, right }.
+pub fn stumpKab(X, y) {
+    let n = len(X)
+    let d = len(X[0])
+    let best = { "feature": 0, "threshold": 0.0, "left": 0.0, "right": 1.0, "err": n }
+    let f = 0
+    while f < d {
+        let vals = []
+        let i = 0
+        while i < n {
+            vals = push(vals, X[i][f])
+            i = i + 1
+        }
+        let sorted = sortCopyKab(vals)
+        let t = 0
+        while t < n - 1 {
+            let thr = 0.5 * (sorted[t] + sorted[t + 1])
+            let leftVotes = [0.0, 0.0]
+            let rightVotes = [0.0, 0.0]
+            i = 0
+            while i < n {
+                let lab = floor(y[i])
+                if lab < 0 {
+                    lab = 0
+                }
+                if lab > 1 {
+                    lab = 1
+                }
+                if X[i][f] <= thr {
+                    leftVotes[lab] = leftVotes[lab] + 1.0
+                } else {
+                    rightVotes[lab] = rightVotes[lab] + 1.0
+                }
+                i = i + 1
+            }
+            let left = 0.0
+            if leftVotes[1] > leftVotes[0] {
+                left = 1.0
+            }
+            let right = 0.0
+            if rightVotes[1] > rightVotes[0] {
+                right = 1.0
+            }
+            let err = 0.0
+            i = 0
+            while i < n {
+                let pred = right
+                if X[i][f] <= thr {
+                    pred = left
+                }
+                if pred != y[i] {
+                    err = err + 1.0
+                }
+                i = i + 1
+            }
+            if err < best["err"] {
+                best = { "feature": f, "threshold": thr, "left": left, "right": right, "err": err }
+            }
+            t = t + 1
+        }
+        f = f + 1
+    }
+    return best
+}
+
+pub fn stumpPredictKab(stump, X) {
+    let out = []
+    let i = 0
+    while i < len(X) {
+        let v = X[i][stump["feature"]]
+        if v <= stump["threshold"] {
+            out = push(out, stump["left"])
+        } else {
+            out = push(out, stump["right"])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// k-means lite (forgy init: first k rows). Returns { centroids, labels }.
+pub fn kmeansKab(X, k, maxIter) {
+    if maxIter == null || maxIter == undefined {
+        maxIter = 20
+    }
+    let n = len(X)
+    let d = len(X[0])
+    if k < 1 {
+        k = 1
+    }
+    if k > n {
+        k = n
+    }
+    let centroids = []
+    let c = 0
+    while c < k {
+        let row = []
+        let j = 0
+        while j < d {
+            row = push(row, X[c][j])
+            j = j + 1
+        }
+        centroids = push(centroids, row)
+        c = c + 1
+    }
+    let labels = []
+    let i = 0
+    while i < n {
+        labels = push(labels, 0)
+        i = i + 1
+    }
+    let it = 0
+    while it < maxIter {
+        i = 0
+        while i < n {
+            let best = 0
+            let bestD = 1000000000.0
+            c = 0
+            while c < k {
+                let dist = 0.0
+                let j = 0
+                while j < d {
+                    let diff = X[i][j] - centroids[c][j]
+                    dist = dist + diff * diff
+                    j = j + 1
+                }
+                if dist < bestD {
+                    bestD = dist
+                    best = c
+                }
+                c = c + 1
+            }
+            labels[i] = best
+            i = i + 1
+        }
+        c = 0
+        while c < k {
+            let sum = []
+            let j = 0
+            while j < d {
+                sum = push(sum, 0.0)
+                j = j + 1
+            }
+            let cnt = 0.0
+            i = 0
+            while i < n {
+                if labels[i] == c {
+                    j = 0
+                    while j < d {
+                        sum[j] = sum[j] + X[i][j]
+                        j = j + 1
+                    }
+                    cnt = cnt + 1.0
+                }
+                i = i + 1
+            }
+            if cnt > 0.0 {
+                j = 0
+                while j < d {
+                    centroids[c][j] = sum[j] / cnt
+                    j = j + 1
+                }
+            }
+            c = c + 1
+        }
+        it = it + 1
+    }
+    return { "centroids": centroids, "labels": labels, "k": k }
+}

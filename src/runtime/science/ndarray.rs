@@ -1024,9 +1024,7 @@ fn parse_index_list(v: &Value, name: &str) -> Result<Vec<usize>, String> {
 fn nd_gather(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (shape, data) = nd_at(args, 0, "nd_gather")?;
     let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
-    if is_complex_dtype(&dtype) {
-        return Err("nd_gather: complex64 not supported yet".into());
-    }
+    let w = dtype_width(&dtype);
     let indices = parse_index_list(args.get(1).ok_or("nd_gather(a, indices, axis?)")?, "nd_gather")?;
     let axis = args
         .get(2)
@@ -1049,7 +1047,7 @@ fn nd_gather(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let n_out = shape_product(&out_shape);
     let in_strides = strides_of(&shape);
     let out_strides = strides_of(&out_shape);
-    let mut out = vec![0.0; n_out];
+    let mut out = vec![0.0; n_out.saturating_mul(w)];
     for flat in 0..n_out {
         let mut idx = unravel(flat, &out_shape, &out_strides);
         let gather_pos = idx[axis];
@@ -1058,31 +1056,148 @@ fn nd_gather(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         for d in 0..shape.len() {
             src += idx[d] * in_strides[d];
         }
-        out[flat] = data[src];
+        for t in 0..w {
+            out[flat * w + t] = data[src * w + t];
+        }
     }
     Ok(nd_out_dtype(&out_shape, &out, &dtype))
 }
 
 /// Boolean mask compress → 1D of true positions (NumPy `a[mask]` subset).
+/// Mask length matches logical numel (for complex64: one flag per complex element).
 fn nd_compress(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (shape, data) = nd_at(args, 0, "nd_compress")?;
     let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
-    if is_complex_dtype(&dtype) {
-        return Err("nd_compress: complex64 not supported yet".into());
-    }
+    let w = dtype_width(&dtype);
+    let n = shape_product(&shape);
     let (_mshape, mask) = nd_at(args, 1, "nd_compress")?;
-    if mask.len() != data.len() {
+    if mask.len() != n {
         return Err("nd_compress: mask length must match array size".into());
     }
     let mut out = Vec::new();
-    for i in 0..data.len() {
+    for i in 0..n {
         if mask[i] != 0.0 {
-            out.push(data[i]);
+            for t in 0..w {
+                out.push(data[i * w + t]);
+            }
         }
     }
-    let n = out.len();
+    let n_out = out.len() / w.max(1);
     let _ = shape;
-    Ok(nd_out_dtype(&[n], &out, &dtype))
+    Ok(nd_out_dtype(&[n_out], &out, &dtype))
+}
+
+/// nd_nonzero(a) → integer index array of non-zero (or true) flat positions.
+fn nd_nonzero(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_nonzero")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let n = shape_product(&shape);
+    let mut idx = Vec::new();
+    for i in 0..n {
+        let nonzero = if w == 2 {
+            data[i * 2] != 0.0 || data[i * 2 + 1] != 0.0
+        } else {
+            data[i] != 0.0
+        };
+        if nonzero {
+            idx.push(i as f64);
+        }
+    }
+    let m = idx.len();
+    Ok(nd_out_dtype(&[m], &idx, "i64"))
+}
+
+/// nd_take_along(a, indices, axis?) — gather where `indices` is 1D along `axis`
+/// and other dims are broadcast from `a` (NumPy take_along_axis lite for 1D indices).
+fn nd_take_along(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    // For the subset: indices must be a 1D integer list; same as nd_gather.
+    nd_gather(args, env)
+}
+
+/// nd_fancy_index(a, indexArrays, mode?)
+/// mode: "broadcast" (default) — elementwise with length-1 broadcast;
+///       "outer" — cartesian product of index arrays → multi-dim result.
+fn nd_fancy_index(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_fancy_index")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let index_lists = match args.get(1) {
+        Some(Value::Array(items)) => items,
+        _ => return Err("nd_fancy_index(a, [ix0, ix1, ...], mode?)".into()),
+    };
+    if index_lists.is_empty() {
+        return Err("nd_fancy_index: need at least one index array".into());
+    }
+    if index_lists.len() > shape.len() {
+        return Err("nd_fancy_index: too many index arrays".into());
+    }
+    let mode = match args.get(2) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "broadcast",
+    };
+    let mut parsed: Vec<Vec<usize>> = Vec::with_capacity(index_lists.len());
+    for (axis, ix) in index_lists.iter().enumerate() {
+        let list = parse_index_list(ix, "nd_fancy_index")?;
+        for &i in &list {
+            if i >= shape[axis] {
+                return Err("nd_fancy_index: index OOB".into());
+            }
+        }
+        parsed.push(list);
+    }
+    let in_strides = strides_of(&shape);
+
+    if mode == "outer" {
+        let mut out_shape: Vec<usize> = parsed.iter().map(|l| l.len()).collect();
+        // Keep trailing unindexed dims (full range) as outer product axes.
+        for axis in parsed.len()..shape.len() {
+            out_shape.push(shape[axis]);
+        }
+        let n_out = shape_product(&out_shape);
+        let out_strides = strides_of(&out_shape);
+        let mut out = vec![0.0; n_out.saturating_mul(w)];
+        for flat in 0..n_out {
+            let oidx = unravel(flat, &out_shape, &out_strides);
+            let mut src = 0usize;
+            for (axis, list) in parsed.iter().enumerate() {
+                src += list[oidx[axis]] * in_strides[axis];
+            }
+            for axis in parsed.len()..shape.len() {
+                let local = oidx[axis];
+                src += local * in_strides[axis];
+            }
+            for t2 in 0..w {
+                out[flat * w + t2] = data.get(src * w + t2).copied().unwrap_or(0.0);
+            }
+        }
+        return Ok(nd_out_dtype(&out_shape, &out, &dtype));
+    }
+
+    // broadcast (default): elementwise with length-1 broadcast.
+    let mut out_len = 1usize;
+    for list in &parsed {
+        if list.len() == 1 {
+            continue;
+        }
+        if out_len == 1 {
+            out_len = list.len();
+        } else if list.len() != out_len {
+            return Err("nd_fancy_index: index length mismatch (use mode \"outer\")".into());
+        }
+    }
+    let mut out = vec![0.0; out_len.saturating_mul(w)];
+    for t in 0..out_len {
+        let mut src = 0usize;
+        for (axis, list) in parsed.iter().enumerate() {
+            let j = if list.len() == 1 { list[0] } else { list[t] };
+            src += j * in_strides[axis];
+        }
+        for t2 in 0..w {
+            out[t * w + t2] = data.get(src * w + t2).copied().unwrap_or(0.0);
+        }
+    }
+    Ok(nd_out_dtype(&[out_len], &out, &dtype))
 }
 
 fn nd_is_view(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -2320,6 +2435,9 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_where", "nd_where"], nd_where);
     bind(&["science_nd_gather", "nd_gather"], nd_gather);
     bind(&["science_nd_compress", "nd_compress"], nd_compress);
+    bind(&["science_nd_nonzero", "nd_nonzero"], nd_nonzero);
+    bind(&["science_nd_take_along", "nd_take_along"], nd_take_along);
+    bind(&["science_nd_fancy_index", "nd_fancy_index"], nd_fancy_index);
     bind(&["science_nd_conj", "nd_conj"], nd_conj);
     bind(&["science_nd_slice", "nd_slice"], nd_slice);
     bind(&["science_nd_index_view", "nd_index_view"], nd_index_view);

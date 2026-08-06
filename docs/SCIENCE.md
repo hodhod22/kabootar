@@ -559,9 +559,11 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `job_map_parallel` / `job_map_chunks` | SC4c parallel f64 map + Kab-closure chunks |
 | `NdShared` / `nd_slice` views / `a[1:10, :]` | SC0f zero-copy Rc views (no dangling) |
 | `nd_take` / `Tensor` / `science/lazy` | Buffer ownership move + GC lazy graphs |
-| `nd_gather` / `nd_compress` / `gather` / `compress` | Fancy indexing subset (integer gather + boolean mask → 1D) |
+| `nd_gather` / `nd_compress` / `gather` / `compress` | Fancy indexing (real + complex64); mask = logical numel |
+| `nd_nonzero` / `nd_fancy_index` / `nd_take_along` / `fancyOuter` | Nonzero; broadcast/outer multi-axis fancy |
 | `complex64` / `nd_conj` / `astype(..., "complex64")` | Interleaved `[re,im]` buffer; KND1 tag 6; complex add/mul/sub/div/abs |
-| `sci_allreduce_f64` / `allReduce` / `allReduceMean|Sum|Max` | Threaded in-process AllReduce (`science/dist`) |)
+| `sci_allreduce_f64` / `allReduce*` / `allReduceRanks` / `allReduceStar|Ring` | Threaded + multi-rank + mailbox multi-node sim (`science/dist`) |
+| `science/kab_algo` SC5b | Pure-Kab stats/ML helpers including `pcaKab` / `stumpKab` / `kmeansKab` |)
 
 ## ML / AI (SC2)
 
