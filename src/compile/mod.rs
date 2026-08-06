@@ -98,11 +98,13 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
 }
 
 /// P6: documented policy string for skip-listed leaves (`seed-only`).
+/// Emptying the list is **P6b** — blocked until self-host leaf compile is CI-fast
+/// (`p6_leaf_self_host_compile_budget`). Product path is committed seeds.
 pub fn self_host_skip_policy() -> &'static str {
     "seed-only"
 }
 
-/// P6 gate: max self-host compile time (ms) per leaf before emptying skip-list.
+/// P6 gate: max self-host compile time (ms) per leaf before emptying skip-list (P6b).
 pub const P6_SELF_HOST_LEAF_CI_FAST_MS: u64 = 10_000;
 
 /// True when `path` is a skip-listed self-host leaf (needs Rust compile or `.kbc` cache).

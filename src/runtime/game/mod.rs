@@ -6,6 +6,7 @@ mod hot_reload;
 pub mod image_png;
 mod input;
 mod surface;
+mod xr_ffi;
 
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
@@ -597,14 +598,17 @@ fn xr_reset_runtime() {
     }
 }
 
-/// GP6n — XR host capability probe (OpenXR/WebXR subset).
+/// GP6n — XR host capability probe (OpenXR/WebXR FFI + stub).
 fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let stub = xr_stub_enabled();
-    let webxr = stub && cfg!(target_arch = "wasm32");
-    let openxr = stub && !cfg!(target_arch = "wasm32");
-    let available = stub;
+    let ffi = xr_ffi::probe();
+    let openxr = ffi.openxr_loader || ffi.openxr_runtime || (stub && !cfg!(target_arch = "wasm32"));
+    let webxr = ffi.webxr || (stub && cfg!(target_arch = "wasm32"));
+    let available = stub || ffi.openxr_loader || ffi.openxr_runtime || ffi.webxr || ffi.bound;
     let backend = if stub {
         "xr-stub"
+    } else if !ffi.backend.is_empty() && ffi.backend != "none" {
+        ffi.backend.as_str()
     } else if cfg!(target_arch = "wasm32") {
         "webxr-descriptor"
     } else {
@@ -616,7 +620,46 @@ fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     out.insert("openxr".into(), Value::Bool(openxr));
     out.insert("webxr".into(), Value::Bool(webxr));
     out.insert("runtime".into(), Value::String("kab-xr-runtime".into()));
+    out.insert("ffi".into(), xr_ffi::status_value());
     Ok(Value::Object(out))
+}
+
+fn xr_ffi_probe_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let _ = xr_ffi::probe();
+    Ok(xr_ffi::status_value())
+}
+
+fn xr_bind_headset_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let force_stub = xr_stub_enabled()
+        || matches!(args.first(), Some(Value::Bool(true)))
+        || matches!(
+            args.first().and_then(|v| match v {
+                Value::Object(m) => m.get("stub"),
+                _ => None,
+            }),
+            Some(Value::Bool(true))
+        );
+    match xr_ffi::bind_headset(force_stub) {
+        Ok(st) => {
+            let mut out = HashMap::new();
+            out.insert("ok".into(), Value::Bool(true));
+            out.insert("bound".into(), Value::Bool(st.bound));
+            out.insert("backend".into(), Value::String(st.backend));
+            out.insert("detail".into(), Value::String(st.detail));
+            out.insert("openxrLoader".into(), Value::Bool(st.openxr_loader));
+            out.insert("openxrRuntime".into(), Value::Bool(st.openxr_runtime));
+            out.insert("webxr".into(), Value::Bool(st.webxr));
+            Ok(Value::Object(out))
+        }
+        Err(e) => {
+            let mut out = HashMap::new();
+            out.insert("ok".into(), Value::Bool(false));
+            out.insert("bound".into(), Value::Bool(false));
+            out.insert("error".into(), Value::String(e));
+            out.insert("ffi".into(), xr_ffi::status_value());
+            Ok(Value::Object(out))
+        }
+    }
 }
 
 fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -963,6 +1006,8 @@ pub fn game_globals(env: &mut Environment) {
         ("net_http_session_serve_once", net_http_session_serve_once_native),
         ("xr_host_info", xr_host_info_native),
         ("xr_host_present", xr_host_present_native),
+        ("xr_ffi_probe", xr_ffi_probe_native),
+        ("xr_bind_headset", xr_bind_headset_native),
         ("xr_create_swapchain", xr_create_swapchain_native),
         ("xr_wait_frame", xr_wait_frame_native),
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
@@ -998,4 +1043,5 @@ pub fn reset_all() {
         q.clear();
     }
     xr_reset_runtime();
+    xr_ffi::reset_for_tests();
 }

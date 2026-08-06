@@ -3,22 +3,19 @@
 Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 **without a live Rust compile** (fingerprint must match source).
 
-## Policy (do not empty the skip-list yet)
+## Policy (P6 product path — do not empty yet)
 
-Leaves stay skip-listed under **seed-only** policy. Emptying
-`SELF_HOST_SKIP_LISTED_LEAVES` waits until self-host compile of these shards is
-CI-fast. See `self_host_skip_policy()` in `src/compile/mod.rs`.
+**P6 ✅** = seed-only is the product path for the five leaves.
+**P6b 📋** = empty `SELF_HOST_SKIP_LISTED_LEAVES` only when every leaf
+self-host-compiles under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Today even
+~13KB leaves take minutes (AST-cost); see `self_host/emit.kab` comments.
 
 Gates:
 
 - `p6_seed_only_all_leaves_have_seeds` — files exist, list length stays 5
 - `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
-
-**Do not empty** `SELF_HOST_SKIP_LISTED_LEAVES` until every leaf self-host-compiles in
-`P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Gates:
-`p6_skip_list_stays_until_ci_fast_gate` (always),
-`p6_leaf_self_host_compile_budget` (ignored timing probe — run with `--ignored`).
-Emit/parser shards are still >64KB and CI-slow — seeds remain required.
+- `p6_skip_list_stays_until_ci_fast_gate` — oversize emit stays skipped
+- `p6_leaf_self_host_compile_budget` (ignored) — timing probe for P6b
 
 ## Seeds
 
