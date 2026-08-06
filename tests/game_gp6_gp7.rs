@@ -403,3 +403,27 @@ fn xr_compositor_ipc_and_request_session() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_compositor_process_and_immersive_loop() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let batch = xrRunImmersiveFrames(xr, 3, 1280, 720, "immersive-vr")
+        let f0 = batch["frames"][0]
+        let f2 = batch["frames"][2]
+        let proc = batch["compositor"]
+        let stop = xrStopImmersiveLoop(batch["session"])
+        return batch["ok"] == true && batch["frameCount"] == 3 && f0["acked"] == true && f0["presented"] == true && f0["drained"] == true && f2["acked"] == true && proc["framesComposed"] == 3 && proc["name"] == "kab-compositor-stub" && stop["compositor"]["running"] == false
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

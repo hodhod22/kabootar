@@ -92,6 +92,9 @@ pub fn reset_for_tests() {
     if let Ok(mut c) = COMPOSITOR_IPC.lock() {
         *c = CompositorIpc::default();
     }
+    if let Ok(mut p) = COMPOSITOR_PROC.lock() {
+        *p = CompositorProcess::default();
+    }
 }
 
 pub fn status() -> XrFfiStatus {
@@ -599,4 +602,135 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
         "xr_request_session({mode}): no WebXR/OpenXR runtime (set KABOOTAR_XR_STUB=1)"
     ))
 }
+
+/// Vendor OpenXR compositor process (in-process worker that drains IPC).
+#[derive(Debug, Default)]
+struct CompositorProcess {
+    running: bool,
+    pid: i64,
+    ticks: i64,
+    frames_composed: i64,
+    name: String,
+}
+
+static COMPOSITOR_PROC: Mutex<CompositorProcess> = Mutex::new(CompositorProcess {
+    running: false,
+    pid: 0,
+    ticks: 0,
+    frames_composed: 0,
+    name: String::new(),
+});
+
+/// Spawn vendor compositor process (stub or openxr-named worker).
+pub fn compositor_process_spawn() -> Result<Value, String> {
+    let st = status();
+    let stub = stub_enabled();
+    if !st.bound && !stub {
+        return Err("xr_compositor_process_spawn: headset not bound".into());
+    }
+    // Ensure IPC channel exists.
+    let _ = compositor_open()?;
+    let name = if stub || st.backend == "xr-stub" {
+        "kab-compositor-stub".to_string()
+    } else if st.openxr_runtime || st.openxr_loader {
+        "openxr-compositor".to_string()
+    } else if st.webxr {
+        "webxr-compositor".to_string()
+    } else {
+        "descriptor-compositor".to_string()
+    };
+    let mut proc = COMPOSITOR_PROC
+        .lock()
+        .map_err(|_| "compositor process lock poisoned".to_string())?;
+    proc.running = true;
+    proc.pid = 9000 + (std::process::id() as i64 % 1000);
+    proc.ticks = 0;
+    proc.frames_composed = 0;
+    proc.name = name.clone();
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("running".into(), Value::Bool(true));
+    out.insert("pid".into(), Value::Number(proc.pid));
+    out.insert("name".into(), Value::String(name));
+    out.insert("kind".into(), Value::String("xr_compositor_process".into()));
+    Ok(Value::Object(out))
+}
+
+/// Tick compositor process — drain one IPC frame (vendor worker).
+pub fn compositor_process_tick() -> Result<Value, String> {
+    let mut proc = COMPOSITOR_PROC
+        .lock()
+        .map_err(|_| "compositor process lock poisoned".to_string())?;
+    if !proc.running {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("running".into(), Value::Bool(false));
+        out.insert("drained".into(), Value::Bool(false));
+        return Ok(Value::Object(out));
+    }
+    proc.ticks += 1;
+    drop(proc);
+    let ack = compositor_poll()?;
+    let drained = matches!(
+        &ack,
+        Value::Object(m) if matches!(m.get("acked"), Some(Value::Bool(true)))
+    );
+    if drained {
+        if let Ok(mut proc) = COMPOSITOR_PROC.lock() {
+            proc.frames_composed += 1;
+        }
+    }
+    let proc = COMPOSITOR_PROC
+        .lock()
+        .map_err(|_| "compositor process lock poisoned".to_string())?;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("running".into(), Value::Bool(true));
+    out.insert("drained".into(), Value::Bool(drained));
+    out.insert("ticks".into(), Value::Number(proc.ticks));
+    out.insert("framesComposed".into(), Value::Number(proc.frames_composed));
+    out.insert("pid".into(), Value::Number(proc.pid));
+    out.insert("name".into(), Value::String(proc.name.clone()));
+    out.insert("ack".into(), ack);
+    out.insert("kind".into(), Value::String("xr_compositor_tick".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn compositor_process_stop() -> Result<Value, String> {
+    let mut proc = COMPOSITOR_PROC
+        .lock()
+        .map_err(|_| "compositor process lock poisoned".to_string())?;
+    let frames = proc.frames_composed;
+    let ticks = proc.ticks;
+    let pid = proc.pid;
+    proc.running = false;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("running".into(), Value::Bool(false));
+    out.insert("pid".into(), Value::Number(pid));
+    out.insert("framesComposed".into(), Value::Number(frames));
+    out.insert("ticks".into(), Value::Number(ticks));
+    out.insert("kind".into(), Value::String("xr_compositor_process".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn compositor_process_status() -> Value {
+    let proc = COMPOSITOR_PROC.lock().ok();
+    let mut out = HashMap::new();
+    match proc {
+        Some(p) => {
+            out.insert("running".into(), Value::Bool(p.running));
+            out.insert("pid".into(), Value::Number(p.pid));
+            out.insert("ticks".into(), Value::Number(p.ticks));
+            out.insert("framesComposed".into(), Value::Number(p.frames_composed));
+            out.insert("name".into(), Value::String(p.name.clone()));
+        }
+        None => {
+            out.insert("running".into(), Value::Bool(false));
+        }
+    }
+    out.insert("kind".into(), Value::String("xr_compositor_process".into()));
+    Value::Object(out)
+}
+
 
