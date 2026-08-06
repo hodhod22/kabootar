@@ -19,12 +19,29 @@ pub fn transpose(a) {
     return mat_transpose(a)
 }
 
-pub fn qr(a) {
-    return mat_qr(a)
+/// Thin (default) or full QR. mode: "thin" | "full".
+pub fn qr(a, mode) {
+    if mode == null || mode == undefined {
+        return mat_qr(a)
+    }
+    return mat_qr(a, mode)
 }
 
-pub fn svd(a) {
-    return mat_svd(a)
+/// Reconstruction residual max |A - QR|.
+pub fn qrErr(a) {
+    return mat_qr_err(a)
+}
+
+/// Thin (default) or full SVD. mode: "thin" | "full".
+pub fn svd(a, mode) {
+    if mode == null || mode == undefined {
+        return mat_svd(a)
+    }
+    return mat_svd(a, mode)
+}
+
+pub fn pinv(a) {
+    return mat_pinv(a)
 }
 
 pub fn cholesky(a) {

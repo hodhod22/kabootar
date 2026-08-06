@@ -85,6 +85,98 @@ fn num_ifft(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(vector_out(&re))
 }
 
+/// Complex FFT: interleaved [re,im,…] → same length interleaved spectrum.
+fn num_fft_c(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let interleaved = vector_at(args, 0, "num_fft_c")?;
+    if interleaved.len() % 2 != 0 {
+        return Err("num_fft_c: expected interleaved complex".into());
+    }
+    let n = interleaved.len() / 2;
+    let mut re = Vec::with_capacity(n);
+    let mut im = Vec::with_capacity(n);
+    for i in 0..n {
+        re.push(interleaved[2 * i]);
+        im.push(interleaved[2 * i + 1]);
+    }
+    fft_radix2(&mut re, &mut im)?;
+    let mut out = Vec::with_capacity(n * 2);
+    for i in 0..n {
+        out.push(re[i]);
+        out.push(im[i]);
+    }
+    Ok(vector_out(&out))
+}
+
+/// Real FFT: returns n/2+1 complex bins (interleaved), input padded to power-of-two.
+fn num_rfft(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_rfft")?;
+    if x.is_empty() {
+        return Err("num_rfft: empty".into());
+    }
+    let n = next_pow2(x.len());
+    let mut re = vec![0.0; n];
+    let mut im = vec![0.0; n];
+    for (i, v) in x.iter().enumerate() {
+        re[i] = *v;
+    }
+    fft_radix2(&mut re, &mut im)?;
+    let bins = n / 2 + 1;
+    let mut out = Vec::with_capacity(bins * 2);
+    for i in 0..bins {
+        out.push(re[i]);
+        out.push(im[i]);
+    }
+    Ok(vector_out(&out))
+}
+
+/// Inverse real FFT: spectrum of n/2+1 bins → real signal of length n (= (bins-1)*2).
+fn num_irfft(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let half = vector_at(args, 0, "num_irfft")?;
+    if half.len() < 2 || half.len() % 2 != 0 {
+        return Err("num_irfft: expected interleaved Hermitian spectrum".into());
+    }
+    let bins = half.len() / 2;
+    if bins < 2 {
+        return Err("num_irfft: need at least 2 bins".into());
+    }
+    let n = (bins - 1) * 2;
+    if n == 0 || (n & (n - 1)) != 0 {
+        return Err("num_irfft: inferred length must be power of two".into());
+    }
+    let mut re = vec![0.0; n];
+    let mut im = vec![0.0; n];
+    for i in 0..bins {
+        re[i] = half[2 * i];
+        im[i] = half[2 * i + 1];
+    }
+    for i in 1..bins.saturating_sub(1) {
+        let j = n - i;
+        re[j] = re[i];
+        im[j] = -im[i];
+    }
+    // IFFT via conjugate + FFT + conjugate/scale
+    for v in &mut im {
+        *v = -*v;
+    }
+    fft_radix2(&mut re, &mut im)?;
+    let scale = 1.0 / n as f64;
+    for v in &mut re {
+        *v *= scale;
+    }
+    Ok(vector_out(&re))
+}
+
+/// Pad real vector to next power of two, then FFT (interleaved full spectrum).
+fn num_fft_pad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_fft_pad")?;
+    let n = next_pow2(x.len().max(1));
+    let mut padded = vec![0.0; n];
+    for (i, v) in x.iter().enumerate() {
+        padded[i] = *v;
+    }
+    num_fft(&[vector_out(&padded)], env)
+}
+
 fn num_conv1d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_conv1d")?;
     let kernel = vector_at(args, 1, "num_conv1d")?;
@@ -353,6 +445,10 @@ fn num_biquad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_num_fft", "num_fft"], num_fft);
     bind(&["science_num_ifft", "num_ifft"], num_ifft);
+    bind(&["science_num_fft_c", "num_fft_c"], num_fft_c);
+    bind(&["science_num_rfft", "num_rfft"], num_rfft);
+    bind(&["science_num_irfft", "num_irfft"], num_irfft);
+    bind(&["science_num_fft_pad", "num_fft_pad"], num_fft_pad);
     bind(&["science_num_conv1d", "num_conv1d"], num_conv1d);
     bind(&["science_mat_svd2", "mat_svd2"], mat_svd2);
     bind(&["science_num_window_hann", "num_window_hann"], num_window_hann);

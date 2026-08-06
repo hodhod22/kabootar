@@ -98,11 +98,92 @@ fn qr_mgs(a: &[Vec<f64>]) -> Result<(Vec<Vec<f64>>, Vec<Vec<f64>>), String> {
 fn mat_qr(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (m, n, data) = matrix_dims(args, 0, "mat_qr")?;
     let a = mat_from_flat(m, n, &data);
-    let (q, r) = qr_mgs(&a)?;
+    let mode = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "thin",
+    };
+    let (mut q, r) = qr_mgs(&a)?;
+    // "full": pad Q to m×m with orthonormal complement (Householder-lite via residual Gram-Schmidt).
+    if mode == "full" && m > n.min(m) {
+        let k = n.min(m);
+        let mut q_full = vec![vec![0.0; m]; m];
+        for i in 0..m {
+            for j in 0..k {
+                q_full[i][j] = q[i][j];
+            }
+        }
+        let mut col = k;
+        let mut basis = 0usize;
+        while col < m && basis < m * 4 {
+            let mut v = vec![0.0; m];
+            v[basis % m] = 1.0;
+            basis += 1;
+            for j in 0..col {
+                let mut dot = 0.0;
+                for i in 0..m {
+                    dot += q_full[i][j] * v[i];
+                }
+                for i in 0..m {
+                    v[i] -= dot * q_full[i][j];
+                }
+            }
+            let mut norm = 0.0;
+            for i in 0..m {
+                norm += v[i] * v[i];
+            }
+            norm = norm.sqrt();
+            if norm < 1e-10 {
+                continue;
+            }
+            for i in 0..m {
+                q_full[i][col] = v[i] / norm;
+            }
+            col += 1;
+        }
+        q = q_full;
+        let mut r_full = vec![vec![0.0; n]; m];
+        for i in 0..r.len() {
+            for j in 0..n {
+                r_full[i][j] = r[i][j];
+            }
+        }
+        let mut out = HashMap::new();
+        out.insert("q".into(), matrix_out(&q));
+        out.insert("r".into(), matrix_out(&r_full));
+        out.insert("mode".into(), Value::String("full".into()));
+        return Ok(Value::Object(out));
+    }
     let mut out = HashMap::new();
     out.insert("q".into(), matrix_out(&q));
     out.insert("r".into(), matrix_out(&r));
+    out.insert("mode".into(), Value::String("thin".into()));
     Ok(Value::Object(out))
+}
+
+/// mat_qr_err(a) → max |A − Q R| for thin QR.
+fn mat_qr_err(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let (m, n, data) = matrix_dims(args, 0, "mat_qr_err")?;
+    let a = mat_from_flat(m, n, &data);
+    let qr = mat_qr(&[args[0].clone()], env)?;
+    let Value::Object(map) = qr else {
+        return Err("mat_qr_err: internal".into());
+    };
+    let q = match map.get("q") {
+        Some(v) => matrix_at(&[v.clone()], 0, "mat_qr_err")?,
+        _ => return Err("mat_qr_err: missing q".into()),
+    };
+    let r = match map.get("r") {
+        Some(v) => matrix_at(&[v.clone()], 0, "mat_qr_err")?,
+        _ => return Err("mat_qr_err: missing r".into()),
+    };
+    let qr_mat = matmul_nn(&q, &r)?;
+    let mut err = 0.0_f64;
+    for i in 0..m {
+        for j in 0..n {
+            err = err.max((a[i][j] - qr_mat[i][j]).abs());
+        }
+    }
+    Ok(float_out(err))
 }
 
 fn mat_cholesky(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -262,9 +343,14 @@ fn transpose(a: &[Vec<f64>]) -> Vec<Vec<f64>> {
     t
 }
 
-/// SVD via AᵀA eig (compact). Returns {u, s, vt}.
+/// SVD via AᵀA eig (compact). Returns {u, s, vt, mode}.
+/// mode: "thin" (default) or "full" (pad U to m×m).
 fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (m, n, data) = matrix_dims(args, 0, "mat_svd")?;
+    let mode = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "thin",
+    };
     let a = mat_from_flat(m, n, &data);
     let at = transpose(&a);
     let ata = matmul_nn(&at, &a)?;
@@ -274,8 +360,8 @@ fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         s.push(e.max(0.0).sqrt());
     }
     // U = A V S^{+}
-    let mut u = vec![vec![0.0; n.min(m)]; m];
     let k = n.min(m);
+    let mut u = vec![vec![0.0; k]; m];
     for j in 0..k {
         if s[j] < 1e-12 {
             continue;
@@ -288,12 +374,106 @@ fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             u[i][j] = sum / s[j];
         }
     }
+    if mode == "full" && m > k {
+        let mut u_full = vec![vec![0.0; m]; m];
+        for i in 0..m {
+            for j in 0..k {
+                u_full[i][j] = u[i][j];
+            }
+        }
+        let mut col = k;
+        let mut basis = 0usize;
+        while col < m && basis < m * 4 {
+            let mut vecv = vec![0.0; m];
+            vecv[basis % m] = 1.0;
+            basis += 1;
+            for j in 0..col {
+                let mut dot = 0.0;
+                for i in 0..m {
+                    dot += u_full[i][j] * vecv[i];
+                }
+                for i in 0..m {
+                    vecv[i] -= dot * u_full[i][j];
+                }
+            }
+            let mut norm = 0.0;
+            for i in 0..m {
+                norm += vecv[i] * vecv[i];
+            }
+            norm = norm.sqrt();
+            if norm < 1e-10 {
+                continue;
+            }
+            for i in 0..m {
+                u_full[i][col] = vecv[i] / norm;
+            }
+            col += 1;
+        }
+        u = u_full;
+    }
     let vt = transpose(&v);
     let mut out = HashMap::new();
     out.insert("u".into(), matrix_out(&u));
     out.insert("s".into(), vector_out(&s));
     out.insert("vt".into(), matrix_out(&vt));
+    out.insert(
+        "mode".into(),
+        Value::String(if mode == "full" {
+            "full".into()
+        } else {
+            "thin".into()
+        }),
+    );
     Ok(Value::Object(out))
+}
+
+/// Moore–Penrose pseudoinverse via thin SVD.
+fn mat_pinv(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let (m, n, _) = matrix_dims(args, 0, "mat_pinv")?;
+    let svd = mat_svd(args, env)?;
+    let Value::Object(map) = svd else {
+        return Err("mat_pinv: internal".into());
+    };
+    let u = match map.get("u") {
+        Some(v) => matrix_at(&[v.clone()], 0, "mat_pinv")?,
+        _ => return Err("mat_pinv: missing u".into()),
+    };
+    let s = match map.get("s") {
+        Some(v) => vector_at(&[v.clone()], 0, "mat_pinv")?,
+        _ => return Err("mat_pinv: missing s".into()),
+    };
+    let vt = match map.get("vt") {
+        Some(v) => matrix_at(&[v.clone()], 0, "mat_pinv")?,
+        _ => return Err("mat_pinv: missing vt".into()),
+    };
+    let k = s.len().min(u.first().map(|r| r.len()).unwrap_or(0)).min(vt.len());
+    // A+ = V S+ U^T  (vt is V^T → V = vt^T)
+    let mut sp = vec![0.0; k];
+    for i in 0..k {
+        if s[i] > 1e-12 {
+            sp[i] = 1.0 / s[i];
+        }
+    }
+    // tmp = S⁺ Uᵀ → k×m
+    let mut tmp = vec![vec![0.0; m]; k];
+    for i in 0..k {
+        for j in 0..m {
+            tmp[i][j] = sp[i] * u[j][i];
+        }
+    }
+    // pinv = V * tmp → n×m
+    let v = transpose(&vt);
+    let mut pinv = vec![vec![0.0; m]; n];
+    for i in 0..n {
+        for j in 0..m {
+            let mut sum = 0.0;
+            for t in 0..k {
+                sum += v[i][t] * tmp[t][j];
+            }
+            pinv[i][j] = sum;
+        }
+    }
+    Ok(matrix_out(&pinv))
 }
 
 fn mat_lstsq(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -371,7 +551,9 @@ fn mat_cond(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_mat_qr", "mat_qr"], mat_qr);
+    bind(&["science_mat_qr_err", "mat_qr_err"], mat_qr_err);
     bind(&["science_mat_svd", "mat_svd"], mat_svd);
+    bind(&["science_mat_pinv", "mat_pinv"], mat_pinv);
     bind(&["science_mat_cholesky", "mat_cholesky"], mat_cholesky);
     bind(&["science_mat_eig", "mat_eig"], mat_eig);
     bind(&["science_mat_lstsq", "mat_lstsq"], mat_lstsq);

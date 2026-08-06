@@ -527,15 +527,16 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_dot` / `nd_matmul` / `nd_solve` | Linalg |
 | `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
 | `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
+| `nd_broadcast_to` / `nd_broadcast_shapes` / `broadcastTo` | Explicit expand + shape algebra |
 | `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
-| `mat_qr` / `mat_svd` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e) |
+| `mat_qr` / `mat_qr_err` / `mat_svd` / `mat_pinv` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e+): thin/full QR·SVD, recon residual, pinv |
 | `num_rk4` / `num_odeint` / `num_odeint_adaptive` / `num_quad` | ODE + adaptive + quadrature |
-| `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/no_grad) | Autograd tape |
+| `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/add/mul/sub/div/sum/exp/no_grad) | Autograd tape (SC2g) |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
 | `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
-| `num_fft` / `num_ifft` / `num_conv1d` / `mat_svd2` | Signal + SVD2 |
+| `num_fft` / `num_ifft` / `num_fft_c` / `num_rfft` / `num_irfft` / `num_fft_pad` / `num_conv1d` / `mat_svd2` | Signal + SVD2 + real/complex FFT |
 | `csv_*` / `ascii_plot` / `plot_line` / `plot_scatter` / `plot_hist` / `pretty` | Data + viz |
 | `ml_pca` / `ml_kmeans` / `ml_logreg_fit` / `ml_logreg_predict` | Klassisk ML |
 | `num_root` / `num_minimize` / `num_least_squares` | Optimize |

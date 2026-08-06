@@ -34,8 +34,24 @@ pub fn add(a, b) {
     return ag_add(a, b)
 }
 
+pub fn sub(a, b) {
+    return ag_sub(a, b)
+}
+
 pub fn mul(a, b) {
     return ag_mul(a, b)
+}
+
+pub fn div(a, b) {
+    return ag_div(a, b)
+}
+
+pub fn sum(t) {
+    return ag_sum(t)
+}
+
+pub fn exp(t) {
+    return ag_exp(t)
 }
 
 pub fn mse(pred, target) {

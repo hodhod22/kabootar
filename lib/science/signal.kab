@@ -1,5 +1,29 @@
 @version "1.0.0"
 
+pub fn fft(x) {
+    return num_fft(x)
+}
+
+pub fn ifft(x) {
+    return num_ifft(x)
+}
+
+pub fn fftC(x) {
+    return num_fft_c(x)
+}
+
+pub fn rfft(x) {
+    return num_rfft(x)
+}
+
+pub fn irfft(x) {
+    return num_irfft(x)
+}
+
+pub fn fftPad(x) {
+    return num_fft_pad(x)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

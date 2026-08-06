@@ -120,6 +120,16 @@ pub fn fancyOuter(a, indexArrays) {
     return nd_fancy_index(a, indexArrays, "outer")
 }
 
+/// Broadcast two shapes → result shape.
+pub fn broadcastShapes(a, b) {
+    return nd_broadcast_shapes(a, b)
+}
+
+/// Expand ndarray to target shape (NumPy broadcast_to).
+pub fn broadcastTo(a, shape) {
+    return nd_broadcast_to(a, shape)
+}
+
 /// Complex conjugate (no-op for real dtypes).
 pub fn conj(a) {
     return nd_conj(a)
