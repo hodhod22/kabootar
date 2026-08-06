@@ -1,0 +1,39 @@
+@version "1.0.0"
+
+// Architecture CAD pillar (MIT). Commercial kit: rasmesakht.
+// import "cad/arch"
+
+pub fn createBuilding(name) {
+    if name == null || name == undefined { name = "building" }
+    return { "kind": "Building", "name": name, "rooms": [], "walls": [] }
+}
+
+pub fn archAddRoom(b, id, w, d) {
+    if w == null || w == undefined { w = 4.0 }
+    if d == null || d == undefined { d = 3.0 }
+    b["rooms"] = push(b["rooms"], { "kind": "Room", "id": id, "w": w, "d": d })
+    return b
+}
+
+pub fn archAddWall(b, id, ax, ay, bx, by) {
+    b["walls"] = push(b["walls"], {
+        "kind": "Wall",
+        "id": id,
+        "ax": ax, "ay": ay, "bx": bx, "by": by
+    })
+    return b
+}
+
+pub fn archRoomArea(room) {
+    return room["w"] * room["d"]
+}
+
+pub fn archFloorArea(building) {
+    let sum = 0.0
+    let i = 0
+    while i < len(building["rooms"]) {
+        sum = sum + archRoomArea(building["rooms"][i])
+        i = i + 1
+    }
+    return sum
+}

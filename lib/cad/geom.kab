@@ -1,0 +1,23 @@
+@version "1.0.0"
+
+// Shared CAD geometry (MIT). import "cad/geom"
+
+pub fn cadVec2(x, y) {
+    if x == null || x == undefined { x = 0.0 }
+    if y == null || y == undefined { y = 0.0 }
+    return { "x": x, "y": y }
+}
+
+pub fn cadDist2(ax, ay, bx, by) {
+    let dx = bx - ax
+    let dy = by - ay
+    return dx * dx + dy * dy
+}
+
+pub fn cadSegment(ax, ay, bx, by) {
+    return { "kind": "Segment", "ax": ax, "ay": ay, "bx": bx, "by": by }
+}
+
+pub fn cadBBox(minx, miny, maxx, maxy) {
+    return { "kind": "BBox", "minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy }
+}

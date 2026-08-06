@@ -1,0 +1,41 @@
+@version "1.0.0"
+
+// Path router for web apps. import "web/router"
+
+pub fn webNavigate(app, path) {
+    if path == null || path == undefined { path = "/home" }
+    app["current"] = path
+    return app
+}
+
+pub fn webMatchRoute(app, path) {
+    if path == null || path == undefined { path = app["current"] }
+    let i = 0
+    while i < len(app["routes"]) {
+        let p = app["routes"][i]
+        if p["path"] == path {
+            return p
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn webRenderRoute(app, path) {
+    let page = webMatchRoute(app, path)
+    if page == null {
+        return { "ok": false, "status": 404, "title": "", "body": "Not Found" }
+    }
+    return {
+        "ok": true,
+        "status": 200,
+        "path": page["path"],
+        "title": page["title"],
+        "body": page["body"]
+    }
+}
+
+pub fn webLink(path, label) {
+    if label == null || label == undefined { label = path }
+    return { "kind": "WebLink", "href": path, "label": label }
+}

@@ -1,0 +1,51 @@
+@version "1.0.0"
+
+// Editable text blocks for documents. import "doc/block"
+
+pub fn docAddTextBlock(doc, pageIndex, text) {
+    if text == null || text == undefined { text = "" }
+    let pages = doc["pages"]
+    let page = pages[pageIndex]
+    let block = {
+        "kind": "text",
+        "id": len(page["blocks"]) + 1,
+        "text": text
+    }
+    page["blocks"] = push(page["blocks"], block)
+    pages[pageIndex] = page
+    doc["pages"] = pages
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docEditTextBlock(doc, pageIndex, blockIndex, text) {
+    let pages = doc["pages"]
+    let page = pages[pageIndex]
+    let blocks = page["blocks"]
+    let b = blocks[blockIndex]
+    b["text"] = text
+    blocks[blockIndex] = b
+    page["blocks"] = blocks
+    pages[pageIndex] = page
+    doc["pages"] = pages
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docReadPageText(doc, pageIndex) {
+    let page = doc["pages"][pageIndex]
+    let out = ""
+    let i = 0
+    while i < len(page["blocks"]) {
+        let b = page["blocks"][i]
+        if b["kind"] == "text" {
+            if out == "" {
+                out = b["text"]
+            } else {
+                out = out + "\n" + b["text"]
+            }
+        }
+        i = i + 1
+    }
+    return out
+}

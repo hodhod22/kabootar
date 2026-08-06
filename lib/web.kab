@@ -1,0 +1,6 @@
+@version "1.0.0"
+
+// Web/app motor pillar (MIT) - foundation for peyvand (Next-like).
+// import "web"
+pub import "web/app"
+pub import "web/router"

@@ -1,0 +1,50 @@
+@version "1.0.0"
+
+// Aerodynamics CAD pillar (MIT). Commercial kit: rasmejaryan.
+// import "cad/aero"
+
+pub fn createAeroModel(name) {
+    if name == null || name == undefined { name = "aero" }
+    return {
+        "kind": "AeroModel",
+        "name": name,
+        "surfaces": [],
+        "flow": { "rho": 1.225, "v": 50.0, "alphaDeg": 0.0 }
+    }
+}
+
+pub fn aeroAddAirfoil(model, id, chord, area) {
+    if chord == null || chord == undefined { chord = 1.0 }
+    if area == null || area == undefined { area = 1.0 }
+    let s = {
+        "kind": "airfoil",
+        "id": id,
+        "chord": chord,
+        "area": area,
+        "cl0": 0.3,
+        "cla": 0.1
+    }
+    model["surfaces"] = push(model["surfaces"], s)
+    return model
+}
+
+pub fn aeroSetFlow(model, v, alphaDeg, rho) {
+    if v == null || v == undefined { v = 50.0 }
+    if alphaDeg == null || alphaDeg == undefined { alphaDeg = 0.0 }
+    if rho == null || rho == undefined { rho = 1.225 }
+    model["flow"] = { "rho": rho, "v": v, "alphaDeg": alphaDeg }
+    return model
+}
+
+pub fn aeroEstimateCl(surface, alphaDeg) {
+    if alphaDeg == null || alphaDeg == undefined { alphaDeg = 0.0 }
+    return surface["cl0"] + surface["cla"] * alphaDeg
+}
+
+pub fn aeroEstimateLift(model, surfaceIndex) {
+    let s = model["surfaces"][surfaceIndex]
+    let flow = model["flow"]
+    let cl = aeroEstimateCl(s, flow["alphaDeg"])
+    let q = 0.5 * flow["rho"] * flow["v"] * flow["v"]
+    return q * s["area"] * cl
+}

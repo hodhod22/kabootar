@@ -1,0 +1,54 @@
+@version "1.0.0"
+
+// Next-like web app model (MIT). Commercial kit: peyvand.
+// import "web/app"
+
+pub fn createWebApp(name) {
+    if name == null || name == undefined { name = "app" }
+    return {
+        "kind": "WebApp",
+        "name": name,
+        "routes": [],
+        "current": "/home"
+    }
+}
+
+pub fn webAddRoute(app, path, title) {
+    if path == null || path == undefined { path = "/home" }
+    if title == null || title == undefined { title = path }
+    let page = {
+        "kind": "WebPage",
+        "path": path,
+        "title": title,
+        "body": ""
+    }
+    app["routes"] = push(app["routes"], page)
+    return app
+}
+
+pub fn webSetRouteBody(app, path, body) {
+    if body == null || body == undefined { body = "" }
+    let next = []
+    let i = 0
+    while i < len(app["routes"]) {
+        let p = app["routes"][i]
+        if p["path"] == path {
+            next = push(next, {
+                "kind": "WebPage",
+                "path": p["path"],
+                "title": p["title"],
+                "body": body
+            })
+        } else {
+            next = push(next, {
+                "kind": "WebPage",
+                "path": p["path"],
+                "title": p["title"],
+                "body": p["body"]
+            })
+        }
+        i = i + 1
+    }
+    app["routes"] = next
+    return app
+}

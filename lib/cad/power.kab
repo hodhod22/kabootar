@@ -1,0 +1,62 @@
+@version "1.0.0"
+
+// Electrical installation CAD pillar (MIT). Commercial kit: rasmebargh.
+// import "cad/power"
+
+pub fn createInstall(name) {
+    if name == null || name == undefined { name = "install" }
+    return {
+        "kind": "ElInstall",
+        "name": name,
+        "circuits": [],
+        "devices": []
+    }
+}
+
+pub fn powerAddCircuit(inst, id, amps) {
+    if amps == null || amps == undefined { amps = 16.0 }
+    inst["circuits"] = push(inst["circuits"], {
+        "id": id, "amps": amps, "volts": 230.0
+    })
+    return inst
+}
+
+pub fn powerAddDevice(inst, id, circuitId, watts) {
+    if watts == null || watts == undefined { watts = 100.0 }
+    inst["devices"] = push(inst["devices"], {
+        "id": id, "circuitId": circuitId, "watts": watts
+    })
+    return inst
+}
+
+pub fn powerCircuitLoadWatts(inst, circuitId) {
+    let sum = 0.0
+    let i = 0
+    while i < len(inst["devices"]) {
+        let d = inst["devices"][i]
+        if d["circuitId"] == circuitId {
+            sum = sum + d["watts"]
+        }
+        i = i + 1
+    }
+    return sum
+}
+
+pub fn powerEstimateCurrent(watts, volts) {
+    if volts == null || volts == undefined || volts == 0.0 { volts = 230.0 }
+    return watts / volts
+}
+
+pub fn powerCircuitOk(inst, circuitId) {
+    let i = 0
+    let rating = 16.0
+    while i < len(inst["circuits"]) {
+        let c = inst["circuits"][i]
+        if c["id"] == circuitId {
+            rating = c["amps"]
+        }
+        i = i + 1
+    }
+    let amps = powerEstimateCurrent(powerCircuitLoadWatts(inst, circuitId), 230.0)
+    return amps <= rating
+}

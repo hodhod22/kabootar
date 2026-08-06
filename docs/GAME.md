@@ -110,8 +110,10 @@ kabootar mod init game3d  # 3D mesh + shaders/solid.wgsl
 
 | Lager | Repo | Exempel |
 |-------|------|---------|
-| Motor (MIT) | `nova-interpreter` / Kabootar | `game/ecs`, `game/physics`, `game/xr` |
+| Motor (MIT) | `nova-interpreter` / Kabootar | `game/*`, `doc/*`, `web/*`, `cad/*` |
 | Gameplay (Bazi-licens) | `bazi` | `bazi/core/health`, `bazi/go`, `bazi/ai` |
+
+Övriga kommersiella kit och deras motorpelare: [FRAMEWORK_PILLARS.md](FRAMEWORK_PILLARS.md).
 
 ```bash
 export KABOOTAR_PATH="/path/to/bazi/lib"
