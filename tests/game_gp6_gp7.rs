@@ -568,3 +568,46 @@ fn xr_vulkan_d3d11_swapchain_and_promise_then() {
     std::env::remove_var("KABOOTAR_XR_GRAPHICS");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_wgpu_swapchain_images_and_promise_then_reject() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_WGPU", "1");
+    std::env::set_var("KABOOTAR_XR_GRAPHICS", "vulkan");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let hit = { "ok": false }
+        let p = xrSessionThen(xr, "immersive-vr", (out) => {
+            hit["ok"] = out["then"] == true
+            hit["session"] = out["session"]
+            return out
+        })
+        xr = hit["session"]
+        xr = xrBegin(xr)
+        xr = createStereoSwapchains(xr, 1280, 720)
+        let live = xrLiveSessionStatus()
+        let frame = xr_wait_frame()
+        let left = xr["swapchains"][0]
+        let img = xr_acquire_swapchain_image(left)
+        xr_release_swapchain_image(img)
+        let rejHit = { "ok": false }
+        let rp = xrSessionThenReject(createXrSession("vr"), "immersive-vr", "NotSupportedError", (out) => {
+            rejHit["ok"] = out["rejected"] == true
+            rejHit["reason"] = out["reason"]
+            return out
+        })
+        return is_promise(p) == true && hit["ok"] == true && live["wgpuBound"] == true && live["wgpuDevice"] != 0 && live["graphicsDevice"] == live["wgpuDevice"] && left["gpuBound"] == true && left["wgpuBound"] == true && left["imageSource"] == "wgpu" && img["gpuBound"] == true && img["nativeImage"] != 0 && img["wgpuTextureId"] != 0 && img["wgpuDevice"] != 0 && img["imageSource"] == "wgpu" && frame["shouldRender"] == true && is_promise(rp) == true && rejHit["ok"] == true && rejHit["reason"] == "NotSupportedError"
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_WGPU");
+    std::env::remove_var("KABOOTAR_XR_GRAPHICS");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

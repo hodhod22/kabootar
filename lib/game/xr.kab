@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// GP6n — VR/AR session + OpenXR/WebXR-style runtime swapchain.
+// GP6n - VR/AR session + OpenXR/WebXR-style runtime swapchain.
 // import "game/xr"
 
 pub fn xrInfo() {
@@ -144,7 +144,7 @@ pub fn createStereoSwapchains(session, width, height) {
     let live = xrLiveSessionStatus()
     let graphicsBound = false
     if live != null && live != undefined {
-        // Guard: Kab throws on missing keys — only read when live session fields exist.
+        // Guard: Kab throws on missing keys - only read when live session fields exist.
         if live["active"] == true && live["graphicsBound"] == true {
             graphicsBound = true
         }
@@ -155,6 +155,10 @@ pub fn createStereoSwapchains(session, width, height) {
         session["graphicsBindingType"] = live["graphicsBindingType"]
         let marked = xr_mark_swapchain_graphics_bound()
         session["swapchainGraphicsBound"] = marked["swapchainGraphicsBound"] == true
+        if live["wgpuBound"] == true {
+            session["wgpuBound"] = true
+            session["wgpuDevice"] = live["wgpuDevice"]
+        }
     }
     return session
 }
@@ -343,7 +347,8 @@ pub async fn xrAwaitSessionRaf(session, mode) {
 }
 
 /// Browser Promise.then integration for requestSession → rAF bind.
-pub fn xrSessionThen(session, mode, onFulfilled) {
+/// Optional onRejected handles NotSupportedError / explicit reject path.
+pub fn xrSessionThen(session, mode, onFulfilled, onRejected) {
     if mode == null || mode == undefined {
         mode = "immersive-vr"
     }
@@ -364,6 +369,40 @@ pub fn xrSessionThen(session, mode, onFulfilled) {
         let out = { "session": session, "promise": resolved, "then": true }
         if onFulfilled != null && onFulfilled != undefined {
             return onFulfilled(out)
+        }
+        return out
+    }, (reason) => {
+        session["sessionPromise"] = reason
+        session["active"] = false
+        let out = { "session": session, "promise": reason, "then": false, "rejected": true }
+        if onRejected != null && onRejected != undefined {
+            return onRejected(out)
+        }
+        return out
+    })
+}
+
+/// Rejecting Promise.then path (browser requestSession failure).
+pub fn xrSessionThenReject(session, mode, reason, onRejected) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    if reason == null || reason == undefined {
+        reason = "NotSupportedError"
+    }
+    let p = xr_start_rejected_session_promise(mode, reason)
+    return promise_then(p, null, (rej) => {
+        session["sessionPromise"] = rej
+        session["active"] = false
+        let out = {
+            "session": session,
+            "promise": rej,
+            "then": false,
+            "rejected": true,
+            "reason": reason
+        }
+        if onRejected != null && onRejected != undefined {
+            return onRejected(out)
         }
         return out
     })

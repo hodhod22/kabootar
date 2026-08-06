@@ -758,6 +758,32 @@ fn xr_start_session_promise_native(
     xr_ffi::start_session_promise_value(mode, env)
 }
 
+fn xr_start_rejected_session_promise_native(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let mode = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "immersive-vr",
+    };
+    let reason = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "NotSupportedError",
+    };
+    xr_ffi::start_rejected_session_promise_value(mode, reason, env)
+}
+
+fn xr_reject_session_promise_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let reason = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "NotSupportedError",
+    };
+    xr_ffi::reject_session_promise(reason)
+}
+
 fn xr_request_session_promise_native(
     args: &[Value],
     _env: &mut Environment,
@@ -892,7 +918,7 @@ fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<
     out.insert("height".into(), Value::Number(height as i64));
     out.insert("imageCount".into(), Value::Number(image_count));
     out.insert("format".into(), Value::String("rgba8".into()));
-    // Attach live-session Vulkan/D3D11 graphics binding when present.
+    // Attach live-session Vulkan/D3D11/wgpu graphics binding when present.
     if let Ok(st) = xr_ffi::bind_hmd_swapchain(width as i64, height as i64, &eye) {
         if let Value::Object(g) = st {
             if let Some(v) = g.get("graphicsApi") {
@@ -904,8 +930,38 @@ fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<
             if let Some(v) = g.get("graphicsBindingType") {
                 out.insert("graphicsBindingType".into(), v.clone());
             }
+            if let Some(v) = g.get("wgpuBound") {
+                out.insert("wgpuBound".into(), v.clone());
+            }
+            if let Some(v) = g.get("wgpuDevice") {
+                out.insert("wgpuDevice".into(), v.clone());
+            }
             out.insert("hmdSwapchain".into(), Value::Bool(true));
             let _ = xr_ffi::mark_swapchain_graphics_bound();
+            if let Ok(alloc) =
+                xr_ffi::allocate_gpu_swapchain_images(id, width, height, image_count, &eye)
+            {
+                if let Value::Object(a) = alloc {
+                    if let Some(v) = a.get("gpuBound") {
+                        out.insert("gpuBound".into(), v.clone());
+                    }
+                    if let Some(v) = a.get("imageSource") {
+                        out.insert("imageSource".into(), v.clone());
+                    }
+                    if let Some(v) = a.get("nativeImages") {
+                        out.insert("nativeImages".into(), v.clone());
+                    }
+                    if let Some(v) = a.get("wgpuTextureIds") {
+                        out.insert("wgpuTextureIds".into(), v.clone());
+                    }
+                    if let Some(v) = a.get("wgpuDevice") {
+                        out.insert("wgpuDevice".into(), v.clone());
+                    }
+                    if let Some(v) = a.get("wgpuBound") {
+                        out.insert("wgpuBound".into(), v.clone());
+                    }
+                }
+            }
         }
     }
     Ok(Value::Object(out))
@@ -953,14 +1009,24 @@ fn xr_acquire_swapchain_image_native(
         .ok_or_else(|| format!("xr_acquire_swapchain_image: unknown swapchain {id}"))?;
     let image = sc.next_image % sc.image_count;
     sc.next_image += 1;
+    let eye = sc.eye.clone();
+    let width = sc.width as i64;
+    let height = sc.height as i64;
     rt.acquired.insert(id, image);
+    drop(guard);
+
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_swapchain_image".into()));
     out.insert("swapchainId".into(), Value::Number(id));
     out.insert("imageIndex".into(), Value::Number(image));
-    out.insert("eye".into(), Value::String(sc.eye.clone()));
-    out.insert("width".into(), Value::Number(sc.width as i64));
-    out.insert("height".into(), Value::Number(sc.height as i64));
+    out.insert("eye".into(), Value::String(eye));
+    out.insert("width".into(), Value::Number(width));
+    out.insert("height".into(), Value::Number(height));
+    if let Ok(gpu) = xr_ffi::attach_swapchain_image_gpu(id, image) {
+        for (k, v) in gpu {
+            out.insert(k, v);
+        }
+    }
     Ok(Value::Object(out))
 }
 
@@ -1365,6 +1431,14 @@ pub fn game_globals(env: &mut Environment) {
         (
             "xr_start_session_promise",
             xr_start_session_promise_native,
+        ),
+        (
+            "xr_start_rejected_session_promise",
+            xr_start_rejected_session_promise_native,
+        ),
+        (
+            "xr_reject_session_promise",
+            xr_reject_session_promise_native,
         ),
         (
             "xr_request_session_promise",

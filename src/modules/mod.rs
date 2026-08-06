@@ -20,6 +20,22 @@ struct CachedModuleExports {
 thread_local! {
     static MODULE_EXPORT_CACHE: RefCell<HashMap<String, CachedModuleExports>> =
         RefCell::new(HashMap::new());
+    /// Active import nesting depth (root import = 1).
+    static IMPORT_DEPTH: RefCell<usize> = RefCell::new(0);
+}
+
+fn import_depth_limit() -> Option<usize> {
+    std::env::var("KABOOTAR_IMPORT_MAX")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|&n| n > 0)
+}
+
+fn import_warn_depth() -> usize {
+    std::env::var("KABOOTAR_IMPORT_WARN")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(48)
 }
 
 /// Drop cached exports for a module (e.g. after editing `lib/kv8/eval.kab` in tests).
@@ -335,6 +351,34 @@ fn import_module_inner(
 ) -> Result<Vec<String>, String> {
     if !loaded.insert(name.to_string()) {
         return Err(format!("Circular import detected: \"{}\"", name));
+    }
+
+    let depth = IMPORT_DEPTH.with(|d| {
+        *d.borrow_mut() += 1;
+        *d.borrow()
+    });
+    struct DepthGuard;
+    impl Drop for DepthGuard {
+        fn drop(&mut self) {
+            IMPORT_DEPTH.with(|d| {
+                let mut n = d.borrow_mut();
+                *n = n.saturating_sub(1);
+            });
+        }
+    }
+    let _depth_guard = DepthGuard;
+
+    if let Some(max) = import_depth_limit() {
+        if depth > max {
+            return Err(format!(
+                "Import depth {} exceeds KABOOTAR_IMPORT_MAX={} while loading \"{}\". Prefer leaf imports (see docs/GAME.md).",
+                depth, max, name
+            ));
+        }
+    } else if depth == import_warn_depth() {
+        eprintln!(
+            "kabootar: import depth {depth} while loading \"{name}\" (set KABOOTAR_IMPORT_MAX to hard-fail; prefer leaf imports)"
+        );
     }
 
     if name == "science" {

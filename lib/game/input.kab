@@ -1,7 +1,7 @@
 @version "1.0.0"
 
-// Kabootar game/input — action maps over input_* (GP1c subset).
-// map: action name → array of key codes (e.g. { jump: ["Space"] }).
+// Kabootar game/input - action maps over input_* (GP1c subset).
+// map: action name -> array of key codes (e.g. { jump: ["Space"] }).
 // import "game/input"
 
 pub fn createActions(map) {

@@ -3,19 +3,36 @@
 use std::collections::HashMap;
 
 /// Transform `kstyle { .sel { prop: val; } }` into `kstyle_rule(...); kstyle_commit();`
+///
+/// UTF-8 safe: never slices mid-codepoint (comments may contain `—` etc.).
 pub fn expand_kstyle_blocks(source: &str) -> String {
-    let mut out = String::new();
+    // Fast path: almost all .kab modules have no kstyle blocks.
+    if !source.contains("kstyle") {
+        return source.to_string();
+    }
+    let mut out = String::with_capacity(source.len());
     let bytes = source.as_bytes();
     let mut i = 0usize;
     while i < source.len() {
-        if let Some(rest) = source[i..].strip_prefix("kstyle") {
+        // Guard against any accidental non-boundary index.
+        if !source.is_char_boundary(i) {
+            i = floor_char_boundary(source, i);
+            continue;
+        }
+        let Some(rest) = source.get(i..) else {
+            break;
+        };
+        if let Some(after_kw_rest) = rest.strip_prefix("kstyle") {
             let after_kw = i + 6;
             let mut k = after_kw;
             while k < bytes.len() && bytes[k].is_ascii_whitespace() {
                 k += 1;
             }
             if k < bytes.len() && bytes[k] == b'{' {
-                if let Some((rules, end)) = parse_kstyle_block(&source[k..]) {
+                if let Some((rules, end)) = source
+                    .get(k..)
+                    .and_then(|slice| parse_kstyle_block(slice))
+                {
                     if !out.is_empty() && !out.ends_with('\n') {
                         out.push('\n');
                     }
@@ -35,7 +52,7 @@ pub fn expand_kstyle_blocks(source: &str) -> String {
                     continue;
                 }
             }
-            let _ = rest;
+            let _ = after_kw_rest;
         }
         if let Some(ch) = source[i..].chars().next() {
             out.push(ch);
@@ -45,6 +62,16 @@ pub fn expand_kstyle_blocks(source: &str) -> String {
         }
     }
     out
+}
+
+fn floor_char_boundary(s: &str, mut i: usize) -> usize {
+    if i >= s.len() {
+        return s.len();
+    }
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
 }
 
 fn escape_str(s: &str) -> String {
@@ -157,6 +184,13 @@ let x = 1;
     #[test]
     fn preserves_utf8_outside_kstyle() {
         let src = "// note — em dash\nlet x = 1;\n";
+        let out = expand_kstyle_blocks(src);
+        assert_eq!(out, src);
+    }
+
+    #[test]
+    fn skips_work_when_no_kstyle_keyword() {
+        let src = "// — utf8 comment only\nfn f() { return 1 }\n";
         let out = expand_kstyle_blocks(src);
         assert_eq!(out, src);
     }
