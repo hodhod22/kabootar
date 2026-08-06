@@ -535,3 +535,36 @@ fn xr_get_system_graphics_binding_and_await_session_raf() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_vulkan_d3d11_swapchain_and_promise_then() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_GRAPHICS", "vulkan");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let hit = { "ok": false }
+        let p = xrSessionThen(xr, "immersive-vr", (out) => {
+            hit["ok"] = out["then"] == true && out["promise"]["resolved"] == true
+            hit["session"] = out["session"]
+            hit["backend"] = out["promise"]["rafBackend"]
+            return out
+        })
+        xr = hit["session"]
+        xr = xrBegin(xr)
+        xr = createStereoSwapchains(xr, 1280, 720)
+        let left = xr["swapchains"][0]
+        let live = xrLiveSessionStatus()
+        return is_promise(p) == true && hit["ok"] == true && hit["backend"] == "webxr-session-raf-promise" && live["graphicsApi"] == "vulkan" && live["graphicsBindingType"] == "XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR" && live["graphicsDevice"] != 0 && live["graphicsBound"] == true && left["hmdSwapchain"] == true && left["graphicsApi"] == "vulkan" && xr["swapchainGraphicsBound"] == true && live["swapchainGraphicsBound"] == true
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_GRAPHICS");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

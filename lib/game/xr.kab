@@ -130,7 +130,7 @@ pub fn describeSwapchains(present) {
     return { "count": len(chains), "pixelBytes": px, "backend": present["backend"] }
 }
 
-/// Create stereo runtime swapchains (OpenXR-style image pool).
+/// Create stereo runtime swapchains (OpenXR-style image pool) bound to graphics API.
 pub fn createStereoSwapchains(session, width, height) {
     if width == null || width == undefined {
         width = 1280
@@ -141,6 +141,21 @@ pub fn createStereoSwapchains(session, width, height) {
     let left = xr_create_swapchain({ "eye": "left", "width": width, "height": height, "imageCount": 3 })
     let right = xr_create_swapchain({ "eye": "right", "width": width, "height": height, "imageCount": 3 })
     session["swapchains"] = [left, right]
+    let live = xrLiveSessionStatus()
+    let graphicsBound = false
+    if live != null && live != undefined {
+        // Guard: Kab throws on missing keys — only read when live session fields exist.
+        if live["active"] == true && live["graphicsBound"] == true {
+            graphicsBound = true
+        }
+    }
+    if graphicsBound {
+        session["graphicsApi"] = live["graphicsApi"]
+        session["graphicsDevice"] = live["graphicsDevice"]
+        session["graphicsBindingType"] = live["graphicsBindingType"]
+        let marked = xr_mark_swapchain_graphics_bound()
+        session["swapchainGraphicsBound"] = marked["swapchainGraphicsBound"] == true
+    }
     return session
 }
 
@@ -325,6 +340,33 @@ pub async fn xrAwaitSessionRaf(session, mode) {
     let polled = xrPollSessionPromise(session)
     polled["awaited"] = true
     return polled
+}
+
+/// Browser Promise.then integration for requestSession → rAF bind.
+pub fn xrSessionThen(session, mode, onFulfilled) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    let p = xr_start_session_promise(mode)
+    return promise_then(p, (resolved) => {
+        session["sessionPromise"] = resolved
+        if resolved["resolved"] == true {
+            session["active"] = true
+            session["webxrGranted"] = true
+            session["live"] = resolved["live"]
+            session["raf"] = {
+                "ok": true,
+                "bound": true,
+                "backend": resolved["rafBackend"],
+                "webxrGranted": true
+            }
+        }
+        let out = { "session": session, "promise": resolved, "then": true }
+        if onFulfilled != null && onFulfilled != undefined {
+            return onFulfilled(out)
+        }
+        return out
+    })
 }
 
 /// Spawn vendor OpenXR compositor process (drains IPC like a separate compositor).
@@ -561,15 +603,34 @@ pub fn xrRunImmersiveRaf(session, count, width, height, mode) {
         let step = xrImmersiveFrame(session)
         session = step["session"]
         let meta = session["_rafMeta"]
+        let rafTime = null
+        let rafBackend = null
+        if meta != null && meta != undefined {
+            rafTime = meta["time"]
+            rafBackend = meta["backend"]
+        }
+        let ended = step["ended"]
+        let loaderEnd = null
+        if ended != null && ended != undefined {
+            loaderEnd = ended["loaderEndFrame"]
+        }
+        let loaderPath = null
+        let ffiInvoked = false
+        let ffiMode = null
+        if loaderEnd != null && loaderEnd != undefined {
+            loaderPath = loaderEnd["path"]
+            ffiInvoked = loaderEnd["ffiInvoked"] == true
+            ffiMode = loaderEnd["ffiMode"]
+        }
         frames = push(frames, {
             "frameIndex": step["frame"]["frameIndex"],
             "acked": step["compositorAck"]["acked"] == true,
             "presented": step["hmd"]["presented"] == true,
-            "loaderPath": step["ended"]["loaderEndFrame"]["path"],
-            "ffiInvoked": step["ended"]["loaderEndFrame"]["ffiInvoked"] == true,
-            "ffiMode": step["ended"]["loaderEndFrame"]["ffiMode"],
-            "rafTime": meta["time"],
-            "rafBackend": meta["backend"]
+            "loaderPath": loaderPath,
+            "ffiInvoked": ffiInvoked,
+            "ffiMode": ffiMode,
+            "rafTime": rafTime,
+            "rafBackend": rafBackend
         })
         i = i + 1
     }

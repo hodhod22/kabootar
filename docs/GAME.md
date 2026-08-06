@@ -127,7 +127,7 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/assets"` | `createDb`, `registerVfs`/`registerHost`, `loadText`/`loadBytes`/`loadPng`/`loadGltf`, `watchAll`/`pollReload` |
 | `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
 | `import "game/net"` | session/snapshot, relay + HTTP hub, remote session server (`createRemoteHttpTransport`) |
-| `import "game/xr"` | `xrGetSystem` + graphics binding, `await xrAwaitSessionRaf`, create/end-frame FFI, compositor/HMD |
+| `import "game/xr"` | Vulkan/D3D11 binding → HMD swapchain, `xrSessionThen`, await rAF, create/end-frame FFI |
 | `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `buildSceneView` (+ **GPU viewport**), `selectNode`, `refresh` |
 | `import "game/sandbox"` | **Spelbyggare** — session/canvas, Play↔Edit↔Learn, level pack (`ksandbox`), `applyLiveParams`/`setLearnParam` |
 | `import "sim"` / `sim/robot` | **Sim/robotik** — `createWorld`/`createHinge`/`createSlider`/`step`, 3-DOF `createArm3`, encoders/IMU, `worldToEditor` |

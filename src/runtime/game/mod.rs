@@ -724,6 +724,40 @@ fn xr_grant_webxr_session_native(
     xr_ffi::grant_webxr_session()
 }
 
+fn xr_bind_hmd_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let width = match args.first() {
+        Some(Value::Number(n)) => *n,
+        _ => 1280,
+    };
+    let height = match args.get(1) {
+        Some(Value::Number(n)) => *n,
+        _ => 720,
+    };
+    let eye = match args.get(2) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "left",
+    };
+    xr_ffi::bind_hmd_swapchain(width, height, eye)
+}
+
+fn xr_mark_swapchain_graphics_bound_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    xr_ffi::mark_swapchain_graphics_bound()
+}
+
+fn xr_start_session_promise_native(
+    args: &[Value],
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let mode = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "immersive-vr",
+    };
+    xr_ffi::start_session_promise_value(mode, env)
+}
+
 fn xr_request_session_promise_native(
     args: &[Value],
     _env: &mut Environment,
@@ -853,11 +887,27 @@ fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_swapchain".into()));
     out.insert("id".into(), Value::Number(id));
-    out.insert("eye".into(), Value::String(eye));
+    out.insert("eye".into(), Value::String(eye.clone()));
     out.insert("width".into(), Value::Number(width as i64));
     out.insert("height".into(), Value::Number(height as i64));
     out.insert("imageCount".into(), Value::Number(image_count));
     out.insert("format".into(), Value::String("rgba8".into()));
+    // Attach live-session Vulkan/D3D11 graphics binding when present.
+    if let Ok(st) = xr_ffi::bind_hmd_swapchain(width as i64, height as i64, &eye) {
+        if let Value::Object(g) = st {
+            if let Some(v) = g.get("graphicsApi") {
+                out.insert("graphicsApi".into(), v.clone());
+            }
+            if let Some(v) = g.get("graphicsDevice") {
+                out.insert("graphicsDevice".into(), v.clone());
+            }
+            if let Some(v) = g.get("graphicsBindingType") {
+                out.insert("graphicsBindingType".into(), v.clone());
+            }
+            out.insert("hmdSwapchain".into(), Value::Bool(true));
+            let _ = xr_ffi::mark_swapchain_graphics_bound();
+        }
+    }
     Ok(Value::Object(out))
 }
 
@@ -1307,6 +1357,15 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_destroy_live_session", xr_destroy_live_session_native),
         ("xr_live_session_status", xr_live_session_status_native),
         ("xr_grant_webxr_session", xr_grant_webxr_session_native),
+        ("xr_bind_hmd_swapchain", xr_bind_hmd_swapchain_native),
+        (
+            "xr_mark_swapchain_graphics_bound",
+            xr_mark_swapchain_graphics_bound_native,
+        ),
+        (
+            "xr_start_session_promise",
+            xr_start_session_promise_native,
+        ),
         (
             "xr_request_session_promise",
             xr_request_session_promise_native,
