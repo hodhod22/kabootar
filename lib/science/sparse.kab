@@ -30,6 +30,19 @@ pub fn icc0(a) {
     return sparse_icc0(a)
 }
 
+/// ILU with threshold dropping -> { l, u, kind }.
+pub fn ilut(a, droptol, fillFactor) {
+    if fillFactor == null || fillFactor == undefined {
+        return sparse_ilut(a, droptol)
+    }
+    return sparse_ilut(a, droptol, fillFactor)
+}
+
+/// Incomplete Cholesky with level-of-fill k -> { l, kind, level }.
+pub fn icK(a, level) {
+    return sparse_ic_k(a, level)
+}
+
 pub fn spmv(a, x) {
     return sparse_spmv(a, x)
 }

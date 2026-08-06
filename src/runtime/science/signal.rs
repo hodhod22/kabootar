@@ -631,6 +631,109 @@ fn num_polyphase_decompose(args: &[Value], _env: &mut Environment) -> Result<Val
     ))
 }
 
+/// num_polyphase_analyze(x, h, n) — FIR bank: filter+downsample by n per branch.
+fn num_polyphase_analyze(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_polyphase_analyze")?;
+    let h = vector_at(args, 1, "num_polyphase_analyze")?;
+    let n = num_at(args, 2, "num_polyphase_analyze")? as usize;
+    if x.is_empty() || h.is_empty() || n == 0 {
+        return Err("num_polyphase_analyze: bad args".into());
+    }
+    let branches_v = num_polyphase_decompose(&[vector_out(&h), float_out(n as f64)], env)?;
+    let Value::Array(branches) = branches_v else {
+        return Err("num_polyphase_analyze: internal".into());
+    };
+    let mut bands = Vec::new();
+    for (b_idx, br) in branches.iter().enumerate() {
+        let coeffs = vector_at(std::slice::from_ref(br), 0, "num_polyphase_analyze")?;
+        // Phase-shifted input: x[b], x[b+n], ...
+        let mut phase: Vec<f64> = Vec::new();
+        let mut i = b_idx;
+        while i < x.len() {
+            phase.push(x[i]);
+            i += n;
+        }
+        let filtered = num_fir(&[vector_out(&phase), vector_out(&coeffs)], env)?;
+        bands.push(filtered);
+    }
+    Ok(Value::Array(bands))
+}
+
+/// num_polyphase_synthesize(bands, h, n) — inverse FIR bank (upsample+filter+sum).
+fn num_polyphase_synthesize(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let bands = match args.first() {
+        Some(Value::Array(a)) => a.clone(),
+        _ => return Err("num_polyphase_synthesize(bands, h, n)".into()),
+    };
+    let h = vector_at(args, 1, "num_polyphase_synthesize")?;
+    let n = num_at(args, 2, "num_polyphase_synthesize")? as usize;
+    if bands.is_empty() || h.is_empty() || n == 0 || bands.len() != n {
+        return Err("num_polyphase_synthesize: bad args".into());
+    }
+    let branches_v = num_polyphase_decompose(&[vector_out(&h), float_out(n as f64)], env)?;
+    let Value::Array(branches) = branches_v else {
+        return Err("num_polyphase_synthesize: internal".into());
+    };
+    let mut max_len = 0usize;
+    let mut ups: Vec<Vec<f64>> = Vec::new();
+    for (b_idx, (band_v, br)) in bands.iter().zip(branches.iter()).enumerate() {
+        let band = vector_at(std::slice::from_ref(band_v), 0, "num_polyphase_synthesize")?;
+        let coeffs = vector_at(std::slice::from_ref(br), 0, "num_polyphase_synthesize")?;
+        let filtered = num_fir(&[vector_out(&band), vector_out(&coeffs)], env)?;
+        let y = vector_at(&[filtered], 0, "num_polyphase_synthesize")?;
+        let mut up = vec![0.0; y.len() * n];
+        for (i, v) in y.iter().enumerate() {
+            up[i * n + b_idx] = *v;
+        }
+        max_len = max_len.max(up.len());
+        ups.push(up);
+    }
+    let mut out = vec![0.0; max_len];
+    for up in ups {
+        for (i, v) in up.iter().enumerate() {
+            out[i] += *v;
+        }
+    }
+    Ok(vector_out(&out))
+}
+
+/// num_dwt_haar(x) -> { a, d } — one-level Haar discrete wavelet transform.
+fn num_dwt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_dwt_haar")?;
+    if x.len() < 2 {
+        return Err("num_dwt_haar: length >= 2".into());
+    }
+    let n = x.len() / 2;
+    let s2 = 2.0_f64.sqrt();
+    let mut a = Vec::with_capacity(n);
+    let mut d = Vec::with_capacity(n);
+    for i in 0..n {
+        a.push((x[2 * i] + x[2 * i + 1]) / s2);
+        d.push((x[2 * i] - x[2 * i + 1]) / s2);
+    }
+    let mut out = HashMap::new();
+    out.insert("a".into(), vector_out(&a));
+    out.insert("d".into(), vector_out(&d));
+    out.insert("kind".into(), Value::String("haar".into()));
+    Ok(Value::Object(out))
+}
+
+/// num_idwt_haar(a, d) — inverse Haar DWT.
+fn num_idwt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let a = vector_at(args, 0, "num_idwt_haar")?;
+    let d = vector_at(args, 1, "num_idwt_haar")?;
+    if a.len() != d.len() || a.is_empty() {
+        return Err("num_idwt_haar: a/d length".into());
+    }
+    let s2 = 2.0_f64.sqrt();
+    let mut x = Vec::with_capacity(a.len() * 2);
+    for i in 0..a.len() {
+        x.push((a[i] + d[i]) / s2);
+        x.push((a[i] - d[i]) / s2);
+    }
+    Ok(vector_out(&x))
+}
+
 /// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
 fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_fir")?;
@@ -742,6 +845,16 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         &["science_num_polyphase_decompose", "num_polyphase_decompose"],
         num_polyphase_decompose,
     );
+    bind(
+        &["science_num_polyphase_analyze", "num_polyphase_analyze"],
+        num_polyphase_analyze,
+    );
+    bind(
+        &["science_num_polyphase_synthesize", "num_polyphase_synthesize"],
+        num_polyphase_synthesize,
+    );
+    bind(&["science_num_dwt_haar", "num_dwt_haar"], num_dwt_haar);
+    bind(&["science_num_idwt_haar", "num_idwt_haar"], num_idwt_haar);
     bind(&["science_num_fir", "num_fir"], num_fir);
     bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);
     bind(&["science_num_iir", "num_iir"], num_iir);

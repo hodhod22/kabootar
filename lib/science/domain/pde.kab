@@ -162,3 +162,179 @@ pub fn poisson2dResidual(u, f, dx) {
     }
     return maxe
 }
+
+/// 3D FTCS heat step on nested grid u[nz][ny][nx] (Dirichlet boundary fixed).
+pub fn heat3dStep(u, alpha, dx, dy, dz, dt) {
+    let nz = len(u)
+    let ny = len(u[0])
+    let nx = len(u[0][0])
+    let rx = alpha * dt / (dx * dx)
+    let ry = alpha * dt / (dy * dy)
+    let rz = alpha * dt / (dz * dz)
+    let out = []
+    let k = 0
+    while k < nz {
+        let plane = []
+        let j = 0
+        while j < ny {
+            let row = []
+            let i = 0
+            while i < nx {
+                if k == 0 || k == nz - 1 || j == 0 || j == ny - 1 || i == 0 || i == nx - 1 {
+                    row = push(row, u[k][j][i])
+                } else {
+                    let v = u[k][j][i] + rx * (u[k][j][i - 1] - 2.0 * u[k][j][i] + u[k][j][i + 1]) + ry * (u[k][j - 1][i] - 2.0 * u[k][j][i] + u[k][j + 1][i]) + rz * (u[k - 1][j][i] - 2.0 * u[k][j][i] + u[k + 1][j][i])
+                    row = push(row, v)
+                }
+                i = i + 1
+            }
+            plane = push(plane, row)
+            j = j + 1
+        }
+        out = push(out, plane)
+        k = k + 1
+    }
+    return out
+}
+
+/// 3D Jacobi for -Laplace u = f (Dirichlet boundary).
+pub fn poisson3dJacobi(u, f, dx, dy, dz, iters) {
+    if iters == null || iters < 1 {
+        iters = 30
+    }
+    let nz = len(u)
+    let ny = len(u[0])
+    let nx = len(u[0][0])
+    let den = 2.0 / (dx * dx) + 2.0 / (dy * dy) + 2.0 / (dz * dz)
+    let t = 0
+    while t < iters {
+        let nxt = []
+        let k = 0
+        while k < nz {
+            let plane = []
+            let j = 0
+            while j < ny {
+                let row = []
+                let i = 0
+                while i < nx {
+                    if k == 0 || k == nz - 1 || j == 0 || j == ny - 1 || i == 0 || i == nx - 1 {
+                        row = push(row, u[k][j][i])
+                    } else {
+                        let v = ((u[k][j][i - 1] + u[k][j][i + 1]) / (dx * dx) + (u[k][j - 1][i] + u[k][j + 1][i]) / (dy * dy) + (u[k - 1][j][i] + u[k + 1][j][i]) / (dz * dz) + f[k][j][i]) / den
+                        row = push(row, v)
+                    }
+                    i = i + 1
+                }
+                plane = push(plane, row)
+                j = j + 1
+            }
+            nxt = push(nxt, plane)
+            k = k + 1
+        }
+        u = nxt
+        t = t + 1
+    }
+    return u
+}
+
+/// Max abs residual of -Laplace u - f (interior, dx=dy=dz).
+pub fn poisson3dResidual(u, f, dx) {
+    let nz = len(u)
+    let ny = len(u[0])
+    let nx = len(u[0][0])
+    let maxe = 0.0
+    let k = 1
+    while k < nz - 1 {
+        let j = 1
+        while j < ny - 1 {
+            let i = 1
+            while i < nx - 1 {
+                let lap = (u[k][j][i - 1] + u[k][j][i + 1] + u[k][j - 1][i] + u[k][j + 1][i] + u[k - 1][j][i] + u[k + 1][j][i] - 6.0 * u[k][j][i]) / (dx * dx)
+                let e = 0.0 - lap - f[k][j][i]
+                if e < 0.0 {
+                    e = 0.0 - e
+                }
+                if e > maxe {
+                    maxe = e
+                }
+                i = i + 1
+            }
+            j = j + 1
+        }
+        k = k + 1
+    }
+    return maxe
+}
+
+/// FEM lite: assemble 1D Poisson stiffness (Dirichlet ends) as dense n x n.
+pub fn femAssemblePoisson1d(n, h) {
+    let kmat = []
+    let i = 0
+    while i < n {
+        let row = []
+        let j = 0
+        while j < n {
+            row = push(row, 0.0)
+            j = j + 1
+        }
+        kmat = push(kmat, row)
+        i = i + 1
+    }
+    let e = 0
+    while e < n - 1 {
+        let a = 1.0 / h
+        kmat[e][e] = kmat[e][e] + a
+        kmat[e][e + 1] = kmat[e][e + 1] - a
+        kmat[e + 1][e] = kmat[e + 1][e] - a
+        kmat[e + 1][e + 1] = kmat[e + 1][e + 1] + a
+        e = e + 1
+    }
+    // Strong Dirichlet on ends.
+    kmat[0][0] = 1.0
+    let j = 1
+    while j < n {
+        kmat[0][j] = 0.0
+        j = j + 1
+    }
+    kmat[n - 1][n - 1] = 1.0
+    j = 0
+    while j < n - 1 {
+        kmat[n - 1][j] = 0.0
+        j = j + 1
+    }
+    return kmat
+}
+
+/// FEM lite: Jacobi solve K u = f.
+pub fn femSolveJacobi(kmat, f, iters) {
+    if iters == null || iters < 1 {
+        iters = 40
+    }
+    let n = len(f)
+    let u = []
+    let i = 0
+    while i < n {
+        u = push(u, 0.0)
+        i = i + 1
+    }
+    let t = 0
+    while t < iters {
+        let nxt = []
+        i = 0
+        while i < n {
+            let s = f[i]
+            let j = 0
+            while j < n {
+                if j != i {
+                    s = s - kmat[i][j] * u[j]
+                }
+                j = j + 1
+            }
+            nxt = push(nxt, s / kmat[i][i])
+            i = i + 1
+        }
+        u = nxt
+        t = t + 1
+    }
+    return u
+}
