@@ -724,6 +724,31 @@ fn xr_grant_webxr_session_native(
     xr_ffi::grant_webxr_session()
 }
 
+fn xr_request_session_promise_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let mode = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "immersive-vr",
+    };
+    xr_ffi::request_session_promise(mode)
+}
+
+fn xr_poll_session_promise_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    xr_ffi::poll_session_promise()
+}
+
+fn xr_session_promise_status_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Ok(xr_ffi::session_promise_status())
+}
+
 fn xr_compositor_process_spawn_native(
     _args: &[Value],
     _env: &mut Environment,
@@ -1282,6 +1307,15 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_destroy_live_session", xr_destroy_live_session_native),
         ("xr_live_session_status", xr_live_session_status_native),
         ("xr_grant_webxr_session", xr_grant_webxr_session_native),
+        (
+            "xr_request_session_promise",
+            xr_request_session_promise_native,
+        ),
+        ("xr_poll_session_promise", xr_poll_session_promise_native),
+        (
+            "xr_session_promise_status",
+            xr_session_promise_status_native,
+        ),
         (
             "xr_compositor_process_spawn",
             xr_compositor_process_spawn_native,

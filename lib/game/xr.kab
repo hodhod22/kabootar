@@ -275,6 +275,45 @@ pub fn xrGrantWebxrSession(session) {
     return session
 }
 
+/// Browser-style requestSession Promise (pending until xrPollSessionPromise).
+pub fn xrRequestSessionAsync(session, mode) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    let promise = xr_request_session_promise(mode)
+    session["sessionPromise"] = promise
+    session["available"] = true
+    return session
+}
+
+pub fn xrPollSessionPromise(session) {
+    let resolved = xr_poll_session_promise()
+    session["sessionPromise"] = resolved
+    if resolved["resolved"] == true {
+        session["active"] = true
+        session["webxrGranted"] = true
+        session["live"] = resolved["live"]
+        session["raf"] = {
+            "ok": true,
+            "bound": true,
+            "backend": resolved["rafBackend"],
+            "webxrGranted": true
+        }
+    }
+    return { "session": session, "promise": resolved }
+}
+
+pub fn xrSessionPromiseStatus() {
+    return xr_session_promise_status()
+}
+
+/// Request → poll Promise → bind XRSession.rAF in one step.
+pub fn xrResolveSessionRaf(session, mode) {
+    session = xrRequestSessionAsync(session, mode)
+    let polled = xrPollSessionPromise(session)
+    return polled
+}
+
 /// Spawn vendor OpenXR compositor process (drains IPC like a separate compositor).
 pub fn xrStartCompositorProcess(session) {
     if session["compositor"] == null || session["compositor"] == undefined {
