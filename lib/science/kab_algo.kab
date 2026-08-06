@@ -721,3 +721,281 @@ pub fn kmeansKab(X, k, maxIter) {
     }
     return { "centroids": centroids, "labels": labels, "k": k }
 }
+
+fn bootstrapIdxKab(n, seed) {
+    let idx = []
+    let i = 0
+    while i < n {
+        // Small integer mix (avoid huge LCG floats).
+        let r = (i * 5 + seed * 3 + 11) % n
+        if r < 0 {
+            r = 0 - r
+        }
+        idx = push(idx, r % n)
+        i = i + 1
+    }
+    // Shuffle-lite second pass for diversity
+    i = 0
+    while i < n {
+        let j = (i * 7 + seed) % n
+        let tmp = idx[i]
+        idx[i] = idx[j]
+        idx[j] = tmp
+        i = i + 1
+    }
+    return idx
+}
+
+fn subsetXYKab(X, y, idx) {
+    let Xs = []
+    let ys = []
+    let i = 0
+    while i < len(idx) {
+        Xs = push(Xs, X[idx[i]])
+        ys = push(ys, y[idx[i]])
+        i = i + 1
+    }
+    return { "X": Xs, "y": ys }
+}
+
+/// Bagged decision stumps (forest-lite).
+pub fn baggingStumpsKab(X, y, nTrees, seed) {
+    if nTrees == null || nTrees < 1 {
+        nTrees = 5
+    }
+    if seed == null || seed == undefined {
+        seed = 42
+    }
+    let trees = []
+    let t = 0
+    while t < nTrees {
+        let idx = bootstrapIdxKab(len(X), seed + t * 17)
+        let sub = subsetXYKab(X, y, idx)
+        let stump = stumpKab(sub["X"], sub["y"])
+        trees = push(trees, stump)
+        t = t + 1
+    }
+    return { "kind": "BaggingStumps", "trees": trees, "nTrees": nTrees }
+}
+
+/// Majority-vote predict for baggingStumps / forest.
+pub fn forestPredictKab(forest, X) {
+    let trees = forest["trees"]
+    let out = []
+    let i = 0
+    while i < len(X) {
+        let votes0 = 0.0
+        let votes1 = 0.0
+        let t = 0
+        while t < len(trees) {
+            let pred = stumpPredictKab(trees[t], [X[i]])
+            if pred[0] == 1.0 {
+                votes1 = votes1 + 1.0
+            } else {
+                votes0 = votes0 + 1.0
+            }
+            t = t + 1
+        }
+        if votes1 > votes0 {
+            out = push(out, 1.0)
+        } else {
+            out = push(out, 0.0)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Shallow recursive tree via repeated stump splits (maxDepth).
+pub fn treeKab(X, y, maxDepth) {
+    if maxDepth == null || maxDepth < 1 {
+        maxDepth = 2
+    }
+    return treeNodeKab(X, y, 0, maxDepth)
+}
+
+fn majorityLabelKab(y) {
+    let c0 = 0.0
+    let c1 = 0.0
+    let i = 0
+    while i < len(y) {
+        if y[i] == 1.0 {
+            c1 = c1 + 1.0
+        } else {
+            c0 = c0 + 1.0
+        }
+        i = i + 1
+    }
+    if c1 > c0 {
+        return 1.0
+    }
+    return 0.0
+}
+
+fn treeNodeKab(X, y, depth, maxDepth) {
+    if len(X) == 0 {
+        return { "leaf": true, "label": 0.0 }
+    }
+    if depth >= maxDepth {
+        return { "leaf": true, "label": majorityLabelKab(y) }
+    }
+    let stump = stumpKab(X, y)
+    if stump["err"] >= len(y) {
+        return { "leaf": true, "label": majorityLabelKab(y) }
+    }
+    // Perfect stump: stop with stump children (do not collapse to majority leaf).
+    if stump["err"] == 0.0 {
+        return {
+            "leaf": false,
+            "feature": stump["feature"],
+            "threshold": stump["threshold"],
+            "left": { "leaf": true, "label": stump["left"] },
+            "right": { "leaf": true, "label": stump["right"] }
+        }
+    }
+    let leftX = []
+    let leftY = []
+    let rightX = []
+    let rightY = []
+    let i = 0
+    while i < len(X) {
+        if X[i][stump["feature"]] <= stump["threshold"] {
+            leftX = push(leftX, X[i])
+            leftY = push(leftY, y[i])
+        } else {
+            rightX = push(rightX, X[i])
+            rightY = push(rightY, y[i])
+        }
+        i = i + 1
+    }
+    if len(leftX) == 0 || len(rightX) == 0 {
+        return { "leaf": true, "label": majorityLabelKab(y) }
+    }
+    return {
+        "leaf": false,
+        "feature": stump["feature"],
+        "threshold": stump["threshold"],
+        "left": treeNodeKab(leftX, leftY, depth + 1, maxDepth),
+        "right": treeNodeKab(rightX, rightY, depth + 1, maxDepth)
+    }
+}
+
+pub fn treePredictKab(tree, X) {
+    let out = []
+    let i = 0
+    while i < len(X) {
+        out = push(out, treePredictOneKab(tree, X[i]))
+        i = i + 1
+    }
+    return out
+}
+
+fn treePredictOneKab(node, row) {
+    if node["leaf"] == true {
+        return node["label"]
+    }
+    if row[node["feature"]] <= node["threshold"] {
+        return treePredictOneKab(node["left"], row)
+    }
+    return treePredictOneKab(node["right"], row)
+}
+
+/// AdaBoost-lite over decision stumps (binary 0/1 labels).
+pub fn boostStumpsKab(X, y, nRounds) {
+    if nRounds == null || nRounds < 1 {
+        nRounds = 5
+    }
+    let n = len(X)
+    let w = []
+    let i = 0
+    while i < n {
+        w = push(w, 1.0 / n)
+        i = i + 1
+    }
+    let rounds = []
+    let r = 0
+    while r < nRounds {
+        // weighted resample via cumulative weights
+        let idx = []
+        let t = 0
+        while t < n {
+            let u = (t + 0.5) / n
+            let c = 0.0
+            let j = 0
+            let pick = n - 1
+            while j < n {
+                c = c + w[j]
+                if u <= c {
+                    pick = j
+                    break
+                }
+                j = j + 1
+            }
+            idx = push(idx, pick)
+            t = t + 1
+        }
+        let sub = subsetXYKab(X, y, idx)
+        let stump = stumpKab(sub["X"], sub["y"])
+        let pred = stumpPredictKab(stump, X)
+        let err = 0.0
+        i = 0
+        while i < n {
+            if pred[i] != y[i] {
+                err = err + w[i]
+            }
+            i = i + 1
+        }
+        if err < 0.000000000001 {
+            err = 0.000000000001
+        }
+        if err > 0.999999999 {
+            err = 0.999999999
+        }
+        let alpha = 0.5 * log((1.0 - err) / err)
+        let wsum = 0.0
+        i = 0
+        while i < n {
+            if pred[i] != y[i] {
+                w[i] = w[i] * exp(alpha)
+            } else {
+                w[i] = w[i] * exp(0.0 - alpha)
+            }
+            wsum = wsum + w[i]
+            i = i + 1
+        }
+        i = 0
+        while i < n {
+            w[i] = w[i] / wsum
+            i = i + 1
+        }
+        rounds = push(rounds, { "stump": stump, "alpha": alpha })
+        r = r + 1
+    }
+    return { "kind": "BoostStumps", "rounds": rounds, "nRounds": nRounds }
+}
+
+pub fn boostPredictKab(model, X) {
+    let out = []
+    let i = 0
+    while i < len(X) {
+        let score = 0.0
+        let r = 0
+        while r < len(model["rounds"]) {
+            let round = model["rounds"][r]
+            let pred = stumpPredictKab(round["stump"], [X[i]])
+            let s = -1.0
+            if pred[0] == 1.0 {
+                s = 1.0
+            }
+            score = score + round["alpha"] * s
+            r = r + 1
+        }
+        if score >= 0.0 {
+            out = push(out, 1.0)
+        } else {
+            out = push(out, 0.0)
+        }
+        i = i + 1
+    }
+    return out
+}

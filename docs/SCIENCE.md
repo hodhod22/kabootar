@@ -562,8 +562,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_gather` / `nd_compress` / `gather` / `compress` | Fancy indexing (real + complex64); mask = logical numel |
 | `nd_nonzero` / `nd_fancy_index` / `nd_take_along` / `fancyOuter` | Nonzero; broadcast/outer multi-axis fancy |
 | `complex64` / `nd_conj` / `astype(..., "complex64")` | Interleaved `[re,im]` buffer; KND1 tag 6; complex add/mul/sub/div/abs |
-| `sci_allreduce_f64` / `allReduce*` / `allReduceRanks` / `allReduceStar|Ring` | Threaded + multi-rank + mailbox multi-node sim (`science/dist`) |
-| `science/kab_algo` SC5b | Pure-Kab stats/ML helpers including `pcaKab` / `stumpKab` / `kmeansKab` |)
+| `sci_allreduce_f64` / `allReduce*` / `allReduceRanks` / `allReduceStar|Ring` / `allReduceTcp` | Threaded + mailbox + **loopback TCP** socket transport (`science/dist`) |
+| `science/kab_algo` SC5b | PCA/stump/kmeans + `baggingStumpsKab` / `treeKab` / `boostStumpsKab` ensembles |
+| `sparse_gather_rows` / `sparse_compress_rows` / `sparse_from_dense_mask` | Sparse fancy row views (`science/sparse`) |)
 
 ## ML / AI (SC2)
 

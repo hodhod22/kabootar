@@ -241,10 +241,129 @@ fn sparse_lstsq(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     Ok(vector_out(&x))
 }
 
+/// sparse_gather_rows(A, rowIndices) — select rows (CSR/COO in → CSR out).
+fn sparse_gather_rows(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_gather_rows(A, rowIndices)")?;
+    let row_ix = match args.get(1) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_gather_rows: rowIndices array".into()),
+    };
+    let csr = if parse_sparse(a)?.0 == "csr" {
+        a.clone()
+    } else {
+        sparse_to_csr(&[a.clone()], env)?
+    };
+    let (_, nrows, ncols, data, indices, indptr) = parse_sparse(&csr)?;
+    for &r in &row_ix {
+        if r >= nrows {
+            return Err("sparse_gather_rows: row OOB".into());
+        }
+    }
+    let mut out_data = Vec::new();
+    let mut out_indices = Vec::new();
+    let mut out_indptr = vec![0i64];
+    for &r in &row_ix {
+        let start = indptr[r] as usize;
+        let end = indptr[r + 1] as usize;
+        for k in start..end {
+            out_data.push(data[k]);
+            out_indices.push(indices[k]);
+        }
+        out_indptr.push(out_data.len() as i64);
+    }
+    Ok(sparse_out(
+        "csr",
+        row_ix.len(),
+        ncols,
+        &out_data,
+        &out_indices,
+        &out_indptr,
+    ))
+}
+
+/// sparse_compress_rows(A, mask) — keep rows where mask[i] != 0.
+fn sparse_compress_rows(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_compress_rows(A, mask)")?;
+    let mask = vector_at(args, 1, "sparse_compress_rows")?;
+    let (_, nrows, _, _, _, _) = parse_sparse(a)?;
+    if mask.len() != nrows {
+        return Err("sparse_compress_rows: mask length".into());
+    }
+    let ix_arr = Value::Array(
+        mask.iter()
+            .enumerate()
+            .filter(|(_, m)| **m != 0.0)
+            .map(|(i, _)| int_out(i as i64))
+            .collect(),
+    );
+    sparse_gather_rows(&[a.clone(), ix_arr], env)
+}
+
+/// sparse_from_dense_mask(denseRows, mask) — COO of kept entries (fancy sparse view).
+/// denseRows: array of row arrays; mask: same nrows, truthy keeps row.
+fn sparse_from_dense_mask(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let rows = match args.first() {
+        Some(Value::Array(r)) => r,
+        _ => return Err("sparse_from_dense_mask(rows, mask)".into()),
+    };
+    let mask = vector_at(args, 1, "sparse_from_dense_mask")?;
+    if mask.len() != rows.len() {
+        return Err("sparse_from_dense_mask: mask length".into());
+    }
+    let ncols = match rows.first() {
+        Some(Value::Array(c)) => c.len(),
+        _ => 0,
+    };
+    let mut rr = Vec::new();
+    let mut cc = Vec::new();
+    let mut dd = Vec::new();
+    let mut out_r = 0i64;
+    for (i, row) in rows.iter().enumerate() {
+        if mask[i] == 0.0 {
+            continue;
+        }
+        let Value::Array(cells) = row else {
+            return Err("sparse_from_dense_mask: jagged".into());
+        };
+        for (j, cell) in cells.iter().enumerate() {
+            let v = num(cell)?;
+            if v != 0.0 {
+                rr.push(out_r);
+                cc.push(j as i64);
+                dd.push(v);
+            }
+        }
+        out_r += 1;
+    }
+    Ok(sparse_out(
+        "coo",
+        out_r as usize,
+        ncols,
+        &dd,
+        &cc,
+        &rr,
+    ))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
     bind(&["science_sparse_to_csr", "sparse_to_csr"], sparse_to_csr);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
+    bind(
+        &["science_sparse_gather_rows", "sparse_gather_rows"],
+        sparse_gather_rows,
+    );
+    bind(
+        &["science_sparse_compress_rows", "sparse_compress_rows"],
+        sparse_compress_rows,
+    );
+    bind(
+        &["science_sparse_from_dense_mask", "sparse_from_dense_mask"],
+        sparse_from_dense_mask,
+    );
 }

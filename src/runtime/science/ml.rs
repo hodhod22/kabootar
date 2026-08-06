@@ -684,6 +684,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_job_map_parallel", "job_map_parallel"], job_map_parallel);
     bind(&["science_job_map_chunks", "job_map_chunks"], job_map_chunks);
     bind(&["science_sci_allreduce_f64", "sci_allreduce_f64"], sci_allreduce_f64);
+    bind(&["science_sci_allreduce_tcp", "sci_allreduce_tcp"], sci_allreduce_tcp);
 }
 
 /// sci_allreduce_f64(vectors, op?, nWorkers?) — threaded in-process AllReduce.
@@ -773,5 +774,171 @@ fn reduce_dim(vectors: &[Vec<f64>], d: usize, op: &str, n: usize) -> f64 {
             .fold(f64::NEG_INFINITY, f64::max),
         "sum" => vectors.iter().map(|v| v[d]).sum(),
         _ => vectors.iter().map(|v| v[d]).sum::<f64>() / n as f64,
+    }
+}
+
+fn write_f64_vec(stream: &mut std::net::TcpStream, v: &[f64]) -> Result<(), String> {
+    use std::io::Write;
+    let n = v.len() as u32;
+    stream
+        .write_all(&n.to_le_bytes())
+        .map_err(|e| format!("tcp write len: {e}"))?;
+    for x in v {
+        stream
+            .write_all(&x.to_le_bytes())
+            .map_err(|e| format!("tcp write f64: {e}"))?;
+    }
+    stream.flush().map_err(|e| format!("tcp flush: {e}"))?;
+    Ok(())
+}
+
+fn read_f64_vec(stream: &mut std::net::TcpStream) -> Result<Vec<f64>, String> {
+    use std::io::Read;
+    let mut len_buf = [0u8; 4];
+    stream
+        .read_exact(&mut len_buf)
+        .map_err(|e| format!("tcp read len: {e}"))?;
+    let n = u32::from_le_bytes(len_buf) as usize;
+    if n > 1_000_000 {
+        return Err("tcp allreduce: vector too large".into());
+    }
+    let mut out = Vec::with_capacity(n);
+    let mut xb = [0u8; 8];
+    for _ in 0..n {
+        stream
+            .read_exact(&mut xb)
+            .map_err(|e| format!("tcp read f64: {e}"))?;
+        out.push(f64::from_le_bytes(xb));
+    }
+    Ok(out)
+}
+
+/// sci_allreduce_tcp(vectors, op?) — AllReduce over loopback TCP (socket transport).
+/// Rank 0 hosts; ranks 1..N-1 connect, send vectors, receive reduced result.
+fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = args;
+        return Err("sci_allreduce_tcp: not available on wasm32".into());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::net::{TcpListener, TcpStream};
+        use std::thread;
+        use std::time::Duration;
+
+        let vectors = match args.first() {
+            Some(Value::Array(rows)) => {
+                let mut out = Vec::with_capacity(rows.len());
+                for row in rows {
+                    out.push(vector_at(std::slice::from_ref(row), 0, "sci_allreduce_tcp")?);
+                }
+                out
+            }
+            _ => return Err("sci_allreduce_tcp(vectors, op?)".into()),
+        };
+        if vectors.is_empty() {
+            return Ok(Value::Array(vec![]));
+        }
+        let dim = vectors[0].len();
+        for v in &vectors {
+            if v.len() != dim {
+                return Err("sci_allreduce_tcp: jagged vectors".into());
+            }
+        }
+        let op = match args.get(1) {
+            Some(Value::String(s)) => s.clone(),
+            Some(Value::Null) | Some(Value::Undefined) | None => "mean".into(),
+            _ => return Err("sci_allreduce_tcp: op must be string".into()),
+        };
+        if !matches!(op.as_str(), "sum" | "mean" | "max") {
+            return Err("sci_allreduce_tcp: op must be sum|mean|max".into());
+        }
+        let n = vectors.len();
+        if n == 1 {
+            return Ok(vector_out(&vectors[0]));
+        }
+
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .map_err(|e| format!("sci_allreduce_tcp bind: {e}"))?;
+        let port = listener
+            .local_addr()
+            .map_err(|e| format!("sci_allreduce_tcp addr: {e}"))?
+            .port();
+        let _ = listener.set_nonblocking(false);
+
+        // One client thread per remote rank so all connect before server replies.
+        let mut clients = Vec::with_capacity(n - 1);
+        for v in vectors.iter().skip(1).cloned() {
+            clients.push(thread::spawn(move || -> Result<Vec<f64>, String> {
+                // Retry connect briefly while listener comes up.
+                let mut last_err = String::new();
+                for _ in 0..50 {
+                    match TcpStream::connect(("127.0.0.1", port)) {
+                        Ok(mut stream) => {
+                            let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+                            let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+                            write_f64_vec(&mut stream, &v)?;
+                            return read_f64_vec(&mut stream);
+                        }
+                        Err(e) => {
+                            last_err = e.to_string();
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                    }
+                }
+                Err(format!("tcp connect: {last_err}"))
+            }));
+        }
+
+        let mut acc = vectors[0].clone();
+        let mut streams = Vec::with_capacity(n - 1);
+        for _ in 1..n {
+            let (mut stream, _) = listener
+                .accept()
+                .map_err(|e| format!("tcp accept: {e}"))?;
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+            let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+            let remote = read_f64_vec(&mut stream)?;
+            if remote.len() != dim {
+                return Err("sci_allreduce_tcp: dim mismatch".into());
+            }
+            for d in 0..dim {
+                match op.as_str() {
+                    "max" => acc[d] = acc[d].max(remote[d]),
+                    _ => acc[d] += remote[d],
+                }
+            }
+            streams.push(stream);
+        }
+        if op == "mean" {
+            let scale = 1.0 / n as f64;
+            for x in &mut acc {
+                *x *= scale;
+            }
+        }
+        for stream in &mut streams {
+            write_f64_vec(stream, &acc)?;
+        }
+        for client in clients {
+            let client_res = client
+                .join()
+                .map_err(|_| "sci_allreduce_tcp: client join".to_string())??;
+            if client_res.len() != dim {
+                return Err("sci_allreduce_tcp: client result dim".into());
+            }
+            for d in 0..dim {
+                if (client_res[d] - acc[d]).abs() > 1e-9 {
+                    return Err("sci_allreduce_tcp: client/server mismatch".into());
+                }
+            }
+        }
+        let mut out = HashMap::new();
+        out.insert("result".into(), vector_out(&acc));
+        out.insert("transport".into(), Value::String("tcp".into()));
+        out.insert("port".into(), Value::Number(port as i64));
+        out.insert("nRanks".into(), Value::Number(n as i64));
+        out.insert("op".into(), Value::String(op));
+        Ok(Value::Object(out))
     }
 }
