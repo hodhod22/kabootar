@@ -138,7 +138,7 @@ impl Checker {
             .collect();
         for name in names {
             self.err(format!(
-                "ownership: Owned '{name}' dropped out of scope without move/drop (leak-lint)"
+                "ownership: Owned '{name}' dropped out of scope without move/drop (leak-lint); hint: call drop({name}) or move it before end of scope"
             ));
         }
     }
@@ -474,7 +474,7 @@ impl Checker {
         match self.places.get(name).copied() {
             Some(Place::Moved) => {
                 self.err(format!(
-                    "ownership: use after move of `{name}` (compile-time, @manual)"
+                    "ownership: use after move of `{name}` (compile-time, @manual); hint: do not use `{name}` after it was moved"
                 ));
             }
             Some(Place::Owned) => {

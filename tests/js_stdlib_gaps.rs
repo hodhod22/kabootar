@@ -90,6 +90,21 @@ Reflect.getParent(o).y
 }
 
 #[test]
+fn object_prototype_apis_redirect_to_parent() {
+    let mut env = create_global_env();
+    let err = eval_source(r#"Object.getPrototypeOf({})"#, &mut env).expect_err("getPrototypeOf");
+    assert!(
+        err.contains("getParent") || err.contains("Parent"),
+        "{err}"
+    );
+    let err2 = eval_source(r#"Object.setPrototypeOf({}, {})"#, &mut env).expect_err("setPrototypeOf");
+    assert!(
+        err2.contains("setParent") || err2.contains("Parent"),
+        "{err2}"
+    );
+}
+
+#[test]
 fn object_define_properties_and_descriptors() {
     let mut env = create_global_env();
     let v = eval_source(

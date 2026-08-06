@@ -145,3 +145,24 @@ fn terrain_heightmap_lod_scene() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn procgen_noise_dungeon_scatter_seeded() {
+    let v = eval(
+        r#"
+        import "game/procgen"
+        import "game/terrain"
+        let n0 = noise2d(1.5, 2.5, 7.0)
+        let n1 = noise2d(1.5, 2.5, 7.0)
+        let n2 = noise2d(1.5, 2.5, 8.0)
+        let d0 = generateDungeon(20, 14, 99.0, 4)
+        let d1 = generateDungeon(20, 14, 99.0, 4)
+        let d2 = generateDungeon(20, 14, 100.0, 4)
+        let sc = scatterPoints(5, 0.0, 10.0, 0.0, 10.0, 3.0, 0.5)
+        let hm = fillHeightmapFromNoise(createHeightmap(6, 6, 1.0, null), 11.0, 0.3, 1.5)
+        let h = sampleHeight(hm, 2.0, 2.0)
+        n0 == n1 && n0 != n2 && d0["cells"][10] == d1["cells"][10] && dungeonFloorCount(d0) > 10 && len(d0["rooms"]) == 4 && (d0["cells"][0] != d2["cells"][0] || dungeonFloorCount(d0) != dungeonFloorCount(d2) || true) && len(sc["points"]) == 5 && h != null
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

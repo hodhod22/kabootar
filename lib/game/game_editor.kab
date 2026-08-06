@@ -13,6 +13,8 @@ pub import "game/physics3"
 pub import "game/postfx"
 pub import "game/light"
 pub import "game/terrain"
+pub import "game/procgen"
+pub import "game/audio"
 
 pub fn bootEditor(rootName) {
     let root = createNode(rootName)
