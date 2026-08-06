@@ -1,0 +1,132 @@
+@version "1.0.0"
+
+// game/stats — achievements & counters (GP6k), persist via game/save.
+// import "game/stats"
+
+import "game/save"
+
+/// Create a stats board.
+pub fn createStats(playerId) {
+    if playerId == null || playerId == undefined {
+        playerId = "player"
+    }
+    return {
+        "kind": "game_stats",
+        "playerId": playerId,
+        "counters": {},
+        "flags": {},
+        "achievements": {},
+        "unlocked": []
+    }
+}
+
+/// Define an achievement rule: when counter >= threshold → unlock id.
+pub fn defineAchievement(stats, id, counter, threshold, title) {
+    let ach = stats["achievements"]
+    ach[id] = {
+        "id": id,
+        "counter": counter,
+        "threshold": threshold,
+        "title": title,
+        "unlocked": false
+    }
+    stats["achievements"] = ach
+    return stats
+}
+
+pub fn getCounter(stats, name) {
+    let c = stats["counters"][name]
+    if c == null || c == undefined {
+        return 0
+    }
+    return c
+}
+
+pub fn setCounter(stats, name, value) {
+    let counters = stats["counters"]
+    counters[name] = value
+    stats["counters"] = counters
+    return evaluateAchievements(stats)
+}
+
+pub fn addCounter(stats, name, delta) {
+    if delta == null || delta == undefined {
+        delta = 1
+    }
+    let v = getCounter(stats, name) + delta
+    return setCounter(stats, name, v)
+}
+
+pub fn setFlag(stats, name, value) {
+    let flags = stats["flags"]
+    flags[name] = value
+    stats["flags"] = flags
+    return stats
+}
+
+pub fn getFlag(stats, name) {
+    return stats["flags"][name] == true
+}
+
+fn evaluateAchievements(stats) {
+    let ach = stats["achievements"]
+    let ids = object_keys(ach)
+    let unlocked = stats["unlocked"]
+    let i = 0
+    while i < len(ids) {
+        let id = ids[i]
+        let a = ach[id]
+        if a["unlocked"] != true {
+            let c = getCounter(stats, a["counter"])
+            if c >= a["threshold"] {
+                a["unlocked"] = true
+                ach[id] = a
+                unlocked = push(unlocked, id)
+            }
+        }
+        i = i + 1
+    }
+    stats["achievements"] = ach
+    stats["unlocked"] = unlocked
+    return stats
+}
+
+pub fn isUnlocked(stats, id) {
+    let a = stats["achievements"][id]
+    if a == null || a == undefined {
+        return false
+    }
+    return a["unlocked"] == true
+}
+
+pub fn listUnlocked(stats) {
+    return stats["unlocked"]
+}
+
+/// Persist stats into a save slot document (JSON via game/save).
+pub fn saveStats(stats, path) {
+    if path == null || path == undefined {
+        path = "/saves/stats_" + stats["playerId"] + ".json"
+    }
+    let slot = createSlot(stats["playerId"], 1)
+    let doc = {
+        "kind": "game_stats_save",
+        "version": 1,
+        "stats": stats
+    }
+    let res = saveState(slot, doc)
+    os_write(path, json_stringify(doc))
+    return { "ok": true, "path": path, "slot": res["slot"] }
+}
+
+pub fn loadStats(path, playerId) {
+    if path == null || path == undefined {
+        path = "/saves/stats_" + playerId + ".json"
+    }
+    let text = os_read(path)
+    let doc = json_parse(text)
+    if doc["kind"] == "game_stats_save" && doc["stats"] != null {
+        return doc["stats"]
+    }
+    return createStats(playerId)
+}

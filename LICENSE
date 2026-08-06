@@ -1,15 +1,20 @@
 KABOOTAR COMMONS LICENSE (KCL)
-Version 1.0, 2026-08-06
+Version 1.1, 2026-08-06
 
 Copyright (c) 2026 Kabootar-projektet och bidragslämnare.
+
+OBSERVERA: Denna licens gäller endast Kabootars egen (första-parts) kod.
+Tredjepartskomponenter behåller sina egna licenser — se THIRD_PARTY.md.
 
 1. DEFINITIONER
 
   1.1 "Programvaran" avser Kabootar-språket, Kabootar-webbläsaren,
        Kabootar-skrivbordsmiljön och tillhörande första-parts-verktyg
-       som distribueras med denna licens. Programvaran omfattar INTE
-       Linux-kärnan, GNU-verktyg eller andra tredjepartskomponenter
-       som har egna separata licenser (GPL, MIT, BSD etc.).
+       som distribueras under denna licens (källkod och binärer som
+       Kabootar-projektet publicerar). Programvaran omfattar INTE
+       Linux-kärnan, GNU-verktyg, Rust-crates eller andra
+       tredjepartskomponenter; dessa har egna separata licenser
+       (t.ex. MIT, Apache-2.0, BSD) och påverkas inte av KCL.
 
   1.2 "Privatperson" avser en fysisk person som använder Programvaran
        för personliga, icke-kommersiella ändamål, inklusive hobbyprojekt,
@@ -18,23 +23,37 @@ Copyright (c) 2026 Kabootar-projektet och bidragslämnare.
   1.3 "Mikroföretag" avser en juridisk person eller organisation med
        färre än 10 (tio) anställda.
 
-  1.4 "Kommersiell Enhet" avser en juridisk person, organisation eller
+  1.4 "Utbildnings- eller ideell organisation" avser skola, universitet
+       eller registrerad ideell förening som använder Programvaran för
+       undervisning, forskning eller välgörenhet utan kommersiell
+       produktförsäljning.
+
+  1.5 "Kommersiell Enhet" avser en juridisk person, organisation eller
        myndighet med 10 (tio) eller fler anställda, som använder
        Programvaran i sin interna produktion, i sina tjänster, eller
        som distribuerar Programvaran som en del av en kommersiell produkt.
+       Utbildnings- eller ideella organisationer enligt 1.4 räknas inte
+       som Kommersiell Enhet under denna licens.
 
-  1.5 "Kommersiell Licens" avser en separat betald licens som utfärdas
+  1.6 "Kommersiell Licens" avser en separat betald licens som utfärdas
        av Kabootar-projektet, vilken ger Kommersiella Enheter rätt att
        använda Programvaran i enlighet med avtalade villkor.
 
-2. GRATIS ANVÄNDANDE (FÖR ALLA)
+2. GRATIS ANVÄNDANDE
 
-  Oavsett vem du är, har du alltid rätt att:
-  - Ladda ner, läsa och granska Programvarans källkod.
-  - Modifiera Programvaran för eget bruk.
-  - Distribuera modifierade eller oförändrade versioner av Programvaran
-    uteslutande till Privatpersoner och Mikroföretag, under förutsättning
-    att denna licens inkluderas i sin helhet.
+  2.1 Oavsett vem du är, har du alltid rätt att:
+       - Ladda ner, läsa och granska Programvarans källkod.
+       - Modifiera Programvaran för eget bruk.
+       - Köra Programvaran lokalt för utvärdering och utveckling.
+
+  2.2 Privatpersoner, Mikroföretag samt Utbildnings- eller ideella
+       organisationer får dessutom distribuera modifierade eller
+       oförändrade versioner av Programvaran till andra Privatpersoner,
+       Mikroföretag och Utbildnings-/ideella organisationer, under
+       förutsättning att:
+       (a) denna licens inkluderas i sin helhet, och
+       (b) tillämpliga tredjepartsnotiser (THIRD_PARTY.md och eventuella
+           NOTICE-filer från beroenden) behålls vid binärdistribution.
 
 3. BETALD ANVÄNDNING (FÖR STÖRRE FÖRETAG)
 
@@ -47,23 +66,43 @@ Copyright (c) 2026 Kabootar-projektet och bidragslämnare.
        test-/utvecklingsmiljö i upp till 30 (trettio) dagar utan
        kostnad, innan en Kommersiell Licens krävs.
 
-  3.3 Att använda Programvaran för intern forskning eller
-       välgörenhetsändamål inom en Kommersiell Enhet kan undantas
-       från betalkravet efter separat skriftlig överenskommelse.
+  3.3 Intern forskning eller välgörenhetsändamål inom en Kommersiell
+       Enhet kan undantas från betalkravet efter separat skriftlig
+       överenskommelse med Kabootar-projektet.
 
-4. FRIGIVNING EFTER 3 ÅR ("TIDSBOMB")
+4. TREDJEPARTSKOMPONENTER
 
-  4.1 Varje specifik version av Programvaran (t.ex. v1.0, v1.1) blir
-       automatiskt och oåterkalleligen fullständigt fri för ALLA
-       användare (inklusive Kommersiella Enheter) utan krav på
-       Kommersiell Licens, 3 (tre) år efter det datum då den versionen
-       första gången släpptes offentligt.
+  4.1 Kabootar länkar mot och kan bundla bibliotek under bland annat
+       MIT, Apache-2.0 och BSD. Dessa licenser gäller oförändrade för
+       respektive komponent. KCL ger dig inte rätt att omlicensiera
+       eller ta bort krav i sådana licenser (t.ex. copyrightnotiser
+       eller Apache-2.0 NOTICE).
 
-  4.2 Efter frigivningen får den specifika versionen användas,
-       kopieras och modifieras utan begränsningar, under samma villkor
-       som BSD-3-Clause.
+  4.2 En översikt över viktiga beroenden finns i THIRD_PARTY.md.
+       Vid distribution av binärer ska du följa varje beroendes
+       licensvillkor.
 
-5. ANSVARSBEGRÄNSNING
+5. FRIGIVNING EFTER 3 ÅR ("TIDSBOMB")
+
+  5.1 Varje specifik version av Programvaran (t.ex. v2.1.0) blir
+       automatiskt och oåterkalleligen tillgänglig för ALLA användare
+       (inklusive Kommersiella Enheter) utan krav på Kommersiell Licens,
+       3 (tre) år efter det datum då den versionen första gången
+       släpptes offentligt.
+
+  5.2 Efter frigivningen får den specifika versionens första-parts-kod
+       användas, kopieras, modifieras och distribueras under villkor
+       motsvarande BSD-3-Clause. Tredjepartskomponenter behåller sina
+       egna licenser även efter frigivningen.
+
+6. BIDRAG
+
+  Om du skickar bidrag (kod, dokumentation, patchar) till Kabootar-
+  projektet licensierar du dem under KCL (eller, efter tidsbomb enligt
+  §5, BSD-3-Clause för den berörda versionen), om inte annat skriftligen
+  avtalats.
+
+7. ANSVARSBEGRÄNSNING
 
   PROGRAMVARAN TILLHANDAHÅLLS "I BEFINTLIGT SKICK", UTAN GARANTIER
   AV NÅGOT SLAG, VARE SIG UTTRYCKLIGA ELLER UNDERFÖRSTÅDDA, INKLUSIVE
@@ -73,7 +112,7 @@ Copyright (c) 2026 Kabootar-projektet och bidragslämnare.
   AVTAL, SKADESTÅNDSANSVAR ELLER ANNAT, SOM UPPSTÅR UR ELLER I
   SAMBAND MED PROGRAMVARAN.
 
-6. JURISDIKTION
+8. JURISDIKTION
 
   Denna licens tolkas i enlighet med svensk lag. Tvister avgörs av
   svensk domstol.
@@ -83,5 +122,6 @@ Copyright (c) 2026 Kabootar-projektet och bidragslämnare.
 För att köpa en Kommersiell Licens, kontakta Kabootar-projektet via:
 https://github.com/hodhod22/kabootar
 
-Pris: 1 500 SEK / anställd / år
+Pris (vägledning): 1 500 SEK / anställd / år
 (minimikostnad 15 000 SEK per år för företag ≥10 anställda).
+Slutligt pris och villkor anges i den Kommersiella Licensen.

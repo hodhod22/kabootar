@@ -1,0 +1,128 @@
+@version "1.0.0"
+
+// game/i18n — localisation for games (GP6j).
+// String tables, locale switch, simple plural select (ICU-lite deferred).
+// import "game/i18n"
+
+/// Create a localisation catalog.
+pub fn createCatalog(locale, messages) {
+    if locale == null || locale == undefined {
+        locale = "en"
+    }
+    if messages == null || messages == undefined {
+        messages = {}
+    }
+    let tables = {}
+    tables[locale] = messages
+    return {
+        "kind": "game_i18n",
+        "locale": locale,
+        "fallback": "en",
+        "tables": tables,
+        "messages": messages
+    }
+}
+
+pub fn addLocale(catalog, locale, messages) {
+    let tables = catalog["tables"]
+    if tables == null || tables == undefined {
+        tables = {}
+    }
+    tables[locale] = messages
+    catalog["tables"] = tables
+    if catalog["locale"] == locale {
+        catalog["messages"] = messages
+    }
+    return catalog
+}
+
+pub fn setLocale(catalog, locale) {
+    catalog["locale"] = locale
+    let tables = catalog["tables"]
+    let m = tables[locale]
+    if m == null || m == undefined {
+        m = tables[catalog["fallback"]]
+    }
+    if m == null || m == undefined {
+        m = catalog["messages"]
+    }
+    if m == null || m == undefined {
+        m = {}
+    }
+    catalog["messages"] = m
+    return catalog
+}
+
+pub fn locale(catalog) {
+    return catalog["locale"]
+}
+
+fn applyVars(s, vars) {
+    if vars == null || vars == undefined {
+        return s
+    }
+    let keys = object_keys(vars)
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        s = string_replace_all(s, "{" + k + "}", "" + vars[k])
+        i = i + 1
+    }
+    return s
+}
+
+/// Translate key; optional vars for {name} substitution.
+pub fn t(catalog, key, vars) {
+    let messages = catalog["messages"]
+    let s = messages[key]
+    if s == null || s == undefined {
+        let tables = catalog["tables"]
+        let fb = tables[catalog["fallback"]]
+        if fb != null && fb != undefined {
+            s = fb[key]
+        }
+    }
+    if s == null || s == undefined {
+        return key
+    }
+    return applyVars(s, vars)
+}
+
+/// Simple plural: forms = { one, other } or { zero, one, other }.
+pub fn tn(catalog, key, count, vars) {
+    if vars == null || vars == undefined {
+        vars = {}
+    }
+    vars["count"] = count
+    let forms = catalog["messages"][key]
+    if forms == null || forms == undefined {
+        let tables = catalog["tables"]
+        let fb = tables[catalog["fallback"]]
+        if fb != null && fb != undefined {
+            forms = fb[key]
+        }
+    }
+    if forms == null || forms == undefined {
+        return t(catalog, key, vars)
+    }
+    if typeof(forms) == "string" {
+        return applyVars(forms, vars)
+    }
+    let s = forms["other"]
+    if count == 0 && forms["zero"] != null && forms["zero"] != undefined {
+        s = forms["zero"]
+    } else {
+        if count == 1 && forms["one"] != null && forms["one"] != undefined {
+            s = forms["one"]
+        }
+    }
+    if s == null || s == undefined {
+        s = key
+    }
+    return applyVars(s, vars)
+}
+
+/// List registered locale codes.
+pub fn availableLocales(catalog) {
+    return object_keys(catalog["tables"])
+}

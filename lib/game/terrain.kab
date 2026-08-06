@@ -178,7 +178,149 @@ pub fn buildTerrainMesh(hm, lod) {
     }
 }
 
-/// Chunk descriptor (streaming stub — returns mesh for full hm subset).
+/// Ensure splatmaps exist on heightmap (RGBA-like channels 0..1).
+pub fn ensureSplatmaps(hm, channels) {
+    if channels == null || channels == undefined {
+        channels = ["rock", "grass", "dirt", "snow"]
+    }
+    let n = hm["width"] * hm["depth"]
+    let maps = hm["splat"]
+    if maps == null || maps == undefined {
+        maps = {}
+    }
+    let ci = 0
+    while ci < len(channels) {
+        let ch = channels[ci]
+        if maps[ch] == null || maps[ch] == undefined {
+            let arr = []
+            let i = 0
+            while i < n {
+                let v = 0.0
+                if ci == 0 {
+                    v = 1.0
+                }
+                arr = push(arr, v)
+                i = i + 1
+            }
+            maps[ch] = arr
+        }
+        ci = ci + 1
+    }
+    hm["splat"] = maps
+    hm["splatChannels"] = channels
+    return hm
+}
+
+fn splatIndex(hm, x, z) {
+    let cs = hm["cellSize"]
+    let ix = floor(x / cs)
+    let iz = floor(z / cs)
+    let w = hm["width"]
+    let d = hm["depth"]
+    if ix < 0 { ix = 0 }
+    if iz < 0 { iz = 0 }
+    if ix >= w { ix = w - 1 }
+    if iz >= d { iz = d - 1 }
+    return iz * w + ix
+}
+
+/// Paint splat weight at world xz (normalizes channel sum ≈ 1 at texel).
+pub fn paintSplat(hm, x, z, channel, weight) {
+    if weight == null || weight == undefined {
+        weight = 0.5
+    }
+    if weight < 0.0 {
+        weight = 0.0
+    }
+    if weight > 1.0 {
+        weight = 1.0
+    }
+    hm = ensureSplatmaps(hm, hm["splatChannels"])
+    let maps = hm["splat"]
+    if maps[channel] == null || maps[channel] == undefined {
+        return {
+            "ok": false,
+            "mode": "missing_channel",
+            "hm": hm,
+            "channel": channel
+        }
+    }
+    let idx = splatIndex(hm, x, z)
+    let maps = hm["splat"]
+    let chans = hm["splatChannels"]
+    // Set target channel to weight; distribute remainder across others.
+    let rem = 1.0 - weight
+    let otherCount = len(chans) - 1
+    if otherCount < 1 {
+        otherCount = 1
+    }
+    let i = 0
+    while i < len(chans) {
+        let a = maps[chans[i]]
+        if chans[i] == channel {
+            a[idx] = weight
+        } else {
+            a[idx] = rem / otherCount
+        }
+        maps[chans[i]] = a
+        i = i + 1
+    }
+    hm["splat"] = maps
+    return { "ok": true, "mode": "painted", "hm": hm, "index": idx, "channel": channel }
+}
+
+/// Sample splat weights at world xz (nearest texel).
+pub fn sampleSplat(hm, x, z) {
+    hm = ensureSplatmaps(hm, hm["splatChannels"])
+    let idx = splatIndex(hm, x, z)
+    let out = {}
+    let chans = hm["splatChannels"]
+    let i = 0
+    while i < len(chans) {
+        out[chans[i]] = hm["splat"][chans[i]][idx]
+        i = i + 1
+    }
+    return out
+}
+
+/// Streaming window: which chunks around camera are "resident".
+pub fn createStreamingBounds(chunkSize, radius) {
+    if chunkSize == null {
+        chunkSize = 8
+    }
+    if radius == null {
+        radius = 1
+    }
+    return {
+        "kind": "terrain_stream",
+        "chunkSize": chunkSize,
+        "radius": radius,
+        "resident": []
+    }
+}
+
+/// Update resident chunk list for camera xz (stub — no async load).
+pub fn updateStreaming(stream, hm, camX, camZ, lod) {
+    let cs = stream["chunkSize"]
+    let cx = floor(camX / (cs * hm["cellSize"]))
+    let cz = floor(camZ / (cs * hm["cellSize"]))
+    let r = stream["radius"]
+    let resident = []
+    let z = cz - r
+    while z <= cz + r {
+        let x = cx - r
+        while x <= cx + r {
+            resident = push(resident, terrainChunk(hm, x, z, cs, lod))
+            x = x + 1
+        }
+        z = z + 1
+    }
+    stream["resident"] = resident
+    stream["camChunk"] = { "cx": cx, "cz": cz }
+    return stream
+}
+
+/// Chunk descriptor for streaming/LOD.
 pub fn terrainChunk(hm, cx, cz, chunkSize, lod) {
     if chunkSize == null {
         chunkSize = 8
@@ -189,22 +331,8 @@ pub fn terrainChunk(hm, cx, cz, chunkSize, lod) {
         "cz": cz,
         "chunkSize": chunkSize,
         "lod": lod,
-        "mode": "subset_stub",
+        "mode": "resident_stub",
         "mesh": buildTerrainMesh(hm, lod)
-    }
-}
-
-/// Splat paint stub (GP6d deferred).
-pub fn paintSplat(hm, x, z, channel, weight) {
-    return {
-        "ok": false,
-        "mode": "stub",
-        "hm": hm,
-        "x": x,
-        "z": z,
-        "channel": channel,
-        "weight": weight,
-        "reason": "splat/paint deferred"
     }
 }
 
@@ -217,7 +345,8 @@ pub fn attachTerrainToScene(root, hm, lod) {
     n["terrain"] = {
         "heightmap": hm,
         "mesh": mesh,
-        "lod": lod
+        "lod": lod,
+        "splat": hm["splat"]
     }
     root = addChild(root, n)
     return root

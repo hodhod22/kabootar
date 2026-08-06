@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** Spelbyggare (GP6j/k, splat) + språk polish; GP6n XR deferred. **P/GP0–GP5** + **GP6d/h/l** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** Spelbyggare (net/shadows) + self-host/P polish; GP6n XR deferred. **P/GP0–GP5** + **GP6d/h/j/k/l** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -771,15 +771,15 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6a** | `game/anim` | **Animation** — clip/timeline, skeletal (glTF channels), tween/easing, state machine | ✅ subset (clip/sample/tween/state; skeletal kvar) |
 | **GP6b** | `game/physics3` | **3D-fysik** — rigidbody, collider (box/sphere/capsule), constraints; utöka `rayAabb`/`characterStep` | ✅ subset (rigidbody/box/sphere/capsule + distance constraint + stepWorld) |
 | **GP6c** | `game/particles` | **Partikelsystem** — emitter, lifetime, velocity/force, GPU instanced quads/points | ✅ subset (CPU emitter/burst/step; GPU kvar) |
-| **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | ✅ subset (heightmap + bilinear + LOD mesh; splat/streaming stub) |
+| **GP6d** | `game/terrain` | **Terrain & world building** — heightmap, LOD chunks, splat/paint, streaming bounds | ✅ subset (heightmap + splat + streaming residents; async load deferred) |
 | **GP6e** | `game/ui` | **UI-system** — panels, buttons, layout (flex), text, HUD/widgets i spel + editor | ✅ subset (panel/button/label/layoutRow/hitTest) |
 | **GP6f** | `game/postfx` | **Post-processing & VFX** — fullscreen pass-kedja (bloom/tonemap/FXAA subset), material VFX hooks | ✅ subset (pipeline descriptors + CPU tonemap/bloom stubs; GPU pass kvar) |
 | **GP6g** | `game/light` | **Ljus & shadows** — directional/point/spot; shadow map subset (wgpu); ambient/IBL-lite | ✅ subset (light list + shadow descriptors + Lambert stub; GPU shadow kvar) |
 | **GP6h** | `game/audio`++ | **Audio-utökning** — spatial 3D, buses/groups, ducking, streaming; ovanpå nuvarande PCM/tone | ✅ subset (spatial gain, groups, duck, chunk stream) |
 
 | **GP6i** | `game/save` | **Save/Load** — serialiserad scen/state (VFS/JSON/bin), checkpoints, versioned slots | ✅ subset (`.kscene`/`.ksave` via json+os_write; checkpoints) |
-| **GP6j** | `game/i18n` | **Localisation** — string tables, locale switch, ICU-lite plural/format subset | 📋 |
-| **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | 📋 |
+| **GP6j** | `game/i18n` | **Localisation** — string tables, locale switch, ICU-lite plural/format subset | ✅ subset (`t` / `tn` plural) |
+| **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | ✅ subset |
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
 | **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | 📋 |
@@ -805,7 +805,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** terrain splat/streaming; GP6j i18n / GP6k stats; shadows/postfx polish.  
+**Checkpoint GP (nästa):** GP6m net++ / shadows polish; async terrain streaming; GP6n XR deferred.  
 **Checkpoint GP (landad):** textured 3D demo; GP0–GP5; **GP7a–g MVP** + GPU scene viewport + sandbox session + **`import "sim"` robot twin MVP** + GP6a/b/c/e/f/g/i.  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
