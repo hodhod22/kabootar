@@ -472,7 +472,34 @@ fn xr_live_session_ffi_and_webxr_session_raf() {
         let lef = out["ended"]["loaderEndFrame"]
         let live1 = xrLiveSessionStatus()
         let stop = xrDestroyLiveSession(xr)
-        return live0["active"] == true && live0["backend"] == "stub-live" && raf["backend"] == "webxr-session-raf" && xr["raf"]["webxrGranted"] == true && lef["ffiInvoked"] == true && lef["ffiMode"] == "stub-trampoline" && live1["webxrGranted"] == true && live1["webxrRafBound"] == true && live1["endFrameFfiCalls"] == 1 && stop["live"]["active"] == false
+        return live0["active"] == true && live0["backend"] == "stub-live" && live0["instanceCreated"] == true && live0["sessionCreated"] == true && live0["createPath"] == "stub-xrCreateInstance+xrCreateSession" && live0["createInstanceRc"] == 0 && live0["createSessionRc"] == 0 && raf["backend"] == "webxr-session-raf" && xr["raf"]["webxrGranted"] == true && lef["ffiInvoked"] == true && lef["ffiMode"] == "stub-trampoline" && live1["webxrGranted"] == true && live1["webxrRafBound"] == true && live1["endFrameFfiCalls"] == 1 && stop["live"]["active"] == false
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn xr_create_instance_session_and_promise_raf() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let polled = xrResolveSessionRaf(xr, "immersive-vr")
+        xr = polled["session"]
+        let promise = polled["promise"]
+        let st = xrSessionPromiseStatus()
+        xr = xrBegin(xr)
+        let out = xrRuntimeFrame(xr, 1280, 720)
+        let lef = out["ended"]["loaderEndFrame"]
+        let live = xrLiveSessionStatus()
+        return promise["resolved"] == true && promise["rafBackend"] == "webxr-session-raf-promise" && st["resolved"] == true && st["rafBound"] == true && live["instanceCreated"] == true && live["sessionCreated"] == true && live["createPath"] == "stub-xrCreateInstance+xrCreateSession" && lef["ffiInvoked"] == true && xr["raf"]["backend"] == "webxr-session-raf-promise"
         "#,
         &mut env,
     )
