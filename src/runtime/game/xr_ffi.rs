@@ -55,12 +55,42 @@ static HMD_DRIVER: Mutex<HmdDriverState> = Mutex::new(HmdDriverState {
     last_backend: String::new(),
 });
 
+/// In-process OpenXR-style compositor IPC channel (frame submit / poll ack).
+#[derive(Debug, Clone)]
+struct CompositorMsg {
+    frame_index: i64,
+    view_count: i64,
+    width: i64,
+    height: i64,
+    layer_type: String,
+}
+
+#[derive(Debug, Default)]
+struct CompositorIpc {
+    open: bool,
+    channel: String,
+    pending: Vec<CompositorMsg>,
+    acks: Vec<i64>,
+    submits: i64,
+}
+
+static COMPOSITOR_IPC: Mutex<CompositorIpc> = Mutex::new(CompositorIpc {
+    open: false,
+    channel: String::new(),
+    pending: Vec::new(),
+    acks: Vec::new(),
+    submits: 0,
+});
+
 pub fn reset_for_tests() {
     if let Ok(mut s) = XR_FFI.lock() {
         *s = XrFfiStatus::default();
     }
     if let Ok(mut d) = HMD_DRIVER.lock() {
         *d = HmdDriverState::default();
+    }
+    if let Ok(mut c) = COMPOSITOR_IPC.lock() {
+        *c = CompositorIpc::default();
     }
 }
 
@@ -358,6 +388,8 @@ pub fn present_to_hmd(composition: &Value) -> Result<Value, String> {
         "layerType".into(),
         Value::String("COMPOSITION_LAYER_PROJECTION".into()),
     );
+    // Also hand off to compositor IPC (OpenXR xrEndFrame → compositor).
+    let _ = compositor_submit(composition);
     Ok(Value::Object(out))
 }
 
@@ -376,3 +408,195 @@ pub fn status_value() -> Value {
     out.insert("formFactor".into(), Value::String(s.form_factor));
     Value::Object(out)
 }
+
+fn stub_enabled() -> bool {
+    std::env::var("KABOOTAR_XR_STUB")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+}
+
+/// Open compositor IPC (OpenXR end-frame → compositor handoff channel).
+pub fn compositor_open() -> Result<Value, String> {
+    let st = status();
+    let stub = stub_enabled();
+    if !st.bound && !stub {
+        return Err("xr_compositor_open: headset not bound".into());
+    }
+    let channel = if stub || st.backend == "xr-stub" {
+        "stub://compositor".to_string()
+    } else if st.openxr_runtime || st.openxr_loader {
+        format!("openxr-ipc://{}", st.loader_path)
+    } else if st.webxr {
+        "webxr://compositor".to_string()
+    } else {
+        "descriptor://compositor".to_string()
+    };
+    let mut ipc = COMPOSITOR_IPC
+        .lock()
+        .map_err(|_| "compositor ipc lock poisoned".to_string())?;
+    ipc.open = true;
+    ipc.channel = channel.clone();
+    ipc.pending.clear();
+    ipc.acks.clear();
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("open".into(), Value::Bool(true));
+    out.insert("channel".into(), Value::String(channel));
+    out.insert("kind".into(), Value::String("xr_compositor_ipc".into()));
+    Ok(Value::Object(out))
+}
+
+/// Submit composed frame into compositor IPC queue (OpenXR xrEndFrame analogue).
+pub fn compositor_submit(composition: &Value) -> Result<Value, String> {
+    let mut ipc = COMPOSITOR_IPC
+        .lock()
+        .map_err(|_| "compositor ipc lock poisoned".to_string())?;
+    if !ipc.open {
+        drop(ipc);
+        compositor_open()?;
+        ipc = COMPOSITOR_IPC
+            .lock()
+            .map_err(|_| "compositor ipc lock poisoned".to_string())?;
+    }
+    let (view_count, width, height, frame_index) = match composition {
+        Value::Object(m) => {
+            let vc = match m.get("viewCount") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            let w = match m.get("sideBySideWidth") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            let h = match m.get("sideBySideHeight") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            let fi = match m.get("frameIndex") {
+                Some(Value::Number(n)) => *n,
+                _ => ipc.submits + 1,
+            };
+            (vc, w, h, fi)
+        }
+        _ => (0, 0, 0, ipc.submits + 1),
+    };
+    ipc.submits += 1;
+    ipc.pending.push(CompositorMsg {
+        frame_index,
+        view_count,
+        width,
+        height,
+        layer_type: "COMPOSITION_LAYER_PROJECTION".into(),
+    });
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("queued".into(), Value::Bool(true));
+    out.insert("frameIndex".into(), Value::Number(frame_index));
+    out.insert("pending".into(), Value::Number(ipc.pending.len() as i64));
+    out.insert("channel".into(), Value::String(ipc.channel.clone()));
+    out.insert("kind".into(), Value::String("xr_compositor_submit".into()));
+    Ok(Value::Object(out))
+}
+
+/// Poll compositor IPC — ack one pending frame (compositor → app).
+pub fn compositor_poll() -> Result<Value, String> {
+    let mut ipc = COMPOSITOR_IPC
+        .lock()
+        .map_err(|_| "compositor ipc lock poisoned".to_string())?;
+    if !ipc.open {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("open".into(), Value::Bool(false));
+        out.insert("acked".into(), Value::Bool(false));
+        return Ok(Value::Object(out));
+    }
+    if let Some(msg) = ipc.pending.first().cloned() {
+        ipc.pending.remove(0);
+        ipc.acks.push(msg.frame_index);
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(true));
+        out.insert("acked".into(), Value::Bool(true));
+        out.insert("frameIndex".into(), Value::Number(msg.frame_index));
+        out.insert("viewCount".into(), Value::Number(msg.view_count));
+        out.insert("width".into(), Value::Number(msg.width));
+        out.insert("height".into(), Value::Number(msg.height));
+        out.insert("layerType".into(), Value::String(msg.layer_type));
+        out.insert("pending".into(), Value::Number(ipc.pending.len() as i64));
+        out.insert("kind".into(), Value::String("xr_compositor_ack".into()));
+        return Ok(Value::Object(out));
+    }
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("acked".into(), Value::Bool(false));
+    out.insert("pending".into(), Value::Number(0));
+    out.insert("kind".into(), Value::String("xr_compositor_ack".into()));
+    Ok(Value::Object(out))
+}
+
+/// WebXR `navigator.xr.requestSession(mode)` — real on wasm when available; stub otherwise.
+pub fn request_session(mode: &str) -> Result<Value, String> {
+    let mode = if mode.is_empty() { "immersive-vr" } else { mode };
+    let stub = stub_enabled();
+    let st = status();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            let navigator = window.navigator();
+            if let Ok(xr) =
+                js_sys::Reflect::get(&navigator, &wasm_bindgen::JsValue::from_str("xr"))
+            {
+                if !xr.is_undefined() && !xr.is_null() {
+                    // Best-effort: call requestSession if present (may return a Promise).
+                    if let Ok(req) =
+                        js_sys::Reflect::get(&xr, &wasm_bindgen::JsValue::from_str("requestSession"))
+                    {
+                        if req.is_function() {
+                            let func = js_sys::Function::from(req);
+                            let _ = func.call1(&xr, &wasm_bindgen::JsValue::from_str(mode));
+                            let mut out = HashMap::new();
+                            out.insert("ok".into(), Value::Bool(true));
+                            out.insert("mode".into(), Value::String(mode.into()));
+                            out.insert("backend".into(), Value::String("webxr-requestSession".into()));
+                            out.insert("kind".into(), Value::String("xr_session".into()));
+                            out.insert("active".into(), Value::Bool(true));
+                            out.insert("pending".into(), Value::Bool(true));
+                            return Ok(Value::Object(out));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if stub || st.bound || st.webxr || st.openxr_runtime {
+        let backend = if stub {
+            "stub-requestSession"
+        } else if st.webxr {
+            "webxr-descriptor"
+        } else if st.openxr_runtime || st.openxr_loader {
+            "openxr-session"
+        } else {
+            "descriptor-session"
+        };
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(true));
+        out.insert("mode".into(), Value::String(mode.into()));
+        out.insert("backend".into(), Value::String(backend.into()));
+        out.insert("kind".into(), Value::String("xr_session".into()));
+        out.insert("active".into(), Value::Bool(true));
+        out.insert("pending".into(), Value::Bool(false));
+        out.insert(
+            "features".into(),
+            Value::Array(vec![
+                Value::String("local".into()),
+                Value::String("viewer".into()),
+            ]),
+        );
+        return Ok(Value::Object(out));
+    }
+    Err(format!(
+        "xr_request_session({mode}): no WebXR/OpenXR runtime (set KABOOTAR_XR_STUB=1)"
+    ))
+}
+

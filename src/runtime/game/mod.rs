@@ -672,6 +672,29 @@ fn xr_hmd_driver_present_native(args: &[Value], _env: &mut Environment) -> Resul
     xr_ffi::present_to_hmd(composition)
 }
 
+fn xr_compositor_open_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    xr_ffi::compositor_open()
+}
+
+fn xr_compositor_submit_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let composition = args
+        .first()
+        .ok_or_else(|| "xr_compositor_submit(composition)".to_string())?;
+    xr_ffi::compositor_submit(composition)
+}
+
+fn xr_compositor_poll_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    xr_ffi::compositor_poll()
+}
+
+fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mode = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "immersive-vr",
+    };
+    xr_ffi::request_session(mode)
+}
+
 fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let desc = match args.first() {
         Some(Value::Object(m)) => m,
@@ -1150,6 +1173,10 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_ffi_probe", xr_ffi_probe_native),
         ("xr_bind_headset", xr_bind_headset_native),
         ("xr_hmd_driver_present", xr_hmd_driver_present_native),
+        ("xr_compositor_open", xr_compositor_open_native),
+        ("xr_compositor_submit", xr_compositor_submit_native),
+        ("xr_compositor_poll", xr_compositor_poll_native),
+        ("xr_request_session", xr_request_session_native),
         ("xr_create_swapchain", xr_create_swapchain_native),
         ("xr_wait_frame", xr_wait_frame_native),
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
