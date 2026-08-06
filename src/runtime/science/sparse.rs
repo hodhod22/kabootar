@@ -140,6 +140,88 @@ fn sparse_to_csr(args: &[Value], _env: &mut Environment) -> Result<Value, String
     Ok(sparse_out("csr", rows, cols, &csr_data, &csr_indices, &indptr))
 }
 
+/// sparse_from_csc(data, indices, indptr, nrows, ncols) — CSC: indices=row, indptr=ncols+1.
+fn sparse_from_csc(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let data = vector_at(args, 0, "sparse_from_csc")?;
+    let indices = match args.get(1) {
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|x| num(x).map(|n| n as i64))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_from_csc: indices".into()),
+    };
+    let indptr = match args.get(2) {
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|x| num(x).map(|n| n as i64))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_from_csc: indptr".into()),
+    };
+    let nrows = num_at(args, 3, "sparse_from_csc")? as usize;
+    let ncols = num_at(args, 4, "sparse_from_csc")? as usize;
+    if data.len() != indices.len() || indptr.len() != ncols + 1 {
+        return Err("sparse_from_csc: shape mismatch".into());
+    }
+    Ok(sparse_out("csc", nrows, ncols, &data, &indices, &indptr))
+}
+
+/// sparse_to_csc(coo|csr) -> CSC.
+fn sparse_to_csc(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_to_csc")?.clone();
+    let (fmt, rows, cols, data, indices, aux) = parse_sparse(&a)?;
+    let entries: Vec<(i64, i64, f64)> = match fmt.as_str() {
+        "coo" => aux
+            .iter()
+            .zip(indices.iter())
+            .zip(data.iter())
+            .map(|((r, c), v)| (*r, *c, *v))
+            .collect(),
+        "csr" => {
+            let mut e = Vec::new();
+            for r in 0..rows {
+                let start = aux[r] as usize;
+                let end = aux[r + 1] as usize;
+                for k in start..end {
+                    e.push((r as i64, indices[k], data[k]));
+                }
+            }
+            e
+        }
+        "csc" => return Ok(a),
+        _ => {
+            // try via COO path after CSR convert
+            let csr = if fmt == "coo" {
+                sparse_to_csr(&[a], env)?
+            } else {
+                return Err("sparse_to_csc: unsupported format".into());
+            };
+            return sparse_to_csc(&[csr], env);
+        }
+    };
+    let mut entries = entries;
+    entries.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+    let mut csc_data = Vec::new();
+    let mut csc_indices = Vec::new();
+    let mut indptr = vec![0i64];
+    for col in 0..cols {
+        for (r, c, v) in &entries {
+            if *c as usize == col {
+                csc_data.push(*v);
+                csc_indices.push(*r);
+            }
+        }
+        indptr.push(csc_data.len() as i64);
+    }
+    Ok(sparse_out(
+        "csc",
+        rows,
+        cols,
+        &csc_data,
+        &csc_indices,
+        &indptr,
+    ))
+}
+
 /// sparse_spmv(A, x) — y = A*x
 fn sparse_spmv(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (fmt, rows, cols, data, indices, aux) = parse_sparse(args.first().ok_or("sparse_spmv")?)?;
@@ -160,6 +242,18 @@ fn sparse_spmv(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                     s += data[k] * x[j];
                 }
                 y[i] = s;
+            }
+        }
+        "csc" => {
+            let indptr = aux;
+            for j in 0..cols {
+                let start = indptr[j] as usize;
+                let end = indptr[j + 1] as usize;
+                let xj = x[j];
+                for k in start..end {
+                    let i = indices[k] as usize;
+                    y[i] += data[k] * xj;
+                }
             }
         }
         "coo" => {
@@ -302,7 +396,7 @@ fn sparse_compress_rows(args: &[Value], env: &mut Environment) -> Result<Value, 
     sparse_gather_rows(&[a.clone(), ix_arr], env)
 }
 
-/// sparse_gather_cols(A, colIndices) — select columns (CSR/COO in → CSR out).
+/// sparse_gather_cols(A, colIndices) — select columns (CSR/COO/CSC in → CSR out).
 fn sparse_gather_cols(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let a = args.first().ok_or("sparse_gather_cols(A, colIndices)")?;
     let col_ix = match args.get(1) {
@@ -312,6 +406,43 @@ fn sparse_gather_cols(args: &[Value], env: &mut Environment) -> Result<Value, St
             .collect::<Result<Vec<_>, _>>()?,
         _ => return Err("sparse_gather_cols: colIndices array".into()),
     };
+    // Fast path: CSC column slices.
+    if parse_sparse(a)?.0 == "csc" {
+        let (_, nrows, ncols, data, indices, indptr) = parse_sparse(a)?;
+        for &c in &col_ix {
+            if c >= ncols {
+                return Err("sparse_gather_cols: col OOB".into());
+            }
+        }
+        let mut out_data = Vec::new();
+        let mut out_indices = Vec::new();
+        let mut out_indptr = vec![0i64];
+        // Build CSR by scanning selected columns into row buckets.
+        let mut row_buckets: Vec<Vec<(usize, f64)>> = vec![Vec::new(); nrows];
+        for (new_c, &old_c) in col_ix.iter().enumerate() {
+            let start = indptr[old_c] as usize;
+            let end = indptr[old_c + 1] as usize;
+            for k in start..end {
+                let r = indices[k] as usize;
+                row_buckets[r].push((new_c, data[k]));
+            }
+        }
+        for r in 0..nrows {
+            for (c, v) in &row_buckets[r] {
+                out_data.push(*v);
+                out_indices.push(*c as i64);
+            }
+            out_indptr.push(out_data.len() as i64);
+        }
+        return Ok(sparse_out(
+            "csr",
+            nrows,
+            col_ix.len(),
+            &out_data,
+            &out_indices,
+            &out_indptr,
+        ));
+    }
     let csr = if parse_sparse(a)?.0 == "csr" {
         a.clone()
     } else {
@@ -467,6 +598,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
     bind(&["science_sparse_to_csr", "sparse_to_csr"], sparse_to_csr);
+    bind(&["science_sparse_from_csc", "sparse_from_csc"], sparse_from_csc);
+    bind(&["science_sparse_to_csc", "sparse_to_csc"], sparse_to_csc);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
     bind(

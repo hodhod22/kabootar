@@ -1860,6 +1860,47 @@ fn nd_tensordot(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     Ok(nd_out_dtype(&out_shape, &out, &dtype))
 }
 
+/// nd_einsum(subscripts, a, b?) — subset: "ij,jk->ik", "ii->", "ij->ji".
+fn nd_einsum(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let subs = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("nd_einsum(subscripts, ...)".into()),
+    };
+    let normalized: String = subs.chars().filter(|c| !c.is_whitespace()).collect();
+    match normalized.as_str() {
+        "ij,jk->ik" => {
+            if args.len() < 3 {
+                return Err("nd_einsum: need two operands".into());
+            }
+            nd_tensordot(&[args[1].clone(), args[2].clone()], env)
+        }
+        "ij->ji" => {
+            if args.len() < 2 {
+                return Err("nd_einsum: need one operand".into());
+            }
+            nd_transpose(&[args[1].clone()], env)
+        }
+        "ii->" => {
+            if args.len() < 2 {
+                return Err("nd_einsum: need one operand".into());
+            }
+            let (sa, data) = nd_at(args, 1, "nd_einsum")?;
+            if sa.len() != 2 || sa[0] != sa[1] {
+                return Err("nd_einsum ii->: square 2D".into());
+            }
+            let n = sa[0];
+            let mut s = 0.0;
+            for i in 0..n {
+                s += data[i * n + i];
+            }
+            Ok(float_out(s))
+        }
+        _ => Err(format!(
+            "nd_einsum: unsupported '{normalized}' (supported: ij,jk->ik | ij->ji | ii->)"
+        )),
+    }
+}
+
 fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_dot")?;
     let (sb, b) = nd_at(args, 1, "nd_dot")?;
@@ -2728,6 +2769,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_roll", "nd_roll"], nd_roll);
     bind(&["science_nd_pad", "nd_pad"], nd_pad);
     bind(&["science_nd_tensordot", "nd_tensordot"], nd_tensordot);
+    bind(&["science_nd_einsum", "nd_einsum"], nd_einsum);
     bind(&["science_nd_dot", "nd_dot"], nd_dot);
     bind(&["science_nd_matmul", "nd_matmul"], nd_matmul);
     bind(&["science_nd_solve", "nd_solve"], nd_solve);

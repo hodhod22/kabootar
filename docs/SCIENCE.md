@@ -528,7 +528,11 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
 | `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
 | `nd_broadcast_to` / `nd_broadcast_shapes` / `broadcastTo` | Explicit expand + shape algebra |
-| `nd_max` / `nd_min` / `nd_argmax` / `nd_transpose` / `nd_swapaxes` / `nd_pad` / `nd_roll` / `nd_tensordot` | Reductions + layout + contract |
+| `nd_max` / `nd_min` / `nd_argmax` / `nd_transpose` / `nd_swapaxes` / `nd_pad` / `nd_roll` / `nd_tensordot` / `nd_einsum` | Reductions + layout + contract + einsum subset |
+| `mat_batch_qr` / `mat_batch_svd` / `mat_batch_solve` | Batched decomps/solve |
+| `num_fftn` / `num_firwin` / `num_butter_biquad` | n-D FFT + filter design |
+| `sparse_to_csc` / `sparse_from_csc` | CSC sparse + col gather fast-path |
+| `science/domain/pde` | 1D heat/wave/poisson FD |
 | `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |

@@ -778,9 +778,40 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                                 gx[i] += gy[o] * wv[o * in_dim + i];
                             }
                         }
-                        accumulate(t, w, &gw);
-                        accumulate(t, x, &gx);
-                        accumulate(t, b, &gb);
+                        if create_graph {
+                            let gw_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gw_id,
+                                    value: gw.clone(),
+                                },
+                            );
+                            let gx_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gx_id,
+                                    value: gx.clone(),
+                                },
+                            );
+                            let gb_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gb_id,
+                                    value: gb.clone(),
+                                },
+                            );
+                            let _ = ensure_grad_node(t, id, &gy, true);
+                            accumulate_graph(t, w, &gw, gw_id, true);
+                            accumulate_graph(t, x, &gx, gx_id, true);
+                            accumulate_graph(t, b, &gb, gb_id, true);
+                        } else {
+                            accumulate(t, w, &gw);
+                            accumulate(t, x, &gx);
+                            accumulate(t, b, &gb);
+                        }
                     }
                 }
                 Node::Matmul {
@@ -850,9 +881,39 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                                 }
                             }
                         }
-                        accumulate(t, x, &gx);
-                        accumulate(t, w, &gw);
-                        accumulate(t, b, &gb);
+                        if create_graph {
+                            let gx_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gx_id,
+                                    value: gx.clone(),
+                                },
+                            );
+                            let gw_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gw_id,
+                                    value: gw.clone(),
+                                },
+                            );
+                            let gb_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gb_id,
+                                    value: gb.clone(),
+                                },
+                            );
+                            accumulate_graph(t, x, &gx, gx_id, true);
+                            accumulate_graph(t, w, &gw, gw_id, true);
+                            accumulate_graph(t, b, &gb, gb_id, true);
+                        } else {
+                            accumulate(t, x, &gx);
+                            accumulate(t, w, &gw);
+                            accumulate(t, b, &gb);
+                        }
                     }
                 }
                 Node::Softmax { parent, value, .. } => {

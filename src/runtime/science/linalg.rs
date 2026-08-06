@@ -660,6 +660,129 @@ fn mat_cond(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(float_out(smax / smin))
 }
 
+fn batch_matrices(args: &[Value], name: &str) -> Result<Vec<Value>, String> {
+    match args.first() {
+        Some(Value::Array(items)) if !items.is_empty() => Ok(items.clone()),
+        _ => Err(format!("{name}(batchMatrices, ...)")),
+    }
+}
+
+/// mat_batch_qr(batch, mode?) -> { q: [...], r: [...], mode, n }
+fn mat_batch_qr(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let batch = batch_matrices(args, "mat_batch_qr")?;
+    let n_batch = batch.len() as i64;
+    let mode = args.get(1).cloned().unwrap_or(Value::Undefined);
+    let mut qs = Vec::new();
+    let mut rs = Vec::new();
+    let mut mode_s = "thin".to_string();
+    for m in batch {
+        let qr = if matches!(mode, Value::Undefined | Value::Null) {
+            mat_qr(&[m], env)?
+        } else {
+            mat_qr(&[m, mode.clone()], env)?
+        };
+        let Value::Object(map) = qr else {
+            return Err("mat_batch_qr: internal".into());
+        };
+        qs.push(map.get("q").cloned().ok_or("mat_batch_qr: q")?);
+        rs.push(map.get("r").cloned().ok_or("mat_batch_qr: r")?);
+        if let Some(Value::String(s)) = map.get("mode") {
+            mode_s = s.clone();
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("q".into(), Value::Array(qs));
+    out.insert("r".into(), Value::Array(rs));
+    out.insert("mode".into(), Value::String(mode_s));
+    out.insert("n".into(), Value::Number(n_batch));
+    Ok(Value::Object(out))
+}
+
+/// mat_batch_svd(batch, mode?) -> { u, s, vt arrays }
+fn mat_batch_svd(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let batch = batch_matrices(args, "mat_batch_svd")?;
+    let mode = args.get(1).cloned().unwrap_or(Value::Undefined);
+    let mut us = Vec::new();
+    let mut ss = Vec::new();
+    let mut vts = Vec::new();
+    for m in batch {
+        let svd = if matches!(mode, Value::Undefined | Value::Null) {
+            mat_svd(&[m], env)?
+        } else {
+            mat_svd(&[m, mode.clone()], env)?
+        };
+        let Value::Object(map) = svd else {
+            return Err("mat_batch_svd: internal".into());
+        };
+        us.push(map.get("u").cloned().ok_or("mat_batch_svd: u")?);
+        ss.push(map.get("s").cloned().ok_or("mat_batch_svd: s")?);
+        vts.push(map.get("vt").cloned().ok_or("mat_batch_svd: vt")?);
+    }
+    let mut out = HashMap::new();
+    out.insert("u".into(), Value::Array(us));
+    out.insert("s".into(), Value::Array(ss));
+    out.insert("vt".into(), Value::Array(vts));
+    Ok(Value::Object(out))
+}
+
+/// mat_batch_solve(batchA, batchB) — per-item Ax=b via Gauss.
+fn mat_batch_solve(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let batch_a = batch_matrices(args, "mat_batch_solve")?;
+    let batch_b = match args.get(1) {
+        Some(Value::Array(items)) => items.clone(),
+        _ => return Err("mat_batch_solve(batchA, batchB)".into()),
+    };
+    if batch_a.len() != batch_b.len() {
+        return Err("mat_batch_solve: batch length mismatch".into());
+    }
+    let mut xs = Vec::new();
+    for (a_v, b_v) in batch_a.into_iter().zip(batch_b.into_iter()) {
+        let (n, n2, adata) = matrix_dims(&[a_v], 0, "mat_batch_solve")?;
+        if n != n2 {
+            return Err("mat_batch_solve: square A required".into());
+        }
+        let b = vector_at(std::slice::from_ref(&b_v), 0, "mat_batch_solve")?;
+        if b.len() != n {
+            return Err("mat_batch_solve: b length".into());
+        }
+        let mut aug = vec![vec![0.0; n + 1]; n];
+        for i in 0..n {
+            for j in 0..n {
+                aug[i][j] = adata[i * n + j];
+            }
+            aug[i][n] = b[i];
+        }
+        for col in 0..n {
+            let mut pivot = col;
+            for r in col + 1..n {
+                if aug[r][col].abs() > aug[pivot][col].abs() {
+                    pivot = r;
+                }
+            }
+            if aug[pivot][col].abs() < 1e-12 {
+                return Err("mat_batch_solve: singular".into());
+            }
+            aug.swap(col, pivot);
+            let div = aug[col][col];
+            for j in col..=n {
+                aug[col][j] /= div;
+            }
+            for r in 0..n {
+                if r == col {
+                    continue;
+                }
+                let f = aug[r][col];
+                for j in col..=n {
+                    aug[r][j] -= f * aug[col][j];
+                }
+            }
+        }
+        let x: Vec<f64> = (0..n).map(|i| aug[i][n]).collect();
+        xs.push(vector_out(&x));
+    }
+    Ok(Value::Array(xs))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_mat_qr", "mat_qr"], mat_qr);
     bind(&["science_mat_qr_err", "mat_qr_err"], mat_qr_err);
@@ -672,4 +795,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_mat_lu", "mat_lu"], mat_lu);
     bind(&["science_mat_slogdet", "mat_slogdet"], mat_slogdet);
     bind(&["science_mat_norm_ord", "mat_norm_ord"], mat_norm_ord);
+    bind(&["science_mat_batch_qr", "mat_batch_qr"], mat_batch_qr);
+    bind(&["science_mat_batch_svd", "mat_batch_svd"], mat_batch_svd);
+    bind(
+        &["science_mat_batch_solve", "mat_batch_solve"],
+        mat_batch_solve,
+    );
 }

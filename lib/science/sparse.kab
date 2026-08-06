@@ -12,6 +12,14 @@ pub fn toCsr(coo) {
     return sparse_to_csr(coo)
 }
 
+pub fn fromCsc(data, indices, indptr, nrows, ncols) {
+    return sparse_from_csc(data, indices, indptr, nrows, ncols)
+}
+
+pub fn toCsc(a) {
+    return sparse_to_csc(a)
+}
+
 pub fn spmv(a, x) {
     return sparse_spmv(a, x)
 }
