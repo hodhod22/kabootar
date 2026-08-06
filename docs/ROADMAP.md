@@ -1071,7 +1071,8 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 **Checkpoint SC (landad 2026-08-06f):** `broadcastTo`/`nd_broadcast_shapes`; autograd sub/div/sum/exp; QR/SVD thin·full + `qrErr`/`pinv`; `rfft`/`irfft`/`fftC`/`fftPad` — `tests/science_sc_checkpoint_deepen.rs`.
 **Checkpoint SC (landad 2026-08-06g):** multi-host TCP AllReduce (`allReduceTcpRank` / bindHost); `gbdtFitKab`/`gbdtPredictKab`; sparse `gatherCols`/`compressCols`/`slice`; HOAD `backward(..., true)`/`gradTensor` — `tests/science_sc_checkpoint_sc5f.rs`.
 **Checkpoint SC (landad 2026-08-06h):** pillar deepen — ndarray max/transpose/tensordot; LU/slogdet/normOrd; erfc/j1/gradient; fftfreq/resample/hilbert; ANOVA/MW/ppf; logistic GBDT/dropout/BN/dataloader; mechanics/chem — `tests/science_sc_checkpoint_pillars.rs`.
-**Checkpoint SC (nästa):** einsum; batched linalg; n-D FFT/filter design; sparse CSC; full create_graph for dense/conv; PDE/domain packs.
+**Checkpoint SC (landad 2026-08-06i):** `einsum` subset; `batchQr`/`batchSvd`/`batchSolve`; `fftN`/`firwin`/`butterBiquad`; sparse CSC; dense/conv `create_graph`; `domain/pde` heat/wave/poisson — `tests/science_sc_checkpoint_sc6.rs`.
+**Checkpoint SC (nästa):** richer einsum; batched eig; polyphase filters; sparse incomplete factorizations; Matmul HOAD graph; 2D PDE.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

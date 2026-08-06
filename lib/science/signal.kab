@@ -45,6 +45,21 @@ pub fn spectrogram(signal, winSize, hop) {
     return { "kind": "spectrogram", "frames": s["frames"], "freqs": s["freqs"], "data": s["data"] }
 }
 
+pub fn fftN(matrix) {
+    return num_fftn(matrix)
+}
+
+pub fn firwin(numtaps, cutoff) {
+    return num_firwin(numtaps, cutoff)
+}
+
+pub fn butterBiquad(kind, cutoff, q) {
+    if q == null || q == undefined {
+        return num_butter_biquad(kind, cutoff)
+    }
+    return num_butter_biquad(kind, cutoff, q)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

@@ -1,0 +1,82 @@
+@version "1.0.0"
+
+// SC domain — 1D PDE finite-difference helpers. import "science/domain/pde"
+
+/// FTCS heat equation step: u_t = alpha u_xx (Dirichlet ends fixed).
+pub fn heat1dStep(u, alpha, dx, dt) {
+    let n = len(u)
+    let out = []
+    let r = alpha * dt / (dx * dx)
+    let i = 0
+    while i < n {
+        if i == 0 || i == n - 1 {
+            out = push(out, u[i])
+        } else {
+            out = push(out, u[i] + r * (u[i - 1] - 2.0 * u[i] + u[i + 1]))
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Centered wave step: u_tt = c^2 u_xx. Needs previous field uPrev.
+pub fn wave1dStep(u, uPrev, c, dx, dt) {
+    let n = len(u)
+    let out = []
+    let r = (c * dt / dx) * (c * dt / dx)
+    let i = 0
+    while i < n {
+        if i == 0 || i == n - 1 {
+            out = push(out, u[i])
+        } else {
+            let v = 2.0 * u[i] - uPrev[i] + r * (u[i - 1] - 2.0 * u[i] + u[i + 1])
+            out = push(out, v)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Jacobi iteration for -u'' = f on [0,1] grid with fixed ends.
+pub fn poisson1dJacobi(u, f, dx, iters) {
+    if iters == null || iters < 1 {
+        iters = 20
+    }
+    let n = len(u)
+    let k = 0
+    while k < iters {
+        let nxt = []
+        let i = 0
+        while i < n {
+            if i == 0 || i == n - 1 {
+                nxt = push(nxt, u[i])
+            } else {
+                let v = 0.5 * (u[i - 1] + u[i + 1] + dx * dx * f[i])
+                nxt = push(nxt, v)
+            }
+            i = i + 1
+        }
+        u = nxt
+        k = k + 1
+    }
+    return u
+}
+
+/// Max abs residual of -u'' - f (interior).
+pub fn poisson1dResidual(u, f, dx) {
+    let n = len(u)
+    let maxe = 0.0
+    let i = 1
+    while i < n - 1 {
+        let lap = (u[i - 1] - 2.0 * u[i] + u[i + 1]) / (dx * dx)
+        let e = 0.0 - lap - f[i]
+        if e < 0.0 {
+            e = 0.0 - e
+        }
+        if e > maxe {
+            maxe = e
+        }
+        i = i + 1
+    }
+    return maxe
+}

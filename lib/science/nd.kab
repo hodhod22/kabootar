@@ -222,6 +222,14 @@ pub fn tensordot(a, b) {
     return nd_tensordot(a, b)
 }
 
+/// Einsum subset: "ij,jk->ik" | "ij->ji" | "ii->".
+pub fn einsum(subs, a, b) {
+    if b == null || b == undefined {
+        return nd_einsum(subs, a)
+    }
+    return nd_einsum(subs, a, b)
+}
+
 pub fn dot(a, b) {
     return nd_dot(a, b)
 }

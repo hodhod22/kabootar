@@ -451,6 +451,140 @@ fn num_fft2d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(matrix_out(&data))
 }
 
+/// num_fftn(matrix) — 2D nested real matrix: row FFTs then column FFTs (interleaved complex flattened rows).
+/// Returns { rows, cols, data } where data[r] is interleaved complex spectrum for row r after 2D FFT.
+fn num_fftn(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let m = matrix_at(args, 0, "num_fftn")?;
+    let rows = m.len();
+    let cols = m.first().map(|r| r.len()).unwrap_or(0);
+    if rows == 0 || cols == 0 {
+        return Err("num_fftn: empty".into());
+    }
+    let nr = next_pow2(rows);
+    let nc = next_pow2(cols);
+    // Work as complex grid [nr][nc] interleaved in separate re/im mats
+    let mut re = vec![vec![0.0; nc]; nr];
+    let mut im = vec![vec![0.0; nc]; nr];
+    for r in 0..rows {
+        for c in 0..cols {
+            re[r][c] = m[r][c];
+        }
+    }
+    // FFT along rows
+    for r in 0..nr {
+        let mut rr = re[r].clone();
+        let mut ii = im[r].clone();
+        fft_radix2(&mut rr, &mut ii)?;
+        re[r] = rr;
+        im[r] = ii;
+    }
+    // FFT along columns
+    for c in 0..nc {
+        let mut rr: Vec<f64> = (0..nr).map(|r| re[r][c]).collect();
+        let mut ii: Vec<f64> = (0..nr).map(|r| im[r][c]).collect();
+        fft_radix2(&mut rr, &mut ii)?;
+        for r in 0..nr {
+            re[r][c] = rr[r];
+            im[r][c] = ii[r];
+        }
+    }
+    let mut data_rows = Vec::with_capacity(nr);
+    for r in 0..nr {
+        let mut row = Vec::with_capacity(nc * 2);
+        for c in 0..nc {
+            row.push(re[r][c]);
+            row.push(im[r][c]);
+        }
+        data_rows.push(vector_out(&row));
+    }
+    let mut out = HashMap::new();
+    out.insert("rows".into(), int_out(nr as i64));
+    out.insert("cols".into(), int_out(nc as i64));
+    out.insert("data".into(), Value::Array(data_rows));
+    out.insert("kind".into(), Value::String("fftn".into()));
+    Ok(Value::Object(out))
+}
+
+/// num_firwin(numtaps, cutoff) — windowed-sinc lowpass FIR (cutoff in Nyquist units 0..1).
+fn num_firwin(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "num_firwin")? as usize;
+    let cutoff = num_at(args, 1, "num_firwin")?;
+    if n < 1 || cutoff <= 0.0 || cutoff >= 1.0 {
+        return Err("num_firwin: numtaps>=1, cutoff in (0,1)".into());
+    }
+    let m = (n - 1) as f64 / 2.0;
+    let mut h = vec![0.0; n];
+    let mut sum = 0.0;
+    for i in 0..n {
+        let x = i as f64 - m;
+        let sinc = if x.abs() < 1e-12 {
+            2.0 * cutoff
+        } else {
+            (2.0 * std::f64::consts::PI * cutoff * x).sin() / (std::f64::consts::PI * x)
+        };
+        let w = if n == 1 {
+            1.0
+        } else {
+            0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / (n as f64 - 1.0)).cos()
+        };
+        h[i] = sinc * w;
+        sum += h[i];
+    }
+    if sum.abs() > 1e-15 {
+        for v in &mut h {
+            *v /= sum;
+        }
+    }
+    Ok(vector_out(&h))
+}
+
+/// num_butter_biquad(kind, cutoff, q?) — RBJ low/high shelf-less butterworth-ish biquad.
+/// kind: "low"|"high"; cutoff in (0,1) Nyquist; returns {b0,b1,b2,a0,a1,a2}.
+fn num_butter_biquad(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let kind = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("num_butter_biquad(kind, cutoff, q?)".into()),
+    };
+    let cutoff = num_at(args, 1, "num_butter_biquad")?;
+    let q = args.get(2).and_then(|v| num(v).ok()).unwrap_or(std::f64::consts::FRAC_1_SQRT_2);
+    if cutoff <= 0.0 || cutoff >= 1.0 || q <= 0.0 {
+        return Err("num_butter_biquad: bad params".into());
+    }
+    let w0 = std::f64::consts::PI * cutoff;
+    let cos_w0 = w0.cos();
+    let sin_w0 = w0.sin();
+    let alpha = sin_w0 / (2.0 * q);
+    let (b0, b1, b2, a0, a1, a2) = match kind {
+        "low" => {
+            let b0 = (1.0 - cos_w0) / 2.0;
+            let b1 = 1.0 - cos_w0;
+            let b2 = (1.0 - cos_w0) / 2.0;
+            let a0 = 1.0 + alpha;
+            let a1 = -2.0 * cos_w0;
+            let a2 = 1.0 - alpha;
+            (b0, b1, b2, a0, a1, a2)
+        }
+        "high" => {
+            let b0 = (1.0 + cos_w0) / 2.0;
+            let b1 = -(1.0 + cos_w0);
+            let b2 = (1.0 + cos_w0) / 2.0;
+            let a0 = 1.0 + alpha;
+            let a1 = -2.0 * cos_w0;
+            let a2 = 1.0 - alpha;
+            (b0, b1, b2, a0, a1, a2)
+        }
+        _ => return Err("num_butter_biquad: kind low|high".into()),
+    };
+    let mut out = HashMap::new();
+    out.insert("b0".into(), float_out(b0));
+    out.insert("b1".into(), float_out(b1));
+    out.insert("b2".into(), float_out(b2));
+    out.insert("a0".into(), float_out(a0));
+    out.insert("a1".into(), float_out(a1));
+    out.insert("a2".into(), float_out(a2));
+    Ok(Value::Object(out))
+}
+
 /// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
 fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_fir")?;
@@ -548,6 +682,12 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_num_window_hamming", "num_window_hamming"], num_window_hamming);
     bind(&["science_num_stft", "num_stft"], num_stft);
     bind(&["science_num_fft2d", "num_fft2d"], num_fft2d);
+    bind(&["science_num_fftn", "num_fftn"], num_fftn);
+    bind(&["science_num_firwin", "num_firwin"], num_firwin);
+    bind(
+        &["science_num_butter_biquad", "num_butter_biquad"],
+        num_butter_biquad,
+    );
     bind(&["science_num_fir", "num_fir"], num_fir);
     bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);
     bind(&["science_num_iir", "num_iir"], num_iir);

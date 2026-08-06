@@ -76,6 +76,24 @@ pub fn normOrd(a, ord) {
     return mat_norm_ord(a, ord)
 }
 
+pub fn batchQr(batch, mode) {
+    if mode == null || mode == undefined {
+        return mat_batch_qr(batch)
+    }
+    return mat_batch_qr(batch, mode)
+}
+
+pub fn batchSvd(batch, mode) {
+    if mode == null || mode == undefined {
+        return mat_batch_svd(batch)
+    }
+    return mat_batch_svd(batch, mode)
+}
+
+pub fn batchSolve(batchA, batchB) {
+    return mat_batch_solve(batchA, batchB)
+}
+
 pub fn solve(a, b) {
     return nd_solve(a, b)
 }
