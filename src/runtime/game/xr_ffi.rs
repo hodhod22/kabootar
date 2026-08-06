@@ -8,6 +8,7 @@
 //! - submits via stub/driver queue (`KABOOTAR_XR_STUB` / bound loader), or
 //! - records a vendor present descriptor when a real OpenXR runtime is present.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -82,6 +83,50 @@ static COMPOSITOR_IPC: Mutex<CompositorIpc> = Mutex::new(CompositorIpc {
     submits: 0,
 });
 
+/// Resolved OpenXR loader entry points (native only).
+#[derive(Debug, Default)]
+struct OpenXrLoaderFns {
+    /// `xrGetInstanceProcAddr` raw pointer (0 = none).
+    get_proc: usize,
+    /// `xrEndFrame` raw pointer when resolved (0 = unresolved).
+    end_frame: usize,
+    end_frame_resolved: bool,
+    end_frame_calls: i64,
+    last_frame_index: i64,
+    last_path: String,
+}
+
+static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
+    get_proc: 0,
+    end_frame: 0,
+    end_frame_resolved: false,
+    end_frame_calls: 0,
+    last_frame_index: 0,
+    last_path: String::new(),
+});
+
+/// WebXR-style XRSession.requestAnimationFrame queue (thread-local; holds Value callbacks).
+#[derive(Debug, Default)]
+struct XrRafState {
+    next_id: i64,
+    pending: Vec<(i64, Value)>,
+    cancelled: Vec<i64>,
+    ticks: i64,
+    bound: bool,
+    backend: String,
+}
+
+thread_local! {
+    static XR_RAF: RefCell<XrRafState> = RefCell::new(XrRafState {
+        next_id: 1,
+        pending: Vec::new(),
+        cancelled: Vec::new(),
+        ticks: 0,
+        bound: false,
+        backend: String::new(),
+    });
+}
+
 pub fn reset_for_tests() {
     if let Ok(mut s) = XR_FFI.lock() {
         *s = XrFfiStatus::default();
@@ -95,6 +140,15 @@ pub fn reset_for_tests() {
     if let Ok(mut p) = COMPOSITOR_PROC.lock() {
         *p = CompositorProcess::default();
     }
+    if let Ok(mut f) = OPENXR_FNS.lock() {
+        *f = OpenXrLoaderFns::default();
+    }
+    XR_RAF.with(|r| {
+        *r.borrow_mut() = XrRafState {
+            next_id: 1,
+            ..XrRafState::default()
+        };
+    });
 }
 
 pub fn status() -> XrFfiStatus {
@@ -167,11 +221,21 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
                 }
             };
 
+        let get_proc_addr = (*get_proc) as usize;
+        if let Ok(mut fns) = OPENXR_FNS.lock() {
+            fns.get_proc = get_proc_addr;
+        }
+
         // Probe xrEnumerateInstanceExtensionProperties via GetInstanceProcAddr(NULL, ...).
         let mut fn_ptr: *const std::os::raw::c_void = std::ptr::null();
         let name = CString::new("xrEnumerateInstanceExtensionProperties").unwrap();
         let rc = unsafe { get_proc(0, name.as_ptr(), &mut fn_ptr) };
-        if rc == 0 && !fn_ptr.is_null() {
+        let runtime_ok = rc == 0 && !fn_ptr.is_null();
+
+        // Best-effort resolve xrEndFrame (may require a live instance on some runtimes).
+        let _ = resolve_xr_end_frame_proc(get_proc_addr);
+
+        if runtime_ok {
             return (
                 true,
                 true,
@@ -192,6 +256,30 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
         String::new(),
         "openxr_loader not found (set KABOOTAR_XR_LOADER)".into(),
     )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_xr_end_frame_proc(get_proc_addr: usize) -> bool {
+    use std::ffi::CString;
+    if get_proc_addr == 0 {
+        return false;
+    }
+    let get_proc: XrGetInstanceProcAddr =
+        unsafe { std::mem::transmute(get_proc_addr) };
+    let mut fn_ptr: *const std::os::raw::c_void = std::ptr::null();
+    let name = CString::new("xrEndFrame").unwrap();
+    let rc = unsafe { get_proc(0, name.as_ptr(), &mut fn_ptr) };
+    let resolved = rc == 0 && !fn_ptr.is_null();
+    if let Ok(mut fns) = OPENXR_FNS.lock() {
+        fns.end_frame = if resolved { fn_ptr as usize } else { 0 };
+        fns.end_frame_resolved = resolved;
+    }
+    resolved
+}
+
+#[cfg(target_arch = "wasm32")]
+fn resolve_xr_end_frame_proc(_get_proc_addr: usize) -> bool {
+    false
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -730,6 +818,240 @@ pub fn compositor_process_status() -> Value {
         }
     }
     out.insert("kind".into(), Value::String("xr_compositor_process".into()));
+    Value::Object(out)
+}
+
+/// OpenXR loader `xrEndFrame` path — resolve proc when possible; always record submit.
+pub fn loader_end_frame(
+    frame_index: i64,
+    layer_count: i64,
+    _composition: &Value,
+) -> Result<Value, String> {
+    let st = status();
+    let stub = stub_enabled();
+    if !st.bound && !stub {
+        return Err("xr_loader_end_frame: headset not bound".into());
+    }
+
+    // Re-resolve if we have get_proc but not yet end_frame.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(fns) = OPENXR_FNS.lock() {
+            let gp = fns.get_proc;
+            let resolved = fns.end_frame_resolved;
+            drop(fns);
+            if gp != 0 && !resolved {
+                let _ = resolve_xr_end_frame_proc(gp);
+            }
+        }
+    }
+
+    let (proc_resolved, path) = {
+        let fns = OPENXR_FNS
+            .lock()
+            .map_err(|_| "openxr fns lock poisoned".to_string())?;
+        let resolved = fns.end_frame_resolved && fns.end_frame != 0;
+        let path = if stub || st.backend == "xr-stub" {
+            "stub-xrEndFrame".to_string()
+        } else if resolved {
+            "openxr-loader-xrEndFrame".to_string()
+        } else if st.openxr_loader || st.openxr_runtime {
+            "openxr-loader-endFrame-descriptor".to_string()
+        } else if st.webxr {
+            "webxr-frame-end".to_string()
+        } else {
+            "descriptor-xrEndFrame".to_string()
+        };
+        (resolved, path)
+    };
+
+    // We do not invoke the raw C xrEndFrame without a live XrSession handle;
+    // record the loader handoff. Compositor IPC submit stays on HMD present.
+    if let Ok(mut fns) = OPENXR_FNS.lock() {
+        fns.end_frame_calls += 1;
+        fns.last_frame_index = frame_index;
+        fns.last_path = path.clone();
+    }
+
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("submitted".into(), Value::Bool(true));
+    out.insert("frameIndex".into(), Value::Number(frame_index));
+    out.insert("layerCount".into(), Value::Number(layer_count));
+    out.insert("procResolved".into(), Value::Bool(proc_resolved));
+    out.insert("path".into(), Value::String(path));
+    out.insert("kind".into(), Value::String("xr_loader_end_frame".into()));
+    out.insert(
+        "loaderPath".into(),
+        Value::String(st.loader_path.clone()),
+    );
+    Ok(Value::Object(out))
+}
+
+pub fn loader_end_frame_status() -> Value {
+    let mut out = HashMap::new();
+    match OPENXR_FNS.lock() {
+        Ok(fns) => {
+            out.insert("procResolved".into(), Value::Bool(fns.end_frame_resolved));
+            out.insert("calls".into(), Value::Number(fns.end_frame_calls));
+            out.insert("lastFrameIndex".into(), Value::Number(fns.last_frame_index));
+            out.insert("lastPath".into(), Value::String(fns.last_path.clone()));
+            out.insert("hasGetProc".into(), Value::Bool(fns.get_proc != 0));
+        }
+        Err(_) => {
+            out.insert("procResolved".into(), Value::Bool(false));
+        }
+    }
+    out.insert("kind".into(), Value::String("xr_loader_end_frame".into()));
+    Value::Object(out)
+}
+
+/// Bind WebXR `XRSession.requestAnimationFrame` (wasm) or stub XR rAF queue.
+pub fn raf_bind() -> Result<Value, String> {
+    let st = status();
+    let stub = stub_enabled();
+    if !st.bound && !stub {
+        return Err("xr_raf_bind: headset not bound".into());
+    }
+
+    let backend = if stub || st.backend == "xr-stub" {
+        "stub-xr-raf".to_string()
+    } else if st.webxr {
+        "webxr-requestAnimationFrame".to_string()
+    } else if st.openxr_runtime || st.openxr_loader {
+        "openxr-frame-loop".to_string()
+    } else {
+        "descriptor-xr-raf".to_string()
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    let backend = {
+        let mut backend = backend;
+        if st.webxr {
+            if let Some(window) = web_sys::window() {
+                let navigator = window.navigator();
+                if let Ok(xr) =
+                    js_sys::Reflect::get(&navigator, &wasm_bindgen::JsValue::from_str("xr"))
+                {
+                    if !xr.is_undefined() && !xr.is_null() {
+                        backend = "webxr-navigator-raf".to_string();
+                    }
+                }
+            }
+        }
+        backend
+    };
+
+    XR_RAF.with(|cell| {
+        let mut raf = cell.borrow_mut();
+        raf.bound = true;
+        raf.backend = backend.clone();
+    });
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("bound".into(), Value::Bool(true));
+    out.insert("backend".into(), Value::String(backend));
+    out.insert("kind".into(), Value::String("xr_raf_bind".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn request_animation_frame(callback: Value) -> Result<Value, String> {
+    let needs_bind = XR_RAF.with(|cell| !cell.borrow().bound);
+    if needs_bind {
+        raf_bind()?;
+    }
+    let id = XR_RAF.with(|cell| {
+        let mut raf = cell.borrow_mut();
+        let id = raf.next_id;
+        raf.next_id += 1;
+        raf.cancelled.retain(|c| *c != id);
+        raf.pending.push((id, callback));
+        id
+    });
+    Ok(Value::Number(id))
+}
+
+pub fn cancel_animation_frame(id: i64) -> Result<Value, String> {
+    XR_RAF.with(|cell| {
+        let mut raf = cell.borrow_mut();
+        raf.cancelled.push(id);
+        raf.pending.retain(|(fid, _)| *fid != id);
+    });
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("id".into(), Value::Number(id));
+    Ok(Value::Object(out))
+}
+
+/// Pump XR rAF callbacks (WebXR immersive frame callbacks).
+pub fn raf_tick(env: &mut crate::value::Environment) -> Result<Value, String> {
+    let (callbacks, backend, tick_no, bound) = XR_RAF.with(|cell| {
+        let mut raf = cell.borrow_mut();
+        if !raf.bound {
+            return (Vec::new(), String::new(), 0i64, false);
+        }
+        raf.ticks += 1;
+        let tick_no = raf.ticks;
+        let backend = raf.backend.clone();
+        let mut callbacks = Vec::new();
+        let pending = std::mem::take(&mut raf.pending);
+        for (id, cb) in pending {
+            if raf.cancelled.iter().any(|c| *c == id) {
+                raf.cancelled.retain(|c| *c != id);
+                continue;
+            }
+            callbacks.push((id, cb));
+        }
+        (callbacks, backend, tick_no, true)
+    });
+
+    if !bound {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("bound".into(), Value::Bool(false));
+        out.insert("ran".into(), Value::Number(0));
+        return Ok(Value::Object(out));
+    }
+
+    let time_ms = crate::value::unix_ms_now() as i64;
+    let mut ran = 0i64;
+    for (_id, cb) in callbacks {
+        let mut frame = HashMap::new();
+        frame.insert("kind".into(), Value::String("xr_frame".into()));
+        frame.insert("time".into(), Value::Number(time_ms));
+        frame.insert("tick".into(), Value::Number(tick_no));
+        frame.insert("backend".into(), Value::String(backend.clone()));
+        crate::bytecode::call_value(
+            cb,
+            vec![Value::Float(time_ms as f64), Value::Object(frame)],
+            &[],
+            &[],
+            &[],
+            &[],
+            env,
+        )?;
+        ran += 1;
+    }
+
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("ran".into(), Value::Number(ran));
+    out.insert("tick".into(), Value::Number(tick_no));
+    out.insert("backend".into(), Value::String(backend));
+    out.insert("kind".into(), Value::String("xr_raf_tick".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn raf_status() -> Value {
+    let mut out = HashMap::new();
+    XR_RAF.with(|cell| {
+        let raf = cell.borrow();
+        out.insert("bound".into(), Value::Bool(raf.bound));
+        out.insert("pending".into(), Value::Number(raf.pending.len() as i64));
+        out.insert("ticks".into(), Value::Number(raf.ticks));
+        out.insert("backend".into(), Value::String(raf.backend.clone()));
+    });
+    out.insert("kind".into(), Value::String("xr_raf".into()));
     Value::Object(out)
 }
 

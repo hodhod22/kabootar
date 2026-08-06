@@ -723,6 +723,47 @@ fn xr_compositor_process_status_native(
     Ok(xr_ffi::compositor_process_status())
 }
 
+fn xr_loader_end_frame_status_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Ok(xr_ffi::loader_end_frame_status())
+}
+
+fn xr_raf_bind_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    xr_ffi::raf_bind()
+}
+
+fn xr_request_animation_frame_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let cb = args
+        .first()
+        .ok_or_else(|| "xr_request_animation_frame(callback)".to_string())?
+        .clone();
+    xr_ffi::request_animation_frame(cb)
+}
+
+fn xr_cancel_animation_frame_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let id = match args.first() {
+        Some(Value::Number(n)) => *n,
+        _ => return Err("xr_cancel_animation_frame(id)".into()),
+    };
+    xr_ffi::cancel_animation_frame(id)
+}
+
+fn xr_raf_tick_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    xr_ffi::raf_tick(env)
+}
+
+fn xr_raf_status_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(xr_ffi::raf_status())
+}
+
 fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let desc = match args.first() {
         Some(Value::Object(m)) => m,
@@ -866,6 +907,8 @@ fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
 
     let composed = compose_projection_layers(&layers)?;
 
+    let loader = xr_ffi::loader_end_frame(frame_index, layers.len() as i64, &composed)?;
+
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_end_frame".into()));
     out.insert("submitted".into(), Value::Bool(true));
@@ -873,6 +916,7 @@ fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     out.insert("displayTime".into(), Value::Number(display_time));
     out.insert("layerCount".into(), Value::Number(layers.len() as i64));
     out.insert("composition".into(), composed);
+    out.insert("loaderEndFrame".into(), loader);
     Ok(Value::Object(out))
 }
 
@@ -1221,6 +1265,21 @@ pub fn game_globals(env: &mut Environment) {
             "xr_compositor_process_status",
             xr_compositor_process_status_native,
         ),
+        (
+            "xr_loader_end_frame_status",
+            xr_loader_end_frame_status_native,
+        ),
+        ("xr_raf_bind", xr_raf_bind_native),
+        (
+            "xr_request_animation_frame",
+            xr_request_animation_frame_native,
+        ),
+        (
+            "xr_cancel_animation_frame",
+            xr_cancel_animation_frame_native,
+        ),
+        ("xr_raf_tick", xr_raf_tick_native),
+        ("xr_raf_status", xr_raf_status_native),
         ("xr_create_swapchain", xr_create_swapchain_native),
         ("xr_wait_frame", xr_wait_frame_native),
         ("xr_acquire_swapchain_image", xr_acquire_swapchain_image_native),
