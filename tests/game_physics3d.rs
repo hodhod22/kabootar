@@ -49,3 +49,24 @@ fn character_step_grounds() {
     .expect("eval");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn character_drive_wish_and_transform_sync() {
+    test_runtime_env();
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/physics"
+        let ground = [{ minx: -10.0, miny: 0.0, minz: -10.0, maxx: 10.0, maxy: 0.1, maxz: 10.0 }]
+        let c = createPhysicsCharacter(0.0, 0.2, 0.0, 0.3, 5.0)
+        c = characterDrive(c, 1.0, 0.0, 10.0, 0.1, -20.0, ground, false)
+        let t = { "x": 0.0, "y": 0.0, "z": 0.0 }
+        t = syncTransformFromCharacter(t, c)
+        c["grounded"] == true && t["x"] > 0.0 && t["x"] == c["x"] && t["z"] == c["z"]
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

@@ -1,4 +1,4 @@
 @version "1.0.0"
 
-// Compatibility shim — engine lives in game/core/ecs.
+// Compatibility shim - engine lives in game/core/ecs.
 pub import "game/core/ecs"

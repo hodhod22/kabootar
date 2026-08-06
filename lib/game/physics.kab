@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar game/physics — 2D AABB/circle (GP3a) + 3D ray/character (GP3b).
+// Kabootar game/physics - 2D AABB/circle (GP3a) + 3D ray/character (GP3b).
 // Bodies 2D: { x, y, w, h } or { x, y, r }.
 // import "game/physics"
 
@@ -70,7 +70,7 @@ pub fn resolveAabb(moving, solid) {
 
 // box: { minx, miny, minz, maxx, maxy, maxz }
 // ray: origin {x,y,z}, dir {x,y,z} (need not be unit)
-// returns { hit, t, x, y, z } ; hit=false → t=null
+// returns { hit, t, x, y, z } ; hit=false -> t=null
 pub fn rayAabb(origin, dir, box) {
     let ox = origin["x"]
     let oy = origin["y"]
@@ -174,6 +174,7 @@ pub fn rayAabb(origin, dir, box) {
 // Simple kinematic step: apply wish xz, gravity, ground via downward ray.
 // controller: { x, y, z, radius, height, vy }
 // groundBoxes: array of AABB boxes
+// wishX/wishZ are velocities (units/sec), not normalized dirs.
 pub fn characterStep(controller, wishX, wishZ, dt, gravity, groundBoxes) {
     let x = controller["x"] + wishX * dt
     let z = controller["z"] + wishZ * dt
@@ -201,4 +202,64 @@ pub fn characterStep(controller, wishX, wishZ, dt, gravity, groundBoxes) {
         vy: vy,
         grounded: grounded
     }
+}
+
+/// Motor-level character controller (Bazi / games wrap with input + ECS).
+pub fn createPhysicsCharacter(x, y, z, radius, height) {
+    if x == null || x == undefined { x = 0.0 }
+    if y == null || y == undefined { y = 0.0 }
+    if z == null || z == undefined { z = 0.0 }
+    if radius == null || radius == undefined { radius = 0.4 }
+    if height == null || height == undefined { height = 1.8 }
+    return {
+        "kind": "PhysicsCharacter",
+        "x": x,
+        "y": y,
+        "z": z,
+        "radius": radius,
+        "height": height,
+        "vy": 0.0,
+        "grounded": false,
+        "jumpSpeed": 6.0
+    }
+}
+
+/// Drive CC from normalized wish dirs * speed (do not teleport Transform by hand).
+/// jumpPressed + grounded applies jumpSpeed to vy before the step.
+pub fn characterDrive(controller, wishX, wishZ, speed, dt, gravity, groundBoxes, jumpPressed) {
+    if wishX == null || wishX == undefined { wishX = 0.0 }
+    if wishZ == null || wishZ == undefined { wishZ = 0.0 }
+    if speed == null || speed == undefined { speed = 5.0 }
+    if dt == null || dt == undefined { dt = 0.016 }
+    if gravity == null || gravity == undefined { gravity = -20.0 }
+    if groundBoxes == null || groundBoxes == undefined { groundBoxes = [] }
+    if jumpPressed == true && controller["grounded"] == true {
+        let js = controller["jumpSpeed"]
+        if js == null || js == undefined { js = 6.0 }
+        controller["vy"] = js
+        controller["grounded"] = false
+    }
+    let stepped = characterStep(controller, wishX * speed, wishZ * speed, dt, gravity, groundBoxes)
+    stepped["kind"] = controller["kind"]
+    stepped["jumpSpeed"] = controller["jumpSpeed"]
+    return stepped
+}
+
+/// Copy character position into a transform-like object { x, y, z, ... }.
+pub fn syncTransformFromCharacter(transform, controller) {
+    if transform == null || transform == undefined {
+        return { "x": controller["x"], "y": controller["y"], "z": controller["z"] }
+    }
+    transform["x"] = controller["x"]
+    transform["y"] = controller["y"]
+    transform["z"] = controller["z"]
+    return transform
+}
+
+/// Copy transform position into a physics character controller.
+pub fn syncCharacterFromTransform(controller, transform) {
+    controller["x"] = transform["x"]
+    controller["y"] = transform["y"]
+    controller["z"] = transform["z"]
+    return controller
 }

@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar game/time — dt + fixed step (GP1d subset).
+// Kabootar game/time - dt + fixed step (GP1d subset).
 // import "game/time"
 
 pub fn dtSec(delta_ms) {

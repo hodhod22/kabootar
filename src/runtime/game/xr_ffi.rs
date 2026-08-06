@@ -143,6 +143,8 @@ struct LiveSession {
     graphics_device: u64,
     graphics_binding_type: String,
     swapchain_graphics_bound: bool,
+    wgpu_bound: bool,
+    wgpu_device: u64,
     create_instance_rc: i32,
     get_system_rc: i32,
     create_session_rc: i32,
@@ -169,6 +171,8 @@ static LIVE_SESSION: Mutex<LiveSession> = Mutex::new(LiveSession {
     graphics_device: 0,
     graphics_binding_type: String::new(),
     swapchain_graphics_bound: false,
+    wgpu_bound: false,
+    wgpu_device: 0,
     create_instance_rc: 0,
     get_system_rc: 0,
     create_session_rc: 0,
@@ -184,6 +188,7 @@ struct WebXrSessionPromise {
     mode: String,
     promise_id: i64,
     detail: String,
+    reason: String,
     raf_bound: bool,
 }
 
@@ -194,8 +199,25 @@ static WEBXR_PROMISE: Mutex<WebXrSessionPromise> = Mutex::new(WebXrSessionPromis
     mode: String::new(),
     promise_id: 0,
     detail: String::new(),
+    reason: String::new(),
     raf_bound: false,
 });
+
+/// OpenXR swapchain image pool backed by wgpu (or synthetic GPU handles).
+#[derive(Debug, Default, Clone)]
+struct GpuSwapchainImage {
+    swapchain_id: i64,
+    image_index: i64,
+    native_image: u64,
+    wgpu_texture_id: u64,
+    width: u32,
+    height: u32,
+    eye: String,
+}
+
+static GPU_SWAPCHAIN_IMAGES: Mutex<Vec<GpuSwapchainImage>> = Mutex::new(Vec::new());
+static NEXT_WGPU_TEXTURE_ID: Mutex<u64> = Mutex::new(1);
+static NEXT_NATIVE_IMAGE: Mutex<u64> = Mutex::new(0x49_0000_0001);
 
 /// Minimal OpenXR `XrFrameEndInfo` for FFI (layout-compatible on common ABIs).
 #[cfg(not(target_arch = "wasm32"))]
@@ -504,6 +526,15 @@ pub fn reset_for_tests() {
     }
     if let Ok(mut p) = WEBXR_PROMISE.lock() {
         *p = WebXrSessionPromise::default();
+    }
+    if let Ok(mut imgs) = GPU_SWAPCHAIN_IMAGES.lock() {
+        imgs.clear();
+    }
+    if let Ok(mut n) = NEXT_WGPU_TEXTURE_ID.lock() {
+        *n = 1;
+    }
+    if let Ok(mut n) = NEXT_NATIVE_IMAGE.lock() {
+        *n = 0x49_0000_0001;
     }
     XR_RAF.with(|r| {
         *r.borrow_mut() = XrRafState {
@@ -923,11 +954,28 @@ fn detect_graphics_api(force_stub_default: bool) -> GraphicsApiKind {
         if s == "stub" || s == "kabootar" {
             return GraphicsApiKind::Stub;
         }
+        if s == "wgpu" {
+            // wgpu interop rides on Vulkan (or D3D11 on Windows) OpenXR binding.
+            #[cfg(target_os = "windows")]
+            {
+                return GraphicsApiKind::D3D11;
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                return GraphicsApiKind::Vulkan;
+            }
+        }
     }
-    // Prefer wgpu when a GPU 3D path is already up (backend string via env/platform otherwise).
-    if crate::runtime::render::gpu3d::gpu3d_available() {
-        // Without exposing private compositor backend names, prefer platform defaults below
-        // unless the caller set KABOOTAR_XR_GRAPHICS.
+    // Prefer wgpu when a GPU 3D path is already up (or XR wgpu interop is forced).
+    if wgpu_interop_requested() {
+        #[cfg(target_os = "windows")]
+        {
+            return GraphicsApiKind::D3D11;
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            return GraphicsApiKind::Vulkan;
+        }
     }
     if force_stub_default {
         return GraphicsApiKind::Stub;
@@ -940,6 +988,52 @@ fn detect_graphics_api(force_stub_default: bool) -> GraphicsApiKind {
     {
         GraphicsApiKind::Vulkan
     }
+}
+
+fn wgpu_interop_requested() -> bool {
+    if std::env::var("KABOOTAR_XR_WGPU")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("wgpu"))
+    {
+        return true;
+    }
+    if std::env::var("KABOOTAR_XR_GRAPHICS")
+        .ok()
+        .is_some_and(|v| v.eq_ignore_ascii_case("wgpu"))
+    {
+        return true;
+    }
+    crate::runtime::render::gpu3d::gpu3d_available()
+}
+
+/// Resolve a wgpu (or wgpu-interop) device handle for OpenXR graphics binding.
+fn resolve_wgpu_device_handle() -> Option<(u64, String)> {
+    if !wgpu_interop_requested() {
+        return None;
+    }
+    #[cfg(feature = "gpu")]
+    {
+        crate::runtime::render::probe_gpu();
+        if crate::runtime::render::gpu_available() {
+            // Stable opaque handle: Kabootar wgpu device slot (not a raw VkDevice*).
+            return Some((0x57_0000_1001, "wgpu-device".into()));
+        }
+    }
+    // Stub / CI: synthetic wgpu interop device (feeds OpenXR Vulkan/D3D11 binding).
+    Some((0x57_0000_0001, "wgpu-interop".into()))
+}
+
+fn session_reject_requested() -> bool {
+    std::env::var("KABOOTAR_XR_SESSION_REJECT")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+}
+
+fn session_reject_reason() -> String {
+    std::env::var("KABOOTAR_XR_SESSION_REJECT_REASON")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "NotSupportedError".into())
 }
 
 fn graphics_api_name(kind: GraphicsApiKind) -> &'static str {
@@ -974,6 +1068,8 @@ struct OpenXrCreateResult {
     graphics_api: String,
     graphics_device: u64,
     graphics_binding_type: String,
+    wgpu_bound: bool,
+    wgpu_device: u64,
 }
 
 /// Run xrCreateInstance → xrGetSystem → graphics binding → xrCreateSession.
@@ -996,6 +1092,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
             graphics_api: String::new(),
             graphics_device: 0,
             graphics_binding_type: String::new(),
+            wgpu_bound: false,
+            wgpu_device: 0,
         };
     }
 
@@ -1049,6 +1147,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                         graphics_api: String::new(),
                         graphics_device: 0,
                         graphics_binding_type: String::new(),
+                        wgpu_bound: false,
+                        wgpu_device: 0,
                     };
                 }
             };
@@ -1094,6 +1194,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                 graphics_api: String::new(),
                 graphics_device: 0,
                 graphics_binding_type: String::new(),
+                wgpu_bound: false,
+                wgpu_device: 0,
             };
         }
 
@@ -1133,9 +1235,12 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
         let mut session_ok = false;
         let mut graphics_bound = false;
         let mut graphics_device: u64 = 0;
+        let mut wgpu_bound = false;
+        let mut wgpu_device: u64 = 0;
         let gfx_kind = detect_graphics_api(force_stub);
         let graphics_api = graphics_api_name(gfx_kind).to_string();
         let graphics_binding_type = graphics_binding_type_name(gfx_kind).to_string();
+        let wgpu_dev = resolve_wgpu_device_handle();
 
         if rc_inst == 0 && instance != 0 {
             let sys_info = XrSystemGetInfo {
@@ -1152,17 +1257,25 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                     unsafe { std::mem::transmute(create_sess_addr) };
                 match gfx_kind {
                     GraphicsApiKind::Vulkan => {
+                        let device = wgpu_dev
+                            .as_ref()
+                            .map(|(d, _)| *d)
+                            .unwrap_or(0x76_0000_0003);
                         let gfx = XrGraphicsBindingVulkanKHR {
                             ty: XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR,
                             next: std::ptr::null(),
                             instance: 0x76_0000_0001, // synthetic VkInstance
                             physical_device: 0x76_0000_0002,
-                            device: 0x76_0000_0003,
+                            device,
                             queue_family_index: 0,
                             queue_index: 0,
                         };
                         graphics_device = gfx.device;
                         graphics_bound = true;
+                        if let Some((d, _)) = &wgpu_dev {
+                            wgpu_bound = true;
+                            wgpu_device = *d;
+                        }
                         let sess_info = XrSessionCreateInfo {
                             ty: XR_TYPE_SESSION_CREATE_INFO,
                             next: &gfx as *const _ as *const std::os::raw::c_void,
@@ -1172,13 +1285,21 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                         rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
                     }
                     GraphicsApiKind::D3D11 => {
+                        let device = wgpu_dev
+                            .as_ref()
+                            .map(|(d, _)| *d)
+                            .unwrap_or(0x11_0000_0001);
                         let gfx = XrGraphicsBindingD3D11KHR {
                             ty: XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
                             next: std::ptr::null(),
-                            device: 0x11_0000_0001, // synthetic ID3D11Device*
+                            device,
                         };
                         graphics_device = gfx.device;
                         graphics_bound = true;
+                        if let Some((d, _)) = &wgpu_dev {
+                            wgpu_bound = true;
+                            wgpu_device = *d;
+                        }
                         let sess_info = XrSessionCreateInfo {
                             ty: XR_TYPE_SESSION_CREATE_INFO,
                             next: &gfx as *const _ as *const std::os::raw::c_void,
@@ -1188,14 +1309,22 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                         rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
                     }
                     GraphicsApiKind::Stub => {
+                        let device = wgpu_dev
+                            .as_ref()
+                            .map(|(d, _)| *d)
+                            .unwrap_or(0x6B_0000_0001);
                         let gfx = XrGraphicsBindingKabootar {
                             ty: XR_TYPE_GRAPHICS_BINDING_KABOOTAR,
                             next: std::ptr::null(),
-                            api: 4,
-                            device: 0x6B_0000_0001,
+                            api: if wgpu_dev.is_some() { 1 } else { 4 },
+                            device,
                         };
                         graphics_device = gfx.device;
                         graphics_bound = true;
+                        if let Some((d, _)) = &wgpu_dev {
+                            wgpu_bound = true;
+                            wgpu_device = *d;
+                        }
                         let sess_info = XrSessionCreateInfo {
                             ty: XR_TYPE_SESSION_CREATE_INFO,
                             next: &gfx as *const _ as *const std::os::raw::c_void,
@@ -1232,6 +1361,8 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
             graphics_api,
             graphics_device,
             graphics_binding_type,
+            wgpu_bound,
+            wgpu_device,
         }
     }
 }
@@ -1262,6 +1393,8 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
             graphics_api: "webxr".into(),
             graphics_device: 0,
             graphics_binding_type: String::new(),
+            wgpu_bound: false,
+            wgpu_device: 0,
         }
     } else {
         openxr_create_instance_and_session(use_stub || stub)
@@ -1315,6 +1448,8 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     live.graphics_device = created.graphics_device;
     live.graphics_binding_type = created.graphics_binding_type.clone();
     live.swapchain_graphics_bound = false;
+    live.wgpu_bound = created.wgpu_bound;
+    live.wgpu_device = created.wgpu_device;
     live.create_instance_rc = created.rc_inst;
     live.get_system_rc = created.rc_get_system;
     live.create_session_rc = created.rc_sess;
@@ -1353,6 +1488,11 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     out.insert(
         "graphicsBindingType".into(),
         Value::String(created.graphics_binding_type),
+    );
+    out.insert("wgpuBound".into(), Value::Bool(created.wgpu_bound));
+    out.insert(
+        "wgpuDevice".into(),
+        Value::Number(created.wgpu_device as i64),
     );
     out.insert(
         "createInstanceRc".into(),
@@ -1418,6 +1558,8 @@ pub fn destroy_live_session() -> Result<Value, String> {
     live.graphics_device = 0;
     live.graphics_binding_type.clear();
     live.swapchain_graphics_bound = false;
+    live.wgpu_bound = false;
+    live.wgpu_device = 0;
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("active".into(), Value::Bool(false));
@@ -1473,6 +1615,11 @@ pub fn live_session_status() -> Value {
             out.insert(
                 "swapchainGraphicsBound".into(),
                 Value::Bool(live.swapchain_graphics_bound),
+            );
+            out.insert("wgpuBound".into(), Value::Bool(live.wgpu_bound));
+            out.insert(
+                "wgpuDevice".into(),
+                Value::Number(live.wgpu_device as i64),
             );
             out.insert(
                 "createInstanceRc".into(),
@@ -1531,6 +1678,13 @@ pub fn bind_hmd_swapchain(width: i64, height: i64, eye: &str) -> Result<Value, S
     );
     out.insert("hmdSwapchain".into(), Value::Bool(true));
     out.insert("kind".into(), Value::String("xr_hmd_swapchain_desc".into()));
+    if live.wgpu_bound {
+        out.insert("wgpuBound".into(), Value::Bool(true));
+        out.insert(
+            "wgpuDevice".into(),
+            Value::Number(live.wgpu_device as i64),
+        );
+    }
     Ok(Value::Object(out))
 }
 
@@ -1549,7 +1703,219 @@ pub fn mark_swapchain_graphics_bound() -> Result<Value, String> {
         "graphicsApi".into(),
         Value::String(live.graphics_api.clone()),
     );
+    out.insert("wgpuBound".into(), Value::Bool(live.wgpu_bound));
+    out.insert(
+        "wgpuDevice".into(),
+        Value::Number(live.wgpu_device as i64),
+    );
     Ok(Value::Object(out))
+}
+
+/// Allocate GPU-backed OpenXR swapchain images (wgpu textures when available).
+pub fn allocate_gpu_swapchain_images(
+    swapchain_id: i64,
+    width: u32,
+    height: u32,
+    image_count: i64,
+    eye: &str,
+) -> Result<Value, String> {
+    let live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    if !live.active || !live.graphics_bound {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("gpuBound".into(), Value::Bool(false));
+        return Ok(Value::Object(out));
+    }
+    let graphics_api = live.graphics_api.clone();
+    let graphics_device = live.graphics_device;
+    let wgpu_bound = live.wgpu_bound || wgpu_interop_requested();
+    let wgpu_device = if live.wgpu_device != 0 {
+        live.wgpu_device
+    } else if wgpu_bound {
+        resolve_wgpu_device_handle()
+            .map(|(d, _)| d)
+            .unwrap_or(graphics_device)
+    } else {
+        0
+    };
+    drop(live);
+
+    let count = image_count.clamp(1, 4) as usize;
+    let mut native_images = Vec::with_capacity(count);
+    let mut wgpu_texture_ids = Vec::with_capacity(count);
+    let image_source = if wgpu_bound {
+        "wgpu".to_string()
+    } else {
+        graphics_api.clone()
+    };
+
+    #[cfg(feature = "gpu")]
+    {
+        if wgpu_bound {
+            crate::runtime::render::probe_gpu();
+            if crate::runtime::render::gpu_available() {
+                let w = width.max(64);
+                let h = height.max(64);
+                let pixels = vec![0u8; (w as usize) * (h as usize) * 4];
+                let mut ids = Vec::with_capacity(count);
+                let mut ok = true;
+                for _ in 0..count {
+                    match crate::runtime::render::upload_rgba(w, h, &pixels) {
+                        Ok(id) => ids.push(id),
+                        Err(_) => {
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+                if ok {
+                    wgpu_texture_ids = ids;
+                }
+            }
+        }
+    }
+
+    for i in 0..count {
+        let native = {
+            let mut n = NEXT_NATIVE_IMAGE
+                .lock()
+                .map_err(|_| "native image lock poisoned".to_string())?;
+            let id = *n;
+            *n += 1;
+            id
+        };
+        native_images.push(native);
+        if wgpu_texture_ids.len() <= i {
+            let tid = {
+                let mut n = NEXT_WGPU_TEXTURE_ID
+                    .lock()
+                    .map_err(|_| "wgpu texture id lock poisoned".to_string())?;
+                let id = *n;
+                *n += 1;
+                id
+            };
+            wgpu_texture_ids.push(tid);
+        }
+        if let Ok(mut pool) = GPU_SWAPCHAIN_IMAGES.lock() {
+            pool.push(GpuSwapchainImage {
+                swapchain_id,
+                image_index: i as i64,
+                native_image: native,
+                wgpu_texture_id: wgpu_texture_ids[i],
+                width,
+                height,
+                eye: eye.into(),
+            });
+        }
+    }
+
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("gpuBound".into(), Value::Bool(true));
+    out.insert("swapchainId".into(), Value::Number(swapchain_id));
+    out.insert("imageCount".into(), Value::Number(count as i64));
+    out.insert("graphicsApi".into(), Value::String(graphics_api));
+    out.insert(
+        "graphicsDevice".into(),
+        Value::Number(graphics_device as i64),
+    );
+    out.insert("wgpuBound".into(), Value::Bool(wgpu_bound));
+    out.insert("wgpuDevice".into(), Value::Number(wgpu_device as i64));
+    out.insert("imageSource".into(), Value::String(image_source));
+    out.insert(
+        "nativeImages".into(),
+        Value::Array(
+            native_images
+                .into_iter()
+                .map(|n| Value::Number(n as i64))
+                .collect(),
+        ),
+    );
+    out.insert(
+        "wgpuTextureIds".into(),
+        Value::Array(
+            wgpu_texture_ids
+                .into_iter()
+                .map(|n| Value::Number(n as i64))
+                .collect(),
+        ),
+    );
+    Ok(Value::Object(out))
+}
+
+/// Attach live GPU device / wgpu texture handles onto an acquired swapchain image.
+pub fn attach_swapchain_image_gpu(
+    swapchain_id: i64,
+    image_index: i64,
+) -> Result<HashMap<String, Value>, String> {
+    let mut out = HashMap::new();
+    let live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    if !live.graphics_bound {
+        out.insert("gpuBound".into(), Value::Bool(false));
+        return Ok(out);
+    }
+    out.insert("gpuBound".into(), Value::Bool(true));
+    out.insert(
+        "graphicsApi".into(),
+        Value::String(live.graphics_api.clone()),
+    );
+    out.insert(
+        "graphicsDevice".into(),
+        Value::Number(live.graphics_device as i64),
+    );
+    out.insert("wgpuBound".into(), Value::Bool(live.wgpu_bound));
+    out.insert(
+        "wgpuDevice".into(),
+        Value::Number(live.wgpu_device as i64),
+    );
+    let source = if live.wgpu_bound {
+        "wgpu"
+    } else {
+        live.graphics_api.as_str()
+    };
+    out.insert("imageSource".into(), Value::String(source.into()));
+    drop(live);
+
+    if let Ok(pool) = GPU_SWAPCHAIN_IMAGES.lock() {
+        if let Some(img) = pool
+            .iter()
+            .find(|i| i.swapchain_id == swapchain_id && i.image_index == image_index)
+        {
+            out.insert(
+                "nativeImage".into(),
+                Value::Number(img.native_image as i64),
+            );
+            out.insert(
+                "wgpuTextureId".into(),
+                Value::Number(img.wgpu_texture_id as i64),
+            );
+            return Ok(out);
+        }
+    }
+    // Lazy synthetic handles if allocate was skipped.
+    let native = {
+        let mut n = NEXT_NATIVE_IMAGE
+            .lock()
+            .map_err(|_| "native image lock poisoned".to_string())?;
+        let id = *n;
+        *n += 1;
+        id
+    };
+    let tid = {
+        let mut n = NEXT_WGPU_TEXTURE_ID
+            .lock()
+            .map_err(|_| "wgpu texture id lock poisoned".to_string())?;
+        let id = *n;
+        *n += 1;
+        id
+    };
+    out.insert("nativeImage".into(), Value::Number(native as i64));
+    out.insert("wgpuTextureId".into(), Value::Number(tid as i64));
+    Ok(out)
 }
 
 /// Start requestSession as a Kab `Promise` (for `promise_then` / browser then-chains).
@@ -1562,11 +1928,81 @@ pub fn start_session_promise_value(
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    let promise = Rc::new(RefCell::new(PromiseValue::Pending));
+    if session_reject_requested() {
+        let reason = reject_session_promise_inner(&session_reject_reason())?;
+        settle_promise(&promise, reason, true, env)?;
+        return Ok(Value::Promise(promise));
+    }
+
     let _ = request_session_promise(mode)?;
     // Resolve on a microtask boundary: settle after poll (stub/browser grant path).
     let resolved = poll_session_promise()?;
-    let promise = Rc::new(RefCell::new(PromiseValue::Pending));
     settle_promise(&promise, resolved, false, env)?;
+    Ok(Value::Promise(promise))
+}
+
+/// Explicitly reject the WebXR session Promise (browser NotSupportedError path).
+pub fn reject_session_promise(reason: &str) -> Result<Value, String> {
+    reject_session_promise_inner(reason)
+}
+
+fn reject_session_promise_inner(reason: &str) -> Result<Value, String> {
+    let reason = if reason.is_empty() {
+        "NotSupportedError"
+    } else {
+        reason
+    };
+    let mut promise_id = 1i64;
+    let mut mode = String::new();
+    if let Ok(mut p) = WEBXR_PROMISE.lock() {
+        mode = p.mode.clone();
+        promise_id = if p.promise_id == 0 {
+            1
+        } else if p.pending {
+            p.promise_id
+        } else {
+            p.promise_id + 1
+        };
+        *p = WebXrSessionPromise {
+            pending: false,
+            resolved: false,
+            rejected: true,
+            mode: mode.clone(),
+            promise_id,
+            detail: format!("rejected:{reason}"),
+            reason: reason.into(),
+            raf_bound: false,
+        };
+    }
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(false));
+    out.insert("pending".into(), Value::Bool(false));
+    out.insert("resolved".into(), Value::Bool(false));
+    out.insert("rejected".into(), Value::Bool(true));
+    out.insert("reason".into(), Value::String(reason.into()));
+    out.insert("promiseId".into(), Value::Number(promise_id));
+    out.insert("mode".into(), Value::String(mode));
+    out.insert("kind".into(), Value::String("xr_session_promise".into()));
+    out.insert("error".into(), Value::String(reason.into()));
+    Ok(Value::Object(out))
+}
+
+/// Start a already-rejected session Promise for `promise_then(..., onRejected)`.
+pub fn start_rejected_session_promise_value(
+    mode: &str,
+    reason: &str,
+    env: &mut crate::value::Environment,
+) -> Result<Value, String> {
+    use crate::runtime::stdlib::promise::settle_promise;
+    use crate::value::PromiseValue;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let _ = mode;
+    let rejected = reject_session_promise_inner(reason)?;
+    let promise = Rc::new(RefCell::new(PromiseValue::Pending));
+    settle_promise(&promise, rejected, true, env)?;
     Ok(Value::Promise(promise))
 }
 
@@ -1647,6 +2083,7 @@ pub fn request_session_promise(mode: &str) -> Result<Value, String> {
             mode: mode.into(),
             promise_id,
             detail: detail.clone(),
+            reason: String::new(),
             raf_bound: false,
         };
     }
@@ -1667,6 +2104,19 @@ pub fn poll_session_promise() -> Result<Value, String> {
     let mut p = WEBXR_PROMISE
         .lock()
         .map_err(|_| "webxr promise lock poisoned".to_string())?;
+    if p.rejected {
+        let mut out = HashMap::new();
+        out.insert("ok".into(), Value::Bool(false));
+        out.insert("pending".into(), Value::Bool(false));
+        out.insert("resolved".into(), Value::Bool(false));
+        out.insert("rejected".into(), Value::Bool(true));
+        out.insert("reason".into(), Value::String(p.reason.clone()));
+        out.insert("error".into(), Value::String(p.reason.clone()));
+        out.insert("promiseId".into(), Value::Number(p.promise_id));
+        out.insert("mode".into(), Value::String(p.mode.clone()));
+        out.insert("kind".into(), Value::String("xr_session_promise".into()));
+        return Ok(Value::Object(out));
+    }
     if !p.pending && !p.resolved {
         let mut out = HashMap::new();
         out.insert("ok".into(), Value::Bool(false));
@@ -1680,6 +2130,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
         out.insert("ok".into(), Value::Bool(true));
         out.insert("pending".into(), Value::Bool(false));
         out.insert("resolved".into(), Value::Bool(true));
+        out.insert("rejected".into(), Value::Bool(false));
         out.insert("promiseId".into(), Value::Number(p.promise_id));
         out.insert("mode".into(), Value::String(p.mode.clone()));
         out.insert("rafBound".into(), Value::Bool(p.raf_bound));
@@ -1694,6 +2145,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
     p.pending = false;
     p.resolved = true;
     p.rejected = false;
+    p.reason.clear();
     drop(p);
 
     let _ = create_live_session(&mode)?;
@@ -1735,6 +2187,7 @@ pub fn session_promise_status() -> Value {
             out.insert("pending".into(), Value::Bool(p.pending));
             out.insert("resolved".into(), Value::Bool(p.resolved));
             out.insert("rejected".into(), Value::Bool(p.rejected));
+            out.insert("reason".into(), Value::String(p.reason.clone()));
             out.insert("promiseId".into(), Value::Number(p.promise_id));
             out.insert("mode".into(), Value::String(p.mode.clone()));
             out.insert("detail".into(), Value::String(p.detail.clone()));

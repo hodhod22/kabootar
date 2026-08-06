@@ -105,15 +105,24 @@ kabootar mod init game3d  # 3D mesh + shaders/solid.wgsl
 
 ## Kab-spel-lib (GP1–GP3 subset)
 
-`lib/game/` är **motorgrunden** (ECS, scene, render, physics, …).  
-Gameplay-komponenter (Health, AI, inventory, …) ligger i det **separata** repot [`bazi`](../../bazi/) — importera bara det spelet behöver (Unity-lik modell).
+`lib/game/` är **motorgrunden** (ECS, scene, render, physics, input, XR, assets, …).  
+**Gameplay stannar i Bazi** - Health, AI, inventory, GO/behaviours, combat kits hör **inte** hemma i `lib/game/`. Lägg dem i det separata repot [`bazi`](https://github.com/hodhod22/bazi) och importera bara det spelet behöver (Unity-package-modell).
+
+| Lager | Repo | Exempel |
+|-------|------|---------|
+| Motor (MIT) | `nova-interpreter` / Kabootar | `game/ecs`, `game/physics`, `game/xr` |
+| Gameplay (Bazi-licens) | `bazi` | `bazi/core/health`, `bazi/go`, `bazi/ai` |
 
 ```bash
 export KABOOTAR_PATH="/path/to/bazi/lib"
 # import "game/ecs"
-# import "bazi/core"
+# import "bazi/core/health"   # leaf - undvik tunga aggregators
 # import "bazi/extras/vehicle"
 ```
+
+**Import / compile-tid:** tunga `import "bazi"`-grafer kan hänga. Preferera leaf-imports.  
+Runtime varnar vid djup ≥ `KABOOTAR_IMPORT_WARN` (default 48); sätt `KABOOTAR_IMPORT_MAX=N` för hård gräns.  
+Modul-export cache + `.kbc` återanvänds per fil-mtime; `kstyle`-preprocess hoppas över när källan saknar `kstyle`.
 
 Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — `root = setLocal(root, …)`):
 
@@ -135,7 +144,7 @@ lib/game/
 | `import "game/gltf"` | `loadGltfJson` → `{ floats, indices?, color, animations }` (glTF 2.0 JSON subset) |
 | `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
 | `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
-| `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep` |
+| `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep`, `createPhysicsCharacter`, `characterDrive`, `syncTransformFromCharacter` |
 | `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` (shim → `game/core/ecs`) |
 | `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
 | `import "game/terrain"` | heightmap, LOD mesh, splat, async streaming poll (`beginAsyncLoad`/`pollStreamingLoads`) (GP6d) |

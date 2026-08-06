@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar game/core/ecs — thin AoS component store (GP1e subset).
+// Kabootar game/core/ecs - thin AoS component store (GP1e subset).
 // Canonical path: import "game/core/ecs" (also via shim import "game/ecs")
 
 pub fn createWorld() {
