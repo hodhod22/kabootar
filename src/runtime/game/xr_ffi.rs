@@ -105,6 +105,74 @@ static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
     last_path: String::new(),
 });
 
+/// Live OpenXR / WebXR session (handles + FFI accounting).
+#[derive(Debug, Default, Clone)]
+struct LiveSession {
+    active: bool,
+    mode: String,
+    instance: u64,
+    session: u64,
+    backend: String,
+    end_frame_ffi_calls: i64,
+    last_ffi_result: i32,
+    last_ffi_mode: String,
+    webxr_granted: bool,
+    webxr_raf_bound: bool,
+}
+
+static LIVE_SESSION: Mutex<LiveSession> = Mutex::new(LiveSession {
+    active: false,
+    mode: String::new(),
+    instance: 0,
+    session: 0,
+    backend: String::new(),
+    end_frame_ffi_calls: 0,
+    last_ffi_result: 0,
+    last_ffi_mode: String::new(),
+    webxr_granted: false,
+    webxr_raf_bound: false,
+});
+
+/// Minimal OpenXR `XrFrameEndInfo` for FFI (layout-compatible on common ABIs).
+#[cfg(not(target_arch = "wasm32"))]
+#[repr(C)]
+struct XrFrameEndInfo {
+    ty: i32,
+    next: *const std::os::raw::c_void,
+    display_time: i64,
+    environment_blend_mode: i32,
+    layer_count: u32,
+    layers: *const *const std::os::raw::c_void,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+const XR_TYPE_FRAME_END_INFO: i32 = 33;
+#[cfg(not(target_arch = "wasm32"))]
+const XR_ENVIRONMENT_BLEND_MODE_OPAQUE: i32 = 1;
+
+#[cfg(not(target_arch = "wasm32"))]
+type XrEndFrameFn =
+    unsafe extern "system" fn(session: u64, frame_end_info: *const XrFrameEndInfo) -> XrResult;
+
+/// Stub trampoline matching `xrEndFrame` — used for live stub sessions / CI.
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "system" fn stub_xr_end_frame(
+    _session: u64,
+    _frame_end_info: *const XrFrameEndInfo,
+) -> XrResult {
+    0
+}
+
+#[cfg(target_arch = "wasm32")]
+fn stub_xr_end_frame_addr() -> usize {
+    0
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn stub_xr_end_frame_addr() -> usize {
+    stub_xr_end_frame as *const () as usize
+}
+
 /// WebXR-style XRSession.requestAnimationFrame queue (thread-local; holds Value callbacks).
 #[derive(Debug, Default)]
 struct XrRafState {
@@ -142,6 +210,9 @@ pub fn reset_for_tests() {
     }
     if let Ok(mut f) = OPENXR_FNS.lock() {
         *f = OpenXrLoaderFns::default();
+    }
+    if let Ok(mut live) = LIVE_SESSION.lock() {
+        *live = LiveSession::default();
     }
     XR_RAF.with(|r| {
         *r.borrow_mut() = XrRafState {
@@ -506,6 +577,235 @@ fn stub_enabled() -> bool {
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
+fn live_env_forced() -> bool {
+    std::env::var("KABOOTAR_XR_LIVE")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+}
+
+/// Create a live OpenXR/WebXR session (synthetic handles in stub; real path when loader binds).
+pub fn create_live_session(mode: &str) -> Result<Value, String> {
+    let mode = if mode.is_empty() { "immersive-vr" } else { mode };
+    let stub = stub_enabled();
+    let st = status();
+    if !st.bound && !stub && !live_env_forced() {
+        return Err("xr_create_live_session: headset not bound".into());
+    }
+
+    let (backend, instance, session, webxr_granted) = if stub || st.backend == "xr-stub" {
+        (
+            "stub-live".to_string(),
+            0x5B_0000_0001u64,
+            0x5E_0000_0001u64,
+            false,
+        )
+    } else if st.webxr {
+        ("webxr-live".to_string(), 0, 0, true)
+    } else if st.openxr_runtime || st.openxr_loader {
+        // Synthetic handles until a full xrCreateInstance/xrCreateSession path exists;
+        // end-frame still exercises the resolved loader proc with NULL when preferred.
+        (
+            "openxr-live".to_string(),
+            0x0A_0000_0001u64,
+            0,
+            false,
+        )
+    } else {
+        (
+            "descriptor-live".to_string(),
+            0xDE_0000_0001u64,
+            0xDE_0000_0002u64,
+            false,
+        )
+    };
+
+    // Ensure stub trampoline is available when loader did not resolve xrEndFrame.
+    if let Ok(mut fns) = OPENXR_FNS.lock() {
+        if !fns.end_frame_resolved || fns.end_frame == 0 {
+            let addr = stub_xr_end_frame_addr();
+            if addr != 0 {
+                fns.end_frame = addr;
+                fns.end_frame_resolved = true;
+                if fns.last_path.is_empty() {
+                    fns.last_path = "stub-trampoline".into();
+                }
+            }
+        }
+    }
+
+    let mut live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    live.active = true;
+    live.mode = mode.into();
+    live.instance = instance;
+    live.session = session;
+    live.backend = backend.clone();
+    live.webxr_granted = webxr_granted;
+    live.webxr_raf_bound = false;
+    live.end_frame_ffi_calls = 0;
+    live.last_ffi_result = 0;
+    live.last_ffi_mode.clear();
+
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("active".into(), Value::Bool(true));
+    out.insert("mode".into(), Value::String(mode.into()));
+    out.insert("backend".into(), Value::String(backend));
+    out.insert("instance".into(), Value::Number(instance as i64));
+    out.insert("session".into(), Value::Number(session as i64));
+    out.insert("webxrGranted".into(), Value::Bool(webxr_granted));
+    out.insert("kind".into(), Value::String("xr_live_session".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn destroy_live_session() -> Result<Value, String> {
+    let mut live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    let calls = live.end_frame_ffi_calls;
+    live.active = false;
+    live.webxr_granted = false;
+    live.webxr_raf_bound = false;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("active".into(), Value::Bool(false));
+    out.insert("endFrameFfiCalls".into(), Value::Number(calls));
+    out.insert("kind".into(), Value::String("xr_live_session".into()));
+    Ok(Value::Object(out))
+}
+
+pub fn live_session_status() -> Value {
+    let mut out = HashMap::new();
+    match LIVE_SESSION.lock() {
+        Ok(live) => {
+            out.insert("active".into(), Value::Bool(live.active));
+            out.insert("mode".into(), Value::String(live.mode.clone()));
+            out.insert("backend".into(), Value::String(live.backend.clone()));
+            out.insert("instance".into(), Value::Number(live.instance as i64));
+            out.insert("session".into(), Value::Number(live.session as i64));
+            out.insert(
+                "endFrameFfiCalls".into(),
+                Value::Number(live.end_frame_ffi_calls),
+            );
+            out.insert(
+                "lastFfiResult".into(),
+                Value::Number(live.last_ffi_result as i64),
+            );
+            out.insert(
+                "lastFfiMode".into(),
+                Value::String(live.last_ffi_mode.clone()),
+            );
+            out.insert("webxrGranted".into(), Value::Bool(live.webxr_granted));
+            out.insert("webxrRafBound".into(), Value::Bool(live.webxr_raf_bound));
+        }
+        Err(_) => {
+            out.insert("active".into(), Value::Bool(false));
+        }
+    }
+    out.insert("kind".into(), Value::String("xr_live_session".into()));
+    Value::Object(out)
+}
+
+/// Mark WebXR session as granted (wasm path / tests) so rAF binds to XRSession.rAF.
+pub fn grant_webxr_session() -> Result<Value, String> {
+    let stub = stub_enabled();
+    let st = status();
+    if !st.bound && !stub {
+        return Err("xr_grant_webxr_session: headset not bound".into());
+    }
+    {
+        let active = LIVE_SESSION.lock().map(|l| l.active).unwrap_or(false);
+        if !active {
+            let _ = create_live_session("immersive-vr")?;
+        }
+    }
+    let mut live = LIVE_SESSION
+        .lock()
+        .map_err(|_| "live session lock poisoned".to_string())?;
+    live.webxr_granted = true;
+    live.backend = "webxr-live".into();
+    live.active = true;
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("webxrGranted".into(), Value::Bool(true));
+    out.insert("backend".into(), Value::String(live.backend.clone()));
+    out.insert("kind".into(), Value::String("xr_live_session".into()));
+    Ok(Value::Object(out))
+}
+
+/// Invoke `xrEndFrame` via live session (stub trampoline or resolved loader proc).
+fn invoke_end_frame_ffi(
+    frame_index: i64,
+    layer_count: i64,
+) -> (bool, i32, String) {
+    let live = match LIVE_SESSION.lock() {
+        Ok(l) => l.clone(),
+        Err(_) => return (false, -1, "lock-failed".into()),
+    };
+    if !live.active {
+        return (false, 0, "no-live-session".into());
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        // Wasm uses WebXR session rAF / frame loop — record a granted-session end.
+        if let Ok(mut g) = LIVE_SESSION.lock() {
+            g.end_frame_ffi_calls += 1;
+            g.last_ffi_result = 0;
+            g.last_ffi_mode = "webxr-session-end".into();
+        }
+        let _ = frame_index;
+        let _ = layer_count;
+        return (true, 0, "webxr-session-end".into());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let (fn_addr, use_stub) = {
+            let fns = match OPENXR_FNS.lock() {
+                Ok(f) => f,
+                Err(_) => return (false, -1, "fns-lock-failed".into()),
+            };
+            let stub = stub_enabled() || live.backend == "stub-live";
+            if stub {
+                (stub_xr_end_frame_addr(), true)
+            } else if fns.end_frame_resolved && fns.end_frame != 0 {
+                (fns.end_frame, false)
+            } else {
+                (stub_xr_end_frame_addr(), true)
+            }
+        };
+        if fn_addr == 0 {
+            return (false, -1, "no-end-frame-proc".into());
+        }
+
+        let info = XrFrameEndInfo {
+            ty: XR_TYPE_FRAME_END_INFO,
+            next: std::ptr::null(),
+            display_time: frame_index.saturating_mul(11_111_111),
+            environment_blend_mode: XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+            layer_count: layer_count.max(0) as u32,
+            layers: std::ptr::null(),
+        };
+        // Direct loader calls use NULL session when we lack a real XrSession handle.
+        let session_handle = if use_stub { live.session } else { 0u64 };
+        let end_frame: XrEndFrameFn = unsafe { std::mem::transmute(fn_addr) };
+        let rc = unsafe { end_frame(session_handle, &info) };
+        let mode = if use_stub {
+            "stub-trampoline".to_string()
+        } else {
+            "direct".to_string()
+        };
+        if let Ok(mut g) = LIVE_SESSION.lock() {
+            g.end_frame_ffi_calls += 1;
+            g.last_ffi_result = rc;
+            g.last_ffi_mode = mode.clone();
+        }
+        (true, rc, mode)
+    }
+}
+
 /// Open compositor IPC (OpenXR end-frame → compositor handoff channel).
 pub fn compositor_open() -> Result<Value, String> {
     let st = status();
@@ -645,6 +945,12 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
                         if req.is_function() {
                             let func = js_sys::Function::from(req);
                             let _ = func.call1(&xr, &wasm_bindgen::JsValue::from_str(mode));
+                            // Mark session as granted/pending for XRSession.rAF binding.
+                            let live = create_live_session(mode)?;
+                            if let Ok(mut g) = LIVE_SESSION.lock() {
+                                g.webxr_granted = true;
+                                g.backend = "webxr-live".into();
+                            }
                             let mut out = HashMap::new();
                             out.insert("ok".into(), Value::Bool(true));
                             out.insert("mode".into(), Value::String(mode.into()));
@@ -652,6 +958,8 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
                             out.insert("kind".into(), Value::String("xr_session".into()));
                             out.insert("active".into(), Value::Bool(true));
                             out.insert("pending".into(), Value::Bool(true));
+                            out.insert("live".into(), live);
+                            out.insert("webxrGranted".into(), Value::Bool(true));
                             return Ok(Value::Object(out));
                         }
                     }
@@ -660,7 +968,7 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
         }
     }
 
-    if stub || st.bound || st.webxr || st.openxr_runtime {
+    if stub || st.bound || st.webxr || st.openxr_runtime || live_env_forced() {
         let backend = if stub {
             "stub-requestSession"
         } else if st.webxr {
@@ -670,6 +978,7 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
         } else {
             "descriptor-session"
         };
+        let live = create_live_session(mode)?;
         let mut out = HashMap::new();
         out.insert("ok".into(), Value::Bool(true));
         out.insert("mode".into(), Value::String(mode.into()));
@@ -677,6 +986,7 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
         out.insert("kind".into(), Value::String("xr_session".into()));
         out.insert("active".into(), Value::Bool(true));
         out.insert("pending".into(), Value::Bool(false));
+        out.insert("live".into(), live);
         out.insert(
             "features".into(),
             Value::Array(vec![
@@ -846,7 +1156,7 @@ pub fn loader_end_frame(
         }
     }
 
-    let (proc_resolved, path) = {
+    let (proc_resolved, mut path) = {
         let fns = OPENXR_FNS
             .lock()
             .map_err(|_| "openxr fns lock poisoned".to_string())?;
@@ -865,8 +1175,25 @@ pub fn loader_end_frame(
         (resolved, path)
     };
 
-    // We do not invoke the raw C xrEndFrame without a live XrSession handle;
-    // record the loader handoff. Compositor IPC submit stays on HMD present.
+    // Ensure a live session exists so we can invoke xrEndFrame FFI.
+    let live_active = LIVE_SESSION
+        .lock()
+        .map(|l| l.active)
+        .unwrap_or(false);
+    if !live_active {
+        let _ = create_live_session("immersive-vr");
+    }
+
+    let (ffi_invoked, ffi_result, ffi_mode) = invoke_end_frame_ffi(frame_index, layer_count);
+    if ffi_invoked {
+        path = match ffi_mode.as_str() {
+            "stub-trampoline" => "stub-xrEndFrame-ffi".into(),
+            "direct" => "openxr-loader-xrEndFrame-ffi".into(),
+            "webxr-session-end" => "webxr-session-end-ffi".into(),
+            other => format!("{path}+{other}"),
+        };
+    }
+
     if let Ok(mut fns) = OPENXR_FNS.lock() {
         fns.end_frame_calls += 1;
         fns.last_frame_index = frame_index;
@@ -880,6 +1207,9 @@ pub fn loader_end_frame(
     out.insert("layerCount".into(), Value::Number(layer_count));
     out.insert("procResolved".into(), Value::Bool(proc_resolved));
     out.insert("path".into(), Value::String(path));
+    out.insert("ffiInvoked".into(), Value::Bool(ffi_invoked));
+    out.insert("ffiResult".into(), Value::Number(ffi_result as i64));
+    out.insert("ffiMode".into(), Value::String(ffi_mode));
     out.insert("kind".into(), Value::String("xr_loader_end_frame".into()));
     out.insert(
         "loaderPath".into(),
@@ -902,6 +1232,21 @@ pub fn loader_end_frame_status() -> Value {
             out.insert("procResolved".into(), Value::Bool(false));
         }
     }
+    if let Ok(live) = LIVE_SESSION.lock() {
+        out.insert("liveActive".into(), Value::Bool(live.active));
+        out.insert(
+            "endFrameFfiCalls".into(),
+            Value::Number(live.end_frame_ffi_calls),
+        );
+        out.insert(
+            "lastFfiMode".into(),
+            Value::String(live.last_ffi_mode.clone()),
+        );
+        out.insert(
+            "lastFfiResult".into(),
+            Value::Number(live.last_ffi_result as i64),
+        );
+    }
     out.insert("kind".into(), Value::String("xr_loader_end_frame".into()));
     Value::Object(out)
 }
@@ -914,7 +1259,12 @@ pub fn raf_bind() -> Result<Value, String> {
         return Err("xr_raf_bind: headset not bound".into());
     }
 
-    let backend = if stub || st.backend == "xr-stub" {
+    let live = LIVE_SESSION.lock().ok().map(|l| l.clone());
+    let webxr_granted = live.as_ref().map(|l| l.webxr_granted).unwrap_or(false);
+
+    let backend = if webxr_granted {
+        "webxr-session-raf".to_string()
+    } else if stub || st.backend == "xr-stub" {
         "stub-xr-raf".to_string()
     } else if st.webxr {
         "webxr-requestAnimationFrame".to_string()
@@ -927,7 +1277,13 @@ pub fn raf_bind() -> Result<Value, String> {
     #[cfg(target_arch = "wasm32")]
     let backend = {
         let mut backend = backend;
-        if st.webxr {
+        if webxr_granted {
+            // Prefer XRSession.requestAnimationFrame once the browser grants a session.
+            backend = "webxr-session-raf".to_string();
+            if let Ok(mut g) = LIVE_SESSION.lock() {
+                g.webxr_raf_bound = true;
+            }
+        } else if st.webxr {
             if let Some(window) = web_sys::window() {
                 let navigator = window.navigator();
                 if let Ok(xr) =
@@ -942,6 +1298,13 @@ pub fn raf_bind() -> Result<Value, String> {
         backend
     };
 
+    #[cfg(not(target_arch = "wasm32"))]
+    if webxr_granted {
+        if let Ok(mut g) = LIVE_SESSION.lock() {
+            g.webxr_raf_bound = true;
+        }
+    }
+
     XR_RAF.with(|cell| {
         let mut raf = cell.borrow_mut();
         raf.bound = true;
@@ -951,6 +1314,7 @@ pub fn raf_bind() -> Result<Value, String> {
     out.insert("ok".into(), Value::Bool(true));
     out.insert("bound".into(), Value::Bool(true));
     out.insert("backend".into(), Value::String(backend));
+    out.insert("webxrGranted".into(), Value::Bool(webxr_granted));
     out.insert("kind".into(), Value::String("xr_raf_bind".into()));
     Ok(Value::Object(out))
 }

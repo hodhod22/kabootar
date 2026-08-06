@@ -442,7 +442,37 @@ fn xr_loader_end_frame_and_raf_immersive() {
         let f0 = batch["frames"][0]
         let loader = batch["loader"]
         let raf = batch["raf"]
-        return batch["ok"] == true && batch["frameCount"] == 2 && f0["loaderPath"] == "stub-xrEndFrame" && f0["rafBackend"] == "stub-xr-raf" && loader["calls"] == 2 && loader["lastPath"] == "stub-xrEndFrame" && raf["bound"] == true && raf["ticks"] == 2 && raf["backend"] == "stub-xr-raf"
+        let live = batch["live"]
+        return batch["ok"] == true && batch["frameCount"] == 2 && f0["loaderPath"] == "stub-xrEndFrame-ffi" && f0["ffiInvoked"] == true && f0["ffiMode"] == "stub-trampoline" && f0["rafBackend"] == "stub-xr-raf" && loader["calls"] == 2 && loader["lastPath"] == "stub-xrEndFrame-ffi" && live["active"] == true && live["endFrameFfiCalls"] == 2 && live["lastFfiMode"] == "stub-trampoline" && raf["bound"] == true && raf["ticks"] == 2 && raf["backend"] == "stub-xr-raf"
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn xr_live_session_ffi_and_webxr_session_raf() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrCreateLiveSession(xr, "immersive-vr")
+        let live0 = xrLiveSessionStatus()
+        xr = xrGrantWebxrSession(xr)
+        xr = xrBindAnimationFrame(xr)
+        let raf = xrAnimationFrameStatus()
+        xr = xrBegin(xr)
+        let out = xrRuntimeFrame(xr, 1280, 720)
+        let lef = out["ended"]["loaderEndFrame"]
+        let live1 = xrLiveSessionStatus()
+        let stop = xrDestroyLiveSession(xr)
+        return live0["active"] == true && live0["backend"] == "stub-live" && raf["backend"] == "webxr-session-raf" && xr["raf"]["webxrGranted"] == true && lef["ffiInvoked"] == true && lef["ffiMode"] == "stub-trampoline" && live1["webxrGranted"] == true && live1["webxrRafBound"] == true && live1["endFrameFfiCalls"] == 1 && stop["live"]["active"] == false
         "#,
         &mut env,
     )
