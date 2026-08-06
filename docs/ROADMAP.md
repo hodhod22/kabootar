@@ -817,9 +817,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **SIM1** | Joint ODE (PD + damping; Euler \| RK4) + serial FK | ✅ |
 | **SIM2** | `sim/robot` 3-DOF arm + encoders/IMU stubs + `worldToEditor` | ✅ |
 | **SIM3** | Contact stub + planar IK + `iot/twin` bridge (ABA/soft-body deferred) | ✅ subset |
+| **SIM4** | Live editor teleop — `sim/teleop` arm↔GP7 (joint/IK/Learn + step+refresh) | ✅ subset |
 
-**Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
-**Checkpoint SIM (nästa):** soft-body / ABA + live editor teleop.
+**Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `lib/sim/teleop.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
+**Checkpoint SIM (nästa):** soft-body / ABA (multibody).
 
 ### Våg DATA — DataFrame / I/O / viz (pandas-klass) 🚧 ✅ MVP subset
 

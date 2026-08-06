@@ -166,11 +166,21 @@ pub fn setJointTargets(world, targets) {
 
 pub fn applyLiveParams(world, patch) {
     let p = world["params"]
-    if patch["gravity"] != null { p["gravity"] = patch["gravity"] }
-    if patch["kp"] != null { p["kp"] = patch["kp"] }
-    if patch["kd"] != null { p["kd"] = patch["kd"] }
-    if patch["damping"] != null { p["damping"] = patch["damping"] }
-    if patch["solver"] != null { p["solver"] = patch["solver"] }
+    if patch["gravity"] != null && patch["gravity"] != undefined {
+        p["gravity"] = patch["gravity"]
+    }
+    if patch["kp"] != null && patch["kp"] != undefined {
+        p["kp"] = patch["kp"]
+    }
+    if patch["kd"] != null && patch["kd"] != undefined {
+        p["kd"] = patch["kd"]
+    }
+    if patch["damping"] != null && patch["damping"] != undefined {
+        p["damping"] = patch["damping"]
+    }
+    if patch["solver"] != null && patch["solver"] != undefined {
+        p["solver"] = patch["solver"]
+    }
     world["params"] = p
     return world
 }
