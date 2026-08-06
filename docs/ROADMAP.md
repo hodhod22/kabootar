@@ -975,6 +975,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_conv2d`/`ag_sigmoid`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`) |
 | **SC2g** | **Autograd arithmetic** — sub/div/sum/exp; backward from sum/generic root | ✅ subset (`ag_sub`/`ag_div`/`ag_sum`/`ag_exp`) |
+| **SC2n** | **Higher-order autograd** — `create_graph` + `grad_tensor` (sum/exp/mul/add) | ✅ subset (`ag_backward(..., true)` / `ag_grad_tensor`) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_adamw_update`/`ml_accuracy`/`ml_f1`/`ml_roc_auc`/`ml_confusion`) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
@@ -1068,7 +1069,8 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 **Checkpoint SC (landad 2026-08-06d):** outer multi-axis fancy (`fancyOuter`); mailbox multi-node AllReduce (`allReduceStar`/`allReduceRing`); Kab `pcaKab`/`stumpKab`/`kmeansKab` — `tests/science_sc_checkpoint_sc5d.rs`.
 **Checkpoint SC (landad 2026-08-06e):** TCP socket AllReduce (`sci_allreduce_tcp` / `allReduceTcp`); Kab bagging/boost/tree ensembles; sparse row gather/compress + dense-mask COO view — `tests/science_sc_checkpoint_sc5e.rs`.
 **Checkpoint SC (landad 2026-08-06f):** `broadcastTo`/`nd_broadcast_shapes`; autograd sub/div/sum/exp; QR/SVD thin·full + `qrErr`/`pinv`; `rfft`/`irfft`/`fftC`/`fftPad` — `tests/science_sc_checkpoint_deepen.rs`.
-**Checkpoint SC (nästa):** multi-host TCP (not only loopback); gradient-boosted trees; sparse column fancy / slice views; higher-order autograd.
+**Checkpoint SC (landad 2026-08-06g):** multi-host TCP AllReduce (`allReduceTcpRank` / bindHost); `gbdtFitKab`/`gbdtPredictKab`; sparse `gatherCols`/`compressCols`/`slice`; HOAD `backward(..., true)`/`gradTensor` — `tests/science_sc_checkpoint_sc5f.rs`.
+**Checkpoint SC (nästa):** true multi-machine CI/smoke; logistic GBDT / deeper reg trees; sparse CSC; full create_graph for dense/conv.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

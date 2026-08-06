@@ -34,3 +34,18 @@ pub fn compressRows(a, mask) {
 pub fn fromDenseMask(rows, mask) {
     return sparse_from_dense_mask(rows, mask)
 }
+
+/// Fancy gather of sparse columns → CSR.
+pub fn gatherCols(a, colIndices) {
+    return sparse_gather_cols(a, colIndices)
+}
+
+/// Boolean column compress → CSR.
+pub fn compressCols(a, mask) {
+    return sparse_compress_cols(a, mask)
+}
+
+/// Half-open rectangular slice [r0,r1) x [c0,c1) → CSR.
+pub fn slice(a, rowStart, rowStop, colStart, colStop) {
+    return sparse_slice(a, rowStart, rowStop, colStart, colStop)
+}
