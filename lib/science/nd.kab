@@ -190,6 +190,38 @@ pub fn sum(a) {
     return nd_sum(a)
 }
 
+pub fn max(a) {
+    return nd_max(a)
+}
+
+pub fn min(a) {
+    return nd_min(a)
+}
+
+pub fn argmax(a) {
+    return nd_argmax(a)
+}
+
+pub fn transpose(a) {
+    return nd_transpose(a)
+}
+
+pub fn swapAxes(a, ax0, ax1) {
+    return nd_swapaxes(a, ax0, ax1)
+}
+
+pub fn roll(a, shift) {
+    return nd_roll(a, shift)
+}
+
+pub fn pad(a, pads) {
+    return nd_pad(a, pads)
+}
+
+pub fn tensordot(a, b) {
+    return nd_tensordot(a, b)
+}
+
 pub fn dot(a, b) {
     return nd_dot(a, b)
 }

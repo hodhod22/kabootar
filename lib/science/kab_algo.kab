@@ -1146,3 +1146,134 @@ pub fn mseKab(y, pred) {
     }
     return s / len(y)
 }
+
+fn sigmoidKab(z) {
+    if z > 30.0 {
+        return 1.0
+    }
+    if z < -30.0 {
+        return 0.0
+    }
+    return 1.0 / (1.0 + exp(0.0 - z))
+}
+
+/// Logistic GBDT (binary 0/1): fit on gradients y - p.
+pub fn gbdtLogFitKab(X, y, nRounds, lr) {
+    if nRounds == null || nRounds < 1 {
+        nRounds = 8
+    }
+    if lr == null || lr == undefined {
+        lr = 0.2
+    }
+    let n = len(X)
+    let pred = []
+    let i = 0
+    while i < n {
+        pred = push(pred, 0.0)
+        i = i + 1
+    }
+    let rounds = []
+    let r = 0
+    while r < nRounds {
+        let residual = []
+        i = 0
+        while i < n {
+            let p = sigmoidKab(pred[i])
+            residual = push(residual, y[i] - p)
+            i = i + 1
+        }
+        let stump = regStumpKab(X, residual)
+        let step = regStumpPredictKab(stump, X)
+        i = 0
+        while i < n {
+            pred[i] = pred[i] + lr * step[i]
+            i = i + 1
+        }
+        rounds = push(rounds, stump)
+        r = r + 1
+    }
+    return { "kind": "GbdtLog", "rounds": rounds, "lr": lr, "nRounds": nRounds }
+}
+
+pub fn gbdtLogPredictKab(model, X) {
+    let out = []
+    let i = 0
+    while i < len(X) {
+        let z = 0.0
+        let r = 0
+        while r < len(model["rounds"]) {
+            let step = regStumpPredictKab(model["rounds"][r], [X[i]])
+            z = z + model["lr"] * step[0]
+            r = r + 1
+        }
+        let p = sigmoidKab(z)
+        if p >= 0.5 {
+            out = push(out, 1.0)
+        } else {
+            out = push(out, 0.0)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Dropout (train mode): scale kept units by 1/(1-p). seed for reproducibility.
+pub fn dropoutKab(x, p, seed, train) {
+    if train == null || train == undefined {
+        train = true
+    }
+    if train == false {
+        return x
+    }
+    if p == null || p == undefined {
+        p = 0.5
+    }
+    if seed == null || seed == undefined {
+        seed = 1
+    }
+    let out = []
+    let i = 0
+    let s = seed
+    while i < len(x) {
+        s = (s * 1103515245 + 12345) % 2147483647
+        let u = (s % 10000) / 10000.0
+        if u < p {
+            out = push(out, 0.0)
+        } else {
+            out = push(out, x[i] / (1.0 - p))
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Feature-wise batch norm (1D). Returns {y, mean, std}.
+pub fn batchNormKab(x, eps) {
+    if eps == null || eps == undefined {
+        eps = 0.0000001
+    }
+    let n = len(x)
+    let m = 0.0
+    let i = 0
+    while i < n {
+        m = m + x[i]
+        i = i + 1
+    }
+    m = m / n
+    let v = 0.0
+    i = 0
+    while i < n {
+        let e = x[i] - m
+        v = v + e * e
+        i = i + 1
+    }
+    v = v / n
+    let s = sqrt(v + eps)
+    let y = []
+    i = 0
+    while i < n {
+        y = push(y, (x[i] - m) / s)
+        i = i + 1
+    }
+    return { "y": y, "mean": m, "std": s }
+}

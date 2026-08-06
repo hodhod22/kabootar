@@ -906,12 +906,12 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 
 | Område | Python-stack | Kab idag | Behövs för att konkurrera |
 |--------|--------------|----------|---------------------------|
-| **Ndarray-kärna** | NumPy: dtype, broadcast, slice/view, ufunc, stack/concat, fancy index | 🟡 contiguous f64/c64, gather/compress, add/mul/sum/mean, F64 zero-copy | Full multi-axis fancy, more dtypes, sparse views |
-| **Linalg** | `numpy.linalg` / SciPy: LU, QR, SVD, eig, Cholesky, lstsq, norms | 🟢 `science/linalg` Kab wrappers + mat_* natives | Batched / sparse linalg |
-| **Numerik / SciPy** | `optimize`, `integrate`, `interpolate`, `special` | 🟡 trapz/simpson/newton/bisect/interp_linear | Minimize/least_squares, ODE, spline, erf/gamma/bessel subset |
-| **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 1D FFT/IFFT, conv1d | 2D FFT, FIR/IIR, window, STFT |
-| **Sparse** | `scipy.sparse` + sparse linalg | ❌ | CSR/COO + SpMV + sparse solve subset |
-| **Stats** | `scipy.stats` / pandas describe | 🟡 mean/var + `table_describe` | Fördelningar, hypotest, corr/cov, quantiles, groupby |
+| **Ndarray-kärna** | NumPy: dtype, broadcast, slice/view, ufunc, stack/concat, fancy index | 🟡 f64/c64 + broadcast/fancy + max/min/argmax + transpose/pad/roll/tensordot | Full einsum, more dtypes, advanced stride tricks |
+| **Linalg** | `numpy.linalg` / SciPy: LU, QR, SVD, eig, Cholesky, lstsq, norms | 🟢 QR/SVD/LU/slogdet/normOrd/Chol/eig/pinv | Batched / non-sym eig / sparse linalg |
+| **Numerik / SciPy** | `optimize`, `integrate`, `interpolate`, `special` | 🟡 minimize/ODE/spline + erf/erfc/gamma/j0/j1 + gradient | Stiff ODE, more specials, 2D integrate |
+| **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 FFT/rfft/2D/STFT/FIR/IIR + fftfreq/resample/hilbert/spectrogram | n-D FFT, filter design, polyphase |
+| **Sparse** | `scipy.sparse` + sparse linalg | 🟡 CSR/COO/SpMV/lstsq + row/col gather/slice | CSC, sparse eig, incomplete factorizations |
+| **Stats** | `scipy.stats` / pandas describe | 🟡 describe + t/χ² + ANOVA/Mann–Whitney + normPpf | Fler fördelningar, GLM, robust stats |
 | **Tabell / I/O** | pandas, CSV/Parquet | 🟡 CSV + **KPQT1 Parquet-lite** + KND | **SC7c** `science/io`; typed columns, join/groupby, Apache Parquet FFI |
 | **Visualisering** | matplotlib / seaborn | 🟡 ASCII + canvas plots | **SC7b** `science/visualize`; heatmaps/imshow/notebook rich |
 | **GPU ndarray** | CuPy / torch.cuda | 🟡 `gpu.kab` + WGSL subset | **SC7a** `science/nd_gpu` (nd/Tensor-parity) |
@@ -1070,7 +1070,8 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 **Checkpoint SC (landad 2026-08-06e):** TCP socket AllReduce (`sci_allreduce_tcp` / `allReduceTcp`); Kab bagging/boost/tree ensembles; sparse row gather/compress + dense-mask COO view — `tests/science_sc_checkpoint_sc5e.rs`.
 **Checkpoint SC (landad 2026-08-06f):** `broadcastTo`/`nd_broadcast_shapes`; autograd sub/div/sum/exp; QR/SVD thin·full + `qrErr`/`pinv`; `rfft`/`irfft`/`fftC`/`fftPad` — `tests/science_sc_checkpoint_deepen.rs`.
 **Checkpoint SC (landad 2026-08-06g):** multi-host TCP AllReduce (`allReduceTcpRank` / bindHost); `gbdtFitKab`/`gbdtPredictKab`; sparse `gatherCols`/`compressCols`/`slice`; HOAD `backward(..., true)`/`gradTensor` — `tests/science_sc_checkpoint_sc5f.rs`.
-**Checkpoint SC (nästa):** true multi-machine CI/smoke; logistic GBDT / deeper reg trees; sparse CSC; full create_graph for dense/conv.
+**Checkpoint SC (landad 2026-08-06h):** pillar deepen — ndarray max/transpose/tensordot; LU/slogdet/normOrd; erfc/j1/gradient; fftfreq/resample/hilbert; ANOVA/MW/ppf; logistic GBDT/dropout/BN/dataloader; mechanics/chem — `tests/science_sc_checkpoint_pillars.rs`.
+**Checkpoint SC (nästa):** einsum; batched linalg; n-D FFT/filter design; sparse CSC; full create_graph for dense/conv; PDE/domain packs.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

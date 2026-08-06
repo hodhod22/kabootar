@@ -528,6 +528,117 @@ fn mat_lstsq(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(vector_out(&x))
 }
 
+/// Doolittle LU with partial pivoting. Returns {l, u, piv, sign}.
+fn mat_lu(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (n, n2, data) = matrix_dims(args, 0, "mat_lu")?;
+    if n != n2 {
+        return Err("mat_lu: square matrix required".into());
+    }
+    let mut a = mat_from_flat(n, n, &data);
+    let mut piv: Vec<i64> = (0..n as i64).collect();
+    let mut sign = 1.0_f64;
+    for k in 0..n {
+        let mut pivot = k;
+        for i in k + 1..n {
+            if a[i][k].abs() > a[pivot][k].abs() {
+                pivot = i;
+            }
+        }
+        if a[pivot][k].abs() < 1e-15 {
+            return Err("mat_lu: singular".into());
+        }
+        if pivot != k {
+            a.swap(pivot, k);
+            piv.swap(pivot, k);
+            sign = -sign;
+        }
+        for i in k + 1..n {
+            a[i][k] /= a[k][k];
+            for j in k + 1..n {
+                a[i][j] -= a[i][k] * a[k][j];
+            }
+        }
+    }
+    let mut l = vec![vec![0.0; n]; n];
+    let mut u = vec![vec![0.0; n]; n];
+    for i in 0..n {
+        l[i][i] = 1.0;
+        for j in 0..n {
+            if i > j {
+                l[i][j] = a[i][j];
+            } else {
+                u[i][j] = a[i][j];
+            }
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), matrix_out(&l));
+    out.insert("u".into(), matrix_out(&u));
+    out.insert(
+        "piv".into(),
+        Value::Array(piv.iter().map(|p| Value::Number(*p)).collect()),
+    );
+    out.insert("sign".into(), float_out(sign));
+    Ok(Value::Object(out))
+}
+
+/// mat_slogdet(a) -> {sign, logabsdet}
+fn mat_slogdet(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let lu = mat_lu(args, env)?;
+    let Value::Object(m) = lu else {
+        return Err("mat_slogdet: internal".into());
+    };
+    let u = match m.get("u") {
+        Some(v) => matrix_at(&[v.clone()], 0, "mat_slogdet")?,
+        _ => return Err("mat_slogdet: missing u".into()),
+    };
+    let sign = match m.get("sign") {
+        Some(v) => num(v)?,
+        _ => 1.0,
+    };
+    let mut logabs = 0.0_f64;
+    let mut s = sign;
+    for i in 0..u.len() {
+        let d = u[i][i];
+        if d == 0.0 {
+            let mut out = HashMap::new();
+            out.insert("sign".into(), float_out(0.0));
+            out.insert("logabsdet".into(), float_out(f64::NEG_INFINITY));
+            return Ok(Value::Object(out));
+        }
+        if d < 0.0 {
+            s = -s;
+        }
+        logabs += d.abs().ln();
+    }
+    let mut out = HashMap::new();
+    out.insert("sign".into(), float_out(s));
+    out.insert("logabsdet".into(), float_out(logabs));
+    Ok(Value::Object(out))
+}
+
+/// mat_norm_ord(a, ord) — matrix norms: "fro"|"1"|"inf" (default fro).
+fn mat_norm_ord(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (m, n, data) = matrix_dims(args, 0, "mat_norm_ord")?;
+    let a = mat_from_flat(m, n, &data);
+    let ord = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        Some(Value::Null) | Some(Value::Undefined) | None => "fro",
+        _ => "fro",
+    };
+    let v = match ord {
+        "1" => (0..n)
+            .map(|j| (0..m).map(|i| a[i][j].abs()).sum::<f64>())
+            .fold(0.0_f64, f64::max),
+        "inf" => a
+            .iter()
+            .map(|row| row.iter().map(|x| x.abs()).sum::<f64>())
+            .fold(0.0_f64, f64::max),
+        _ => data.iter().map(|x| x * x).sum::<f64>().sqrt(),
+    };
+    Ok(float_out(v))
+}
+
 fn mat_cond(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let svd = mat_svd(args, _env)?;
     let Value::Object(m) = svd else {
@@ -558,4 +669,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_mat_eig", "mat_eig"], mat_eig);
     bind(&["science_mat_lstsq", "mat_lstsq"], mat_lstsq);
     bind(&["science_mat_cond", "mat_cond"], mat_cond);
+    bind(&["science_mat_lu", "mat_lu"], mat_lu);
+    bind(&["science_mat_slogdet", "mat_slogdet"], mat_slogdet);
+    bind(&["science_mat_norm_ord", "mat_norm_ord"], mat_norm_ord);
 }

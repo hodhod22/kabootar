@@ -24,6 +24,20 @@ pub fn exponCdf(x, rate) {
     return 1.0 - exp(0.0 - rate * x)
 }
 
+pub fn exponPpf(p, rate) {
+    if p <= 0.0 {
+        return 0.0
+    }
+    if p >= 1.0 {
+        return 1000000.0
+    }
+    return (0.0 - log(1.0 - p)) / rate
+}
+
+pub fn normPpf(p, mean, std) {
+    return stat_norm_ppf(p, mean, std)
+}
+
 pub fn fact(n) {
     let r = 1.0
     let i = 2

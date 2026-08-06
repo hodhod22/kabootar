@@ -177,6 +177,96 @@ fn num_fft_pad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     num_fft(&[vector_out(&padded)], env)
 }
 
+/// num_fftfreq(n, d?) — DFT sample frequencies (numpy-like).
+fn num_fftfreq(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let n = num_at(args, 0, "num_fftfreq")? as usize;
+    if n == 0 {
+        return Err("num_fftfreq: n > 0".into());
+    }
+    let d = args.get(1).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    if d.abs() < 1e-15 {
+        return Err("num_fftfreq: d too small".into());
+    }
+    let mut out = vec![0.0; n];
+    let val = 1.0 / (n as f64 * d);
+    let n2 = (n as i64 + 1) / 2;
+    for i in 0..n2 {
+        out[i as usize] = i as f64 * val;
+    }
+    for i in n2..n as i64 {
+        out[i as usize] = (i - n as i64) as f64 * val;
+    }
+    Ok(vector_out(&out))
+}
+
+/// Linear resample to new length.
+fn num_resample(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_resample")?;
+    let n_out = num_at(args, 1, "num_resample")? as usize;
+    if x.is_empty() || n_out == 0 {
+        return Err("num_resample: empty".into());
+    }
+    if n_out == 1 {
+        return Ok(vector_out(&[x[0]]));
+    }
+    let mut out = vec![0.0; n_out];
+    let last = (x.len() - 1) as f64;
+    for i in 0..n_out {
+        let t = i as f64 * last / (n_out - 1) as f64;
+        let i0 = t.floor() as usize;
+        let i1 = (i0 + 1).min(x.len() - 1);
+        let f = t - i0 as f64;
+        out[i] = x[i0] * (1.0 - f) + x[i1] * f;
+    }
+    Ok(vector_out(&out))
+}
+
+/// Analytic signal via FFT Hilbert transform → interleaved complex.
+fn num_hilbert(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_hilbert")?;
+    if x.is_empty() {
+        return Err("num_hilbert: empty".into());
+    }
+    let n = next_pow2(x.len());
+    let mut padded = vec![0.0; n];
+    for (i, v) in x.iter().enumerate() {
+        padded[i] = *v;
+    }
+    let spec = num_fft(&[vector_out(&padded)], env)?;
+    let interleaved = vector_at(&[spec], 0, "num_hilbert")?;
+    let mut re = Vec::with_capacity(n);
+    let mut im = Vec::with_capacity(n);
+    for i in 0..n {
+        re.push(interleaved[2 * i]);
+        im.push(interleaved[2 * i + 1]);
+    }
+    // Multiply by 2 for positive freqs (except DC/Nyquist), zero negative.
+    let mut h = vec![0.0; n];
+    h[0] = 1.0;
+    if n > 1 {
+        h[n / 2] = 1.0;
+    }
+    for i in 1..n / 2 {
+        h[i] = 2.0;
+    }
+    for i in 0..n {
+        re[i] *= h[i];
+        im[i] *= h[i];
+    }
+    // IFFT complex
+    for v in &mut im {
+        *v = -*v;
+    }
+    fft_radix2(&mut re, &mut im)?;
+    let scale = 1.0 / n as f64;
+    let mut out = Vec::with_capacity(x.len() * 2);
+    for i in 0..x.len() {
+        out.push(re[i] * scale);
+        out.push(-im[i] * scale);
+    }
+    Ok(vector_out(&out))
+}
+
 fn num_conv1d(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_conv1d")?;
     let kernel = vector_at(args, 1, "num_conv1d")?;
@@ -449,6 +539,9 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_num_rfft", "num_rfft"], num_rfft);
     bind(&["science_num_irfft", "num_irfft"], num_irfft);
     bind(&["science_num_fft_pad", "num_fft_pad"], num_fft_pad);
+    bind(&["science_num_fftfreq", "num_fftfreq"], num_fftfreq);
+    bind(&["science_num_resample", "num_resample"], num_resample);
+    bind(&["science_num_hilbert", "num_hilbert"], num_hilbert);
     bind(&["science_num_conv1d", "num_conv1d"], num_conv1d);
     bind(&["science_mat_svd2", "mat_svd2"], mat_svd2);
     bind(&["science_num_window_hann", "num_window_hann"], num_window_hann);

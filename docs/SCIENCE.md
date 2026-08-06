@@ -528,10 +528,11 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
 | `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
 | `nd_broadcast_to` / `nd_broadcast_shapes` / `broadcastTo` | Explicit expand + shape algebra |
+| `nd_max` / `nd_min` / `nd_argmax` / `nd_transpose` / `nd_swapaxes` / `nd_pad` / `nd_roll` / `nd_tensordot` | Reductions + layout + contract |
 | `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
-| `mat_qr` / `mat_qr_err` / `mat_svd` / `mat_pinv` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e+): thin/full QR·SVD, recon residual, pinv |
+| `mat_qr` / `mat_qr_err` / `mat_svd` / `mat_pinv` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` / `mat_lu` / `mat_slogdet` / `mat_norm_ord` | Linalg (SC1e+): QR·SVD·LU, norms, pinv |
 | `num_rk4` / `num_odeint` / `num_odeint_adaptive` / `num_quad` | ODE + adaptive + quadrature |
 | `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/add/mul/sub/div/sum/exp/no_grad; `backward(..., true)` / `gradTensor`) | Autograd tape + HOAD subset (SC2n) |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
