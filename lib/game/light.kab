@@ -112,6 +112,30 @@ pub fn describeShadow(light) {
     return light["shadow"]
 }
 
+/// GPU shadow map render (wgpu depth pass when available; descriptor enriched).
+pub fn renderGpuShadow(shadow, mesh) {
+    if shadow == null || shadow == undefined {
+        return { "ok": false, "reason": "no_shadow" }
+    }
+    if mesh == null || mesh == undefined {
+        return { "ok": false, "reason": "no_mesh" }
+    }
+    let mapSize = shadow["mapSize"]
+    if mapSize == null || mapSize == undefined {
+        mapSize = 512
+    }
+    let out = game_gpu_shadow_render({
+        "mapSize": mapSize,
+        "bias": shadow["bias"],
+        "soft": shadow["soft"],
+        "radius": shadow["radius"],
+        "positions": mesh["positions"],
+        "indices": mesh["indices"]
+    })
+    shadow["gpu"] = out
+    return { "ok": out["rendered"] == true, "shadow": shadow, "gpu": out }
+}
+
 pub fn createLightList() {
     return { "lights": [], "ambient": createAmbient([1.0, 1.0, 1.0], 0.15) }
 }

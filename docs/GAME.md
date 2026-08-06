@@ -119,14 +119,15 @@ Tunna `.kab`-moduler under `lib/game/` (Kab CoW: mutatorer returnerar noden — 
 | `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep` |
 | `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` |
 | `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
-| `import "game/terrain"` | heightmap, bilinear sample, LOD mesh, scene attach (GP6d) |
+| `import "game/terrain"` | heightmap, LOD mesh, splat, async streaming poll (`beginAsyncLoad`/`pollStreamingLoads`) (GP6d) |
 | `import "game/procgen"` | seeded RNG, `noise2d`/`fbm2d`, dungeon, scatter, heightmap fill (GP6l) |
 | `import "game/i18n"` | catalogs, `t` / `tn`, locale switch (GP6j) |
 | `import "game/stats"` | counters, achievements, save/load (GP6k) |
 | `import "game/debug"` | `drawLine2d`, `drawAabb`, `drawCircleApprox` |
 | `import "game/assets"` | `createDb`, `registerVfs`/`registerHost`, `loadText`/`loadBytes`/`loadPng`/`loadGltf`, `watchAll`/`pollReload` |
 | `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
-| `import "game/net"` | session/snapshot + lobby/matchmake, interest AOI, predict/reconcile (GP6m) |
+| `import "game/net"` | session/snapshot, lobby/AOI/predict, relay transport (`flushSessionTransport`) (GP6m) |
+| `import "game/xr"` | XR session, stereo cameras, controllers, present descriptor (GP6n subset) |
 | `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `buildSceneView` (+ **GPU viewport**), `selectNode`, `refresh` |
 | `import "game/sandbox"` | **Spelbyggare** — session/canvas, Play↔Edit↔Learn, level pack (`ksandbox`), `applyLiveParams`/`setLearnParam` |
 | `import "sim"` / `sim/robot` | **Sim/robotik** — `createWorld`/`createHinge`/`createSlider`/`step`, 3-DOF `createArm3`, encoders/IMU, `worldToEditor` |
@@ -141,7 +142,7 @@ Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `hos
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 
-**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg GP** — GP0–GP5 ✅; **GP6** (`anim`/`physics3`/`particles`/`ui`/`postfx`/`light`/`save`/`terrain`/`audio++`/`procgen`/`i18n`/`stats`/`net++` ✅ subset; XR kvar); **GP7** editor a–g ✅ subset. Ship: [SHIP.md](SHIP.md).
+**Roadmap (produktion):** [ROADMAP.md](ROADMAP.md) **Våg GP** — GP0–GP5 ✅; **GP6** (`anim`…`xr` ✅ subset); **GP7** editor a–g ✅ subset. Ship: [SHIP.md](SHIP.md).
 
 Editor: `import "game/game_editor"` — `bootEditor`, save/load `.kscene`, multi-select, shortcuts. Tester: `tests/game_editor.rs`, `tests/game_gp6_gp7.rs`.
 

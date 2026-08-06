@@ -295,7 +295,87 @@ pub fn createStreamingBounds(chunkSize, radius) {
         "kind": "terrain_stream",
         "chunkSize": chunkSize,
         "radius": radius,
-        "resident": []
+        "resident": [],
+        "pending": [],
+        "loadsPerPoll": 1,
+        "async": false
+    }
+}
+
+/// Queue chunks around camera for async load (does not build meshes yet).
+pub fn beginAsyncLoad(stream, hm, camX, camZ, lod) {
+    if lod == null || lod == undefined {
+        lod = 0
+    }
+    let cs = stream["chunkSize"]
+    let cx = floor(camX / (cs * hm["cellSize"]))
+    let cz = floor(camZ / (cs * hm["cellSize"]))
+    let r = stream["radius"]
+    let pending = []
+    let z = cz - r
+    while z <= cz + r {
+        let x = cx - r
+        while x <= cx + r {
+            pending = push(pending, {
+                "cx": x,
+                "cz": z,
+                "chunkSize": cs,
+                "lod": lod,
+                "ticks": 0,
+                "state": "loading"
+            })
+            x = x + 1
+        }
+        z = z + 1
+    }
+    stream["pending"] = pending
+    stream["async"] = true
+    stream["camChunk"] = { "cx": cx, "cz": cz }
+    return stream
+}
+
+/// Complete up to loadsPerPoll pending chunks (simulated async IO).
+pub fn pollStreamingLoads(stream, hm) {
+    if stream["loadsPerPoll"] == null || stream["loadsPerPoll"] == undefined {
+        stream["loadsPerPoll"] = 1
+    }
+    let n = stream["loadsPerPoll"]
+    let pending = stream["pending"]
+    let resident = stream["resident"]
+    let done = 0
+    let nextPending = []
+    let i = 0
+    while i < len(pending) {
+        let p = pending[i]
+        if p["state"] == "loading" && done < n {
+            let chunk = terrainChunk(hm, p["cx"], p["cz"], p["chunkSize"], p["lod"])
+            chunk["mode"] = "resident_async"
+            resident = push(resident, chunk)
+            done = done + 1
+        } else {
+            nextPending = push(nextPending, p)
+        }
+        i = i + 1
+    }
+    stream["pending"] = nextPending
+    stream["resident"] = resident
+    stream["lastLoads"] = done
+    return stream
+}
+
+/// Begin async load + one poll step (convenience).
+pub fn requestChunk(stream, hm, camX, camZ, lod) {
+    stream = beginAsyncLoad(stream, hm, camX, camZ, lod)
+    return pollStreamingLoads(stream, hm)
+}
+
+pub fn describeStreaming(stream) {
+    return {
+        "async": stream["async"],
+        "resident": len(stream["resident"]),
+        "pending": len(stream["pending"]),
+        "loadsPerPoll": stream["loadsPerPoll"],
+        "lastLoads": stream["lastLoads"]
     }
 }
 

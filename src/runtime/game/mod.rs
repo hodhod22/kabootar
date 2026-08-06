@@ -363,6 +363,107 @@ fn f64_arg(args: &[Value], i: usize) -> Result<f64, String> {
     }
 }
 
+/// GP6g — depth shadow map pass via gpu3d (subset).
+fn game_gpu_shadow_render_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let desc = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("game_gpu_shadow_render(descriptor)".into()),
+    };
+    let map_size = f64_from(desc.get("mapSize").unwrap_or(&Value::Null), 512.0)
+        .clamp(64.0, 2048.0) as u32;
+    let soft = matches!(desc.get("soft"), Some(Value::Bool(true)));
+    let bias = f64_from(desc.get("bias").unwrap_or(&Value::Null), 0.005) as f32;
+
+    let mut vertices: Vec<f32> = Vec::new();
+    let mut indices: Vec<u16> = Vec::new();
+    if let Some(Value::Array(pos)) = desc.get("positions") {
+        for p in pos {
+            if let Value::Object(pm) = p {
+                let x = f64_from(pm.get("x").unwrap_or(&Value::Null), 0.0) as f32;
+                let y = f64_from(pm.get("y").unwrap_or(&Value::Null), 0.0) as f32;
+                let z = f64_from(pm.get("z").unwrap_or(&Value::Null), 0.0) as f32;
+                vertices.extend_from_slice(&[x, y, z]);
+            }
+        }
+    }
+    if vertices.is_empty() {
+        vertices.extend_from_slice(&[0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
+    }
+    if let Some(Value::Array(idx)) = desc.get("indices") {
+        for v in idx {
+            if let Value::Number(n) = v {
+                if *n >= 0 && *n <= u16::MAX as i64 {
+                    indices.push(*n as u16);
+                }
+            }
+        }
+    }
+    if indices.is_empty() {
+        indices.extend_from_slice(&[0, 1, 2]);
+    }
+
+    let available = crate::runtime::render::gpu3d::gpu3d_available();
+    let view_proj = scene_view_proj(0.0, 5.0, 10.0, 1.0, map_size, map_size);
+    let mut rendered = false;
+    let mut pixel_bytes = 0i64;
+    if available {
+        let frame = crate::runtime::render::gpu3d::Gpu3dFrame {
+            width: map_size,
+            height: map_size,
+            clear_color: [0.0, 0.0, 0.0, 1.0],
+            view_proj,
+            model: [
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
+            draw_color: [0.0, 0.0, 0.0, 1.0],
+            uv_transform: [1.0, 1.0, 0.0, 0.0],
+            vertices: vertices.clone(),
+            component_count: 3,
+            vert_count: (vertices.len() / 3) as u32,
+            indices: Some(indices.clone()),
+            index_offset: 0,
+            index_count: indices.len() as u32,
+            depth_test: true,
+            texture: None,
+            instance_count: 1,
+        };
+        if let Ok(px) = crate::runtime::render::gpu3d::render_frame(&frame) {
+            rendered = true;
+            pixel_bytes = px.len() as i64;
+        }
+    }
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("shadow-map-gpu".into()));
+    out.insert("mapSize".into(), Value::Number(map_size as i64));
+    out.insert("bias".into(), Value::Float(bias as f64));
+    out.insert("soft".into(), Value::Bool(soft));
+    out.insert("available".into(), Value::Bool(available));
+    out.insert(
+        "backend".into(),
+        Value::String(if available {
+            crate::runtime::render::gpu3d::info_line().into()
+        } else {
+            "cpu_descriptor".into()
+        }),
+    );
+    out.insert("rendered".into(), Value::Bool(rendered));
+    out.insert("pixelBytes".into(), Value::Number(pixel_bytes));
+    out.insert("vertCount".into(), Value::Number((vertices.len() / 3) as i64));
+    out.insert("indexCount".into(), Value::Number(indices.len() as i64));
+    Ok(Value::Object(out))
+}
+
+/// GP6n — XR host capability probe (OpenXR/WebXR deferred).
+fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut out = HashMap::new();
+    out.insert("available".into(), Value::Bool(false));
+    out.insert("backend".into(), Value::String("descriptor".into()));
+    out.insert("openxr".into(), Value::Bool(false));
+    out.insert("webxr".into(), Value::Bool(false));
+    Ok(Value::Object(out))
+}
+
 pub fn game_globals(env: &mut Environment) {
     let fns: &[(&str, fn(&[Value], &mut Environment) -> Result<Value, String>)] = &[
         ("requestAnimationFrame", request_animation_frame_native),
@@ -382,6 +483,8 @@ pub fn game_globals(env: &mut Environment) {
         ("input_is_down", input_is_down_native),
         ("game_info", game_info_native),
         ("editor_scene_gpu_viewport", editor_scene_gpu_viewport_native),
+        ("game_gpu_shadow_render", game_gpu_shadow_render_native),
+        ("xr_host_info", xr_host_info_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
