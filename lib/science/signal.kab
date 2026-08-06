@@ -60,6 +60,14 @@ pub fn butterBiquad(kind, cutoff, q) {
     return num_butter_biquad(kind, cutoff, q)
 }
 
+pub fn polyphaseResample(x, up, down) {
+    return num_polyphase_resample(x, up, down)
+}
+
+pub fn polyphaseDecompose(h, n) {
+    return num_polyphase_decompose(h, n)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

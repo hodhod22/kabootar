@@ -18,8 +18,9 @@ pub fn dense(w, x, b) {
     return ag_dense(w, x, b)
 }
 
-pub fn matmul(a, b) {
-    return ag_matmul(a, b)
+/// Matmul of flat tensors with explicit dims: C[m,n] = A[m,k] @ B[k,n].
+pub fn matmul(a, b, m, k, n) {
+    return ag_matmul(a, b, m, k, n)
 }
 
 pub fn conv2d(x, w, b, cin, hin, win, cout, kh, kw) {

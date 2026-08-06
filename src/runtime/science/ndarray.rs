@@ -1860,7 +1860,8 @@ fn nd_tensordot(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     Ok(nd_out_dtype(&out_shape, &out, &dtype))
 }
 
-/// nd_einsum(subscripts, a, b?) — subset: "ij,jk->ik", "ii->", "ij->ji".
+/// nd_einsum(subscripts, a, b?) — practical subset of NumPy einsum.
+/// Supported: ij,jk->ik | ij->ji | ii-> | i,i-> | ij,ij-> | ij,ij->ij | i-> | ij->i | ij->j
 fn nd_einsum(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let subs = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1895,8 +1896,90 @@ fn nd_einsum(args: &[Value], env: &mut Environment) -> Result<Value, String> {
             }
             Ok(float_out(s))
         }
+        "i,i->" => {
+            // vector dot
+            if args.len() < 3 {
+                return Err("nd_einsum i,i->: need two vectors".into());
+            }
+            nd_dot(&[args[1].clone(), args[2].clone()], env)
+        }
+        "ij,ij->" => {
+            // Frobenius inner product
+            if args.len() < 3 {
+                return Err("nd_einsum ij,ij->: need two matrices".into());
+            }
+            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
+            let (sb, b) = nd_at(args, 2, "nd_einsum")?;
+            if sa != sb {
+                return Err("nd_einsum ij,ij->: shape mismatch".into());
+            }
+            Ok(float_out(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()))
+        }
+        "ij,ij->ij" => {
+            // Hadamard product
+            if args.len() < 3 {
+                return Err("nd_einsum ij,ij->ij: need two matrices".into());
+            }
+            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
+            let (sb, b) = nd_at(args, 2, "nd_einsum")?;
+            let dtype = dtype_of_value(&args[1]);
+            if sa != sb {
+                return Err("nd_einsum ij,ij->ij: shape mismatch".into());
+            }
+            let out: Vec<f64> = a.iter().zip(b.iter()).map(|(x, y)| x * y).collect();
+            Ok(nd_out_dtype(&sa, &out, &dtype))
+        }
+        "i->" => {
+            // sum of 1D
+            if args.len() < 2 {
+                return Err("nd_einsum i->: need one vector".into());
+            }
+            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
+            if sa.len() != 1 {
+                return Err("nd_einsum i->: expect 1D".into());
+            }
+            Ok(float_out(a.iter().sum()))
+        }
+        "ij->i" => {
+            // row sums
+            if args.len() < 2 {
+                return Err("nd_einsum ij->i: need one matrix".into());
+            }
+            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
+            let dtype = dtype_of_value(&args[1]);
+            if sa.len() != 2 {
+                return Err("nd_einsum ij->i: expect 2D".into());
+            }
+            let (m, n) = (sa[0], sa[1]);
+            let mut out = vec![0.0; m];
+            for i in 0..m {
+                for j in 0..n {
+                    out[i] += a[i * n + j];
+                }
+            }
+            Ok(nd_out_dtype(&[m], &out, &dtype))
+        }
+        "ij->j" => {
+            // column sums
+            if args.len() < 2 {
+                return Err("nd_einsum ij->j: need one matrix".into());
+            }
+            let (sa, a) = nd_at(args, 1, "nd_einsum")?;
+            let dtype = dtype_of_value(&args[1]);
+            if sa.len() != 2 {
+                return Err("nd_einsum ij->j: expect 2D".into());
+            }
+            let (m, n) = (sa[0], sa[1]);
+            let mut out = vec![0.0; n];
+            for i in 0..m {
+                for j in 0..n {
+                    out[j] += a[i * n + j];
+                }
+            }
+            Ok(nd_out_dtype(&[n], &out, &dtype))
+        }
         _ => Err(format!(
-            "nd_einsum: unsupported '{normalized}' (supported: ij,jk->ik | ij->ji | ii->)"
+            "nd_einsum: unsupported '{normalized}' (see SCIENCE.md einsum subset)"
         )),
     }
 }

@@ -585,6 +585,52 @@ fn num_butter_biquad(args: &[Value], _env: &mut Environment) -> Result<Value, St
     Ok(Value::Object(out))
 }
 
+/// num_polyphase_resample(x, up, down) — upsample-by-up, FIR lowpass, downsample-by-down.
+fn num_polyphase_resample(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_polyphase_resample")?;
+    let up = num_at(args, 1, "num_polyphase_resample")? as usize;
+    let down = num_at(args, 2, "num_polyphase_resample")? as usize;
+    if x.is_empty() || up == 0 || down == 0 {
+        return Err("num_polyphase_resample: bad args".into());
+    }
+    // Insert up-1 zeros between samples.
+    let mut upsampled = vec![0.0; x.len() * up];
+    for (i, v) in x.iter().enumerate() {
+        upsampled[i * up] = *v;
+    }
+    // Lowpass cutoff at min(1/up, 1/down) in firwin Nyquist units relative to upsampled rate.
+    let cutoff = (1.0 / up as f64).min(1.0 / down as f64) * 0.9;
+    let taps = (8 * up.max(down) + 1) | 1; // odd length
+    let h = num_firwin(&[float_out(taps as f64), float_out(cutoff.max(0.01).min(0.99))], env)?;
+    let filtered = num_fir(&[vector_out(&upsampled), h], env)?;
+    let y = vector_at(&[filtered], 0, "num_polyphase_resample")?;
+    // Compensate upsample gain
+    let gain = up as f64;
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < y.len() {
+        out.push(y[i] * gain);
+        i += down;
+    }
+    Ok(vector_out(&out))
+}
+
+/// num_polyphase_decompose(h, n) — split FIR h into n polyphase branches (commutator).
+fn num_polyphase_decompose(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let h = vector_at(args, 0, "num_polyphase_decompose")?;
+    let n = num_at(args, 1, "num_polyphase_decompose")? as usize;
+    if h.is_empty() || n == 0 {
+        return Err("num_polyphase_decompose: bad args".into());
+    }
+    let mut branches = vec![Vec::new(); n];
+    for (i, v) in h.iter().enumerate() {
+        branches[i % n].push(*v);
+    }
+    Ok(Value::Array(
+        branches.iter().map(|b| vector_out(b)).collect(),
+    ))
+}
+
 /// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
 fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_fir")?;
@@ -687,6 +733,14 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(
         &["science_num_butter_biquad", "num_butter_biquad"],
         num_butter_biquad,
+    );
+    bind(
+        &["science_num_polyphase_resample", "num_polyphase_resample"],
+        num_polyphase_resample,
+    );
+    bind(
+        &["science_num_polyphase_decompose", "num_polyphase_decompose"],
+        num_polyphase_decompose,
     );
     bind(&["science_num_fir", "num_fir"], num_fir);
     bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);

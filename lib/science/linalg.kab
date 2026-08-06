@@ -94,6 +94,10 @@ pub fn batchSolve(batchA, batchB) {
     return mat_batch_solve(batchA, batchB)
 }
 
+pub fn batchEig(batch) {
+    return mat_batch_eig(batch)
+}
+
 pub fn solve(a, b) {
     return nd_solve(a, b)
 }

@@ -594,12 +594,180 @@ fn sparse_from_dense_mask(args: &[Value], _env: &mut Environment) -> Result<Valu
     ))
 }
 
+fn csr_to_dense(nrows: usize, ncols: usize, data: &[f64], indices: &[i64], indptr: &[i64]) -> Vec<Vec<f64>> {
+    let mut a = vec![vec![0.0; ncols]; nrows];
+    for i in 0..nrows {
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            a[i][indices[k] as usize] = data[k];
+        }
+    }
+    a
+}
+
+fn dense_to_csr_pattern(a: &[Vec<f64>], pattern: &[Vec<bool>]) -> Value {
+    let nrows = a.len();
+    let ncols = if nrows == 0 { 0 } else { a[0].len() };
+    let mut data = Vec::new();
+    let mut indices = Vec::new();
+    let mut indptr = vec![0i64];
+    for i in 0..nrows {
+        for j in 0..ncols {
+            if pattern[i][j] {
+                data.push(a[i][j]);
+                indices.push(j as i64);
+            }
+        }
+        indptr.push(data.len() as i64);
+    }
+    sparse_out("csr", nrows, ncols, &data, &indices, &indptr)
+}
+
+/// sparse_ilu0(A) — ILU(0) incomplete LU. Returns {l, u} as CSR (L unit diagonal).
+fn sparse_ilu0(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_ilu0(A)")?;
+    let csr = match parse_sparse(a)?.0.as_str() {
+        "csr" => a.clone(),
+        "csc" => {
+            // via COO: expand then CSR
+            let (_, rows, cols, data, indices, indptr) = parse_sparse(a)?;
+            let mut rr = Vec::new();
+            let mut cc = Vec::new();
+            let mut dd = Vec::new();
+            for j in 0..cols {
+                let start = indptr[j] as usize;
+                let end = indptr[j + 1] as usize;
+                for k in start..end {
+                    rr.push(indices[k]);
+                    cc.push(j as i64);
+                    dd.push(data[k]);
+                }
+            }
+            let coo = sparse_out("coo", rows, cols, &dd, &cc, &rr);
+            sparse_to_csr(&[coo], env)?
+        }
+        _ => sparse_to_csr(&[a.clone()], env)?,
+    };
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_ilu0: square required".into());
+    }
+    let mut pattern = vec![vec![false; n]; n];
+    for i in 0..n {
+        pattern[i][i] = true;
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            pattern[i][indices[k] as usize] = true;
+        }
+    }
+    let mut a = csr_to_dense(n, n, &data, &indices, &indptr);
+    // IKJ ILU(0)
+    for i in 1..n {
+        for k in 0..i {
+            if !pattern[i][k] {
+                continue;
+            }
+            if a[k][k].abs() < 1e-15 {
+                return Err("sparse_ilu0: zero pivot".into());
+            }
+            a[i][k] /= a[k][k];
+            for j in k + 1..n {
+                if pattern[i][j] {
+                    a[i][j] -= a[i][k] * a[k][j];
+                }
+            }
+        }
+    }
+    let mut l = vec![vec![0.0; n]; n];
+    let mut u = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    let mut up = vec![vec![false; n]; n];
+    for i in 0..n {
+        l[i][i] = 1.0;
+        lp[i][i] = true;
+        for j in 0..n {
+            if i > j && pattern[i][j] {
+                l[i][j] = a[i][j];
+                lp[i][j] = true;
+            }
+            if i <= j && pattern[i][j] {
+                u[i][j] = a[i][j];
+                up[i][j] = true;
+            }
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("u".into(), dense_to_csr_pattern(&u, &up));
+    out.insert("kind".into(), Value::String("ilu0".into()));
+    Ok(Value::Object(out))
+}
+
+/// sparse_icc0(A) — incomplete Cholesky (no-fill) for SPD. Returns L as CSR.
+fn sparse_icc0(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_in = args.first().ok_or("sparse_icc0(A)")?;
+    let csr = if parse_sparse(a_in)?.0 == "csr" {
+        a_in.clone()
+    } else {
+        sparse_to_csr(&[a_in.clone()], env)?
+    };
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_icc0: square required".into());
+    }
+    let mut pattern = vec![vec![false; n]; n];
+    for i in 0..n {
+        pattern[i][i] = true;
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            let j = indices[k] as usize;
+            pattern[i][j] = true;
+            pattern[j][i] = true;
+        }
+    }
+    let a = csr_to_dense(n, n, &data, &indices, &indptr);
+    let mut l = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    for i in 0..n {
+        for j in 0..=i {
+            if !pattern[i][j] {
+                continue;
+            }
+            let mut s = a[i][j];
+            for k in 0..j {
+                s -= l[i][k] * l[j][k];
+            }
+            if i == j {
+                if s <= 0.0 {
+                    return Err("sparse_icc0: not SPD / zero pivot".into());
+                }
+                l[i][j] = s.sqrt();
+            } else {
+                if l[j][j].abs() < 1e-15 {
+                    return Err("sparse_icc0: zero pivot".into());
+                }
+                l[i][j] = s / l[j][j];
+            }
+            lp[i][j] = true;
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("kind".into(), Value::String("icc0".into()));
+    Ok(Value::Object(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
     bind(&["science_sparse_to_csr", "sparse_to_csr"], sparse_to_csr);
     bind(&["science_sparse_from_csc", "sparse_from_csc"], sparse_from_csc);
     bind(&["science_sparse_to_csc", "sparse_to_csc"], sparse_to_csc);
+    bind(&["science_sparse_ilu0", "sparse_ilu0"], sparse_ilu0);
+    bind(&["science_sparse_icc0", "sparse_icc0"], sparse_icc0);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
     bind(
