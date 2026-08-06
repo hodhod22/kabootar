@@ -166,3 +166,33 @@ fn procgen_noise_dungeon_scatter_seeded() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn game_i18n_stats_and_terrain_splat_stream() {
+    let v = eval(
+        r#"
+        import "game/i18n"
+        import "game/stats"
+        import "game/terrain"
+        os_mkdir("/saves")
+        let cat = createCatalog("en", { "hi": "Hello {name}", "coins": { "one": "{count} coin", "other": "{count} coins" } })
+        cat = addLocale(cat, "sv", { "hi": "Hej {name}", "coins": { "one": "{count} mynt", "other": "{count} mynt" } })
+        cat = setLocale(cat, "sv")
+        let greet = t(cat, "hi", { "name": "Ada" })
+        let plural = tn(cat, "coins", 3, {})
+        let st = createStats("p1")
+        st = defineAchievement(st, "first_kill", "kills", 1, "First blood")
+        st = addCounter(st, "kills", 1)
+        let saved = saveStats(st, "/saves/stats_p1.json")
+        let st2 = loadStats("/saves/stats_p1.json", "p1")
+        let hm = createHeightmap(8, 8, 1.0, null)
+        let painted = paintSplat(hm, 2.0, 3.0, "grass", 0.9)
+        hm = painted["hm"]
+        let sp = sampleSplat(hm, 2.0, 3.0)
+        let stream = createStreamingBounds(4, 1)
+        stream = updateStreaming(stream, hm, 2.0, 3.0, 1)
+        greet == "Hej Ada" && plural == "3 mynt" && isUnlocked(st, "first_kill") && saved["ok"] && isUnlocked(st2, "first_kill") && painted["ok"] && sp["grass"] > 0.5 && len(stream["resident"]) >= 1
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
