@@ -3,9 +3,18 @@
 Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 **without a live Rust compile** (fingerprint must match source).
 
-**Policy:** leaves stay skip-listed; emptying the list waits until self-host
-compile of these shards is CI-fast. See `SELF_HOST_SKIP_LISTED_LEAVES` /
-`self_host_skip_policy()` in `src/compile/mod.rs`.
+## Policy (do not empty the skip-list yet)
+
+Leaves stay skip-listed under **seed-only** policy. Emptying
+`SELF_HOST_SKIP_LISTED_LEAVES` waits until self-host compile of these shards is
+CI-fast. See `self_host_skip_policy()` in `src/compile/mod.rs`.
+
+Gates:
+
+- `p6_seed_only_all_leaves_have_seeds` — files exist, list length stays 5
+- `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
+
+## Seeds
 
 | Seed | Source |
 |------|--------|
