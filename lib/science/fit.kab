@@ -107,3 +107,32 @@ pub fn fitBatches(state, batchFn, n, batchSize, epochStepFn, opts) {
     }
     return epochStepFn(state, avg)
 }
+
+/// Simple dataloader: shuffled index batches over n items.
+pub fn dataLoader(n, batchSize, seed) {
+    if seed == null || seed == undefined {
+        seed = 42
+    }
+    let idx = []
+    let i = 0
+    while i < n {
+        idx = push(idx, i)
+        i = i + 1
+    }
+    idx = ml_shuffle(idx, seed)
+    let slices = ml_batch_slices(n, batchSize)
+    let batches = []
+    i = 0
+    while i < len(slices) {
+        let sl = slices[i]
+        let batch = []
+        let j = sl[0]
+        while j < sl[1] {
+            batch = push(batch, idx[j])
+            j = j + 1
+        }
+        batches = push(batches, batch)
+        i = i + 1
+    }
+    return { "kind": "DataLoader", "batches": batches, "n": n, "batchSize": batchSize }
+}

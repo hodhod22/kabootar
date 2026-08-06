@@ -111,6 +111,29 @@ fn num_diff_central(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     Ok(float_out((f_plus - f_minus) / (2.0 * h)))
 }
 
+/// num_gradient(y, dx?) — 1D numerical gradient (numpy-like edges).
+fn num_gradient(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let y = vector_at(args, 0, "num_gradient")?;
+    if y.len() < 2 {
+        return Err("num_gradient: need >= 2 samples".into());
+    }
+    let dx = match args.get(1) {
+        Some(v) => num_at(&[v.clone()], 0, "num_gradient").unwrap_or(1.0),
+        None => 1.0,
+    };
+    if dx.abs() < 1e-15_f64 {
+        return Err("num_gradient: dx too small".into());
+    }
+    let n = y.len();
+    let mut g = vec![0.0; n];
+    g[0] = (y[1] - y[0]) / dx;
+    g[n - 1] = (y[n - 1] - y[n - 2]) / dx;
+    for i in 1..n - 1 {
+        g[i] = (y[i + 1] - y[i - 1]) / (2.0 * dx);
+    }
+    Ok(vector_out(&g))
+}
+
 fn gauss_solve(a: &[Vec<f64>], b: &[f64]) -> Result<Vec<f64>, String> {
     let n = b.len();
     if matrix_rows(a) != n {
@@ -200,6 +223,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_num_bisect_mid", "num_bisect_mid"], num_bisect_mid);
     bind(&["science_num_diff_forward", "num_diff_forward"], num_diff_forward);
     bind(&["science_num_diff_central", "num_diff_central"], num_diff_central);
+    bind(&["science_num_gradient", "num_gradient"], num_gradient);
     bind(&["science_num_solve", "num_solve"], num_solve);
     bind(&["science_num_interp_linear", "num_interp_linear"], num_interp_linear);
 }

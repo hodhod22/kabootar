@@ -46,6 +46,63 @@ pub fn accelFromForce(force, m) {
     return { "ax": fx / m, "ay": fy / m }
 }
 
+pub fn kineticEnergy(m, vx, vy) {
+    return 0.5 * m * (vx * vx + vy * vy)
+}
+
+pub fn potentialSpring(k, x, y, ax, ay) {
+    let dx = x - ax
+    let dy = y - ay
+    return 0.5 * k * (dx * dx + dy * dy)
+}
+
+/// Velocity Verlet step for body {x,y,vx,vy,m} with constant force over dt.
+pub fn verletBody(body, fx, fy, dt) {
+    let m = body["m"]
+    if m == null || m == 0.0 {
+        m = 1.0
+    }
+    let ax = fx / m
+    let ay = fy / m
+    body["x"] = body["x"] + body["vx"] * dt + 0.5 * ax * dt * dt
+    body["y"] = body["y"] + body["vy"] * dt + 0.5 * ay * dt * dt
+    body["vx"] = body["vx"] + ax * dt
+    body["vy"] = body["vy"] + ay * dt
+    return body
+}
+
+/// Bounce against axis-aligned walls [xmin,xmax] x [ymin,ymax] with restitution e.
+pub fn collideWall(body, xmin, xmax, ymin, ymax, e) {
+    if e == null || e == undefined {
+        e = 0.8
+    }
+    if body["x"] < xmin {
+        body["x"] = xmin
+        let vx = body["vx"]
+        if vx < 0.0 { vx = 0.0 - vx }
+        body["vx"] = 0.0 - vx * e
+    }
+    if body["x"] > xmax {
+        body["x"] = xmax
+        let vx = body["vx"]
+        if vx < 0.0 { vx = 0.0 - vx }
+        body["vx"] = 0.0 - vx * e
+    }
+    if body["y"] < ymin {
+        body["y"] = ymin
+        let vy = body["vy"]
+        if vy < 0.0 { vy = 0.0 - vy }
+        body["vy"] = 0.0 - vy * e
+    }
+    if body["y"] > ymax {
+        body["y"] = ymax
+        let vy = body["vy"]
+        if vy < 0.0 { vy = 0.0 - vy }
+        body["vy"] = 0.0 - vy * e
+    }
+    return body
+}
+
 /// Semi-implicit Euler step for a point mass body {x,y,vx,vy,m}.
 pub fn integrateBody(body, fx, fy, dt) {
     let m = body["m"]

@@ -60,6 +60,22 @@ pub fn cond(a) {
     return mat_cond(a)
 }
 
+pub fn lu(a) {
+    return mat_lu(a)
+}
+
+pub fn slogdet(a) {
+    return mat_slogdet(a)
+}
+
+/// Matrix norm. ord: "fro" | "1" | "inf" (default fro).
+pub fn normOrd(a, ord) {
+    if ord == null || ord == undefined {
+        return mat_norm_ord(a)
+    }
+    return mat_norm_ord(a, ord)
+}
+
 pub fn solve(a, b) {
     return nd_solve(a, b)
 }

@@ -231,6 +231,32 @@ fn stat_norm_cdf(args: &[Value], _env: &mut Environment) -> Result<Value, String
     Ok(float_out(0.5 * (1.0 + erf_approx(z))))
 }
 
+/// Inverse erf approximation (Winitzki).
+fn erfinv_approx(x: f64) -> f64 {
+    let a = 0.147;
+    let sign = if x < 0.0 { -1.0 } else { 1.0 };
+    let x = x.clamp(-0.999999, 0.999999);
+    let ln = (1.0 - x * x).ln();
+    let term = 2.0 / (std::f64::consts::PI * a) + 0.5 * ln;
+    let inner = term * term - ln / a;
+    sign * (inner.sqrt() - term).sqrt()
+}
+
+/// stat_norm_ppf(p, mean?, std?)
+fn stat_norm_ppf(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let p = num_at(args, 0, "stat_norm_ppf")?;
+    let mean = args.get(1).and_then(|v| num(v).ok()).unwrap_or(0.0);
+    let std = args.get(2).and_then(|v| num(v).ok()).unwrap_or(1.0);
+    if std <= 0.0 {
+        return Err("stat_norm_ppf: std > 0".into());
+    }
+    if p <= 0.0 || p >= 1.0 {
+        return Err("stat_norm_ppf: p in (0,1)".into());
+    }
+    let z = std::f64::consts::SQRT_2 * erfinv_approx(2.0 * p - 1.0);
+    Ok(float_out(mean + std * z))
+}
+
 /// Two-sample Welch t-test → {t, df, mean_a, mean_b}
 fn stat_ttest(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let a = vector_at(args, 0, "stat_ttest")?;
@@ -300,6 +326,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_stat_linreg", "stat_linreg"], stat_linreg);
     bind(&["science_stat_norm_pdf", "stat_norm_pdf"], stat_norm_pdf);
     bind(&["science_stat_norm_cdf", "stat_norm_cdf"], stat_norm_cdf);
+    bind(&["science_stat_norm_ppf", "stat_norm_ppf"], stat_norm_ppf);
     bind(&["science_stat_ttest", "stat_ttest"], stat_ttest);
     bind(&["science_stat_chi2", "stat_chi2"], stat_chi2);
 }

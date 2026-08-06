@@ -1639,6 +1639,227 @@ fn nd_mean(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(float_out(a.iter().sum::<f64>() / a.len() as f64))
 }
 
+fn nd_logical_reals(args: &[Value], name: &str) -> Result<(Vec<usize>, Vec<f64>, String), String> {
+    let (shape, data) = nd_at(args, 0, name)?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let n = data.len() / w.max(1);
+    let mut reals = Vec::with_capacity(n);
+    for i in 0..n {
+        reals.push(data[i * w]);
+    }
+    Ok((shape, reals, dtype))
+}
+
+fn nd_max(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_, reals, _) = nd_logical_reals(args, "nd_max")?;
+    if reals.is_empty() {
+        return Err("nd_max: empty".into());
+    }
+    Ok(float_out(reals.iter().copied().fold(f64::NEG_INFINITY, f64::max)))
+}
+
+fn nd_min(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_, reals, _) = nd_logical_reals(args, "nd_min")?;
+    if reals.is_empty() {
+        return Err("nd_min: empty".into());
+    }
+    Ok(float_out(reals.iter().copied().fold(f64::INFINITY, f64::min)))
+}
+
+fn nd_argmax(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (_, reals, _) = nd_logical_reals(args, "nd_argmax")?;
+    if reals.is_empty() {
+        return Err("nd_argmax: empty".into());
+    }
+    let mut best = 0usize;
+    for i in 1..reals.len() {
+        if reals[i] > reals[best] {
+            best = i;
+        }
+    }
+    Ok(int_out(best as i64))
+}
+
+/// nd_transpose(a) — reverse axes (NumPy default).
+fn nd_transpose(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_transpose")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    if shape.is_empty() {
+        return Ok(args[0].clone());
+    }
+    let mut out_shape = shape.clone();
+    out_shape.reverse();
+    let n = shape_product(&shape);
+    let in_strides = strides_of(&shape);
+    let out_strides = strides_of(&out_shape);
+    let mut out = vec![0.0; n.saturating_mul(w)];
+    for flat in 0..n {
+        let idx = unravel(flat, &shape, &in_strides);
+        let mut oidx = idx.clone();
+        oidx.reverse();
+        let mut dst = 0usize;
+        for d in 0..out_shape.len() {
+            dst += oidx[d] * out_strides[d];
+        }
+        for t in 0..w {
+            out[dst * w + t] = data[flat * w + t];
+        }
+    }
+    Ok(nd_out_dtype(&out_shape, &out, &dtype))
+}
+
+/// nd_swapaxes(a, ax0, ax1)
+fn nd_swapaxes(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_swapaxes")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let ax0 = num_at(args, 1, "nd_swapaxes")? as usize;
+    let ax1 = num_at(args, 2, "nd_swapaxes")? as usize;
+    if ax0 >= shape.len() || ax1 >= shape.len() {
+        return Err("nd_swapaxes: axis OOB".into());
+    }
+    let mut out_shape = shape.clone();
+    out_shape.swap(ax0, ax1);
+    let n = shape_product(&shape);
+    let in_strides = strides_of(&shape);
+    let out_strides = strides_of(&out_shape);
+    let mut out = vec![0.0; n.saturating_mul(w)];
+    for flat in 0..n {
+        let mut idx = unravel(flat, &shape, &in_strides);
+        idx.swap(ax0, ax1);
+        let mut dst = 0usize;
+        for d in 0..out_shape.len() {
+            dst += idx[d] * out_strides[d];
+        }
+        for t in 0..w {
+            out[dst * w + t] = data[flat * w + t];
+        }
+    }
+    Ok(nd_out_dtype(&out_shape, &out, &dtype))
+}
+
+/// nd_roll(a, shift) — roll along last axis (1D/flat logical).
+fn nd_roll(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_roll")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let shift = num_at(args, 1, "nd_roll")? as i64;
+    let n = shape_product(&shape);
+    if n == 0 {
+        return Ok(nd_out_dtype(&shape, &data, &dtype));
+    }
+    let s = ((shift % n as i64) + n as i64) % n as i64;
+    let mut out = vec![0.0; data.len()];
+    for i in 0..n {
+        let j = (i + s as usize) % n;
+        for t in 0..w {
+            out[j * w + t] = data[i * w + t];
+        }
+    }
+    Ok(nd_out_dtype(&shape, &out, &dtype))
+}
+
+/// nd_pad(a, pad) — constant 0 pad; pad is [before, after] for 1D or [[b,a],...] per axis.
+fn nd_pad(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (shape, data) = nd_at(args, 0, "nd_pad")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    let w = dtype_width(&dtype);
+    let pads = match args.get(1) {
+        Some(Value::Array(items)) => items,
+        _ => return Err("nd_pad(a, [[before,after], ...])".into()),
+    };
+    let mut before = vec![0usize; shape.len()];
+    let mut after = vec![0usize; shape.len()];
+    if pads.len() == 2 && !matches!(pads.first(), Some(Value::Array(_))) {
+        // 1D convenience [before, after] when rank==1
+        if shape.len() != 1 {
+            return Err("nd_pad: flat [before,after] only for 1D".into());
+        }
+        before[0] = num(&pads[0])? as usize;
+        after[0] = num(&pads[1])? as usize;
+    } else {
+        if pads.len() != shape.len() {
+            return Err("nd_pad: pad rank mismatch".into());
+        }
+        for (i, p) in pads.iter().enumerate() {
+            let Value::Array(pair) = p else {
+                return Err("nd_pad: each pad is [before, after]".into());
+            };
+            if pair.len() < 2 {
+                return Err("nd_pad: need [before, after]".into());
+            }
+            before[i] = num(&pair[0])? as usize;
+            after[i] = num(&pair[1])? as usize;
+        }
+    }
+    let mut out_shape = shape.clone();
+    for i in 0..shape.len() {
+        out_shape[i] = shape[i] + before[i] + after[i];
+    }
+    let n_out = shape_product(&out_shape);
+    let out_strides = strides_of(&out_shape);
+    let in_strides = strides_of(&shape);
+    let mut out = vec![0.0; n_out.saturating_mul(w)];
+    let n_in = shape_product(&shape);
+    for flat in 0..n_in {
+        let idx = unravel(flat, &shape, &in_strides);
+        let mut oidx = idx.clone();
+        for d in 0..shape.len() {
+            oidx[d] = idx[d] + before[d];
+        }
+        let mut dst = 0usize;
+        for d in 0..out_shape.len() {
+            dst += oidx[d] * out_strides[d];
+        }
+        for t in 0..w {
+            out[dst * w + t] = data[flat * w + t];
+        }
+    }
+    Ok(nd_out_dtype(&out_shape, &out, &dtype))
+}
+
+/// nd_tensordot(a, b) — contract last axis of a with first axis of b (matmul generalization).
+fn nd_tensordot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let (sa, a) = nd_at(args, 0, "nd_tensordot")?;
+    let (sb, b) = nd_at(args, 1, "nd_tensordot")?;
+    let dtype = dtype_of_value(args.first().unwrap_or(&Value::Null));
+    if dtype_width(&dtype) != 1 {
+        return Err("nd_tensordot: real dtypes only".into());
+    }
+    if sa.is_empty() || sb.is_empty() {
+        return Err("nd_tensordot: empty shape".into());
+    }
+    let k = sa[sa.len() - 1];
+    if sb[0] != k {
+        return Err("nd_tensordot: contracting dims mismatch".into());
+    }
+    let mut out_shape: Vec<usize> = sa[..sa.len() - 1].to_vec();
+    out_shape.extend_from_slice(&sb[1..]);
+    if out_shape.is_empty() {
+        // scalar
+        let mut s = 0.0;
+        for i in 0..k {
+            s += a[i] * b[i];
+        }
+        return Ok(nd_out_dtype(&[], &[s], &dtype));
+    }
+    let left = shape_product(&sa[..sa.len() - 1]);
+    let right = shape_product(&sb[1..]);
+    let mut out = vec![0.0; left * right];
+    for i in 0..left {
+        for j in 0..right {
+            let mut s = 0.0;
+            for t in 0..k {
+                s += a[i * k + t] * b[t * right + j];
+            }
+            out[i * right + j] = s;
+        }
+    }
+    Ok(nd_out_dtype(&out_shape, &out, &dtype))
+}
+
 fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_dot")?;
     let (sb, b) = nd_at(args, 1, "nd_dot")?;
@@ -2499,6 +2720,14 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_split", "nd_split"], nd_split);
     bind(&["science_nd_sum", "nd_sum"], nd_sum);
     bind(&["science_nd_mean", "nd_mean"], nd_mean);
+    bind(&["science_nd_max", "nd_max"], nd_max);
+    bind(&["science_nd_min", "nd_min"], nd_min);
+    bind(&["science_nd_argmax", "nd_argmax"], nd_argmax);
+    bind(&["science_nd_transpose", "nd_transpose"], nd_transpose);
+    bind(&["science_nd_swapaxes", "nd_swapaxes"], nd_swapaxes);
+    bind(&["science_nd_roll", "nd_roll"], nd_roll);
+    bind(&["science_nd_pad", "nd_pad"], nd_pad);
+    bind(&["science_nd_tensordot", "nd_tensordot"], nd_tensordot);
     bind(&["science_nd_dot", "nd_dot"], nd_dot);
     bind(&["science_nd_matmul", "nd_matmul"], nd_matmul);
     bind(&["science_nd_solve", "nd_solve"], nd_solve);

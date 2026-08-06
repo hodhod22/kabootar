@@ -21,6 +21,11 @@ fn num_erf(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(float_out(erf_impl(num_at(args, 0, "num_erf")?)))
 }
 
+/// num_erfc(x) = 1 - erf(x)
+fn num_erfc(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(float_out(1.0 - erf_impl(num_at(args, 0, "num_erfc")?)))
+}
+
 /// Lanczos gamma for positive x; reflection for x <= 0 not supported fully.
 fn gamma_impl(x: f64) -> f64 {
     if x < 0.5 {
@@ -83,10 +88,46 @@ fn num_bessel_j0(args: &[Value], _env: &mut Environment) -> Result<Value, String
     Ok(float_out(bessel_j0(num_at(args, 0, "num_bessel_j0")?)))
 }
 
+/// Bessel J1 via recurrence / series (Abramowitz-style).
+fn bessel_j1(x: f64) -> f64 {
+    let ax = x.abs();
+    let y = if ax < 8.0 {
+        let y = x * x;
+        let ans1 = x
+            * (72362614232.0
+                + y * (-7895059235.0
+                    + y * (242396853.1 + y * (-2972611.439 + y * (15704.48260 + y * -30.16036606)))));
+        let ans2 = 144725228442.0
+            + y * (2300535178.0 + y * (18583304.74 + y * (99447.43394 + y * (376.9991397 + y * 1.0))));
+        ans1 / ans2
+    } else {
+        let z = 8.0 / ax;
+        let y = z * z;
+        let xx = ax - 2.356194491;
+        let ans1 = 1.0
+            + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * -0.240337019e-6)));
+        let ans2 = 0.04687499995
+            + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+        let out = (ans1 * xx.cos() - z * ans2 * xx.sin()) / ax.sqrt();
+        out
+    };
+    if x < 0.0 {
+        -y
+    } else {
+        y
+    }
+}
+
+fn num_bessel_j1(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(float_out(bessel_j1(num_at(args, 0, "num_bessel_j1")?)))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_num_erf", "num_erf"], num_erf);
+    bind(&["science_num_erfc", "num_erfc"], num_erfc);
     bind(&["science_num_gamma", "num_gamma"], num_gamma);
     bind(&["science_num_bessel_j0", "num_bessel_j0"], num_bessel_j0);
+    bind(&["science_num_bessel_j1", "num_bessel_j1"], num_bessel_j1);
 }
 
 #[cfg(test)]

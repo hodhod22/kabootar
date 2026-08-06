@@ -74,6 +74,105 @@ pub fn normCdf(x, mean, std) {
     return stat_norm_cdf(x, mean, std)
 }
 
+pub fn normPpf(p, mean, std) {
+    return stat_norm_ppf(p, mean, std)
+}
+
+/// One-way ANOVA on groups (array of sample arrays). Returns {f, dfb, dfw, ssb, ssw}.
+pub fn anovaOneWay(groups) {
+    let k = len(groups)
+    let n = 0
+    let grand = 0.0
+    let g = 0
+    while g < k {
+        let i = 0
+        while i < len(groups[g]) {
+            grand = grand + groups[g][i]
+            n = n + 1
+            i = i + 1
+        }
+        g = g + 1
+    }
+    if n < 2 || k < 2 {
+        return { "f": 0.0, "dfb": 0.0, "dfw": 0.0, "ssb": 0.0, "ssw": 0.0 }
+    }
+    grand = grand / n
+    let ssb = 0.0
+    let ssw = 0.0
+    g = 0
+    while g < k {
+        let m = 0.0
+        let ng = len(groups[g])
+        let i = 0
+        while i < ng {
+            m = m + groups[g][i]
+            i = i + 1
+        }
+        m = m / ng
+        ssb = ssb + ng * (m - grand) * (m - grand)
+        i = 0
+        while i < ng {
+            let e = groups[g][i] - m
+            ssw = ssw + e * e
+            i = i + 1
+        }
+        g = g + 1
+    }
+    let dfb = k - 1
+    let dfw = n - k
+    let msb = ssb / dfb
+    let msw = ssw / dfw
+    let f = 0.0
+    if msw > 0.0 {
+        f = msb / msw
+    }
+    return { "f": f, "dfb": dfb, "dfw": dfw, "ssb": ssb, "ssw": ssw }
+}
+
+/// Mann-Whitney U (two-sided ranks, no ties correction). Returns {u, n1, n2}.
+pub fn mannWhitney(a, b) {
+    let n1 = len(a)
+    let n2 = len(b)
+    let all = []
+    let i = 0
+    while i < n1 {
+        all = push(all, { "v": a[i], "g": 0 })
+        i = i + 1
+    }
+    i = 0
+    while i < n2 {
+        all = push(all, { "v": b[i], "g": 1 })
+        i = i + 1
+    }
+    // insertion sort by v
+    let j = 1
+    while j < len(all) {
+        let key = all[j]
+        let k = j - 1
+        while k >= 0 && all[k]["v"] > key["v"] {
+            all[k + 1] = all[k]
+            k = k - 1
+        }
+        all[k + 1] = key
+        j = j + 1
+    }
+    let r1 = 0.0
+    i = 0
+    while i < len(all) {
+        if all[i]["g"] == 0 {
+            r1 = r1 + (i + 1)
+        }
+        i = i + 1
+    }
+    let u1 = r1 - n1 * (n1 + 1) / 2.0
+    let u2 = n1 * n2 - u1
+    let u = u1
+    if u2 < u1 {
+        u = u2
+    }
+    return { "u": u, "n1": n1, "n2": n2 }
+}
+
 /// Stats over an ndarray (materializes view to contiguous if needed).
 pub fn meanNd(a) {
     return mean(nd_to_array(a))

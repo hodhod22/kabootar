@@ -24,6 +24,27 @@ pub fn fftPad(x) {
     return num_fft_pad(x)
 }
 
+pub fn fftfreq(n, d) {
+    if d == null || d == undefined {
+        return num_fftfreq(n)
+    }
+    return num_fftfreq(n, d)
+}
+
+pub fn resample(x, nOut) {
+    return num_resample(x, nOut)
+}
+
+pub fn hilbert(x) {
+    return num_hilbert(x)
+}
+
+/// Spectrogram convenience over STFT.
+pub fn spectrogram(signal, winSize, hop) {
+    let s = num_stft(signal, winSize, hop)
+    return { "kind": "spectrogram", "frames": s["frames"], "freqs": s["freqs"], "data": s["data"] }
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

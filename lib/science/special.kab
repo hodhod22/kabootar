@@ -4,10 +4,25 @@ pub fn erf(x) {
     return num_erf(x)
 }
 
+pub fn erfc(x) {
+    return num_erfc(x)
+}
+
 pub fn gamma(x) {
     return num_gamma(x)
 }
 
 pub fn besselJ0(x) {
     return num_bessel_j0(x)
+}
+
+pub fn besselJ1(x) {
+    return num_bessel_j1(x)
+}
+
+pub fn gradient(y, dx) {
+    if dx == null || dx == undefined {
+        return num_gradient(y)
+    }
+    return num_gradient(y, dx)
 }
