@@ -110,7 +110,9 @@ pub fn interactiveLine(ys, title, width, height) {
         "title": title,
         "n": n,
         "html": html,
-        "ascii": ascii_plot(ys)
+        "ascii": ascii_plot(ys),
+        "min": mn,
+        "max": mx
     }
 }
 
@@ -150,5 +152,113 @@ pub fn interactiveScatter(xs, ys, title, width, height) {
         "n": n,
         "html": html,
         "ascii": plot_scatter(xs, ys, 40, 12)
+    }
+}
+
+/// ASCII bar chart (notebook-friendly).
+pub fn bars(ys, width, label) {
+    if width == null || width == undefined {
+        width = 40
+    }
+    if label == null || label == undefined {
+        label = "bars"
+    }
+    let mm = seriesMinMax(ys)
+    let mn = mm["min"]
+    let mx = mm["max"]
+    let span = mx - mn
+    if span == 0.0 {
+        span = 1.0
+    }
+    let lines = []
+    let i = 0
+    while i < len(ys) {
+        let frac = (ys[i] - mn) / span
+        let n = floor(frac * width)
+        if n < 0 {
+            n = 0
+        }
+        if n > width {
+            n = width
+        }
+        let bar = ""
+        let j = 0
+        while j < n {
+            bar = bar + "#"
+            j = j + 1
+        }
+        lines = push(lines, i + " |" + bar + " " + ys[i])
+        i = i + 1
+    }
+    let ascii = label + "\n"
+    i = 0
+    while i < len(lines) {
+        ascii = ascii + lines[i] + "\n"
+        i = i + 1
+    }
+    return {
+        "kind": "figure",
+        "type": "bars",
+        "mime": "text/plain",
+        "title": label,
+        "n": len(ys),
+        "ascii": ascii,
+        "min": mn,
+        "max": mx
+    }
+}
+
+/// Simple heatmap grid as HTML table (values 2D array).
+pub fn heatmap(grid, title) {
+    if title == null || title == undefined {
+        title = "heatmap"
+    }
+    let rows = len(grid)
+    let cols = 0
+    if rows > 0 {
+        cols = len(grid[0])
+    }
+    let flat = []
+    let r = 0
+    while r < rows {
+        let c = 0
+        while c < len(grid[r]) {
+            flat = push(flat, grid[r][c])
+            c = c + 1
+        }
+        r = r + 1
+    }
+    let mm = seriesMinMax(flat)
+    let mn = mm["min"]
+    let mx = mm["max"]
+    let span = mx - mn
+    if span == 0.0 {
+        span = 1.0
+    }
+    let html = "<div class=\"kab-plot\" data-kind=\"heatmap\"><div style=\"font-weight:600\">" + title + "</div><table style=\"border-collapse:collapse\">"
+    r = 0
+    while r < rows {
+        html = html + "<tr>"
+        let c = 0
+        while c < len(grid[r]) {
+            let t = (grid[r][c] - mn) / span
+            let shade = floor(40 + t * 180)
+            html = html + "<td title=\"" + grid[r][c] + "\" style=\"width:18px;height:18px;background:rgb(" + shade + "," + (220 - shade / 2) + ",255)\"></td>"
+            c = c + 1
+        }
+        html = html + "</tr>"
+        r = r + 1
+    }
+    html = html + "</table></div>"
+    return {
+        "kind": "figure",
+        "type": "heatmap",
+        "mime": "text/html",
+        "title": title,
+        "rows": rows,
+        "cols": cols,
+        "html": html,
+        "min": mn,
+        "max": mx
     }
 }

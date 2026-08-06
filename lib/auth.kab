@@ -83,3 +83,103 @@ pub fn parseClaims(tokenObj) {
     }
     return json_parse(tokenObj["payload"])
 }
+
+fn b64url(s) {
+    let b = btoa("" + s)
+    // JWT base64url: +/ → -_ ; strip =
+    let out = ""
+    let i = 0
+    while i < len(b) {
+        let ch = string_slice(b, i, i + 1)
+        if ch == "+" {
+            out = out + "-"
+        } else {
+            if ch == "/" {
+                out = out + "_"
+            } else {
+                if ch != "=" {
+                    out = out + ch
+                }
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+fn digToLatin1(dig) {
+    // crypto_sha3_256 returns byte array — pack first 24 bytes into Latin-1 for btoa
+    let s = ""
+    let n = len(dig)
+    if n > 24 {
+        n = 24
+    }
+    let i = 0
+    while i < n {
+        s = s + from_char_code(dig[i])
+        i = i + 1
+    }
+    return s
+}
+
+/// Issue compact JWT-shaped token (HS256-style MAC via SHA3, not full RFC JWT crypto).
+pub fn issueJwt(claims, secret) {
+    if claims == null || claims == undefined {
+        claims = {}
+    }
+    if secret == null || secret == undefined {
+        secret = "kab-dev-secret"
+    }
+    let header = { "alg": "HS256", "typ": "JWT", "kab": true }
+    let h = b64url(json_stringify(header))
+    let p = b64url(json_stringify(claims))
+    let signing = h + "." + p
+    let dig = crypto_sha3_256(signing + "." + secret)
+    let sig = b64url(digToLatin1(dig))
+    let token = signing + "." + sig
+    return {
+        "kind": "jwt",
+        "mode": "kab-jwt",
+        "token": token,
+        "header": header,
+        "claims": claims
+    }
+}
+
+/// Verify JWT issued by issueJwt. Returns claims object or null.
+pub fn verifyJwt(token, secret) {
+    if secret == null || secret == undefined {
+        secret = "kab-dev-secret"
+    }
+    if token == null || token == undefined {
+        return null
+    }
+    let raw = token
+    if typeof(token) == "object" {
+        raw = token["token"]
+    }
+    if raw == null || typeof(raw) != "string" {
+        return null
+    }
+    let parts = string_split(raw, ".")
+    if len(parts) != 3 {
+        return null
+    }
+    let signing = parts[0] + "." + parts[1]
+    let dig = crypto_sha3_256(signing + "." + secret)
+    let expect = b64url(digToLatin1(dig))
+    if expect != parts[2] {
+        return null
+    }
+    // Decode payload: reverse base64url → atob → json (best-effort via stored claims path)
+    // Payload was btoa(json); recover by reconstructing from known issue path is hard without pad.
+    // Re-parse: pad and atob.
+    let payloadB64 = parts[1]
+    payloadB64 = string_replace_all(payloadB64, "-", "+")
+    payloadB64 = string_replace_all(payloadB64, "_", "/")
+    while len(payloadB64) % 4 != 0 {
+        payloadB64 = payloadB64 + "="
+    }
+    let json = atob(payloadB64)
+    return json_parse(json)
+}

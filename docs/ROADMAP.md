@@ -816,10 +816,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **SIM0** | `World` / `Body` / `hinge` / `slider` + `step` / `stepN` | ✅ |
 | **SIM1** | Joint ODE (PD + damping; Euler \| RK4) + serial FK | ✅ |
 | **SIM2** | `sim/robot` 3-DOF arm + encoders/IMU stubs + `worldToEditor` | ✅ |
-| **SIM3** | Contact/soft-body / full multibody ABA; hardware twin I/O | 📋 |
+| **SIM3** | Contact stub + planar IK + `iot/twin` bridge (ABA/soft-body deferred) | ✅ subset |
 
 **Checkpoint SIM (landad):** `lib/sim.kab`, `lib/sim/robot.kab`, `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.  
-**Checkpoint SIM (nästa):** contact + inverse kinematics + live editor teleop.
+**Checkpoint SIM (nästa):** soft-body / ABA + live editor teleop.
 
 ### Våg DATA — DataFrame / I/O / viz (pandas-klass) 🚧 ✅ MVP subset
 
@@ -830,10 +830,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **DATA0** | `data/frame` — from/select/filter/groupby/join + `toRows`/`fromRows` | ✅ |
 | **DATA1** | `pivot` + `aggregate` (min/max i Kab); tidy `readCsv`/`readJson`/`readParquet` | ✅ |
 | **DATA2** | `interactiveLine` / `interactiveScatter` (text/html) | ✅ |
-| **DATA3** | Typed columns, outer join, Apache Parquet FFI, notebook rich bind | 📋 |
+| **DATA3** | Typed columns (`dtypes`/`cast`), left/outer join, bars/heatmap viz (Parquet FFI deferred) | ✅ subset |
 
 **Checkpoint DATA (landad):** `lib/data.kab`, `lib/data/{frame,io,plot}.kab`, `examples/data_analysis.kab`, `tests/data_module.rs`, [DATA.md](DATA.md).  
-**Checkpoint DATA (nästa):** typed dtypes + outer/left join + Plotly-klass zoom/brush.
+**Checkpoint DATA (nästa):** Apache Parquet FFI + Plotly-klass zoom/brush.
 
 ### Våg IOT — Internet of Things 🚧 ✅ MVP subset
 
@@ -844,10 +844,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **IOT0** | MQTT memory broker: connect/subscribe/publish/poll | ✅ |
 | **IOT1** | Sensors: temperature / humidity / accelerometer + `attachUsb` | ✅ |
 | **IOT2** | CoAP + BLE + Zigbee stubs; `connectTcp` stub | ✅ |
-| **IOT3** | Real TCP MQTT 3.1.1 + CoAP UDP codec; host BLE/Zigbee backends | 📋 |
+| **IOT3** | TCP MQTT 3.1.1 (`mqtt_try_connect`) + `iot/twin` sensor↔sim bridge (CoAP UDP/BLE host deferred) | ✅ subset |
 
-**Checkpoint IOT (landad):** `lib/iot.kab`, `lib/iot/{mqtt,sensors,coap,radio}.kab`, `examples/iot_sensors_mqtt.kab`, `tests/iot_module.rs`, [IOT.md](IOT.md).  
-**Checkpoint IOT (nästa):** TCP MQTT client + sensor→sim twin bridge.
+**Checkpoint IOT (landad):** `lib/iot.kab`, `lib/iot/{mqtt,sensors,coap,radio,twin}.kab`, `examples/iot_sensors_mqtt.kab`, `tests/iot_module.rs`, [IOT.md](IOT.md).  
+**Checkpoint IOT (nästa):** CoAP UDP codec + host BLE/Zigbee backends.
 
 ### Våg APP — App shell (mobil/desktop produkt) 🚧 ✅ MVP subset
 
@@ -858,10 +858,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **APP0** | `app/ui` + `app/nav` (stack/tabs) + `app/lifecycle` | ✅ |
 | **APP1** | `app/offline` (cache + `pwa_*`) + `app/i18n` | ✅ |
 | **APP2** | `app/sensors` + `app/share` stubs (kamera/GPS/mic/motion/share/URL) | ✅ |
-| **APP3** | Host bridges: push, real camera/GPS/BLE, intents, store packaging | 📋 |
+| **APP3** | Host bridge stubs: `app/notify` + `app/ship` + deepen sensors/share/intents (native FCM/APK deferred) | ✅ subset |
 
-**Checkpoint APP (landad):** `lib/app.kab`, `lib/app/{ui,nav,lifecycle,offline,i18n,sensors,share}.kab`, `examples/app_shell.kab`, `tests/app_module.rs`, [APP.md](APP.md).  
-**Checkpoint APP (nästa):** native shell hooks + `app/notify` + `app/ship`.
+**Checkpoint APP (landad):** `lib/app.kab`, `lib/app/{ui,nav,lifecycle,offline,i18n,sensors,share,notify,ship}.kab`, `examples/app_shell.kab`, `tests/app_module.rs`, [APP.md](APP.md).  
+**Checkpoint APP (nästa):** real FCM/APNs + camera/GPS host + store packaging.
 
 ### Våg DX-TOOL — CLI / doc / test / log / auth / registry web 🚧 ✅ MVP subset
 
@@ -873,10 +873,10 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **DXT1** | `kabootar repl` alias; `fmt --check`; `doc` (`///` → MD) | ✅ |
 | **DXT2** | `kabootar test` + `--coverage` (module-hit) | ✅ |
 | **DXT3** | `kabootar registry web` + `registry list` | ✅ |
-| **DXT4** | Line-accurate coverage; JWT; AST fmt; remote registry | 📋 |
+| **DXT4** | Line-approx coverage; JWT (`issueJwt`/`verifyJwt`); fmt polish (comments/spaces); remote registry deferred | ✅ subset |
 
 **Checkpoint DX-TOOL (landad):** `lib/{cli,log,validate,auth,test}.kab`, `lib/test/mock.kab`, `src/cli/{doc,test_runner,registry_web}.rs`, `tests/dx_smoke_test.kab`, `tests/dx_tooling.rs`, [DX_TOOLING.md](DX_TOOLING.md).  
-**Checkpoint DX-TOOL (nästa):** line coverage instrumentation + signed JWT auth.
+**Checkpoint DX-TOOL (nästa):** instrumentation-based line coverage + remote registry.
 
 ### Våg SC — Science / AI (ta över Pythons roll) 🚧
 
@@ -903,7 +903,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | Område | Python-stack | Kab idag | Behövs för att konkurrera |
 |--------|--------------|----------|---------------------------|
 | **Ndarray-kärna** | NumPy: dtype, broadcast, slice/view, ufunc, stack/concat, fancy index | 🟡 contiguous f64, add/mul/sum/mean, F64 zero-copy | Full broadcast, slice/views, dtypes, `where`/`clip`, concat/stack, random |
-| **Linalg** | `numpy.linalg` / SciPy: LU, QR, SVD, eig, Cholesky, lstsq, norms | 🟡 solve, 2×2 eig/SVD, matmul/dot | Allmän QR/SVD/eig, Cholesky, lstsq, condition, batched |
+| **Linalg** | `numpy.linalg` / SciPy: LU, QR, SVD, eig, Cholesky, lstsq, norms | 🟢 `science/linalg` Kab wrappers + mat_* natives | Batched / sparse linalg |
 | **Numerik / SciPy** | `optimize`, `integrate`, `interpolate`, `special` | 🟡 trapz/simpson/newton/bisect/interp_linear | Minimize/least_squares, ODE, spline, erf/gamma/bessel subset |
 | **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 1D FFT/IFFT, conv1d | 2D FFT, FIR/IIR, window, STFT |
 | **Sparse** | `scipy.sparse` + sparse linalg | ❌ | CSR/COO + SpMV + sparse solve subset |

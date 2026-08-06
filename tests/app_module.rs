@@ -40,7 +40,11 @@ fn app_shell_nav_lifecycle_i18n() {
         cache = cachePut(cache, "/u", "1")
         let geo = getCurrentPosition(createGeolocation())
         let sh = shareText("x")
-        isForeground(app) && currentRoute(nav)["name"] == "home" && t(cat, "hi", { "name": "A" }) == "Hej A" && cacheHas(cache, "/u") && geo["coords"]["latitude"] != null && sh["mode"] == "stub" && screen["h"] == 200
+        let n = show("hi", "body")
+        let m = createManifest({ "id": "demo", "entry": "main.kab" })
+        let planOk = plan(m)["ok"]
+        let intent = createIntent("VIEW", "kabootar://x")
+        isForeground(app) && currentRoute(nav)["name"] == "home" && t(cat, "hi", { "name": "A" }) == "Hej A" && cacheHas(cache, "/u") && geo["coords"]["latitude"] != null && sh["mode"] == "stub" && screen["h"] == 200 && n["kind"] == "local" && planOk && intent["bridge"] == "intent"
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");

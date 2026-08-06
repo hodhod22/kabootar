@@ -246,22 +246,87 @@ enum FmtOutcome {
 pub fn format_kabootar_source(source: &str) -> String {
     let mut out = String::new();
     let mut indent = 0usize;
+    let mut in_block_comment = false;
     for line in source.lines() {
-        let t = line.trim();
+        let raw = line;
+        let t = raw.trim();
         if t.is_empty() {
             out.push('\n');
             continue;
         }
-        if t.starts_with('}') {
+        // Preserve full-line comments as-is (trimmed indent only).
+        if !in_block_comment && (t.starts_with("//") || t.starts_with("///")) {
+            for _ in 0..indent {
+                out.push_str("    ");
+            }
+            out.push_str(t);
+            out.push('\n');
+            continue;
+        }
+        if t.contains("/*") {
+            in_block_comment = true;
+        }
+        if in_block_comment {
+            for _ in 0..indent {
+                out.push_str("    ");
+            }
+            out.push_str(t);
+            out.push('\n');
+            if t.contains("*/") {
+                in_block_comment = false;
+            }
+            continue;
+        }
+        if t.starts_with('}') || t.starts_with("} else") || t.starts_with("} else if") {
             indent = indent.saturating_sub(1);
         }
         for _ in 0..indent {
             out.push_str("    ");
         }
-        out.push_str(t);
+        // Collapse internal runs of spaces outside strings (light polish).
+        out.push_str(&collapse_spaces_outside_strings(t));
         out.push('\n');
         if t.ends_with('{') {
             indent += 1;
+        }
+    }
+    out
+}
+
+fn collapse_spaces_outside_strings(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    let mut in_str = false;
+    let mut quote = '"';
+    let mut prev_space = false;
+    while let Some(c) = chars.next() {
+        if in_str {
+            out.push(c);
+            if c == '\\' {
+                if let Some(n) = chars.next() {
+                    out.push(n);
+                }
+            } else if c == quote {
+                in_str = false;
+            }
+            prev_space = false;
+            continue;
+        }
+        if c == '"' || c == '\'' {
+            in_str = true;
+            quote = c;
+            out.push(c);
+            prev_space = false;
+            continue;
+        }
+        if c.is_whitespace() {
+            if !prev_space {
+                out.push(' ');
+                prev_space = true;
+            }
+        } else {
+            out.push(c);
+            prev_space = false;
         }
     }
     out

@@ -20,6 +20,7 @@ pub mod tls_client;
 pub mod tls_server;
 pub mod serve_async;
 pub mod http2;
+pub mod mqtt_client;
 pub mod net;
 pub mod tcp;
 pub mod udp;

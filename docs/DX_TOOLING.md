@@ -9,7 +9,7 @@ Kab-first developer experience modules and CLI commands for formatting, docs, te
 | `cli` | `parseArgs` / `hasFlag` / `flag` / `positional` |
 | `log` | leveled logger (`create`, `info`, `warn`, …) |
 | `validate` | schema helpers + re-exports `validation` |
-| `auth` | sessions + MAC tokens on `crypto` |
+| `auth` | sessions + MAC tokens + JWT (`issueJwt`/`verifyJwt`) on `crypto` |
 | `test` | `assertEq` / `assertTrue` / `summary` |
 | `test/mock` | `mockFn` / `returns` / `call` / `calledTimes` |
 
@@ -26,7 +26,7 @@ kabootar registry list
 
 - **doc** — extracts `///` above `pub fn` / `fn` into Markdown  
 - **test** — runs `*_test.kab` / `*.test.kab`; success if result is `true` or `{ ok: true }`  
-- **coverage** — module-hit report (import mention heuristic over `lib/`)  
+- **coverage** — module-hit + line-approx report over `lib/`  
 - **registry web** — HTML + `/api/packages` for `.kabootar/registry/`
 
 ## Files

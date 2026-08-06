@@ -403,3 +403,28 @@ pub fn writeParamsFile(path, params) {
 pub fn readParamsFile(path) {
     return json_parse(os_read(path))
 }
+
+/// Ground-plane contact stub (y=0). Soft-body / ABA deferred (SIM3 full).
+pub fn resolveGroundContact(world, restitution) {
+    if restitution == null || restitution == undefined {
+        restitution = 0.0
+    }
+    let bodies = world["bodies"]
+    let i = 0
+    let hits = 0
+    while i < len(bodies) {
+        let b = bodies[i]
+        if b["role"] != "base" && b["y"] < 0.0 {
+            b["y"] = 0.0
+            if b["vy"] != null && b["vy"] != undefined {
+                b["vy"] = -b["vy"] * restitution
+            }
+            hits = hits + 1
+            bodies[i] = b
+        }
+        i = i + 1
+    }
+    world["bodies"] = bodies
+    world["contacts"] = { "kind": "ground", "hits": hits, "mode": "stub" }
+    return world
+}

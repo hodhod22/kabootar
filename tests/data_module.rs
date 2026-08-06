@@ -43,7 +43,13 @@ fn data_frame_pivot_groupby_io_plot() {
         writeParquet("{pq}", df)
         let df4 = readParquet("{pq}")
         let fig = interactiveLine([1.0, 2.0, 3.0], "t", 200, 100)
-        nrows(g) == 2 && nrows(pv) == 2 && nrows(df2) == 4 && nrows(df3) == 4 && nrows(df4) == 4 && fig["mime"] == "text/html"
+        let left = from([[1, "a"], [2, "b"]], ["id", "L"])
+        let right = from([[2, "x"], [3, "y"]], ["id", "R"])
+        let outer = join(left, right, "id", "outer")
+        let leftj = join(left, right, "id", "left")
+        let dt = dtypes(df)
+        let barsFig = bars([1.0, 3.0, 2.0], 10, "b")
+        nrows(g) == 2 && nrows(pv) == 2 && nrows(df2) == 4 && nrows(df3) == 4 && nrows(df4) == 4 && fig["mime"] == "text/html" && nrows(outer) == 3 && nrows(leftj) == 2 && dt["v"] == "float" && barsFig["type"] == "bars"
         "#,
         pq = pq_path
     );

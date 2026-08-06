@@ -3,8 +3,8 @@
 // Kabootar app — mobile/desktop app shell MVP.
 // import "app"
 //
-// Groups: ui, nav, lifecycle, offline, i18n, sensors, share.
-// Native widgets / push / store packaging deferred (APP3+).
+// Groups: ui, nav, lifecycle, offline, i18n, sensors, share, notify, ship.
+// Host FCM/APNs/camera/store packaging remain stub bridges (APP3 subset).
 
 pub import "app/ui"
 pub import "app/nav"
@@ -13,3 +13,5 @@ pub import "app/offline"
 pub import "app/i18n"
 pub import "app/sensors"
 pub import "app/share"
+pub import "app/notify"
+pub import "app/ship"

@@ -34,12 +34,15 @@ fn dx_kab_modules_smoke() {
         let m = mockFn("f")
         m = returns(m, 1)
         let s = createSession("u", {})
+        let jwt = issueJwt({ "sub": "u", "role": "dev" }, "s3cr3t")
+        let claims = verifyJwt(jwt, "s3cr3t")
         let a = hasFlag(p, "x")
         let b = debug(log, "n") == false
         let c = call(m, []) == 1
         let d = verifySession(s, s["token"])
         let e = is_email("t@e.com")
-        a && b && c && d && e
+        let f = claims != null && claims["sub"] == "u"
+        a && b && c && d && e && f
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
@@ -53,6 +56,9 @@ fn dx_doc_extract_and_fmt() {
     assert_eq!(items[0].name, "add1");
     let formatted = format_kabootar_source("fn x() {\nreturn 1\n}\n");
     assert!(formatted.contains("    return 1"));
+    let spaced = format_kabootar_source("// keep\nfn y() {  return   2  }\n");
+    assert!(spaced.contains("// keep"));
+    assert!(spaced.contains("return 2"));
     let html = registry_render_index(&[]);
     assert!(html.contains("Kabootar local registry"));
 }

@@ -9,6 +9,7 @@ pub fn shareText(text, title) {
     return {
         "ok": false,
         "mode": "stub",
+        "bridge": "share",
         "kind": "text",
         "title": title,
         "text": text,
@@ -35,8 +36,27 @@ pub fn openUrl(url) {
     return {
         "ok": false,
         "mode": "stub",
+        "bridge": "intent",
         "url": url,
         "reason": "URL scheme handoff deferred — register schemes in host shell"
+    }
+}
+
+/// Build an intent-shaped payload for host shell (Android Intent / custom scheme).
+pub fn createIntent(action, data, extras) {
+    if action == null || action == undefined {
+        action = "VIEW"
+    }
+    if extras == null || extras == undefined {
+        extras = {}
+    }
+    return {
+        "kind": "app_intent",
+        "action": action,
+        "data": data,
+        "extras": extras,
+        "mode": "stub",
+        "bridge": "intent"
     }
 }
 
@@ -64,4 +84,14 @@ pub fn parseIncoming(payload) {
 
 pub fn canShare() {
     return false
+}
+
+/// Describe which share/intent bridges the host claims to support.
+pub fn bridgeCapabilities() {
+    return {
+        "share": false,
+        "openUrl": false,
+        "incoming": true,
+        "mode": "stub"
+    }
 }

@@ -255,13 +255,17 @@ fn df_groupby(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(df_out(out, counts.len()))
 }
 
-/// df_join(left, right, on, how?) — how: inner (default)
+/// df_join(left, right, on, how?) — how: inner|left|outer (default inner)
 fn df_join(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (left, ln) = df_parts(args.first().ok_or("df_join")?)?;
     let (right, rn) = df_parts(args.get(1).ok_or("df_join")?)?;
     let on = match args.get(2) {
         Some(Value::String(s)) => s.as_str(),
-        _ => return Err("df_join(left, right, on)".into()),
+        _ => return Err("df_join(left, right, on, how?)".into()),
+    };
+    let how = match args.get(3) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "inner",
     };
     let lk = left.get(on).ok_or_else(|| format!("df_join: left missing {on}"))?;
     let rk = right.get(on).ok_or_else(|| format!("df_join: right missing {on}"))?;
@@ -286,11 +290,28 @@ fn df_join(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             out_cols.insert(rname, Vec::new());
         }
     }
+    let right_only_names: Vec<String> = out_cols
+        .keys()
+        .filter(|k| !left.contains_key(*k))
+        .cloned()
+        .collect();
+    let mut matched_right: Vec<bool> = vec![false; rn];
     let mut nrows = 0usize;
+
+    let push_left_nulls = |out_cols: &mut HashMap<String, Vec<Value>>, i: usize| {
+        for (name, series) in &left {
+            out_cols.get_mut(name).unwrap().push(series[i].clone());
+        }
+        for rname in &right_only_names {
+            out_cols.get_mut(rname).unwrap().push(Value::Null);
+        }
+    };
+
     for i in 0..ln {
         let key = crate::value::format_value(&lk[i]);
         if let Some(js) = index.get(&key) {
             for &j in js {
+                matched_right[j] = true;
                 for (name, series) in &left {
                     out_cols.get_mut(name).unwrap().push(series[i].clone());
                 }
@@ -307,6 +328,38 @@ fn df_join(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
                 }
                 nrows += 1;
             }
+        } else if how == "left" || how == "outer" {
+            push_left_nulls(&mut out_cols, i);
+            nrows += 1;
+        }
+    }
+    if how == "outer" {
+        for j in 0..rn {
+            if matched_right[j] {
+                continue;
+            }
+            for name in left.keys() {
+                if name == on {
+                    out_cols
+                        .get_mut(name)
+                        .unwrap()
+                        .push(rk[j].clone());
+                } else {
+                    out_cols.get_mut(name).unwrap().push(Value::Null);
+                }
+            }
+            for (name, series) in &right {
+                if name == on {
+                    continue;
+                }
+                let rname = if left.contains_key(name) {
+                    format!("{name}_r")
+                } else {
+                    name.clone()
+                };
+                out_cols.get_mut(&rname).unwrap().push(series[j].clone());
+            }
+            nrows += 1;
         }
     }
     Ok(df_out(out_cols, nrows))

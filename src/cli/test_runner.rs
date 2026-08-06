@@ -23,6 +23,10 @@ pub struct CoverageFile {
     pub path: String,
     pub lines: usize,
     pub non_empty: usize,
+    /// Approximate executable lines (non-empty, non-comment, non-brace-only).
+    pub executable: usize,
+    /// Lines "hit" via import/mention heuristic (module) or substring (line-approx).
+    pub hit_lines: usize,
     pub hit: bool,
 }
 
@@ -116,8 +120,8 @@ pub fn run_tests(paths: &[PathBuf]) -> (usize, usize, Vec<TestResult>) {
     (pass, fail, results)
 }
 
-/// Module-level coverage: mark lib/*.kab as hit if their path substr appears in test sources
-/// or if they were successfully parsed; plus non-empty line counts.
+/// Module + approximate line coverage: mark lib/*.kab as hit if mentioned in tests;
+/// hit_lines ≈ executable lines when module is hit (instrumentation deferred).
 pub fn coverage_for(roots: &[PathBuf], test_paths: &[PathBuf]) -> Result<CoverageReport, String> {
     let mut report = CoverageReport::default();
     let mut test_blob = String::new();
@@ -133,6 +137,18 @@ pub fn coverage_for(roots: &[PathBuf], test_paths: &[PathBuf]) -> Result<Coverag
             let src = fs::read_to_string(&f).unwrap_or_default();
             let lines = src.lines().count();
             let non_empty = src.lines().filter(|l| !l.trim().is_empty()).count();
+            let executable = src
+                .lines()
+                .filter(|l| {
+                    let t = l.trim();
+                    !t.is_empty()
+                        && !t.starts_with("//")
+                        && !t.starts_with("///")
+                        && t != "{"
+                        && t != "}"
+                        && !t.starts_with("@version")
+                })
+                .count();
             let rel = f.to_string_lossy().replace('\\', "/");
             let stem = f
                 .file_stem()
@@ -143,11 +159,30 @@ pub fn coverage_for(roots: &[PathBuf], test_paths: &[PathBuf]) -> Result<Coverag
                 || test_blob.contains(&rel)
                 || test_blob.contains(&format!("\"{stem}\""))
                 || test_blob.contains(&format!("import \"{stem}\""));
+            // Line-approx: if module hit, count executable as covered; else 0.
+            // Plus count lines whose trimmed text appears in test blob (string probe).
+            let mut hit_lines = if hit { executable } else { 0 };
+            if !hit {
+                for line in src.lines() {
+                    let t = line.trim();
+                    if t.len() >= 8
+                        && !t.starts_with("//")
+                        && test_blob.contains(t)
+                    {
+                        hit_lines += 1;
+                    }
+                }
+                if hit_lines > executable {
+                    hit_lines = executable;
+                }
+            }
             report.files.push(CoverageFile {
                 path: rel,
                 lines,
                 non_empty,
-                hit,
+                executable,
+                hit_lines,
+                hit: hit || hit_lines > 0,
             });
         }
     }
@@ -157,17 +192,27 @@ pub fn coverage_for(roots: &[PathBuf], test_paths: &[PathBuf]) -> Result<Coverag
 pub fn format_coverage(report: &CoverageReport) -> String {
     let total = report.files.len().max(1);
     let hit = report.files.iter().filter(|f| f.hit).count();
+    let exec: usize = report.files.iter().map(|f| f.executable).sum();
+    let hit_lines: usize = report.files.iter().map(|f| f.hit_lines).sum();
+    let line_pct = if exec == 0 {
+        0.0
+    } else {
+        100.0 * hit_lines as f64 / exec as f64
+    };
     let mut out = format!(
         "Coverage (module hit ≈ import mention): {hit}/{total} files ({:.0}%)\n",
         100.0 * hit as f64 / total as f64
     );
+    out.push_str(&format!(
+        "Line-approx (executable lines in hit modules): {hit_lines}/{exec} ({line_pct:.0}%)\n"
+    ));
     for f in &report.files {
         if !f.hit {
             continue;
         }
         out.push_str(&format!(
-            "  [HIT ] {} ({} non-empty lines)\n",
-            f.path, f.non_empty
+            "  [HIT ] {} ({} / {} exec lines)\n",
+            f.path, f.hit_lines, f.executable
         ));
     }
     let miss = total.saturating_sub(hit);

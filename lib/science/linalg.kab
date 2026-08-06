@@ -1,0 +1,52 @@
+@version "1.0.0"
+
+// science/linalg — thin Kab wrappers over mat_* natives.
+// import "science" then import "science/linalg"
+
+pub fn mul(a, b) {
+    return mat_mul(a, b)
+}
+
+pub fn inv(a) {
+    return mat_inv(a)
+}
+
+pub fn det(a) {
+    return mat_det(a)
+}
+
+pub fn transpose(a) {
+    return mat_transpose(a)
+}
+
+pub fn qr(a) {
+    return mat_qr(a)
+}
+
+pub fn svd(a) {
+    return mat_svd(a)
+}
+
+pub fn cholesky(a) {
+    return mat_cholesky(a)
+}
+
+pub fn eig(a) {
+    return mat_eig(a)
+}
+
+pub fn lstsq(a, b) {
+    return mat_lstsq(a, b)
+}
+
+pub fn cond(a) {
+    return mat_cond(a)
+}
+
+pub fn solve(a, b) {
+    return nd_solve(a, b)
+}
+
+pub fn identity(n) {
+    return mat_identity(n)
+}
