@@ -24,7 +24,8 @@ pub fn createXrSession(mode) {
         "backend": info["backend"],
         "controllers": [],
         "eyes": stereoCameras(null, 0.064),
-        "swapchains": []
+        "swapchains": [],
+        "headsetBound": false
     }
 }
 
@@ -35,6 +36,24 @@ pub fn xrBegin(session) {
     session["active"] = true
     session["controllers"] = trackedControllers(session)
     return session
+}
+
+/// Probe OpenXR loader / WebXR and bind when present (or stub).
+pub fn xrBindHeadset(session, forceStub) {
+    let bind = xr_bind_headset(forceStub == true)
+    session["ffi"] = bind
+    if bind["ok"] == true {
+        session["available"] = true
+        session["backend"] = bind["backend"]
+        session["headsetBound"] = true
+    } else {
+        session["headsetBound"] = false
+    }
+    return session
+}
+
+pub fn xrFfiProbe() {
+    return xr_ffi_probe()
 }
 
 pub fn xrEnd(session) {
@@ -160,6 +179,7 @@ pub fn describeXr(session) {
         "backend": session["backend"],
         "controllerCount": len(session["controllers"]),
         "ipd": session["eyes"]["ipd"],
-        "swapchainCount": len(session["swapchains"])
+        "swapchainCount": len(session["swapchains"]),
+        "headsetBound": session["headsetBound"] == true
     }
 }

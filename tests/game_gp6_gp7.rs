@@ -296,3 +296,26 @@ fn xr_runtime_swapchain_frame() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_ffi_bind_headset_stub() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let probe = xrFfiProbe()
+        let xr = createXrSession("vr")
+        xr = xrBindHeadset(xr, true)
+        xr = xrBegin(xr)
+        let d = describeXr(xr)
+        return xr["ffi"]["ok"] == true && d["headsetBound"] == true && xr["active"] == true
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
