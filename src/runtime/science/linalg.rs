@@ -725,6 +725,27 @@ fn mat_batch_svd(args: &[Value], env: &mut Environment) -> Result<Value, String>
     Ok(Value::Object(out))
 }
 
+/// mat_batch_eig(batch) -> { values: [...], vectors: [...], n }
+fn mat_batch_eig(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let batch = batch_matrices(args, "mat_batch_eig")?;
+    let n_batch = batch.len() as i64;
+    let mut values = Vec::new();
+    let mut vectors = Vec::new();
+    for m in batch {
+        let eig = mat_eig(&[m], env)?;
+        let Value::Object(map) = eig else {
+            return Err("mat_batch_eig: internal".into());
+        };
+        values.push(map.get("values").cloned().ok_or("mat_batch_eig: values")?);
+        vectors.push(map.get("vectors").cloned().ok_or("mat_batch_eig: vectors")?);
+    }
+    let mut out = HashMap::new();
+    out.insert("values".into(), Value::Array(values));
+    out.insert("vectors".into(), Value::Array(vectors));
+    out.insert("n".into(), Value::Number(n_batch));
+    Ok(Value::Object(out))
+}
+
 /// mat_batch_solve(batchA, batchB) — per-item Ax=b via Gauss.
 fn mat_batch_solve(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let batch_a = batch_matrices(args, "mat_batch_solve")?;
@@ -797,6 +818,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_mat_norm_ord", "mat_norm_ord"], mat_norm_ord);
     bind(&["science_mat_batch_qr", "mat_batch_qr"], mat_batch_qr);
     bind(&["science_mat_batch_svd", "mat_batch_svd"], mat_batch_svd);
+    bind(&["science_mat_batch_eig", "mat_batch_eig"], mat_batch_eig);
     bind(
         &["science_mat_batch_solve", "mat_batch_solve"],
         mat_batch_solve,

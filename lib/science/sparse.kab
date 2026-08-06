@@ -20,6 +20,16 @@ pub fn toCsc(a) {
     return sparse_to_csc(a)
 }
 
+/// ILU(0) incomplete LU -> { l, u, kind }.
+pub fn ilu0(a) {
+    return sparse_ilu0(a)
+}
+
+/// Incomplete Cholesky (no-fill) -> { l, kind }.
+pub fn icc0(a) {
+    return sparse_icc0(a)
+}
+
 pub fn spmv(a, x) {
     return sparse_spmv(a, x)
 }

@@ -836,8 +836,72 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                                 }
                             }
                         }
-                        accumulate(t, a, &ga);
-                        accumulate(t, b, &gb);
+                        if create_graph {
+                            // ga = gy @ B^T, gb = A^T @ gy — keep as Matmul nodes on tape.
+                            let gyn = ensure_grad_node(t, id, &gy, true)
+                                .ok_or("matmul create_graph: gy")?;
+                            // B^T as Leaf
+                            let mut bt = vec![0.0; n * k];
+                            for r in 0..k {
+                                for c in 0..n {
+                                    bt[c * k + r] = bv[r * n + c];
+                                }
+                            }
+                            let bt_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: bt_id,
+                                    value: bt,
+                                },
+                            );
+                            let ga_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Matmul {
+                                    id: ga_id,
+                                    a: gyn,
+                                    b: bt_id,
+                                    value: ga.clone(),
+                                    m,
+                                    k: n,
+                                    n: k,
+                                },
+                            );
+                            // A^T as Leaf
+                            let mut at = vec![0.0; k * m];
+                            for r in 0..m {
+                                for c in 0..k {
+                                    at[c * m + r] = av[r * k + c];
+                                }
+                            }
+                            let at_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: at_id,
+                                    value: at,
+                                },
+                            );
+                            let gb_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Matmul {
+                                    id: gb_id,
+                                    a: at_id,
+                                    b: gyn,
+                                    value: gb.clone(),
+                                    m: k,
+                                    k: m,
+                                    n,
+                                },
+                            );
+                            accumulate_graph(t, a, &ga, ga_id, true);
+                            accumulate_graph(t, b, &gb, gb_id, true);
+                        } else {
+                            accumulate(t, a, &ga);
+                            accumulate(t, b, &gb);
+                        }
                     }
                 }
                 Node::Conv2d {
