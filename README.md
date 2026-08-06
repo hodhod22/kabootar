@@ -17,11 +17,9 @@ Se [docs/OVERVIEW.md](docs/OVERVIEW.md) för vision och arkitektur.
 
 ## Licens
 
-Kabootar (första-parts-kod) distribueras under **Kabootar Commons License (KCL) 1.1** —
-se [LICENSE](LICENSE). Tredjepartsbibliotek behåller egna licenser — se [THIRD_PARTY.md](THIRD_PARTY.md).
+Kabootar (språk, runtime, OS och webbläsare — första-parts-kod) är
+**[MIT](LICENSE)**. Tredjepartsbibliotek behåller egna licenser — se
+[THIRD_PARTY.md](THIRD_PARTY.md).
 
-Gratis för privatpersoner, mikroföretag (färre än 10 anställda) och
-utbildnings-/ideella organisationer. Kommersiella enheter (10 eller fler
-anställda) behöver en betald kommersiell licens för produktion (30 dagars
-utvärdering tillåten). Varje offentlig version frigörs efter 3 år under
-BSD-3-Clause-villkor för Kabootars egen kod.
+Kommersiella paket ovanpå (t.ex. spel-ramverk i stil med Unity) kan ha
+egen licens; själva Kabootar-plattformen är fri MIT.

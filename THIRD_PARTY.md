@@ -1,7 +1,7 @@
 # Third-party licenses
 
-Kabootar’s **first-party** code is under the [Kabootar Commons License (KCL)](LICENSE).
-Dependencies keep their **own** licenses. KCL does not relicense them.
+Kabootar’s **first-party** code is under the [MIT License](LICENSE).
+Dependencies keep their **own** licenses. MIT does not relicense them.
 
 This file is a high-level summary of crates commonly linked into Kabootar
 builds. For authoritative SPDX identifiers, see each crate on crates.io /
@@ -24,6 +24,6 @@ files required by those licenses (especially Apache-2.0).
 | WASM | `wasm-bindgen`, `web-sys`, `js-sys`, `wasmi` | MIT / Apache-2.0 |
 
 Kabootar intentionally prefers **MIT / Apache-2.0 / BSD**-class dependencies so
-that KCL on first-party code does not conflict with copyleft obligations from
+the first-party MIT license does not conflict with copyleft obligations from
 the dependency graph. Do not add GPL/LGPL dependencies without an explicit
 project decision and documentation update here.

@@ -4,7 +4,7 @@ version = "2.1.0"
 edition = "2021"
 description = "Kabootar — fullstack programming language (formerly Nova)"
 authors = ["Kabootar Contributors"]
-license-file = "LICENSE"
+license = "MIT"
 build = "build.rs"
 
 [lints.rust]
