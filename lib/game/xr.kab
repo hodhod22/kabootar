@@ -418,6 +418,80 @@ pub fn xrStopImmersiveLoop(session) {
     return { "session": session, "compositor": stopped }
 }
 
+/// Bind WebXR-style XRSession.requestAnimationFrame (stub or wasm navigator.xr).
+pub fn xrBindAnimationFrame(session) {
+    let bind = xr_raf_bind()
+    session["raf"] = bind
+    return session
+}
+
+pub fn xrRequestAnimationFrame(callback) {
+    return xr_request_animation_frame(callback)
+}
+
+pub fn xrCancelAnimationFrame(id) {
+    return xr_cancel_animation_frame(id)
+}
+
+pub fn xrPumpAnimationFrames() {
+    return xr_raf_tick()
+}
+
+pub fn xrAnimationFrameStatus() {
+    return xr_raf_status()
+}
+
+pub fn xrLoaderEndFrameStatus() {
+    return xr_loader_end_frame_status()
+}
+
+/// Run immersive frames driven by XR rAF (WebXR immersive loop analogue).
+pub fn xrRunImmersiveRaf(session, count, width, height, mode) {
+    if count == null || count == undefined || count < 1 {
+        count = 1
+    }
+    session = xrStartImmersiveLoop(session, width, height, mode)
+    session = xrBindAnimationFrame(session)
+    let frames = []
+    let i = 0
+    while i < count {
+        session["_rafMeta"] = null
+        xrRequestAnimationFrame((time, xrFrame) => {
+            session["_rafMeta"] = {
+                "time": time,
+                "backend": xrFrame["backend"],
+                "tick": xrFrame["tick"]
+            }
+            return true
+        })
+        let pumped = xrPumpAnimationFrames()
+        if pumped["ran"] < 1 {
+            return { "ok": false, "error": "xr rAF did not run", "session": session, "frames": frames }
+        }
+        let step = xrImmersiveFrame(session)
+        session = step["session"]
+        let meta = session["_rafMeta"]
+        frames = push(frames, {
+            "frameIndex": step["frame"]["frameIndex"],
+            "acked": step["compositorAck"]["acked"] == true,
+            "presented": step["hmd"]["presented"] == true,
+            "loaderPath": step["ended"]["loaderEndFrame"]["path"],
+            "rafTime": meta["time"],
+            "rafBackend": meta["backend"]
+        })
+        i = i + 1
+    }
+    return {
+        "ok": true,
+        "session": session,
+        "frames": frames,
+        "frameCount": session["immersive"]["frameCount"],
+        "raf": xrAnimationFrameStatus(),
+        "loader": xrLoaderEndFrameStatus(),
+        "compositor": xrCompositorProcessStatus()
+    }
+}
+
 pub fn describeXr(session) {
     return {
         "mode": session["mode"],
@@ -431,6 +505,7 @@ pub fn describeXr(session) {
         "hmdConnected": session["hmdConnected"] == true,
         "vendor": session["vendor"],
         "immersiveRunning": session["immersive"] != null && session["immersive"]["running"] == true,
-        "compositorProcess": session["compositorProcess"] != null
+        "compositorProcess": session["compositorProcess"] != null,
+        "rafBound": session["raf"] != null && session["raf"]["bound"] == true
     }
 }

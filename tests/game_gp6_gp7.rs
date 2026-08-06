@@ -427,3 +427,26 @@ fn xr_compositor_process_and_immersive_loop() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_loader_end_frame_and_raf_immersive() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let batch = xrRunImmersiveRaf(xr, 2, 1280, 720, "immersive-vr")
+        let f0 = batch["frames"][0]
+        let loader = batch["loader"]
+        let raf = batch["raf"]
+        return batch["ok"] == true && batch["frameCount"] == 2 && f0["loaderPath"] == "stub-xrEndFrame" && f0["rafBackend"] == "stub-xr-raf" && loader["calls"] == 2 && loader["lastPath"] == "stub-xrEndFrame" && raf["bound"] == true && raf["ticks"] == 2 && raf["backend"] == "stub-xr-raf"
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
