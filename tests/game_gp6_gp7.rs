@@ -379,3 +379,27 @@ fn xr_hmd_driver_present_stub() {
     std::env::remove_var("KABOOTAR_XR_VENDOR");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_compositor_ipc_and_request_session() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrRequestSession(xr, "immersive-vr")
+        xr = xrCompositorOpen(xr)
+        xr = xrBegin(xr)
+        let out = xrRuntimeFrame(xr, 1280, 720)
+        let ack = out["compositorAck"]
+        return xr["xrSession"]["ok"] == true && xr["compositor"]["open"] == true && ack["acked"] == true && ack["viewCount"] == 2 && out["hmd"]["presented"] == true
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

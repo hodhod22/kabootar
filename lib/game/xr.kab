@@ -207,6 +207,36 @@ pub fn xrPresentToHmd(session, composition) {
     return { "session": session, "hmd": drv }
 }
 
+/// OpenXR-style compositor IPC channel.
+pub fn xrCompositorOpen(session) {
+    let ipc = xr_compositor_open()
+    session["compositor"] = ipc
+    return session
+}
+
+pub fn xrCompositorSubmit(composition) {
+    return xr_compositor_submit(composition)
+}
+
+pub fn xrCompositorPoll() {
+    return xr_compositor_poll()
+}
+
+/// WebXR requestSession / OpenXR session create (stub or real on wasm).
+pub fn xrRequestSession(session, mode) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    let req = xr_request_session(mode)
+    session["xrSession"] = req
+    if req["ok"] == true {
+        session["available"] = true
+        session["active"] = req["active"] == true
+        session["backend"] = req["backend"]
+    }
+    return session
+}
+
 /// One runtime frame: wait → acquire → compose → release → endFrame → HMD driver present.
 pub fn xrRuntimeFrame(session, width, height) {
     if session["swapchains"] == null || len(session["swapchains"]) < 2 {
@@ -243,6 +273,7 @@ pub fn xrRuntimeFrame(session, width, height) {
         session = hp["session"]
         hmd = hp["hmd"]
     }
+    let ack = xrCompositorPoll()
     session["lastFrame"] = {
         "frame": frame,
         "left": imgL,
@@ -250,7 +281,8 @@ pub fn xrRuntimeFrame(session, width, height) {
         "composition": composition,
         "present": present,
         "ended": ended,
-        "hmd": hmd
+        "hmd": hmd,
+        "compositorAck": ack
     }
     return {
         "session": session,
@@ -258,7 +290,8 @@ pub fn xrRuntimeFrame(session, width, height) {
         "ended": ended,
         "present": present,
         "composition": composition,
-        "hmd": hmd
+        "hmd": hmd,
+        "compositorAck": ack
     }
 }
 
