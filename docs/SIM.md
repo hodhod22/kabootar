@@ -1,12 +1,13 @@
 # Simulation / robotics (`import "sim"`)
 
-Kab-first **digital twin** module: articulated bodies, hinge/slider joints, joint-space ODE, forward kinematics, sensor stubs, and GP7 editor mapping — one runtime with game + STEM.
+Kab-first **digital twin** module: articulated bodies, hinge/slider joints, joint-space ODE, forward kinematics, sensor stubs, GP7 editor mapping, and **live teleop** — one runtime with game + STEM.
 
 ## Quick start
 
 ```kab
 import "sim"
 import "sim/robot"
+import "sim/teleop"
 
 let arm = createArm3(defaultArmParams())
 arm = setArmTargets(arm, 0.6, 0.8, -0.4)
@@ -15,6 +16,12 @@ let ee = endEffector(arm)
 let enc = readEncoders(arm)
 let imu = readImu(arm)
 let root = worldToEditor(arm)   // digital twin in editor scene graph
+
+// Live teleop session (joint / IK / Learn)
+let tele = bindArmEditor(arm, "/sim/arm_params.json")
+tele = teleopSetJoint(tele, "j1", 0.8, 60)
+tele = teleopPlaceEe(tele, 1.2, 0.4, 0.0, 60)
+tele = setLearnParam(tele, "kp", 5.0)
 ```
 
 ## API (MVP)
@@ -24,17 +31,21 @@ let root = worldToEditor(arm)   // digital twin in editor scene graph
 | World | `createWorld`, `addBody`, `addJoint`, `step`, `stepN`, `applyLiveParams` |
 | Bodies | `createBody`, `createFixedBase`, `findBody` |
 | Joints | `createHinge`, `createSlider`, `setJointTarget`, `findJoint` |
-| Kinematics | `updateForwardKinematics` |
+| Kinematics | `updateForwardKinematics`, `inverseKinematics`, `moveArmTo` |
 | Sensors | `sampleSensors`, `readEncoders`, `readImu` |
-| Twin | `worldToEditor`, params file helpers |
+| Twin | `worldToEditor`, params file helpers, `resolveGroundContact` |
 | Robot | `createArm3`, `setArmTargets`, `simulateArm`, `buildTwinLesson` |
+| Teleop | `bindArmEditor`, `syncWorldToEditor`, `selectLink`, `teleopSetJoint`, `teleopSetArm`, `teleopPlaceEe`, `teleopDragLink`, `teleopStep`, `setLearnParam`, `setLearnJoint`, `enterLearnMode` / `enterIkMode` / `enterJointMode` |
 
 Solver: `params.solver` = `"euler"` (default) or `"rk4"`. Control: PD (`kp`/`kd`) + damping on joint inertia.
+
+Teleop modes: **joint** (sliders → `qTarget`), **ik** (place EE → planar IK), **learn** (live `kp`/`kd` + hot-reload stamp).
 
 ## Files
 
 - `lib/sim.kab` — core
 - `lib/sim/robot.kab` — 3-DOF arm
+- `lib/sim/teleop.kab` — GP7 live teleop
 - `examples/sim_robot_arm.kab`
 - `tests/sim_robot.rs`
 

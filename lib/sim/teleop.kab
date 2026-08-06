@@ -1,0 +1,358 @@
+@version "1.0.0"
+
+// sim/teleop — live GP7 editor ↔ robot arm twin (SIM4).
+// Joint sliders / EE place→IK / Learn params + step+refresh.
+// import "sim/teleop"
+
+import "sim"
+import "sim/robot"
+import "game/scene"
+import "game/editor"
+
+fn linkToJoint(name) {
+    if name == "link1" {
+        return "j1"
+    }
+    if name == "link2" {
+        return "j2"
+    }
+    if name == "link3" {
+        return "j3"
+    }
+    if name == "j1" || name == "j2" || name == "j3" {
+        return name
+    }
+    return null
+}
+
+fn findHierarchyNode(editor, name) {
+    let rows = editor["hierarchy"]
+    let i = 0
+    while i < len(rows) {
+        if rows[i]["name"] == name {
+            return rows[i]["node"]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn placeNamedChild(root, name, x, y, z) {
+    let kids = root["children"]
+    let i = 0
+    let found = false
+    let newKids = []
+    while i < len(kids) {
+        let child = kids[i]
+        if child["name"] == name {
+            child = setLocal(child, x, y, z)
+            found = true
+        }
+        newKids = push(newKids, child)
+        i = i + 1
+    }
+    if !found {
+        let n = createNode(name)
+        n = setLocal(n, x, y, z)
+        if name == "base" {
+            n = setLayer(n, 0)
+        } else {
+            n = setLayer(n, 1)
+        }
+        newKids = push(newKids, n)
+    }
+    root["children"] = newKids
+    return root
+}
+
+/// Push sim body poses into the editor scene graph and refresh hierarchy.
+pub fn syncWorldToEditor(session) {
+    let world = session["world"]
+    let editor = session["editor"]
+    let root = editor["root"]
+    let i = 0
+    while i < len(world["bodies"]) {
+        let b = world["bodies"][i]
+        root = placeNamedChild(root, b["name"], b["x"], b["y"], b["z"])
+        i = i + 1
+    }
+    editor["root"] = root
+    editor = refresh(editor)
+    if session["selectedJoint"] != null {
+        let linkName = "link1"
+        if session["selectedJoint"] == "j2" {
+            linkName = "link2"
+        }
+        if session["selectedJoint"] == "j3" {
+            linkName = "link3"
+        }
+        let node = findHierarchyNode(editor, linkName)
+        if node != null {
+            editor = selectNode(editor, node)
+        }
+    }
+    session["editor"] = editor
+    return session
+}
+
+/// Bind an arm world to a GP7 editor (digital twin teleop session).
+pub fn bindArmEditor(world, paramsPath) {
+    if paramsPath == null || paramsPath == undefined {
+        paramsPath = "/sim/arm_params.json"
+    }
+    let root = worldToEditor(world)
+    let editor = createEditor(root)
+    editor["sim"] = {
+        "kind": "arm3_teleop",
+        "jointNames": ["j1", "j2", "j3"],
+        "dof": world["robot"]["dof"]
+    }
+    editor = refresh(editor)
+    let session = {
+        "kind": "sim_teleop",
+        "world": world,
+        "editor": editor,
+        "mode": "joint",
+        "selectedJoint": "j1",
+        "paramsPath": paramsPath,
+        "learnUi": null,
+        "ticks": 0
+    }
+    return syncWorldToEditor(session)
+}
+
+/// Select a link or joint in the editor; maps linkN → jN.
+pub fn selectLink(session, name) {
+    let joint = linkToJoint(name)
+    let editor = session["editor"]
+    editor = refresh(editor)
+    let nodeName = name
+    if name == "j1" {
+        nodeName = "link1"
+    }
+    if name == "j2" {
+        nodeName = "link2"
+    }
+    if name == "j3" {
+        nodeName = "link3"
+    }
+    let node = findHierarchyNode(editor, nodeName)
+    if node != null {
+        editor = selectNode(editor, node)
+    }
+    session["editor"] = editor
+    if joint != null {
+        session["selectedJoint"] = joint
+    }
+    return session
+}
+
+/// Set one joint target (radians), optionally step, sync editor.
+pub fn teleopSetJoint(session, name, q, steps) {
+    if steps == null || steps == undefined {
+        steps = 30
+    }
+    let joint = linkToJoint(name)
+    if joint == null {
+        joint = name
+    }
+    session["selectedJoint"] = joint
+    session["world"] = setJointTarget(session["world"], joint, q)
+    if steps > 0 {
+        session["world"] = simulateArm(session["world"], 1.0 / 60.0, steps)
+        session["ticks"] = session["ticks"] + steps
+    }
+    return syncWorldToEditor(session)
+}
+
+/// Set all three arm targets; step + sync.
+pub fn teleopSetArm(session, q1, q2, q3, steps) {
+    if steps == null || steps == undefined {
+        steps = 40
+    }
+    session["world"] = setArmTargets(session["world"], q1, q2, q3)
+    if steps > 0 {
+        session["world"] = simulateArm(session["world"], 1.0 / 60.0, steps)
+        session["ticks"] = session["ticks"] + steps
+    }
+    return syncWorldToEditor(session)
+}
+
+/// Switch teleop mode: "joint" | "ik" | "learn".
+pub fn setTeleopMode(session, mode) {
+    if mode == null || mode == undefined {
+        mode = "joint"
+    }
+    session["mode"] = mode
+    return session
+}
+
+/// Place end-effector (or selected link) in editor space → IK targets when mode is ik.
+pub fn teleopPlaceEe(session, x, y, z, steps) {
+    if z == null || z == undefined {
+        z = 0.0
+    }
+    if steps == null || steps == undefined {
+        steps = 50
+    }
+    let editor = session["editor"]
+    editor = refresh(editor)
+    let eeNode = findHierarchyNode(editor, "link3")
+    if eeNode != null {
+        editor = selectNode(editor, eeNode)
+        editor = inspectSetLocal(editor, x, y, z)
+    } else {
+        let root = placeNamedChild(editor["root"], "link3", x, y, z)
+        editor["root"] = root
+        editor = refresh(editor)
+    }
+    session["editor"] = editor
+    session["world"] = moveArmTo(session["world"], x, y, z)
+    if session["world"]["ik"] != null && session["world"]["ik"]["ok"] == true {
+        if steps > 0 {
+            session["world"] = simulateArm(session["world"], 1.0 / 60.0, steps)
+            session["ticks"] = session["ticks"] + steps
+        }
+    }
+    session["mode"] = "ik"
+    return syncWorldToEditor(session)
+}
+
+/// Drag selected link: IK if EE / ik mode, else ignore pose write-back (joint mode uses sliders).
+pub fn teleopDragLink(session, x, y, z, steps) {
+    let sel = session["editor"]["selected"]
+    let name = null
+    if sel != null && sel != undefined {
+        name = sel["name"]
+    }
+    if session["mode"] == "ik" || name == "link3" || name == null {
+        return teleopPlaceEe(session, x, y, z, steps)
+    }
+    // Non-EE joint-mode drag: update visual only (targets unchanged).
+    let editor = session["editor"]
+    if sel != null {
+        editor = inspectSetLocal(editor, x, y, z)
+    }
+    session["editor"] = editor
+    return session
+}
+
+/// Advance simulation and refresh twin view.
+pub fn teleopStep(session, dt, n) {
+    if dt == null || dt == undefined {
+        dt = 1.0 / 60.0
+    }
+    if n == null || n == undefined {
+        n = 1
+    }
+    session["world"] = simulateArm(session["world"], dt, n)
+    session["ticks"] = session["ticks"] + n
+    return syncWorldToEditor(session)
+}
+
+/// Learn UI for arm twin (kp/kd/solver + joint targets).
+pub fn buildTeleopLearnUi(session) {
+    let world = session["world"]
+    let lesson = buildTwinLesson(world)
+    let p = world["params"]
+    let j1 = findJoint(world, "j1")
+    let j2 = findJoint(world, "j2")
+    let j3 = findJoint(world, "j3")
+    return {
+        "kind": "teleop_learn",
+        "lesson": lesson,
+        "hint": lesson["hint"],
+        "formula": lesson["code"],
+        "kp": p["kp"],
+        "kd": p["kd"],
+        "solver": p["solver"],
+        "q1": j1["qTarget"],
+        "q2": j2["qTarget"],
+        "q3": j3["qTarget"],
+        "mode": session["mode"]
+    }
+}
+
+fn stampTeleopReload(editor, path) {
+    editor = syncHotReload(editor, path)
+    if editor["hotReload"] == null || editor["hotReload"] == undefined {
+        editor["hotReload"] = {}
+    }
+    editor["hotReload"]["stamp"] = path
+    editor["hotReload"]["learnPath"] = path
+    return editor
+}
+
+/// Patch Learn params (kp/kd/damping/solver) and stamp hot-reload.
+pub fn setLearnParam(session, key, delta) {
+    let p = session["world"]["params"]
+    let patch = {}
+    if key == "kp" {
+        patch["kp"] = p["kp"] + delta
+    }
+    if key == "kd" {
+        patch["kd"] = p["kd"] + delta
+    }
+    if key == "damping" {
+        let d = p["damping"]
+        if d == null || d == undefined {
+            d = 0.05
+        }
+        patch["damping"] = d + delta
+    }
+    if key == "solver" {
+        if p["solver"] == "rk4" {
+            patch["solver"] = "euler"
+        } else {
+            patch["solver"] = "rk4"
+        }
+    }
+    if len(object_keys(patch)) > 0 {
+        session["world"] = applyLiveParams(session["world"], patch)
+    }
+    writeParamsFile(session["paramsPath"], session["world"]["params"])
+    session["editor"] = stampTeleopReload(session["editor"], session["paramsPath"])
+    session["learnUi"] = buildTeleopLearnUi(session)
+    session["mode"] = "learn"
+    return session
+}
+
+/// Nudge selected (or named) joint target from Learn sliders.
+pub fn setLearnJoint(session, name, delta, steps) {
+    if steps == null || steps == undefined {
+        steps = 20
+    }
+    let joint = linkToJoint(name)
+    if joint == null {
+        joint = session["selectedJoint"]
+    }
+    if joint == null {
+        joint = "j1"
+    }
+    let j = findJoint(session["world"], joint)
+    let q = 0.0
+    if j != null {
+        q = j["qTarget"]
+    }
+    return teleopSetJoint(session, joint, q + delta, steps)
+}
+
+pub fn enterLearnMode(session) {
+    session["mode"] = "learn"
+    session["learnUi"] = buildTeleopLearnUi(session)
+    writeParamsFile(session["paramsPath"], session["world"]["params"])
+    session["editor"] = stampTeleopReload(session["editor"], session["paramsPath"])
+    return session
+}
+
+pub fn enterJointMode(session) {
+    session["mode"] = "joint"
+    session["learnUi"] = null
+    return session
+}
+
+pub fn enterIkMode(session) {
+    session["mode"] = "ik"
+    session["learnUi"] = null
+    return selectLink(session, "link3")
+}

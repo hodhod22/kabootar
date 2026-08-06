@@ -50,6 +50,33 @@ fn sim_arm3_fk_sensors_twin() {
 }
 
 #[test]
+fn sim_teleop_joint_ik_learn() {
+    let v = eval(
+        r#"
+        import "science"
+        import "sim"
+        import "sim/robot"
+        import "sim/teleop"
+        import "game/editor"
+        os_mkdir("/sim")
+        let tele = bindArmEditor(createArm3(defaultArmParams()), "/sim/tele_test.json")
+        tele = selectLink(tele, "link1")
+        tele = teleopSetJoint(tele, "j1", 0.9, 80)
+        let q = findJoint(tele["world"], "j1")["q"]
+        let h0 = len(tele["editor"]["hierarchy"])
+        tele = enterIkMode(tele)
+        tele = teleopPlaceEe(tele, 1.1, 0.35, 0.0, 70)
+        let ee = endEffector(tele["world"])
+        tele = setLearnParam(tele, "kp", 8.0)
+        tele = setLearnJoint(tele, "j2", 0.2, 30)
+        tele = teleopStep(tele, 1.0 / 60.0, 10)
+        q > 0.35 && h0 >= 4 && ee["x"] != null && tele["world"]["params"]["kp"] >= 40.0 && tele["learnUi"]["kind"] == "teleop_learn" && tele["mode"] == "learn" && tele["ticks"] > 0
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
 fn sim_hinge_slider_rk4() {
     let v = eval(
         r#"
