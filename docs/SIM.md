@@ -35,6 +35,8 @@ tele = setLearnParam(tele, "kp", 5.0)
 | Sensors | `sampleSensors`, `readEncoders`, `readImu` |
 | Twin | `worldToEditor`, params file helpers, `resolveGroundContact` |
 | Robot | `createArm3`, `setArmTargets`, `simulateArm`, `buildTwinLesson` |
+| Soft | `sim/soft` — `createCloth2x2`, `stepSoftBody`, `addSoftBody` / `stepWorldSoft` |
+| ABA | `abaApplyTorques`, `createArticulatedBody`, `params.solver = "aba"` |
 | Teleop | `bindArmEditor`, `syncWorldToEditor`, `selectLink`, `teleopSetJoint`, `teleopSetArm`, `teleopPlaceEe`, `teleopDragLink`, `teleopStep`, `setLearnParam`, `setLearnJoint`, `enterLearnMode` / `enterIkMode` / `enterJointMode` |
 
 Solver: `params.solver` = `"euler"` (default) or `"rk4"`. Control: PD (`kp`/`kd`) + damping on joint inertia.
@@ -46,6 +48,7 @@ Teleop modes: **joint** (sliders → `qTarget`), **ik** (place EE → planar IK)
 - `lib/sim.kab` — core
 - `lib/sim/robot.kab` — 3-DOF arm
 - `lib/sim/teleop.kab` — GP7 live teleop
+- `lib/sim/soft.kab` — particle–spring soft body
 - `examples/sim_robot_arm.kab`
 - `tests/sim_robot.rs`
 

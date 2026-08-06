@@ -8,6 +8,8 @@ pub mod bench;
 pub mod classic_ml;
 pub mod data;
 pub mod dataframe;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod apache_parquet;
 pub mod gpu_compute;
 pub mod gpu_tensor;
 pub mod helpers;

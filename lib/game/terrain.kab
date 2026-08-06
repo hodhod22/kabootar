@@ -1,0 +1,224 @@
+@version "1.0.0"
+
+// game/terrain — heightmap + LOD mesh stub (GP6d).
+// import "game/terrain"
+
+import "game/scene"
+
+/// Create a width×depth heightmap. heights flat array (row-major z*width+x) or zeros.
+pub fn createHeightmap(width, depth, cellSize, heights) {
+    if width == null || width < 2 {
+        width = 2
+    }
+    if depth == null || depth < 2 {
+        depth = 2
+    }
+    if cellSize == null || cellSize == undefined {
+        cellSize = 1.0
+    }
+    let n = width * depth
+    let h = []
+    let i = 0
+    if heights != null && heights != undefined && len(heights) >= n {
+        while i < n {
+            h = push(h, heights[i])
+            i = i + 1
+        }
+    } else {
+        while i < n {
+            h = push(h, 0.0)
+            i = i + 1
+        }
+    }
+    return {
+        "kind": "heightmap",
+        "width": width,
+        "depth": depth,
+        "cellSize": cellSize,
+        "heights": h
+    }
+}
+
+pub fn setHeight(hm, ix, iz, h) {
+    let w = hm["width"]
+    let d = hm["depth"]
+    if ix < 0 {
+        ix = 0
+    }
+    if iz < 0 {
+        iz = 0
+    }
+    if ix >= w {
+        ix = w - 1
+    }
+    if iz >= d {
+        iz = d - 1
+    }
+    let heights = hm["heights"]
+    heights[iz * w + ix] = h
+    hm["heights"] = heights
+    return hm
+}
+
+fn heightAt(hm, ix, iz) {
+    let w = hm["width"]
+    let d = hm["depth"]
+    if ix < 0 {
+        ix = 0
+    }
+    if iz < 0 {
+        iz = 0
+    }
+    if ix >= w {
+        ix = w - 1
+    }
+    if iz >= d {
+        iz = d - 1
+    }
+    return hm["heights"][iz * w + ix]
+}
+
+/// Bilinear sample at world xz (origin at grid corner 0,0).
+pub fn sampleHeight(hm, x, z) {
+    let cs = hm["cellSize"]
+    let fx = x / cs
+    let fz = z / cs
+    let ix = floor(fx)
+    let iz = floor(fz)
+    let tx = fx - ix
+    let tz = fz - iz
+    let h00 = heightAt(hm, ix, iz)
+    let h10 = heightAt(hm, ix + 1, iz)
+    let h01 = heightAt(hm, ix, iz + 1)
+    let h11 = heightAt(hm, ix + 1, iz + 1)
+    let hx0 = h00 * (1.0 - tx) + h10 * tx
+    let hx1 = h01 * (1.0 - tx) + h11 * tx
+    return hx0 * (1.0 - tz) + hx1 * tz
+}
+
+pub fn heightmapBounds(hm) {
+    let w = hm["width"]
+    let d = hm["depth"]
+    let cs = hm["cellSize"]
+    let heights = hm["heights"]
+    let mn = heights[0]
+    let mx = heights[0]
+    let i = 1
+    while i < len(heights) {
+        if heights[i] < mn {
+            mn = heights[i]
+        }
+        if heights[i] > mx {
+            mx = heights[i]
+        }
+        i = i + 1
+    }
+    return {
+        "minx": 0.0,
+        "maxx": (w - 1) * cs,
+        "miny": mn,
+        "maxy": mx,
+        "minz": 0.0,
+        "maxz": (d - 1) * cs
+    }
+}
+
+/// Build mesh descriptor. lod=0 full grid; lod=1 stride 2; etc.
+pub fn buildTerrainMesh(hm, lod) {
+    if lod == null || lod == undefined || lod < 0 {
+        lod = 0
+    }
+    let stride = 1
+    let i = 0
+    while i < lod {
+        stride = stride * 2
+        i = i + 1
+    }
+    let w = hm["width"]
+    let d = hm["depth"]
+    let cs = hm["cellSize"]
+    let positions = []
+    let indices = []
+    let z = 0
+    while z < d {
+        let x = 0
+        while x < w {
+            let y = heightAt(hm, x, z)
+            positions = push(positions, { "x": x * cs, "y": y, "z": z * cs })
+            x = x + stride
+        }
+        z = z + stride
+    }
+    let cols = floor((w - 1) / stride) + 1
+    let rows = floor((d - 1) / stride) + 1
+    let rz = 0
+    while rz < rows - 1 {
+        let rx = 0
+        while rx < cols - 1 {
+            let i0 = rz * cols + rx
+            let i1 = i0 + 1
+            let i2 = i0 + cols
+            let i3 = i2 + 1
+            indices = push(indices, i0)
+            indices = push(indices, i2)
+            indices = push(indices, i1)
+            indices = push(indices, i1)
+            indices = push(indices, i2)
+            indices = push(indices, i3)
+            rx = rx + 1
+        }
+        rz = rz + 1
+    }
+    return {
+        "kind": "terrain_mesh",
+        "lod": lod,
+        "stride": stride,
+        "positions": positions,
+        "indices": indices
+    }
+}
+
+/// Chunk descriptor (streaming stub — returns mesh for full hm subset).
+pub fn terrainChunk(hm, cx, cz, chunkSize, lod) {
+    if chunkSize == null {
+        chunkSize = 8
+    }
+    return {
+        "kind": "terrain_chunk",
+        "cx": cx,
+        "cz": cz,
+        "chunkSize": chunkSize,
+        "lod": lod,
+        "mode": "subset_stub",
+        "mesh": buildTerrainMesh(hm, lod)
+    }
+}
+
+/// Splat paint stub (GP6d deferred).
+pub fn paintSplat(hm, x, z, channel, weight) {
+    return {
+        "ok": false,
+        "mode": "stub",
+        "hm": hm,
+        "x": x,
+        "z": z,
+        "channel": channel,
+        "weight": weight,
+        "reason": "splat/paint deferred"
+    }
+}
+
+/// Attach terrain node + mesh descriptor under scene root.
+pub fn attachTerrainToScene(root, hm, lod) {
+    let mesh = buildTerrainMesh(hm, lod)
+    let n = createNode("terrain")
+    n = setLocal(n, 0.0, 0.0, 0.0)
+    n = setLayer(n, 0)
+    n["terrain"] = {
+        "heightmap": hm,
+        "mesh": mesh,
+        "lod": lod
+    }
+    root = addChild(root, n)
+    return root
+}

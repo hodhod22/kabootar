@@ -126,3 +126,22 @@ fn editor_save_undo_multiselect_kos() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn terrain_heightmap_lod_scene() {
+    let v = eval(
+        r#"
+        import "game/terrain"
+        import "game/scene"
+        let hm = createHeightmap(4, 4, 1.0, null)
+        hm = setHeight(hm, 1, 1, 5.0)
+        let h = sampleHeight(hm, 1.0, 1.0)
+        let mesh = buildTerrainMesh(hm, 0)
+        let meshLod = buildTerrainMesh(hm, 1)
+        let root = attachTerrainToScene(createNode("world"), hm, 1)
+        let b = heightmapBounds(hm)
+        h == 5.0 && len(mesh["positions"]) == 16 && len(meshLod["positions"]) < len(mesh["positions"]) && root["children"][0]["name"] == "terrain" && b["maxy"] == 5.0
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

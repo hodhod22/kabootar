@@ -100,3 +100,26 @@ fn sim_hinge_slider_rk4() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn sim_soft_body_and_aba_lite() {
+    let v = eval(
+        r#"
+        import "sim"
+        import "sim/soft"
+        import "sim/robot"
+        let cloth = createCloth2x2("c", 1.0, 0.4)
+        let y0 = cloth["particles"][2]["y"]
+        cloth = stepSoftBodyN(cloth, 1.0 / 60.0, 40, -9.81)
+        let y1 = cloth["particles"][2]["y"]
+        let strain = cloth["springs"][0]["strain"]
+        let arm = createArm3(defaultArmParams())
+        let ab = createArticulatedBody(arm)
+        arm = abaApplyTorques(arm, [2.0, 0.0, 0.0])
+        arm = stepN(arm, 1.0 / 60.0, 40)
+        let qd = findJoint(arm, "j1")["qd"]
+        y1 < y0 && strain != null && ab["mode"] == "aba_diagonal_stub" && qd != 0.0
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
