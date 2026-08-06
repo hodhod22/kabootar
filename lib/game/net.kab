@@ -234,3 +234,153 @@ pub fn reconcile(predicted, authoritative, eps) {
         "error": err
     }
 }
+
+/// In-memory message relay (local transport).
+pub fn createRelay() {
+    return { "kind": "net_relay", "queue": [] }
+}
+
+pub fn createTransport(mode, endpoint) {
+    if mode == null || mode == undefined {
+        mode = "local"
+    }
+  return {
+        "kind": "net_transport",
+        "mode": mode,
+        "endpoint": endpoint,
+        "connected": false,
+        "outbox": [],
+        "inbox": []
+    }
+}
+
+pub fn transportConnect(transport) {
+    transport["connected"] = true
+    return transport
+}
+
+pub fn transportDisconnect(transport) {
+    transport["connected"] = false
+    return transport
+}
+
+pub fn transportPush(transport, payload) {
+    if transport["connected"] != true {
+        return transport
+    }
+    transport["outbox"] = push(transport["outbox"], payload)
+    return transport
+}
+
+pub fn transportDrain(transport) {
+    let out = transport["outbox"]
+    transport["outbox"] = []
+    return out
+}
+
+pub fn relayEnqueue(relay, payload) {
+    relay["queue"] = push(relay["queue"], payload)
+    return relay
+}
+
+pub fn relayPoll(relay) {
+    let q = relay["queue"]
+    relay["queue"] = []
+    return q
+}
+
+/// Push transport outbox into relay; pull relay into transport inbox.
+pub fn exchangeRelay(transport, relay) {
+    let out = transportDrain(transport)
+    let i = 0
+    while i < len(out) {
+        relay = relayEnqueue(relay, out[i])
+        i = i + 1
+    }
+    let msgs = relayPoll(relay)
+    i = 0
+    while i < len(msgs) {
+        transport["inbox"] = push(transport["inbox"], msgs[i])
+        i = i + 1
+    }
+    return { "transport": transport, "relay": relay }
+}
+
+pub fn transportReceive(transport) {
+    let inn = transport["inbox"]
+    transport["inbox"] = []
+    return inn
+}
+
+/// Push transport outbox into relay (one-way).
+pub fn relayForward(transport, relay) {
+    let out = transportDrain(transport)
+    let i = 0
+    while i < len(out) {
+        relay = relayEnqueue(relay, out[i])
+        i = i + 1
+    }
+    return { "transport": transport, "relay": relay }
+}
+
+/// Pull relay queue into transport inbox.
+pub fn relayDeliver(transport, relay) {
+    let msgs = relayPoll(relay)
+    let i = 0
+    while i < len(msgs) {
+        transport["inbox"] = push(transport["inbox"], msgs[i])
+        i = i + 1
+    }
+    return { "transport": transport, "relay": relay }
+}
+
+/// Drain session outbox through transport (+ optional relay hop).
+pub fn flushSessionTransport(session, transport, relay) {
+    let out = drainOutgoing(session)
+    let i = 0
+    while i < len(out) {
+        transport = transportPush(transport, out[i])
+        i = i + 1
+    }
+    if relay != null && relay != undefined {
+        let fwd = relayForward(transport, relay)
+        transport = fwd["transport"]
+        relay = fwd["relay"]
+    }
+    return { "session": session, "transport": transport, "relay": relay }
+}
+
+/// Pull transport inbox into session (optional relay deliver first).
+pub fn pullSessionTransport(session, transport, relay) {
+    if relay != null && relay != undefined {
+        let del = relayDeliver(transport, relay)
+        transport = del["transport"]
+        relay = del["relay"]
+    }
+    let msgs = transportReceive(transport)
+    let i = 0
+    while i < len(msgs) {
+        session = receiveRemote(session, msgs[i])
+        i = i + 1
+    }
+    return { "session": session, "transport": transport, "relay": relay }
+}
+
+/// Full sync: flush outbox, relay exchange, pull inbox, apply snapshots.
+pub fn syncTransport(session, world, transport, relay) {
+    let flushed = flushSessionTransport(session, transport, relay)
+    session = flushed["session"]
+    transport = flushed["transport"]
+    relay = flushed["relay"]
+    let pulled = pullSessionTransport(session, transport, relay)
+    session = pulled["session"]
+    transport = pulled["transport"]
+    relay = pulled["relay"]
+    let polled = pollRemote(session, world)
+    return {
+        "session": polled["session"],
+        "world": polled["world"],
+        "transport": transport,
+        "relay": relay
+    }
+}

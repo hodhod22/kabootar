@@ -203,3 +203,42 @@ fn game_i18n_stats_and_terrain_splat_stream() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn terrain_async_streaming_poll() {
+    let v = eval(
+        r#"
+        import "game/terrain"
+        let hm = createHeightmap(16, 16, 1.0, null)
+        let stream = createStreamingBounds(4, 1)
+        stream["loadsPerPoll"] = 2
+        stream = beginAsyncLoad(stream, hm, 4.0, 4.0, 1)
+        stream = pollStreamingLoads(stream, hm)
+        let d1 = describeStreaming(stream)
+        stream = pollStreamingLoads(stream, hm)
+        let d2 = describeStreaming(stream)
+        d1["async"] == true && d1["resident"] == 2 && d1["pending"] == 7 && d2["resident"] > d1["resident"]
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn gpu_shadow_and_xr_descriptors() {
+    let v = eval(
+        r#"
+        import "game/light"
+        import "game/terrain"
+        import "game/xr"
+        let hm = createHeightmap(4, 4, 1.0, null)
+        let mesh = buildTerrainMesh(hm, 0)
+        let lit = enableSoftShadow(createDirectional({ "x": 0.0, "y": -1.0, "z": 0.0 }, [1.0, 1.0, 1.0], 1.0), 512, 1.2)
+        let gpu = renderGpuShadow(lit["shadow"], mesh)
+        let xr = xrBegin(createXrSession("vr"))
+        let eyes = stereoCameras({ "x": 0.0, "y": 1.6, "z": 0.0 }, 0.07)
+        let pres = xrPresentDescriptor(xr, 1920, 1080)
+        return (gpu["ok"] == true || gpu["gpu"]["available"] == false) && pres["kind"] == "xr_present" && eyes["ipd"] == 0.07 && xr["active"] == false
+        "#,
+    );
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

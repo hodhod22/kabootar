@@ -1,0 +1,99 @@
+@version "1.0.0"
+
+// GP6n — VR/AR session descriptors (host FFI deferred).
+// import "game/xr"
+
+pub fn xrInfo() {
+    let info = xr_host_info()
+    if info == null || info == undefined {
+        return { "available": false, "backend": "stub" }
+    }
+    return info
+}
+
+pub fn createXrSession(mode) {
+    if mode == null || mode == undefined {
+        mode = "vr"
+    }
+    let info = xrInfo()
+    return {
+        "kind": "xr_session",
+        "mode": mode,
+        "active": false,
+        "available": info["available"],
+        "backend": info["backend"],
+        "controllers": [],
+        "eyes": stereoCameras(null, 0.064)
+    }
+}
+
+pub fn xrBegin(session) {
+    if session["available"] != true {
+        return session
+    }
+    session["active"] = true
+    session["controllers"] = trackedControllers(session)
+    return session
+}
+
+pub fn xrEnd(session) {
+    session["active"] = false
+    return session
+}
+
+/// Tracked controller stubs (left/right).
+pub fn trackedControllers(session) {
+  return [
+        { "id": "left", "x": -0.3, "y": 1.2, "z": -0.5, "buttons": [] },
+        { "id": "right", "x": 0.3, "y": 1.2, "z": -0.5, "buttons": [] }
+    ]
+}
+
+/// Stereo eye cameras from head pose + IPD.
+pub fn stereoCameras(head, ipd) {
+    if head == null || head == undefined {
+        head = { "x": 0.0, "y": 1.6, "z": 0.0, "yaw": 0.0 }
+    }
+    if ipd == null || ipd == undefined {
+        ipd = 0.064
+    }
+    let hx = head["x"]
+    let hy = head["y"]
+    let hz = head["z"]
+    let half = ipd * 0.5
+    return {
+        "left": { "x": hx - half, "y": hy, "z": hz, "eye": "left" },
+        "right": { "x": hx + half, "y": hy, "z": hz, "eye": "right" },
+        "ipd": ipd
+    }
+}
+
+pub fn xrPresentDescriptor(session, width, height) {
+    if width == null || width == undefined {
+        width = 1280
+    }
+    if height == null || height == undefined {
+        height = 720
+    }
+    return {
+        "kind": "xr_present",
+        "mode": session["mode"],
+        "active": session["active"],
+        "width": width,
+        "height": height,
+        "eyes": session["eyes"],
+        "controllers": session["controllers"],
+        "backend": session["backend"]
+    }
+}
+
+pub fn describeXr(session) {
+    return {
+        "mode": session["mode"],
+        "active": session["active"],
+        "available": session["available"],
+        "backend": session["backend"],
+        "controllerCount": len(session["controllers"]),
+        "ipd": session["eyes"]["ipd"]
+    }
+}
