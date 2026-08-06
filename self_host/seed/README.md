@@ -15,7 +15,9 @@ Gates:
 - `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
 
 **Do not empty** `SELF_HOST_SKIP_LISTED_LEAVES` until every leaf self-host-compiles in
-`P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Gate: `p6_skip_list_stays_until_ci_fast_gate`.
+`P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Gates:
+`p6_skip_list_stays_until_ci_fast_gate` (always),
+`p6_leaf_self_host_compile_budget` (ignored timing probe — run with `--ignored`).
 Emit/parser shards are still >64KB and CI-slow — seeds remain required.
 
 ## Seeds

@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// GP6n — VR/AR session descriptors (host FFI deferred).
+// GP6n — VR/AR session + OpenXR/WebXR-style runtime swapchain.
 // import "game/xr"
 
 pub fn xrInfo() {
@@ -23,7 +23,8 @@ pub fn createXrSession(mode) {
         "available": info["available"],
         "backend": info["backend"],
         "controllers": [],
-        "eyes": stereoCameras(null, 0.064)
+        "eyes": stereoCameras(null, 0.064),
+        "swapchains": []
     }
 }
 
@@ -43,7 +44,7 @@ pub fn xrEnd(session) {
 
 /// Tracked controller stubs (left/right).
 pub fn trackedControllers(session) {
-  return [
+    return [
         { "id": "left", "x": -0.3, "y": 1.2, "z": -0.5, "buttons": [] },
         { "id": "right", "x": 0.3, "y": 1.2, "z": -0.5, "buttons": [] }
     ]
@@ -107,6 +108,50 @@ pub fn describeSwapchains(present) {
     return { "count": len(chains), "pixelBytes": px, "backend": present["backend"] }
 }
 
+/// Create stereo runtime swapchains (OpenXR-style image pool).
+pub fn createStereoSwapchains(session, width, height) {
+    if width == null || width == undefined {
+        width = 1280
+    }
+    if height == null || height == undefined {
+        height = 720
+    }
+    let left = xr_create_swapchain({ "eye": "left", "width": width, "height": height, "imageCount": 3 })
+    let right = xr_create_swapchain({ "eye": "right", "width": width, "height": height, "imageCount": 3 })
+    session["swapchains"] = [left, right]
+    return session
+}
+
+/// One runtime frame: wait → acquire → (optional GPU present) → release → endFrame.
+pub fn xrRuntimeFrame(session, width, height) {
+    if session["swapchains"] == null || len(session["swapchains"]) < 2 {
+        session = createStereoSwapchains(session, width, height)
+    }
+    let frame = xr_wait_frame()
+    let left = session["swapchains"][0]
+    let right = session["swapchains"][1]
+    let imgL = xr_acquire_swapchain_image(left)
+    let imgR = xr_acquire_swapchain_image(right)
+    let present = null
+    if session["active"] == true {
+        present = xr_host_present(xrPresentDescriptor(session, width, height))
+    }
+    xr_release_swapchain_image(imgL)
+    xr_release_swapchain_image(imgR)
+    let ended = xr_end_frame([
+        { "eye": "left", "imageIndex": imgL["imageIndex"] },
+        { "eye": "right", "imageIndex": imgR["imageIndex"] }
+    ])
+    session["lastFrame"] = {
+        "frame": frame,
+        "left": imgL,
+        "right": imgR,
+        "present": present,
+        "ended": ended
+    }
+    return { "session": session, "frame": frame, "ended": ended, "present": present }
+}
+
 pub fn describeXr(session) {
     return {
         "mode": session["mode"],
@@ -114,6 +159,7 @@ pub fn describeXr(session) {
         "available": session["available"],
         "backend": session["backend"],
         "controllerCount": len(session["controllers"]),
-        "ipd": session["eyes"]["ipd"]
+        "ipd": session["eyes"]["ipd"],
+        "swapchainCount": len(session["swapchains"])
     }
 }

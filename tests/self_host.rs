@@ -2191,6 +2191,45 @@ fn p6_skip_list_stays_until_ci_fast_gate() {
     assert!(err.contains("skipped"), "emit_impl should stay skipped: {err}");
 }
 
+/// P6: time self-host compile of each skip-listed leaf source (ignored — can be minutes/hours).
+/// Empty skip-list only when every leaf finishes under `P6_SELF_HOST_LEAF_CI_FAST_MS`.
+#[test]
+#[ignore = "slow: self-host compile of skip-listed leaves; run to decide empty skip-list"]
+fn p6_leaf_self_host_compile_budget() {
+    use kabootar_lib::compile::{
+        compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
+    };
+    use std::time::Instant;
+
+    let root = env!("CARGO_MANIFEST_DIR");
+    let mut all_fast = true;
+    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+        let path = format!("{root}/{rel}");
+        let src = std::fs::read_to_string(&path).expect("read leaf");
+        let name = rel.to_string();
+        let src2 = src.clone();
+        let (ok, ms) = std::thread::Builder::new()
+            .name("p6-leaf".into())
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let t0 = Instant::now();
+                let r = compile_source_self_host(&src2);
+                (r.is_ok(), t0.elapsed().as_millis() as u64)
+            })
+            .expect("spawn")
+            .join()
+            .expect("join");
+        eprintln!("{name}: ok={ok} ms={ms} budget={}", P6_SELF_HOST_LEAF_CI_FAST_MS);
+        if !ok || ms > P6_SELF_HOST_LEAF_CI_FAST_MS {
+            all_fast = false;
+        }
+    }
+    assert!(
+        !all_fast,
+        "all leaves are CI-fast — empty SELF_HOST_SKIP_LISTED_LEAVES and flip seed-only policy"
+    );
+}
+
 /// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
 #[test]
 fn h6e_skip_listed_kab_only_no_seed_fails() {
