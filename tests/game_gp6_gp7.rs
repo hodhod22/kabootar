@@ -242,3 +242,34 @@ fn gpu_shadow_and_xr_descriptors() {
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn shadow_lit_pipeline_and_xr_present() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/light"
+        import "game/terrain"
+        import "game/xr"
+        let lights = createLightList()
+        let lit = enableSoftShadow(createDirectional({ "x": 0.0, "y": -1.0, "z": 0.0 }, [1.0, 1.0, 1.0], 1.0), 512, 1.2)
+        lights = addLight(lights, lit)
+        let normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+        let litPt = { "x": 0.0, "y": 1.0, "z": 0.0 }
+        let shadowPt = { "x": 4.0, "y": 0.0, "z": 0.0 }
+        let cLit = directionalLit(lit, normal, litPt)
+        let cSh = directionalLit(lit, normal, shadowPt)
+        let surf = litSurface(lights, normal, shadowPt)
+        let xr = xrBegin(createXrSession("vr"))
+        let pres = xrPresent(xr, 1920, 1080)
+        return cLit["shadow"] > cSh["shadow"] && surf["r"] > 0.0 && pres["present"]["presented"] == true && xr["active"] == true
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

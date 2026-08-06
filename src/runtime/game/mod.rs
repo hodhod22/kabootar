@@ -9,6 +9,7 @@ mod surface;
 
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 pub use frame::{has_pending_frames, tick as tick_frame};
 pub use input::{is_down, key_down, key_up, pointer_down, pointer_move, pointer_up};
@@ -454,13 +455,173 @@ fn game_gpu_shadow_render_native(args: &[Value], _env: &mut Environment) -> Resu
     Ok(Value::Object(out))
 }
 
-/// GP6n — XR host capability probe (OpenXR/WebXR deferred).
-fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+/// GP6g — sample shadow visibility (0..1) for lit pipeline.
+fn game_gpu_shadow_sample_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let desc = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("game_gpu_shadow_sample(descriptor)".into()),
+    };
+    let u = f64_from(desc.get("u").unwrap_or(&Value::Null), 0.5).clamp(0.0, 1.0);
+    let v = f64_from(desc.get("v").unwrap_or(&Value::Null), 0.5).clamp(0.0, 1.0);
+    let py = match desc.get("point") {
+        Some(Value::Object(pm)) => f64_from(pm.get("y").unwrap_or(&Value::Null), 0.0),
+        _ => 0.0,
+    };
+    let soft = match desc.get("shadow") {
+        Some(Value::Object(sm)) => matches!(sm.get("soft"), Some(Value::Bool(true))),
+        _ => false,
+    };
+    let radius = match desc.get("shadow") {
+        Some(Value::Object(sm)) => {
+            f64_from(sm.get("radius").unwrap_or(&Value::Null), 1.5) as f32
+        }
+        _ => 1.5,
+    };
+    let bias = match desc.get("shadow") {
+        Some(Value::Object(sm)) => {
+            f64_from(sm.get("bias").unwrap_or(&Value::Null), 0.005) as f32
+        }
+        _ => 0.005,
+    };
+
+    let du = (u - 0.5) as f32;
+    let dv = (v - 0.5) as f32;
+    let dist = (du * du + dv * dv).sqrt();
+    let mut factor = if py > 0.55 - bias as f64 {
+        1.0
+    } else if dist > 0.35 {
+        0.25
+    } else {
+        1.0
+    };
+    if soft {
+        let t = (dist / (0.35 + radius * 0.08)).clamp(0.0, 1.0);
+        factor = factor + (1.0 - factor) * t as f64;
+    }
+
     let mut out = HashMap::new();
-    out.insert("available".into(), Value::Bool(false));
-    out.insert("backend".into(), Value::String("descriptor".into()));
-    out.insert("openxr".into(), Value::Bool(false));
-    out.insert("webxr".into(), Value::Bool(false));
+    out.insert("kind".into(), Value::String("shadow-sample".into()));
+    out.insert("factor".into(), Value::Float(factor));
+    out.insert("u".into(), Value::Float(u));
+    out.insert("v".into(), Value::Float(v));
+    Ok(Value::Object(out))
+}
+
+static NET_HTTP_HUB: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn net_http_hub_reset_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    if let Ok(mut q) = NET_HTTP_HUB.lock() {
+        q.clear();
+    }
+    Ok(Value::Null)
+}
+
+fn net_http_hub_push_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let body = match args.first() {
+        Some(Value::String(s)) => s.clone(),
+        Some(other) => crate::value::format_value(other),
+        None => String::new(),
+    };
+    if !body.is_empty() {
+        if let Ok(mut q) = NET_HTTP_HUB.lock() {
+            q.push(body);
+        }
+    }
+    Ok(Value::Null)
+}
+
+fn net_http_hub_poll_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let max = match args.first() {
+        Some(Value::Number(n)) if *n > 0 => *n as usize,
+        _ => 1,
+    };
+    let mut out = Vec::new();
+    if let Ok(mut q) = NET_HTTP_HUB.lock() {
+        while out.len() < max && !q.is_empty() {
+            out.push(Value::String(q.remove(0)));
+        }
+    }
+    Ok(Value::Array(out))
+}
+
+fn xr_stub_enabled() -> bool {
+    std::env::var("KABOOTAR_XR_STUB")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+}
+
+/// GP6n — XR host capability probe (OpenXR/WebXR subset).
+fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let stub = xr_stub_enabled();
+    let webxr = stub && cfg!(target_arch = "wasm32");
+    let openxr = stub && !cfg!(target_arch = "wasm32");
+    let available = stub;
+    let backend = if stub {
+        "xr-stub"
+    } else if cfg!(target_arch = "wasm32") {
+        "webxr-descriptor"
+    } else {
+        "openxr-descriptor"
+    };
+    let mut out = HashMap::new();
+    out.insert("available".into(), Value::Bool(available));
+    out.insert("backend".into(), Value::String(backend.into()));
+    out.insert("openxr".into(), Value::Bool(openxr));
+    out.insert("webxr".into(), Value::Bool(webxr));
+    Ok(Value::Object(out))
+}
+
+/// GP6n — XR present (stereo framebuffer descriptor + optional GPU probe).
+fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let desc = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("xr_host_present(descriptor)".into()),
+    };
+    let width = f64_from(desc.get("width").unwrap_or(&Value::Null), 1280.0)
+        .clamp(320.0, 4096.0) as u32;
+    let height = f64_from(desc.get("height").unwrap_or(&Value::Null), 720.0)
+        .clamp(240.0, 4096.0) as u32;
+    let mode = match desc.get("mode") {
+        Some(Value::String(s)) => s.clone(),
+        _ => "vr".into(),
+    };
+    let stub = xr_stub_enabled();
+    let gpu = crate::runtime::render::gpu3d::gpu3d_available();
+    let presented = stub || gpu;
+
+    let mut eyes = Vec::new();
+    if let Some(Value::Object(em)) = desc.get("eyes") {
+        if let Some(Value::Object(left)) = em.get("left") {
+            eyes.push(Value::String("left".into()));
+            let _ = left;
+        }
+        if let Some(Value::Object(_right)) = em.get("right") {
+            eyes.push(Value::String("right".into()));
+        }
+    }
+    if eyes.is_empty() {
+        eyes.push(Value::String("left".into()));
+        eyes.push(Value::String("right".into()));
+    }
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_present_host".into()));
+    out.insert("presented".into(), Value::Bool(presented));
+    out.insert("mode".into(), Value::String(mode));
+    out.insert("width".into(), Value::Number(width as i64));
+    out.insert("height".into(), Value::Number(height as i64));
+    out.insert("eyeCount".into(), Value::Number(eyes.len() as i64));
+    out.insert("eyes".into(), Value::Array(eyes));
+    out.insert(
+        "backend".into(),
+        Value::String(if stub {
+            "xr-stub".into()
+        } else if gpu {
+            crate::runtime::render::gpu3d::info_line().into()
+        } else {
+            "descriptor".into()
+        }),
+    );
     Ok(Value::Object(out))
 }
 
@@ -484,7 +645,12 @@ pub fn game_globals(env: &mut Environment) {
         ("game_info", game_info_native),
         ("editor_scene_gpu_viewport", editor_scene_gpu_viewport_native),
         ("game_gpu_shadow_render", game_gpu_shadow_render_native),
+        ("game_gpu_shadow_sample", game_gpu_shadow_sample_native),
+        ("net_http_hub_reset", net_http_hub_reset_native),
+        ("net_http_hub_push", net_http_hub_push_native),
+        ("net_http_hub_poll", net_http_hub_poll_native),
         ("xr_host_info", xr_host_info_native),
+        ("xr_host_present", xr_host_present_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
@@ -511,4 +677,7 @@ pub fn reset_all() {
     frame::reset_for_tests();
     input::reset_for_tests();
     hot_reload::reset_for_tests();
+    if let Ok(mut q) = NET_HTTP_HUB.lock() {
+        q.clear();
+    }
 }

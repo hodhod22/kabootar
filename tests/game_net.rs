@@ -105,3 +105,36 @@ fn net_transport_relay_roundtrip() {
     .expect("eval");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn net_http_transport_roundtrip() {
+    test_runtime_env();
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/net"
+        import "game/ecs"
+        let hub = registerHttpHub(createHttpHub())
+        let hostT = createHttpTransport(hub)
+        let peerT = createHttpTransport(hub)
+        let hostS = createSession("local")
+        let peerS = createSession("local")
+        let w = createWorld()
+        let id = spawn(w)
+        w = add(w, id, "pos", { x: 7, y: 2 })
+        hostS = sendTick(hostS, w)
+        let flushed = flushSessionHttp(hostS, hostT)
+        hostS = flushed["session"]
+        let pulled = pullSessionHttp(peerS, peerT)
+        peerS = pulled["session"]
+        let empty = createWorld()
+        let applied = pollRemote(peerS, empty)
+        let got = get(applied["world"], id, "pos")
+        got["x"] == 7 && got["y"] == 2
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
