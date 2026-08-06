@@ -1,0 +1,110 @@
+@version "1.0.0"
+
+// app/ship — app bundle manifest for desktop/PWA/store stubs.
+
+/// Create a ship manifest (product metadata).
+pub fn createManifest(opts) {
+    let id = "app"
+    let name = "Kabootar App"
+    let version = "1.0.0"
+    let entry = "main.kab"
+    let targets = ["desktop", "pwa"]
+    if opts != null && opts != undefined {
+        if opts["id"] != null && opts["id"] != undefined {
+            id = opts["id"]
+        }
+        if opts["name"] != null && opts["name"] != undefined {
+            name = opts["name"]
+        }
+        if opts["version"] != null && opts["version"] != undefined {
+            version = opts["version"]
+        }
+        if opts["entry"] != null && opts["entry"] != undefined {
+            entry = opts["entry"]
+        }
+        if opts["targets"] != null && opts["targets"] != undefined {
+            targets = opts["targets"]
+        }
+    }
+    return {
+        "kind": "app_manifest",
+        "id": id,
+        "name": name,
+        "version": version,
+        "entry": entry,
+        "targets": targets,
+        "permissions": [],
+        "mode": "stub"
+    }
+}
+
+pub fn addPermission(manifest, perm) {
+    let perms = manifest["permissions"]
+    if perms == null || perms == undefined {
+        perms = []
+    }
+    perms = push(perms, perm)
+    manifest["permissions"] = perms
+    return manifest
+}
+
+/// Validate manifest has required fields.
+pub fn validate(manifest) {
+    let errors = []
+    if manifest["id"] == null || manifest["id"] == "" {
+        errors = push(errors, "id required")
+    }
+    if manifest["entry"] == null || manifest["entry"] == "" {
+        errors = push(errors, "entry required")
+    }
+    if manifest["version"] == null {
+        errors = push(errors, "version required")
+    }
+    return {
+        "ok": len(errors) == 0,
+        "errors": errors
+    }
+}
+
+/// Build a ship plan (what would be packaged). Store APK/IPA deferred.
+pub fn plan(manifest) {
+    let targets = manifest["targets"]
+    if targets == null {
+        targets = ["desktop"]
+    }
+    let steps = []
+    let i = 0
+    while i < len(targets) {
+        let t = targets[i]
+        if t == "desktop" {
+            steps = push(steps, { "target": "desktop", "action": "bundle-kbc", "mode": "ready" })
+        } else {
+            if t == "pwa" {
+                steps = push(steps, { "target": "pwa", "action": "pwa-manifest", "mode": "ready" })
+            } else {
+                steps = push(steps, {
+                    "target": t,
+                    "action": "store-wrapper",
+                    "mode": "stub",
+                    "reason": "APK/IPA/MSI pipeline deferred"
+                })
+            }
+        }
+        i = i + 1
+    }
+    return {
+        "kind": "ship_plan",
+        "manifest": manifest,
+        "steps": steps,
+        "ok": true
+    }
+}
+
+/// Write manifest JSON to path (VFS/host).
+pub fn writeManifest(path, manifest) {
+    return os_write(path, json_stringify(manifest))
+}
+
+pub fn readManifest(path) {
+    return json_parse(os_read(path))
+}

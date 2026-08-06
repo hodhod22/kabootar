@@ -21,8 +21,27 @@ pub fn getCurrentPosition(geo) {
             "accuracy": geo["accuracy"]
         },
         "mode": geo["mode"],
-        "timestamp": 0
+        "timestamp": 0,
+        "bridge": "geolocation"
     }
+}
+
+/// Start watching position (host Geolocation.watchPosition deferred).
+pub fn watchPosition(geo) {
+    geo["watching"] = true
+    return {
+        "geo": geo,
+        "ok": true,
+        "mode": "stub",
+        "bridge": "geolocation",
+        "watchId": 1,
+        "reason": "host Geolocation.watchPosition deferred"
+    }
+}
+
+pub fn clearWatch(geo) {
+    geo["watching"] = false
+    return { "geo": geo, "ok": true, "mode": "stub", "bridge": "geolocation" }
 }
 
 pub fn createCamera() {
@@ -34,10 +53,25 @@ pub fn createCamera() {
     }
 }
 
+pub fn openCamera(camera, facing) {
+    if facing != null && facing != undefined {
+        camera["facing"] = facing
+    }
+    camera["active"] = true
+    return {
+        "camera": camera,
+        "ok": true,
+        "mode": "stub",
+        "bridge": "camera",
+        "reason": "host MediaStream / CameraX deferred"
+    }
+}
+
 pub fn takePhoto(camera) {
     return {
         "ok": true,
         "mode": "stub",
+        "bridge": "camera",
         "facing": camera["facing"],
         "mime": "image/jpeg",
         "bytes": 0,

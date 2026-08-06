@@ -18,4 +18,5 @@ pub import "science/prob"
 pub import "science/preprocess"
 pub import "science/metrics"
 pub import "science/stats"
+pub import "science/linalg"
 // science/nd_gpu — explicit import (would shadow nd.from/matmul/zeros)

@@ -26,8 +26,11 @@ pub fn groupby(df, key, agg, how) {
     return df_groupby(df, key, agg, how)
 }
 
-pub fn join(left, right, onCol) {
-    return df_join(left, right, onCol)
+pub fn join(left, right, onCol, how) {
+    if how == null || how == undefined {
+        how = "inner"
+    }
+    return df_join(left, right, onCol, how)
 }
 
 pub fn nrows(df) {
@@ -40,6 +43,101 @@ pub fn head(df, n) {
 
 pub fn columns(df) {
     return df["names"]
+}
+
+fn inferCellType(v) {
+    if v == null {
+        return "null"
+    }
+    let t = typeof(v)
+    if t == "number" || t == "float" {
+        return "float"
+    }
+    if t == "boolean" || t == "bool" {
+        return "bool"
+    }
+    if t == "string" {
+        return "string"
+    }
+    return "object"
+}
+
+/// Infer column dtypes from first non-null cells. Returns `{ col: dtype }`.
+pub fn dtypes(df) {
+    let names = df["names"]
+    let cols = df["columns"]
+    let n = df["nrows"]
+    let out = {}
+    let j = 0
+    while j < len(names) {
+        let name = names[j]
+        let series = cols[name]
+        let t = "null"
+        let i = 0
+        while i < n {
+            if series[i] != null {
+                t = inferCellType(series[i])
+                i = n
+            }
+            i = i + 1
+        }
+        out[name] = t
+        j = j + 1
+    }
+    return out
+}
+
+/// Attach typed column metadata (`df.schema`) without changing values.
+pub fn withSchema(df, schema) {
+    if schema == null || schema == undefined {
+        schema = dtypes(df)
+    }
+    df["schema"] = schema
+    return df
+}
+
+/// Cast a column to float|string|bool (best-effort). Returns new DataFrame.
+pub fn cast(df, col, dtype) {
+    let names = df["names"]
+    let cols = df["columns"]
+    let n = df["nrows"]
+    let series = cols[col]
+    let next = []
+    let i = 0
+    while i < n {
+        let v = series[i]
+        if dtype == "float" {
+            if v == null {
+                next = push(next, null)
+            } else {
+                next = push(next, 0.0 + v)
+            }
+        } else {
+            if dtype == "string" {
+                if v == null {
+                    next = push(next, null)
+                } else {
+                    next = push(next, "" + v)
+                }
+            } else {
+                if dtype == "bool" {
+                    next = push(next, v == true || v == 1 || v == 1.0)
+                } else {
+                    next = push(next, v)
+                }
+            }
+        }
+        i = i + 1
+    }
+    cols[col] = next
+    df["columns"] = cols
+    let schema = df["schema"]
+    if schema == null || schema == undefined {
+        schema = dtypes(df)
+    }
+    schema[col] = dtype
+    df["schema"] = schema
+    return df
 }
 
 /// Convert DataFrame → array of row objects.

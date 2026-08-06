@@ -1,0 +1,65 @@
+@version "1.0.0"
+
+// iot/twin — bridge IoT sensors ↔ sim world (digital twin pipeline).
+
+import "iot/mqtt"
+import "iot/sensors"
+import "sim"
+
+/// Publish sim encoder/IMU samples onto an MQTT memory broker.
+pub fn publishSimSensors(broker, world, prefix) {
+    if prefix == null || prefix == undefined {
+        prefix = "twin/sensors"
+    }
+    let enc = readEncoders(world)
+    let imu = readImu(world)
+    broker = publish(broker, prefix + "/encoders", enc)
+    broker = publish(broker, prefix + "/imu", imu)
+    return broker
+}
+
+/// Sample IoT sensors and publish to broker under iot topics.
+pub fn publishEdgeSensors(broker, temp, hum, accel) {
+    if temp != null && temp != undefined {
+        let ts = sample(temp, 0.1)
+        temp = ts["sensor"]
+        broker = publish(broker, topicFor(temp), ts["reading"])
+    }
+    if hum != null && hum != undefined {
+        let hs = sample(hum, 0.1)
+        hum = hs["sensor"]
+        broker = publish(broker, topicFor(hum), hs["reading"])
+    }
+    if accel != null && accel != undefined {
+        let accSample = sample(accel, 0.1)
+        accel = accSample["sensor"]
+        broker = publish(broker, topicFor(accel), accSample["reading"])
+    }
+    return {
+        "broker": broker,
+        "temp": temp,
+        "hum": hum,
+        "accel": accel
+    }
+}
+
+/// Apply twin lesson params from MQTT-shaped payload onto sim world.
+pub fn applyTwinParams(world, payload) {
+    if payload == null || payload == undefined {
+        return world
+    }
+    let live = {}
+    if payload["kp"] != null {
+        live["kp"] = payload["kp"]
+    }
+    if payload["kd"] != null {
+        live["kd"] = payload["kd"]
+    }
+    if payload["solver"] != null {
+        live["solver"] = payload["solver"]
+    }
+    if len(object_keys(live)) == 0 {
+        return world
+    }
+    return applyLiveParams(world, live)
+}

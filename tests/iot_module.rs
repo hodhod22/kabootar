@@ -23,6 +23,8 @@ fn iot_mqtt_sensors_stubs() {
     let v = eval(
         r#"
         import "iot"
+        import "sim"
+        import "sim/robot"
         let bus = createBroker()
         let linked = connect(bus, "c1")
         bus = linked["broker"]
@@ -36,7 +38,14 @@ fn iot_mqtt_sensors_stubs() {
         let putRes = put(ep, "/x", 1)
         let ble = bleScan(createBleAdapter(), 100)
         let tcp = connectTcp("127.0.0.1", 1883)
-        len(msgs) == 1 && msgs[0]["payload"]["type"] == "temperature" && putRes["ok"] && ble["mode"] == "stub" && tcp["transport"] == "stub"
+        let armBus = createBroker()
+        let arm = createArm3(defaultArmParams())
+        let twinPoll = connect(armBus, "t1")
+        armBus = twinPoll["broker"]
+        armBus = subscribe(armBus, "t1", "twin/t/#")
+        armBus = publishSimSensors(armBus, arm, "twin/t")
+        let tp = poll(armBus, "t1")
+        len(msgs) == 1 && msgs[0]["payload"]["type"] == "temperature" && putRes["ok"] && ble["mode"] == "stub" && (tcp["transport"] == "stub" || tcp["transport"] == "tcp") && len(tp["messages"]) >= 1
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");

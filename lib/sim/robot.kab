@@ -56,6 +56,54 @@ pub fn endEffector(world) {
     return findBody(world, "link3")
 }
 
+/// Analytic IK stub for planar 2-link reach (j1,j2); j3 held near 0.
+/// Returns { ok, q1, q2, q3, reach } — not a full multibody ABA solver.
+pub fn inverseKinematics(world, x, y, z) {
+    if z == null || z == undefined {
+        z = 0.0
+    }
+    let p = world["params"]
+    let L1 = p["L1"]
+    let L2 = p["L2"]
+    if L1 == null || L1 == undefined {
+        L1 = 1.0
+    }
+    if L2 == null || L2 == undefined {
+        L2 = 0.8
+    }
+    let r = sqrt(x * x + y * y)
+    let reach = L1 + L2
+    let c2 = (r * r - L1 * L1 - L2 * L2) / (2.0 * L1 * L2)
+    if c2 > 1.0 {
+        c2 = 1.0
+    }
+    if c2 < -1.0 {
+        c2 = -1.0
+    }
+    let q2 = acos(c2)
+    let q1 = atan2(y, x) - atan2(L2 * sin(q2), L1 + L2 * cos(q2))
+    let ok = r <= reach + 0.001
+    return {
+        "ok": ok,
+        "q1": q1,
+        "q2": q2,
+        "q3": 0.0,
+        "reach": reach,
+        "r": r,
+        "mode": "analytic_planar_stub"
+    }
+}
+
+/// Solve IK and set arm targets (ignores z for planar stub).
+pub fn moveArmTo(world, x, y, z) {
+    let ik = inverseKinematics(world, x, y, z)
+    if ik["ok"] {
+        world = setArmTargets(world, ik["q1"], ik["q2"], ik["q3"])
+    }
+    world["ik"] = ik
+    return world
+}
+
 /// Twin lesson after a motion (Learn surface).
 pub fn buildTwinLesson(world) {
     let enc = readEncoders(world)

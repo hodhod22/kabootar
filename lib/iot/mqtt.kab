@@ -47,23 +47,42 @@ pub fn connect(broker, clientId) {
     }
 }
 
-/// Stub TCP MQTT connect (real broker deferred). Does not open sockets.
+/// TCP MQTT 3.1.1 connect (QoS 0). Falls back to stub object if broker unreachable.
 pub fn connectTcp(host, port, clientId) {
-    if port == null {
+    if port == null || port == undefined {
         port = 1883
     }
-    if clientId == null {
+    if clientId == null || clientId == undefined {
         clientId = "kab-tcp"
     }
-    return {
-        "kind": "mqtt_client",
-        "id": clientId,
-        "transport": "stub",
-        "connected": false,
-        "host": host,
-        "port": port,
-        "reason": "tcp mqtt deferred — use createBroker()/connect for MVP"
+    if host == null || host == undefined {
+        host = "127.0.0.1"
     }
+    return mqtt_try_connect(host, port, clientId)
+}
+
+/// Publish on a TCP MQTT client handle from connectTcp (no-op if stub).
+pub fn publishTcp(client, topic, payload) {
+    if client == null || client["connected"] != true || client["transport"] != "tcp" {
+        return false
+    }
+    return mqtt_tcp_publish(client, topic, payload)
+}
+
+/// Subscribe on a TCP MQTT client handle.
+pub fn subscribeTcp(client, topic) {
+    if client == null || client["connected"] != true || client["transport"] != "tcp" {
+        return false
+    }
+    return mqtt_tcp_subscribe(client, topic)
+}
+
+/// Disconnect TCP MQTT client.
+pub fn disconnectTcp(client) {
+    if client == null || client["transport"] != "tcp" {
+        return false
+    }
+    return mqtt_tcp_disconnect(client)
 }
 
 fn topicMatch(filter, topic) {

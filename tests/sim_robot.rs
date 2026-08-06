@@ -41,7 +41,9 @@ fn sim_arm3_fk_sensors_twin() {
         let ed = createEditor(root)
         ed = refresh(ed)
         let lesson = buildTwinLesson(arm)
-        moved && len(enc) == 3 && imu["kind"] == "imu" && len(ed["hierarchy"]) >= 4 && lesson["dof"] == 3
+        let ik = inverseKinematics(arm, 1.2, 0.5, 0.0)
+        let w2c = resolveGroundContact(arm, 0.0)
+        moved && len(enc) == 3 && imu["kind"] == "imu" && len(ed["hierarchy"]) >= 4 && lesson["dof"] == 3 && ik["ok"] == true && w2c["contacts"]["kind"] == "ground"
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");

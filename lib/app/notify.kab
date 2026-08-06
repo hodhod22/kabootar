@@ -1,0 +1,69 @@
+@version "1.0.0"
+
+// app/notify — local + push notification stubs (host FCM/APNs deferred).
+
+/// Request notification permission (stub always grants in lab).
+pub fn requestPermission() {
+    return {
+        "ok": true,
+        "permission": "granted",
+        "mode": "stub"
+    }
+}
+
+/// Show a local notification.
+pub fn show(title, body, opts) {
+    if title == null || title == undefined {
+        title = "Kabootar"
+    }
+    if body == null || body == undefined {
+        body = ""
+    }
+    let tag = null
+    if opts != null && opts != undefined {
+        if opts["tag"] != null {
+            tag = opts["tag"]
+        }
+    }
+    return {
+        "ok": true,
+        "mode": "stub",
+        "kind": "local",
+        "title": title,
+        "body": body,
+        "tag": tag,
+        "reason": "host Notification / FCM / APNs deferred"
+    }
+}
+
+/// Schedule a local notification after delayMs.
+pub fn schedule(title, body, delayMs) {
+    if delayMs == null || delayMs == undefined {
+        delayMs = 0
+    }
+    return {
+        "ok": true,
+        "mode": "stub",
+        "kind": "scheduled",
+        "title": title,
+        "body": body,
+        "delayMs": delayMs
+    }
+}
+
+/// Register for remote push (stub token).
+pub fn registerPush(appId) {
+    if appId == null || appId == undefined {
+        appId = "kab-app"
+    }
+    return {
+        "ok": true,
+        "mode": "stub",
+        "token": "kab-push-stub-" + appId,
+        "provider": "stub"
+    }
+}
+
+pub fn clear(tag) {
+    return { "ok": true, "mode": "stub", "tag": tag }
+}

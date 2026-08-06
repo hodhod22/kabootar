@@ -1634,6 +1634,16 @@ pub fn register_deno(env: &mut Environment) {
         env.set(name.to_string(), Value::NativeFunction(*func));
     }
     crate::runtime::stdlib::deno_wave_b::register_wave_b(env);
+    {
+        let mut bind =
+            |names: &[&str],
+             f: fn(&[Value], &mut Environment) -> Result<Value, String>| {
+                for n in names {
+                    env.set((*n).into(), Value::NativeFunction(f));
+                }
+            };
+        crate::runtime::mqtt_client::register(&mut bind);
+    }
 }
 
 #[cfg(test)]
