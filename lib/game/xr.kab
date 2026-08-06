@@ -314,6 +314,19 @@ pub fn xrResolveSessionRaf(session, mode) {
     return polled
 }
 
+/// Async await on browser-style XRSession Promise (then bind rAF).
+pub async fn xrAwaitSessionRaf(session, mode) {
+    if mode == null || mode == undefined {
+        mode = "immersive-vr"
+    }
+    session = xrRequestSessionAsync(session, mode)
+    // Yield like a browser Promise microtask before resolution.
+    await promise_resolve(true)
+    let polled = xrPollSessionPromise(session)
+    polled["awaited"] = true
+    return polled
+}
+
 /// Spawn vendor OpenXR compositor process (drains IPC like a separate compositor).
 pub fn xrStartCompositorProcess(session) {
     if session["compositor"] == null || session["compositor"] == undefined {

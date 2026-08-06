@@ -98,8 +98,10 @@ struct OpenXrLoaderFns {
     create_session: usize,
     destroy_instance: usize,
     destroy_session: usize,
+    get_system: usize,
     create_instance_resolved: bool,
     create_session_resolved: bool,
+    get_system_resolved: bool,
 }
 
 static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
@@ -113,8 +115,10 @@ static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
     create_session: 0,
     destroy_instance: 0,
     destroy_session: 0,
+    get_system: 0,
     create_instance_resolved: false,
     create_session_resolved: false,
+    get_system_resolved: false,
 });
 
 /// Live OpenXR / WebXR session (handles + FFI accounting).
@@ -124,6 +128,7 @@ struct LiveSession {
     mode: String,
     instance: u64,
     session: u64,
+    system_id: u64,
     backend: String,
     end_frame_ffi_calls: i64,
     last_ffi_result: i32,
@@ -132,7 +137,11 @@ struct LiveSession {
     webxr_raf_bound: bool,
     instance_created: bool,
     session_created: bool,
+    system_enumerated: bool,
+    graphics_bound: bool,
+    graphics_api: String,
     create_instance_rc: i32,
+    get_system_rc: i32,
     create_session_rc: i32,
     create_path: String,
 }
@@ -142,6 +151,7 @@ static LIVE_SESSION: Mutex<LiveSession> = Mutex::new(LiveSession {
     mode: String::new(),
     instance: 0,
     session: 0,
+    system_id: 0,
     backend: String::new(),
     end_frame_ffi_calls: 0,
     last_ffi_result: 0,
@@ -150,7 +160,11 @@ static LIVE_SESSION: Mutex<LiveSession> = Mutex::new(LiveSession {
     webxr_raf_bound: false,
     instance_created: false,
     session_created: false,
+    system_enumerated: false,
+    graphics_bound: false,
+    graphics_api: String::new(),
     create_instance_rc: 0,
+    get_system_rc: 0,
     create_session_rc: 0,
     create_path: String::new(),
 });
@@ -198,6 +212,13 @@ const XR_TYPE_INSTANCE_CREATE_INFO: i32 = 3;
 #[cfg(not(target_arch = "wasm32"))]
 const XR_TYPE_SESSION_CREATE_INFO: i32 = 4;
 #[cfg(not(target_arch = "wasm32"))]
+const XR_TYPE_SYSTEM_GET_INFO: i32 = 5;
+/// Kab stub graphics binding (chained on XrSessionCreateInfo::next).
+#[cfg(not(target_arch = "wasm32"))]
+const XR_TYPE_GRAPHICS_BINDING_KABOOTAR: i32 = 100_099_0000;
+#[cfg(not(target_arch = "wasm32"))]
+const XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY: i32 = 1;
+#[cfg(not(target_arch = "wasm32"))]
 const XR_MAX_APPLICATION_NAME_SIZE: usize = 128;
 #[cfg(not(target_arch = "wasm32"))]
 const XR_MAX_ENGINE_NAME_SIZE: usize = 128;
@@ -215,6 +236,12 @@ type XrCreateSessionFn = unsafe extern "system" fn(
     instance: u64,
     create_info: *const XrSessionCreateInfo,
     session: *mut u64,
+) -> XrResult;
+#[cfg(not(target_arch = "wasm32"))]
+type XrGetSystemFn = unsafe extern "system" fn(
+    instance: u64,
+    get_info: *const XrSystemGetInfo,
+    system_id: *mut u64,
 ) -> XrResult;
 #[cfg(not(target_arch = "wasm32"))]
 type XrDestroyInstanceFn = unsafe extern "system" fn(instance: u64) -> XrResult;
@@ -242,6 +269,24 @@ struct XrInstanceCreateInfo {
     enabled_api_layer_names: *const *const std::os::raw::c_char,
     enabled_extension_count: u32,
     enabled_extension_names: *const *const std::os::raw::c_char,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[repr(C)]
+struct XrSystemGetInfo {
+    ty: i32,
+    next: *const std::os::raw::c_void,
+    form_factor: i32,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[repr(C)]
+struct XrGraphicsBindingKabootar {
+    ty: i32,
+    next: *const std::os::raw::c_void,
+    /// 1=vulkan, 2=d3d11, 3=opengl, 4=stub
+    api: u32,
+    device: u64,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -276,11 +321,39 @@ unsafe extern "system" fn stub_xr_create_instance(
 #[cfg(not(target_arch = "wasm32"))]
 unsafe extern "system" fn stub_xr_create_session(
     _instance: u64,
-    _create_info: *const XrSessionCreateInfo,
+    create_info: *const XrSessionCreateInfo,
     session: *mut u64,
 ) -> XrResult {
+    // Require a graphics binding chain for HMD present path.
+    if !create_info.is_null() {
+        let info = &*create_info;
+        if info.system_id == 0 {
+            return -2; // XR_ERROR_FORM_FACTOR_UNAVAILABLE-ish
+        }
+        if info.next.is_null() {
+            return -3; // missing graphics binding
+        }
+    }
     if !session.is_null() {
         *session = 0x5E_0000_0001;
+    }
+    0
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "system" fn stub_xr_get_system(
+    _instance: u64,
+    get_info: *const XrSystemGetInfo,
+    system_id: *mut u64,
+) -> XrResult {
+    if !get_info.is_null() {
+        let info = &*get_info;
+        if info.form_factor != XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY {
+            return -2;
+        }
+    }
+    if !system_id.is_null() {
+        *system_id = 0x57_0000_0001;
     }
     0
 }
@@ -316,6 +389,11 @@ fn stub_xr_create_session_addr() -> usize {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn stub_xr_get_system_addr() -> usize {
+    stub_xr_get_system as *const () as usize
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn stub_xr_destroy_instance_addr() -> usize {
     stub_xr_destroy_instance as *const () as usize
 }
@@ -331,6 +409,10 @@ fn stub_xr_create_instance_addr() -> usize {
 }
 #[cfg(target_arch = "wasm32")]
 fn stub_xr_create_session_addr() -> usize {
+    0
+}
+#[cfg(target_arch = "wasm32")]
+fn stub_xr_get_system_addr() -> usize {
     0
 }
 #[cfg(target_arch = "wasm32")]
@@ -484,6 +566,10 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
         let _ = resolve_named_proc(get_proc_addr, "xrCreateSession", |fns, addr| {
             fns.create_session = addr;
             fns.create_session_resolved = addr != 0;
+        });
+        let _ = resolve_named_proc(get_proc_addr, "xrGetSystem", |fns, addr| {
+            fns.get_system = addr;
+            fns.get_system_resolved = addr != 0;
         });
         let _ = resolve_named_proc(get_proc_addr, "xrDestroyInstance", |fns, addr| {
             fns.destroy_instance = addr;
@@ -780,12 +866,41 @@ fn live_env_forced() -> bool {
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
 }
 
-/// Run `xrCreateInstance` + `xrCreateSession` (stub trampoline or resolved loader procs).
-fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, String, bool, bool) {
+#[derive(Debug, Clone)]
+struct OpenXrCreateResult {
+    instance: u64,
+    session: u64,
+    system_id: u64,
+    rc_inst: i32,
+    rc_get_system: i32,
+    rc_sess: i32,
+    path: String,
+    instance_created: bool,
+    session_created: bool,
+    system_enumerated: bool,
+    graphics_bound: bool,
+    graphics_api: String,
+}
+
+/// Run xrCreateInstance → xrGetSystem → graphics binding → xrCreateSession.
+fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = use_stub;
-        return (0, 0, 0, 0, "webxr-no-openxr-create".into(), false, false);
+        return OpenXrCreateResult {
+            instance: 0,
+            session: 0,
+            system_id: 0,
+            rc_inst: 0,
+            rc_get_system: 0,
+            rc_sess: 0,
+            path: "webxr-no-openxr-create".into(),
+            instance_created: false,
+            session_created: false,
+            system_enumerated: false,
+            graphics_bound: false,
+            graphics_api: String::new(),
+        };
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -799,6 +914,10 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
             if use_stub || !fns.create_session_resolved || fns.create_session == 0 {
                 fns.create_session = stub_xr_create_session_addr();
                 fns.create_session_resolved = fns.create_session != 0;
+            }
+            if use_stub || !fns.get_system_resolved || fns.get_system == 0 {
+                fns.get_system = stub_xr_get_system_addr();
+                fns.get_system_resolved = fns.get_system != 0;
             }
             if fns.destroy_instance == 0 {
                 fns.destroy_instance = stub_xr_destroy_instance_addr();
@@ -815,20 +934,33 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
             }
         }
 
-        let (create_inst_addr, create_sess_addr, path, force_stub) = {
+        let (create_inst_addr, create_sess_addr, get_system_addr, path, force_stub) = {
             let fns = match OPENXR_FNS.lock() {
                 Ok(f) => f,
                 Err(_) => {
-                    return (0, 0, -1, -1, "fns-lock-failed".into(), false, false);
+                    return OpenXrCreateResult {
+                        instance: 0,
+                        session: 0,
+                        system_id: 0,
+                        rc_inst: -1,
+                        rc_get_system: -1,
+                        rc_sess: -1,
+                        path: "fns-lock-failed".into(),
+                        instance_created: false,
+                        session_created: false,
+                        system_enumerated: false,
+                        graphics_bound: false,
+                        graphics_api: String::new(),
+                    };
                 }
             };
             let force_stub = use_stub
                 || !fns.create_instance_resolved
                 || fns.create_instance == stub_xr_create_instance_addr();
             let path = if force_stub {
-                "stub-xrCreateInstance+xrCreateSession".to_string()
+                "stub-xrCreateInstance+xrGetSystem+graphicsBinding+xrCreateSession".to_string()
             } else {
-                "openxr-xrCreateInstance+xrCreateSession".to_string()
+                "openxr-xrCreateInstance+xrGetSystem+graphicsBinding+xrCreateSession".to_string()
             };
             let ci = if force_stub {
                 stub_xr_create_instance_addr()
@@ -840,11 +972,29 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
             } else {
                 fns.create_session
             };
-            (ci, cs, path, force_stub)
+            let gs = if force_stub || fns.get_system == 0 {
+                stub_xr_get_system_addr()
+            } else {
+                fns.get_system
+            };
+            (ci, cs, gs, path, force_stub)
         };
 
-        if create_inst_addr == 0 || create_sess_addr == 0 {
-            return (0, 0, -1, -1, "missing-create-procs".into(), false, false);
+        if create_inst_addr == 0 || create_sess_addr == 0 || get_system_addr == 0 {
+            return OpenXrCreateResult {
+                instance: 0,
+                session: 0,
+                system_id: 0,
+                rc_inst: -1,
+                rc_get_system: -1,
+                rc_sess: -1,
+                path: "missing-create-procs".into(),
+                instance_created: false,
+                session_created: false,
+                system_enumerated: false,
+                graphics_bound: false,
+                graphics_api: String::new(),
+            };
         }
 
         let mut app = XrApplicationInfo {
@@ -852,7 +1002,6 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
             application_version: 1,
             engine_name: [0; XR_MAX_ENGINE_NAME_SIZE],
             engine_version: 1,
-            // XR_MAKE_VERSION(1, 0, 0)
             api_version: (1u64 << 48) | (0u64 << 32),
         };
         let app_name = b"Kabootar";
@@ -876,22 +1025,54 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
         let mut instance: u64 = 0;
         let rc_inst = unsafe { create_instance(&inst_info, &mut instance) };
 
+        let mut system_id: u64 = 0;
+        let mut rc_get_system: i32 = -1;
+        let mut system_enumerated = false;
         let mut session: u64 = 0;
         let mut rc_sess: i32 = -1;
         let mut session_ok = false;
+        let mut graphics_bound = false;
+        let graphics_api = if force_stub {
+            "stub".to_string()
+        } else {
+            "openxr".to_string()
+        };
+
         if rc_inst == 0 && instance != 0 {
-            let sess_info = XrSessionCreateInfo {
-                ty: XR_TYPE_SESSION_CREATE_INFO,
+            let sys_info = XrSystemGetInfo {
+                ty: XR_TYPE_SYSTEM_GET_INFO,
                 next: std::ptr::null(),
-                create_flags: 0,
-                // Stub ignores system id; real runtimes need xrGetSystem first.
-                system_id: if force_stub { 1 } else { 0 },
+                form_factor: XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
             };
-            let create_session: XrCreateSessionFn =
-                unsafe { std::mem::transmute(create_sess_addr) };
-            rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
-            session_ok = rc_sess == 0 && session != 0;
-            // Re-resolve xrEndFrame with live instance when possible.
+            let get_system: XrGetSystemFn = unsafe { std::mem::transmute(get_system_addr) };
+            rc_get_system = unsafe { get_system(instance, &sys_info, &mut system_id) };
+            system_enumerated = rc_get_system == 0 && system_id != 0;
+
+            if system_enumerated {
+                let gfx = XrGraphicsBindingKabootar {
+                    ty: XR_TYPE_GRAPHICS_BINDING_KABOOTAR,
+                    next: std::ptr::null(),
+                    api: if force_stub { 4 } else { 1 },
+                    device: if force_stub {
+                        0x6B_0000_0001
+                    } else {
+                        0
+                    },
+                };
+                graphics_bound = true;
+                let sess_info = XrSessionCreateInfo {
+                    ty: XR_TYPE_SESSION_CREATE_INFO,
+                    next: &gfx as *const XrGraphicsBindingKabootar
+                        as *const std::os::raw::c_void,
+                    create_flags: 0,
+                    system_id,
+                };
+                let create_session: XrCreateSessionFn =
+                    unsafe { std::mem::transmute(create_sess_addr) };
+                rc_sess = unsafe { create_session(instance, &sess_info, &mut session) };
+                session_ok = rc_sess == 0 && session != 0;
+            }
+
             if let Ok(fns) = OPENXR_FNS.lock() {
                 let gp = fns.get_proc;
                 drop(fns);
@@ -901,15 +1082,20 @@ fn openxr_create_instance_and_session(use_stub: bool) -> (u64, u64, i32, i32, St
             }
         }
 
-        (
+        OpenXrCreateResult {
             instance,
             session,
+            system_id,
             rc_inst,
+            rc_get_system,
             rc_sess,
             path,
-            rc_inst == 0 && instance != 0,
-            session_ok,
-        )
+            instance_created: rc_inst == 0 && instance != 0,
+            session_created: session_ok,
+            system_enumerated,
+            graphics_bound,
+            graphics_api,
+        }
     }
 }
 
@@ -923,18 +1109,30 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     }
 
     let use_stub = stub || st.backend == "xr-stub" || !(st.openxr_loader || st.openxr_runtime);
-    let (instance, session, rc_inst, rc_sess, create_path, instance_created, session_created) =
-        if st.webxr && !stub {
-            (0, 0, 0, 0, "webxr-live".to_string(), false, false)
-        } else {
-            openxr_create_instance_and_session(use_stub || stub)
-        };
+    let created = if st.webxr && !stub {
+        OpenXrCreateResult {
+            instance: 0,
+            session: 0,
+            system_id: 0,
+            rc_inst: 0,
+            rc_get_system: 0,
+            rc_sess: 0,
+            path: "webxr-live".to_string(),
+            instance_created: false,
+            session_created: false,
+            system_enumerated: false,
+            graphics_bound: false,
+            graphics_api: "webxr".into(),
+        }
+    } else {
+        openxr_create_instance_and_session(use_stub || stub)
+    };
 
     let (backend, webxr_granted) = if stub || st.backend == "xr-stub" {
         ("stub-live".to_string(), false)
     } else if st.webxr {
         ("webxr-live".to_string(), true)
-    } else if instance_created && session_created {
+    } else if created.instance_created && created.session_created {
         ("openxr-created".to_string(), false)
     } else if st.openxr_runtime || st.openxr_loader {
         ("openxr-live".to_string(), false)
@@ -961,33 +1159,64 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
         .map_err(|_| "live session lock poisoned".to_string())?;
     live.active = true;
     live.mode = mode.into();
-    live.instance = instance;
-    live.session = session;
+    live.instance = created.instance;
+    live.session = created.session;
+    live.system_id = created.system_id;
     live.backend = backend.clone();
     live.webxr_granted = webxr_granted;
     live.webxr_raf_bound = false;
     live.end_frame_ffi_calls = 0;
     live.last_ffi_result = 0;
     live.last_ffi_mode.clear();
-    live.instance_created = instance_created;
-    live.session_created = session_created;
-    live.create_instance_rc = rc_inst;
-    live.create_session_rc = rc_sess;
-    live.create_path = create_path.clone();
+    live.instance_created = created.instance_created;
+    live.session_created = created.session_created;
+    live.system_enumerated = created.system_enumerated;
+    live.graphics_bound = created.graphics_bound;
+    live.graphics_api = created.graphics_api.clone();
+    live.create_instance_rc = created.rc_inst;
+    live.get_system_rc = created.rc_get_system;
+    live.create_session_rc = created.rc_sess;
+    live.create_path = created.path.clone();
 
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("active".into(), Value::Bool(true));
     out.insert("mode".into(), Value::String(mode.into()));
     out.insert("backend".into(), Value::String(backend));
-    out.insert("instance".into(), Value::Number(instance as i64));
-    out.insert("session".into(), Value::Number(session as i64));
+    out.insert("instance".into(), Value::Number(created.instance as i64));
+    out.insert("session".into(), Value::Number(created.session as i64));
+    out.insert("systemId".into(), Value::Number(created.system_id as i64));
     out.insert("webxrGranted".into(), Value::Bool(webxr_granted));
-    out.insert("instanceCreated".into(), Value::Bool(instance_created));
-    out.insert("sessionCreated".into(), Value::Bool(session_created));
-    out.insert("createInstanceRc".into(), Value::Number(rc_inst as i64));
-    out.insert("createSessionRc".into(), Value::Number(rc_sess as i64));
-    out.insert("createPath".into(), Value::String(create_path));
+    out.insert(
+        "instanceCreated".into(),
+        Value::Bool(created.instance_created),
+    );
+    out.insert(
+        "sessionCreated".into(),
+        Value::Bool(created.session_created),
+    );
+    out.insert(
+        "systemEnumerated".into(),
+        Value::Bool(created.system_enumerated),
+    );
+    out.insert("graphicsBound".into(), Value::Bool(created.graphics_bound));
+    out.insert(
+        "graphicsApi".into(),
+        Value::String(created.graphics_api),
+    );
+    out.insert(
+        "createInstanceRc".into(),
+        Value::Number(created.rc_inst as i64),
+    );
+    out.insert(
+        "getSystemRc".into(),
+        Value::Number(created.rc_get_system as i64),
+    );
+    out.insert(
+        "createSessionRc".into(),
+        Value::Number(created.rc_sess as i64),
+    );
+    out.insert("createPath".into(), Value::String(created.path));
     out.insert("kind".into(), Value::String("xr_live_session".into()));
     Ok(Value::Object(out))
 }
@@ -1030,8 +1259,12 @@ pub fn destroy_live_session() -> Result<Value, String> {
     live.webxr_raf_bound = false;
     live.instance = 0;
     live.session = 0;
+    live.system_id = 0;
     live.instance_created = false;
     live.session_created = false;
+    live.system_enumerated = false;
+    live.graphics_bound = false;
+    live.graphics_api.clear();
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("active".into(), Value::Bool(false));
@@ -1050,6 +1283,7 @@ pub fn live_session_status() -> Value {
             out.insert("backend".into(), Value::String(live.backend.clone()));
             out.insert("instance".into(), Value::Number(live.instance as i64));
             out.insert("session".into(), Value::Number(live.session as i64));
+            out.insert("systemId".into(), Value::Number(live.system_id as i64));
             out.insert(
                 "endFrameFfiCalls".into(),
                 Value::Number(live.end_frame_ffi_calls),
@@ -1067,8 +1301,21 @@ pub fn live_session_status() -> Value {
             out.insert("instanceCreated".into(), Value::Bool(live.instance_created));
             out.insert("sessionCreated".into(), Value::Bool(live.session_created));
             out.insert(
+                "systemEnumerated".into(),
+                Value::Bool(live.system_enumerated),
+            );
+            out.insert("graphicsBound".into(), Value::Bool(live.graphics_bound));
+            out.insert(
+                "graphicsApi".into(),
+                Value::String(live.graphics_api.clone()),
+            );
+            out.insert(
                 "createInstanceRc".into(),
                 Value::Number(live.create_instance_rc as i64),
+            );
+            out.insert(
+                "getSystemRc".into(),
+                Value::Number(live.get_system_rc as i64),
             );
             out.insert(
                 "createSessionRc".into(),
