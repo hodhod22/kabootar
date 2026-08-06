@@ -1,0 +1,66 @@
+@version "1.0.0"
+
+// KDF1 - Kabootar Document Format. import "doc/kdf"
+
+pub fn isKdfPath(path) {
+    if path == null || path == undefined { return false }
+    let p = "" + path
+    let n = len(p)
+    if n < 4 { return false }
+    let ext = string_slice(p, n - 4, n)
+    if ext == ".kdf" { return true }
+    if ext == ".KDF" { return true }
+    return false
+}
+
+pub fn kdfNormalize(doc) {
+    if doc == null || doc == undefined {
+        return {
+            "kind": "KabootarDocument",
+            "magic": "KDF1",
+            "title": "Untitled",
+            "pages": [],
+            "forms": [],
+            "meta": {},
+            "rev": 0.0
+        }
+    }
+    doc["magic"] = "KDF1"
+    doc["kind"] = "KabootarDocument"
+    if doc["pages"] == null || doc["pages"] == undefined {
+        doc["pages"] = []
+    }
+    if doc["forms"] == null || doc["forms"] == undefined {
+        doc["forms"] = []
+    }
+    if doc["meta"] == null || doc["meta"] == undefined {
+        doc["meta"] = {}
+    }
+    if doc["rev"] == null || doc["rev"] == undefined {
+        doc["rev"] = 0.0
+    }
+    return doc
+}
+
+pub fn kdfSerialize(doc) {
+    let d = kdfNormalize(doc)
+    return json_stringify(d)
+}
+
+pub fn kdfParse(text) {
+    let obj = json_parse(text)
+    if obj["enc"] == true {
+        return obj
+    }
+    return kdfNormalize(obj)
+}
+
+pub fn kdfSave(path, doc) {
+    let text = kdfSerialize(doc)
+    return os_write(path, text)
+}
+
+pub fn kdfLoad(path) {
+    let text = os_read(path)
+    return kdfParse(text)
+}

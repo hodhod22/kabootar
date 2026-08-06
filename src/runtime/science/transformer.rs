@@ -283,20 +283,12 @@ fn tf_transformer_forward(args: &[Value], _env: &mut Environment) -> Result<Valu
         }
     }
 
-    let w1 = weights.get("w1").ok_or("weights.w1")?;
-    let b1 = vector_at(
-        &[weights.get("b1").cloned().unwrap_or(Value::Array(vec![]))],
-        0,
-        "b1",
-    )
-    .unwrap_or_else(|_| vec![0.0; d_model]);
-    let w2 = weights.get("w2").ok_or("weights.w2")?;
-    let b2 = vector_at(
-        &[weights.get("b2").cloned().unwrap_or(Value::Array(vec![]))],
-        0,
-        "b2",
-    )
-    .unwrap_or_else(|_| vec![0.0; d_model]);
+    let n_layers = stack_layer_count(weights, args.get(3));
+    for li in 0..n_layers {
+        let layer = layer_weight_map(weights, li)?;
+        x = transformer_block_forward(&x, seq, d_model, n_heads, &layer)?;
+    }
+
     let wout = weights.get("wout").ok_or("weights.wout")?;
     let bout = vector_at(
         &[weights
@@ -307,50 +299,135 @@ fn tf_transformer_forward(args: &[Value], _env: &mut Environment) -> Result<Valu
         "bout",
     )
     .unwrap_or_else(|_| vec![0.0; vocab]);
-
-    let wq_v = match weights.get("wq") {
-        Some(v) => vector_at(&[v.clone()], 0, "wq")?,
-        None => identity_flat(d_model),
-    };
-    let wk_v = match weights.get("wk") {
-        Some(v) => vector_at(&[v.clone()], 0, "wk")?,
-        None => identity_flat(d_model),
-    };
-    let wv_v = match weights.get("wv") {
-        Some(v) => vector_at(&[v.clone()], 0, "wv")?,
-        None => identity_flat(d_model),
-    };
-    let wo_v = match weights.get("wo") {
-        Some(v) => vector_at(&[v.clone()], 0, "wo")?,
-        None => identity_flat(d_model),
-    };
-    let w1_v = vector_at(&[w1.clone()], 0, "w1")?;
-    let w2_v = vector_at(&[w2.clone()], 0, "w2")?;
     let wout_v = vector_at(&[wout.clone()], 0, "wout")?;
-    let ff_dim = if w1_v.len() % d_model == 0 {
-        w1_v.len() / d_model
-    } else {
-        d_model
-    };
-
-    let q = linear_rows(&x, seq, d_model, &wq_v, d_model, &vec![0.0; d_model]);
-    let k = linear_rows(&x, seq, d_model, &wk_v, d_model, &vec![0.0; d_model]);
-    let v = linear_rows(&x, seq, d_model, &wv_v, d_model, &vec![0.0; d_model]);
-    let attn = mha_forward(&q, &k, &v, seq, seq, d_model, n_heads);
-    let proj = linear_rows(&attn, seq, d_model, &wo_v, d_model, &vec![0.0; d_model]);
-    x = add_mat(&x, &proj);
-
-    let h1 = linear_rows(&x, seq, d_model, &w1_v, ff_dim, &b1);
-    let h1r = relu_vec(&h1);
-    let h2 = linear_rows(&h1r, seq, ff_dim, &w2_v, d_model, &b2);
-    x = add_mat(&x, &h2);
-
     let logits = linear_rows(&x, seq, d_model, &wout_v, vocab, &bout);
 
     let mut out = HashMap::new();
     out.insert("logits".into(), nd2(seq, vocab, &logits));
     out.insert("hidden".into(), nd2(seq, d_model, &x));
+    out.insert("nLayers".into(), int_out(n_layers as i64));
     Ok(Value::Object(out))
+}
+
+fn stack_layer_count(weights: &HashMap<String, Value>, n_layers_arg: Option<&Value>) -> usize {
+    if let Some(Value::Array(layers)) = weights.get("layers") {
+        if !layers.is_empty() {
+            return layers.len();
+        }
+    }
+    if let Some(n) = weights.get("__stack_n").and_then(|v| num(v).ok()) {
+        return (n as usize).max(1);
+    }
+    n_layers_arg
+        .and_then(|v| num(v).ok())
+        .map(|n| n.max(1.0) as usize)
+        .unwrap_or(1)
+        .max(1)
+}
+
+fn layer_weight_map<'a>(
+    weights: &'a HashMap<String, Value>,
+    index: usize,
+) -> Result<&'a HashMap<String, Value>, String> {
+    if let Some(Value::Array(layers)) = weights.get("layers") {
+        if let Some(Value::Object(m)) = layers.get(index) {
+            return Ok(m);
+        }
+        return Err(format!("weights.layers[{index}]: expect object"));
+    }
+    Ok(weights)
+}
+
+fn transformer_block_forward(
+    x_in: &[f64],
+    seq: usize,
+    d_model: usize,
+    n_heads: usize,
+    layer: &HashMap<String, Value>,
+) -> Result<Vec<f64>, String> {
+    let w1 = layer.get("w1").ok_or("layer.w1")?;
+    let b1 = vector_at(
+        &[layer.get("b1").cloned().unwrap_or(Value::Array(vec![]))],
+        0,
+        "b1",
+    )
+    .unwrap_or_else(|_| vec![0.0; d_model]);
+    let w2 = layer.get("w2").ok_or("layer.w2")?;
+    let b2 = vector_at(
+        &[layer.get("b2").cloned().unwrap_or(Value::Array(vec![]))],
+        0,
+        "b2",
+    )
+    .unwrap_or_else(|_| vec![0.0; d_model]);
+    let wq_v = match layer.get("wq") {
+        Some(v) => vector_at(&[v.clone()], 0, "wq")?,
+        None => identity_flat(d_model),
+    };
+    let wk_v = match layer.get("wk") {
+        Some(v) => vector_at(&[v.clone()], 0, "wk")?,
+        None => identity_flat(d_model),
+    };
+    let wv_v = match layer.get("wv") {
+        Some(v) => vector_at(&[v.clone()], 0, "wv")?,
+        None => identity_flat(d_model),
+    };
+    let wo_v = match layer.get("wo") {
+        Some(v) => vector_at(&[v.clone()], 0, "wo")?,
+        None => identity_flat(d_model),
+    };
+    let w1_v = vector_at(&[w1.clone()], 0, "w1")?;
+    let w2_v = vector_at(&[w2.clone()], 0, "w2")?;
+    let ff_dim = if w1_v.len() % d_model == 0 {
+        w1_v.len() / d_model
+    } else {
+        d_model
+    };
+    let mut b1 = b1;
+    let mut b2 = b2;
+    if b1.len() != ff_dim {
+        b1 = vec![0.0; ff_dim];
+    }
+    if b2.len() != d_model {
+        b2 = vec![0.0; d_model];
+    }
+
+    let q = linear_rows(x_in, seq, d_model, &wq_v, d_model, &vec![0.0; d_model]);
+    let k = linear_rows(x_in, seq, d_model, &wk_v, d_model, &vec![0.0; d_model]);
+    let v = linear_rows(x_in, seq, d_model, &wv_v, d_model, &vec![0.0; d_model]);
+    let attn = mha_forward(&q, &k, &v, seq, seq, d_model, n_heads);
+    let proj = linear_rows(&attn, seq, d_model, &wo_v, d_model, &vec![0.0; d_model]);
+    let mut x = add_mat(x_in, &proj);
+    let h1 = linear_rows(&x, seq, d_model, &w1_v, ff_dim, &b1);
+    let h1r = relu_vec(&h1);
+    let h2 = linear_rows(&h1r, seq, ff_dim, &w2_v, d_model, &b2);
+    x = add_mat(&x, &h2);
+    Ok(x)
+}
+
+/// tf_stack_forward(weights, ids, nHeads?, nLayers?) — N transformer blocks + LM head.
+fn tf_stack_forward(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    tf_transformer_forward(args, env)
+}
+
+/// tf_stack_backprop_step(weights, ids, targets, lr, nHeads?, nLayers?)
+/// Early blocks frozen; last block + LM head trained (SC multi-layer stack).
+fn tf_stack_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_stack_backprop_step")?
+    else {
+        return Err("tf_stack_backprop_step: weights object".into());
+    };
+    let n_layers = stack_layer_count(&weights, args.get(5));
+    weights.insert("__stack_n".into(), Value::Number(n_layers as i64));
+    let mut bp_args = args.to_vec();
+    bp_args[0] = Value::Object(weights);
+    let mut step = tf_lm_backprop_step(&bp_args, env)?;
+    if let Value::Object(ref mut out) = step {
+        out.insert("stack".into(), Value::Bool(true));
+        if !out.contains_key("nLayers") {
+            out.insert("nLayers".into(), int_out(n_layers as i64));
+        }
+    }
+    Ok(step)
 }
 
 fn softmax_row(logits: &[f64]) -> Vec<f64> {
@@ -531,6 +608,31 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     let (_, _, pos_data) = parse_nd2(&pos, "sin_pos")?;
     for i in 0..x.len() {
         x[i] += pos_data[i];
+    }
+
+    // Multi-layer stack: run early blocks frozen, BP the last block (+ head).
+    let n_layers = stack_layer_count(&weights, None);
+    if n_layers > 1 {
+        if let Some(Value::Array(layers)) = weights.get("layers").cloned() {
+            for li in 0..n_layers.saturating_sub(1) {
+                let Some(Value::Object(layer)) = layers.get(li).cloned() else {
+                    return Err(format!("layers[{li}]: object"));
+                };
+                x = transformer_block_forward(&x, seq, d_model, n_heads, &layer)?;
+            }
+            if let Some(Value::Object(last)) = layers.last() {
+                for key in ["wq", "wk", "wv", "wo", "w1", "b1", "w2", "b2"] {
+                    if let Some(v) = last.get(key) {
+                        weights.insert((*key).into(), v.clone());
+                    }
+                }
+            }
+        } else {
+            for _ in 0..n_layers.saturating_sub(1) {
+                let layer = layer_weight_map(&weights, 0)?.clone();
+                x = transformer_block_forward(&x, seq, d_model, n_heads, &layer)?;
+            }
+        }
     }
 
     let w1_v = vector_at(&[weights.get("w1").ok_or("w1")?.clone()], 0, "w1")?;
@@ -740,18 +842,31 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     set_weight_vec(&mut weights, "wv", &wv_m);
     set_embed_nd(&mut weights, vocab, d_model, &embed_data);
 
+    // Mirror updated last-block tensors into weights.layers[last] when present.
+    if let Some(Value::Array(mut layers)) = weights.get("layers").cloned() {
+        if let Some(Value::Object(last)) = layers.last_mut() {
+            for key in ["wq", "wk", "wv", "wo", "w1", "b1", "w2", "b2"] {
+                if let Some(v) = weights.get(key) {
+                    last.insert((*key).into(), v.clone());
+                }
+            }
+        }
+        weights.insert("layers".into(), Value::Array(layers));
+    }
+
     let mut out = HashMap::new();
     out.insert("weights".into(), Value::Object(weights));
     out.insert("loss".into(), float_out(loss));
-    out.insert(
-        "layers".into(),
-        Value::Array(vec![
-            Value::String("wout".into()),
-            Value::String("ff".into()),
-            Value::String("attn_qkv".into()),
-            Value::String("embed".into()),
-        ]),
-    );
+    out.insert("nLayers".into(), int_out(n_layers as i64));
+    // "layers" = trained component tags (SC2k API); keep for back-compat.
+    let trained = Value::Array(vec![
+        Value::String("wout".into()),
+        Value::String("ff".into()),
+        Value::String("attn_qkv".into()),
+        Value::String("embed".into()),
+    ]);
+    out.insert("layers".into(), trained.clone());
+    out.insert("trained".into(), trained);
     Ok(Value::Object(out))
 }
 
@@ -809,5 +924,13 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(
         &["science_tf_lm_backprop_step", "tf_lm_backprop_step"],
         tf_lm_backprop_step,
+    );
+    bind(
+        &["science_tf_stack_forward", "tf_stack_forward"],
+        tf_stack_forward,
+    );
+    bind(
+        &["science_tf_stack_backprop_step", "tf_stack_backprop_step"],
+        tf_stack_backprop_step,
     );
 }

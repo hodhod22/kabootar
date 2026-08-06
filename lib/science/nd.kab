@@ -89,6 +89,21 @@ pub fn select(cond, x, y) {
     return nd_where(cond, x, y)
 }
 
+/// Integer-array gather along axis (default 0).
+pub fn gather(a, indices, axis) {
+    return nd_gather(a, indices, axis)
+}
+
+/// Boolean mask compress → 1D (`a[mask]` subset).
+pub fn compress(a, mask) {
+    return nd_compress(a, mask)
+}
+
+/// Complex conjugate (no-op for real dtypes).
+pub fn conj(a) {
+    return nd_conj(a)
+}
+
 /// Zero-copy view: `slice(a, [[1,10], [0,3]])` shares parent buffer.
 pub fn slice(a, ranges) {
     return nd_slice(a, ranges)
@@ -196,4 +211,18 @@ pub fn vmul(a, b) {
 /// BLAS backend label: openblas / mkl / system_blas / matrixmultiply.
 pub fn blasBackend() {
     return sci_blas_backend()
+}
+
+/// Set OpenBLAS/MKL/OMP thread count when the loaded BLAS exposes control.
+pub fn blasSetNumThreads(n) {
+    return sci_blas_set_num_threads(n)
+}
+
+pub fn blasNumThreads() {
+    return sci_blas_num_threads()
+}
+
+/// { backend, threads, controllable }
+pub fn blasInfo() {
+    return sci_blas_info()
 }

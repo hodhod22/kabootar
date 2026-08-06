@@ -906,7 +906,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 
 | Område | Python-stack | Kab idag | Behövs för att konkurrera |
 |--------|--------------|----------|---------------------------|
-| **Ndarray-kärna** | NumPy: dtype, broadcast, slice/view, ufunc, stack/concat, fancy index | 🟡 contiguous f64, add/mul/sum/mean, F64 zero-copy | Full broadcast, slice/views, dtypes, `where`/`clip`, concat/stack, random |
+| **Ndarray-kärna** | NumPy: dtype, broadcast, slice/view, ufunc, stack/concat, fancy index | 🟡 contiguous f64/c64, gather/compress, add/mul/sum/mean, F64 zero-copy | Full multi-axis fancy, more dtypes, sparse views |
 | **Linalg** | `numpy.linalg` / SciPy: LU, QR, SVD, eig, Cholesky, lstsq, norms | 🟢 `science/linalg` Kab wrappers + mat_* natives | Batched / sparse linalg |
 | **Numerik / SciPy** | `optimize`, `integrate`, `interpolate`, `special` | 🟡 trapz/simpson/newton/bisect/interp_linear | Minimize/least_squares, ODE, spline, erf/gamma/bessel subset |
 | **Signal** | `scipy.signal`: FFT n-D, filter, spectrogram, resample | 🟡 1D FFT/IFFT, conv1d | 2D FFT, FIR/IIR, window, STFT |
@@ -945,7 +945,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC0e** | **Broadcast + ufunc** — NumPy-style broadcasting, `where`/`clip`/`abs`/`exp`/`log` | ✅ subset (`nd_add`/`nd_mul`/`nd_sub`/`nd_div` broadcast; `nd_where`/`nd_clip`/`nd_abs`/`nd_exp`/`nd_log`/`nd_sqrt`) |
 | **SC0f** | **Slice / view / stack** — ranges, `concat`/`stack`/`split` (copy-slice) | ✅ subset (`NdShared` Rc views + `a[1:10, :]` + `nd_slice` zero-copy; `concat`/`stack`/`split`) |
 | **SC0j** | **Tensor ownership + lazy graphs** — unique buffer `take`; GC lazy realize | ✅ subset (`nd_take` / `science/tensor` / `science/lazy`) |
-| **SC0g** | **Dtypes** — f32/f64/i32/i64/bool (+ complex64 senare); cast | ✅ subset (`nd_dtype`/`nd_astype`; complex kvar) |
+| **SC0g** | **Dtypes** — f32/f64/i32/i64/bool/complex64; cast | ✅ subset (`nd_dtype`/`nd_astype`; c64 interleaved + KND tag 6) |
 | **SC0h** | **Random** — seed, uniform/normal, shuffle (Kab-API) | ✅ subset (`nd_seed`/`nd_rand_uniform`/`nd_rand_normal`; shuffle via `ml_shuffle`) |
 | **SC0i** | **I/O** — `nd_save` / `nd_load` (binär/VFS; npy-inspirerat) | ✅ subset (KND1 binary) |
 
@@ -1031,7 +1031,7 @@ Kab-first utökning mot sklearn/statsmodels/PyG/rl-stack/viz — **produkt-API i
 | **SC6e** | `science/timeseries` | **Tidsserieanalys** — lag/rolling, ACF/PACF-lite, AR/ARIMA-subset, seasonal decompose, forecast metrics | ✅ subset (`acf`/`ar1*`/`arima110*`/`arima111*`/`seasonalDecompose`) |
 | **SC6f** | `science/rl` | **Förstärkningsinlärning** — env-API (reset/step), replay buffer, Q-learning / REINFORCE-lite, gym-style smoke | ✅ subset (`createEnv`/`step`/`replay*`/`qLearnUpdate`/`greedyAction`) |
 | **SC6g** | `science/viz` / `explain` | **Visualisering & tolkningsbarhet** — confusion heatmaps, learning curves, feature importance / permutation, SHAP-lite; canvas/notebook rich | ✅ subset (`explain`: heat/curves/perm/corr + `shapLinear`/`shapKernelLite`) |
-| **SC6h** | `science/dist` | **Distribuerad / parallell beräkning** — chunked `map`/`reduce` över workers (SC4c/P8), parameter-server-lite / AllReduce-stub; GPU multi-buffer senare | ✅ subset (`chunk`/`parallelMapF64`/`allReduceMean`/`mapReduce`) |
+| **SC6h** | `science/dist` | **Distribuerad / parallell beräkning** — chunked `map`/`reduce` över workers (SC4c/P8), threaded AllReduce (sum/mean/max); multi-node senare | ✅ subset (`chunk`/`parallelMapF64`/`allReduce*`/`sci_allreduce_f64`/`mapReduce`) |
 | **SC6i** | `science/domain/*` | **Domänspecifika moduler** — t.ex. `bio` (sekvens-lite), `finance` (returns/vol), `chem` (molekyl-featurize-lite), `nlp` (ovanpå tok/tf); tunna Kab-paket | ✅ subset (`domain/finance`/`bio`/`nlp`/`chem`) |
 
 **SC6-policy:** samma SC5c — nya exports via `lib/science/*.kab` (+ `science/domain/…`); natives bara om hotpath kräver det. Smokes: `tests/science_sc_wave11.rs`.
@@ -1061,7 +1061,9 @@ Kab-first **omorganisation / fördjupning** av det forskare importerar dagligen.
 
 **SC-ordning:** SC0–SC7 ✅ subset.
 
-**Checkpoint SC (nästa):** MKL thread control; multi-layer TF stack; nested Parquet.
+**Checkpoint SC (landad 2026-08-06):** MKL/OpenBLAS thread control (`sci_blas_set_num_threads` / `blasInfo`); multi-layer TF stack (`tf_stack_forward` / `tf_stack_backprop_step`); nested Parquet List/Struct roundtrip (`tests/science_sc_checkpoint_next.rs`).
+**Checkpoint SC (landad 2026-08-06b):** fancy indexing (`nd_gather` / `nd_compress`); `complex64` dtype + KND tag 6; threaded in-process AllReduce (`sci_allreduce_f64` / `allReduce*`) — `tests/science_sc_checkpoint_parity.rs`.
+**Checkpoint SC (nästa):** SC5b vidare Kab-port; multi-node AllReduce; complex gather/compress; full broadcast fancy multi-axis.
 **Checkpoint SC (landad 2026-08):** full MHA QKV/softmax BP; system BLAS-FFI (OpenBLAS/MKL); KPQT1 Parquet-lite; GP7 GPU viewport.  
 **Checkpoint SC (landad tidigare):** SC7 deepen + REINFORCE + exact `shapKernel` + attn `wo` BP + DX7 `lib/dx/session` + GP7 prefab; BLAS-API + TF multi-layer BP + `job_map_chunks` + SC6 + tensor/lazy ownership.  
 **Checkpoint SC (research-parity):** spline/special/sparse + trees (landad subset).  

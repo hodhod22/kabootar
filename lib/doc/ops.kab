@@ -1,0 +1,94 @@
+@version "1.0.0"
+
+// Merge / split / convert. import "doc/ops"
+import "doc/model"
+import "doc/kdf"
+import "doc/pdf_subset"
+
+pub fn docMerge(docs) {
+    let out = createDocument("Merged")
+    if docs == null || docs == undefined {
+        return out
+    }
+    let title = ""
+    let di = 0
+    while di < len(docs) {
+        let d = docs[di]
+        if title == "" {
+            title = d["title"]
+        } else {
+            title = title + " + " + d["title"]
+        }
+        let pi = 0
+        while pi < len(d["pages"]) {
+            let page = d["pages"][pi]
+            out = docAddPage(out, page["name"])
+            let dest = len(out["pages"]) - 1
+            let outPages = out["pages"]
+            let destPage = outPages[dest]
+            let blocks = page["blocks"]
+            let bi = 0
+            while bi < len(blocks) {
+                destPage["blocks"] = push(destPage["blocks"], blocks[bi])
+                bi = bi + 1
+            }
+            outPages[dest] = destPage
+            out["pages"] = outPages
+            pi = pi + 1
+        }
+        di = di + 1
+    }
+    out["title"] = title
+    out = kdfNormalize(out)
+    return out
+}
+
+/// Split page range [start, end) into a new document.
+pub fn docSplit(doc, start, end) {
+    let out = createDocument(doc["title"] + "-part")
+    let n = len(doc["pages"])
+    if start == null || start == undefined { start = 0 }
+    if end == null || end == undefined { end = n }
+    if start < 0 { start = 0 }
+    if end > n { end = n }
+    let i = start
+    while i < end {
+        let page = doc["pages"][i]
+        out = docAddPage(out, page["name"])
+        let dest = len(out["pages"]) - 1
+        let outPages = out["pages"]
+        let destPage = outPages[dest]
+        let bi = 0
+        while bi < len(page["blocks"]) {
+            destPage["blocks"] = push(destPage["blocks"], page["blocks"][bi])
+            bi = bi + 1
+        }
+        outPages[dest] = destPage
+        out["pages"] = outPages
+        i = i + 1
+    }
+    return kdfNormalize(out)
+}
+
+/// Convert document between formats. format: "kdf" | "pdf" | "json"
+pub fn docConvert(doc, format, path) {
+    if format == null || format == undefined { format = "kdf" }
+    if format == "json" || format == "kdf" {
+        return kdfSave(path, doc)
+    }
+    if format == "pdf" {
+        return pdfWriteTextDoc(path, doc)
+    }
+    return { "ok": false, "error": "unknown format" }
+}
+
+pub fn docLoadAuto(path) {
+    if isKdfPath(path) {
+        return kdfLoad(path)
+    }
+    if isPdfPath(path) {
+        return pdfReadTextDoc(path)
+    }
+    // default: try JSON/KDF
+    return kdfLoad(path)
+}

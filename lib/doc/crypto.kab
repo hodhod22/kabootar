@@ -1,0 +1,114 @@
+@version "1.0.0"
+
+// Password envelope for KDF (SHA3 keystream XOR). import "doc/crypto"
+import "doc/kdf"
+
+fn bytesToLatin1(bytes) {
+    let s = ""
+    let i = 0
+    while i < len(bytes) {
+        s = s + from_char_code(bytes[i])
+        i = i + 1
+    }
+    return s
+}
+
+fn latin1ToBytes(s) {
+    let out = []
+    let i = 0
+    let n = len(s)
+    while i < n {
+        out = push(out, char_code_at(s, i))
+        i = i + 1
+    }
+    return out
+}
+
+fn deriveKeystream(password, saltBytes, n) {
+    let out = []
+    let counter = 0
+    let saltKey = ""
+    let si = 0
+    while si < len(saltBytes) {
+        saltKey = saltKey + ("" + saltBytes[si]) + ","
+        si = si + 1
+    }
+    while len(out) < n {
+        let dig = crypto_sha3_256("" + password + "|" + saltKey + "|" + counter)
+        let j = 0
+        while j < len(dig) && len(out) < n {
+            out = push(out, dig[j])
+            j = j + 1
+        }
+        counter = counter + 1
+    }
+    return out
+}
+
+fn xorBytes(data, keystream) {
+    let out = []
+    let i = 0
+    while i < len(data) {
+        let a = data[i]
+        let b = keystream[i]
+        out = push(out, a ^ b)
+        i = i + 1
+    }
+    return out
+}
+
+fn makeSalt(password) {
+    return crypto_sha3_256("kdf-salt|" + password)
+}
+
+/// Encrypt a document to an envelope object (not yet written).
+pub fn docEncrypt(doc, password) {
+    if password == null || password == undefined {
+        return { "ok": false, "error": "password required" }
+    }
+    let plain = kdfSerialize(doc)
+    let salt = makeSalt(password)
+    let data = latin1ToBytes(plain)
+    let ks = deriveKeystream(password, salt, len(data))
+    let cipher = xorBytes(data, ks)
+    return {
+        "magic": "KDF1",
+        "enc": true,
+        "kdf": "sha3-256-stream",
+        "cipher": "xor-stream",
+        "salt": salt,
+        "payload": cipher,
+        "ok": true
+    }
+}
+
+pub fn docDecrypt(envelope, password) {
+    if envelope["enc"] != true {
+        return kdfNormalize(envelope)
+    }
+    if password == null || password == undefined {
+        return { "ok": false, "error": "password required" }
+    }
+    let salt = envelope["salt"]
+    let payload = envelope["payload"]
+    let ks = deriveKeystream(password, salt, len(payload))
+    let plainBytes = xorBytes(payload, ks)
+    let text = bytesToLatin1(plainBytes)
+    let doc = kdfParse(text)
+    doc["ok"] = true
+    return doc
+}
+
+pub fn docEncryptSave(path, doc, password) {
+    let env = docEncrypt(doc, password)
+    if env["ok"] != true {
+        return env
+    }
+    return os_write(path, json_stringify(env))
+}
+
+pub fn docDecryptLoad(path, password) {
+    let text = os_read(path)
+    let env = json_parse(text)
+    return docDecrypt(env, password)
+}

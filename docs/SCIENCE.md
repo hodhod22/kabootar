@@ -546,7 +546,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `gpu_tensor_*` / `gpu_zeros` / `gpu_ones` / `gpu_scale` / `gpu_add` | GPU staging tensors |
 | `ml_train_log` | Training progress (rich notebook) |
 | `tok_build_vocab` / `tok_encode` / `tok_decode` / `tok_bpe_*` | Tokenizer subset |
-| `tf_sinusoidal_pos` / `tf_transformer_forward` / `tf_lm_sgd_step` / `tf_lm_backprop_step` | Transformer inference + last-layer / multi-layer train |
+| `tf_sinusoidal_pos` / `tf_transformer_forward` / `tf_lm_sgd_step` / `tf_lm_backprop_step` / `tf_stack_forward` / `tf_stack_backprop_step` | Transformer inference + last-layer / multi-layer stack train (`stackForward` / `stackBackpropStep`) |
+| `sci_blas_set_num_threads` / `sci_blas_num_threads` / `sci_blas_info` | OpenBLAS/MKL/OMP thread control (`blasSetNumThreads` / `blasInfo`) when the loaded BLAS exposes it |
+| `parquet_save` / `parquet_load` | Apache Parquet + KPQT1; nested List (f64/i64/utf8) and flat Struct string fields |
 | `sci_bench` / `sci_bench_report` | Science bench harness |
 | `ml_stump_fit` / `ml_tree_fit` / `ml_tree_predict` | Decision stump/tree |
 | `ml_adamw_update` / `ml_roc_auc` | AdamW + ROC-AUC |
@@ -557,6 +559,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `job_map_parallel` / `job_map_chunks` | SC4c parallel f64 map + Kab-closure chunks |
 | `NdShared` / `nd_slice` views / `a[1:10, :]` | SC0f zero-copy Rc views (no dangling) |
 | `nd_take` / `Tensor` / `science/lazy` | Buffer ownership move + GC lazy graphs |
+| `nd_gather` / `nd_compress` / `gather` / `compress` | Fancy indexing subset (integer gather + boolean mask → 1D) |
+| `complex64` / `nd_conj` / `astype(..., "complex64")` | Interleaved `[re,im]` buffer; KND1 tag 6; complex add/mul/sub/div/abs |
+| `sci_allreduce_f64` / `allReduce` / `allReduceMean|Sum|Max` | Threaded in-process AllReduce (`science/dist`) |)
 
 ## ML / AI (SC2)
 

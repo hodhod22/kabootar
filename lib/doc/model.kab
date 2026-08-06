@@ -1,21 +1,34 @@
 @version "1.0.0"
 
-// Motor document model (MIT). Commercial kit: nabz.
+// Motor document model (MIT). Kit: nabz.
 // import "doc/model"
 
 pub fn createDocument(title) {
     if title == null || title == undefined { title = "Untitled" }
     return {
         "kind": "Document",
+        "magic": "KDF1",
         "title": title,
         "pages": [],
+        "forms": [],
+        "meta": {
+            "pageSize": "A4",
+            "margin": 48.0,
+            "font": "Helvetica",
+            "fontSize": 12.0
+        },
         "rev": 0.0
     }
 }
 
 pub fn docAddPage(doc, name) {
     if name == null || name == undefined { name = "page" }
-    let page = { "kind": "DocPage", "name": name, "blocks": [] }
+    let page = {
+        "kind": "DocPage",
+        "name": name,
+        "blocks": [],
+        "size": doc["meta"]["pageSize"]
+    }
     doc["pages"] = push(doc["pages"], page)
     doc["rev"] = doc["rev"] + 1.0
     return doc
@@ -23,4 +36,14 @@ pub fn docAddPage(doc, name) {
 
 pub fn docPageCount(doc) {
     return len(doc["pages"])
+}
+
+pub fn docSetTitle(doc, title) {
+    doc["title"] = title
+    doc["rev"] = doc["rev"] + 1.0
+    return doc
+}
+
+pub fn docClone(doc) {
+    return json_parse(json_stringify(doc))
 }
