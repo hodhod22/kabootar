@@ -70,12 +70,21 @@ pub fn enableGrad(on) {
     return ag_enable_grad(on)
 }
 
-pub fn backward(loss) {
-    return ag_backward(loss)
+/// Backward. createGraph=true keeps grad as tape nodes for higher-order.
+pub fn backward(loss, createGraph) {
+    if createGraph == null || createGraph == undefined {
+        return ag_backward(loss)
+    }
+    return ag_backward(loss, createGraph)
 }
 
 pub fn grad(t) {
     return ag_grad(t)
+}
+
+/// Gradient as autograd tensor (requires backward(loss, true)).
+pub fn gradTensor(t) {
+    return ag_grad_tensor(t)
 }
 
 pub fn value(t) {

@@ -685,6 +685,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_job_map_chunks", "job_map_chunks"], job_map_chunks);
     bind(&["science_sci_allreduce_f64", "sci_allreduce_f64"], sci_allreduce_f64);
     bind(&["science_sci_allreduce_tcp", "sci_allreduce_tcp"], sci_allreduce_tcp);
+    bind(
+        &["science_sci_allreduce_tcp_rank", "sci_allreduce_tcp_rank"],
+        sci_allreduce_tcp_rank,
+    );
 }
 
 /// sci_allreduce_f64(vectors, op?, nWorkers?) — threaded in-process AllReduce.
@@ -813,8 +817,126 @@ fn read_f64_vec(stream: &mut std::net::TcpStream) -> Result<Vec<f64>, String> {
     Ok(out)
 }
 
-/// sci_allreduce_tcp(vectors, op?) — AllReduce over loopback TCP (socket transport).
-/// Rank 0 hosts; ranks 1..N-1 connect, send vectors, receive reduced result.
+fn tcp_reduce_acc(acc: &mut [f64], remote: &[f64], op: &str) {
+    for d in 0..acc.len() {
+        match op {
+            "max" => acc[d] = acc[d].max(remote[d]),
+            _ => acc[d] += remote[d],
+        }
+    }
+}
+
+fn tcp_finalize_acc(acc: &mut [f64], op: &str, n: usize) {
+    if op == "mean" {
+        let scale = 1.0 / n as f64;
+        for x in acc {
+            *x *= scale;
+        }
+    }
+}
+
+/// sci_allreduce_tcp_rank(localVec, op, rank, nRanks, host, port)
+/// Multi-host star AllReduce: rank 0 binds (host, port); others connect.
+fn sci_allreduce_tcp_rank(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = args;
+        return Err("sci_allreduce_tcp_rank: not available on wasm32".into());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::net::{TcpListener, TcpStream};
+        use std::thread;
+        use std::time::Duration;
+
+        let local = vector_at(args, 0, "sci_allreduce_tcp_rank")?;
+        let op = match args.get(1) {
+            Some(Value::String(s)) => s.clone(),
+            Some(Value::Null) | Some(Value::Undefined) | None => "mean".into(),
+            _ => return Err("sci_allreduce_tcp_rank: op must be string".into()),
+        };
+        if !matches!(op.as_str(), "sum" | "mean" | "max") {
+            return Err("sci_allreduce_tcp_rank: op must be sum|mean|max".into());
+        }
+        let rank = num_at(args, 2, "sci_allreduce_tcp_rank")? as usize;
+        let n_ranks = num_at(args, 3, "sci_allreduce_tcp_rank")? as usize;
+        if n_ranks == 0 || rank >= n_ranks {
+            return Err("sci_allreduce_tcp_rank: bad rank/nRanks".into());
+        }
+        let host = match args.get(4) {
+            Some(Value::String(s)) => s.clone(),
+            Some(Value::Null) | Some(Value::Undefined) | None => "127.0.0.1".into(),
+            _ => return Err("sci_allreduce_tcp_rank: host must be string".into()),
+        };
+        let port = num_at(args, 5, "sci_allreduce_tcp_rank")? as u16;
+        if port == 0 {
+            return Err("sci_allreduce_tcp_rank: port must be > 0".into());
+        }
+        let dim = local.len();
+
+        let result = if rank == 0 {
+            let listener = TcpListener::bind((host.as_str(), port))
+                .map_err(|e| format!("sci_allreduce_tcp_rank bind: {e}"))?;
+            let mut acc = local.clone();
+            let mut streams = Vec::with_capacity(n_ranks.saturating_sub(1));
+            for _ in 1..n_ranks {
+                let (mut stream, _) = listener
+                    .accept()
+                    .map_err(|e| format!("sci_allreduce_tcp_rank accept: {e}"))?;
+                let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+                let _ = stream.set_write_timeout(Some(Duration::from_secs(10)));
+                let remote = read_f64_vec(&mut stream)?;
+                if remote.len() != dim {
+                    return Err("sci_allreduce_tcp_rank: dim mismatch".into());
+                }
+                tcp_reduce_acc(&mut acc, &remote, &op);
+                streams.push(stream);
+            }
+            tcp_finalize_acc(&mut acc, &op, n_ranks);
+            for stream in &mut streams {
+                write_f64_vec(stream, &acc)?;
+            }
+            acc
+        } else {
+            let connect_host = if host == "0.0.0.0" {
+                "127.0.0.1".to_string()
+            } else {
+                host.clone()
+            };
+            let mut last_err = String::new();
+            let mut got = None;
+            for _ in 0..200 {
+                match TcpStream::connect((connect_host.as_str(), port)) {
+                    Ok(mut stream) => {
+                        let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+                        let _ = stream.set_write_timeout(Some(Duration::from_secs(10)));
+                        write_f64_vec(&mut stream, &local)?;
+                        got = Some(read_f64_vec(&mut stream)?);
+                        break;
+                    }
+                    Err(e) => {
+                        last_err = e.to_string();
+                        thread::sleep(Duration::from_millis(20));
+                    }
+                }
+            }
+            got.ok_or_else(|| format!("sci_allreduce_tcp_rank connect: {last_err}"))?
+        };
+
+        let mut out = HashMap::new();
+        out.insert("result".into(), vector_out(&result));
+        out.insert("transport".into(), Value::String("tcp".into()));
+        out.insert("host".into(), Value::String(host));
+        out.insert("port".into(), Value::Number(port as i64));
+        out.insert("nRanks".into(), Value::Number(n_ranks as i64));
+        out.insert("rank".into(), Value::Number(rank as i64));
+        out.insert("op".into(), Value::String(op));
+        Ok(Value::Object(out))
+    }
+}
+
+/// sci_allreduce_tcp(vectors, op?, bindHost?) — in-process multi-rank TCP AllReduce.
+/// bindHost defaults to 127.0.0.1; use 0.0.0.0 to prove configurable bind.
 fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -835,7 +957,7 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
                 }
                 out
             }
-            _ => return Err("sci_allreduce_tcp(vectors, op?)".into()),
+            _ => return Err("sci_allreduce_tcp(vectors, op?, bindHost?)".into()),
         };
         if vectors.is_empty() {
             return Ok(Value::Array(vec![]));
@@ -854,27 +976,44 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
         if !matches!(op.as_str(), "sum" | "mean" | "max") {
             return Err("sci_allreduce_tcp: op must be sum|mean|max".into());
         }
+        let bind_host = match args.get(2) {
+            Some(Value::String(s)) => s.clone(),
+            Some(Value::Null) | Some(Value::Undefined) | None => "127.0.0.1".into(),
+            _ => return Err("sci_allreduce_tcp: bindHost must be string".into()),
+        };
         let n = vectors.len();
         if n == 1 {
-            return Ok(vector_out(&vectors[0]));
+            let mut out = HashMap::new();
+            out.insert("result".into(), vector_out(&vectors[0]));
+            out.insert("transport".into(), Value::String("tcp".into()));
+            out.insert("host".into(), Value::String(bind_host));
+            out.insert("port".into(), Value::Number(0));
+            out.insert("nRanks".into(), Value::Number(1));
+            out.insert("op".into(), Value::String(op));
+            return Ok(Value::Object(out));
         }
 
-        let listener = TcpListener::bind("127.0.0.1:0")
+        let listener = TcpListener::bind((bind_host.as_str(), 0))
             .map_err(|e| format!("sci_allreduce_tcp bind: {e}"))?;
         let port = listener
             .local_addr()
             .map_err(|e| format!("sci_allreduce_tcp addr: {e}"))?
             .port();
         let _ = listener.set_nonblocking(false);
+        let connect_host = if bind_host == "0.0.0.0" {
+            "127.0.0.1".to_string()
+        } else {
+            bind_host.clone()
+        };
 
         // One client thread per remote rank so all connect before server replies.
         let mut clients = Vec::with_capacity(n - 1);
         for v in vectors.iter().skip(1).cloned() {
+            let ch = connect_host.clone();
             clients.push(thread::spawn(move || -> Result<Vec<f64>, String> {
-                // Retry connect briefly while listener comes up.
                 let mut last_err = String::new();
                 for _ in 0..50 {
-                    match TcpStream::connect(("127.0.0.1", port)) {
+                    match TcpStream::connect((ch.as_str(), port)) {
                         Ok(mut stream) => {
                             let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
                             let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
@@ -903,20 +1042,10 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
             if remote.len() != dim {
                 return Err("sci_allreduce_tcp: dim mismatch".into());
             }
-            for d in 0..dim {
-                match op.as_str() {
-                    "max" => acc[d] = acc[d].max(remote[d]),
-                    _ => acc[d] += remote[d],
-                }
-            }
+            tcp_reduce_acc(&mut acc, &remote, &op);
             streams.push(stream);
         }
-        if op == "mean" {
-            let scale = 1.0 / n as f64;
-            for x in &mut acc {
-                *x *= scale;
-            }
-        }
+        tcp_finalize_acc(&mut acc, &op, n);
         for stream in &mut streams {
             write_f64_vec(stream, &acc)?;
         }
@@ -936,6 +1065,7 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
         let mut out = HashMap::new();
         out.insert("result".into(), vector_out(&acc));
         out.insert("transport".into(), Value::String("tcp".into()));
+        out.insert("host".into(), Value::String(bind_host));
         out.insert("port".into(), Value::Number(port as i64));
         out.insert("nRanks".into(), Value::Number(n as i64));
         out.insert("op".into(), Value::String(op));

@@ -533,7 +533,7 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |
 | `mat_qr` / `mat_qr_err` / `mat_svd` / `mat_pinv` / `mat_eig` / `mat_cholesky` / `mat_lstsq` / `mat_cond` | Linalg (SC1e+): thin/full QR·SVD, recon residual, pinv |
 | `num_rk4` / `num_odeint` / `num_odeint_adaptive` / `num_quad` | ODE + adaptive + quadrature |
-| `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/add/mul/sub/div/sum/exp/no_grad) | Autograd tape (SC2g) |
+| `ag_*` (+ matmul/conv2d/sigmoid/softmax/ce/add/mul/sub/div/sum/exp/no_grad; `backward(..., true)` / `gradTensor`) | Autograd tape + HOAD subset (SC2n) |
 | `ml_adam_update` / `ml_accuracy` / `ml_f1` / `ml_confusion` / `ml_shuffle` / `ml_batch_slices` / `ml_train_test_split` | Adam + metrics + batch |
 | `ml_save_checkpoint` / `ml_load_checkpoint` / `ml_cross_entropy` | Model I/O + CE |
 | `num_fft` / `num_ifft` / `num_fft_c` / `num_rfft` / `num_irfft` / `num_fft_pad` / `num_conv1d` / `mat_svd2` | Signal + SVD2 + real/complex FFT |
@@ -563,9 +563,9 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_gather` / `nd_compress` / `gather` / `compress` | Fancy indexing (real + complex64); mask = logical numel |
 | `nd_nonzero` / `nd_fancy_index` / `nd_take_along` / `fancyOuter` | Nonzero; broadcast/outer multi-axis fancy |
 | `complex64` / `nd_conj` / `astype(..., "complex64")` | Interleaved `[re,im]` buffer; KND1 tag 6; complex add/mul/sub/div/abs |
-| `sci_allreduce_f64` / `allReduce*` / `allReduceRanks` / `allReduceStar|Ring` / `allReduceTcp` | Threaded + mailbox + **loopback TCP** socket transport (`science/dist`) |
-| `science/kab_algo` SC5b | PCA/stump/kmeans + `baggingStumpsKab` / `treeKab` / `boostStumpsKab` ensembles |
-| `sparse_gather_rows` / `sparse_compress_rows` / `sparse_from_dense_mask` | Sparse fancy row views (`science/sparse`) |)
+| `sci_allreduce_f64` / `allReduce*` / `allReduceRanks` / `allReduceStar|Ring` / `allReduceTcp` / `allReduceTcpRank` | Threaded + mailbox + TCP (in-process + multi-host rank API) (`science/dist`) |
+| `science/kab_algo` SC5b | PCA/stump/kmeans + bagging/AdaBoost + **`gbdtFitKab`/`gbdtPredictKab`** |
+| `sparse_gather_rows` / `sparse_compress_rows` / `sparse_gather_cols` / `sparse_compress_cols` / `sparse_slice` / `sparse_from_dense_mask` | Sparse fancy row/col/slice views (`science/sparse`) |)
 
 ## ML / AI (SC2)
 

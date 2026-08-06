@@ -306,13 +306,29 @@ pub fn allReduceStar(cluster, vectors, op) {
     return allReduceCluster(cluster, vectors, op, "star")
 }
 
-/// Socket AllReduce over loopback TCP (real TCP bytes on the wire).
-/// Returns { result, transport, port, nRanks, op }.
-pub fn allReduceTcp(vectors, op) {
+/// In-process multi-rank TCP AllReduce (star). Optional bindHost (default 127.0.0.1).
+/// Returns { result, transport, host, port, nRanks, op }.
+pub fn allReduceTcp(vectors, op, bindHost) {
     if op == null || op == undefined {
         op = "mean"
     }
-    return sci_allreduce_tcp(vectors, op)
+    if bindHost == null || bindHost == undefined {
+        return sci_allreduce_tcp(vectors, op)
+    }
+    return sci_allreduce_tcp(vectors, op, bindHost)
+}
+
+/// Multi-host star AllReduce: each process calls with its rank.
+/// rank 0 binds (host, port); others connect. host "0.0.0.0" ok for bind; clients use 127.0.0.1.
+/// Returns { result, transport, host, port, nRanks, rank, op }.
+pub fn allReduceTcpRank(localVec, op, rank, nRanks, host, port) {
+    if op == null || op == undefined {
+        op = "mean"
+    }
+    if host == null || host == undefined {
+        host = "127.0.0.1"
+    }
+    return sci_allreduce_tcp_rank(localVec, op, rank, nRanks, host, port)
 }
 
 /// Map-reduce: chunk → mapFn(chunk) → reduceFn(results).

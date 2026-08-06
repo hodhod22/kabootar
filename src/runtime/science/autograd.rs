@@ -1,4 +1,4 @@
-//! Autograd tape (SC2c/SC2f/SC2g) — dense/relu/mse + matmul/conv/softmax/CE + add/mul/sub/div/sum/exp + no_grad.
+//! Autograd tape (SC2c/SC2f/SC2g/SC2h) — first-order + create_graph higher-order for sum/exp/mul/add.
 
 use super::helpers::{num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
@@ -59,6 +59,8 @@ struct Tape {
     next_id: u64,
     nodes: HashMap<u64, Node>,
     grads: HashMap<u64, Vec<f64>>,
+    /// When create_graph: tape node id holding gradient of key.
+    grad_nodes: HashMap<u64, u64>,
     grad_enabled: bool,
 }
 
@@ -68,6 +70,7 @@ impl Default for Tape {
             next_id: 0,
             nodes: HashMap::new(),
             grads: HashMap::new(),
+            grad_nodes: HashMap::new(),
             grad_enabled: true,
         }
     }
@@ -561,10 +564,91 @@ fn accumulate(t: &mut Tape, id: u64, g: &[f64]) {
     }
 }
 
+fn push_node(t: &mut Tape, node: Node) -> u64 {
+    let id = match &node {
+        Node::Leaf { id, .. }
+        | Node::Relu { id, .. }
+        | Node::Sigmoid { id, .. }
+        | Node::Dense { id, .. }
+        | Node::Matmul { id, .. }
+        | Node::Conv2d { id, .. }
+        | Node::Softmax { id, .. }
+        | Node::Add { id, .. }
+        | Node::Sub { id, .. }
+        | Node::Mul { id, .. }
+        | Node::Div { id, .. }
+        | Node::Sum { id, .. }
+        | Node::Exp { id, .. }
+        | Node::Mse { id, .. }
+        | Node::Ce { id, .. } => *id,
+    };
+    t.nodes.insert(id, node);
+    id
+}
+
+fn alloc_id(t: &mut Tape) -> u64 {
+    let id = t.next_id;
+    t.next_id += 1;
+    id
+}
+
+fn accumulate_graph(t: &mut Tape, id: u64, g_vals: &[f64], g_node: u64, create_graph: bool) {
+    accumulate(t, id, g_vals);
+    if !create_graph {
+        return;
+    }
+    if let Some(&prev) = t.grad_nodes.get(&id) {
+        let pv = node_value(t, prev).unwrap_or_else(|_| vec![0.0; g_vals.len()]);
+        let out: Vec<f64> = pv
+            .iter()
+            .zip(g_vals.iter())
+            .map(|(a, b)| a + b)
+            .collect();
+        let nid = alloc_id(t);
+        push_node(
+            t,
+            Node::Add {
+                id: nid,
+                left: prev,
+                right: g_node,
+                value: out,
+            },
+        );
+        t.grad_nodes.insert(id, nid);
+    } else {
+        t.grad_nodes.insert(id, g_node);
+    }
+}
+
+fn ensure_grad_node(t: &mut Tape, id: u64, vals: &[f64], create_graph: bool) -> Option<u64> {
+    if !create_graph {
+        return None;
+    }
+    if let Some(&n) = t.grad_nodes.get(&id) {
+        return Some(n);
+    }
+    let nid = alloc_id(t);
+    push_node(
+        t,
+        Node::Leaf {
+            id: nid,
+            value: vals.to_vec(),
+        },
+    );
+    t.grad_nodes.insert(id, nid);
+    Some(nid)
+}
+
 fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let loss_id = tensor_id(args.first().ok_or("ag_backward(loss)")?)?;
+    let loss_id = tensor_id(args.first().ok_or("ag_backward(loss, createGraph?)")?)?;
+    let create_graph = match args.get(1) {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Number(n)) => *n != 0,
+        _ => false,
+    };
     with_tape(|t| {
         t.grads.clear();
+        t.grad_nodes.clear();
         let root = t.nodes.get(&loss_id).cloned().ok_or("ag_backward: missing root")?;
         match root {
             Node::Mse {
@@ -577,6 +661,17 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                     .zip(target.iter())
                     .map(|(p, y)| 2.0 * (p - y) / n)
                     .collect();
+                if create_graph {
+                    let nid = alloc_id(t);
+                    push_node(
+                        t,
+                        Node::Leaf {
+                            id: nid,
+                            value: g_pred.clone(),
+                        },
+                    );
+                    t.grad_nodes.insert(pred, nid);
+                }
                 t.grads.insert(pred, g_pred);
             }
             Node::Ce {
@@ -589,16 +684,51 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                     .zip(target.iter())
                     .map(|(p, y)| -y / p.max(1e-12) / n)
                     .collect();
+                if create_graph {
+                    let nid = alloc_id(t);
+                    push_node(
+                        t,
+                        Node::Leaf {
+                            id: nid,
+                            value: g_pred.clone(),
+                        },
+                    );
+                    t.grad_nodes.insert(pred, nid);
+                }
                 t.grads.insert(pred, g_pred);
             }
             Node::Sum { parent, .. } => {
                 let pv = node_value(t, parent)?;
-                t.grads.insert(parent, vec![1.0; pv.len()]);
+                let ones = vec![1.0; pv.len()];
+                if create_graph {
+                    let nid = alloc_id(t);
+                    push_node(
+                        t,
+                        Node::Leaf {
+                            id: nid,
+                            value: ones.clone(),
+                        },
+                    );
+                    t.grad_nodes.insert(parent, nid);
+                }
+                t.grads.insert(parent, ones);
             }
             _ => {
                 // Scalar or vector root: seed ones matching root value length.
                 let rv = node_value(t, loss_id)?;
-                t.grads.insert(loss_id, vec![1.0; rv.len()]);
+                let ones = vec![1.0; rv.len()];
+                if create_graph {
+                    let nid = alloc_id(t);
+                    push_node(
+                        t,
+                        Node::Leaf {
+                            id: nid,
+                            value: ones.clone(),
+                        },
+                    );
+                    t.grad_nodes.insert(loss_id, nid);
+                }
+                t.grads.insert(loss_id, ones);
             }
         }
 
@@ -738,15 +868,55 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                 }
                 Node::Add { left, right, .. } => {
                     if let Some(gout) = t.grads.get(&id).cloned() {
-                        accumulate(t, left, &gout);
-                        accumulate(t, right, &gout);
+                        if create_graph {
+                            if let Some(gn) = ensure_grad_node(t, id, &gout, true) {
+                                accumulate_graph(t, left, &gout, gn, true);
+                                accumulate_graph(t, right, &gout, gn, true);
+                            } else {
+                                accumulate(t, left, &gout);
+                                accumulate(t, right, &gout);
+                            }
+                        } else {
+                            accumulate(t, left, &gout);
+                            accumulate(t, right, &gout);
+                        }
                     }
                 }
                 Node::Sub { left, right, .. } => {
                     if let Some(gout) = t.grads.get(&id).cloned() {
                         let gr: Vec<f64> = gout.iter().map(|g| -g).collect();
-                        accumulate(t, left, &gout);
-                        accumulate(t, right, &gr);
+                        if create_graph {
+                            if let Some(gn) = ensure_grad_node(t, id, &gout, true) {
+                                let nid = alloc_id(t);
+                                let neg: Vec<f64> = gr.clone();
+                                // scale by -1 via mul with leaf -1s
+                                let ones_neg = alloc_id(t);
+                                push_node(
+                                    t,
+                                    Node::Leaf {
+                                        id: ones_neg,
+                                        value: vec![-1.0; gout.len()],
+                                    },
+                                );
+                                push_node(
+                                    t,
+                                    Node::Mul {
+                                        id: nid,
+                                        left: gn,
+                                        right: ones_neg,
+                                        value: neg.clone(),
+                                    },
+                                );
+                                accumulate_graph(t, left, &gout, gn, true);
+                                accumulate_graph(t, right, &gr, nid, true);
+                            } else {
+                                accumulate(t, left, &gout);
+                                accumulate(t, right, &gr);
+                            }
+                        } else {
+                            accumulate(t, left, &gout);
+                            accumulate(t, right, &gr);
+                        }
                     }
                 }
                 Node::Mul { left, right, value: _, .. } => {
@@ -755,8 +925,38 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                         let rv = node_value(t, right)?;
                         let gl: Vec<f64> = gout.iter().zip(rv.iter()).map(|(g, r)| g * r).collect();
                         let gr: Vec<f64> = gout.iter().zip(lv.iter()).map(|(g, l)| g * l).collect();
-                        accumulate(t, left, &gl);
-                        accumulate(t, right, &gr);
+                        if create_graph {
+                            if let Some(gn) = ensure_grad_node(t, id, &gout, true) {
+                                let gl_id = alloc_id(t);
+                                push_node(
+                                    t,
+                                    Node::Mul {
+                                        id: gl_id,
+                                        left: gn,
+                                        right,
+                                        value: gl.clone(),
+                                    },
+                                );
+                                let gr_id = alloc_id(t);
+                                push_node(
+                                    t,
+                                    Node::Mul {
+                                        id: gr_id,
+                                        left: gn,
+                                        right: left,
+                                        value: gr.clone(),
+                                    },
+                                );
+                                accumulate_graph(t, left, &gl, gl_id, true);
+                                accumulate_graph(t, right, &gr, gr_id, true);
+                            } else {
+                                accumulate(t, left, &gl);
+                                accumulate(t, right, &gr);
+                            }
+                        } else {
+                            accumulate(t, left, &gl);
+                            accumulate(t, right, &gr);
+                        }
                     }
                 }
                 Node::Div { left, right, .. } => {
@@ -780,15 +980,50 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                                 -g * l / (d * d)
                             })
                             .collect();
-                        accumulate(t, left, &gl);
-                        accumulate(t, right, &gr);
+                        // Numeric path only for Div higher-order (leaf detach of gin).
+                        if create_graph {
+                            let gl_leaf = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gl_leaf,
+                                    value: gl.clone(),
+                                },
+                            );
+                            let gr_leaf = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: gr_leaf,
+                                    value: gr.clone(),
+                                },
+                            );
+                            accumulate_graph(t, left, &gl, gl_leaf, true);
+                            accumulate_graph(t, right, &gr, gr_leaf, true);
+                        } else {
+                            accumulate(t, left, &gl);
+                            accumulate(t, right, &gr);
+                        }
                     }
                 }
                 Node::Sum { parent, .. } => {
                     if let Some(gout) = t.grads.get(&id).cloned() {
                         let g0 = gout.first().copied().unwrap_or(1.0);
                         let pv = node_value(t, parent)?;
-                        accumulate(t, parent, &vec![g0; pv.len()]);
+                        let gin = vec![g0; pv.len()];
+                        if create_graph {
+                            let nid = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: nid,
+                                    value: gin.clone(),
+                                },
+                            );
+                            accumulate_graph(t, parent, &gin, nid, true);
+                        } else {
+                            accumulate(t, parent, &gin);
+                        }
                     }
                 }
                 Node::Exp { parent, value, .. } => {
@@ -798,7 +1033,25 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                             .zip(value.iter())
                             .map(|(g, e)| g * e)
                             .collect();
-                        accumulate(t, parent, &gin);
+                        if create_graph {
+                            if let Some(gn) = ensure_grad_node(t, id, &gout, true) {
+                                let nid = alloc_id(t);
+                                push_node(
+                                    t,
+                                    Node::Mul {
+                                        id: nid,
+                                        left: gn,
+                                        right: id,
+                                        value: gin.clone(),
+                                    },
+                                );
+                                accumulate_graph(t, parent, &gin, nid, true);
+                            } else {
+                                accumulate(t, parent, &gin);
+                            }
+                        } else {
+                            accumulate(t, parent, &gin);
+                        }
                     }
                 }
                 Node::Mse { .. } | Node::Ce { .. } if id == loss_id => {}
@@ -817,6 +1070,24 @@ fn ag_grad(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             .cloned()
             .map(|g| vector_out(&g))
             .ok_or_else(|| "ag_grad: no gradient (run ag_backward)".into())
+    })
+}
+
+/// ag_grad_tensor(t) — gradient as an autograd tensor (requires backward(..., true)).
+fn ag_grad_tensor(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let id = tensor_id(args.first().ok_or("ag_grad_tensor(t)")?)?;
+    with_tape(|t| {
+        let gid = t
+            .grad_nodes
+            .get(&id)
+            .copied()
+            .ok_or_else(|| "ag_grad_tensor: missing (run ag_backward(loss, true))".to_string())?;
+        let g = t
+            .grads
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| "ag_grad_tensor: no numeric grad".to_string())?;
+        Ok(tensor_out(gid, &g))
     })
 }
 
@@ -853,6 +1124,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_ag_enable_grad", "ag_enable_grad"], ag_enable_grad);
     bind(&["science_ag_backward", "ag_backward"], ag_backward);
     bind(&["science_ag_grad", "ag_grad"], ag_grad);
+    bind(&["science_ag_grad_tensor", "ag_grad_tensor"], ag_grad_tensor);
     bind(&["science_ag_value", "ag_value"], ag_value);
     bind(&["science_ag_clear", "ag_clear"], ag_clear);
 }

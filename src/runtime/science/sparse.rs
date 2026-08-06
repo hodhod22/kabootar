@@ -302,6 +302,121 @@ fn sparse_compress_rows(args: &[Value], env: &mut Environment) -> Result<Value, 
     sparse_gather_rows(&[a.clone(), ix_arr], env)
 }
 
+/// sparse_gather_cols(A, colIndices) — select columns (CSR/COO in → CSR out).
+fn sparse_gather_cols(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_gather_cols(A, colIndices)")?;
+    let col_ix = match args.get(1) {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_gather_cols: colIndices array".into()),
+    };
+    let csr = if parse_sparse(a)?.0 == "csr" {
+        a.clone()
+    } else {
+        sparse_to_csr(&[a.clone()], env)?
+    };
+    let (_, nrows, ncols, data, indices, indptr) = parse_sparse(&csr)?;
+    for &c in &col_ix {
+        if c >= ncols {
+            return Err("sparse_gather_cols: col OOB".into());
+        }
+    }
+    // old col -> new col (first occurrence wins for duplicates)
+    let mut remap = vec![None; ncols];
+    for (new_c, &old_c) in col_ix.iter().enumerate() {
+        if remap[old_c].is_none() {
+            remap[old_c] = Some(new_c);
+        }
+    }
+    let mut out_data = Vec::new();
+    let mut out_indices = Vec::new();
+    let mut out_indptr = vec![0i64];
+    for r in 0..nrows {
+        let start = indptr[r] as usize;
+        let end = indptr[r + 1] as usize;
+        for k in start..end {
+            let old_c = indices[k] as usize;
+            if let Some(new_c) = remap.get(old_c).and_then(|x| *x) {
+                out_data.push(data[k]);
+                out_indices.push(new_c as i64);
+            }
+        }
+        out_indptr.push(out_data.len() as i64);
+    }
+    Ok(sparse_out(
+        "csr",
+        nrows,
+        col_ix.len(),
+        &out_data,
+        &out_indices,
+        &out_indptr,
+    ))
+}
+
+/// sparse_compress_cols(A, mask) — keep columns where mask[i] != 0.
+fn sparse_compress_cols(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_compress_cols(A, mask)")?;
+    let mask = vector_at(args, 1, "sparse_compress_cols")?;
+    let (_, _, ncols, _, _, _) = parse_sparse(a)?;
+    if mask.len() != ncols {
+        return Err("sparse_compress_cols: mask length".into());
+    }
+    let ix_arr = Value::Array(
+        mask.iter()
+            .enumerate()
+            .filter(|(_, m)| **m != 0.0)
+            .map(|(i, _)| int_out(i as i64))
+            .collect(),
+    );
+    sparse_gather_cols(&[a.clone(), ix_arr], env)
+}
+
+/// sparse_slice(A, rowStart, rowStop, colStart, colStop) — half-open rectangular view → CSR.
+fn sparse_slice(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_slice(A, r0, r1, c0, c1)")?;
+    let r0 = num_at(args, 1, "sparse_slice")? as usize;
+    let r1 = num_at(args, 2, "sparse_slice")? as usize;
+    let c0 = num_at(args, 3, "sparse_slice")? as usize;
+    let c1 = num_at(args, 4, "sparse_slice")? as usize;
+    if r1 < r0 || c1 < c0 {
+        return Err("sparse_slice: stop < start".into());
+    }
+    let csr = if parse_sparse(a)?.0 == "csr" {
+        a.clone()
+    } else {
+        sparse_to_csr(&[a.clone()], env)?
+    };
+    let (_, nrows, ncols, data, indices, indptr) = parse_sparse(&csr)?;
+    if r1 > nrows || c1 > ncols {
+        return Err("sparse_slice: OOB".into());
+    }
+    let mut out_data = Vec::new();
+    let mut out_indices = Vec::new();
+    let mut out_indptr = vec![0i64];
+    for r in r0..r1 {
+        let start = indptr[r] as usize;
+        let end = indptr[r + 1] as usize;
+        for k in start..end {
+            let c = indices[k] as usize;
+            if c >= c0 && c < c1 {
+                out_data.push(data[k]);
+                out_indices.push((c - c0) as i64);
+            }
+        }
+        out_indptr.push(out_data.len() as i64);
+    }
+    Ok(sparse_out(
+        "csr",
+        r1 - r0,
+        c1 - c0,
+        &out_data,
+        &out_indices,
+        &out_indptr,
+    ))
+}
+
 /// sparse_from_dense_mask(denseRows, mask) — COO of kept entries (fancy sparse view).
 /// denseRows: array of row arrays; mask: same nrows, truthy keeps row.
 fn sparse_from_dense_mask(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -366,4 +481,13 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         &["science_sparse_from_dense_mask", "sparse_from_dense_mask"],
         sparse_from_dense_mask,
     );
+    bind(
+        &["science_sparse_gather_cols", "sparse_gather_cols"],
+        sparse_gather_cols,
+    );
+    bind(
+        &["science_sparse_compress_cols", "sparse_compress_cols"],
+        sparse_compress_cols,
+    );
+    bind(&["science_sparse_slice", "sparse_slice"], sparse_slice);
 }
