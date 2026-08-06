@@ -67,8 +67,49 @@ pub fn enableShadow(light, mapSize) {
         mapSize = 1024
     }
     light["castShadow"] = true
-    light["shadow"] = { "mapSize": mapSize, "bias": 0.005 }
+    light["shadow"] = shadowMapDesc(mapSize, 0.005, false)
     return light
+}
+
+/// Shadow map descriptor (GPU map deferred; product API in Kab).
+pub fn shadowMapDesc(mapSize, bias, soft) {
+    if mapSize == null || mapSize == undefined {
+        mapSize = 1024
+    }
+    if bias == null || bias == undefined {
+        bias = 0.005
+    }
+    if soft == null || soft == undefined {
+        soft = false
+    }
+    return {
+        "kind": "shadow-map",
+        "mapSize": mapSize,
+        "bias": bias,
+        "soft": soft,
+        "radius": 0.0
+    }
+}
+
+pub fn enableSoftShadow(light, mapSize, radius) {
+    if mapSize == null || mapSize == undefined {
+        mapSize = 1024
+    }
+    if radius == null || radius == undefined {
+        radius = 1.5
+    }
+    light["castShadow"] = true
+    let sh = shadowMapDesc(mapSize, 0.004, true)
+    sh["radius"] = radius
+    light["shadow"] = sh
+    return light
+}
+
+pub fn describeShadow(light) {
+    if light["castShadow"] != true {
+        return null
+    }
+    return light["shadow"]
 }
 
 pub fn createLightList() {

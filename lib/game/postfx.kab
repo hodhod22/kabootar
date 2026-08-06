@@ -19,14 +19,27 @@ pub fn tonemapPass(exposure) {
     return { "kind": "tonemap", "exposure": exposure }
 }
 
-pub fn bloomPass(threshold, strength) {
+pub fn bloomPass(threshold, strength, radius) {
     if threshold == null || threshold == undefined {
         threshold = 0.8
     }
     if strength == null || strength == undefined {
         strength = 0.5
     }
-    return { "kind": "bloom", "threshold": threshold, "strength": strength }
+    if radius == null || radius == undefined {
+        radius = 1.0
+    }
+    return { "kind": "bloom", "threshold": threshold, "strength": strength, "radius": radius }
+}
+
+pub fn vignettePass(intensity, softness) {
+    if intensity == null || intensity == undefined {
+        intensity = 0.35
+    }
+    if softness == null || softness == undefined {
+        softness = 0.5
+    }
+    return { "kind": "vignette", "intensity": intensity, "softness": softness }
 }
 
 pub fn fxaaPass() {
@@ -70,6 +83,36 @@ pub fn applyBloomThreshold(colors, threshold) {
         } else {
             out = push(out, [0.0, 0.0, 0.0])
         }
+        i = i + 1
+    }
+    return out
+}
+
+/// CPU stub vignette on flat RGB grid (row-major width*height).
+pub fn applyVignette(colors, width, height, intensity) {
+    if intensity == null || intensity == undefined {
+        intensity = 0.35
+    }
+    let out = []
+    let cx = (width - 1) * 0.5
+    let cy = (height - 1) * 0.5
+    let maxd = sqrt(cx * cx + cy * cy)
+    if maxd < 0.0001 {
+        maxd = 1.0
+    }
+    let i = 0
+    while i < len(colors) {
+        let x = i % width
+        let y = floor(i / width)
+        let dx = x - cx
+        let dy = y - cy
+        let t = sqrt(dx * dx + dy * dy) / maxd
+        let dark = 1.0 - intensity * t * t
+        if dark < 0.0 {
+            dark = 0.0
+        }
+        let c = colors[i]
+        out = push(out, [c[0] * dark, c[1] * dark, c[2] * dark])
         i = i + 1
     }
     return out

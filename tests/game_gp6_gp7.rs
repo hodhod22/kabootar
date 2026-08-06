@@ -78,17 +78,24 @@ fn postfx_and_light_descriptors() {
         import "game/light"
         let p = createPipeline()
         p = addPass(p, tonemapPass(1.5))
-        p = addPass(p, bloomPass(0.7, 0.5))
+        p = addPass(p, bloomPass(0.7, 0.5, 1.2))
+        p = addPass(p, vignettePass(0.4, 0.5))
         p = addPass(p, fxaaPass())
         let colors = applyTonemap([[2.0, 2.0, 2.0]], 1.0)
         let bloom = applyBloomThreshold([[1.0, 1.0, 1.0], [0.1, 0.1, 0.1]], 0.5)
+        let vign = applyVignette([
+            [1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0],
+            [1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0],
+            [1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]
+        ], 3, 3, 0.5)
         let lights = createLightList()
-        lights = addLight(lights, createDirectional({ "x": 0.0, "y": -1.0, "z": 0.0 }, [1.0, 1.0, 1.0], 1.0))
+        lights = addLight(lights, enableSoftShadow(createDirectional({ "x": 0.0, "y": -1.0, "z": 0.0 }, [1.0, 1.0, 1.0], 1.0), 1024, 1.5))
         lights = addLight(lights, enableShadow(createPoint({ "x": 0.0, "y": 2.0, "z": 0.0 }, [1.0, 0.8, 0.6], 1.0, 8.0), 512))
+        let sh = describeShadow(lights["lights"][0])
         let contrib = directionalContribution(lights["lights"][0], { "x": 0.0, "y": 1.0, "z": 0.0 })
         let d = describePipeline(p)
         let ld = describeLights(lights)
-        d["count"] == 3 && colors[0][0] > 0.6 && bloom[1][0] == 0.0 && contrib["ndotl"] == 1.0 && ld["count"] == 2 && lights["lights"][1]["castShadow"] == true
+        d["count"] == 4 && colors[0][0] > 0.6 && bloom[1][0] == 0.0 && vign[4][0] > vign[0][0] && contrib["ndotl"] == 1.0 && ld["count"] == 2 && sh["soft"] == true && lights["lights"][1]["castShadow"] == true
         "#,
     );
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");

@@ -62,3 +62,175 @@ pub fn pollRemote(session, world) {
     }
     return { session: session, world: world }
 }
+
+/// In-memory lobby / matchmaking hook (GP6m).
+pub fn createLobby(name, maxPlayers) {
+    if maxPlayers == null || maxPlayers == undefined {
+        maxPlayers = 4
+    }
+    return {
+        "kind": "lobby",
+        "name": name,
+        "maxPlayers": maxPlayers,
+        "players": [],
+        "status": "open"
+    }
+}
+
+pub fn joinLobby(lobby, playerId) {
+    if lobby["status"] != "open" {
+        return lobby
+    }
+    if len(lobby["players"]) >= lobby["maxPlayers"] {
+        return lobby
+    }
+    let i = 0
+    while i < len(lobby["players"]) {
+        if lobby["players"][i] == playerId {
+            return lobby
+        }
+        i = i + 1
+    }
+    lobby["players"] = push(lobby["players"], playerId)
+    return lobby
+}
+
+pub fn leaveLobby(lobby, playerId) {
+    let next = []
+    let i = 0
+    while i < len(lobby["players"]) {
+        if lobby["players"][i] != playerId {
+            next = push(next, lobby["players"][i])
+        }
+        i = i + 1
+    }
+    lobby["players"] = next
+    return lobby
+}
+
+pub fn lobbyReady(lobby) {
+    return lobby["status"] == "open" && len(lobby["players"]) >= 2
+}
+
+pub fn closeLobby(lobby) {
+    lobby["status"] = "closed"
+    return lobby
+}
+
+/// Matchmake into first open lobby with space, or create one.
+pub fn matchmake(lobbies, playerId, name, maxPlayers) {
+    if lobbies == null || lobbies == undefined {
+        lobbies = []
+    }
+    let i = 0
+    while i < len(lobbies) {
+        let L = lobbies[i]
+        if L["status"] == "open" && len(L["players"]) < L["maxPlayers"] {
+            L = joinLobby(L, playerId)
+            lobbies[i] = L
+            return { "lobbies": lobbies, "lobby": L, "created": false }
+        }
+        i = i + 1
+    }
+    let L = createLobby(name, maxPlayers)
+    L = joinLobby(L, playerId)
+    lobbies = push(lobbies, L)
+    return { "lobbies": lobbies, "lobby": L, "created": true }
+}
+
+/// Interest management (AOI radius).
+pub fn createInterest(radius) {
+    if radius == null || radius == undefined {
+        radius = 10.0
+    }
+    return {
+        "kind": "interest",
+        "radius": radius,
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+    }
+}
+
+pub fn setInterestCenter(interest, x, y, z) {
+    interest["x"] = x
+    interest["y"] = y
+    if z == null || z == undefined {
+        z = 0.0
+    }
+    interest["z"] = z
+    return interest
+}
+
+/// Filter entities with .x/.y/.z (or .x/.y) by interest radius (XZ plane + Y optional).
+pub fn filterByInterest(interest, entities) {
+    let out = []
+    let r2 = interest["radius"] * interest["radius"]
+    let i = 0
+    while i < len(entities) {
+        let e = entities[i]
+        let ex = e["x"]
+        let ey = e["y"]
+        let ez = e["z"]
+        if ez == null || ez == undefined {
+            ez = 0.0
+        }
+        if ey == null || ey == undefined {
+            ey = 0.0
+        }
+        let dx = ex - interest["x"]
+        let dy = ey - interest["y"]
+        let dz = ez - interest["z"]
+        if dx * dx + dy * dy + dz * dz <= r2 {
+            out = push(out, e)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Prediction-lite: integrate velocity + accel.
+pub fn predictMove(state, input, dt) {
+    if dt == null || dt <= 0.0 {
+        dt = 1.0 / 60.0
+    }
+    let ax = 0.0
+    let ay = 0.0
+    if input != null && input != undefined {
+        if input["ax"] != null { ax = input["ax"] }
+        if input["ay"] != null { ay = input["ay"] }
+    }
+    let vx = state["vx"] + ax * dt
+    let vy = state["vy"] + ay * dt
+    let x = state["x"] + vx * dt
+    let y = state["y"] + vy * dt
+    return { "x": x, "y": y, "vx": vx, "vy": vy }
+}
+
+/// Soft-snap reconcile if error exceeds eps.
+pub fn reconcile(predicted, authoritative, eps) {
+    if eps == null || eps == undefined {
+        eps = 0.5
+    }
+    let dx = predicted["x"] - authoritative["x"]
+    let dy = predicted["y"] - authoritative["y"]
+    let err = sqrt(dx * dx + dy * dy)
+    if err > eps {
+        return {
+            "x": authoritative["x"],
+            "y": authoritative["y"],
+            "vx": authoritative["vx"],
+            "vy": authoritative["vy"],
+            "snapped": true,
+            "error": err
+        }
+    }
+    return {
+        "x": predicted["x"],
+        "y": predicted["y"],
+        "vx": predicted["vx"],
+        "vy": predicted["vy"],
+        "snapped": false,
+        "error": err
+    }
+}

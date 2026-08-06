@@ -2146,6 +2146,27 @@ fn p6_seed_only_all_leaves_have_seeds() {
     }
 }
 
+/// P6 polish: each leaf seed deserializes with a matching source fingerprint.
+#[test]
+fn p6_seed_fingerprint_all_leaves_load() {
+    use kabootar_lib::compile::{read_seed_bytecode, SELF_HOST_SKIP_LISTED_LEAVES};
+
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 5);
+    let root = env!("CARGO_MANIFEST_DIR");
+    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+        let path = format!("{root}/{rel}");
+        let bc = read_seed_bytecode(&path)
+            .unwrap_or_else(|e| panic!("seed load error for {rel}: {e}"))
+            .unwrap_or_else(|| {
+                panic!("fingerprint mismatch or missing seed for {rel} — run scripts/regen_self_host_seeds.sh")
+            });
+        assert!(
+            !bc.functions.is_empty() || !bc.globals.is_empty() || !bc.main_code.is_empty(),
+            "{rel} seed bytecode looks empty"
+        );
+    }
+}
+
 /// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
 #[test]
 fn h6e_skip_listed_kab_only_no_seed_fails() {

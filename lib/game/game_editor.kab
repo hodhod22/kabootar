@@ -28,11 +28,12 @@ pub fn bootEditor(rootName) {
     panel = layoutRow(panel, 8)
     ed["toolbarUi"] = panel
     let lights = createLightList()
-    lights = addLight(lights, createDirectional({ "x": -0.4, "y": -1.0, "z": -0.2 }, [1.0, 1.0, 0.95], 1.0))
+    lights = addLight(lights, enableSoftShadow(createDirectional({ "x": -0.4, "y": -1.0, "z": -0.2 }, [1.0, 1.0, 0.95], 1.0), 1024, 1.5))
     ed["lights"] = lights
     let fx = createPipeline()
     fx = addPass(fx, tonemapPass(1.0))
-    fx = addPass(fx, bloomPass(0.8, 0.4))
+    fx = addPass(fx, bloomPass(0.8, 0.4, 1.2))
+    fx = addPass(fx, vignettePass(0.35, 0.5))
     ed["postfx"] = fx
     return refresh(ed)
 }
