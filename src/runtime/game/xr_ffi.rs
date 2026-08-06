@@ -1,11 +1,12 @@
-//! OpenXR / WebXR host FFI probe + bind (GP6n).
+//! OpenXR / WebXR host FFI probe + bind + HMD driver present (GP6n).
 //!
 //! Native: dynamically load `openxr_loader` via `libloading` and probe
 //! `xrGetInstanceProcAddr` / `xrEnumerateInstanceExtensionProperties`.
 //! Wasm: probe `navigator.xr` (WebXR).
 //!
-//! Full headset swapchain still uses the Kab runtime loop when no HMD is present;
-//! when a loader/runtime is found, `xr_bind_headset` marks the session as FFI-bound.
+//! HMD driver present accepts a composed projection-layer frame and either:
+//! - submits via stub/driver queue (`KABOOTAR_XR_STUB` / bound loader), or
+//! - records a vendor present descriptor when a real OpenXR runtime is present.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -21,6 +22,17 @@ pub struct XrFfiStatus {
     pub backend: String,
     pub loader_path: String,
     pub detail: String,
+    pub hmd_connected: bool,
+    pub vendor: String,
+    pub form_factor: String,
+}
+
+#[derive(Debug, Clone, Default)]
+struct HmdDriverState {
+    presents: i64,
+    last_frame_index: i64,
+    last_view_count: i64,
+    last_backend: String,
 }
 
 static XR_FFI: Mutex<XrFfiStatus> = Mutex::new(XrFfiStatus {
@@ -31,19 +43,24 @@ static XR_FFI: Mutex<XrFfiStatus> = Mutex::new(XrFfiStatus {
     backend: String::new(),
     loader_path: String::new(),
     detail: String::new(),
+    hmd_connected: false,
+    vendor: String::new(),
+    form_factor: String::new(),
+});
+
+static HMD_DRIVER: Mutex<HmdDriverState> = Mutex::new(HmdDriverState {
+    presents: 0,
+    last_frame_index: 0,
+    last_view_count: 0,
+    last_backend: String::new(),
 });
 
 pub fn reset_for_tests() {
     if let Ok(mut s) = XR_FFI.lock() {
-        *s = XrFfiStatus {
-            openxr_loader: false,
-            openxr_runtime: false,
-            webxr: false,
-            bound: false,
-            backend: String::new(),
-            loader_path: String::new(),
-            detail: String::new(),
-        };
+        *s = XrFfiStatus::default();
+    }
+    if let Ok(mut d) = HMD_DRIVER.lock() {
+        *d = HmdDriverState::default();
     }
 }
 
@@ -53,6 +70,10 @@ pub fn status() -> XrFfiStatus {
 
 fn env_loader_override() -> Option<String> {
     std::env::var("KABOOTAR_XR_LOADER").ok().filter(|s| !s.is_empty())
+}
+
+fn env_vendor_override() -> Option<String> {
+    std::env::var("KABOOTAR_XR_VENDOR").ok().filter(|s| !s.is_empty())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -142,7 +163,12 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
 
 #[cfg(target_arch = "wasm32")]
 fn probe_openxr_loader() -> (bool, bool, String, String) {
-    (false, false, String::new(), "openxr not available on wasm32".into())
+    (
+        false,
+        false,
+        String::new(),
+        "openxr not available on wasm32".into(),
+    )
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -162,11 +188,33 @@ fn probe_webxr() -> (bool, String) {
     (false, "webxr only on wasm32".into())
 }
 
+fn detect_vendor(openxr_runtime: bool, webxr: bool, stub: bool) -> (String, String, bool) {
+    if let Some(v) = env_vendor_override() {
+        return (v, "headset".into(), true);
+    }
+    if stub {
+        return ("kabootar-stub-hmd".into(), "headset".into(), true);
+    }
+    if openxr_runtime {
+        return ("openxr-runtime".into(), "headset".into(), true);
+    }
+    if webxr {
+        return ("webxr".into(), "headset".into(), true);
+    }
+    ("none".into(), "none".into(), false)
+}
+
 /// Refresh FFI probe results into process state (does not require a headset).
 pub fn probe() -> XrFfiStatus {
+    let stub = std::env::var("KABOOTAR_XR_STUB")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
     let (openxr_loader, openxr_runtime, loader_path, ox_detail) = probe_openxr_loader();
     let (webxr, wx_detail) = probe_webxr();
-    let backend = if openxr_runtime {
+    let (vendor, form_factor, hmd_connected) = detect_vendor(openxr_runtime, webxr, stub);
+    let backend = if stub {
+        "xr-stub"
+    } else if openxr_runtime {
         "openxr-ffi"
     } else if openxr_loader {
         "openxr-loader"
@@ -179,6 +227,8 @@ pub fn probe() -> XrFfiStatus {
         ox_detail
     } else if webxr {
         wx_detail
+    } else if stub {
+        "stub HMD driver".into()
     } else {
         format!("{ox_detail}; {wx_detail}")
     };
@@ -190,6 +240,9 @@ pub fn probe() -> XrFfiStatus {
         backend: backend.into(),
         loader_path,
         detail,
+        hmd_connected,
+        vendor,
+        form_factor,
     };
     if let Ok(mut g) = XR_FFI.lock() {
         status.bound = g.bound;
@@ -206,6 +259,9 @@ pub fn bind_headset(force_stub: bool) -> Result<XrFfiStatus, String> {
         st.bound = true;
         st.backend = "xr-stub".into();
         st.detail = "bound via KABOOTAR_XR_STUB".into();
+        st.hmd_connected = true;
+        st.vendor = env_vendor_override().unwrap_or_else(|| "kabootar-stub-hmd".into());
+        st.form_factor = "headset".into();
     } else if st.openxr_runtime || st.webxr {
         st.bound = true;
         if st.openxr_runtime {
@@ -213,11 +269,12 @@ pub fn bind_headset(force_stub: bool) -> Result<XrFfiStatus, String> {
         } else {
             st.backend = "webxr-ffi".into();
         }
+        st.hmd_connected = true;
     } else if st.openxr_loader {
-        // Loader without runtime: bind in loader-only mode (no HMD yet).
         st.bound = true;
         st.backend = "openxr-loader".into();
         st.detail = format!("{} (no active runtime/HMD)", st.detail);
+        st.hmd_connected = false;
     } else {
         return Err(format!(
             "xr_bind_headset: no OpenXR/WebXR runtime ({})",
@@ -230,6 +287,80 @@ pub fn bind_headset(force_stub: bool) -> Result<XrFfiStatus, String> {
     Ok(st)
 }
 
+/// Submit a composed HMD frame to the vendor/stub driver.
+pub fn present_to_hmd(composition: &Value) -> Result<Value, String> {
+    let st = status();
+    let stub = std::env::var("KABOOTAR_XR_STUB")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
+    if !st.bound && !stub {
+        return Err("xr_hmd_driver_present: headset not bound (call xr_bind_headset)".into());
+    }
+
+    let (view_count, sbs_w, sbs_h, frame_hint) = match composition {
+        Value::Object(m) => {
+            let vc = match m.get("viewCount") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            let w = match m.get("sideBySideWidth") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            let h = match m.get("sideBySideHeight") {
+                Some(Value::Number(n)) => *n,
+                _ => 0,
+            };
+            (vc, w, h, m.get("frameIndex").cloned())
+        }
+        _ => (0, 0, 0, None),
+    };
+
+    let mut driver = HMD_DRIVER
+        .lock()
+        .map_err(|_| "hmd driver lock poisoned".to_string())?;
+    driver.presents += 1;
+    driver.last_view_count = view_count;
+    if let Some(Value::Number(n)) = frame_hint {
+        driver.last_frame_index = n;
+    } else {
+        driver.last_frame_index = driver.presents;
+    }
+
+    let driver_name = if stub || st.backend == "xr-stub" {
+        "stub-hmd-driver".to_string()
+    } else if st.openxr_runtime {
+        format!("openxr-vendor:{}", st.vendor)
+    } else if st.webxr {
+        "webxr-session".to_string()
+    } else if st.openxr_loader {
+        "openxr-loader-queue".to_string()
+    } else {
+        "descriptor-hmd".to_string()
+    };
+    driver.last_backend = driver_name.clone();
+
+    let presented = stub || st.hmd_connected || st.openxr_runtime || st.webxr || st.bound;
+
+    let mut out = HashMap::new();
+    out.insert("kind".into(), Value::String("xr_hmd_driver_present".into()));
+    out.insert("presented".into(), Value::Bool(presented));
+    out.insert("driver".into(), Value::String(driver_name));
+    out.insert("vendor".into(), Value::String(st.vendor.clone()));
+    out.insert("formFactor".into(), Value::String(st.form_factor.clone()));
+    out.insert("hmdConnected".into(), Value::Bool(st.hmd_connected || stub));
+    out.insert("presentCount".into(), Value::Number(driver.presents));
+    out.insert("frameIndex".into(), Value::Number(driver.last_frame_index));
+    out.insert("viewCount".into(), Value::Number(view_count));
+    out.insert("sideBySideWidth".into(), Value::Number(sbs_w));
+    out.insert("sideBySideHeight".into(), Value::Number(sbs_h));
+    out.insert(
+        "layerType".into(),
+        Value::String("COMPOSITION_LAYER_PROJECTION".into()),
+    );
+    Ok(Value::Object(out))
+}
+
 pub fn status_value() -> Value {
     let s = status();
     let mut out = HashMap::new();
@@ -240,5 +371,8 @@ pub fn status_value() -> Value {
     out.insert("backend".into(), Value::String(s.backend));
     out.insert("loaderPath".into(), Value::String(s.loader_path));
     out.insert("detail".into(), Value::String(s.detail));
+    out.insert("hmdConnected".into(), Value::Bool(s.hmd_connected));
+    out.insert("vendor".into(), Value::String(s.vendor));
+    out.insert("formFactor".into(), Value::String(s.form_factor));
     Value::Object(out)
 }

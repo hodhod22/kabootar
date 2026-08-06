@@ -355,3 +355,27 @@ fn xr_ffi_bind_headset_stub() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_hmd_driver_present_stub() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_VENDOR", "test-vendor");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrBegin(xr)
+        let out = xrRuntimeFrame(xr, 1280, 720)
+        let hmd = out["hmd"]
+        return hmd["presented"] == true && hmd["driver"] == "stub-hmd-driver" && hmd["vendor"] == "test-vendor" && hmd["viewCount"] == 2 && hmd["presentCount"] == 1
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_VENDOR");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

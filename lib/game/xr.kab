@@ -46,8 +46,11 @@ pub fn xrBindHeadset(session, forceStub) {
         session["available"] = true
         session["backend"] = bind["backend"]
         session["headsetBound"] = true
+        session["vendor"] = bind["vendor"]
+        session["hmdConnected"] = bind["hmdConnected"] == true
     } else {
         session["headsetBound"] = false
+        session["hmdConnected"] = false
     }
     return session
 }
@@ -197,7 +200,14 @@ pub fn composeHmdLayers(layers) {
     return xr_compose_hmd(layers)
 }
 
-/// One runtime frame: wait → acquire → compose projection layers → release → endFrame.
+/// Submit composed frame to vendor/stub HMD driver.
+pub fn xrPresentToHmd(session, composition) {
+    let drv = xr_hmd_driver_present(composition)
+    session["lastHmdPresent"] = drv
+    return { "session": session, "hmd": drv }
+}
+
+/// One runtime frame: wait → acquire → compose → release → endFrame → HMD driver present.
 pub fn xrRuntimeFrame(session, width, height) {
     if session["swapchains"] == null || len(session["swapchains"]) < 2 {
         session = createStereoSwapchains(session, width, height)
@@ -219,6 +229,7 @@ pub fn xrRuntimeFrame(session, width, height) {
     let viewR = createProjectionView("right", imgR, null, null)
     let layer = createProjectionLayer([viewL, viewR], "stage")
     let composition = composeHmdLayers([layer])
+    composition["frameIndex"] = frame["frameIndex"]
     let present = null
     if session["active"] == true {
         present = xr_host_present(xrPresentDescriptor(session, width, height))
@@ -226,20 +237,28 @@ pub fn xrRuntimeFrame(session, width, height) {
     xr_release_swapchain_image(imgL)
     xr_release_swapchain_image(imgR)
     let ended = xr_end_frame([layer])
+    let hmd = null
+    if session["headsetBound"] == true || session["active"] == true {
+        let hp = xrPresentToHmd(session, composition)
+        session = hp["session"]
+        hmd = hp["hmd"]
+    }
     session["lastFrame"] = {
         "frame": frame,
         "left": imgL,
         "right": imgR,
         "composition": composition,
         "present": present,
-        "ended": ended
+        "ended": ended,
+        "hmd": hmd
     }
     return {
         "session": session,
         "frame": frame,
         "ended": ended,
         "present": present,
-        "composition": composition
+        "composition": composition,
+        "hmd": hmd
     }
 }
 
@@ -252,6 +271,8 @@ pub fn describeXr(session) {
         "controllerCount": len(session["controllers"]),
         "ipd": session["eyes"]["ipd"],
         "swapchainCount": len(session["swapchains"]),
-        "headsetBound": session["headsetBound"] == true
+        "headsetBound": session["headsetBound"] == true,
+        "hmdConnected": session["hmdConnected"] == true,
+        "vendor": session["vendor"]
     }
 }
