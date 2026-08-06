@@ -679,7 +679,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | ✅ seed-only (`SELF_HOST_SKIP_LISTED_LEAVES` + `p6_seed_only_all_leaves_have_seeds` + `p6_seed_fingerprint_all_leaves_load`; empty list kvar 📋) |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list (`emit_impl`/`parser_impl`/`lexer_impl`/`serialize_body`/`vm_run_body`); snabbare parse/emit; incremental `.kbc`; **tills vidare:** committed `self_host/seed/*.kbc` | ✅ seed-only (`P6_SELF_HOST_LEAF_CI_FAST_MS` + `p6_skip_list_stays_until_ci_fast_gate`; empty list när compile <10s 📋) |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
@@ -782,8 +782,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | **GP6k** | `game/stats` | **Achievements & stats** — counters, unlock rules, persistence via save | ✅ subset |
 | **GP6l** | `game/procgen` | **Procedural generation** — noise, dungeon/room, scatter, seed-repro | ✅ subset |
 
-| **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + in-process HTTP hub transport; remote HTTP wire kvar) |
-| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (`xr_host_present` + stereo descriptors; real headset swapchain kvar) |
+| **GP6m** | `game/net`++ | **Networking-utökning** — prediction/reconciliation-lite, interest, lobby/matchmaking hooks | ✅ subset (relay + HTTP hub + remote session server; WAN server kvar) |
+| **GP6n** | `game/xr` | **VR/AR-stöd** — headset present, tracked controllers, stereo cameras; WebXR/OpenXR via host FFI | ✅ subset (GPU stereo swapchains + `xr_host_present`; runtime headset kvar) |
 
 **GP6-policy:** produkt-API i `.kab`; thin natives endast för GPU particles/shadows/XR present. Tester: små smokes per modul (inte full Unity-paritet i första landningen).
 
@@ -805,8 +805,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** P6 empty skip-list when CI-fast; real XR swapchain; remote HTTP session server.  
-**Checkpoint GP (landad):** GP6a–n subset complete — async terrain, GPU shadow pass + lit sampling, relay/HTTP transport, XR present descriptors.  
+**Checkpoint GP (nästa):** headset OpenXR/WebXR runtime swapchain; P6 empty skip-list when leaf compile <10s.  
+**Checkpoint GP (landad):** stereo GPU swapchains, remote HTTP session server, P6 CI-fast gate documented (skip-list stays seed-only).  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 
 ### Våg SIM — Simulation / robotics / digital twin 🚧 ✅ MVP subset

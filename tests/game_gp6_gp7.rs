@@ -265,7 +265,8 @@ fn shadow_lit_pipeline_and_xr_present() {
         let surf = litSurface(lights, normal, shadowPt)
         let xr = xrBegin(createXrSession("vr"))
         let pres = xrPresent(xr, 1920, 1080)
-        return cLit["shadow"] > cSh["shadow"] && surf["r"] > 0.0 && pres["present"]["presented"] == true && xr["active"] == true
+        let sc = describeSwapchains(pres["present"])
+        return cLit["shadow"] > cSh["shadow"] && surf["r"] > 0.0 && pres["present"]["presented"] == true && sc["count"] == 2 && xr["active"] == true
         "#,
         &mut env,
     )

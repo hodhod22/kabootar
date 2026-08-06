@@ -14,8 +14,9 @@ Gates:
 - `p6_seed_only_all_leaves_have_seeds` — files exist, list length stays 5
 - `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
 
-**Do not empty** `SELF_HOST_SKIP_LISTED_LEAVES` until self-host compile of the five
-leaf shards is CI-fast (<10s each). Empty list is a delete-gate, not a polish shortcut.
+**Do not empty** `SELF_HOST_SKIP_LISTED_LEAVES` until every leaf self-host-compiles in
+`P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Gate: `p6_skip_list_stays_until_ci_fast_gate`.
+Emit/parser shards are still >64KB and CI-slow — seeds remain required.
 
 ## Seeds
 

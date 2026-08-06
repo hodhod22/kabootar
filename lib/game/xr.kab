@@ -95,6 +95,18 @@ pub fn xrPresent(session, width, height) {
     return { "session": session, "present": host }
 }
 
+pub fn describeSwapchains(present) {
+    if present["swapchains"] == null || present["swapchains"] == undefined {
+        return { "count": 0, "pixelBytes": 0 }
+    }
+    let chains = present["swapchains"]
+    let px = 0
+    if present["pixelBytes"] != null {
+        px = present["pixelBytes"]
+    }
+    return { "count": len(chains), "pixelBytes": px, "backend": present["backend"] }
+}
+
 pub fn describeXr(session) {
     return {
         "mode": session["mode"],
