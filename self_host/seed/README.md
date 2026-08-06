@@ -16,6 +16,7 @@ Gates:
 - `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
 - `p6_skip_list_stays_until_ci_fast_gate` — oversize emit stays skipped
 - `p6_leaf_self_host_compile_budget` (ignored) — timing probe for P6b
+- `P6B_EMPTY_SKIP_LIST_READY` — must stay `false` until budget passes (asserted in `p6_skip_list_stays_until_ci_fast_gate`)
 
 ## Seeds
 
