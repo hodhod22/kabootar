@@ -5,7 +5,7 @@
 // the 64KB self-host-attempt size threshold — self-hosting cost scales with AST size
 // of the source being compiled, not with import-time cost of its dependents. Keep it
 // skip-listed and only ever load it via the Rust module loader (fast, exact).
-// P6b: densify (membership + shallow AccAdd appends) + emit AccAdd in emit_impl;
+// P6b: densify — IR membership in serialize_defs; shallow AccAdd (outTag/outSpNum/sLine);
 // measure with p6b_serialize_body_compile_budget before emptying SELF_HOST_SKIP_LISTED_LEAVES.
 //
 // Everything here shares the module-level `s*` accumulators (sOut, sI, sJ, …) via
@@ -60,55 +60,47 @@ fn escStr(s) {
     return sEscOut
 }
 
-// P6b: shallow AccAdd appends (avoid depth-16+ Binary + trees in serializeBcImplCore).
-fn appendNl(s) {
-    sOut = sOut + CHAR_NL
-    sOut = sOut + s
-}
-
-fn appendSp() {
-    sOut = sOut + " "
-}
-
-fn appendNum(x) {
-    sOut = sOut + ("" + x)
-}
-
-fn appendSpNum(x) {
-    sOut = sOut + " "
-    sOut = sOut + ("" + x)
-}
-
-fn beginTag(tag) {
+// P6b: two AccAdd helpers (avoid depth-16+ Binary + and many Call defs).
+fn outTag(tag) {
     sOut = sOut + CHAR_NL
     sOut = sOut + tag
 }
 
-fn constLine(idx, val) {
-    // Prefix once — fewer repeated "const "+idx Binary trees.
-    let p = "const " + ("" + idx) + " "
-    if val == KAB_UNDEF_CONST {
-        return p + "undefined"
-    }
-    if val == null {
-        return p + "null"
-    }
-    if val == true {
-        return p + "bool true"
-    }
-    if val == false {
-        return p + "bool false"
-    }
-    if typeof(val) == "string" {
-        return p + "string " + escStr(val)
-    }
-    return p + "number " + ("" + val)
+fn outSpNum(x) {
+    sOut = sOut + " "
+    sOut = sOut + ("" + x)
 }
 
-// P6b: OP_* wire names already match .kbc text. Membership tables avoid ~58 If arms
-// so self-host leaf compile AST stays small (cost scales with source AST density).
-let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|"
-let IR_ZERO_ARG = "|pop|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|"
+fn constLine(idx, val) {
+    // AccAdd into sLine — shallow emit vs Binary return trees.
+    sLine = "const "
+    sLine = sLine + ("" + idx)
+    sLine = sLine + " "
+    if val == KAB_UNDEF_CONST {
+        sLine = sLine + "undefined"
+        return sLine
+    }
+    if val == null {
+        sLine = sLine + "null"
+        return sLine
+    }
+    if val == true {
+        sLine = sLine + "bool true"
+        return sLine
+    }
+    if val == false {
+        sLine = sLine + "bool false"
+        return sLine
+    }
+    if typeof(val) == "string" {
+        sLine = sLine + "string "
+        sLine = sLine + escStr(val)
+        return sLine
+    }
+    sLine = sLine + "number "
+    sLine = sLine + ("" + val)
+    return sLine
+}
 
 fn irOpLine(op) {
     if op == null {
@@ -116,13 +108,22 @@ fn irOpLine(op) {
     }
     sOp = op.op
     if sOp == OP_NEW_INSTANCE {
+        sLine = OP_NEW_INSTANCE
+        sLine = sLine + " "
+        sLine = sLine + ("" + op.arg)
+        sLine = sLine + " "
         if op.arg2 == undefined {
-            return OP_NEW_INSTANCE + " " + ("" + op.arg) + " 0"
+            sLine = sLine + "0"
+        } else {
+            sLine = sLine + ("" + op.arg2)
         }
-        return OP_NEW_INSTANCE + " " + ("" + op.arg) + " " + ("" + op.arg2)
+        return sLine
     }
     if str_index_of(IR_WITH_ARG, "|" + sOp + "|") >= 0 {
-        return sOp + " " + ("" + op.arg)
+        sLine = sOp
+        sLine = sLine + " "
+        sLine = sLine + ("" + op.arg)
+        return sLine
     }
     if str_index_of(IR_ZERO_ARG, "|" + sOp + "|") >= 0 {
         return sOp
@@ -137,7 +138,8 @@ fn joinComma(arr) {
         if sParams == "" {
             sParams = arr[sK]
         } else {
-            sParams = sParams + "," + arr[sK]
+            sParams = sParams + ","
+            sParams = sParams + arr[sK]
         }
         sK = sK + 1
     }
@@ -147,16 +149,16 @@ fn joinComma(arr) {
 fn appendOps(ops) {
     sI = 0
     while sI < len(ops) {
-        appendNl(irOpLine(ops[sI]))
+        outTag(irOpLine(ops[sI]))
         sI = sI + 1
     }
 }
 
 fn appendClassMethHeader(tag, ci, mi, rest) {
-    beginTag(tag)
-    appendSpNum(ci)
-    appendSpNum(mi)
-    appendSp()
+    outTag(tag)
+    outSpNum(ci)
+    outSpNum(mi)
+    sOut = sOut + " "
     sOut = sOut + rest
 }
 
@@ -164,10 +166,10 @@ fn appendEmbeddedMethodOps(ci, mi, ops) {
     // Use sK — must not clobber appendClassMethods' sJ method index.
     sK = 0
     while sK < len(ops) {
-        beginTag("class_method_op")
-        appendSpNum(ci)
-        appendSpNum(mi)
-        appendSp()
+        outTag("class_method_op")
+        outSpNum(ci)
+        outSpNum(mi)
+        sOut = sOut + " "
         sOut = sOut + irOpLine(ops[sK])
         sK = sK + 1
     }
@@ -190,57 +192,57 @@ fn appendClassMethods(ci, methods) {
 
 pub fn serializeBcImplCore(bc) {
     sOut = KBC_HEADER
-    beginTag("constants=")
-    appendNum(len(bc.constants))
+    outTag("constants=")
+    sOut = sOut + ("" + len(bc.constants))
     sI = 0
     while sI < len(bc.constants) {
-        appendNl(constLine(sI, bc.constants[sI]))
+        outTag(constLine(sI, bc.constants[sI]))
         sI = sI + 1
     }
     sI = 0
     while sI < len(bc.globals) {
-        beginTag("global")
-        appendSpNum(sI)
-        appendSp()
+        outTag("global")
+        outSpNum(sI)
+        sOut = sOut + " "
         sOut = sOut + bc.globals[sI]
         sI = sI + 1
     }
-    beginTag("functions=")
-    appendNum(len(bc.functions))
+    outTag("functions=")
+    sOut = sOut + ("" + len(bc.functions))
     sI = 0
     while sI < len(bc.functions) {
         sFn = bc.functions[sI]
-        beginTag("fn")
-        appendSpNum(sI)
-        appendSp()
+        outTag("fn")
+        outSpNum(sI)
+        sOut = sOut + " "
         sOut = sOut + sFn.sym
-        beginTag("fn_params")
-        appendSpNum(sI)
-        appendSp()
+        outTag("fn_params")
+        outSpNum(sI)
+        sOut = sOut + " "
         sOut = sOut + joinComma(sFn.params)
-        beginTag("fn_locals")
-        appendSpNum(sI)
-        appendSp()
+        outTag("fn_locals")
+        outSpNum(sI)
+        sOut = sOut + " "
         sOut = sOut + joinComma(sFn.locals)
         if sFn["tryRegions"] != undefined {
             sJ = 0
             while sJ < len(sFn["tryRegions"]) {
                 let tr = sFn["tryRegions"][sJ]
-                beginTag("fn_try_region")
-                appendSpNum(sI)
-                appendSpNum(sJ)
-                appendSpNum(tr["bodyStart"])
-                appendSpNum(tr["bodyEnd"])
-                appendSpNum(tr["catchStart"])
-                appendSpNum(tr["errLocal"])
+                outTag("fn_try_region")
+                outSpNum(sI)
+                outSpNum(sJ)
+                outSpNum(tr["bodyStart"])
+                outSpNum(tr["bodyEnd"])
+                outSpNum(tr["catchStart"])
+                outSpNum(tr["errLocal"])
                 sJ = sJ + 1
             }
         }
         sJ = 0
         while sJ < len(sFn.ops) {
-            beginTag("fn_op")
-            appendSpNum(sI)
-            appendSp()
+            outTag("fn_op")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + irOpLine(sFn.ops[sJ])
             sJ = sJ + 1
         }
@@ -248,30 +250,30 @@ pub fn serializeBcImplCore(bc) {
     }
     // Module-level arrows
     if bc.arrows == undefined {
-        appendNl("arrows=0")
+        outTag("arrows=0")
     } else {
-        beginTag("arrows=")
-        appendNum(len(bc.arrows))
+        outTag("arrows=")
+        sOut = sOut + ("" + len(bc.arrows))
         sI = 0
         while sI < len(bc.arrows) {
             let arr = bc.arrows[sI]
-            beginTag("arrow")
-            appendSpNum(sI)
-            appendSp()
+            outTag("arrow")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + arr["sym"]
-            beginTag("arrow_params")
-            appendSpNum(sI)
-            appendSp()
+            outTag("arrow_params")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + joinComma(arr["params"])
-            beginTag("arrow_locals")
-            appendSpNum(sI)
-            appendSp()
+            outTag("arrow_locals")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + joinComma(arr["locals"])
             sJ = 0
             while sJ < len(arr["ops"]) {
-                beginTag("arrow_op")
-                appendSpNum(sI)
-                appendSp()
+                outTag("arrow_op")
+                outSpNum(sI)
+                sOut = sOut + " "
                 sOut = sOut + irOpLine(arr["ops"][sJ])
                 sJ = sJ + 1
             }
@@ -283,68 +285,68 @@ pub fn serializeBcImplCore(bc) {
         sI = 0
         while sI < len(bc.tryRegions) {
             let mtr = bc.tryRegions[sI]
-            beginTag("main_try_region")
-            appendSpNum(sI)
-            appendSpNum(mtr["bodyStart"])
-            appendSpNum(mtr["bodyEnd"])
-            appendSpNum(mtr["catchStart"])
-            appendSpNum(mtr["errLocal"])
+            outTag("main_try_region")
+            outSpNum(sI)
+            outSpNum(mtr["bodyStart"])
+            outSpNum(mtr["bodyEnd"])
+            outSpNum(mtr["catchStart"])
+            outSpNum(mtr["errLocal"])
             sI = sI + 1
         }
     }
     // Exports
     if bc.exports == undefined {
-        appendNl("exports=0")
+        outTag("exports=0")
     } else {
-        beginTag("exports=")
-        appendNum(len(bc.exports))
+        outTag("exports=")
+        sOut = sOut + ("" + len(bc.exports))
         sI = 0
         while sI < len(bc.exports) {
-            beginTag("export")
-            appendSpNum(sI)
-            appendSp()
+            outTag("export")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + bc.exports[sI]
             sI = sI + 1
         }
     }
     // Imports
     if bc.imports == undefined {
-        appendNl("imports=0")
+        outTag("imports=0")
     } else {
-        beginTag("imports=")
-        appendNum(len(bc.imports))
+        outTag("imports=")
+        sOut = sOut + ("" + len(bc.imports))
         sI = 0
         while sI < len(bc.imports) {
-            beginTag("import")
-            appendSpNum(sI)
-            appendSp()
+            outTag("import")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + bc.imports[sI]
             sI = sI + 1
         }
     }
     // Classes
     if bc.classes == undefined {
-        appendNl("classes=0")
+        outTag("classes=0")
     } else {
-        beginTag("classes=")
-        appendNum(len(bc.classes))
+        outTag("classes=")
+        sOut = sOut + ("" + len(bc.classes))
         sI = 0
         while sI < len(bc.classes) {
             sCls = bc.classes[sI]
-            beginTag("class")
-            appendSpNum(sI)
-            appendSp()
+            outTag("class")
+            outSpNum(sI)
+            sOut = sOut + " "
             sOut = sOut + sCls["sym"]
             if sCls["isStruct"] == 1 {
-                beginTag("class_is_struct")
-                appendSpNum(sI)
+                outTag("class_is_struct")
+                outSpNum(sI)
             }
             appendClassMethods(sI, sCls["methods"])
             sI = sI + 1
         }
     }
     // Main code
-    appendNl("code")
+    outTag("code")
     appendOps(bc.ops)
     return sOut
 }

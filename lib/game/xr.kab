@@ -140,6 +140,14 @@ pub fn xrClearHandJointBuffer(handedness) {
     return xr_clear_hand_joint_buffer(handedness)
 }
 
+/// Locate joints into live buffers (stub-xrLocateHandJointsEXT / EXT path).
+pub fn xrLocateHandJoints(handedness) {
+    if handedness == null || handedness == undefined {
+        handedness = "both"
+    }
+    return xr_locate_hand_joints(handedness)
+}
+
 /// Tracked controller stubs (left/right) — derived from inputSources when present.
 pub fn trackedControllers(session) {
     let sources = null

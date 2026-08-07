@@ -757,4 +757,25 @@ fn xr_hand_joints_and_input_profiles() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
     assert!(matches!(v, Value::Bool(true)), "live hand buffer got {v:?}");
+
+    // stub-xrLocateHandJointsEXT fills live buffers (26 EXT joints) without manual set.
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_HAND_TRACKING", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let loc = xrLocateHandJoints("left")
+        let st = xrHandTrackingStatus()
+        let hand = xrHandJoints("left")
+        return loc["ok"] == true && loc["path"] == "stub-xrLocateHandJointsEXT" && loc["jointCount"] == 26 && st["liveBuffers"]["left"] == true && st["locatePath"] == "stub-xrLocateHandJointsEXT" && hand["source"] == "live-buffer" && len(hand["joints"]) == 26 && hand["joints"][0]["joint"] == "palm" && hand["joints"][5]["joint"] == "thumb-tip" && hand["joints"][5]["pose"]["emulated"] == false
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
+    assert!(matches!(v, Value::Bool(true)), "locate hand joints got {v:?}");
 }
