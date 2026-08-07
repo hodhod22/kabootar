@@ -1,0 +1,615 @@
+@version "1.0.0"
+
+// Kabootar game/core/gameContext - Unified game context with input, time, and event systems.
+// Canonical path: import "game/core/gameContext"
+
+import "game/core/ecs2"
+import "game/core/transform2"
+import "game/core/physics2"
+import "game/core/renderPipeline"
+
+pub fn createGameContext(width, height) {
+    return {
+        "kind": "GameContext",
+        "world": createWorld(),
+        "physicsWorld": createPhysicsWorld(),
+        "renderPipeline": createRenderPipeline(),
+        "time": createTimeManager(),
+        "input": createInputSystem(),
+        "events": createEventManager(),
+        "width": width,
+        "height": height,
+        "deltaTime": 0.016,
+        "fixedDeltaTime": 0.02,
+        "elapsedTime": 0.0,
+        "frameCount": 0,
+        "isPaused": false,
+        "timeScale": 1.0
+    }
+}
+
+pub fn updateGameContext(context, dt) {
+    if context["isPaused"] == true {
+        return context
+    }
+    
+    let scaledDt = dt * context["timeScale"]
+    context["deltaTime"] = scaledDt
+    context["elapsedTime"] = context["elapsedTime"] + scaledDt
+    context["frameCount"] = context["frameCount"] + 1
+    
+    context["time"] = updateTimeManager(context["time"], scaledDt)
+    context["input"] = updateInputSystem(context["input"])
+    
+    return context
+}
+
+pub fn fixedUpdateGameContext(context) {
+    if context["isPaused"] == true {
+        return context
+    }
+    
+    let fixedDt = context["fixedDeltaTime"] * context["timeScale"]
+    context["physicsWorld"] = physicsStep(context["physicsWorld"], fixedDt)
+    
+    return context
+}
+
+pub fn renderGameContext(context) {
+    let result = executeRenderPipeline(context["renderPipeline"])
+    context["renderPipeline"] = result["pipeline"]
+    return { "context": context, "drawCalls": result["drawCalls"] }
+}
+
+pub fn pauseGame(context) {
+    context["isPaused"] = true
+    return context
+}
+
+pub fn resumeGame(context) {
+    context["isPaused"] = false
+    return context
+}
+
+pub fn setTimeScale(context, scale) {
+    context["timeScale"] = scale
+    return context
+}
+
+pub fn getTimeScale(context) {
+    return context["timeScale"]
+}
+
+pub fn getDeltaTime(context) {
+    return context["deltaTime"]
+}
+
+pub fn getFixedDeltaTime(context) {
+    return context["fixedDeltaTime"]
+}
+
+pub fn getElapsedTime(context) {
+    return context["elapsedTime"]
+}
+
+pub fn getFrameCount(context) {
+    return context["frameCount"]
+}
+
+pub fn isPaused(context) {
+    return context["isPaused"] == true
+}
+
+fn createTimeManager() {
+    return {
+        "kind": "TimeManager",
+        "time": 0.0,
+        "deltaTime": 0.016,
+        "fixedDeltaTime": 0.02,
+        "timeScale": 1.0,
+        "frameCount": 0,
+        "realtimeSinceStartup": 0.0
+    }
+}
+
+fn updateTimeManager(timeManager, dt) {
+    timeManager["time"] = timeManager["time"] + dt
+    timeManager["deltaTime"] = dt
+    timeManager["frameCount"] = timeManager["frameCount"] + 1
+    timeManager["realtimeSinceStartup"] = timeManager["realtimeSinceStartup"] + dt
+    return timeManager
+}
+
+pub fn createInputSystem() {
+    return {
+        "kind": "InputSystem",
+        "keyboard": {
+            "keys": {},
+            "keysDown": {},
+            "keysUp": {},
+            "keysHeld": {}
+        },
+        "mouse": {
+            "position": { "x": 0.0, "y": 0.0 },
+            "delta": { "x": 0.0, "y": 0.0 },
+            "scroll": { "x": 0.0, "y": 0.0 },
+            "buttons": {
+                "left": false,
+                "right": false,
+                "middle": false
+            },
+            "buttonsDown": {
+                "left": false,
+                "right": false,
+                "middle": false
+            },
+            "buttonsUp": {
+                "left": false,
+                "right": false,
+                "middle": false
+            }
+        },
+        "gamepad": {
+            "connected": false,
+            "leftStick": { "x": 0.0, "y": 0.0 },
+            "rightStick": { "x": 0.0, "y": 0.0 },
+            "leftTrigger": 0.0,
+            "rightTrigger": 0.0,
+            "dpad": { "x": 0.0, "y": 0.0 },
+            "buttons": {},
+            "buttonsDown": {},
+            "buttonsUp": {},
+            "deadzone": 0.1
+        },
+        "axes": {
+            "horizontal": 0.0,
+            "vertical": 0.0,
+            "mouseX": 0.0,
+            "mouseY": 0.0
+        },
+        "actionMaps": {}
+    }
+}
+
+pub fn setKeyDown(input, keyCode) {
+    input["keyboard"]["keys"]["" + keyCode] = true
+    input["keyboard"]["keysDown"]["" + keyCode] = true
+    input["keyboard"]["keysHeld"]["" + keyCode] = true
+    return input
+}
+
+pub fn setKeyUp(input, keyCode) {
+    input["keyboard"]["keys"]["" + keyCode] = false
+    input["keyboard"]["keysUp"]["" + keyCode] = true
+    input["keyboard"]["keysHeld"]["" + keyCode] = false
+    return input
+}
+
+pub fn getKey(input, keyCode) {
+    return input["keyboard"]["keys"]["" + keyCode] == true
+}
+
+pub fn getKeyDown(input, keyCode) {
+    return input["keyboard"]["keysDown"]["" + keyCode] == true
+}
+
+pub fn getKeyUp(input, keyCode) {
+    return input["keyboard"]["keysUp"]["" + keyCode] == true
+}
+
+pub fn getKeyHeld(input, keyCode) {
+    return input["keyboard"]["keysHeld"]["" + keyCode] == true
+}
+
+pub fn setMousePosition(input, x, y) {
+    let oldX = input["mouse"]["position"]["x"]
+    let oldY = input["mouse"]["position"]["y"]
+    input["mouse"]["position"] = { "x": x, "y": y }
+    input["mouse"]["delta"] = { "x": x - oldX, "y": y - oldY }
+    input["axes"]["mouseX"] = x - oldX
+    input["axes"]["mouseY"] = y - oldY
+    return input
+}
+
+pub fn setMouseButtonDown(input, button) {
+    input["mouse"]["buttons"][button] = true
+    input["mouse"]["buttonsDown"][button] = true
+    return input
+}
+
+pub fn setMouseButtonUp(input, button) {
+    input["mouse"]["buttons"][button] = false
+    input["mouse"]["buttonsUp"][button] = true
+    return input
+}
+
+pub fn setMouseScroll(input, x, y) {
+    input["mouse"]["scroll"] = { "x": x, "y": y }
+    return input
+}
+
+pub fn getMouseButton(input, button) {
+    return input["mouse"]["buttons"][button] == true
+}
+
+pub fn getMouseButtonDown(input, button) {
+    return input["mouse"]["buttonsDown"][button] == true
+}
+
+pub fn getMouseButtonUp(input, button) {
+    return input["mouse"]["buttonsUp"][button] == true
+}
+
+pub fn getMousePosition(input) {
+    return input["mouse"]["position"]
+}
+
+pub fn getMouseDelta(input) {
+    return input["mouse"]["delta"]
+}
+
+pub fn getMouseScroll(input) {
+    return input["mouse"]["scroll"]
+}
+
+pub fn setGamepadConnected(input, connected) {
+    input["gamepad"]["connected"] = connected == true
+    return input
+}
+
+pub fn setGamepadAxis(input, axis, x, y) {
+    if axis == "leftStick" {
+        input["gamepad"]["leftStick"] = applyDeadzone({ "x": x, "y": y }, input["gamepad"]["deadzone"])
+        input["axes"]["horizontal"] = input["gamepad"]["leftStick"]["x"]
+        input["axes"]["vertical"] = input["gamepad"]["leftStick"]["y"]
+    } else if axis == "rightStick" {
+        input["gamepad"]["rightStick"] = applyDeadzone({ "x": x, "y": y }, input["gamepad"]["deadzone"])
+    } else if axis == "dpad" {
+        input["gamepad"]["dpad"] = { "x": x, "y": y }
+    }
+    return input
+}
+
+pub fn setGamepadTrigger(input, trigger, value) {
+    if trigger == "left" {
+        input["gamepad"]["leftTrigger"] = value
+    } else if trigger == "right" {
+        input["gamepad"]["rightTrigger"] = value
+    }
+    return input
+}
+
+pub fn setGamepadButtonDown(input, button) {
+    input["gamepad"]["buttons"]["" + button] = true
+    input["gamepad"]["buttonsDown"]["" + button] = true
+    return input
+}
+
+pub fn setGamepadButtonUp(input, button) {
+    input["gamepad"]["buttons"]["" + button] = false
+    input["gamepad"]["buttonsUp"]["" + button] = true
+    return input
+}
+
+pub fn getGamepadButton(input, button) {
+    return input["gamepad"]["buttons"]["" + button] == true
+}
+
+pub fn getGamepadButtonDown(input, button) {
+    return input["gamepad"]["buttonsDown"]["" + button] == true
+}
+
+pub fn getGamepadButtonUp(input, button) {
+    return input["gamepad"]["buttonsUp"]["" + button] == true
+}
+
+pub fn getGamepadAxis(input, axis) {
+    if axis == "leftStick" {
+        return input["gamepad"]["leftStick"]
+    } else if axis == "rightStick" {
+        return input["gamepad"]["rightStick"]
+    } else if axis == "dpad" {
+        return input["gamepad"]["dpad"]
+    }
+    return { "x": 0.0, "y": 0.0 }
+}
+
+pub fn getAxis(input, axisName) {
+    return input["axes"][axisName]
+}
+
+pub fn setAxis(input, axisName, value) {
+    input["axes"][axisName] = value
+    return input
+}
+
+pub fn setDeadzone(input, deadzone) {
+    input["gamepad"]["deadzone"] = deadzone
+    return input
+}
+
+fn applyDeadzone(vector, deadzone) {
+    let magnitude = sqrt(vector["x"] * vector["x"] + vector["y"] * vector["y"])
+    if magnitude < deadzone {
+        return { "x": 0.0, "y": 0.0 }
+    }
+    
+    let normalized = {
+        "x": vector["x"] / magnitude,
+        "y": vector["y"] / magnitude
+    }
+    
+    let newMagnitude = (magnitude - deadzone) / (1.0 - deadzone)
+    
+    return {
+        "x": normalized["x"] * newMagnitude,
+        "y": normalized["y"] * newMagnitude
+    }
+}
+
+pub fn createActionMap(input, name) {
+    input["actionMaps"][name] = {
+        "kind": "ActionMap",
+        "name": name,
+        "actions": {},
+        "enabled": true
+    }
+    return input
+}
+
+pub fn createAction(input, actionMapName, actionName, binding) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null {
+        actionMap["actions"][actionName] = {
+            "name": actionName,
+            "binding": binding,
+            "value": 0.0,
+            "pressed": false,
+            "released": false,
+            "held": false
+        }
+        input["actionMaps"][actionMapName] = actionMap
+    }
+    return input
+}
+
+pub fn getActionValue(input, actionMapName, actionName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null && actionMap["enabled"] == true {
+        let action = actionMap["actions"][actionName]
+        if action != null {
+            return action["value"]
+        }
+    }
+    return 0.0
+}
+
+pub fn isActionPressed(input, actionMapName, actionName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null && actionMap["enabled"] == true {
+        let action = actionMap["actions"][actionName]
+        if action != null {
+            return action["pressed"] == true
+        }
+    }
+    return false
+}
+
+pub fn isActionReleased(input, actionMapName, actionName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null && actionMap["enabled"] == true {
+        let action = actionMap["actions"][actionName]
+        if action != null {
+            return action["released"] == true
+        }
+    }
+    return false
+}
+
+pub fn isActionHeld(input, actionMapName, actionName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null && actionMap["enabled"] == true {
+        let action = actionMap["actions"][actionName]
+        if action != null {
+            return action["held"] == true
+        }
+    }
+    return false
+}
+
+pub fn processActionBindings(input) {
+    for actionMapName in input["actionMaps"] {
+        let actionMap = input["actionMaps"][actionMapName]
+        if actionMap["enabled"] == true {
+            for actionName in actionMap["actions"] {
+                let action = actionMap["actions"][actionName]
+                let binding = action["binding"]
+                
+                if binding["type"] == "key" {
+                    let pressed = getKey(input, binding["key"])
+                    let down = getKeyDown(input, binding["key"])
+                    let up = getKeyUp(input, binding["key"])
+                    
+                    action["value"] = pressed ? 1.0 : 0.0
+                    action["pressed"] = down
+                    action["released"] = up
+                    action["held"] = pressed
+                } else if binding["type"] == "mouseButton" {
+                    let pressed = getMouseButton(input, binding["button"])
+                    let down = getMouseButtonDown(input, binding["button"])
+                    let up = getMouseButtonUp(input, binding["button"])
+                    
+                    action["value"] = pressed ? 1.0 : 0.0
+                    action["pressed"] = down
+                    action["released"] = up
+                    action["held"] = pressed
+                } else if binding["type"] == "axis" {
+                    if binding["source"] == "mouse" {
+                        action["value"] = getAxis(input, binding["axis"])
+                    } else if binding["source"] == "gamepad" {
+                        let axis = getGamepadAxis(input, binding["axis"])
+                        action["value"] = axis["x"]
+                    }
+                } else if binding["type"] == "gamepadButton" {
+                    let pressed = getGamepadButton(input, binding["button"])
+                    let down = getGamepadButtonDown(input, binding["button"])
+                    let up = getGamepadButtonUp(input, binding["button"])
+                    
+                    action["value"] = pressed ? 1.0 : 0.0
+                    action["pressed"] = down
+                    action["released"] = up
+                    action["held"] = pressed
+                }
+                
+                actionMap["actions"][actionName] = action
+            }
+            input["actionMaps"][actionMapName] = actionMap
+        }
+    }
+    
+    return input
+}
+
+pub fn updateInputSystem(input) {
+    let i = 0
+    for key in input["keyboard"]["keysDown"] {
+        input["keyboard"]["keysDown"][key] = false
+    }
+    for key in input["keyboard"]["keysUp"] {
+        input["keyboard"]["keysUp"][key] = false
+    }
+    
+    for key in input["mouse"]["buttonsDown"] {
+        input["mouse"]["buttonsDown"][key] = false
+    }
+    for key in input["mouse"]["buttonsUp"] {
+        input["mouse"]["buttonsUp"][key] = false
+    }
+    
+    input["mouse"]["delta"] = { "x": 0.0, "y": 0.0 }
+    input["mouse"]["scroll"] = { "x": 0.0, "y": 0.0 }
+    
+    for key in input["gamepad"]["buttonsDown"] {
+        input["gamepad"]["buttonsDown"][key] = false
+    }
+    for key in input["gamepad"]["buttonsUp"] {
+        input["gamepad"]["buttonsUp"][key] = false
+    }
+    
+    input = processActionBindings(input)
+    
+    return input
+}
+
+pub fn enableActionMap(input, actionMapName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null {
+        actionMap["enabled"] = true
+        input["actionMaps"][actionMapName] = actionMap
+    }
+    return input
+}
+
+pub fn disableActionMap(input, actionMapName) {
+    let actionMap = input["actionMaps"][actionMapName]
+    if actionMap != null {
+        actionMap["enabled"] = false
+        input["actionMaps"][actionMapName] = actionMap
+    }
+    return input
+}
+
+fn createEventManager() {
+    return {
+        "kind": "EventManager",
+        "listeners": [],
+        "eventQueue": [],
+        "priorities": {
+            "preUpdate": 0,
+            "update": 1,
+            "postUpdate": 2,
+            "prePhysics": 3,
+            "postPhysics": 4,
+            "preRender": 5,
+            "postRender": 6
+        }
+    }
+}
+
+pub fn addEventListener(events, eventName, callback, priority) {
+    if priority == null || priority == undefined { priority = 1 }
+    events["listeners"] = push(events["listeners"], {
+        "eventName": eventName,
+        "callback": callback,
+        "priority": priority
+    })
+    return events
+}
+
+pub fn removeEventListener(events, eventName, callback) {
+    let listeners = events["listeners"]
+    let newListeners = []
+    let i = 0
+    while i < len(listeners) {
+        if listeners[i]["eventName"] != eventName || listeners[i]["callback"] != callback {
+            newListeners = push(newListeners, listeners[i])
+        }
+        i = i + 1
+    }
+    events["listeners"] = newListeners
+    return events
+}
+
+pub fn emitEvent(events, eventName, data) {
+    events["eventQueue"] = push(events["eventQueue"], {
+        "eventName": eventName,
+        "data": data,
+        "timestamp": 0.0
+    })
+    return events
+}
+
+pub fn processEvents(events) {
+    let i = 0
+    while i < len(events["eventQueue"]) {
+        let event = events["eventQueue"][i]
+        let eventName = event["eventName"]
+        let data = event["data"]
+        
+        let j = 0
+        while j < len(events["listeners"]) {
+            let listener = events["listeners"][j]
+            if listener["eventName"] == eventName {
+                listener["callback"](data)
+            }
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    events["eventQueue"] = []
+    return events
+}
+
+pub fn processEventsInPhase(events, phase) {
+    let i = 0
+    while i < len(events["eventQueue"]) {
+        let event = events["eventQueue"][i]
+        let eventName = event["eventName"]
+        let data = event["data"]
+        
+        let j = 0
+        while j < len(events["listeners"]) {
+            let listener = events["listeners"][j]
+            if listener["eventName"] == eventName && listener["priority"] == events["priorities"][phase] {
+                listener["callback"](data)
+            }
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    return events
+}

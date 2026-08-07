@@ -1,0 +1,385 @@
+@version "1.0.0"
+
+// Kabootar game/core/transform2 - Hierarchical Transform with dirty flags and world matrix cache.
+// Canonical path: import "game/core/transform2"
+
+pub fn createTransform(x, y, z) {
+    if x == null || x == undefined { x = 0.0 }
+    if y == null || y == undefined { y = 0.0 }
+    if z == null || z == undefined { z = 0.0 }
+    
+    return {
+        "kind": "Transform",
+        "localPosition": { "x": x, "y": y, "z": z },
+        "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+        "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+        "worldPosition": { "x": x, "y": y, "z": z },
+        "worldRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+        "worldScale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+        "localMatrix": identityMatrix(),
+        "worldMatrix": identityMatrix(),
+        "parent": null,
+        "children": [],
+        "dirty": true,
+        "dirtyChildren": false
+    }
+}
+
+pub fn setLocalPosition(transform, x, y, z) {
+    transform["localPosition"] = { "x": x, "y": y, "z": z }
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setLocalRotation(transform, x, y, z, w) {
+    transform["localRotation"] = { "x": x, "y": y, "z": z, "w": w }
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setLocalScale(transform, x, y, z) {
+    transform["localScale"] = { "x": x, "y": y, "z": z }
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setParent(transform, parentTransform) {
+    transform["parent"] = parentTransform
+    transform["dirty"] = true
+    if parentTransform != null {
+        parentTransform["children"] = push(parentTransform["children"], transform)
+        parentTransform["dirtyChildren"] = true
+    }
+    return transform
+}
+
+pub fn getWorldPosition(transform) {
+    if transform["dirty"] == true {
+        transform = updateWorldMatrix(transform)
+    }
+    return transform["worldPosition"]
+}
+
+pub fn getWorldRotation(transform) {
+    if transform["dirty"] == true {
+        transform = updateWorldMatrix(transform)
+    }
+    return transform["worldRotation"]
+}
+
+pub fn getWorldScale(transform) {
+    if transform["dirty"] == true {
+        transform = updateWorldMatrix(transform)
+    }
+    return transform["worldScale"]
+}
+
+pub fn getWorldMatrix(transform) {
+    if transform["dirty"] == true {
+        transform = updateWorldMatrix(transform)
+    }
+    return transform["worldMatrix"]
+}
+
+pub fn updateWorldMatrix(transform) {
+    let localMatrix = composeMatrix(
+        transform["localPosition"],
+        transform["localRotation"],
+        transform["localScale"]
+    )
+    transform["localMatrix"] = localMatrix
+    
+    if transform["parent"] != null && transform["parent"] != undefined {
+        let parentMatrix = getWorldMatrix(transform["parent"])
+        transform["worldMatrix"] = multiplyMatrices(parentMatrix, localMatrix)
+        
+        transform["worldPosition"] = extractPosition(transform["worldMatrix"])
+        transform["worldRotation"] = extractRotation(transform["worldMatrix"])
+        transform["worldScale"] = extractScale(transform["worldMatrix"])
+    } else {
+        transform["worldMatrix"] = localMatrix
+        transform["worldPosition"] = transform["localPosition"]
+        transform["worldRotation"] = transform["localRotation"]
+        transform["worldScale"] = transform["localScale"]
+    }
+    
+    transform["dirty"] = false
+    
+    if transform["dirtyChildren"] == true {
+        let i = 0
+        while i < len(transform["children"]) {
+            let child = transform["children"][i]
+            child["dirty"] = true
+            transform["children"][i] = child
+            i = i + 1
+        }
+        transform["dirtyChildren"] = false
+    }
+    
+    return transform
+}
+
+pub fn markDirty(transform) {
+    transform["dirty"] = true
+    let parent = transform["parent"]
+    while parent != null && parent != undefined {
+        parent["dirtyChildren"] = true
+        parent = parent["parent"]
+    }
+    return transform
+}
+
+pub fn worldToLocal(transform, worldPoint) {
+    let worldMatrix = getWorldMatrix(transform)
+    let invWorldMatrix = invertMatrix(worldMatrix)
+    return transformPoint(invWorldMatrix, worldPoint)
+}
+
+pub fn localToWorld(transform, localPoint) {
+    let worldMatrix = getWorldMatrix(transform)
+    return transformPoint(worldMatrix, localPoint)
+}
+
+pub fn transformDirection(transform, direction) {
+    let worldMatrix = getWorldMatrix(transform)
+    let rotation = extractRotation(worldMatrix)
+    return rotateVector(rotation, direction)
+}
+
+pub fn lookAt(transform, target, up) {
+    if up == null || up == undefined { up = { "x": 0.0, "y": 1.0, "z": 0.0 } }
+    
+    let worldPos = getWorldPosition(transform)
+    let forward = normalize(subtractVectors(target, worldPos))
+    let right = normalize(crossProduct(up, forward))
+    let newUp = crossProduct(forward, right)
+    
+    let rotation = quaternionFromMatrix({
+        "m00": right["x"], "m01": right["y"], "m02": right["z"], "m03": 0.0,
+        "m10": newUp["x"], "m11": newUp["y"], "m12": newUp["z"], "m13": 0.0,
+        "m20": forward["x"], "m21": forward["y"], "m22": forward["z"], "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    })
+    
+    transform["localRotation"] = rotation
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn rotate(transform, axis, angle) {
+    let rotation = quaternionFromAxisAngle(axis, angle)
+    transform["localRotation"] = multiplyQuaternions(rotation, transform["localRotation"])
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn translate(transform, x, y, z) {
+    transform["localPosition"]["x"] = transform["localPosition"]["x"] + x
+    transform["localPosition"]["y"] = transform["localPosition"]["y"] + y
+    transform["localPosition"]["z"] = transform["localPosition"]["z"] + z
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn scale(transform, x, y, z) {
+    transform["localScale"]["x"] = transform["localScale"]["x"] * x
+    transform["localScale"]["y"] = transform["localScale"]["y"] * y
+    transform["localScale"]["z"] = transform["localScale"]["z"] * z
+    transform["dirty"] = true
+    return transform
+}
+
+fn identityMatrix() {
+    return {
+        "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+        "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+        "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn composeMatrix(position, rotation, scale) {
+    let rotMatrix = quaternionToMatrix(rotation)
+    
+    let matrix = {
+        "m00": rotMatrix["m00"] * scale["x"], "m01": rotMatrix["m01"] * scale["y"], "m02": rotMatrix["m02"] * scale["z"], "m03": position["x"],
+        "m10": rotMatrix["m10"] * scale["x"], "m11": rotMatrix["m11"] * scale["y"], "m12": rotMatrix["m12"] * scale["z"], "m13": position["y"],
+        "m20": rotMatrix["m20"] * scale["x"], "m21": rotMatrix["m21"] * scale["y"], "m22": rotMatrix["m22"] * scale["z"], "m23": position["z"],
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+    
+    return matrix
+}
+
+fn multiplyMatrices(a, b) {
+    return {
+        "m00": a["m00"] * b["m00"] + a["m01"] * b["m10"] + a["m02"] * b["m20"] + a["m03"] * b["m30"],
+        "m01": a["m00"] * b["m01"] + a["m01"] * b["m11"] + a["m02"] * b["m21"] + a["m03"] * b["m31"],
+        "m02": a["m00"] * b["m02"] + a["m01"] * b["m12"] + a["m02"] * b["m22"] + a["m03"] * b["m32"],
+        "m03": a["m00"] * b["m03"] + a["m01"] * b["m13"] + a["m02"] * b["m23"] + a["m03"] * b["m33"],
+        "m10": a["m10"] * b["m00"] + a["m11"] * b["m10"] + a["m12"] * b["m20"] + a["m13"] * b["m30"],
+        "m11": a["m10"] * b["m01"] + a["m11"] * b["m11"] + a["m12"] * b["m21"] + a["m13"] * b["m31"],
+        "m12": a["m10"] * b["m02"] + a["m11"] * b["m12"] + a["m12"] * b["m22"] + a["m13"] * b["m32"],
+        "m13": a["m10"] * b["m03"] + a["m11"] * b["m13"] + a["m12"] * b["m23"] + a["m13"] * b["m33"],
+        "m20": a["m20"] * b["m00"] + a["m21"] * b["m10"] + a["m22"] * b["m20"] + a["m23"] * b["m30"],
+        "m21": a["m20"] * b["m01"] + a["m21"] * b["m11"] + a["m22"] * b["m21"] + a["m23"] * b["m31"],
+        "m22": a["m20"] * b["m02"] + a["m21"] * b["m12"] + a["m22"] * b["m22"] + a["m23"] * b["m32"],
+        "m23": a["m20"] * b["m03"] + a["m21"] * b["m13"] + a["m22"] * b["m23"] + a["m23"] * b["m33"],
+        "m30": a["m30"] * b["m00"] + a["m31"] * b["m10"] + a["m32"] * b["m20"] + a["m33"] * b["m30"],
+        "m31": a["m30"] * b["m01"] + a["m31"] * b["m11"] + a["m32"] * b["m21"] + a["m33"] * b["m31"],
+        "m32": a["m30"] * b["m02"] + a["m31"] * b["m12"] + a["m32"] * b["m22"] + a["m33"] * b["m32"],
+        "m33": a["m30"] * b["m03"] + a["m31"] * b["m13"] + a["m32"] * b["m23"] + a["m33"] * b["m33"]
+    }
+}
+
+fn extractPosition(matrix) {
+    return { "x": matrix["m03"], "y": matrix["m13"], "z": matrix["m23"] }
+}
+
+fn extractRotation(matrix) {
+    let trace = matrix["m00"] + matrix["m11"] + matrix["m22"]
+    let qw, qx, qy, qz
+    
+    if trace > 0.0 {
+        let s = sqrt(trace + 1.0) * 2.0
+        qw = 0.25 * s
+        qx = (matrix["m21"] - matrix["m12"]) / s
+        qy = (matrix["m02"] - matrix["m20"]) / s
+        qz = (matrix["m10"] - matrix["m01"]) / s
+    } else if matrix["m00"] > matrix["m11"] && matrix["m00"] > matrix["m22"] {
+        let s = sqrt(1.0 + matrix["m00"] - matrix["m11"] - matrix["m22"]) * 2.0
+        qw = (matrix["m21"] - matrix["m12"]) / s
+        qx = 0.25 * s
+        qy = (matrix["m01"] + matrix["m10"]) / s
+        qz = (matrix["m02"] + matrix["m20"]) / s
+    } else if matrix["m11"] > matrix["m22"] {
+        let s = sqrt(1.0 + matrix["m11"] - matrix["m00"] - matrix["m22"]) * 2.0
+        qw = (matrix["m02"] - matrix["m20"]) / s
+        qx = (matrix["m01"] + matrix["m10"]) / s
+        qy = 0.25 * s
+        qz = (matrix["m12"] + matrix["m21"]) / s
+    } else {
+        let s = sqrt(1.0 + matrix["m22"] - matrix["m00"] - matrix["m11"]) * 2.0
+        qw = (matrix["m10"] - matrix["m01"]) / s
+        qx = (matrix["m02"] + matrix["m20"]) / s
+        qy = (matrix["m12"] + matrix["m21"]) / s
+        qz = 0.25 * s
+    }
+    
+    return { "x": qx, "y": qy, "z": qz, "w": qw }
+}
+
+fn extractScale(matrix) {
+    let sx = sqrt(matrix["m00"] * matrix["m00"] + matrix["m10"] * matrix["m10"] + matrix["m20"] * matrix["m20"])
+    let sy = sqrt(matrix["m01"] * matrix["m01"] + matrix["m11"] * matrix["m11"] + matrix["m21"] * matrix["m21"])
+    let sz = sqrt(matrix["m02"] * matrix["m02"] + matrix["m12"] * matrix["m12"] + matrix["m22"] * matrix["m22"])
+    return { "x": sx, "y": sy, "z": sz }
+}
+
+fn invertMatrix(matrix) {
+    let det = matrix["m00"] * (matrix["m11"] * matrix["m22"] - matrix["m12"] * matrix["m21"]) -
+              matrix["m01"] * (matrix["m10"] * matrix["m22"] - matrix["m12"] * matrix["m20"]) +
+              matrix["m02"] * (matrix["m10"] * matrix["m21"] - matrix["m11"] * matrix["m20"])
+    
+    if abs(det) < 0.0001 {
+        return identityMatrix()
+    }
+    
+    let invDet = 1.0 / det
+    
+    return {
+        "m00": (matrix["m11"] * matrix["m22"] - matrix["m12"] * matrix["m21"]) * invDet,
+        "m01": (matrix["m02"] * matrix["m21"] - matrix["m01"] * matrix["m22"]) * invDet,
+        "m02": (matrix["m01"] * matrix["m12"] - matrix["m02"] * matrix["m11"]) * invDet,
+        "m03": 0.0,
+        "m10": (matrix["m12"] * matrix["m20"] - matrix["m10"] * matrix["m22"]) * invDet,
+        "m11": (matrix["m00"] * matrix["m22"] - matrix["m02"] * matrix["m20"]) * invDet,
+        "m12": (matrix["m02"] * matrix["m10"] - matrix["m00"] * matrix["m12"]) * invDet,
+        "m13": 0.0,
+        "m20": (matrix["m10"] * matrix["m21"] - matrix["m11"] * matrix["m20"]) * invDet,
+        "m21": (matrix["m01"] * matrix["m20"] - matrix["m00"] * matrix["m21"]) * invDet,
+        "m22": (matrix["m00"] * matrix["m11"] - matrix["m01"] * matrix["m10"]) * invDet,
+        "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn transformPoint(matrix, point) {
+    return {
+        "x": matrix["m00"] * point["x"] + matrix["m01"] * point["y"] + matrix["m02"] * point["z"] + matrix["m03"],
+        "y": matrix["m10"] * point["x"] + matrix["m11"] * point["y"] + matrix["m12"] * point["z"] + matrix["m13"],
+        "z": matrix["m20"] * point["x"] + matrix["m21"] * point["y"] + matrix["m22"] * point["z"] + matrix["m23"]
+    }
+}
+
+fn quaternionFromAxisAngle(axis, angle) {
+    let halfAngle = angle / 2.0
+    let sinHalf = sin(halfAngle)
+    let cosHalf = cos(halfAngle)
+    
+    return {
+        "x": axis["x"] * sinHalf,
+        "y": axis["y"] * sinHalf,
+        "z": axis["z"] * sinHalf,
+        "w": cosHalf
+    }
+}
+
+fn quaternionToMatrix(q) {
+    let xx = q["x"] * q["x"]
+    let yy = q["y"] * q["y"]
+    let zz = q["z"] * q["z"]
+    let xy = q["x"] * q["y"]
+    let xz = q["x"] * q["z"]
+    let yz = q["y"] * q["z"]
+    let wx = q["w"] * q["x"]
+    let wy = q["w"] * q["y"]
+    let wz = q["w"] * q["z"]
+    
+    return {
+        "m00": 1.0 - 2.0 * (yy + zz), "m01": 2.0 * (xy - wz), "m02": 2.0 * (xz + wy), "m03": 0.0,
+        "m10": 2.0 * (xy + wz), "m11": 1.0 - 2.0 * (xx + zz), "m12": 2.0 * (yz - wx), "m13": 0.0,
+        "m20": 2.0 * (xz - wy), "m21": 2.0 * (yz + wx), "m22": 1.0 - 2.0 * (xx + yy), "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn multiplyQuaternions(q1, q2) {
+    return {
+        "x": q1["w"] * q2["x"] + q1["x"] * q2["w"] + q1["y"] * q2["z"] - q1["z"] * q2["y"],
+        "y": q1["w"] * q2["y"] - q1["x"] * q2["z"] + q1["y"] * q2["w"] + q1["z"] * q2["x"],
+        "z": q1["w"] * q2["z"] + q1["x"] * q2["y"] - q1["y"] * q2["x"] + q1["z"] * q2["w"],
+        "w": q1["w"] * q2["w"] - q1["x"] * q2["x"] - q1["y"] * q2["y"] - q1["z"] * q2["z"]
+    }
+}
+
+fn rotateVector(q, v) {
+    let qv = { "x": q["x"], "y": q["y"], "z": q["z"], "w": q["w"] }
+    let qvConj = { "x": -qv["x"], "y": -qv["y"], "z": -qv["z"], "w": qv["w"] }
+    let qvV = { "x": v["x"], "y": v["y"], "z": v["z"], "w": 0.0 }
+    
+    let temp = multiplyQuaternions(qv, qvV)
+    let result = multiplyQuaternions(temp, qvConj)
+    
+    return { "x": result["x"], "y": result["y"], "z": result["z"] }
+}
+
+fn subtractVectors(a, b) {
+    return { "x": a["x"] - b["x"], "y": a["y"] - b["y"], "z": a["z"] - b["z"] }
+}
+
+fn crossProduct(a, b) {
+    return {
+        "x": a["y"] * b["z"] - a["z"] * b["y"],
+        "y": a["z"] * b["x"] - a["x"] * b["z"],
+        "z": a["x"] * b["y"] - a["y"] * b["x"]
+    }
+}
+
+fn normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len < 0.0001 {
+        return { "x": 0.0, "y": 0.0, "z": 0.0 }
+    }
+    return { "x": v["x"] / len, "y": v["y"] / len, "z": v["z"] / len }
+}
