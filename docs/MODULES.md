@@ -22,7 +22,7 @@ Modulnamn är strängliteraler. Importerade bindingar läggs i den aktuella milj
 | `math` | `add(a, b)`, `mul(a, b)` |
 | `http` | `ok`, `not_found`, **alla verb** (`route_*`, `request_*`, `fetch_*`, `method_get()` …) — se [HTTP.md](HTTP.md) |
 | `crypto` | `sha256(data)`, `secure(data)` — wrappers för kryptofunktioner |
-| `science` | fysik, kemi, statistik, **ndarray**, **ML** — se [SCIENCE.md](SCIENCE.md) / Våg SC |
+| `science` | fysik, kemi, statistik, **ndarray**, **linalg/signal/sparse**, **autograd HOAD**, **PDE/FEM**, **ML** — se [SCIENCE.md](SCIENCE.md) / Våg SC |
 | `docai` | Dokumentations-AI — `doc_ask`, `doc_search` — se [DOCAI.md](DOCAI.md) |
 | `codai` | Kodassistent (utility-first) — `code_util`, `code_suggest` — se [CODAI.md](CODAI.md) |
 
@@ -60,6 +60,12 @@ kinetic_energy(2, 3);     // 9
 compound(1000, 0.05, 2);  // sammansatt ränta
 ohms_v(10, 2);            // 20 V
 stat_mean([1, 2, 3, 4, 5]); // 3
+
+// Deepen (se SCIENCE.md § Science deepen):
+import "science/nd";
+import "science/linalg";
+einsum("ij,jk->ik", from([[1.0, 0.0], [0.0, 1.0]], [2, 2]), from([[2.0, 3.0], [4.0, 5.0]], [2, 2]));
+randomizedSvd([[4.0, 1.0], [1.0, 3.0]], 1);
 ```
 
 ### Exempel: docai

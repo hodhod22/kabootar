@@ -957,12 +957,12 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC1b** | **Solve / LU** — `nd_solve` / `mat_solve` för Ax=b | ✅ subset (`nd_solve` Gauss+partial pivot) |
 | **SC1c** | **Decomps subset** — QR/SVD/eig (start: 2×2; utöka) | ✅ subset (`mat_svd2` + `mat_eigen2`; allmän → **SC1e**) |
 | **SC1d** | **FFT / signal subset** — 1D FFT + conv | ✅ subset (`num_fft` / `num_ifft` / `num_conv1d`) |
-| **SC1e** | **Full linalg** — QR, tunn/full SVD, eig/sym, Cholesky, lstsq, `cond` | ✅ subset (`mat_qr` thin/full + `mat_qr_err`; `mat_svd` thin/full + `mat_pinv`; `mat_eig`/`mat_cholesky`/`mat_lstsq`/`mat_cond`) |
+| **SC1e** | **Full linalg** — QR, tunn/full/econ SVD, eig/sym, Cholesky, lstsq, `cond`, rSVD | ✅ subset (+ `mat_batch_*`, `mat_randomized_svd` / `randomizedSvd`) |
 | **SC1f** | **Optimize** — `minimize` (gradient/Nelder), `least_squares`, `root` | ✅ subset (`num_minimize` Nelder–Mead, `num_least_squares`, `num_root`) |
 | **SC1g** | **Integrate / ODE** — quad + `odeint`/`rk4` för system | ✅ subset (`num_rk4`/`num_odeint`/`num_odeint_adaptive`/`num_quad`) |
 | **SC1h** | **Interpolate / special** — spline1d; `erf`/`gamma`/`bessel` subset | ✅ subset (`num_interp_spline*`/`num_erf`/`num_gamma`/`num_bessel_j0`) |
-| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram | ✅ subset (`num_window_*`/`num_stft`/`num_fft2d`/`num_fir`/`num_iir`/`num_biquad`; `num_rfft`/`num_irfft`/`num_fft_c`/`num_fft_pad`) |
-| **SC1j** | **Sparse** — CSR/COO, SpMV, sparse least-squares subset | ✅ subset (`sparse_*` CSR/COO/SpMV/lstsq) |
+| **SC1i** | **Signal++** — 2D FFT, window, FIR/IIR, STFT/spectrogram, wavelets | ✅ subset (+ polyphase banks, Haar DWT/WPT multilevel) |
+| **SC1j** | **Sparse** — CSR/COO/CSC, SpMV, incomplete factors, sparse direct solve | ✅ subset (+ `ilu0`/`ilut`/`icc0`/`icK`, `spsolve`/`iluSolve`/`iccSolve`) |
 
 #### SC2 — ML / AI (ersätt sklearn + PyTorch-subset)
 
@@ -975,7 +975,7 @@ Jämförelse mot det forskare faktiskt använder. ✅ = subset landad · 🟡 = 
 | **SC2e** | **Model I/O** — spara/ladda vikter (JSON/VFS/checkpoint) | ✅ subset (`ml_save_checkpoint`/`ml_load_checkpoint`) |
 | **SC2f** | **Autograd++** — tape: matmul, conv, softmax, CE; `no_grad`; högre ordning senare | ✅ subset (`ag_matmul`/`ag_conv2d`/`ag_sigmoid`/`ag_softmax`/`ag_ce`/`ag_add`/`ag_mul`/`ag_no_grad`) |
 | **SC2g** | **Autograd arithmetic** — sub/div/sum/exp; backward from sum/generic root | ✅ subset (`ag_sub`/`ag_div`/`ag_sum`/`ag_exp`) |
-| **SC2n** | **Higher-order autograd** — `create_graph` + `grad_tensor` (sum/exp/mul/add) | ✅ subset (`ag_backward(..., true)` / `ag_grad_tensor`) |
+| **SC2n** | **Higher-order autograd** — `create_graph` + `grad_tensor` (sum/exp/mul/add/matmul/conv/softmax) | ✅ subset (+ attention HOAD via `scaledDotAttn` / SoftmaxGrad) |
 | **SC2g** | **Optimizers + metrics** — Adam/AdamW; accuracy/F1/ROC-AUC/confusion | ✅ subset (`ml_adam_update`/`ml_adamw_update`/`ml_accuracy`/`ml_f1`/`ml_roc_auc`/`ml_confusion`) |
 | **SC2h** | **Klassisk ML** — PCA, k-means, logreg, decision stump/tree subset, pipeline | ✅ subset (`ml_pca`/`ml_kmeans`/`ml_logreg_*`/`ml_stump_*`/`ml_tree_*` + `science/pipeline`) |
 | **SC2i** | **NN-lager** — Conv2d, MaxPool, Embedding, MultiheadAttention-lite | ✅ subset (`ml_conv2d`/`ml_maxpool2d`/`ml_embedding`/`ml_mha`) |
