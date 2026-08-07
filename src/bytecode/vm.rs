@@ -918,7 +918,9 @@ fn run_chunk(
                 };
                 items.push(item);
                 let len = items.len() as i64;
-                env.set(name.clone(), Value::Array(items));
+                // Assign into the owning frame (after TakeGlobal left Undefined there).
+                // `env.set` would shadow on a child call frame and break nested emitIfStmt.
+                ownership::store_binding(env, name, Value::Array(items))?;
                 push_stack(stack, Value::Number(len))?;
             }
             Opcode::ArrayPopLocal(idx) => {
@@ -1015,6 +1017,55 @@ fn run_chunk(
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?;
                 env.acc_add_inplace(name, rhs)?;
+            }
+            Opcode::LenLocal(idx) => {
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                let n = if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    env.len_of(name)?
+                } else {
+                    crate::value::container_len(
+                        local_vals.get(i).unwrap_or(&Value::Undefined),
+                    )?
+                };
+                push_stack(stack, Value::Number(n))?;
+            }
+            Opcode::LenGlobal(idx) => {
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                push_stack(stack, Value::Number(env.len_of(name)?))?;
+            }
+            Opcode::IndexGetLocal(idx) => {
+                let index = stack.pop().ok_or("Bytecode stack underflow")?;
+                let i = *idx as usize;
+                if i >= local_vals.len() {
+                    local_vals.resize(i + 1, Value::Undefined);
+                }
+                let v = if args.is_none() {
+                    let name = locals
+                        .get(i)
+                        .ok_or_else(|| format!("Invalid local index {i}"))?;
+                    env.index_get_clone(name, &index)?
+                } else {
+                    crate::value::index_get_element(
+                        local_vals.get(i).unwrap_or(&Value::Undefined),
+                        &index,
+                    )?
+                };
+                push_stack(stack, v)?;
+            }
+            Opcode::IndexGetGlobal(idx) => {
+                let index = stack.pop().ok_or("Bytecode stack underflow")?;
+                let name = globals
+                    .get(*idx as usize)
+                    .ok_or_else(|| format!("Invalid global index {idx}"))?;
+                push_stack(stack, env.index_get_clone(name, &index)?)?;
             }
             Opcode::GetMember(key_idx) => {
                 let key = member_name(constants, *key_idx)?;

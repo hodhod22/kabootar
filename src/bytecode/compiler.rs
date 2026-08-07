@@ -1133,6 +1133,24 @@ impl Compiler {
                     }
                 }
                 if let Expr::Variable(name) = func.as_ref() {
+                    // P6b: `len(name)` → LenLocal/LenGlobal (no LoadGlobal clone of the container).
+                    if name == "len"
+                        && !has_spread
+                        && type_args.is_empty()
+                        && args.len() == 1
+                    {
+                        if let CallArg::Expr(Expr::Variable(binding)) = &args[0] {
+                            if let Some(idx) = self.locals.iter().position(|l| l == binding) {
+                                self.emit(Opcode::LenLocal(idx as u16));
+                                return Ok(());
+                            }
+                            if !self.is_enclosed_local(binding) {
+                                let idx = self.global_index(binding);
+                                self.emit(Opcode::LenGlobal(idx));
+                                return Ok(());
+                            }
+                        }
+                    }
                     if self.generic_templates.contains_key(name) {
                         if has_spread {
                             return Err(CompileError);
@@ -1278,6 +1296,20 @@ impl Compiler {
                 Ok(())
             }
             Expr::Index(container, idx) => {
+                // P6b: `name[i]` → IndexGetLocal/Global (clone element only).
+                if let Expr::Variable(name) = container.as_ref() {
+                    if let Some(li) = self.locals.iter().position(|l| l == name) {
+                        self.compile_expr(idx)?;
+                        self.emit(Opcode::IndexGetLocal(li as u16));
+                        return Ok(());
+                    }
+                    if !self.is_enclosed_local(name) {
+                        self.compile_expr(idx)?;
+                        let gi = self.global_index(name);
+                        self.emit(Opcode::IndexGetGlobal(gi));
+                        return Ok(());
+                    }
+                }
                 self.compile_expr(container)?;
                 self.compile_expr(idx)?;
                 self.emit(Opcode::IndexGet);

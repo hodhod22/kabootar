@@ -392,6 +392,32 @@ fn tryEmitArrayPushAssign(sym, rhs) {
     return true
 }
 
+/// P6b: `len(name)` → LenLocal/LenGlobal (no Load* clone of the container).
+fn tryEmitLenCall(callee, args) {
+    if callee.kind != AST_VAR {
+        return false
+    }
+    if callee["sym"] != "len" {
+        return false
+    }
+    if len(args) != 1 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    let sym = a0["sym"]
+    let li = localSymIndex(sym)
+    if li >= 0 {
+        emitOp(OP_LEN_LOCAL, li)
+        return true
+    }
+    let gi = symIndex("global", sym)
+    emitOp(OP_LEN_GLOBAL, gi)
+    return true
+}
+
 /// `name = name + a + b + …` → AccAdd* (in-place).
 /// Statement path: AccAdd pops rhs only — no Const(null) junk on the stack
 /// (expr-assign value is unused for AST_ASSIGN stmts; ArrayPush uses POP similarly).
@@ -710,6 +736,24 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_INDEX {
+        // P6b: name[i] → IndexGetLocal/Global (clone element only).
+        eBxL = eNode["object"]
+        if eBxL.kind == AST_VAR {
+            eIndexStack = push(eIndexStack, eNode["index"])
+            eIndexDepth = eIndexDepth + 1
+            emitExpr(eIndexStack[eIndexDepth - 1])
+            eIndexStack = pop(eIndexStack)
+            eIndexDepth = eIndexDepth - 1
+            eSym = eBxL["sym"]
+            let ili = localSymIndex(eSym)
+            if ili >= 0 {
+                emitOp(OP_INDEX_GET_LOCAL, ili)
+                return
+            }
+            let igi = symIndex("global", eSym)
+            emitOp(OP_INDEX_GET_GLOBAL, igi)
+            return
+        }
         // P6b: eIndexDepth avoids len(eIndexStack) LoadGlobal clone.
         eIndexStack = push(eIndexStack, eNode["index"])
         eIndexDepth = eIndexDepth + 1
@@ -725,6 +769,11 @@ fn emitExpr(node) {
         eCalleeStack = push(eCalleeStack, eNode["callee"])
         eCalleeDepth = eCalleeDepth + 1
         eCallee = eNode["callee"]
+        // P6b: len(name) → LenLocal/LenGlobal before Call path clones.
+        if tryEmitLenCall(eCallee, eArgs) {
+            dropCallCallee()
+            return
+        }
         if eCallee.kind == AST_VAR {
             let ctorName = eCallee["sym"]
             if len(eArgs) == 1 {
@@ -1400,6 +1449,8 @@ fn emitIfStmt() {
     if eElse != null {
         eIfSkipStack = pushJmpAtLen(eIfSkipStack)
         emitOp(OP_JUMP, 0)
+        // Jmp/skip stacks: always top via len (jmp is popped before else; depth ≠ len).
+        // P6b: len_* / index_get_* make this cheap (no LoadGlobal clone).
         eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
         patchRelJump(OP_JUMP_IF_FALSE, eJmp)
         eIfJmpStack = pop(eIfJmpStack)

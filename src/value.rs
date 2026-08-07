@@ -816,6 +816,34 @@ impl Environment {
         Err(crate::evaluator::undefined_var_message(name, self))
     }
 
+    /// Peek `len(name)` without cloning the container (P6b host-VM cheap path).
+    pub fn len_of(&self, name: &str) -> Result<i64, String> {
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let bindings = node.bindings.borrow();
+            if let Some(v) = bindings.get(name) {
+                return container_len(v);
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
+    /// Peek `name[idx]` and clone only the element (P6b; avoids LoadGlobal array clone).
+    pub fn index_get_clone(&self, name: &str, idx: &Value) -> Result<Value, String> {
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let bindings = node.bindings.borrow();
+            if let Some(v) = bindings.get(name) {
+                return index_get_element(v, idx);
+            }
+            drop(bindings);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        Err(crate::evaluator::undefined_var_message(name, self))
+    }
+
     /// In-place `name = name + rhs` (string append or numeric add).
     pub fn acc_add_inplace(&self, name: &str, rhs: Value) -> Result<(), String> {
         if self.is_immutable(name) {
@@ -932,6 +960,54 @@ impl std::fmt::Debug for Environment {
             .field("bindings", &*self.inner.bindings.borrow())
             .field("has_parent", &self.inner.parent.is_some())
             .finish()
+    }
+}
+
+/// Length of array/string/object without consuming the value (matches `len()`).
+pub(crate) fn container_len(v: &Value) -> Result<i64, String> {
+    if let Some(n) = crate::runtime::stdlib::iterator::iterator_len(v) {
+        return Ok(n as i64);
+    }
+    match v {
+        Value::Array(items) => Ok(items.len() as i64),
+        Value::String(s) => Ok(if s.is_ascii() {
+            s.len() as i64
+        } else {
+            s.chars().count() as i64
+        }),
+        Value::Object(_) if crate::runtime::stdlib::iterator::is_iterator_value(v) => Err(
+            "len() on this iterator requires consuming iteration (no known length)".into(),
+        ),
+        Value::Object(map) => Ok(map.len() as i64),
+        _ => Err("len() expects array, string, or object".into()),
+    }
+}
+
+/// Clone a single indexed element without cloning the whole container.
+pub(crate) fn index_get_element(container: &Value, idx: &Value) -> Result<Value, String> {
+    match (container, idx) {
+        (Value::Array(items), Value::Number(n)) if *n >= 0 => {
+            let i = *n as usize;
+            Ok(items.get(i).cloned().unwrap_or(Value::Undefined))
+        }
+        (Value::Array(items), Value::Float(f)) if *f >= 0.0 && f.fract() == 0.0 => {
+            let i = *f as usize;
+            Ok(items.get(i).cloned().unwrap_or(Value::Undefined))
+        }
+        (Value::Object(map), Value::String(k)) => {
+            Ok(map.get(k).cloned().unwrap_or(Value::Undefined))
+        }
+        (Value::String(s), Value::Number(n)) if *n >= 0 => {
+            let i = *n as usize;
+            Ok(s.chars()
+                .nth(i)
+                .map(|c| Value::String(c.to_string()))
+                .unwrap_or(Value::Undefined))
+        }
+        _ => Err(format!(
+            "Invalid index access on {}",
+            format_value(container)
+        )),
     }
 }
 

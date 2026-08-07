@@ -104,10 +104,9 @@ global 16 TOKEN_NUMBER
 global 17 parse_int
 global 18 KEYWORDS
 global 19 lxScan
-global 20 len
-global 21 tokenizeImpl
-global 22 tokenTypeNameImpl
-global 23 tokenValueImpl
+global 20 tokenizeImpl
+global 21 tokenTypeNameImpl
+global 22 tokenValueImpl
 local 0 lxPos
 local 1 lxSrc
 local 2 lxSrcLen
@@ -1770,7 +1769,7 @@ fn_op 0 dup
 fn_op 0 store_local 16
 fn_op 0 pop
 fn_op 0 load_local 16
-fn_op 0 jump_if_false 111
+fn_op 0 jump_if_false 110
 fn_op 0 load_global 0
 fn_op 0 store_local 3
 fn_op 0 const 2
@@ -1854,9 +1853,8 @@ fn_op 0 load_global 0
 fn_op 0 load_global 9
 fn_op 0 call 3
 fn_op 0 store_local 17
-fn_op 0 load_global 18
 fn_op 0 load_local 17
-fn_op 0 index_get
+fn_op 0 index_get_global 18
 fn_op 0 store_local 18
 fn_op 0 load_local 18
 fn_op 0 const 75
@@ -1911,9 +1909,7 @@ fn_op 1 load_local 0
 fn_op 1 dup
 fn_op 1 store_global 5
 fn_op 1 pop
-fn_op 1 load_local 0
-fn_op 1 load_global 20
-fn_op 1 call 1
+fn_op 1 len_local 0
 fn_op 1 dup
 fn_op 1 store_global 1
 fn_op 1 pop

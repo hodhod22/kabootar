@@ -442,6 +442,28 @@ fn runOpMem(name, arg, op, pool, globals, functions) {
         vIp = vIp + 1
         return 1
     }
+    if name == "len_local" {
+        vPush(len(vLocals[arg]))
+        vIp = vIp + 1
+        return 1
+    }
+    if name == "len_global" {
+        vPush(len(vResolveGlobal(globals, arg)))
+        vIp = vIp + 1
+        return 1
+    }
+    if name == "index_get_local" {
+        let idx = vPop()
+        vPush(vLocals[arg][idx])
+        vIp = vIp + 1
+        return 1
+    }
+    if name == "index_get_global" {
+        let idx = vPop()
+        vPush(vResolveGlobal(globals, arg)[idx])
+        vIp = vIp + 1
+        return 1
+    }
     if name == OP_POP {
         vPop()
         vIp = vIp + 1

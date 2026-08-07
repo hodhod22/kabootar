@@ -199,5 +199,5 @@ Se [seed/README.md](seed/README.md) för policy, playbook, **fas-profil** och ba
 - Fas-profil (mid AccAdd): parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%. Landade cuts:
   maps/`emitSym`, iterative compare, **`eIfDepth`/`eMemberDepth`/`eIndexDepth`**,
   CallArg/obj/arr + callee/block depth, early `IDENT=`, `eOpsN` patches, IR + AccAdd densify.
-- Leaf densify plateau → **toolchain focus**. `serialize_body` **~697 s** debug — still ≫ 10 s, **skip-list stays**.
+- Leaf densify plateau → host-VM **`Len*`/`IndexGet*`** (seeds regen). `serialize_body` **~676 s** debug — still ≫ 10 s, **skip-list stays**.
 - Efter `emit_impl` / `parser_impl` / `serialize_body`-ändring: regenerera motsvarande `self_host/seed/*.kbc`.
