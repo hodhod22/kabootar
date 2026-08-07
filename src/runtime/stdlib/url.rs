@@ -64,7 +64,7 @@ fn usp_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_usp".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn usp_id(v: &Value) -> Result<u64, String> {
@@ -115,7 +115,7 @@ fn url_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     obj.insert("hash".into(), Value::String(hash));
     let usp = url_search_params_new_from_search(&search)?;
     obj.insert("searchParams".into(), usp);
-    Ok(Value::Object(obj))
+    Ok(Value::from_object(obj))
 }
 
 fn url_search_params_new_from_search(search: &str) -> Result<Value, String> {

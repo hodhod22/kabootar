@@ -57,7 +57,7 @@ fn cplx_val(v: &Value) -> Result<(f64, f64), String> {
 }
 
 fn cplx_out(re: f64, im: f64) -> Value {
-    Value::Array(vec![Value::Float(re), Value::Float(im)])
+    Value::from_array(vec![Value::Float(re), Value::Float(im)])
 }
 
 fn float_out(x: f64) -> Value {
@@ -226,14 +226,14 @@ fn science_quadratic(args: &[Value], _env: &mut Environment) -> Result<Value, St
     let disc = b * b - 4.0 * a * c;
     if disc >= 0.0 {
         let s = disc.sqrt();
-        Ok(Value::Array(vec![
+        Ok(Value::from_array(vec![
             float_out((-b + s) / (2.0 * a)),
             float_out((-b - s) / (2.0 * a)),
         ]))
     } else {
         let s = (-disc).sqrt() / (2.0 * a);
         let re = -b / (2.0 * a);
-        Ok(Value::Array(vec![
+        Ok(Value::from_array(vec![
             cplx_out(re, s),
             cplx_out(re, -s),
         ]))

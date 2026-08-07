@@ -1444,7 +1444,7 @@ fn kv8_smoke_inventory_prints_gap_report() {
     println!("Ready: {ready_n}  Missing: {missing_n}  P0 blockers: {p0_n}");
     println!("\n--- Ready ---");
     if let Value::Array(items) = report_field(&report, "ready") {
-        for v in items {
+        for v in items.iter() {
             if let Value::String(s) = v {
                 println!("  [ok] {s}");
             }
@@ -1452,7 +1452,7 @@ fn kv8_smoke_inventory_prints_gap_report() {
     }
     println!("\n--- P0 missing (React smoke path) ---");
     if let Value::Array(items) = report_field(&report, "p0_missing") {
-        for v in items {
+        for v in items.iter() {
             if let Value::String(s) = v {
                 println!("  [!!] {s}");
             }

@@ -283,7 +283,7 @@ fn stat_ttest(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     out.insert("df".into(), float_out(df));
     out.insert("mean_a".into(), float_out(ma));
     out.insert("mean_b".into(), float_out(mb));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Pearson chi-square goodness of fit: observed vs expected counts.
@@ -303,7 +303,7 @@ fn stat_chi2(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = std::collections::HashMap::new();
     out.insert("chi2".into(), float_out(chi));
     out.insert("df".into(), float_out((obs.len() as f64 - 1.0).max(0.0)));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

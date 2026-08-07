@@ -3,6 +3,7 @@
 use crate::ast::BinaryOp;
 use crate::runtime::stdlib::descriptor::{property_key_from_value, PropertyKey};
 use crate::value::{format_value, Environment, Value};
+use std::rc::Rc;
 
 fn to_float(val: &Value) -> Option<f64> {
     match val {
@@ -208,8 +209,7 @@ pub fn read_index(
             if matches!(map.get("__kab_nd"), Some(Value::Bool(true)))
                 && (matches!(idx, Value::Array(_))
                     || matches!(
-                        idx,
-                        Value::Object(m) if matches!(m.get("__kab_slice"), Some(Value::Bool(true)))
+                        idx, Value::Object(m) if matches!(m.get("__kab_slice"), Some(Value::Bool(true)))
                     )) =>
         {
             crate::runtime::science::ndarray::nd_index_view_public(
@@ -315,7 +315,7 @@ pub fn read_member(
         }
         Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
         Value::Array(items) if field == "toLocaleString" => Ok(Value::BoundNative(
-            Box::new(Value::Array(items.clone())),
+            Box::new(Value::from_array(items.as_ref().clone())),
             crate::runtime::stdlib::array_to_locale_string_method,
         )),
         Value::String(s) if field == "length" => {
@@ -388,17 +388,18 @@ pub fn write_index(
             Err("Proxy set trap returned false".into())
         };
     }
+    Value::reject_direct_container_cycle(container, &val)?;
     let receiver = container.clone();
     match (container, idx) {
-        (Value::Array(items), idx) => {
+        (Value::Array(ref mut items), idx) => {
             let i = index_to_usize(idx, items.len())?;
-            items[i] = val;
+            Value::array_make_mut(items)[i] = val;
             Ok(())
         }
-        (Value::Object(map), idx) => {
+        (Value::Object(ref mut map), idx) => {
             if let Some(sym_id) = crate::runtime::stdlib::symbol::symbol_id(idx) {
                 return crate::runtime::stdlib::descriptor::set_own_symbol(
-                    map,
+                    Value::object_make_mut(map),
                     sym_id,
                     val,
                     &receiver,
@@ -408,7 +409,13 @@ pub fn write_index(
             let Value::String(key) = idx else {
                 return Err("Object index requires string or symbol".into());
             };
-            crate::runtime::stdlib::descriptor::set_own_property(map, key, val, &receiver, env)
+            crate::runtime::stdlib::descriptor::set_own_property(
+                Value::object_make_mut(map),
+                key,
+                val,
+                &receiver,
+                env,
+            )
         }
         _ => Err("Invalid index assignment".into()),
     }
@@ -436,14 +443,25 @@ pub fn write_member(
             Err(format!("Proxy set trap returned false for \"{field}\""))
         };
     }
+    Value::reject_direct_container_cycle(container, &val)?;
     let receiver = container.clone();
     match container {
-        Value::Object(map) => {
-            if crate::runtime::browser_platform::canvas_props::try_write_property(map, field, &val)?
+        Value::Object(ref mut map) => {
+            if crate::runtime::browser_platform::canvas_props::try_write_property(
+                Value::object_make_mut(map),
+                field,
+                &val,
+            )?
             {
                 return Ok(());
             }
-            crate::runtime::stdlib::descriptor::set_own_property(map, field, val, &receiver, env)
+            crate::runtime::stdlib::descriptor::set_own_property(
+                Value::object_make_mut(map),
+                field,
+                val,
+                &receiver,
+                env,
+            )
         }
         Value::ClassInstance(inst) => {
             let mut inst_ref = inst
@@ -670,8 +688,7 @@ pub fn eval_value_in(
                     needle
                 ));
             }
-        },
-        Value::Object(_) => {
+        }, Value::Object(_) => {
             crate::runtime::stdlib::reflect::reflect_has(haystack, needle, env)?
         }
         Value::ClassInstance(inst) => match property_key_from_value(needle) {

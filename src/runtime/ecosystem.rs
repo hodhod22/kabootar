@@ -14,7 +14,7 @@ fn pkg_object(name: &str, version: &str, source: &str) -> Value {
     m.insert("name".into(), Value::String(name.into()));
     m.insert("version".into(), Value::String(version.into()));
     m.insert("source".into(), Value::String(source.into()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn ecosystem_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -43,7 +43,7 @@ fn ecosystem_info_native(_args: &[Value], _env: &mut Environment) -> Result<Valu
             "Use modules_catalog(), registry_search(q), and registry_seed() to grow the local ecosystem.".into(),
         ),
     );
-    Ok(Value::Object(info))
+    Ok(Value::from_object(info))
 }
 
 fn modules_catalog_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -66,7 +66,7 @@ fn modules_catalog_native(_args: &[Value], _env: &mut Environment) -> Result<Val
         items.push(pkg_object(&p.name, &p.version, "installed"));
     }
 
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn registry_search_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -80,7 +80,7 @@ fn registry_search_native(args: &[Value], _env: &mut Environment) -> Result<Valu
         .into_iter()
         .map(|(name, source, version)| pkg_object(&name, &version, &source))
         .collect();
-    Ok(Value::Array(hits))
+    Ok(Value::from_array(hits))
 }
 
 fn registry_seed_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -89,7 +89,7 @@ fn registry_seed_native(_args: &[Value], _env: &mut Environment) -> Result<Value
         .into_iter()
         .map(|p| pkg_object(&p.name, &p.version, "registry"))
         .collect();
-    Ok(Value::Array(published))
+    Ok(Value::from_array(published))
 }
 
 fn registry_uninstall_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

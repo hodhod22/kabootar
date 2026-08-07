@@ -44,8 +44,7 @@ fn host_window_object() -> HashMap<String, Value> {
     let mut m = HashMap::new();
     let (href, inner_w, inner_h) = host_window_metrics();
     m.insert(
-        "location".into(),
-        Value::Object({
+        "location".into(), Value::from_object({
             let mut loc = HashMap::new();
             loc.insert("href".into(), Value::String(href));
             loc.insert("protocol".into(), Value::String("kabootar:".into()));
@@ -125,14 +124,14 @@ fn document_query_native(args: &[Value], _env: &mut Environment) -> Result<Value
                 let mut out = HashMap::new();
                 out.insert("tag".into(), Value::String(el.tag_name()));
                 out.insert("layer".into(), Value::String("host".into()));
-                return Ok(Value::Object(out));
+                return Ok(Value::from_object(out));
             }
         }
     }
     let mut el = HashMap::new();
     el.insert("tag".into(), Value::String(selector));
     el.insert("layer".into(), Value::String("host".into()));
-    Ok(Value::Object(el))
+    Ok(Value::from_object(el))
 }
 
 fn document_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -147,7 +146,7 @@ fn document_create_native(args: &[Value], _env: &mut Environment) -> Result<Valu
                 let mut out = HashMap::new();
                 out.insert("tag".into(), Value::String(el.tag_name()));
                 out.insert("layer".into(), Value::String("host".into()));
-                return Ok(Value::Object(out));
+                return Ok(Value::from_object(out));
             }
         }
     }
@@ -155,7 +154,7 @@ fn document_create_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     el.insert("tag".into(), Value::String(tag));
     el.insert("innerHTML".into(), Value::String(String::new()));
     el.insert("layer".into(), Value::String("host".into()));
-    Ok(Value::Object(el))
+    Ok(Value::from_object(el))
 }
 
 fn document_get_by_id_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -168,14 +167,14 @@ fn document_get_by_id_native(args: &[Value], _env: &mut Environment) -> Result<V
                 out.insert("id".into(), Value::String(id));
                 out.insert("tag".into(), Value::String(el.tag_name()));
                 out.insert("layer".into(), Value::String("host".into()));
-                return Ok(Value::Object(out));
+                return Ok(Value::from_object(out));
             }
         }
     }
     let mut el = HashMap::new();
     el.insert("id".into(), Value::String(id));
     el.insert("layer".into(), Value::String("host".into()));
-    Ok(Value::Object(el))
+    Ok(Value::from_object(el))
 }
 
 fn window_fetch_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -196,9 +195,9 @@ fn expect_str(args: &[Value], i: usize, name: &str) -> Result<String, String> {
 }
 
 pub fn browser_globals(env: &mut Environment) {
-    env.set("document".into(), Value::Object(host_document_object()));
-    env.set("window".into(), Value::Object(host_window_object()));
-    env.set("navigator".into(), Value::Object(host_navigator_object()));
+    env.set("document".into(), Value::from_object(host_document_object()));
+    env.set("window".into(), Value::from_object(host_window_object()));
+    env.set("navigator".into(), Value::from_object(host_navigator_object()));
     env.set("host_paint".into(), Value::NativeFunction(host_paint_native));
     env.set("host_frame".into(), Value::NativeFunction(host_frame_native));
     env.set("host_mount".into(), Value::NativeFunction(host_mount_native));

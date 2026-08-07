@@ -521,7 +521,7 @@ pub fn react_bundle_info() -> Value {
         "c2_status".into(),
         Value::String("ok".into()),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 #[cfg(test)]
@@ -1695,7 +1695,7 @@ mod parse_probe {
                 Expr::AssignExpr(_, _, rhs) => walk_expr(rhs, names),
                 Expr::Call(c, args) => {
                     walk_expr(c, names);
-                    for a in args {
+                    for a in args.iter() {
                         walk_expr(a, names);
                     }
                 }

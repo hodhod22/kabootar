@@ -161,7 +161,7 @@ fn encode_value(val: &Value, out: &mut String) -> Result<(), String> {
         Value::Object(map) => {
             out.push('{');
             let mut first = true;
-            for (k, v) in map {
+            for (k, v) in map.iter() {
                 if !first {
                     out.push(',');
                 }
@@ -570,7 +570,7 @@ impl<'a> JsonParser<'a> {
                     }
                 }
                 self.expect(']')?;
-                Ok(Value::Array(items))
+                Ok(Value::from_array(items))
             }
             Some('{') => {
                 self.next()?;
@@ -591,7 +591,7 @@ impl<'a> JsonParser<'a> {
                     }
                 }
                 self.expect('}')?;
-                Ok(Value::Object(map))
+                Ok(Value::from_object(map))
             }
             Some('n') => {
                 self.read_null()?;

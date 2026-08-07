@@ -3,6 +3,7 @@
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_MAP: AtomicU64 = AtomicU64::new(1);
@@ -29,28 +30,28 @@ pub fn map_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_map".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn set_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_set".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn counter_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_counter".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn defaultdict_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_defaultdict".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub(crate) fn map_id(v: &Value) -> Result<u64, String> {
@@ -218,10 +219,10 @@ fn counter_items_native(args: &[Value], _env: &mut Environment) -> Result<Value,
             keys.sort();
             for key in keys {
                 let count = inner[&key];
-                pairs.push(Value::Array(vec![Value::String(key), Value::Number(count)]));
+                pairs.push(Value::from_array(vec![Value::String(key), Value::Number(count)]));
             }
         }
-        Value::Array(pairs)
+        Value::from_array(pairs)
     }))
 }
 
@@ -436,7 +437,7 @@ fn map_keys_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
             .get(&id)
             .map(|inner| inner.keys().cloned().map(Value::String).collect())
             .unwrap_or_default();
-        Ok(Value::Array(keys))
+        Ok(Value::from_array(keys))
     })
 }
 
@@ -448,7 +449,7 @@ fn map_values_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
             .get(&id)
             .map(|inner| inner.values().cloned().collect())
             .unwrap_or_default();
-        Ok(Value::Array(values))
+        Ok(Value::from_array(values))
     })
 }
 
@@ -461,11 +462,11 @@ fn map_entries_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
             .map(|inner| {
                 inner
                     .iter()
-                    .map(|(k, v)| Value::Array(vec![Value::String(k.clone()), v.clone()]))
+                    .map(|(k, v)| Value::from_array(vec![Value::String(k.clone()), v.clone()]))
                     .collect()
             })
             .unwrap_or_default();
-        Ok(Value::Array(entries))
+        Ok(Value::from_array(entries))
     })
 }
 
@@ -476,7 +477,7 @@ fn map_from_entries_native(args: &[Value], _env: &mut Environment) -> Result<Val
     };
     let id = NEXT_MAP.fetch_add(1, Ordering::Relaxed);
     let mut inner = HashMap::new();
-    for pair in pairs {
+    for pair in pairs.iter() {
         let Value::Array(entry) = pair else {
             return Err("map_from_entries() expects [[key, value], ...]".into());
         };
@@ -602,7 +603,7 @@ fn set_values_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
             .get(&id)
             .map(|inner| inner.values().cloned().collect())
             .unwrap_or_default();
-        Ok(Value::Array(values))
+        Ok(Value::from_array(values))
     })
 }
 
@@ -611,8 +612,8 @@ fn set_for_each_native(args: &[Value], env: &mut Environment) -> Result<Value, S
     let id = set_id(&set_val)?;
     let func = args.get(1).ok_or("set_for_each(set, fn)")?;
     let items: Vec<Value> = set_values_list(id);
-    for item in items {
-        call_fn(func, vec![item.clone(), item, set_val.clone()], env)?;
+    for item in items.iter() {
+        call_fn(func, vec![item.clone(), item.clone(), set_val.clone()], env)?;
     }
     Ok(Value::Null)
 }
@@ -665,7 +666,7 @@ pub fn map_iteration_entries(v: &Value) -> Result<Vec<Value>, String> {
                 inner
                     .iter()
                     .map(|(k, val)| {
-                        Value::Array(vec![Value::String(k.clone()), val.clone()])
+                        Value::from_array(vec![Value::String(k.clone()), val.clone()])
                     })
                     .collect()
             })
@@ -823,9 +824,9 @@ fn map_group_by_native(args: &[Value], env: &mut Environment) -> Result<Value, S
         let key_v = call_fn(func, vec![item.clone(), Value::Number(i as i64)], env)?;
         let key = group_key(&key_v);
         match inner.get_mut(&key) {
-            Some(Value::Array(bucket)) => bucket.push(item.clone()),
+            Some(Value::Array(bucket)) => Rc::make_mut(bucket).push(item.clone()),
             _ => {
-                inner.insert(key, Value::Array(vec![item.clone()]));
+                inner.insert(key, Value::from_array(vec![item.clone()]));
             }
         }
     }
@@ -853,7 +854,7 @@ pub fn for_of_items_with_env(v: &Value, env: &mut Environment) -> Result<Vec<Val
                 Err(_) => call_fn(&iter, vec![effective.clone()], env)?,
             };
             if let Value::Array(items) = result {
-                return Ok(items);
+                return Ok(items.as_ref().clone());
             }
             let mut iter_obj = crate::runtime::stdlib::iterator::normalize_iterator(result)?;
             return crate::runtime::stdlib::iterator::iterator_collect(&mut iter_obj, env);
@@ -875,7 +876,7 @@ pub fn for_of_items_with_env(v: &Value, env: &mut Environment) -> Result<Vec<Val
 /// Materialize `for x of iterable` as an array (Map entries, Set values, etc.).
 pub fn for_of_items(v: &Value) -> Result<Vec<Value>, String> {
     match v {
-        Value::Array(items) => Ok(items.clone()),
+        Value::Array(items) => Ok(items.as_ref().clone()),
         Value::String(s) => Ok(s.chars().map(|c| Value::String(c.to_string())).collect()),
         _ if is_map_value(v) => {
             let id = map_id(v)?;
@@ -886,7 +887,7 @@ pub fn for_of_items(v: &Value) -> Result<Vec<Value>, String> {
                         inner
                             .iter()
                             .map(|(k, val)| {
-                                Value::Array(vec![Value::String(k.clone()), val.clone()])
+                                Value::from_array(vec![Value::String(k.clone()), val.clone()])
                             })
                             .collect()
                     })
@@ -916,14 +917,14 @@ pub fn for_of_items(v: &Value) -> Result<Vec<Value>, String> {
 
 fn for_await_of_items_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("for_await_of_items(iterable)")?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         crate::runtime::stdlib::async_iterator::for_await_of_items_with_env(v, env)?,
     ))
 }
 
 fn for_of_items_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("for_of_items(iterable)")?;
-    Ok(Value::Array(for_of_items_with_env(v, env)?))
+    Ok(Value::from_array(for_of_items_with_env(v, env)?))
 }
 
 fn iterator_from_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -994,7 +995,7 @@ fn async_iterator_close_native(args: &[Value], env: &mut Environment) -> Result<
 
 fn iterator_pack_collect(iter: Value, env: &mut Environment) -> Result<Value, String> {
     let mut iter = iter;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         crate::runtime::stdlib::iterator::iterator_collect(&mut iter, env)?,
     ))
 }
@@ -1062,7 +1063,7 @@ fn iterator_take_while_native(args: &[Value], env: &mut Environment) -> Result<V
 
 fn iterator_to_array_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut it = args.first().ok_or("iterator_to_array(iterator)")?.clone();
-    Ok(Value::Array(
+    Ok(Value::from_array(
         crate::runtime::stdlib::iterator::iterator_collect(&mut it, env)?,
     ))
 }
@@ -1202,7 +1203,7 @@ fn build_map_namespace() -> Value {
     // Alias snake_case helpers for consistency with other collections.
     insert(&mut m, "get_or_insert", map_get_or_insert_native);
     insert(&mut m, "get_or_insert_computed", map_get_or_insert_computed_native);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn is_map_value(v: &Value) -> bool {

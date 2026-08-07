@@ -52,7 +52,7 @@ fn kv8_paint_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     engine.set_stylesheet(sheet);
     let frame = engine.compose(&root);
     crate::runtime::frame_buffer::publish_frame(frame.clone());
-    Ok(Value::Object(frame_to_object(&frame)))
+    Ok(Value::from_object(frame_to_object(&frame)))
 }
 
 fn kv8_computed_style_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -67,7 +67,7 @@ fn kv8_computed_style_native(args: &[Value], _env: &mut Environment) -> Result<V
     o.insert("color".into(), Value::String(style.color));
     o.insert("background".into(), Value::String(style.background));
     o.insert("fontSize".into(), Value::String(style.font_size));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn kv8_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -87,7 +87,7 @@ fn kv8_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
     o.insert("program_cache".into(), Value::Bool(true));
     o.insert("ownership_gc".into(), Value::String("rust-no-pause".into()));
     o.insert("zero_copy_dom".into(), Value::String("singleton+index".into()));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn kv8_opt_info_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -121,7 +121,7 @@ fn kv8_opt_info_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
         let (compiled, hits) = inner.jit.as_ref().map(|j| j.stats()).unwrap_or((0, 0));
         o.insert("compiled_loops".into(), Value::Number(compiled as i64));
         o.insert("loop_hits".into(), Value::Number(hits as i64));
-        Ok(Value::Object(o))
+        Ok(Value::from_object(o))
     })
 }
 
@@ -134,7 +134,7 @@ fn kv8_jit_info_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     let mut o = HashMap::new();
     o.insert("compiled_loops".into(), Value::Number(compiled as i64));
     o.insert("loop_hits".into(), Value::Number(hits as i64));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn kv8_load_vfs_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -312,7 +312,7 @@ fn kv8_value_to_kabootar(v: &super::context::Kv8Value) -> Value {
         Kv8Value::Fun { .. } | Kv8Value::Arrow { .. } | Kv8Value::AsyncFun { .. } => Value::String("<function>".into()),
         Kv8Value::Promise(_) => Value::String("<promise>".into()),
         Kv8Value::Symbol { key, .. } => Value::String(format!("Symbol({key})")),
-        Kv8Value::Obj(m) => Value::Object(
+        Kv8Value::Obj(m) => Value::from_object(
             m.iter()
                 .filter(|(k, _)| *k != "__native")
                 .map(|(k, v)| (k.clone(), kv8_value_to_kabootar(v)))

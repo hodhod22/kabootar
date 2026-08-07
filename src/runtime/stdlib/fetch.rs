@@ -18,8 +18,8 @@ pub fn response_from_http(res: &HttpResponse) -> Value {
     for (k, v) in &res.headers {
         headers.insert(k.clone(), Value::String(v.clone()));
     }
-    obj.insert("headers".into(), Value::Object(headers));
-    Value::Object(obj)
+    obj.insert("headers".into(), Value::from_object(headers));
+    Value::from_object(obj)
 }
 
 fn parse_fetch_options(opt: Option<&Value>) -> (String, String, HashMap<String, String>, Option<u64>) {
@@ -40,7 +40,7 @@ fn parse_fetch_options(opt: Option<&Value>) -> (String, String, HashMap<String, 
         };
     }
     if let Some(Value::Object(h)) = map.get("headers") {
-        for (k, v) in h {
+        for (k, v) in h.iter() {
             if k.starts_with("__kab_") {
                 continue;
             }
@@ -62,8 +62,7 @@ fn parse_fetch_options(opt: Option<&Value>) -> (String, String, HashMap<String, 
 fn fetch_map_response_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("fetch response mapper")?;
     match v {
-        Value::HttpResponse(res) => Ok(response_from_http(res)),
-        Value::Object(_) => Ok(v.clone()),
+        Value::HttpResponse(res) => Ok(response_from_http(res)), Value::Object(_) => Ok(v.clone()),
         other => Err(format!("fetch expected HttpResponse, got {:?}", other)),
     }
 }

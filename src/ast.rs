@@ -183,12 +183,12 @@ fn collect_binding_names(pattern: &BindingPattern, out: &mut Vec<String>) {
             }
         }
         BindingPattern::Array(items) => {
-            for item in items {
+            for item in items.iter() {
                 collect_binding_names(item, out);
             }
         }
         BindingPattern::Object(fields) => {
-            for field in fields {
+            for field in fields.iter() {
                 match field {
                     ObjectBind::Shorthand(key) => out.push(key.clone()),
                     ObjectBind::Field { pattern, .. } => collect_binding_names(pattern, out),

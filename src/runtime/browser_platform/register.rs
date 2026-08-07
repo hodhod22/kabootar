@@ -6,7 +6,7 @@ use crate::value::{Environment, Value};
 use std::collections::HashMap;
 
 fn map_to_object(m: HashMap<String, String>) -> Value {
-    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+    Value::from_object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
 }
 
 fn platform_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -21,7 +21,7 @@ fn platform_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value
     o.insert("devtools".into(), map_to_object(devtools::info()));
     o.insert("extensions".into(), map_to_object(extensions::info()));
     o.insert("pwa".into(), map_to_object(pwa::info()));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 // --- WASM ---
@@ -78,11 +78,10 @@ fn wasm_module_value(m: &wasm_guest::WasmModule) -> Value {
     o.insert("id".into(), Value::Number(m.id as i64));
     o.insert("name".into(), Value::String(m.name.clone()));
     o.insert(
-        "exports".into(),
-        Value::Array(m.exports.iter().map(|e| Value::String(e.clone())).collect()),
+        "exports".into(), Value::from_array(m.exports.iter().map(|e| Value::String(e.clone())).collect()),
     );
     o.insert("size".into(), Value::Number(m.bytes.len() as i64));
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 // --- WebGL ---
@@ -169,7 +168,7 @@ fn webgl_use_program_native(args: &[Value], _env: &mut Environment) -> Result<Va
 }
 
 fn hashmap_str_to_value(m: std::collections::HashMap<String, String>) -> Value {
-    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+    Value::from_object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
 }
 
 fn gpu3d_load_wgsl_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -342,14 +341,14 @@ fn webrtc_set_remote_native(args: &[Value], _env: &mut Environment) -> Result<Va
 fn webrtc_gather_ice_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
     let cands = webrtc::gather_ice_candidates(id)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         cands
             .into_iter()
             .map(|c| {
                 let mut m = HashMap::new();
                 m.insert("candidate".into(), Value::String(c.candidate));
                 m.insert("sdpMid".into(), Value::String(c.sdp_mid));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -409,7 +408,7 @@ fn webrtc_send_rtp_native(args: &[Value], _env: &mut Environment) -> Result<Valu
 fn webrtc_recv_rtp_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
     let pkts = webrtc::recv_rtp(id)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         pkts.into_iter()
             .map(|p| {
                 let mut m = HashMap::new();
@@ -421,7 +420,7 @@ fn webrtc_recv_rtp_native(args: &[Value], _env: &mut Environment) -> Result<Valu
                     "payload".into(),
                     Value::String(String::from_utf8_lossy(&p.payload).into_owned()),
                 );
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -454,7 +453,7 @@ fn devtools_log_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
 }
 
 fn devtools_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         devtools::console_dump()
             .into_iter()
             .map(|e| {
@@ -462,7 +461,7 @@ fn devtools_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value
                 m.insert("level".into(), Value::String(e.level));
                 m.insert("message".into(), Value::String(e.message));
                 m.insert("source".into(), Value::String(e.source));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -510,7 +509,7 @@ fn network_entry_value(e: &devtools::NetworkEntry) -> Value {
     m.insert("size".into(), Value::Number(e.size));
     m.insert("duration_ms".into(), Value::Float(e.duration_ms));
     m.insert("source".into(), Value::String(e.source.clone()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn devtools_network_record_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -538,7 +537,7 @@ fn devtools_network_record_native(args: &[Value], _env: &mut Environment) -> Res
 }
 
 fn devtools_network_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         devtools::network_dump()
             .iter()
             .map(network_entry_value)
@@ -580,11 +579,11 @@ fn devtools_profile_measure_native(args: &[Value], _env: &mut Environment) -> Re
 }
 
 fn devtools_profile_stop_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Object(devtools::profile_stop()?))
+    Ok(Value::from_object(devtools::profile_stop()?))
 }
 
 fn devtools_profile_dump_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Object(devtools::profile_dump()))
+    Ok(Value::from_object(devtools::profile_dump()))
 }
 
 fn devtools_live_edit_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -638,19 +637,18 @@ fn ext_install_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     o.insert("version".into(), Value::String(ext.version));
     o.insert("enabled".into(), Value::Bool(ext.enabled));
     o.insert(
-        "permissions".into(),
-        Value::Array(
+        "permissions".into(), Value::from_array(
             ext.permissions
                 .into_iter()
                 .map(Value::String)
                 .collect(),
         ),
     );
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn ext_list_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         extensions::list_extensions()
             .into_iter()
             .map(|e| {
@@ -660,10 +658,9 @@ fn ext_list_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
                 m.insert("version".into(), Value::String(e.version));
                 m.insert("enabled".into(), Value::Bool(e.enabled));
                 m.insert(
-                    "permissions".into(),
-                    Value::Array(e.permissions.into_iter().map(Value::String).collect()),
+                    "permissions".into(), Value::from_array(e.permissions.into_iter().map(Value::String).collect()),
                 );
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -689,7 +686,7 @@ fn ext_revoke_permission_native(args: &[Value], _env: &mut Environment) -> Resul
 
 fn ext_permissions_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         extensions::list_permissions(id)?
             .into_iter()
             .map(Value::String)
@@ -714,7 +711,7 @@ fn ext_storage_set_native(args: &[Value], _env: &mut Environment) -> Result<Valu
 
 fn ext_tabs_query_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = expect_num(args, 0)? as u64;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         extensions::tabs_query(id)?
             .into_iter()
             .map(Value::String)
@@ -737,7 +734,7 @@ fn pwa_parse_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     o.insert("start_url".into(), Value::String(m.start_url));
     o.insert("display".into(), Value::String(m.display));
     o.insert("theme_color".into(), Value::String(m.theme_color));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn pwa_install_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -779,7 +776,7 @@ fn pwa_dispatch_fetch_native(args: &[Value], _env: &mut Environment) -> Result<V
     o.insert("from_cache".into(), Value::Bool(r.from_cache));
     o.insert("status".into(), Value::Number(r.status));
     o.insert("body".into(), Value::String(r.body));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn read_os_bytes(os: &OsHandle, path: &str) -> Result<Vec<u8>, String> {

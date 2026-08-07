@@ -375,14 +375,14 @@ impl DeviceManager {
                     };
                     let sock_copy = socks.clone();
                     let events = self.net.poll(&sock_copy);
-                    Ok(Value::Array(
+                    Ok(Value::from_array(
                         events
                             .into_iter()
                             .map(|e| {
                                 let mut m = std::collections::HashMap::new();
                                 m.insert("socket".into(), Value::Number(e.socket as i64));
                                 m.insert("kind".into(), Value::String(e.kind));
-                                Value::Object(m)
+                                Value::from_object(m)
                             })
                             .collect(),
                     ))
@@ -423,11 +423,10 @@ impl DeviceManager {
                     let (buf, peer) = self.net.udp_recv(sock, max)?;
                     let mut m = std::collections::HashMap::new();
                     m.insert(
-                        "data".into(),
-                        Value::Array(buf.into_iter().map(|b| Value::Number(b as i64)).collect()),
+                        "data".into(), Value::from_array(buf.into_iter().map(|b| Value::Number(b as i64)).collect()),
                     );
                     m.insert("peer".into(), Value::String(peer));
-                    Ok(Value::Object(m))
+                    Ok(Value::from_object(m))
                 }
                 _ => Err(format!("unknown net ioctl: {op}")),
             },
@@ -460,7 +459,7 @@ impl DeviceManager {
                         if (ep == "in" || ep.is_empty()) && self.host.is_enabled() {
                             if let Ok(host_bytes) = self.host.usb_serial_read(64) {
                                 if !host_bytes.is_empty() {
-                                    return Ok(Value::Array(
+                                    return Ok(Value::from_array(
                                         host_bytes
                                             .into_iter()
                                             .map(|b| Value::Number(b as i64))
@@ -470,7 +469,7 @@ impl DeviceManager {
                             }
                         }
                     }
-                    Ok(Value::Array(
+                    Ok(Value::from_array(
                         out.into_iter().map(|b| Value::Number(b as i64)).collect(),
                     ))
                 }
@@ -488,7 +487,7 @@ impl DeviceManager {
                 "read" => {
                     let frames = value_usize(args, 0, "audio read frames").unwrap_or(256);
                     let pcm = self.audio.read_pcm(sub, frames)?;
-                    Ok(Value::Array(
+                    Ok(Value::from_array(
                         pcm.into_iter().map(|s| Value::Number(s as i64)).collect(),
                     ))
                 }
@@ -518,12 +517,12 @@ pub fn gpu_info_value(info: &GpuDriverInfo) -> crate::value::Value {
     if let Some(tex) = info.last_texture {
         m.insert("last_texture".into(), Value::Number(tex as i64));
     }
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn net_ifaces_value(ifaces: &[NetInterface]) -> crate::value::Value {
     use crate::value::Value;
-    Value::Array(
+    Value::from_array(
         ifaces
             .iter()
             .map(|i| {
@@ -533,7 +532,7 @@ pub fn net_ifaces_value(ifaces: &[NetInterface]) -> crate::value::Value {
                 m.insert("ipv4".into(), Value::String(i.ipv4.clone()));
                 m.insert("up".into(), Value::Bool(i.up));
                 m.insert("mtu".into(), Value::Number(i.mtu as i64));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     )
@@ -541,7 +540,7 @@ pub fn net_ifaces_value(ifaces: &[NetInterface]) -> crate::value::Value {
 
 pub fn device_list_value(devices: &[DeviceDescriptor]) -> crate::value::Value {
     use crate::value::Value;
-    Value::Array(
+    Value::from_array(
         devices
             .iter()
             .map(|d| {
@@ -551,7 +550,7 @@ pub fn device_list_value(devices: &[DeviceDescriptor]) -> crate::value::Value {
                 m.insert("name".into(), Value::String(d.name.clone()));
                 m.insert("vendor".into(), Value::String(d.vendor.clone()));
                 m.insert("status".into(), Value::String(d.status.into()));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     )

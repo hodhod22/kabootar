@@ -145,7 +145,7 @@ fn parts_map_from_civil(ms: i64, p: CivilParts) -> HashMap<String, Value> {
 }
 
 fn make_date_object(ms: i64) -> Value {
-    Value::Object(parts_map_from_civil(ms, civil_from_unix_ms(ms)))
+    Value::from_object(parts_map_from_civil(ms, civil_from_unix_ms(ms)))
 }
 
 fn iso_string_from_ms(ms: i64) -> String {

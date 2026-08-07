@@ -352,7 +352,7 @@ fn create_number_format(locale: String, options: Value) -> Value {
     map.insert("options".into(), options);
     attach_bound_method(&mut map, "format", nf_format_method_native);
     attach_bound_method(&mut map, "formatToParts", nf_format_parts_native);
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn create_date_time_format(locale: String, options: Value) -> Value {
@@ -361,7 +361,7 @@ fn create_date_time_format(locale: String, options: Value) -> Value {
     map.insert("locale".into(), Value::String(locale));
     map.insert("options".into(), options);
     attach_bound_method(&mut map, "format", dtf_format_method_native);
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn nf_format_method_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -376,7 +376,7 @@ fn nf_format_parts_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     let value = args.get(1).ok_or("NumberFormat.formatToParts(value)")?;
     let (locale, opts) = nf_from_object(fmt)?;
     let text = format_number_value(locale, &opts, value)?;
-    Ok(Value::Array(vec![Value::Object(HashMap::from([
+    Ok(Value::from_array(vec![Value::from_object(HashMap::from([
         ("type".into(), Value::String("literal".into())),
         ("value".into(), Value::String(text)),
     ]))]))
@@ -395,7 +395,7 @@ fn number_format_ctor_native(args: &[Value], _env: &mut Environment) -> Result<V
         None => "en-US".into(),
         other => return Err(format!("Intl.NumberFormat locale must be string, got {:?}", other)),
     };
-    let options = args.get(1).cloned().unwrap_or(Value::Object(HashMap::new()));
+    let options = args.get(1).cloned().unwrap_or(Value::from_object(HashMap::new()));
     Ok(create_number_format(locale, options))
 }
 
@@ -405,21 +405,19 @@ fn date_time_format_ctor_native(args: &[Value], _env: &mut Environment) -> Resul
         None => "en-US".into(),
         other => return Err(format!("Intl.DateTimeFormat locale must be string, got {:?}", other)),
     };
-    let options = args.get(1).cloned().unwrap_or(Value::Object(HashMap::new()));
+    let options = args.get(1).cloned().unwrap_or(Value::from_object(HashMap::new()));
     Ok(create_date_time_format(locale, options))
 }
 
 pub fn is_number_format_ctor(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(m) if matches!(m.get("__kab_intl_nf_ctor"), Some(Value::Bool(true)))
+        v, Value::Object(m) if matches!(m.get("__kab_intl_nf_ctor"), Some(Value::Bool(true)))
     )
 }
 
 pub fn is_date_time_format_ctor(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(m) if matches!(m.get("__kab_intl_dtf_ctor"), Some(Value::Bool(true)))
+        v, Value::Object(m) if matches!(m.get("__kab_intl_dtf_ctor"), Some(Value::Bool(true)))
     )
 }
 
@@ -484,9 +482,9 @@ pub fn build_intl_namespace() -> Value {
 
     let mut intl = HashMap::new();
     intl.insert("__kab_intl".into(), Value::Bool(true));
-    intl.insert("NumberFormat".into(), Value::Object(nf_ctor));
-    intl.insert("DateTimeFormat".into(), Value::Object(dtf_ctor));
-    Value::Object(intl)
+    intl.insert("NumberFormat".into(), Value::from_object(nf_ctor));
+    intl.insert("DateTimeFormat".into(), Value::from_object(dtf_ctor));
+    Value::from_object(intl)
 }
 
 fn intl_supported_locales_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -502,7 +500,7 @@ fn intl_supported_locales_native(args: &[Value], _env: &mut Environment) -> Resu
         None => vec![Value::String("en-US".into())],
         _ => return Err("supportedLocalesOf expects locale list".into()),
     };
-    Ok(Value::Array(locales))
+    Ok(Value::from_array(locales))
 }
 
 pub fn register_intl(env: &mut Environment) {

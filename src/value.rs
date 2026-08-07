@@ -157,8 +157,8 @@ pub enum Value {
     Bool(bool),
     /// Unique symbol id — metadata in `symbol` module registry.
     Symbol(u64),
-    Array(Vec<Value>),
-    Object(HashMap<String, Value>),
+    Array(Rc<Vec<Value>>),
+    Object(Rc<HashMap<String, Value>>),
     Option(Option<Box<Value>>),
     Result(Result<Box<Value>, Box<Value>>),
     Function {
@@ -310,6 +310,51 @@ impl OwnedBuf {
 }
 
 impl Value {
+    /// Build a uniquely owned array (`Rc` strong_count == 1).
+    /// Prefer this over `Value::Array(Rc::new(...))` at construction sites.
+    pub fn from_array(items: Vec<Value>) -> Self {
+        Value::Array(Rc::new(items))
+    }
+
+    /// Build a uniquely owned object (`Rc` strong_count == 1).
+    pub fn from_object(map: HashMap<String, Value>) -> Self {
+        Value::Object(Rc::new(map))
+    }
+
+    /// P6b / leak-safety: mutate array backing via copy-on-write.
+    /// If other `Value`s still share this `Rc`, clones the `Vec` first so
+    /// aliases keep a stable snapshot (no silent cross-binding mutation).
+    pub fn array_make_mut(items: &mut Rc<Vec<Value>>) -> &mut Vec<Value> {
+        Rc::make_mut(items)
+    }
+
+    /// P6b / leak-safety: mutate object map via copy-on-write (same as arrays).
+    pub fn object_make_mut(map: &mut Rc<HashMap<String, Value>>) -> &mut HashMap<String, Value> {
+        Rc::make_mut(map)
+    }
+
+    /// True when `a` and `b` are the same array/object allocation (`Rc::ptr_eq`).
+    /// Used to reject direct self-cycles that would pin the `Rc` forever.
+    pub fn shares_heap_storage(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Array(x), Value::Array(y)) => Rc::ptr_eq(x, y),
+            (Value::Object(x), Value::Object(y)) => Rc::ptr_eq(x, y),
+            _ => false,
+        }
+    }
+
+    /// Reject storing a container into itself (direct Rc cycle → unreachable leak).
+    /// Deeper A→B→A graphs still need WeakRef / existing object-parent cycle checks;
+    /// compile-time AST paths are trees and never hit this.
+    pub fn reject_direct_container_cycle(container: &Value, stored: &Value) -> Result<(), String> {
+        if Self::shares_heap_storage(container, stored) {
+            return Err(
+                "Cannot store array/object into itself (would create an Rc cycle leak)".into(),
+            );
+        }
+        Ok(())
+    }
+
     pub fn is_undefined(&self) -> bool {
         matches!(self, Value::Undefined)
     }
@@ -327,9 +372,7 @@ impl Value {
             Value::Undefined | Value::Null | Value::Bool(false) => false,
             Value::Number(0) | Value::Float(0.0) => false,
             Value::BigInt(b) => b != &num_bigint::BigInt::from(0),
-            Value::String(s) => !s.is_empty(),
-            Value::Array(items) => !items.is_empty(),
-            Value::Object(map) => !map.is_empty(),
+            Value::String(s) => !s.is_empty(), Value::Array(items) => !items.is_empty(), Value::Object(map) => !map.is_empty(),
             Value::Float(n) => !n.is_nan() && *n != 0.0,
             Value::Break | Value::Continue | Value::Fallthrough => false,
             Value::Promise(_) => true,
@@ -771,7 +814,11 @@ impl Environment {
             if let Some(v) = bindings.get_mut(name) {
                 match v {
                     Value::Array(items) => {
-                        items.push(item);
+                        Value::reject_direct_container_cycle(
+                            &Value::Array(Rc::clone(items)),
+                            &item,
+                        )?;
+                        Value::array_make_mut(items).push(item);
                         return Ok(items.len() as i64);
                     }
                     other => {
@@ -799,7 +846,7 @@ impl Environment {
             if let Some(v) = bindings.get_mut(name) {
                 match v {
                     Value::Array(items) => {
-                        let _ = items.pop();
+                        let _ = Value::array_make_mut(items).pop();
                         return Ok(());
                     }
                     other => {
@@ -974,11 +1021,9 @@ pub(crate) fn container_len(v: &Value) -> Result<i64, String> {
             s.len() as i64
         } else {
             s.chars().count() as i64
-        }),
-        Value::Object(_) if crate::runtime::stdlib::iterator::is_iterator_value(v) => Err(
+        }), Value::Object(_) if crate::runtime::stdlib::iterator::is_iterator_value(v) => Err(
             "len() on this iterator requires consuming iteration (no known length)".into(),
-        ),
-        Value::Object(map) => Ok(map.len() as i64),
+        ), Value::Object(map) => Ok(map.len() as i64),
         _ => Err("len() expects array, string, or object".into()),
     }
 }
@@ -1074,8 +1119,7 @@ pub fn format_value(val: &Value) -> String {
         Value::Float(n) => n.to_string(),
         Value::String(s) => s.clone(),
         Value::Symbol(id) => crate::runtime::stdlib::symbol::format_symbol(*id),
-        Value::Bool(b) => if *b { "true" } else { "false" }.to_string(),
-        Value::Array(items) => {
+        Value::Bool(b) => if *b { "true" } else { "false" }.to_string(), Value::Array(items) => {
             let parts: Vec<String> = items.iter().map(format_value).collect();
             format!("[{}]", parts.join(", "))
         }

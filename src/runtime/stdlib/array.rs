@@ -62,7 +62,7 @@ fn for_each_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
 fn find_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let items = array_arg(args.first().ok_or("find(arr, fn)")?)?;
     let func = args.get(1).ok_or("find(arr, fn)")?;
-    for item in items {
+    for item in items.iter() {
         if call_fn(func, vec![item.clone()], env)?.is_truthy() {
             return Ok(item.clone());
         }
@@ -99,7 +99,7 @@ fn slice_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     };
     let s = s.min(items.len());
     let e = e.min(items.len());
-    Ok(Value::Array(items[s..e].to_vec()))
+    Ok(Value::from_array(items[s..e].to_vec()))
 }
 
 fn normalize_index(i: i64, len: i64) -> i64 {
@@ -112,13 +112,13 @@ fn normalize_index(i: i64, len: i64) -> i64 {
 
 fn concat_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = Vec::new();
-    for arg in args {
+    for arg in args.iter() {
         match arg {
             Value::Array(items) => out.extend(items.iter().cloned()),
             other => out.push(other.clone()),
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn includes_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -134,7 +134,7 @@ fn includes_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
 fn some_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let items = array_arg(args.first().ok_or("some(arr, fn)")?)?;
     let func = args.get(1).ok_or("some(arr, fn)")?;
-    for item in items {
+    for item in items.iter() {
         if call_fn(func, vec![item.clone()], env)?.is_truthy() {
             return Ok(Value::Bool(true));
         }
@@ -145,7 +145,7 @@ fn some_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
 fn every_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let items = array_arg(args.first().ok_or("every(arr, fn)")?)?;
     let func = args.get(1).ok_or("every(arr, fn)")?;
-    for item in items {
+    for item in items.iter() {
         if !call_fn(func, vec![item.clone()], env)?.is_truthy() {
             return Ok(Value::Bool(false));
         }
@@ -159,7 +159,7 @@ fn flat_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
         Some(Value::Number(n)) if *n >= 0 => *n as usize,
         _ => 1,
     };
-    Ok(Value::Array(flatten(items, depth)))
+    Ok(Value::from_array(flatten(items, depth)))
 }
 
 pub(crate) fn flatten_values(items: &[Value], depth: usize) -> Vec<Value> {
@@ -171,7 +171,7 @@ fn flatten(items: &[Value], depth: usize) -> Vec<Value> {
         return items.to_vec();
     }
     let mut out = Vec::new();
-    for v in items {
+    for v in items.iter() {
         if let Value::Array(inner) = v {
             out.extend(flatten(inner, depth.saturating_sub(1)));
         } else {
@@ -208,9 +208,9 @@ pub fn values_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
                     out.push(val);
                 }
             }
-            Ok(Value::Array(out))
+            Ok(Value::from_array(out))
         }
-        Value::Array(items) => Ok(Value::Array(items.clone())),
+        Value::Array(items) => Ok(Value::from_array(items.as_ref().clone())),
         _ => Err("values() expects object or array".into()),
     }
 }
@@ -230,14 +230,14 @@ fn sort_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     } else {
         out.sort_by(|a, b| format_value(a).cmp(&format_value(b)));
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn reverse_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let items = array_arg(args.first().ok_or("reverse(arr)")?)?;
     let mut out = items.clone();
     out.reverse();
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn join_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -257,7 +257,7 @@ fn shift_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     }
     let mut out = items.clone();
     let head = out.remove(0);
-    Ok(Value::Array(vec![head, Value::Array(out)]))
+    Ok(Value::from_array(vec![head, Value::from_array(out)]))
 }
 
 fn unshift_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -266,7 +266,7 @@ fn unshift_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     for item in args.iter().skip(1) {
         out.insert(0, item.clone());
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn splice_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -286,7 +286,7 @@ fn splice_native(args: &[Value], _env: &mut Environment) -> Result<Value, String
     for (i, item) in args.iter().skip(3).enumerate() {
         out.insert(start + i, item.clone());
     }
-    Ok(Value::Array(vec![Value::Array(out), Value::Array(removed)]))
+    Ok(Value::from_array(vec![Value::from_array(out), Value::from_array(removed)]))
 }
 
 fn flat_map_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -296,11 +296,11 @@ fn flat_map_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     for (idx, item) in items.iter().enumerate() {
         let mapped = call_fn(func, vec![item.clone(), Value::Number(idx as i64)], env)?;
         match mapped {
-            Value::Array(inner) => out.extend(inner),
+            Value::Array(inner) => out.extend(inner.iter().cloned()),
             other => out.push(other),
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn last_index_of_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -376,7 +376,7 @@ fn fill_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
     for slot in out.iter_mut().take(e).skip(s) {
         *slot = value.clone();
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn copy_within_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -397,7 +397,7 @@ fn copy_within_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     let mut out = items.clone();
     let slice_end = end.min(len);
     if start >= slice_end {
-        return Ok(Value::Array(out));
+        return Ok(Value::from_array(out));
     }
     let copied: Vec<Value> = out[start..slice_end].to_vec();
     for (offset, value) in copied.into_iter().enumerate() {
@@ -406,7 +406,7 @@ fn copy_within_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
             out[dest] = value;
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn to_spliced_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -414,19 +414,19 @@ fn to_spliced_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
         Value::Array(parts) => Ok(parts
             .first()
             .cloned()
-            .unwrap_or(Value::Array(Vec::new()))),
+            .unwrap_or(Value::from_array(Vec::new()))),
         other => Ok(other),
     }
 }
 
 fn array_of_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(args.to_vec()))
+    Ok(Value::from_array(args.to_vec()))
 }
 
 fn array_from_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let src = args.first().ok_or("array_from(source, map_fn?)")?;
     let mut items: Vec<Value> = match src {
-        Value::Array(xs) => xs.clone(),
+        Value::Array(xs) => xs.as_ref().clone(),
         Value::String(s) => s.chars().map(|c| Value::String(c.to_string())).collect(),
         _ => return Err("array_from() expects array or string".into()),
     };
@@ -437,7 +437,7 @@ fn array_from_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
         }
         items = mapped;
     }
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn array_with_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -454,7 +454,7 @@ fn array_with_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
     }
     let mut out = items.clone();
     out[idx as usize] = value;
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 pub fn entries_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -466,16 +466,16 @@ pub fn entries_native(args: &[Value], env: &mut Environment) -> Result<Value, St
                 if let Some(val) =
                     crate::runtime::stdlib::descriptor::get_own_property(map, &key, v, env)?
                 {
-                    out.push(Value::Array(vec![Value::String(key), val]));
+                    out.push(Value::from_array(vec![Value::String(key), val]));
                 }
             }
-            Ok(Value::Array(out))
+            Ok(Value::from_array(out))
         }
-        Value::Array(items) => Ok(Value::Array(
+        Value::Array(items) => Ok(Value::from_array(
             items
                 .iter()
                 .enumerate()
-                .map(|(i, v)| Value::Array(vec![Value::Number(i as i64), v.clone()]))
+                .map(|(i, v)| Value::from_array(vec![Value::Number(i as i64), v.clone()]))
                 .collect(),
         )),
         _ => Err("entries() expects object or array".into()),

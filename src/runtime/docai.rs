@@ -35,7 +35,7 @@ fn doc_search_native(args: &[Value], _env: &mut Environment) -> Result<Value, St
             ))
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn doc_sources_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -49,7 +49,7 @@ fn doc_sources_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
         .into_iter()
         .map(|h| Value::String(format!("{} — {}", h.path, h.heading)))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn doc_topics_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -57,7 +57,7 @@ fn doc_topics_native(_args: &[Value], _env: &mut Environment) -> Result<Value, S
         .into_iter()
         .map(|t| Value::String(t.to_string()))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 pub fn register(env: &mut Environment) {

@@ -26,7 +26,7 @@ where
 fn os_architecture_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Object(
+        Ok(Value::from_object(
             s.architecture_map()
                 .into_iter()
                 .map(|(k, v)| (k, Value::String(v)))
@@ -38,7 +38,7 @@ fn os_architecture_native(_args: &[Value], env: &mut Environment) -> Result<Valu
 fn os_kcore_info_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Object(
+        Ok(Value::from_object(
             s.kcore
                 .info()
                 .into_iter()
@@ -68,10 +68,9 @@ fn os_ipc_recv_native(args: &[Value], env: &mut Environment) -> Result<Value, St
             o.insert("from".into(), Value::Number(m.from as i64));
             o.insert("to".into(), Value::Number(m.to as i64));
             o.insert(
-                "payload".into(),
-                Value::Array(m.payload.into_iter().map(|b| Value::Number(b as i64)).collect()),
+                "payload".into(), Value::from_array(m.payload.into_iter().map(|b| Value::Number(b as i64)).collect()),
             );
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     })
@@ -86,7 +85,7 @@ fn os_sched_tick_native(_args: &[Value], env: &mut Environment) -> Result<Value,
             o.insert("pid".into(), Value::Number(t.pid as i64));
             o.insert("name".into(), Value::String(t.name));
             o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     })
@@ -101,7 +100,7 @@ fn os_sched_yield_native(_args: &[Value], env: &mut Environment) -> Result<Value
             o.insert("pid".into(), Value::Number(t.pid as i64));
             o.insert("name".into(), Value::String(t.name));
             o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     })
@@ -116,7 +115,7 @@ fn os_sched_preempt_native(_args: &[Value], env: &mut Environment) -> Result<Val
             o.insert("name".into(), Value::String(t.name));
             o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
             o.insert("forced".into(), Value::Bool(true));
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     }
@@ -139,7 +138,7 @@ fn os_context_switch_native(args: &[Value], env: &mut Environment) -> Result<Val
         o.insert("to".into(), Value::Number(sw.to as i64));
         o.insert("sp".into(), Value::Number(sw.saved_sp as i64));
         o.insert("elapsed_ns".into(), Value::Number(sw.elapsed_ns as i64));
-        Ok(Value::Object(o))
+        Ok(Value::from_object(o))
     })
 }
 
@@ -169,9 +168,8 @@ fn os_mm_stats_native(_args: &[Value], env: &mut Environment) -> Result<Value, S
     let os = get_os(env)?;
     with_subsys(&os, |s| {
         let (mapped, swapped, faults, alloc) = s.mm.stats();
-        Ok(Value::Array(vec![
-            Value::Number(mapped as i64),
-            Value::Number(swapped as i64),
+        Ok(Value::from_array(vec![
+            Value::Number(mapped as i64), Value::Number(swapped as i64),
             Value::Number(faults as i64),
             Value::Number(alloc as i64),
         ]))
@@ -276,7 +274,7 @@ fn os_irq_poll_native(_args: &[Value], env: &mut Environment) -> Result<Value, S
             o.insert("device".into(), Value::String(irq.device));
             o.insert("kind".into(), Value::String(irq.kind));
             o.insert("priority".into(), Value::Number(irq.priority as i64));
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     })
@@ -297,7 +295,7 @@ fn os_journal_commit_native(_args: &[Value], env: &mut Environment) -> Result<Va
 fn os_journal_replay_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Array(
+        Ok(Value::from_array(
             s.fsys
                 .journal
                 .replay()
@@ -308,7 +306,7 @@ fn os_journal_replay_native(_args: &[Value], env: &mut Environment) -> Result<Va
                     o.insert("path".into(), Value::String(e.path));
                     o.insert("bytes".into(), Value::Number(e.bytes as i64));
                     o.insert("payload".into(), Value::String(e.payload));
-                    Value::Object(o)
+                    Value::from_object(o)
                 })
                 .collect(),
         ))
@@ -359,7 +357,7 @@ fn os_netstack_send_native(args: &[Value], env: &mut Environment) -> Result<Valu
         dm.net.record_tx(out.len() as u64);
         Ok(())
     });
-    Ok(Value::Array(
+    Ok(Value::from_array(
         out.into_iter().map(|b| Value::Number(b as i64)).collect(),
     ))
 }
@@ -387,7 +385,7 @@ fn os_log_drain_native(args: &[Value], env: &mut Environment) -> Result<Value, S
     }).unwrap_or(16);
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Array(
+        Ok(Value::from_array(
             s.xcut
                 .log
                 .drain(max)
@@ -397,7 +395,7 @@ fn os_log_drain_native(args: &[Value], env: &mut Environment) -> Result<Value, S
                     o.insert("level".into(), Value::String(e.level));
                     o.insert("message".into(), Value::String(e.message));
                     o.insert("ts".into(), Value::Number(e.timestamp as i64));
-                    Value::Object(o)
+                    Value::from_object(o)
                 })
                 .collect(),
         ))

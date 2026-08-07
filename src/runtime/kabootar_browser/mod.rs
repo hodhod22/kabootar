@@ -434,7 +434,7 @@ fn kb_render_native(_args: &[Value], env: &mut Environment) -> Result<Value, Str
 }
 
 fn kb_paint_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Object(
+    Ok(Value::from_object(
         get_browser(env)?.paint(get_os_opt(env).as_ref())?,
     ))
 }
@@ -452,8 +452,7 @@ fn kb_composite_native(_args: &[Value], env: &mut Environment) -> Result<Value, 
     if let Some(os) = os {
         let windows = os.window_list()?;
         out.insert(
-            "windows".into(),
-            Value::Array(
+            "windows".into(), Value::from_array(
                 windows
                     .into_iter()
                     .map(|w| {
@@ -466,13 +465,13 @@ fn kb_composite_native(_args: &[Value], env: &mut Environment) -> Result<Value, 
                         if let Some(tid) = w.browser_tab_id {
                             m.insert("tab".into(), Value::Number(tid as i64));
                         }
-                        Value::Object(m)
+                        Value::from_object(m)
                     })
                     .collect(),
             ),
         );
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn kb_host_sync_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -510,14 +509,14 @@ fn kb_viewport_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         Value::String(s) => Some(s.as_str()),
         _ => None,
     });
-    Ok(Value::Object(
+    Ok(Value::from_object(
         get_browser(env)?.set_viewport_ex(w, h, dpr, orientation)?,
     ))
 }
 
 fn kb_safe_area_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     if args.is_empty() {
-        return Ok(Value::Object(get_browser(env)?.safe_area_info()?));
+        return Ok(Value::from_object(get_browser(env)?.safe_area_info()?));
     }
     let num = |i: usize| {
         args.get(i).and_then(|v| match v {
@@ -526,7 +525,7 @@ fn kb_safe_area_native(args: &[Value], env: &mut Environment) -> Result<Value, S
             _ => None,
         })
     };
-    Ok(Value::Object(get_browser(env)?.set_safe_area(
+    Ok(Value::from_object(get_browser(env)?.set_safe_area(
         num(0).unwrap_or(0.0),
         num(1).unwrap_or(0.0),
         num(2).unwrap_or(0.0),
@@ -560,7 +559,7 @@ fn kb_set_os_mode_native(args: &[Value], env: &mut Environment) -> Result<Value,
 
 fn kb_os_info_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let browser = get_browser(env)?;
-    Ok(Value::Object(os_info_map(
+    Ok(Value::from_object(os_info_map(
         get_os_opt(env).as_ref(),
         browser.os_mode()?,
     )))
@@ -591,15 +590,14 @@ fn kb_sync_platform_native(_args: &[Value], env: &mut Environment) -> Result<Val
         Value::String(host_nav::host_os_name().into()),
     );
     m.insert(
-        "schemes".into(),
-        Value::Array(vec![
+        "schemes".into(), Value::from_array(vec![
             Value::String("kabootar://".into()),
             Value::String("file://".into()),
             Value::String("http://".into()),
             Value::String("https://".into()),
         ]),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn kb_mount_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -657,7 +655,7 @@ fn kb_touch_at_native(args: &[Value], env: &mut Environment) -> Result<Value, St
 
 fn kb_poll_events_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let events = events::drain_events();
-    Ok(Value::Array(
+    Ok(Value::from_array(
         events
             .into_iter()
             .map(|e| {
@@ -667,14 +665,14 @@ fn kb_poll_events_native(_args: &[Value], _env: &mut Environment) -> Result<Valu
                 m.insert("handler".into(), Value::String(e.handler));
                 m.insert("x".into(), Value::Float(e.x));
                 m.insert("y".into(), Value::Float(e.y));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
 }
 
 fn kb_poll_hotplug_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         hotplug::drain()
             .into_iter()
             .map(|e| {
@@ -684,7 +682,7 @@ fn kb_poll_hotplug_native(_args: &[Value], _env: &mut Environment) -> Result<Val
                 m.insert("kind".into(), Value::String(e.kind));
                 m.insert("name".into(), Value::String(e.name));
                 m.insert("vendor".into(), Value::String(e.vendor));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -703,7 +701,7 @@ fn kb_pixels_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
                     m.insert("gpu".into(), Value::Number(gpu as i64));
                 }
             }
-            Value::Object(m)
+            Value::from_object(m)
         }
         None => Value::Null,
     })
@@ -721,7 +719,7 @@ fn kb_set_backend_native(args: &[Value], _env: &mut Environment) -> Result<Value
 }
 
 fn kb_gpu_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Object(
+    Ok(Value::from_object(
         gpu_info_map()
             .into_iter()
             .map(|(k, v)| (k, Value::String(v)))

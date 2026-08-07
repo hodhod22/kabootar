@@ -14,7 +14,7 @@ fn package_info_object(name: &str, version: &str, registry: &str) -> Value {
     map.insert("name".into(), Value::String(name.into()));
     map.insert("version".into(), Value::String(version.into()));
     map.insert("registry".into(), Value::String(registry.into()));
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 pub fn npm_parse_spec(raw: &str) -> Result<Value, String> {
@@ -34,7 +34,7 @@ pub fn npm_parse_spec(raw: &str) -> Result<Value, String> {
     if let Some(s) = spec.subpath {
         map.insert("subpath".into(), Value::String(s));
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 pub fn npm_install(name: &str, version: Option<&str>) -> Result<Value, String> {
@@ -123,7 +123,7 @@ pub fn npm_list_cache() -> Result<Value, String> {
             )
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 pub fn npm_import_source(name: &str, version: Option<&str>) -> Result<String, String> {
@@ -212,10 +212,9 @@ pub fn ts_compile(source: &str) -> Value {
     let mut map = HashMap::new();
     map.insert("code".into(), Value::String(code));
     map.insert(
-        "diagnostics".into(),
-        Value::Array(crate::runtime::ts_compile::diagnostics_to_values(&diags)),
+        "diagnostics".into(), Value::from_array(crate::runtime::ts_compile::diagnostics_to_values(&diags)),
     );
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 pub fn ts_compile_file(path: &str) -> Result<Value, String> {

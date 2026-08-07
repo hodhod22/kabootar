@@ -165,7 +165,7 @@ fn num_minimize(args: &[Value], env: &mut Environment) -> Result<Value, String> 
     let mut out = HashMap::new();
     out.insert("x".into(), vector_out(&simplex[0].0));
     out.insert("fun".into(), float_out(simplex[0].1));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_least_squares(residuals_fn, x0, max_iter?, eps?) — Gauss–Newton with FD Jacobian.
@@ -263,7 +263,7 @@ fn num_least_squares(args: &[Value], env: &mut Environment) -> Result<Value, Str
     let mut out = HashMap::new();
     out.insert("x".into(), vector_out(&x));
     out.insert("cost".into(), float_out(cost));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

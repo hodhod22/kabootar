@@ -578,7 +578,7 @@ pub fn diagnostics_to_values(diags: &[TsDiagnostic]) -> Vec<crate::value::Value>
                 "message".into(),
                 crate::value::Value::String(d.message.clone()),
             );
-            crate::value::Value::Object(m)
+            crate::value::Value::from_object(m)
         })
         .collect()
 }

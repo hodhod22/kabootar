@@ -98,7 +98,7 @@ fn host_canvas_object(id: u64, width: u32, height: u32) -> Value {
         "getContext".into(),
         Value::NativeFunction(host_get_context_native),
     );
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -206,7 +206,7 @@ fn host_ctx_object(ctx_id: u64, width: u32, height: u32, native_id: u64) -> Valu
     o.insert("kind".into(), Value::String("2d".into()));
     o.insert("layer".into(), Value::String("host".into()));
     attach_host_ctx_methods(&mut o);
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 fn attach_host_ctx_methods(o: &mut HashMap<String, Value>) {
@@ -395,8 +395,7 @@ fn host_close_path_native(args: &[Value], _env: &mut Environment) -> Result<Valu
 
 fn canvas_native_id_from_value(v: &Value) -> Result<u64, String> {
     match v {
-        Value::Number(n) if *n > 0 => Ok(*n as u64),
-        Value::Object(map) => match map.get("id") {
+        Value::Number(n) if *n > 0 => Ok(*n as u64), Value::Object(map) => match map.get("id") {
             Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
             _ => Err("canvas source missing id".into()),
         },
@@ -425,7 +424,7 @@ fn host_measure_text_native(args: &[Value], _env: &mut Environment) -> Result<Va
     let mut o = HashMap::new();
     o.insert("width".into(), Value::Float(w as f64));
     o.insert("height".into(), Value::Float(h as f64));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn host_get_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -439,10 +438,9 @@ fn host_get_image_data_native(args: &[Value], _env: &mut Environment) -> Result<
     o.insert("width".into(), Value::Number(w as i64));
     o.insert("height".into(), Value::Number(h as i64));
     o.insert(
-        "data".into(),
-        Value::Array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
+        "data".into(), Value::from_array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
     );
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn host_put_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

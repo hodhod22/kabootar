@@ -142,17 +142,17 @@ pub fn create_weakref(target: Value) -> Result<Value, String> {
     let Value::Object(map) = &mut target else {
         return Err("WeakRef target must be a plain object".into());
     };
-    let oid = object_oid(map);
+    let oid = object_oid(Value::object_make_mut(map));
     track_oid(oid);
     let mut m = HashMap::new();
     m.insert(WEAKREF_MARKER.into(), Value::Bool(true));
     m.insert(WEAKREF_OID.into(), Value::Number(oid as i64));
-    let wr = Value::Object(m.clone());
+    let wr = Value::from_object(m.clone());
     m.insert(
         "deref".into(),
         Value::BoundNative(Box::new(wr), weakref_deref_native),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn weakref_deref_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -180,7 +180,7 @@ pub fn create_finalization_registry(cleanup: Value) -> Result<Value, String> {
     let mut m = HashMap::new();
     m.insert(FINREG_MARKER.into(), Value::Bool(true));
     m.insert(FINREG_ID.into(), Value::Number(id as i64));
-    let fr = Value::Object(m.clone());
+    let fr = Value::from_object(m.clone());
     m.insert(
         "register".into(),
         Value::BoundNative(Box::new(fr.clone()), finreg_register_native),
@@ -189,7 +189,7 @@ pub fn create_finalization_registry(cleanup: Value) -> Result<Value, String> {
         "unregister".into(),
         Value::BoundNative(Box::new(fr), finreg_unregister_native),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn finreg_register_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -209,7 +209,7 @@ fn finreg_register_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     let Value::Object(map) = &mut target else {
         return Err("FinalizationRegistry.register target must be a plain object".into());
     };
-    let target_oid = object_oid(map);
+    let target_oid = object_oid(Value::object_make_mut(map));
     track_oid(target_oid);
     let token_id = NEXT_REG_TOKEN.fetch_add(1, Ordering::Relaxed);
     with_state(|s| {
@@ -303,9 +303,8 @@ pub fn is_oid_reachable(env: &Environment, oid: u64) -> bool {
 
 fn push_children(v: &Value, stack: &mut Vec<Value>) {
     match v {
-        Value::Array(items) => stack.extend(items.iter().cloned()),
-        Value::Object(map) => {
-            for (k, val) in map {
+        Value::Array(items) => stack.extend(items.iter().cloned()), Value::Object(map) => {
+            for (k, val) in map.iter() {
                 if k == proxy::PROXY_TARGET
                     || k == crate::runtime::stdlib::object::OBJECT_PARENT_KEY
                     || k == "__kab_proto"
@@ -444,7 +443,7 @@ pub fn gc_frame_stats_value() -> Value {
         "over_budget".into(),
         Value::Bool(budget > 0 && allocs >= budget),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn gc_frame_reset_for_tests() {
@@ -550,13 +549,13 @@ pub fn try_finreg_ctor_call(
 fn build_weakref_namespace() -> Value {
     let mut m = HashMap::new();
     m.insert(WEAKREF_CTOR.into(), Value::Bool(true));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn build_finreg_namespace() -> Value {
     let mut m = HashMap::new();
     m.insert(FINREG_CTOR.into(), Value::Bool(true));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_weak(env: &mut Environment) {

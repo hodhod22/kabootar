@@ -50,7 +50,7 @@ fn canvas_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, 
 }
 
 fn map_to_object(m: HashMap<String, String>) -> Value {
-    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+    Value::from_object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
 }
 
 fn canvas_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -129,7 +129,7 @@ fn canvas_value(id: u64) -> Result<Value, String> {
         o.insert("dom_id".into(), Value::Number(d as i64));
     }
     attach_native_ctx_methods(&mut o);
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 /// Build a native 2D context object for an existing canvas surface id.
@@ -305,7 +305,7 @@ fn canvas_measure_text_native(args: &[Value], _env: &mut Environment) -> Result<
     let mut o = HashMap::new();
     o.insert("width".into(), Value::Float(w as f64));
     o.insert("height".into(), Value::Float(h as f64));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn canvas_create_linear_gradient_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -382,10 +382,9 @@ fn canvas_get_image_data_native(args: &[Value], _env: &mut Environment) -> Resul
     o.insert("width".into(), Value::Number(w as i64));
     o.insert("height".into(), Value::Number(h as i64));
     o.insert(
-        "data".into(),
-        Value::Array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
+        "data".into(), Value::from_array(data.into_iter().map(|b| Value::Number(b as i64)).collect()),
     );
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn canvas_put_image_data_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -520,7 +519,7 @@ fn canvas_to_data_url_native(args: &[Value], _env: &mut Environment) -> Result<V
 fn canvas_to_pixels_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let id = canvas_id_arg(args, 0)?;
     let bytes = canvas2d::to_rgba_bytes(id)?;
-    Ok(Value::Array(bytes.into_iter().map(|b| Value::Number(b as i64)).collect()))
+    Ok(Value::from_array(bytes.into_iter().map(|b| Value::Number(b as i64)).collect()))
 }
 
 pub fn register_canvas(env: &mut Environment) {

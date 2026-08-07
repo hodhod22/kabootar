@@ -553,7 +553,7 @@ fn collect_referenced_names_expr(expr: &Expr, bound: &HashSet<String>, free: &mu
         Expr::OptMember(b, _) | Expr::OptIndex(b, _) => collect_referenced_names_expr(b, bound, free),
         Expr::OptCall(c, args) => {
             collect_referenced_names_expr(c, bound, free);
-            for a in args {
+            for a in args.iter() {
                 collect_referenced_names_expr(a, bound, free);
             }
         }
@@ -564,7 +564,7 @@ fn collect_referenced_names_expr(expr: &Expr, bound: &HashSet<String>, free: &mu
         Expr::Update(lv, _, _) => collect_referenced_names_lvalue(lv, bound, free),
         Expr::Call(c, args) | Expr::New(c, args) => {
             collect_referenced_names_expr(c, bound, free);
-            for a in args {
+            for a in args.iter() {
                 collect_referenced_names_expr(a, bound, free);
             }
         }
@@ -592,7 +592,7 @@ fn collect_referenced_names_expr(expr: &Expr, bound: &HashSet<String>, free: &mu
             }
         }
         Expr::Array(elems) => {
-            for e in elems {
+            for e in elems.iter() {
                 collect_referenced_names_expr(e, bound, free);
             }
         }
@@ -848,7 +848,7 @@ fn collect_vars_expr(expr: &Expr, out: &mut HashSet<String>) {
         }
         Expr::Call(c, args) | Expr::OptCall(c, args) => {
             collect_vars_expr(c, out);
-            for a in args {
+            for a in args.iter() {
                 collect_vars_expr(a, out);
             }
         }
@@ -878,12 +878,12 @@ fn collect_vars_expr(expr: &Expr, out: &mut HashSet<String>) {
             }
         }
         Expr::Array(elems) => {
-            for e in elems {
+            for e in elems.iter() {
                 collect_vars_expr(e, out);
             }
         }
         Expr::New(_, a) => {
-            for e in a {
+            for e in a.iter() {
                 collect_vars_expr(e, out);
             }
         }

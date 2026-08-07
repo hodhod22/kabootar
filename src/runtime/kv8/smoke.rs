@@ -761,7 +761,7 @@ pub fn probe_report_value(results: &[SmokeResult]) -> Value {
             if let Some(e) = &r.error {
                 m.insert("error".into(), Value::String(e.clone()));
             }
-            Value::Object(m)
+            Value::from_object(m)
         })
         .collect();
 
@@ -774,11 +774,11 @@ pub fn probe_report_value(results: &[SmokeResult]) -> Value {
     root.insert("ready_count".into(), Value::Number(ready.len() as i64));
     root.insert("missing_count".into(), Value::Number(missing.len() as i64));
     root.insert("p0_missing_count".into(), Value::Number(p0_missing.len() as i64));
-    root.insert("ready".into(), Value::Array(ready));
-    root.insert("missing".into(), Value::Array(missing));
-    root.insert("p0_missing".into(), Value::Array(p0_missing));
-    root.insert("probes".into(), Value::Array(probes));
-    Value::Object(root)
+    root.insert("ready".into(), Value::from_array(ready));
+    root.insert("missing".into(), Value::from_array(missing));
+    root.insert("p0_missing".into(), Value::from_array(p0_missing));
+    root.insert("probes".into(), Value::from_array(probes));
+    Value::from_object(root)
 }
 
 /// Build a minimal static app shell using only APIs known to work today.

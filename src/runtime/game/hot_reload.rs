@@ -78,7 +78,7 @@ pub fn asset_watch_native(args: &[Value], _env: &mut Environment) -> Result<Valu
 
 pub fn asset_poll_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let changed = poll()?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         changed.into_iter().map(Value::String).collect(),
     ))
 }

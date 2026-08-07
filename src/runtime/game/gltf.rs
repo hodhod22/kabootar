@@ -154,7 +154,7 @@ fn accessor_u16(bin: &[u8], root: &Json, acc_i: usize) -> Result<Vec<i64>, Strin
 }
 
 fn floats_to_value(floats: Vec<f64>) -> Value {
-    Value::Array(floats.into_iter().map(Value::Float).collect())
+    Value::from_array(floats.into_iter().map(Value::Float).collect())
 }
 
 /// Load a glTF 2.0 JSON string into a Kab object:
@@ -189,8 +189,7 @@ pub fn load_json(text: &str) -> Result<Value, String> {
     if let Some(idx_i) = prim.get("indices").and_then(usize_num) {
         let indices = accessor_u16(&bin, &root, idx_i)?;
         out.insert(
-            "indices".into(),
-            Value::Array(indices.into_iter().map(Value::Number).collect()),
+            "indices".into(), Value::from_array(indices.into_iter().map(Value::Number).collect()),
         );
     }
 
@@ -212,7 +211,7 @@ pub fn load_json(text: &str) -> Result<Value, String> {
                 Value::Float(1.0),
             ]
         });
-    out.insert("color".into(), Value::Array(color));
+    out.insert("color".into(), Value::from_array(color));
 
     let mut anims = Vec::new();
     if let Some(animations) = root.get("animations").and_then(|a| a.as_array()) {
@@ -250,14 +249,14 @@ pub fn load_json(text: &str) -> Result<Value, String> {
                     channel.insert("path".into(), Value::String("translation".into()));
                     channel.insert("times".into(), floats_to_value(times));
                     channel.insert("translations".into(), floats_to_value(values));
-                    anims.push(Value::Object(channel));
+                    anims.push(Value::from_object(channel));
                 }
             }
         }
     }
-    out.insert("animations".into(), Value::Array(anims));
+    out.insert("animations".into(), Value::from_array(anims));
 
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn gltf_load_json_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

@@ -3,6 +3,7 @@
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub const THROW_MARKER: &str = "\x01kab_throw\x01";
 
@@ -54,14 +55,15 @@ pub fn enrich_error_value_for_catch(v: Value) -> Value {
     enrich_error_value(v)
 }
 
-fn enrich_error_value(v: Value) -> Value {
-    let Value::Object(mut map) = v else {
+fn enrich_error_value(mut v: Value) -> Value {
+    let Value::Object(ref mut map_rc) = v else {
         return v;
     };
-    if !matches!(map.get("__kab_error"), Some(Value::Bool(true))) {
-        return Value::Object(map);
+    if !matches!(map_rc.get("__kab_error"), Some(Value::Bool(true))) {
+        return Value::Object(map_rc.clone());
     }
-    if !map.contains_key("stack") {
+    if !map_rc.contains_key("stack") {
+        let map = Value::object_make_mut(map_rc);
         map.insert(
             "stack".into(),
             Value::String(format!(
@@ -82,7 +84,7 @@ fn enrich_error_value(v: Value) -> Value {
             )),
         );
     }
-    Value::Object(map)
+    Value::Object(map_rc.clone())
 }
 
 pub fn make_error(name: &str, message: &str) -> Value {
@@ -101,13 +103,12 @@ pub fn make_error_with_cause(name: &str, message: &str, cause: Option<Value>) ->
         "stack".into(),
         Value::String(format!("{name}: {message}\n{}", capture_stack_trace(2))),
     );
-    Value::Object(obj)
+    Value::from_object(obj)
 }
 
 pub fn is_error_value(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_error"), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get("__kab_error"), Some(Value::Bool(true)))
     )
 }
 

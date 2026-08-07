@@ -66,7 +66,7 @@ fn create_async_lazy_iterator(
     crate::runtime::stdlib::object::object_oid(&mut m);
     attach_async_next(&mut m);
     attach_async_iterator_instance_methods(&mut m);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn async_flatmap_depth(map: &HashMap<String, Value>) -> i64 {
@@ -93,13 +93,13 @@ fn async_step_inner(inner: &mut Value, env: &mut Environment) -> Result<(Value, 
 }
 
 fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("asyncIterator.next() expects async iterator object".into());
     };
-    if matches!(map.get(ASYNC_ITER_RETURNED), Some(Value::Bool(true))) {
+    if matches!(map_rc.get(ASYNC_ITER_RETURNED), Some(Value::Bool(true))) {
         return Ok(resolved_promise(iterator_result(Value::Null, true)));
     }
-    let kind = map
+    let kind = map_rc
         .get(ASYNC_ITER_LAZY)
         .and_then(|v| match v {
             Value::String(s) => Some(s.as_str()),
@@ -107,11 +107,11 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
         })
         .ok_or("internal async lazy iterator missing kind")?
         .to_string();
-    let mut src = map
+    let mut src = map_rc
         .get(ASYNC_ITER_SRC)
         .cloned()
         .ok_or("internal async lazy iterator missing source")?;
-    let mut map = map.clone();
+    let map = Value::object_make_mut(map_rc);
     let result = match kind.as_str() {
         "map" => {
             let func = map
@@ -249,7 +249,7 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
                 } else {
                     map.insert(ASYNC_ITER_ZIP_RIGHT.into(), right);
                     Ok(iterator_result(
-                        Value::Array(vec![left_val, right_val]),
+                        Value::from_array(vec![left_val, right_val]),
                         false,
                     ))
                 }
@@ -264,7 +264,7 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
             if done {
                 Ok(iterator_result(Value::Null, true))
             } else {
-                let pair = Value::Array(vec![Value::Number(idx), value]);
+                let pair = Value::from_array(vec![Value::Number(idx), value]);
                 map.insert(ASYNC_ITER_ENUM_IDX.into(), Value::Number(idx + 1));
                 Ok(iterator_result(pair, false))
             }
@@ -281,7 +281,7 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
                     }
                     map.insert(ASYNC_ITER_PAIR_PREV.into(), value.clone());
                     out = Some(iterator_result(
-                        Value::Array(vec![prev, value]),
+                        Value::from_array(vec![prev, value]),
                         false,
                     ));
                     break;
@@ -373,8 +373,7 @@ fn async_lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Val
         other => Err(format!("unknown async lazy iterator kind: {other}")),
     }?;
     map.insert(ASYNC_ITER_SRC.into(), src);
-    attach_async_next(&mut map);
-    *it = Value::Object(map);
+    attach_async_next(map);
     Ok(resolved_promise(result))
 }
 
@@ -388,7 +387,7 @@ pub fn wrap_async_from_sync(sync_iter: Value) -> Value {
     crate::runtime::stdlib::object::object_oid(&mut m);
     attach_async_next(&mut m);
     // Instance methods attach lazily on first property read (see opt::get_member_value).
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn normalize_async_iterator(v: Value, _env: &mut Environment) -> Result<Value, String> {
@@ -397,10 +396,10 @@ pub fn normalize_async_iterator(v: Value, _env: &mut Environment) -> Result<Valu
     }
     if let Value::Object(m) = &v {
         if m.get("next").is_some_and(is_callable_value) {
-            let mut out = m.clone();
+            let mut out = m.as_ref().clone();
             out.insert(ASYNC_ITERATOR_MARKER.into(), Value::Bool(true));
             attach_async_iterator_instance_methods(&mut out);
-            return Ok(Value::Object(out));
+            return Ok(Value::from_object(out));
         }
     }
     let sync = normalize_iterator(v)?;
@@ -478,8 +477,8 @@ pub fn async_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Valu
             .cloned()
             .ok_or("internal async iterator missing sync delegate")?;
         let (value, done) = iterator_next(&mut sync, env)?;
-        map.insert(ASYNC_SYNC_DELEGATE.into(), sync);
-        attach_async_next(&mut map);
+        Rc::make_mut(&mut map).insert(ASYNC_SYNC_DELEGATE.into(), sync);
+        attach_async_next(Value::object_make_mut(&mut map));
         *it = Value::Object(map);
         return Ok(resolved_promise(iterator_result(value, done)));
     }
@@ -601,10 +600,10 @@ pub fn is_async_instance_method(field: &str) -> bool {
 }
 
 pub fn ensure_async_iterator_instance_methods(it: &mut Value) {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return;
     };
-    attach_async_iterator_instance_methods(map);
+    attach_async_iterator_instance_methods(Value::object_make_mut(map_rc));
 }
 
 pub fn needs_async_instance_methods(it: &Value) -> bool {
@@ -659,7 +658,8 @@ fn async_call_object_method(
 }
 
 fn mark_async_iterator_returned(it: &mut Value) {
-    if let Value::Object(map) = it {
+    if let Value::Object(ref mut map_rc) = it {
+        let map = Value::object_make_mut(map_rc);
         map.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
         attach_async_next(map);
     }
@@ -816,7 +816,7 @@ fn async_inst_chain_native(args: &[Value], _env: &mut Environment) -> Result<Val
 
 fn async_inst_to_array_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut iter = args.first().ok_or("AsyncIterator.toArray()")?.clone();
-    Ok(resolved_promise(Value::Array(async_iterator_collect(
+    Ok(resolved_promise(Value::from_array(async_iterator_collect(
         &mut iter, env,
     )?)))
 }
@@ -873,16 +873,18 @@ pub fn async_iterator_close(
     }
     if let Value::Object(map) = &*it {
         if map.contains_key(ASYNC_ITER_LAZY) {
-            if let Value::Object(updated) = it {
-                updated.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
-                attach_async_next(updated);
+            if let Value::Object(ref mut map_rc) = it {
+                let map = Value::object_make_mut(map_rc);
+                map.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
+                attach_async_next(map);
             }
             return Ok(resolved_promise(iterator_result(value, true)));
         }
         if let Some(sync) = map.get(ASYNC_SYNC_DELEGATE).cloned() {
             let mut sync = sync;
             let result = crate::runtime::stdlib::iterator::iterator_return(&mut sync, value, env)?;
-            if let Value::Object(map) = it {
+            if let Value::Object(ref mut map_rc) = it {
+                let map = Value::object_make_mut(map_rc);
                 map.insert(ASYNC_SYNC_DELEGATE.into(), sync);
                 attach_async_next(map);
             }
@@ -907,16 +909,18 @@ fn async_inst_return_native(args: &[Value], env: &mut Environment) -> Result<Val
     }
     if let Value::Object(map) = &iter {
         if map.contains_key(ASYNC_ITER_LAZY) {
-            if let Value::Object(updated) = &mut iter {
-                updated.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
-                attach_async_next(updated);
+            if let Value::Object(ref mut map_rc) = &mut iter {
+                let map = Value::object_make_mut(map_rc);
+                map.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
+                attach_async_next(map);
             }
             return Ok(resolved_promise(iterator_result(value, true)));
         }
         if let Some(sync) = map.get(ASYNC_SYNC_DELEGATE).cloned() {
             let mut sync = sync;
             let result = crate::runtime::stdlib::iterator::iterator_return(&mut sync, value, env)?;
-            if let Value::Object(map) = &mut iter {
+            if let Value::Object(ref mut map_rc) = &mut iter {
+                let map = Value::object_make_mut(map_rc);
                 map.insert(ASYNC_SYNC_DELEGATE.into(), sync);
                 attach_async_next(map);
             }
@@ -941,16 +945,18 @@ fn async_inst_throw_native(args: &[Value], env: &mut Environment) -> Result<Valu
     }
     if let Value::Object(map) = &iter {
         if map.contains_key(ASYNC_ITER_LAZY) {
-            if let Value::Object(updated) = &mut iter {
-                updated.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
-                attach_async_next(updated);
+            if let Value::Object(ref mut map_rc) = &mut iter {
+                let map = Value::object_make_mut(map_rc);
+                map.insert(ASYNC_ITER_RETURNED.into(), Value::Bool(true));
+                attach_async_next(map);
             }
             return Ok(resolved_promise(iterator_result(reason, true)));
         }
         if let Some(sync) = map.get(ASYNC_SYNC_DELEGATE).cloned() {
             let mut sync = sync;
             let result = crate::runtime::stdlib::iterator::iterator_throw(&mut sync, reason, env)?;
-            if let Value::Object(map) = &mut iter {
+            if let Value::Object(ref mut map_rc) = &mut iter {
+                let map = Value::object_make_mut(map_rc);
                 map.insert(ASYNC_SYNC_DELEGATE.into(), sync);
                 attach_async_next(map);
             }
@@ -1038,7 +1044,7 @@ pub fn attach_async_iterator_instance_methods(map: &mut HashMap<String, Value>) 
         return;
     }
     map.insert(ASYNC_ITER_METHODS.into(), Value::Bool(true));
-    let receiver = Value::Object(map.clone());
+    let receiver = Value::from_object(map.clone());
     for (name, native) in [
         ("map", async_inst_map_native as fn(&[Value], &mut Environment) -> Result<Value, String>),
         ("filter", async_inst_filter_native),
@@ -1207,7 +1213,7 @@ pub(crate) fn create_async_chain_from_iterables(
         "chain",
         first,
         HashMap::from([
-            (ASYNC_ITER_CHAIN.into(), Value::Array(iterables.to_vec())),
+            (ASYNC_ITER_CHAIN.into(), Value::from_array(iterables.to_vec())),
             (ASYNC_ITER_CHAIN_IDX.into(), Value::Number(0)),
         ]),
     ))
@@ -1278,7 +1284,7 @@ pub(crate) fn create_async_chain_on_iterator(
         "chain",
         iter.clone(),
         HashMap::from([
-            (ASYNC_ITER_CHAIN.into(), Value::Array(chain_items)),
+            (ASYNC_ITER_CHAIN.into(), Value::from_array(chain_items)),
             (ASYNC_ITER_CHAIN_IDX.into(), Value::Number(0)),
         ]),
     ))
@@ -1287,5 +1293,5 @@ pub(crate) fn create_async_chain_on_iterator(
 pub fn array_from_async_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("array_from_async(iterable)")?;
     let items = for_await_of_items_with_env(v, env)?;
-    Ok(resolved_promise(Value::Array(items)))
+    Ok(resolved_promise(Value::from_array(items)))
 }

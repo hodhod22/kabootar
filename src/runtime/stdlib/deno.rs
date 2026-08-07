@@ -5,6 +5,7 @@ use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::rc::Rc;
 
 static NEXT_WS: AtomicU64 = AtomicU64::new(1);
 
@@ -38,8 +39,8 @@ pub fn request_to_value(req: &HttpRequest) -> Value {
     for (k, v) in &req.headers {
         headers.insert(k.clone(), Value::String(v.clone()));
     }
-    obj.insert("headers".into(), Value::Object(headers));
-    Value::Object(obj)
+    obj.insert("headers".into(), Value::from_object(headers));
+    Value::from_object(obj)
 }
 
 pub fn coerce_deno_response(value: Value) -> Result<HttpResponse, String> {
@@ -47,20 +48,19 @@ pub fn coerce_deno_response(value: Value) -> Result<HttpResponse, String> {
         Value::HttpResponse(res) => Ok(res),
         Value::String(body) => Ok(HttpResponse::new(200, body)),
         Value::Number(n) => Ok(HttpResponse::new(200, n.to_string())),
-        Value::Null => Ok(HttpResponse::new(204, "")),
-        Value::Object(map) => {
+        Value::Null => Ok(HttpResponse::new(204, "")), Value::Object(map) => {
             let status = match map.get("status") {
-                Some(Value::Number(n)) => *n,
-                _ => 200,
+                Some(Value::Number(n)) => n,
+                _ => &200,
             };
             let body = match map.get("body") {
                 Some(Value::String(s)) => s.clone(),
                 Some(v) => crate::value::format_value(v),
                 None => String::new(),
             };
-            let mut res = HttpResponse::new(status, body);
+            let mut res = HttpResponse::new(*status, body);
             if let Some(Value::Object(h)) = map.get("headers") {
-                for (k, v) in h {
+                for (k, v) in h.iter() {
                     if let Value::String(s) = v {
                         res.headers.insert(k.clone(), s.clone());
                     }
@@ -134,7 +134,7 @@ fn env_to_object_native(_args: &[Value], _env: &mut Environment) -> Result<Value
             obj.insert(k.clone(), Value::String(v.clone()));
         }
     });
-    Ok(Value::Object(obj))
+    Ok(Value::from_object(obj))
 }
 
 pub(crate) fn stream_id_pub(v: &Value) -> Result<u64, String> {
@@ -179,7 +179,7 @@ pub(crate) fn writable_id_pub(v: &Value) -> Result<u64, String> {
 
 fn stream_from_array_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let items = match args.first() {
-        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Array(a)) => a.as_ref().clone(),
         _ => return Err("stream_from_array(items)".into()),
     };
     Ok(crate::runtime::web_streams::from_array(items))
@@ -333,10 +333,9 @@ fn byte_stream_byob_read_native(args: &[Value], _env: &mut Environment) -> Resul
     let mut out = HashMap::new();
     out.insert("read".into(), Value::Number(read as i64));
     out.insert(
-        "buffer".into(),
-        Value::Array(buffer.into_iter().map(Value::Number).collect()),
+        "buffer".into(), Value::from_array(buffer.into_iter().map(Value::Number).collect()),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn stream_transfer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -470,7 +469,7 @@ fn run_command_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     map.insert("stdout".into(), Value::String(out.stdout));
     map.insert("stderr".into(), Value::String(out.stderr));
     map.insert("success".into(), Value::Bool(out.code == 0));
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn chdir_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -492,7 +491,7 @@ fn resolve_dns_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
         _ => 80,
     };
     let addrs = crate::runtime::host_cmd::resolve_dns(host, port)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         addrs.into_iter().map(Value::String).collect(),
     ))
 }
@@ -556,7 +555,7 @@ fn udp_recv_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     let mut map = HashMap::new();
     map.insert("data".into(), Value::String(data));
     map.insert("peer".into(), Value::String(peer));
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn udp_close_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -709,7 +708,7 @@ fn ws_object_tcp(id: u64) -> Value {
     m.insert("__kab_ws".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
     m.insert("__kab_tcp".into(), Value::Bool(true));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn tcp_ws_id(v: &Value) -> Option<u64> {
@@ -726,7 +725,7 @@ fn ws_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_ws".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn ws_id(v: &Value) -> Result<u64, String> {
@@ -754,7 +753,7 @@ fn ws_channel_pair_native(_args: &[Value], _env: &mut Environment) -> Result<Val
     pair.insert("b".into(), ws_object(b));
     pair.insert("link_a".into(), Value::Number(b as i64));
     pair.insert("link_b".into(), Value::Number(a as i64));
-    Ok(Value::Object(pair))
+    Ok(Value::from_object(pair))
 }
 
 fn ws_send_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -814,11 +813,11 @@ fn ws_link_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     };
     let id = ws_id(ws)?;
     WS_LINKS.with(|m| m.borrow_mut().insert(id, peer));
-    let Value::Object(mut o) = ws.clone() else {
+    let Value::Object(ref mut o) = ws.clone() else {
         return Err("expected websocket".into());
     };
-    o.insert("link".into(), Value::Number(peer as i64));
-    Ok(Value::Object(o))
+    Rc::make_mut(o).insert("link".into(), Value::Number(peer as i64));
+    Ok(ws.clone())
 }
 
 fn ws_connect_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -877,7 +876,7 @@ fn response_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     if let Some(Value::Object(h)) = args.get(2) {
         map.insert("headers".into(), Value::Object(h.clone()));
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn call_handler(handler: &Value, req: &HttpRequest, env: &mut Environment) -> Result<Value, String> {
@@ -987,14 +986,14 @@ fn kv_list_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
         _ => &[][..],
     };
     let entries = crate::runtime::open_kv::kv_list(id, prefix_parts)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         entries
             .into_iter()
             .map(|(k, v)| {
                 let mut pair = HashMap::new();
                 pair.insert("key".into(), k);
                 pair.insert("value".into(), v);
-                Value::Object(pair)
+                Value::from_object(pair)
             })
             .collect(),
     ))
@@ -1089,7 +1088,7 @@ fn kv_list_entries_native(args: &[Value], _env: &mut Environment) -> Result<Valu
         _ => &[][..],
     };
     let entries = crate::runtime::open_kv::kv_list_entries(id, prefix_parts)?;
-    Ok(Value::Array(entries))
+    Ok(Value::from_array(entries))
 }
 
 fn kv_enqueue_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1240,13 +1239,13 @@ fn worker_post_message_native(args: &[Value], _env: &mut Environment) -> Result<
         let tokens = crate::runtime::web_streams::encode_transfer_list(transfers)?;
         match &mut msg {
             Value::Object(map) => {
-                map.insert("transfers".into(), Value::Array(tokens));
+                Rc::make_mut(map).insert("transfers".into(), Value::from_array(tokens));
             }
             other => {
                 let mut map = HashMap::new();
                 map.insert("payload".into(), other.clone());
-                map.insert("transfers".into(), Value::Array(tokens));
-                msg = Value::Object(map);
+                map.insert("transfers".into(), Value::from_array(tokens));
+                msg = Value::from_object(map);
             }
         }
     }

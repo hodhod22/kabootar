@@ -85,14 +85,14 @@ pub fn os_info_map(os: Option<&OsHandle>, mode: BrowserOsMode) -> HashMap<String
         if let Ok(mounts) = handle.list_mounts() {
             m.insert(
                 "mounts".into(),
-                crate::value::Value::Array(
+                crate::value::Value::from_array(
                     mounts
                         .into_iter()
                         .map(|(vfs, host)| {
                             let mut o = HashMap::new();
                             o.insert("vfs".into(), crate::value::Value::String(vfs));
                             o.insert("host".into(), crate::value::Value::String(host));
-                            crate::value::Value::Object(o)
+                            crate::value::Value::from_object(o)
                         })
                         .collect(),
                 ),
@@ -101,7 +101,7 @@ pub fn os_info_map(os: Option<&OsHandle>, mode: BrowserOsMode) -> HashMap<String
     }
     m.insert(
         "schemes".into(),
-        crate::value::Value::Array(vec![
+        crate::value::Value::from_array(vec![
             crate::value::Value::String("kabootar://vfs/...".into()),
             crate::value::Value::String("file://...".into()),
             crate::value::Value::String("host://...".into()),

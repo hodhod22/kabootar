@@ -2,6 +2,7 @@
 
 use crate::bytecode::BytecodeFnDef;
 use crate::value::{BytecodeFunction, Environment, Value};
+use std::rc::Rc;
 
 pub fn sync_closure_writes(closure: &Environment, call_env: &Environment, root: &mut Environment) {
     sync_closure_writes_filtered(closure, call_env, root, None);
@@ -58,9 +59,9 @@ pub fn merge_object_fields(from: &Value, into: &mut Value) {
     let Value::Object(dst) = into else {
         return;
     };
-    for (k, v) in src {
+    for (k, v) in src.iter() {
         if !k.starts_with("__kab_") {
-            dst.insert(k.clone(), v.clone());
+            Rc::make_mut(dst).insert(k.clone(), v.clone());
         }
     }
 }

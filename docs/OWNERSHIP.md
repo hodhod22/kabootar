@@ -23,6 +23,17 @@ Science keeps a **hybrid** memory model (not full `@manual` affine on every arra
 
 For OS/netstacks use `@manual` + `Owned` (MemBox). Science tensors stay on the GC product surface with explicit buffer ownership.
 
+## Host `Value::Array` / `Object` sharing (P6b)
+
+Default GC values use **`Rc`** for array/object heap so `LoadGlobal` is O(1) clone (self-host emit). Leak-safety in the host VM:
+
+1. **COW mutations** — always `Value::array_make_mut` / `object_make_mut` (`Rc::make_mut`). Shared aliases keep a stable snapshot.
+2. **No direct self-cycles** — `reject_direct_container_cycle` blocks storing a container into itself (`Rc::ptr_eq`).
+3. **Object parent chains** — existing `Object.setParent` cycle check + WeakRef / frame GC sweep.
+4. **Deeper A→B→A graphs** — use WeakRef (or avoid); plain `Rc` cannot collect those alone.
+
+Compile-time AST paths are trees and do not create cycles.
+
 ## Typer (O2–O3)
 
 ```kabootar

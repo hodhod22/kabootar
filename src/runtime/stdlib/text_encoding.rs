@@ -10,7 +10,7 @@ fn text_encode_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
         None => return Err("text_encode(text)".into()),
     };
     let bytes: Vec<Value> = s.bytes().map(|b| Value::Number(b as i64)).collect();
-    Ok(Value::Array(bytes))
+    Ok(Value::from_array(bytes))
 }
 
 fn text_decode_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -19,7 +19,7 @@ fn text_decode_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
         _ => return Err("text_decode(bytes)".into()),
     };
     let mut bytes = Vec::with_capacity(arr.len());
-    for v in arr {
+    for v in arr.iter() {
         match v {
             Value::Number(n) if (0..=255).contains(n) => bytes.push(*n as u8),
             _ => return Err("text_decode() expects byte array (0..255)".into()),
@@ -36,7 +36,7 @@ fn global_this_native(_args: &[Value], env: &mut Environment) -> Result<Value, S
             map.insert(name, v);
         }
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn btoa_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

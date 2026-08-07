@@ -76,7 +76,7 @@ fn split_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     } else {
         s.split(sep).map(|p| Value::String(p.to_string())).collect()
     };
-    Ok(Value::Array(parts))
+    Ok(Value::from_array(parts))
 }
 
 fn starts_with_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -292,7 +292,7 @@ fn to_well_formed_native(args: &[Value], _env: &mut Environment) -> Result<Value
 
 fn string_concat_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = String::new();
-    for a in args {
+    for a in args.iter() {
         match a {
             Value::String(s) => out.push_str(s),
             Value::Number(n) => out.push_str(&n.to_string()),
@@ -310,8 +310,7 @@ fn string_concat_native(args: &[Value], _env: &mut Environment) -> Result<Value,
 fn string_raw_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let template = args.first().ok_or("string_raw(template, ...subs)")?;
     let raw_arr = match template {
-        Value::Object(map) => map.get("raw").cloned(),
-        Value::Array(items) => Some(Value::Array(items.clone())),
+        Value::Object(map) => map.get("raw").cloned(), Value::Array(items) => Some(Value::Array(items.clone())),
         _ => None,
     };
     let Value::Array(parts) = raw_arr.ok_or("string_raw expects { raw: [...] } or array")? else {
@@ -358,7 +357,7 @@ fn char_code_at_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
 
 fn from_char_code_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = String::new();
-    for arg in args {
+    for arg in args.iter() {
         let code = match arg {
             Value::Number(n) if (0..=0x10FFFF).contains(n) => *n as u32,
             _ => return Err("from_char_code(...codes) expects code points".into()),
@@ -406,10 +405,9 @@ fn str_match_all_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     let text = str_arg(args.first().ok_or("str_match_all(text, pattern)")?)?;
     let pattern = str_arg(args.get(1).ok_or("str_match_all(text, pattern)")?)?;
     let matches = crate::runtime::stdlib::regex::text_match_all_regex(pattern, text)?;
-    Ok(Value::Array(
-        matches
+    Ok(Value::from_array(matches
             .into_iter()
-            .map(|groups| Value::Array(groups.into_iter().map(Value::String).collect()))
+            .map(|groups| Value::from_array(groups.into_iter().map(Value::String).collect()))
             .collect(),
     ))
 }
@@ -549,5 +547,5 @@ pub fn register_string(env: &mut Environment) {
         "fromCodePoint".into(),
         Value::NativeFunction(from_code_point_native),
     );
-    env.set("String".to_string(), Value::Object(string_ns));
+    env.set("String".to_string(), Value::from_object(string_ns));
 }

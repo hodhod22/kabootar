@@ -5,6 +5,7 @@ use crate::runtime::stdlib::object::{check_can_delete, check_can_set, is_extensi
 use crate::runtime::stdlib::symbol::symbol_value;
 use crate::value::{Environment, Value};
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 pub const DESCRIPTORS_KEY: &str = "__kab_descriptors";
 pub const SYM_PROPS_KEY: &str = "__kab_sym_props";
@@ -46,10 +47,10 @@ fn descriptors_table(map: &HashMap<String, Value>) -> Option<&HashMap<String, Va
 
 fn descriptors_table_mut(map: &mut HashMap<String, Value>) -> &mut HashMap<String, Value> {
     if !map.contains_key(DESCRIPTORS_KEY) {
-        map.insert(DESCRIPTORS_KEY.into(), Value::Object(HashMap::new()));
+        map.insert(DESCRIPTORS_KEY.into(), Value::from_object(HashMap::new()));
     }
     match map.get_mut(DESCRIPTORS_KEY) {
-        Some(Value::Object(d)) => d,
+        Some(Value::Object(ref mut d)) => Rc::make_mut(d),
         _ => unreachable!("descriptors slot must be object"),
     }
 }
@@ -164,7 +165,7 @@ pub fn descriptor_to_value(desc: &PropertyDescriptor) -> Value {
     }
     m.insert("enumerable".into(), Value::Bool(desc.enumerable));
     m.insert("configurable".into(), Value::Bool(desc.configurable));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn is_descriptor_object(v: &Value) -> bool {
@@ -278,7 +279,7 @@ pub fn define_property(
     stored.insert("enumerable".into(), Value::Bool(desc.enumerable));
     stored.insert("configurable".into(), Value::Bool(desc.configurable));
 
-    descriptors_table_mut(map).insert(key.to_string(), Value::Object(stored));
+    descriptors_table_mut(map).insert(key.to_string(), Value::from_object(stored));
 
     let _ = (receiver, env);
     Ok(())
@@ -404,10 +405,10 @@ fn sym_props_table(map: &HashMap<String, Value>) -> Option<&HashMap<String, Valu
 
 fn sym_props_table_mut(map: &mut HashMap<String, Value>) -> &mut HashMap<String, Value> {
     if !map.contains_key(SYM_PROPS_KEY) {
-        map.insert(SYM_PROPS_KEY.into(), Value::Object(HashMap::new()));
+        map.insert(SYM_PROPS_KEY.into(), Value::from_object(HashMap::new()));
     }
     match map.get_mut(SYM_PROPS_KEY) {
-        Some(Value::Object(d)) => d,
+        Some(Value::Object(ref mut d)) => Rc::make_mut(d),
         _ => unreachable!("symbol props slot must be object"),
     }
 }
@@ -421,10 +422,10 @@ fn sym_descriptors_table(map: &HashMap<String, Value>) -> Option<&HashMap<String
 
 fn sym_descriptors_table_mut(map: &mut HashMap<String, Value>) -> &mut HashMap<String, Value> {
     if !map.contains_key(SYM_DESCRIPTORS_KEY) {
-        map.insert(SYM_DESCRIPTORS_KEY.into(), Value::Object(HashMap::new()));
+        map.insert(SYM_DESCRIPTORS_KEY.into(), Value::from_object(HashMap::new()));
     }
     match map.get_mut(SYM_DESCRIPTORS_KEY) {
-        Some(Value::Object(d)) => d,
+        Some(Value::Object(ref mut d)) => Rc::make_mut(d),
         _ => unreachable!("symbol descriptor slot must be object"),
     }
 }
@@ -654,7 +655,7 @@ pub fn define_symbol_property(
     stored.insert("enumerable".into(), Value::Bool(desc.enumerable));
     stored.insert("configurable".into(), Value::Bool(desc.configurable));
     sym_descriptors_table_mut(map)
-        .insert(sym_key(sym_id), Value::Object(stored));
+        .insert(sym_key(sym_id), Value::from_object(stored));
     let _ = (receiver, env);
     Ok(())
 }

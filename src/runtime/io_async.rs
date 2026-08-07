@@ -189,7 +189,7 @@ fn value_to_headers(value: &Value, name: &str) -> Result<HashMap<String, String>
         return Err(format!("{name} expects an object with header names as keys"));
     };
     let mut headers = HashMap::new();
-    for (key, val) in map {
+    for (key, val) in map.iter() {
         let header_value = match val {
             Value::String(s) => s.clone(),
             other => crate::value::format_value(other),

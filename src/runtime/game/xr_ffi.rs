@@ -1001,7 +1001,7 @@ pub fn present_to_hmd(composition: &Value) -> Result<Value, String> {
     );
     // Also hand off to compositor IPC (OpenXR xrEndFrame → compositor).
     let _ = compositor_submit(composition);
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn status_value() -> Value {
@@ -1017,7 +1017,7 @@ pub fn status_value() -> Value {
     out.insert("hmdConnected".into(), Value::Bool(s.hmd_connected));
     out.insert("vendor".into(), Value::String(s.vendor));
     out.insert("formFactor".into(), Value::String(s.form_factor));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 fn stub_enabled() -> bool {
@@ -1637,7 +1637,7 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
     );
     out.insert("createPath".into(), Value::String(created.path));
     out.insert("kind".into(), Value::String("xr_live_session".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn destroy_live_session() -> Result<Value, String> {
@@ -1695,7 +1695,7 @@ pub fn destroy_live_session() -> Result<Value, String> {
     out.insert("endFrameFfiCalls".into(), Value::Number(calls));
     out.insert("createPath".into(), Value::String(create_path));
     out.insert("kind".into(), Value::String("xr_live_session".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn live_session_status() -> Value {
@@ -1769,7 +1769,7 @@ pub fn live_session_status() -> Value {
         }
     }
     out.insert("kind".into(), Value::String("xr_live_session".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// Attach live-session graphics binding to an HMD swapchain descriptor (Vulkan/D3D11/stub).
@@ -1814,7 +1814,7 @@ pub fn bind_hmd_swapchain(width: i64, height: i64, eye: &str) -> Result<Value, S
             Value::Number(live.wgpu_device as i64),
         );
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn mark_swapchain_graphics_bound() -> Result<Value, String> {
@@ -1837,7 +1837,7 @@ pub fn mark_swapchain_graphics_bound() -> Result<Value, String> {
         "wgpuDevice".into(),
         Value::Number(live.wgpu_device as i64),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Allocate GPU-backed OpenXR swapchain images (wgpu textures when available).
@@ -1855,7 +1855,7 @@ pub fn allocate_gpu_swapchain_images(
         let mut out = HashMap::new();
         out.insert("ok".into(), Value::Bool(false));
         out.insert("gpuBound".into(), Value::Bool(false));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     let graphics_api = live.graphics_api.clone();
     let graphics_device = live.graphics_device;
@@ -1954,8 +1954,7 @@ pub fn allocate_gpu_swapchain_images(
     out.insert("wgpuDevice".into(), Value::Number(wgpu_device as i64));
     out.insert("imageSource".into(), Value::String(image_source));
     out.insert(
-        "nativeImages".into(),
-        Value::Array(
+        "nativeImages".into(), Value::from_array(
             native_images
                 .into_iter()
                 .map(|n| Value::Number(n as i64))
@@ -1963,15 +1962,14 @@ pub fn allocate_gpu_swapchain_images(
         ),
     );
     out.insert(
-        "wgpuTextureIds".into(),
-        Value::Array(
+        "wgpuTextureIds".into(), Value::from_array(
             wgpu_texture_ids
                 .into_iter()
                 .map(|n| Value::Number(n as i64))
                 .collect(),
         ),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Attach live GPU device / wgpu texture handles onto an acquired swapchain image.
@@ -2114,7 +2112,7 @@ fn reject_session_promise_inner(reason: &str) -> Result<Value, String> {
     out.insert("mode".into(), Value::String(mode));
     out.insert("kind".into(), Value::String("xr_session_promise".into()));
     out.insert("error".into(), Value::String(reason.into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Start a already-rejected session Promise for `promise_then(..., onRejected)`.
@@ -2159,7 +2157,7 @@ pub fn grant_webxr_session() -> Result<Value, String> {
     out.insert("webxrGranted".into(), Value::Bool(true));
     out.insert("backend".into(), Value::String(live.backend.clone()));
     out.insert("kind".into(), Value::String("xr_live_session".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Start `navigator.xr.requestSession(mode)` as a Promise (pending until poll/resolve).
@@ -2225,7 +2223,7 @@ pub fn request_session_promise(mode: &str) -> Result<Value, String> {
     out.insert("mode".into(), Value::String(mode.into()));
     out.insert("detail".into(), Value::String(detail));
     out.insert("kind".into(), Value::String("xr_session_promise".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Poll/resolve the WebXR session Promise; on resolve grants session + enables XRSession.rAF.
@@ -2244,7 +2242,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
         out.insert("promiseId".into(), Value::Number(p.promise_id));
         out.insert("mode".into(), Value::String(p.mode.clone()));
         out.insert("kind".into(), Value::String("xr_session_promise".into()));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     if !p.pending && !p.resolved {
         let mut out = HashMap::new();
@@ -2252,7 +2250,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
         out.insert("pending".into(), Value::Bool(false));
         out.insert("resolved".into(), Value::Bool(false));
         out.insert("error".into(), Value::String("no promise".into()));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     if p.resolved {
         let mut out = HashMap::new();
@@ -2264,7 +2262,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
         out.insert("mode".into(), Value::String(p.mode.clone()));
         out.insert("rafBound".into(), Value::Bool(p.raf_bound));
         out.insert("kind".into(), Value::String("xr_session_promise".into()));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
 
     // Resolve: grant live WebXR session and bind XRSession.requestAnimationFrame.
@@ -2306,7 +2304,7 @@ pub fn poll_session_promise() -> Result<Value, String> {
     );
     out.insert("live".into(), live_session_status());
     out.insert("kind".into(), Value::String("xr_session_promise".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn session_promise_status() -> Value {
@@ -2328,7 +2326,7 @@ pub fn session_promise_status() -> Value {
         }
     }
     out.insert("kind".into(), Value::String("xr_session_promise".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// Invoke `xrEndFrame` via live session (stub trampoline or resolved loader proc).
@@ -2441,7 +2439,7 @@ pub fn compositor_open() -> Result<Value, String> {
     out.insert("open".into(), Value::Bool(true));
     out.insert("channel".into(), Value::String(channel));
     out.insert("kind".into(), Value::String("xr_compositor_ipc".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Collect wgpu/Vulkan image handles from composition views' subImage bags.
@@ -2523,9 +2521,9 @@ pub fn compositor_submit(composition: &Value) -> Result<Value, String> {
     out.insert("channel".into(), Value::String(ipc.channel.clone()));
     out.insert("kind".into(), Value::String("xr_compositor_submit".into()));
     // GP6n: echo real swapchain image handles into submit ack (layer submit path).
-    out.insert("submittedImages".into(), Value::Array(native_images));
-    out.insert("wgpuTextureIds".into(), Value::Array(wgpu_texture_ids));
-    Ok(Value::Object(out))
+    out.insert("submittedImages".into(), Value::from_array(native_images));
+    out.insert("wgpuTextureIds".into(), Value::from_array(wgpu_texture_ids));
+    Ok(Value::from_object(out))
 }
 
 /// Poll compositor IPC — ack one pending frame (compositor → app).
@@ -2538,7 +2536,7 @@ pub fn compositor_poll() -> Result<Value, String> {
         out.insert("ok".into(), Value::Bool(false));
         out.insert("open".into(), Value::Bool(false));
         out.insert("acked".into(), Value::Bool(false));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     if let Some(msg) = ipc.pending.first().cloned() {
         ipc.pending.remove(0);
@@ -2553,14 +2551,14 @@ pub fn compositor_poll() -> Result<Value, String> {
         out.insert("layerType".into(), Value::String(msg.layer_type));
         out.insert("pending".into(), Value::Number(ipc.pending.len() as i64));
         out.insert("kind".into(), Value::String("xr_compositor_ack".into()));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("acked".into(), Value::Bool(false));
     out.insert("pending".into(), Value::Number(0));
     out.insert("kind".into(), Value::String("xr_compositor_ack".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// WebXR `navigator.xr.requestSession(mode)` — real on wasm when available; stub otherwise.
@@ -2599,7 +2597,7 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
                             out.insert("pending".into(), Value::Bool(true));
                             out.insert("live".into(), live);
                             out.insert("webxrGranted".into(), Value::Bool(true));
-                            return Ok(Value::Object(out));
+                            return Ok(Value::from_object(out));
                         }
                     }
                 }
@@ -2627,13 +2625,12 @@ pub fn request_session(mode: &str) -> Result<Value, String> {
         out.insert("pending".into(), Value::Bool(false));
         out.insert("live".into(), live);
         out.insert(
-            "features".into(),
-            Value::Array(vec![
+            "features".into(), Value::from_array(vec![
                 Value::String("local".into()),
                 Value::String("viewer".into()),
             ]),
         );
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     Err(format!(
         "xr_request_session({mode}): no WebXR/OpenXR runtime (set KABOOTAR_XR_STUB=1)"
@@ -2690,7 +2687,7 @@ pub fn compositor_process_spawn() -> Result<Value, String> {
     out.insert("pid".into(), Value::Number(proc.pid));
     out.insert("name".into(), Value::String(name));
     out.insert("kind".into(), Value::String("xr_compositor_process".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Tick compositor process — drain one IPC frame (vendor worker).
@@ -2703,14 +2700,13 @@ pub fn compositor_process_tick() -> Result<Value, String> {
         out.insert("ok".into(), Value::Bool(false));
         out.insert("running".into(), Value::Bool(false));
         out.insert("drained".into(), Value::Bool(false));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     proc.ticks += 1;
     drop(proc);
     let ack = compositor_poll()?;
     let drained = matches!(
-        &ack,
-        Value::Object(m) if matches!(m.get("acked"), Some(Value::Bool(true)))
+        &ack, Value::Object(m) if matches!(m.get("acked"), Some(Value::Bool(true)))
     );
     if drained {
         if let Ok(mut proc) = COMPOSITOR_PROC.lock() {
@@ -2730,7 +2726,7 @@ pub fn compositor_process_tick() -> Result<Value, String> {
     out.insert("name".into(), Value::String(proc.name.clone()));
     out.insert("ack".into(), ack);
     out.insert("kind".into(), Value::String("xr_compositor_tick".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn compositor_process_stop() -> Result<Value, String> {
@@ -2748,7 +2744,7 @@ pub fn compositor_process_stop() -> Result<Value, String> {
     out.insert("framesComposed".into(), Value::Number(frames));
     out.insert("ticks".into(), Value::Number(ticks));
     out.insert("kind".into(), Value::String("xr_compositor_process".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn compositor_process_status() -> Value {
@@ -2767,7 +2763,7 @@ pub fn compositor_process_status() -> Value {
         }
     }
     out.insert("kind".into(), Value::String("xr_compositor_process".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// OpenXR loader `xrEndFrame` path — resolve proc when possible; always record submit.
@@ -2854,7 +2850,7 @@ pub fn loader_end_frame(
         "loaderPath".into(),
         Value::String(st.loader_path.clone()),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn loader_end_frame_status() -> Value {
@@ -2887,7 +2883,7 @@ pub fn loader_end_frame_status() -> Value {
         );
     }
     out.insert("kind".into(), Value::String("xr_loader_end_frame".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// Bind WebXR `XRSession.requestAnimationFrame` (wasm) or stub XR rAF queue.
@@ -2955,7 +2951,7 @@ pub fn raf_bind() -> Result<Value, String> {
     out.insert("backend".into(), Value::String(backend));
     out.insert("webxrGranted".into(), Value::Bool(webxr_granted));
     out.insert("kind".into(), Value::String("xr_raf_bind".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn request_animation_frame(callback: Value) -> Result<Value, String> {
@@ -2983,7 +2979,7 @@ pub fn cancel_animation_frame(id: i64) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("id".into(), Value::Number(id));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Pump XR rAF callbacks (WebXR immersive frame callbacks).
@@ -3013,7 +3009,7 @@ pub fn raf_tick(env: &mut crate::value::Environment) -> Result<Value, String> {
         out.insert("ok".into(), Value::Bool(false));
         out.insert("bound".into(), Value::Bool(false));
         out.insert("ran".into(), Value::Number(0));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
 
     let time_ms = crate::value::unix_ms_now() as i64;
@@ -3026,7 +3022,7 @@ pub fn raf_tick(env: &mut crate::value::Environment) -> Result<Value, String> {
         frame.insert("backend".into(), Value::String(backend.clone()));
         crate::bytecode::call_value(
             cb,
-            vec![Value::Float(time_ms as f64), Value::Object(frame)],
+            vec![Value::Float(time_ms as f64), Value::from_object(frame)],
             &[],
             &[],
             &[],
@@ -3048,7 +3044,7 @@ pub fn raf_tick(env: &mut crate::value::Environment) -> Result<Value, String> {
     out.insert("tick".into(), Value::Number(tick_no));
     out.insert("backend".into(), Value::String(backend));
     out.insert("kind".into(), Value::String("xr_raf_tick".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn raf_status() -> Value {
@@ -3061,7 +3057,7 @@ pub fn raf_status() -> Value {
         out.insert("backend".into(), Value::String(raf.backend.clone()));
     });
     out.insert("kind".into(), Value::String("xr_raf".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 // ----- GP6n WebXR inputSources stub (select/squeeze + grip/targetRay) -----
@@ -3270,7 +3266,7 @@ fn pose_map(x: f64, y: f64, z: f64) -> Value {
     m.insert("qz".into(), Value::Float(0.0));
     m.insert("qw".into(), Value::Float(1.0));
     m.insert("emulated".into(), Value::Bool(true));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn stub_source(handedness: &str) -> Value {
@@ -3280,21 +3276,20 @@ fn stub_source(handedness: &str) -> Value {
         (0.25, -0.4)
     };
     let mut gamepad = HashMap::new();
-    gamepad.insert("buttons".into(), Value::Array(vec![
-        Value::Object({
+    gamepad.insert("buttons".into(), Value::from_array(vec![
+        Value::from_object({
             let mut b = HashMap::new();
             b.insert("pressed".into(), Value::Bool(false));
             b.insert("value".into(), Value::Float(0.0));
             b
-        }),
-        Value::Object({
+        }), Value::from_object({
             let mut b = HashMap::new();
             b.insert("pressed".into(), Value::Bool(false));
             b.insert("value".into(), Value::Float(0.0));
             b
         }),
     ]));
-    gamepad.insert("axes".into(), Value::Array(vec![
+    gamepad.insert("axes".into(), Value::from_array(vec![
         Value::Float(0.0),
         Value::Float(0.0),
     ]));
@@ -3304,14 +3299,13 @@ fn stub_source(handedness: &str) -> Value {
     m.insert("handedness".into(), Value::String(handedness.into()));
     m.insert("targetRayMode".into(), Value::String("tracked-pointer".into()));
     m.insert(
-        "profiles".into(),
-        Value::Array(vec![
+        "profiles".into(), Value::from_array(vec![
             Value::String("oculus-touch".into()),
             Value::String("generic-trigger-squeeze-thumbstick".into()),
             Value::String("generic-trigger".into()),
         ]),
     );
-    m.insert("gamepad".into(), Value::Object(gamepad));
+    m.insert("gamepad".into(), Value::from_object(gamepad));
     m.insert("gripPose".into(), pose_map(gx, 1.2, gz));
     m.insert("targetRayPose".into(), pose_map(gx, 1.25, gz - 0.05));
     // WebXR: when XR_EXT_hand_tracking is live, expose synth hand tracker on the source.
@@ -3323,10 +3317,10 @@ fn stub_source(handedness: &str) -> Value {
         hand.insert("tracker".into(), Value::Number(tracker as i64));
         hand.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
         hand.insert("backend".into(), Value::String(ht));
-        m.insert("hand".into(), Value::Object(hand));
+        m.insert("hand".into(), Value::from_object(hand));
     }
     m.insert("kind".into(), Value::String("xr_input_source".into()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn stub_hand_joints(handedness: &str) -> Value {
@@ -3356,17 +3350,17 @@ fn stub_hand_joints(handedness: &str) -> Value {
             pose_map(base_x + (i as f64) * 0.01, 1.15, base_z - (i as f64) * 0.008),
         );
         j.insert("radius".into(), Value::Float(0.008));
-        joints.push(Value::Object(j));
+        joints.push(Value::from_object(j));
     }
     let backend = hand_tracking_backend();
     let mut out = HashMap::new();
     out.insert("handedness".into(), Value::String(handedness.into()));
-    out.insert("joints".into(), Value::Array(joints));
+    out.insert("joints".into(), Value::from_array(joints));
     out.insert("tracking".into(), Value::String(backend.clone()));
     out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
     out.insert("ok".into(), Value::Bool(true));
     out.insert("kind".into(), Value::String("xr_hand".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// Hand-tracking backend: emulated stub, OpenXR-EXT probe, or env force.
@@ -3591,7 +3585,7 @@ pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
         }),
     );
     out.insert("kind".into(), Value::String("xr_locate_hand_joints".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// XRHand-style joint poses (live buffer if set, else emulated / OpenXR stub synth).
@@ -3628,20 +3622,20 @@ fn take_live_hand_view(handedness: &str) -> Option<Value> {
             pose.insert("emulated".into(), Value::Bool(false));
             let mut m = HashMap::new();
             m.insert("joint".into(), Value::String(j.joint.clone()));
-            m.insert("pose".into(), Value::Object(pose));
+            m.insert("pose".into(), Value::from_object(pose));
             m.insert("radius".into(), Value::Float(j.radius));
-            Value::Object(m)
+            Value::from_object(m)
         })
         .collect();
     let mut out = HashMap::new();
     out.insert("handedness".into(), Value::String(handedness.into()));
-    out.insert("joints".into(), Value::Array(arr));
+    out.insert("joints".into(), Value::from_array(arr));
     out.insert("tracking".into(), Value::String(backend));
     out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
     out.insert("source".into(), Value::String("live-buffer".into()));
     out.insert("ok".into(), Value::Bool(true));
     out.insert("kind".into(), Value::String("xr_hand".into()));
-    Some(Value::Object(out))
+    Some(Value::from_object(out))
 }
 
 fn parse_live_joint(v: &Value) -> Result<LiveJointPose, String> {
@@ -3710,7 +3704,7 @@ pub fn set_hand_joint_buffer(handedness: &str, joints: Value) -> Result<Value, S
     out.insert("handedness".into(), Value::String(handedness.into()));
     out.insert("count".into(), Value::Number(count));
     out.insert("kind".into(), Value::String("xr_hand_joint_buffer".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Clear live joint buffer(s). Pass null/empty handedness to clear both.
@@ -3740,7 +3734,7 @@ pub fn clear_hand_joint_buffer(handedness: &str) -> Result<Value, String> {
         "right".into(),
         Value::Bool(st.right.is_some()),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Status bag for hand tracking capability (extension + backend + live buffers).
@@ -3784,8 +3778,8 @@ pub fn hand_tracking_status() -> Value {
         "live".into(),
         Value::Bool(backend == "openxr-ext" || backend == "openxr-stub"),
     );
-    out.insert("liveBuffers".into(), Value::Object(live_buf));
-    out.insert("trackers".into(), Value::Object(trackers));
+    out.insert("liveBuffers".into(), Value::from_object(live_buf));
+    out.insert("trackers".into(), Value::from_object(trackers));
     let (locate_resolved, create_resolved, create_calls) = OPENXR_FNS
         .lock()
         .map(|f| {
@@ -3828,7 +3822,7 @@ pub fn hand_tracking_status() -> Value {
     out.insert("extCreateResolved".into(), Value::Bool(create_resolved));
     out.insert("createFfiCalls".into(), Value::Number(create_calls));
     out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// Preferred input profile list for a handedness (WebXR `profiles` order).
@@ -3856,13 +3850,12 @@ pub fn enumerate_input_sources() -> Value {
     ensure_input_sources();
     let mut out = HashMap::new();
     out.insert(
-        "sources".into(),
-        Value::Array(vec![stub_source("left"), stub_source("right")]),
+        "sources".into(), Value::from_array(vec![stub_source("left"), stub_source("right")]),
     );
     out.insert("count".into(), Value::Number(2));
     out.insert("kind".into(), Value::String("xr_input_sources".into()));
     out.insert("ok".into(), Value::Bool(true));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 pub fn input_source_pose(handedness: &str, kind: &str) -> Result<Value, String> {
@@ -3919,7 +3912,7 @@ pub fn inject_input_event(ty: &str, handedness: &str) -> Result<Value, String> {
     out.insert("handedness".into(), Value::String(handedness.into()));
     out.insert("frameIndex".into(), Value::Number(fi));
     out.insert("queued".into(), Value::Number(st.events.len() as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn poll_input_events() -> Value {
@@ -3934,15 +3927,15 @@ pub fn poll_input_events() -> Value {
             m.insert("handedness".into(), Value::String(ev.handedness.clone()));
             m.insert("inputSource".into(), stub_source(&ev.handedness));
             m.insert("frameIndex".into(), Value::Number(ev.frame_index));
-            Value::Object(m)
+            Value::from_object(m)
         })
         .collect();
     let mut out = HashMap::new();
-    out.insert("events".into(), Value::Array(events.clone()));
+    out.insert("events".into(), Value::from_array(events.clone()));
     out.insert("count".into(), Value::Number(events.len() as i64));
     out.insert("ok".into(), Value::Bool(true));
     out.insert("kind".into(), Value::String("xr_input_events".into()));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 fn reset_input_for_tests() {

@@ -2,6 +2,7 @@
 
 use crate::lang_preprocess::MemoryMode;
 use crate::value::{Environment, OwnedBuf, Value};
+use std::rc::Rc;
 
 const MODE_KEY: &str = "__memory_mode";
 
@@ -72,7 +73,7 @@ fn owned_read_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
         })
         .unwrap_or(64);
     let bytes = crate::runtime::os::os_handle(env)?.mem_read(id, offset, len)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
     ))
 }

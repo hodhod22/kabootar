@@ -71,6 +71,11 @@ fn outSpNum(x) {
     sOut = sOut + ("" + x)
 }
 
+fn outSp(s) {
+    sOut = sOut + " "
+    sOut = sOut + s
+}
+
 fn constLine(idx, val) {
     // AccAdd into sLine — shallow emit vs Binary return trees.
     sLine = "const "
@@ -158,8 +163,7 @@ fn appendClassMethHeader(tag, ci, mi, rest) {
     outTag(tag)
     outSpNum(ci)
     outSpNum(mi)
-    sOut = sOut + " "
-    sOut = sOut + rest
+    outSp(rest)
 }
 
 fn appendEmbeddedMethodOps(ci, mi, ops) {
@@ -169,8 +173,7 @@ fn appendEmbeddedMethodOps(ci, mi, ops) {
         outTag("class_method_op")
         outSpNum(ci)
         outSpNum(mi)
-        sOut = sOut + " "
-        sOut = sOut + irOpLine(ops[sK])
+        outSp(irOpLine(ops[sK]))
         sK = sK + 1
     }
 }
@@ -203,8 +206,7 @@ pub fn serializeBcImplCore(bc) {
     while sI < len(bc.globals) {
         outTag("global")
         outSpNum(sI)
-        sOut = sOut + " "
-        sOut = sOut + bc.globals[sI]
+        outSp(bc.globals[sI])
         sI = sI + 1
     }
     outTag("functions=")
@@ -214,16 +216,13 @@ pub fn serializeBcImplCore(bc) {
         sFn = bc.functions[sI]
         outTag("fn")
         outSpNum(sI)
-        sOut = sOut + " "
-        sOut = sOut + sFn.sym
+        outSp(sFn.sym)
         outTag("fn_params")
         outSpNum(sI)
-        sOut = sOut + " "
-        sOut = sOut + joinComma(sFn.params)
+        outSp(joinComma(sFn.params))
         outTag("fn_locals")
         outSpNum(sI)
-        sOut = sOut + " "
-        sOut = sOut + joinComma(sFn.locals)
+        outSp(joinComma(sFn.locals))
         if sFn["tryRegions"] != undefined {
             sJ = 0
             while sJ < len(sFn["tryRegions"]) {
@@ -242,8 +241,7 @@ pub fn serializeBcImplCore(bc) {
         while sJ < len(sFn.ops) {
             outTag("fn_op")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + irOpLine(sFn.ops[sJ])
+            outSp(irOpLine(sFn.ops[sJ]))
             sJ = sJ + 1
         }
         sI = sI + 1
@@ -259,22 +257,18 @@ pub fn serializeBcImplCore(bc) {
             let arr = bc.arrows[sI]
             outTag("arrow")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + arr["sym"]
+            outSp(arr["sym"])
             outTag("arrow_params")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + joinComma(arr["params"])
+            outSp(joinComma(arr["params"]))
             outTag("arrow_locals")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + joinComma(arr["locals"])
+            outSp(joinComma(arr["locals"]))
             sJ = 0
             while sJ < len(arr["ops"]) {
                 outTag("arrow_op")
                 outSpNum(sI)
-                sOut = sOut + " "
-                sOut = sOut + irOpLine(arr["ops"][sJ])
+                outSp(irOpLine(arr["ops"][sJ]))
                 sJ = sJ + 1
             }
             sI = sI + 1
@@ -304,8 +298,7 @@ pub fn serializeBcImplCore(bc) {
         while sI < len(bc.exports) {
             outTag("export")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + bc.exports[sI]
+            outSp(bc.exports[sI])
             sI = sI + 1
         }
     }
@@ -319,8 +312,7 @@ pub fn serializeBcImplCore(bc) {
         while sI < len(bc.imports) {
             outTag("import")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + bc.imports[sI]
+            outSp(bc.imports[sI])
             sI = sI + 1
         }
     }
@@ -335,8 +327,7 @@ pub fn serializeBcImplCore(bc) {
             sCls = bc.classes[sI]
             outTag("class")
             outSpNum(sI)
-            sOut = sOut + " "
-            sOut = sOut + sCls["sym"]
+            outSp(sCls["sym"])
             if sCls["isStruct"] == 1 {
                 outTag("class_is_struct")
                 outSpNum(sI)

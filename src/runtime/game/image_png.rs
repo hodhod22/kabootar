@@ -8,7 +8,7 @@ fn value_to_bytes(v: &Value) -> Result<Vec<u8>, String> {
     match v {
         Value::Array(items) => {
             let mut out = Vec::with_capacity(items.len());
-            for item in items {
+            for item in items.iter() {
                 match item {
                     Value::Number(n) if (0..=255).contains(n) => out.push(*n as u8),
                     Value::Float(f) if *f >= 0.0 && *f <= 255.0 => out.push(*f as u8),
@@ -80,10 +80,9 @@ pub fn decode_png(bytes: &[u8]) -> Result<Value, String> {
     m.insert("width".into(), Value::Number(width as i64));
     m.insert("height".into(), Value::Number(height as i64));
     m.insert(
-        "rgba".into(),
-        Value::Array(rgba.into_iter().map(|b| Value::Number(b as i64)).collect()),
+        "rgba".into(), Value::from_array(rgba.into_iter().map(|b| Value::Number(b as i64)).collect()),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 pub fn image_decode_png_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

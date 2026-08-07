@@ -37,11 +37,11 @@ fn stat_to_object(stat: VfsStat) -> Value {
     if let Some(mount) = stat.mount {
         m.insert("mount".into(), Value::String(mount));
     }
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn bytes_to_array(data: &[u8]) -> Value {
-    Value::Array(
+    Value::from_array(
         data.iter()
             .map(|b| Value::Number(*b as i64))
             .collect(),
@@ -50,10 +50,9 @@ fn bytes_to_array(data: &[u8]) -> Value {
 
 fn value_to_bytes(v: &Value) -> Result<Vec<u8>, String> {
     match v {
-        Value::String(s) => Ok(s.as_bytes().to_vec()),
-        Value::Array(items) => {
+        Value::String(s) => Ok(s.as_bytes().to_vec()), Value::Array(items) => {
             let mut out = Vec::with_capacity(items.len());
-            for item in items {
+            for item in items.iter() {
                 match item {
                     Value::Number(n) if (0..=255).contains(n) => out.push(*n as u8),
                     _ => return Err("write_file bytes must be numbers 0–255".into()),
@@ -104,9 +103,9 @@ fn read_dir_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
             "isDirectory".into(),
             Value::Bool(stat.kind == VfsEntryKind::Directory),
         );
-        entries.push(Value::Object(entry));
+        entries.push(Value::from_object(entry));
     }
-    Ok(Value::Array(entries))
+    Ok(Value::from_array(entries))
 }
 
 fn mkdir_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {

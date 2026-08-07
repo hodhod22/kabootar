@@ -200,7 +200,7 @@ fn node_path_join_native(args: &[Value], _env: &mut Environment) -> Result<Value
 fn node_path_resolve_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut out = cwd;
-    for arg in args {
+    for arg in args.iter() {
         let s = str_arg(arg, "node_path_resolve")?;
         let part = Path::new(&s);
         if part.is_absolute() {
@@ -340,7 +340,7 @@ fn node_path_to_file_url_native(args: &[Value], _env: &mut Environment) -> Resul
 }
 
 fn bytes_to_array(data: &[u8]) -> Value {
-    Value::Array(
+    Value::from_array(
         data.iter()
             .map(|b| Value::Number(*b as i64))
             .collect(),
@@ -350,10 +350,9 @@ fn bytes_to_array(data: &[u8]) -> Value {
 fn node_buffer_from_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let data = args.first().ok_or("node_buffer_from(data)")?;
     match data {
-        Value::String(s) => Ok(bytes_to_array(s.as_bytes())),
-        Value::Array(items) => {
+        Value::String(s) => Ok(bytes_to_array(s.as_bytes())), Value::Array(items) => {
             let mut out = Vec::with_capacity(items.len());
-            for item in items {
+            for item in items.iter() {
                 match item {
                     Value::Number(n) if (0..=255).contains(n) => out.push(*n as u8),
                     _ => return Err("node_buffer_from array items must be 0..255".into()),
@@ -376,8 +375,7 @@ fn node_buffer_alloc_native(args: &[Value], _env: &mut Environment) -> Result<Va
 fn node_buffer_is_buffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("node_buffer_is_buffer(value)")?;
     Ok(Value::Bool(matches!(
-        v,
-        Value::Array(items) if !items.is_empty()
+        v, Value::Array(items) if !items.is_empty()
             && items.iter().all(|i| matches!(i, Value::Number(n) if (0..=255).contains(n)))
     )))
 }
@@ -427,13 +425,13 @@ pub fn node_resolve(spec: &str) -> Value {
         Err(e) => {
             let mut m = HashMap::new();
             m.insert("error".into(), Value::String(e));
-            Value::Object(m)
+            Value::from_object(m)
         }
     }
 }
 
 pub fn node_list() -> Value {
-    Value::Array(
+    Value::from_array(
         NODE_MODULES
             .iter()
             .map(|m| Value::String(format!("node:{m}")))

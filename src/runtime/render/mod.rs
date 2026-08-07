@@ -154,8 +154,7 @@ pub fn frame_to_object(frame: &CompositorFrame) -> HashMap<String, crate::value:
         Value::Number(frame.gpu_handle.unwrap_or(0) as i64),
     );
     m.insert(
-        "layers".into(),
-        Value::Array(
+        "layers".into(), Value::from_array(
             frame
                 .layers
                 .iter()
@@ -168,7 +167,7 @@ pub fn frame_to_object(frame: &CompositorFrame) -> HashMap<String, crate::value:
                     o.insert("w".into(), Value::Float(l.w));
                     o.insert("h".into(), Value::Float(l.h));
                     o.insert("z".into(), Value::Number(l.z as i64));
-                    Value::Object(o)
+                    Value::from_object(o)
                 })
                 .collect(),
         ),

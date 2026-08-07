@@ -117,9 +117,9 @@ fn num_odeint(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         ys.push(vector_out(&y));
     }
     let mut out = HashMap::new();
-    out.insert("t".into(), Value::Array(ts));
-    out.insert("y".into(), Value::Array(ys));
-    Ok(Value::Object(out))
+    out.insert("t".into(), Value::from_array(ts));
+    out.insert("y".into(), Value::from_array(ys));
+    Ok(Value::from_object(out))
 }
 
 /// num_odeint_adaptive(f, y0, t0, t1, atol?, rtol?, max_steps?) → {t, y, n_steps, n_eval}
@@ -177,11 +177,11 @@ fn num_odeint_adaptive(args: &[Value], env: &mut Environment) -> Result<Value, S
     }
 
     let mut out = HashMap::new();
-    out.insert("t".into(), Value::Array(ts));
-    out.insert("y".into(), Value::Array(ys));
+    out.insert("t".into(), Value::from_array(ts));
+    out.insert("y".into(), Value::from_array(ys));
     out.insert("n_steps".into(), Value::Number(n_steps as i64));
     out.insert("n_eval".into(), Value::Number(n_eval as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn simpson_rule(fa: f64, fm: f64, fb: f64, h: f64) -> f64 {
@@ -235,7 +235,7 @@ fn num_quad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         let mut out = HashMap::new();
         out.insert("value".into(), float_out(0.0));
         out.insert("n_eval".into(), Value::Number(0));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     let fa = call_scalar(&f, a, env)?;
     let fb = call_scalar(&f, b, env)?;
@@ -243,7 +243,7 @@ fn num_quad(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("value".into(), float_out(value));
     out.insert("n_eval".into(), Value::Number((n_mid + 2) as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

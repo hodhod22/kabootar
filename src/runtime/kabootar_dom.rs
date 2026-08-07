@@ -216,7 +216,7 @@ fn deliver_mutation_observers(env: &mut Environment) -> Result<(), String> {
             .collect()
     });
     for (callback, records) in batches {
-        let arr = Value::Array(records.iter().map(mutation_record_to_value).collect());
+        let arr = Value::from_array(records.iter().map(mutation_record_to_value).collect());
         crate::bytecode::call_value(callback, vec![arr], &[], &[], &[], &[], env)?;
     }
     Ok(())
@@ -791,7 +791,7 @@ fn kdom_paint_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
     engine.set_stylesheet(global_stylesheet(env));
     let frame = engine.compose(&node);
     crate::runtime::frame_buffer::publish_frame(frame.clone());
-    Ok(Value::Object(frame_to_object(&frame)))
+    Ok(Value::from_object(frame_to_object(&frame)))
 }
 
 fn kstyle_parse_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -838,7 +838,7 @@ fn ktext_layout_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
         };
     }
     let layout = layout_text(text, &style);
-    Ok(Value::Object(text_layout_to_object(&layout)))
+    Ok(Value::from_object(text_layout_to_object(&layout)))
 }
 
 fn ktext_measure_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -862,7 +862,7 @@ fn ktext_measure_native(args: &[Value], _env: &mut Environment) -> Result<Value,
         color: 0xffe8eaed,
     };
     let (w, h) = measure_text(text, &style);
-    Ok(Value::Array(vec![Value::Float(w as f64), Value::Float(h as f64)]))
+    Ok(Value::from_array(vec![Value::Float(w as f64), Value::Float(h as f64)]))
 }
 
 fn kdom_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1195,7 +1195,7 @@ fn kdom_query_id_native(args: &[Value], _env: &mut Environment) -> Result<Value,
 
 fn kdom_children_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let node = expect_dom(args, 0, "kdom_children()")?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         node.children
             .iter()
             .cloned()
@@ -1278,11 +1278,11 @@ fn mutation_record_to_value(record: &MutationRecord) -> Value {
     if let Some(id) = record.removed_node_id {
         map.insert("removedNodeId".into(), Value::Number(id as i64));
     }
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn kdom_mutation_records_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         take_mutation_records()
             .iter()
             .map(mutation_record_to_value)
@@ -1297,8 +1297,7 @@ fn kdom_mutation_clear_native(_args: &[Value], _env: &mut Environment) -> Result
 
 fn observer_id_from(v: &Value) -> Result<u64, String> {
     match v {
-        Value::Number(n) if *n > 0 => Ok(*n as u64),
-        Value::Object(o) => match o.get("id") {
+        Value::Number(n) if *n > 0 => Ok(*n as u64), Value::Object(o) => match o.get("id") {
             Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
             _ => Err("MutationObserver missing id".into()),
         },
@@ -1397,7 +1396,7 @@ fn kdom_mo_take_records_native(args: &[Value], _env: &mut Environment) -> Result
         }
         Vec::new()
     });
-    Ok(Value::Array(
+    Ok(Value::from_array(
         records.iter().map(mutation_record_to_value).collect(),
     ))
 }
@@ -1424,5 +1423,5 @@ fn mutation_observer_ctor_native(args: &[Value], env: &mut Environment) -> Resul
         "takeRecords".into(),
         Value::NativeFunction(kdom_mo_take_records_native),
     );
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }

@@ -62,14 +62,14 @@ fn plain_date_object(p: PlainDateParts) -> Value {
     map.insert("year".into(), Value::Number(p.year));
     map.insert("month".into(), Value::Number(p.month));
     map.insert("day".into(), Value::Number(p.day));
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn instant_object(ms: i64) -> Value {
     let mut map = HashMap::new();
     map.insert(INSTANT_MARKER.into(), Value::Bool(true));
     map.insert("epochMilliseconds".into(), Value::Number(ms));
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn plain_date_parts(v: &Value) -> Result<PlainDateParts, String> {
@@ -272,23 +272,21 @@ pub fn build_temporal_namespace() -> Value {
 
     let mut temporal = HashMap::new();
     temporal.insert("__kab_temporal".into(), Value::Bool(true));
-    temporal.insert("PlainDate".into(), Value::Object(plain_date));
-    temporal.insert("Instant".into(), Value::Object(instant));
-    temporal.insert("Now".into(), Value::Object(now));
-    Value::Object(temporal)
+    temporal.insert("PlainDate".into(), Value::from_object(plain_date));
+    temporal.insert("Instant".into(), Value::from_object(instant));
+    temporal.insert("Now".into(), Value::from_object(now));
+    Value::from_object(temporal)
 }
 
 pub fn is_plain_date_ctor(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(m) if matches!(m.get("__kab_temporal_plain_date_ctor"), Some(Value::Bool(true)))
+        v, Value::Object(m) if matches!(m.get("__kab_temporal_plain_date_ctor"), Some(Value::Bool(true)))
     )
 }
 
 pub fn is_instant_ctor(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(m) if matches!(m.get("__kab_temporal_instant_ctor"), Some(Value::Bool(true)))
+        v, Value::Object(m) if matches!(m.get("__kab_temporal_instant_ctor"), Some(Value::Bool(true)))
     )
 }
 

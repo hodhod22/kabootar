@@ -38,21 +38,21 @@ fn shape3(v: &Value, name: &str) -> Result<(usize, usize, usize, Vec<f64>), Stri
             };
             let w = row0.len();
             let mut data = Vec::with_capacity(c * h * w);
-            for plane in items {
+            for plane in items.iter() {
                 let Value::Array(rows) = plane else {
                     return Err(format!("{name}: jagged"));
                 };
                 if rows.len() != h {
                     return Err(format!("{name}: jagged H"));
                 }
-                for row in rows {
+                for row in rows.iter() {
                     let Value::Array(cells) = row else {
                         return Err(format!("{name}: jagged W"));
                     };
                     if cells.len() != w {
                         return Err(format!("{name}: jagged W"));
                     }
-                    for cell in cells {
+                    for cell in cells.iter() {
                         data.push(num(cell)?);
                     }
                 }
@@ -67,8 +67,7 @@ fn nd3(c: usize, h: usize, w: usize, data: &[f64]) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(vec![
+        "shape".into(), Value::from_array(vec![
             int_out(c as i64),
             int_out(h as i64),
             int_out(w as i64),
@@ -77,7 +76,7 @@ fn nd3(c: usize, h: usize, w: usize, data: &[f64]) -> Value {
     m.insert("data".into(), vector_out(data));
     m.insert("size".into(), int_out(data.len() as i64));
     m.insert("dtype".into(), Value::String("f64".into()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn idx3(_c: usize, h: usize, w: usize, ci: usize, hi: usize, wi: usize) -> usize {
@@ -180,19 +179,19 @@ fn parse_weight4(v: &Value) -> Result<(usize, usize, usize, usize, Vec<f64>), St
             };
             let kw = kw0.len();
             let mut data = Vec::new();
-            for oc in items {
+            for oc in items.iter() {
                 let Value::Array(ics) = oc else {
                     return Err("weight jagged".into());
                 };
-                for ic in ics {
+                for ic in ics.iter() {
                     let Value::Array(rows) = ic else {
                         return Err("weight jagged".into());
                     };
-                    for row in rows {
+                    for row in rows.iter() {
                         let Value::Array(cells) = row else {
                             return Err("weight jagged".into());
                         };
-                        for cell in cells {
+                        for cell in cells.iter() {
                             data.push(num(cell)?);
                         }
                     }
@@ -264,14 +263,14 @@ fn ml_embedding(args: &[Value], _env: &mut Environment) -> Result<Value, String>
                 _ => return Err("embedding: rows of vectors".into()),
             };
             let mut data = Vec::new();
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(cells) = row else {
                     return Err("embedding jagged".into());
                 };
                 if cells.len() != dim {
                     return Err("embedding jagged".into());
                 }
-                for c in cells {
+                for c in cells.iter() {
                     data.push(num(c)?);
                 }
             }
@@ -296,12 +295,11 @@ fn ml_embedding(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(vec![int_out(indices.len() as i64), int_out(dim as i64)]),
+        "shape".into(), Value::from_array(vec![int_out(indices.len() as i64), int_out(dim as i64)]),
     );
     m.insert("data".into(), vector_out(&out));
     m.insert("size".into(), int_out(out.len() as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn softmax_row(v: &[f64]) -> Vec<f64> {
@@ -355,12 +353,11 @@ fn ml_mha(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(vec![int_out(seq_q as i64), int_out(d as i64)]),
+        "shape".into(), Value::from_array(vec![int_out(seq_q as i64), int_out(d as i64)]),
     );
     m.insert("data".into(), vector_out(&out));
     m.insert("size".into(), int_out(out.len() as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn matrix2(v: &Value, name: &str) -> Result<(usize, usize, Vec<f64>), String> {
@@ -390,14 +387,14 @@ fn matrix2(v: &Value, name: &str) -> Result<(usize, usize, Vec<f64>), String> {
                 None => return Err(format!("{name}: empty")),
             };
             let mut data = Vec::new();
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(cells) = row else {
                     return Err(format!("{name}: jagged"));
                 };
                 if cells.len() != d {
                     return Err(format!("{name}: jagged"));
                 }
-                for c in cells {
+                for c in cells.iter() {
                     data.push(num(c)?);
                 }
             }

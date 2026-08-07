@@ -50,8 +50,7 @@ pub fn get_member_value(obj: &Value, field: &str, env: &mut Environment) -> Resu
         });
     }
     match obj {
-        Value::ClassInstance(_) => crate::ops::read_member(obj, field, env),
-        Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
+        Value::ClassInstance(_) => crate::ops::read_member(obj, field, env), Value::Array(items) if field == "length" => Ok(Value::Number(items.len() as i64)),
         Value::String(s) if field == "length" => {
             let n = if s.is_ascii() {
                 s.len()

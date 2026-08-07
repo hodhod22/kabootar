@@ -793,7 +793,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             let (ci, list) = parse_index_list(rest)?;
             ensure_class(&mut classes, ci, String::new());
             let mut pairs = Vec::new();
-            for item in list {
+            for item in list.iter() {
                 if let Some((n, t)) = item.split_once('=') {
                     pairs.push((unescape(n), unescape(t)));
                 }

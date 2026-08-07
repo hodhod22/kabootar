@@ -176,8 +176,8 @@ fn std_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
     let items: Vec<Value> = caps.into_iter().map(|s| Value::String(s.into())).collect();
     let mut info = std::collections::HashMap::new();
     info.insert("version".into(), Value::String("1.0".into()));
-    info.insert("capabilities".into(), Value::Array(items));
-    Ok(Value::Object(info))
+    info.insert("capabilities".into(), Value::from_array(items));
+    Ok(Value::from_object(info))
 }
 
 fn nd_slice_spec_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -195,7 +195,7 @@ fn nd_slice_spec_native(args: &[Value], _env: &mut Environment) -> Result<Value,
         "step".into(),
         args.get(2).cloned().unwrap_or(Value::Number(1)),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 /// Register all stdlib natives on the global environment.

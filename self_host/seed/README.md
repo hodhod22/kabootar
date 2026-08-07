@@ -28,9 +28,9 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
 Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
-**Full leaf:** `p6b_serialize_body_compile_budget` after host-VM **`len_*` /
-`index_get_*`** peephole (+ prior depth counters). Measure with ignored budget test;
-skip-list stays until ≤10 s. Prior plateau ~697 s (depth-only).
+**Full leaf:** `p6b_serialize_body_compile_budget` after **`Rc` Array/Object** (+ Len/IndexGet).
+Measure with ignored budget test; skip-list stays until ≤10 s. Prior: ~697 s depth-only →
+~676 s Len/Index → **~144 s** with Rc (2026-08-07).
 
 **Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
 Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
@@ -49,6 +49,9 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
    - **early `IDENT=`** in `parser_impl`
    - host-VM **`LenLocal`/`LenGlobal`** + **`IndexGetLocal`/`IndexGetGlobal`**
      (Rust + Kab emit peephole; regen seeds)
+   - host-VM **`Value::Array`/`Object` as `Rc`** (O(1) LoadGlobal clone) with
+     **COW `make_mut`** + **direct self-cycle reject** (see [OWNERSHIP.md](../../docs/OWNERSHIP.md))
+   - leaf densify: `outSp` helper; parser `pToksLen` in hot scans
 3. **Measure** before flipping any flag:
    ```bash
    cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
@@ -61,7 +64,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | + `len_*` / `index_get_*` cheap path (seeds regen) | **~676 s** debug (2026-08-07; was ~697 s depth-only) — still ≫ 10 s |
+| `serialize_body.kab` | + `Rc` Array/Object (COW + cycle reject) + Len/IndexGet | **~144 s** debug (2026-08-07; was ~676 s) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates

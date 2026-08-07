@@ -52,21 +52,21 @@ fn fill_random_target(target: &Value) -> Result<Value, String> {
         return Err("crypto.getRandomValues() maximum length is 65536".into());
     }
     if len == 0 {
-        return Ok(Value::Array(Vec::new()));
+        return Ok(Value::from_array(Vec::new()));
     }
     let bytes = random_bytes(len)?;
     let filled: Vec<Value> = bytes
         .into_iter()
         .map(|b| Value::Number(b as i64))
         .collect();
-    Ok(Value::Array(filled))
+    Ok(Value::from_array(filled))
 }
 
 fn build_performance() -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_performance".into(), Value::Bool(true));
     m.insert("now".into(), Value::NativeFunction(performance_now_native));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn build_crypto() -> Value {
@@ -76,7 +76,7 @@ fn build_crypto() -> Value {
         "getRandomValues".into(),
         Value::NativeFunction(crypto_get_random_values_native),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_web_api(env: &mut Environment) {

@@ -145,7 +145,7 @@ fn ml_adam_update(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     out.insert("m".into(), vector_out(&m));
     out.insert("v".into(), vector_out(&v));
     out.insert("t".into(), int_out(t_new));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn class_ids(v: &Value) -> Result<Vec<i64>, String> {
@@ -224,9 +224,8 @@ fn ml_confusion(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         let c = (*yp).clamp(0, n_classes as i64 - 1) as usize;
         mat[r][c] += 1;
     }
-    Ok(Value::Array(
-        mat.into_iter()
-            .map(|row| Value::Array(row.into_iter().map(int_out).collect()))
+    Ok(Value::from_array(mat.into_iter()
+            .map(|row| Value::from_array(row.into_iter().map(int_out).collect()))
             .collect(),
     ))
 }
@@ -238,7 +237,7 @@ fn lcg_next(state: &mut u64) -> u64 {
 
 fn ml_shuffle(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let items = match args.first() {
-        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Array(a)) => a.as_ref().clone(),
         _ => return Err("ml_shuffle(items, seed?)".into()),
     };
     let mut seed = args
@@ -253,7 +252,7 @@ fn ml_shuffle(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         let j = (lcg_next(&mut seed) as usize) % (i + 1);
         out.swap(i, j);
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn ml_batch_slices(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -266,13 +265,13 @@ fn ml_batch_slices(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     let mut start = 0usize;
     while start < n {
         let end = (start + batch).min(n);
-        out.push(Value::Array(vec![
+        out.push(Value::from_array(vec![
             int_out(start as i64),
             int_out(end as i64),
         ]));
         start = end;
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn ml_train_test_split(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -291,7 +290,7 @@ fn ml_train_test_split(args: &[Value], _env: &mut Environment) -> Result<Value, 
     let seed = args.get(3).and_then(|v| num(v).ok()).unwrap_or(42.0);
     let n = x.len();
     let idx: Vec<Value> = (0..n).map(|i| int_out(i as i64)).collect();
-    let shuffled = ml_shuffle(&[Value::Array(idx), float_out(seed)], _env)?;
+    let shuffled = ml_shuffle(&[Value::from_array(idx), float_out(seed)], _env)?;
     let Value::Array(order) = shuffled else {
         return Err("ml_train_test_split: internal".into());
     };
@@ -312,11 +311,11 @@ fn ml_train_test_split(args: &[Value], _env: &mut Environment) -> Result<Value, 
         }
     }
     let mut out = HashMap::new();
-    out.insert("x_train".into(), Value::Array(x_train));
-    out.insert("y_train".into(), Value::Array(y_train));
-    out.insert("x_test".into(), Value::Array(x_test));
-    out.insert("y_test".into(), Value::Array(y_test));
-    Ok(Value::Object(out))
+    out.insert("x_train".into(), Value::from_array(x_train));
+    out.insert("y_train".into(), Value::from_array(y_train));
+    out.insert("x_test".into(), Value::from_array(x_test));
+    out.insert("y_test".into(), Value::from_array(y_test));
+    Ok(Value::from_object(out))
 }
 
 /// AdamW: returns {w, m, v, t} with decoupled weight decay.
@@ -349,7 +348,7 @@ fn ml_adamw_update(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     out.insert("m".into(), vector_out(&m));
     out.insert("v".into(), vector_out(&v));
     out.insert("t".into(), int_out(t_new));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Binary ROC-AUC (Mann–Whitney / trapezoid on sorted scores).
@@ -408,11 +407,11 @@ fn job_map(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         .cloned()
         .ok_or_else(|| "job_map(items, fn) expects function".to_string())?;
     let mut out = Vec::with_capacity(items.len());
-    for item in items {
-        let v = crate::bytecode::call_value(f.clone(), vec![item], &[], &[], &[], &[], env)?;
+    for item in items.iter() {
+        let v = crate::bytecode::call_value(f.clone(), vec![item.clone()], &[], &[], &[], &[], env)?;
         out.push(v);
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn apply_f64_op(x: f64, op: &str) -> Result<f64, String> {
@@ -502,12 +501,12 @@ fn job_map_parallel(args: &[Value], env: &mut Environment) -> Result<Value, Stri
         }
         Some(f) => {
             let mut out = Vec::with_capacity(items.len());
-            for item in items {
+            for item in items.iter() {
                 let v =
-                    crate::bytecode::call_value(f.clone(), vec![item], &[], &[], &[], &[], env)?;
+                    crate::bytecode::call_value(f.clone(), vec![item.clone()], &[], &[], &[], &[], env)?;
                 out.push(v);
             }
-            Ok(Value::Array(out))
+            Ok(Value::from_array(out))
         }
         None => Err("job_map_parallel: missing fn|op".into()),
     }
@@ -545,14 +544,14 @@ fn job_map_chunks(args: &[Value], env: &mut Environment) -> Result<Value, String
         i = end;
     }
     let mut m = HashMap::new();
-    m.insert("data".into(), Value::Array(out));
+    m.insert("data".into(), Value::from_array(out));
     m.insert("mode".into(), Value::String("sequential-chunked".into()));
     m.insert(
         "workers".into(),
         Value::Number(chunk_sizes.len() as i64),
     );
-    m.insert("chunk_sizes".into(), Value::Array(chunk_sizes));
-    Ok(Value::Object(m))
+    m.insert("chunk_sizes".into(), Value::from_array(chunk_sizes));
+    Ok(Value::from_object(m))
 }
 
 fn value_to_json(v: &Value) -> Result<serde_json::Value, String> {
@@ -561,17 +560,16 @@ fn value_to_json(v: &Value) -> Result<serde_json::Value, String> {
         Value::Bool(b) => Ok(serde_json::Value::Bool(*b)),
         Value::Number(n) => Ok(serde_json::json!(*n)),
         Value::Float(f) => Ok(serde_json::json!(*f)),
-        Value::String(s) => Ok(serde_json::Value::String(s.clone())),
-        Value::Array(items) => {
+        Value::String(s) => Ok(serde_json::Value::String(s.clone())), Value::Array(items) => {
             let mut arr = Vec::new();
-            for it in items {
+            for it in items.iter() {
                 arr.push(value_to_json(it)?);
             }
             Ok(serde_json::Value::Array(arr))
         }
         Value::Object(m) => {
             let mut map = serde_json::Map::new();
-            for (k, val) in m {
+            for (k, val) in m.iter() {
                 map.insert(k.clone(), value_to_json(val)?);
             }
             Ok(serde_json::Value::Object(map))
@@ -595,14 +593,14 @@ fn json_to_value(v: &serde_json::Value) -> Value {
         }
         serde_json::Value::String(s) => Value::String(s.clone()),
         serde_json::Value::Array(items) => {
-            Value::Array(items.iter().map(json_to_value).collect())
+            Value::from_array(items.iter().map(json_to_value).collect())
         }
         serde_json::Value::Object(m) => {
             let mut out = HashMap::new();
-            for (k, val) in m {
+            for (k, val) in m.iter() {
                 out.insert(k.clone(), json_to_value(val));
             }
-            Value::Object(out)
+            Value::from_object(out)
         }
     }
 }
@@ -697,7 +695,7 @@ fn sci_allreduce_f64(args: &[Value], _env: &mut Environment) -> Result<Value, St
     let vectors = match args.first() {
         Some(Value::Array(rows)) => {
             let mut out = Vec::with_capacity(rows.len());
-            for row in rows {
+            for row in rows.iter() {
                 out.push(vector_at(std::slice::from_ref(row), 0, "sci_allreduce_f64")?);
             }
             out
@@ -705,7 +703,7 @@ fn sci_allreduce_f64(args: &[Value], _env: &mut Environment) -> Result<Value, St
         _ => return Err("sci_allreduce_f64(vectors, op?, nWorkers?)".into()),
     };
     if vectors.is_empty() {
-        return Ok(Value::Array(vec![]));
+        return Ok(Value::from_array(vec![]));
     }
     let dim = vectors[0].len();
     for v in &vectors {
@@ -931,7 +929,7 @@ fn sci_allreduce_tcp_rank(args: &[Value], _env: &mut Environment) -> Result<Valu
         out.insert("nRanks".into(), Value::Number(n_ranks as i64));
         out.insert("rank".into(), Value::Number(rank as i64));
         out.insert("op".into(), Value::String(op));
-        Ok(Value::Object(out))
+        Ok(Value::from_object(out))
     }
 }
 
@@ -952,7 +950,7 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
         let vectors = match args.first() {
             Some(Value::Array(rows)) => {
                 let mut out = Vec::with_capacity(rows.len());
-                for row in rows {
+                for row in rows.iter() {
                     out.push(vector_at(std::slice::from_ref(row), 0, "sci_allreduce_tcp")?);
                 }
                 out
@@ -960,7 +958,7 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
             _ => return Err("sci_allreduce_tcp(vectors, op?, bindHost?)".into()),
         };
         if vectors.is_empty() {
-            return Ok(Value::Array(vec![]));
+            return Ok(Value::from_array(vec![]));
         }
         let dim = vectors[0].len();
         for v in &vectors {
@@ -990,7 +988,7 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
             out.insert("port".into(), Value::Number(0));
             out.insert("nRanks".into(), Value::Number(1));
             out.insert("op".into(), Value::String(op));
-            return Ok(Value::Object(out));
+            return Ok(Value::from_object(out));
         }
 
         let listener = TcpListener::bind((bind_host.as_str(), 0))
@@ -1069,6 +1067,6 @@ fn sci_allreduce_tcp(args: &[Value], _env: &mut Environment) -> Result<Value, St
         out.insert("port".into(), Value::Number(port as i64));
         out.insert("nRanks".into(), Value::Number(n as i64));
         out.insert("op".into(), Value::String(op));
-        Ok(Value::Object(out))
+        Ok(Value::from_object(out))
     }
 }

@@ -127,7 +127,7 @@ pub fn import_meta_object() -> Value {
     let mut map = HashMap::new();
     map.insert("url".into(), Value::String(meta.url));
     map.insert("path".into(), Value::String(meta.path));
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 pub fn load_module_namespace(spec: &str, _env: &Environment) -> Result<Value, String> {
@@ -146,7 +146,7 @@ pub fn load_module_namespace(spec: &str, _env: &Environment) -> Result<Value, St
             ns.insert(name, v);
         }
     }
-    Ok(Value::Object(ns))
+    Ok(Value::from_object(ns))
 }
 
 pub fn dynamic_import(spec: &Value, env: &mut Environment) -> Result<Value, String> {

@@ -297,7 +297,7 @@ impl Checker {
             }
             Expr::OptionalCall(func, args) => {
                 self.check_expr(func, Consume::Peek);
-                for a in args {
+                for a in args.iter() {
                     match a {
                         CallArg::Expr(e) | CallArg::Spread(e) => {
                             self.check_expr(e, Consume::Peek);
@@ -426,7 +426,7 @@ impl Checker {
     fn check_literal(&mut self, lit: &Literal) -> bool {
         match lit {
             Literal::Array(items) => {
-                for it in items {
+                for it in items.iter() {
                     match it {
                         ArrayPiece::Item(e) | ArrayPiece::Spread(e) => {
                             self.check_expr(e, Consume::Peek);
@@ -435,7 +435,7 @@ impl Checker {
                 }
             }
             Literal::Object(fields) => {
-                for f in fields {
+                for f in fields.iter() {
                     match f {
                         ObjectPiece::Field { value, .. } => {
                             self.check_expr(value, Consume::Peek);

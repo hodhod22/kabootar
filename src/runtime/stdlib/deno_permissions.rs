@@ -124,7 +124,7 @@ pub fn build_permissions_namespace() -> Value {
         "grant".into(),
         Value::NativeFunction(permissions_grant_native),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_permissions(env: &mut Environment) {

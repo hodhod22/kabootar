@@ -54,7 +54,7 @@ fn channel_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     let mut m = HashMap::new();
     m.insert("id".into(), Value::Number(id as i64));
     m.insert("capacity".into(), Value::Number(cap as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn channel_send_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -113,7 +113,7 @@ fn actor_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, St
     m.insert("id".into(), Value::Number(id as i64));
     m.insert("name".into(), Value::String(name));
     m.insert("mailbox".into(), mailbox);
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn persist_save_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -178,7 +178,7 @@ fn lang_benchmark_native(args: &[Value], env: &mut Environment) -> Result<Value,
         "ns_per_op".into(),
         Value::Number((elapsed_ms as f64 * 1_000_000.0 / iterations as f64) as i64),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn comptime_assert_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -218,7 +218,7 @@ fn shader_compile_native(args: &[Value], _env: &mut Environment) -> Result<Value
     m.insert("source".into(), Value::String(source));
     m.insert("backend".into(), Value::String("spirv-stub".into()));
     m.insert("ok".into(), Value::Bool(true));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn lang_syscalls_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -227,7 +227,7 @@ fn lang_syscalls_native(_args: &[Value], env: &mut Environment) -> Result<Value,
             return f(&[], env);
         }
     }
-    Ok(Value::Array(Vec::new()))
+    Ok(Value::from_array(Vec::new()))
 }
 
 fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -260,10 +260,10 @@ fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, St
             m.insert("feature".into(), Value::String(k.into()));
             m.insert("status".into(), Value::String(st.into()));
             m.insert("api".into(), Value::String(api.into()));
-            Value::Object(m)
+            Value::from_object(m)
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 pub fn lang_features_globals(env: &mut Environment) {

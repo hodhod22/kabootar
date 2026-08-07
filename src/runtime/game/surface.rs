@@ -9,6 +9,7 @@ use crate::runtime::platform::RuntimeLayer;
 use crate::runtime::render::canvas2d;
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub fn active_layer(env: &Environment) -> RuntimeLayer {
     let Some(Value::Object(map)) = env.get("__platform") else {
@@ -56,7 +57,7 @@ fn create_kabootar_gl_surface(width: u32, height: u32) -> Result<Value, String> 
     o.insert("height".into(), Value::Number(height as i64));
     o.insert("layer".into(), Value::String("kabootar".into()));
     o.insert("present".into(), Value::NativeFunction(game_present_native));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -72,15 +73,15 @@ fn create_host_gl_surface(width: u32, height: u32) -> Result<Value, String> {
     o.insert("height".into(), Value::Number(height as i64));
     o.insert("layer".into(), Value::String("host".into()));
     o.insert("present".into(), Value::NativeFunction(game_present_native));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn create_host_gl_surface(width: u32, height: u32) -> Result<Value, String> {
     let mut surf = create_kabootar_gl_surface(width, height)?;
     if let Value::Object(ref mut o) = surf {
-        o.insert("layer".into(), Value::String("host".into()));
-        o.insert(
+        Rc::make_mut(o).insert("layer".into(), Value::String("host".into()));
+        Rc::make_mut(o).insert(
             "hostPresent".into(),
             Value::String("native-fallback-wgpu-kdom".into()),
         );
@@ -109,7 +110,7 @@ fn create_kabootar_surface(width: u32, height: u32) -> Result<Value, String> {
     o.insert("height".into(), Value::Number(height as i64));
     o.insert("layer".into(), Value::String("kabootar".into()));
     o.insert("present".into(), Value::NativeFunction(game_present_native));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -124,7 +125,7 @@ fn create_host_surface(width: u32, height: u32) -> Result<Value, String> {
     o.insert("height".into(), Value::Number(height as i64));
     o.insert("layer".into(), Value::String("host".into()));
     o.insert("present".into(), Value::NativeFunction(game_present_native));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -132,8 +133,8 @@ fn create_host_surface(width: u32, height: u32) -> Result<Value, String> {
     // Native host preference still uses KDOM compositor (visible in shell + kb_paint).
     let mut surf = create_kabootar_surface(width, height)?;
     if let Value::Object(ref mut o) = surf {
-        o.insert("layer".into(), Value::String("host".into()));
-        o.insert(
+        Rc::make_mut(o).insert("layer".into(), Value::String("host".into()));
+        Rc::make_mut(o).insert(
             "hostPresent".into(),
             Value::String("native-fallback-kdom".into()),
         );

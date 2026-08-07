@@ -52,12 +52,10 @@ impl PlatformState {
     pub fn info(&self) -> HashMap<String, Value> {
         let mut layers = HashMap::new();
         layers.insert(
-            "host".into(),
-            Value::Object(host_layer_desc()),
+            "host".into(), Value::from_object(host_layer_desc()),
         );
         layers.insert(
-            "kabootar".into(),
-            Value::Object(kabootar_layer_desc()),
+            "kabootar".into(), Value::from_object(kabootar_layer_desc()),
         );
 
         let mut out = HashMap::new();
@@ -65,7 +63,7 @@ impl PlatformState {
             "active".into(),
             Value::String(self.active_layer.as_str().into()),
         );
-        out.insert("layers".into(), Value::Object(layers));
+        out.insert("layers".into(), Value::from_object(layers));
         out.insert(
             "model".into(),
             Value::String("dual-layer".into()),
@@ -106,7 +104,7 @@ fn kabootar_layer_desc() -> HashMap<String, Value> {
 
 fn platform_info_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let state = get_platform(env)?;
-    Ok(Value::Object(state.info()))
+    Ok(Value::from_object(state.info()))
 }
 
 fn platform_layer_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -145,7 +143,7 @@ fn get_platform(env: &Environment) -> Result<PlatformState, String> {
 fn set_platform_layer(env: &mut Environment, layer: RuntimeLayer) -> Result<(), String> {
     let mut map = HashMap::new();
     map.insert("active".into(), Value::String(layer.as_str().into()));
-    env.set("__platform".into(), Value::Object(map));
+    env.set("__platform".into(), Value::from_object(map));
     Ok(())
 }
 
@@ -155,7 +153,7 @@ pub fn platform_globals(env: &mut Environment) {
         "active".into(),
         Value::String(RuntimeLayer::Hybrid.as_str().into()),
     );
-    env.set("__platform".into(), Value::Object(map));
+    env.set("__platform".into(), Value::from_object(map));
     env.set(
         "platform_info".into(),
         Value::NativeFunction(platform_info_native),

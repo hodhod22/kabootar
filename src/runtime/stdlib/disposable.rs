@@ -113,7 +113,7 @@ fn disposable_new_native(_args: &[Value], _env: &mut Environment) -> Result<Valu
         "dispose".into(),
         Value::NativeFunction(disposable_dispose_native),
     );
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn disposable_dispose_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {

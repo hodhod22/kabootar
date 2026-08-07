@@ -167,13 +167,13 @@ fn mat_qr(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         out.insert("q".into(), matrix_out(&q));
         out.insert("r".into(), matrix_out(&r_full));
         out.insert("mode".into(), Value::String("full".into()));
-        return Ok(Value::Object(out));
+        return Ok(Value::from_object(out));
     }
     let mut out = HashMap::new();
     out.insert("q".into(), matrix_out(&q));
     out.insert("r".into(), matrix_out(&r));
     out.insert("mode".into(), Value::String("thin".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_qr_err(a) → max |A − Q R| for thin QR.
@@ -320,7 +320,7 @@ fn mat_eig(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("values".into(), vector_out(&vals));
     out.insert("vectors".into(), matrix_out(&vecs));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn matmul_nn(a: &[Vec<f64>], b: &[Vec<f64>]) -> Result<Vec<Vec<f64>>, String> {
@@ -465,7 +465,7 @@ fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     out.insert("s".into(), vector_out(&s));
     out.insert("vt".into(), matrix_out(&vt));
     out.insert("mode".into(), Value::String(mode.into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_randomized_svd(A, rank, nOver?, seed?) — Halko et al. randomized SVD.
@@ -525,7 +525,7 @@ fn mat_randomized_svd(args: &[Value], env: &mut Environment) -> Result<Value, St
     out.insert("vt".into(), matrix_out(&vt_k));
     out.insert("mode".into(), Value::String("rand".into()));
     out.insert("rank".into(), Value::Number(k as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_streaming_svd(A, rank, blockRows?, nOver?, seed?) — truncated SVD via row-block sketch.
@@ -609,7 +609,7 @@ fn mat_streaming_svd(args: &[Value], env: &mut Environment) -> Result<Value, Str
     out.insert("mode".into(), Value::String("stream".into()));
     out.insert("rank".into(), Value::Number(k as i64));
     out.insert("blockRows".into(), Value::Number(block as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// Moore–Penrose pseudoinverse via thin SVD.
@@ -760,11 +760,10 @@ fn mat_lu(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     out.insert("l".into(), matrix_out(&l));
     out.insert("u".into(), matrix_out(&u));
     out.insert(
-        "piv".into(),
-        Value::Array(piv.iter().map(|p| Value::Number(*p)).collect()),
+        "piv".into(), Value::from_array(piv.iter().map(|p| Value::Number(*p)).collect()),
     );
     out.insert("sign".into(), float_out(sign));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_slogdet(a) -> {sign, logabsdet}
@@ -789,7 +788,7 @@ fn mat_slogdet(args: &[Value], env: &mut Environment) -> Result<Value, String> {
             let mut out = HashMap::new();
             out.insert("sign".into(), float_out(0.0));
             out.insert("logabsdet".into(), float_out(f64::NEG_INFINITY));
-            return Ok(Value::Object(out));
+            return Ok(Value::from_object(out));
         }
         if d < 0.0 {
             s = -s;
@@ -799,7 +798,7 @@ fn mat_slogdet(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("sign".into(), float_out(s));
     out.insert("logabsdet".into(), float_out(logabs));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_norm_ord(a, ord) — matrix norms: "fro"|"1"|"inf" (default fro).
@@ -847,7 +846,7 @@ fn mat_cond(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 
 fn batch_matrices(args: &[Value], name: &str) -> Result<Vec<Value>, String> {
     match args.first() {
-        Some(Value::Array(items)) if !items.is_empty() => Ok(items.clone()),
+        Some(Value::Array(items)) if !items.is_empty() => Ok(items.as_ref().clone()),
         _ => Err(format!("{name}(batchMatrices, ...)")),
     }
 }
@@ -876,11 +875,11 @@ fn mat_batch_qr(args: &[Value], env: &mut Environment) -> Result<Value, String> 
         }
     }
     let mut out = HashMap::new();
-    out.insert("q".into(), Value::Array(qs));
-    out.insert("r".into(), Value::Array(rs));
+    out.insert("q".into(), Value::from_array(qs));
+    out.insert("r".into(), Value::from_array(rs));
     out.insert("mode".into(), Value::String(mode_s));
     out.insert("n".into(), Value::Number(n_batch));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_batch_svd(batch, mode?) -> { u, s, vt, mode, n }
@@ -909,12 +908,12 @@ fn mat_batch_svd(args: &[Value], env: &mut Environment) -> Result<Value, String>
         }
     }
     let mut out = HashMap::new();
-    out.insert("u".into(), Value::Array(us));
-    out.insert("s".into(), Value::Array(ss));
-    out.insert("vt".into(), Value::Array(vts));
+    out.insert("u".into(), Value::from_array(us));
+    out.insert("s".into(), Value::from_array(ss));
+    out.insert("vt".into(), Value::from_array(vts));
     out.insert("mode".into(), Value::String(mode_s));
     out.insert("n".into(), Value::Number(n_batch));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_batch_eig(batch) -> { values: [...], vectors: [...], n }
@@ -932,10 +931,10 @@ fn mat_batch_eig(args: &[Value], env: &mut Environment) -> Result<Value, String>
         vectors.push(map.get("vectors").cloned().ok_or("mat_batch_eig: vectors")?);
     }
     let mut out = HashMap::new();
-    out.insert("values".into(), Value::Array(values));
-    out.insert("vectors".into(), Value::Array(vectors));
+    out.insert("values".into(), Value::from_array(values));
+    out.insert("vectors".into(), Value::from_array(vectors));
     out.insert("n".into(), Value::Number(n_batch));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// mat_batch_solve(batchA, batchB) — per-item Ax=b via Gauss.
@@ -949,12 +948,12 @@ fn mat_batch_solve(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
         return Err("mat_batch_solve: batch length mismatch".into());
     }
     let mut xs = Vec::new();
-    for (a_v, b_v) in batch_a.into_iter().zip(batch_b.into_iter()) {
-        let (n, n2, adata) = matrix_dims(&[a_v], 0, "mat_batch_solve")?;
+    for (a_v, b_v) in batch_a.iter().zip(batch_b.iter()) {
+        let (n, n2, adata) = matrix_dims(&[a_v.clone()], 0, "mat_batch_solve")?;
         if n != n2 {
             return Err("mat_batch_solve: square A required".into());
         }
-        let b = vector_at(std::slice::from_ref(&b_v), 0, "mat_batch_solve")?;
+        let b = vector_at(std::slice::from_ref(b_v), 0, "mat_batch_solve")?;
         if b.len() != n {
             return Err("mat_batch_solve: b length".into());
         }
@@ -993,7 +992,7 @@ fn mat_batch_solve(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
         let x: Vec<f64> = (0..n).map(|i| aug[i][n]).collect();
         xs.push(vector_out(&x));
     }
-    Ok(Value::Array(xs))
+    Ok(Value::from_array(xs))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
