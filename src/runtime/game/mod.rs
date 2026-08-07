@@ -687,6 +687,41 @@ fn xr_compositor_poll_native(_args: &[Value], _env: &mut Environment) -> Result<
     xr_ffi::compositor_poll()
 }
 
+fn xr_enumerate_input_sources_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Ok(xr_ffi::enumerate_input_sources())
+}
+
+fn xr_input_source_pose_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("xr_input_source_pose(handedness, kind)".into()),
+    };
+    let kind = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "grip",
+    };
+    xr_ffi::input_source_pose(handedness, kind)
+}
+
+fn xr_inject_input_event_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ty = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("xr_inject_input_event(type, handedness)".into()),
+    };
+    let handedness = match args.get(1) {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "right",
+    };
+    xr_ffi::inject_input_event(ty, handedness)
+}
+
+fn xr_poll_input_events_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(xr_ffi::poll_input_events())
+}
+
 fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mode = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1486,6 +1521,10 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_release_swapchain_image", xr_release_swapchain_image_native),
         ("xr_end_frame", xr_end_frame_native),
         ("xr_compose_hmd", xr_compose_hmd_native),
+        ("xr_enumerate_input_sources", xr_enumerate_input_sources_native),
+        ("xr_input_source_pose", xr_input_source_pose_native),
+        ("xr_inject_input_event", xr_inject_input_event_native),
+        ("xr_poll_input_events", xr_poll_input_events_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),

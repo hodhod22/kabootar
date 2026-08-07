@@ -657,3 +657,33 @@ fn xr_layer_submit_echoes_wgpu_image_handles() {
     std::env::remove_var("KABOOTAR_XR_GRAPHICS");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_input_sources_select_and_poses() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrBegin(xr)
+        let sources = xrInputSources(xr)
+        let left = sources[0]
+        let right = sources[1]
+        let grip = xrGetInputPose(right, "grip")
+        let ray = xrGetInputPose(right, "targetRay")
+        xrInjectInputEvent("selectstart", "right")
+        xrInjectInputEvent("select", "right")
+        xrInjectInputEvent("selectend", "right")
+        let evs = xrPollInputEvents(xr)
+        let ctrls = xr["controllers"]
+        return len(sources) == 2 && left["handedness"] == "left" && right["handedness"] == "right" && right["targetRayMode"] == "tracked-pointer" && grip["emulated"] == true && ray["emulated"] == true && grip["x"] != 0 && len(evs) == 3 && evs[0]["type"] == "selectstart" && evs[1]["type"] == "select" && evs[2]["type"] == "selectend" && evs[1]["handedness"] == "right" && len(ctrls) == 2 && ctrls[0]["handedness"] == "left"
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

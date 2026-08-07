@@ -542,6 +542,7 @@ pub fn reset_for_tests() {
             ..XrRafState::default()
         };
     });
+    reset_input_for_tests();
 }
 
 pub fn status() -> XrFfiStatus {
@@ -2929,4 +2930,185 @@ pub fn raf_status() -> Value {
     Value::Object(out)
 }
 
+// ----- GP6n WebXR inputSources stub (select/squeeze + grip/targetRay) -----
+
+#[derive(Debug, Clone)]
+struct XrInputEvent {
+    ty: String,
+    handedness: String,
+    frame_index: i64,
+}
+
+#[derive(Debug, Default)]
+struct XrInputState {
+    ready: bool,
+    events: Vec<XrInputEvent>,
+    frame_index: i64,
+}
+
+static XR_INPUT: Mutex<XrInputState> = Mutex::new(XrInputState {
+    ready: false,
+    events: Vec::new(),
+    frame_index: 0,
+});
+
+fn pose_map(x: f64, y: f64, z: f64) -> Value {
+    let mut m = HashMap::new();
+    m.insert("x".into(), Value::Float(x));
+    m.insert("y".into(), Value::Float(y));
+    m.insert("z".into(), Value::Float(z));
+    m.insert("qx".into(), Value::Float(0.0));
+    m.insert("qy".into(), Value::Float(0.0));
+    m.insert("qz".into(), Value::Float(0.0));
+    m.insert("qw".into(), Value::Float(1.0));
+    m.insert("emulated".into(), Value::Bool(true));
+    Value::Object(m)
+}
+
+fn stub_source(handedness: &str) -> Value {
+    let (gx, gz) = if handedness == "left" {
+        (-0.25, -0.4)
+    } else {
+        (0.25, -0.4)
+    };
+    let mut gamepad = HashMap::new();
+    gamepad.insert("buttons".into(), Value::Array(vec![
+        Value::Object({
+            let mut b = HashMap::new();
+            b.insert("pressed".into(), Value::Bool(false));
+            b.insert("value".into(), Value::Float(0.0));
+            b
+        }),
+        Value::Object({
+            let mut b = HashMap::new();
+            b.insert("pressed".into(), Value::Bool(false));
+            b.insert("value".into(), Value::Float(0.0));
+            b
+        }),
+    ]));
+    gamepad.insert("axes".into(), Value::Array(vec![
+        Value::Float(0.0),
+        Value::Float(0.0),
+    ]));
+
+    let mut m = HashMap::new();
+    m.insert("id".into(), Value::String(handedness.into()));
+    m.insert("handedness".into(), Value::String(handedness.into()));
+    m.insert("targetRayMode".into(), Value::String("tracked-pointer".into()));
+    m.insert(
+        "profiles".into(),
+        Value::Array(vec![Value::String("generic-trigger".into())]),
+    );
+    m.insert("gamepad".into(), Value::Object(gamepad));
+    m.insert("gripPose".into(), pose_map(gx, 1.2, gz));
+    m.insert("targetRayPose".into(), pose_map(gx, 1.25, gz - 0.05));
+    m.insert("kind".into(), Value::String("xr_input_source".into()));
+    Value::Object(m)
+}
+
+/// Ensure stub left/right input sources exist (idempotent).
+pub fn ensure_input_sources() {
+    if let Ok(mut st) = XR_INPUT.lock() {
+        st.ready = true;
+    }
+}
+
+pub fn enumerate_input_sources() -> Value {
+    ensure_input_sources();
+    let mut out = HashMap::new();
+    out.insert(
+        "sources".into(),
+        Value::Array(vec![stub_source("left"), stub_source("right")]),
+    );
+    out.insert("count".into(), Value::Number(2));
+    out.insert("kind".into(), Value::String("xr_input_sources".into()));
+    out.insert("ok".into(), Value::Bool(true));
+    Value::Object(out)
+}
+
+pub fn input_source_pose(handedness: &str, kind: &str) -> Result<Value, String> {
+    ensure_input_sources();
+    let hand = if handedness == "left" || handedness == "right" {
+        handedness
+    } else {
+        return Err(format!("xr_input_source_pose: unknown handedness {handedness}"));
+    };
+    let src = stub_source(hand);
+    let Value::Object(m) = src else {
+        return Err("xr_input_source_pose: internal".into());
+    };
+    let key = match kind {
+        "grip" => "gripPose",
+        "targetRay" | "target_ray" => "targetRayPose",
+        _ => return Err(format!("xr_input_source_pose: kind must be grip|targetRay, got {kind}")),
+    };
+    m.get(key)
+        .cloned()
+        .ok_or_else(|| "xr_input_source_pose: missing pose".into())
+}
+
+pub fn inject_input_event(ty: &str, handedness: &str) -> Result<Value, String> {
+    ensure_input_sources();
+    let valid = matches!(
+        ty,
+        "selectstart"
+            | "select"
+            | "selectend"
+            | "squeezestart"
+            | "squeeze"
+            | "squeezeend"
+    );
+    if !valid {
+        return Err(format!("xr_inject_input_event: unknown type {ty}"));
+    }
+    if handedness != "left" && handedness != "right" {
+        return Err(format!("xr_inject_input_event: handedness left|right, got {handedness}"));
+    }
+    let mut st = XR_INPUT
+        .lock()
+        .map_err(|_| "xr_inject_input_event: lock".to_string())?;
+    st.frame_index += 1;
+    let fi = st.frame_index;
+    st.events.push(XrInputEvent {
+        ty: ty.into(),
+        handedness: handedness.into(),
+        frame_index: fi,
+    });
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("type".into(), Value::String(ty.into()));
+    out.insert("handedness".into(), Value::String(handedness.into()));
+    out.insert("frameIndex".into(), Value::Number(fi));
+    out.insert("queued".into(), Value::Number(st.events.len() as i64));
+    Ok(Value::Object(out))
+}
+
+pub fn poll_input_events() -> Value {
+    ensure_input_sources();
+    let mut st = XR_INPUT.lock().unwrap_or_else(|e| e.into_inner());
+    let drained: Vec<XrInputEvent> = st.events.drain(..).collect();
+    let events: Vec<Value> = drained
+        .into_iter()
+        .map(|ev| {
+            let mut m = HashMap::new();
+            m.insert("type".into(), Value::String(ev.ty));
+            m.insert("handedness".into(), Value::String(ev.handedness.clone()));
+            m.insert("inputSource".into(), stub_source(&ev.handedness));
+            m.insert("frameIndex".into(), Value::Number(ev.frame_index));
+            Value::Object(m)
+        })
+        .collect();
+    let mut out = HashMap::new();
+    out.insert("events".into(), Value::Array(events.clone()));
+    out.insert("count".into(), Value::Number(events.len() as i64));
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("kind".into(), Value::String("xr_input_events".into()));
+    Value::Object(out)
+}
+
+fn reset_input_for_tests() {
+    if let Ok(mut st) = XR_INPUT.lock() {
+        *st = XrInputState::default();
+    }
+}
 
