@@ -17,6 +17,10 @@ pub let OP_ARRAY_POP_LOCAL = "array_pop_local"
 pub let OP_ARRAY_POP_GLOBAL = "array_pop_global"
 pub let OP_ACC_ADD_LOCAL = "acc_add_local"
 pub let OP_ACC_ADD_GLOBAL = "acc_add_global"
+pub let OP_LEN_LOCAL = "len_local"
+pub let OP_LEN_GLOBAL = "len_global"
+pub let OP_INDEX_GET_LOCAL = "index_get_local"
+pub let OP_INDEX_GET_GLOBAL = "index_get_global"
 
 // ----- ARITHMETIC -----
 pub let OP_ADD = "add"

@@ -2250,6 +2250,10 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: IR membership tables must live in serialize_defs (not leaf Const AST)"
     );
     assert!(
+        defs.contains("|len_global|") && defs.contains("|index_get_global|"),
+        "P6b: IR_WITH_ARG must list len_*/index_get_* for serialize"
+    );
+    assert!(
         src.contains("IR_WITH_ARG") && !src.contains("let IR_WITH_ARG"),
         "P6b: serialize_body must use imported IR_WITH_ARG (no local huge string Const)"
     );
@@ -2598,6 +2602,65 @@ fn p6b_parser_iterative_add_progress() {
     );
 }
 
+/// P6b: host-VM / emit peephole for `len(name)` and `name[i]` (no LoadGlobal clone).
+#[test]
+fn p6b_len_index_cheap_path_progress() {
+    use kabootar_lib::bytecode::{compile_source, try_compile, Opcode};
+    let root = env!("CARGO_MANIFEST_DIR");
+    let emit = std::fs::read_to_string(format!("{root}/self_host/emit_impl.kab"))
+        .expect("read emit_impl");
+    let defs = std::fs::read_to_string(format!("{root}/self_host/emit_defs.kab"))
+        .expect("read emit_defs");
+    assert!(
+        defs.contains("OP_LEN_GLOBAL")
+            && defs.contains("OP_INDEX_GET_GLOBAL")
+            && emit.contains("fn tryEmitLenCall")
+            && emit.contains("OP_INDEX_GET_LOCAL"),
+        "emit must peephole len/index cheap opcodes"
+    );
+    let p = compile_source(
+        r#"
+        let xs = [1, 2, 3]
+        let n = len(xs)
+        let v = xs[1]
+        n + v
+        "#,
+    )
+    .expect("compile");
+    let bc = try_compile(&p.stmts).expect("bytecode");
+    let ops = &bc.main_code;
+    assert!(
+        ops.iter()
+            .any(|op| matches!(op, Opcode::LenLocal(_) | Opcode::LenGlobal(_))),
+        "Rust emit must peephole len(xs) → len_local/global, got {ops:?}"
+    );
+    assert!(
+        ops.iter().any(|op| {
+            matches!(op, Opcode::IndexGetLocal(_) | Opcode::IndexGetGlobal(_))
+        }),
+        "Rust emit must peephole xs[1] → index_get_local/global, got {ops:?}"
+    );
+    // Module-global binding (var) still uses *Global variants.
+    let p2 = compile_source(
+        r#"
+        var xs = [1, 2, 3]
+        len(xs) + xs[1]
+        "#,
+    )
+    .expect("compile var");
+    let bc2 = try_compile(&p2.stmts).expect("bytecode var");
+    let ops2 = &bc2.main_code;
+    assert!(
+        ops2.iter().any(|op| matches!(op, Opcode::LenGlobal(_))),
+        "var xs: len → len_global, got {ops2:?}"
+    );
+    assert!(
+        ops2.iter()
+            .any(|op| matches!(op, Opcode::IndexGetGlobal(_))),
+        "var xs: index → index_get_global, got {ops2:?}"
+    );
+}
+
 /// P6b: emit Call/block/obj/arr loops use depth counters (avoid len(stack) clones).
 #[test]
 fn p6b_emit_call_block_depth_progress() {
@@ -2786,13 +2849,14 @@ fn p6b_serialize_body_compile_budget() {
     let root = env!("CARGO_MANIFEST_DIR");
     let path = format!("{root}/self_host/serialize_body.kab");
     let src = std::fs::read_to_string(&path).expect("read");
-    let (ok, ms) = std::thread::Builder::new()
+    let (ok, ms, err) = std::thread::Builder::new()
         .name("p6b-ser".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             let t0 = Instant::now();
             let r = compile_source_self_host(&src);
-            (r.is_ok(), t0.elapsed().as_millis() as u64)
+            let err = r.as_ref().err().cloned();
+            (r.is_ok(), t0.elapsed().as_millis() as u64, err)
         })
         .expect("spawn")
         .join()
@@ -2801,5 +2865,8 @@ fn p6b_serialize_body_compile_budget() {
         "serialize_body.kab: ok={ok} ms={ms} budget={}",
         P6_SELF_HOST_LEAF_CI_FAST_MS
     );
+    if let Some(e) = err.as_ref() {
+        eprintln!("serialize_body compile error: {e}");
+    }
     assert!(ok, "serialize_body must self-host-compile");
 }

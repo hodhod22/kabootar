@@ -82,6 +82,15 @@ pub enum Opcode {
     AccAddLocal(u16),
     /// In-place `name = name + rhs` for a global/module binding.
     AccAddGlobal(u16),
+    /// P6b: `len(name)` for a fn-local — peek length without LoadLocal clone.
+    /// Stack: → Number.
+    LenLocal(u16),
+    /// P6b: `len(name)` for a global/module binding — peek without LoadGlobal clone.
+    LenGlobal(u16),
+    /// P6b: `name[idx]` for a fn-local — clone element only (idx on stack).
+    IndexGetLocal(u16),
+    /// P6b: `name[idx]` for a global/module binding — clone element only.
+    IndexGetGlobal(u16),
     GetMember(u16),
     MemberSet(u16),
     Swap,
@@ -1558,6 +1567,10 @@ fn encode_op(op: &Opcode) -> String {
         Opcode::ArrayPopGlobal(i) => format!("array_pop_global {i}"),
         Opcode::AccAddLocal(i) => format!("acc_add_local {i}"),
         Opcode::AccAddGlobal(i) => format!("acc_add_global {i}"),
+        Opcode::LenLocal(i) => format!("len_local {i}"),
+        Opcode::LenGlobal(i) => format!("len_global {i}"),
+        Opcode::IndexGetLocal(i) => format!("index_get_local {i}"),
+        Opcode::IndexGetGlobal(i) => format!("index_get_global {i}"),
         Opcode::GetMember(i) => format!("get_member {i}"),
         Opcode::MemberSet(i) => format!("member_set {i}"),
         Opcode::Swap => "swap".into(),
@@ -1659,6 +1672,10 @@ fn decode_op(line: &str) -> Result<Opcode, String> {
         "array_pop_global" => Opcode::ArrayPopGlobal(parse_u16(parts.next(), line)?),
         "acc_add_local" => Opcode::AccAddLocal(parse_u16(parts.next(), line)?),
         "acc_add_global" => Opcode::AccAddGlobal(parse_u16(parts.next(), line)?),
+        "len_local" => Opcode::LenLocal(parse_u16(parts.next(), line)?),
+        "len_global" => Opcode::LenGlobal(parse_u16(parts.next(), line)?),
+        "index_get_local" => Opcode::IndexGetLocal(parse_u16(parts.next(), line)?),
+        "index_get_global" => Opcode::IndexGetGlobal(parse_u16(parts.next(), line)?),
         "get_member" => Opcode::GetMember(parse_u16(parts.next(), line)?),
         "member_set" => Opcode::MemberSet(parse_u16(parts.next(), line)?),
         "swap" => Opcode::Swap,

@@ -97,7 +97,7 @@ pub fn parseConstLine(line) {
 /// Opcode text equals the KBC token for these (see emit_defs).
 let ZERO_ARG_CSV = "pop,add,sub,mul,div,mod,eq,ne,lt,gt,le,ge,and,or,not,neg,pow,throw,index_get,index_set,return,halt,swap,array_push,concat_array,merge_object,call_from_array,bit_and,bit_or,bit_xor,shl,shr,ushr,bit_not,dup,get_length,iterator_step_in_place,make_ok,make_err,make_some,make_none"
 
-let ARG_HEAD_CSV = "const,load_local,store_local,load_global,store_global,jump,jump_if_false,jump_if_true,jump_if_not_nullish,jump_if_result_err,make_arrow_fn,call,get_member,set_member,make_object,make_array,array_push_local,array_push_global,take_local,take_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global"
+let ARG_HEAD_CSV = "const,load_local,store_local,load_global,store_global,jump,jump_if_false,jump_if_true,jump_if_not_nullish,jump_if_result_err,make_arrow_fn,call,get_member,set_member,make_object,make_array,array_push_local,array_push_global,take_local,take_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global,len_local,len_global,index_get_local,index_get_global"
 
 pub fn csvHas(csv, item) {
     // Prefer indexOf over split+scan (fewer allocs on hot deserialize path).
