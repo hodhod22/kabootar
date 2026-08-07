@@ -103,6 +103,22 @@ pub fn xrInjectInputEvent(typeName, handedness) {
     return xr_inject_input_event(typeName, handedness)
 }
 
+/// Preferred WebXR `profiles` list for a controller (oculus-touch → generic…).
+pub fn xrInputProfiles(handedness) {
+    if handedness == null || handedness == undefined {
+        handedness = "right"
+    }
+    return xr_input_profiles(handedness)
+}
+
+/// XRHand-style joint poses (emulated tracking stub).
+pub fn xrHandJoints(handedness) {
+    if handedness == null || handedness == undefined {
+        handedness = "right"
+    }
+    return xr_hand_joints(handedness)
+}
+
 /// Tracked controller stubs (left/right) — derived from inputSources when present.
 pub fn trackedControllers(session) {
     let sources = null

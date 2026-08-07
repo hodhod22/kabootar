@@ -196,7 +196,6 @@ Se [seed/README.md](seed/README.md) för policy, playbook och mätta baslinjer.
 
 - Produktpath = committed seeds; **töm inte** listan förrän alla fem löv
   `compile_source_self_host` < 10 s (`P6_SELF_HOST_LEAF_CI_FAST_MS`).
-- Leaf-densify (`serialize_body` membership tables) hjälper, men räcker inte ensamt
-  (~885 s debug efter densify + AccAdd/If-hotpath). Nästa: fas-profil + djupare
-  emit/parse-algoritm — **inte** tömma skip-list än.
+- Leaf-densify + AccAdd/If + `symIndex` maps: `serialize_body` still ~964 s debug.
+  Maps help large tables; this leaf is not yet under the 10 s gate — **skip-list stays**.
 - Efter `emit_impl`-ändring: regenerera `self_host/seed/emit_impl.kab.kbc`.

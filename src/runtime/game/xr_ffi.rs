@@ -2997,13 +2997,78 @@ fn stub_source(handedness: &str) -> Value {
     m.insert("targetRayMode".into(), Value::String("tracked-pointer".into()));
     m.insert(
         "profiles".into(),
-        Value::Array(vec![Value::String("generic-trigger".into())]),
+        Value::Array(vec![
+            Value::String("oculus-touch".into()),
+            Value::String("generic-trigger-squeeze-thumbstick".into()),
+            Value::String("generic-trigger".into()),
+        ]),
     );
     m.insert("gamepad".into(), Value::Object(gamepad));
     m.insert("gripPose".into(), pose_map(gx, 1.2, gz));
     m.insert("targetRayPose".into(), pose_map(gx, 1.25, gz - 0.05));
     m.insert("kind".into(), Value::String("xr_input_source".into()));
     Value::Object(m)
+}
+
+fn stub_hand_joints(handedness: &str) -> Value {
+    let (base_x, base_z) = if handedness == "left" {
+        (-0.2, -0.35)
+    } else {
+        (0.2, -0.35)
+    };
+    let names = [
+        "wrist",
+        "thumb-metacarpal",
+        "thumb-phalanx-proximal",
+        "thumb-tip",
+        "index-finger-metacarpal",
+        "index-finger-phalanx-proximal",
+        "index-finger-tip",
+        "middle-finger-tip",
+        "ring-finger-tip",
+        "pinky-finger-tip",
+    ];
+    let mut joints = Vec::new();
+    for (i, name) in names.iter().enumerate() {
+        let mut j = HashMap::new();
+        j.insert("joint".into(), Value::String((*name).into()));
+        j.insert(
+            "pose".into(),
+            pose_map(base_x + (i as f64) * 0.01, 1.15, base_z - (i as f64) * 0.008),
+        );
+        j.insert("radius".into(), Value::Float(0.008));
+        joints.push(Value::Object(j));
+    }
+    let mut out = HashMap::new();
+    out.insert("handedness".into(), Value::String(handedness.into()));
+    out.insert("joints".into(), Value::Array(joints));
+    out.insert("tracking".into(), Value::String("emulated".into()));
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("kind".into(), Value::String("xr_hand".into()));
+    Value::Object(out)
+}
+
+/// XRHand-style joint poses (stub / emulated tracking).
+pub fn hand_joints(handedness: &str) -> Result<Value, String> {
+    ensure_input_sources();
+    if handedness != "left" && handedness != "right" {
+        return Err(format!("xr_hand_joints: handedness left|right, got {handedness}"));
+    }
+    Ok(stub_hand_joints(handedness))
+}
+
+/// Preferred input profile list for a handedness (WebXR `profiles` order).
+pub fn input_profiles(handedness: &str) -> Result<Value, String> {
+    ensure_input_sources();
+    if handedness != "left" && handedness != "right" {
+        return Err(format!("xr_input_profiles: handedness left|right, got {handedness}"));
+    }
+    let Value::Object(m) = stub_source(handedness) else {
+        return Err("xr_input_profiles: internal".into());
+    };
+    m.get("profiles")
+        .cloned()
+        .ok_or_else(|| "xr_input_profiles: missing".into())
 }
 
 /// Ensure stub left/right input sources exist (idempotent).

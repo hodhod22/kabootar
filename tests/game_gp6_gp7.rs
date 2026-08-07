@@ -687,3 +687,26 @@ fn xr_input_sources_select_and_poses() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_hand_joints_and_input_profiles() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrBegin(xr)
+        let profiles = xrInputProfiles("right")
+        let hand = xrHandJoints("left")
+        let tip = hand["joints"][3]
+        return len(profiles) >= 2 && profiles[0] == "oculus-touch" && hand["ok"] == true && hand["tracking"] == "emulated" && hand["handedness"] == "left" && len(hand["joints"]) >= 8 && tip["joint"] == "thumb-tip" && tip["pose"]["emulated"] == true
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

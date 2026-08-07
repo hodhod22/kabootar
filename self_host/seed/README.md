@@ -19,9 +19,9 @@ import-time cost of dependents. Even a ~9 KB leaf can take **minutes** in debu
 
 1. **Densify the leaf source** (fewer If / Binary trees) — e.g. `serialize_body`
    `irOpLine` → `IR_WITH_ARG` / `IR_ZERO_ARG` membership (~8.8 KB).
-2. **Speed the toolchain emit** — `emit_impl` AccAdd recurse (no `pieces[]`),
-   no statement `Const(null)`; early `emitIfStmt` + `patchRelJump`; regenerate
-   **emit_impl** seed after edits.
+2. **Speed the toolchain emit** — `symIndex` const/global **maps** (avoid O(C²)
+   LoadGlobal clones); AccAdd recurse; early `emitIfStmt` + `patchRelJump`;
+   regenerate **emit_impl** seed after edits.
 3. **Measure** before flipping any flag:
    ```bash
    # Single leaf (serialize_body)
@@ -40,13 +40,12 @@ import-time cost of dependents. Even a ~9 KB leaf can take **minutes** in debu
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | Densify + AccAdd recurse + early `emitIfStmt` | **~885 s** (still ≫ 10 s; ~889 s before emit hotpaths) |
+| `serialize_body.kab` | densify + AccAdd/If + `symIndex` maps (in-place IndexSet) | **~964 s** (still ≫ 10 s; ~885 s before maps — leaf not map-bound yet) |
 | others | Larger / denser | not under budget |
 
-Leaf densify and emit AccAdd/If micro-opts help IR/shape but do **not** yet unlock
-the 10 s gate. Next levers: fas-profil (`profile_emit_compile.py phases`) to see
-parse vs emit vs serialize share, then deeper emit/parse algorithmic cuts — or
-product track GP6n polish. **Do not** empty the skip-list yet.
+Maps target O(C²) `symIndex` clones on **large** const/global tables (bigger leaves /
+self-hosting `emit_impl` itself). `serialize_body` remains ≫ budget; skip-list stays 5.
+Fas-profil: `python scripts/profile_emit_compile.py phases self_host/serialize_body.kab`
 
 ## Gates
 
@@ -58,6 +57,7 @@ product track GP6n polish. **Do not** empty the skip-list yet.
 | `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed + densified |
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath present in emit_impl |
 | `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` present |
+| `p6b_emit_symindex_map_progress` | `eConstMap` / `constKey` — no `len(eConsts)` scan |
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
 

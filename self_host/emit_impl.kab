@@ -10,6 +10,11 @@ let eGlobals = []
 let eFnOps = []
 let eFnGlobals = []
 let eFnLocals = []
+// P6b: O(1) sym dedup maps (avoid per-probe LoadGlobal clone of eConsts/eGlobals).
+let eConstMap = {}
+let eConstN = 0
+let eGlobalMap = {}
+let eGlobalN = 0
 let eInFn = 0
 let eIdx = 0
 let eSym = null
@@ -136,6 +141,30 @@ let eFoundMeth = 0
 let eCtorArgs = []
 
 // <=7 top-level fn per module (Windows OOM / stack overflow at module init).
+// P6b: stable key for const-table dedup (length-prefixed strings).
+fn constKey(arg) {
+    if arg == KAB_UNDEF_CONST {
+        return "U"
+    }
+    if arg == null {
+        return "N"
+    }
+    if arg == true {
+        return "T"
+    }
+    if arg == false {
+        return "F"
+    }
+    let t = typeof(arg)
+    if t == "string" {
+        return "S" + ("" + len(arg)) + ":" + arg
+    }
+    if t == "number" {
+        return "D" + ("" + arg)
+    }
+    return "X" + ("" + arg)
+}
+
 fn symIndex(mode, arg) {
     if mode == "local" {
         eLocalI = 0
@@ -149,38 +178,31 @@ fn symIndex(mode, arg) {
         return len(eFnLocals) - 1
     }
     if mode == "global" {
-        eGlobI = 0
-        while eGlobI < len(eGlobals) {
-            if eGlobals[eGlobI] == arg {
-                return eGlobI
-            }
-            eGlobI = eGlobI + 1
+        let gHit = eGlobalMap[arg]
+        if gHit != undefined {
+            return gHit
         }
         eGlobals = push(eGlobals, arg)
-        return len(eGlobals) - 1
+        let gIdx = eGlobalN
+        eGlobalN = eGlobalN + 1
+        eGlobalMap[arg] = gIdx
+        return gIdx
     }
     if mode == "const" {
-        eConstI = 0
-        while eConstI < len(eConsts) {
-            if eConsts[eConstI] == arg {
-                return eConstI
-            }
-            eConstI = eConstI + 1
+        let cKey = constKey(arg)
+        let cHit = eConstMap[cKey]
+        if cHit != undefined {
+            return cHit
         }
         eConsts = push(eConsts, arg)
-        return len(eConsts) - 1
+        let cIdx = eConstN
+        eConstN = eConstN + 1
+        eConstMap[cKey] = cIdx
+        return cIdx
     }
     if mode == "constLit" {
         if arg["lit"] == LIT_UNDEF {
-            eConstI = 0
-            while eConstI < len(eConsts) {
-                if eConsts[eConstI] == KAB_UNDEF_CONST {
-                    return eConstI
-                }
-                eConstI = eConstI + 1
-            }
-            eConsts = push(eConsts, KAB_UNDEF_CONST)
-            return len(eConsts) - 1
+            return symIndex("const", KAB_UNDEF_CONST)
         }
         return symIndex("const", arg["value"])
     }
@@ -1861,8 +1883,12 @@ fn emitStmt(node) {
 pub fn emitImpl(program) {
     eProgram = program
     eConsts = []
+    eConstMap = {}
+    eConstN = 0
     eOps = []
     eGlobals = []
+    eGlobalMap = {}
+    eGlobalN = 0
     eFunctions = []
     eFnOps = []
     eFnGlobals = []
