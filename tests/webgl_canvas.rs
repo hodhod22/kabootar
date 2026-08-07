@@ -171,3 +171,28 @@ fn webgl_create_buffer_from_float32_array() {
     );
     assert_eq!(out, "true");
 }
+
+/// P2: texImage2D accepts Uint8Array RGBA staging (zero-copy vs Array-of-numbers).
+#[test]
+fn webgl_tex_image_2d_from_uint8_array() {
+    let out = eval(
+        r##"
+        let sab = array_buffer_new(16)
+        let u8 = uint8_array_new(sab, 0, 16)
+        uint8_array_set(u8, 0, 255)
+        uint8_array_set(u8, 1, 0)
+        uint8_array_set(u8, 2, 0)
+        uint8_array_set(u8, 3, 255)
+        let i = 4
+        while i < 16 {
+            uint8_array_set(u8, i, 0)
+            i = i + 1
+        }
+        let gl = webgl_create(2, 2)
+        let tex = gl.createTexture()
+        let uploaded = gl.texImage2D(tex, 2, 2, u8)
+        uploaded["width"] == 2 && uploaded["height"] == 2
+    "##,
+    );
+    assert_eq!(out, "true");
+}

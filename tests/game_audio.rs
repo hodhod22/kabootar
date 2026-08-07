@@ -31,6 +31,37 @@ fn play_tone_writes_pcm() {
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
 
+/// P2: playPcm accepts Uint8Array as little-endian i16 PCM.
+#[test]
+fn play_pcm_uint8_array_le_i16() {
+    test_runtime_env();
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/audio"
+        let bus = createBus("sfx")
+        // 4 LE i16 samples as Uint8Array (8 bytes)
+        let sab = array_buffer_new(8)
+        let u8 = uint8_array_new(sab, 0, 8)
+        uint8_array_set(u8, 0, 232)
+        uint8_array_set(u8, 1, 3)
+        uint8_array_set(u8, 2, 0)
+        uint8_array_set(u8, 3, 0)
+        uint8_array_set(u8, 4, 24)
+        uint8_array_set(u8, 5, 252)
+        uint8_array_set(u8, 6, 0)
+        uint8_array_set(u8, 7, 16)
+        let n = playPcm(bus, u8)
+        let viaHelper = playPcm(bus, pcmToUint8([1000, 0, -1000, 4096]))
+        n > 0 && viaHelper > 0
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
 #[test]
 fn audio_spatial_group_duck_stream() {
     test_runtime_env();

@@ -277,6 +277,10 @@ fn texture_id_from_value(v: &Value) -> Result<u64, String> {
 }
 
 fn rgba_bytes_from_value(v: &Value) -> Result<Vec<u8>, String> {
+    // P2: Uint8Array zero-copy staging (same path as PNG decode).
+    if crate::runtime::shared_memory::is_uint8_array(v) {
+        return crate::runtime::shared_memory::uint8_array_to_vec(v);
+    }
     match v {
         Value::Array(items) => items
             .iter()
@@ -285,7 +289,7 @@ fn rgba_bytes_from_value(v: &Value) -> Result<Vec<u8>, String> {
                 _ => Err("texImage2D pixel data expects bytes".into()),
             })
             .collect(),
-        _ => Err("texImage2D expects RGBA byte array".into()),
+        _ => Err("texImage2D expects RGBA byte array or Uint8Array".into()),
     }
 }
 

@@ -114,7 +114,7 @@ sql("SELECT users.name, orders.total FROM users JOIN orders ON users.id = orders
 | `COUNT(*)` | ✅ |
 | `IS NULL` / `IS NOT NULL` | ✅ |
 | Parametrar (`$1`) | ✅ |
-| Transaktioner | Planerat |
+| Transaktioner | ✅ BEGIN / COMMIT / ROLLBACK / SAVEPOINT |
 
 Se [SQL.md](SQL.md) för fullständig referens.
 
@@ -127,7 +127,7 @@ Samma Kabootar-kod kan köras:
 | Miljö | Entry |
 |-------|-------|
 | Webbläsare | WASM + `evaluate()` |
-| Server | Native binary (planerat) |
-| REPL | `cargo run` |
+| Server / CLI | Native binary (`kabootar`, host VM) |
+| REPL | `cargo run` / `kabootar repl` |
 
 Backend-runtime delar samma `evaluator` och `runtime`-moduler.

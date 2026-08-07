@@ -163,7 +163,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Private class fields | `#x`, private methods | **`class C { #n: number = 0; fn get() { return this.#n } }`** — lexical access from declaring class methods only |
 | `RegExp` | flags, dotAll, lookbehind | **`regexp_new("a.b", "s")`**, **`.flags`**, **`.dotAll`**, **`regexp_test`**, **`regexp_exec`**, **`is_regexp`** — `regex_*` literals **`/pat/flags`**; lookbehind **`(?<=…)`**; **`RegExp_escape`** / **`regex_escape`** |
 | `Date` (full) | UTC/local, timezone | **`date_new`**, **`Date_now`**, **`getUTC*`** / **`get*`** getters, **`setUTC*`** / **`set*`**, **`date_get_timezone_offset`**, **`date_to_iso_string`**, **`date_parse`** (ISO) |
-| Typed arrays | Float64Array, DataView | **`array_buffer_new`**, **`float64_array_new/get/set`**, **`data_view_new`**, **`data_view_get_float64/set`** |
+| Typed arrays | Float32/64, Uint8, Int32, DataView, SAB | **`array_buffer_new`**, **`shared_array_buffer_new`**, **`float32_array_*`**, **`float64_array_*`**, **`uint8_array_*`**, **`int32_array_*`**, **`data_view_*`** — P2: Float32→`createBuffer`, Uint8→PCM LE i16 + `texImage2D` staging ([GAME.md](GAME.md), [XR.md](XR.md)) |
 | Proxy/Reflect | traps, construct | **`Proxy`**, **`is_proxy`**, **`Reflect.isProxy`**, **`Reflect.construct`** |
 | WeakMap / WeakSet | weak keys | **`weak_map_new/set/get/has/delete`**, **`weak_set_new/add/has/delete`**, **`is_weakmap`**, **`is_weakset`** |
 | `using` / modules | explicit dispose, `import.meta`, dynamic import | **`using x = expr;`** (dispose via **`Symbol.dispose`**, **`dispose()`**, **`close()`**), **`import.meta.url`**, **`import.meta.path`**, **`import("math")`** → Promise of module namespace |

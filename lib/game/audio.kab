@@ -15,8 +15,37 @@ pub fn setBusVolume(bus, volume) {
     return bus
 }
 
+/// Play PCM on the bus. `samples` is either:
+/// - Array of i16 numbers (classic), or
+/// - Uint8Array of little-endian i16 pairs (P2 zero-copy staging).
 pub fn playPcm(bus, samples) {
     return os_dev_ioctl(bus["handle"], "write", samples)
+}
+
+/// Pack Array of i16 into a Uint8Array (LE) for zero-copy `playPcm`.
+pub fn pcmToUint8(samples) {
+    let n = len(samples)
+    let sab = array_buffer_new(n * 2)
+    let u8 = uint8_array_new(sab, 0, n * 2)
+    let i = 0
+    while i < n {
+        let v = floor(samples[i])
+        if v < -32768 {
+            v = -32768
+        }
+        if v > 32767 {
+            v = 32767
+        }
+        if v < 0 {
+            v = v + 65536
+        }
+        let lo = v - floor(v / 256) * 256
+        let hi = floor(v / 256)
+        uint8_array_set(u8, i * 2, lo)
+        uint8_array_set(u8, i * 2 + 1, hi)
+        i = i + 1
+    }
+    return u8
 }
 
 // Generate mono i16 PCM tone (sine). rate default 22050.

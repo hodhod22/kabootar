@@ -148,7 +148,7 @@ lib/game/
 | `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
 | `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep`, `createPhysicsCharacter`, `characterDrive`, `syncTransformFromCharacter` |
 | `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` (shim → `game/core/ecs`) |
-| `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
+| `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm` (Array **eller Uint8Array LE i16**), `pcmToUint8`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
 | `import "game/terrain"` | heightmap, LOD mesh, splat, async streaming poll (`beginAsyncLoad`/`pollStreamingLoads`) (GP6d) |
 | `import "game/procgen"` | seeded RNG, `noise2d`/`fbm2d`, dungeon, scatter, heightmap fill (GP6l) |
 | `import "game/i18n"` | catalogs, `t` / `tn`, locale switch (GP6j) |
@@ -157,7 +157,7 @@ lib/game/
 | `import "game/assets"` | `createDb`, `registerVfs`/`registerHost`, `loadText`/`loadBytes`/`loadPng`/`loadGltf`, `watchAll`/`pollReload` |
 | `import "game/nav"` | `createGrid`, `setBlocked`, `astar`, `pathCost` |
 | `import "game/net"` | session/snapshot, relay + HTTP hub, remote session server (`createRemoteHttpTransport`) |
-| `import "game/xr"` | Vulkan/D3D11 binding → HMD swapchain, `xrSessionThen`, await rAF, create/end-frame FFI |
+| `import "game/xr"` | Vulkan/D3D11 → HMD swapchain, inputSources + hand EXT create/locate FFI — se **[XR.md](XR.md)** |
 | `import "game/editor"` | `createEditor`, `buildHierarchy`, `buildInspector`, `buildSceneView` (+ **GPU viewport**), `selectNode`, `refresh` |
 | `import "game/sandbox"` | **Spelbyggare** — session/canvas, Play↔Edit↔Learn, level pack (`ksandbox`), `applyLiveParams`/`setLearnParam` |
 | `import "sim"` / `sim/robot` | **Sim/robotik** — `createWorld`/`createHinge`/`createSlider`/`step`, 3-DOF `createArm3`, encoders/IMU, `worldToEditor` |
@@ -168,7 +168,7 @@ lib/game/
 
 Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `host_read_bytes`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
 
-`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game_playable_2d.kab`. **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — **session** (`createSession`/`stepSession`/`runSessionFrames`: canvas + pointer), Play↔Edit↔Learn (`enterEdit`/`applyEditorAndPlay`/`enterLearnMode`/`setLearnParam`), multi-level (`defaultLevelPack`/`nextLevel`/`saveLevelPack`). Exempel `examples/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`. **Sim/robot twin:** `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.
+`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. `texImage2D` accepterar **Uint8Array** RGBA staging (P2) utöver byte-Array. `playPcm` accepterar **Uint8Array** som LE i16 PCM (`pcmToUint8`). Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game_playable_2d.kab`. **XR:** [XR.md](XR.md). **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — **session** (`createSession`/`stepSession`/`runSessionFrames`: canvas + pointer), Play↔Edit↔Learn (`enterEdit`/`applyEditorAndPlay`/`enterLearnMode`/`setLearnParam`), multi-level (`defaultLevelPack`/`nextLevel`/`saveLevelPack`). Exempel `examples/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`. **Sim/robot twin:** `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 

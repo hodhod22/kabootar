@@ -482,11 +482,11 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b — `eIfDepth`/`eMemberDepth`/`eIndexDepth` + CallArg/obj/arr (~697 s leaf); GP6n `xrCreateHandTrackerEXT` resolve/stub; skip-list stays 5 until <10s. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** docs sync (README/STDLIB/MODULES/XR) + P2 Uint8→PCM/tex; P6b leaf ~697 s (skip-list 5); GP6n create/locate EXT. **L/O/T/J/S** ✅ subset; **P/GP0–GP5** + **GP6a–n** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
-### Våg L — Language (systems-ready) 🚧
+### Våg L — Language (systems-ready) ✅ subset
 
 Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekosystemet kan växa i Kabootar.
 
@@ -500,7 +500,7 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 
 **Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`
 
-### Våg O — Ownership (systems, compile-time) 🚧
+### Våg O — Ownership (systems, compile-time) ✅ subset
 
 GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP.md](OWNERSHIP.md).
 
@@ -516,7 +516,7 @@ GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP
 
 **Icke-mål (medvetet):** Rust-lifetimes, lifetime-elision, borrow över async boundaries, ownership i GC-moduler.
 
-### Våg T — Traits (språk) 🚧
+### Våg T — Traits (språk) ✅ subset
 
 G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod. Se [GENERICS.md#traits](GENERICS.md#traits).
 
@@ -543,7 +543,7 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 
 **Regel:** `class` → `this`; `struct` → `self`. Se [CLASSES.md](CLASSES.md).
 
-### Våg J — JS-språkparitet (stdlib + syntax) 🚧
+### Våg J — JS-språkparitet (stdlib + syntax) ✅ subset
 
 Kabootar har redan stor del av ES2020–ES2025 (ofta snake_case). Nedan är **kvarvarande luckor** för språket (inte Kv8-bundle-yta).
 
@@ -602,7 +602,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **Checkpoint J:** `cargo test --test js_stdlib_gaps` + `cargo test --test kabootar_js_parity`
 
-### Våg S — Self-host som produktkompilator 🚧
+### Våg S — Self-host som produktkompilator ✅ subset (P6b 📋)
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
@@ -675,7 +675,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 |-----|----------|--------|
 | **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | ✅ subset (`tests/perf_p0_smoke.rs`: `performance.now` + `game_tick`/`delta_ms` < 100 ms CI-smoke; full profiler/histogram kvar) |
 | **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | ✅ subset (`member_name` → `&str`; GetMember monomorphic IC; CALL skip arg-clone utan Object; MakeArray O(n); IndexGet array-fastpath; `tests/perf_p1_smoke.rs`) |
-| **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (`float32_array_new/get/set`, bulk `createBuffer` från Float32Array; Array-path kvar; Uint8 zero-copy/audio kvar) |
+| **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (Float32→`createBuffer`; Uint8→PCM LE i16 + `texImage2D` staging; Array-path kvar) |
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
