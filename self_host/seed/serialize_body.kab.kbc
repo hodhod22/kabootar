@@ -15,15 +15,15 @@ const 11 string \t
 const 12 string \\t
 const 13 number 1
 const 14 string const\s
-const 15 string \sundefined
-const 16 string \snull
+const 15 string undefined
+const 16 string null
 const 17 bool true
-const 18 string \sbool\strue
+const 18 string bool\strue
 const 19 bool false
-const 20 string \sbool\sfalse
+const 20 string bool\sfalse
 const 21 string string
-const 22 string \sstring\s
-const 23 string \snumber\s
+const 22 string string\s
+const 23 string number\s
 const 24 string |const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|
 const 25 string |pop|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|
 const 26 string serialize:\snull\sop\sin\sIR
@@ -35,53 +35,53 @@ const 31 string \s0
 const 32 string |
 const 33 string Unsupported\sIR\sop:\s
 const 34 string ,
-const 35 string class_method_op\s
-const 36 string class_method\s
+const 35 string class_method_op
+const 36 string class_method
 const 37 string sym
-const 38 string class_method_params\s
+const 38 string class_method_params
 const 39 string params
-const 40 string class_method_locals\s
+const 40 string class_method_locals
 const 41 string locals
-const 42 string class_method_globals\s
+const 42 string class_method_globals
 const 43 string globals
 const 44 string ops
 const 45 string constants=
 const 46 string constants
-const 47 string global\s
+const 47 string global
 const 48 string functions=
 const 49 string functions
-const 50 string fn\s
-const 51 string fn_params\s
-const 52 string fn_locals\s
+const 50 string fn
+const 51 string fn_params
+const 52 string fn_locals
 const 53 string tryRegions
-const 54 string fn_try_region\s
+const 54 string fn_try_region
 const 55 string bodyStart
 const 56 string bodyEnd
 const 57 string catchStart
 const 58 string errLocal
-const 59 string fn_op\s
+const 59 string fn_op
 const 60 string arrows
 const 61 string arrows=0
 const 62 string arrows=
-const 63 string arrow\s
-const 64 string arrow_params\s
-const 65 string arrow_locals\s
-const 66 string arrow_op\s
-const 67 string main_try_region\s
+const 63 string arrow
+const 64 string arrow_params
+const 65 string arrow_locals
+const 66 string arrow_op
+const 67 string main_try_region
 const 68 string exports
 const 69 string exports=0
 const 70 string exports=
-const 71 string export\s
+const 71 string export
 const 72 string imports
 const 73 string imports=0
 const 74 string imports=
-const 75 string import\s
+const 75 string import
 const 76 string classes
 const 77 string classes=0
 const 78 string classes=
-const 79 string class\s
+const 79 string class
 const 80 string isStruct
-const 81 string class_is_struct\s
+const 81 string class_is_struct
 const 82 string methods
 const 83 string code
 global 0 sEscOut
@@ -90,30 +90,36 @@ global 2 len
 global 3 char_at
 global 4 sEscCh
 global 5 escStr
-global 6 KAB_UNDEF_CONST
-global 7 typeof
-global 8 constLine
-global 9 sOp
-global 10 OP_NEW_INSTANCE
-global 11 IR_WITH_ARG
-global 12 str_index_of
-global 13 IR_ZERO_ARG
-global 14 irOpLine
-global 15 sParams
-global 16 sK
-global 17 joinComma
-global 18 sI
-global 19 sOut
-global 20 CHAR_NL
-global 21 appendOps
-global 22 sJ
-global 23 appendEmbeddedMethodOps
-global 24 sMeth
-global 25 appendClassMethods
-global 26 KBC_HEADER
-global 27 sFn
-global 28 sCls
-global 29 serializeBcImplCore
+global 6 sOut
+global 7 CHAR_NL
+global 8 appendNl
+global 9 appendSp
+global 10 appendNum
+global 11 appendSpNum
+global 12 beginTag
+global 13 KAB_UNDEF_CONST
+global 14 typeof
+global 15 constLine
+global 16 sOp
+global 17 OP_NEW_INSTANCE
+global 18 IR_WITH_ARG
+global 19 str_index_of
+global 20 IR_ZERO_ARG
+global 21 irOpLine
+global 22 sParams
+global 23 sK
+global 24 joinComma
+global 25 sI
+global 26 appendOps
+global 27 appendClassMethHeader
+global 28 appendEmbeddedMethodOps
+global 29 sJ
+global 30 sMeth
+global 31 appendClassMethods
+global 32 KBC_HEADER
+global 33 sFn
+global 34 sCls
+global 35 serializeBcImplCore
 local 0 sOut
 local 1 sI
 local 2 sOp
@@ -129,7 +135,7 @@ local 11 sEscI
 local 12 sEscCh
 local 13 IR_WITH_ARG
 local 14 IR_ZERO_ARG
-functions=8
+functions=14
 fn 0 escStr
 fn_params 0 s
 fn_locals 0 s,piece
@@ -204,1027 +210,1033 @@ fn_op 0 jump -60
 fn_op 0 load_global 0
 fn_op 0 return
 fn_arrows 0 0
-fn 1 constLine
-fn_params 1 idx,val
-fn_locals 1 idx,val
-fn_op 1 load_local 1
-fn_op 1 load_global 6
-fn_op 1 eq
-fn_op 1 jump_if_false 8
-fn_op 1 const 14
-fn_op 1 const 0
-fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 15
-fn_op 1 add
-fn_op 1 return
-fn_op 1 load_local 1
-fn_op 1 const 2
-fn_op 1 eq
-fn_op 1 jump_if_false 8
-fn_op 1 const 14
-fn_op 1 const 0
-fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 16
-fn_op 1 add
-fn_op 1 return
-fn_op 1 load_local 1
-fn_op 1 const 17
-fn_op 1 eq
-fn_op 1 jump_if_false 8
-fn_op 1 const 14
-fn_op 1 const 0
-fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 18
-fn_op 1 add
-fn_op 1 return
-fn_op 1 load_local 1
-fn_op 1 const 19
-fn_op 1 eq
-fn_op 1 jump_if_false 8
-fn_op 1 const 14
-fn_op 1 const 0
-fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 20
-fn_op 1 add
-fn_op 1 return
-fn_op 1 load_local 1
+fn 1 appendNl
+fn_params 1 s
+fn_locals 1 s
 fn_op 1 load_global 7
-fn_op 1 call 1
-fn_op 1 const 21
-fn_op 1 eq
-fn_op 1 jump_if_false 12
-fn_op 1 const 14
-fn_op 1 const 0
+fn_op 1 acc_add_global 6
 fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 22
-fn_op 1 add
-fn_op 1 load_local 1
-fn_op 1 load_global 5
-fn_op 1 call 1
-fn_op 1 add
-fn_op 1 return
-fn_op 1 const 14
-fn_op 1 const 0
-fn_op 1 load_local 0
-fn_op 1 add
-fn_op 1 add
-fn_op 1 const 23
-fn_op 1 add
-fn_op 1 const 0
-fn_op 1 load_local 1
-fn_op 1 add
-fn_op 1 add
+fn_op 1 acc_add_global 6
+fn_op 1 const 2
 fn_op 1 return
 fn_arrows 1 0
-fn 2 irOpLine
-fn_params 2 op
-fn_locals 2 op
-fn_op 2 load_local 0
+fn 2 appendSp
+fn_params 2 
+fn_locals 2 
+fn_op 2 const 5
+fn_op 2 acc_add_global 6
 fn_op 2 const 2
-fn_op 2 eq
-fn_op 2 jump_if_false 3
-fn_op 2 const 26
-fn_op 2 throw
-fn_op 2 pop
-fn_op 2 load_local 0
-fn_op 2 get_member 27
-fn_op 2 dup
-fn_op 2 store_global 9
-fn_op 2 pop
-fn_op 2 load_global 9
-fn_op 2 load_global 10
-fn_op 2 eq
-fn_op 2 jump_if_false 32
-fn_op 2 load_local 0
-fn_op 2 get_member 28
-fn_op 2 const 29
-fn_op 2 eq
-fn_op 2 jump_if_false 11
-fn_op 2 load_global 10
-fn_op 2 const 5
-fn_op 2 add
-fn_op 2 const 0
-fn_op 2 load_local 0
-fn_op 2 get_member 30
-fn_op 2 add
-fn_op 2 add
-fn_op 2 const 31
-fn_op 2 add
-fn_op 2 return
-fn_op 2 load_global 10
-fn_op 2 const 5
-fn_op 2 add
-fn_op 2 const 0
-fn_op 2 load_local 0
-fn_op 2 get_member 30
-fn_op 2 add
-fn_op 2 add
-fn_op 2 const 5
-fn_op 2 add
-fn_op 2 const 0
-fn_op 2 load_local 0
-fn_op 2 get_member 28
-fn_op 2 add
-fn_op 2 add
-fn_op 2 return
-fn_op 2 load_global 11
-fn_op 2 const 32
-fn_op 2 load_global 9
-fn_op 2 add
-fn_op 2 const 32
-fn_op 2 add
-fn_op 2 load_global 12
-fn_op 2 call 2
-fn_op 2 const 1
-fn_op 2 ge
-fn_op 2 jump_if_false 9
-fn_op 2 load_global 9
-fn_op 2 const 5
-fn_op 2 add
-fn_op 2 const 0
-fn_op 2 load_local 0
-fn_op 2 get_member 30
-fn_op 2 add
-fn_op 2 add
-fn_op 2 return
-fn_op 2 load_global 13
-fn_op 2 const 32
-fn_op 2 load_global 9
-fn_op 2 add
-fn_op 2 const 32
-fn_op 2 add
-fn_op 2 load_global 12
-fn_op 2 call 2
-fn_op 2 const 1
-fn_op 2 ge
-fn_op 2 jump_if_false 2
-fn_op 2 load_global 9
-fn_op 2 return
-fn_op 2 const 33
-fn_op 2 throw
-fn_op 2 load_global 9
-fn_op 2 add
 fn_op 2 return
 fn_arrows 2 0
-fn 3 joinComma
-fn_params 3 arr
-fn_locals 3 arr
+fn 3 appendNum
+fn_params 3 x
+fn_locals 3 x
 fn_op 3 const 0
-fn_op 3 dup
-fn_op 3 store_global 15
-fn_op 3 pop
-fn_op 3 const 1
-fn_op 3 dup
-fn_op 3 store_global 16
-fn_op 3 pop
-fn_op 3 load_global 16
 fn_op 3 load_local 0
-fn_op 3 load_global 2
-fn_op 3 call 1
-fn_op 3 lt
-fn_op 3 jump_if_false 20
-fn_op 3 load_global 15
-fn_op 3 const 0
-fn_op 3 eq
-fn_op 3 jump_if_false 7
-fn_op 3 load_local 0
-fn_op 3 load_global 16
-fn_op 3 index_get
-fn_op 3 dup
-fn_op 3 store_global 15
-fn_op 3 pop
-fn_op 3 jump 6
-fn_op 3 const 34
-fn_op 3 acc_add_global 15
-fn_op 3 load_local 0
-fn_op 3 load_global 16
-fn_op 3 index_get
-fn_op 3 acc_add_global 15
-fn_op 3 const 13
-fn_op 3 acc_add_global 16
-fn_op 3 jump -26
-fn_op 3 load_global 15
+fn_op 3 add
+fn_op 3 acc_add_global 6
+fn_op 3 const 2
 fn_op 3 return
 fn_arrows 3 0
-fn 4 appendOps
-fn_params 4 ops
-fn_locals 4 ops
-fn_op 4 const 1
-fn_op 4 dup
-fn_op 4 store_global 18
-fn_op 4 pop
-fn_op 4 load_global 18
+fn 4 appendSpNum
+fn_params 4 x
+fn_locals 4 x
+fn_op 4 const 5
+fn_op 4 acc_add_global 6
+fn_op 4 const 0
 fn_op 4 load_local 0
-fn_op 4 load_global 2
-fn_op 4 call 1
-fn_op 4 lt
-fn_op 4 jump_if_false 11
-fn_op 4 load_global 20
-fn_op 4 acc_add_global 19
-fn_op 4 load_local 0
-fn_op 4 load_global 18
-fn_op 4 index_get
-fn_op 4 load_global 14
-fn_op 4 call 1
-fn_op 4 acc_add_global 19
-fn_op 4 const 13
-fn_op 4 acc_add_global 18
-fn_op 4 jump -17
+fn_op 4 add
+fn_op 4 acc_add_global 6
 fn_op 4 const 2
 fn_op 4 return
 fn_arrows 4 0
-fn 5 appendEmbeddedMethodOps
-fn_params 5 ci,mi,ops
-fn_locals 5 ci,mi,ops
-fn_op 5 const 1
-fn_op 5 dup
-fn_op 5 store_global 22
-fn_op 5 pop
-fn_op 5 load_global 22
-fn_op 5 load_local 2
-fn_op 5 load_global 2
-fn_op 5 call 1
-fn_op 5 lt
-fn_op 5 jump_if_false 25
-fn_op 5 load_global 20
-fn_op 5 acc_add_global 19
-fn_op 5 const 35
-fn_op 5 const 0
+fn 5 beginTag
+fn_params 5 tag
+fn_locals 5 tag
+fn_op 5 load_global 7
+fn_op 5 acc_add_global 6
 fn_op 5 load_local 0
-fn_op 5 add
-fn_op 5 add
-fn_op 5 const 5
-fn_op 5 add
-fn_op 5 const 0
-fn_op 5 load_local 1
-fn_op 5 add
-fn_op 5 add
-fn_op 5 const 5
-fn_op 5 add
-fn_op 5 load_local 2
-fn_op 5 load_global 22
-fn_op 5 index_get
-fn_op 5 load_global 14
-fn_op 5 call 1
-fn_op 5 add
-fn_op 5 acc_add_global 19
-fn_op 5 const 13
-fn_op 5 acc_add_global 22
-fn_op 5 jump -31
+fn_op 5 acc_add_global 6
 fn_op 5 const 2
 fn_op 5 return
 fn_arrows 5 0
-fn 6 appendClassMethods
-fn_params 6 ci,methods
-fn_locals 6 ci,methods
-fn_op 6 const 1
-fn_op 6 dup
-fn_op 6 store_global 22
-fn_op 6 pop
-fn_op 6 load_global 22
+fn 6 constLine
+fn_params 6 idx,val
+fn_locals 6 idx,val,p
+fn_op 6 const 14
+fn_op 6 const 0
+fn_op 6 load_local 0
+fn_op 6 add
+fn_op 6 add
+fn_op 6 const 5
+fn_op 6 add
+fn_op 6 store_local 2
 fn_op 6 load_local 1
-fn_op 6 load_global 2
-fn_op 6 call 1
-fn_op 6 lt
-fn_op 6 jump_if_false 103
+fn_op 6 load_global 13
+fn_op 6 eq
+fn_op 6 jump_if_false 4
+fn_op 6 load_local 2
+fn_op 6 const 15
+fn_op 6 add
+fn_op 6 return
 fn_op 6 load_local 1
-fn_op 6 load_global 22
-fn_op 6 index_get
-fn_op 6 dup
-fn_op 6 store_global 24
-fn_op 6 pop
-fn_op 6 load_global 20
-fn_op 6 acc_add_global 19
-fn_op 6 const 36
-fn_op 6 const 0
-fn_op 6 load_local 0
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 const 0
-fn_op 6 load_global 22
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 load_global 24
-fn_op 6 const 37
-fn_op 6 index_get
-fn_op 6 add
-fn_op 6 acc_add_global 19
-fn_op 6 load_global 20
-fn_op 6 acc_add_global 19
-fn_op 6 const 38
-fn_op 6 const 0
-fn_op 6 load_local 0
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 const 0
-fn_op 6 load_global 22
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 load_global 24
-fn_op 6 const 39
-fn_op 6 index_get
-fn_op 6 load_global 17
-fn_op 6 call 1
-fn_op 6 add
-fn_op 6 acc_add_global 19
-fn_op 6 load_global 20
-fn_op 6 acc_add_global 19
-fn_op 6 const 40
-fn_op 6 const 0
-fn_op 6 load_local 0
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 const 0
-fn_op 6 load_global 22
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 load_global 24
-fn_op 6 const 41
-fn_op 6 index_get
-fn_op 6 load_global 17
-fn_op 6 call 1
-fn_op 6 add
-fn_op 6 acc_add_global 19
-fn_op 6 load_global 20
-fn_op 6 acc_add_global 19
-fn_op 6 const 42
-fn_op 6 const 0
-fn_op 6 load_local 0
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 const 0
-fn_op 6 load_global 22
-fn_op 6 add
-fn_op 6 add
-fn_op 6 const 5
-fn_op 6 add
-fn_op 6 load_global 24
-fn_op 6 const 43
-fn_op 6 index_get
-fn_op 6 load_global 17
-fn_op 6 call 1
-fn_op 6 add
-fn_op 6 acc_add_global 19
-fn_op 6 load_local 0
-fn_op 6 load_global 22
-fn_op 6 load_global 24
-fn_op 6 const 44
-fn_op 6 index_get
-fn_op 6 load_global 23
-fn_op 6 call 3
-fn_op 6 pop
-fn_op 6 const 13
-fn_op 6 acc_add_global 22
-fn_op 6 jump -109
 fn_op 6 const 2
+fn_op 6 eq
+fn_op 6 jump_if_false 4
+fn_op 6 load_local 2
+fn_op 6 const 16
+fn_op 6 add
+fn_op 6 return
+fn_op 6 load_local 1
+fn_op 6 const 17
+fn_op 6 eq
+fn_op 6 jump_if_false 4
+fn_op 6 load_local 2
+fn_op 6 const 18
+fn_op 6 add
+fn_op 6 return
+fn_op 6 load_local 1
+fn_op 6 const 19
+fn_op 6 eq
+fn_op 6 jump_if_false 4
+fn_op 6 load_local 2
+fn_op 6 const 20
+fn_op 6 add
+fn_op 6 return
+fn_op 6 load_local 1
+fn_op 6 load_global 14
+fn_op 6 call 1
+fn_op 6 const 21
+fn_op 6 eq
+fn_op 6 jump_if_false 8
+fn_op 6 load_local 2
+fn_op 6 const 22
+fn_op 6 add
+fn_op 6 load_local 1
+fn_op 6 load_global 5
+fn_op 6 call 1
+fn_op 6 add
+fn_op 6 return
+fn_op 6 load_local 2
+fn_op 6 const 23
+fn_op 6 add
+fn_op 6 const 0
+fn_op 6 load_local 1
+fn_op 6 add
+fn_op 6 add
 fn_op 6 return
 fn_arrows 6 0
-fn 7 serializeBcImplCore
-fn_params 7 bc
-fn_locals 7 bc,tr,arr,mtr
-fn_op 7 load_global 26
-fn_op 7 dup
-fn_op 7 store_global 19
+fn 7 irOpLine
+fn_params 7 op
+fn_locals 7 op
+fn_op 7 load_local 0
+fn_op 7 const 2
+fn_op 7 eq
+fn_op 7 jump_if_false 3
+fn_op 7 const 26
+fn_op 7 throw
 fn_op 7 pop
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 45
-fn_op 7 const 0
 fn_op 7 load_local 0
-fn_op 7 get_member 46
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
+fn_op 7 get_member 27
 fn_op 7 dup
-fn_op 7 store_global 18
+fn_op 7 store_global 16
 fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 46
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 13
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 46
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 load_global 8
-fn_op 7 call 2
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -20
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 43
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 18
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 47
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 0
-fn_op 7 get_member 43
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -25
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 48
-fn_op 7 const 0
-fn_op 7 load_local 0
-fn_op 7 get_member 49
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 49
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 157
-fn_op 7 load_local 0
-fn_op 7 get_member 49
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 dup
-fn_op 7 store_global 27
-fn_op 7 pop
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 50
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_global 27
-fn_op 7 get_member 37
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 51
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_global 27
-fn_op 7 get_member 39
+fn_op 7 load_global 16
 fn_op 7 load_global 17
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 52
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_global 27
-fn_op 7 get_member 41
+fn_op 7 eq
+fn_op 7 jump_if_false 32
+fn_op 7 load_local 0
+fn_op 7 get_member 28
+fn_op 7 const 29
+fn_op 7 eq
+fn_op 7 jump_if_false 11
 fn_op 7 load_global 17
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 27
-fn_op 7 const 53
-fn_op 7 index_get
-fn_op 7 const 29
-fn_op 7 ne
-fn_op 7 jump_if_false 67
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 22
-fn_op 7 pop
-fn_op 7 load_global 22
-fn_op 7 load_global 27
-fn_op 7 const 53
-fn_op 7 index_get
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 55
-fn_op 7 load_global 27
-fn_op 7 const 53
-fn_op 7 index_get
-fn_op 7 load_global 22
-fn_op 7 index_get
-fn_op 7 store_local 1
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 54
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
 fn_op 7 const 5
 fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_global 22
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 1
-fn_op 7 const 55
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 1
-fn_op 7 const 56
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 1
-fn_op 7 const 57
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 1
-fn_op 7 const 58
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 22
-fn_op 7 jump -63
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 22
-fn_op 7 pop
-fn_op 7 load_global 22
-fn_op 7 load_global 27
-fn_op 7 get_member 44
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 20
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 59
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_global 27
-fn_op 7 get_member 44
-fn_op 7 load_global 22
-fn_op 7 index_get
-fn_op 7 load_global 14
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 22
-fn_op 7 jump -27
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -164
-fn_op 7 load_local 0
-fn_op 7 get_member 60
-fn_op 7 const 29
-fn_op 7 eq
-fn_op 7 jump_if_false 5
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 61
-fn_op 7 acc_add_global 19
-fn_op 7 jump 109
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 62
 fn_op 7 const 0
 fn_op 7 load_local 0
-fn_op 7 get_member 60
-fn_op 7 load_global 2
-fn_op 7 call 1
+fn_op 7 get_member 30
 fn_op 7 add
 fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 60
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 87
-fn_op 7 load_local 0
-fn_op 7 get_member 60
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 store_local 2
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 63
-fn_op 7 const 0
-fn_op 7 load_global 18
+fn_op 7 const 31
 fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 2
-fn_op 7 const 37
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 64
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 2
-fn_op 7 const 39
-fn_op 7 index_get
+fn_op 7 return
 fn_op 7 load_global 17
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 65
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
 fn_op 7 const 5
 fn_op 7 add
-fn_op 7 load_local 2
-fn_op 7 const 41
-fn_op 7 index_get
-fn_op 7 load_global 17
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 22
-fn_op 7 pop
-fn_op 7 load_global 22
-fn_op 7 load_local 2
-fn_op 7 const 44
-fn_op 7 index_get
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 21
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 66
 fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 2
-fn_op 7 const 44
-fn_op 7 index_get
-fn_op 7 load_global 22
-fn_op 7 index_get
-fn_op 7 load_global 14
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 22
-fn_op 7 jump -29
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -94
 fn_op 7 load_local 0
-fn_op 7 get_member 53
-fn_op 7 const 29
-fn_op 7 ne
-fn_op 7 jump_if_false 59
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 53
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 48
-fn_op 7 load_local 0
-fn_op 7 get_member 53
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 store_local 3
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 67
-fn_op 7 const 0
-fn_op 7 load_global 18
+fn_op 7 get_member 30
 fn_op 7 add
 fn_op 7 add
 fn_op 7 const 5
 fn_op 7 add
 fn_op 7 const 0
-fn_op 7 load_local 3
-fn_op 7 const 55
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 3
-fn_op 7 const 56
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 3
-fn_op 7 const 57
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 const 0
-fn_op 7 load_local 3
-fn_op 7 const 58
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -55
 fn_op 7 load_local 0
-fn_op 7 get_member 68
-fn_op 7 const 29
-fn_op 7 eq
-fn_op 7 jump_if_false 5
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 69
-fn_op 7 acc_add_global 19
-fn_op 7 jump 40
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 70
-fn_op 7 const 0
-fn_op 7 load_local 0
-fn_op 7 get_member 68
-fn_op 7 load_global 2
-fn_op 7 call 1
+fn_op 7 get_member 28
 fn_op 7 add
 fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
+fn_op 7 return
 fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 68
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 18
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 71
-fn_op 7 const 0
-fn_op 7 load_global 18
+fn_op 7 const 32
+fn_op 7 load_global 16
 fn_op 7 add
+fn_op 7 const 32
 fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 0
-fn_op 7 get_member 68
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -25
-fn_op 7 load_local 0
-fn_op 7 get_member 72
-fn_op 7 const 29
-fn_op 7 eq
-fn_op 7 jump_if_false 5
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 73
-fn_op 7 acc_add_global 19
-fn_op 7 jump 40
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 74
-fn_op 7 const 0
-fn_op 7 load_local 0
-fn_op 7 get_member 72
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 72
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 18
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 75
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_local 0
-fn_op 7 get_member 72
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -25
-fn_op 7 load_local 0
-fn_op 7 get_member 76
-fn_op 7 const 29
-fn_op 7 eq
-fn_op 7 jump_if_false 5
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 77
-fn_op 7 acc_add_global 19
-fn_op 7 jump 67
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 78
-fn_op 7 const 0
-fn_op 7 load_local 0
-fn_op 7 get_member 76
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 const 1
-fn_op 7 dup
-fn_op 7 store_global 18
-fn_op 7 pop
-fn_op 7 load_global 18
-fn_op 7 load_local 0
-fn_op 7 get_member 76
-fn_op 7 load_global 2
-fn_op 7 call 1
-fn_op 7 lt
-fn_op 7 jump_if_false 45
-fn_op 7 load_local 0
-fn_op 7 get_member 76
-fn_op 7 load_global 18
-fn_op 7 index_get
-fn_op 7 dup
-fn_op 7 store_global 28
-fn_op 7 pop
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 79
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 const 5
-fn_op 7 add
-fn_op 7 load_global 28
-fn_op 7 const 37
-fn_op 7 index_get
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 28
-fn_op 7 const 80
-fn_op 7 index_get
-fn_op 7 const 13
-fn_op 7 eq
-fn_op 7 jump_if_false 8
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 81
-fn_op 7 const 0
-fn_op 7 load_global 18
-fn_op 7 add
-fn_op 7 add
-fn_op 7 acc_add_global 19
-fn_op 7 load_global 18
-fn_op 7 load_global 28
-fn_op 7 const 82
-fn_op 7 index_get
-fn_op 7 load_global 25
-fn_op 7 call 2
-fn_op 7 pop
-fn_op 7 const 13
-fn_op 7 acc_add_global 18
-fn_op 7 jump -52
-fn_op 7 load_global 20
-fn_op 7 acc_add_global 19
-fn_op 7 const 83
-fn_op 7 acc_add_global 19
-fn_op 7 load_local 0
-fn_op 7 get_member 44
-fn_op 7 load_global 21
-fn_op 7 call 1
-fn_op 7 pop
 fn_op 7 load_global 19
+fn_op 7 call 2
+fn_op 7 const 1
+fn_op 7 ge
+fn_op 7 jump_if_false 9
+fn_op 7 load_global 16
+fn_op 7 const 5
+fn_op 7 add
+fn_op 7 const 0
+fn_op 7 load_local 0
+fn_op 7 get_member 30
+fn_op 7 add
+fn_op 7 add
+fn_op 7 return
+fn_op 7 load_global 20
+fn_op 7 const 32
+fn_op 7 load_global 16
+fn_op 7 add
+fn_op 7 const 32
+fn_op 7 add
+fn_op 7 load_global 19
+fn_op 7 call 2
+fn_op 7 const 1
+fn_op 7 ge
+fn_op 7 jump_if_false 2
+fn_op 7 load_global 16
+fn_op 7 return
+fn_op 7 const 33
+fn_op 7 throw
+fn_op 7 load_global 16
+fn_op 7 add
 fn_op 7 return
 fn_arrows 7 0
+fn 8 joinComma
+fn_params 8 arr
+fn_locals 8 arr
+fn_op 8 const 0
+fn_op 8 dup
+fn_op 8 store_global 22
+fn_op 8 pop
+fn_op 8 const 1
+fn_op 8 dup
+fn_op 8 store_global 23
+fn_op 8 pop
+fn_op 8 load_global 23
+fn_op 8 load_local 0
+fn_op 8 load_global 2
+fn_op 8 call 1
+fn_op 8 lt
+fn_op 8 jump_if_false 20
+fn_op 8 load_global 22
+fn_op 8 const 0
+fn_op 8 eq
+fn_op 8 jump_if_false 7
+fn_op 8 load_local 0
+fn_op 8 load_global 23
+fn_op 8 index_get
+fn_op 8 dup
+fn_op 8 store_global 22
+fn_op 8 pop
+fn_op 8 jump 6
+fn_op 8 const 34
+fn_op 8 acc_add_global 22
+fn_op 8 load_local 0
+fn_op 8 load_global 23
+fn_op 8 index_get
+fn_op 8 acc_add_global 22
+fn_op 8 const 13
+fn_op 8 acc_add_global 23
+fn_op 8 jump -26
+fn_op 8 load_global 22
+fn_op 8 return
+fn_arrows 8 0
+fn 9 appendOps
+fn_params 9 ops
+fn_locals 9 ops
+fn_op 9 const 1
+fn_op 9 dup
+fn_op 9 store_global 25
+fn_op 9 pop
+fn_op 9 load_global 25
+fn_op 9 load_local 0
+fn_op 9 load_global 2
+fn_op 9 call 1
+fn_op 9 lt
+fn_op 9 jump_if_false 11
+fn_op 9 load_local 0
+fn_op 9 load_global 25
+fn_op 9 index_get
+fn_op 9 load_global 21
+fn_op 9 call 1
+fn_op 9 load_global 8
+fn_op 9 call 1
+fn_op 9 pop
+fn_op 9 const 13
+fn_op 9 acc_add_global 25
+fn_op 9 jump -17
+fn_op 9 const 2
+fn_op 9 return
+fn_arrows 9 0
+fn 10 appendClassMethHeader
+fn_params 10 tag,ci,mi,rest
+fn_locals 10 tag,ci,mi,rest
+fn_op 10 load_local 0
+fn_op 10 load_global 12
+fn_op 10 call 1
+fn_op 10 pop
+fn_op 10 load_local 1
+fn_op 10 load_global 11
+fn_op 10 call 1
+fn_op 10 pop
+fn_op 10 load_local 2
+fn_op 10 load_global 11
+fn_op 10 call 1
+fn_op 10 pop
+fn_op 10 load_global 9
+fn_op 10 call 0
+fn_op 10 pop
+fn_op 10 load_local 3
+fn_op 10 acc_add_global 6
+fn_op 10 const 2
+fn_op 10 return
+fn_arrows 10 0
+fn 11 appendEmbeddedMethodOps
+fn_params 11 ci,mi,ops
+fn_locals 11 ci,mi,ops
+fn_op 11 const 1
+fn_op 11 dup
+fn_op 11 store_global 23
+fn_op 11 pop
+fn_op 11 load_global 23
+fn_op 11 load_local 2
+fn_op 11 load_global 2
+fn_op 11 call 1
+fn_op 11 lt
+fn_op 11 jump_if_false 24
+fn_op 11 const 35
+fn_op 11 load_global 12
+fn_op 11 call 1
+fn_op 11 pop
+fn_op 11 load_local 0
+fn_op 11 load_global 11
+fn_op 11 call 1
+fn_op 11 pop
+fn_op 11 load_local 1
+fn_op 11 load_global 11
+fn_op 11 call 1
+fn_op 11 pop
+fn_op 11 load_global 9
+fn_op 11 call 0
+fn_op 11 pop
+fn_op 11 load_local 2
+fn_op 11 load_global 23
+fn_op 11 index_get
+fn_op 11 load_global 21
+fn_op 11 call 1
+fn_op 11 acc_add_global 6
+fn_op 11 const 13
+fn_op 11 acc_add_global 23
+fn_op 11 jump -30
+fn_op 11 const 2
+fn_op 11 return
+fn_arrows 11 0
+fn 12 appendClassMethods
+fn_params 12 ci,methods
+fn_locals 12 ci,methods
+fn_op 12 const 1
+fn_op 12 dup
+fn_op 12 store_global 29
+fn_op 12 pop
+fn_op 12 load_global 29
+fn_op 12 load_local 1
+fn_op 12 load_global 2
+fn_op 12 call 1
+fn_op 12 lt
+fn_op 12 jump_if_false 59
+fn_op 12 load_local 1
+fn_op 12 load_global 29
+fn_op 12 index_get
+fn_op 12 dup
+fn_op 12 store_global 30
+fn_op 12 pop
+fn_op 12 const 36
+fn_op 12 load_local 0
+fn_op 12 load_global 29
+fn_op 12 load_global 30
+fn_op 12 const 37
+fn_op 12 index_get
+fn_op 12 load_global 27
+fn_op 12 call 4
+fn_op 12 pop
+fn_op 12 const 38
+fn_op 12 load_local 0
+fn_op 12 load_global 29
+fn_op 12 load_global 30
+fn_op 12 const 39
+fn_op 12 index_get
+fn_op 12 load_global 24
+fn_op 12 call 1
+fn_op 12 load_global 27
+fn_op 12 call 4
+fn_op 12 pop
+fn_op 12 const 40
+fn_op 12 load_local 0
+fn_op 12 load_global 29
+fn_op 12 load_global 30
+fn_op 12 const 41
+fn_op 12 index_get
+fn_op 12 load_global 24
+fn_op 12 call 1
+fn_op 12 load_global 27
+fn_op 12 call 4
+fn_op 12 pop
+fn_op 12 const 42
+fn_op 12 load_local 0
+fn_op 12 load_global 29
+fn_op 12 load_global 30
+fn_op 12 const 43
+fn_op 12 index_get
+fn_op 12 load_global 24
+fn_op 12 call 1
+fn_op 12 load_global 27
+fn_op 12 call 4
+fn_op 12 pop
+fn_op 12 load_local 0
+fn_op 12 load_global 29
+fn_op 12 load_global 30
+fn_op 12 const 44
+fn_op 12 index_get
+fn_op 12 load_global 28
+fn_op 12 call 3
+fn_op 12 pop
+fn_op 12 const 13
+fn_op 12 acc_add_global 29
+fn_op 12 jump -65
+fn_op 12 const 2
+fn_op 12 return
+fn_arrows 12 0
+fn 13 serializeBcImplCore
+fn_params 13 bc
+fn_locals 13 bc,tr,arr,mtr
+fn_op 13 load_global 32
+fn_op 13 dup
+fn_op 13 store_global 6
+fn_op 13 pop
+fn_op 13 const 45
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 46
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 46
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 13
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 46
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 load_global 15
+fn_op 13 call 2
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -20
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 43
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 19
+fn_op 13 const 47
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 43
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 acc_add_global 6
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -26
+fn_op 13 const 48
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 49
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 49
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 151
+fn_op 13 load_local 0
+fn_op 13 get_member 49
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 dup
+fn_op 13 store_global 33
+fn_op 13 pop
+fn_op 13 const 50
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_global 33
+fn_op 13 get_member 37
+fn_op 13 acc_add_global 6
+fn_op 13 const 51
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_global 33
+fn_op 13 get_member 39
+fn_op 13 load_global 24
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 const 52
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_global 33
+fn_op 13 get_member 41
+fn_op 13 load_global 24
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 load_global 33
+fn_op 13 const 53
+fn_op 13 index_get
+fn_op 13 const 29
+fn_op 13 ne
+fn_op 13 jump_if_false 57
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 29
+fn_op 13 pop
+fn_op 13 load_global 29
+fn_op 13 load_global 33
+fn_op 13 const 53
+fn_op 13 index_get
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 45
+fn_op 13 load_global 33
+fn_op 13 const 53
+fn_op 13 index_get
+fn_op 13 load_global 29
+fn_op 13 index_get
+fn_op 13 store_local 1
+fn_op 13 const 54
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 29
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 1
+fn_op 13 const 55
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 1
+fn_op 13 const 56
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 1
+fn_op 13 const 57
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 1
+fn_op 13 const 58
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 13
+fn_op 13 acc_add_global 29
+fn_op 13 jump -53
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 29
+fn_op 13 pop
+fn_op 13 load_global 29
+fn_op 13 load_global 33
+fn_op 13 get_member 44
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 21
+fn_op 13 const 59
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_global 33
+fn_op 13 get_member 44
+fn_op 13 load_global 29
+fn_op 13 index_get
+fn_op 13 load_global 21
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 const 13
+fn_op 13 acc_add_global 29
+fn_op 13 jump -28
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -158
+fn_op 13 load_local 0
+fn_op 13 get_member 60
+fn_op 13 const 29
+fn_op 13 eq
+fn_op 13 jump_if_false 5
+fn_op 13 const 61
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 jump 113
+fn_op 13 const 62
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 60
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 60
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 91
+fn_op 13 load_local 0
+fn_op 13 get_member 60
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 store_local 2
+fn_op 13 const 63
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 2
+fn_op 13 const 37
+fn_op 13 index_get
+fn_op 13 acc_add_global 6
+fn_op 13 const 64
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 2
+fn_op 13 const 39
+fn_op 13 index_get
+fn_op 13 load_global 24
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 const 65
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 2
+fn_op 13 const 41
+fn_op 13 index_get
+fn_op 13 load_global 24
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 29
+fn_op 13 pop
+fn_op 13 load_global 29
+fn_op 13 load_local 2
+fn_op 13 const 44
+fn_op 13 index_get
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 22
+fn_op 13 const 66
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 2
+fn_op 13 const 44
+fn_op 13 index_get
+fn_op 13 load_global 29
+fn_op 13 index_get
+fn_op 13 load_global 21
+fn_op 13 call 1
+fn_op 13 acc_add_global 6
+fn_op 13 const 13
+fn_op 13 acc_add_global 29
+fn_op 13 jump -30
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -98
+fn_op 13 load_local 0
+fn_op 13 get_member 53
+fn_op 13 const 29
+fn_op 13 ne
+fn_op 13 jump_if_false 51
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 53
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 40
+fn_op 13 load_local 0
+fn_op 13 get_member 53
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 store_local 3
+fn_op 13 const 67
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 3
+fn_op 13 const 55
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 3
+fn_op 13 const 56
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 3
+fn_op 13 const 57
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 3
+fn_op 13 const 58
+fn_op 13 index_get
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -47
+fn_op 13 load_local 0
+fn_op 13 get_member 68
+fn_op 13 const 29
+fn_op 13 eq
+fn_op 13 jump_if_false 5
+fn_op 13 const 69
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 jump 41
+fn_op 13 const 70
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 68
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 68
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 19
+fn_op 13 const 71
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 68
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 acc_add_global 6
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -26
+fn_op 13 load_local 0
+fn_op 13 get_member 72
+fn_op 13 const 29
+fn_op 13 eq
+fn_op 13 jump_if_false 5
+fn_op 13 const 73
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 jump 41
+fn_op 13 const 74
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 72
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 72
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 19
+fn_op 13 const 75
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 72
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 acc_add_global 6
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -26
+fn_op 13 load_local 0
+fn_op 13 get_member 76
+fn_op 13 const 29
+fn_op 13 eq
+fn_op 13 jump_if_false 5
+fn_op 13 const 77
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 jump 68
+fn_op 13 const 78
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 76
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 load_global 10
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 const 1
+fn_op 13 dup
+fn_op 13 store_global 25
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_local 0
+fn_op 13 get_member 76
+fn_op 13 load_global 2
+fn_op 13 call 1
+fn_op 13 lt
+fn_op 13 jump_if_false 46
+fn_op 13 load_local 0
+fn_op 13 get_member 76
+fn_op 13 load_global 25
+fn_op 13 index_get
+fn_op 13 dup
+fn_op 13 store_global 34
+fn_op 13 pop
+fn_op 13 const 79
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 9
+fn_op 13 call 0
+fn_op 13 pop
+fn_op 13 load_global 34
+fn_op 13 const 37
+fn_op 13 index_get
+fn_op 13 acc_add_global 6
+fn_op 13 load_global 34
+fn_op 13 const 80
+fn_op 13 index_get
+fn_op 13 const 13
+fn_op 13 eq
+fn_op 13 jump_if_false 8
+fn_op 13 const 81
+fn_op 13 load_global 12
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 11
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 25
+fn_op 13 load_global 34
+fn_op 13 const 82
+fn_op 13 index_get
+fn_op 13 load_global 31
+fn_op 13 call 2
+fn_op 13 pop
+fn_op 13 const 13
+fn_op 13 acc_add_global 25
+fn_op 13 jump -53
+fn_op 13 const 83
+fn_op 13 load_global 8
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 44
+fn_op 13 load_global 26
+fn_op 13 call 1
+fn_op 13 pop
+fn_op 13 load_global 6
+fn_op 13 return
+fn_arrows 13 0
 arrows=0
 imports=3
 import 0 self_host/lexer_defs
@@ -1270,5 +1282,5 @@ store_local 14
 halt
 
 source=self_host/serialize_body.kab
-statements=26
-fingerprint=77166681496e50ff
+statements=32
+fingerprint=12f5eb54e78c9c20

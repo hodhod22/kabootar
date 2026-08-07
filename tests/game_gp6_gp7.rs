@@ -729,4 +729,32 @@ fn xr_hand_joints_and_input_profiles() {
     std::env::remove_var("KABOOTAR_XR_STUB");
     std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
     assert!(matches!(v, Value::Bool(true)), "openxr-stub hand got {v:?}");
+
+    // Live XR_EXT_hand_tracking joint buffers (host/OpenXR fills; Kab reads).
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_HAND_TRACKING", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let joints = [
+            { "joint": "wrist", "pose": { "x": 0.1, "y": 1.0, "z": -0.3, "qx": 0, "qy": 0, "qz": 0, "qw": 1, "emulated": false }, "radius": 0.01 },
+            { "joint": "thumb-tip", "pose": { "x": 0.12, "y": 1.02, "z": -0.28, "qx": 0, "qy": 0, "qz": 0, "qw": 1, "emulated": false }, "radius": 0.008 }
+        ]
+        let set = xrSetHandJointBuffer("left", joints)
+        let st = xrHandTrackingStatus()
+        let hand = xrHandJoints("left")
+        let tip = hand["joints"][1]
+        let cleared = xrClearHandJointBuffer("left")
+        let hand2 = xrHandJoints("left")
+        return set["ok"] == true && set["count"] == 2 && st["liveBuffers"]["left"] == true && st["liveBuffers"]["count"] == 1 && hand["source"] == "live-buffer" && tip["joint"] == "thumb-tip" && tip["pose"]["emulated"] == false && cleared["ok"] == true && hand2["source"] != "live-buffer" && len(hand2["joints"]) >= 8
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
+    assert!(matches!(v, Value::Bool(true)), "live hand buffer got {v:?}");
 }

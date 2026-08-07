@@ -111,7 +111,7 @@ pub fn xrInputProfiles(handedness) {
     return xr_input_profiles(handedness)
 }
 
-/// XRHand-style joint poses (emulated tracking stub).
+/// XRHand-style joint poses (live buffer if set, else emulated/stub synth).
 pub fn xrHandJoints(handedness) {
     if handedness == null || handedness == undefined {
         handedness = "right"
@@ -119,9 +119,25 @@ pub fn xrHandJoints(handedness) {
     return xr_hand_joints(handedness)
 }
 
-/// Hand-tracking capability: backend emulated | openxr-stub | openxr-ext.
+/// Hand-tracking capability: backend emulated | openxr-stub | openxr-ext + liveBuffers.
 pub fn xrHandTrackingStatus() {
     return xr_hand_tracking_status()
+}
+
+/// Push live XR_EXT_hand_tracking joint poses for one hand (host/OpenXR path).
+pub fn xrSetHandJointBuffer(handedness, joints) {
+    if handedness == null || handedness == undefined {
+        handedness = "right"
+    }
+    return xr_set_hand_joint_buffer(handedness, joints)
+}
+
+/// Clear live joint buffer(s). handedness: left|right|both (default both).
+pub fn xrClearHandJointBuffer(handedness) {
+    if handedness == null || handedness == undefined {
+        handedness = "both"
+    }
+    return xr_clear_hand_joint_buffer(handedness)
 }
 
 /// Tracked controller stubs (left/right) — derived from inputSources when present.

@@ -745,6 +745,30 @@ fn xr_hand_tracking_status_native(
     Ok(xr_ffi::hand_tracking_status())
 }
 
+fn xr_set_hand_joint_buffer_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("xr_set_hand_joint_buffer(handedness, joints)".into()),
+    };
+    let joints = args
+        .get(1)
+        .cloned()
+        .ok_or_else(|| "xr_set_hand_joint_buffer(handedness, joints)".to_string())?;
+    xr_ffi::set_hand_joint_buffer(handedness, joints)
+}
+
+fn xr_clear_hand_joint_buffer_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        Some(Value::Null) | None => "both",
+        _ => "both",
+    };
+    xr_ffi::clear_hand_joint_buffer(handedness)
+}
+
 fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mode = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1551,6 +1575,11 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_hand_joints", xr_hand_joints_native),
         ("xr_input_profiles", xr_input_profiles_native),
         ("xr_hand_tracking_status", xr_hand_tracking_status_native),
+        ("xr_set_hand_joint_buffer", xr_set_hand_joint_buffer_native),
+        (
+            "xr_clear_hand_joint_buffer",
+            xr_clear_hand_joint_buffer_native,
+        ),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),

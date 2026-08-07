@@ -5,8 +5,8 @@
 // the 64KB self-host-attempt size threshold — self-hosting cost scales with AST size
 // of the source being compiled, not with import-time cost of its dependents. Keep it
 // skip-listed and only ever load it via the Rust module loader (fast, exact).
-// P6b: densify source (irOpLine membership) + speed emit AccAdd in emit_impl; measure
-// with p6b_serialize_body_compile_budget before emptying SELF_HOST_SKIP_LISTED_LEAVES.
+// P6b: densify (membership + shallow AccAdd appends) + emit AccAdd in emit_impl;
+// measure with p6b_serialize_body_compile_budget before emptying SELF_HOST_SKIP_LISTED_LEAVES.
 //
 // Everything here shares the module-level `s*` accumulators (sOut, sI, sJ, …) via
 // plain call/return. Kabootar modules do not share mutable globals across files —
@@ -60,23 +60,49 @@ fn escStr(s) {
     return sEscOut
 }
 
+// P6b: shallow AccAdd appends (avoid depth-16+ Binary + trees in serializeBcImplCore).
+fn appendNl(s) {
+    sOut = sOut + CHAR_NL
+    sOut = sOut + s
+}
+
+fn appendSp() {
+    sOut = sOut + " "
+}
+
+fn appendNum(x) {
+    sOut = sOut + ("" + x)
+}
+
+fn appendSpNum(x) {
+    sOut = sOut + " "
+    sOut = sOut + ("" + x)
+}
+
+fn beginTag(tag) {
+    sOut = sOut + CHAR_NL
+    sOut = sOut + tag
+}
+
 fn constLine(idx, val) {
+    // Prefix once — fewer repeated "const "+idx Binary trees.
+    let p = "const " + ("" + idx) + " "
     if val == KAB_UNDEF_CONST {
-        return "const " + ("" + idx) + " undefined"
+        return p + "undefined"
     }
     if val == null {
-        return "const " + ("" + idx) + " null"
+        return p + "null"
     }
     if val == true {
-        return "const " + ("" + idx) + " bool true"
+        return p + "bool true"
     }
     if val == false {
-        return "const " + ("" + idx) + " bool false"
+        return p + "bool false"
     }
     if typeof(val) == "string" {
-        return "const " + ("" + idx) + " string " + escStr(val)
+        return p + "string " + escStr(val)
     }
-    return "const " + ("" + idx) + " number " + ("" + val)
+    return p + "number " + ("" + val)
 }
 
 // P6b: OP_* wire names already match .kbc text. Membership tables avoid ~58 If arms
@@ -121,16 +147,29 @@ fn joinComma(arr) {
 fn appendOps(ops) {
     sI = 0
     while sI < len(ops) {
-        sOut = sOut + CHAR_NL + irOpLine(ops[sI])
+        appendNl(irOpLine(ops[sI]))
         sI = sI + 1
     }
 }
 
+fn appendClassMethHeader(tag, ci, mi, rest) {
+    beginTag(tag)
+    appendSpNum(ci)
+    appendSpNum(mi)
+    appendSp()
+    sOut = sOut + rest
+}
+
 fn appendEmbeddedMethodOps(ci, mi, ops) {
-    sJ = 0
-    while sJ < len(ops) {
-        sOut = sOut + CHAR_NL + ("class_method_op " + ("" + ci) + " " + ("" + mi) + " " + irOpLine(ops[sJ]))
-        sJ = sJ + 1
+    // Use sK — must not clobber appendClassMethods' sJ method index.
+    sK = 0
+    while sK < len(ops) {
+        beginTag("class_method_op")
+        appendSpNum(ci)
+        appendSpNum(mi)
+        appendSp()
+        sOut = sOut + irOpLine(ops[sK])
+        sK = sK + 1
     }
 }
 
@@ -138,10 +177,10 @@ fn appendClassMethods(ci, methods) {
     sJ = 0
     while sJ < len(methods) {
         sMeth = methods[sJ]
-        sOut = sOut + CHAR_NL + ("class_method " + ("" + ci) + " " + ("" + sJ) + " " + sMeth["sym"])
-        sOut = sOut + CHAR_NL + ("class_method_params " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["params"]))
-        sOut = sOut + CHAR_NL + ("class_method_locals " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["locals"]))
-        sOut = sOut + CHAR_NL + ("class_method_globals " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["globals"]))
+        appendClassMethHeader("class_method", ci, sJ, sMeth["sym"])
+        appendClassMethHeader("class_method_params", ci, sJ, joinComma(sMeth["params"]))
+        appendClassMethHeader("class_method_locals", ci, sJ, joinComma(sMeth["locals"]))
+        appendClassMethHeader("class_method_globals", ci, sJ, joinComma(sMeth["globals"]))
         appendEmbeddedMethodOps(ci, sJ, sMeth["ops"])
         sJ = sJ + 1
     }
@@ -151,53 +190,89 @@ fn appendClassMethods(ci, methods) {
 
 pub fn serializeBcImplCore(bc) {
     sOut = KBC_HEADER
-    sOut = sOut + CHAR_NL + ("constants=" + ("" + len(bc.constants)))
+    beginTag("constants=")
+    appendNum(len(bc.constants))
     sI = 0
     while sI < len(bc.constants) {
-        sOut = sOut + CHAR_NL + constLine(sI, bc.constants[sI])
+        appendNl(constLine(sI, bc.constants[sI]))
         sI = sI + 1
     }
     sI = 0
     while sI < len(bc.globals) {
-        sOut = sOut + CHAR_NL + ("global " + ("" + sI) + " " + bc.globals[sI])
+        beginTag("global")
+        appendSpNum(sI)
+        appendSp()
+        sOut = sOut + bc.globals[sI]
         sI = sI + 1
     }
-    sOut = sOut + CHAR_NL + ("functions=" + ("" + len(bc.functions)))
+    beginTag("functions=")
+    appendNum(len(bc.functions))
     sI = 0
     while sI < len(bc.functions) {
         sFn = bc.functions[sI]
-        sOut = sOut + CHAR_NL + ("fn " + ("" + sI) + " " + sFn.sym)
-        sOut = sOut + CHAR_NL + ("fn_params " + ("" + sI) + " " + joinComma(sFn.params))
-        sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + joinComma(sFn.locals))
+        beginTag("fn")
+        appendSpNum(sI)
+        appendSp()
+        sOut = sOut + sFn.sym
+        beginTag("fn_params")
+        appendSpNum(sI)
+        appendSp()
+        sOut = sOut + joinComma(sFn.params)
+        beginTag("fn_locals")
+        appendSpNum(sI)
+        appendSp()
+        sOut = sOut + joinComma(sFn.locals)
         if sFn["tryRegions"] != undefined {
             sJ = 0
             while sJ < len(sFn["tryRegions"]) {
                 let tr = sFn["tryRegions"][sJ]
-                sOut = sOut + CHAR_NL + ("fn_try_region " + ("" + sI) + " " + ("" + sJ) + " " + ("" + tr["bodyStart"]) + " " + ("" + tr["bodyEnd"]) + " " + ("" + tr["catchStart"]) + " " + ("" + tr["errLocal"]))
+                beginTag("fn_try_region")
+                appendSpNum(sI)
+                appendSpNum(sJ)
+                appendSpNum(tr["bodyStart"])
+                appendSpNum(tr["bodyEnd"])
+                appendSpNum(tr["catchStart"])
+                appendSpNum(tr["errLocal"])
                 sJ = sJ + 1
             }
         }
         sJ = 0
         while sJ < len(sFn.ops) {
-            sOut = sOut + CHAR_NL + ("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
+            beginTag("fn_op")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + irOpLine(sFn.ops[sJ])
             sJ = sJ + 1
         }
         sI = sI + 1
     }
     // Module-level arrows
     if bc.arrows == undefined {
-        sOut = sOut + CHAR_NL + "arrows=0"
+        appendNl("arrows=0")
     } else {
-        sOut = sOut + CHAR_NL + ("arrows=" + ("" + len(bc.arrows)))
+        beginTag("arrows=")
+        appendNum(len(bc.arrows))
         sI = 0
         while sI < len(bc.arrows) {
             let arr = bc.arrows[sI]
-            sOut = sOut + CHAR_NL + ("arrow " + ("" + sI) + " " + arr["sym"])
-            sOut = sOut + CHAR_NL + ("arrow_params " + ("" + sI) + " " + joinComma(arr["params"]))
-            sOut = sOut + CHAR_NL + ("arrow_locals " + ("" + sI) + " " + joinComma(arr["locals"]))
+            beginTag("arrow")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + arr["sym"]
+            beginTag("arrow_params")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + joinComma(arr["params"])
+            beginTag("arrow_locals")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + joinComma(arr["locals"])
             sJ = 0
             while sJ < len(arr["ops"]) {
-                sOut = sOut + CHAR_NL + ("arrow_op " + ("" + sI) + " " + irOpLine(arr["ops"][sJ]))
+                beginTag("arrow_op")
+                appendSpNum(sI)
+                appendSp()
+                sOut = sOut + irOpLine(arr["ops"][sJ])
                 sJ = sJ + 1
             }
             sI = sI + 1
@@ -208,50 +283,68 @@ pub fn serializeBcImplCore(bc) {
         sI = 0
         while sI < len(bc.tryRegions) {
             let mtr = bc.tryRegions[sI]
-            sOut = sOut + CHAR_NL + ("main_try_region " + ("" + sI) + " " + ("" + mtr["bodyStart"]) + " " + ("" + mtr["bodyEnd"]) + " " + ("" + mtr["catchStart"]) + " " + ("" + mtr["errLocal"]))
+            beginTag("main_try_region")
+            appendSpNum(sI)
+            appendSpNum(mtr["bodyStart"])
+            appendSpNum(mtr["bodyEnd"])
+            appendSpNum(mtr["catchStart"])
+            appendSpNum(mtr["errLocal"])
             sI = sI + 1
         }
     }
     // Exports
     if bc.exports == undefined {
-        sOut = sOut + CHAR_NL + "exports=0"
+        appendNl("exports=0")
     } else {
-        sOut = sOut + CHAR_NL + ("exports=" + ("" + len(bc.exports)))
+        beginTag("exports=")
+        appendNum(len(bc.exports))
         sI = 0
         while sI < len(bc.exports) {
-            sOut = sOut + CHAR_NL + ("export " + ("" + sI) + " " + bc.exports[sI])
+            beginTag("export")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + bc.exports[sI]
             sI = sI + 1
         }
     }
     // Imports
     if bc.imports == undefined {
-        sOut = sOut + CHAR_NL + "imports=0"
+        appendNl("imports=0")
     } else {
-        sOut = sOut + CHAR_NL + ("imports=" + ("" + len(bc.imports)))
+        beginTag("imports=")
+        appendNum(len(bc.imports))
         sI = 0
         while sI < len(bc.imports) {
-            sOut = sOut + CHAR_NL + ("import " + ("" + sI) + " " + bc.imports[sI])
+            beginTag("import")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + bc.imports[sI]
             sI = sI + 1
         }
     }
     // Classes
     if bc.classes == undefined {
-        sOut = sOut + CHAR_NL + "classes=0"
+        appendNl("classes=0")
     } else {
-        sOut = sOut + CHAR_NL + ("classes=" + ("" + len(bc.classes)))
+        beginTag("classes=")
+        appendNum(len(bc.classes))
         sI = 0
         while sI < len(bc.classes) {
             sCls = bc.classes[sI]
-            sOut = sOut + CHAR_NL + ("class " + ("" + sI) + " " + sCls["sym"])
+            beginTag("class")
+            appendSpNum(sI)
+            appendSp()
+            sOut = sOut + sCls["sym"]
             if sCls["isStruct"] == 1 {
-                sOut = sOut + CHAR_NL + ("class_is_struct " + ("" + sI))
+                beginTag("class_is_struct")
+                appendSpNum(sI)
             }
             appendClassMethods(sI, sCls["methods"])
             sI = sI + 1
         }
     }
     // Main code
-    sOut = sOut + CHAR_NL + "code"
+    appendNl("code")
     appendOps(bc.ops)
     return sOut
 }

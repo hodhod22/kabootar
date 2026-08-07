@@ -29,7 +29,9 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 
 ## P6b playbook
 
-1. **Densify leaf source** — fewer If/Binary trees (`serialize_body` membership tables).
+1. **Densify leaf source** — fewer If/Binary trees:
+   - `serialize_body` membership tables (`IR_WITH_ARG` / `IR_ZERO_ARG`)
+   - **shallow AccAdd appends** (`appendNl` / `beginTag` / `appendSpNum`) — avoid depth-16+ `+` trees
 2. **Speed toolchain:**
    - `symIndex` const/global **maps** (avoid O(C²) LoadGlobal clones)
    - AccAdd recurse; early `emitIfStmt`; **`eOpsN`/`eFnOpsN`** in jump patches
@@ -46,7 +48,7 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | densify + maps + AccAdd/If + iterative `+` + op counters | still ≫ 10 s (~885–964 s class); re-profile after parser/emit seed regen |
+| `serialize_body.kab` | membership + **shallow AccAdd appends** + toolchain maps/AccAdd/If/`eOpsN`/iterative `+` | **~670 s** debug (`p6b_serialize_body_compile_budget`, 2026-08-07; prior ~885–964 s) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
@@ -56,7 +58,7 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 | `p6_seed_only_all_leaves_have_seeds` | Files exist; list length stays 5 |
 | `p6_seed_fingerprint_all_leaves_load` | Seed deserializes; fingerprint matches source |
 | `p6_skip_list_stays_until_ci_fast_gate` | Oversize emit stays skipped; flag off |
-| `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed + densified |
+| `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed + densified (membership + `appendNl`/`beginTag`) |
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath |
 | `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` |
 | `p6b_emit_symindex_map_progress` | `eConstMap` / no `len(eConsts)` scan |
@@ -64,7 +66,7 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
 
-Windows: `self_host_parser_suite` uses a 32 MiB thread stack (same class as ownership suite).
+Windows: `self_host_parser_suite` and `self_host_serialize_suite` use a 32 MiB thread stack.
 
 ## Seeds
 
