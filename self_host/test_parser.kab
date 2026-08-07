@@ -264,6 +264,16 @@ fn assert_kind(node, kind, msg) {
     assert_eq(len(ast.body[0].methods), 1, "trait method count")
 }
 
+// -- trait default method body (T5 deepen) -------------------------
+{
+    let src = "trait Show { fn show() { return 1 } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_INTERFACE, "trait default body")
+    assert_eq(len(ast.body[0].methods), 1, "default method count")
+    assert_eq(ast.body[0].methods[0].sym, "show", "default method sym")
+    assert_eq(ast.body[0].methods[0].body.kind, AST_BLOCK, "default body block")
+}
+
 // -- associated type in trait (T5 deepen) --------------------------
 {
     let src = "trait Iter { type Item; fn next(); }"

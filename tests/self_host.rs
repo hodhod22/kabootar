@@ -371,6 +371,30 @@ fn self_host_lexer_suite() {
 }
 
 #[test]
+fn o5_compile_wires_ownership_checker() {
+    // Product wire lives in compile.kab (@manual gate → checkOwnership).
+    // Behaviour of the checker is covered by self_host_ownership_suite.
+    let compile_src = std::fs::read_to_string(self_host_path("compile.kab"))
+        .expect("read self_host/compile.kab");
+    assert!(
+        compile_src.contains("import \"self_host/ownership\""),
+        "compile.kab must import ownership"
+    );
+    assert!(
+        compile_src.contains("checkOwnership") && compile_src.contains("sourceIsManual"),
+        "compile.kab must gate @manual through checkOwnership"
+    );
+    let body = compile_src
+        .split("pub fn compile")
+        .nth(1)
+        .expect("pub fn compile");
+    assert!(
+        body.contains("checkOwnership"),
+        "compile() body must call checkOwnership"
+    );
+}
+
+#[test]
 fn self_host_ownership_suite() {
     let path = self_host_path("test_ownership.kab");
     let ok = std::thread::Builder::new()

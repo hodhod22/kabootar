@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=138
+constants=139
 const 0 number 0
 const 1 null
 const 2 string EOF
@@ -112,32 +112,33 @@ const 108 string Expected\sinterface/trait\sname
 const 109 string Expected\sassociated\stype\sname
 const 110 string Expected\s;\safter\sassociated\stype
 const 111 string Expected\sfn\sin\sinterface
-const 112 string Expected\s;
-const 113 string associatedTypes
-const 114 string Expected\sfunction\sname
-const 115 string ->
-const 116 string Expected\sreturn\stype
-const 117 string Expected\stype\sparameter\sin\swhere
-const 118 string Expected\s:\sin\swhere
-const 119 string Expected\strait\sname\sin\swhere
-const 120 string typeParam
-const 121 string traitName
-const 122 string whereClause
-const 123 string cond
-const 124 string then
-const 125 string elseBranch
-const 126 string Unclosed\stry
-const 127 string Expected\scatch
-const 128 string Expected\scatch\sbinding
-const 129 string Unclosed\scatch
-const 130 string errName
-const 131 string handler
-const 132 string Expected\sfor-of\sbinding
-const 133 string Expected\sof
-const 134 string iterable
-const 135 string rhs
-const 136 string invalid\sassign\slhs
-const 137 string imports
+const 112 string Unclosed\sdefault\smethod\sbody
+const 113 string Expected\s;\sor\sdefault\smethod\sbody
+const 114 string associatedTypes
+const 115 string Expected\sfunction\sname
+const 116 string ->
+const 117 string Expected\sreturn\stype
+const 118 string Expected\stype\sparameter\sin\swhere
+const 119 string Expected\s:\sin\swhere
+const 120 string Expected\strait\sname\sin\swhere
+const 121 string typeParam
+const 122 string traitName
+const 123 string whereClause
+const 124 string cond
+const 125 string then
+const 126 string elseBranch
+const 127 string Unclosed\stry
+const 128 string Expected\scatch
+const 129 string Expected\scatch\sbinding
+const 130 string Unclosed\scatch
+const 131 string errName
+const 132 string handler
+const 133 string Expected\sfor-of\sbinding
+const 134 string Expected\sof
+const 135 string iterable
+const 136 string rhs
+const 137 string invalid\sassign\slhs
+const 138 string imports
 global 0 pCur
 global 1 peek
 global 2 pTok
@@ -2515,7 +2516,7 @@ fn_op 6 return
 fn_arrows 6 0
 fn 7 parseStmt
 fn_params 7 
-fn_locals 7 methBody,fnBody,chainConds,chainThens,finalElse,armCond,armThen,i,ifNode,tryBody,errSym,catchBody,forSym,forIter,forBody,whileBody,blockStmts
+fn_locals 7 methBody,ifaceMethParams,ifaceMethSym,defBody,fnBody,chainConds,chainThens,finalElse,armCond,armThen,i,ifNode,tryBody,errSym,catchBody,forSym,forIter,forBody,whileBody,blockStmts
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 2
@@ -3370,7 +3371,7 @@ fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 load_global 100
 fn_op 7 eq
-fn_op 7 jump_if_false 256
+fn_op 7 jump_if_false 335
 fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
@@ -3422,7 +3423,7 @@ fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 34
 fn_op 7 ne
-fn_op 7 jump_if_false 189
+fn_op 7 jump_if_false 268
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 load_global 11
@@ -3469,7 +3470,7 @@ fn_op 7 pop
 fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
-fn_op 7 jump 141
+fn_op 7 jump 220
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 load_global 90
@@ -3592,26 +3593,105 @@ fn_op 7 pop
 fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
+fn_op 7 load_global 93
+fn_op 7 store_local 1
+fn_op 7 load_global 91
+fn_op 7 store_local 2
+fn_op 7 load_global 0
+fn_op 7 get_member 3
+fn_op 7 const 33
+fn_op 7 eq
+fn_op 7 jump_if_false 70
+fn_op 7 load_global 7
+fn_op 7 call 0
+fn_op 7 pop
+fn_op 7 take_global 38
+fn_op 7 load_global 39
+fn_op 7 array_push_global 38
+fn_op 7 pop
+fn_op 7 make_array 0
+fn_op 7 dup
+fn_op 7 store_global 39
+fn_op 7 pop
+fn_op 7 load_global 0
+fn_op 7 get_member 3
+fn_op 7 const 34
+fn_op 7 ne
+fn_op 7 jump_if_false 22
+fn_op 7 load_global 0
+fn_op 7 get_member 3
+fn_op 7 const 2
+fn_op 7 eq
+fn_op 7 jump_if_false 3
+fn_op 7 const 112
+fn_op 7 throw
+fn_op 7 pop
+fn_op 7 take_global 39
+fn_op 7 load_global 40
+fn_op 7 call 0
+fn_op 7 array_push_global 39
+fn_op 7 pop
+fn_op 7 load_global 0
+fn_op 7 get_member 3
+fn_op 7 const 36
+fn_op 7 eq
+fn_op 7 jump_if_false 3
+fn_op 7 load_global 7
+fn_op 7 call 0
+fn_op 7 pop
+fn_op 7 jump -27
+fn_op 7 load_global 7
+fn_op 7 call 0
+fn_op 7 pop
+fn_op 7 load_global 39
+fn_op 7 store_local 3
+fn_op 7 load_global 38
+fn_op 7 load_global 38
+fn_op 7 load_global 9
+fn_op 7 call 1
+fn_op 7 const 5
+fn_op 7 sub
+fn_op 7 index_get
+fn_op 7 dup
+fn_op 7 store_global 39
+fn_op 7 pop
+fn_op 7 array_pop_global 38
+fn_op 7 pop
+fn_op 7 take_global 102
+fn_op 7 load_local 2
+fn_op 7 const 21
+fn_op 7 load_local 1
+fn_op 7 const 38
+fn_op 7 load_global 41
+fn_op 7 const 15
+fn_op 7 load_local 3
+fn_op 7 const 37
+fn_op 7 make_object 2
+fn_op 7 const 37
+fn_op 7 make_object 3
+fn_op 7 array_push_global 102
+fn_op 7 pop
+fn_op 7 jump 19
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 36
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 112
+fn_op 7 const 113
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 take_global 102
-fn_op 7 load_global 91
+fn_op 7 load_local 2
 fn_op 7 const 21
-fn_op 7 load_global 93
+fn_op 7 load_local 1
 fn_op 7 const 38
 fn_op 7 make_object 2
 fn_op 7 array_push_global 102
 fn_op 7 pop
-fn_op 7 jump -194
+fn_op 7 jump -273
 fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
@@ -3624,7 +3704,7 @@ fn_op 7 const 93
 fn_op 7 load_global 102
 fn_op 7 const 106
 fn_op 7 load_global 103
-fn_op 7 const 113
+fn_op 7 const 114
 fn_op 7 make_object 5
 fn_op 7 return
 fn_op 7 load_global 0
@@ -3644,7 +3724,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 114
+fn_op 7 const 115
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -3801,7 +3881,7 @@ fn_op 7 store_global 108
 fn_op 7 pop
 fn_op 7 load_global 0
 fn_op 7 get_member 3
-fn_op 7 const 115
+fn_op 7 const 116
 fn_op 7 eq
 fn_op 7 jump_if_false 23
 fn_op 7 load_global 7
@@ -3816,7 +3896,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 116
+fn_op 7 const 117
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -3850,7 +3930,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 117
+fn_op 7 const 118
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -3866,7 +3946,7 @@ fn_op 7 get_member 3
 fn_op 7 const 24
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 118
+fn_op 7 const 119
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -3881,7 +3961,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 119
+fn_op 7 const 120
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -3894,9 +3974,9 @@ fn_op 7 store_global 112
 fn_op 7 pop
 fn_op 7 take_global 109
 fn_op 7 load_global 111
-fn_op 7 const 120
-fn_op 7 load_global 112
 fn_op 7 const 121
+fn_op 7 load_global 112
+fn_op 7 const 122
 fn_op 7 make_object 2
 fn_op 7 array_push_global 109
 fn_op 7 pop
@@ -3961,7 +4041,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 39
-fn_op 7 store_local 1
+fn_op 7 store_local 4
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -3989,10 +4069,10 @@ fn_op 7 const 101
 fn_op 7 load_global 108
 fn_op 7 const 102
 fn_op 7 load_global 109
-fn_op 7 const 122
+fn_op 7 const 123
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 1
+fn_op 7 load_local 4
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 const 37
@@ -4007,16 +4087,16 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 make_array 0
-fn_op 7 store_local 2
+fn_op 7 store_local 5
 fn_op 7 make_array 0
-fn_op 7 store_local 3
+fn_op 7 store_local 6
 fn_op 7 const 1
-fn_op 7 store_local 4
+fn_op 7 store_local 7
 fn_op 7 const 17
 fn_op 7 jump_if_false 151
 fn_op 7 load_global 34
 fn_op 7 call 0
-fn_op 7 store_local 5
+fn_op 7 store_local 8
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 33
@@ -4063,7 +4143,7 @@ fn_op 7 const 15
 fn_op 7 load_global 39
 fn_op 7 const 37
 fn_op 7 make_object 2
-fn_op 7 store_local 6
+fn_op 7 store_local 9
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4076,13 +4156,13 @@ fn_op 7 store_global 39
 fn_op 7 pop
 fn_op 7 array_pop_global 38
 fn_op 7 pop
-fn_op 7 take_local 2
-fn_op 7 load_local 5
-fn_op 7 array_push_local 2
+fn_op 7 take_local 5
+fn_op 7 load_local 8
+fn_op 7 array_push_local 5
 fn_op 7 pop
-fn_op 7 take_local 3
-fn_op 7 load_local 6
-fn_op 7 array_push_local 3
+fn_op 7 take_local 6
+fn_op 7 load_local 9
+fn_op 7 array_push_local 6
 fn_op 7 pop
 fn_op 7 load_global 0
 fn_op 7 get_member 3
@@ -4149,7 +4229,7 @@ fn_op 7 load_global 39
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 dup
-fn_op 7 store_local 4
+fn_op 7 store_local 7
 fn_op 7 pop
 fn_op 7 load_global 38
 fn_op 7 load_global 38
@@ -4165,60 +4245,60 @@ fn_op 7 array_pop_global 38
 fn_op 7 pop
 fn_op 7 jump 1
 fn_op 7 jump -153
-fn_op 7 load_local 2
+fn_op 7 load_local 5
 fn_op 7 load_global 9
 fn_op 7 call 1
 fn_op 7 const 5
 fn_op 7 sub
-fn_op 7 store_local 7
+fn_op 7 store_local 10
 fn_op 7 load_global 116
 fn_op 7 const 15
-fn_op 7 load_local 2
-fn_op 7 load_local 7
-fn_op 7 index_get
-fn_op 7 const 123
-fn_op 7 load_local 3
-fn_op 7 load_local 7
+fn_op 7 load_local 5
+fn_op 7 load_local 10
 fn_op 7 index_get
 fn_op 7 const 124
-fn_op 7 load_local 4
+fn_op 7 load_local 6
+fn_op 7 load_local 10
+fn_op 7 index_get
 fn_op 7 const 125
-fn_op 7 make_object 4
-fn_op 7 store_local 8
 fn_op 7 load_local 7
+fn_op 7 const 126
+fn_op 7 make_object 4
+fn_op 7 store_local 11
+fn_op 7 load_local 10
 fn_op 7 const 5
 fn_op 7 sub
 fn_op 7 dup
-fn_op 7 store_local 7
+fn_op 7 store_local 10
 fn_op 7 pop
-fn_op 7 load_local 7
+fn_op 7 load_local 10
 fn_op 7 const 0
 fn_op 7 ge
 fn_op 7 jump_if_false 23
 fn_op 7 load_global 116
 fn_op 7 const 15
-fn_op 7 load_local 2
-fn_op 7 load_local 7
-fn_op 7 index_get
-fn_op 7 const 123
-fn_op 7 load_local 3
-fn_op 7 load_local 7
+fn_op 7 load_local 5
+fn_op 7 load_local 10
 fn_op 7 index_get
 fn_op 7 const 124
-fn_op 7 load_local 8
+fn_op 7 load_local 6
+fn_op 7 load_local 10
+fn_op 7 index_get
 fn_op 7 const 125
+fn_op 7 load_local 11
+fn_op 7 const 126
 fn_op 7 make_object 4
 fn_op 7 dup
-fn_op 7 store_local 8
+fn_op 7 store_local 11
 fn_op 7 pop
-fn_op 7 load_local 7
+fn_op 7 load_local 10
 fn_op 7 const 5
 fn_op 7 sub
 fn_op 7 dup
-fn_op 7 store_local 7
+fn_op 7 store_local 10
 fn_op 7 pop
 fn_op 7 jump -27
-fn_op 7 load_local 8
+fn_op 7 load_local 11
 fn_op 7 return
 fn_op 7 load_global 0
 fn_op 7 get_member 3
@@ -4257,7 +4337,7 @@ fn_op 7 get_member 3
 fn_op 7 const 2
 fn_op 7 eq
 fn_op 7 jump_if_false 3
-fn_op 7 const 126
+fn_op 7 const 127
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 take_global 39
@@ -4278,7 +4358,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 39
-fn_op 7 store_local 9
+fn_op 7 store_local 12
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4296,7 +4376,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 118
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 127
+fn_op 7 const 128
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -4339,7 +4419,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 128
+fn_op 7 const 129
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -4347,7 +4427,7 @@ fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 2
 fn_op 7 get_member 4
-fn_op 7 store_local 10
+fn_op 7 store_local 13
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 26
@@ -4388,7 +4468,7 @@ fn_op 7 get_member 3
 fn_op 7 const 2
 fn_op 7 eq
 fn_op 7 jump_if_false 3
-fn_op 7 const 129
+fn_op 7 const 130
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 take_global 39
@@ -4409,7 +4489,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 39
-fn_op 7 store_local 11
+fn_op 7 store_local 14
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4426,18 +4506,18 @@ fn_op 7 load_global 119
 fn_op 7 const 15
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 9
+fn_op 7 load_local 12
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 const 37
-fn_op 7 load_local 10
-fn_op 7 const 130
+fn_op 7 load_local 13
+fn_op 7 const 131
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 11
+fn_op 7 load_local 14
 fn_op 7 const 37
 fn_op 7 make_object 2
-fn_op 7 const 131
+fn_op 7 const 132
 fn_op 7 make_object 4
 fn_op 7 return
 fn_op 7 load_global 0
@@ -4457,7 +4537,7 @@ fn_op 7 get_member 3
 fn_op 7 load_global 11
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 132
+fn_op 7 const 133
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -4465,13 +4545,13 @@ fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 2
 fn_op 7 get_member 4
-fn_op 7 store_local 12
+fn_op 7 store_local 15
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 load_global 121
 fn_op 7 ne
 fn_op 7 jump_if_false 3
-fn_op 7 const 133
+fn_op 7 const 134
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 7
@@ -4479,7 +4559,7 @@ fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 34
 fn_op 7 call 0
-fn_op 7 store_local 13
+fn_op 7 store_local 16
 fn_op 7 load_global 0
 fn_op 7 get_member 3
 fn_op 7 const 33
@@ -4522,7 +4602,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 122
-fn_op 7 store_local 14
+fn_op 7 store_local 17
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4537,13 +4617,13 @@ fn_op 7 array_pop_global 38
 fn_op 7 pop
 fn_op 7 load_global 123
 fn_op 7 const 15
-fn_op 7 load_local 12
+fn_op 7 load_local 15
 fn_op 7 const 21
-fn_op 7 load_local 13
-fn_op 7 const 134
+fn_op 7 load_local 16
+fn_op 7 const 135
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 14
+fn_op 7 load_local 17
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 const 37
@@ -4608,7 +4688,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 122
-fn_op 7 store_local 15
+fn_op 7 store_local 18
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4636,10 +4716,10 @@ fn_op 7 pop
 fn_op 7 load_global 127
 fn_op 7 const 15
 fn_op 7 load_global 61
-fn_op 7 const 123
+fn_op 7 const 124
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 15
+fn_op 7 load_local 18
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 const 37
@@ -4787,7 +4867,7 @@ fn_op 7 load_global 7
 fn_op 7 call 0
 fn_op 7 pop
 fn_op 7 load_global 136
-fn_op 7 store_local 16
+fn_op 7 store_local 19
 fn_op 7 load_global 38
 fn_op 7 load_global 38
 fn_op 7 load_global 9
@@ -4802,7 +4882,7 @@ fn_op 7 array_pop_global 38
 fn_op 7 pop
 fn_op 7 load_global 41
 fn_op 7 const 15
-fn_op 7 load_local 16
+fn_op 7 load_local 19
 fn_op 7 const 37
 fn_op 7 make_object 2
 fn_op 7 return
@@ -4880,7 +4960,7 @@ fn_op 7 const 15
 fn_op 7 load_global 73
 fn_op 7 const 21
 fn_op 7 load_global 45
-fn_op 7 const 135
+fn_op 7 const 136
 fn_op 7 make_object 3
 fn_op 7 return
 fn_op 7 load_global 34
@@ -4913,7 +4993,7 @@ fn_op 7 const 21
 fn_op 7 index_get
 fn_op 7 const 21
 fn_op 7 load_global 74
-fn_op 7 const 135
+fn_op 7 const 136
 fn_op 7 make_object 3
 fn_op 7 return
 fn_op 7 load_global 61
@@ -4932,7 +5012,7 @@ fn_op 7 const 55
 fn_op 7 index_get
 fn_op 7 const 55
 fn_op 7 load_global 74
-fn_op 7 const 135
+fn_op 7 const 136
 fn_op 7 make_object 4
 fn_op 7 return
 fn_op 7 load_global 61
@@ -4951,10 +5031,10 @@ fn_op 7 const 53
 fn_op 7 index_get
 fn_op 7 const 53
 fn_op 7 load_global 74
-fn_op 7 const 135
+fn_op 7 const 136
 fn_op 7 make_object 4
 fn_op 7 return
-fn_op 7 const 136
+fn_op 7 const 137
 fn_op 7 throw
 fn_op 7 pop
 fn_op 7 load_global 61
@@ -5136,7 +5216,7 @@ fn_op 8 const 15
 fn_op 8 load_local 1
 fn_op 8 const 37
 fn_op 8 load_global 142
-fn_op 8 const 137
+fn_op 8 const 138
 fn_op 8 make_object 3
 fn_op 8 return
 fn_arrows 8 0
@@ -5317,4 +5397,4 @@ halt
 
 source=self_host/parser_impl.kab
 statements=88
-fingerprint=275aba7c1c49e288
+fingerprint=32c90226a29f1199

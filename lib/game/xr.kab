@@ -183,20 +183,36 @@ pub fn createProjectionView(eye, image, pose, fov) {
         if image["width"] != null { w = image["width"] }
         if image["height"] != null { h = image["height"] }
     }
+    let sub = {
+        "swapchainId": image["swapchainId"],
+        "imageIndex": image["imageIndex"],
+        "x": 0,
+        "y": 0,
+        "width": w,
+        "height": h
+    }
+    // GP6n: thread wgpu/Vulkan image handles into layer submit path
+    if image != null && image != undefined {
+        if image["nativeImage"] != null && image["nativeImage"] != undefined {
+            sub["nativeImage"] = image["nativeImage"]
+        }
+        if image["wgpuTextureId"] != null && image["wgpuTextureId"] != undefined {
+            sub["wgpuTextureId"] = image["wgpuTextureId"]
+        }
+        if image["wgpuDevice"] != null && image["wgpuDevice"] != undefined {
+            sub["wgpuDevice"] = image["wgpuDevice"]
+        }
+        if image["imageSource"] != null && image["imageSource"] != undefined {
+            sub["imageSource"] = image["imageSource"]
+        }
+    }
     return {
         "eye": eye,
         "width": w,
         "height": h,
         "pose": pose,
         "fov": fov,
-        "subImage": {
-            "swapchainId": image["swapchainId"],
-            "imageIndex": image["imageIndex"],
-            "x": 0,
-            "y": 0,
-            "width": w,
-            "height": h
-        }
+        "subImage": sub
     }
 }
 

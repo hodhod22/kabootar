@@ -2315,6 +2315,34 @@ pub fn compositor_open() -> Result<Value, String> {
     Ok(Value::Object(out))
 }
 
+/// Collect wgpu/Vulkan image handles from composition views' subImage bags.
+fn composition_image_handles(composition: &Value) -> (Vec<Value>, Vec<Value>) {
+    let mut native = Vec::new();
+    let mut wgpu = Vec::new();
+    let Value::Object(m) = composition else {
+        return (native, wgpu);
+    };
+    let views = match m.get("views") {
+        Some(Value::Array(a)) => a.as_slice(),
+        _ => &[],
+    };
+    for view in views {
+        let Value::Object(vm) = view else {
+            continue;
+        };
+        let Some(Value::Object(sub)) = vm.get("subImage") else {
+            continue;
+        };
+        if let Some(v) = sub.get("nativeImage") {
+            native.push(v.clone());
+        }
+        if let Some(v) = sub.get("wgpuTextureId") {
+            wgpu.push(v.clone());
+        }
+    }
+    (native, wgpu)
+}
+
 /// Submit composed frame into compositor IPC queue (OpenXR xrEndFrame analogue).
 pub fn compositor_submit(composition: &Value) -> Result<Value, String> {
     let mut ipc = COMPOSITOR_IPC
@@ -2349,6 +2377,7 @@ pub fn compositor_submit(composition: &Value) -> Result<Value, String> {
         }
         _ => (0, 0, 0, ipc.submits + 1),
     };
+    let (native_images, wgpu_texture_ids) = composition_image_handles(composition);
     ipc.submits += 1;
     ipc.pending.push(CompositorMsg {
         frame_index,
@@ -2364,6 +2393,9 @@ pub fn compositor_submit(composition: &Value) -> Result<Value, String> {
     out.insert("pending".into(), Value::Number(ipc.pending.len() as i64));
     out.insert("channel".into(), Value::String(ipc.channel.clone()));
     out.insert("kind".into(), Value::String("xr_compositor_submit".into()));
+    // GP6n: echo real swapchain image handles into submit ack (layer submit path).
+    out.insert("submittedImages".into(), Value::Array(native_images));
+    out.insert("wgpuTextureIds".into(), Value::Array(wgpu_texture_ids));
     Ok(Value::Object(out))
 }
 

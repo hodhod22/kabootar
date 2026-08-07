@@ -1004,11 +1004,39 @@ fn parseStmt() {
                     throw "Expected )"
                 }
                 bump()
-                if pCur.type != ";" {
-                    throw "Expected ;"
+                // T5 deepen: default method body `{ ... }` or declaration `;`
+                // Snapshot params before body — parseStmt/call reuse module locals.
+                let ifaceMethParams = pMethParams
+                let ifaceMethSym = pFnSym
+                if pCur.type == "{" {
+                    bump()
+                    pBodyStack = push(pBodyStack, pBody)
+                    pBody = []
+                    while pCur.type != "}" {
+                        if pCur.type == "EOF" {
+                            throw "Unclosed default method body"
+                        }
+                        pBody = push(pBody, parseStmt())
+                        if pCur.type == ";" {
+                            bump()
+                        }
+                    }
+                    bump()
+                    let defBody = pBody
+                    pBody = pBodyStack[len(pBodyStack) - 1]
+                    pBodyStack = pop(pBodyStack)
+                    pIfaceMethods = push(pIfaceMethods, {
+                        "sym": ifaceMethSym,
+                        "params": ifaceMethParams,
+                        "body": { "kind": AST_BLOCK, "body": defBody }
+                    })
+                } else {
+                    if pCur.type != ";" {
+                        throw "Expected ; or default method body"
+                    }
+                    bump()
+                    pIfaceMethods = push(pIfaceMethods, { "sym": ifaceMethSym, "params": ifaceMethParams })
                 }
-                bump()
-                pIfaceMethods = push(pIfaceMethods, { "sym": pFnSym, "params": pMethParams })
             }
         }
         bump()
