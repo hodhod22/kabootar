@@ -1,0 +1,235 @@
+@version "1.0.0"
+
+// Kabootar game/trigger - Unity-like trigger system (OnEnter, OnExit, OnStay events).
+// import "game/trigger"
+
+/// Create a trigger event tracker for a collider.
+pub fn createTriggerTracker(colliderId) {
+    return {
+        "colliderId": colliderId,
+        "inside": {},
+        "events": []
+    }
+}
+
+/// Update trigger state - returns events that occurred this frame.
+pub fn updateTrigger(tracker, otherId, isInside) {
+    let wasInside = tracker["inside"]["" + otherId] == true
+    let events = tracker["events"]
+    
+    if isInside && !wasInside {
+        events = push(events, {
+            "type": "enter",
+            "colliderId": tracker["colliderId"],
+            "otherId": otherId
+        })
+        tracker["inside"]["" + otherId] = true
+    } else if !isInside && wasInside {
+        events = push(events, {
+            "type": "exit",
+            "colliderId": tracker["colliderId"],
+            "otherId": otherId
+        })
+        tracker["inside"]["" + otherId] = false
+    } else if isInside && wasInside {
+        events = push(events, {
+            "type": "stay",
+            "colliderId": tracker["colliderId"],
+            "otherId": otherId
+        })
+    }
+    
+    tracker["events"] = events
+    return tracker
+}
+
+/// Get all events from this frame and clear them.
+pub fn getTriggerEvents(tracker) {
+    let events = tracker["events"]
+    tracker["events"] = []
+    return events
+}
+
+/// Check if another collider is currently inside this trigger.
+pub fn isInsideTrigger(tracker, otherId) {
+    return tracker["inside"]["" + otherId] == true
+}
+
+/// Get all colliders currently inside this trigger.
+pub fn getInsideColliders(tracker) {
+    let inside = []
+    let keys = tracker["inside"]
+    for key in keys {
+        if keys[key] == true {
+            inside = push(inside, key)
+        }
+    }
+    return inside
+}
+
+/// Clear all tracking data (useful on scene reset).
+pub fn clearTrigger(tracker) {
+    tracker["inside"] = {}
+    tracker["events"] = []
+    return tracker
+}
+
+/// Trigger manager for multiple colliders in a scene.
+pub fn createTriggerManager() {
+    return {
+        "trackers": {},
+        "collisionMatrix": null
+    }
+}
+
+/// Add a trigger tracker to the manager.
+pub fn addTrigger(manager, tracker) {
+    let id = tracker["colliderId"]
+    manager["trackers"]["" + id] = tracker
+    return manager
+}
+
+/// Remove a trigger tracker from the manager.
+pub fn removeTrigger(manager, colliderId) {
+    manager["trackers"]["" + colliderId] = null
+    return manager
+}
+
+/// Update all triggers based on collider overlaps.
+pub fn updateTriggers(manager, overlaps) {
+    let trackers = manager["trackers"]
+    let i = 0
+    while i < len(overlaps) {
+        let overlap = overlaps[i]
+        let idA = overlap["a"]
+        let idB = overlap["b"]
+        
+        let trackerA = trackers["" + idA]
+        let trackerB = trackers["" + idB]
+        
+        if trackerA != null && trackerA != undefined {
+            trackerA = updateTrigger(trackerA, idB, true)
+            trackers["" + idA] = trackerA
+        }
+        
+        if trackerB != null && trackerB != undefined {
+            trackerB = updateTrigger(trackerB, idA, true)
+            trackers["" + idB] = trackerB
+        }
+        
+        i = i + 1
+    }
+    
+    let allIds = []
+    for key in trackers {
+        if trackers[key] != null && trackers[key] != undefined {
+            allIds = push(allIds, key)
+        }
+    }
+    
+    let j = 0
+    while j < len(allIds) {
+        let id = allIds[j]
+        let tracker = trackers[id]
+        if tracker != null && tracker != undefined {
+            let inside = tracker["inside"]
+            let insideKeys = []
+            for k in inside {
+                insideKeys = push(insideKeys, k)
+            }
+            
+            let k = 0
+            let stillInside = false
+            while k < len(overlaps) {
+                let overlap = overlaps[k]
+                if (overlap["a"] == id && overlap["b"] == insideKeys[0]) || 
+                   (overlap["b"] == id && overlap["a"] == insideKeys[0]) {
+                    stillInside = true
+                }
+                k = k + 1
+            }
+            
+            let m = 0
+            while m < len(insideKeys) {
+                let otherId = insideKeys[m]
+                let found = false
+                let n = 0
+                while n < len(overlaps) {
+                    let overlap = overlaps[n]
+                    if (overlap["a"] == id && overlap["b"] == otherId) || 
+                       (overlap["b"] == id && overlap["a"] == otherId) {
+                        found = true
+                    }
+                    n = n + 1
+                }
+                
+                if !found {
+                    tracker = updateTrigger(tracker, otherId, false)
+                    trackers[id] = tracker
+                }
+                m = m + 1
+            }
+        }
+        j = j + 1
+    }
+    
+    manager["trackers"] = trackers
+    return manager
+}
+
+/// Get all events from all triggers this frame.
+pub fn getAllTriggerEvents(manager) {
+    let allEvents = []
+    let trackers = manager["trackers"]
+    for key in trackers {
+        let tracker = trackers[key]
+        if tracker != null && tracker != undefined {
+            let events = getTriggerEvents(tracker)
+            let i = 0
+            while i < len(events) {
+                allEvents = push(allEvents, events[i])
+                i = i + 1
+            }
+        }
+    }
+    return allEvents
+}
+
+/// Filter events by type (enter, exit, stay).
+pub fn filterEventsByType(events, eventType) {
+    let filtered = []
+    let i = 0
+    while i < len(events) {
+        if events[i]["type"] == eventType {
+            filtered = push(filtered, events[i])
+        }
+        i = i + 1
+    }
+    return filtered
+}
+
+/// Filter events by collider ID.
+pub fn filterEventsByCollider(events, colliderId) {
+    let filtered = []
+    let i = 0
+    while i < len(events) {
+        if events[i]["colliderId"] == colliderId {
+            filtered = push(filtered, events[i])
+        }
+        i = i + 1
+    }
+    return filtered
+}
+
+/// Filter events by other collider ID.
+pub fn filterEventsByOther(events, otherId) {
+    let filtered = []
+    let i = 0
+    while i < len(events) {
+        if events[i]["otherId"] == otherId {
+            filtered = push(filtered, events[i])
+        }
+        i = i + 1
+    }
+    return filtered
+}

@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar game/time - dt + fixed step (GP1d subset).
+// Kabootar game/time - Unity-like time management (timeScale, deltaTime, fixedDeltaTime).
 // import "game/time"
 
 pub fn dtSec(delta_ms) {
@@ -21,4 +21,173 @@ pub fn fixedTick(state, dt, onFixed) {
         count = count + 1
     }
     return count
+}
+
+/// Create a time manager with timeScale support.
+pub fn createTimeManager() {
+    return {
+        "timeScale": 1.0,
+        "deltaTime": 0.016,
+        "fixedDeltaTime": 0.02,
+        "time": 0.0,
+        "frameCount": 0,
+        "realtimeSinceStartup": 0.0,
+        "fixedState": createFixed(0.02)
+    }
+}
+
+/// Set the time scale (1.0 = normal, 0.0 = paused, 2.0 = 2x speed).
+pub fn setTimeScale(manager, scale) {
+    if scale == null || scale == undefined { scale = 1.0 }
+    manager["timeScale"] = scale
+    return manager
+}
+
+/// Get the current time scale.
+pub fn getTimeScale(manager) {
+    return manager["timeScale"]
+}
+
+/// Update time manager - call each frame with raw delta in seconds.
+pub fn updateTime(manager, rawDelta) {
+    if rawDelta == null || rawDelta == undefined { rawDelta = 0.016 }
+    let scaledDelta = rawDelta * manager["timeScale"]
+    manager["deltaTime"] = scaledDelta
+    manager["time"] = manager["time"] + scaledDelta
+    manager["realtimeSinceStartup"] = manager["realtimeSinceStartup"] + rawDelta
+    manager["frameCount"] = manager["frameCount"] + 1
+    return manager
+}
+
+/// Get delta time (scaled by timeScale).
+pub fn getDeltaTime(manager) {
+    return manager["deltaTime"]
+}
+
+/// Get unscaled delta time (raw frame time).
+pub fn getUnscaledDeltaTime(manager, rawDelta) {
+    if rawDelta == null || rawDelta == undefined { rawDelta = 0.016 }
+    return rawDelta
+}
+
+/// Get fixed delta time (for physics).
+pub fn getFixedDeltaTime(manager) {
+    return manager["fixedDeltaTime"]
+}
+
+/// Get time since game start (scaled).
+pub fn getTime(manager) {
+    return manager["time"]
+}
+
+/// Get time since game start (unscaled).
+pub fn getRealtimeSinceStartup(manager) {
+    return manager["realtimeSinceStartup"]
+}
+
+/// Get frame count since game start.
+pub fn getFrameCount(manager) {
+    return manager["frameCount"]
+}
+
+/// Check if game is effectively paused (timeScale near 0).
+pub fn isPaused(manager) {
+    return manager["timeScale"] < 0.0001
+}
+
+/// Pause the game (timeScale = 0).
+pub fn pause(manager) {
+    manager["timeScale"] = 0.0
+    return manager
+}
+
+/// Resume the game (timeScale = 1).
+pub fn resume(manager) {
+    manager["timeScale"] = 1.0
+    return manager
+}
+
+/// Run fixed update loop - returns number of fixed steps executed.
+pub fn fixedUpdate(manager, onFixed) {
+    let dt = manager["deltaTime"]
+    if manager["timeScale"] < 0.0001 {
+        dt = 0.0
+    }
+    let count = fixedTick(manager["fixedState"], dt, onFixed)
+    return count
+}
+
+/// Smooth damp for camera/movement (Unity Mathf.SmoothDamp equivalent).
+pub fn smoothDamp(current, target, velocity, smoothTime, maxSpeed, deltaTime) {
+    if smoothTime == null || smoothTime == undefined { smoothTime = 0.1 }
+    if maxSpeed == null || maxSpeed == undefined { maxSpeed = 999999.0 }
+    if deltaTime == null || deltaTime == undefined { deltaTime = 0.016 }
+    
+    smoothTime = max(0.0001, smoothTime)
+    let omega = 2.0 / smoothTime
+    let x = omega * deltaTime
+    let exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x)
+    let change = current - target
+    let originalTo = target
+    
+    let maxChange = maxSpeed * smoothTime
+    let sqrm = maxChange * maxChange
+    let sqc = change * change
+    if sqc > sqrm {
+        change = maxChange * sqrt(sqc) / sqrt(sqc)
+    }
+    
+    target = current - change
+    let temp = (velocity["x"] + omega * change) * deltaTime
+    velocity["x"] = (velocity["x"] - omega * temp) * exp
+    let output = target + (change + temp) * exp
+    
+    if originalTo - current > 0.0 {
+        if output > originalTo {
+            output = originalTo
+            velocity["x"] = (output - originalTo) / deltaTime
+        }
+    } else {
+        if output < originalTo {
+            output = originalTo
+            velocity["x"] = (output - originalTo) / deltaTime
+        }
+    }
+    
+    return output
+}
+
+/// Lerp (linear interpolation).
+pub fn lerp(a, b, t) {
+    if t == null || t == undefined { t = 0.5 }
+    return a + (b - a) * t
+}
+
+/// Lerp unclamped.
+pub fn lerpUnclamped(a, b, t) {
+    if t == null || t == undefined { t = 0.5 }
+    return a + (b - a) * t
+}
+
+/// Clamp value between min and max.
+pub fn clamp(value, min, max) {
+    if value < min { return min }
+    if value > max { return max }
+    return value
+}
+
+/// Repeat value t in range [0, length].
+pub fn repeat(t, length) {
+    if length == 0.0 { return 0.0 }
+    return t - floor(t / length) * length
+}
+
+/// Ping pong value t in range [0, length].
+pub fn pingPong(t, length) {
+    if length == 0.0 { return 0.0 }
+    t = repeat(t, length * 2.0)
+    if t < length {
+        return t
+    }
+    return length * 2.0 - t
 }

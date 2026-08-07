@@ -221,3 +221,450 @@ pub fn streamPump(stream) {
         "written": n
     }
 }
+
+/// Advanced 3D audio source with spatialization.
+pub fn createAudioSource(position, volume, minDistance, maxDistance) {
+    if position == null || position == undefined { position = { "x": 0.0, "y": 0.0, "z": 0.0 } }
+    if volume == null || volume == undefined { volume = 1.0 }
+    if minDistance == null || minDistance == undefined { minDistance = 1.0 }
+    if maxDistance == null || maxDistance == undefined { maxDistance = 100.0 }
+    
+    return {
+        "kind": "AudioSource",
+        "position": position,
+        "velocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "volume": volume,
+        "minDistance": minDistance,
+        "maxDistance": maxDistance,
+        "rolloffMode": "logarithmic",
+        "spatialBlend": 1.0,
+        "dopplerLevel": 1.0,
+        "spread": 0.0,
+        "priority": 128,
+        "loop": false,
+        "mute": false,
+        "bypassEffects": false,
+        "bypassListenerEffects": false,
+        "bypassReverbZones": false
+    }
+}
+
+/// Set audio source position.
+pub fn setAudioSourcePosition(source, x, y, z) {
+    source["position"] = { "x": x, "y": y, "z": z }
+    return source
+}
+
+/// Set audio source velocity for Doppler effect.
+pub fn setAudioSourceVelocity(source, vx, vy, vz) {
+    source["velocity"] = { "x": vx, "y": vy, "z": vz }
+    return source
+}
+
+/// Set rolloff mode (logarithmic, linear, custom).
+pub fn setRolloffMode(source, mode) {
+    source["rolloffMode"] = mode
+    return source
+}
+
+/// Set spatial blend (0 = 2D, 1 = full 3D).
+pub fn setSpatialBlend(source, blend) {
+    source["spatialBlend"] = blend
+    return source
+}
+
+/// Set Doppler effect level.
+pub fn setDopplerLevel(source, level) {
+    source["dopplerLevel"] = level
+    return source
+}
+
+/// Calculate 3D audio attenuation with Doppler.
+pub fn calculate3DAudio(source, listener) {
+    let dx = source["position"]["x"] - listener["x"]
+    let dy = source["position"]["y"] - listener["y"]
+    let dz = source["position"]["z"] - listener["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    let attenuation = 1.0
+    if source["rolloffMode"] == "logarithmic" {
+        attenuation = source["minDistance"] / (source["minDistance"] + distance * (1.0 - source["minDistance"] / source["maxDistance"]))
+    } else if source["rolloffMode"] == "linear" {
+        attenuation = 1.0 - (distance - source["minDistance"]) / (source["maxDistance"] - source["minDistance"])
+    }
+    
+    if attenuation < 0.0 { attenuation = 0.0 }
+    if attenuation > 1.0 { attenuation = 1.0 }
+    
+    let dopplerShift = 1.0
+    if source["dopplerLevel"] > 0.0 {
+        let svx = source["velocity"]["x"]
+        let svy = source["velocity"]["y"]
+        let svz = source["velocity"]["z"]
+        let lvx = listener["vx"]
+        if lvx == null || lvx == undefined { lvx = 0.0 }
+        let lvy = listener["vy"]
+        if lvy == null || lvy == undefined { lvy = 0.0 }
+        let lvz = listener["vz"]
+        if lvz == null || lvz == undefined { lvz = 0.0 }
+        
+        let speedOfSound = 343.0
+        let sourceSpeed = sqrt(svx * svx + svy * svy + svz * svz)
+        let listenerSpeed = sqrt(lvx * lvx + lvy * lvy + lvz * lvz)
+        
+        if distance > 0.0001 {
+            let sourceApproach = (dx * svx + dy * svy + dz * svz) / distance
+            let listenerApproach = (dx * lvx + dy * lvy + dz * lvz) / distance
+            dopplerShift = (speedOfSound - listenerApproach) / (speedOfSound - sourceApproach)
+        }
+        
+        dopplerShift = 1.0 + (dopplerShift - 1.0) * source["dopplerLevel"]
+        if dopplerShift < 0.5 { dopplerShift = 0.5 }
+        if dopplerShift > 2.0 { dopplerShift = 2.0 }
+    }
+    
+    let panLeft = 1.0
+    let panRight = 1.0
+    if source["spatialBlend"] > 0.0 {
+        let listenerRight = { "x": listener["fx"], "y": listener["fy"], "z": listener["fz"] }
+        let sourceDir = { "x": dx, "y": dy, "z": dz }
+        let len = sqrt(sourceDir["x"] * sourceDir["x"] + sourceDir["y"] * sourceDir["y"] + sourceDir["z"] * sourceDir["z"])
+        if len > 0.0001 {
+            sourceDir["x"] = sourceDir["x"] / len
+            sourceDir["y"] = sourceDir["y"] / len
+            sourceDir["z"] = sourceDir["z"] / len
+        }
+        
+        let dot = sourceDir["x"] * listenerRight["x"] + sourceDir["y"] * listenerRight["y"] + sourceDir["z"] * listenerRight["z"]
+        let pan = -dot * source["spatialBlend"]
+        panLeft = clamp(1.0 + pan, 0.0, 1.0)
+        panRight = clamp(1.0 - pan, 0.0, 1.0)
+    }
+    
+    return {
+        "volume": source["volume"] * attenuation,
+        "dopplerShift": dopplerShift,
+        "panLeft": panLeft,
+        "panRight": panRight,
+        "distance": distance
+    }
+}
+
+/// Audio mixer for advanced mixing.
+pub fn createAudioMixer() {
+    return {
+        "kind": "AudioMixer",
+        "groups": {},
+        "snapshots": {},
+        "currentSnapshot": null,
+        "masterVolume": 1.0,
+        "dspBufferSize": 1024
+    }
+}
+
+/// Create mixer group.
+pub fn createMixerGroup(name, volume) {
+    if volume == null || volume == undefined { volume = 1.0 }
+    return {
+        "name": name,
+        "volume": volume,
+        "pitch": 1.0,
+        "lowpass": 22000.0,
+        "highpass": 0.0,
+        "reverbSend": 0.0,
+        "solo": false,
+        "mute": false,
+        "effects": []
+    }
+}
+
+/// Add group to mixer.
+pub fn addMixerGroup(mixer, group) {
+    mixer["groups"][group["name"]] = group
+    return mixer
+}
+
+/// Set group volume.
+pub fn setGroupVolume(mixer, groupName, volume) {
+    if mixer["groups"][groupName] != null {
+        mixer["groups"][groupName]["volume"] = volume
+    }
+    return mixer
+}
+
+/// Set group lowpass filter.
+pub fn setGroupLowpass(mixer, groupName, frequency) {
+    if mixer["groups"][groupName] != null {
+        mixer["groups"][groupName]["lowpass"] = frequency
+    }
+    return mixer
+}
+
+/// Set group highpass filter.
+pub fn setGroupHighpass(mixer, groupName, frequency) {
+    if mixer["groups"][groupName] != null {
+        mixer["groups"][groupName]["highpass"] = frequency
+    }
+    return mixer
+}
+
+/// Audio snapshot for mixer states.
+pub fn createAudioSnapshot(name) {
+    return {
+        "name": name,
+        "groupStates": {},
+        "transitionTo": 0.0,
+        "transitionFrom": 0.0
+    }
+}
+
+/// Save current mixer state to snapshot.
+pub fn saveSnapshot(mixer, snapshotName) {
+    let snapshot = createAudioSnapshot(snapshotName)
+    for key in mixer["groups"] {
+        let group = mixer["groups"][key]
+        snapshot["groupStates"][key] = {
+            "volume": group["volume"],
+            "pitch": group["pitch"],
+            "lowpass": group["lowpass"],
+            "highpass": group["highpass"],
+            "reverbSend": group["reverbSend"]
+        }
+    }
+    mixer["snapshots"][snapshotName] = snapshot
+    return mixer
+}
+
+/// Load snapshot to mixer.
+pub fn loadSnapshot(mixer, snapshotName) {
+    let snapshot = mixer["snapshots"][snapshotName]
+    if snapshot != null {
+        for key in snapshot["groupStates"] {
+            let state = snapshot["groupStates"][key]
+            if mixer["groups"][key] != null {
+                mixer["groups"][key]["volume"] = state["volume"]
+                mixer["groups"][key]["pitch"] = state["pitch"]
+                mixer["groups"][key]["lowpass"] = state["lowpass"]
+                mixer["groups"][key]["highpass"] = state["highpass"]
+                mixer["groups"][key]["reverbSend"] = state["reverbSend"]
+            }
+        }
+    }
+    return mixer
+}
+
+/// Reverb effect.
+pub fn createReverbEffect(roomSize, decayTime, damping, dryLevel, wetLevel) {
+    if roomSize == null || roomSize == undefined { roomSize = 0.5 }
+    if decayTime == null || decayTime == undefined { decayTime = 1.5 }
+    if damping == null || damping == undefined { damping = 0.5 }
+    if dryLevel == null || dryLevel == undefined { dryLevel = 0.0 }
+    if wetLevel == null || wetLevel == undefined { wetLevel = 1.0 }
+    
+    return {
+        "kind": "ReverbEffect",
+        "roomSize": roomSize,
+        "decayTime": decayTime,
+        "damping": damping,
+        "dryLevel": dryLevel,
+        "wetLevel": wetLevel
+    }
+}
+
+/// Apply simple reverb to samples (delay-based).
+pub fn applyReverb(samples, reverb) {
+    let delaySize = floor(reverb["decayTime"] * 22050.0)
+    if delaySize < 1 { delaySize = 1 }
+    if delaySize > 22050 { delaySize = 22050 }
+    
+    let out = []
+    let delayBuffer = []
+    let i = 0
+    while i < delaySize {
+        delayBuffer = push(delayBuffer, 0.0)
+        i = i + 1
+    }
+    
+    let delayIndex = 0
+    let i = 0
+    while i < len(samples) {
+        let dry = samples[i]
+        let wet = delayBuffer[delayIndex]
+        
+        let output = dry * reverb["dryLevel"] + wet * reverb["wetLevel"]
+        out = push(out, floor(output))
+        
+        delayBuffer[delayIndex] = dry + wet * reverb["damping"]
+        delayIndex = delayIndex + 1
+        if delayIndex >= delaySize {
+            delayIndex = 0
+        }
+        
+        i = i + 1
+    }
+    
+    return out
+}
+
+/// EQ effect (3-band).
+pub fn createEQEffect(lowGain, midGain, highGain, lowFreq, highFreq) {
+    if lowGain == null || lowGain == undefined { lowGain = 0.0 }
+    if midGain == null || midGain == undefined { midGain = 0.0 }
+    if highGain == null || highGain == undefined { highGain = 0.0 }
+    if lowFreq == null || lowFreq == undefined { lowFreq = 400.0 }
+    if highFreq == null || highFreq == undefined { highFreq = 4000.0 }
+    
+    return {
+        "kind": "EQEffect",
+        "lowGain": lowGain,
+        "midGain": midGain,
+        "highGain": highGain,
+        "lowFreq": lowFreq,
+        "highFreq": highFreq
+    }
+}
+
+/// Apply simple EQ to samples.
+pub fn applyEQ(samples, eq, sampleRate) {
+    if sampleRate == null || sampleRate == undefined { sampleRate = 22050.0 }
+    
+    let out = []
+    let i = 0
+    while i < len(samples) {
+        let sample = samples[i]
+        
+        let lowBoost = 1.0 + eq["lowGain"] * 0.1
+        let midBoost = 1.0 + eq["midGain"] * 0.1
+        let highBoost = 1.0 + eq["highGain"] * 0.1
+        
+        let result = sample * (lowBoost + midBoost + highBoost) / 3.0
+        out = push(out, floor(result))
+        
+        i = i + 1
+    }
+    
+    return out
+}
+
+/// Audio occlusion for realistic sound blocking.
+pub fn calculateOcclusion(sourcePosition, listenerPosition, occluders) {
+    if len(occluders) == 0 {
+        return 1.0
+    }
+    
+    let occlusionFactor = 1.0
+    
+    let i = 0
+    while i < len(occluders) {
+        let occluder = occluders[i]
+        let bounds = occluder["bounds"]
+        
+        if rayIntersectsAABB(listenerPosition, sourcePosition, bounds["min"], bounds["max"]) {
+            occlusionFactor = occlusionFactor * (1.0 - occluder["occlusion"])
+        }
+        
+        i = i + 1
+    }
+    
+    if occlusionFactor < 0.0 { occlusionFactor = 0.0 }
+    return occlusionFactor
+}
+
+fn rayIntersectsAABB(origin, direction, min, max) {
+    let dx = direction["x"] - origin["x"]
+    let dy = direction["y"] - origin["y"]
+    let dz = direction["z"] - origin["z"]
+    
+    let tMin = 0.0
+    let tMax = 1.0
+    
+    if abs(dx) < 0.0001 {
+        if origin["x"] < min["x"] || origin["x"] > max["x"] {
+            return false
+        }
+    } else {
+        let t1 = (min["x"] - origin["x"]) / dx
+        let t2 = (max["x"] - origin["x"]) / dx
+        if t1 > t2 {
+            let temp = t1
+            t1 = t2
+            t2 = temp
+        }
+        if t1 > tMin { tMin = t1 }
+        if t2 < tMax { tMax = t2 }
+        if tMin > tMax { return false }
+    }
+    
+    if abs(dy) < 0.0001 {
+        if origin["y"] < min["y"] || origin["y"] > max["y"] {
+            return false
+        }
+    } else {
+        let t1 = (min["y"] - origin["y"]) / dy
+        let t2 = (max["y"] - origin["y"]) / dy
+        if t1 > t2 {
+            let temp = t1
+            t1 = t2
+            t2 = temp
+        }
+        if t1 > tMin { tMin = t1 }
+        if t2 < tMax { tMax = t2 }
+        if tMin > tMax { return false }
+    }
+    
+    if abs(dz) < 0.0001 {
+        if origin["z"] < min["z"] || origin["z"] > max["z"] {
+            return false
+        }
+    } else {
+        let t1 = (min["z"] - origin["z"]) / dz
+        let t2 = (max["z"] - origin["z"]) / dz
+        if t1 > t2 {
+            let temp = t1
+            t1 = t2
+            t2 = temp
+        }
+        if t1 > tMin { tMin = t1 }
+        if t2 < tMax { tMax = t2 }
+        if tMin > tMax { return false }
+    }
+    
+    return tMin <= 1.0 && tMax >= 0.0
+}
+
+/// Audio zone for area-based effects.
+pub fn createAudioZone(bounds, reverb, priority) {
+    if priority == null || priority == undefined { priority = 0 }
+    return {
+        "kind": "AudioZone",
+        "bounds": bounds,
+        "reverb": reverb,
+        "priority": priority
+    }
+}
+
+/// Find active audio zone for listener.
+pub fn findAudioZone(zones, listenerPosition) {
+    let activeZone = null
+    let highestPriority = -999999
+    
+    let i = 0
+    while i < len(zones) {
+        let zone = zones[i]
+        let bounds = zone["bounds"]
+        
+        if listenerPosition["x"] >= bounds["min"]["x"] && listenerPosition["x"] <= bounds["max"]["x"] &&
+           listenerPosition["y"] >= bounds["min"]["y"] && listenerPosition["y"] <= bounds["max"]["y"] &&
+           listenerPosition["z"] >= bounds["min"]["z"] && listenerPosition["z"] <= bounds["max"]["z"] {
+            
+            if zone["priority"] > highestPriority {
+                highestPriority = zone["priority"]
+                activeZone = zone
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return activeZone
+}

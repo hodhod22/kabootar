@@ -1,0 +1,374 @@
+@version "1.0.0"
+
+// Kabootar game/material - Unity-like PBR material system for high-quality rendering.
+// import "game/material"
+
+/// Create a basic PBR material.
+pub fn createPBRMaterial() {
+    return {
+        "kind": "Material",
+        "shader": "pbr",
+        "albedo": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+        "metallic": 0.0,
+        "roughness": 0.5,
+        "ao": 1.0,
+        "emission": { "r": 0.0, "g": 0.0, "b": 0.0 },
+        "normalScale": 1.0,
+        "albedoMap": null,
+        "metallicMap": null,
+        "roughnessMap": null,
+        "aoMap": null,
+        "emissionMap": null,
+        "normalMap": null,
+        "heightMap": null,
+        "heightScale": 0.02,
+        "doubleSided": false,
+        "alphaClip": false,
+        "alphaClipThreshold": 0.5,
+        "enableInstancing": true
+    }
+}
+
+/// Create an unlit material (no lighting, just color/texture).
+pub fn createUnlitMaterial() {
+    let mat = createPBRMaterial()
+    mat["shader"] = "unlit"
+    return mat
+}
+
+/// Create a toon/cel-shaded material.
+pub fn createToonMaterial() {
+    let mat = createPBRMaterial()
+    mat["shader"] = "toon"
+    mat["roughness"] = 0.8
+    return mat
+}
+
+/// Set albedo color.
+pub fn setAlbedo(mat, r, g, b, a) {
+    if r == null || r == undefined { r = 1.0 }
+    if g == null || g == undefined { g = 1.0 }
+    if b == null || b == undefined { b = 1.0 }
+    if a == null || a == undefined { a = 1.0 }
+    mat["albedo"] = { "r": r, "g": g, "b": b, "a": a }
+    return mat
+}
+
+/// Set metallic property (0 = dielectric, 1 = metal).
+pub fn setMetallic(mat, metallic) {
+    if metallic == null || metallic == undefined { metallic = 0.0 }
+    mat["metallic"] = clamp(metallic, 0.0, 1.0)
+    return mat
+}
+
+/// Set roughness property (0 = smooth, 1 = rough).
+pub fn setRoughness(mat, roughness) {
+    if roughness == null || roughness == undefined { roughness = 0.5 }
+    mat["roughness"] = clamp(roughness, 0.0, 1.0)
+    return mat
+}
+
+/// Set ambient occlusion.
+pub fn setAO(mat, ao) {
+    if ao == null || ao == undefined { ao = 1.0 }
+    mat["ao"] = clamp(ao, 0.0, 1.0)
+    return mat
+}
+
+/// Set emission color (self-illumination).
+pub fn setEmission(mat, r, g, b) {
+    if r == null || r == undefined { r = 0.0 }
+    if g == null || g == undefined { g = 0.0 }
+    if b == null || b == undefined { b = 0.0 }
+    mat["emission"] = { "r": r, "g": g, "b": b }
+    return mat
+}
+
+/// Set normal map scale.
+pub fn setNormalScale(mat, scale) {
+    if scale == null || scale == undefined { scale = 1.0 }
+    mat["normalScale"] = scale
+    return mat
+}
+
+/// Set albedo texture.
+pub fn setAlbedoMap(mat, texturePath) {
+    mat["albedoMap"] = texturePath
+    return mat
+}
+
+/// Set metallic texture.
+pub fn setMetallicMap(mat, texturePath) {
+    mat["metallicMap"] = texturePath
+    return mat
+}
+
+/// Set roughness texture.
+pub fn setRoughnessMap(mat, texturePath) {
+    mat["roughnessMap"] = texturePath
+    return mat
+}
+
+/// Set ambient occlusion texture.
+pub fn setAOMap(mat, texturePath) {
+    mat["aoMap"] = texturePath
+    return mat
+}
+
+/// Set emission texture.
+pub fn setEmissionMap(mat, texturePath) {
+    mat["emissionMap"] = texturePath
+    return mat
+}
+
+/// Set normal map.
+pub fn setNormalMap(mat, texturePath) {
+    mat["normalMap"] = texturePath
+    return mat
+}
+
+/// Set height map (for parallax).
+pub fn setHeightMap(mat, texturePath, scale) {
+    mat["heightMap"] = texturePath
+    if scale != null && scale != undefined {
+        mat["heightScale"] = scale
+    }
+    return mat
+}
+
+/// Enable/disable double-sided rendering.
+pub fn setDoubleSided(mat, doubleSided) {
+    mat["doubleSided"] = doubleSided == true
+    return mat
+}
+
+/// Enable/disable alpha clipping (cutout transparency).
+pub fn setAlphaClip(mat, alphaClip, threshold) {
+    mat["alphaClip"] = alphaClip == true
+    if threshold != null && threshold != undefined {
+        mat["alphaClipThreshold"] = threshold
+    }
+    return mat
+}
+
+/// Enable/disable GPU instancing.
+pub fn setInstancing(mat, enable) {
+    mat["enableInstancing"] = enable == true
+    return mat
+}
+
+/// Create material from texture path (simple diffuse).
+pub fn createTextureMaterial(texturePath) {
+    let mat = createPBRMaterial()
+    mat["albedoMap"] = texturePath
+    return mat
+}
+
+/// Create material with all PBR textures.
+pub fn createFullPBRMaterial(albedoMap, normalMap, metallicMap, roughnessMap, aoMap) {
+    let mat = createPBRMaterial()
+    if albedoMap != null { mat["albedoMap"] = albedoMap }
+    if normalMap != null { mat["normalMap"] = normalMap }
+    if metallicMap != null { mat["metallicMap"] = metallicMap }
+    if roughnessMap != null { mat["roughnessMap"] = roughnessMap }
+    if aoMap != null { mat["aoMap"] = aoMap }
+    return mat
+}
+
+/// Material property block for per-instance overrides.
+pub fn createMaterialPropertyBlock() {
+    return {
+        "colors": {},
+        "vectors": {},
+        "floats": {},
+        "textures": {}
+    }
+}
+
+/// Set color property in block.
+pub fn setBlockColor(block, name, r, g, b, a) {
+    if a == null || a == undefined { a = 1.0 }
+    block["colors"][name] = { "r": r, "g": g, "b": b, "a": a }
+    return block
+}
+
+/// Set vector property in block.
+pub fn setBlockVector(block, name, x, y, z, w) {
+    if w == null || w == undefined { w = 1.0 }
+    block["vectors"][name] = { "x": x, "y": y, "z": z, "w": w }
+    return block
+}
+
+/// Set float property in block.
+pub fn setBlockFloat(block, name, value) {
+    block["floats"][name] = value
+    return block
+}
+
+/// Set texture property in block.
+pub fn setBlockTexture(block, name, texturePath) {
+    block["textures"][name] = texturePath
+    return block
+}
+
+/// Global material keywords for shader variants.
+pub fn getMaterialKeywords() {
+    return {
+        "_ALPHATEST_ON": "_ALPHATEST_ON",
+        "_ALPHAPREMULTIPLY_ON": "_ALPHAPREMULTIPLY_ON",
+        "_EMISSION": "_EMISSION",
+        "_METALLICGLOSSMAP": "_METALLICGLOSSMAP",
+        "_NORMALMAP": "_NORMALMAP",
+        "_OCCLUSIONMAP": "_OCCLUSIONMAP",
+        "_PARALLAXMAP": "_PARALLAXMAP",
+        "_DETAIL_MULX2": "_DETAIL_MULX2",
+        "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A": "_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A"
+    }
+}
+
+/// Enable keyword on material.
+pub fn enableKeyword(mat, keyword) {
+    if mat["keywords"] == null || mat["keywords"] == undefined {
+        mat["keywords"] = {}
+    }
+    mat["keywords"][keyword] = true
+    return mat
+}
+
+/// Disable keyword on material.
+pub fn disableKeyword(mat, keyword) {
+    if mat["keywords"] != null && mat["keywords"] != undefined {
+        mat["keywords"][keyword] = false
+    }
+    return mat
+}
+
+/// Check if keyword is enabled.
+pub fn isKeywordEnabled(mat, keyword) {
+    if mat["keywords"] == null || mat["keywords"] == undefined {
+        return false
+    }
+    return mat["keywords"][keyword] == true
+}
+
+/// Material render queue (when to render relative to other materials).
+pub fn setRenderQueue(mat, queue) {
+    mat["renderQueue"] = queue
+    return mat
+}
+
+/// Get render queue (default based on transparency).
+pub fn getRenderQueue(mat) {
+    if mat["renderQueue"] != null && mat["renderQueue"] != undefined {
+        return mat["renderQueue"]
+    }
+    if mat["albedo"]["a"] < 1.0 || mat["alphaClip"] == true {
+        return 3000
+    }
+    return 2000
+}
+
+/// Material blend modes.
+pub fn setBlendMode(mat, mode) {
+    mat["blendMode"] = mode
+    return mat
+}
+
+/// Create glass material (transparent, refractive).
+pub fn createGlassMaterial(refractiveIndex, roughness) {
+    if refractiveIndex == null || refractiveIndex == undefined { refractiveIndex = 1.5 }
+    if roughness == null || roughness == undefined { roughness = 0.1 }
+    
+    let mat = createPBRMaterial()
+    mat["shader"] = "glass"
+    mat["albedo"] = { "r": 1.0, "g": 1.0, "b": 1.0, "a": 0.3 }
+    mat["metallic"] = 0.0
+    mat["roughness"] = roughness
+    mat["refractiveIndex"] = refractiveIndex
+    mat["doubleSided"] = true
+    return mat
+}
+
+/// Create water material (transparent, reflective).
+pub fn createWaterMaterial(color, foamColor, speed, scale) {
+    if color == null || color == undefined { color = { "r": 0.1, "g": 0.3, "b": 0.5 } }
+    if foamColor == null || foamColor == undefined { foamColor = { "r": 0.8, "g": 0.9, "b": 1.0 } }
+    if speed == null || speed == undefined { speed = 1.0 }
+    if scale == null || scale == undefined { scale = 1.0 }
+    
+    let mat = createPBRMaterial()
+    mat["shader"] = "water"
+    mat["albedo"] = { "r": color["r"], "g": color["g"], "b": color["b"], "a": 0.7 }
+    mat["metallic"] = 0.9
+    mat["roughness"] = 0.1
+    mat["waterColor"] = color
+    mat["foamColor"] = foamColor
+    mat["waterSpeed"] = speed
+    mat["waterScale"] = scale
+    mat["doubleSided"] = true
+    return mat
+}
+
+/// Create hologram material (emissive, additive).
+pub fn createHologramMaterial(color, scanlineSpeed, flickerIntensity) {
+    if color == null || color == undefined { color = { "r": 0.0, "g": 1.0, "b": 0.5 } }
+    if scanlineSpeed == null || scanlineSpeed == undefined { scanlineSpeed = 2.0 }
+    if flickerIntensity == null || flickerIntensity == undefined { flickerIntensity = 0.1 }
+    
+    let mat = createPBRMaterial()
+    mat["shader"] = "hologram"
+    mat["albedo"] = { "r": color["r"], "g": color["g"], "b": color["b"], "a": 0.8 }
+    mat["emission"] = color
+    mat["scanlineSpeed"] = scanlineSpeed
+    mat["flickerIntensity"] = flickerIntensity
+    mat["doubleSided"] = true
+    return mat
+}
+
+/// Create skybox material (cubemap).
+pub fn createSkyboxMaterial(cubemapPath, rotation) {
+    if rotation == null || rotation == undefined { rotation = 0.0 }
+    
+    let mat = createPBRMaterial()
+    mat["shader"] = "skybox"
+    mat["cubemap"] = cubemapPath
+    mat["rotation"] = rotation
+    mat["exposure"] = 1.0
+    return mat
+}
+
+/// Set skybox exposure.
+pub fn setSkyboxExposure(mat, exposure) {
+    mat["exposure"] = exposure
+    return mat
+}
+
+/// Set skybox rotation.
+pub fn setSkyboxRotation(mat, rotation) {
+    mat["rotation"] = rotation
+    return mat
+}
+
+/// Material LOD system (simplified materials for distance).
+pub fn createMaterialLOD(high, medium, low, distances) {
+    if distances == null || distances == undefined {
+        distances = [10.0, 50.0]
+    }
+    return {
+        "high": high,
+        "medium": medium,
+        "low": low,
+        "distances": distances
+    }
+}
+
+/// Get material based on distance.
+pub fn getLODMaterial(lod, distance) {
+    if distance < lod["distances"][0] {
+        return lod["high"]
+    }
+    if distance < lod["distances"][1] {
+        return lod["medium"]
+    }
+    return lod["low"]
+}
