@@ -2560,6 +2560,14 @@ fn p6b_emit_symindex_map_progress() {
         !src.contains("while eConstI < len(eConsts)"),
         "const symIndex must not scan eConsts with len/index clones"
     );
+    assert!(
+        src.contains("let eLocalMap = {}") && src.contains("fn resetLocalMap("),
+        "eLocalMap required for O(1) emitSym/localSymIndex"
+    );
+    assert!(
+        src.contains("// P6b: map lookup only"),
+        "emitSym must use map lookup (no eFnLocals/eGlobals scan loops)"
+    );
 }
 
 /// P6b: iterative + / - in parseCompare (no right-recursive parseCompare on add).
@@ -2575,6 +2583,10 @@ fn p6b_parser_iterative_add_progress() {
     assert!(
         !src.contains("pRight = parseCompare()\n        pInAddSub = 0\n        pAddLeft"),
         "add/sub must not right-recurse through parseCompare + pAddLeftStack"
+    );
+    assert!(
+        src.contains("P6b: early IDENT= assign"),
+        "parseStmt must early-dispatch IDENT= before enum/class/fn"
     );
 }
 

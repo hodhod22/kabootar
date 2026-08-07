@@ -17,6 +17,9 @@ let eConstMap = {}
 let eConstN = 0
 let eGlobalMap = {}
 let eGlobalN = 0
+// P6b: O(1) fn-local lookup (emitSym/localSymIndex AccAdd hot path).
+let eLocalMap = {}
+let eLocalN = 0
 let eInFn = 0
 let eIdx = 0
 let eSym = null
@@ -167,17 +170,34 @@ fn constKey(arg) {
     return "X" + ("" + arg)
 }
 
+fn resetLocalMap() {
+    eLocalMap = {}
+    eLocalN = 0
+}
+
+fn rebuildLocalMap() {
+    eLocalMap = {}
+    eLocalN = 0
+    let i = 0
+    let n = len(eFnLocals)
+    while i < n {
+        eLocalMap[eFnLocals[i]] = i
+        eLocalN = eLocalN + 1
+        i = i + 1
+    }
+}
+
 fn symIndex(mode, arg) {
     if mode == "local" {
-        eLocalI = 0
-        while eLocalI < len(eFnLocals) {
-            if eFnLocals[eLocalI] == arg {
-                return eLocalI
-            }
-            eLocalI = eLocalI + 1
+        let lHit = eLocalMap[arg]
+        if lHit != undefined {
+            return lHit
         }
         eFnLocals = push(eFnLocals, arg)
-        return len(eFnLocals) - 1
+        let lIdx = eLocalN
+        eLocalN = eLocalN + 1
+        eLocalMap[arg] = lIdx
+        return lIdx
     }
     if mode == "global" {
         let gHit = eGlobalMap[arg]
@@ -249,27 +269,22 @@ fn emitCallCallee() {
 }
 
 fn emitSym(store, sym) {
+    // P6b: map lookup only — no len(eFnLocals)/eGlobals LoadGlobal clone scans.
     if store == 0 {
         if eInFn == 0 {
             eIdx = symIndex("global", sym)
             emitOp(OP_LOAD_GLOBAL, eIdx)
             return
         }
-        eLocalI = 0
-        while eLocalI < len(eFnLocals) {
-            if eFnLocals[eLocalI] == sym {
-                emitOp(OP_LOAD_LOCAL, eLocalI)
-                return
-            }
-            eLocalI = eLocalI + 1
+        let li = eLocalMap[sym]
+        if li != undefined {
+            emitOp(OP_LOAD_LOCAL, li)
+            return
         }
-        eGlobI = 0
-        while eGlobI < len(eGlobals) {
-            if eGlobals[eGlobI] == sym {
-                emitOp(OP_LOAD_GLOBAL, eGlobI)
-                return
-            }
-            eGlobI = eGlobI + 1
+        let gi = eGlobalMap[sym]
+        if gi != undefined {
+            emitOp(OP_LOAD_GLOBAL, gi)
+            return
         }
         eIdx = symIndex("global", sym)
         emitOp(OP_LOAD_GLOBAL, eIdx)
@@ -280,21 +295,15 @@ fn emitSym(store, sym) {
         emitOp(OP_STORE_GLOBAL, eIdx)
         return
     }
-    eLocalI = 0
-    while eLocalI < len(eFnLocals) {
-        if eFnLocals[eLocalI] == sym {
-            emitOp(OP_STORE_LOCAL, eLocalI)
-            return
-        }
-        eLocalI = eLocalI + 1
+    let sli = eLocalMap[sym]
+    if sli != undefined {
+        emitOp(OP_STORE_LOCAL, sli)
+        return
     }
-    eGlobI = 0
-    while eGlobI < len(eGlobals) {
-        if eGlobals[eGlobI] == sym {
-            emitOp(OP_STORE_GLOBAL, eGlobI)
-            return
-        }
-        eGlobI = eGlobI + 1
+    let sgi = eGlobalMap[sym]
+    if sgi != undefined {
+        emitOp(OP_STORE_GLOBAL, sgi)
+        return
     }
     eIdx = symIndex("local", sym)
     emitOp(OP_STORE_LOCAL, eIdx)
@@ -305,12 +314,9 @@ fn localSymIndex(sym) {
     if eInFn != 1 {
         return -1
     }
-    let i = 0
-    while i < len(eFnLocals) {
-        if eFnLocals[i] == sym {
-            return i
-        }
-        i = i + 1
+    let li = eLocalMap[sym]
+    if li != undefined {
+        return li
     }
     return -1
 }
@@ -451,6 +457,7 @@ fn emitExpr(node) {
         eFnOps = []
         eFnOpsN = 0
         eFnLocals = []
+        resetLocalMap()
         eFnGlobals = []
         eFnTryRegions = []
         let api = 0
@@ -476,6 +483,7 @@ fn emitExpr(node) {
         eFnOps = saveOps
         eFnOpsN = len(saveOps)
         eFnLocals = saveLocals
+        rebuildLocalMap()
         eFnGlobals = saveGlobals
         eFnTryRegions = saveTry
         emitOp(OP_MAKE_ARROW, ai)
@@ -912,6 +920,7 @@ fn emitExpr(node) {
                         eFnOpsN = 0
                         eFnGlobals = []
                         eFnLocals = []
+                        resetLocalMap()
                         eParams = eMethTmpl["params"]
                         eParamI = 0
                         while eParamI < len(eParams) {
@@ -946,6 +955,7 @@ fn emitExpr(node) {
                         eFnOps = eSaveFnOps
                         eFnOpsN = len(eSaveFnOps)
                         eFnLocals = eSaveFnLocals
+                        rebuildLocalMap()
                         eFnGlobals = eSaveFnGlobals
                     }
                 }
@@ -1057,6 +1067,7 @@ fn emitExpr(node) {
                             eFnOpsN = 0
                             eFnGlobals = []
                             eFnLocals = []
+                            resetLocalMap()
                             eParams = eMeth["params"]
                             eParamI = 0
                             while eParamI < len(eParams) {
@@ -1202,6 +1213,7 @@ fn emitExpr(node) {
                     eFnOpsN = 0
                     eFnGlobals = []
                     eFnLocals = []
+                    resetLocalMap()
                     eParamI = 0
                     while eParamI < len(eParams) {
                         eLoopSave = eParamI
@@ -1222,6 +1234,7 @@ fn emitExpr(node) {
                     eFnOps = eSaveFnOps
                     eFnOpsN = len(eSaveFnOps)
                     eFnLocals = eSaveFnLocals
+                    rebuildLocalMap()
                     eFnGlobals = eSaveFnGlobals
                 }
                 eCallee = { "kind": AST_VAR, "sym": eMangled }
@@ -1789,6 +1802,7 @@ fn emitStmt(node) {
                 eFnOpsN = 0
                 eFnGlobals = []
                 eFnLocals = []
+                resetLocalMap()
                 eParams = eMeth["params"]
                 eParamI = 0
                 while eParamI < len(eParams) {
@@ -1845,6 +1859,7 @@ fn emitStmt(node) {
         eFnOpsN = 0
         eFnGlobals = []
         eFnLocals = []
+        resetLocalMap()
         eFnTryRegions = []
         eParamI = 0
         while eParamI < len(eParams) {
@@ -1893,6 +1908,7 @@ pub fn emitImpl(program) {
     eFnOpsN = 0
     eFnGlobals = []
     eFnLocals = []
+    resetLocalMap()
     eInFn = 0
     eWhileHeads = []
     eBreakIdxs = []
