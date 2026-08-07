@@ -1,0 +1,315 @@
+@version "1.0.0"
+
+// Kabootar game/core/culling - Frustum and occlusion culling with LOD system.
+// Canonical path: import "game/core/culling"
+
+pub fn createCullingSystem() {
+    return {
+        "kind": "CullingSystem",
+        "frustumCulling": true,
+        "occlusionCulling": false,
+        "lodEnabled": true,
+        "lodLevels": [
+            { "distance": 50.0, "meshSuffix": "_lod0" },
+            { "distance": 100.0, "meshSuffix": "_lod1" },
+            { "distance": 200.0, "meshSuffix": "_lod2" }
+        ],
+        "occlusionQueries": {},
+        "lastOcclusionFrame": 0
+    }
+}
+
+pub fn setFrustumCulling(system, enabled) {
+    system["frustumCulling"] = enabled == true
+    return system
+}
+
+pub fn setOcclusionCulling(system, enabled) {
+    system["occlusionCulling"] = enabled == true
+    return system
+}
+
+pub fn setLODEnabled(system, enabled) {
+    system["lodEnabled"] = enabled == true
+    return system
+}
+
+pub fn setLODLevels(system, levels) {
+    system["lodLevels"] = levels
+    return system
+}
+
+pub fn cullRenderables(system, renderables, camera) {
+    if system["frustumCulling"] != true {
+        return { "visible": renderables, "culled": [] }
+    }
+    
+    let frustum = createFrustumFromCamera(camera)
+    let visible = []
+    let culled = []
+    
+    let i = 0
+    while i < len(renderables) {
+        let renderable = renderables[i]
+        
+        if isFrustumCull(frustum, renderable["bounds"]) == false {
+            visible = push(visible, renderable)
+        } else {
+            culled = push(culled, renderable)
+        }
+        
+        i = i + 1
+    }
+    
+    return { "visible": visible, "culled": culled }
+}
+
+pub fn applyLOD(system, renderables, camera) {
+    if system["lodEnabled"] != true {
+        return renderables
+    }
+    
+    let cameraPos = camera["position"]
+    let lodRenderables = []
+    
+    let i = 0
+    while i < len(renderables) {
+        let renderable = renderables[i]
+        let bounds = renderable["bounds"]
+        
+        let center = {
+            "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+            "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+            "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+        }
+        
+        let dx = center["x"] - cameraPos["x"]
+        let dy = center["y"] - cameraPos["y"]
+        let dz = center["z"] - cameraPos["z"]
+        let distance = sqrt(dx * dx + dy * dy + dz * dz)
+        
+        let lodIndex = determineLODIndex(system, distance)
+        let lodLevel = system["lodLevels"][lodIndex]
+        
+        let lodRenderable = renderable
+        lodRenderable["mesh"] = renderable["mesh"] + lodLevel["meshSuffix"]
+        lodRenderable["lodIndex"] = lodIndex
+        lodRenderable["lodDistance"] = distance
+        
+        lodRenderables = push(lodRenderables, lodRenderable)
+        i = i + 1
+    }
+    
+    return lodRenderables
+}
+
+fn determineLODIndex(system, distance) {
+    let i = 0
+    while i < len(system["lodLevels"]) {
+        if distance < system["lodLevels"][i]["distance"] {
+            return i
+        }
+        i = i + 1
+    }
+    return len(system["lodLevels"]) - 1
+}
+
+pub fn occlusionCull(system, renderables, camera, frameCount) {
+    if system["occlusionCulling"] != true {
+        return renderables
+    }
+    
+    let visible = []
+    let cameraPos = camera["position"]
+    
+    let i = 0
+    while i < len(renderables) {
+        let renderable = renderables[i]
+        let bounds = renderable["bounds"]
+        
+        let center = {
+            "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+            "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+            "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+        }
+        
+        let dx = center["x"] - cameraPos["x"]
+        let dy = center["y"] - cameraPos["y"]
+        let dz = center["z"] - cameraPos["z"]
+        let distance = sqrt(dx * dx + dy * dy + dz * dz)
+        
+        let occlusionKey = "" + renderable["entityId"]
+        let lastFrame = system["occlusionQueries"][occlusionKey]
+        
+        if lastFrame == null || lastFrame == undefined || frameCount - lastFrame > 10 {
+            let isOccluded = checkOcclusion(bounds, camera)
+            system["occlusionQueries"][occlusionKey] = frameCount
+            
+            if isOccluded == false {
+                visible = push(visible, renderable)
+            }
+        } else {
+            visible = push(visible, renderable)
+        }
+        
+        i = i + 1
+    }
+    
+    return visible
+}
+
+fn checkOcclusion(bounds, camera) {
+    let cameraPos = camera["position"]
+    let center = {
+        "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+        "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+        "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+    }
+    
+    let dx = center["x"] - cameraPos["x"]
+    let dy = center["y"] - cameraPos["y"]
+    let dz = center["z"] - cameraPos["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance < 10.0 {
+        return false
+    }
+    
+    let size = bounds["max"]["x"] - bounds["min"]["x"]
+    if size < 1.0 {
+        return true
+    }
+    
+    return false
+}
+
+fn createFrustumFromCamera(camera) {
+    let position = camera["position"]
+    let rotation = camera["rotation"]
+    let fov = camera["fieldOfView"]
+    let near = camera["nearClipPlane"]
+    let far = camera["farClipPlane"]
+    let aspect = camera["aspectRatio"]
+    if aspect == null || aspect == undefined { aspect = 16.0 / 9.0 }
+    
+    let halfHeight = far * tan(fov / 2.0)
+    let halfWidth = halfHeight * aspect
+    
+    let forward = getForwardVector(rotation)
+    let right = getRightVector(rotation)
+    let up = getUpVector(rotation)
+    
+    let farCenter = {
+        "x": position["x"] + forward["x"] * far,
+        "y": position["y"] + forward["y"] * far,
+        "z": position["z"] + forward["z"] * far
+    }
+    
+    let nearCenter = {
+        "x": position["x"] + forward["x"] * near,
+        "y": position["y"] + forward["y"] * near,
+        "z": position["z"] + forward["z"] * near
+    }
+    
+    return {
+        "position": position,
+        "forward": forward,
+        "planes": [
+            createPlane(farCenter, forward),
+            createPlane(nearCenter, { "x": -forward["x"], "y": -forward["y"], "z": -forward["z"] }),
+            createPlane(position, crossProduct(forward, right)),
+            createPlane(position, crossProduct(right, forward)),
+            createPlane(position, crossProduct(right, up)),
+            createPlane(position, crossProduct(up, right))
+        ]
+    }
+}
+
+fn isFrustumCull(frustum, bounds) {
+    let center = {
+        "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+        "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+        "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+    }
+    
+    let radius = sqrt(
+        ((bounds["max"]["x"] - bounds["min"]["x"]) / 2.0) * ((bounds["max"]["x"] - bounds["min"]["x"]) / 2.0) +
+        ((bounds["max"]["y"] - bounds["min"]["y"]) / 2.0) * ((bounds["max"]["y"] - bounds["min"]["y"]) / 2.0) +
+        ((bounds["max"]["z"] - bounds["min"]["z"]) / 2.0) * ((bounds["max"]["z"] - bounds["min"]["z"]) / 2.0)
+    )
+    
+    let i = 0
+    while i < len(frustum["planes"]) {
+        let plane = frustum["planes"][i]
+        let distance = plane["normal"]["x"] * center["x"] + plane["normal"]["y"] * center["y"] + plane["normal"]["z"] * center["z"] + plane["distance"]
+        
+        if distance < -radius {
+            return true
+        }
+        i = i + 1
+    }
+    
+    return false
+}
+
+fn createPlane(point, normal) {
+    let len = sqrt(normal["x"] * normal["x"] + normal["y"] * normal["y"] + normal["z"] * normal["z"])
+    if len > 0.0001 {
+        normal = { "x": normal["x"] / len, "y": normal["y"] / len, "z": normal["z"] / len }
+    }
+    
+    return {
+        "normal": normal,
+        "distance": -(normal["x"] * point["x"] + normal["y"] * point["y"] + normal["z"] * point["z"])
+    }
+}
+
+fn getForwardVector(rotation) {
+    let pitch = rotation["pitch"]
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": cos(pitch) * sin(yaw),
+        "y": -sin(pitch),
+        "z": cos(pitch) * cos(yaw)
+    }
+}
+
+fn getRightVector(rotation) {
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": cos(yaw),
+        "y": 0.0,
+        "z": -sin(yaw)
+    }
+}
+
+fn getUpVector(rotation) {
+    let pitch = rotation["pitch"]
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": sin(pitch) * sin(yaw),
+        "y": cos(pitch),
+        "z": sin(pitch) * cos(yaw)
+    }
+}
+
+fn crossProduct(a, b) {
+    return {
+        "x": a["y"] * b["z"] - a["z"] * b["y"],
+        "y": a["z"] * b["x"] - a["x"] * b["z"],
+        "z": a["x"] * b["y"] - a["y"] * b["x"]
+    }
+}
+
+pub fn getCullingStats(system) {
+    return {
+        "frustumCulling":system["frustumCulling"],
+        "occlusionCulling": system["occlusionCulling"],
+        "lodEnabled": system["lodEnabled"],
+        "lodLevels": len(system["lodLevels"]),
+        "occlusionQueries": len(system["occlusionQueries"])
+    }
+}

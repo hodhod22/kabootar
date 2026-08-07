@@ -1,0 +1,240 @@
+@version "1.0.0"
+
+// Kabootar game/core/profiler - Profiling points for performance monitoring.
+// Canonical path: import "game/core/profiler"
+
+pub fn createProfiler() {
+    return {
+        "kind": "Profiler",
+        "enabled": false,
+        "samples": {},
+        "currentFrame": 0,
+        "maxSamples": 60,
+        "autoReset": true
+    }
+}
+
+pub fn enableProfiler(profiler, enabled) {
+    profiler["enabled"] = enabled == true
+    return profiler
+}
+
+pub fn setMaxSamples(profiler, maxSamples) {
+    profiler["maxSamples"] = maxSamples
+    return profiler
+}
+
+pub fn setAutoReset(profiler, autoReset) {
+    profiler["autoReset"] = autoReset == true
+    return profiler
+}
+
+pub fn beginSample(profiler, name) {
+    if profiler["enabled"] != true {
+        return profiler
+    }
+    
+    if profiler["samples"][name] == null || profiler["samples"][name] == undefined {
+        profiler["samples"][name] = {
+            "kind": "ProfilerSample",
+            "name": name,
+            "startTime": 0.0,
+            "endTime": 0.0,
+            "duration": 0.0,
+            "callCount": 0,
+            "totalDuration": 0.0,
+            "minDuration": 999999.0,
+            "maxDuration": 0.0,
+            "averageDuration": 0.0
+        }
+    }
+    
+    profiler["samples"][name]["startTime"] = getCurrentTime()
+    profiler["samples"][name]["callCount"] = profiler["samples"][name]["callCount"] + 1
+    
+    return profiler
+}
+
+pub fn endSample(profiler, name) {
+    if profiler["enabled"] != true {
+        return profiler
+    }
+    
+    let sample = profiler["samples"][name]
+    if sample != null {
+        sample["endTime"] = getCurrentTime()
+        sample["duration"] = sample["endTime"] - sample["startTime"]
+        sample["totalDuration"] = sample["totalDuration"] + sample["duration"]
+        
+        if sample["duration"] < sample["minDuration"] {
+            sample["minDuration"] = sample["duration"]
+        }
+        if sample["duration"] > sample["maxDuration"] {
+            sample["maxDuration"] = sample["duration"]
+        }
+        
+        sample["averageDuration"] = sample["totalDuration"] / sample["callCount"]
+        
+        profiler["samples"][name] = sample
+    }
+    
+    return profiler
+}
+
+pub fn getCurrentTime() {
+    // In a real implementation, this would return high-precision time
+    // For now, return a placeholder
+    return 0.0
+}
+
+pub fn getSampleStats(profiler, name) {
+    let sample = profiler["samples"][name]
+    if sample == null {
+        return null
+    }
+    
+    return {
+        "name": name,
+        "duration": sample["duration"],
+        "callCount": sample["callCount"],
+        "totalDuration": sample["totalDuration"],
+        "minDuration": sample["minDuration"],
+        "maxDuration": sample["maxDuration"],
+        "averageDuration": sample["averageDuration"]
+    }
+}
+
+pub fn getAllSampleStats(profiler) {
+    let stats = []
+    for name in profiler["samples"] {
+        stats = push(stats, getSampleStats(profiler, name))
+    }
+    return stats
+}
+
+pub fn resetProfiler(profiler) {
+    profiler["samples"] = {}
+    profiler["currentFrame"] = 0
+    return profiler
+}
+
+pub fn frameTick(profiler) {
+    profiler["currentFrame"] = profiler["currentFrame"] + 1
+    
+    if profiler["autoReset"] == true && profiler["currentFrame"] >= profiler["maxSamples"] {
+        profiler = resetProfiler(profiler)
+    }
+    
+    return profiler
+}
+
+// Physics profiling helpers
+pub fn profilePhysicsStep(profiler, physicsWorld, dt) {
+    if profiler["enabled"] != true {
+        return physicsWorld
+    }
+    
+    profiler = beginSample(profiler, "physicsStep")
+    physicsWorld = physicsStep(physicsWorld, dt)
+    profiler = endSample(profiler, "physicsStep")
+    
+    profiler = beginSample(profiler, "broadphase")
+    physicsWorld = broadphaseCollision(physicsWorld)
+    profiler = endSample(profiler, "broadphase")
+    
+    profiler = beginSample(profiler, "narrowphase")
+    physicsWorld = narrowphaseCollision(physicsWorld)
+    profiler = endSample(profiler, "narrowphase")
+    
+    profiler = beginSample(profiler, "solveCollisions")
+    physicsWorld = solveCollisions(physicsWorld, dt)
+    profiler = endSample(profiler, "solveCollisions")
+    
+    profiler = beginSample(profiler, "integrateRigidbodies")
+    physicsWorld = integrateRigidbodies(physicsWorld, dt)
+    profiler = endSample(profiler, "integrateRigidbodies")
+    
+    return physicsWorld
+}
+
+// Hierarchy profiling helpers
+pub fn profileHierarchyUpdate(profiler, world) {
+    if profiler["enabled"] != true {
+        return world
+    }
+    
+    profiler = beginSample(profiler, "hierarchyUpdate")
+    world = updateHierarchy(world)
+    profiler = endSample(profiler, "hierarchyUpdate")
+    
+    profiler = beginSample(profiler, "worldMatrixUpdate")
+    profiler = endSample(profiler, "worldMatrixUpdate")
+    
+    return world
+}
+
+// Render profiling helpers
+pub fn profileRenderPipeline(profiler, pipeline) {
+    if profiler["enabled"] != true {
+        return pipeline
+    }
+    
+    profiler = beginSample(profiler, "culling")
+    pipeline = cullRenderables(pipeline)
+    profiler = endSample(profiler, "culling")
+    
+    profiler = beginSample(profiler, "sorting")
+    pipeline = sortRenderables(pipeline)
+    profiler = endSample(profiler, "sorting")
+    
+    profiler = beginSample(profiler, "drawCallGeneration")
+    let result = executeRenderPipeline(pipeline)
+    pipeline = result["pipeline"]
+    profiler = endSample(profiler, "drawCallGeneration")
+    
+    return pipeline
+}
+
+pub fn profileQuery(profiler, world, componentNames) {
+    if profiler["enabled"] != true {
+        return queryWith(world, componentNames)
+    }
+    
+    let sampleName = "query_" + len(componentNames) + "_components"
+    profiler = beginSample(profiler, sampleName)
+    let results = queryWith(world, componentNames)
+    profiler = endSample(profiler, sampleName)
+    
+    return results
+}
+
+pub fn getProfilerReport(profiler) {
+    let stats = getAllSampleStats(profiler)
+    let report = []
+    
+    let i = 0
+    while i < len(stats) {
+        let stat = stats[i]
+        report = push(report, stat["name"] + ": " + stat["averageDuration"] + "ms (min: " + stat["minDuration"] + ", max: " + stat["maxDuration"] + ", calls: " + stat["callCount"] + ")")
+        i = i + 1
+    }
+    
+    return report
+}
+
+pub fn exportProfilerData(profiler) {
+    return {
+        "enabled": profiler["enabled"],
+        "currentFrame": profiler["currentFrame"],
+        "maxSamples": profiler["maxSamples"],
+        "samples": profiler["samples"]
+    }
+}
+
+pub fn importProfilerData(profiler, data) {
+    profiler["enabled"] = data["enabled"]
+    profiler["currentFrame"] = data["currentFrame"]
+    profiler["maxSamples"] = data["maxSamples"]
+    profiler["samples"] = data["samples"]
+    return profiler
+}

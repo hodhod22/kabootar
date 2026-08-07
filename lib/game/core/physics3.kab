@@ -846,26 +846,16 @@ pub fn integrateRigidbodies(physicsWorld, dt) {
         let rb = physicsWorld["rigidbodies"][i]
         
         if rb["isKinematic"] != true && rb["isSleeping"] != true {
-            if rb["useGravity"] == true {
-                rb["velocity"]["x"] = rb["velocity"]["x"] + physicsWorld["gravity"]["x"] * dt
-                rb["velocity"]["y"] = rb["velocity"]["y"] + physicsWorld["gravity"]["y"] * dt
-                rb["velocity"]["z"] = rb["velocity"]["z"] + physicsWorld["gravity"]["z"] * dt
-            }
-            
-            let drag = 1.0 - rb["drag"] * dt
-            if drag < 0.0 { drag = 0.0 }
-            rb["velocity"]["x"] = rb["velocity"]["x"] * drag
-            rb["velocity"]["y"] = rb["velocity"]["y"] * drag
-            rb["velocity"]["z"] = rb["velocity"]["z"] * drag
-            
-            if rb["constraints"]["freezePositionX"] != true {
-                rb["position"]["x"] = rb["position"]["x"] + rb["velocity"]["x"] * dt
-            }
-            if rb["constraints"]["freezePositionY"] != true {
-                rb["position"]["y"] = rb["position"]["y"] + rb["velocity"]["y"] * dt
-            }
-            if rb["constraints"]["freezePositionZ"] != true {
-                rb["position"]["z"] = rb["position"]["z"] + rb["velocity"]["z"] * dt
+            if physicsWorld["ccdEnabled"] == true {
+                let steps = 4
+                let subDt = dt / steps
+                let j = 0
+                while j < steps {
+                    rb = integrateRigidBodyStep(rb, physicsWorld, subDt)
+                    j = j + 1
+                }
+            } else {
+                rb = integrateRigidBodyStep(rb, physicsWorld, dt)
             }
             
             let speed = sqrt(rb["velocity"]["x"] * rb["velocity"]["x"] + rb["velocity"]["y"] * rb["velocity"]["y"] + rb["velocity"]["z"] * rb["velocity"]["z"])
@@ -881,6 +871,32 @@ pub fn integrateRigidbodies(physicsWorld, dt) {
     }
     
     return physicsWorld
+}
+
+fn integrateRigidBodyStep(rb, physicsWorld, dt) {
+    if rb["useGravity"] == true {
+        rb["velocity"]["x"] = rb["velocity"]["x"] + physicsWorld["gravity"]["x"] * dt
+        rb["velocity"]["y"] = rb["velocity"]["y"] + physicsWorld["gravity"]["y"] * dt
+        rb["velocity"]["z"] = rb["velocity"]["z"] + physicsWorld["gravity"]["z"] * dt
+    }
+    
+    let drag = 1.0 - rb["drag"] * dt
+    if drag < 0.0 { drag = 0.0 }
+    rb["velocity"]["x"] = rb["velocity"]["x"] * drag
+    rb["velocity"]["y"] = rb["velocity"]["y"] * drag
+    rb["velocity"]["z"] = rb["velocity"]["z"] * drag
+    
+    if rb["constraints"]["freezePositionX"] != true {
+        rb["position"]["x"] = rb["position"]["x"] + rb["velocity"]["x"] * dt
+    }
+    if rb["constraints"]["freezePositionY"] != true {
+        rb["position"]["y"] = rb["position"]["y"] + rb["velocity"]["y"] * dt
+    }
+    if rb["constraints"]["freezePositionZ"] != true {
+        rb["position"]["z"] = rb["position"]["z"] + rb["velocity"]["z"] * dt
+    }
+    
+    return rb
 }
 
 pub fn updateSleepingBodies(physicsWorld, dt) {
@@ -901,6 +917,16 @@ pub fn updateSleepingBodies(physicsWorld, dt) {
         i = i + 1
     }
     
+    return physicsWorld
+}
+
+pub fn enableCCD(physicsWorld, enabled) {
+    physicsWorld["ccdEnabled"] = enabled == true
+    return physicsWorld
+}
+
+pub fn setSleepThreshold(physicsWorld, threshold) {
+    physicsWorld["sleepThreshold"] = threshold
     return physicsWorld
 }
 

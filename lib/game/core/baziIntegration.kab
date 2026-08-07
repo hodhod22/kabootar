@@ -83,13 +83,17 @@ pub fn applyPrefabOverrides(world, entityId, prefab) {
 }
 
 pub fn instantiatePrefab(world, prefab, position, rotation) {
-    if prefab["prefabData"] == null {
-        return { "world": world, "entityId": null }
+    if prefab["prefabData"] == null || prefab["prefabData"] == undefined {
+        return { "world": world, "entityId": null, "error": "Prefab data is null" }
+    }
+    
+    if len(prefab["prefabData"]["components"]) == 0 {
+        return { "world": world, "entityId": null, "error": "Prefab has no components" }
     }
     
     let spawned = spawn(world)
     world = spawned["world"]
-    let entityId = spawned["entity"]["id"]
+    let entityId = spawned["entityId"]
     
     let i = 0
     while i < len(prefab["prefabData"]["components"]) {
@@ -110,7 +114,163 @@ pub fn instantiatePrefab(world, prefab, position, rotation) {
     
     prefab["instanceId"] = entityId
     
-    return { "world": world, "entityId": entityId }
+    return { "world": world, "entityId": entityId, "error": null }
+}
+
+pub fn instantiateHierarchy(world, prefabData, position, rotation, parentEntityId) {
+    if prefabData == null || prefabData == undefined {
+        return { "world": world, "rootEntityId": null, "error": "Prefab data is null" }
+    }
+    
+    if prefabData["children"] == null || prefabData["children"] == undefined {
+        prefabData["children"] = []
+    }
+    
+    let rootResult = instantiatePrefab(world, createPrefabComponent("root"), position, rotation)
+    world = rootResult["world"]
+    let rootEntityId = rootResult["entityId"]
+    
+    if rootEntityId == null {
+        return { "world": world, "rootEntityId": null, "error": rootResult["error"] }
+    }
+    
+    if parentEntityId != null && parentEntityId != undefined {
+        world = setParent(world, rootEntityId, parentEntityId)
+    }
+    
+    let childrenMap = {}
+    let i = 0
+    while i < len(prefabData["children"]) {
+        let childData = prefabData["children"][i]
+        let childResult = instantiateHierarchy(world, childData, childData["position"], childData["rotation"], rootEntityId)
+        world = childResult["world"]
+        childrenMap["" + i] = childResult["rootEntityId"]
+        i = i + 1
+    }
+    
+    return { "world": world, "rootEntityId": rootEntityId, "children": childrenMap, "error": null }
+}
+
+pub fn validatePrefabData(prefabData) {
+    if prefabData == null || prefabData == undefined {
+        return { "valid": false, "error": "Prefab data is null" }
+    }
+    
+    if prefabData["components"] == null || prefabData["components"] == undefined {
+        return { "valid": false, "error": "Prefab has no components array" }
+    }
+    
+    let i = 0
+    while i < len(prefabData["components"]) {
+        let comp = prefabData["components"][i]
+        if comp["kind"] == null || comp["kind"] == undefined {
+            return { "valid": false, "error": "Component " + i + " has no kind" }
+        }
+        i = i + 1
+    }
+    
+    if prefabData["children"] != null {
+        let i = 0
+        while i < len(prefabData["children"]) {
+            let childValidation = validatePrefabData(prefabData["children"][i])
+            if childValidation["valid"] != true {
+                return { "valid": false, "error": "Child " + i + " is invalid: " + childValidation["error"] }
+            }
+            i = i + 1
+        }
+    }
+    
+    return { "valid": true, "error": null }
+}
+
+pub fn detectCircularReferences(prefabData, visited) {
+    if visited == null || visited == undefined {
+        visited = []
+    }
+    
+    let i = 0
+    while i < len(visited) {
+        if visited[i] == prefabData {
+            return true
+        }
+        i = i + 1
+    }
+    
+    visited = push(visited, prefabData)
+    
+    if prefabData["children"] != null {
+        let i = 0
+        while i < len(prefabData["children"]) {
+            if detectCircularReferences(prefabData["children"][i], visited) {
+                return true
+            }
+            i = i + 1
+        }
+    }
+    
+    return false
+}
+
+pub fn destroyHierarchy(world, rootEntityId) {
+    let descendants = getAllDescendants(world, rootEntityId)
+    
+    let i = 0
+    while i < len(descendants) {
+        world = destroy(world, descendants[i])
+        i = i + 1
+    }
+    
+    world = destroy(world, rootEntityId)
+    
+    return world
+}
+
+pub fn clonePrefabData(prefabData) {
+    let clone = {
+        "components": [],
+        "children": []
+    }
+    
+    let i = 0
+    while i < len(prefabData["components"]) {
+        clone["components"] = push(clone["components"], copyComponentData(prefabData["components"][i]))
+        i = i + 1
+    }
+    
+    if prefabData["children"] != null {
+        let i = 0
+        while i < len(prefabData["children"]) {
+            clone["children"] = push(clone["children"], clonePrefabData(prefabData["children"][i]))
+            i = i + 1
+        }
+    }
+    
+    return clone
+}
+
+pub fn mergePrefabData(basePrefab, overridePrefab) {
+    let merged = clonePrefabData(basePrefab)
+    
+    let i = 0
+    while i < len(overridePrefab["components"]) {
+        let overrideComp = overridePrefab["components"][i]
+        let found = false
+        let j = 0
+        while j < len(merged["components"]) {
+            if merged["components"][j]["kind"] == overrideComp["kind"] {
+                merged["components"][j] = copyComponentData(overrideComp)
+                found = true
+                break
+            }
+            j = j + 1
+        }
+        if found != true {
+            merged["components"] = push(merged["components"], copyComponentData(overrideComp))
+        }
+        i = i + 1
+    }
+    
+    return merged
 }
 
 fn copyComponentData(data) {

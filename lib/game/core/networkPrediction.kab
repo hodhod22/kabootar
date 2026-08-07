@@ -1,0 +1,328 @@
+@version "1.0.0"
+
+// Kabootar game/core/networkPrediction - Network prediction and reconciliation for multiplayer.
+// Canonical path: import "game/core/networkPrediction"
+
+pub fn createNetworkPredictionSystem() {
+    return {
+        "kind": "NetworkPredictionSystem",
+        "enabled": true,
+        "predictionBuffer": {},
+        "serverState": {},
+        "clientState": {},
+        "reconciliationBuffer": {},
+        "maxPredictionTime": 0.5,
+        "maxBufferSize": 100,
+        "currentTick": 0,
+        "serverTick": 0,
+        "rtt": 0.0,
+        "jitter": 0.0
+    }
+}
+
+pub fn enablePrediction(system, enabled) {
+    system["enabled"] = enabled == true
+    return system
+}
+
+pub fn setMaxPredictionTime(system, time) {
+    system["maxPredictionTime"] = time
+    return system
+}
+
+pub fn setMaxBufferSize(system, size) {
+    system["maxBufferSize"] = size
+    return system
+}
+
+pub fn recordInput(system, entityId, input, tick) {
+    if system["enabled"] != true {
+        return system
+    }
+    
+    let key = "" + entityId + "_" + tick
+    system["predictionBuffer"][key] = {
+        "entityId": entityId,
+        "input": input,
+        "tick": tick,
+        "timestamp": 0,
+        "predictedState": null
+    }
+    
+    return system
+}
+
+pub fn recordPredictedState(system, entityId, state, tick) {
+    if system["enabled"] != true {
+        return system
+    }
+    
+    let key = "" + entityId + "_" + tick
+    if system["predictionBuffer"][key] != null {
+        system["predictionBuffer"][key]["predictedState"] = state
+    }
+    
+    return system
+}
+
+pub fn receiveServerState(system, serverState, tick) {
+    if system["enabled"] != true {
+        return system
+    }
+    
+    system["serverTick"] = tick
+    system["serverState"]["" + tick] = serverState
+    
+    return system
+}
+
+pub fn reconcileState(system, entityId, serverState, serverTick) {
+    if system["enabled"] != true {
+        return { "system": system, "reconciled": false, "error": null }
+    }
+    
+    let clientTick = system["currentTick"]
+    let tickDiff = clientTick - serverTick
+    
+    if tickDiff > system["maxBufferSize"] {
+        return { "system": system, "reconciled": false, "error": "Tick difference too large" }
+    }
+    
+    let reconciliation = {
+        "entityId": entityId,
+        "serverTick": serverTick,
+        "serverState": serverState,
+        "clientTick": clientTick,
+        "positionDelta": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "rotationDelta": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+        "reconciled": false
+    }
+    
+    let clientState = system["clientState"]["" + entityId]
+    if clientState != null {
+        reconciliation["positionDelta"]["x"] = serverState["position"]["x"] - clientState["position"]["x"]
+        reconciliation["positionDelta"]["y"] = serverState["position"]["y"] - clientState["position"]["y"]
+        reconciliation["positionDelta"]["z"] = serverState["position"]["z"] - clientState["position"]["z"]
+        
+        reconciliation["rotationDelta"]["x"] = serverState["rotation"]["x"] - clientState["rotation"]["x"]
+        reconciliation["rotationDelta"]["y"] = serverState["rotation"]["y"] - clientState["rotation"]["y"]
+        reconciliation["rotationDelta"]["z"] = serverState["rotation"]["z"] - clientState["rotation"]["z"]
+        reconciliation["rotationDelta"]["w"] = serverState["rotation"]["w"] - clientState["rotation"]["w"]
+        
+        let positionError = sqrt(
+            reconciliation["positionDelta"]["x"] * reconciliation["positionDelta"]["x"] +
+            reconciliation["positionDelta"]["y"] * reconciliation["positionDelta"]["y"] +
+            reconciliation["positionDelta"]["z"] * reconciliation["positionDelta"]["z"]
+        )
+        
+        if positionError > 0.1 {
+            reconciliation["reconciled"] = true
+            system["reconciliationBuffer"]["" + entityId + "_" + serverTick] = reconciliation
+        }
+    }
+    
+    return { "system": system, "reconciled": reconciliation["reconciled"], "error": null }
+}
+
+pub fn applyReconciliation(system, world, entityId) {
+    if system["enabled"] != true {
+        return { "system": system, "world": world }
+    }
+    
+    let reconciliations = []
+    for key in system["reconciliationBuffer"] {
+        if key startsWith "" + entityId + "_" {
+            reconciliations = push(reconciliations, system["reconciliationBuffer"][key])
+        }
+    }
+    
+    let i = 0
+    while i < len(reconciliations) {
+        let rec = reconciliations[i]
+        if rec["reconciled"] == true {
+            let transform = get(world, entityId, "Transform")
+            if transform != null {
+                let serverPos = rec["serverState"]["position"]
+                transform = setLocalPosition(transform, serverPos["x"], serverPos["y"], serverPos["z"])
+                transform["localRotation"] = rec["serverState"]["rotation"]
+                world = add(world, entityId, "Transform", transform)
+            }
+            
+            system["reconciliationBuffer"]["" + entityId + "_" + rec["serverTick"]] = null
+        }
+        i = i + 1
+    }
+    
+    return { "system": system, "world": world }
+}
+
+pub fn replayInputs(system, world, entityId, fromTick, toTick) {
+    if system["enabled"] != true {
+        return { "system": system, "world": world }
+    }
+    
+    let i = fromTick
+    while i <= toTick {
+        let key = "" + entityId + "_" + i
+        let prediction = system["predictionBuffer"][key]
+        
+        if prediction != null {
+            let input = prediction["input"]
+            let transform = get(world, entityId, "Transform")
+            
+            if transform != null {
+                let moveDir = input["moveDirection"]
+                let speed = input["moveSpeed"]
+                let dt = 0.016
+                
+                transform = translate(transform, moveDir["x"] * speed * dt, moveDir["y"] * speed * dt, moveDir["z"] * speed * dt)
+                world = add(world, entityId, "Transform", transform)
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return { "system": system, "world": world }
+}
+
+pub fn updateRTT(system, rtt) {
+    system["rtt"] = rtt
+    return system
+}
+
+pub fn updateJitter(system, jitter) {
+    system["jitter"] = jitter
+    return system
+}
+
+pub fn getCurrentTick(system) {
+    return system["currentTick"]
+}
+
+pub fn incrementTick(system) {
+    system["currentTick"] = system["currentTick"] + 1
+    return system
+}
+
+pub fn getPredictionBufferStats(system) {
+    let count = 0
+    for key in system["predictionBuffer"] {
+        count = count + 1
+    }
+    
+    return {
+        "bufferSize": count,
+        "maxBufferSize": system["maxBufferSize"],
+        "currentTick": system["currentTick"],
+        "serverTick": system["serverTick"],
+        "rtt": system["rtt"],
+        "jitter": system["jitter"]
+    }
+}
+
+pub fn clearOldPredictions(system, maxAge) {
+    let currentTick = system["currentTick"]
+    
+    for key in system["predictionBuffer"] {
+        let prediction = system["predictionBuffer"][key]
+        let age = currentTick - prediction["tick"]
+        
+        if age > maxAge {
+            system["predictionBuffer"][key] = null
+        }
+    }
+    
+    return system
+}
+
+pub fn createClientInput(moveDirection, moveSpeed, jumpPressed) {
+    return {
+        "moveDirection": moveDirection,
+        "moveSpeed": moveSpeed,
+        "jumpPressed": jumpPressed == true,
+        "timestamp": 0
+    }
+}
+
+pub fn createEntityState(position, rotation, velocity) {
+    return {
+        "position": position,
+        "rotation": rotation,
+        "velocity": velocity,
+        "timestamp": 0
+    }
+}
+
+pub fn extrapolateState(state, velocity, dt) {
+    let newPosition = {
+        "x": state["position"]["x"] + velocity["x"] * dt,
+        "y": state["position"]["y"] + velocity["y"] * dt,
+        "z": state["position"]["z"] + velocity["z"] * dt
+    }
+    
+    return {
+        "position": newPosition,
+        "rotation": state["rotation"],
+        "velocity": velocity,
+        "timestamp": state["timestamp"] + dt
+    }
+}
+
+pub fn interpolateState(stateA, stateB, alpha) {
+    let position = {
+        "x": stateA["position"]["x"] * (1.0 - alpha) + stateB["position"]["x"] * alpha,
+        "y": stateA["position"]["y"] * (1.0 - alpha) + stateB["position"]["y"] * alpha,
+        "z": stateA["position"]["z"] * (1.0 - alpha) + stateB["position"]["z"] * alpha
+    }
+    
+    let rotation = {
+        "x": stateA["rotation"]["x"] * (1.0 - alpha) + stateB["rotation"]["x"] * alpha,
+        "y": stateA["rotation"]["y"] * (1.0 - alpha) + stateB["rotation"]["y"] * alpha,
+        "z": stateA["rotation"]["z"] * (1.0 - alpha) + stateB["rotation"]["z"] * alpha,
+        "w": stateA["rotation"]["w"] * (1.0 - alpha) + stateB["rotation"]["w"] * alpha
+    }
+    
+    let len = sqrt(rotation["x"] * rotation["x"] + rotation["y"] * rotation["y"] + rotation["z"] * rotation["z"] + rotation["w"] * rotation["w"])
+    if len > 0.0001 {
+        rotation = { "x": rotation["x"] / len, "y": rotation["y"] / len, "z": rotation["z"] / len, "w": rotation["w"] / len }
+    }
+    
+    return {
+        "position": position,
+        "rotation": rotation,
+        "velocity": stateA["velocity"],
+        "timestamp": stateA["timestamp"] * (1.0 - alpha) + stateB["timestamp"] * alpha
+    }
+}
+
+pub fn getNetworkQuality(system) {
+    let quality = "good"
+    
+    if system["rtt"] > 0.2 {
+        quality = "poor"
+    } else if system["rtt"] > 0.1 {
+        quality = "fair"
+    }
+    
+    if system["jitter"] > 0.05 {
+        quality = "poor"
+    }
+    
+    return {
+        "quality": quality,
+        "rtt": system["rtt"],
+        "jitter": system["jitter"],
+        "tickDifference": system["currentTick"] - system["serverTick"]
+    }
+}
+
+pub fn resetPredictionSystem(system) {
+    system["predictionBuffer"] = {}
+    system["serverState"] = {}
+    system["clientState"] = {}
+    system["reconciliationBuffer"] = {}
+    system["currentTick"] = 0
+    system["serverTick"] = 0
+    return system
+}
