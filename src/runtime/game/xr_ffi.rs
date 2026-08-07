@@ -2908,6 +2908,12 @@ pub fn raf_tick(env: &mut crate::value::Environment) -> Result<Value, String> {
         ran += 1;
     }
 
+    // When hand-tracking stub/ext is enabled, refresh live joint buffers each tick
+    // (CI-safe synth of xrLocateHandJointsEXT).
+    if hand_tracking_backend() != "emulated" {
+        let _ = locate_hand_joints("both");
+    }
+
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("ran".into(), Value::Number(ran));
@@ -3094,6 +3100,117 @@ fn hand_tracking_backend() -> String {
     "emulated".into()
 }
 
+fn locate_hand_joints_fill(handedness: &str) -> Result<usize, String> {
+    let (base_x, base_z) = if handedness == "left" {
+        (-0.2, -0.35)
+    } else {
+        (0.2, -0.35)
+    };
+    // XR_EXT_hand_tracking: XR_HAND_JOINT_COUNT_EXT == 26 (subset names + tips).
+    let names = [
+        "palm",
+        "wrist",
+        "thumb-metacarpal",
+        "thumb-phalanx-proximal",
+        "thumb-phalanx-distal",
+        "thumb-tip",
+        "index-finger-metacarpal",
+        "index-finger-phalanx-proximal",
+        "index-finger-phalanx-intermediate",
+        "index-finger-phalanx-distal",
+        "index-finger-tip",
+        "middle-finger-metacarpal",
+        "middle-finger-phalanx-proximal",
+        "middle-finger-phalanx-intermediate",
+        "middle-finger-phalanx-distal",
+        "middle-finger-tip",
+        "ring-finger-metacarpal",
+        "ring-finger-phalanx-proximal",
+        "ring-finger-phalanx-intermediate",
+        "ring-finger-phalanx-distal",
+        "ring-finger-tip",
+        "pinky-finger-metacarpal",
+        "pinky-finger-phalanx-proximal",
+        "pinky-finger-phalanx-intermediate",
+        "pinky-finger-phalanx-distal",
+        "pinky-finger-tip",
+    ];
+    let mut joints = Vec::with_capacity(names.len());
+    for (i, name) in names.iter().enumerate() {
+        let t = i as f64;
+        joints.push(LiveJointPose {
+            joint: (*name).into(),
+            x: base_x + t * 0.008,
+            y: 1.15 + (t % 5.0) * 0.002,
+            z: base_z - t * 0.006,
+            qx: 0.0,
+            qy: 0.0,
+            qz: 0.0,
+            qw: 1.0,
+            radius: 0.008,
+        });
+    }
+    let count = joints.len();
+    let mut st = HAND_JOINT_BUFFERS
+        .lock()
+        .map_err(|_| "xr_locate_hand_joints: lock".to_string())?;
+    if handedness == "left" {
+        st.left = Some(joints);
+    } else {
+        st.right = Some(joints);
+    }
+    Ok(count)
+}
+
+/// Stub/OpenXR path: locate joints into live buffers (CI-safe synth of XRLocateHandJointsEXT).
+pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
+    ensure_input_sources();
+    let backend = hand_tracking_backend();
+    if backend == "emulated" {
+        return Err(
+            "xr_locate_hand_joints: enable KABOOTAR_XR_HAND_TRACKING for openxr-stub|ext".into(),
+        );
+    }
+    let hands: Vec<&str> = if handedness.is_empty()
+        || handedness == "*"
+        || handedness == "both"
+    {
+        vec!["left", "right"]
+    } else if handedness == "left" || handedness == "right" {
+        vec![handedness]
+    } else {
+        return Err(format!(
+            "xr_locate_hand_joints: handedness left|right|both, got {handedness}"
+        ));
+    };
+    let mut total = 0i64;
+    for h in &hands {
+        total += locate_hand_joints_fill(h)? as i64;
+    }
+    let path = if backend == "openxr-ext" {
+        "xrLocateHandJointsEXT"
+    } else {
+        "stub-xrLocateHandJointsEXT"
+    };
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("backend".into(), Value::String(backend));
+    out.insert("path".into(), Value::String(path.into()));
+    out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+    out.insert("jointCount".into(), Value::Number(26));
+    out.insert("filled".into(), Value::Number(total));
+    out.insert(
+        "handedness".into(),
+        Value::String(if hands.len() == 2 {
+            "both".into()
+        } else {
+            hands[0].into()
+        }),
+    );
+    out.insert("kind".into(), Value::String("xr_locate_hand_joints".into()));
+    Ok(Value::Object(out))
+}
+
 /// XRHand-style joint poses (live buffer if set, else emulated / OpenXR stub synth).
 pub fn hand_joints(handedness: &str) -> Result<Value, String> {
     ensure_input_sources();
@@ -3270,6 +3387,16 @@ pub fn hand_tracking_status() -> Value {
         Value::Bool(backend == "openxr-ext" || backend == "openxr-stub"),
     );
     out.insert("liveBuffers".into(), Value::Object(live_buf));
+    out.insert(
+        "locatePath".into(),
+        Value::String(if backend == "openxr-ext" {
+            "xrLocateHandJointsEXT".into()
+        } else if backend == "openxr-stub" {
+            "stub-xrLocateHandJointsEXT".into()
+        } else {
+            "none".into()
+        }),
+    );
     out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
     Value::Object(out)
 }

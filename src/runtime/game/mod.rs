@@ -769,6 +769,15 @@ fn xr_clear_hand_joint_buffer_native(
     xr_ffi::clear_hand_joint_buffer(handedness)
 }
 
+fn xr_locate_hand_joints_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        Some(Value::Null) | None => "both",
+        _ => "both",
+    };
+    xr_ffi::locate_hand_joints(handedness)
+}
+
 fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mode = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1580,6 +1589,7 @@ pub fn game_globals(env: &mut Environment) {
             "xr_clear_hand_joint_buffer",
             xr_clear_hand_joint_buffer_native,
         ),
+        ("xr_locate_hand_joints", xr_locate_hand_joints_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),

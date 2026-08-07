@@ -2239,17 +2239,23 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let root = env!("CARGO_MANIFEST_DIR");
     let path = format!("{root}/self_host/serialize_body.kab");
     let src = std::fs::read_to_string(&path).expect("read serialize_body");
+    let defs = std::fs::read_to_string(format!("{root}/self_host/serialize_defs.kab"))
+        .expect("read serialize_defs");
     assert!(
         src.len() < 20 * 1024,
         "serialize_body should stay the smallest leaf (~13KB class)"
     );
     assert!(
-        src.contains("let IR_WITH_ARG"),
-        "P6b: irOpLine must use membership tables (not ~58 If arms)"
+        defs.contains("pub let IR_WITH_ARG") && defs.contains("pub let IR_ZERO_ARG"),
+        "P6b: IR membership tables must live in serialize_defs (not leaf Const AST)"
     );
     assert!(
-        src.contains("fn appendNl(") && src.contains("fn beginTag("),
-        "P6b: shallow AccAdd append helpers required (no depth-16+ Binary + trees)"
+        src.contains("IR_WITH_ARG") && !src.contains("let IR_WITH_ARG"),
+        "P6b: serialize_body must use imported IR_WITH_ARG (no local huge string Const)"
+    );
+    assert!(
+        src.contains("fn outTag(") && src.contains("fn outSpNum("),
+        "P6b: shallow AccAdd outTag/outSpNum helpers required"
     );
     assert!(
         !src.contains("if sOp == OP_ADD"),
