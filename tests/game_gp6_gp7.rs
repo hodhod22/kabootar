@@ -723,7 +723,7 @@ fn xr_hand_joints_and_input_profiles() {
         let hand = xrHandJoints("right")
         let sources = xrInputSources(xr)
         let srcHand = sources[1]["hand"]
-        return st["ok"] == true && st["extension"] == "XR_EXT_hand_tracking" && st["live"] == true && st["backend"] == "openxr-stub" && st["trackers"]["ready"] == true && hand["tracking"] == "openxr-stub" && hand["extension"] == "XR_EXT_hand_tracking" && len(hand["joints"]) >= 8 && srcHand["ok"] == true && srcHand["tracker"] != 0
+        return st["ok"] == true && st["extension"] == "XR_EXT_hand_tracking" && st["live"] == true && st["backend"] == "openxr-stub" && st["trackers"]["ready"] == true && st["createPath"] == "stub-xrCreateHandTrackerEXT" && st["extCreateResolved"] == true && st["createFfiCalls"] >= 2 && hand["tracking"] == "openxr-stub" && hand["extension"] == "XR_EXT_hand_tracking" && len(hand["joints"]) >= 8 && srcHand["ok"] == true && srcHand["tracker"] != 0
         "#,
         &mut env,
     )

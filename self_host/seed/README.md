@@ -28,9 +28,9 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
 Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
-**Full leaf:** `p6b_serialize_body_compile_budget` **~690 s** after `eCallArgDepth` /
-`eObjDepth`/`eArrDepth` (was ~726 s; prior ~643 s / ~689 s). `emit_impl` seed
-~146 KB (was ~150 KB). Still ≫ 10 s — skip-list stays.
+**Full leaf:** `p6b_serialize_body_compile_budget` **~697 s** after `eIfDepth` /
+`eMemberDepth`/`eIndexDepth` (+ CallArg/obj/arr; was ~690 s / ~726 s). Still ≫ 10 s —
+skip-list stays. Next lever: host-VM `len`/LoadGlobal cost if depth cuts plateau.
 
 **Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
 Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
@@ -45,6 +45,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
    - AccAdd recurse; early `emitIfStmt`; **`eOpsN`/`eFnOpsN`** in jump patches
    - **fully iterative** compare/`&&`/`||`/bit via `parseAddShift`/`parseRelExpr`
    - **`eCalleeDepth` / `eBlockDepth` / `eCallArgDepth` / `eObjDepth` / `eArrDepth`**
+   - **`eIfDepth` / `eMemberDepth` / `eIndexDepth`**
    - **early `IDENT=`** in `parser_impl`
 3. **Measure** before flipping any flag:
    ```bash
@@ -58,7 +59,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | IR in defs + maps + iterative compare + CallArg/obj/arr depth | **~690 s** debug (2026-08-07; prior ~726 s / ~643 s) — still ≫ 10 s |
+| `serialize_body.kab` | IR in defs + maps + iterative compare + If/member/CallArg depth | **~697 s** debug (2026-08-07; prior ~690 s / ~726 s) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
@@ -72,7 +73,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath |
 | `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` |
 | `p6b_emit_symindex_map_progress` | `eConstMap` + `eLocalMap` / map-only `emitSym` |
-| `p6b_emit_call_block_depth_progress` | `eCalleeDepth`/`eBlockDepth`/`eCallArgDepth`/`eObjDepth`/`eArrDepth` |
+| `p6b_emit_call_block_depth_progress` | Call/block/CallArg/obj/arr/If/member/index depth counters |
 | `p6b_parser_iterative_add_progress` | Fully iterative compare/bit/`&&`/`||` + early `IDENT=` |
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |

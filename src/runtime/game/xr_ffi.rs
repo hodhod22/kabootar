@@ -106,6 +106,10 @@ struct OpenXrLoaderFns {
     locate_hand_joints_ext: usize,
     locate_hand_joints_ext_resolved: bool,
     locate_hand_joints_ext_calls: i64,
+    /// `xrCreateHandTrackerEXT` when resolved (0 = unresolved / stub path).
+    create_hand_tracker_ext: usize,
+    create_hand_tracker_ext_resolved: bool,
+    create_hand_tracker_ext_calls: i64,
 }
 
 static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
@@ -126,6 +130,9 @@ static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
     locate_hand_joints_ext: 0,
     locate_hand_joints_ext_resolved: false,
     locate_hand_joints_ext_calls: 0,
+    create_hand_tracker_ext: 0,
+    create_hand_tracker_ext_resolved: false,
+    create_hand_tracker_ext_calls: 0,
 });
 
 /// Live OpenXR / WebXR session (handles + FFI accounting).
@@ -472,6 +479,52 @@ fn stub_xr_locate_hand_joints_ext_addr() -> usize {
     stub_xr_locate_hand_joints_ext as *const () as usize
 }
 
+/// Synth `XrHandTrackerEXT` handles (CI / stub create path).
+const XR_HAND_TRACKER_LEFT: u64 = 0x48_0000_0001;
+const XR_HAND_TRACKER_RIGHT: u64 = 0x48_0000_0002;
+
+/// Minimal ABI for `xrCreateHandTrackerEXT` (session + opaque createInfo → tracker).
+#[cfg(not(target_arch = "wasm32"))]
+type XrCreateHandTrackerExtFn = unsafe extern "system" fn(
+    session: u64,
+    create_info: *const std::os::raw::c_void,
+    hand_tracker: *mut u64,
+) -> XrResult;
+
+/// Stub trampoline: writes synth left/right handle from create_info hand byte (0=left,1=right).
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "system" fn stub_xr_create_hand_tracker_ext(
+    _session: u64,
+    create_info: *const std::os::raw::c_void,
+    hand_tracker: *mut u64,
+) -> XrResult {
+    if hand_tracker.is_null() {
+        return -1;
+    }
+    let hand = if create_info.is_null() {
+        0u8
+    } else {
+        // First byte of our synth create-info is handedness tag.
+        *(create_info as *const u8)
+    };
+    *hand_tracker = if hand == 1 {
+        XR_HAND_TRACKER_RIGHT
+    } else {
+        XR_HAND_TRACKER_LEFT
+    };
+    0
+}
+
+#[cfg(target_arch = "wasm32")]
+fn stub_xr_create_hand_tracker_ext_addr() -> usize {
+    0
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn stub_xr_create_hand_tracker_ext_addr() -> usize {
+    stub_xr_create_hand_tracker_ext as *const () as usize
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn stub_xr_create_instance_addr() -> usize {
     stub_xr_create_instance as *const () as usize
@@ -685,6 +738,10 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
         let _ = resolve_named_proc(get_proc_addr, "xrLocateHandJointsEXT", |fns, addr| {
             fns.locate_hand_joints_ext = addr;
             fns.locate_hand_joints_ext_resolved = addr != 0;
+        });
+        let _ = resolve_named_proc(get_proc_addr, "xrCreateHandTrackerEXT", |fns, addr| {
+            fns.create_hand_tracker_ext = addr;
+            fns.create_hand_tracker_ext_resolved = addr != 0;
         });
 
         if runtime_ok {
@@ -1174,6 +1231,16 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                     fns.locate_hand_joints_ext_resolved = true;
                 }
             }
+            if use_stub
+                || !fns.create_hand_tracker_ext_resolved
+                || fns.create_hand_tracker_ext == 0
+            {
+                let addr = stub_xr_create_hand_tracker_ext_addr();
+                if addr != 0 {
+                    fns.create_hand_tracker_ext = addr;
+                    fns.create_hand_tracker_ext_resolved = true;
+                }
+            }
         }
 
         let (create_inst_addr, create_sess_addr, get_system_addr, path, force_stub) = {
@@ -1477,6 +1544,13 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
             if addr != 0 {
                 fns.locate_hand_joints_ext = addr;
                 fns.locate_hand_joints_ext_resolved = true;
+            }
+        }
+        if !fns.create_hand_tracker_ext_resolved || fns.create_hand_tracker_ext == 0 {
+            let addr = stub_xr_create_hand_tracker_ext_addr();
+            if addr != 0 {
+                fns.create_hand_tracker_ext = addr;
+                fns.create_hand_tracker_ext_resolved = true;
             }
         }
     }
@@ -3042,17 +3116,132 @@ static HAND_JOINT_BUFFERS: Mutex<HandJointBuffers> = Mutex::new(HandJointBuffers
     right_tracker: 0,
 });
 
-const XR_HAND_TRACKER_LEFT: u64 = 0x48_0000_0001;
-const XR_HAND_TRACKER_RIGHT: u64 = 0x48_0000_0002;
+/// Invoke `xrCreateHandTrackerEXT` (resolved loader or stub trampoline).
+fn invoke_create_hand_tracker_ffi(handedness: &str) -> (bool, i32, String, u64) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = handedness;
+        let h = if handedness == "right" {
+            XR_HAND_TRACKER_RIGHT
+        } else {
+            XR_HAND_TRACKER_LEFT
+        };
+        return (false, 0, "webxr-no-ext-create".into(), h);
+    }
 
-/// Ensure synthetic left/right hand trackers exist (idempotent).
-fn ensure_hand_trackers() {
-    if let Ok(mut st) = HAND_JOINT_BUFFERS.lock() {
-        if st.left_tracker == 0 {
-            st.left_tracker = XR_HAND_TRACKER_LEFT;
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if let Ok(mut fns) = OPENXR_FNS.lock() {
+            if !fns.create_hand_tracker_ext_resolved || fns.create_hand_tracker_ext == 0 {
+                let addr = stub_xr_create_hand_tracker_ext_addr();
+                if addr != 0 {
+                    fns.create_hand_tracker_ext = addr;
+                    fns.create_hand_tracker_ext_resolved = true;
+                }
+            }
         }
-        if st.right_tracker == 0 {
-            st.right_tracker = XR_HAND_TRACKER_RIGHT;
+        let (fn_addr, use_stub) = {
+            let fns = match OPENXR_FNS.lock() {
+                Ok(f) => f,
+                Err(_) => {
+                    return (
+                        false,
+                        -1,
+                        "fns-lock-failed".into(),
+                        if handedness == "right" {
+                            XR_HAND_TRACKER_RIGHT
+                        } else {
+                            XR_HAND_TRACKER_LEFT
+                        },
+                    );
+                }
+            };
+            let stub = stub_enabled();
+            if stub {
+                (stub_xr_create_hand_tracker_ext_addr(), true)
+            } else if fns.create_hand_tracker_ext_resolved && fns.create_hand_tracker_ext != 0 {
+                let is_stub =
+                    fns.create_hand_tracker_ext == stub_xr_create_hand_tracker_ext_addr();
+                (fns.create_hand_tracker_ext, is_stub)
+            } else {
+                (stub_xr_create_hand_tracker_ext_addr(), true)
+            }
+        };
+        if fn_addr == 0 {
+            return (
+                false,
+                -1,
+                "no-create-hand-tracker-proc".into(),
+                if handedness == "right" {
+                    XR_HAND_TRACKER_RIGHT
+                } else {
+                    XR_HAND_TRACKER_LEFT
+                },
+            );
+        }
+        let session = LIVE_SESSION
+            .lock()
+            .map(|l| {
+                if l.session != 0 {
+                    l.session
+                } else {
+                    0x5E_0000_0001u64
+                }
+            })
+            .unwrap_or(0x5E_0000_0001u64);
+        let hand_tag: u8 = if handedness == "right" { 1 } else { 0 };
+        let mut out_tracker = 0u64;
+        let create: XrCreateHandTrackerExtFn = unsafe { std::mem::transmute(fn_addr) };
+        let rc = unsafe {
+            create(
+                session,
+                &hand_tag as *const u8 as *const std::os::raw::c_void,
+                &mut out_tracker,
+            )
+        };
+        let mode = if use_stub {
+            "stub-trampoline".to_string()
+        } else {
+            "direct".to_string()
+        };
+        if let Ok(mut fns) = OPENXR_FNS.lock() {
+            fns.create_hand_tracker_ext_calls += 1;
+        }
+        if out_tracker == 0 {
+            out_tracker = if handedness == "right" {
+                XR_HAND_TRACKER_RIGHT
+            } else {
+                XR_HAND_TRACKER_LEFT
+            };
+        }
+        (true, rc, mode, out_tracker)
+    }
+}
+
+/// Ensure left/right hand trackers exist via create FFI (idempotent).
+fn ensure_hand_trackers() {
+    let need_left = HAND_JOINT_BUFFERS
+        .lock()
+        .map(|st| st.left_tracker == 0)
+        .unwrap_or(true);
+    let need_right = HAND_JOINT_BUFFERS
+        .lock()
+        .map(|st| st.right_tracker == 0)
+        .unwrap_or(true);
+    if need_left {
+        let (_ok, _rc, _mode, h) = invoke_create_hand_tracker_ffi("left");
+        if let Ok(mut st) = HAND_JOINT_BUFFERS.lock() {
+            if st.left_tracker == 0 {
+                st.left_tracker = h;
+            }
+        }
+    }
+    if need_right {
+        let (_ok, _rc, _mode, h) = invoke_create_hand_tracker_ffi("right");
+        if let Ok(mut st) = HAND_JOINT_BUFFERS.lock() {
+            if st.right_tracker == 0 {
+                st.right_tracker = h;
+            }
         }
     }
 }
@@ -3597,14 +3786,20 @@ pub fn hand_tracking_status() -> Value {
     );
     out.insert("liveBuffers".into(), Value::Object(live_buf));
     out.insert("trackers".into(), Value::Object(trackers));
+    let (locate_resolved, create_resolved, create_calls) = OPENXR_FNS
+        .lock()
+        .map(|f| {
+            (
+                f.locate_hand_joints_ext_resolved,
+                f.create_hand_tracker_ext_resolved,
+                f.create_hand_tracker_ext_calls,
+            )
+        })
+        .unwrap_or((false, false, 0));
     out.insert(
         "locatePath".into(),
         Value::String(if backend == "openxr-ext" {
-            if OPENXR_FNS
-                .lock()
-                .map(|f| f.locate_hand_joints_ext_resolved)
-                .unwrap_or(false)
-            {
+            if locate_resolved {
                 "xrLocateHandJointsEXT".into()
             } else {
                 "openxr-ext-synth-pending".into()
@@ -3616,14 +3811,22 @@ pub fn hand_tracking_status() -> Value {
         }),
     );
     out.insert(
-        "extResolved".into(),
-        Value::Bool(
-            OPENXR_FNS
-                .lock()
-                .map(|f| f.locate_hand_joints_ext_resolved)
-                .unwrap_or(false),
-        ),
+        "createPath".into(),
+        Value::String(if backend == "openxr-ext" {
+            if create_resolved {
+                "xrCreateHandTrackerEXT".into()
+            } else {
+                "openxr-ext-create-pending".into()
+            }
+        } else if backend == "openxr-stub" {
+            "stub-xrCreateHandTrackerEXT".into()
+        } else {
+            "none".into()
+        }),
     );
+    out.insert("extResolved".into(), Value::Bool(locate_resolved));
+    out.insert("extCreateResolved".into(), Value::Bool(create_resolved));
+    out.insert("createFfiCalls".into(), Value::Number(create_calls));
     out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
     Value::Object(out)
 }
