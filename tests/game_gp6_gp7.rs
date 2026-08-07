@@ -679,7 +679,7 @@ fn xr_input_sources_select_and_poses() {
         xrInjectInputEvent("selectend", "right")
         let evs = xrPollInputEvents(xr)
         let ctrls = xr["controllers"]
-        return len(sources) == 2 && left["handedness"] == "left" && right["handedness"] == "right" && right["targetRayMode"] == "tracked-pointer" && grip["emulated"] == true && ray["emulated"] == true && grip["x"] != 0 && len(evs) == 3 && evs[0]["type"] == "selectstart" && evs[1]["type"] == "select" && evs[2]["type"] == "selectend" && evs[1]["handedness"] == "right" && len(ctrls) == 2 && ctrls[0]["handedness"] == "left"
+        return len(sources) == 2 && left["handedness"] == "left" && right["handedness"] == "right" && right["targetRayMode"] == "tracked-pointer" && right["profiles"][0] == "oculus-touch" && grip["emulated"] == true && ray["emulated"] == true && grip["x"] != 0 && len(evs) == 3 && evs[0]["type"] == "selectstart" && evs[1]["type"] == "select" && evs[2]["type"] == "selectend" && evs[1]["handedness"] == "right" && len(ctrls) == 2 && ctrls[0]["handedness"] == "left"
         "#,
         &mut env,
     )
@@ -721,7 +721,9 @@ fn xr_hand_joints_and_input_profiles() {
         xr = xrBegin(xr)
         let st = xrHandTrackingStatus()
         let hand = xrHandJoints("right")
-        return st["ok"] == true && st["extension"] == "XR_EXT_hand_tracking" && st["live"] == true && st["backend"] == "openxr-stub" && hand["tracking"] == "openxr-stub" && hand["extension"] == "XR_EXT_hand_tracking" && len(hand["joints"]) >= 8
+        let sources = xrInputSources(xr)
+        let srcHand = sources[1]["hand"]
+        return st["ok"] == true && st["extension"] == "XR_EXT_hand_tracking" && st["live"] == true && st["backend"] == "openxr-stub" && st["trackers"]["ready"] == true && hand["tracking"] == "openxr-stub" && hand["extension"] == "XR_EXT_hand_tracking" && len(hand["joints"]) >= 8 && srcHand["ok"] == true && srcHand["tracker"] != 0
         "#,
         &mut env,
     )
@@ -770,7 +772,7 @@ fn xr_hand_joints_and_input_profiles() {
         let loc = xrLocateHandJoints("left")
         let st = xrHandTrackingStatus()
         let hand = xrHandJoints("left")
-        return loc["ok"] == true && loc["path"] == "stub-xrLocateHandJointsEXT" && loc["ffiInvoked"] == true && loc["ffiMode"] == "stub-trampoline" && loc["jointCount"] == 26 && st["liveBuffers"]["left"] == true && st["locatePath"] == "stub-xrLocateHandJointsEXT" && hand["source"] == "live-buffer" && len(hand["joints"]) == 26 && hand["joints"][0]["joint"] == "palm" && hand["joints"][5]["joint"] == "thumb-tip" && hand["joints"][5]["pose"]["emulated"] == false
+        return loc["ok"] == true && loc["path"] == "stub-xrLocateHandJointsEXT" && loc["ffiInvoked"] == true && loc["ffiMode"] == "stub-trampoline" && loc["jointCount"] == 26 && st["liveBuffers"]["left"] == true && st["locatePath"] == "stub-xrLocateHandJointsEXT" && st["trackers"]["ready"] == true && st["trackers"]["left"] != 0 && st["trackers"]["right"] != 0 && hand["source"] == "live-buffer" && len(hand["joints"]) == 26 && hand["joints"][0]["joint"] == "palm" && hand["joints"][5]["joint"] == "thumb-tip" && hand["joints"][5]["pose"]["emulated"] == false
         "#,
         &mut env,
     )

@@ -28,11 +28,11 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
 Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
-**Full leaf:** `p6b_serialize_body_compile_budget` **~726 s** after iterative compare +
-Call/block depth (prior ~643 s / ~689 s). Toolchain seed grew; leaf still ≫ 10 s —
-skip-list stays.
+**Full leaf:** `p6b_serialize_body_compile_budget` **~690 s** after `eCallArgDepth` /
+`eObjDepth`/`eArrDepth` (was ~726 s; prior ~643 s / ~689 s). `emit_impl` seed
+~146 KB (was ~150 KB). Still ≫ 10 s — skip-list stays.
 
-**Toolchain focus:** parse climb + emit Call/block depth (fewer `len(stack)` clones).
+**Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
 Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
 
 ## P6b playbook
@@ -44,7 +44,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
    - `symIndex` const/global **maps** + **`eLocalMap` / map-only `emitSym`**
    - AccAdd recurse; early `emitIfStmt`; **`eOpsN`/`eFnOpsN`** in jump patches
    - **fully iterative** compare/`&&`/`||`/bit via `parseAddShift`/`parseRelExpr`
-   - **`eCalleeDepth` / `eBlockDepth`** (Call + block/program loops)
+   - **`eCalleeDepth` / `eBlockDepth` / `eCallArgDepth` / `eObjDepth` / `eArrDepth`**
    - **early `IDENT=`** in `parser_impl`
 3. **Measure** before flipping any flag:
    ```bash
@@ -58,7 +58,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | IR in defs + maps/`emitSym` + iterative compare + Call/block depth | **~726 s** debug (2026-08-07; prior ~643 s / ~689 s) — still ≫ 10 s |
+| `serialize_body.kab` | IR in defs + maps + iterative compare + CallArg/obj/arr depth | **~690 s** debug (2026-08-07; prior ~726 s / ~643 s) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
@@ -72,7 +72,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath |
 | `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` |
 | `p6b_emit_symindex_map_progress` | `eConstMap` + `eLocalMap` / map-only `emitSym` |
-| `p6b_emit_call_block_depth_progress` | `eCalleeDepth` / `eBlockDepth` Call+block loops |
+| `p6b_emit_call_block_depth_progress` | `eCalleeDepth`/`eBlockDepth`/`eCallArgDepth`/`eObjDepth`/`eArrDepth` |
 | `p6b_parser_iterative_add_progress` | Fully iterative compare/bit/`&&`/`||` + early `IDENT=` |
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
