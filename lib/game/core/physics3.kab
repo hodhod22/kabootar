@@ -101,6 +101,52 @@ pub fn removeTrigger(physicsWorld, entityId) {
     return physicsWorld
 }
 
+pub fn updateColliderPosition(physicsWorld, entityId, newPosition) {
+    let colliders = physicsWorld["colliders"]
+    let i = 0
+    while i < len(colliders) {
+        if colliders[i]["entityId"] == entityId {
+            let oldBounds = getColliderBounds(colliders[i])
+            colliders[i]["center"] = newPosition
+            let newBounds = getColliderBounds(colliders[i])
+            
+            let grid = physicsWorld["broadphase"]
+            let oldCellInfo = grid["colliderToCell"]["" + entityId]
+            
+            if oldCellInfo != null && oldCellInfo != undefined {
+                let oldMinX = oldCellInfo["min"]["x"]
+                let oldMaxX = oldCellInfo["max"]["x"]
+                let oldMinY = oldCellInfo["min"]["y"]
+                let oldMaxY = oldCellInfo["max"]["y"]
+                let oldMinZ = oldCellInfo["min"]["z"]
+                let oldMaxZ = oldCellInfo["max"]["z"]
+                
+                let newMinCellX = floor(newBounds["min"]["x"] / grid["cellSize"])
+                let newMinCellY = floor(newBounds["min"]["y"] / grid["cellSize"])
+                let newMinCellZ = floor(newBounds["min"]["z"] / grid["cellSize"])
+                let newMaxCellX = floor(newBounds["max"]["x"] / grid["cellSize"])
+                let newMaxCellY = floor(newBounds["max"]["y"] / grid["cellSize"])
+                let newMaxCellZ = floor(newBounds["max"]["z"] / grid["cellSize"])
+                
+                if oldMinX != newMinCellX || oldMaxX != newMaxCellX || 
+                   oldMinY != newMinCellY || oldMaxY != newMaxCellY ||
+                   oldMinZ != newMinCellZ || oldMaxZ != newMaxCellZ {
+                    grid = removeColliderFromGrid(grid, colliders[i])
+                    grid = insertCollider(grid, colliders[i])
+                }
+                
+                physicsWorld["broadphase"] = grid
+            }
+            
+            physicsWorld["colliders"] = colliders
+            return physicsWorld
+        }
+        i = i + 1
+    }
+    
+    return physicsWorld
+}
+
 fn insertCollider(grid, collider) {
     let bounds = getColliderBounds(collider)
     let minCellX = floor(bounds["min"]["x"] / grid["cellSize"])

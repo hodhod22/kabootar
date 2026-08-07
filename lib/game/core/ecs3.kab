@@ -303,7 +303,7 @@ pub fn isAlive(world, entityId) {
 pub fn query(world, componentName) {
     let dense = world["dense"][componentName]
     if dense == null || dense == undefined {
-        return []
+        return { "results": [], "pooled": false }
     }
     
     let queryResult = getQueryResult(world["queryPool"])
@@ -313,9 +313,7 @@ pub fn query(world, componentName) {
         i = i + 1
     }
     
-    let out = queryResult["results"]
-    returnQueryResult(world["queryPool"], queryResult)
-    return out
+    return { "results": queryResult["results"], "pooled": true, "pool": world["queryPool"], "queryResult": queryResult }
 }
 
 pub fn query2(world, componentA, componentB) {
@@ -323,7 +321,7 @@ pub fn query2(world, componentA, componentB) {
     let denseB = world["dense"][componentB]
     
     if denseA == null || denseA == undefined || denseB == null || denseB == undefined {
-        return []
+        return { "results": [], "pooled": false }
     }
     
     let sparseB = world["sparse"][componentB]
@@ -341,9 +339,7 @@ pub fn query2(world, componentA, componentB) {
         i = i + 1
     }
     
-    let out = queryResult["results"]
-    returnQueryResult(world["queryPool"], queryResult)
-    return out
+    return { "results": queryResult["results"], "pooled": true, "pool": world["queryPool"], "queryResult": queryResult }
 }
 
 pub fn query3(world, componentA, componentB, componentC) {
@@ -352,7 +348,7 @@ pub fn query3(world, componentA, componentB, componentC) {
     let sparseC = world["sparse"][componentC]
     
     if denseA == null || denseA == undefined || sparseB == null || sparseB == undefined || sparseC == null || sparseC == undefined {
-        return []
+        return { "results": [], "pooled": false }
     }
     
     let denseB = world["dense"][componentB]
@@ -371,9 +367,13 @@ pub fn query3(world, componentA, componentB, componentC) {
         i = i + 1
     }
     
-    let out = queryResult["results"]
-    returnQueryResult(world["queryPool"], queryResult)
-    return out
+    return { "results": queryResult["results"], "pooled": true, "pool": world["queryPool"], "queryResult": queryResult }
+}
+
+pub fn returnQueryResult(queryOutput) {
+    if queryOutput["pooled"] == true {
+        returnQueryResult(queryOutput["pool"], queryOutput["queryResult"])
+    }
 }
 
 pub fn queryWith(world, componentNames) {

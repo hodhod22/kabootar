@@ -1,0 +1,90 @@
+@version "1.0.0"
+
+// Hello World Example - Using GameContext 2.0 with ECS 3.0, Physics 3.0, and Render Pipeline 2.0
+// This is the recommended way to start a new game in nova-interpreter.
+
+import "game/core/gameContext"
+
+fn main() {
+    // Create game context with window size
+    let context = createGameContext(1280, 720)
+    
+    // Spawn a player entity
+    let spawned = spawn(context["world"])
+    context["world"] = spawned["world"]
+    let playerId = spawned["entityId"]
+    
+    // Add transform component
+    let transform = createTransform(0.0, 1.0, 0.0)
+    context["world"] = add(context["world"], playerId, "Transform", transform)
+    
+    // Add mesh component for rendering
+    let mesh = createMesh()
+    context["world"] = add(context["world"], playerId, "Mesh", mesh)
+    
+    // Add material component
+    let material = createMaterial({ "r": 0.0, "g": 1.0, "b": 0.0, "a": 1.0 })
+    context["world"] = add(context["world"], playerId, "Material", material)
+    
+    // Game loop
+    let frameCount = 0
+    let maxFrames = 1000
+    
+    while frameCount < maxFrames {
+        let dt = 0.016
+        
+        // Update game context (input, time)
+        context = updateGameContext(context, dt)
+        
+        // Fixed update (physics)
+        context = fixedUpdateGameContext(context)
+        
+        // Render
+        let renderResult = renderGameContext(context)
+        
+        frameCount = frameCount + 1
+    }
+    
+    return { "success": true, "frames": frameCount }
+}
+
+// Helper function to create a simple transform
+fn createTransform(x, y, z) {
+    return {
+        "kind": "Transform",
+        "localPosition": { "x": x, "y": y, "z": z },
+        "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+        "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+        "worldMatrix": {
+            "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+            "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+            "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+            "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+        }
+    }
+}
+
+// Helper function to create a simple mesh
+fn createMesh() {
+    return {
+        "kind": "Mesh",
+        "vertices": [
+            { "x": -0.5, "y": -0.5, "z": 0.0 },
+            { "x": 0.5, "y": -0.5, "z": 0.0 },
+            { "x": 0.0, "y": 0.5, "z": 0.0 }
+        ],
+        "indices": [0, 1, 2]
+    }
+}
+
+// Helper function to create a simple material
+fn createMaterial(color) {
+    return {
+        "kind": "Material",
+        "color": color,
+        "shader": null,
+        "texture": null
+    }
+}
+
+main()
