@@ -1,0 +1,437 @@
+@version "1.0.0"
+
+// Kabootar game/core/renderPipeline - Render pipeline with camera, culling, sorting, and materials.
+// Canonical path: import "game/core/renderPipeline"
+
+pub fn createRenderPipeline() {
+    return {
+        "kind": "RenderPipeline",
+        "cameras": [],
+        "renderables": [],
+        "materials": {},
+        "opaqueQueue": [],
+        "transparentQueue": [],
+        "currentCamera": null,
+        "cullingEnabled": true,
+        "sortingEnabled": true
+    }
+}
+
+pub fn addCamera(pipeline, camera) {
+    pipeline["cameras"] = push(pipeline["cameras"], camera)
+    if len(pipeline["cameras"]) == 1 {
+        pipeline["currentCamera"] = camera
+    }
+    return pipeline
+}
+
+pub fn setCurrentCamera(pipeline, camera) {
+    pipeline["currentCamera"] = camera
+    return pipeline
+}
+
+pub fn addRenderable(pipeline, renderable) {
+    pipeline["renderables"] = push(pipeline["renderables"], renderable)
+    return pipeline
+}
+
+pub fn removeRenderable(pipeline, entityId) {
+    let renderables = pipeline["renderables"]
+    let newRenderables = []
+    let i = 0
+    while i < len(renderables) {
+        if renderables[i]["entityId"] != entityId {
+            newRenderables = push(newRenderables, renderables[i])
+        }
+        i = i + 1
+    }
+    pipeline["renderables"] = newRenderables
+    return pipeline
+}
+
+pub fn addMaterial(pipeline, materialName, material) {
+    pipeline["materials"][materialName] = material
+    return pipeline
+}
+
+pub fn getMaterial(pipeline, materialName) {
+    return pipeline["materials"][materialName]
+}
+
+pub fn cullRenderables(pipeline) {
+    if pipeline["cullingEnabled"] != true {
+        pipeline["opaqueQueue"] = pipeline["renderables"]
+        pipeline["transparentQueue"] = []
+        return pipeline
+    }
+    
+    let camera = pipeline["currentCamera"]
+    if camera == null || camera == undefined {
+        pipeline["opaqueQueue"] = pipeline["renderables"]
+        pipeline["transparentQueue"] = []
+        return pipeline
+    }
+    
+    let frustum = createFrustumFromCamera(camera)
+    let opaque = []
+    let transparent = []
+    
+    let i = 0
+    while i < len(pipeline["renderables"]) {
+        let renderable = pipeline["renderables"][i]
+        
+        if isFrustumCull(frustum, renderable["bounds"]) == false {
+            let material = pipeline["materials"][renderable["material"]]
+            if material != null && material["transparent"] == true {
+                transparent = push(transparent, renderable)
+            } else {
+                opaque = push(opaque, renderable)
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    pipeline["opaqueQueue"] = opaque
+    pipeline["transparentQueue"] = transparent
+    return pipeline
+}
+
+pub fn sortRenderables(pipeline) {
+    if pipeline["sortingEnabled"] != true {
+        return pipeline
+    }
+    
+    let camera = pipeline["currentCamera"]
+    if camera == null || camera == undefined {
+        return pipeline
+    }
+    
+    let cameraPos = camera["position"]
+    
+    pipeline["opaqueQueue"] = sortOpaqueQueue(pipeline["opaqueQueue"], cameraPos)
+    pipeline["transparentQueue"] = sortTransparentQueue(pipeline["transparentQueue"], cameraPos)
+    
+    return pipeline
+}
+
+fn sortOpaqueQueue(queue, cameraPos) {
+    let sorted = queue
+    let i = 0
+    while i < len(sorted) - 1 {
+        let j = i + 1
+        while j < len(sorted) {
+            let matA = sorted[i]["material"]
+            let matB = sorted[j]["material"]
+            
+            if matA != null && matB != null {
+                let queueA = matA["renderQueue"]
+                let queueB = matB["renderQueue"]
+                
+                if queueA > queueB {
+                    let temp = sorted[i]
+                    sorted[i] = sorted[j]
+                    sorted[j] = temp
+                }
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return sorted
+}
+
+fn sortTransparentQueue(queue, cameraPos) {
+    let sorted = queue
+    let i = 0
+    while i < len(sorted) - 1 {
+        let j = i + 1
+        while j < len(sorted) {
+            let distA = distanceToCamera(sorted[i]["bounds"], cameraPos)
+            let distB = distanceToCamera(sorted[j]["bounds"], cameraPos)
+            
+            if distA < distB {
+                let temp = sorted[i]
+                sorted[i] = sorted[j]
+                sorted[j] = temp
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return sorted
+}
+
+fn distanceToCamera(bounds, cameraPos) {
+    let center = {
+        "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+        "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+        "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+    }
+    
+    let dx = center["x"] - cameraPos["x"]
+    let dy = center["y"] - cameraPos["y"]
+    let dz = center["z"] - cameraPos["z"]
+    
+    return sqrt(dx * dx + dy * dy + dz * dz)
+}
+
+pub fn executeRenderPipeline(pipeline) {
+    pipeline = cullRenderables(pipeline)
+    pipeline = sortRenderables(pipeline)
+    
+    let drawCalls = []
+    
+    let i = 0
+    while i < len(pipeline["opaqueQueue"]) {
+        let renderable = pipeline["opaqueQueue"][i]
+        let drawCall = createDrawCall(renderable, pipeline["currentCamera"])
+        drawCalls = push(drawCalls, drawCall)
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(pipeline["transparentQueue"]) {
+        let renderable = pipeline["transparentQueue"][i]
+        let drawCall = createDrawCall(renderable, pipeline["currentCamera"])
+        drawCalls = push(drawCalls, drawCall)
+        i = i + 1
+    }
+    
+    return { "pipeline": pipeline, "drawCalls": drawCalls }
+}
+
+fn createDrawCall(renderable, camera) {
+    let material = renderable["material"]
+    
+    return {
+        "mesh": renderable["mesh"],
+        "material": material,
+        "transform": renderable["transform"],
+        "camera": camera,
+        "bounds": renderable["bounds"],
+        "layer": renderable["layer"],
+        "instanceCount": renderable["instanceCount"]
+    }
+}
+
+fn createFrustumFromCamera(camera) {
+    let position = camera["position"]
+    let rotation = camera["rotation"]
+    let fov = camera["fieldOfView"]
+    let near = camera["nearClipPlane"]
+    let far = camera["farClipPlane"]
+    let aspect = camera["aspectRatio"]
+    if aspect == null || aspect == undefined { aspect = 16.0 / 9.0 }
+    
+    let halfHeight = far * tan(fov / 2.0)
+    let halfWidth = halfHeight * aspect
+    
+    let forward = getForwardVector(rotation)
+    let right = getRightVector(rotation)
+    let up = getUpVector(rotation)
+    
+    let farCenter = {
+        "x": position["x"] + forward["x"] * far,
+        "y": position["y"] + forward["y"] * far,
+        "z": position["z"] + forward["z"] * far
+    }
+    
+    let nearCenter = {
+        "x": position["x"] + forward["x"] * near,
+        "y": position["y"] + forward["y"] * near,
+        "z": position["z"] + forward["z"] * near
+    }
+    
+    return {
+        "position": position,
+        "forward": forward,
+        "planes": [
+            createPlane(farCenter, forward),
+            createPlane(nearCenter, { "x": -forward["x"], "y": -forward["y"], "z": -forward["z"] }),
+            createPlane(position, crossProduct(forward, right)),
+            createPlane(position, crossProduct(right, forward)),
+            createPlane(position, crossProduct(right, up)),
+            createPlane(position, crossProduct(up, right))
+        ]
+    }
+}
+
+fn isFrustumCull(frustum, bounds) {
+    let center = {
+        "x": (bounds["min"]["x"] + bounds["max"]["x"]) / 2.0,
+        "y": (bounds["min"]["y"] + bounds["max"]["y"]) / 2.0,
+        "z": (bounds["min"]["z"] + bounds["max"]["z"]) / 2.0
+    }
+    
+    let radius = sqrt(
+        ((bounds["max"]["x"] - bounds["min"]["x"]) / 2.0) * ((bounds["max"]["x"] - bounds["min"]["x"]) / 2.0) +
+        ((bounds["max"]["y"] - bounds["min"]["y"]) / 2.0) * ((bounds["max"]["y"] - bounds["min"]["y"]) / 2.0) +
+        ((bounds["max"]["z"] - bounds["min"]["z"]) / 2.0) * ((bounds["max"]["z"] - bounds["min"]["z"]) / 2.0)
+    )
+    
+    let i = 0
+    while i < len(frustum["planes"]) {
+        let plane = frustum["planes"][i]
+        let distance = plane["normal"]["x"] * center["x"] + plane["normal"]["y"] * center["y"] + plane["normal"]["z"] * center["z"] + plane["distance"]
+        
+        if distance < -radius {
+            return true
+        }
+        i = i + 1
+    }
+    
+    return false
+}
+
+fn createPlane(point, normal) {
+    let len = sqrt(normal["x"] * normal["x"] + normal["y"] * normal["y"] + normal["z"] * normal["z"])
+    if len > 0.0001 {
+        normal = { "x": normal["x"] / len, "y": normal["y"] / len, "z": normal["z"] / len }
+    }
+    
+    return {
+        "normal": normal,
+        "distance": -(normal["x"] * point["x"] + normal["y"] * point["y"] + normal["z"] * point["z"])
+    }
+}
+
+fn getForwardVector(rotation) {
+    let pitch = rotation["pitch"]
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": cos(pitch) * sin(yaw),
+        "y": -sin(pitch),
+        "z": cos(pitch) * cos(yaw)
+    }
+}
+
+fn getRightVector(rotation) {
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": cos(yaw),
+        "y": 0.0,
+        "z": -sin(yaw)
+    }
+}
+
+fn getUpVector(rotation) {
+    let pitch = rotation["pitch"]
+    let yaw = rotation["yaw"]
+    
+    return {
+        "x": sin(pitch) * sin(yaw),
+        "y": cos(pitch),
+        "z": sin(pitch) * cos(yaw)
+    }
+}
+
+fn crossProduct(a, b) {
+    return {
+        "x": a["y"] * b["z"] - a["z"] * b["y"],
+        "y": a["z"] * b["x"] - a["x"] * b["z"],
+        "z": a["x"] * b["y"] - a["y"] * b["x"]
+    }
+}
+
+pub fn createMaterial(name, shader) {
+    return {
+        "kind": "Material",
+        "name": name,
+        "shader": shader,
+        "properties": {
+            "albedo": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "emission": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }
+        },
+        "textures": {
+            "albedo": null,
+            "normal": null,
+            "metallic": null,
+            "roughness": null
+        },
+        "transparent": false,
+        "renderQueue": 2000,
+        "doubleSided": false
+    }
+}
+
+pub fn setMaterialProperty(material, property, value) {
+    material["properties"][property] = value
+    return material
+}
+
+pub fn setMaterialTexture(material, textureSlot, textureName) {
+    material["textures"][textureSlot] = textureName
+    return material
+}
+
+pub fn setMaterialTransparent(material, transparent) {
+    material["transparent"] = transparent == true
+    if transparent == true {
+        material["renderQueue"] = 3000
+    } else {
+        material["renderQueue"] = 2000
+    }
+    return material
+}
+
+pub fn setMaterialRenderQueue(material, queue) {
+    material["renderQueue"] = queue
+    return material
+}
+
+pub fn createRenderable(entityId, mesh, material, transform, bounds) {
+    return {
+        "entityId": entityId,
+        "mesh": mesh,
+        "material": material,
+        "transform": transform,
+        "bounds": bounds,
+        "layer": 0,
+        "instanceCount": 1
+    }
+}
+
+pub fn updateRenderableTransform(pipeline, entityId, transform) {
+    let i = 0
+    while i < len(pipeline["renderables"]) {
+        if pipeline["renderables"][i]["entityId"] == entityId {
+            pipeline["renderables"][i]["transform"] = transform
+            break
+        }
+        i = i + 1
+    }
+    return pipeline
+}
+
+pub fn setRenderableLayer(pipeline, entityId, layer) {
+    let i = 0
+    while i < len(pipeline["renderables"]) {
+        if pipeline["renderables"][i]["entityId"] == entityId {
+            pipeline["renderables"][i]["layer"] = layer
+            break
+        }
+        i = i + 1
+    }
+    return pipeline
+}
+
+pub fn getRenderQueueStats(pipeline) {
+    return {
+        "opaqueCount": len(pipeline["opaqueQueue"]),
+        "transparentCount": len(pipeline["transparentQueue"]),
+        "totalRenderables": len(pipeline["renderables"]),
+        "cameraCount": len(pipeline["cameras"])
+    }
+}
+
+pub fn clearPipeline(pipeline) {
+    pipeline["renderables"] = []
+    pipeline["opaqueQueue"] = []
+    pipeline["transparentQueue"] = []
+    return pipeline
+}

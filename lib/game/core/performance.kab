@@ -1,0 +1,542 @@
+@version "1.0.0"
+
+// Kabootar game/core/performance - Performance utilities for reducing allocations in hot paths.
+// Canonical path: import "game/core/performance"
+
+pub fn createObjectPool(initialSize) {
+    if initialSize == null || initial == undefined { initialSize = 10 }
+    
+    let pool = {
+        "kind": "ObjectPool",
+        "pool": [],
+        "active": [],
+        "maxSize": 1000,
+        "createFn": null,
+        "resetFn": null
+    }
+    
+    let i = 0
+    while i < initialSize {
+        pool["pool"] = push(pool["pool"], null)
+        i = i + 1
+    }
+    
+    return pool
+}
+
+pub fn setPoolCreateFn(pool, createFn) {
+    pool["createFn"] = createFn
+    return pool
+}
+
+pub fn setPoolResetFn(pool, resetFn) {
+    pool["resetFn"] = resetFn
+    return pool
+}
+
+pub fn poolGet(pool) {
+    if len(pool["pool"]) > 0 {
+        let obj = pool["pool"][len(pool["pool"]) - 1]
+        pool["pool"] = pop(pool["pool"])
+        
+        if obj == null && pool["createFn"] != null {
+            obj = pool["createFn"]()
+        }
+        
+        pool["active"] = push(pool["active"], obj)
+        return obj
+    } else {
+        if pool["createFn"] != null {
+            let obj = pool["createFn"]()
+            pool["active"] = push(pool["active"], obj)
+            return obj
+        }
+    }
+    return null
+}
+
+pub fn poolRelease(pool, obj) {
+    let i = 0
+    while i < len(pool["active"]) {
+        if pool["active"][i] == obj {
+            pool["active"] = remove(pool["active"], i)
+            
+            if pool["resetFn"] != null {
+                pool["resetFn"](obj)
+            }
+            
+            if len(pool["pool"]) < pool["maxSize"] {
+                pool["pool"] = push(pool["pool"], obj)
+            }
+            break
+        }
+        i = i + 1
+    }
+    return pool
+}
+
+pub fn poolReleaseAll(pool) {
+    let i = 0
+    while i < len(pool["active"]) {
+        let obj = pool["active"][i]
+        if pool["resetFn"] != null {
+            pool["resetFn"](obj)
+        }
+        if len(pool["pool"]) < pool["maxSize"] {
+            pool["pool"] = push(pool["pool"], obj)
+        }
+        i = i + 1
+    }
+    pool["active"] = []
+    return pool
+}
+
+pub fn getPoolActiveCount(pool) {
+    return len(pool["active"])
+}
+
+pub fn getPoolAvailableCount(pool) {
+    return len(pool["pool"])
+}
+
+pub fn createArrayPool(arraySize, initialSize) {
+    if arraySize == null || arraySize == undefined { arraySize = 10 }
+    if initialSize == null || initialSize == undefined { initialSize = 5 }
+    
+    let pool = {
+        "kind": "ArrayPool",
+        "arraySize": arraySize,
+        "pool": [],
+        "active": [],
+        "maxSize": 100
+    }
+    
+    let i = 0
+    while i < initialSize {
+        let arr = []
+        let j = 0
+        while j < arraySize {
+            arr = push(arr, null)
+            j = j + 1
+        }
+        pool["pool"] = push(pool["pool"], arr)
+        i = i + 1
+    }
+    
+    return pool
+}
+
+pub fn arrayPoolGet(pool) {
+    if len(pool["pool"]) > 0 {
+        let arr = pool["pool"][len(pool["pool"]) - 1]
+        pool["pool"] = pop(pool["pool"])
+        pool["active"] = push(pool["active"], arr)
+        return arr
+    } else {
+        let arr = []
+        let i = 0
+        while i < pool["arraySize"] {
+            arr = push(arr, null)
+            i = i + 1
+        }
+        pool["active"] = push(pool["active"], arr)
+        return arr
+    }
+}
+
+pub fn arrayPoolRelease(pool, arr) {
+    let i = 0
+    while i < len(pool["active"]) {
+        if pool["active"][i] == arr {
+            pool["active"] = remove(pool["active"], i)
+            
+            let j = 0
+            while j < len(arr) {
+                arr[j] = null
+                j = j + 1
+            }
+            
+            if len(pool["pool"]) < pool["maxSize"] {
+                pool["pool"] = push(pool["pool"], arr)
+            }
+            break
+        }
+        i = i + 1
+    }
+    return pool
+}
+
+pub fn createVector3Pool(initialSize) {
+    let pool = createObjectPool(initialSize)
+    pool = setPoolCreateFn(pool, fn() {
+        return { "x": 0.0, "y": 0.0, "z": 0.0 }
+    })
+    pool = setPoolResetFn(pool, fn(v) {
+        v["x"] = 0.0
+        v["y"] = 0.0
+        v["z"] = 0.0
+    })
+    return pool
+}
+
+pub fn createMatrixPool(initialSize) {
+    let pool = createObjectPool(initialSize)
+    pool = setPoolCreateFn(pool, fn() {
+        return {
+            "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+            "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+            "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+            "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+        }
+    })
+    pool = setPoolResetFn(pool, fn(m) {
+        m["m00"] = 1.0; m["m01"] = 0.0; m["m02"] = 0.0; m["m03"] = 0.0
+        m["m10"] = 0.0; m["m11"] = 1.0; m["m12"] = 0.0; m["m13"] = 0.0
+        m["m20"] = 0.0; m["m21"] = 0.0; m["m22"] = 1.0; m["m23"] = 0.0
+        m["m30"] = 0.0; m["m31"] = 0.0; m["m32"] = 0.0; m["m33"] = 1.0
+    })
+    return pool
+}
+
+pub fn createTempAllocator() {
+    return {
+        "kind": "TempAllocator",
+        "scratch": [],
+        "mark": 0
+    }
+}
+
+pub fn tempAlloc(allocator, obj) {
+    allocator["scratch"] = push(allocator["scratch"], obj)
+    return obj
+}
+
+pub fn tempMark(allocator) {
+    allocator["mark"] = len(allocator["scratch"])
+    return allocator
+}
+
+pub fn tempReset(allocator) {
+    let newScratch = []
+    let i = 0
+    while i < allocator["mark"] {
+        newScratch = push(newScratch, allocator["scratch"][i])
+        i = i + 1
+    }
+    allocator["scratch"] = newScratch
+    allocator["mark"] = len(newScratch)
+    return allocator
+}
+
+pub fn tempResetAll(allocator) {
+    allocator["scratch"] = []
+    allocator["mark"] = 0
+    return allocator
+}
+
+pub fn createFrameAllocator() {
+    return {
+        "kind": "FrameAllocator",
+        "allocations": [],
+        "frameCount": 0
+    }
+}
+
+pub fn frameAlloc(allocator, obj) {
+    allocator["allocations"] = push(allocator["allocations"], obj)
+    return obj
+}
+
+pub fn frameEnd(allocator) {
+    allocator["allocations"] = []
+    allocator["frameCount"] = allocator["frameCount"] + 1
+    return allocator
+}
+
+pub fn getFrameCount(allocator) {
+    return allocator["frameCount"]
+}
+
+pub fn createBloomFilter(size) {
+    if size == null || size == undefined { size = 100 }
+    
+    return {
+        "kind": "BloomFilter",
+        "size": size,
+        "buffer": [],
+        "index": 0
+    }
+}
+
+pub fn bloomPush(filter, value) {
+    if len(filter["buffer"]) < filter["size"] {
+        filter["buffer"] = push(filter["buffer"], value)
+    } else {
+        filter["buffer"][filter["index"]] = value
+        filter["index"] = (filter["index"] + 1) % filter["size"]
+    }
+    return filter
+}
+
+pub fn bloomGetAverage(filter) {
+    if len(filter["buffer"]) == 0 {
+        return 0.0
+    }
+    
+    let sum = 0.0
+    let i = 0
+    while i < len(filter["buffer"]) {
+        sum = sum + filter["buffer"][i]
+        i = i + 1
+    }
+    
+    return sum / len(filter["buffer"])
+}
+
+pub fn createCircularBuffer(size) {
+    if size == null || size == undefined { size = 100 }
+    
+    return {
+        "kind": "CircularBuffer",
+        "size": size,
+        "buffer": [],
+        "head": 0,
+        "tail": 0,
+        "count": 0
+    }
+}
+
+pub fn circularPush(buffer, value) {
+    if buffer["count"] == buffer["size"] {
+        buffer["tail"] = (buffer["tail"] + 1) % buffer["size"]
+    } else {
+        buffer["count"] = buffer["count"] + 1
+    }
+    
+    if len(buffer["buffer"]) < buffer["size"] {
+        buffer["buffer"] = push(buffer["buffer"], value)
+    } else {
+        buffer["buffer"][buffer["head"]] = value
+    }
+    
+    buffer["head"] = (buffer["head"] + 1) % buffer["size"]
+    return buffer
+}
+
+pub fn circularPop(buffer) {
+    if buffer["count"] == 0 {
+        return null
+    }
+    
+    let value = buffer["buffer"][buffer["tail"]]
+    buffer["tail"] = (buffer["tail"] + 1) % buffer["size"]
+    buffer["count"] = buffer["count"] - 1
+    
+    return value
+}
+
+pub fn circularPeek(buffer) {
+    if buffer["count"] == 0 {
+        return null
+    }
+    return buffer["buffer"][buffer["tail"]]
+}
+
+pub fn circularIsEmpty(buffer) {
+    return buffer["count"] == 0
+}
+
+pub fn circularIsFull(buffer) {
+    return buffer["count"] == buffer["size"]
+}
+
+pub fn createFastList(initialCapacity) {
+    if initialCapacity == null || initialCapacity == undefined { initialCapacity = 10 }
+    
+    let list = {
+        "kind": "FastList",
+        "items": [],
+        "count": 0,
+        "capacity": initialCapacity
+    }
+    
+    let i = 0
+    while i < initialCapacity {
+        list["items"] = push(list["items"], null)
+        i = i + 1
+    }
+    
+    return list
+}
+
+pub fn fastListAdd(list, item) {
+    if list["count"] == list["capacity"] {
+        list["capacity"] = list["capacity"] * 2
+        let i = 0
+        while i < list["capacity"] {
+            list["items"] = push(list["items"], null)
+            i = i + 1
+        }
+    }
+    
+    list["items"][list["count"]] = item
+    list["count"] = list["count"] + 1
+    return list
+}
+
+pub fn fastListGet(list, index) {
+    if index >= 0 && index < list["count"] {
+        return list["items"][index]
+    }
+    return null
+}
+
+pub fn fastListSet(list, index, item) {
+    if index >= 0 && index < list["count"] {
+        list["items"][index] = item
+    }
+    return list
+}
+
+pub fn fastListRemove(list, index) {
+    if index >= 0 && index < list["count"] {
+        let i = index
+        while i < list["count"] - 1 {
+            list["items"][i] = list["items"][i + 1]
+            i = i + 1
+        }
+        list["count"] = list["count"] - 1
+    }
+    return list
+}
+
+pub fn fastListClear(list) {
+    list["count"] = 0
+    return list
+}
+
+pub fn fastListCount(list) {
+    return list["count"]
+}
+
+pub fn createStack(initialCapacity) {
+    if initialCapacity == null || initialCapacity == undefined { initialCapacity = 10 }
+    
+    let stack = {
+        "kind": "Stack",
+        "items": [],
+        "top": -1,
+        "capacity": initialCapacity
+    }
+    
+    let i = 0
+    while i < initialCapacity {
+        stack["items"] = push(stack["items"], null)
+        i = i + 1
+    }
+    
+    return stack
+}
+
+pub fn stackPush(stack, item) {
+    if stack["top"] == stack["capacity"] - 1 {
+        stack["capacity"] = stack["capacity"] * 2
+        let i = 0
+        while i < stack["capacity"] {
+            stack["items"] = push(stack["items"], null)
+            i = i + 1
+        }
+    }
+    
+    stack["top"] = stack["top"] + 1
+    stack["items"][stack["top"]] = item
+    return stack
+}
+
+pub fn stackPop(stack) {
+    if stack["top"] < 0 {
+        return null
+    }
+    
+    let item = stack["items"][stack["top"]]
+    stack["top"] = stack["top"] - 1
+    return item
+}
+
+pub fn stackPeek(stack) {
+    if stack["top"] < 0 {
+        return null
+    }
+    return stack["items"][stack["top"]]
+}
+
+pub fn stackIsEmpty(stack) {
+    return stack["top"] < 0
+}
+
+pub fn stackCount(stack) {
+    return stack["top"] + 1
+}
+
+pub fn createBitSet(size) {
+    if size == null || size == undefined { size = 64 }
+    
+    let bits = []
+    let wordCount = (size + 31) / 32
+    let i = 0
+    while i < wordCount {
+        bits = push(bits, 0)
+        i = i + 1
+    }
+    
+    return {
+        "kind": "BitSet",
+        "size": size,
+        "bits": bits
+    }
+}
+
+pub fn bitSetSet(bitset, index) {
+    if index >= 0 && index < bitset["size"] {
+        let wordIndex = index / 32
+        let bitIndex = index % 32
+        bitset["bits"][wordIndex] = bitset["bits"][wordIndex] | (1 << bitIndex)
+    }
+    return bitset
+}
+
+pub fn bitSetClear(bitset, index) {
+    if index >= 0 && index < bitset["size"] {
+        let wordIndex = index / 32
+        let bitIndex = index % 32
+        bitset["bits"][wordIndex] = bitset["bits"][wordIndex] & ~(1 << bitIndex)
+    }
+    return bitset
+}
+
+pub fn bitSetGet(bitset, index) {
+    if index >= 0 && index < bitset["size"] {
+        let wordIndex = index / 32
+        let bitIndex = index % 32
+        return (bitset["bits"][wordIndex] & (1 << bitIndex)) != 0
+    }
+    return false
+}
+
+pub fn bitSetClearAll(bitset) {
+    let i = 0
+    while i < len(bitset["bits"]) {
+        bitset["bits"][i] = 0
+        i = i + 1
+    }
+    return bitset
+}
+
+pub fn bitSetSetAll(bitset) {
+    let i = 0
+    while i < len(bitset["bits"]) {
+        bitset["bits"][i] = 0xFFFFFFFF
+        i = i + 1
+    }
+    return bitset
+}

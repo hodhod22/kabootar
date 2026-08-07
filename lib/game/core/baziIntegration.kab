@@ -1,0 +1,425 @@
+@version "1.0.0"
+
+// Kabootar game/core/baziIntegration - Integration layer for Bazi behaviours and prefab support.
+// Canonical path: import "game/core/baziIntegration"
+
+import "game/core/ecs2"
+import "game/core/sceneGraph"
+
+pub fn createBehaviourComponent(scriptName) {
+    return {
+        "kind": "Behaviour",
+        "scriptName": scriptName,
+        "enabled": true,
+        "onSpawn": null,
+        "onDestroy": null,
+        "onUpdate": null,
+        "onFixedUpdate": null,
+        "onLateUpdate": null,
+        "onCollisionEnter": null,
+        "onCollisionExit": null,
+        "onTriggerEnter": null,
+        "onTriggerExit": null,
+        "userData": {}
+    }
+}
+
+pub fn setBehaviourEnabled(behaviour, enabled) {
+    behaviour["enabled"] = enabled == true
+    return behaviour
+}
+
+pub fn setBehaviourHook(behaviour, hookName, callback) {
+    behaviour[hookName] = callback
+    return behaviour
+}
+
+pub fn setBehaviourUserData(behaviour, key, value) {
+    behaviour["userData"][key] = value
+    return behaviour
+}
+
+pub fn getBehaviourUserData(behaviour, key) {
+    return behaviour["userData"][key]
+}
+
+pub fn createPrefabComponent(prefabName) {
+    return {
+        "kind": "Prefab",
+        "prefabName": prefabName,
+        "prefabData": null,
+        "overrides": {},
+        "instanceId": null
+    }
+}
+
+pub fn setPrefabData(prefab, prefabData) {
+    prefab["prefabData"] = prefabData
+    return prefab
+}
+
+pub fn addPrefabOverride(prefab, componentPath, property, value) {
+    if prefab["overrides"][componentPath] == null {
+        prefab["overrides"][componentPath] = {}
+    }
+    prefab["overrides"][componentPath][property] = value
+    return prefab
+}
+
+pub fn applyPrefabOverrides(world, entityId, prefab) {
+    for componentPath in prefab["overrides"] {
+        let overrides = prefab["overrides"][componentPath]
+        let component = get(world, entityId, componentPath)
+        
+        if component != null {
+            for property in overrides {
+                component[property] = overrides[property]
+            }
+            world = add(world, entityId, componentPath, component)
+        }
+    }
+    
+    return world
+}
+
+pub fn instantiatePrefab(world, prefab, position, rotation) {
+    if prefab["prefabData"] == null {
+        return { "world": world, "entityId": null }
+    }
+    
+    let spawned = spawn(world)
+    world = spawned["world"]
+    let entityId = spawned["entity"]["id"]
+    
+    let i = 0
+    while i < len(prefab["prefabData"]["components"]) {
+        let compData = prefab["prefabData"]["components"][i]
+        let component = copyComponentData(compData)
+        world = add(world, entityId, compData["kind"], component)
+        i = i + 1
+    }
+    
+    let transform = get(world, entityId, "Transform")
+    if transform != null {
+        transform = setLocalPosition(transform, position["x"], position["y"], position["z"])
+        transform["localRotation"] = rotation
+        world = add(world, entityId, "Transform", transform)
+    }
+    
+    world = applyPrefabOverrides(world, entityId, prefab)
+    
+    prefab["instanceId"] = entityId
+    
+    return { "world": world, "entityId": entityId }
+}
+
+fn copyComponentData(data) {
+    let copy = {}
+    for key in data {
+        copy[key] = data[key]
+    }
+    return copy
+}
+
+pub fn createBehaviourSystem() {
+    return {
+        "kind": "BehaviourSystem",
+        "behaviours": [],
+        "phase": "update",
+        "context": null
+    }
+}
+
+pub fn addBehaviourToSystem(system, entityId, behaviour) {
+    system["behaviours"] = push(system["behaviours"], {
+        "entityId": entityId,
+        "behaviour": behaviour
+    })
+    return system
+}
+
+pub fn removeBehaviourFromSystem(system, entityId) {
+    let behaviours = system["behaviours"]
+    let newBehaviours = []
+    let i = 0
+    while i < len(behaviours) {
+        if behaviours[i]["entityId"] != entityId {
+            newBehaviours = push(newBehaviours, behaviours[i])
+        }
+        i = i + 1
+    }
+    system["behaviours"] = newBehaviours
+    return system
+}
+
+pub fn setSystemPhase(system, phase) {
+    system["phase"] = phase
+    return system
+}
+
+pub fn setSystemContext(system, context) {
+    system["context"] = context
+    return system
+}
+
+pub fn executeBehaviourSystem(system, world, dt) {
+    let i = 0
+    while i < len(system["behaviours"]) {
+        let entry = system["behaviours"][i]
+        let behaviour = entry["behaviour"]
+        let entityId = entry["entityId"]
+        
+        if behaviour["enabled"] == true && isAlive(world, entityId) {
+            if system["phase"] == "update" && behaviour["onUpdate"] != null {
+                behaviour["onUpdate"](world, entityId, dt, system["context"])
+            } else if system["phase"] == "fixedUpdate" && behaviour["onFixedUpdate"] != null {
+                behaviour["onFixedUpdate"](world, entityId, dt, system["context"])
+            } else if system["phase"] == "lateUpdate" && behaviour["onLateUpdate"] != null {
+                behaviour["onLateUpdate"](world, entityId, dt, system["context"])
+            }
+            
+            system["behaviours"][i]["behaviour"] = behaviour
+        }
+        
+        i = i + 1
+    }
+    
+    return system
+}
+
+pub fn onBehaviourSpawn(system, world, entityId) {
+    let behaviour = get(world, entityId, "Behaviour")
+    if behaviour != null && behaviour["onSpawn"] != null {
+        behaviour["onSpawn"](world, entityId, system["context"])
+        world = add(world, entityId, "Behaviour", behaviour)
+    }
+    return world
+}
+
+pub fn onBehaviourDestroy(system, world, entityId) {
+    let behaviour = get(world, entityId, "Behaviour")
+    if behaviour != null && behaviour["onDestroy"] != null {
+        behaviour["onDestroy"](world, entityId, system["context"])
+    }
+    system = removeBehaviourFromSystem(system, entityId)
+    return { "system": system, "world": world }
+}
+
+pub fn onCollisionEvent(system, world, entityId, collision, eventType) {
+    let behaviour = get(world, entityId, "Behaviour")
+    if behaviour != null && behaviour["enabled"] == true {
+        if eventType == "enter" && behaviour["onCollisionEnter"] != null {
+            behaviour["onCollisionEnter"](world, entityId, collision, system["context"])
+        } else if eventType == "exit" && behaviour["onCollisionExit"] != null {
+            behaviour["onCollisionExit"](world, entityId, collision, system["context"])
+        }
+        world = add(world, entityId, "Behaviour", behaviour)
+    }
+    return world
+}
+
+pub fn onTriggerEvent(system, world, entityId, triggerData, eventType) {
+    let behaviour = get(world, entityId, "Behaviour")
+    if behaviour != null && behaviour["enabled"] == true {
+        if eventType == "enter" && behaviour["onTriggerEnter"] != null {
+            behaviour["onTriggerEnter"](world, entityId, triggerData, system["context"])
+        } else if eventType == "exit" && behaviour["onTriggerExit"] != null {
+            behaviour["onTriggerExit"](world, entityId, triggerData, system["context"])
+        }
+        world = add(world, entityId, "Behaviour", behaviour)
+    }
+    return world
+}
+
+pub fn createPrefabManager() {
+    return {
+        "kind": "PrefabManager",
+        "prefabs": {},
+        "instances": {}
+    }
+}
+
+pub fn registerPrefab(manager, prefabName, prefabData) {
+    manager["prefabs"][prefabName] = prefabData
+    return manager
+}
+
+pub fn getPrefab(manager, prefabName) {
+    return manager["prefabs"][prefabName]
+}
+
+pub fn instantiatePrefabFromManager(manager, world, prefabName, position, rotation) {
+    let prefabData = manager["prefabs"][prefabName]
+    if prefabData == null {
+        return { "world": world, "entityId": null }
+    }
+    
+    let prefab = createPrefabComponent(prefabName)
+    prefab = setPrefabData(prefab, prefabData)
+    
+    let result = instantiatePrefab(world, prefab, position, rotation)
+    world = result["world"]
+    let entityId = result["entityId"]
+    
+    manager["instances"]["" + entityId] = prefabName
+    
+    return { "world": world, "manager": manager, "entityId": entityId }
+}
+
+pub fn destroyPrefabInstance(manager, world, entityId) {
+    let prefabName = manager["instances"]["" + entityId]
+    if prefabName != null {
+        let descendants = getAllDescendants(world, entityId)
+        let i = 0
+        while i < len(descendants) {
+            world = destroy(world, descendants[i])
+            manager["instances"]["" + descendants[i]] = null
+            i = i + 1
+        }
+        world = destroy(world, entityId)
+        manager["instances"]["" + entityId] = null
+    }
+    return { "world": world, "manager": manager }
+}
+
+pub fn getPrefabInstanceCount(manager, prefabName) {
+    let count = 0
+    for entityId in manager["instances"] {
+        if manager["instances"][entityId] == prefabName {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn createTagComponent(tag) {
+    return {
+        "kind": "Tag",
+        "tag": tag
+    }
+}
+
+pub fn setEntityTag(world, entityId, tag) {
+    let tagComponent = createTagComponent(tag)
+    world = add(world, entityId, "Tag", tagComponent)
+    return world
+}
+
+pub fn getEntityTag(world, entityId) {
+    let tag = get(world, entityId, "Tag")
+    if tag != null {
+        return tag["tag"]
+    }
+    return null
+}
+
+pub fn findEntitiesByTag(world, tag) {
+    let results = []
+    let taggedEntities = query(world, "Tag")
+    let i = 0
+    while i < len(taggedEntities) {
+        if taggedEntities[i]["data"]["tag"] == tag {
+            results = push(results, taggedEntities[i]["id"])
+        }
+        i = i + 1
+    }
+    return results
+}
+
+pub fn createLayerComponent(layer) {
+    return {
+        "kind": "Layer",
+        "layer": layer
+    }
+}
+
+pub fn setEntityLayer(world, entityId, layer) {
+    let layerComponent = createLayerComponent(layer)
+    world = add(world, entityId, "Layer", layerComponent)
+    return world
+}
+
+pub fn getEntityLayer(world, entityId) {
+    let layer = get(world, entityId, "Layer")
+    if layer != null {
+        return layer["layer"]
+    }
+    return 0
+}
+
+pub fn findEntitiesByLayer(world, layer) {
+    let results = []
+    let layeredEntities = query(world, "Layer")
+    let i = 0
+    while i < len(layeredEntities) {
+        if layeredEntities[i]["data"]["layer"] == layer {
+            results = push(results, layeredEntities[i]["id"])
+        }
+        i = i + 1
+    }
+    return results
+}
+
+pub fn createNameComponent(name) {
+    return {
+        "kind": "Name",
+        "name": name
+    }
+}
+
+pub fn setEntityName(world, entityId, name) {
+    let nameComponent = createNameComponent(name)
+    world = add(world, entityId, "Name", nameComponent)
+    return world
+}
+
+pub fn getEntityName(world, entityId) {
+    let name = get(world, entityId, "Name")
+    if name != null {
+        return name["name"]
+    }
+    return null
+}
+
+pub fn findEntityByName(world, name) {
+    let namedEntities = query(world, "Name")
+    let i = 0
+    while i < len(namedEntities) {
+        if namedEntities[i]["data"]["name"] == name {
+            return namedEntities[i]["id"]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn createActiveComponent(active) {
+    if active == null || active == undefined { active = true }
+    return {
+        "kind": "Active",
+        "active": active
+    }
+}
+
+pub fn setEntityActive(world, entityId, active) {
+    let activeComponent = createActiveComponent(active)
+    world = add(world, entityId, "Active", activeComponent)
+    return world
+}
+
+pub fn isEntityActive(world, entityId) {
+    let active = get(world, entityId, "Active")
+    if active != null {
+        return active["active"] == true
+    }
+    return true
+}
+
+pub fn toggleEntityActive(world, entityId) {
+    let active = get(world, entityId, "Active")
+    let newActive = true
+    if active != null {
+        newActive = !active["active"]
+    }
+    return setEntityActive(world, entityId, newActive)
+}

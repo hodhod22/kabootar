@@ -1,0 +1,524 @@
+@version "1.0.0"
+
+// Kabootar game/core/sceneGraph - Scene-graph integration with ECS using Transform and Parent components.
+// Canonical path: import "game/core/sceneGraph"
+
+import "game/core/ecs2"
+import "game/core/transform2"
+
+pub fn createParentComponent(parentId) {
+    return {
+        "kind": "Parent",
+        "parentId": parentId,
+        "children": [],
+        "dirtyChildren": false
+    }
+}
+
+pub fn setParent(world, entityId, parentId) {
+    let parent = get(world, parentId, "Parent")
+    if parent == null {
+        parent = createParentComponent(parentId)
+        world = add(world, parentId, "Parent", parent)
+    }
+    
+    let existingParent = get(world, entityId, "Parent")
+    if existingParent != null {
+        world = removeParent(world, entityId, existingParent["parentId"])
+    }
+    
+    parent["children"] = push(parent["children"], entityId)
+    parent["dirtyChildren"] = true
+    world = add(world, parentId, "Parent", parent)
+    
+    let newParent = createParentComponent(parentId)
+    world = add(world, entityId, "Parent", newParent)
+    
+    let transform = get(world, entityId, "Transform")
+    if transform != null {
+        transform["dirty"] = true
+        world = add(world, entityId, "Transform", transform)
+    }
+    
+    return world
+}
+
+pub fn removeParent(world, entityId, parentId) {
+    let parent = get(world, parentId, "Parent")
+    if parent != null {
+        let newChildren = []
+        let i = 0
+        while i < len(parent["children"]) {
+            if parent["children"][i] != entityId {
+                newChildren = push(newChildren, parent["children"][i])
+            }
+            i = i + 1
+        }
+        parent["children"] = newChildren
+        world = add(world, parentId, "Parent", parent)
+    }
+    
+    world = remove(world, entityId, "Parent")
+    
+    let transform = get(world, entityId, "Transform")
+    if transform != null {
+        transform["dirty"] = true
+        world = add(world, entityId, "Transform", transform)
+    }
+    
+    return world
+}
+
+pub fn getChildren(world, parentId) {
+    let parent = get(world, parentId, "Parent")
+    if parent == null {
+        return []
+    }
+    return parent["children"]
+}
+
+pub fn getChildCount(world, parentId) {
+    let parent = get(world, parentId, "Parent")
+    if parent == null {
+        return 0
+    }
+    return len(parent["children"])
+}
+
+pub fn getParent(world, entityId) {
+    let parent = get(world, entityId, "Parent")
+    if parent == null {
+        return null
+    }
+    return parent["parentId"]
+}
+
+pub fn getRootEntities(world) {
+    let roots = []
+    let allEntities = query(world, "Transform")
+    let i = 0
+    while i < len(allEntities) {
+        let entityId = allEntities[i]["id"]
+        let parent = get(world, entityId, "Parent")
+        if parent == null {
+            roots = push(roots, entityId)
+        }
+        i = i + 1
+    }
+    return roots
+}
+
+pub fn getAllDescendants(world, entityId) {
+    let descendants = []
+    let parent = get(world, entityId, "Parent")
+    if parent == null {
+        return descendants
+    }
+    
+    let children = parent["children"]
+    let i = 0
+    while i < len(children) {
+        let childId = children[i]
+        descendants = push(descendants, childId)
+        let childDescendants = getAllDescendants(world, childId)
+        let j = 0
+        while j < len(childDescendants) {
+            descendants = push(descendants, childDescendants[j])
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return descendants
+}
+
+pub fn getAncestors(world, entityId) {
+    let ancestors = []
+    let currentId = entityId
+    
+    while true {
+        let parent = get(world, currentId, "Parent")
+        if parent == null {
+            break
+        }
+        
+        let parentId = parent["parentId"]
+        ancestors = push(ancestors, parentId)
+        currentId = parentId
+        
+        if len(ancestors) > 100 {
+            break
+        }
+    }
+    
+    return ancestors
+}
+
+pub fn findCommonAncestor(world, entityA, entityB) {
+    let ancestorsA = getAncestors(world, entityA)
+    let ancestorsB = getAncestors(world, entityB)
+    
+    let i = 0
+    while i < len(ancestorsA) {
+        let j = 0
+        while j < len(ancestorsB) {
+            if ancestorsA[i] == ancestorsB[j] {
+                return ancestorsA[i]
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return null
+}
+
+pub fn getDepth(world, entityId) {
+    let depth = 0
+    let currentId = entityId
+    
+    while true {
+        let parent = get(world, currentId, "Parent")
+        if parent == null {
+            break
+        }
+        depth = depth + 1
+        currentId = parent["parentId"]
+        
+        if depth > 100 {
+            break
+        }
+    }
+    
+    return depth
+}
+
+pub fn updateHierarchy(world) {
+    let roots = getRootEntities(world)
+    let i = 0
+    while i < len(roots) {
+        world = updateTransformHierarchy(world, roots[i])
+        i = i + 1
+    }
+    return world
+}
+
+pub fn updateTransformHierarchy(world, entityId) {
+    let transform = get(world, entityId, "Transform")
+    if transform != null {
+        let parentId = getParent(world, entityId)
+        
+        if parentId != null {
+            let parentTransform = get(world, parentId, "Transform")
+            if parentTransform != null {
+                let parentWorldMatrix = getWorldMatrix(parentTransform)
+                let localMatrix = composeMatrix(
+                    transform["localPosition"],
+                    transform["localRotation"],
+                    transform["localScale"]
+                )
+                transform["localMatrix"] = localMatrix
+                transform["worldMatrix"] = multiplyMatrices(parentWorldMatrix, localMatrix)
+                
+                transform["worldPosition"] = extractPosition(transform["worldMatrix"])
+                transform["worldRotation"] = extractRotation(transform["worldMatrix"])
+                transform["worldScale"] = extractScale(transform["worldMatrix"])
+                transform["dirty"] = false
+            }
+        } else {
+            let localMatrix = composeMatrix(
+                transform["localPosition"],
+                transform["localRotation"],
+                transform["localScale"]
+            )
+            transform["localMatrix"] = localMatrix
+            transform["worldMatrix"] = localMatrix
+            transform["worldPosition"] = transform["localPosition"]
+            transform["worldRotation"] = transform["localRotation"]
+            transform["worldScale"] = transform["localScale"]
+            transform["dirty"] = false
+        }
+        
+        world = add(world, entityId, "Transform", transform)
+    }
+    
+    let children = getChildren(world, entityId)
+    let i = 0
+    while i < len(children) {
+        world = updateTransformHierarchy(world, children[i])
+        i = i + 1
+    }
+    
+    return world
+}
+
+pub fn worldToLocalPosition(world, entityId, worldPoint) {
+    let transform = get(world, entityId, "Transform")
+    if transform == null {
+        return worldPoint
+    }
+    
+    let worldMatrix = getWorldMatrix(transform)
+    let invWorldMatrix = invertMatrix(worldMatrix)
+    return transformPoint(invWorldMatrix, worldPoint)
+}
+
+pub fn localToWorldPosition(world, entityId, localPoint) {
+    let transform = get(world, entityId, "Transform")
+    if transform == null {
+        return localPoint
+    }
+    
+    let worldMatrix = getWorldMatrix(transform)
+    return transformPoint(worldMatrix, localPoint)
+}
+
+pub fn worldToLocalDirection(world, entityId, worldDirection) {
+    let transform = get(world, entityId, "Transform")
+    if transform == null {
+        return worldDirection
+    }
+    
+    let worldRotation = getWorldRotation(transform)
+    let invRotation = quaternionConjugate(worldRotation)
+    return rotateVector(invRotation, worldDirection)
+}
+
+pub fn localToWorldDirection(world, entityId, localDirection) {
+    let transform = get(world, entityId, "Transform")
+    if transform == null {
+        return localDirection
+    }
+    
+    let worldRotation = getWorldRotation(transform)
+    return rotateVector(worldRotation, localDirection)
+}
+
+pub fn reparent(world, entityId, newParentId) {
+    let oldParentId = getParent(world, entityId)
+    
+    if oldParentId != null {
+        world = removeParent(world, entityId, oldParentId)
+    }
+    
+    if newParentId != null {
+        world = setParent(world, entityId, newParentId)
+    }
+    
+    return world
+}
+
+pub fn destroyEntityHierarchy(world, entityId) {
+    let descendants = getAllDescendants(world, entityId)
+    let i = 0
+    while i < len(descendants) {
+        world = destroy(world, descendants[i])
+        i = i + 1
+    }
+    
+    let parentId = getParent(world, entityId)
+    if parentId != null {
+        world = removeParent(world, entityId, parentId)
+    }
+    
+    world = destroy(world, entityId)
+    return world
+}
+
+pub fn instantiateHierarchy(world, sourceEntityId, position, rotation) {
+    let spawned = spawn(world)
+    world = spawned["world"]
+    let newEntityId = spawned["entity"]["id"]
+    
+    let sourceTransform = get(world, sourceEntityId, "Transform")
+    if sourceTransform != null {
+        let newTransform = createTransform(
+            position["x"],
+            position["y"],
+            position["z"]
+        )
+        newTransform["localRotation"] = rotation
+        world = add(world, newEntityId, "Transform", newTransform)
+    }
+    
+    let sourceParent = get(world, sourceEntityId, "Parent")
+    if sourceParent != null {
+        let parentId = sourceParent["parentId"]
+        world = setParent(world, newEntityId, parentId)
+    }
+    
+    let children = getChildren(world, sourceEntityId)
+    let i = 0
+    while i < len(children) {
+        let childPosition = position
+        let childRotation = rotation
+        let childSpawned = instantiateHierarchy(world, children[i], childPosition, childRotation)
+        world = childSpawned["world"]
+        world = setParent(world, childSpawned["entity"]["id"], newEntityId)
+        i = i + 1
+    }
+    
+    return { "world": world, "entity": spawned["entity"] }
+}
+
+fn composeMatrix(position, rotation, scale) {
+    let rotMatrix = quaternionToMatrix(rotation)
+    
+    let matrix = {
+        "m00": rotMatrix["m00"] * scale["x"], "m01": rotMatrix["m01"] * scale["y"], "m02": rotMatrix["m02"] * scale["z"], "m03": position["x"],
+        "m10": rotMatrix["m10"] * scale["x"], "m11": rotMatrix["m11"] * scale["y"], "m12": rotMatrix["m12"] * scale["z"], "m13": position["y"],
+        "m20": rotMatrix["m20"] * scale["x"], "m21": rotMatrix["m21"] * scale["y"], "m22": rotMatrix["m22"] * scale["z"], "m23": position["z"],
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+    
+    return matrix
+}
+
+fn multiplyMatrices(a, b) {
+    return {
+        "m00": a["m00"] * b["m00"] + a["m01"] * b["m10"] + a["m02"] * b["m20"] + a["m03"] * b["m30"],
+        "m01": a["m00"] * b["m01"] + a["m01"] * b["m11"] + a["m02"] * b["m21"] + a["m03"] * b["m31"],
+        "m02": a["m00"] * b["m02"] + a["m01"] * b["m12"] + a["m02"] * b["m22"] + a["m03"] * b["m32"],
+        "m03": a["m00"] * b["m03"] + a["m01"] * b["m13"] + a["m02"] * b["m23"] + a["m03"] * b["m33"],
+        "m10": a["m10"] * b["m00"] + a["m11"] * b["m10"] + a["m12"] * b["m20"] + a["m13"] * b["m30"],
+        "m11": a["m10"] * b["m01"] + a["m11"] * b["m11"] + a["m12"] * b["m21"] + a["m13"] * b["m31"],
+        "m12": a["m10"] * b["m02"] + a["m11"] * b["m12"] + a["m12"] * b["m22"] + a["m13"] * b["m32"],
+        "m13": a["m10"] * b["m03"] + a["m11"] * b["m13"] + a["m12"] * b["m23"] + a["m13"] * b["m33"],
+        "m20": a["m20"] * b["m00"] + a["m21"] * b["m10"] + a["m22"] * b["m20"] + a["m23"] * b["m30"],
+        "m21": a["m20"] * b["m01"] + a["m21"] * b["m11"] + a["m22"] * b["m21"] + a["m23"] * b["m31"],
+        "m22": a["m20"] * b["m02"] + a["m21"] * b["m12"] + a["m22"] * b["m22"] + a["m23"] * b["m32"],
+        "m23": a["m20"] * b["m03"] + a["m21"] * b["m13"] + a["m22"] * b["m23"] + a["m23"] * b["m33"],
+        "m30": a["m30"] * b["m00"] + a["m31"] * b["m10"] + a["m32"] * b["m20"] + a["m33"] * b["m30"],
+        "m31": a["m30"] * b["m01"] + a["m31"] * b["m11"] + a["m32"] * b["m21"] + a["m33"] * b["m31"],
+        "m32": a["m30"] * b["m02"] + a["m31"] * b["m12"] + a["m32"] * b["m22"] + a["m33"] * b["m32"],
+        "m33": a["m30"] * b["m03"] + a["m31"] * b["m13"] + a["m32"] * b["m23"] + a["m33"] * b["m33"]
+    }
+}
+
+fn extractPosition(matrix) {
+    return { "x": matrix["m03"], "y": matrix["m13"], "z": matrix["m23"] }
+}
+
+fn extractRotation(matrix) {
+    let trace = matrix["m00"] + matrix["m11"] + matrix["m22"]
+    let qw, qx, qy, qz
+    
+    if trace > 0.0 {
+        let s = sqrt(trace + 1.0) * 2.0
+        qw = 0.25 * s
+        qx = (matrix["m21"] - matrix["m12"]) / s
+        qy = (matrix["m02"] - matrix["m20"]) / s
+        qz = (matrix["m10"] - matrix["m01"]) / s
+    } else if matrix["m00"] > matrix["m11"] && matrix["m00"] > matrix["m22"] {
+        let s = sqrt(1.0 + matrix["m00"] - matrix["m11"] - matrix["m22"]) * 2.0
+        qw = (matrix["m21"] - matrix["m12"]) / s
+        qx = 0.25 * s
+        qy = (matrix["m01"] + matrix["m10"]) / s
+        qz = (matrix["m02"] + matrix["m20"]) / s
+    } else if matrix["m11"] > matrix["m22"] {
+        let s = sqrt(1.0 + matrix["m11"] - matrix["m00"] - matrix["m22"]) * 2.0
+        qw = (matrix["m02"] - matrix["m20"]) / s
+        qx = (matrix["m01"] + matrix["m10"]) / s
+        qy = 0.25 * s
+        qz = (matrix["m12"] + matrix["m21"]) / s
+    } else {
+        let s = sqrt(1.0 + matrix["m22"] - matrix["m00"] - matrix["m11"]) * 2.0
+        qw = (matrix["m10"] - matrix["m01"]) / s
+        qx = (matrix["m02"] + matrix["m20"]) / s
+        qy = (matrix["m12"] + matrix["m21"]) / s
+        qz = 0.25 * s
+    }
+    
+    return { "x": qx, "y": qy, "z": qz, "w": qw }
+}
+
+fn extractScale(matrix) {
+    let sx = sqrt(matrix["m00"] * matrix["m00"] + matrix["m10"] * matrix["m10"] + matrix["m20"] * matrix["m20"])
+    let sy = sqrt(matrix["m01"] * matrix["m01"] + matrix["m11"] * matrix["m11"] + matrix["m21"] * matrix["m21"])
+    let sz = sqrt(matrix["m02"] * matrix["m02"] + matrix["m12"] * matrix["m12"] + matrix["m22"] * matrix["m22"])
+    return { "x": sx, "y": sy, "z": sz }
+}
+
+fn invertMatrix(matrix) {
+    let det = matrix["m00"] * (matrix["m11"] * matrix["m22"] - matrix["m12"] * matrix["m21"]) -
+              matrix["m01"] * (matrix["m10"] * matrix["m22"] - matrix["m12"] * matrix["m20"]) +
+              matrix["m02"] * (matrix["m10"] * matrix["m21"] - matrix["m11"] * matrix["m20"])
+    
+    if abs(det) < 0.0001 {
+        return {
+            "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+            "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+            "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+            "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+        }
+    }
+    
+    let invDet = 1.0 / det
+    
+    return {
+        "m00": (matrix["m11"] * matrix["m22"] - matrix["m12"] * matrix["m21"]) * invDet,
+        "m01": (matrix["m02"] * matrix["m21"] - matrix["m01"] * matrix["m22"]) * invDet,
+        "m02": (matrix["m01"] * matrix["m12"] - matrix["m02"] * matrix["m11"]) * invDet,
+        "m03": 0.0,
+        "m10": (matrix["m12"] * matrix["m20"] - matrix["m10"] * matrix["m22"]) * invDet,
+        "m11": (matrix["m00"] * matrix["m22"] - matrix["m02"] * matrix["m20"]) * invDet,
+        "m12": (matrix["m02"] * matrix["m10"] - matrix["m00"] * matrix["m12"]) * invDet,
+        "m13": 0.0,
+        "m20": (matrix["m10"] * matrix["m21"] - matrix["m11"] * matrix["m20"]) * invDet,
+        "m21": (matrix["m01"] * matrix["m20"] - matrix["m00"] * matrix["m21"]) * invDet,
+        "m22": (matrix["m00"] * matrix["m11"] - matrix["m01"] * matrix["m10"]) * invDet,
+        "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn transformPoint(matrix, point) {
+    return {
+        "x": matrix["m00"] * point["x"] + matrix["m01"] * point["y"] + matrix["m02"] * point["z"] + matrix["m03"],
+        "y": matrix["m10"] * point["x"] + matrix["m11"] * point["y"] + matrix["m12"] * point["z"] + matrix["m13"],
+        "z": matrix["m20"] * point["x"] + matrix["m21"] * point["y"] + matrix["m22"] * point["z"] + matrix["m23"]
+    }
+}
+
+fn quaternionToMatrix(q) {
+    let xx = q["x"] * q["x"]
+    let yy = q["y"] * q["y"]
+    let zz = q["z"] * q["z"]
+    let xy = q["x"] * q["y"]
+    let xz = q["x"] * q["z"]
+    let yz = q["y"] * q["z"]
+    let wx = q["w"] * q["x"]
+    let wy = q["w"] * q["y"]
+    let wz = q["w"] * q["z"]
+    
+    return {
+        "m00": 1.0 - 2.0 * (yy + zz), "m01": 2.0 * (xy - wz), "m02": 2.0 * (xz + wy), "m03": 0.0,
+        "m10": 2.0 * (xy + wz), "m11": 1.0 - 2.0 * (xx + zz), "m12": 2.0 * (yz - wx), "m13": 0.0,
+        "m20": 2.0 * (xz - wy), "m21": 2.0 * (yz + wx), "m22": 1.0 - 2.0 * (xx + yy), "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn quaternionConjugate(q) {
+    return { "x": -q["x"], "y": -q["y"], "z": -q["z"], "w": q["w"] }
+}
+
+fn rotateVector(q, v) {
+    let qv = { "x": q["x"], "y": q["y"], "z": q["z"], "w": q["w"] }
+    let qvConj = { "x": -qv["x"], "y": -qv["y"], "z": -qv["z"], "w": qv["w"] }
+    let qvV = { "x": v["x"], "y": v["y"], "z": v["z"], "w": 0.0 }
+    
+    let temp = multiplyQuaternions(qv, qvV)
+    let result = multiplyQuaternions(temp, qvConj)
+    
+    return { "x": result["x"], "y": result["y"], "z": result["z"] }
+}
+
+fn multiplyQuaternions(q1, q2) {
+    return {
+        "x": q1["w"] * q2["x"] + q1["x"] * q2["w"] + q1["y"] * q2["z"] - q1["z"] * q2["y"],
+        "y": q1["w"] * q2["y"] - q1["x"] * q2["z"] + q1["y"] * q2["w"] + q1["z"] * q2["x"],
+        "z": q1["w"] * q2["z"] + q1["x"] * q2["y"] - q1["y"] * q2["x"] + q1["z"] * q2["w"],
+        "w": q1["w"] * q2["w"] - q1["x"] * q2["x"] - q1["y"] * q2["y"] - q1["z"] * q2["z"]
+    }
+}

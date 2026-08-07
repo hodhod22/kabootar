@@ -1,0 +1,397 @@
+@version "1.0.0"
+
+// Kabootar game/core/ecs2 - ECS 2.0 with sparse-set, entity recycling, and archetypes.
+// Canonical path: import "game/core/ecs2"
+
+pub fn createWorld() {
+    return {
+        "nextId": 1,
+        "generation": 0,
+        "entities": [],
+        "freeList": [],
+        "sparse": {},
+        "dense": {},
+        "archetypes": {},
+        "componentCount": 0
+    }
+}
+
+pub fn spawn(world) {
+    let id = 0
+    let generation = 0
+    
+    if len(world["freeList"]) > 0 {
+        let recycled = world["freeList"][len(world["freeList"]) - 1]
+        world["freeList"] = pop(world["freeList"])
+        id = recycled["id"]
+        generation = recycled["generation"] + 1
+    } else {
+        id = world["nextId"]
+        world["nextId"] = id + 1
+        generation = 1
+    }
+    
+    let entity = { "id": id, "generation": generation, "alive": true }
+    world["entities"] = push(world["entities"], entity)
+    
+    return { "world": world, "entity": entity }
+}
+
+pub fn destroy(world, entityId) {
+    let entities = world["entities"]
+    let newEntities = []
+    let found = false
+    let i = 0
+    while i < len(entities) {
+        let entity = entities[i]
+        if entity["id"] == entityId && entity["alive"] == true {
+            entity["alive"] = false
+            world["freeList"] = push(world["freeList"], { "id": entityId, "generation": entity["generation"] })
+            found = true
+        } else {
+            newEntities = push(newEntities, entity)
+        }
+        i = i + 1
+    }
+    
+    if found {
+        world["entities"] = newEntities
+        world = removeEntityFromSparse(world, entityId)
+    }
+    
+    return world
+}
+
+fn removeEntityFromSparse(world, entityId) {
+    for componentName in world["sparse"] {
+        let sparse = world["sparse"][componentName]
+        let dense = world["dense"][componentName]
+        
+        if sparse["" + entityId] != null && sparse["" + entityId] != undefined {
+            let denseIndex = sparse["" + entityId]
+            
+            let lastDenseIndex = len(dense) - 1
+            if denseIndex < len(dense) {
+                let lastEntityId = dense[lastDenseIndex]["id"]
+                
+                if denseIndex != lastDenseIndex {
+                    dense[denseIndex] = dense[lastDenseIndex]
+                    sparse["" + lastEntityId] = denseIndex
+                }
+                
+                dense = pop(dense)
+                sparse["" + entityId] = null
+            }
+            
+            world["sparse"][componentName] = sparse
+            world["dense"][componentName] = dense
+        }
+    }
+    
+    return world
+}
+
+pub fn add(world, entityId, componentName, data) {
+    let sparse = world["sparse"][componentName]
+    let dense = world["dense"][componentName]
+    
+    if sparse == null || sparse == undefined {
+        sparse = {}
+        dense = []
+        world["sparse"][componentName] = sparse
+        world["dense"][componentName] = dense
+    }
+    
+    if sparse["" + entityId] == null || sparse["" + entityId] == undefined {
+        let denseIndex = len(dense)
+        sparse["" + entityId] = denseIndex
+        dense = push(dense, { "id": entityId, "data": data })
+        world["dense"][componentName] = dense
+        world["sparse"][componentName] = sparse
+        world["componentCount"] = world["componentCount"] + 1
+    } else {
+        let denseIndex = sparse["" + entityId]
+        dense[denseIndex]["data"] = data
+        world["dense"][componentName] = dense
+    }
+    
+    return world
+}
+
+pub fn remove(world, entityId, componentName) {
+    let sparse = world["sparse"][componentName]
+    let dense = world["dense"][componentName]
+    
+    if sparse == null || sparse == undefined {
+        return world
+    }
+    
+    if sparse["" + entityId] != null && sparse["" + entityId] != undefined {
+        let denseIndex = sparse["" + entityId]
+        
+        let lastDenseIndex = len(dense) - 1
+        if denseIndex < len(dense) {
+            let lastEntityId = dense[lastDenseIndex]["id"]
+            
+            if denseIndex != lastDenseIndex {
+                dense[denseIndex] = dense[lastDenseIndex]
+                sparse["" + lastEntityId] = denseIndex
+            }
+            
+            dense = pop(dense)
+            sparse["" + entityId] = null
+            world["componentCount"] = world["componentCount"] - 1
+        }
+        
+        world["sparse"][componentName] = sparse
+        world["dense"][componentName] = dense
+    }
+    
+    return world
+}
+
+pub fn get(world, entityId, componentName) {
+    let sparse = world["sparse"][componentName]
+    let dense = world["dense"][componentName]
+    
+    if sparse == null || sparse == undefined {
+        return null
+    }
+    
+    let denseIndex = sparse["" + entityId]
+    if denseIndex == null || denseIndex == undefined {
+        return null
+    }
+    
+    if denseIndex >= len(dense) {
+        return null
+    }
+    
+    return dense[denseIndex]["data"]
+}
+
+pub fn has(world, entityId, componentName) {
+    return get(world, entityId, componentName) != null
+}
+
+pub fn isAlive(world, entityId) {
+    let entities = world["entities"]
+    let i = 0
+    while i < len(entities) {
+        let entity = entities[i]
+        if entity["id"] == entityId {
+            return entity["alive"] == true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn query(world, componentName) {
+    let dense = world["dense"][componentName]
+    if dense == null || dense == undefined {
+        return []
+    }
+    
+    let out = []
+    let i = 0
+    while i < len(dense) {
+        out = push(out, dense[i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn query2(world, componentA, componentB) {
+    let denseA = world["dense"][componentA]
+    let denseB = world["dense"][componentB]
+    
+    if denseA == null || denseA == undefined || denseB == null || denseB == undefined {
+        return []
+    }
+    
+    let sparseB = world["sparse"][componentB]
+    let out = []
+    let i = 0
+    while i < len(denseA) {
+        let entityId = denseA[i]["id"]
+        if sparseB["" + entityId] != null && sparseB["" + entityId] != undefined {
+            let dataB = denseB[sparseB["" + entityId]]["data"]
+            out = push(out, {
+                "id": entityId,
+                "dataA": denseA[i]["data"],
+                "dataB": dataB
+            })
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn query3(world, componentA, componentB, componentC) {
+    let denseA = world["dense"][componentA]
+    let sparseB = world["sparse"][componentB]
+    let sparseC = world["sparse"][componentC]
+    
+    if denseA == null || denseA == undefined || sparseB == null || sparseB == undefined || sparseC == null || sparseC == undefined {
+        return []
+    }
+    
+    let denseB = world["dense"][componentB]
+    let denseC = world["dense"][componentC]
+    let out = []
+    let i = 0
+    while i < len(denseA) {
+        let entityId = denseA[i]["id"]
+        if sparseB["" + entityId] != null && sparseC["" + entityId] != null {
+            out = push(out, {
+                "id": entityId,
+                "dataA": denseA[i]["data"],
+                "dataB": denseB[sparseB["" + entityId]]["data"],
+                "dataC": denseC[sparseC["" + entityId]]["data"]
+            })
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn queryWith(world, componentNames) {
+    if len(componentNames) == 0 {
+        return []
+    }
+    
+    let primaryDense = world["dense"][componentNames[0]]
+    if primaryDense == null || primaryDense == undefined {
+        return []
+    }
+    
+    let sparseMaps = []
+    let denseMaps = []
+    let i = 0
+    while i < len(componentNames) {
+        sparseMaps = push(sparseMaps, world["sparse"][componentNames[i]])
+        denseMaps = push(denseMaps, world["dense"][componentNames[i]])
+        i = i + 1
+    }
+    
+    let out = []
+    let i = 0
+    while i < len(primaryDense) {
+        let entityId = primaryDense[i]["id"]
+        let hasAll = true
+        let j = 1
+        while j < len(componentNames) {
+            if sparseMaps[j]["" + entityId] == null || sparseMaps[j]["" + entityId] == undefined {
+                hasAll = false
+                break
+            }
+            j = j + 1
+        }
+        
+        if hasAll {
+            let data = {}
+            let j = 0
+            while j < len(componentNames) {
+                data[componentNames[j]] = denseMaps[j][sparseMaps[j]["" + entityId]]["data"]
+                j = j + 1
+            }
+            out = push(out, { "id": entityId, "data": data })
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn getEntityCount(world) {
+    return len(world["entities"])
+}
+
+pub fn getAliveEntityCount(world) {
+    let count = 0
+    let entities = world["entities"]
+    let i = 0
+    while i < len(entities) {
+        if entities[i]["alive"] == true {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return count
+}
+
+pub fn getComponentCount(world) {
+    return world["componentCount"]
+}
+
+pub fn getComponentTypeCount(world) {
+    let count = 0
+    for key in world["sparse"] {
+        count = count + 1
+    }
+    return count
+}
+
+pub fn createArchetype(world, componentNames) {
+    let archetypeKey = ""
+    let i = 0
+    while i < len(componentNames) {
+        if i > 0 {
+            archetypeKey = archetypeKey + "|"
+        }
+        archetypeKey = archetypeKey + componentNames[i]
+        i = i + 1
+    }
+    
+    world["archetypes"][archetypeKey] = {
+        "components": componentNames,
+        "entities": []
+    }
+    
+    return world
+}
+
+pub fn addToArchetype(world, archetypeKey, entityId) {
+    let archetype = world["archetypes"][archetypeKey]
+    if archetype != null && archetype != undefined {
+        archetype["entities"] = push(archetype["entities"], entityId)
+        world["archetypes"][archetypeKey] = archetype
+    }
+    return world
+}
+
+pub fn queryArchetype(world, archetypeKey) {
+    let archetype = world["archetypes"][archetypeKey]
+    if archetype == null || archetype == undefined {
+        return []
+    }
+    
+    let out = []
+    let i = 0
+    while i < len(archetype["entities"]) {
+        let entityId = archetype["entities"][i]
+        if isAlive(world, entityId) {
+            let data = {}
+            let j = 0
+            while j < len(archetype["components"]) {
+                let compName = archetype["components"][j]
+                data[compName] = get(world, entityId, compName)
+                j = j + 1
+            }
+            out = push(out, { "id": entityId, "data": data })
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn clearWorld(world) {
+    world["entities"] = []
+    world["freeList"] = []
+    world["sparse"] = {}
+    world["dense"] = {}
+    world["archetypes"] = {}
+    world["componentCount"] = 0
+    world["nextId"] = 1
+    return world
+}
