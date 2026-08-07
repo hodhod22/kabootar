@@ -1860,8 +1860,64 @@ fn nd_tensordot(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     Ok(nd_out_dtype(&out_shape, &out, &dtype))
 }
 
-/// nd_einsum(subscripts, a, b, c?) — general einsum parser (NumPy-style labels).
-/// Examples: ij,jk->ik | ijk,kl->ijl | ii-> | i,i-> | ij,ij->ij
+/// Expand einsum label spec (supports `...` ellipsis) to label ids.
+/// Named axes: char as i32; ellipsis axes: -1, -2, ... (shared across operands).
+fn einsum_expand_labels(spec: &str, rank: usize) -> Result<Vec<i32>, String> {
+    if let Some(pos) = spec.find("...") {
+        let before: Vec<char> = spec[..pos].chars().filter(|c| c.is_ascii_alphabetic()).collect();
+        let after: Vec<char> = spec[pos + 3..]
+            .chars()
+            .filter(|c| c.is_ascii_alphabetic())
+            .collect();
+        let fixed = before.len() + after.len();
+        if rank < fixed {
+            return Err(format!(
+                "nd_einsum: rank {rank} < fixed labels {fixed} in '{spec}'"
+            ));
+        }
+        let ell_n = rank - fixed;
+        let mut out = Vec::with_capacity(rank);
+        for c in before {
+            out.push(c as i32);
+        }
+        for i in 0..ell_n {
+            out.push(-(i as i32 + 1));
+        }
+        for c in after {
+            out.push(c as i32);
+        }
+        Ok(out)
+    } else {
+        let labels: Vec<i32> = spec
+            .chars()
+            .filter(|c| c.is_ascii_alphabetic())
+            .map(|c| c as i32)
+            .collect();
+        if labels.len() != rank {
+            return Err(format!(
+                "nd_einsum: label rank {} != shape rank {rank}",
+                labels.len()
+            ));
+        }
+        Ok(labels)
+    }
+}
+
+fn einsum_merge_size(prev: usize, dim: usize, lab: i32) -> Result<usize, String> {
+    if prev == dim {
+        Ok(prev)
+    } else if prev == 1 {
+        Ok(dim)
+    } else if dim == 1 {
+        Ok(prev)
+    } else {
+        Err(format!(
+            "nd_einsum: label {lab} size mismatch ({prev} vs {dim})"
+        ))
+    }
+}
+
+/// nd_einsum(subscripts, a, b, c?) — general einsum with ellipsis + broadcast.
 fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let subs = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1876,47 +1932,47 @@ fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         return Err("nd_einsum: no operands".into());
     }
     if args.len() < 1 + op_labels.len() {
-        return Err(format!(
-            "nd_einsum: need {} operand(s)",
-            op_labels.len()
-        ));
+        return Err(format!("nd_einsum: need {} operand(s)", op_labels.len()));
     }
-    let out_labels: Vec<char> = right.chars().filter(|c| c.is_ascii_alphabetic()).collect();
 
-    let mut label_size: HashMap<char, usize> = HashMap::new();
-    let mut operands: Vec<(Vec<usize>, Vec<f64>, Vec<char>)> = Vec::new();
+    let mut label_size: HashMap<i32, usize> = HashMap::new();
+    let mut operands: Vec<(Vec<usize>, Vec<f64>, Vec<i32>)> = Vec::new();
     let dtype = dtype_of_value(&args[1]);
+    let mut max_ell = 0usize;
     for (i, labs) in op_labels.iter().enumerate() {
         let (shape, data) = nd_at(args, 1 + i, "nd_einsum")?;
-        let labels: Vec<char> = labs.chars().filter(|c| c.is_ascii_alphabetic()).collect();
-        if labels.len() != shape.len() {
-            return Err(format!(
-                "nd_einsum: operand {} label rank {} != shape rank {}",
-                i,
-                labels.len(),
-                shape.len()
-            ));
-        }
+        let labels = einsum_expand_labels(labs, shape.len())?;
+        let ell_n = labels.iter().filter(|&&l| l < 0).count();
+        max_ell = max_ell.max(ell_n);
         for (lab, &dim) in labels.iter().zip(shape.iter()) {
-            if let Some(prev) = label_size.get(lab) {
-                if *prev != dim {
-                    return Err(format!(
-                        "nd_einsum: label '{lab}' size mismatch ({prev} vs {dim})"
-                    ));
-                }
+            if let Some(prev) = label_size.get(lab).copied() {
+                label_size.insert(*lab, einsum_merge_size(prev, dim, *lab)?);
             } else {
                 label_size.insert(*lab, dim);
             }
         }
         operands.push((shape, data, labels));
     }
+
+    let out_labels: Vec<i32> = if right.contains("...") {
+        einsum_expand_labels(right, {
+            let fixed = right.chars().filter(|c| c.is_ascii_alphabetic()).count();
+            fixed + max_ell
+        })?
+    } else {
+        right
+            .chars()
+            .filter(|c| c.is_ascii_alphabetic())
+            .map(|c| c as i32)
+            .collect()
+    };
     for lab in &out_labels {
         if !label_size.contains_key(lab) {
-            return Err(format!("nd_einsum: output label '{lab}' missing from inputs"));
+            return Err(format!("nd_einsum: output label {lab} missing from inputs"));
         }
     }
 
-    let mut all_labels: Vec<char> = Vec::new();
+    let mut all_labels: Vec<i32> = Vec::new();
     for (_, _, labs) in &operands {
         for lab in labs {
             if !all_labels.contains(lab) {
@@ -1944,7 +2000,8 @@ fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             for (axis, lab) in labels.iter().enumerate() {
                 let li = all_labels.iter().position(|c| c == lab).unwrap();
                 let stride: usize = shape[axis + 1..].iter().product();
-                flat += idxs[li] * stride;
+                let ix = if shape[axis] == 1 { 0 } else { idxs[li] };
+                flat += ix * stride;
             }
             prod *= data[flat];
         }
@@ -1956,7 +2013,6 @@ fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         }
         out[oflat] += prod;
 
-        // odometer increment
         let mut carry = true;
         for d in (0..idxs.len()).rev() {
             if !carry {

@@ -84,6 +84,22 @@ pub fn idwtHaar(a, d) {
     return num_idwt_haar(a, d)
 }
 
+pub fn dwtHaarLevels(x, levels) {
+    return num_dwt_haar_levels(x, levels)
+}
+
+pub fn idwtHaarLevels(a, details) {
+    return num_idwt_haar_levels(a, details)
+}
+
+pub fn wptHaar(x, levels) {
+    return num_wpt_haar(x, levels)
+}
+
+pub fn iwptHaar(packets, levels) {
+    return num_iwpt_haar(packets, levels)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

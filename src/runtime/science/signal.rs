@@ -734,6 +734,120 @@ fn num_idwt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String
     Ok(vector_out(&x))
 }
 
+fn haar_forward_once(x: &[f64]) -> Result<(Vec<f64>, Vec<f64>), String> {
+    if x.len() < 2 {
+        return Err("haar: length >= 2".into());
+    }
+    let n = x.len() / 2;
+    let s2 = 2.0_f64.sqrt();
+    let mut a = Vec::with_capacity(n);
+    let mut d = Vec::with_capacity(n);
+    for i in 0..n {
+        a.push((x[2 * i] + x[2 * i + 1]) / s2);
+        d.push((x[2 * i] - x[2 * i + 1]) / s2);
+    }
+    Ok((a, d))
+}
+
+fn haar_inverse_once(a: &[f64], d: &[f64]) -> Result<Vec<f64>, String> {
+    if a.len() != d.len() || a.is_empty() {
+        return Err("haar: a/d length".into());
+    }
+    let s2 = 2.0_f64.sqrt();
+    let mut x = Vec::with_capacity(a.len() * 2);
+    for i in 0..a.len() {
+        x.push((a[i] + d[i]) / s2);
+        x.push((a[i] - d[i]) / s2);
+    }
+    Ok(x)
+}
+
+/// num_dwt_haar_levels(x, levels) -> { a, details: [d1..], kind, levels }
+fn num_dwt_haar_levels(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut x = vector_at(args, 0, "num_dwt_haar_levels")?;
+    let levels = num_at(args, 1, "num_dwt_haar_levels")?.max(1.0) as usize;
+    let mut details = Vec::new();
+    for _ in 0..levels {
+        if x.len() < 2 {
+            return Err("num_dwt_haar_levels: signal too short".into());
+        }
+        let (a, d) = haar_forward_once(&x)?;
+        details.push(vector_out(&d));
+        x = a;
+    }
+    let mut out = HashMap::new();
+    out.insert("a".into(), vector_out(&x));
+    out.insert("details".into(), Value::Array(details));
+    out.insert("kind".into(), Value::String("haar_levels".into()));
+    out.insert("levels".into(), Value::Number(levels as i64));
+    Ok(Value::Object(out))
+}
+
+/// num_idwt_haar_levels(a, details) — inverse multi-level Haar.
+fn num_idwt_haar_levels(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut a = vector_at(args, 0, "num_idwt_haar_levels")?;
+    let details = match args.get(1) {
+        Some(Value::Array(d)) => d.clone(),
+        _ => return Err("num_idwt_haar_levels(a, details)".into()),
+    };
+    for d_v in details.iter().rev() {
+        let d = vector_at(std::slice::from_ref(d_v), 0, "num_idwt_haar_levels")?;
+        a = haar_inverse_once(&a, &d)?;
+    }
+    Ok(vector_out(&a))
+}
+
+/// num_wpt_haar(x, levels) — Haar wavelet packet tree (full binary).
+fn num_wpt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_wpt_haar")?;
+    let levels = num_at(args, 1, "num_wpt_haar")?.max(1.0) as usize;
+    let mut leaves = vec![x];
+    for _ in 0..levels {
+        let mut nxt = Vec::new();
+        for node in leaves {
+            let (a, d) = haar_forward_once(&node)?;
+            nxt.push(a);
+            nxt.push(d);
+        }
+        leaves = nxt;
+    }
+    let mut out = HashMap::new();
+    out.insert(
+        "packets".into(),
+        Value::Array(leaves.iter().map(|v| vector_out(v)).collect()),
+    );
+    out.insert("kind".into(), Value::String("wpt_haar".into()));
+    out.insert("levels".into(), Value::Number(levels as i64));
+    Ok(Value::Object(out))
+}
+
+/// num_iwpt_haar(packets, levels) — inverse Haar wavelet packet.
+fn num_iwpt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let packets = match args.first() {
+        Some(Value::Array(a)) => a
+            .iter()
+            .map(|v| vector_at(std::slice::from_ref(v), 0, "num_iwpt_haar"))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("num_iwpt_haar(packets, levels)".into()),
+    };
+    let levels = num_at(args, 1, "num_iwpt_haar")?.max(1.0) as usize;
+    let expect = 1usize << levels;
+    if packets.len() != expect {
+        return Err(format!("num_iwpt_haar: expect {expect} packets"));
+    }
+    let mut nodes = packets;
+    for _ in 0..levels {
+        let mut nxt = Vec::new();
+        let mut i = 0;
+        while i + 1 < nodes.len() {
+            nxt.push(haar_inverse_once(&nodes[i], &nodes[i + 1])?);
+            i += 2;
+        }
+        nodes = nxt;
+    }
+    Ok(vector_out(&nodes[0]))
+}
+
 /// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
 fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_fir")?;
@@ -855,6 +969,16 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     );
     bind(&["science_num_dwt_haar", "num_dwt_haar"], num_dwt_haar);
     bind(&["science_num_idwt_haar", "num_idwt_haar"], num_idwt_haar);
+    bind(
+        &["science_num_dwt_haar_levels", "num_dwt_haar_levels"],
+        num_dwt_haar_levels,
+    );
+    bind(
+        &["science_num_idwt_haar_levels", "num_idwt_haar_levels"],
+        num_idwt_haar_levels,
+    );
+    bind(&["science_num_wpt_haar", "num_wpt_haar"], num_wpt_haar);
+    bind(&["science_num_iwpt_haar", "num_iwpt_haar"], num_iwpt_haar);
     bind(&["science_num_fir", "num_fir"], num_fir);
     bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);
     bind(&["science_num_iir", "num_iir"], num_iir);

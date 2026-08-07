@@ -1,8 +1,24 @@
 //! Linear algebra: QR, SVD, Cholesky, lstsq, symmetric eig (SC1e).
 
-use super::helpers::{float_out, matrix_at, matrix_out, num, vector_at, vector_out};
+use super::helpers::{float_out, matrix_at, matrix_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+
+fn rsvd_rng_next(state: &mut u64) -> u64 {
+    let mut x = *state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    *state = if x == 0 { 1 } else { x };
+    x.wrapping_mul(0x2545F4914F6CDD1D)
+}
+
+fn rsvd_randn(state: &mut u64) -> f64 {
+    let u1 = ((rsvd_rng_next(state) >> 11) as f64 / ((1u64 << 53) as f64)).max(1e-12);
+    let u2 = (rsvd_rng_next(state) >> 11) as f64 / ((1u64 << 53) as f64);
+    let r = (-2.0 * u1.ln()).sqrt();
+    r * (2.0 * std::f64::consts::PI * u2).cos()
+}
 
 fn mat_from_flat(m: usize, n: usize, data: &[f64]) -> Vec<Vec<f64>> {
     let mut a = vec![vec![0.0; n]; m];
@@ -452,6 +468,66 @@ fn mat_svd(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     Ok(Value::Object(out))
 }
 
+/// mat_randomized_svd(A, rank, nOver?, seed?) — Halko et al. randomized SVD.
+fn mat_randomized_svd(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let (m, n, data) = matrix_dims(args, 0, "mat_randomized_svd")?;
+    let rank = num_at(args, 1, "mat_randomized_svd")? as usize;
+    let n_over = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(5.0)
+        .max(0.0) as usize;
+    let seed = args
+        .get(3)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(42.0) as u64;
+    if rank == 0 || rank > m.min(n) {
+        return Err("mat_randomized_svd: bad rank".into());
+    }
+    let l = (rank + n_over).min(n).min(m);
+    let a = mat_from_flat(m, n, &data);
+    let mut state = if seed == 0 { 1 } else { seed };
+    // Omega: n x l
+    let mut omega = vec![vec![0.0; l]; n];
+    for i in 0..n {
+        for j in 0..l {
+            omega[i][j] = rsvd_randn(&mut state);
+        }
+    }
+    let y = matmul_nn(&a, &omega)?; // m x l
+    let y_v = matrix_out(&y);
+    let qr = mat_qr(&[y_v], env)?;
+    let Value::Object(qrm) = qr else {
+        return Err("mat_randomized_svd: qr".into());
+    };
+    let q = matrix_at(&[qrm.get("q").cloned().ok_or("mat_randomized_svd: q")?], 0, "mat_randomized_svd")?;
+    let qt = transpose(&q);
+    let b = matmul_nn(&qt, &a)?; // l x n
+    let b_v = matrix_out(&b);
+    let svd = mat_svd(&[b_v, Value::String("econ".into())], env)?;
+    let Value::Object(sm) = svd else {
+        return Err("mat_randomized_svd: svd".into());
+    };
+    let uhat = matrix_at(&[sm.get("u").cloned().ok_or("u")?], 0, "mat_randomized_svd")?;
+    let s_full = vector_at(&[sm.get("s").cloned().ok_or("s")?], 0, "mat_randomized_svd")?;
+    let vt_full = matrix_at(&[sm.get("vt").cloned().ok_or("vt")?], 0, "mat_randomized_svd")?;
+    let u = matmul_nn(&q, &uhat)?;
+    let k = rank.min(s_full.len()).min(u[0].len()).min(vt_full.len());
+    let u_k: Vec<Vec<f64>> = u
+        .iter()
+        .map(|row| row.iter().take(k).copied().collect())
+        .collect();
+    let s_k = s_full[..k].to_vec();
+    let vt_k: Vec<Vec<f64>> = vt_full.iter().take(k).cloned().collect();
+    let mut out = HashMap::new();
+    out.insert("u".into(), matrix_out(&u_k));
+    out.insert("s".into(), vector_out(&s_k));
+    out.insert("vt".into(), matrix_out(&vt_k));
+    out.insert("mode".into(), Value::String("rand".into()));
+    out.insert("rank".into(), Value::Number(k as i64));
+    Ok(Value::Object(out))
+}
+
 /// Moore–Penrose pseudoinverse via thin SVD.
 fn mat_pinv(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let (m, n, _) = matrix_dims(args, 0, "mat_pinv")?;
@@ -840,6 +916,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_mat_qr", "mat_qr"], mat_qr);
     bind(&["science_mat_qr_err", "mat_qr_err"], mat_qr_err);
     bind(&["science_mat_svd", "mat_svd"], mat_svd);
+    bind(
+        &["science_mat_randomized_svd", "mat_randomized_svd"],
+        mat_randomized_svd,
+    );
     bind(&["science_mat_pinv", "mat_pinv"], mat_pinv);
     bind(&["science_mat_cholesky", "mat_cholesky"], mat_cholesky);
     bind(&["science_mat_eig", "mat_eig"], mat_eig);

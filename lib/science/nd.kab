@@ -222,7 +222,7 @@ pub fn tensordot(a, b) {
     return nd_tensordot(a, b)
 }
 
-/// Einsum (general label parser). Optional third operand via c.
+/// Einsum (general labels, ellipsis `...`, broadcast). Optional third operand via c.
 pub fn einsum(subs, a, b, c) {
     if c != null && c != undefined {
         return nd_einsum(subs, a, b, c)

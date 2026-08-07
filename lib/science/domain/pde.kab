@@ -338,3 +338,101 @@ pub fn femSolveJacobi(kmat, f, iters) {
     }
     return u
 }
+
+/// FEM 2D: assemble Poisson stiffness on linear triangles.
+/// nodes: [[x,y], ...], tris: [[i,j,k], ...]
+pub fn femAssemblePoisson2dTri(nodes, tris) {
+    let n = len(nodes)
+    let kmat = []
+    let i = 0
+    while i < n {
+        let row = []
+        let j = 0
+        while j < n {
+            row = push(row, 0.0)
+            j = j + 1
+        }
+        kmat = push(kmat, row)
+        i = i + 1
+    }
+    let t = 0
+    while t < len(tris) {
+        let tri = tris[t]
+        let i0 = tri[0]
+        let i1 = tri[1]
+        let i2 = tri[2]
+        let x0 = nodes[i0][0]
+        let y0 = nodes[i0][1]
+        let x1 = nodes[i1][0]
+        let y1 = nodes[i1][1]
+        let x2 = nodes[i2][0]
+        let y2 = nodes[i2][1]
+        let area2 = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
+        if area2 < 0.0 {
+            area2 = 0.0 - area2
+        }
+        let area = area2 / 2.0
+        if area > 0.0 {
+            let b0 = y1 - y2
+            let b1 = y2 - y0
+            let b2 = y0 - y1
+            let c0 = x2 - x1
+            let c1 = x0 - x2
+            let c2 = x1 - x0
+            let scale = 1.0 / (2.0 * area)
+            let bs = [b0, b1, b2]
+            let cs = [c0, c1, c2]
+            let idx = [i0, i1, i2]
+            let a = 0
+            while a < 3 {
+                let b = 0
+                while b < 3 {
+                    let val = area * scale * scale * (bs[a] * bs[b] + cs[a] * cs[b])
+                    kmat[idx[a]][idx[b]] = kmat[idx[a]][idx[b]] + val
+                    b = b + 1
+                }
+                a = a + 1
+            }
+        }
+        t = t + 1
+    }
+    return kmat
+}
+
+/// FEM 2D: constant load assembly f_i = area/3 per triangle vertex.
+pub fn femAssembleLoad2dTri(nodes, tris, load) {
+    if load == null || load == undefined {
+        load = 1.0
+    }
+    let n = len(nodes)
+    let f = []
+    let i = 0
+    while i < n {
+        f = push(f, 0.0)
+        i = i + 1
+    }
+    let t = 0
+    while t < len(tris) {
+        let tri = tris[t]
+        let i0 = tri[0]
+        let i1 = tri[1]
+        let i2 = tri[2]
+        let x0 = nodes[i0][0]
+        let y0 = nodes[i0][1]
+        let x1 = nodes[i1][0]
+        let y1 = nodes[i1][1]
+        let x2 = nodes[i2][0]
+        let y2 = nodes[i2][1]
+        let area2 = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
+        if area2 < 0.0 {
+            area2 = 0.0 - area2
+        }
+        let area = area2 / 2.0
+        let share = load * area / 3.0
+        f[i0] = f[i0] + share
+        f[i1] = f[i1] + share
+        f[i2] = f[i2] + share
+        t = t + 1
+    }
+    return f
+}

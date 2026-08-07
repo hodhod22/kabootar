@@ -43,6 +43,25 @@ pub fn icK(a, level) {
     return sparse_ic_k(a, level)
 }
 
+pub fn triangularSolve(factor, b, lower) {
+    if lower == null || lower == undefined {
+        return sparse_triangular_solve(factor, b)
+    }
+    return sparse_triangular_solve(factor, b, lower)
+}
+
+pub fn iluSolve(fac, b) {
+    return sparse_ilu_solve(fac, b)
+}
+
+pub fn iccSolve(fac, b) {
+    return sparse_icc_solve(fac, b)
+}
+
+pub fn spsolve(a, b) {
+    return sparse_spsolve(a, b)
+}
+
 pub fn spmv(a, x) {
     return sparse_spmv(a, x)
 }
