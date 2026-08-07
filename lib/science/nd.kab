@@ -233,6 +233,17 @@ pub fn einsum(subs, a, b, c) {
     return nd_einsum(subs, a, b)
 }
 
+/// Greedy einsum contraction path for operand shapes.
+pub fn einsumPath(subs, s0, s1, s2) {
+    if s2 != null && s2 != undefined {
+        return nd_einsum_path(subs, s0, s1, s2)
+    }
+    if s1 == null || s1 == undefined {
+        return nd_einsum_path(subs, s0)
+    }
+    return nd_einsum_path(subs, s0, s1)
+}
+
 pub fn dot(a, b) {
     return nd_dot(a, b)
 }

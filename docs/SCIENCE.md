@@ -24,7 +24,7 @@ import "science";
 14. [ML / AI (SC2)](#ml--ai-sc2)
 15. [Felsökning](#felsökning)
 
-**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 ✅** + **SC7 ✅ subset** (`io`, `parallel`, `visualize`, `nd_gpu`). Senaste checkpoint: **2026-08-06l** (`tests/science_sc_checkpoint_sc6d.rs`).
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 ✅** + **SC7 ✅ subset** (`io`, `parallel`, `visualize`, `nd_gpu`). Senaste checkpoint: **2026-08-06m** (`tests/science_sc_checkpoint_sc6e.rs`).
 ---
 
 ## Kom igång
@@ -576,7 +576,7 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 
 ## Science deepen (SC6+)
 
-Kab-wrappers under `lib/science/*.kab`. Importera `science` först, sedan submodule. Smoke: `tests/science_sc_checkpoint_sc6.rs` … `sc6d.rs`.
+Kab-wrappers under `lib/science/*.kab`. Importera `science` först, sedan submodule. Smoke: `tests/science_sc_checkpoint_sc6.rs` … `sc6e.rs`.
 
 ### Einsum (`science/nd`)
 
@@ -689,6 +689,34 @@ let f = femAssembleLoad2dTri(nodes, tris, 1.0)
 let u = femSolveJacobi(km, f, 80)
 ```
 
+
+### Einsum path / streaming SVD / DTCWT / sparse LU (sc6e)
+
+| Kab | Native | Notes |
+|-----|--------|-------|
+| `einsumPath(subs, s0, s1, …)` | `nd_einsum_path` | greedy pairwise contraction → `{path,flops,order}` |
+| `streamingSvd(a, rank, blockRows?, …)` | `mat_streaming_svd` | blocked sketch truncated SVD (`mode:"stream"`) |
+| `dtcwt` / `idtcwt` | `num_dtcwt` / `num_idtcwt` | dual-tree Haar (shift tree) |
+| `rcm` / `lu` / `chol` | `sparse_rcm` / `sparse_lu` / `sparse_chol` | fill-reducing RCM + LU/Cholesky |
+| `mhaHoAd(q,k,v,seq,d,nHeads?)` | `ag_mha` | full attention HOAD `softmax(QK)V` |
+| `femApplyNeumann2d` / `femApplyRobin2d` | Kab | Neumann flux / Robin BC on edges |
+
+```kabootar
+import "science"
+import "science/nd"
+import "science/linalg"
+import "science/signal"
+import "science/sparse"
+import "science/autograd"
+import "science/domain/pde"
+einsumPath("ij,jk,kl->il", [2, 3], [3, 4], [4, 2])
+streamingSvd([[4.0, 1.0], [1.0, 3.0]], 1, 1)
+let w = dtcwt([1.0, 2.0, 3.0, 4.0], 1)
+lu(fromCoo([0, 1], [0, 1], [2.0, 3.0], 2, 2))
+clear()
+mhaHoAd(tensor([1.0, 0.0, 0.0, 1.0]), tensor([1.0, 0.0, 0.0, 1.0]), tensor([1.0, 0.0, 0.0, 1.0]), 2, 2, 1)
+```
+
 ## ML / AI (SC2)
 
 ```kabootar
@@ -721,7 +749,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
 - Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`; **SC7:** `io`, `parallel`, `visualize`, `nd_gpu`; **STEM sandlåda:** `mechanics`)
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc*.rs`, checkpoints `science_sc_checkpoint_sc6.rs` … `sc6d.rs`, plus `science_sc_wave7.rs`
+- Tester: `tests/science_sc*.rs`, checkpoints `science_sc_checkpoint_sc6.rs` … `sc6e.rs`, plus `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
 
 ### Policy SC5c (inga nya Rust-produkt-API)

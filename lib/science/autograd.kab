@@ -37,6 +37,14 @@ pub fn scaledDotAttn(q, k, seq, d) {
     return softmax(scores)
 }
 
+/// Full MHA HOAD: softmax(Q@K)@V. Optional nHeads (1 = single-head full HOAD chain).
+pub fn mhaHoAd(q, k, v, seq, d, nHeads) {
+    if nHeads == null || nHeads == undefined {
+        return ag_mha(q, k, v, seq, d)
+    }
+    return ag_mha(q, k, v, seq, d, nHeads)
+}
+
 pub fn add(a, b) {
     return ag_add(a, b)
 }
