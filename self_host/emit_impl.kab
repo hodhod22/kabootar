@@ -82,6 +82,9 @@ let eCalleeDepth = 0
 let eCallArgDepth = 0
 let eObjDepth = 0
 let eArrDepth = 0
+let eIfDepth = 0
+let eMemberDepth = 0
+let eIndexDepth = 0
 let eLenScratch = 0
 let eFld = null
 let eIfJmpStack = []
@@ -647,8 +650,10 @@ fn emitExpr(node) {
         return
     }
     if eNode.kind == AST_MEMBER {
+        // P6b: eMemberDepth avoids len(eMemberFldStack) LoadGlobal clone.
         eBxL = eNode["object"]
         eMemberFldStack = push(eMemberFldStack, eNode["field"])
+        eMemberDepth = eMemberDepth + 1
         eMemTypeArgs = eNode["typeArgs"]
         if eMemTypeArgs == undefined {
             eMemTypeArgs = []
@@ -697,17 +702,21 @@ fn emitExpr(node) {
             }
         }
         emitExpr(eBxL)
-        eMemberFld = eMemberFldStack[len(eMemberFldStack) - 1]
+        eMemberFld = eMemberFldStack[eMemberDepth - 1]
         eMemberFldStack = pop(eMemberFldStack)
+        eMemberDepth = eMemberDepth - 1
         eIdx = symIndex("const",eMemberFld)
         emitOp(OP_GET_MEMBER, eIdx)
         return
     }
     if eNode.kind == AST_INDEX {
+        // P6b: eIndexDepth avoids len(eIndexStack) LoadGlobal clone.
         eIndexStack = push(eIndexStack, eNode["index"])
+        eIndexDepth = eIndexDepth + 1
         emitExpr(eNode["object"])
-        emitExpr(eIndexStack[len(eIndexStack) - 1])
+        emitExpr(eIndexStack[eIndexDepth - 1])
         eIndexStack = pop(eIndexStack)
+        eIndexDepth = eIndexDepth - 1
         emitOp(OP_INDEX_GET, 0)
         return
     }
@@ -1374,10 +1383,13 @@ fn pushJmpAtLen(stack) {
 }
 
 /// If stmt body (called early from emitStmt — dense leaves are If-heavy).
+/// P6b: eIfDepth indexes If stacks (avoid len(eIf*/eCond*) LoadGlobal clones).
 fn emitIfStmt() {
     eCondStack = push(eCondStack, eCond)
     eThenStack = push(eThenStack, eThen)
     eElseStack = push(eElseStack, eElse)
+    eIfDepth = eIfDepth + 1
+    let id = eIfDepth
     eCond = eNode["cond"]
     eThen = eNode["then"]
     eElse = eNode["elseBranch"]
@@ -1400,12 +1412,13 @@ fn emitIfStmt() {
         patchRelJump(OP_JUMP_IF_FALSE, eJmp)
         eIfJmpStack = pop(eIfJmpStack)
     }
-    eCond = eCondStack[len(eCondStack) - 1]
-    eThen = eThenStack[len(eThenStack) - 1]
-    eElse = eElseStack[len(eElseStack) - 1]
+    eCond = eCondStack[id - 1]
+    eThen = eThenStack[id - 1]
+    eElse = eElseStack[id - 1]
     eCondStack = pop(eCondStack)
     eThenStack = pop(eThenStack)
     eElseStack = pop(eElseStack)
+    eIfDepth = eIfDepth - 1
 }
 
 fn emitStmt(node) {
@@ -1918,6 +1931,9 @@ pub fn emitImpl(program) {
     eCallArgDepth = 0
     eObjDepth = 0
     eArrDepth = 0
+    eIfDepth = 0
+    eMemberDepth = 0
+    eIndexDepth = 0
     eFnGlobals = []
     eFnLocals = []
     resetLocalMap()

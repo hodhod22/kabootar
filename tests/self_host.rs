@@ -2612,8 +2612,15 @@ fn p6b_emit_call_block_depth_progress() {
         src.contains("let eCallArgDepth = 0")
             && src.contains("fn emitCallArgExprs()")
             && src.contains("let eObjDepth = 0")
-            && src.contains("let eArrDepth = 0"),
-        "eCallArgDepth/eObjDepth/eArrDepth required for Call-arg/object/array hotpaths"
+            && src.contains("let eArrDepth = 0")
+            && src.contains("let eIfDepth = 0")
+            && src.contains("let eMemberDepth = 0")
+            && src.contains("let eIndexDepth = 0"),
+        "depth counters required for Call-arg/object/array/If/member/index hotpaths"
+    );
+    assert!(
+        src.contains("P6b: eIfDepth indexes If stacks"),
+        "emitIfStmt must document eIfDepth hotpath"
     );
     assert!(
         src.contains("P6b: use eCalleeDepth"),
