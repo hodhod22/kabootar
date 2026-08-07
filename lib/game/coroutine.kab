@@ -1,0 +1,244 @@
+@version "1.0.0"
+
+// Kabootar game/coroutine - Unity-like coroutine system (yield, WaitForSeconds, etc).
+// import "game/coroutine"
+
+/// Create a coroutine runner.
+pub fn createCoroutineRunner() {
+    return {
+        "active": [],
+        "waiting": {}
+    }
+}
+
+/// Yield instruction for waiting seconds.
+pub fn WaitForSeconds(seconds) {
+    if seconds == null || seconds == undefined { seconds = 0.0 }
+    return { "kind": "WaitForSeconds", "seconds": seconds }
+}
+
+/// Yield instruction for waiting frames.
+pub fn WaitForFrames(frames) {
+    if frames == null || frames == undefined { frames = 1 }
+    return { "kind": "WaitForFrames", "frames": frames }
+}
+
+/// Yield instruction for waiting until condition is true.
+pub fn WaitUntil(conditionFn) {
+    return { "kind": "WaitUntil", "condition": conditionFn }
+}
+
+/// Yield instruction for waiting while condition is true.
+pub fn WaitWhile(conditionFn) {
+    return { "kind": "WaitWhile", "condition": conditionFn }
+}
+
+/// Yield instruction for waiting until end of frame.
+pub fn WaitForEndOfFrame() {
+    return { "kind": "WaitForEndOfFrame" }
+}
+
+/// Yield instruction for waiting until fixed update.
+pub fn WaitForFixedUpdate() {
+    return { "kind": "WaitForFixedUpdate" }
+}
+
+/// Yield instruction for running another coroutine.
+pub fn StartCoroutine(coroutine) {
+    return { "kind": "StartCoroutine", "coroutine": coroutine }
+}
+
+/// Yield instruction for stopping a coroutine.
+pub fn StopCoroutine(coroutineId) {
+    return { "kind": "StopCoroutine", "id": coroutineId }
+}
+
+/// Create a coroutine from a generator function.
+pub fn createCoroutine(generatorFn) {
+    return {
+        "id": null,
+        "generator": generatorFn,
+        "state": null,
+        "current": null,
+        "done": false,
+        "running": true
+    }
+}
+
+/// Start a coroutine on the runner.
+pub fn startCoroutine(runner, coroutine) {
+    let id = "" + len(runner["active"]) + "_" + unix_ms_now()
+    coroutine["id"] = id
+    runner["active"] = push(runner["active"], coroutine)
+    return { "runner": runner, "id": id }
+}
+
+/// Stop a coroutine by ID.
+pub fn stopCoroutineById(runner, id) {
+    let next = []
+    let i = 0
+    while i < len(runner["active"]) {
+        let cor = runner["active"][i]
+        if cor["id"] != id {
+            next = push(next, cor)
+        }
+        i = i + 1
+    }
+    runner["active"] = next
+    return runner
+}
+
+/// Stop all coroutines.
+pub fn stopAllCoroutines(runner) {
+    runner["active"] = []
+    runner["waiting"] = {}
+    return runner
+}
+
+/// Update all coroutines (call each frame with dt).
+pub fn updateCoroutines(runner, dt) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    
+    let next = []
+    let i = 0
+    while i < len(runner["active"]) {
+        let cor = runner["active"][i]
+        if cor["running"] != true || cor["done"] == true {
+            i = i + 1
+            continue
+        }
+        
+        let yieldValue = cor["current"]
+        let shouldContinue = true
+        
+        if yieldValue == null || yieldValue == undefined {
+            let result = cor["generator"](cor["state"])
+            cor["state"] = result["state"]
+            cor["current"] = result["yield"]
+            cor["done"] = result["done"]
+        } else if yieldValue["kind"] == "WaitForSeconds" {
+            let waitKey = cor["id"] + "_time"
+            let waitData = runner["waiting"][waitKey]
+            if waitData == null || waitData == undefined {
+                runner["waiting"][waitKey] = { "elapsed": 0.0, "target": yieldValue["seconds"] }
+            } else {
+                waitData["elapsed"] = waitData["elapsed"] + dt
+                if waitData["elapsed"] >= waitData["target"] {
+                    runner["waiting"][waitKey] = null
+                    cor["current"] = null
+                }
+            }
+        } else if yieldValue["kind"] == "WaitForFrames" {
+            let waitKey = cor["id"] + "_frames"
+            let waitData = runner["waiting"][waitKey]
+            if waitData == null || waitData == undefined {
+                runner["waiting"][waitKey] = { "elapsed": 0, "target": yieldValue["frames"] }
+            } else {
+                waitData["elapsed"] = waitData["elapsed"] + 1
+                if waitData["elapsed"] >= waitData["target"] {
+                    runner["waiting"][waitKey] = null
+                    cor["current"] = null
+                }
+            }
+        } else if yieldValue["kind"] == "WaitUntil" {
+            let cond = yieldValue["condition"]
+            if cond != null && cond != undefined {
+                if cond() == true {
+                    cor["current"] = null
+                }
+            }
+        } else if yieldValue["kind"] == "WaitWhile" {
+            let cond = yieldValue["condition"]
+            if cond != null && cond != undefined {
+                if cond() != true {
+                    cor["current"] = null
+                }
+            }
+        } else if yieldValue["kind"] == "WaitForEndOfFrame" {
+            cor["current"] = null
+        } else if yieldValue["kind"] == "WaitForFixedUpdate" {
+            let waitKey = cor["id"] + "_fixed"
+            if runner["waiting"][waitKey] == null {
+                runner["waiting"][waitKey] = true
+            } else {
+                runner["waiting"][waitKey] = null
+                cor["current"] = null
+            }
+        } else if yieldValue["kind"] == "StartCoroutine" {
+            let nested = yieldValue["coroutine"]
+            let started = startCoroutine(runner, nested)
+            runner = started["runner"]
+            cor["current"] = null
+        } else if yieldValue["kind"] == "StopCoroutine" {
+            runner = stopCoroutineById(runner, yieldValue["id"])
+            cor["current"] = null
+        } else {
+            cor["current"] = null
+        }
+        
+        if cor["done"] == true {
+            shouldContinue = false
+        }
+        
+        if shouldContinue {
+            next = push(next, cor)
+        }
+        
+        i = i + 1
+    }
+    
+    runner["active"] = next
+    return runner
+}
+
+/// Check if any coroutine is running.
+pub fn hasRunningCoroutines(runner) {
+    return len(runner["active"]) > 0
+}
+
+/// Get count of running coroutines.
+pub fn coroutineCount(runner) {
+    return len(runner["active"])
+}
+
+/// Helper: create a simple generator from a function that yields values.
+pub fn generatorFromFn(fn) {
+    return fn
+}
+
+/// Helper: simple sequence generator (0, 1, 2, ...).
+pub fn sequenceGenerator() {
+    let i = 0
+    fn step(state) {
+        let current = i
+        i = i + 1
+        return { "state": state, "yield": current, "done": false }
+    }
+    return step
+}
+
+/// Helper: repeat generator (repeats same value).
+pub fn repeatGenerator(value, times) {
+    let count = 0
+    fn step(state) {
+        if count >= times {
+            return { "state": state, "yield": null, "done": true }
+        }
+        count = count + 1
+        return { "state": state, "yield": value, "done": false }
+    }
+    return step
+}
+
+/// Helper: delay generator (yields null for delay, then completes).
+pub fn delayGenerator(delay) {
+    let elapsed = 0.0
+    fn step(state, dt) {
+        elapsed = elapsed + dt
+        if elapsed >= delay {
+            return { "state": state, "yield": null, "done": true }
+        }
+        return { "state": state, "yield": WaitForSeconds(delay - elapsed), "done": false }
+    }
+    return step
+}

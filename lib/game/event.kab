@@ -1,0 +1,280 @@
+@version "1.0.0"
+
+// Kabootar game/event - Unity-like event system for UI and game events.
+// import "game/event"
+
+/// Create an event dispatcher.
+pub fn createEventDispatcher() {
+    return {
+        "listeners": {},
+        "onceListeners": {},
+        "stopped": false
+    }
+}
+
+/// Subscribe to an event.
+pub fn on(dispatcher, eventName, callback) {
+    let listeners = dispatcher["listeners"]
+    if listeners[eventName] == null || listeners[eventName] == undefined {
+        listeners[eventName] = []
+    }
+    listeners[eventName] = push(listeners[eventName], callback)
+    dispatcher["listeners"] = listeners
+    return dispatcher
+}
+
+/// Subscribe to an event (only called once).
+pub fn once(dispatcher, eventName, callback) {
+    let listeners = dispatcher["onceListeners"]
+    if listeners[eventName] == null || listeners[eventName] == undefined {
+        listeners[eventName] = []
+    }
+    listeners[eventName] = push(listeners[eventName], callback)
+    dispatcher["onceListeners"] = listeners
+    return dispatcher
+}
+
+/// Unsubscribe from an event.
+pub fn off(dispatcher, eventName, callback) {
+    let listeners = dispatcher["listeners"]
+    if listeners[eventName] != null && listeners[eventName] != undefined {
+        let next = []
+        let i = 0
+        while i < len(listeners[eventName]) {
+            if listeners[eventName][i] != callback {
+                next = push(next, listeners[eventName][i])
+            }
+            i = i + 1
+        }
+        listeners[eventName] = next
+    }
+    dispatcher["listeners"] = listeners
+    return dispatcher
+}
+
+/// Emit an event with data.
+pub fn emit(dispatcher, eventName, data) {
+    if dispatcher["stopped"] == true { return dispatcher }
+    
+    let listeners = dispatcher["listeners"]
+    let onceListeners = dispatcher["onceListeners"]
+    
+    if listeners[eventName] != null && listeners[eventName] != undefined {
+        let i = 0
+        while i < len(listeners[eventName]) {
+            let callback = listeners[eventName][i]
+            callback(data)
+            i = i + 1
+        }
+    }
+    
+    if onceListeners[eventName] != null && onceListeners[eventName] != undefined {
+        let i = 0
+        while i < len(onceListeners[eventName]) {
+            let callback = onceListeners[eventName][i]
+            callback(data)
+            i = i + 1
+        }
+        onceListeners[eventName] = []
+    }
+    
+    dispatcher["onceListeners"] = onceListeners
+    return dispatcher
+}
+
+/// Remove all listeners for an event.
+pub fn removeAllListeners(dispatcher, eventName) {
+    let listeners = dispatcher["listeners"]
+    let onceListeners = dispatcher["onceListeners"]
+    listeners[eventName] = []
+    onceListeners[eventName] = []
+    dispatcher["listeners"] = listeners
+    dispatcher["onceListeners"] = onceListeners
+    return dispatcher
+}
+
+/// Remove all listeners for all events.
+pub fn clearAll(dispatcher) {
+    dispatcher["listeners"] = {}
+    dispatcher["onceListeners"] = {}
+    return dispatcher
+}
+
+/// Stop event propagation (for nested dispatchers).
+pub fn stopPropagation(dispatcher) {
+    dispatcher["stopped"] = true
+    return dispatcher
+}
+
+/// Resume event propagation.
+pub fn resumePropagation(dispatcher) {
+    dispatcher["stopped"] = false
+    return dispatcher
+}
+
+/// Get listener count for an event.
+pub fn listenerCount(dispatcher, eventName) {
+    let listeners = dispatcher["listeners"]
+    let onceListeners = dispatcher["onceListeners"]
+    let count = 0
+    if listeners[eventName] != null && listeners[eventName] != undefined {
+        count = count + len(listeners[eventName])
+    }
+    if onceListeners[eventName] != null && onceListeners[eventName] != undefined {
+        count = count + len(onceListeners[eventName])
+    }
+    return count
+}
+
+/// Global event manager for game-wide events.
+pub fn createEventManager() {
+    return {
+        "dispatchers": {},
+        "global": createEventDispatcher()
+    }
+}
+
+/// Get or create a dispatcher for a specific entity.
+pub fn getDispatcher(manager, entityId) {
+    let key = "" + entityId
+    let dispatchers = manager["dispatchers"]
+    if dispatchers[key] == null || dispatchers[key] == undefined {
+        dispatchers[key] = createEventDispatcher()
+        manager["dispatchers"] = dispatchers
+    }
+    return dispatchers[key]
+}
+
+/// Emit event to specific entity.
+pub fn emitTo(manager, entityId, eventName, data) {
+    let dispatcher = getDispatcher(manager, entityId)
+    return emit(dispatcher, eventName, data)
+}
+
+/// Emit event globally.
+pub fn emitGlobal(manager, eventName, data) {
+    return emit(manager["global"], eventName, data)
+}
+
+/// Subscribe to entity event.
+pub fn onEntity(manager, entityId, eventName, callback) {
+    let dispatcher = getDispatcher(manager, entityId)
+    return on(dispatcher, eventName, callback)
+}
+
+/// Subscribe to global event.
+pub fn onGlobal(manager, eventName, callback) {
+    return on(manager["global"], eventName, callback)
+}
+
+/// Common game event names.
+pub fn getGameEventNames() {
+    return {
+        "onStart": "onStart",
+        "onUpdate": "onUpdate",
+        "onFixedUpdate": "onFixedUpdate",
+        "onLateUpdate": "onLateUpdate",
+        "onDestroy": "onDestroy",
+        "onCollisionEnter": "onCollisionEnter",
+        "onCollisionExit": "onCollisionExit",
+        "onTriggerEnter": "onTriggerEnter",
+        "onTriggerExit": "onTriggerExit",
+        "onEnable": "onEnable",
+        "onDisable": "onDisable",
+        "onApplicationPause": "onApplicationPause",
+        "onApplicationResume": "onApplicationResume",
+        "onApplicationQuit": "onApplicationQuit",
+        "onLevelLoaded": "onLevelLoaded",
+        "onLevelUnloaded": "onLevelUnloaded",
+        "onPlayerSpawned": "onPlayerSpawned",
+        "onPlayerDied": "onPlayerDied",
+        "onEnemyKilled": "onEnemyKilled",
+        "onItemCollected": "onItemCollected",
+        "onScoreChanged": "onScoreChanged",
+        "onHealthChanged": "onHealthChanged",
+        "onDamageTaken": "onDamageTaken",
+        "onHealReceived": "onHealReceived"
+    }
+}
+
+/// UI event names.
+pub fn getUIEventNames() {
+    return {
+        "onClick": "onClick",
+        "onMouseDown": "onMouseDown",
+        "onMouseUp": "onMouseUp",
+        "onMouseEnter": "onMouseEnter",
+        "onMouseExit": "onMouseExit",
+        "onHover": "onHover",
+        "onDragStart": "onDragStart",
+        "onDrag": "onDrag",
+        "onDragEnd": "onDragEnd",
+        "onDrop": "onDrop",
+        "onScroll": "onScroll",
+        "onFocus": "onFocus",
+        "onBlur": "onBlur",
+        "onKeyDown": "onKeyDown",
+        "onKeyUp": "onKeyUp",
+        "onTextInput": "onTextInput",
+        "onValueChanged": "onValueChanged",
+        "onSubmit": "onSubmit",
+        "onCancel": "onCancel",
+        "onSelect": "onSelect",
+        "onDeselect": "onDeselect"
+    }
+}
+
+/// Create event data helper.
+pub fn createEventData(type, source, data) {
+    return {
+        "type": type,
+        "source": source,
+        "data": data,
+        "timestamp": unix_ms_now()
+    }
+}
+
+/// Collision event data.
+pub fn createCollisionEvent(other, contactPoint, contactNormal) {
+    return createEventData("collision", other, {
+        "contactPoint": contactPoint,
+        "contactNormal": contactNormal
+    })
+}
+
+/// Trigger event data.
+pub fn createTriggerEvent(other) {
+    return createEventData("trigger", other, {})
+}
+
+/// UI click event data.
+pub fn createClickEvent(x, y, button) {
+    return createEventData("click", null, {
+        "x": x,
+        "y": y,
+        "button": button
+    })
+}
+
+/// Damage event data.
+pub fn createDamageEvent(amount, source, damageType) {
+    return createEventData("damage", source, {
+        "amount": amount,
+        "type": damageType
+    })
+}
+
+/// Heal event data.
+pub fn createHealEvent(amount, source) {
+    return createEventData("heal", source, {
+        "amount": amount
+    })
+}
+
+/// Score event data.
+pub fn createScoreEvent(score, delta) {
+    return createEventData("score", null, {
+        "score": score,
+        "delta": delta
+    })
+}

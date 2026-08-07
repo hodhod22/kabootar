@@ -1,0 +1,276 @@
+@version "1.0.0"
+
+// Kabootar game/tag - Unity-like tag system for GameObject identification.
+// import "game/tag"
+
+/// Default Unity-compatible tags.
+pub fn createDefaultTags() {
+    return {
+        "Untagged": "Untagged",
+        "Respawn": "Respawn",
+        "Finish": "Finish",
+        "EditorOnly": "EditorOnly",
+        "MainCamera": "MainCamera",
+        "Player": "Player",
+        "GameController": "GameController",
+        "Enemy": "Enemy",
+        "Projectile": "Projectile",
+        "Pickup": "Pickup",
+        "Waypoint": "Waypoint",
+        "Trigger": "Trigger",
+        "UI": "UI",
+        "Ground": "Ground",
+        "Static": "Static",
+        "Dynamic": "Dynamic",
+        "Water": "Water",
+        "Fire": "Fire",
+        "Electric": "Electric",
+        "Poison": "Poison",
+        "Heal": "Heal",
+        "Shield": "Shield",
+        "Weapon": "Weapon",
+        "Armor": "Armor",
+        "Vehicle": "Vehicle",
+        "NPC": "NPC",
+        "Animal": "Animal",
+        "Monster": "Monster",
+        "Boss": "Boss",
+        "MiniBoss": "MiniBoss",
+        "Cinematic": "Cinematic",
+        "Hidden": "Hidden",
+        "Destructible": "Destructible",
+        "Interactable": "Interactable"
+    }
+}
+
+/// Tag manager for scene-wide tag lookups.
+pub fn createTagManager() {
+    return {
+        "tags": {},
+        "defaultTags": createDefaultTags()
+    }
+}
+
+/// Add a tag to an entity.
+pub fn addTag(manager, entityId, tag) {
+    let tags = manager["tags"]
+    let key = "" + entityId
+    if tags[key] == null || tags[key] == undefined {
+        tags[key] = []
+    }
+    let tagList = tags[key]
+    let found = false
+    let i = 0
+    while i < len(tagList) {
+        if tagList[i] == tag {
+            found = true
+        }
+        i = i + 1
+    }
+    if !found {
+        tagList = push(tagList, tag)
+        tags[key] = tagList
+    }
+    manager["tags"] = tags
+    return manager
+}
+
+/// Remove a tag from an entity.
+pub fn removeTag(manager, entityId, tag) {
+    let tags = manager["tags"]
+    let key = "" + entityId
+    if tags[key] != null && tags[key] != undefined {
+        let tagList = tags[key]
+        let next = []
+        let i = 0
+        while i < len(tagList) {
+            if tagList[i] != tag {
+                next = push(next, tagList[i])
+            }
+            i = i + 1
+        }
+        tags[key] = next
+    }
+    manager["tags"] = tags
+    return manager
+}
+
+/// Check if entity has a specific tag.
+pub fn hasTag(manager, entityId, tag) {
+    let tags = manager["tags"]
+    let key = "" + entityId
+    if tags[key] == null || tags[key] == undefined {
+        return false
+    }
+    let tagList = tags[key]
+    let i = 0
+    while i < len(tagList) {
+        if tagList[i] == tag {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Get all tags for an entity.
+pub fn getTags(manager, entityId) {
+    let tags = manager["tags"]
+    let key = "" + entityId
+    if tags[key] == null || tags[key] == undefined {
+        return []
+    }
+    return tags[key]
+}
+
+/// Set tags for an entity (replaces existing).
+pub fn setTags(manager, entityId, tagList) {
+    let tags = manager["tags"]
+    tags["" + entityId] = tagList
+    manager["tags"] = tags
+    return manager
+}
+
+/// Clear all tags for an entity.
+pub fn clearTags(manager, entityId) {
+    let tags = manager["tags"]
+    tags["" + entityId] = []
+    manager["tags"] = tags
+    return manager
+}
+
+/// Find all entities with a specific tag.
+pub fn findWithTag(manager, tag) {
+    let results = []
+    let tags = manager["tags"]
+    for key in tags {
+        let tagList = tags[key]
+        let i = 0
+        while i < len(tagList) {
+            if tagList[i] == tag {
+                results = push(results, key)
+            }
+            i = i + 1
+        }
+    }
+    return results
+}
+
+/// Find first entity with a specific tag.
+pub fn findFirstWithTag(manager, tag) {
+    let tags = manager["tags"]
+    for key in tags {
+        let tagList = tags[key]
+        let i = 0
+        while i < len(tagList) {
+            if tagList[i] == tag {
+                return key
+            }
+            i = i + 1
+        }
+    }
+    return null
+}
+
+/// Find entities with any of the given tags.
+pub fn findWithAnyTag(manager, tagList) {
+    let results = []
+    let tags = manager["tags"]
+    for key in tags {
+        let entityTags = tags[key]
+        let i = 0
+        while i < len(entityTags) {
+            let j = 0
+            while j < len(tagList) {
+                if entityTags[i] == tagList[j] {
+                    results = push(results, key)
+                    j = len(tagList)
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+    }
+    return results
+}
+
+/// Find entities with all of the given tags.
+pub fn findWithAllTags(manager, tagList) {
+    let results = []
+    let tags = manager["tags"]
+    for key in tags {
+        let entityTags = tags[key]
+        let hasAll = true
+        let i = 0
+        while i < len(tagList) {
+            let found = false
+            let j = 0
+            while j < len(entityTags) {
+                if entityTags[j] == tagList[i] {
+                    found = true
+                }
+                j = j + 1
+            }
+            if !found {
+                hasAll = false
+            }
+            i = i + 1
+        }
+        if hasAll {
+            results = push(results, key)
+        }
+    }
+    return results
+}
+
+/// Compare tags between two entities (returns true if they share any tag).
+pub fn compareTags(manager, entityA, entityB) {
+    let tagsA = getTags(manager, entityA)
+    let tagsB = getTags(manager, entityB)
+    let i = 0
+    while i < len(tagsA) {
+        let j = 0
+        while j < len(tagsB) {
+            if tagsA[i] == tagsB[j] {
+                return true
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Register a new custom tag.
+pub fn registerTag(manager, tagName) {
+    let defaults = manager["defaultTags"]
+    if defaults[tagName] == null || defaults[tagName] == undefined {
+        defaults[tagName] = tagName
+        manager["defaultTags"] = defaults
+    }
+    return manager
+}
+
+/// Get all registered tags.
+pub fn getAllTags(manager) {
+    let tags = []
+    let defaults = manager["defaultTags"]
+    for key in defaults {
+        tags = push(tags, defaults[key])
+    }
+    return tags
+}
+
+/// Check if a tag is valid (registered).
+pub fn isValidTag(manager, tag) {
+    let defaults = manager["defaultTags"]
+    return defaults[tag] != null && defaults[tag] != undefined
+}
+
+/// Remove all tags for an entity when it's destroyed.
+pub fn onEntityDestroyed(manager, entityId) {
+    let tags = manager["tags"]
+    tags["" + entityId] = null
+    manager["tags"] = tags
+    return manager
+}

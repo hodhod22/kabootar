@@ -1,0 +1,415 @@
+@version "1.0.0"
+
+// Kabootar game/culling - Occlusion culling and frustum culling for performance.
+// import "game/culling"
+
+/// Create a frustum from camera.
+pub fn createFrustum(camera, aspect, near, far) {
+    if aspect == null || aspect == undefined { aspect = 16.0 / 9.0 }
+    if near == null || near == undefined { near = 0.1 }
+    if far == null || far == undefined { far = 1000.0 }
+    
+    let fovRad = camera["fov"] * 3.14159 / 180.0
+    let tanHalfFov = tan(fovRad * 0.5)
+    
+    let nh = near * tanHalfFov
+    let nw = nh * aspect
+    let fh = far * tanHalfFov
+    let fw = fh * aspect
+    
+    let camPos = { "x": camera["x"], "y": camera["y"], "z": camera["z"] }
+    let camDir = cameraForward(camera)
+    let camUp = cameraUp(camera)
+    let camRight = cameraRight(camera)
+    
+    let nc = {
+        "x": camPos["x"] + camDir["x"] * near,
+        "y": camPos["y"] + camDir["y"] * near,
+        "z": camPos["z"] + camDir["z"] * near
+    }
+    let fc = {
+        "x": camPos["x"] + camDir["x"] * far,
+        "y": camPos["y"] + camDir["y"] * far,
+        "z": camPos["z"] + camDir["z"] * far
+    }
+    
+    return {
+        "near": near,
+        "far": far,
+        "fov": camera["fov"],
+        "aspect": aspect,
+        "position": camPos,
+        "direction": camDir,
+        "planes": calculateFrustumPlanes(camPos, camDir, camUp, camRight, nw, nh, fw, fh, near, far)
+    }
+}
+
+fn calculateFrustumPlanes(camPos, camDir, camUp, camRight, nw, nh, fw, fh, near, far) {
+    let nc = {
+        "x": camPos["x"] + camDir["x"] * near,
+        "y": camPos["y"] + camDir["y"] * near,
+        "z": camPos["z"] + camDir["z"] * near
+    }
+    let fc = {
+        "x": camPos["x"] + camDir["x"] * far,
+        "y": camPos["y"] + camDir["y"] * far,
+        "z": camPos["z"] + camDir["z"] * far
+    }
+    
+    let planes = []
+    
+    let ntl = {
+        "x": nc["x"] + camUp["x"] * nh - camRight["x"] * nw,
+        "y": nc["y"] + camUp["y"] * nh - camRight["y"] * nw,
+        "z": nc["z"] + camUp["z"] * nh - camRight["z"] * nw
+    }
+    let ntr = {
+        "x": nc["x"] + camUp["x"] * nh + camRight["x"] * nw,
+        "y": nc["y"] + camUp["y"] * nh + camRight["y"] * nw,
+        "z": nc["z"] + camUp["z"] * nh + camRight["z"] * nw
+    }
+    let nbl = {
+        "x": nc["x"] - camUp["x"] * nh - camRight["x"] * nw,
+        "y": nc["y"] - camUp["y"] * nh - camRight["y"] * nw,
+        "z": nc["z"] - camUp["z"] * nh - camRight["z"] * nw
+    }
+    let nbr = {
+        "x": nc["x"] - camUp["x"] * nh + camRight["x"] * nw,
+        "y": nc["y"] - camUp["y"] * nh + camRight["y"] * nw,
+        "z": nc["z"] - camUp["z"] * nh + camRight["z"] * nw
+    }
+    
+    let ftl = {
+        "x": fc["x"] + camUp["x"] * fh - camRight["x"] * fw,
+        "y": fc["y"] + camUp["y"] * fh - camRight["y"] * fw,
+        "z": fc["z"] + camUp["z"] * fh - camRight["z"] * fw
+    }
+    let ftr = {
+        "x": fc["x"] + camUp["x"] * fh + camRight["x"] * fw,
+        "y": fc["y"] + camUp["y"] * fh + camRight["y"] * fw,
+        "z": fc["z"] + camUp["z"] * fh + camRight["z"] * fw
+    }
+    let fbl = {
+        "x": fc["x"] - camUp["x"] * fh - camRight["x"] * fw,
+        "y": fc["y"] - camUp["y"] * fh - camRight["y"] * fw,
+        "z": fc["z"] - camUp["z"] * fh - camRight["z"] * fw
+    }
+    let fbr = {
+        "x": fc["x"] - camUp["x"] * fh + camRight["x"] * fw,
+        "y": fc["y"] - camUp["y"] * fh + camRight["y"] * fw,
+        "z": fc["z"] - camUp["z"] * fh + camRight["z"] * fw
+    }
+    
+    planes = push(planes, createPlane(ntr, ntl, ntl))
+    planes = push(planes, createPlane(nbl, nbr, nbr))
+    planes = push(planes, createPlane(ntl, nbl, nbl))
+    planes = push(planes, createPlane(nbr, ntr, ntr))
+    planes = push(planes, createPlane(ntl, ntr, ntr))
+    planes = push(planes, createPlane(ftr, ftl, ftl))
+    
+    return planes
+}
+
+fn createPlane(p1, p2, p3) {
+    let v1 = { "x": p2["x"] - p1["x"], "y": p2["y"] - p1["y"], "z": p2["z"] - p1["z"] }
+    let v2 = { "x": p3["x"] - p1["x"], "y": p3["y"] - p1["y"], "z": p3["z"] - p1["z"] }
+    
+    let normal = {
+        "x": v1["y"] * v2["z"] - v1["z"] * v2["y"],
+        "y": v1["z"] * v2["x"] - v1["x"] * v2["z"],
+        "z": v1["x"] * v2["y"] - v1["y"] * v2["x"]
+    }
+    
+    let len = sqrt(normal["x"] * normal["x"] + normal["y"] * normal["y"] + normal["z"] * normal["z"])
+    if len > 0.0001 {
+        normal["x"] = normal["x"] / len
+        normal["y"] = normal["y"] / len
+        normal["z"] = normal["z"] / len
+    }
+    
+    let d = -(normal["x"] * p1["x"] + normal["y"] * p1["y"] + normal["z"] * p1["z"])
+    
+    return { "normal": normal, "d": d }
+}
+
+/// Test if AABB is inside frustum.
+pub frustumContainsAABB(frustum, min, max) {
+    let planes = frustum["planes"]
+    let i = 0
+    while i < len(planes) {
+        let plane = planes[i]
+        let n = plane["normal"]
+        
+        let px = n["x"] >= 0.0 ? max["x"] : min["x"]
+        let py = n["y"] >= 0.0 ? max["y"] : min["y"]
+        let pz = n["z"] >= 0.0 ? max["z"] : min["z"]
+        
+        let dist = n["x"] * px + n["y"] * py + n["z"] * pz + plane["d"]
+        if dist < 0.0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Test if sphere is inside frustum.
+pub frustumContainsSphere(frustum, center, radius) {
+    let planes = frustum["planes"]
+    let i = 0
+    while i < len(planes) {
+        let plane = planes[i]
+        let n = plane["normal"]
+        let dist = n["x"] * center["x"] + n["y"] * center["y"] + n["z"] * center["z"] + plane["d"]
+        if dist < -radius {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Test if point is inside frustum.
+pub frustumContainsPoint(frustum, point) {
+    let planes = frustum["planes"]
+    let i = 0
+    while i < len(planes) {
+        let plane = planes[i]
+        let n = plane["normal"]
+        let dist = n["x"] * point["x"] + n["y"] * point["y"] + n["z"] * point["z"] + plane["d"]
+        if dist < 0.0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Create occlusion culling system.
+pub fn createOcclusionCullingSystem() {
+    return {
+        "occluders": [],
+        "occludees": [],
+        "queryBudget": 64,
+        "queryCount": 0,
+        "enabled": true
+    }
+}
+
+/// Add occluder (large object that blocks view).
+pub fn addOccluder(system, bounds, priority) {
+    if priority == null || priority == undefined { priority = 1.0 }
+    system["occluders"] = push(system["occluders"], {
+        "bounds": bounds,
+        "priority": priority,
+        "lastQueryTime": 0.0
+    })
+    return system
+}
+
+/// Add occludee (object that can be culled).
+pub fn addOccludee(system, objectId, bounds, importance) {
+    if importance == null || importance == undefined { importance = 1.0 }
+    system["occludees"] = push(system["occludees"], {
+        "id": objectId,
+        "bounds": bounds,
+        "importance": importance,
+        "visible": true,
+        "lastQueryTime": 0.0
+    })
+    return system
+}
+
+/// Update occlusion culling (call each frame).
+pub fn updateOcclusionCulling(system, camera, dt) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    if system["enabled"] != true {
+        return system
+    }
+    
+    let frustum = createFrustum(camera, 16.0 / 9.0, 0.1, 1000.0)
+    system["queryCount"] = 0
+    
+    let i = 0
+    while i < len(system["occludees"]) {
+        let occludee = system["occludees"][i]
+        
+        if !frustumContainsAABB(frustum, occludee["bounds"]["min"], occludee["bounds"]["max"]) {
+            occludee["visible"] = false
+        } else {
+            if system["queryCount"] < system["queryBudget"] {
+                occludee["visible"] = testOcclusion(system, occludee, camera)
+                system["queryCount"] = system["queryCount"] + 1
+                occludee["lastQueryTime"] = 0.0
+            } else {
+                occludee["lastQueryTime"] = occludee["lastQueryTime"] + dt
+                if occludee["lastQueryTime"] > 0.1 {
+                    occludee["visible"] = testOcclusion(system, occludee, camera)
+                    system["queryCount"] = system["queryCount"] + 1
+                    occludee["lastQueryTime"] = 0.0
+                }
+            }
+        }
+        
+        system["occludees"][i] = occludee
+        i = i + 1
+    }
+    
+    return system
+}
+
+fn testOcclusion(system, occludee, camera) {
+    let i = 0
+    while i < len(system["occluders"]) {
+        let occluder = system["occluders"][i]
+        if isOccluded(occludee["bounds"], occluder["bounds"], camera) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn isOccluded(targetBounds, occluderBounds, camera) {
+    let camPos = { "x": camera["x"], "y": camera["y"], "z": camera["z"] }
+    
+    let tx = (targetBounds["min"]["x"] + targetBounds["max"]["x"]) / 2.0
+    let ty = (targetBounds["min"]["y"] + targetBounds["max"]["y"]) / 2.0
+    let tz = (targetBounds["min"]["z"] + targetBounds["max"]["z"]) / 2.0
+    
+    let ox = (occluderBounds["min"]["x"] + occluderBounds["max"]["x"]) / 2.0
+    let oy = (occluderBounds["min"]["y"] + occluderBounds["max"]["y"]) / 2.0
+    let oz = (occluderBounds["min"]["z"] + occluderBounds["max"]["z"]) / 2.0
+    
+    let dx = tx - camPos["x"]
+    let dy = ty - camPos["y"]
+    let dz = tz - camPos["z"]
+    let targetDist = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    let oxDist = ox - camPos["x"]
+    let oyDist = oy - camPos["y"]
+    let ozDist = oz - camPos["z"]
+    let occluderDist = sqrt(oxDist * oxDist + oyDist * oyDist + ozDist * ozDist)
+    
+    if occluderDist >= targetDist {
+        return false
+    }
+    
+    let targetSize = targetBounds["max"]["x"] - targetBounds["min"]["x"]
+    let occluderSize = occluderBounds["max"]["x"] - occluderBounds["min"]["x"]
+    
+    if occluderSize < targetSize * 0.5 {
+        return false
+    }
+    
+    let angle = 0.0
+    let txDir = tx - camPos["x"]
+    let tyDir = ty – camPos["y"]
+    let tzDir = tz - camPos["z"]
+    let tLen = sqrt(txDir * txDir + tyDir * tyDir + tzDir * tzDir)
+    if tLen > 0.0001 {
+        txDir = txDir / tLen
+        tyDir = tyDir / tLen
+        tzDir = tzDir / tLen
+    }
+    
+    let oxDir = ox - camPos["x"]
+    let oyDir = oy - camPos["y"]
+    let ozDir = oz - camPos["z"]
+    let oLen = sqrt(oxDir * oxDir + oyDir * oyDir + ozDir * ozDir)
+    if oLen > 0.0001 {
+        oxDir = oxDir / oLen
+        oyDir = oyDir / oLen
+        ozDir = ozDir / oLen
+    }
+    
+    angle = txDir * oxDir + tyDir * oyDir + tzDir * ozDir
+    
+    if angle < 0.95 {
+        return false
+    }
+    
+    return true
+}
+
+/// Get visible objects after culling.
+pub fn getVisibleObjects(system) {
+    let visible = []
+    let i = 0
+    while i < len(system["occludees"]) {
+        if system["occludees"][i]["visible"] == true {
+            visible = push(visible, system["occludees"][i]["id"])
+        }
+        i = i + 1
+    }
+    return visible
+}
+
+/// Enable/disable occlusion culling.
+pub fn setOcclusionEnabled(system, enabled) {
+    system["enabled"] = enabled == true
+    return system
+}
+
+/// Set query budget (max occlusion queries per frame).
+pub fn setQueryBudget(system, budget) {
+    system["queryBudget"] = budget
+    return system
+}
+
+/// Distance culling - cull objects beyond max distance.
+pub fn distanceCull(objects, camera, maxDistance) {
+    if maxDistance == null || maxDistance == undefined { maxDistance = 100.0 }
+    
+    let visible = []
+    let i = 0
+    while i < len(objects) {
+        let obj = objects[i]
+        let dx = obj["x"] - camera["x"]
+        let dy = obj["y"] - camera["y"]
+        let dz = obj["z"] - camera["z"]
+        let dist = sqrt(dx * dx + dy * dy + dz * dz)
+        
+        if dist <= maxDistance {
+            visible = push(visible, obj)
+        }
+        i = i + 1
+    }
+    return visible
+}
+
+/// Backface culling check (dot product with view direction).
+pub fn isBackface(normal, viewDir) {
+    let dot = normal["x"] * viewDir["x"] + normal["y"] * viewDir["y"] + normal["z"] * viewDir["z"]
+    return dot >= 0.0
+}
+
+/// Create bounding sphere from AABB.
+pub fn boundingSphereFromAABB(min, max) {
+    let cx = (min["x"] + max["x"]) / 2.0
+    let cy = (min["y"] + max["y"]) / 2.0
+    let cz = (min["z"] + max["z"]) / 2.0
+    
+    let dx = max["x"] - min["x"]
+    let dy = max["y"] - min["y"]
+    let dz = max["z"] - min["z"]
+    let radius = sqrt(dx * dx + dy * dy + dz * dz) / 2.0
+    
+    return { "center": { "x": cx, "y": cy, "z": cz }, "radius": radius }
+}
+
+/// Merge two AABBs.
+pub fn mergeAABB(a, b) {
+    return {
+        "min": {
+            "x": min(a["min"]["x"], b["min"]["x"]),
+            "y": min(a["min"]["y"], b["min"]["y"]),
+            "z": min(a["min"]["z"], b["min"]["z"])
+        },
+        "max": {
+            "x": max(a["max"]["x"], b["max"]["x"]),
+            "y": max(a["max"]["y"], b["max"]["y"]),
+            "z": max(a["max"]["z"], b["max"]["z"])
+        }
+    }
+}

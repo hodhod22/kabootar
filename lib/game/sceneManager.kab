@@ -1,0 +1,271 @@
+@version "1.0.0"
+
+// Kabootar game/sceneManager - Unity-like scene management (load, unload, async).
+// import "game/sceneManager"
+
+/// Create a scene manager.
+pub fn createSceneManager() {
+    return {
+        "currentScene": null,
+        "loadedScenes": {},
+        "sceneStack": [],
+        "isLoading": false,
+        "loadQueue": [],
+        "unloadQueue": []
+    }
+}
+
+/// Scene descriptor for loading.
+pub fn createSceneDescriptor(name, path, isAdditive) {
+    if isAdditive == null || isAdditive == undefined { isAdditive = false }
+    return {
+        "name": name,
+        "path": path,
+        "isAdditive": isAdditive,
+        "loaded": false,
+        "root": null
+    }
+}
+
+/// Load a scene (synchronous - returns immediately, scene loads in background).
+pub fn loadScene(manager, sceneName, scenePath) {
+    let descriptor = createSceneDescriptor(sceneName, scenePath, false)
+    manager["loadQueue"] = push(manager["loadQueue"], descriptor)
+    manager["isLoading"] = true
+    return manager
+}
+
+/// Load a scene additively (keeps current scene loaded).
+pub fn loadSceneAdditive(manager, sceneName, scenePath) {
+    let descriptor = createSceneDescriptor(sceneName, scenePath, true)
+    manager["loadQueue"] = push(manager["loadQueue"], descriptor)
+    manager["isLoading"] = true
+    return manager
+}
+
+/// Unload a scene by name.
+pub fn unloadScene(manager, sceneName) {
+    manager["unloadQueue"] = push(manager["unloadQueue"], sceneName)
+    return manager
+}
+
+/// Unload the current scene.
+pub fn unloadCurrentScene(manager) {
+    if manager["currentScene"] != null {
+        manager["unloadQueue"] = push(manager["unloadQueue"], manager["currentScene"]["name"])
+    }
+    return manager
+}
+
+/// Get the currently active scene.
+pub fn getCurrentScene(manager) {
+    return manager["currentScene"]
+}
+
+/// Get all loaded scenes.
+pub fn getLoadedScenes(manager) {
+    let scenes = []
+    let loaded = manager["loadedScenes"]
+    for key in loaded {
+        if loaded[key] != null && loaded[key] != undefined {
+            scenes = push(scenes, loaded[key])
+        }
+    }
+    return scenes
+}
+
+/// Get a specific loaded scene by name.
+pub fn getSceneByName(manager, sceneName) {
+    let loaded = manager["loadedScenes"]
+    return loaded[sceneName]
+}
+
+/// Check if a scene is loaded.
+pub fn isSceneLoaded(manager, sceneName) {
+    let loaded = manager["loadedScenes"]
+    return loaded[sceneName] != null && loaded[sceneName] != undefined
+}
+
+/// Check if any scene is currently loading.
+pub fn isSceneLoading(manager) {
+    return manager["isLoading"]
+}
+
+/// Process scene loading/unloading (call each frame).
+pub fn processSceneQueue(manager) {
+    let loadQueue = manager["loadQueue"]
+    let unloadQueue = manager["unloadQueue"]
+    
+    if len(loadQueue) > 0 {
+        let descriptor = loadQueue[0]
+        let nextLoad = []
+        let i = 1
+        while i < len(loadQueue) {
+            nextLoad = push(nextLoad, loadQueue[i])
+            i = i + 1
+        }
+        manager["loadQueue"] = nextLoad
+        
+        let loaded = manager["loadedScenes"]
+        
+        if !descriptor["isAdditive"] && manager["currentScene"] != null {
+            let oldName = manager["currentScene"]["name"]
+            loaded[oldName] = null
+        }
+        
+        descriptor["loaded"] = true
+        loaded[descriptor["name"]] = descriptor
+        
+        if !descriptor["isAdditive"] {
+            manager["currentScene"] = descriptor
+        }
+        
+        manager["loadedScenes"] = loaded
+    }
+    
+    if len(unloadQueue) > 0 {
+        let sceneName = unloadQueue[0]
+        let nextUnload = []
+        let i = 1
+        while i < len(unloadQueue) {
+            nextUnload = push(nextUnload, unloadQueue[i])
+            i = i + 1
+        }
+        manager["unloadQueue"] = nextUnload
+        
+        let loaded = manager["loadedScenes"]
+        loaded[sceneName] = null
+        
+        if manager["currentScene"] != null && manager["currentScene"]["name"] == sceneName {
+            manager["currentScene"] = null
+        }
+        
+        manager["loadedScenes"] = loaded
+    }
+    
+    manager["isLoading"] = len(loadQueue) > 0 || len(unloadQueue) > 0
+    return manager
+}
+
+/// Push current scene onto stack and load new scene.
+pub fn pushScene(manager, sceneName, scenePath) {
+    if manager["currentScene"] != null {
+        manager["sceneStack"] = push(manager["sceneStack"], manager["currentScene"])
+    }
+    return loadScene(manager, sceneName, scenePath)
+}
+
+/// Pop scene from stack and unload current.
+pub fn popScene(manager) {
+    if len(manager["sceneStack"]) > 0 {
+        let stack = manager["sceneStack"]
+        let previous = stack[len(stack) - 1]
+        let nextStack = []
+        let i = 0
+        while i < len(stack) - 1 {
+            nextStack = push(nextStack, stack[i])
+            i = i + 1
+        }
+        manager["sceneStack"] = nextStack
+        
+        if manager["currentScene"] != null {
+            manager = unloadScene(manager, manager["currentScene"]["name"])
+        }
+        
+        manager["currentScene"] = previous
+    }
+    return manager
+}
+
+/// Get scene stack depth.
+pub fn getSceneStackDepth(manager) {
+    return len(manager["sceneStack"])
+}
+
+/// Clear all loaded scenes (useful for quitting).
+pub fn clearAllScenes(manager) {
+    manager["currentScene"] = null
+    manager["loadedScenes"] = {}
+    manager["sceneStack"] = []
+    manager["loadQueue"] = []
+    manager["unloadQueue"] = []
+    manager["isLoading"] = false
+    return manager
+}
+
+/// Create a scene root node (for scene graph).
+pub fn createSceneRoot(name) {
+    return {
+        "name": name,
+        "children": [],
+        "active": true,
+        "components": {}
+    }
+}
+
+/// Add child to scene root.
+pub fn addSceneChild(root, child) {
+    root["children"] = push(root["children"], child)
+    return root
+}
+
+/// Set scene root active state.
+pub fn setSceneRootActive(root, active) {
+    root["active"] = active == true
+    return root
+}
+
+/// Get scene root active state.
+pub fn isSceneRootActive(root) {
+    return root["active"] == true
+}
+
+/// Find child in scene root by name.
+pub fn findSceneChild(root, name) {
+    if root["name"] == name {
+        return root
+    }
+    let i = 0
+    while i < len(root["children"]) {
+        let found = findSceneChild(root["children"][i], name)
+        if found != null {
+            return found
+        }
+        i = i + 1
+    }
+    return null
+}
+
+/// Scene build index (for build settings).
+pub fn createSceneBuildIndex() {
+    return {
+        "scenes": [],
+        "enabled": {}
+    }
+}
+
+/// Add scene to build index.
+pub fn addSceneToBuild(index, scenePath, enabled) {
+    if enabled == null || enabled == undefined { enabled = true }
+    index["scenes"] = push(index["scenes"], scenePath)
+    index["enabled"][scenePath] = enabled
+    return index
+}
+
+/// Get scene count in build.
+pub fn getSceneCountInBuild(index) {
+    return len(index["scenes"])
+}
+
+/// Get scene path by build index.
+pub fn getSceneByBuildIndex(index, buildIndex) {
+    if buildIndex < 0 || buildIndex >= len(index["scenes"]) {
+        return null
+    }
+    return index["scenes"][buildIndex]
+}
+
+/// Check if scene is enabled in build.
+pub fn isSceneEnabledInBuild(index, scenePath) {
+    return index["enabled"][scenePath] == true
+}

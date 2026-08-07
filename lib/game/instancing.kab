@@ -1,0 +1,471 @@
+@version "1.0.0"
+
+// Kabootar game/instancing - GPU mesh instancing for high-performance rendering.
+// import "game/instancing"
+
+/// Create an instanced mesh renderer.
+pub fn createInstancedMesh(mesh, maxInstances) {
+    if maxInstances == null || maxInstances == undefined { maxInstances = 1024 }
+    return {
+        "kind": "InstancedMesh",
+        "baseMesh": mesh,
+        "maxInstances": maxInstances,
+        "instances": [],
+        "instanceData": [],
+        "dynamic": true,
+        "bounds": null
+    }
+}
+
+/// Add instance with transform matrix.
+pub fn addInstance(instancedMesh, position, rotation, scale) {
+    if position == null || position == undefined { position = { "x": 0.0, "y": 0.0, "z": 0.0 } }
+    if rotation == null || rotation == undefined { rotation = { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 } }
+    if scale == null || scale == undefined { scale = { "x": 1.0, "y": 1.0, "z": 1.0 } }
+    
+    if len(instancedMesh["instances"]) >= instancedMesh["maxInstances"] {
+        return instancedMesh
+    }
+    
+    let instance = {
+        "position": position,
+        "rotation": rotation,
+        "scale": scale,
+        "matrix": createMatrixTRS(position, rotation, scale)
+    }
+    
+    instancedMesh["instances"] = push(instancedMesh["instances"], instance)
+    instancedMesh["instanceData"] = push(instancedMesh["instanceData"], flattenMatrix(instance["matrix"]))
+    
+    return instancedMesh
+}
+
+/// Create TRS matrix (Translation, Rotation, Scale).
+fn createMatrixTRS(position, rotation, scale) {
+    let qx = rotation["x"]
+    let qy = rotation["y"]
+    let qz = rotation["z"]
+    let qw = rotation["w"]
+    
+    let xx = qx * qx
+    let yy = qy * qy
+    let zz = qz * qz
+    let xy = qx * qy
+    let xz = qx * qz
+    let yz = qy * qz
+    let wx = qw * qx
+    let wy = qw * qy
+    let wz = qw * qz
+    
+    let rot = [
+        1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy), 0.0,
+        2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx), 0.0,
+        2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy), 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ]
+    
+    let sx = scale["x"]
+    let sy = scale["y"]
+    let sz = scale["z"]
+    
+    return [
+        rot[0] * sx, rot[1] * sy, rot[2] * sz, rot[3],
+        rot[4] * sx, rot[5] * sy, rot[6] * sz, rot[7],
+        rot[8] * sx, rot[9] * sy, rot[10] * sz, rot[11],
+        position["x"], position["y"], position["z"], 1.0
+    ]
+}
+
+/// Flatten 4x4 matrix to array.
+fn flattenMatrix(matrix) {
+    return matrix
+}
+
+/// Update instance transform.
+pub fn updateInstance(instancedMesh, index, position, rotation, scale) {
+    if index < 0 || index >= len(instancedMesh["instances"]) {
+        return instancedMesh
+    }
+    
+    let instance = instancedMesh["instances"][index]
+    instance["position"] = position
+    instance["rotation"] = rotation
+    instance["scale"] = scale
+    instance["matrix"] = createMatrixTRS(position, rotation, scale)
+    
+    instancedMesh["instances"][index] = instance
+    instancedMesh["instanceData"][index] = flattenMatrix(instance["matrix"])
+    
+    return instancedMesh
+}
+
+/// Remove instance by index.
+pub fn removeInstance(instancedMesh, index) {
+    if index < 0 || index >= len(instancedMesh["instances"]) {
+        return instancedMesh
+    }
+    
+    let nextInstances = []
+    let nextData = []
+    let i = 0
+    while i < len(instancedMesh["instances"]) {
+        if i != index {
+            nextInstances = push(nextInstances, instancedMesh["instances"][i])
+            nextData = push(nextData, instancedMesh["instanceData"][i])
+        }
+        i = i + 1
+    }
+    
+    instancedMesh["instances"] = nextInstances
+    instancedMesh["instanceData"] = nextData
+    
+    return instancedMesh
+}
+
+/// Clear all instances.
+pub fn clearInstances(instancedMesh) {
+    instancedMesh["instances"] = []
+    instancedMesh["instanceData"] = []
+    return instancedMesh
+}
+
+/// Get instance count.
+pub fn getInstanceCount(instancedMesh) {
+    return len(instancedMesh["instances"])
+}
+
+/// Calculate combined bounds for all instances.
+pub fn calculateInstanceBounds(instancedMesh) {
+    if len(instancedMesh["instances"]) == 0 {
+        return null
+    }
+    
+    let minX = 999999.0
+    let minY = 999999.0
+    let minZ = 999999.0
+    let maxX = -999999.0
+    let maxY = -999999.0
+    let maxZ = -999999.0
+    
+    let i = 0
+    while i < len(instancedMesh["instances"]) {
+        let pos = instancedMesh["instances"][i]["position"]
+        let scale = instancedMesh["instances"][i]["scale"]
+        
+        let halfX = scale["x"] * 0.5
+        let halfY = scale["y"] * 0.5
+        let halfZ = scale["z"] * 0.5
+        
+        if pos["x"] - halfX < minX { minX = pos["x"] - halfX }
+        if pos["x"] + halfX > maxX { maxX = pos["x"] + halfX }
+        if pos["y"] - halfY < minY { minY = pos["y"] - halfY }
+        if pos["y"] + halfY > maxY { maxY = pos["y"] + halfY }
+        if pos["z"] - halfZ < minZ { minZ = pos["z"] - halfZ }
+        if pos["z"] + halfZ > maxZ { maxZ = pos["z"] + halfZ }
+        
+        i = i + 1
+    }
+    
+    instancedMesh["bounds"] = {
+        "min": { "x": minX, "y": minY, "z": minZ },
+        "max": { "x": maxX, "y": maxY, "z": maxZ }
+    }
+    
+    return instancedMesh["bounds"]
+}
+
+/// Set static mode (instances don't change often).
+pub fn setStaticMode(instancedMesh, isStatic) {
+    instancedMesh["dynamic"] = !isStatic
+    return instancedMesh
+}
+
+/// Create GPU instance buffer descriptor.
+pub fn createInstanceBuffer(maxInstances, perInstanceDataSize) {
+    if perInstanceDataSize == null || perInstanceDataSize == undefined { perInstanceDataSize = 64 }
+    return {
+        "kind": "InstanceBuffer",
+        "maxInstances": maxInstances,
+        "perInstanceDataSize": perInstanceDataSize,
+        "buffer": null,
+        "needsUpdate": true
+    }
+}
+
+/// Update GPU instance buffer.
+pub fn updateInstanceBuffer(buffer, instanceData) {
+    buffer["buffer"] = instanceData
+    buffer["needsUpdate"] = false
+    return buffer
+}
+
+/// Indirect draw arguments for instanced rendering.
+pub fn createIndirectDrawArgs(vertexCount, instanceCount, firstVertex, firstInstance) {
+    if vertexCount == null || vertexCount == undefined { vertexCount = 0 }
+    if instanceCount == null || instanceCount == undefined { instanceCount = 0 }
+    if firstVertex == null || firstVertex == undefined { firstVertex = 0 }
+    if firstInstance == null || firstInstance == undefined { firstInstance = 0 }
+    
+    return {
+        "vertexCount": vertexCount,
+        "instanceCount": instanceCount,
+        "firstVertex": firstVertex,
+        "firstInstance": firstInstance
+    }
+}
+
+/// Update indirect draw args.
+pub fn updateIndirectDrawArgs(args, instanceCount) {
+    args["instanceCount"] = instanceCount
+    return args
+}
+
+/// Create instance manager for scene-wide instancing.
+pub fn createInstanceManager() {
+    return {
+        "instancedMeshes": {},
+        "instanceBuffers": {},
+        "totalInstanceCount": 0
+    }
+}
+
+/// Add instanced mesh to manager.
+pub fn addInstancedMesh(manager, meshId, instancedMesh) {
+    manager["instancedMeshes"]["" + meshId] = instancedMesh
+    manager["totalInstanceCount"] = manager["totalInstanceCount"] + len(instancedMesh["instances"])
+    return manager
+}
+
+/// Remove instanced mesh from manager.
+pub fn removeInstancedMesh(manager, meshId) {
+    let mesh = manager["instancedMeshes"]["" + meshId]
+    if mesh != null && mesh != undefined {
+        manager["totalInstanceCount"] = manager["totalInstanceCount"] - len(mesh["instances"])
+    }
+    manager["instancedMeshes"]["" + meshId] = null
+    return manager
+}
+
+/// Update all instanced meshes.
+pub fn updateInstanceManager(manager) {
+    let totalCount = 0
+    for key in manager["instancedMeshes"] {
+        let mesh = manager["instancedMeshes"][key]
+        if mesh != null && mesh != undefined {
+            totalCount = totalCount + len(mesh["instances"])
+        }
+    }
+    manager["totalInstanceCount"] = totalCount
+    return manager
+}
+
+/// Get total instance count across all meshes.
+pub fn getTotalInstanceCount(manager) {
+    return manager["totalInstanceCount"]
+}
+
+/// Batch multiple meshes into single instanced draw.
+pub fn batchMeshes(meshes, maxInstancesPerBatch) {
+    if maxInstancesPerBatch == null || maxInstancesPerBatch == undefined { maxInstancesPerBatch = 1024 }
+    
+    let batches = []
+    let currentBatch = []
+    let currentCount = 0
+    
+    let i = 0
+    while i < len(meshes) {
+        if currentCount + 1 <= maxInstancesPerBatch {
+            currentBatch = push(currentBatch, meshes[i])
+            currentCount = currentCount + 1
+        } else {
+            batches = push(batches, currentBatch)
+            currentBatch = [meshes[i]]
+            currentCount = 1
+        }
+        i = i + 1
+    }
+    
+    if len(currentBatch) > 0 {
+        batches = push(batches, currentBatch)
+    }
+    
+    return batches
+}
+
+/// Create vegetation instancing (grass, trees, etc).
+pub fn createVegetationInstancing(mesh, positions, spread, heightVariation) {
+    if spread == null || spread == undefined { spread = 1.0 }
+    if heightVariation == null || heightVariation == undefined { heightVariation = 0.2 }
+    
+    let instanced = createInstancedMesh(mesh, len(positions))
+    
+    let i = 0
+    while i < len(positions) {
+        let pos = positions[i]
+        let heightVar = 1.0 + ((i * 12345.6789) % 1.0 - 0.5) * heightVariation
+        let rotVar = ((i * 54321.1234) % 1.0) * 6.28318
+        let scaleVar = 1.0 + ((i * 98765.4321) % 1.0 - 0.5) * 0.3
+        
+        let offset = {
+            "x": ((i * 11111.2222) % 1.0 - 0.5) * spread,
+            "y": 0.0,
+            "z": ((i * 33333.4444) % 1.0 - 0.5) * spread
+        }
+        
+        let finalPos = {
+            "x": pos["x"] + offset["x"],
+            "y": pos["y"],
+            "z": pos["z"] + offset["z"]
+        }
+        
+        let rotation = quaternionFromEuler(0.0, rotVar, 0.0)
+        let scale = { "x": scaleVar, "y": heightVar, "z": scaleVar }
+        
+        instanced = addInstance(instanced, finalPos, rotation, scale)
+        i = i + 1
+    }
+    
+    return instanced
+}
+
+/// Create crowd instancing (NPCs, characters).
+pub fn createCrowdInstancing(mesh, count, areaSize, minSpacing) {
+    if areaSize == null || areaSize == undefined { areaSize = 50.0 }
+    if minSpacing == null || minSpacing == undefined { minSpacing = 2.0 }
+    
+    let instanced = createInstancedMesh(mesh, count)
+    let placedPositions = []
+    
+    let i = 0
+    while i < count {
+        let attempts = 0
+        let placed = false
+        
+        while attempts < 10 && !placed {
+            let x = ((i * 55555.6666 + attempts) % 1.0 - 0.5) * areaSize
+            let z = ((i * 77777.8888 + attempts) % 1.0 - 0.5) * areaSize
+            let pos = { "x": x, "y": 0.0, "z": z }
+            
+            let tooClose = false
+            let j = 0
+            while j < len(placedPositions) {
+                let dx = pos["x"] - placedPositions[j]["x"]
+                let dz = pos["z"] - placedPositions[j]["z"]
+                let dist = sqrt(dx * dx + dz * dz)
+                if dist < minSpacing {
+                    tooClose = true
+                }
+                j = j + 1
+            }
+            
+            if !tooClose {
+                placedPositions = push(placedPositions, pos)
+                let rotVar = ((i * 99999.0000) % 1.0) * 6.28318
+                let rotation = quaternionFromEuler(0.0, rotVar, 0.0)
+                let scale = { "x": 1.0, "y": 1.0, "z": 1.0 }
+                instanced = addInstance(instanced, pos, rotation, scale)
+                placed = true
+            }
+            
+            attempts = attempts + 1
+        }
+        
+        i = i + 1
+    }
+    
+    return instanced
+}
+
+/// Quaternion from Euler angles.
+fn quaternionFromEuler(pitch, yaw, roll) {
+    let cy = cos(yaw * 0.5)
+    let sy = sin(yaw * 0.5)
+    let cp = cos(pitch * 0.5)
+    let sp = sin(pitch * 0.5)
+    let cr = cos(roll * 0.5)
+    let sr = sin(roll * 0.5)
+    
+    let qw = cr * cp * cy + sr * sp * sy
+    let qx = sr * cp * cy - cr * sp * sy
+    let qy = cr * sp * cy + sr * cp * sy
+    let qz = cr * cp * sy - sr * sp * cy
+    
+    return { "x": qx, "y": qy, "z": qz, "w": qw }
+}
+
+/// Cull instances outside frustum.
+pub fn cullInstances(instancedMesh, frustum) {
+    let visibleInstances = []
+    let visibleData = []
+    
+    let i = 0
+    while i < len(instancedMesh["instances"]) {
+        let instance = instancedMesh["instances"][i]
+        let pos = instance["position"]
+        
+        let sphereRadius = max(instance["scale"]["x"], max(instance["scale"]["y"], instance["scale"]["z"])) * 0.5
+        
+        if frustumContainsSphere(frustum, pos, sphereRadius) {
+            visibleInstances = push(visibleInstances, instance)
+            visibleData = push(visibleData, instancedMesh["instanceData"][i])
+        }
+        
+        i = i + 1
+    }
+    
+    instancedMesh["instances"] = visibleInstances
+    instancedMesh["instanceData"] = visibleData
+    
+    return instancedMesh
+}
+
+/// Sort instances by distance to camera (for transparency).
+pub fn sortInstancesByDistance(instancedMesh, camera) {
+    let camPos = { "x": camera["x"], "y": camera["y"], "z": camera["z"] }
+    
+    let distances = []
+    let i = 0
+    while i < len(instancedMesh["instances"]) {
+        let pos = instancedMesh["instances"][i]["position"]
+        let dx = pos["x"] - camPos["x"]
+        let dy = pos["y"] - camPos["y"]
+        let dz = pos["z"] - camPos["z"]
+        let dist = dx * dx + dy * dy + dz * dz
+        distances = push(distances, dist)
+        i = i + 1
+    }
+    
+    let sorted = []
+    let i = 0
+    while i < len(distances) {
+        let maxIdx = 0
+        let maxDist = distances[0]
+        let j = 1
+        while j < len(distances) {
+            if distances[j] > maxDist {
+                maxDist = distances[j]
+                maxIdx = j
+            }
+            j = j + 1
+        }
+        sorted = push(sorted, instancedMesh["instances"][maxIdx])
+        distances[maxIdx] = -1.0
+        i = i + 1
+    }
+    
+    instancedMesh["instances"] = sorted
+    
+    let newData = []
+    let i = 0
+    while i < len(sorted) {
+        newData = push(newData, flattenMatrix(createMatrixTRS(
+            sorted[i]["position"],
+            sorted[i]["rotation"],
+            sorted[i]["scale"]
+        )))
+        i = i + 1
+    }
+    instancedMesh["instanceData"] = newData
+    
+    return instancedMesh
+}

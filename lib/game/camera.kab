@@ -1,0 +1,196 @@
+@version "1.0.0"
+
+// Kabootar game/camera - Unity-like camera system (projection, viewport, layers).
+// import "game/camera"
+
+/// Create a camera with perspective projection.
+pub fn createPerspectiveCamera(fov, near, far) {
+    if fov == null || fov == undefined { fov = 60.0 }
+    if near == null || near == undefined { near = 0.1 }
+    if far == null || far == undefined { far = 1000.0 }
+    return {
+        "kind": "Camera",
+        "type": "perspective",
+        "fov": fov,
+        "near": near,
+        "far": far,
+        "x": 0.0,
+        "y": 0.0,
+        "z": -10.0,
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "viewportX": 0.0,
+        "viewportY": 0.0,
+        "viewportW": 1.0,
+        "viewportH": 1.0,
+        "cullingMask": 4294967295,
+        "clearFlags": "color",
+        "backgroundColor": { "r": 0.1, "g": 0.1, "b": 0.15, "a": 1.0 },
+        "depth": 0,
+        "orthographic": false,
+        "orthoSize": 5.0
+    }
+}
+
+/// Create an orthographic camera (2D/isometric).
+pub fn createOrthographicCamera(size, near, far) {
+    if size == null || size == undefined { size = 5.0 }
+    if near == null || near == undefined { near = 0.1 }
+    if far == null || far == undefined { far = 1000.0 }
+    let cam = createPerspectiveCamera(60.0, near, far)
+    cam["type"] = "orthographic"
+    cam["orthographic"] = true
+    cam["orthoSize"] = size
+    return cam
+}
+
+/// Set camera position.
+pub fn setCameraPosition(cam, x, y, z) {
+    cam["x"] = x
+    cam["y"] = y
+    cam["z"] = z
+    return cam
+}
+
+/// Set camera rotation (yaw/pitch in degrees).
+pub fn setCameraRotation(cam, yaw, pitch) {
+    cam["yaw"] = yaw
+    cam["pitch"] = pitch
+    return cam
+}
+
+/// Set viewport (normalized 0-1).
+pub fn setCameraViewport(cam, x, y, w, h) {
+    cam["viewportX"] = x
+    cam["viewportY"] = y
+    cam["viewportW"] = w
+    cam["viewportH"] = h
+    return cam
+}
+
+/// Set culling mask (bitmask of layers to render).
+pub fn setCameraCullingMask(cam, mask) {
+    cam["cullingMask"] = mask
+    return cam
+}
+
+/// Set clear flags (color, depth, dontcare).
+pub fn setCameraClearFlags(cam, flags) {
+    cam["clearFlags"] = flags
+    return cam
+}
+
+/// Set background color.
+pub fn setCameraBackgroundColor(cam, r, g, b, a) {
+    cam["backgroundColor"] = { "r": r, "g": g, "b": b, "a": a }
+    return cam
+}
+
+/// Set render depth (lower = drawn first).
+pub fn setCameraDepth(cam, depth) {
+    cam["depth"] = depth
+    return cam
+}
+
+/// Get camera forward vector.
+pub fn cameraForward(cam) {
+    let yawRad = cam["yaw"] * 3.14159265359 / 180.0
+    let pitchRad = cam["pitch"] * 3.14159265359 / 180.0
+    let fx = -sin(yawRad) * cos(pitchRad)
+    let fy = -sin(pitchRad)
+    let fz = -cos(yawRad) * cos(pitchRad)
+    return { "x": fx, "y": fy, "z": fz }
+}
+
+/// Get camera right vector.
+pub fn cameraRight(cam) {
+    let yawRad = cam["yaw"] * 3.14159265359 / 180.0
+    let rx = cos(yawRad)
+    let ry = 0.0
+    let rz = -sin(yawRad)
+    return { "x": rx, "y": ry, "z": rz }
+}
+
+/// Get camera up vector.
+pub fn cameraUp(cam) {
+    let yawRad = cam["yaw"] * 3.14159265359 / 180.0
+    let pitchRad = cam["pitch"] * 3.14159265359 / 180.0
+    let ux = -sin(yawRad) * sin(pitchRad)
+    let uy = cos(pitchRad)
+    let uz = -cos(yawRad) * sin(pitchRad)
+    return { "x": ux, "y": uy, "z": uz }
+}
+
+/// World-to-screen point (returns {x,y} in viewport coords or null if behind).
+pub fn worldToScreen(cam, worldX, worldY, worldZ, viewportW, viewportH) {
+    let fw = cameraForward(cam)
+    let dx = worldX - cam["x"]
+    let dy = worldY - cam["y"]
+    let dz = worldZ - cam["z"]
+    let dot = dx * fw["x"] + dy * fw["y"] + dz * fw["z"]
+    
+    if dot <= 0.0 {
+        return null
+    }
+    
+    let right = cameraRight(cam)
+    let up = cameraUp(cam)
+    let rx = dx * right["x"] + dy * right["y"] + dz * right["z"]
+    let ry = dx * up["x"] + dy * up["y"] + dz * up["z"]
+    
+    let fovRad = cam["fov"] * 3.14159265359 / 180.0
+    let scale = 1.0 / tan(fovRad * 0.5)
+    let aspect = viewportW / viewportH
+    
+    let screenX = 0.5 + (rx / dot) * scale / aspect * 0.5
+    let screenY = 0.5 - (ry / dot) * scale * 0.5
+    
+    return {
+        "x": screenX * viewportW,
+        "y": screenY * viewportH
+    }
+}
+
+/// Screen-to-world ray (returns {origin, dir}).
+pub fn screenToWorldRay(cam, screenX, screenY, viewportW, viewportH) {
+    let fovRad = cam["fov"] * 3.14159265359 / 180.0
+    let scale = 1.0 / tan(fovRad * 0.5)
+    let aspect = viewportW / viewportH
+    
+    let nx = (screenX / viewportW - 0.5) * 2.0 * aspect / scale
+    let ny = (0.5 - screenY / viewportH) * 2.0 / scale
+    
+    let fw = cameraForward(cam)
+    let right = cameraRight(cam)
+    let up = cameraUp(cam)
+    
+    let dirX = fw["x"] + right["x"] * nx + up["x"] * ny
+    let dirY = fw["y"] + right["y"] * nx + up["y"] * ny
+    let dirZ = fw["z"] + right["z"] * nx + up["z"] * ny
+    
+    let len = sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ)
+    return {
+        "origin": { "x": cam["x"], "y": cam["y"], "z": cam["z"] },
+        "dir": { "x": dirX / len, "y": dirY / len, "z": dirZ / len }
+    }
+}
+
+/// Look at target position.
+pub fn cameraLookAt(cam, targetX, targetY, targetZ) {
+    let dx = targetX - cam["x"]
+    let dy = targetY - cam["y"]
+    let dz = targetZ - cam["z"]
+    let yaw = atan2(dz, dx) * 180.0 / 3.14159265359 + 90.0
+    let flatDist = sqrt(dx * dx + dz * dz)
+    let pitch = atan2(dy, flatDist) * 180.0 / 3.14159265359
+    cam["yaw"] = yaw
+    cam["pitch"] = pitch
+    return cam
+}
+
+/// Check if layer is in culling mask.
+pub fn cameraCullsLayer(cam, layer) {
+    let mask = cam["cullingMask"]
+    let bit = 1 << layer
+    return (mask & bit) == 0
+}

@@ -1,0 +1,239 @@
+@version "1.0.0"
+
+// Kabootar game/layer - Unity-like layer system (32 layers, bitmask filtering).
+// import "game/layer"
+
+/// Default layer names (Unity-compatible).
+pub fn createDefaultLayerNames() {
+    return {
+        0: "Default",
+        1: "TransparentFX",
+        2: "Ignore Raycast",
+        3: "Water",
+        4: "UI",
+        5: "PostProcessing",
+        6: "Player",
+        7: "Enemy",
+        8: "Ground",
+        9: "Static",
+        10: "Dynamic",
+        11: "Projectile",
+        12: "Pickup",
+        13: "Trigger",
+        14: "Vehicle",
+        15: "Prop",
+        16: "Effect",
+        17: "Light",
+        18: "Camera",
+        19: "Audio",
+        20: "NavMesh",
+        21: "Reserved21",
+        22: "Reserved22",
+        23: "Reserved23",
+        24: "Reserved24",
+        25: "Reserved25",
+        26: "Reserved26",
+        27: "Reserved27",
+        28: "Reserved28",
+        29: "Reserved29",
+        30: "Reserved30",
+        31: "Reserved31"
+    }
+}
+
+/// Get layer mask from layer index (0-31).
+pub fn layerToMask(layer) {
+    if layer < 0 || layer > 31 { return 0 }
+    return 1 << layer
+}
+
+/// Get layer index from name (returns -1 if not found).
+pub fn nameToLayer(name, layerNames) {
+    if layerNames == null || layerNames == undefined {
+        layerNames = createDefaultLayerNames()
+    }
+    let i = 0
+    while i <= 31 {
+        if layerNames[i] == name {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// Get layer name from index.
+pub fn layerToName(layer, layerNames) {
+    if layer < 0 || layer > 31 { return "Invalid" }
+    if layerNames == null || layerNames == undefined {
+        layerNames = createDefaultLayerNames()
+    }
+    let name = layerNames[layer]
+    if name == undefined || name == null {
+        return "Layer" + layer
+    }
+    return name
+}
+
+/// Check if layer is in mask.
+pub fn maskContainsLayer(mask, layer) {
+    if layer < 0 || layer > 31 { return false }
+    let bit = 1 << layer
+    return (mask & bit) != 0
+}
+
+/// Add layer to mask.
+pub fn maskAddLayer(mask, layer) {
+    if layer < 0 || layer > 31 { return mask }
+    let bit = 1 << layer
+    return mask | bit
+}
+
+/// Remove layer from mask.
+pub fn maskRemoveLayer(mask, layer) {
+    if layer < 0 || layer > 31 { return mask }
+    let bit = 1 << layer
+    return mask & (~bit)
+}
+
+/// Toggle layer in mask.
+pub fn maskToggleLayer(mask, layer) {
+    if layer < 0 || layer > 31 { return mask }
+    let bit = 1 << layer
+    return mask ^ bit
+}
+
+/// Create mask from array of layer indices.
+pub fn maskFromLayers(layers) {
+    let mask = 0
+    let i = 0
+    while i < len(layers) {
+        let layer = layers[i]
+        if layer >= 0 && layer <= 31 {
+            mask = mask | (1 << layer)
+        }
+        i = i + 1
+    }
+    return mask
+}
+
+/// Create mask from array of layer names.
+pub fn maskFromNames(names, layerNames) {
+    if layerNames == null || layerNames == undefined {
+        layerNames = createDefaultLayerNames()
+    }
+    let mask = 0
+    let i = 0
+    while i < len(names) {
+        let layer = nameToLayer(names[i], layerNames)
+        if layer >= 0 {
+            mask = mask | (1 << layer)
+        }
+        i = i + 1
+    }
+    return mask
+}
+
+/// Get all layers in mask as array of indices.
+pub fn maskToLayers(mask) {
+    let layers = []
+    let i = 0
+    while i <= 31 {
+        if (mask & (1 << i)) != 0 {
+            layers = push(layers, i)
+        }
+        i = i + 1
+    }
+    return layers
+}
+
+/// Get all layers in mask as array of names.
+pub fn maskToNames(mask, layerNames) {
+    if layerNames == null || layerNames == undefined {
+        layerNames = createDefaultLayerNames()
+    }
+    let names = []
+    let i = 0
+    while i <= 31 {
+        if (mask & (1 << i)) != 0 {
+            let name = layerNames[i]
+            if name == undefined || name == null {
+                name = "Layer" + i
+            }
+            names = push(names, name)
+        }
+        i = i + 1
+    }
+    return names
+}
+
+/// Check collision between two layer masks.
+pub fn layersCollide(maskA, maskB) {
+    return (maskA & maskB) != 0
+}
+
+/// Everything mask (all 32 layers).
+pub fn everythingMask() {
+    return 4294967295
+}
+
+/// Nothing mask (no layers).
+pub fn nothingMask() {
+    return 0
+}
+
+/// Common layer masks for quick access.
+pub fn getCommonMasks() {
+    return {
+        "everything": 4294967295,
+        "nothing": 0,
+        "default": 1,
+        "ui": 16,
+        "player": 64,
+        "enemy": 128,
+        "ground": 256,
+        "static": 512,
+        "dynamic": 1024,
+        "projectile": 2048,
+        "trigger": 8192,
+        "pickups": 4096,
+        "ignoreRaycast": 4,
+        "water": 8
+    }
+}
+
+/// Layer collision matrix (which layers collide with which).
+pub fn createCollisionMatrix() {
+    let matrix = {}
+    let i = 0
+    while i <= 31 {
+        matrix[i] = everythingMask()
+        i = i + 1
+    }
+    matrix[2] = 0
+    matrix[4] = 0
+    return matrix
+}
+
+/// Set collision between two layers.
+pub fn setCollision(matrix, layerA, layerB, collide) {
+    if layerA < 0 || layerA > 31 || layerB < 0 || layerB > 31 { return matrix }
+    let bitA = 1 << layerA
+    let bitB = 1 << layerB
+    if collide == true {
+        matrix[layerA] = matrix[layerA] | bitB
+        matrix[layerB] = matrix[layerB] | bitA
+    } else {
+        matrix[layerA] = matrix[layerA] & (~bitB)
+        matrix[layerB] = matrix[layerB] & (~bitA)
+    }
+    return matrix
+}
+
+/// Check if two layers collide according to matrix.
+pub fn getCollision(matrix, layerA, layerB) {
+    if layerA < 0 || layerA > 31 || layerB < 0 || layerB > 31 { return false }
+    let maskA = matrix[layerA]
+    let bitB = 1 << layerB
+    return (maskA & bitB) != 0
+}

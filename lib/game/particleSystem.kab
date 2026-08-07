@@ -1,0 +1,505 @@
+@version "1.0.0"
+
+// Kabootar game/particleSystem - Unity-like particle system with GPU acceleration.
+// import "game/particleSystem"
+
+/// Create a particle system.
+pub fn createParticleSystem() {
+    return {
+        "kind": "ParticleSystem",
+        "maxParticles": 1000,
+        "particles": [],
+        "emission": {
+            "rate": 10,
+            "rateOverTime": 10,
+            "rateOverDistance": 0,
+            "bursts": []
+        },
+        "shape": {
+            "type": "cone",
+            "angle": 25.0,
+            "radius": 1.0,
+            "arc": 360.0
+        },
+        "velocity": {
+            "x": { "constant": 0.0, "min": 0.0, "max": 0.0 },
+            "y": { "constant": 1.0, "min": 0.5, "max": 1.5 },
+            "z": { "constant": 0.0, "min": 0.0, "max": 0.0 }
+        },
+        "colorOverLifetime": {
+            "enabled": false,
+            "gradient": []
+        },
+        "sizeOverLifetime": {
+            "enabled": false,
+            "curve": []
+        },
+        "rotationOverLifetime": {
+            "enabled": false,
+            "curve": []
+        },
+        "lifetime": {
+            "min": 1.0,
+            "max": 3.0
+        },
+        "gravity": { "x": 0.0, "y": -9.81, "z": 0.0 },
+        "simulationSpace": "world",
+        "scalingMode": "local",
+        "playOnAwake": true,
+        "looping": true,
+        "isPlaying": false,
+        "time": 0.0,
+        "emitAccumulator": 0.0
+    }
+}
+
+/// Set max particles.
+pub fn setMaxParticles(system, max) {
+    system["maxParticles"] = max
+    return system
+}
+
+/// Set emission rate (particles per second).
+pub fn setEmissionRate(system, rate) {
+    system["emission"]["rate"] = rate
+    system["emission"]["rateOverTime"] = rate
+    return system
+}
+
+/// Set particle lifetime range.
+pub fn setLifetime(system, min, max) {
+    if max == null || max == undefined { max = min }
+    system["lifetime"]["min"] = min
+    system["lifetime"]["max"] = max
+    return system
+}
+
+/// Set gravity for particles.
+pub fn setGravity(system, x, y, z) {
+    system["gravity"] = { "x": x, "y": y, "z": z }
+    return system
+}
+
+/// Set velocity range.
+pub fn setVelocity(system, xMin, xMax, yMin, yMax, zMin, zMax) {
+    system["velocity"]["x"]["min"] = xMin
+    system["velocity"]["x"]["max"] = xMax
+    system["velocity"]["y"]["min"] = yMin
+    system["velocity"]["y"]["max"] = yMax
+    system["velocity"]["z"]["min"] = zMin
+    system["velocity"]["z"]["max"] = zMax
+    return system
+}
+
+/// Set emitter shape (cone, sphere, box, circle).
+pub fn setEmitterShape(system, shapeType, angle, radius) {
+    if angle == null || angle == undefined { angle = 25.0 }
+    if radius == null || radius == undefined { radius = 1.0 }
+    system["shape"]["type"] = shapeType
+    system["shape"]["angle"] = angle
+    system["shape"]["radius"] = radius
+    return system
+}
+
+/// Enable color over lifetime gradient.
+pub fn setColorOverLifetime(system, gradient) {
+    system["colorOverLifetime"]["enabled"] = true
+    system["colorOverLifetime"]["gradient"] = gradient
+    return system
+}
+
+/// Enable size over lifetime curve.
+pub fn setSizeOverLifetime(system, curve) {
+    system["sizeOverLifetime"]["enabled"] = true
+    system["sizeOverLifetime"]["curve"] = curve
+    return system
+}
+
+/// Enable rotation over lifetime curve.
+pub fn setRotationOverLifetime(system, curve) {
+    system["rotationOverLifetime"]["enabled"] = true
+    system["rotationOverLifetime"]["curve"] = curve
+    return system
+}
+
+/// Create color gradient keyframe.
+pub fn createColorKey(time, r, g, b, a) {
+    if a == null || a == undefined { a = 1.0 }
+    return { "time": time, "color": { "r": r, "g": g, "b": b, "a": a } }
+}
+
+/// Create size curve keyframe.
+pub fn createSizeKey(time, size) {
+    return { "time": time, "size": size }
+}
+
+/// Sample color gradient at time.
+pub fn sampleGradient(gradient, time) {
+    if len(gradient) == 0 {
+        return { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 }
+    }
+    
+    if time <= gradient[0]["time"] {
+        return gradient[0]["color"]
+    }
+    if time >= gradient[len(gradient) - 1]["time"] {
+        return gradient[len(gradient) - 1]["color"]
+    }
+    
+    let i = 0
+    while i < len(gradient) - 1 {
+        if time >= gradient[i]["time"] && time <= gradient[i + 1]["time"] {
+            let t = (time - gradient[i]["time"]) / (gradient[i + 1]["time"] - gradient[i]["time"])
+            let c1 = gradient[i]["color"]
+            let c2 = gradient[i + 1]["color"]
+            return {
+                "r": lerp(c1["r"], c2["r"], t),
+                "g": lerp(c1["g"], c2["g"], t),
+                "b": lerp(c1["b"], c2["b"], t),
+                "a": lerp(c1["a"], c2["a"], t)
+            }
+        }
+        i = i + 1
+    }
+    
+    return gradient[len(gradient) - 1]["color"]
+}
+
+/// Sample curve at time.
+pub fn sampleCurve(curve, time) {
+    if len(curve) == 0 {
+        return 1.0
+    }
+    
+    if time <= curve[0]["time"] {
+        return curve[0]["size"]
+    }
+    if time >= curve[len(curve) - 1]["time"] {
+        return curve[len(curve) - 1]["size"]
+    }
+    
+    let i = 0
+    while i < len(curve) - 1 {
+        if time >= curve[i]["time"] && time <= curve[i + 1]["time"] {
+            let t = (time - curve[i]["time"]) / (curve[i + 1]["time"] - curve[i]["time"])
+            return lerp(curve[i]["size"], curve[i + 1]["size"], t)
+        }
+        i = i + 1
+    }
+    
+    return curve[len(curve) - 1]["size"]
+}
+
+/// Play particle system.
+pub fn play(system) {
+    system["isPlaying"] = true
+    return system
+}
+
+/// Stop particle system.
+pub fn stop(system, clear) {
+    system["isPlaying"] = false
+    if clear == true {
+        system["particles"] = []
+    }
+    return system
+}
+
+/// Pause particle system.
+pub fn pause(system) {
+    system["isPlaying"] = false
+    return system
+}
+
+/// Emit burst of particles.
+pub fn emit(system, count, position) {
+    let i = 0
+    while i < count {
+        if len(system["particles"]) >= system["maxParticles"] {
+            i = count
+        } else {
+            let particle = createParticle(system, position)
+            system["particles"] = push(system["particles"], particle)
+        }
+        i = i + 1
+    }
+    return system
+}
+
+fn createParticle(system, position) {
+    let lifetime = system["lifetime"]["min"] + (system["lifetime"]["max"] - system["lifetime"]["min"]) * ((i * 12345.6789) % 1.0)
+    
+    let vx = system["velocity"]["x"]["min"] + (system["velocity"]["x"]["max"] - system["velocity"]["x"]["min"]) * ((i * 54321.1234) % 1.0)
+    let vy = system["velocity"]["y"]["min"] + (system["velocity"]["y"]["max"] - system["velocity"]["y"]["min"]) * ((i * 98765.4321) % 1.0)
+    let vz = system["velocity"]["z"]["min"] + (system["velocity"]["z"]["max"] - system["velocity"]["z"]["min"]) * ((i * 13579.2468) % 1.0)
+    
+    let px = position["x"]
+    let py = position["y"]
+    let pz = position["z"]
+    
+    let shape = system["shape"]
+    if shape["type"] == "sphere" {
+        let theta = ((i * 11111.2222) % 1.0) * 6.28318
+        let phi = ((i * 33333.4444) % 1.0) * 3.14159
+        let r = shape["radius"] * ((i * 55555.6666) % 1.0)
+        px = px + r * sin(phi) * cos(theta)
+        py = py + r * sin(phi) * sin(theta)
+        pz = pz + r * cos(phi)
+    } else if shape["type"] == "cone" {
+        let angle = shape["angle"] * 3.14159 / 180.0
+        let theta = ((i * 77777.8888) % 1.0) * 6.28318
+        let r = shape["radius"] * ((i * 99999.0000) % 1.0)
+        let h = r / tan(angle)
+        px = px + r * cos(theta)
+        py = py + h
+        pz = pz + r * sin(theta)
+    }
+    
+    return {
+        "position": { "x": px, "y": py, "z": pz },
+        "velocity": { "x": vx, "y": vy, "z": vz },
+        "lifetime": lifetime,
+        "age": 0.0,
+        "color": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+        "size": 1.0,
+        "rotation": 0.0
+    }
+}
+
+/// Update particle system (call each frame with delta time).
+pub fn updateParticleSystem(system, dt, position) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    if position == null || position == undefined { position = { "x": 0.0, "y": 0.0, "z": 0.0 } }
+    
+    if system["isPlaying"] != true {
+        return system
+    }
+    
+    system["time"] = system["time"] + dt
+    
+    let emitRate = system["emission"]["rateOverTime"]
+    system["emitAccumulator"] = system["emitAccumulator"] + emitRate * dt
+    
+    let emitCount = floor(system["emitAccumulator"])
+    if emitCount > 0 {
+        system = emit(system, emitCount, position)
+        system["emitAccumulator"] = system["emitAccumulator"] - emitCount
+    }
+    
+    let aliveParticles = []
+    let i = 0
+    while i < len(system["particles"]) {
+        let p = system["particles"][i]
+        p["age"] = p["age"] + dt
+        
+        if p["age"] < p["lifetime"] {
+            let lifeFraction = p["age"] / p["lifetime"]
+            
+            p["velocity"]["x"] = p["velocity"]["x"] + system["gravity"]["x"] * dt
+            p["velocity"]["y"] = p["velocity"]["y"] + system["gravity"]["y"] * dt
+            p["velocity"]["z"] = p["velocity"]["z"] + system["gravity"]["z"] * dt
+            
+            p["position"]["x"] = p["position"]["x"] + p["velocity"]["x"] * dt
+            p["position"]["y"] = p["position"]["y"] + p["velocity"]["y"] * dt
+            p["position"]["z"] = p["position"]["z"] + p["velocity"]["z"] * dt
+            
+            if system["colorOverLifetime"]["enabled"] == true {
+                let color = sampleGradient(system["colorOverLifetime"]["gradient"], lifeFraction)
+                p["color"] = color
+            }
+            
+            if system["sizeOverLifetime"]["enabled"] == true {
+                let size = sampleCurve(system["sizeOverLifetime"]["curve"], lifeFraction)
+                p["size"] = size
+            }
+            
+            if system["rotationOverLifetime"]["enabled"] == true {
+                let rotation = sampleCurve(system["rotationOverLifetime"]["curve"], lifeFraction)
+                p["rotation"] = rotation
+            }
+            
+            aliveParticles = push(aliveParticles, p)
+        }
+        i = i + 1
+    }
+    
+    system["particles"] = aliveParticles
+    return system
+}
+
+/// Get particle count.
+pub fn getParticleCount(system) {
+    return len(system["particles"])
+}
+
+/// Clear all particles.
+pub fn clearParticles(system) {
+    system["particles"] = []
+    system["time"] = 0.0
+    system["emitAccumulator"] = 0.0
+    return system
+}
+
+/// GPU particle system descriptor for compute shader.
+pub fn createGPUParticleSystem(maxParticles) {
+    if maxParticles == null || maxParticles == undefined { maxParticles = 10000 }
+    return {
+        "kind": "GPUParticleSystem",
+        "maxParticles": maxParticles,
+        "computeShader": null,
+        "renderShader": null,
+        "structuredBuffer": null,
+        "indirectArgs": null,
+        "useCompute": true
+    }
+}
+
+/// Set compute shader for GPU particles.
+pub fn setComputeShader(system, shaderPath) {
+    system["computeShader"] = shaderPath
+    return system
+}
+
+/// Set render shader for GPU particles.
+pub fn setRenderShader(system, shaderPath) {
+    system["renderShader"] = shaderPath
+    return system
+}
+
+/// Particle collision with world.
+pub fn enableParticleCollision(system, bounce, lifetimeLoss) {
+    if bounce == null || bounce == undefined { bounce = 0.5 }
+    if lifetimeLoss == null || lifetimeLoss == undefined { lifetimeLoss = 0.1 }
+    system["collision"] = {
+        "enabled": true,
+        "bounce": bounce,
+        "lifetimeLoss": lifetimeLoss
+    }
+    return system
+}
+
+/// Particle trails.
+pub fn enableParticleTrails(system, lifetime, width, color) {
+    if lifetime == null || lifetime == undefined { lifetime = 0.5 }
+    if width == null || width == undefined { width = 0.1 }
+    if color == null || color == undefined { color = { "r": 1.0, "g": 1.0, "b": 1.0, "a": 0.5 } }
+    system["trails"] = {
+        "enabled": true,
+        "lifetime": lifetime,
+        "width": width,
+        "color": color
+    }
+    return system
+}
+
+/// Noise module for turbulence.
+pub fn enableParticleNoise(system, strength, frequency) {
+    if strength == null || strength == undefined { strength = 1.0 }
+    if frequency == null || frequency == undefined { frequency = 0.1 }
+    system["noise"] = {
+        "enabled": true,
+        "strength": strength,
+        "frequency": frequency
+    }
+    return system
+}
+
+/// Create common particle presets.
+pub fn createFirePreset() {
+    let system = createParticleSystem()
+    system = setEmissionRate(system, 50)
+    system = setLifetime(system, 0.5, 2.0)
+    system = setVelocity(system, -0.5, 0.5, 1.0, 3.0, -0.5, 0.5)
+    system = setGravity(system, 0.0, -0.5, 0.0)
+    
+    let gradient = [
+        createColorKey(0.0, 1.0, 0.2, 0.0, 1.0),
+        createColorKey(0.3, 1.0, 0.8, 0.0, 0.8),
+        createColorKey(0.7, 1.0, 0.3, 0.0, 0.4),
+        createColorKey(1.0, 0.1, 0.1, 0.1, 0.0)
+    ]
+    system = setColorOverLifetime(system, gradient)
+    
+    let sizeCurve = [
+        createSizeKey(0.0, 0.2),
+        createSizeKey(0.2, 1.0),
+        createSizeKey(1.0, 0.0)
+    ]
+    system = setSizeOverLifetime(system, sizeCurve)
+    
+    return system
+}
+
+pub fn createSmokePreset() {
+    let system = createParticleSystem()
+    system = setEmissionRate(system, 20)
+    system = setLifetime(system, 2.0, 5.0)
+    system = setVelocity(system, -0.3, 0.3, 0.5, 1.5, -0.3, 0.3)
+    system = setGravity(system, 0.0, -0.2, 0.0)
+    
+    let gradient = [
+        createColorKey(0.0, 0.5, 0.5, 0.5, 0.8),
+        createColorKey(0.5, 0.4, 0.4, 0.4, 0.4),
+        createColorKey(1.0, 0.2, 0.2, 0.2, 0.0)
+    ]
+    system = setColorOverLifetime(system, gradient)
+    
+    let sizeCurve = [
+        createSizeKey(0.0, 0.5),
+        createSizeKey(0.5, 2.0),
+        createSizeKey(1.0, 3.0)
+    ]
+    system = setSizeOverLifetime(system, sizeCurve)
+    
+    return system
+}
+
+pub fn createExplosionPreset() {
+    let system = createParticleSystem()
+    system = setEmissionRate(system, 100)
+    system = setLifetime(system, 0.3, 1.0)
+    system = setVelocity(system, -5.0, 5.0, -5.0, 5.0, -5.0, 5.0)
+    system = setGravity(system, 0.0, -2.0, 0.0)
+    system["looping"] = false
+    
+    let gradient = [
+        createColorKey(0.0, 1.0, 1.0, 0.5, 1.0),
+        createColorKey(0.2, 1.0, 0.5, 0.0, 0.8),
+        createColorKey(0.5, 0.5, 0.2, 0.0, 0.4),
+        createColorKey(1.0, 0.1, 0.1, 0.1, 0.0)
+    ]
+    system = setColorOverLifetime(system, gradient)
+    
+    let sizeCurve = [
+        createSizeKey(0.0, 1.0),
+        createSizeKey(0.3, 0.5),
+        createSizeKey(1.0, 0.0)
+    ]
+    system = setSizeOverLifetime(system, sizeCurve)
+    
+    return system
+}
+
+pub fn createSparklePreset() {
+    let system = createParticleSystem()
+    system = setEmissionRate(system, 30)
+    system = setLifetime(system, 0.5, 1.5)
+    system = setVelocity(system, -2.0, 2.0, -2.0, 2.0, -2.0, 2.0)
+    system = setGravity(system, 0.0, -5.0, 0.0)
+    
+    let gradient = [
+        createColorKey(0.0, 1.0, 1.0, 1.0, 1.0),
+        createColorKey(0.5, 1.0, 0.9, 0.5, 0.8),
+        createColorKey(1.0, 1.0, 0.5, 0.0, 0.0)
+    ]
+    system = setColorOverLifetime(system, gradient)
+    
+    let sizeCurve = [
+        createSizeKey(0.0, 0.1),
+        createSizeKey(0.5, 0.2),
+        createSizeKey(1.0, 0.0)
+    ]
+    system = setSizeOverLifetime(system, sizeCurve)
+    
+    return system
+}

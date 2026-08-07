@@ -127,3 +127,363 @@ pub fn describePipeline(pipeline) {
     }
     return { "enabled": pipeline["enabled"], "passes": names, "count": len(names) }
 }
+
+/// Depth of Field pass (bokeh effect).
+pub fn dofPass(focusDistance, aperture, focalLength) {
+    if focusDistance == null || focusDistance == undefined { focusDistance = 10.0 }
+    if aperture == null || aperture == undefined { aperture = 5.6 }
+    if focalLength == null || focalLength == undefined { focalLength = 50.0 }
+    return {
+        "kind": "dof",
+        "focusDistance": focusDistance,
+        "aperture": aperture,
+        "focalLength": focalLength,
+        "maxBlurSize": 0.5
+    }
+}
+
+/// Motion blur pass.
+pub fn motionBlurPass(shutterAngle, sampleCount) {
+    if shutterAngle == null || shutterAngle == undefined { shutterAngle = 270.0 }
+    if sampleCount == null || sampleCount == undefined { sampleCount = 8 }
+    return {
+        "kind": "motionBlur",
+        "shutterAngle": shutterAngle,
+        "sampleCount": sampleCount
+    }
+}
+
+/// Chromatic aberration pass.
+pub fn chromaticAberrationPass(intensity) {
+    if intensity == null || intensity == undefined { intensity = 0.1 }
+    return {
+        "kind": "chromaticAberration",
+        "intensity": intensity
+    }
+}
+
+/// Color grading pass (LUT-based).
+pub fn colorGradingPass(lutPath, exposure, contrast, saturation) {
+    if exposure == null || exposure == undefined { exposure = 0.0 }
+    if contrast == null || contrast == undefined { contrast = 0.0 }
+    if saturation == null || saturation == undefined { saturation = 0.0 }
+    return {
+        "kind": "colorGrading",
+        "lut": lutPath,
+        "exposure": exposure,
+        "contrast": contrast,
+        "saturation": saturation
+    }
+}
+
+/// Film grain pass.
+pub fn filmGrainPass(intensity, size) {
+    if intensity == null || intensity == undefined { intensity = 0.1 }
+    if size == null || size == undefined { size = 1.0 }
+    return {
+        "kind": "filmGrain",
+        "intensity": intensity,
+        "size": size
+    }
+}
+
+/// Screen space ambient occlusion (SSAO).
+pub fn ssaoPass(radius, bias, intensity) {
+    if radius == null || radius == undefined { radius = 0.5 }
+    if bias == null || bias == undefined { bias = 0.025 }
+    if intensity == null || intensity == undefined { intensity = 1.0 }
+    return {
+        "kind": "ssao",
+        "radius": radius,
+        "bias": bias,
+        "intensity": intensity,
+        "sampleCount": 16
+    }
+}
+
+/// Screen space reflections (SSR).
+pub fn ssrPass(maxDistance, resolution, thickness) {
+    if maxDistance == null || maxDistance == undefined { maxDistance = 100.0 }
+    if resolution == null || resolution == undefined { resolution = 0.5 }
+    if thickness == null || thickness == undefined { thickness = 0.1 }
+    return {
+        "kind": "ssr",
+        "maxDistance": maxDistance,
+        "resolution": resolution,
+        "thickness": thickness,
+        "steps": 64
+    }
+}
+
+/// Lens flare pass.
+pub fn lensFlarePass(intensity, ghostCount, dispersion) {
+    if intensity == null || intensity == undefined { intensity = 0.5 }
+    if ghostCount == null || ghostCount == undefined { ghostCount = 4 }
+    if dispersion == null || dispersion == undefined { dispersion = 0.5 }
+    return {
+        "kind": "lensFlare",
+        "intensity": intensity,
+        "ghostCount": ghostCount,
+        "dispersion": dispersion
+    }
+}
+
+/// Ambient occlusion pass (simplified CPU version).
+pub fn applySSAO(colors, width, height, radius, bias, intensity) {
+    if radius == null || radius == undefined { radius = 0.5 }
+    if bias == null || bias == undefined { bias = 0.025 }
+    if intensity == null || intensity == undefined { intensity = 1.0 }
+    
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let x = i % width
+        let y = floor(i / width)
+        
+        let occlusion = 0.0
+        let sampleCount = 4
+        let j = 0
+        while j < sampleCount {
+            let angle = (j / sampleCount) * 6.28318
+            let sx = x + cos(angle) * radius * 2.0
+            let sy = y + sin(angle) * radius * 2.0
+            
+            if sx >= 0.0 && sx < width && sy >= 0.0 && sy < height {
+                let si = floor(sy) * width + floor(sx)
+                if si >= 0 && si < len(colors) {
+                    let depthA = colors[i][0]
+                    let depthB = colors[si][0]
+                    if depthB - depthA > bias {
+                        occlusion = occlusion + 1.0
+                    }
+                }
+            }
+            j = j + 1
+        }
+        
+        occlusion = 1.0 - (occlusion / sampleCount) * intensity
+        if occlusion < 0.0 { occlusion = 0.0 }
+        if occlusion > 1.0 { occlusion = 1.0 }
+        
+        let c = colors[i]
+        out = push(out, [c[0] * occlusion, c[1] * occlusion, c[2] * occlusion])
+        i = i + 1
+    }
+    return out
+}
+
+/// Color grading (exposure, contrast, saturation).
+pub fn applyColorGrading(colors, exposure, contrast, saturation) {
+    if exposure == null || exposure == undefined { exposure = 0.0 }
+    if contrast == null || contrast == undefined { contrast = 0.0 }
+    if saturation == null || saturation == undefined { saturation = 0.0 }
+    
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let c = colors[i]
+        
+        let r = c[0] * pow(2.0, exposure)
+        let g = c[1] * pow(2.0, exposure)
+        let b = c[2] * pow(2.0, exposure)
+        
+        let factor = (259.0 * (contrast + 255.0)) / (255.0 * (259.0 - contrast))
+        r = factor * (r * 255.0 - 128.0) + 128.0
+        g = factor * (g * 255.0 - 128.0) + 128.0
+        b = factor * (b * 255.0 - 128.0) + 128.0
+        
+        r = r / 255.0
+        g = g / 255.0
+        b = b / 255.0
+        
+        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        let satMult = 1.0 + saturation
+        r = gray + satMult * (r - gray)
+        g = gray + satMult * (g - gray)
+        b = gray + satMult * (b - gray)
+        
+        if r < 0.0 { r = 0.0 }
+        if r > 1.0 { r = 1.0 }
+        if g < 0.0 { g = 0.0 }
+        if g > 1.0 { g = 1.0 }
+        if b < 0.0 { b = 0.0 }
+        if b > 1.0 { b = 1.0 }
+        
+        out = push(out, [r, g, b])
+        i = i + 1
+    }
+    return out
+}
+
+/// ACES tone mapping (filmic curve).
+pub fn applyACESTonemap(colors, exposure) {
+    if exposure == null || exposure == undefined { exposure = 1.0 }
+    
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let c = colors[i]
+        let r = c[0] * exposure
+        let g = c[1] * exposure
+        let b = c[2] * exposure
+        
+        r = aces(r)
+        g = aces(g)
+        b = aces(b)
+        
+        out = push(out, [r, g, b])
+        i = i + 1
+    }
+    return out
+}
+
+fn aces(x) {
+    let a = 2.51
+    let b = 0.03
+    let c = 2.43
+    let d = 0.59
+    let e = 0.14
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0)
+}
+
+/// Film grain effect.
+pub fn applyFilmGrain(colors, intensity, seed) {
+    if intensity == null || intensity == undefined { intensity = 0.1 }
+    if seed == null || seed == undefined { seed = 0.0 }
+    
+    let out = []
+    let i = 0
+    while i < len(colors) {
+        let c = colors[i]
+        let noise = ((i + seed) * 12345.6789) % 1.0
+        noise = (noise - 0.5) * 2.0 * intensity
+        
+        let r = c[0] + noise
+        let g = c[1] + noise
+        let b = c[2] + noise
+        
+        if r < 0.0 { r = 0.0 }
+        if r > 1.0 { r = 1.0 }
+        if g < 0.0 { g = 0.0 }
+        if g > 1.0 { g = 1.0 }
+        if b < 0.0 { b = 0.0 }
+        if b > 1.0 { b = 1.0 }
+        
+        out = push(out, [r, g, b])
+        i = i + 1
+    }
+    return out
+}
+
+/// Chromatic aberration effect.
+pub fn applyChromaticAberration(colors, width, height, intensity) {
+    if intensity == null || intensity == undefined { intensity = 0.1 }
+    
+    let out = []
+    let cx = width / 2.0
+    let cy = height / 2.0
+    let maxDist = sqrt(cx * cx + cy * cy)
+    
+    let i = 0
+    while i < len(colors) {
+        let x = i % width
+        let y = floor(i / width)
+        
+        let dx = x - cx
+        let dy = y - cy
+        let dist = sqrt(dx * dx + dy * dy)
+        let offset = (dist / maxDist) * intensity * 5.0
+        
+        let rOffset = offset
+        let gOffset = 0.0
+        let bOffset = -offset
+        
+        let r = 0.5
+        let g = 0.5
+        let b = 0.5
+        
+        let ri = i + rOffset
+        let gi = i
+        let bi = i + bOffset
+        
+        if ri >= 0 && ri < len(colors) {
+            r = colors[ri][0]
+        }
+        if gi >= 0 && gi < len(colors) {
+            g = colors[gi][1]
+        }
+        if bi >= 0 && bi < len(colors) {
+            b = colors[bi][2]
+        }
+        
+        out = push(out, [r, g, b])
+        i = i + 1
+    }
+    return out
+}
+
+/// Apply full post-processing pipeline.
+pub fn applyPipeline(colors, width, height, pipeline) {
+    if pipeline["enabled"] != true {
+        return colors
+    }
+    
+    let result = colors
+    let i = 0
+    while i < len(pipeline["passes"]) {
+        let pass = pipeline["passes"][i]
+        
+        if pass["kind"] == "tonemap" {
+            result = applyTonemap(result, pass["exposure"])
+        } else if pass["kind"] == "aces" {
+            result = applyACESTonemap(result, pass["exposure"])
+        } else if pass["kind"] == "bloom" {
+            result = applyBloomThreshold(result, pass["threshold"])
+        } else if pass["kind"] == "vignette" {
+            result = applyVignette(result, width, height, pass["intensity"])
+        } else if pass["kind"] == "colorGrading" {
+            result = applyColorGrading(result, pass["exposure"], pass["contrast"], pass["saturation"])
+        } else if pass["kind"] == "ssao" {
+            result = applySSAO(result, width, height, pass["radius"], pass["bias"], pass["intensity"])
+        } else if pass["kind"] == "filmGrain" {
+            result = applyFilmGrain(result, pass["intensity"], 0.0)
+        } else if pass["kind"] == "chromaticAberration" {
+            result = applyChromaticAberration(result, width, height, pass["intensity"])
+        }
+        
+        i = i + 1
+    }
+    
+    return result
+}
+
+/// Create cinematic preset pipeline.
+pub fn createCinematicPreset() {
+    let pipeline = createPipeline()
+    pipeline = addPass(pipeline, tonemapPass(1.2))
+    pipeline = addPass(pipeline, bloomPass(0.8, 0.6, 1.5))
+    pipeline = addPass(pipeline, colorGradingPass(null, 0.1, 0.15, 0.1))
+    pipeline = addPass(pipeline, vignettePass(0.4, 0.5))
+    pipeline = addPass(pipeline, filmGrainPass(0.05, 1.0))
+    return pipeline
+}
+
+/// Create realistic preset pipeline.
+pub fn createRealisticPreset() {
+    let pipeline = createPipeline()
+    pipeline = addPass(pipeline, tonemapPass(1.0))
+    pipeline = addPass(pipeline, ssaoPass(0.5, 0.025, 1.0))
+    pipeline = addPass(pipeline, colorGradingPass(null, 0.0, 0.05, 0.0))
+    pipeline = addPass(pipeline, fxaaPass())
+    return pipeline
+}
+
+/// Create stylized preset pipeline.
+pub fn createStylizedPreset() {
+    let pipeline = createPipeline()
+    pipeline = addPass(pipeline, tonemapPass(1.3))
+    pipeline = addPass(pipeline, bloomPass(0.6, 0.8, 2.0))
+    pipeline = addPass(pipeline, colorGradingPass(null, 0.2, 0.3, 0.4))
+    pipeline = addPass(pipeline, vignettePass(0.5, 0.6))
+    return pipeline
+}

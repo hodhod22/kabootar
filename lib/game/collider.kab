@@ -1,0 +1,310 @@
+@version "1.0.0"
+
+// Kabootar game/collider - Unity-like collider system (Box, Sphere, Capsule, Mesh).
+// import "game/collider"
+
+/// Create a box collider centered at position.
+pub fn createBoxCollider(centerX, centerY, centerZ, sizeX, sizeY, sizeZ) {
+    if centerX == null || centerX == undefined { centerX = 0.0 }
+    if centerY == null || centerY == undefined { centerY = 0.0 }
+    if centerZ == null || centerZ == undefined { centerZ = 0.0 }
+    if sizeX == null || sizeX == undefined { sizeX = 1.0 }
+    if sizeY == null || sizeY == undefined { sizeY = 1.0 }
+    if sizeZ == null || sizeZ == undefined { sizeZ = 1.0 }
+    return {
+        "kind": "Collider",
+        "type": "box",
+        "center": { "x": centerX, "y": centerY, "z": centerZ },
+        "size": { "x": sizeX, "y": sizeY, "z": sizeZ },
+        "isTrigger": false,
+        "layer": 0,
+        "enabled": true
+    }
+}
+
+/// Create a sphere collider.
+pub fn createSphereCollider(centerX, centerY, centerZ, radius) {
+    if centerX == null || centerX == undefined { centerX = 0.0 }
+    if centerY == null || centerY == undefined { centerY = 0.0 }
+    if centerZ == null || centerZ == undefined { centerZ = 0.0 }
+    if radius == null || radius == undefined { radius = 0.5 }
+    return {
+        "kind": "Collider",
+        "type": "sphere",
+        "center": { "x": centerX, "y": centerY, "z": centerZ },
+        "radius": radius,
+        "isTrigger": false,
+        "layer": 0,
+        "enabled": true
+    }
+}
+
+/// Create a capsule collider (height along Y axis).
+pub fn createCapsuleCollider(centerX, centerY, centerZ, radius, height) {
+    if centerX == null || centerX == undefined { centerX = 0.0 }
+    if centerY == null || centerY == undefined { centerY = 0.0 }
+    if centerZ == null || centerZ == undefined { centerZ = 0.0 }
+    if radius == null || radius == undefined { radius = 0.5 }
+    if height == null || height == undefined { height = 2.0 }
+    return {
+        "kind": "Collider",
+        "type": "capsule",
+        "center": { "x": centerX, "y": centerY, "z": centerZ },
+        "radius": radius,
+        "height": height,
+        "direction": 1,
+        "isTrigger": false,
+        "layer": 0,
+        "enabled": true
+    }
+}
+
+/// Create a mesh collider from vertices (simplified: uses AABB for now).
+pub fn createMeshCollider(centerX, centerY, centerZ, vertices) {
+    if centerX == null || centerX == undefined { centerX = 0.0 }
+    if centerY == null || centerY == undefined { centerY = 0.0 }
+    if centerZ == null || centerZ == undefined { centerZ = 0.0 }
+    if vertices == null || vertices == undefined { vertices = [] }
+    
+    let minX = 999999.0
+    let minY = 999999.0
+    let minZ = 999999.0
+    let maxX = -999999.0
+    let maxY = -999999.0
+    let maxZ = -999999.0
+    
+    let i = 0
+    while i < len(vertices) {
+        let v = vertices[i]
+        if v["x"] < minX { minX = v["x"] }
+        if v["y"] < minY { minY = v["y"] }
+        if v["z"] < minZ { minZ = v["z"] }
+        if v["x"] > maxX { maxX = v["x"] }
+        if v["y"] > maxY { maxY = v["y"] }
+        if v["z"] > maxZ { maxZ = v["z"] }
+        i = i + 1
+    }
+    
+    let sizeX = maxX - minX
+    let sizeY = maxY - minY
+    let sizeZ = maxZ - minZ
+    
+    return {
+        "kind": "Collider",
+        "type": "mesh",
+        "center": { "x": centerX, "y": centerY, "z": centerZ },
+        "bounds": { "min": { "x": minX, "y": minY, "z": minZ }, "max": { "x": maxX, "y": maxY, "z": maxZ } },
+        "size": { "x": sizeX, "y": sizeY, "z": sizeZ },
+        "vertices": vertices,
+        "isTrigger": false,
+        "layer": 0,
+        "enabled": true
+    }
+}
+
+/// Set collider as trigger (no physics response, only events).
+pub fn setColliderTrigger(col, isTrigger) {
+    col["isTrigger"] = isTrigger == true
+    return col
+}
+
+/// Set collider layer for collision filtering.
+pub fn setColliderLayer(col, layer) {
+    col["layer"] = layer
+    return col
+}
+
+/// Enable/disable collider.
+pub fn setColliderEnabled(col, enabled) {
+    col["enabled"] = enabled == true
+    return col
+}
+
+/// Get collider bounds (AABB).
+pub fn getColliderBounds(col) {
+    let c = col["center"]
+    if col["type"] == "box" {
+        let s = col["size"]
+        return {
+            "min": { "x": c["x"] - s["x"] * 0.5, "y": c["y"] - s["y"] * 0.5, "z": c["z"] - s["z"] * 0.5 },
+            "max": { "x": c["x"] + s["x"] * 0.5, "y": c["y"] + s["y"] * 0.5, "z": c["z"] + s["z"] * 0.5 }
+        }
+    }
+    if col["type"] == "sphere" {
+        let r = col["radius"]
+        return {
+            "min": { "x": c["x"] - r, "y": c["y"] - r, "z": c["z"] - r },
+            "max": { "x": c["x"] + r, "y": c["y"] + r, "z": c["z"] + r }
+        }
+    }
+    if col["type"] == "capsule" {
+        let r = col["radius"]
+        let h = col["height"]
+        return {
+            "min": { "x": c["x"] - r, "y": c["y"] - h * 0.5, "z": c["z"] - r },
+            "max": { "x": c["x"] + r, "y": c["y"] + h * 0.5, "z": c["z"] + r }
+        }
+    }
+    if col["type"] == "mesh" {
+        return col["bounds"]
+    }
+    return { "min": { "x": 0.0, "y": 0.0, "z": 0.0 }, "max": { "x": 0.0, "y": 0.0, "z": 0.0 } }
+}
+
+/// Check if point is inside collider.
+pub fn colliderContainsPoint(col, px, py, pz) {
+    if col["enabled"] != true { return false }
+    let bounds = getColliderBounds(col)
+    return px >= bounds["min"]["x"] && px <= bounds["max"]["x"]
+        && py >= bounds["min"]["y"] && py <= bounds["max"]["y"]
+        && pz >= bounds["min"]["z"] && pz <= bounds["max"]["z"]
+}
+
+/// AABB overlap test between two colliders.
+pub fn colliderOverlap(a, b) {
+    if a["enabled"] != true || b["enabled"] != true { return false }
+    
+    let ba = getColliderBounds(a)
+    let bb = getColliderBounds(b)
+    
+    return ba["min"]["x"] <= bb["max"]["x"] && ba["max"]["x"] >= bb["min"]["x"]
+        && ba["min"]["y"] <= bb["max"]["y"] && ba["max"]["y"] >= bb["min"]["y"]
+        && ba["min"]["z"] <= bb["max"]["z"] && ba["max"]["z"] >= bb["min"]["z"]
+}
+
+/// Sphere-sphere overlap test.
+pub fn sphereOverlap(colA, colB) {
+    if colA["enabled"] != true || colB["enabled"] != true { return false }
+    if colA["type"] != "sphere" || colB["type"] != "sphere" { return false }
+    
+    let ca = colA["center"]
+    let cb = colB["center"]
+    let ra = colA["radius"]
+    let rb = colB["radius"]
+    
+    let dx = ca["x"] - cb["x"]
+    let dy = ca["y"] - cb["y"]
+    let dz = ca["z"] - cb["z"]
+    let distSq = dx * dx + dy * dy + dz * dz
+    let rSum = ra + rb
+    
+    return distSq <= rSum * rSum
+}
+
+/// Raycast against collider (returns {hit, point, normal} or null).
+pub fn colliderRaycast(col, origin, dir, maxDist) {
+    if col["enabled"] != true { return null }
+    if maxDist == null || maxDist == undefined { maxDist = 1000.0 }
+    
+    let bounds = getColliderBounds(col)
+    
+    let ox = origin["x"]
+    let oy = origin["y"]
+    let oz = origin["z"]
+    let dx = dir["x"]
+    let dy = dir["y"]
+    let dz = dir["z"]
+    
+    let tmin = 0.0
+    let tmax = maxDist
+    
+    if dx == 0.0 {
+        if ox < bounds["min"]["x"] || ox > bounds["max"]["x"] { return null }
+    } else {
+        let tx1 = (bounds["min"]["x"] - ox) / dx
+        let tx2 = (bounds["max"]["x"] - ox) / dx
+        let tn = tx1
+        let tf = tx2
+        if tx1 > tx2 { tn = tx2; tf = tx1 }
+        if tn > tmin { tmin = tn }
+        if tf < tmax { tmax = tf }
+        if tmin > tmax { return null }
+    }
+    
+    if dy == 0.0 {
+        if oy < bounds["min"]["y"] || oy > bounds["max"]["y"] { return null }
+    } else {
+        let ty1 = (bounds["min"]["y"] - oy) / dy
+        let ty2 = (bounds["max"]["y"] - oy) / dy
+        let tn = ty1
+        let tf = ty2
+        if ty1 > ty2 { tn = ty2; tf = ty1 }
+        if tn > tmin { tmin = tn }
+        if tf < tmax { tmax = tf }
+        if tmin > tmax { return null }
+    }
+    
+    if dz == 0.0 {
+        if oz < bounds["min"]["z"] || oz > bounds["max"]["z"] { return null }
+    } else {
+        let tz1 = (bounds["min"]["z"] - oz) / dz
+        let tz2 = (bounds["max"]["z"] - oz) / dz
+        let tn = tz1
+        let tf = tz2
+        if tz1 > tz2 { tn = tz2; tf = tz1 }
+        if tn > tmin { tmin = tn }
+        if tf < tmax { tmax = tf }
+        if tmin > tmax { return null }
+    }
+    
+    if tmin < 0.0 {
+        if tmax < 0.0 { return null }
+        tmin = 0.0
+    }
+    
+    let px = ox + dx * tmin
+    let py = oy + dy * tmin
+    let pz = oz + dz * tmin
+    
+    let nx = 0.0
+    let ny = 0.0
+    let nz = 0.0
+    
+    if abs(px - bounds["min"]["x"]) < 0.001 { nx = -1.0 }
+    else if abs(px - bounds["max"]["x"]) < 0.001 { nx = 1.0 }
+    else if abs(py - bounds["min"]["y"]) < 0.001 { ny = -1.0 }
+    else if abs(py - bounds["max"]["y"]) < 0.001 { ny = 1.0 }
+    else if abs(pz - bounds["min"]["z"]) < 0.001 { nz = -1.0 }
+    else if abs(pz - bounds["max"]["z"]) < 0.001 { nz = 1.0 }
+    
+    return {
+        "hit": true,
+        "point": { "x": px, "y": py, "z": pz },
+        "normal": { "x": nx, "y": ny, "z": nz },
+        "distance": tmin
+    }
+}
+
+/// Closest point on collider surface to given point.
+pub fn colliderClosestPoint(col, px, py, pz) {
+    if col["enabled"] != true { return { "x": px, "y": py, "z": pz } }
+    
+    let bounds = getColliderBounds(col)
+    
+    let cx = px
+    let cy = py
+    let cz = pz
+    
+    if cx < bounds["min"]["x"] { cx = bounds["min"]["x"] }
+    if cx > bounds["max"]["x"] { cx = bounds["max"]["x"] }
+    if cy < bounds["min"]["y"] { cy = bounds["min"]["y"] }
+    if cy > bounds["max"]["y"] { cy = bounds["max"]["y"] }
+    if cz < bounds["min"]["z"] { cz = bounds["min"]["z"] }
+    if cz > bounds["max"]["z"] { cz = bounds["max"]["z"] }
+    
+    return { "x": cx, "y": cy, "z": cz }
+}
+
+/// Transform collider by position and rotation (simplified: position only).
+pub fn transformCollider(col, tx, ty, tz) {
+    let c = col["center"]
+    col["center"] = { "x": c["x"] + tx, "y": c["y"] + ty, "z": c["z"] + tz }
+    if col["type"] == "mesh" {
+        let b = col["bounds"]
+        col["bounds"] = {
+            "min": { "x": b["min"]["x"] + tx, "y": b["min"]["y"] + ty, "z": b["min"]["z"] + tz },
+            "max": { "x": b["max"]["x"] + tx, "y": b["max"]["y"] + ty, "z": b["max"]["z"] + tz }
+        }
+    }
+    return col
+}

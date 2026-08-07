@@ -1,0 +1,421 @@
+@version "1.0.0"
+
+// Kabootar game/lod - Level of Detail system for performance optimization.
+// import "game/lod"
+
+/// Create LOD group for a mesh.
+pub fn createLODGroup() {
+    return {
+        "kind": "LODGroup",
+        "levels": [],
+        "currentLevel": 0,
+        "fadeMode": "none",
+        "animateCrossFading": false,
+        "crossFadeDuration": 0.3,
+        "screenRelativeTransitionHeight": 0.5
+    }
+}
+
+/// Add LOD level with screen relative height.
+pub fn addLODLevel(group, mesh, screenRelativeHeight) {
+    if screenRelativeHeight == null || screenRelativeHeight == undefined { screenRelativeHeight = 0.5 }
+    group["levels"] = push(group["levels"], {
+        "mesh": mesh,
+        "screenRelativeHeight": screenRelativeHeight,
+        "renderers": []
+    })
+    return group
+}
+
+/// Set LOD fade mode (none, dither, crossfade).
+pub fn setLODFadeMode(group, mode) {
+    group["fadeMode"] = mode
+    return group
+}
+
+/// Enable cross-fading between LODs.
+pub fn setLODCrossFading(group, enabled, duration) {
+    group["animateCrossFading"] = enabled == true
+    if duration != null && duration != undefined {
+        group["crossFadeDuration"] = duration
+    }
+    return group
+}
+
+/// Update LOD group based on camera distance.
+pub fn updateLODGroup(group, camera, objectPosition, objectSize) {
+    if objectSize == null || objectSize == undefined { objectSize = 1.0 }
+    
+    let camPos = { "x": camera["x"], "y": camera["y"], "z": camera["z"] }
+    let dx = objectPosition["x"] - camPos["x"]
+    let dy = objectPosition["y"] - camPos["y"]
+    let dz = objectPosition["z"] - camPos["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    let fovRad = camera["fov"] * 3.14159 / 180.0
+    let screenHeight = 2.0 * tan(fovRad * 0.5) * distance
+    let screenRelativeHeight = objectSize / screenHeight
+    
+    let targetLevel = 0
+    let i = 0
+    while i < len(group["levels"]) {
+        if screenRelativeHeight < group["levels"][i]["screenRelativeHeight"] {
+            targetLevel = i
+        }
+        i = i + 1
+    }
+    
+    group["currentLevel"] = targetLevel
+    return group
+}
+
+/// Get current LOD mesh.
+pub fn getCurrentLODMesh(group) {
+    if group["currentLevel"] >= len(group["levels"]) {
+        return null
+    }
+    return group["levels"][group["currentLevel"]]["mesh"]
+}
+
+/// Get LOD level by screen height.
+pub fn getLODLevelByScreenHeight(group, screenHeight) {
+    let i = 0
+    while i < len(group["levels"]) {
+        if screenHeight >= group["levels"][i]["screenRelativeHeight"] {
+            return i
+        }
+        i = i + 1
+    }
+    return len(group["levels"]) - 1
+}
+
+/// Create LOD levels from mesh with progressive simplification.
+pub fn createLODLevelsFromMesh(baseMesh, levelCount, reductionFactor) {
+    if levelCount == null || levelCount == undefined { levelCount = 3 }
+    if reductionFactor == null || reductionFactor == undefined { reductionFactor = 0.5 }
+    
+    let group = createLODGroup()
+    group = addLODLevel(group, baseMesh, 1.0)
+    
+    let i = 1
+    while i < levelCount {
+        let simplified = simplifyMesh(baseMesh, reductionFactor * i)
+        let screenHeight = 1.0 / (i + 1)
+        group = addLODLevel(group, simplified, screenHeight)
+        i = i + 1
+    }
+    
+    return group
+}
+
+/// Simplify mesh by reducing vertex count (edge collapse approximation).
+fn simplifyMesh(mesh, reductionFactor) {
+    if reductionFactor == null || reductionFactor == undefined { reductionFactor = 0.5 }
+    
+    let positions = mesh["positions"]
+    let targetCount = floor(len(positions) * (1.0 - reductionFactor))
+    
+    if targetCount < 4 {
+        return mesh
+    }
+    
+    let simplified = []
+    let step = floor(len(positions) / targetCount)
+    let i = 0
+    while i < len(positions) {
+        if i % step == 0 {
+            simplified = push(simplified, positions[i])
+        }
+        i = i + 1
+    }
+    
+    return {
+        "positions": simplified,
+        "normals": mesh["normals"],
+        "uvs": mesh["uvs"],
+        "indices": mesh["indices"]
+    }
+}
+
+/// LOD manager for scene-wide LOD management.
+pub fn createLODManager() {
+    return {
+        "groups": {},
+        "camera": null,
+        "updateInterval": 0.1,
+        "lastUpdateTime": 0.0
+    }
+}
+
+/// Add LOD group to manager.
+pub fn addLODGroupToManager(manager, objectId, group) {
+    manager["groups"]["" + objectId] = group
+    return manager
+}
+
+/// Set camera for LOD calculations.
+pub fn setLODCamera(manager, camera) {
+    manager["camera"] = camera
+    return manager
+}
+
+/// Update all LOD groups.
+pub fn updateLODManager(manager, dt, objectPositions, objectSizes) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    
+    manager["lastUpdateTime"] = manager["lastUpdateTime"] + dt
+    
+    if manager["lastUpdateTime"] < manager["updateInterval"] {
+        return manager
+    }
+    
+    manager["lastUpdateTime"] = 0.0
+    
+    if manager["camera"] == null {
+        return manager
+    }
+    
+    for key in manager["groups"] {
+        let group = manager["groups"][key]
+        let pos = objectPositions[key]
+        let size = objectSizes[key]
+        
+        if pos != null && size != null {
+            manager["groups"][key] = updateLODGroup(group, manager["camera"], pos, size)
+        }
+    }
+    
+    return manager
+}
+
+/// Imposter LOD (billboard for distant objects).
+pub fn createImposterLOD(texture, size) {
+    if size == null || size == undefined { size = 1.0 }
+    return {
+        "kind": "ImposterLOD",
+        "texture": texture,
+        "size": size,
+        "alwaysFaceCamera": true
+    }
+}
+
+/// Check if object should use imposter.
+pub fn shouldUseImposter(distance, threshold) {
+    if threshold == null || threshold == undefined { threshold = 50.0 }
+    return distance >= threshold
+}
+
+/// HLOD (Hierarchical LOD) for combining distant objects.
+pub fn createHLODGroup() {
+    return {
+        "kind": "HLODGroup",
+        "objects": [],
+        "combinedMesh": null,
+        "distanceThreshold": 100.0,
+        "enabled": true
+    }
+}
+
+/// Add object to HLOD group.
+pub fn addToHLODGroup(group, objectId, mesh, position) {
+    group["objects"] = push(group["objects"], {
+        "id": objectId,
+        "mesh": mesh,
+        "position": position
+    })
+    return group
+}
+
+/// Combine HLOD meshes into single mesh.
+pub fn combineHLODMeshes(group) {
+    let combinedPositions = []
+    let combinedNormals = []
+    let combinedUVs = []
+    let combinedIndices = []
+    let vertexOffset = 0
+    
+    let i = 0
+    while i < len(group["objects"]) {
+        let obj = group["objects"][i]
+        let mesh = obj["mesh"]
+        let pos = obj["position"]
+        
+        let j = 0
+        while j < len(mesh["positions"]) {
+            let p = mesh["positions"][j]
+            combinedPositions = push(combinedPositions, {
+                "x": p["x"] + pos["x"],
+                "y": p["y"] + pos["y"],
+                "z": p["z"] + pos["z"]
+            })
+            j = j + 1
+        }
+        
+        if mesh["normals"] != null {
+            let j = 0
+            while j < len(mesh["normals"]) {
+                combinedNormals = push(combinedNormals, mesh["normals"][j])
+                j = j + 1
+            }
+        }
+        
+        if mesh["uvs"] != null {
+            let j = 0
+            while j < len(mesh["uvs"]) {
+                combinedUVs = push(combinedUVs, mesh["uvs"][j])
+                j = j + 1
+            }
+        }
+        
+        if mesh["indices"] != null {
+            let j = 0
+            while j < len(mesh["indices"]) {
+                combinedIndices = push(combinedIndices, mesh["indices"][j] + vertexOffset)
+                j = j + 1
+            }
+        }
+        
+        vertexOffset = vertexOffset + len(mesh["positions"])
+        i = i + 1
+    }
+    
+    group["combinedMesh"] = {
+        "positions": combinedPositions,
+        "normals": combinedNormals,
+        "uvs": combinedUVs,
+        "indices": combinedIndices
+    }
+    
+    return group
+}
+
+/// Update HLOD based on camera distance.
+pub fn updateHLODGroup(group, camera) {
+    if group["enabled"] != true {
+        return group
+    }
+    
+    let camPos = { "x": camera["x"], "y": camera["y"], "z": camera["z"] }
+    
+    let i = 0
+    while i < len(group["objects"]) {
+        let obj = group["objects"][i]
+        let dx = obj["position"]["x"] - camPos["x"]
+        let dy = obj["position"]["y"] - camPos["y"]
+        let dz = obj["position"]["z"] - camPos["z"]
+        let dist = sqrt(dx * dx + dy * dy + dz * dz)
+        
+        if dist >= group["distanceThreshold"] && group["combinedMesh"] == null {
+            group = combineHLODMeshes(group)
+        }
+        
+        i = i + 1
+    }
+    
+    return group
+}
+
+/// LOD bias to prefer higher/lower quality.
+pub fn setLODBias(group, bias) {
+    if bias == null || bias == undefined { bias = 0.0 }
+    group["lodBias"] = bias
+    return group
+}
+
+/// Get effective LOD level with bias applied.
+pub fn getEffectiveLODLevel(group) {
+    let level = group["currentLevel"]
+    let bias = group["lodBias"]
+    if bias == null || bias == undefined { bias = 0.0 }
+    
+    let biasedLevel = level + floor(bias)
+    if biasedLevel < 0 { biasedLevel = 0 }
+    if biasedLevel >= len(group["levels"]) { biasedLevel = len(group["levels"]) - 1 }
+    
+    return biasedLevel
+}
+
+/// Create LOD transition curve for smooth switching.
+pub fn createLODTransitionCurve() {
+    return {
+        "points": [
+            { "distance": 0.0, "weight": 1.0 },
+            { "distance": 0.5, "weight": 0.5 },
+            { "distance": 1.0, "weight": 0.0 }
+        ]
+    }
+}
+
+/// Sample LOD transition weight.
+pub fn sampleLODTransition(curve, normalizedDistance) {
+    if normalizedDistance <= 0.0 {
+        return curve["points"][0]["weight"]
+    }
+    if normalizedDistance >= 1.0 {
+        return curve["points"][len(curve["points"]) - 1]["weight"]
+    }
+    
+    let i = 0
+    while i < len(curve["points"]) - 1 {
+        let p1 = curve["points"][i]
+        let p2 = curve["points"][i + 1]
+        
+        if normalizedDistance >= p1["distance"] && normalizedDistance <= p2["distance"] {
+            let t = (normalizedDistance - p1["distance"]) / (p2["distance"] - p1["distance"])
+            return lerp(p1["weight"], p2["weight"], t)
+        }
+        i = i + 1
+    }
+    
+    return 0.5
+}
+
+/// Auto-LOD for automatic quality adjustment based on FPS.
+pub fn createAutoLOD(targetFPS, minQuality, maxQuality) {
+    if targetFPS == null || targetFPS == undefined { targetFPS = 60.0 }
+    if minQuality == null || minQuality == undefined { minQuality = 0 }
+    if maxQuality == null || maxQuality == undefined { maxQuality = 3 }
+    
+    return {
+        "targetFPS": targetFPS,
+        "currentFPS": targetFPS,
+        "minQuality": minQuality,
+        "maxQuality": maxQuality,
+        "currentQuality": maxQuality,
+        "adjustmentInterval": 1.0,
+        "lastAdjustmentTime": 0.0
+    }
+}
+
+/// Update auto-LOD based on performance.
+pub fn updateAutoLOD(autoLOD, currentFPS, dt) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    
+    autoLOD["currentFPS"] = currentFPS
+    autoLOD["lastAdjustmentTime"] = autoLOD["lastAdjustmentTime"] + dt
+    
+    if autoLOD["lastAdjustmentTime"] < autoLOD["adjustmentInterval"] {
+        return autoLOD
+    }
+    
+    autoLOD["lastAdjustmentTime"] = 0.0
+    
+    let fpsRatio = currentFPS / autoLOD["targetFPS"]
+    
+    if fpsRatio < 0.8 {
+        if autoLOD["currentQuality"] > autoLOD["minQuality"] {
+            autoLOD["currentQuality"] = autoLOD["currentQuality"] - 1
+        }
+    } else if fpsRatio > 1.2 {
+        if autoLOD["currentQuality"] < autoLOD["maxQuality"] {
+            autoLOD["currentQuality"] = autoLOD["currentQuality"] + 1
+        }
+    }
+    
+    return autoLOD
+}
+
+/// Get current quality level from auto-LOD.
+pub fn getAutoLODQuality(autoLOD) {
+    return autoLOD["currentQuality"]
+}

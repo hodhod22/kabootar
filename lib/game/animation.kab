@@ -1,0 +1,544 @@
+@version "1.0.0"
+
+// Kabootar game/animation - Unity-like skeletal animation system with blend trees.
+// import "game/animation"
+
+/// Create an animation clip.
+pub fn createAnimationClip(name, duration, loop) {
+    if duration == null || duration == undefined { duration = 1.0 }
+    if loop == null || loop == undefined { loop = true }
+    return {
+        "kind": "AnimationClip",
+        "name": name,
+        "duration": duration,
+        "loop": loop,
+        "tracks": {},
+        "events": []
+    }
+}
+
+/// Add position track to animation clip.
+pub fn addPositionTrack(clip, boneName, keyframes) {
+    if clip["tracks"]["position"] == null {
+        clip["tracks"]["position"] = {}
+    }
+    clip["tracks"]["position"][boneName] = keyframes
+    return clip
+}
+
+/// Add rotation track to animation clip.
+pub fn addRotationTrack(clip, boneName, keyframes) {
+    if clip["tracks"]["rotation"] == null {
+        clip["tracks"]["rotation"] = {}
+    }
+    clip["tracks"]["rotation"][boneName] = keyframes
+    return clip
+}
+
+/// Add scale track to animation clip.
+pub fn addScaleTrack(clip, boneName, keyframes) {
+    if clip["tracks"]["scale"] == null {
+        clip["tracks"]["scale"] = {}
+    }
+    clip["tracks"]["scale"][boneName] = keyframes
+    return clip
+}
+
+/// Add animation event at specific time.
+pub fn addAnimationEvent(clip, time, functionName, parameter) {
+    clip["events"] = push(clip["events"], {
+        "time": time,
+        "function": functionName,
+        "parameter": parameter
+    })
+    return clip
+}
+
+/// Create an animator component.
+pub fn createAnimator() {
+    return {
+        "kind": "Animator",
+        "clips": {},
+        "currentClip": null,
+        "currentClipName": "",
+        "playbackTime": 0.0,
+        "playbackSpeed": 1.0,
+        "isPlaying": false,
+        "parameters": {},
+        "layers": {},
+        "avatar": null,
+        "rootBone": null,
+        "applyRootMotion": false
+    }
+}
+
+/// Add animation clip to animator.
+pub fn addClip(animator, clip) {
+    animator["clips"][clip["name"]] = clip
+    return animator
+}
+
+/// Play animation clip by name.
+pub fn play(animator, clipName) {
+    let clip = animator["clips"][clipName]
+    if clip != null && clip != undefined {
+        animator["currentClip"] = clip
+        animator["currentClipName"] = clipName
+        animator["playbackTime"] = 0.0
+        animator["isPlaying"] = true
+    }
+    return animator
+}
+
+/// Stop current animation.
+pub fn stop(animator) {
+    animator["isPlaying"] = false
+    return animator
+}
+
+/// Pause current animation.
+pub fn pause(animator) {
+    animator["isPlaying"] = false
+    return animator
+}
+
+/// Resume paused animation.
+pub fn resume(animator) {
+    animator["isPlaying"] = true
+    return animator
+}
+
+/// Set playback speed.
+pub fn setPlaybackSpeed(animator, speed) {
+    if speed == null || speed == undefined { speed = 1.0 }
+    animator["playbackSpeed"] = speed
+    return animator
+}
+
+/// Crossfade to another animation.
+pub fn crossfade(animator, clipName, duration) {
+    if duration == null || duration == undefined { duration = 0.2 }
+    let clip = animator["clips"][clipName]
+    if clip != null && clip != undefined {
+        animator["targetClip"] = clip
+        animator["targetClipName"] = clipName
+        animator["crossfadeDuration"] = duration
+        animator["crossfadeTime"] = 0.0
+    }
+    return animator
+}
+
+/// Set animator parameter (float, int, bool, trigger).
+pub fn setParameter(animator, name, value) {
+    animator["parameters"][name] = value
+    return animator
+}
+
+/// Get animator parameter.
+pub fn getParameter(animator, name) {
+    return animator["parameters"][name]
+}
+
+/// Set trigger parameter (resets to false after use).
+pub fn setTrigger(animator, name) {
+    animator["parameters"][name] = true
+    return animator
+}
+
+/// Reset trigger parameter.
+pub fn resetTrigger(animator, name) {
+    animator["parameters"][name] = false
+    return animator
+}
+
+/// Update animator (call each frame with delta time).
+pub fn updateAnimator(animator, dt) {
+    if dt == null || dt == undefined { dt = 0.016 }
+    
+    if !animator["isPlaying"] {
+        return animator
+    }
+    
+    let clip = animator["currentClip"]
+    if clip == null || clip == undefined {
+        return animator
+    }
+    
+    animator["playbackTime"] = animator["playbackTime"] + dt * animator["playbackSpeed"]
+    
+    if animator["playbackTime"] >= clip["duration"] {
+        if clip["loop"] == true {
+            animator["playbackTime"] = animator["playbackTime"] % clip["duration"]
+        } else {
+            animator["playbackTime"] = clip["duration"]
+            animator["isPlaying"] = false
+        }
+    }
+    
+    if animator["targetClip"] != null && animator["targetClip"] != undefined {
+        animator["crossfadeTime"] = animator["crossfadeTime"] + dt
+        if animator["crossfadeTime"] >= animator["crossfadeDuration"] {
+            animator["currentClip"] = animator["targetClip"]
+            animator["currentClipName"] = animator["targetClipName"]
+            animator["targetClip"] = null
+            animator["targetClipName"] = ""
+            animator["playbackTime"] = 0.0
+        }
+    }
+    
+    return animator
+}
+
+/// Get current animation progress (0-1).
+pub fn getAnimationProgress(animator) {
+    let clip = animator["currentClip"]
+    if clip == null || clip == undefined {
+        return 0.0
+    }
+    if clip["duration"] <= 0.0 {
+        return 0.0
+    }
+    return animator["playbackTime"] / clip["duration"]
+}
+
+/// Check if animation is playing.
+pub fn isPlaying(animator) {
+    return animator["isPlaying"] == true
+}
+
+/// Get current animation name.
+pub fn getCurrentAnimation(animator) {
+    return animator["currentClipName"]
+}
+
+/// Create blend tree for parameter-based animation blending.
+pub fn createBlendTree(parameter) {
+    return {
+        "kind": "BlendTree",
+        "parameter": parameter,
+        "children": [],
+        "blendType": "1D"
+    }
+}
+
+/// Add child to blend tree.
+pub fn addBlendTreeNode(tree, clip, threshold) {
+    tree["children"] = push(tree["children"], {
+        "clip": clip,
+        "threshold": threshold
+    })
+    return tree
+}
+
+/// Create 2D blend tree (directional blending).
+pub fn createBlendTree2D(parameterX, parameterY, blendType) {
+    if blendType == null || blendType == undefined { blendType = "FreeformDirectional" }
+    return {
+        "kind": "BlendTree",
+        "parameterX": parameterX,
+        "parameterY": parameterY,
+        "children": [],
+        "blendType": blendType
+    }
+}
+
+/// Add child to 2D blend tree with position.
+pub fn addBlendTree2DNode(tree, clip, posX, posY) {
+    tree["children"] = push(tree["children"], {
+        "clip": clip,
+        "position": { "x": posX, "y": posY }
+    })
+    return tree
+}
+
+/// Evaluate blend tree to get blended animation.
+pub fn evaluateBlendTree(tree, parameters) {
+    if tree["blendType"] == "1D" {
+        let paramValue = parameters[tree["parameter"]]
+        if paramValue == null || paramValue == undefined {
+            paramValue = 0.0
+        }
+        
+        let sorted = []
+        let i = 0
+        while i < len(tree["children"]) {
+            sorted = push(sorted, tree["children"][i])
+            i = i + 1
+        }
+        
+        let j = 0
+        while j < len(sorted) - 1 {
+            let k = j + 1
+            while k < len(sorted) {
+                if sorted[j]["threshold"] > sorted[k]["threshold"] {
+                    let temp = sorted[j]
+                    sorted[j] = sorted[k]
+                    sorted[k] = temp
+                }
+                k = k + 1
+            }
+            j = j + 1
+        }
+        
+        let lower = null
+        let upper = null
+        let m = 0
+        while m < len(sorted) {
+            if sorted[m]["threshold"] <= paramValue {
+                lower = sorted[m]
+            }
+            if sorted[m]["threshold"] >= paramValue {
+                upper = sorted[m]
+                m = len(sorted)
+            }
+            m = m + 1
+        }
+        
+        if lower == null && upper != null {
+            return upper["clip"]
+        }
+        if upper == null && lower != null {
+            return lower["clip"]
+        }
+        if lower != null && upper != null {
+            if lower["threshold"] == upper["threshold"] {
+                return lower["clip"]
+            }
+            let t = (paramValue - lower["threshold"]) / (upper["threshold"] - lower["threshold"])
+            return { "blend": true, "clipA": lower["clip"], "clipB": upper["clip"], "weight": t }
+        }
+    }
+    
+    if tree["blendType"] == "FreeformDirectional" || tree["blendType"] == "FreeformCartesian" {
+        let paramX = parameters[tree["parameterX"]]
+        let paramY = parameters[tree["parameterY"]]
+        if paramX == null { paramX = 0.0 }
+        if paramY == null { paramY = 0.0 }
+        
+        let closest = null
+        let closestDist = 999999.0
+        let i = 0
+        while i < len(tree["children"]) {
+            let child = tree["children"][i]
+            let dx = paramX - child["position"]["x"]
+            let dy = paramY - child["position"]["y"]
+            let dist = dx * dx + dy * dy
+            if dist < closestDist {
+                closestDist = dist
+                closest = child
+            }
+            i = i + 1
+        }
+        
+        if closest != null {
+            return closest["clip"]
+        }
+    }
+    
+    return null
+}
+
+/// Create animation layer for layered animation.
+pub fn createAnimationLayer(name, weight, avatarMask) {
+    if weight == null || weight == undefined { weight = 1.0 }
+    return {
+        "name": name,
+        "weight": weight,
+        "avatarMask": avatarMask,
+        "stateMachine": null,
+        "currentClip": null
+    }
+}
+
+/// Add layer to animator.
+pub fn addAnimationLayer(animator, layer) {
+    animator["layers"][layer["name"]] = layer
+    return animator
+}
+
+/// Set layer weight.
+pub fn setLayerWeight(animator, layerName, weight) {
+    if animator["layers"][layerName] != null {
+        animator["layers"][layerName]["weight"] = weight
+    }
+    return animator
+}
+
+/// Create avatar (skeleton definition).
+pub fn createAvatar(bones) {
+    return {
+        "kind": "Avatar",
+        "bones": bones,
+        "human": false
+    }
+}
+
+/// Create human avatar (for humanoid rigs).
+pub fn createHumanAvatar(bones, humanBones) {
+    return {
+        "kind": "Avatar",
+        "bones": bones,
+        "human": true,
+        "humanBones": humanBones
+    }
+}
+
+/// Avatar mask for selective bone animation.
+pub fn createAvatarMask() {
+    return {
+        "kind": "AvatarMask",
+        "boneWeights": {}
+    }
+}
+
+/// Set bone weight in avatar mask.
+pub fn setAvatarMaskBoneWeight(mask, boneName, weight) {
+    if weight == null || weight == undefined { weight = 1.0 }
+    mask["boneWeights"][boneName] = weight
+    return mask
+}
+
+/// IK (Inverse Kinematics) solver.
+pub fn createIKSolver(goalBone, tipBone, weight) {
+    if weight == null || weight == undefined { weight = 1.0 }
+    return {
+        "kind": "IKSolver",
+        "goalBone": goalBone,
+        "tipBone": tipBone,
+        "weight": weight,
+        "targetPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "targetRotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "enabled": true
+    }
+}
+
+/// Set IK target position.
+pub fn setIKTargetPosition(solver, x, y, z) {
+    solver["targetPosition"] = { "x": x, "y": y, "z": z }
+    return solver
+}
+
+/// Enable/disable IK solver.
+pub fn setIKEnabled(solver, enabled) {
+    solver["enabled"] = enabled == true
+    return solver
+}
+
+/// Simple 2-bone IK solver (CCD algorithm).
+pub fn solveTwoBoneIK(root, mid, tip, target, chainLength, poleTarget) {
+    let rootPos = root["position"]
+    let midPos = mid["position"]
+    let tipPos = tip["position"]
+    
+    let dx = target["x"] - rootPos["x"]
+    let dy = target["y"] - rootPos["y"]
+    let dz = target["z"] - rootPos["z"]
+    let distToTarget = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    let clampedDist = distToTarget
+    if clampedDist > chainLength {
+        clampedDist = chainLength
+    }
+    
+    let upperLength = chainLength * 0.5
+    let lowerLength = chainLength * 0.5
+    
+    let cosAngle = (distToTarget * distToTarget - upperLength * upperLength - lowerLength * lowerLength) / (2.0 * upperLength * lowerLength)
+    let angle = acos(clamp(cosAngle, -1.0, 1.0))
+    
+    mid["rotation"]["y"] = angle
+    tip["rotation"]["y"] = -angle * 0.5
+    
+    return { "mid": mid, "tip": tip }
+}
+
+/// Animation state machine for complex animation logic.
+pub fn createStateMachine() {
+    return {
+        "kind": "StateMachine",
+        "states": {},
+        "transitions": [],
+        "currentState": null,
+        "parameters": {}
+    }
+}
+
+/// Add state to state machine.
+pub fn addState(sm, name, clip) {
+    sm["states"][name] = {
+        "name": name,
+        "clip": clip,
+        "speed": 1.0,
+        "mirror": false
+    }
+    return sm
+}
+
+/// Add transition between states.
+pub fn addTransition(sm, fromState, toState, conditions, exitTime, duration) {
+    if exitTime == null || exitTime == undefined { exitTime = 0.0 }
+    if duration == null || duration == undefined { duration = 0.2 }
+    sm["transitions"] = push(sm["transitions"], {
+        "from": fromState,
+        "to": toState,
+        "conditions": conditions,
+        "exitTime": exitTime,
+        "duration": duration
+    })
+    return sm
+}
+
+/// Set state machine parameter.
+pub fn setStateMachineParameter(sm, name, value) {
+    sm["parameters"][name] = value
+    return sm
+}
+
+/// Evaluate state machine transitions.
+pub fn evaluateStateMachine(sm, parameters) {
+    let currentState = sm["currentState"]
+    if currentState == null {
+        let firstState = null
+        for key in sm["states"] {
+            firstState = key
+        }
+        if firstState != null {
+            sm["currentState"] = firstState
+        }
+        return sm
+    }
+    
+    let i = 0
+    while i < len(sm["transitions"]) {
+        let trans = sm["transitions"][i]
+        if trans["from"] == currentState {
+            let allConditionsMet = true
+            let j = 0
+            while j < len(trans["conditions"]) {
+                let cond = trans["conditions"][j]
+                let paramValue = parameters[cond["parameter"]]
+                if cond["mode"] == "equals" {
+                    if paramValue != cond["value"] {
+                        allConditionsMet = false
+                    }
+                } else if cond["mode"] == "greater" {
+                    if paramValue <= cond["value"] {
+                        allConditionsMet = false
+                    }
+                } else if cond["mode"] == "less" {
+                    if paramValue >= cond["value"] {
+                        allConditionsMet = false
+                    }
+                }
+                j = j + 1
+            }
+            
+            if allConditionsMet {
+                sm["currentState"] = trans["to"]
+            }
+        }
+        i = i + 1
+    }
+    
+    return sm
+}

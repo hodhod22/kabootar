@@ -294,3 +294,258 @@ pub fn describeLights(list) {
         "kinds": kinds
     }
 }
+
+/// PBR Lighting calculation - Cook-Torrance BRDF.
+pub fn pbrLighting(viewDir, normal, lightDir, lightColor, lightIntensity, albedo, metallic, roughness, f0) {
+    let NdotL = normal["x"] * lightDir["x"] + normal["y"] * lightDir["y"] + normal["z"] * lightDir["z"]
+    if NdotL < 0.0 { NdotL = 0.0 }
+    
+    let NdotV = normal["x"] * viewDir["x"] + normal["y"] * viewDir["y"] + normal["z"] * viewDir["z"]
+    if NdotV < 0.0 { NdotV = 0.0 }
+    
+    let H = {
+        "x": viewDir["x"] + lightDir["x"],
+        "y": viewDir["y"] + lightDir["y"],
+        "z": viewDir["z"] + lightDir["z"]
+    }
+    let Hlen = sqrt(H["x"] * H["x"] + H["y"] * H["y"] + H["z"] * H["z"])
+    if Hlen > 0.0001 {
+        H["x"] = H["x"] / Hlen
+        H["y"] = H["y"] / Hlen
+        H["z"] = H["z"] / Hlen
+    }
+    
+    let NdotH = normal["x"] * H["x"] + normal["y"] * H["y"] + normal["z"] * H["z"]
+    if NdotH < 0.0 { NdotH = 0.0 }
+    
+    let VdotH = viewDir["x"] * H["x"] + viewDir["y"] * H["y"] + viewDir["z"] * H["z"]
+    if VdotH < 0.0 { VdotH = 0.0 }
+    
+    let roughness2 = roughness * roughness
+    
+    let D = distributionGGX(NdotH, roughness2)
+    let G = geometrySmith(NdotV, NdotL, roughness2)
+    let F = fresnelSchlick(VdotH, f0)
+    
+    let kS = F
+    let kD = { "r": 1.0 - F["r"], "g": 1.0 - F["g"], "b": 1.0 - F["b"] }
+    
+    kD["r"] = kD["r"] * (1.0 - metallic)
+    kD["g"] = kD["g"] * (1.0 - metallic)
+    kD["b"] = kD["b"] * (1.0 - metallic)
+    
+    let specular = {
+        "r": D * G * F["r"] / (4.0 * NdotV * NdotL + 0.0001),
+        "g": D * G * F["g"] / (4.0 * NdotV * NdotL + 0.0001),
+        "b": D * G * F["b"] / (4.0 * NdotV * NdotL + 0.0001)
+    }
+    
+    let diffuse = {
+        "r": kD["r"] * albedo["r"] / 3.14159,
+        "g": kD["g"] * albedo["g"] / 3.14159,
+        "b": kD["b"] * albedo["b"] / 3.14159
+    }
+    
+    let Lo = {
+        "r": (diffuse["r"] + specular["r"]) * lightColor["r"] * lightIntensity * NdotL,
+        "g": (diffuse["g"] + specular["g"]) * lightColor["g"] * lightIntensity * NdotL,
+        "b": (diffuse["b"] + specular["b"]) * lightColor["b"] * lightIntensity * NdotL
+    }
+    
+    return Lo
+}
+
+fn distributionGGX(NdotH, roughness2) {
+    let a = roughness2 * roughness2
+    let a2 = a * a
+    let NdotH2 = NdotH * NdotH
+    let denom = NdotH2 * (a2 - 1.0) + 1.0
+    denom = 3.14159 * denom * denom
+    return a2 / denom
+}
+
+fn geometrySmith(NdotV, NdotL, roughness2) {
+    let ggx2 = geometrySchlickGGX(NdotV, roughness2)
+    let ggx1 = geometrySchlickGGX(NdotL, roughness2)
+    return ggx1 * ggx2
+}
+
+fn geometrySchlickGGX(NdotV, roughness2) {
+    let r = (roughness2 + 1.0)
+    let k = (r * r) / 8.0
+    let denom = NdotV * (1.0 - k) + k
+    return NdotV / denom
+}
+
+fn fresnelSchlick(cosTheta, f0) {
+    return {
+        "r": f0["r"] + (1.0 - f0["r"]) * pow(1.0 - cosTheta, 5.0),
+        "g": f0["g"] + (1.0 - f0["g"]) * pow(1.0 - cosTheta, 5.0),
+        "b": f0["b"] + (1.0 - f0["b"]) * pow(1.0 - cosTheta, 5.0)
+    }
+}
+
+/// Calculate F0 (reflectance at normal incidence) from metallic and albedo.
+pub fn calculateF0(albedo, metallic) {
+    return {
+        "r": lerp(0.04, albedo["r"], metallic),
+        "g": lerp(0.04, albedo["g"], metallic),
+        "b": lerp(0.04, albedo["b"], metallic)
+    }
+}
+
+/// Full PBR lighting with multiple lights and IBL.
+pub fn pbrSurface(viewDir, normal, albedo, metallic, roughness, ao, lights, iblColor, iblIntensity) {
+    let f0 = calculateF0(albedo, metallic)
+    
+    let Lo = { "r": 0.0, "g": 0.0, "b": 0.0 }
+    
+    let i = 0
+    while i < len(lights["lights"]) {
+        let light = lights["lights"][i]
+        let lightDir = { "x": 0.0, "y": 0.0, "z": 0.0 }
+        let lightIntensity = light["intensity"]
+        let lightColor = light["color"]
+        
+        if light["kind"] == "directional" {
+            lightDir["x"] = -light["dir"]["x"]
+            lightDir["y"] = -light["dir"]["y"]
+            lightDir["z"] = -light["dir"]["z"]
+            let len = sqrt(lightDir["x"] * lightDir["x"] + lightDir["y"] * lightDir["y"] + lightDir["z"] * lightDir["z"])
+            if len > 0.0001 {
+                lightDir["x"] = lightDir["x"] / len
+                lightDir["y"] = lightDir["y"] / len
+                lightDir["z"] = lightDir["z"] / len
+            }
+        } else if light["kind"] == "point" {
+            lightDir["x"] = light["pos"]["x"]
+            lightDir["y"] = light["pos"]["y"]
+            lightDir["z"] = light["pos"]["z"]
+            let len = sqrt(lightDir["x"] * lightDir["x"] + lightDir["y"] * lightDir["y"] + lightDir["z"] * lightDir["z"])
+            if len > 0.0001 {
+                lightDir["x"] = lightDir["x"] / len
+                lightDir["y"] = lightDir["y"] / len
+                lightDir["z"] = lightDir["z"] / len
+            }
+            let distance = len
+            let attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance)
+            lightIntensity = lightIntensity * attenuation
+        } else if light["kind"] == "spot" {
+            lightDir["x"] = light["pos"]["x"]
+            lightDir["y"] = light["pos"]["y"]
+            lightDir["z"] = light["pos"]["z"]
+            let len = sqrt(lightDir["x"] * lightDir["x"] + lightDir["y"] * lightDir["y"] + lightDir["z"] * lightDir["z"])
+            if len > 0.0001 {
+                lightDir["x"] = lightDir["x"] / len
+                lightDir["y"] = lightDir["y"] / len
+                lightDir["z"] = lightDir["z"] / len
+            }
+            let distance = len
+            let attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance)
+            
+            let theta = lightDir["x"] * light["dir"]["x"] + lightDir["y"] * light["dir"]["y"] + lightDir["z"] * light["dir"]["z"]
+            let epsilon = cos(light["angle"])
+            let spotIntensity = 0.0
+            if theta > epsilon {
+                spotIntensity = pow(theta - epsilon, 0.5) / (cos(0.0) - epsilon)
+            }
+            lightIntensity = lightIntensity * attenuation * spotIntensity
+        }
+        
+        let contribution = pbrLighting(viewDir, normal, lightDir, lightColor, lightIntensity, albedo, metallic, roughness, f0)
+        Lo["r"] = Lo["r"] + contribution["r"]
+        Lo["g"] = Lo["g"] + contribution["g"]
+        Lo["b"] = Lo["b"] + contribution["b"]
+        
+        i = i + 1
+    }
+    
+    let ambient = lights["ambient"]
+    let kS = fresnelSchlick(max(normal["y"], 0.0), f0)
+    let kD = { "r": 1.0 - kS["r"], "g": 1.0 - kS["g"], "b": 1.0 - kS["b"] }
+    kD["r"] = kD["r"] * (1.0 - metallic)
+    kD["g"] = kD["g"] * (1.0 - metallic)
+    kD["b"] = kD["b"] * (1.0 - metallic)
+    
+    let irradiance = {
+        "r": iblColor["r"] * iblIntensity,
+        "g": iblColor["g"] * iblIntensity,
+        "b": iblColor["b"] * iblIntensity
+    }
+    
+    let diffuseIBL = {
+        "r": irradiance["r"] * kD["r"] * albedo["r"],
+        "g": irradiance["g"] * kD["g"] * albedo["g"],
+        "b": irradiance["b"] * kD["b"] * albedo["b"]
+    }
+    
+    let ambientColor = {
+        "r": ambient["color"][0] * ambient["intensity"] * ao,
+        "g": ambient["color"][1] * ambient["intensity"] * ao,
+        "b": ambient["color"][2] * ambient["intensity"] * ao
+    }
+    
+    let color = {
+        "r": Lo["r"] + diffuseIBL["r"] + ambientColor["r"],
+        "g": Lo["g"] + diffuseIBL["g"] + ambientColor["g"],
+        "b": Lo["b"] + diffuseIBL["b"] + ambientColor["b"]
+    }
+    
+    color["r"] = color["r"] + albedo["r"] * 0.01
+    color["g"] = color["g"] + albedo["g"] * 0.01
+    color["b"] = color["b"] + albedo["b"] * 0.01
+    
+    return color
+}
+
+/// Environment probe for reflections.
+pub fn createEnvironmentProbe(position, resolution, importance) {
+    if resolution == null || resolution == undefined { resolution = 128 }
+    if importance == null || importance == undefined { importance = 1.0 }
+    return {
+        "kind": "EnvironmentProbe",
+        "position": position,
+        "resolution": resolution,
+        "importance": importance,
+        "cubemap": null,
+        "baked": false
+    }
+}
+
+/// Reflection probe blending.
+pub fn blendReflectionProbes(probes, worldPos, normal) {
+    if len(probes) == 0 {
+        return null
+    }
+    
+    let totalWeight = 0.0
+    let blendedColor = { "r": 0.0, "g": 0.0, "b": 0.0 }
+    
+    let i = 0
+    while i < len(probes) {
+        let probe = probes[i]
+        let dx = worldPos["x"] - probe["position"]["x"]
+        let dy = worldPos["y"] - probe["position"]["y"]
+        let dz = worldPos["z"] - probe["position"]["z"]
+        let dist = sqrt(dx * dx + dy * dy + dz * dz)
+        
+        let weight = probe["importance"] / (dist + 0.001)
+        totalWeight = totalWeight + weight
+        
+        if probe["cubemap"] != null {
+            blendedColor["r"] = blendedColor["r"] + probe["cubemap"]["r"] * weight
+            blendedColor["g"] = blendedColor["g"] + probe["cubemap"]["g"] * weight
+            blendedColor["b"] = blendedColor["b"] + probe["cubemap"]["b"] * weight
+        }
+        
+        i = i + 1
+    }
+    
+    if totalWeight > 0.0001 {
+        blendedColor["r"] = blendedColor["r"] / totalWeight
+        blendedColor["g"] = blendedColor["g"] / totalWeight
+        blendedColor["b"] = blendedColor["b"] / totalWeight
+    }
+    
+    return blendedColor
+}
