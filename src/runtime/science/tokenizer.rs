@@ -19,8 +19,7 @@ fn vocab_out(token_to_id: &HashMap<String, i64>) -> Value {
     id_to_token.sort_by_key(|(id, _)| *id);
     let mut out = HashMap::new();
     out.insert(
-        "token_to_id".into(),
-        Value::Object(
+        "token_to_id".into(), Value::from_object(
             token_to_id
                 .iter()
                 .map(|(k, v)| (k.clone(), int_out(*v)))
@@ -28,8 +27,7 @@ fn vocab_out(token_to_id: &HashMap<String, i64>) -> Value {
         ),
     );
     out.insert(
-        "id_to_token".into(),
-        Value::Array(
+        "id_to_token".into(), Value::from_array(
             id_to_token
                 .into_iter()
                 .map(|(_, t)| Value::String(t))
@@ -37,7 +35,7 @@ fn vocab_out(token_to_id: &HashMap<String, i64>) -> Value {
         ),
     );
     out.insert("size".into(), int_out(token_to_id.len() as i64));
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 /// tok_build_vocab(texts[], maxVocab?) — whitespace word vocab.
@@ -51,7 +49,7 @@ fn tok_build_vocab(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
         .and_then(|v| num(v).ok())
         .unwrap_or(10000.0) as usize;
     let mut counts: HashMap<String, i64> = HashMap::new();
-    for t in texts {
+    for t in texts.iter() {
         let s = match t {
             Value::String(x) => x.clone(),
             _ => continue,
@@ -79,13 +77,13 @@ fn vocab_lookup(vocab: &Value) -> Result<HashMap<String, i64>, String> {
         Value::Object(m) => {
             if let Some(Value::Object(map)) = m.get("token_to_id") {
                 let mut out = HashMap::new();
-                for (k, v) in map {
+                for (k, v) in map.iter() {
                     out.insert(k.clone(), num(v)? as i64);
                 }
                 return Ok(out);
             }
             let mut out = HashMap::new();
-            for (k, v) in m {
+            for (k, v) in m.iter() {
                 out.insert(k.clone(), num(v)? as i64);
             }
             Ok(out)
@@ -111,9 +109,9 @@ fn id_lookup(vocab: &Value) -> Result<Vec<String>, String> {
             let map = vocab_lookup(vocab)?;
             let max_id = map.values().copied().max().unwrap_or(0);
             let mut id_to_token = vec!["<unk>".to_string(); max_id as usize + 1];
-            for (t, id) in map {
-                if id >= 0 && (id as usize) < id_to_token.len() {
-                    id_to_token[id as usize] = t;
+            for (t, id) in map.iter() {
+                if *id >= 0 && (*id as usize) < id_to_token.len() {
+                    id_to_token[*id as usize] = t.clone();
                 }
             }
             Ok(id_to_token)
@@ -137,7 +135,7 @@ fn tok_encode(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             int_out(map.get(&w).copied().unwrap_or(unk))
         })
         .collect();
-    Ok(Value::Array(ids))
+    Ok(Value::from_array(ids))
 }
 
 /// tok_decode(vocab, ids) → string
@@ -149,7 +147,7 @@ fn tok_decode(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     };
     let id_to_token = id_lookup(vocab)?;
     let mut parts = Vec::new();
-    for idv in ids {
+    for idv in ids.iter() {
         let id = num(idv)? as i64;
         let t = id_to_token
             .get(id as usize)
@@ -189,7 +187,7 @@ fn tok_bpe_train(args: &[Value], _env: &mut Environment) -> Result<Value, String
         .unwrap_or(5000.0) as usize;
 
     let mut corpus: Vec<Vec<String>> = Vec::new();
-    for t in texts {
+    for t in texts.iter() {
         let s = match t {
             Value::String(x) => x.clone(),
             _ => continue,
@@ -254,16 +252,15 @@ fn tok_bpe_train(args: &[Value], _env: &mut Environment) -> Result<Value, String
 
     let mut merge_arr = Vec::new();
     for (a, b) in merges {
-        merge_arr.push(Value::Array(vec![
-            Value::String(a),
-            Value::String(b),
+        merge_arr.push(Value::from_array(vec![
+            Value::String(a), Value::String(b),
         ]));
     }
 
     let mut out = HashMap::new();
     out.insert("vocab".into(), vocab_out(&token_to_id));
-    out.insert("merges".into(), Value::Array(merge_arr));
-    Ok(Value::Object(out))
+    out.insert("merges".into(), Value::from_array(merge_arr));
+    Ok(Value::from_object(out))
 }
 
 fn bpe_apply(word: &str, merges: &[(String, String)]) -> Vec<String> {
@@ -332,7 +329,7 @@ fn tok_bpe_encode(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
             ids.push(int_out(map.get(&t).copied().unwrap_or(unk)));
         }
     }
-    Ok(Value::Array(ids))
+    Ok(Value::from_array(ids))
 }
 
 /// tok_bpe_decode(model, ids)
@@ -349,7 +346,7 @@ fn tok_bpe_decode(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     let id_to_token = id_lookup(vocab)?;
     let mut words: Vec<String> = Vec::new();
     let mut current = String::new();
-    for idv in ids {
+    for idv in ids.iter() {
         let id = num(idv)? as i64;
         let t = id_to_token
             .get(id as usize)

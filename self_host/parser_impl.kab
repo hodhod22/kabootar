@@ -103,6 +103,7 @@ fn parseTypeArgs() {
     if pCur.type != "<" {
         return []
     }
+    // P6b: type-arg scan uses cached pToksLen (hot len() elimination).
     pAngleI = pPos + 1
     if pAngleI >= len(pToks) {
         return []
@@ -112,7 +113,7 @@ fn parseTypeArgs() {
         return []
     }
     pAngleI = pAngleI + 1
-    while pAngleI < len(pToks) {
+    while pAngleI < pToksLen {
         pAngleTok = pToks[pAngleI]
         if pAngleTok.type == ">" {
             break
@@ -711,7 +712,7 @@ fn parseStmt() {
     }
     // P6b: early IDENT= assign (AccAdd-dense leaves) — before enum/class/fn dispatch.
     if pCur.type == TOKEN_IDENT {
-        if pPos + 1 < len(pToks) {
+        if pPos + 1 < pToksLen {
             pNextTok = pToks[pPos + 1]
         } else {
             pNextTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
@@ -1418,7 +1419,7 @@ fn parseStmt() {
         return { "kind": AST_BLOCK, "body": blockStmts }
     }
     if pCur.type == TOKEN_IDENT {
-        if pPos + 1 < len(pToks) {
+        if pPos + 1 < pToksLen {
             pNextTok = pToks[pPos + 1]
         } else {
             pNextTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
@@ -1453,6 +1454,7 @@ fn parseStmt() {
 }
 
 pub fn parseTokensImpl(tokens) {
+    // P6b progress: cache token length once per parse (pToksLen hot path).
     pToks = tokens
     pToksLen = len(tokens)
     pPos = 0

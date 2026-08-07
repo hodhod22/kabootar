@@ -164,7 +164,7 @@ fn crypto_rsa_generate_native(args: &[Value], _env: &mut Environment) -> Result<
         .transpose()?
         .unwrap_or(2048);
     let (public, private) = rsa_generate(bits)?;
-    Ok(Value::Array(vec![
+    Ok(Value::from_array(vec![
         secure_from_bytes(public),
         secure_from_bytes(private),
     ]))
@@ -186,7 +186,7 @@ fn crypto_rsa_decrypt_native(args: &[Value], _env: &mut Environment) -> Result<V
 fn crypto_ecc_generate_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let _ = args;
     let (public, private) = ecc_generate()?;
-    Ok(Value::Array(vec![
+    Ok(Value::from_array(vec![
         bytes_to_array(&public),
         secure_from_bytes(private),
     ]))
@@ -218,7 +218,7 @@ fn crypto_kyber_encapsulate_native(args: &[Value], _env: &mut Environment) -> Re
     o.insert("ciphertext".to_string(), bytes_to_array(&ct));
     o.insert("shared_secret".to_string(), bytes_to_array(&ss));
     o.insert("algorithm".to_string(), Value::String("CRYSTALS-Kyber768-stub".into()));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn crypto_secure_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -244,13 +244,13 @@ fn security_list_providers_native(args: &[Value], _env: &mut Environment) -> Res
     let items: Vec<Value> = ProviderId::all()
         .iter()
         .map(|id| {
-            Value::Array(vec![
+            Value::from_array(vec![
                 Value::String(id.name().into()),
                 Value::String(id.description().into()),
             ])
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn security_use_provider_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -285,7 +285,7 @@ fn security_capabilities_native(args: &[Value], env: &mut Environment) -> Result
         .lock()
         .map_err(|_| "Security provider lock poisoned".to_string())?
         .active();
-    Ok(Value::Array(
+    Ok(Value::from_array(
         active
             .capabilities()
             .iter()
@@ -301,12 +301,12 @@ fn device_list_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         .devices
         .lock()
         .map_err(|_| "Device registry lock poisoned".to_string())?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         devices
             .list()
             .iter()
             .map(|d| {
-                Value::Array(vec![
+                Value::from_array(vec![
                     Value::String(d.id.clone()),
                     Value::String(device_kind_label(d.kind).into()),
                     Value::String(d.name.clone()),

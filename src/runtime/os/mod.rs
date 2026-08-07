@@ -441,7 +441,7 @@ impl OsHandle {
 
     pub fn display_monitors(&self) -> Result<Value, String> {
         let ds = self.display.lock().map_err(|_| "display lock poisoned".to_string())?;
-        Ok(Value::Array(
+        Ok(Value::from_array(
             ds.monitors()
                 .iter()
                 .map(|m| {
@@ -452,7 +452,7 @@ impl OsHandle {
                     o.insert("width".into(), Value::Number(m.width));
                     o.insert("height".into(), Value::Number(m.height));
                     o.insert("primary".into(), Value::Bool(m.primary));
-                    Value::Object(o)
+                    Value::from_object(o)
                 })
                 .collect(),
         ))
@@ -488,7 +488,7 @@ impl OsHandle {
         info.insert("ifaces".into(), ifaces.to_string());
         info.insert("tx_bytes".into(), tx.to_string());
         info.insert("rx_bytes".into(), rx.to_string());
-        Ok(Value::Object(
+        Ok(Value::from_object(
             info.into_iter()
                 .map(|(k, v)| (k, Value::String(v)))
                 .collect(),
@@ -552,7 +552,7 @@ impl OsHandle {
             } else {
                 out.insert("preempted".into(), Value::Bool(false));
             }
-            Ok(Value::Object(out))
+            Ok(Value::from_object(out))
         })
     }
 
@@ -644,14 +644,14 @@ impl OsHandle {
         self.require_cap(NET_CONNECT)?;
         self.with_devices(|dm| {
             let events = dm.net.poll(sockets);
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 events
                     .into_iter()
                     .map(|e| {
                         let mut m = std::collections::HashMap::new();
                         m.insert("socket".into(), Value::Number(e.socket as i64));
                         m.insert("kind".into(), Value::String(e.kind));
-                        Value::Object(m)
+                        Value::from_object(m)
                     })
                     .collect(),
             ))
@@ -711,7 +711,7 @@ impl OsHandle {
 
     pub fn host_info(&self) -> Result<Value, String> {
         self.with_devices(|dm| {
-            Ok(Value::Object(
+            Ok(Value::from_object(
                 dm.host_info()
                     .into_iter()
                     .map(|(k, v)| (k, Value::String(v)))
@@ -726,7 +726,7 @@ impl OsHandle {
 
     pub fn usb_devices(&self) -> Result<Value, String> {
         self.with_devices(|dm| {
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 dm.usb
                     .list()
                     .iter()
@@ -738,7 +738,7 @@ impl OsHandle {
                         m.insert("class".into(), Value::String(u.class.as_str().into()));
                         m.insert("bus".into(), Value::Number(u.bus as i64));
                         m.insert("address".into(), Value::Number(u.address as i64));
-                        Value::Object(m)
+                        Value::from_object(m)
                     })
                     .collect(),
             ))
@@ -747,7 +747,7 @@ impl OsHandle {
 
     pub fn audio_devices(&self) -> Result<Value, String> {
         self.with_devices(|dm| {
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 dm.audio
                     .list()
                     .iter()
@@ -761,7 +761,7 @@ impl OsHandle {
                         );
                         m.insert("channels".into(), Value::Number(a.channels as i64));
                         m.insert("sample_rate".into(), Value::Number(a.sample_rate as i64));
-                        Value::Object(m)
+                        Value::from_object(m)
                     })
                     .collect(),
             ))
@@ -794,7 +794,7 @@ fn os_caps_native(args: &[Value], env: &mut Environment) -> Result<Value, String
         .into_iter()
         .map(|c| Value::String(c.to_string()))
         .collect();
-    Ok(Value::Array(caps))
+    Ok(Value::from_array(caps))
 }
 
 fn os_read_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -826,7 +826,7 @@ fn os_stat_native(args: &[Value], env: &mut Environment) -> Result<Value, String
         VfsEntryKind::File => "file",
         VfsEntryKind::Directory => "dir",
     };
-    Ok(Value::Array(vec![
+    Ok(Value::from_array(vec![
         Value::String(kind.to_string()),
         Value::Number(stat.size as i64),
         Value::Number(stat.mtime as i64),
@@ -863,14 +863,14 @@ fn os_unmount_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
 
 fn os_mounts_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mounts = get_os(env)?.list_mounts()?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         mounts
             .into_iter()
             .map(|(vfs, host)| {
                 let mut m = std::collections::HashMap::new();
                 m.insert("vfs".into(), Value::String(vfs));
                 m.insert("host".into(), Value::String(host));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -890,7 +890,7 @@ fn os_list_native(args: &[Value], env: &mut Environment) -> Result<Value, String
         })
         .unwrap_or_else(|| "/".to_string());
     let files = get_os(env)?.list(&dir)?;
-    Ok(Value::Array(files.into_iter().map(Value::String).collect()))
+    Ok(Value::from_array(files.into_iter().map(Value::String).collect()))
 }
 
 fn os_delete_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -906,7 +906,7 @@ fn os_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
 
 fn os_process_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let list = get_os(env)?.process_list()?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         list.into_iter()
             .map(|p| {
                 let mut m = std::collections::HashMap::new();
@@ -919,7 +919,7 @@ fn os_process_list_native(_args: &[Value], env: &mut Environment) -> Result<Valu
                         ProcessState::Stopped => "stopped",
                     }.into()),
                 );
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -948,7 +948,7 @@ fn os_window_create_native(args: &[Value], env: &mut Environment) -> Result<Valu
 
 fn os_window_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let list = get_os(env)?.window_list()?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         list.into_iter()
             .map(|w| {
                 let mut m = std::collections::HashMap::new();
@@ -960,7 +960,7 @@ fn os_window_list_native(_args: &[Value], env: &mut Environment) -> Result<Value
                 if let Some(tab) = w.browser_tab_id {
                     m.insert("tab".into(), Value::Number(tab as i64));
                 }
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))
@@ -1045,9 +1045,8 @@ fn os_mem_alloc_native(args: &[Value], env: &mut Environment) -> Result<Value, S
 
 fn os_mem_stats_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let (regions, used, limit) = get_os(env)?.mem_stats()?;
-    Ok(Value::Array(vec![
-        Value::Number(regions as i64),
-        Value::Number(used as i64),
+    Ok(Value::from_array(vec![
+        Value::Number(regions as i64), Value::Number(used as i64),
         Value::Number(limit as i64),
     ]))
 }
@@ -1098,7 +1097,7 @@ fn os_mem_read_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         })
         .unwrap_or(64);
     let buf = get_os(env)?.mem_read(id, offset, len)?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         buf.into_iter().map(|b| Value::Number(b as i64)).collect(),
     ))
 }
@@ -1116,7 +1115,7 @@ fn os_sched_yield_native(_args: &[Value], env: &mut Environment) -> Result<Value
             o.insert("pid".into(), Value::Number(t.pid as i64));
             o.insert("name".into(), Value::String(t.name));
             o.insert("vruntime".into(), Value::Number(t.vruntime as i64));
-            Ok(Value::Object(o))
+            Ok(Value::from_object(o))
         }
         None => Ok(Value::Null),
     }
@@ -1262,14 +1261,14 @@ fn os_syscall_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
         }
         syscall::Syscall::Mounts => {
             let mounts = os.list_mounts()?;
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 mounts
                     .into_iter()
                     .map(|(vfs, host)| {
                         let mut m = std::collections::HashMap::new();
                         m.insert("vfs".into(), Value::String(vfs));
                         m.insert("host".into(), Value::String(host));
-                        Value::Object(m)
+                        Value::from_object(m)
                     })
                     .collect(),
             ))
@@ -1295,7 +1294,7 @@ fn os_syscall_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
                 })
                 .unwrap_or(64);
             let buf = os.mem_read(id, offset, len)?;
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 buf.into_iter().map(|b| Value::Number(b as i64)).collect(),
             ))
         }
@@ -1338,7 +1337,7 @@ fn os_syscall_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
         syscall::Syscall::PermList => {
             let pid = value_handle(args, 1, "os_syscall(perm_list)")?;
             let list = os.perm_list(pid)?;
-            Ok(Value::Array(list.into_iter().map(Value::String).collect()))
+            Ok(Value::from_array(list.into_iter().map(Value::String).collect()))
         }
         syscall::Syscall::PermCheck => {
             let pid = value_handle(args, 1, "os_syscall(perm_check)")?;
@@ -1368,7 +1367,7 @@ fn os_syscall_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
 }
 
 fn os_syscalls_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Array(
+    Ok(Value::from_array(
         syscall::list_syscalls().into_iter().map(|s| Value::String(s.into())).collect(),
     ))
 }
@@ -1520,7 +1519,7 @@ fn os_perm_revoke_native(args: &[Value], env: &mut Environment) -> Result<Value,
 fn os_perm_list_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let pid = value_handle(args, 0, "os_perm_list()")?;
     let list = get_os(env)?.perm_list(pid)?;
-    Ok(Value::Array(list.into_iter().map(Value::String).collect()))
+    Ok(Value::from_array(list.into_iter().map(Value::String).collect()))
 }
 
 fn os_perm_check_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -1538,7 +1537,7 @@ fn os_perm_clear_native(args: &[Value], env: &mut Environment) -> Result<Value, 
 fn os_hotplug_poll_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let _ = env;
     let events = hotplug::drain();
-    Ok(Value::Array(
+    Ok(Value::from_array(
         events
             .into_iter()
             .map(|e| {
@@ -1548,7 +1547,7 @@ fn os_hotplug_poll_native(_args: &[Value], env: &mut Environment) -> Result<Valu
                 m.insert("kind".into(), Value::String(e.kind));
                 m.insert("name".into(), Value::String(e.name));
                 m.insert("vendor".into(), Value::String(e.vendor));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect(),
     ))

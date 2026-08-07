@@ -200,7 +200,7 @@ pub fn build_symbol_namespace() -> Value {
     m.insert("dispose".into(), well_known(13));
     insert_native(&mut m, "for", symbol_for_native);
     insert_native(&mut m, "keyFor", symbol_key_for_native);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn try_symbol_ctor_call(

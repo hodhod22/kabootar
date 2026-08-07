@@ -152,7 +152,7 @@ impl UsbBackend {
 
         match nusb::list_devices().wait() {
             Ok(list) => {
-                for dev in list {
+                for dev in list.iter() {
                     let vid = dev.vendor_id();
                     let pid = dev.product_id();
                     let bus = nusb_bus_num(&dev);

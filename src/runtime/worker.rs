@@ -12,7 +12,7 @@ pub fn worker_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_worker".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn worker_id(v: &Value) -> Result<u64, String> {
@@ -507,7 +507,7 @@ mod imp {
     }
 
     fn import_scripts_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
-        for arg in args {
+        for arg in args.iter() {
             let Value::String(path) = arg else {
                 return Err("importScripts(path, ...) expects string paths".into());
             };

@@ -82,14 +82,14 @@ fn deno_test_report_native(_args: &[Value], _env: &mut Environment) -> Result<Va
                 "error".into(),
                 Value::String(r.error.clone().unwrap_or_default()),
             );
-            failures.push(Value::Object(item));
+            failures.push(Value::from_object(item));
         }
         let mut out = HashMap::new();
         out.insert("passed".into(), Value::Number(passed));
         out.insert("failed".into(), Value::Number(failed));
         out.insert("total".into(), Value::Number(records.len() as i64));
-        out.insert("failures".into(), Value::Array(failures));
-        Ok(Value::Object(out))
+        out.insert("failures".into(), Value::from_array(failures));
+        Ok(Value::from_object(out))
     })
 }
 
@@ -102,12 +102,12 @@ fn deno_bench_report_native(_args: &[Value], _env: &mut Environment) -> Result<V
                 let mut m = HashMap::new();
                 m.insert("name".into(), Value::String(r.name.clone()));
                 m.insert("durationMs".into(), Value::Float(r.duration_ms));
-                Value::Object(m)
+                Value::from_object(m)
             })
             .collect();
         let mut out = HashMap::new();
-        out.insert("benches".into(), Value::Array(items));
-        Ok(Value::Object(out))
+        out.insert("benches".into(), Value::from_array(items));
+        Ok(Value::from_object(out))
     })
 }
 
@@ -119,7 +119,7 @@ pub fn build_test_namespace() -> Value {
         "report".into(),
         Value::NativeFunction(deno_test_report_native),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn build_bench_namespace() -> Value {
@@ -130,7 +130,7 @@ pub fn build_bench_namespace() -> Value {
         "report".into(),
         Value::NativeFunction(deno_bench_report_native),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_testing(env: &mut Environment) {

@@ -226,7 +226,7 @@ fn infer_expr_type(
                     return Some(mangle(class_name, type_args));
                 }
                 let mut inferred = Vec::new();
-                for arg in args {
+                for arg in args.iter() {
                     if let CallArg::Expr(e) = arg {
                         if let Some(t) = infer_expr_type(e, env, stmts) {
                             inferred.push(t);

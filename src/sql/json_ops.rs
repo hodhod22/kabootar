@@ -62,7 +62,7 @@ pub fn object_from_pairs(pairs: &[(String, Value)]) -> Value {
     for (k, v) in pairs {
         map.insert(k.clone(), v.clone());
     }
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 #[cfg(test)]
@@ -75,10 +75,10 @@ mod tests {
         let mut body = HashMap::new();
         body.insert("title".into(), Value::String("hi".into()));
         body.insert("plan".into(), Value::String("pro".into()));
-        let body = Value::Object(body);
+        let body = Value::from_object(body);
         let mut probe = HashMap::new();
         probe.insert("plan".into(), Value::String("pro".into()));
-        let probe = Value::Object(probe);
+        let probe = Value::from_object(probe);
         assert!(json_contains(&body, &probe));
     }
 }

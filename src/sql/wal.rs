@@ -259,7 +259,7 @@ fn encode_value(v: &Value, out: &mut String) -> Result<(), String> {
         Value::Object(map) => {
             out.push('{');
             let mut first = true;
-            for (k, val) in map {
+            for (k, val) in map.iter() {
                 if !first {
                     out.push(',');
                 }

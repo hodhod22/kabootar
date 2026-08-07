@@ -167,10 +167,10 @@ pub fn lockfile_to_value(lock: &Lockfile) -> crate::value::Value {
         if let Some(integrity) = &pkg.integrity {
             m.insert("integrity".into(), Value::String(integrity.clone()));
         }
-        packages.insert(name.clone(), Value::Object(m));
+        packages.insert(name.clone(), Value::from_object(m));
     }
     let mut root = HashMap::new();
     root.insert("version".into(), Value::Number(lock.version as i64));
-    root.insert("packages".into(), Value::Object(packages));
-    Value::Object(root)
+    root.insert("packages".into(), Value::from_object(packages));
+    Value::from_object(root)
 }

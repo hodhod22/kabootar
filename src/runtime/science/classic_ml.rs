@@ -9,7 +9,7 @@ fn matrix_rows(v: &Value) -> Result<Vec<Vec<f64>>, String> {
         Value::Array(rows) => {
             let mut out = Vec::new();
             let mut ncols = None;
-            for row in rows {
+            for row in rows.iter() {
                 let r = match row {
                     Value::Array(cells) => cells.iter().map(num).collect::<Result<Vec<_>, _>>()?,
                     _ => vector_at(&[row.clone()], 0, "matrix")?,
@@ -163,7 +163,7 @@ fn ml_pca(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         for r in 0..d {
             col.push(evecs[r][c]);
         }
-        components.push(Value::Array(col.into_iter().map(float_out).collect()));
+        components.push(Value::from_array(col.into_iter().map(float_out).collect()));
     }
     let mut transformed = Vec::new();
     for row in &x {
@@ -175,20 +175,18 @@ fn ml_pca(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             }
             proj.push(float_out(s));
         }
-        transformed.push(Value::Array(proj));
+        transformed.push(Value::from_array(proj));
     }
     let mut out = HashMap::new();
-    out.insert("components".into(), Value::Array(components));
+    out.insert("components".into(), Value::from_array(components));
     out.insert(
-        "explained".into(),
-        Value::Array(explained.into_iter().map(float_out).collect()),
+        "explained".into(), Value::from_array(explained.into_iter().map(float_out).collect()),
     );
     out.insert(
-        "mean".into(),
-        Value::Array(mean.into_iter().map(float_out).collect()),
+        "mean".into(), Value::from_array(mean.into_iter().map(float_out).collect()),
     );
-    out.insert("transform".into(), Value::Array(transformed));
-    Ok(Value::Object(out))
+    out.insert("transform".into(), Value::from_array(transformed));
+    Ok(Value::from_object(out))
 }
 
 fn lcg(state: &mut u64) -> f64 {
@@ -277,20 +275,17 @@ fn ml_kmeans(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     }
     let mut out = HashMap::new();
     out.insert(
-        "centroids".into(),
-        Value::Array(
-            centroids
+        "centroids".into(), Value::from_array(centroids
                 .into_iter()
-                .map(|r| Value::Array(r.into_iter().map(float_out).collect()))
+                .map(|r| Value::from_array(r.into_iter().map(float_out).collect()))
                 .collect(),
         ),
     );
     out.insert(
-        "labels".into(),
-        Value::Array(labels.into_iter().map(|l| int_out(l as i64)).collect()),
+        "labels".into(), Value::from_array(labels.into_iter().map(|l| int_out(l as i64)).collect()),
     );
     out.insert("inertia".into(), float_out(inertia));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn sigmoid(z: f64) -> f64 {
@@ -336,7 +331,7 @@ fn ml_logreg_fit(args: &[Value], _env: &mut Environment) -> Result<Value, String
     let mut out = HashMap::new();
     out.insert("w".into(), vector_out(&w));
     out.insert("b".into(), float_out(b));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// ml_logreg_predict(model, X) → probs or labels if threshold given
@@ -375,7 +370,7 @@ fn ml_logreg_predict(args: &[Value], _env: &mut Environment) -> Result<Value, St
             out.push(float_out(p));
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn class_ids_f(y: &[f64]) -> Vec<i64> {
@@ -451,7 +446,7 @@ fn leaf_obj(label: i64) -> Value {
     let mut m = HashMap::new();
     m.insert("leaf".into(), Value::Bool(true));
     m.insert("label".into(), int_out(label));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn build_tree(x: &[Vec<f64>], y: &[i64], idx: &[usize], depth: usize, max_depth: usize) -> Value {
@@ -483,7 +478,7 @@ fn build_tree(x: &[Vec<f64>], y: &[i64], idx: &[usize], depth: usize, max_depth:
         "right".into(),
         build_tree(x, y, &right_idx, depth + 1, max_depth),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn predict_one(node: &Value, row: &[f64]) -> Result<i64, String> {
@@ -546,7 +541,7 @@ fn ml_tree_predict(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     for row in &x {
         out.push(int_out(predict_one(tree, row)?));
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

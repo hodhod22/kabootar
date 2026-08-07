@@ -3,6 +3,7 @@
 use super::helpers::{num, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 const MARK: &str = "__kab_gpu_tensor";
 
@@ -20,8 +21,7 @@ fn tensor_out_kernel(
     let mut m = HashMap::new();
     m.insert(MARK.into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(shape.iter().map(|d| Value::Number(*d as i64)).collect()),
+        "shape".into(), Value::from_array(shape.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
     m.insert("data".into(), vector_out(data));
     m.insert("backend".into(), Value::String(backend.into()));
@@ -33,7 +33,7 @@ fn tensor_out_kernel(
     if let Some(k) = kernel {
         m.insert("kernel".into(), Value::String(k.into()));
     }
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn default_backend() -> &'static str {
@@ -118,12 +118,11 @@ fn gpu_tensor_to_nd(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(shape.iter().map(|d| Value::Number(*d as i64)).collect()),
+        "shape".into(), Value::from_array(shape.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
     m.insert("data".into(), vector_out(&data));
     m.insert("size".into(), Value::Number(data.len() as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn matmul_cpu(sa: &[usize], a: &[f64], sb: &[usize], b: &[f64]) -> Result<(usize, usize, Vec<f64>), String> {
@@ -181,7 +180,8 @@ fn gpu_matmul(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 /// Explicit kernel entry for train/infer path (SC4b subset).
 fn gpu_matmul_kernel(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut out = gpu_matmul(args, env)?;
-    if let Value::Object(ref mut m) = out {
+    if let Value::Object(ref mut m_rc) = out {
+        let m = Value::object_make_mut(m_rc);
         if !m.contains_key("kernel") {
             m.insert("kernel".into(), Value::String("matmul_f64_v1_cpu".into()));
         }
@@ -199,7 +199,7 @@ fn gpu_matmul_kernel(args: &[Value], env: &mut Environment) -> Result<Value, Str
 
 fn gpu_available_kernels(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let _ = args;
-    Ok(Value::Array(vec![
+    Ok(Value::from_array(vec![
         Value::String("matmul_f64_v1".into()),
         Value::String("linear_f64_v1".into()),
         Value::String("conv2d_f64_v1".into()),
@@ -307,22 +307,19 @@ fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut xin = HashMap::new();
     xin.insert("__kab_nd".into(), Value::Bool(true));
     xin.insert(
-        "shape".into(),
-        Value::Array(sa.iter().map(|d| Value::Number(*d as i64)).collect()),
+        "shape".into(), Value::from_array(sa.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
     xin.insert("data".into(), vector_out(&a));
     let mut win_o = HashMap::new();
     win_o.insert("__kab_nd".into(), Value::Bool(true));
     win_o.insert(
-        "shape".into(),
-        Value::Array(sw.iter().map(|d| Value::Number(*d as i64)).collect()),
+        "shape".into(), Value::from_array(sw.iter().map(|d| Value::Number(*d as i64)).collect()),
     );
     win_o.insert("data".into(), vector_out(&w));
     let bias_v = vector_out(&bias);
     let out = super::nn_layers::ml_conv2d(
         &[
-            Value::Object(xin),
-            Value::Object(win_o),
+            Value::from_object(xin), Value::from_object(win_o),
             bias_v,
             args.get(3).cloned().unwrap_or(Value::Number(1)),
             args.get(4).cloned().unwrap_or(Value::Number(0)),
@@ -350,7 +347,8 @@ fn gpu_conv2d(args: &[Value], env: &mut Environment) -> Result<Value, String> {
 
 fn gpu_conv2d_kernel(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut out = gpu_conv2d(args, env)?;
-    if let Value::Object(ref mut m) = out {
+    if let Value::Object(ref mut m_rc) = out {
+        let m = Value::object_make_mut(m_rc);
         if !m.contains_key("kernel") {
             m.insert("kernel".into(), Value::String("conv2d_f64_v1_cpu".into()));
         }
@@ -427,8 +425,7 @@ fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
         Value::String("gpu_to_device + gpu_matmul_kernel/gpu_linear/gpu_conv2d + gpu_to_host".into()),
     );
     m.insert(
-        "kernels".into(),
-        Value::Array(vec![
+        "kernels".into(), Value::from_array(vec![
             Value::String("matmul_f64_v1".into()),
             Value::String("linear_f64_v1".into()),
             Value::String("conv2d_f64_v1".into()),
@@ -436,7 +433,7 @@ fn gpu_tensor_info(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
             Value::String("wgpu-compute-conv2d_f32_v1".into()),
         ]),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

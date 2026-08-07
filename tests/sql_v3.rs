@@ -13,7 +13,7 @@ fn sql_v3_json_path_and_contains() {
     let mut body = HashMap::new();
     body.insert("title".into(), Value::String("hi".into()));
     body.insert("plan".into(), Value::String("pro".into()));
-    e.execute("INSERT INTO docs (id, body) VALUES (1, $1)", &[Value::Object(body)])
+    e.execute("INSERT INTO docs (id, body) VALUES (1, $1)", &[Value::from_object(body)])
         .unwrap();
     let v = e
         .execute("SELECT body FROM docs WHERE body->>'title' = 'hi'", &[])
@@ -22,7 +22,7 @@ fn sql_v3_json_path_and_contains() {
     let mut probe = HashMap::new();
     probe.insert("plan".into(), Value::String("pro".into()));
     let v2 = e
-        .execute("SELECT id FROM docs WHERE body @> $1", &[Value::Object(probe)])
+        .execute("SELECT id FROM docs WHERE body @> $1", &[Value::from_object(probe)])
         .unwrap();
     assert!(matches!(v2, Value::Number(1)));
 }

@@ -711,7 +711,7 @@ impl Compiler {
 
     fn compile_call_args_array(&mut self, args: &[CallArg]) -> Result<(), CompileError> {
         let mut pieces: Vec<ArrayPiece> = Vec::new();
-        for arg in args {
+        for arg in args.iter() {
             match arg {
                 CallArg::Expr(e) => pieces.push(ArrayPiece::Item(e.clone())),
                 CallArg::Spread(e) => pieces.push(ArrayPiece::Spread(e.clone())),
@@ -743,7 +743,7 @@ impl Compiler {
                 match rest_at {
                     None => {
                         let mut idx = 0u8;
-                        for item in items {
+                        for item in items.iter() {
                             match item {
                                 BindingPattern::Rest(name) => {
                                     self.emit(Opcode::Dup);
@@ -807,7 +807,7 @@ impl Compiler {
             }
             BindingPattern::Object(fields) => {
                 let mut bound_keys: Vec<String> = Vec::new();
-                for field in fields {
+                for field in fields.iter() {
                     match field {
                         ObjectBind::Shorthand(key) => {
                             self.emit(Opcode::Dup);
@@ -1155,7 +1155,7 @@ impl Compiler {
                         if has_spread {
                             return Err(CompileError);
                         }
-                        for arg in args {
+                        for arg in args.iter() {
                             match arg {
                                 CallArg::Expr(e) => self.compile_expr(e)?,
                                 CallArg::Spread(_) => return Err(CompileError),
@@ -1171,7 +1171,7 @@ impl Compiler {
                         if has_spread {
                             return Err(CompileError);
                         }
-                        for arg in args {
+                        for arg in args.iter() {
                             match arg {
                                 CallArg::Expr(e) => self.compile_expr(e)?,
                                 CallArg::Spread(_) => return Err(CompileError),
@@ -1189,7 +1189,7 @@ impl Compiler {
                         if has_spread {
                             return Err(CompileError);
                         }
-                        for arg in args {
+                        for arg in args.iter() {
                             match arg {
                                 CallArg::Expr(e) => self.compile_expr(e)?,
                                 CallArg::Spread(_) => return Err(CompileError),
@@ -1205,7 +1205,7 @@ impl Compiler {
                             if has_spread {
                                 return Err(CompileError);
                             }
-                            for arg in args {
+                            for arg in args.iter() {
                                 match arg {
                                     CallArg::Expr(e) => self.compile_expr(e)?,
                                     CallArg::Spread(_) => return Err(CompileError),
@@ -1242,7 +1242,7 @@ impl Compiler {
                     self.emit(Opcode::CallFromArray);
                     return Ok(());
                 }
-                for arg in args {
+                for arg in args.iter() {
                     match arg {
                         CallArg::Expr(e) => self.compile_expr(e)?,
                         CallArg::Spread(_) => return Err(CompileError),
@@ -1577,7 +1577,7 @@ impl Compiler {
     ) -> Result<BytecodeClassDef, CompileError> {
         let mut class_constants = Vec::new();
         let mut bc_fields = Vec::new();
-        for field in fields {
+        for field in fields.iter() {
             let mut default_const = None;
             let mut default_globals = Vec::new();
             let mut default_code = Vec::new();
@@ -1869,7 +1869,7 @@ impl Compiler {
                     self.emit(Opcode::Pop);
                 } else {
                     self.emit(Opcode::UnpackEnumFields(fields.len() as u8));
-                    for field_pat in fields {
+                    for field_pat in fields.iter() {
                         self.compile_match_pattern(field_pat, pattern_fails)?;
                     }
                 }
@@ -2033,7 +2033,7 @@ impl Compiler {
         }
 
         let mut bound_keys: Vec<String> = Vec::new();
-        for field in fields {
+        for field in fields.iter() {
             match field {
                 PatternField::Shorthand(key) => {
                     let ki = self.const_index(Constant::String(key.clone()));

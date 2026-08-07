@@ -238,7 +238,7 @@ fn write_value(out: &mut Vec<u8>, v: &Value) -> Result<(), String> {
         Value::Object(m) => {
             write_u8(out, 5)?;
             write_u32(out, m.len() as u32)?;
-            for (k, val) in m {
+            for (k, val) in m.iter() {
                 write_str(out, k)?;
                 write_value(out, val)?;
             }
@@ -247,7 +247,7 @@ fn write_value(out: &mut Vec<u8>, v: &Value) -> Result<(), String> {
         Value::Array(a) => {
             write_u8(out, 6)?;
             write_u32(out, a.len() as u32)?;
-            for item in a {
+            for item in a.iter() {
                 write_value(out, item)?;
             }
             Ok(())
@@ -271,7 +271,7 @@ fn read_value(bytes: &[u8], pos: &mut usize) -> Result<Value, String> {
                 let k = read_str(bytes, pos)?;
                 m.insert(k, read_value(bytes, pos)?);
             }
-            Value::Object(m)
+            Value::from_object(m)
         }
         6 => {
             let n = read_u32(bytes, pos)? as usize;
@@ -279,7 +279,7 @@ fn read_value(bytes: &[u8], pos: &mut usize) -> Result<Value, String> {
             for _ in 0..n {
                 a.push(read_value(bytes, pos)?);
             }
-            Value::Array(a)
+            Value::from_array(a)
         }
         _ => Value::Null,
     })

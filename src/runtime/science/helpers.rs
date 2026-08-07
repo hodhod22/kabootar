@@ -42,7 +42,7 @@ pub fn vector_at(args: &[Value], i: usize, name: &str) -> Result<Vec<f64>, Strin
 }
 
 pub fn vector_out(values: &[f64]) -> Value {
-    Value::Array(values.iter().map(|&x| float_out(x)).collect())
+    Value::from_array(values.iter().map(|&x| float_out(x)).collect())
 }
 
 pub fn matrix_val(v: &Value) -> Result<Vec<Vec<f64>>, String> {
@@ -56,7 +56,7 @@ pub fn matrix_val(v: &Value) -> Result<Vec<Vec<f64>>, String> {
                 Value::Array(r0) => r0.len(),
                 _ => return Err("expected matrix (array of rows)".into()),
             };
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(r) = row else {
                     return Err("expected matrix row as array".into());
                 };
@@ -78,7 +78,7 @@ pub fn matrix_at(args: &[Value], i: usize, name: &str) -> Result<Vec<Vec<f64>>, 
 }
 
 pub fn matrix_out(m: &[Vec<f64>]) -> Value {
-    Value::Array(m.iter().map(|row| vector_out(row)).collect())
+    Value::from_array(m.iter().map(|row| vector_out(row)).collect())
 }
 
 pub fn matrix_rows(m: &[Vec<f64>]) -> usize {

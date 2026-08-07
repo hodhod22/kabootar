@@ -21,7 +21,7 @@ fn ml_train_log(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     if verbose {
         let mut line = format!("epoch {} loss={}", epoch, loss);
         if let Value::Object(m) = &metrics {
-            for (k, v) in m {
+            for (k, v) in m.iter() {
                 if let Ok(f) = num(v) {
                     line.push_str(&format!(" {}={}", k, f));
                 }
@@ -41,7 +41,7 @@ fn ml_train_log(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         out.insert("opts".into(), opts);
     }
 
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

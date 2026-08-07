@@ -64,8 +64,7 @@ fn call_trap(
 
 fn valid_proxy_target(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(_)
+        v, Value::Object(_)
             | Value::Array(_)
             | Value::Function { .. }
             | Value::BytecodeFn(_)
@@ -86,7 +85,7 @@ pub fn create_proxy(target: Value, handler: Value) -> Result<Value, String> {
     m.insert(PROXY_MARKER.into(), Value::Bool(true));
     m.insert(PROXY_TARGET.into(), target);
     m.insert(PROXY_HANDLER.into(), handler);
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 pub fn trap_get(
@@ -122,9 +121,10 @@ pub fn trap_set(
         )?;
         return Ok(result.is_truthy());
     }
-    let Value::Object(map) = proxy else {
+    let Value::Object(ref mut map_rc) = proxy else {
         return Err("expected proxy".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let target = map
         .get_mut(PROXY_TARGET)
         .ok_or("invalid proxy: missing target")?;
@@ -150,9 +150,10 @@ pub fn trap_delete_property(
         let result = call_trap(trap, vec![target, key.clone()], env)?;
         return Ok(result.is_truthy());
     }
-    let Value::Object(map) = proxy else {
+    let Value::Object(ref mut map_rc) = proxy else {
         return Err("expected proxy".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let target = map
         .get_mut(PROXY_TARGET)
         .ok_or("invalid proxy: missing target")?;
@@ -164,7 +165,7 @@ pub fn trap_own_keys(proxy: &Value, env: &mut Environment) -> Result<Vec<Value>,
     if let Some(trap) = handler_trap(&handler, "ownKeys") {
         let result = call_trap(trap, vec![target], env)?;
         return match result {
-            Value::Array(items) => Ok(items),
+            Value::Array(items) => Ok(items.as_ref().clone()),
             _ => Err("ownKeys trap must return an array".into()),
         };
     }
@@ -205,9 +206,10 @@ pub fn trap_define_property(
             return Ok(result.is_truthy());
         }
     }
-    let Value::Object(map) = proxy else {
+    let Value::Object(ref mut map_rc) = proxy else {
         return Err("expected proxy".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let target = map
         .get_mut(PROXY_TARGET)
         .ok_or("invalid proxy: missing target")?;
@@ -232,9 +234,10 @@ pub fn trap_set_parent_of(
         let result = call_trap(trap, vec![target, parent.clone()], env)?;
         return Ok(result.is_truthy());
     }
-    let Value::Object(map) = proxy else {
+    let Value::Object(ref mut map_rc) = proxy else {
         return Err("expected proxy".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let target = map
         .get_mut(PROXY_TARGET)
         .ok_or("invalid proxy: missing target")?;
@@ -259,9 +262,10 @@ pub fn trap_prevent_extensions(
         let result = call_trap(trap, vec![target], env)?;
         return Ok(result.is_truthy());
     }
-    let Value::Object(map) = proxy else {
+    let Value::Object(ref mut map_rc) = proxy else {
         return Err("expected proxy".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let target = map
         .get_mut(PROXY_TARGET)
         .ok_or("invalid proxy: missing target")?;
@@ -276,7 +280,7 @@ pub fn trap_apply(
 ) -> Result<Value, String> {
     let (target, handler) = proxy_parts(proxy)?;
     if let Some(trap) = handler_trap(&handler, "apply") {
-        return call_trap(trap, vec![target, this_arg, Value::Array(args)], env);
+        return call_trap(trap, vec![target, this_arg, Value::from_array(args)], env);
     }
     apply_internal(&target, this_arg, args, env)
 }
@@ -291,7 +295,7 @@ pub fn trap_construct(
     if let Some(trap) = handler_trap(&handler, "construct") {
         return call_trap(
             trap,
-            vec![target, Value::Array(args), new_target.clone()],
+            vec![target, Value::from_array(args), new_target.clone()],
             env,
         );
     }
@@ -319,7 +323,7 @@ pub fn try_proxy_ctor_call(
 pub fn build_proxy_namespace() -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_proxy_ctor".into(), Value::Bool(true));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_proxy(env: &mut Environment) {

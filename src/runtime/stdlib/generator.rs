@@ -69,9 +69,9 @@ pub fn create_generator(
     map.insert(GEN_MARKER.into(), Value::Bool(true));
     map.insert(ITERATOR_MARKER.into(), Value::Bool(true));
     map.insert("__kab_gen_fn".into(), Value::BytecodeFn(func));
-    map.insert("__kab_gen_locals".into(), Value::Array(local_vals));
+    map.insert("__kab_gen_locals".into(), Value::from_array(local_vals));
     map.insert("__kab_gen_ip".into(), Value::Number(0));
-    map.insert("__kab_gen_stack".into(), Value::Array(Vec::new()));
+    map.insert("__kab_gen_stack".into(), Value::from_array(Vec::new()));
     map.insert("__kab_gen_done".into(), Value::Bool(false));
     map.insert(GEN_SUSPENDED.into(), Value::Bool(false));
     if is_async {
@@ -84,7 +84,7 @@ pub fn create_generator(
         crate::runtime::stdlib::iterator::attach_iterator_return(&mut map);
         crate::runtime::stdlib::iterator::attach_iterator_throw(&mut map);
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn generator_next_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -163,7 +163,7 @@ pub fn advance_generator(
     crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
     let def = func.def.as_ref();
     let mut local_vals = match map.get("__kab_gen_locals") {
-        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Array(items)) => items.as_ref().clone(),
         _ => vec![Value::Undefined; def.locals.len().max(1)],
     };
     let mut cursor = ChunkCursor {
@@ -172,7 +172,7 @@ pub fn advance_generator(
             _ => 0,
         },
         stack: match map.get("__kab_gen_stack") {
-            Some(Value::Array(items)) => items.clone(),
+            Some(Value::Array(items)) => items.as_ref().clone(),
             _ => Vec::new(),
         },
         delegate: map.get(GEN_DELEGATE).cloned(),
@@ -189,18 +189,18 @@ pub fn advance_generator(
         run_generator_step(def, &[], &mut local_vals, &mut cursor, &mut call_env, effective_resume)?;
     crate::runtime::closure_sync::sync_closure_writes(&func.closure, &call_env, env);
     crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
-    map.insert("__kab_gen_fn".into(), Value::BytecodeFn(func));
-    map.insert("__kab_gen_locals".into(), Value::Array(local_vals));
-    map.insert("__kab_gen_ip".into(), Value::Number(cursor.ip as i64));
-    map.insert("__kab_gen_stack".into(), Value::Array(cursor.stack));
-    map.insert("__kab_gen_done".into(), Value::Bool(done));
-    map.insert(GEN_SUSPENDED.into(), Value::Bool(!done));
+    Rc::make_mut(map).insert("__kab_gen_fn".into(), Value::BytecodeFn(func));
+    Rc::make_mut(map).insert("__kab_gen_locals".into(), Value::from_array(local_vals));
+    Rc::make_mut(map).insert("__kab_gen_ip".into(), Value::Number(cursor.ip as i64));
+    Rc::make_mut(map).insert("__kab_gen_stack".into(), Value::from_array(cursor.stack));
+    Rc::make_mut(map).insert("__kab_gen_done".into(), Value::Bool(done));
+    Rc::make_mut(map).insert(GEN_SUSPENDED.into(), Value::Bool(!done));
     if let Some(delegate) = cursor.delegate.clone() {
-        map.insert(GEN_DELEGATE.into(), delegate);
+        Rc::make_mut(map).insert(GEN_DELEGATE.into(), delegate);
     } else {
-        map.remove(GEN_DELEGATE);
+        Rc::make_mut(map).remove(GEN_DELEGATE);
     }
-    reattach_generator_protocol(map);
+    reattach_generator_protocol(Value::object_make_mut(map));
     Ok(iterator_result(yield_or_return, done))
 }
 
@@ -268,19 +268,19 @@ pub fn close_generator(
     value: Value,
     env: &mut Environment,
 ) -> Result<Value, String> {
-    let Value::Object(src) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("generator.return() expects generator object".into());
     };
-    let mut map = src.clone();
-    map.insert("__kab_gen_done".into(), Value::Bool(true));
+    let map = Value::object_make_mut(map_rc);
+    map.remove("__kab_gen_done");
     map.insert(GEN_SUSPENDED.into(), Value::Bool(false));
     map.remove(GEN_DELEGATE);
-    reattach_generator_protocol(&mut map);
+    reattach_generator_protocol(map);
     if !matches!(map.get(GEN_ASYNC), Some(Value::Bool(true))) {
-        crate::runtime::stdlib::iterator::attach_iterator_return(&mut map);
-        crate::runtime::stdlib::iterator::attach_iterator_throw(&mut map);
+        crate::runtime::stdlib::iterator::attach_iterator_return(map);
+        crate::runtime::stdlib::iterator::attach_iterator_throw(map);
     }
-    *it = Value::Object(map);
+    *it = Value::Object(map_rc.clone());
     writeback_generator_by_oid(it, env);
     Ok(iterator_result(value, true))
 }

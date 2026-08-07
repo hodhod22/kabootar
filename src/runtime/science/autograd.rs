@@ -126,7 +126,7 @@ fn tensor_out(id: u64, value: &[f64]) -> Value {
     m.insert("__kab_ag".into(), Value::Bool(true));
     m.insert("id".into(), Value::Number(id as i64));
     m.insert("data".into(), vector_out(value));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn tensor_id(v: &Value) -> Result<u64, String> {

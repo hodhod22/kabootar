@@ -34,7 +34,7 @@ fn sci_bench(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         "ns_per_op".into(),
         int_out((elapsed_ms as f64 * 1_000_000.0 / iterations as f64) as i64),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 /// sci_bench_report(benches[]) — summary object for docs/CI (non-blocking).
@@ -45,7 +45,7 @@ fn sci_bench_report(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     };
     let mut total_ms = 0i64;
     let mut lines = Vec::new();
-    for b in items {
+    for b in items.iter() {
         if let Value::Object(m) = b {
             let label = match m.get("label") {
                 Some(Value::String(s)) => s.clone(),
@@ -66,8 +66,8 @@ fn sci_bench_report(args: &[Value], _env: &mut Environment) -> Result<Value, Str
     let mut out = HashMap::new();
     out.insert("count".into(), int_out(items.len() as i64));
     out.insert("total_ms".into(), int_out(total_ms));
-    out.insert("lines".into(), Value::Array(lines));
-    Ok(Value::Object(out))
+    out.insert("lines".into(), Value::from_array(lines));
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

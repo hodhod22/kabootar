@@ -210,9 +210,7 @@ fn value_kind(v: &Value) -> &'static str {
         Value::Number(_) => "number",
         Value::Float(_) => "float",
         Value::String(_) => "string",
-        Value::Bool(_) => "bool",
-        Value::Array(_) => "array",
-        Value::Object(_) => "object",
+        Value::Bool(_) => "bool", Value::Array(_) => "array", Value::Object(_) => "object",
         Value::Function { .. }
         | Value::BytecodeFn(_)
         | Value::NativeFunction(_)

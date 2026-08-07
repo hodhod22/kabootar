@@ -42,7 +42,7 @@ pub fn value_to_bytes(v: &Value) -> Result<Vec<u8>, String> {
 }
 
 pub fn bytes_to_array(bytes: &[u8]) -> Value {
-    Value::Array(
+    Value::from_array(
         bytes
             .iter()
             .map(|b| Value::Number(*b as i64))

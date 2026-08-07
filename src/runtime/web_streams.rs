@@ -90,14 +90,14 @@ fn read_result(chunk: Value) -> Value {
     let mut out = HashMap::new();
     out.insert("done".into(), Value::Bool(false));
     out.insert("value".into(), chunk);
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 fn done_result() -> Value {
     let mut out = HashMap::new();
     out.insert("done".into(), Value::Bool(true));
     out.insert("value".into(), Value::Undefined);
-    Value::Object(out)
+    Value::from_object(out)
 }
 
 fn state_name(state: ReadableState) -> &'static str {
@@ -124,14 +124,14 @@ pub fn stream_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_stream".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn writable_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_writable".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn reader_object(id: u64, stream_id: u64) -> Value {
@@ -139,7 +139,7 @@ fn reader_object(id: u64, stream_id: u64) -> Value {
     m.insert("__kab_reader".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
     m.insert("__kab_stream_id".into(), Value::Number(stream_id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn writer_object(id: u64, writable_id: u64) -> Value {
@@ -147,7 +147,7 @@ fn writer_object(id: u64, writable_id: u64) -> Value {
     m.insert("__kab_writer".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
     m.insert("__kab_writable_id".into(), Value::Number(writable_id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn stream_id(v: &Value) -> Result<u64, String> {
@@ -346,11 +346,11 @@ pub fn stream_read_all_impl(id: u64) -> Result<Value, String> {
         let mut map = m.borrow_mut();
         let r = map.remove(&id).ok_or_else(|| format!("invalid stream id {id}"))?;
         if r.byte_mode {
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 r.bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
             ))
         } else {
-            Ok(Value::Array(r.chunks))
+            Ok(Value::from_array(r.chunks))
         }
     })
 }
@@ -534,7 +534,7 @@ pub fn stream_tee(id: u64) -> Result<Value, String> {
     record_b.tee_group = Some(tee_group);
     insert_readable(id_a, record_a);
     insert_readable(id_b, record_b);
-    Ok(Value::Array(vec![stream_object(id_a), stream_object(id_b)]))
+    Ok(Value::from_array(vec![stream_object(id_a), stream_object(id_b)]))
 }
 
 pub fn stream_locked(id: u64) -> bool {
@@ -638,7 +638,7 @@ pub fn writable_abort(id: u64, reason: Option<String>) -> Result<(), String> {
 pub fn writable_read_all(id: u64) -> Result<Value, String> {
     WRITABLES.with(|m| {
         let chunks = m.borrow_mut().remove(&id).map(|w| w.chunks).unwrap_or_default();
-        Ok(Value::Array(chunks))
+        Ok(Value::from_array(chunks))
     })
 }
 
@@ -750,7 +750,7 @@ pub fn transform_stream_new(transform: Value, env: &mut Environment) -> Result<V
     let mut pair = HashMap::new();
     pair.insert("readable".into(), stream_object(readable_id));
     pair.insert("writable".into(), writable_object(writable_id));
-    Ok(Value::Object(pair))
+    Ok(Value::from_object(pair))
 }
 
 pub fn byte_stream_new() -> Value {
@@ -796,7 +796,7 @@ pub fn byte_stream_read(id: u64, max: usize) -> Result<Value, String> {
         }
         let n = max.min(r.bytes.len());
         let slice: Vec<Value> = r.bytes.drain(..n).map(|b| Value::Number(b as i64)).collect();
-        Ok(Value::Array(slice))
+        Ok(Value::from_array(slice))
     })
 }
 
@@ -851,7 +851,7 @@ pub fn stream_transfer(id: u64) -> Result<Value, String> {
     out.insert("__kab_stream_transfer".into(), Value::Bool(true));
     out.insert("kabTransfer".into(), Value::String("stream".into()));
     out.insert("token".into(), Value::Number(token as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn stream_from_transfer(token: u64) -> Result<Value, String> {
@@ -921,7 +921,7 @@ pub fn adopt_transfers_in_message(msg: &Value) -> Result<Value, String> {
             }
             if let Some(Value::Array(items)) = map.get("transfers") {
                 let mut adopted = Vec::new();
-                for item in items {
+                for item in items.iter() {
                     if let Value::Object(t) = item {
                         if let Some(token) = is_stream_transfer_token(t) {
                             adopted.push(stream_from_transfer(token)?);
@@ -936,18 +936,18 @@ pub fn adopt_transfers_in_message(msg: &Value) -> Result<Value, String> {
                     }
                     adopted.push(item.clone());
                 }
-                let mut out = map.clone();
-                out.insert("transfers".into(), Value::Array(adopted));
-                return Ok(Value::Object(out));
+                let mut out = map.as_ref().clone();
+                out.insert("transfers".into(), Value::from_array(adopted));
+                return Ok(Value::from_object(out));
             }
             Ok(msg.clone())
         }
         Value::Array(items) => {
             let mut out = Vec::new();
-            for item in items {
+            for item in items.iter() {
                 out.push(adopt_transfers_in_message(item)?);
             }
-            Ok(Value::Array(out))
+            Ok(Value::from_array(out))
         }
         other => Ok(other.clone()),
     }

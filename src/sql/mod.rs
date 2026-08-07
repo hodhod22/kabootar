@@ -1151,7 +1151,7 @@ impl SqlEngine {
         if let Some(idx) = plan_info.3 {
             out.insert("index".into(), Value::String(idx));
         }
-        Ok(Value::Object(out))
+        Ok(Value::from_object(out))
     }
 }
 
@@ -1566,7 +1566,7 @@ fn aggregate_row(
     items: &[SelectItem],
 ) -> Result<HashMap<String, Value>, String> {
     let mut out = HashMap::new();
-    for item in items {
+    for item in items.iter() {
         match item {
             SelectItem::CountAll => {
                 let count = if storage::parallel::should_parallelize(rows.len()) {
@@ -1719,7 +1719,7 @@ fn group_and_aggregate(
     items: &[SelectItem],
 ) -> Result<Vec<HashMap<String, Value>>, String> {
     let mut groups: HashMap<String, Vec<&HashMap<String, Value>>> = HashMap::new();
-    for row in rows {
+    for row in rows.iter() {
         let key = group_cols
             .iter()
             .map(|c| {
@@ -1742,7 +1742,7 @@ fn group_and_aggregate(
                 row.insert(k, v);
             }
         }
-        for item in items {
+        for item in items.iter() {
             if let SelectItem::Column(name) = item {
                 let k = qualified_key(name);
                 if let Some(v) = owned.first().and_then(|r| row_get(r, name)) {
@@ -1788,7 +1788,7 @@ fn dedupe_rows(
 ) -> Vec<HashMap<String, Value>> {
     let mut seen = Vec::new();
     let mut out = Vec::new();
-    for row in rows {
+    for row in rows.iter() {
         let projected = project_row(row, items).ok();
         let key = projected
             .as_ref()
@@ -2593,7 +2593,7 @@ fn project_row(
     items: &[SelectItem],
 ) -> Result<HashMap<String, Value>, String> {
     let mut out = HashMap::new();
-    for item in items {
+    for item in items.iter() {
         match item {
             SelectItem::All => out.extend(row.clone()),
             SelectItem::Column(name) => {
@@ -2631,7 +2631,7 @@ fn select_item_result_key(item: &SelectItem) -> Option<String> {
 
 fn format_select_result(rows: &[HashMap<String, Value>], items: &[SelectItem]) -> Value {
     if rows.is_empty() {
-        return Value::Array(Vec::new());
+        return Value::from_array(Vec::new());
     }
 
     let column_keys: Vec<String> = if items.iter().any(|item| {
@@ -2673,17 +2673,17 @@ fn format_select_result(rows: &[HashMap<String, Value>], items: &[SelectItem]) -
 
     if column_keys.len() == 1 {
         let key = &column_keys[0];
-        return Value::Array(
+        return Value::from_array(
             rows.iter()
                 .map(|row| row.get(key).cloned().unwrap_or(Value::Null))
                 .collect(),
         );
     }
 
-    Value::Array(
+    Value::from_array(
         rows.iter()
             .map(|row| {
-                Value::Array(
+                Value::from_array(
                     column_keys
                         .iter()
                         .map(|key| row.get(key).cloned().unwrap_or(Value::Null))
@@ -2738,13 +2738,9 @@ mod tests {
             )
             .unwrap();
         assert!(matches!(
-            result,
-            Value::Array(rows)
-                if rows.len() == 1
+            result, Value::Array(rows) if rows.len() == 1
                 && matches!(
-                    &rows[0],
-                    Value::Array(cols)
-                        if cols.len() == 2
+                    &rows[0], Value::Array(cols) if cols.len() == 2
                         && matches!(&cols[0], Value::String(s) if s == "Ada")
                         && matches!(&cols[1], Value::Number(100))
                 )
@@ -2817,14 +2813,14 @@ mod tests {
         let mut body = HashMap::new();
         body.insert("title".into(), Value::String("hi".into()));
         body.insert("plan".into(), Value::String("pro".into()));
-        e.execute("INSERT INTO docs (id, body) VALUES (1, $1)", &[Value::Object(body)])
+        e.execute("INSERT INTO docs (id, body) VALUES (1, $1)", &[Value::from_object(body)])
             .unwrap();
         e.execute("SELECT body FROM docs WHERE body->>'title' = 'hi'", &[])
             .unwrap();
         let mut probe = HashMap::new();
         probe.insert("plan".into(), Value::String("pro".into()));
         let v2 = e
-            .execute("SELECT id FROM docs WHERE body @> $1", &[Value::Object(probe)])
+            .execute("SELECT id FROM docs WHERE body @> $1", &[Value::from_object(probe)])
             .unwrap();
         assert!(matches!(v2, Value::Number(1)));
     }

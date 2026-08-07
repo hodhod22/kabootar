@@ -29,9 +29,9 @@ fn csv_parse(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
                 }
             })
             .collect();
-        rows.push(Value::Array(cells));
+        rows.push(Value::from_array(cells));
     }
-    Ok(Value::Array(rows))
+    Ok(Value::from_array(rows))
 }
 
 fn csv_load(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -82,7 +82,7 @@ fn parquet_save(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     let nrows = rows.len();
     let mut dtypes = vec![1u8; ncols]; // default f64; promote to str/i64 as needed
     let mut cols: Vec<Vec<Value>> = vec![Vec::with_capacity(nrows); ncols];
-    for row in rows {
+    for row in rows.iter() {
         let Value::Object(m) = row else {
             return Err("parquet_save: jagged rows".into());
         };
@@ -176,7 +176,7 @@ fn parquet_load(args: &[Value], _env: &mut Environment) -> Result<Value, String>
             || crate::runtime::science::apache_parquet::path_wants_apache(path)
         {
             let rows = crate::runtime::science::apache_parquet::apache_parquet_load(path)?;
-            return Ok(Value::Array(rows));
+            return Ok(Value::from_array(rows));
         }
     }
     if buf.len() < 12 || &buf[0..4] != b"KPQT" {
@@ -254,9 +254,9 @@ fn parquet_load(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         for c in 0..ncols {
             m.insert(names[c].clone(), cols[c][r].clone());
         }
-        out_rows.push(Value::Object(m));
+        out_rows.push(Value::from_object(m));
     }
-    Ok(Value::Array(out_rows))
+    Ok(Value::from_array(out_rows))
 }
 
 fn table_describe(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -273,7 +273,7 @@ fn table_describe(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     };
     let mut means = vec![0.0; ncols];
     let mut counts = vec![0usize; ncols];
-    for row in rows {
+    for row in rows.iter() {
         let Value::Array(cells) = row else {
             continue;
         };
@@ -293,10 +293,9 @@ fn table_describe(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
     out.insert("rows".into(), int_out(rows.len() as i64));
     out.insert("cols".into(), int_out(ncols as i64));
     out.insert(
-        "mean".into(),
-        Value::Array(means.into_iter().map(float_out).collect()),
+        "mean".into(), Value::from_array(means.into_iter().map(float_out).collect()),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn format_table(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -305,7 +304,7 @@ fn format_table(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         _ => return Err("format_table(rows)".into()),
     };
     let mut lines = Vec::new();
-    for row in rows {
+    for row in rows.iter() {
         match row {
             Value::Array(cells) => {
                 let parts: Vec<String> = cells
@@ -363,16 +362,15 @@ fn pretty(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("pretty(value)")?;
     match v {
         Value::Object(m) if matches!(m.get("__kab_nd"), Some(Value::Bool(true))) => {
-            let data = m.get("data").cloned().unwrap_or(Value::Array(vec![]));
-            let shape = m.get("shape").cloned().unwrap_or(Value::Array(vec![]));
+            let data = m.get("data").cloned().unwrap_or(Value::from_array(vec![]));
+            let shape = m.get("shape").cloned().unwrap_or(Value::from_array(vec![]));
             Ok(Value::String(format!(
                 "ndarray shape={} data={}",
                 crate::value::format_value(&shape),
                 crate::value::format_value(&data)
             )))
         }
-        Value::Array(items)
-            if items
+        Value::Array(items) if items
                 .first()
                 .map(|x| matches!(x, Value::Array(_)))
                 .unwrap_or(false) =>
@@ -392,7 +390,7 @@ fn plot_canvas_result(id: u64, w: u32, h: u32) -> Result<Value, String> {
     if let Ok(url) = canvas2d::to_data_url(id, "image/png") {
         o.insert("dataUrl".into(), Value::String(url));
     }
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn map_xy(xs: &[f64], ys: &[f64], w: f64, h: f64, pad: f64) -> Vec<(f64, f64)> {
@@ -534,7 +532,7 @@ fn rows_to_html(rows: &[Value]) -> String {
         html.push_str("<tr>");
         match row {
             Value::Array(cells) => {
-                for c in cells {
+                for c in cells.iter() {
                     let tag = if i == 0 { "th" } else { "td" };
                     html.push_str(&format!(
                         "<{tag}>{}</{tag}>",
@@ -578,7 +576,7 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
                         html_escape(url)
                     )),
                 );
-                return Ok(Value::Object(out));
+                return Ok(Value::from_object(out));
             }
         }
         if matches!(m.get("kind"), Some(Value::String(k)) if k == "train_progress") {
@@ -602,7 +600,7 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
                 "text".into(),
                 Value::String(format!("epoch {} loss={}", epoch, loss)),
             );
-            return Ok(Value::Object(out));
+            return Ok(Value::from_object(out));
         }
         if matches!(m.get("__kab_df"), Some(Value::Bool(true))) {
             if let Some(Value::Object(cols)) = m.get("columns") {
@@ -621,7 +619,7 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
                     _ => 0,
                 };
                 let mut rows = Vec::new();
-                rows.push(Value::Array(
+                rows.push(Value::from_array(
                     names.iter().map(|n| Value::String(n.clone())).collect(),
                 ));
                 for i in 0..nrows {
@@ -633,12 +631,12 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
                             row.push(Value::Null);
                         }
                     }
-                    rows.push(Value::Array(row));
+                    rows.push(Value::from_array(row));
                 }
                 let html = rows_to_html(&rows);
                 out.insert("mime".into(), Value::String("text/html".into()));
                 out.insert("html".into(), Value::String(html));
-                return Ok(Value::Object(out));
+                return Ok(Value::from_object(out));
             }
         }
     }
@@ -652,7 +650,7 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
             let html = rows_to_html(items);
             out.insert("mime".into(), Value::String("text/html".into()));
             out.insert("html".into(), Value::String(html));
-            return Ok(Value::Object(out));
+            return Ok(Value::from_object(out));
         }
     }
 
@@ -667,7 +665,7 @@ fn rich_display(args: &[Value], env: &mut Environment) -> Result<Value, String> 
         );
     }
 
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

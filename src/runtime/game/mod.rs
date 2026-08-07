@@ -173,7 +173,7 @@ fn input_is_down_native(args: &[Value], _env: &mut Environment) -> Result<Value,
 }
 
 fn game_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    Ok(Value::Object(
+    Ok(Value::from_object(
         info()
             .into_iter()
             .map(|(k, v)| (k, Value::String(v)))
@@ -240,10 +240,9 @@ fn editor_scene_gpu_viewport_native(
         draw.insert("z".into(), Value::Float(z as f64));
         draw.insert("selected".into(), Value::Bool(selected));
         draw.insert(
-            "color".into(),
-            Value::Array(color.iter().map(|c| Value::Float(*c as f64)).collect()),
+            "color".into(), Value::from_array(color.iter().map(|c| Value::Float(*c as f64)).collect()),
         );
-        draws.push(Value::Object(draw));
+        draws.push(Value::from_object(draw));
 
         // Unit diamond (4 verts) centered at gizmo position — solid pipeline xyz.
         let base = (vertices.len() / 3) as u16;
@@ -302,15 +301,14 @@ fn editor_scene_gpu_viewport_native(
     out.insert("width".into(), Value::Number(width as i64));
     out.insert("height".into(), Value::Number(height as i64));
     out.insert(
-        "viewProj".into(),
-        Value::Array(view_proj.iter().map(|f| Value::Float(*f as f64)).collect()),
+        "viewProj".into(), Value::from_array(view_proj.iter().map(|f| Value::Float(*f as f64)).collect()),
     );
-    out.insert("draws".into(), Value::Array(draws));
+    out.insert("draws".into(), Value::from_array(draws));
     out.insert("vertCount".into(), Value::Number((vertices.len() / 3) as i64));
     out.insert("indexCount".into(), Value::Number(indices.len() as i64));
     out.insert("rendered".into(), Value::Bool(rendered));
     out.insert("pixelBytes".into(), Value::Number(pixel_count));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn scene_view_proj(cx: f32, cy: f32, cz: f32, zoom: f32, w: u32, h: u32) -> [f32; 16] {
@@ -379,7 +377,7 @@ fn game_gpu_shadow_render_native(args: &[Value], _env: &mut Environment) -> Resu
     let mut vertices: Vec<f32> = Vec::new();
     let mut indices: Vec<u16> = Vec::new();
     if let Some(Value::Array(pos)) = desc.get("positions") {
-        for p in pos {
+        for p in pos.iter() {
             if let Value::Object(pm) = p {
                 let x = f64_from(pm.get("x").unwrap_or(&Value::Null), 0.0) as f32;
                 let y = f64_from(pm.get("y").unwrap_or(&Value::Null), 0.0) as f32;
@@ -392,7 +390,7 @@ fn game_gpu_shadow_render_native(args: &[Value], _env: &mut Environment) -> Resu
         vertices.extend_from_slice(&[0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0]);
     }
     if let Some(Value::Array(idx)) = desc.get("indices") {
-        for v in idx {
+        for v in idx.iter() {
             if let Value::Number(n) = v {
                 if *n >= 0 && *n <= u16::MAX as i64 {
                     indices.push(*n as u16);
@@ -453,7 +451,7 @@ fn game_gpu_shadow_render_native(args: &[Value], _env: &mut Environment) -> Resu
     out.insert("pixelBytes".into(), Value::Number(pixel_bytes));
     out.insert("vertCount".into(), Value::Number((vertices.len() / 3) as i64));
     out.insert("indexCount".into(), Value::Number(indices.len() as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// GP6g — sample shadow visibility (0..1) for lit pipeline.
@@ -505,7 +503,7 @@ fn game_gpu_shadow_sample_native(args: &[Value], _env: &mut Environment) -> Resu
     out.insert("factor".into(), Value::Float(factor));
     out.insert("u".into(), Value::Float(u));
     out.insert("v".into(), Value::Float(v));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 static NET_HTTP_HUB: Mutex<Vec<String>> = Mutex::new(Vec::new());
@@ -542,7 +540,7 @@ fn net_http_hub_poll_native(args: &[Value], _env: &mut Environment) -> Result<Va
             out.push(Value::String(q.remove(0)));
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn xr_stub_enabled() -> bool {
@@ -621,7 +619,7 @@ fn xr_host_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     out.insert("webxr".into(), Value::Bool(webxr));
     out.insert("runtime".into(), Value::String("kab-xr-runtime".into()));
     out.insert("ffi".into(), xr_ffi::status_value());
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_ffi_probe_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -652,7 +650,7 @@ fn xr_bind_headset_native(args: &[Value], _env: &mut Environment) -> Result<Valu
             out.insert("hmdConnected".into(), Value::Bool(st.hmd_connected));
             out.insert("vendor".into(), Value::String(st.vendor));
             out.insert("formFactor".into(), Value::String(st.form_factor));
-            Ok(Value::Object(out))
+            Ok(Value::from_object(out))
         }
         Err(e) => {
             let mut out = HashMap::new();
@@ -660,7 +658,7 @@ fn xr_bind_headset_native(args: &[Value], _env: &mut Environment) -> Result<Valu
             out.insert("bound".into(), Value::Bool(false));
             out.insert("error".into(), Value::String(e));
             out.insert("ffi".into(), xr_ffi::status_value());
-            Ok(Value::Object(out))
+            Ok(Value::from_object(out))
         }
     }
 }
@@ -1055,7 +1053,7 @@ fn xr_create_swapchain_native(args: &[Value], _env: &mut Environment) -> Result<
             }
         }
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_wait_frame_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1074,7 +1072,7 @@ fn xr_wait_frame_native(_args: &[Value], _env: &mut Environment) -> Result<Value
         Value::Number(rt.predicted_display_time_ns),
     );
     out.insert("periodNs".into(), Value::Number(11_111_111));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_acquire_swapchain_image_native(
@@ -1118,7 +1116,7 @@ fn xr_acquire_swapchain_image_native(
             out.insert(k, v);
         }
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_release_swapchain_image_native(
@@ -1143,12 +1141,12 @@ fn xr_release_swapchain_image_native(
     out.insert("ok".into(), Value::Bool(true));
     out.insert("swapchainId".into(), Value::Number(id));
     out.insert("imageIndex".into(), Value::Number(image));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let layers = match args.first() {
-        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Array(a)) => a.as_ref().clone(),
         Some(Value::Object(_)) => vec![args[0].clone()],
         None => Vec::new(),
         _ => return Err("xr_end_frame(layers?)".into()),
@@ -1178,7 +1176,7 @@ fn xr_end_frame_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     out.insert("layerCount".into(), Value::Number(layers.len() as i64));
     out.insert("composition".into(), composed);
     out.insert("loaderEndFrame".into(), loader);
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// OpenXR-style projection layer composition (stereo views → HMD submit descriptor).
@@ -1234,7 +1232,7 @@ fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
                         p.insert("qy".into(), Value::Float(0.0));
                         p.insert("qz".into(), Value::Float(0.0));
                         p.insert("qw".into(), Value::Float(1.0));
-                        Value::Object(p)
+                        Value::from_object(p)
                     }
                 };
                 let fov = match vm.get("fov") {
@@ -1245,7 +1243,7 @@ fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
                         f.insert("angleRight".into(), Value::Float(0.785));
                         f.insert("angleUp".into(), Value::Float(0.785));
                         f.insert("angleDown".into(), Value::Float(-0.785));
-                        Value::Object(f)
+                        Value::from_object(f)
                     }
                 };
                 let mut vo = HashMap::new();
@@ -1259,14 +1257,14 @@ fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
                 if let Some(sub) = vm.get("subImage") {
                     vo.insert("subImage".into(), sub.clone());
                 }
-                views_out.push(Value::Object(vo));
+                views_out.push(Value::from_object(vo));
             }
         } else {
             // Quad / cylinder layers: record only (composition deferred).
             let mut vo = HashMap::new();
             vo.insert("kind".into(), Value::String(kind));
             vo.insert("composed".into(), Value::Bool(false));
-            views_out.push(Value::Object(vo));
+            views_out.push(Value::from_object(vo));
         }
     }
 
@@ -1276,8 +1274,8 @@ fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
 
     let mut out = HashMap::new();
     out.insert("kind".into(), Value::String("xr_hmd_composition".into()));
-    out.insert("layerTypes".into(), Value::Array(layer_kinds));
-    out.insert("views".into(), Value::Array(views_out.clone()));
+    out.insert("layerTypes".into(), Value::from_array(layer_kinds));
+    out.insert("views".into(), Value::from_array(views_out.clone()));
     out.insert("viewCount".into(), Value::Number(views_out.len() as i64));
     out.insert("sideBySideWidth".into(), Value::Number(sbs_w as i64));
     out.insert("sideBySideHeight".into(), Value::Number(sbs_h as i64));
@@ -1295,12 +1293,12 @@ fn compose_projection_layers(layers: &[Value]) -> Result<Value, String> {
             "descriptor-compose".into()
         }),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn xr_compose_hmd_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let layers = match args.first() {
-        Some(Value::Array(a)) => a.clone(),
+        Some(Value::Array(a)) => a.as_ref().clone(),
         Some(Value::Object(_)) => vec![args[0].clone()],
         _ => return Err("xr_compose_hmd(layers)".into()),
     };
@@ -1388,7 +1386,7 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
         chain.insert("format".into(), Value::String("rgba8".into()));
         chain.insert("rendered".into(), Value::Bool(rendered));
         chain.insert("pixelBytes".into(), Value::Number(pixel_bytes));
-        swapchains.push(Value::Object(chain));
+        swapchains.push(Value::from_object(chain));
     }
 
     let presented = stub || total_pixels > 0;
@@ -1400,7 +1398,7 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     out.insert("width".into(), Value::Number(width as i64));
     out.insert("height".into(), Value::Number(height as i64));
     out.insert("eyeCount".into(), Value::Number(2));
-    out.insert("swapchains".into(), Value::Array(swapchains));
+    out.insert("swapchains".into(), Value::from_array(swapchains));
     out.insert("pixelBytes".into(), Value::Number(total_pixels));
     out.insert(
         "backend".into(),
@@ -1412,7 +1410,7 @@ fn xr_host_present_native(args: &[Value], _env: &mut Environment) -> Result<Valu
             "descriptor".into()
         }),
     );
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1607,7 +1605,7 @@ fn host_read_bytes_native(args: &[Value], _env: &mut Environment) -> Result<Valu
         _ => return Err("host_read_bytes(path) expects string".into()),
     };
     let bytes = std::fs::read(path).map_err(|e| format!("host_read_bytes({path}): {e}"))?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
     ))
 }

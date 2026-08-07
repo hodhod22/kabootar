@@ -37,7 +37,7 @@ fn headers_arg(args: &[Value], i: usize, name: &str) -> Result<HashMap<String, S
         return Err(format!("{name} expects headers object"));
     };
     let mut headers = HashMap::new();
-    for (key, val) in map {
+    for (key, val) in map.iter() {
         headers.insert(
             key.clone(),
             match val {

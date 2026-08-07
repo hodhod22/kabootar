@@ -154,7 +154,7 @@ fn make_regexp_object(id: u64, source: &str, flags: &str) -> Value {
     map.insert("ignoreCase".into(), Value::Bool(flags.contains('i')));
     map.insert("multiline".into(), Value::Bool(flags.contains('m')));
     map.insert("sticky".into(), Value::Bool(flags.contains('y')));
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn regexp_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -231,7 +231,7 @@ fn regexp_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     let id = regexp_id(re)?;
     let groups = with_record(id, |record| exec_on_text(record, text))??;
     if let Some((_, _, groups)) = groups {
-        Ok(Value::Array(
+        Ok(Value::from_array(
             groups.into_iter().map(Value::String).collect(),
         ))
     } else {
@@ -281,7 +281,7 @@ fn regex_match_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
                     .unwrap_or_default(),
             );
         }
-        Ok(Value::Array(groups.into_iter().map(Value::String).collect()))
+        Ok(Value::from_array(groups.into_iter().map(Value::String).collect()))
     } else {
         Ok(Value::Null)
     }
@@ -400,7 +400,7 @@ pub fn text_match_regex(pattern: &str, text: &str) -> Result<Option<Value>, Stri
     let re = compile_regex(&pattern, &flags)?;
     if let Some((_, _, groups)) = regex_find_at(&re, text, 0)? {
         let items: Vec<Value> = groups.into_iter().map(Value::String).collect();
-        Ok(Some(Value::Array(items)))
+        Ok(Some(Value::from_array(items)))
     } else {
         Ok(None)
     }

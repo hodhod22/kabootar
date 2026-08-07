@@ -8,6 +8,7 @@ use crate::runtime::stdlib::map::{
 use crate::runtime::stdlib::object::object_oid_of;
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub const SYMBOL_ITERATOR: u64 = 1;
 
@@ -36,7 +37,7 @@ pub fn iterator_result(value: Value, done: bool) -> Value {
     let mut m = HashMap::new();
     m.insert("value".into(), value);
     m.insert("done".into(), Value::Bool(done));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn iterator_is_returned(v: &Value) -> bool {
@@ -47,8 +48,8 @@ pub fn iterator_is_returned(v: &Value) -> bool {
 }
 
 pub fn iterator_mark_returned(it: &mut Value) {
-    if let Value::Object(map) = it {
-        map.insert(ITER_RETURNED.into(), Value::Bool(true));
+    if let Value::Object(ref mut map_rc) = it {
+        Value::object_make_mut(map_rc).insert(ITER_RETURNED.into(), Value::Bool(true));
     }
 }
 
@@ -64,7 +65,7 @@ pub fn parse_iterator_result(v: &Value) -> Result<(Value, bool), String> {
 pub fn create_array_iterator(items: Vec<Value>) -> Value {
     let mut m = HashMap::new();
     m.insert(ITERATOR_MARKER.into(), Value::Bool(true));
-    m.insert(ITER_ARRAY.into(), Value::Array(items));
+    m.insert(ITER_ARRAY.into(), Value::from_array(items));
     m.insert(ITER_INDEX.into(), Value::Number(0));
     crate::runtime::stdlib::object::object_oid(&mut m);
     attach_iterator_instance_methods(&mut m);
@@ -73,7 +74,7 @@ pub fn create_array_iterator(items: Vec<Value>) -> Value {
 
 fn attach_next_native(map: &mut HashMap<String, Value>) -> Value {
     attach_next_to_map(map, array_iterator_next_native);
-    Value::Object(map.clone())
+    Value::from_object(map.clone())
 }
 
 const ITER_METHODS: &str = "__kab_iter_methods";
@@ -99,22 +100,23 @@ const ITER_BOUND_METHODS: &[&str] = &[
 ];
 
 /// Drop eager-bound instance methods from a sync iterator used as an async delegate.
-pub(crate) fn strip_iterator_bound_methods(iter: Value) -> Value {
-    let Value::Object(mut map) = iter else {
+pub(crate) fn strip_iterator_bound_methods(mut iter: Value) -> Value {
+    let Value::Object(ref mut map_rc) = iter else {
         return iter;
     };
+    let map = Value::object_make_mut(map_rc);
     for name in ITER_BOUND_METHODS {
         if *name != "next" {
             map.remove(*name);
         }
     }
     map.remove(ITER_METHODS);
-    Value::Object(map)
+    Value::Object(map_rc.clone())
 }
 
 fn iterator_bound_receiver(map: &HashMap<String, Value>) -> Value {
     let mut slim = HashMap::new();
-    for (k, v) in map {
+    for (k, v) in map.iter() {
         if ITER_BOUND_METHODS.contains(&k.as_str())
             || k == ITER_METHODS
             || k == "__kab_async_iter_methods"
@@ -123,7 +125,7 @@ fn iterator_bound_receiver(map: &HashMap<String, Value>) -> Value {
         }
         slim.insert(k.clone(), v.clone());
     }
-    Value::Object(slim)
+    Value::from_object(slim)
 }
 
 pub(crate) fn attach_bound_method(
@@ -170,11 +172,12 @@ fn array_iterator_next(it: &Value) -> Result<Value, String> {
 }
 
 fn advance_array_iterator(it: &mut Value) -> Result<Value, String> {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("iterator.next() expects iterator receiver".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let items = match map.get(ITER_ARRAY) {
-        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Array(items)) => items.as_ref().clone(),
         _ => return Err("internal array iterator missing items".into()),
     };
     let idx = match map.get(ITER_INDEX) {
@@ -201,13 +204,13 @@ fn create_range_iterator(start: i64, end: i64, step: i64) -> Result<Value, Strin
     m.insert("__kab_range_step".into(), Value::Number(step));
     m.insert("__kab_range_cur".into(), Value::Number(start));
     crate::runtime::stdlib::object::object_oid(&mut m);
-    let it = Value::Object(m.clone());
+    let it = Value::from_object(m.clone());
     m.insert(
         "next".into(),
         Value::BoundNative(Box::new(it), range_iterator_next_native),
     );
     attach_iterator_instance_methods(&mut m);
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn range_i64(map: &HashMap<String, Value>, key: &str) -> Result<i64, String> {
@@ -223,20 +226,18 @@ fn range_iterator_next_native(args: &[Value], _env: &mut Environment) -> Result<
 }
 
 fn advance_range_iterator(it: &mut Value) -> Result<Value, String> {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("iterator.next() expects iterator receiver".into());
     };
-    let end = range_i64(map, "__kab_range_end")?;
-    let step = range_i64(map, "__kab_range_step")?;
-    let cur = range_i64(map, "__kab_range_cur")?;
+    let end = range_i64(map_rc.as_ref(), "__kab_range_end")?;
+    let step = range_i64(map_rc.as_ref(), "__kab_range_step")?;
+    let cur = range_i64(map_rc.as_ref(), "__kab_range_cur")?;
     let done = if step > 0 { cur >= end } else { cur <= end };
     if done {
         return Ok(iterator_result(Value::Null, true));
     }
     let value = Value::Number(cur);
-    if let Value::Object(map) = it {
-        map.insert("__kab_range_cur".into(), Value::Number(cur + step));
-    }
+    Value::object_make_mut(map_rc).insert("__kab_range_cur".into(), Value::Number(cur + step));
     Ok(iterator_result(value, false))
 }
 
@@ -245,13 +246,13 @@ fn wrap_delegate_iterator(target: Value) -> Value {
     m.insert(ITERATOR_MARKER.into(), Value::Bool(true));
     m.insert("__kab_iter_delegate".into(), target);
     crate::runtime::stdlib::object::object_oid(&mut m);
-    let it = Value::Object(m.clone());
+    let it = Value::from_object(m.clone());
     m.insert(
         "next".into(),
         Value::BoundNative(Box::new(it), delegate_iterator_next_native),
     );
     attach_iterator_instance_methods(&mut m);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub(crate) fn next_fn_uses_param(next_fn: &Value) -> bool {
@@ -281,15 +282,15 @@ pub fn call_delegate_next(
 }
 
 fn delegate_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(ref mut map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("iterator.next() expects iterator receiver".into());
     };
-    let Some(mut target) = map.get("__kab_iter_delegate").cloned() else {
+    let Some(mut target) = map_rc.get("__kab_iter_delegate").cloned() else {
         return Err("internal delegate iterator missing target".into());
     };
     if crate::runtime::stdlib::generator::is_generator_object(&target) {
         let result = crate::runtime::stdlib::generator::advance_generator(&mut target, None, env)?;
-        map.insert("__kab_iter_delegate".into(), target);
+        Value::object_make_mut(map_rc).insert("__kab_iter_delegate".into(), target);
         return Ok(result);
     }
     let next_fn = match &target {
@@ -307,7 +308,7 @@ fn delegate_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value
             crate::value::format_value(&result)
         ));
     }
-    map.insert("__kab_iter_delegate".into(), target);
+    Value::object_make_mut(map_rc).insert("__kab_iter_delegate".into(), target);
     parse_iterator_result(&result).map(|(value, done)| iterator_result(value, done))
 }
 
@@ -460,7 +461,7 @@ pub fn get_sync_iterator(v: &Value, env: &mut Environment) -> Result<Value, Stri
                 Err(_) => call_fn(&iter_fn, vec![effective.clone()], env)?,
             };
             if let Value::Array(items) = result {
-                return Ok(create_array_iterator(items));
+                return Ok(create_array_iterator(items.as_ref().clone()));
             }
             return normalize_iterator(result);
         }
@@ -493,9 +494,9 @@ pub fn writeback_iterator_by_oid(updated: &Value, env: &mut Environment) {
             let mut merged = live.clone();
             if let Value::Object(dst) = &mut merged {
                 if let Value::Object(src) = updated {
-                    for (k, v) in src {
+                    for (k, v) in src.iter() {
                         if k.starts_with("__kab_") || k == "next" {
-                            dst.insert(k.clone(), v.clone());
+                            Rc::make_mut(dst).insert(k.clone(), v.clone());
                         }
                     }
                 }
@@ -506,10 +507,10 @@ pub fn writeback_iterator_by_oid(updated: &Value, env: &mut Environment) {
 }
 
 fn persist_lazy_src(it: &mut Value, src: &Value) {
-    let Value::Object(ref mut map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return;
     };
-    map.insert(ITER_SRC.into(), src.clone());
+    Value::object_make_mut(map_rc).insert(ITER_SRC.into(), src.clone());
 }
 
 /// Advance `it` and return `{ value, done }`; mutates iterator state in place.
@@ -529,10 +530,10 @@ fn lazy_iterator_next_native(args: &[Value], env: &mut Environment) -> Result<Va
 }
 
 fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(ref mut map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("iterator.next() expects iterator receiver".into());
     };
-    let kind = map
+    let kind = map_rc
         .get(ITER_LAZY)
         .and_then(|v| match v {
             Value::String(s) => Some(s.as_str()),
@@ -540,10 +541,11 @@ fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, St
         })
         .ok_or("internal lazy iterator missing kind")?
         .to_string();
-    let mut src = map
+    let mut src = map_rc
         .get(ITER_SRC)
         .cloned()
         .ok_or("internal lazy iterator missing source")?;
+    let map = Value::object_make_mut(map_rc);
     let result = match kind.as_str() {
         "map" => {
             let func = map
@@ -637,7 +639,7 @@ fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, St
                 } else {
                     map.insert(ITER_ZIP_RIGHT.into(), right);
                     Ok(iterator_result(
-                        Value::Array(vec![left_val, right_val]),
+                        Value::from_array(vec![left_val, right_val]),
                         false,
                     ))
                 }
@@ -652,7 +654,7 @@ fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, St
             if done {
                 Ok(iterator_result(Value::Null, true))
             } else {
-                let pair = Value::Array(vec![Value::Number(idx), value]);
+                let pair = Value::from_array(vec![Value::Number(idx), value]);
                 map.insert(ITER_ENUM_IDX.into(), Value::Number(idx + 1));
                 Ok(iterator_result(pair, false))
             }
@@ -712,7 +714,7 @@ fn lazy_iterator_next(it: &mut Value, env: &mut Environment) -> Result<Value, St
                     }
                     map.insert(ITER_PAIR_PREV.into(), value.clone());
                     result = Some(iterator_result(
-                        Value::Array(vec![prev, value]),
+                        Value::from_array(vec![prev, value]),
                         false,
                     ));
                     break;
@@ -887,9 +889,10 @@ pub fn is_sync_instance_method(field: &str) -> bool {
 }
 
 pub fn ensure_sync_iterator_instance_methods(it: &mut Value) {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return;
     };
+    let map = Value::object_make_mut(map_rc);
     if map.contains_key(ITER_LAZY) && !map.contains_key("next") {
         attach_lazy_next(map);
     }
@@ -909,7 +912,7 @@ fn create_lazy_iterator(kind: &str, src: Value, extra: HashMap<String, Value>) -
         m.insert(k, v);
     }
     crate::runtime::stdlib::object::object_oid(&mut m);
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 pub fn create_map_iterator_from_iterable(
@@ -968,7 +971,7 @@ pub fn create_chain_iterator_from_iterables(
         "chain",
         first,
         HashMap::from([
-            (ITER_CHAIN.into(), Value::Array(iterables.to_vec())),
+            (ITER_CHAIN.into(), Value::from_array(iterables.to_vec())),
             (ITER_CHAIN_IDX.into(), Value::Number(0)),
         ]),
     )
@@ -1144,7 +1147,7 @@ pub fn normalize_iterator(v: Value) -> Result<Value, String> {
 /// Iterator object for built-in iterables (`Array`, `String`, `Map`, `Set`).
 pub fn builtin_iterator(v: &Value) -> Option<Value> {
     match v {
-        Value::Array(items) => Some(create_array_iterator(items.clone())),
+        Value::Array(items) => Some(create_array_iterator(items.as_ref().clone())),
         Value::String(s) => Some(create_string_iterator(s)),
         _ if is_map_value(v) => create_map_iterator(v).ok(),
         _ if is_set_value(v) => create_set_iterator(v).ok(),
@@ -1226,18 +1229,18 @@ fn create_string_iterator(s: &str) -> Value {
 }
 
 fn advance_map_iterator(it: &mut Value) -> Result<Value, String> {
-    let Value::Object(map) = it else {
+    let Value::Object(ref mut map_rc) = it else {
         return Err("iterator.next() expects iterator receiver".into());
     };
-    let id = match map.get(ITER_MAP_ID) {
+    let id = match map_rc.get(ITER_MAP_ID) {
         Some(Value::Number(n)) if *n >= 0 => *n as u64,
         _ => return Err("internal map iterator missing id".into()),
     };
-    let keys = match map.get(ITER_MAP_KEYS) {
-        Some(Value::Array(items)) => items.clone(),
+    let keys = match map_rc.get(ITER_MAP_KEYS) {
+        Some(Value::Array(items)) => items.as_ref().clone(),
         _ => return Err("internal map iterator missing keys".into()),
     };
-    let idx = match map.get(ITER_INDEX) {
+    let idx = match map_rc.get(ITER_INDEX) {
         Some(Value::Number(n)) if *n >= 0 => *n as usize,
         _ => 0,
     };
@@ -1248,8 +1251,8 @@ fn advance_map_iterator(it: &mut Value) -> Result<Value, String> {
         return Err("internal map iterator key must be string".into());
     };
     let value = map_get_at_id(id, key).ok_or_else(|| format!("map key missing: {key}"))?;
-    let entry = Value::Array(vec![Value::String(key.clone()), value]);
-    map.insert(ITER_INDEX.into(), Value::Number((idx + 1) as i64));
+    let entry = Value::from_array(vec![Value::String(key.clone()), value]);
+    Value::object_make_mut(map_rc).insert(ITER_INDEX.into(), Value::Number((idx + 1) as i64));
     Ok(iterator_result(entry, false))
 }
 
@@ -1268,12 +1271,12 @@ fn create_map_iterator(v: &Value) -> Result<Value, String> {
     m.insert(ITERATOR_MARKER.into(), Value::Bool(true));
     m.insert(ITER_MAP.into(), Value::Bool(true));
     m.insert(ITER_MAP_ID.into(), Value::Number(id as i64));
-    m.insert(ITER_MAP_KEYS.into(), Value::Array(keys));
+    m.insert(ITER_MAP_KEYS.into(), Value::from_array(keys));
     m.insert(ITER_INDEX.into(), Value::Number(0));
     crate::runtime::stdlib::object::object_oid(&mut m);
     attach_next_to_map(&mut m, map_iterator_next_native);
     attach_iterator_instance_methods(&mut m);
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn create_set_iterator(v: &Value) -> Result<Value, String> {
@@ -1282,7 +1285,7 @@ fn create_set_iterator(v: &Value) -> Result<Value, String> {
     let mut m = HashMap::new();
     m.insert(ITERATOR_MARKER.into(), Value::Bool(true));
     m.insert(ITER_SET.into(), Value::Bool(true));
-    m.insert(ITER_ARRAY.into(), Value::Array(items));
+    m.insert(ITER_ARRAY.into(), Value::from_array(items));
     m.insert(ITER_INDEX.into(), Value::Number(0));
     crate::runtime::stdlib::object::object_oid(&mut m);
     Ok(attach_next_native(&mut m))
@@ -1448,7 +1451,7 @@ pub fn create_chain_on_iterator(iter: &Value, rest: &[Value]) -> Result<Value, S
         "chain",
         iter.clone(),
         HashMap::from([
-            (ITER_CHAIN.into(), Value::Array(chain_items)),
+            (ITER_CHAIN.into(), Value::from_array(chain_items)),
             (ITER_CHAIN_IDX.into(), Value::Number(0)),
         ]),
     )
@@ -1514,14 +1517,14 @@ pub fn iterator_return(
     if crate::runtime::stdlib::generator::is_generator_object(it) {
         return crate::runtime::stdlib::generator::return_generator(it, value.clone(), env);
     }
-    if let Value::Object(map) = it {
-        if map.contains_key("__kab_iter_delegate") {
-            let mut target = map
+    if let Value::Object(ref mut map_rc) = it {
+        if map_rc.contains_key("__kab_iter_delegate") {
+            let mut target = map_rc
                 .get("__kab_iter_delegate")
                 .cloned()
                 .ok_or("internal delegate iterator missing target")?;
             let result = delegate_iterator_return(&mut target, value, env)?;
-            map.insert("__kab_iter_delegate".into(), target);
+            Value::object_make_mut(map_rc).insert("__kab_iter_delegate".into(), target);
             iterator_mark_returned(it);
             writeback_iterator_by_oid(it, env);
             return Ok(result);
@@ -1540,14 +1543,14 @@ pub fn iterator_throw(
     if crate::runtime::stdlib::generator::is_generator_object(it) {
         return crate::runtime::stdlib::generator::throw_generator(it, reason, env);
     }
-    if let Value::Object(map) = it {
-        if map.contains_key("__kab_iter_delegate") {
-            let mut target = map
+    if let Value::Object(ref mut map_rc) = it {
+        if map_rc.contains_key("__kab_iter_delegate") {
+            let mut target = map_rc
                 .get("__kab_iter_delegate")
                 .cloned()
                 .ok_or("internal delegate iterator missing target")?;
             let result = delegate_iterator_throw(&mut target, reason, env)?;
-            map.insert("__kab_iter_delegate".into(), target);
+            Value::object_make_mut(map_rc).insert("__kab_iter_delegate".into(), target);
             iterator_mark_returned(it);
             writeback_iterator_by_oid(it, env);
             return Ok(result);
@@ -1714,7 +1717,7 @@ fn iterator_inst_chain_native(args: &[Value], _env: &mut Environment) -> Result<
 
 fn iterator_inst_to_array_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut iter = args.first().ok_or("Iterator.toArray()")?.clone();
-    Ok(Value::Array(iterator_collect(&mut iter, env)?))
+    Ok(Value::from_array(iterator_collect(&mut iter, env)?))
 }
 
 fn iterator_inst_reduce_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {

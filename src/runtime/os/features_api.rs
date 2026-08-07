@@ -54,7 +54,7 @@ fn os_search_native(args: &[Value], env: &mut Environment) -> Result<Value, Stri
                     m.insert("source".into(), Value::String("vfs".into()));
                     m.insert("title".into(), Value::String(name.clone()));
                     m.insert("path".into(), Value::String(path));
-                    hits.push(Value::Object(m));
+                    hits.push(Value::from_object(m));
                 }
             }
         }
@@ -66,11 +66,11 @@ fn os_search_native(args: &[Value], env: &mut Environment) -> Result<Value, Stri
             m.insert("source".into(), Value::String("docs".into()));
             m.insert("title".into(), Value::String(format!("{} — {}", h.path, h.heading)));
             m.insert("snippet".into(), Value::String(h.excerpt));
-            hits.push(Value::Object(m));
+            hits.push(Value::from_object(m));
         }
     }
 
-    Ok(Value::Array(hits))
+    Ok(Value::from_array(hits))
 }
 
 fn os_eco_mode_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -103,7 +103,7 @@ fn os_energy_battery_native(args: &[Value], env: &mut Environment) -> Result<Val
 fn os_snapshot_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     let list = os.vfs_snapshot_list()?;
-    Ok(Value::Array(
+    Ok(Value::from_array(
         list.into_iter()
             .map(|s| Value::String(s))
             .collect(),
@@ -132,9 +132,9 @@ fn os_pkg_install_native(args: &[Value], env: &mut Environment) -> Result<Value,
         let mut reg_map = HashMap::new();
         reg_map.insert("name".into(), Value::String(info.name));
         reg_map.insert("version".into(), Value::String(info.version));
-        o.insert("registry".into(), Value::Object(reg_map));
+        o.insert("registry".into(), Value::from_object(reg_map));
     }
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn os_privacy_telemetry_enable_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -152,7 +152,7 @@ fn os_privacy_telemetry_enable_native(args: &[Value], env: &mut Environment) -> 
 fn os_seamless_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Array(
+        Ok(Value::from_array(
             s.sauce
                 .seamless
                 .list_paired()
@@ -162,7 +162,7 @@ fn os_seamless_list_native(_args: &[Value], env: &mut Environment) -> Result<Val
                     m.insert("id".into(), Value::String(d.id));
                     m.insert("kind".into(), Value::String(d.kind));
                     m.insert("hz".into(), Value::Number(d.ultrasonic_hz as i64));
-                    Value::Object(m)
+                    Value::from_object(m)
                 })
                 .collect(),
         ))
@@ -200,7 +200,7 @@ fn os_features_info_native(_args: &[Value], env: &mut Environment) -> Result<Val
         "snapshots".into(),
         Value::Number(os.vfs_snapshot_list()?.len() as i64),
     );
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 pub fn register_features_globals(env: &mut Environment) {

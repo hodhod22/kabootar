@@ -277,7 +277,7 @@ fn http_headers_native(args: &[Value], _env: &mut crate::value::Environment) -> 
     for (key, value) in &res.headers {
         obj.insert(key.clone(), Value::String(value.clone()));
     }
-    Ok(Value::Object(obj))
+    Ok(Value::from_object(obj))
 }
 
 fn http_header_native(args: &[Value], _env: &mut crate::value::Environment) -> Result<Value, String> {

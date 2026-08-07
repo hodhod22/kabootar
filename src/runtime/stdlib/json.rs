@@ -26,8 +26,7 @@ fn compact_stringify(v: &Value) -> String {
                 f.to_string()
             }
         }
-        Value::String(s) => format!("\"{}\"", escape(s)),
-        Value::Array(items) => {
+        Value::String(s) => format!("\"{}\"", escape(s)), Value::Array(items) => {
             let inner: Vec<_> = items.iter().map(compact_stringify).collect();
             format!("[{}]", inner.join(","))
         }
@@ -182,7 +181,7 @@ impl<'a> JsonParser<'a> {
         let mut items = Vec::new();
         if self.peek() == Some(b']') {
             self.bump();
-            return Ok(Value::Array(items));
+            return Ok(Value::from_array(items));
         }
         loop {
             items.push(self.parse_value()?);
@@ -193,7 +192,7 @@ impl<'a> JsonParser<'a> {
                 _ => return Err(format!("expected , or ] in array at {}", self.i)),
             }
         }
-        Ok(Value::Array(items))
+        Ok(Value::from_array(items))
     }
 
     fn parse_object(&mut self) -> Result<Value, String> {
@@ -202,7 +201,7 @@ impl<'a> JsonParser<'a> {
         let mut map = HashMap::new();
         if self.peek() == Some(b'}') {
             self.bump();
-            return Ok(Value::Object(map));
+            return Ok(Value::from_object(map));
         }
         loop {
             self.skip_ws();
@@ -220,7 +219,7 @@ impl<'a> JsonParser<'a> {
                 _ => return Err(format!("expected , or }} in object at {}", self.i)),
             }
         }
-        Ok(Value::Object(map))
+        Ok(Value::from_object(map))
     }
 
     fn parse_string(&mut self) -> Result<String, String> {

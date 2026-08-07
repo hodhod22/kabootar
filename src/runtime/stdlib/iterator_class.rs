@@ -254,7 +254,7 @@ pub fn build_iterator_class() -> Value {
     insert_native(&mut m, "takeWhile", iterator_take_while_static);
     insert_native(&mut m, "pairwise", iterator_pairwise_static);
     insert_native(&mut m, "accumulate", iterator_accumulate_static);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn build_async_iterator_class() -> Value {
@@ -274,7 +274,7 @@ pub fn build_async_iterator_class() -> Value {
     insert_native(&mut m, "takeWhile", async_iterator_take_while_static);
     insert_native(&mut m, "pairwise", async_iterator_pairwise_static);
     insert_native(&mut m, "accumulate", async_iterator_accumulate_static);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_iterator_classes(env: &mut Environment) {

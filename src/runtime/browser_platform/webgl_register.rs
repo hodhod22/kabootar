@@ -267,8 +267,7 @@ fn gl_enable_depth_test_native(args: &[Value], _env: &mut Environment) -> Result
 
 fn texture_id_from_value(v: &Value) -> Result<u64, String> {
     match v {
-        Value::Number(n) if *n > 0 => Ok(*n as u64),
-        Value::Object(map) => match map.get("id") {
+        Value::Number(n) if *n > 0 => Ok(*n as u64), Value::Object(map) => match map.get("id") {
             Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
             _ => Err("texture object missing id".into()),
         },
@@ -295,8 +294,7 @@ fn rgba_bytes_from_value(v: &Value) -> Result<Vec<u8>, String> {
 
 fn canvas_id_from_value(v: &Value) -> Result<u64, String> {
     match v {
-        Value::Number(n) if *n > 0 => Ok(*n as u64),
-        Value::Object(map) if matches!(map.get("__kab_ctx"), Some(Value::Bool(true))) => {
+        Value::Number(n) if *n > 0 => Ok(*n as u64), Value::Object(map) if matches!(map.get("__kab_ctx"), Some(Value::Bool(true))) => {
             match map.get("id") {
                 Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
                 _ => Err("canvas context missing id".into()),
@@ -347,7 +345,7 @@ fn texture_value(tex: &webgl::GlTexture) -> Value {
     o.insert("id".into(), Value::Number(tex.id as i64));
     o.insert("width".into(), Value::Number(tex.width as i64));
     o.insert("height".into(), Value::Number(tex.height as i64));
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 fn framebuffer_value(fb: &webgl::GlFramebuffer) -> Value {
@@ -358,13 +356,12 @@ fn framebuffer_value(fb: &webgl::GlFramebuffer) -> Value {
     if let Some(tid) = fb.color_texture {
         o.insert("colorTexture".into(), Value::Number(tid as i64));
     }
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 fn fb_id_from_value(v: &Value) -> Result<u64, String> {
     match v {
-        Value::Number(n) if *n > 0 => Ok(*n as u64),
-        Value::Object(map) => match map.get("id") {
+        Value::Number(n) if *n > 0 => Ok(*n as u64), Value::Object(map) => match map.get("id") {
             Some(Value::Number(n)) if *n > 0 => Ok(*n as u64),
             _ => Err("framebuffer object missing id".into()),
         },
@@ -448,11 +445,11 @@ fn gl_compile_shader_from_files_native(
     o.insert("id".into(), Value::Number(prog.id as i64));
     o.insert("vertex".into(), Value::String(prog.vertex));
     o.insert("fragment".into(), Value::String(prog.fragment));
-    Ok(Value::Object(o))
+    Ok(Value::from_object(o))
 }
 
 fn hashmap_str_to_value(m: std::collections::HashMap<String, String>) -> Value {
-    Value::Object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
+    Value::from_object(m.into_iter().map(|(k, v)| (k, Value::String(v))).collect())
 }
 
 fn gl_load_wgsl_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -558,7 +555,7 @@ pub fn gl_context_value(
         o.insert("host_gl_ctx_id".into(), Value::Number(hid as i64));
     }
     attach_gl_methods(&mut o);
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 /// Create WebGL context for canvas `getContext("webgl"|"webgl2")`.

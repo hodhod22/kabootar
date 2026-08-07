@@ -34,7 +34,7 @@ fn str_arg(args: &[Value], i: usize) -> Option<String> {
 fn os_sauce_map_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Object(
+        Ok(Value::from_object(
             s.sauce
                 .strategy_map()
                 .into_iter()
@@ -50,7 +50,7 @@ fn os_ai_prefetch_native(_args: &[Value], env: &mut Environment) -> Result<Value
     for app in &targets {
         let _ = os.sched_enqueue(app);
     }
-    Ok(Value::Array(
+    Ok(Value::from_array(
         targets
             .into_iter()
             .map(|a| Value::String(a))
@@ -85,7 +85,7 @@ fn os_ai_context_menu_native(args: &[Value], env: &mut Environment) -> Result<Va
     };
     let os = get_os(env)?;
     with_subsys(&os, |s| {
-        Ok(Value::Array(
+        Ok(Value::from_array(
             s.sauce
                 .ai
                 .contextual_menu(&app, &items)
@@ -106,7 +106,7 @@ fn os_setup_nfc_native(args: &[Value], env: &mut Environment) -> Result<Value, S
         o.insert("lang".into(), Value::String(p.language));
         o.insert("tz".into(), Value::String(p.timezone));
         o.insert("dark".into(), Value::Bool(p.dark_theme));
-        Ok(Value::Object(o))
+        Ok(Value::from_object(o))
     })
 }
 
@@ -163,7 +163,7 @@ fn os_haptic_danger_native(args: &[Value], env: &mut Environment) -> Result<Valu
         o.insert("glow".into(), Value::String(fb.glow));
         o.insert("vibrate".into(), Value::Number(fb.vibrate as i64));
         o.insert("blocked".into(), Value::Bool(fb.blocked));
-        Ok(Value::Object(o))
+        Ok(Value::from_object(o))
     })
 }
 
@@ -174,7 +174,7 @@ fn os_compat_run_native(args: &[Value], env: &mut Environment) -> Result<Value, 
         .ok_or("platform: android|windows|linux32")?;
     let mut nargs = Vec::new();
     if let Some(Value::Array(vals)) = args.get(2) {
-        for v in vals {
+        for v in vals.iter() {
             if let Value::Number(n) = v {
                 nargs.push(*n);
             }
@@ -183,7 +183,7 @@ fn os_compat_run_native(args: &[Value], env: &mut Environment) -> Result<Value, 
     let os = get_os(env)?;
     with_subsys(&os, |s| {
         let out = s.sauce.compat.translate(plat, &syscall, &nargs)?;
-        Ok(Value::Object(
+        Ok(Value::from_object(
             out.into_iter()
                 .map(|(k, v)| (k, Value::Number(v)))
                 .collect(),
@@ -213,7 +213,7 @@ fn os_privacy_telemetry_native(args: &[Value], env: &mut Environment) -> Result<
         let mut o = HashMap::new();
         o.insert("category".into(), Value::String(evt.category));
         o.insert("noisy_count".into(), Value::Number(evt.noisy_count));
-        Ok(Value::Object(o))
+        Ok(Value::from_object(o))
     })
 }
 
@@ -241,10 +241,10 @@ fn os_sauce_honesty_native(_args: &[Value], _env: &mut Environment) -> Result<Va
             m.insert("strategy".into(), Value::String(id));
             m.insert("tier".into(), Value::String(tier));
             m.insert("reality".into(), Value::String(note));
-            Value::Object(m)
+            Value::from_object(m)
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 pub fn register_sauce_globals(env: &mut Environment) {

@@ -437,7 +437,7 @@ fn_op 2 return
 fn_op 2 const 5
 fn_op 2 acc_add_global 8
 fn_op 2 load_global 8
-fn_op 2 len_global 5
+fn_op 2 load_global 4
 fn_op 2 lt
 fn_op 2 jump_if_false 37
 fn_op 2 load_global 8
@@ -2705,7 +2705,7 @@ fn_op 9 jump_if_false 66
 fn_op 9 load_global 3
 fn_op 9 const 5
 fn_op 9 add
-fn_op 9 len_global 5
+fn_op 9 load_global 4
 fn_op 9 lt
 fn_op 9 jump_if_false 8
 fn_op 9 load_global 3
@@ -4994,7 +4994,7 @@ fn_op 9 jump_if_false 66
 fn_op 9 load_global 3
 fn_op 9 const 5
 fn_op 9 add
-fn_op 9 len_global 5
+fn_op 9 load_global 4
 fn_op 9 lt
 fn_op 9 jump_if_false 8
 fn_op 9 load_global 3
@@ -5480,4 +5480,4 @@ halt
 
 source=self_host/parser_impl.kab
 statements=90
-fingerprint=8c9cda3ec33e165c
+fingerprint=4566342bfebdf4a0

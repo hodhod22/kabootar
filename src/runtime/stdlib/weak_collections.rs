@@ -25,7 +25,7 @@ fn weak_key_oid(key: &Value) -> Result<u64, String> {
     let Value::Object(map) = &mut key else {
         return Err("WeakMap/WeakSet key must be an object".into());
     };
-    Ok(object_oid(map))
+    Ok(object_oid(Value::object_make_mut(map)))
 }
 
 fn weak_map_id(v: &Value) -> Result<u64, String> {
@@ -56,15 +56,13 @@ fn weak_set_id(v: &Value) -> Result<u64, String> {
 
 pub fn is_weakmap_value(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get(WEAK_MAP_MARKER), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get(WEAK_MAP_MARKER), Some(Value::Bool(true)))
     )
 }
 
 pub fn is_weakset_value(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get(WEAK_SET_MARKER), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get(WEAK_SET_MARKER), Some(Value::Bool(true)))
     )
 }
 
@@ -74,7 +72,7 @@ fn weak_map_new_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     let mut m = HashMap::new();
     m.insert(WEAK_MAP_MARKER.into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn weak_map_set_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -151,7 +149,7 @@ fn weak_set_new_native(_args: &[Value], _env: &mut Environment) -> Result<Value,
     let mut m = HashMap::new();
     m.insert(WEAK_SET_MARKER.into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn weak_set_add_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {

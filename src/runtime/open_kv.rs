@@ -106,7 +106,7 @@ fn key_string(parts: &[Value]) -> Result<String, String> {
 }
 
 fn key_to_array(key: &str) -> Value {
-    Value::Array(
+    Value::from_array(
         key.split('\x1f')
             .map(|s| Value::String(s.to_string()))
             .collect(),
@@ -146,7 +146,7 @@ fn value_as_i64(v: &Value) -> Result<i64, String> {
 
 fn queue_from_value(value: &Value) -> Result<Vec<Value>, String> {
     match value {
-        Value::Array(items) => Ok(items.clone()),
+        Value::Array(items) => Ok(items.as_ref().clone()),
         Value::Null => Ok(Vec::new()),
         _ => Err("kv queue key must hold an array".into()),
     }
@@ -157,7 +157,7 @@ fn entry_object(key: &str, value: Value, version: i64) -> Value {
     m.insert("key".into(), key_to_array(key));
     m.insert("value".into(), value);
     m.insert("version".into(), Value::Number(version));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn watch_event(kind: &str, key: &str, value: Value, version: i64) -> Value {
@@ -166,7 +166,7 @@ fn watch_event(kind: &str, key: &str, value: Value, version: i64) -> Value {
     m.insert("key".into(), key_to_array(key));
     m.insert("value".into(), value);
     m.insert("version".into(), Value::Number(version));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn key_matches_prefix(key: &str, prefix: &str) -> bool {
@@ -228,7 +228,7 @@ fn read_legacy_kv_json(path: &str) -> Result<Option<HashMap<String, Value>>, Str
         {
             Ok(None)
         }
-        Ok(Value::Object(map)) => Ok(Some(map)),
+        Ok(Value::Object(map)) => Ok(Some(map.as_ref().clone())),
         _ => Ok(None),
     }
 }
@@ -280,8 +280,7 @@ fn kv_set_db(db: &DbConnection, key: &str, value: Value) -> Result<i64, String> 
 
 fn parse_entry_row(result: Value) -> Result<Option<(Value, i64)>, String> {
     match result {
-        Value::Array(rows) if rows.is_empty() => Ok(None),
-        Value::Array(rows) if rows.len() == 1 => match &rows[0] {
+        Value::Array(rows) if rows.is_empty() => Ok(None), Value::Array(rows) if rows.len() == 1 => match &rows[0] {
             Value::Array(cols) if cols.len() >= 2 => {
                 let value = match &cols[0] {
                     Value::String(text) => text_to_value(text)?,
@@ -374,7 +373,7 @@ fn parse_list_entry_rows(result: Value) -> Result<Vec<Value>, String> {
         return Err("unexpected kv_list_entries result".into());
     };
     let mut out = Vec::new();
-    for row in rows {
+    for row in rows.iter() {
         match row {
             Value::Array(cols) if cols.len() >= 3 => {
                 let Value::String(key) = &cols[0] else {
@@ -400,7 +399,7 @@ fn kv_enqueue_db(db: &DbConnection, key: &str, value: Value) -> Result<(Value, i
     let entry = kv_get_entry_db(db, key)?;
     let mut queue = queue_from_value(&entry.value)?;
     queue.push(value.clone());
-    let version = kv_set_db(db, key, Value::Array(queue))?;
+    let version = kv_set_db(db, key, Value::from_array(queue))?;
     Ok((value, version))
 }
 
@@ -411,7 +410,7 @@ fn kv_dequeue_db(db: &DbConnection, key: &str) -> Result<Option<(Value, i64)>, S
         return Ok(None);
     }
     let item = queue.remove(0);
-    let version = kv_set_db(db, key, Value::Array(queue))?;
+    let version = kv_set_db(db, key, Value::from_array(queue))?;
     Ok(Some((item, version)))
 }
 
@@ -420,7 +419,7 @@ fn parse_list_rows(result: Value) -> Result<Vec<(Value, Value)>, String> {
         return Err("unexpected kv_list result".into());
     };
     let mut out = Vec::new();
-    for row in rows {
+    for row in rows.iter() {
         match row {
             Value::Array(cols) if cols.len() >= 2 => {
                 let Value::String(key) = &cols[0] else {
@@ -807,7 +806,7 @@ pub fn kv_listen(id: u64, prefix_parts: &[Value]) -> Result<Value, String> {
     let mut obj = HashMap::new();
     obj.insert("__kab_kv_listen".into(), Value::Bool(true));
     obj.insert("__kab_id".into(), Value::Number(listen_id as i64));
-    Ok(Value::Object(obj))
+    Ok(Value::from_object(obj))
 }
 
 pub fn kv_listen_recv(listen: &Value) -> Result<Value, String> {
@@ -875,8 +874,8 @@ pub fn kv_atomic(id: u64, ops: &[Value]) -> Result<Value, String> {
     emit_watchers(id, &pending);
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
-    out.insert("results".into(), Value::Array(results));
-    Ok(Value::Object(out))
+    out.insert("results".into(), Value::from_array(results));
+    Ok(Value::from_object(out))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -901,7 +900,7 @@ pub fn kv_object(id: u64) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_kv".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn kv_id(v: &Value) -> Result<u64, String> {
@@ -1028,11 +1027,10 @@ mod tests {
         let mut m = HashMap::new();
         m.insert("op".into(), Value::String("check".into()));
         m.insert(
-            "key".into(),
-            Value::Array(vec![Value::String(key.into())]),
+            "key".into(), Value::from_array(vec![Value::String(key.into())]),
         );
         m.insert("version".into(), Value::Number(version));
-        Value::Object(m)
+        Value::from_object(m)
     }
 
     #[test]
@@ -1043,11 +1041,10 @@ mod tests {
         let mut m = HashMap::new();
         m.insert("op".into(), Value::String("sum".into()));
         m.insert(
-            "key".into(),
-            Value::Array(vec![Value::String("n".into())]),
+            "key".into(), Value::from_array(vec![Value::String("n".into())]),
         );
         m.insert("value".into(), Value::Number(5));
-        let out = kv_atomic(id, &[Value::Object(m.clone())]).expect("sum1");
+        let out = kv_atomic(id, &[Value::from_object(m.clone())]).expect("sum1");
         let Value::Object(r) = out else {
             panic!("result");
         };
@@ -1056,7 +1053,7 @@ mod tests {
         };
         assert!(matches!(results.first(), Some(Value::Number(5))));
         m.insert("value".into(), Value::Number(3));
-        kv_atomic(id, &[Value::Object(m)]).expect("sum2");
+        kv_atomic(id, &[Value::from_object(m)]).expect("sum2");
         assert!(matches!(
             kv_get(id, &[Value::String("n".into())]),
             Ok(Value::Number(8))

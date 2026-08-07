@@ -85,8 +85,7 @@ pub fn run_test_file(path: &Path) -> TestResult {
     match result {
         Ok(v) => {
             let ok = match &v {
-                Value::Bool(b) => *b,
-                Value::Object(m) => matches!(m.get("ok"), Some(Value::Bool(true))),
+                Value::Bool(b) => *b, Value::Object(m) => matches!(m.get("ok"), Some(Value::Bool(true))),
                 Value::Null => true,
                 _ => true,
             };

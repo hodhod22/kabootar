@@ -3,18 +3,18 @@
 use super::helpers::{float_out, int_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 fn nd2(seq: usize, d: usize, data: &[f64]) -> Value {
     let mut m = HashMap::new();
     m.insert("__kab_nd".into(), Value::Bool(true));
     m.insert(
-        "shape".into(),
-        Value::Array(vec![int_out(seq as i64), int_out(d as i64)]),
+        "shape".into(), Value::from_array(vec![int_out(seq as i64), int_out(d as i64)]),
     );
     m.insert("data".into(), vector_out(data));
     m.insert("size".into(), int_out(data.len() as i64));
     m.insert("dtype".into(), Value::String("f64".into()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn parse_nd2(v: &Value, name: &str) -> Result<(usize, usize, Vec<f64>), String> {
@@ -39,11 +39,11 @@ fn parse_nd2(v: &Value, name: &str) -> Result<(usize, usize, Vec<f64>), String> 
                 _ => return Err(format!("{name}: jagged")),
             };
             let mut data = Vec::new();
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(cells) = row else {
                     return Err(format!("{name}: jagged"));
                 };
-                for c in cells {
+                for c in cells.iter() {
                     data.push(num(c)?);
                 }
             }
@@ -294,7 +294,7 @@ fn tf_transformer_forward(args: &[Value], _env: &mut Environment) -> Result<Valu
         &[weights
             .get("bout")
             .cloned()
-            .unwrap_or(Value::Array(vec![]))],
+            .unwrap_or(Value::from_array(vec![]))],
         0,
         "bout",
     )
@@ -306,7 +306,7 @@ fn tf_transformer_forward(args: &[Value], _env: &mut Environment) -> Result<Valu
     out.insert("logits".into(), nd2(seq, vocab, &logits));
     out.insert("hidden".into(), nd2(seq, d_model, &x));
     out.insert("nLayers".into(), int_out(n_layers as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn stack_layer_count(weights: &HashMap<String, Value>, n_layers_arg: Option<&Value>) -> usize {
@@ -347,14 +347,14 @@ fn transformer_block_forward(
 ) -> Result<Vec<f64>, String> {
     let w1 = layer.get("w1").ok_or("layer.w1")?;
     let b1 = vector_at(
-        &[layer.get("b1").cloned().unwrap_or(Value::Array(vec![]))],
+        &[layer.get("b1").cloned().unwrap_or(Value::from_array(vec![]))],
         0,
         "b1",
     )
     .unwrap_or_else(|_| vec![0.0; d_model]);
     let w2 = layer.get("w2").ok_or("layer.w2")?;
     let b2 = vector_at(
-        &[layer.get("b2").cloned().unwrap_or(Value::Array(vec![]))],
+        &[layer.get("b2").cloned().unwrap_or(Value::from_array(vec![]))],
         0,
         "b2",
     )
@@ -412,19 +412,19 @@ fn tf_stack_forward(args: &[Value], env: &mut Environment) -> Result<Value, Stri
 /// tf_stack_backprop_step(weights, ids, targets, lr, nHeads?, nLayers?)
 /// Early blocks frozen; last block + LM head trained (SC multi-layer stack).
 fn tf_stack_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_stack_backprop_step")?
+    let Value::Object(ref mut weights) = args.first().cloned().ok_or("tf_stack_backprop_step")?
     else {
         return Err("tf_stack_backprop_step: weights object".into());
     };
     let n_layers = stack_layer_count(&weights, args.get(5));
-    weights.insert("__stack_n".into(), Value::Number(n_layers as i64));
+    Rc::make_mut(weights).insert("__stack_n".into(), Value::Number(n_layers as i64));
     let mut bp_args = args.to_vec();
-    bp_args[0] = Value::Object(weights);
+    bp_args[0] = Value::Object(weights.clone());
     let mut step = tf_lm_backprop_step(&bp_args, env)?;
     if let Value::Object(ref mut out) = step {
-        out.insert("stack".into(), Value::Bool(true));
+        Rc::make_mut(out).insert("stack".into(), Value::Bool(true));
         if !out.contains_key("nLayers") {
-            out.insert("nLayers".into(), int_out(n_layers as i64));
+            Rc::make_mut(out).insert("nLayers".into(), int_out(n_layers as i64));
         }
     }
     Ok(step)
@@ -442,19 +442,19 @@ fn softmax_row(logits: &[f64]) -> Vec<f64> {
     ex
 }
 
-fn set_weight_vec(weights: &mut HashMap<String, Value>, key: &str, data: &[f64]) {
-    weights.insert(key.into(), vector_out(data));
+fn set_weight_vec(weights: &mut Rc<HashMap<String, Value>>, key: &str, data: &[f64]) {
+    Rc::make_mut(weights).insert(key.into(), vector_out(data));
 }
 
-fn set_embed_nd(weights: &mut HashMap<String, Value>, vocab: usize, d: usize, data: &[f64]) {
-    weights.insert("embed".into(), nd2(vocab, d, data));
+fn set_embed_nd(weights: &mut Rc<HashMap<String, Value>>, vocab: usize, d: usize, data: &[f64]) {
+    Rc::make_mut(weights).insert("embed".into(), nd2(vocab, d, data));
 }
 
 /// tf_lm_sgd_step(weights, inputIds, targetIds, lr, nHeads?) → {weights, loss}
 /// Last-layer CE + SGD on wout/bout (+ light embed nudge). SC2k train subset.
 fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_lm_sgd_step(weights,...)")?
-    else {
+    let mut weights_val = args.first().cloned().ok_or("tf_lm_sgd_step(weights,...)")?;
+    let Value::Object(ref mut weights) = weights_val else {
         return Err("tf_lm_sgd_step: weights object".into());
     };
     let ids = match args.get(1) {
@@ -479,8 +479,7 @@ fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String
 
     let fwd = tf_transformer_forward(
         &[
-            Value::Object(weights.clone()),
-            Value::Array(ids.iter().map(|i| Value::Number(*i as i64)).collect()),
+            Value::Object(weights.clone()), Value::from_array(ids.iter().map(|i| Value::Number(*i as i64)).collect()),
             n_heads,
         ],
         env,
@@ -538,8 +537,8 @@ fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String
     for i in 0..bout.len() {
         bout[i] -= lr * gb[i];
     }
-    set_weight_vec(&mut weights, "wout", &wout_v);
-    set_weight_vec(&mut weights, "bout", &bout);
+    set_weight_vec(weights, "wout", &wout_v);
+    set_weight_vec(weights, "bout", &bout);
 
     // Light embed nudge along last hidden residual direction (subset, not full BP).
     if let Ok((vocab_e, d_e, mut embed)) = parse_embed_table(weights.get("embed").ok_or("embed")?) {
@@ -550,20 +549,20 @@ fn tf_lm_sgd_step(args: &[Value], env: &mut Environment) -> Result<Value, String
                     embed[id * d_model + i] -= lr * 0.01 * gw[targets[s] * d_model + i];
                 }
             }
-            set_embed_nd(&mut weights, vocab, d_model, &embed);
+            set_embed_nd(weights, vocab, d_model, &embed);
         }
     }
 
     let mut out = HashMap::new();
-    out.insert("weights".into(), Value::Object(weights));
+    out.insert("weights".into(), Value::Object(weights.clone()));
     out.insert("loss".into(), float_out(loss));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// tf_lm_backprop_step — multi-layer CE backprop: wout/bout + FF (w2/b2,w1/b1) + embed (SC2k).
 fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    let Value::Object(mut weights) = args.first().cloned().ok_or("tf_lm_backprop_step")?
-    else {
+    let mut weights_val = args.first().cloned().ok_or("tf_lm_backprop_step")?;
+    let Value::Object(ref mut weights) = weights_val else {
         return Err("tf_lm_backprop_step: weights object".into());
     };
     let ids = match args.get(1) {
@@ -622,8 +621,8 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
             }
             if let Some(Value::Object(last)) = layers.last() {
                 for key in ["wq", "wk", "wv", "wo", "w1", "b1", "w2", "b2"] {
-                    if let Some(v) = last.get(key) {
-                        weights.insert((*key).into(), v.clone());
+                    if let Some(v) = last.as_ref().get(key) {
+                        Value::object_make_mut(weights).insert((*key).into(), v.clone());
                     }
                 }
             }
@@ -644,19 +643,19 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         d_model
     };
     let mut b1 = vector_at(
-        &[weights.get("b1").cloned().unwrap_or(Value::Array(vec![]))],
+        &[weights.get("b1").cloned().unwrap_or(Value::from_array(vec![]))],
         0,
         "b1",
     )
     .unwrap_or_else(|_| vec![0.0; ff_dim]);
     let mut b2 = vector_at(
-        &[weights.get("b2").cloned().unwrap_or(Value::Array(vec![]))],
+        &[weights.get("b2").cloned().unwrap_or(Value::from_array(vec![]))],
         0,
         "b2",
     )
     .unwrap_or_else(|_| vec![0.0; d_model]);
     let mut bout = vector_at(
-        &[weights.get("bout").cloned().unwrap_or(Value::Array(vec![]))],
+        &[weights.get("bout").cloned().unwrap_or(Value::from_array(vec![]))],
         0,
         "bout",
     )
@@ -830,36 +829,40 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
         }
     }
 
-    set_weight_vec(&mut weights, "wout", &wout_m);
-    set_weight_vec(&mut weights, "bout", &bout);
-    set_weight_vec(&mut weights, "w2", &w2_m);
-    set_weight_vec(&mut weights, "b2", &b2);
-    set_weight_vec(&mut weights, "w1", &w1_m);
-    set_weight_vec(&mut weights, "b1", &b1);
-    set_weight_vec(&mut weights, "wo", &wo_m);
-    set_weight_vec(&mut weights, "wq", &wq_m);
-    set_weight_vec(&mut weights, "wk", &wk_m);
-    set_weight_vec(&mut weights, "wv", &wv_m);
-    set_embed_nd(&mut weights, vocab, d_model, &embed_data);
+    set_weight_vec(weights, "wout", &wout_m);
+    set_weight_vec(weights, "bout", &bout);
+    set_weight_vec(weights, "w2", &w2_m);
+    set_weight_vec(weights, "b2", &b2);
+    set_weight_vec(weights, "w1", &w1_m);
+    set_weight_vec(weights, "b1", &b1);
+    set_weight_vec(weights, "wo", &wo_m);
+    set_weight_vec(weights, "wq", &wq_m);
+    set_weight_vec(weights, "wk", &wk_m);
+    set_weight_vec(weights, "wv", &wv_m);
+    set_embed_nd(weights, vocab, d_model, &embed_data);
 
     // Mirror updated last-block tensors into weights.layers[last] when present.
-    if let Some(Value::Array(mut layers)) = weights.get("layers").cloned() {
-        if let Some(Value::Object(last)) = layers.last_mut() {
-            for key in ["wq", "wk", "wv", "wo", "w1", "b1", "w2", "b2"] {
-                if let Some(v) = weights.get(key) {
-                    last.insert((*key).into(), v.clone());
+    if let Some(Value::Array(mut layers_rc)) = weights.get("layers").cloned() {
+        {
+            let layers = Value::array_make_mut(&mut layers_rc);
+            if let Some(Value::Object(ref mut last_rc)) = layers.last_mut() {
+                let last = Value::object_make_mut(last_rc);
+                for key in ["wq", "wk", "wv", "wo", "w1", "b1", "w2", "b2"] {
+                    if let Some(v) = weights.get(key) {
+                        last.insert((*key).into(), v.clone());
+                    }
                 }
             }
         }
-        weights.insert("layers".into(), Value::Array(layers));
+        Value::object_make_mut(weights).insert("layers".into(), Value::Array(layers_rc));
     }
 
     let mut out = HashMap::new();
-    out.insert("weights".into(), Value::Object(weights));
+    out.insert("weights".into(), Value::Object(weights.clone()));
     out.insert("loss".into(), float_out(loss));
     out.insert("nLayers".into(), int_out(n_layers as i64));
     // "layers" = trained component tags (SC2k API); keep for back-compat.
-    let trained = Value::Array(vec![
+    let trained = Value::from_array(vec![
         Value::String("wout".into()),
         Value::String("ff".into()),
         Value::String("attn_qkv".into()),
@@ -867,7 +870,7 @@ fn tf_lm_backprop_step(args: &[Value], env: &mut Environment) -> Result<Value, S
     ]);
     out.insert("layers".into(), trained.clone());
     out.insert("trained".into(), trained);
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn identity_flat(d: usize) -> Vec<f64> {
@@ -900,11 +903,11 @@ fn parse_embed_table(v: &Value) -> Result<(usize, usize, Vec<f64>), String> {
                 _ => return Err("embed jagged".into()),
             };
             let mut data = Vec::new();
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(cells) = row else {
                     return Err("embed jagged".into());
                 };
-                for c in cells {
+                for c in cells.iter() {
                     data.push(num(c)?);
                 }
             }

@@ -43,7 +43,7 @@ fn buffer_has_recorded_view(buf: &NdShared) -> bool {
 }
 
 fn shape_val(shape: &[usize]) -> Value {
-    Value::Array(
+    Value::from_array(
         shape
             .iter()
             .map(|d| Value::Number(*d as i64))
@@ -52,7 +52,7 @@ fn shape_val(shape: &[usize]) -> Value {
 }
 
 fn strides_val(strides: &[usize]) -> Value {
-    Value::Array(
+    Value::from_array(
         strides
             .iter()
             .map(|d| Value::Number(*d as i64))
@@ -64,7 +64,7 @@ fn parse_shape(v: &Value) -> Result<Vec<usize>, String> {
     match v {
         Value::Array(items) => {
             let mut out = Vec::with_capacity(items.len());
-            for it in items {
+            for it in items.iter() {
                 let n = num(it)?;
                 if n < 0.0 || n.fract() != 0.0 {
                     return Err("nd shape dims must be non-negative integers".into());
@@ -218,7 +218,7 @@ impl NdView {
             m.insert("data".into(), vector_out(self.buf.as_slice()));
         }
         object_oid(&mut m);
-        Value::Object(m)
+        Value::from_object(m)
     }
 }
 
@@ -274,11 +274,11 @@ fn flat_from_value(v: &Value) -> Result<Vec<f64>, String> {
                 .unwrap_or(false)
             {
                 let mut flat = Vec::new();
-                for row in items {
+                for row in items.iter() {
                     let Value::Array(cells) = row else {
                         return Err("nd: jagged nested array".into());
                     };
-                    for c in cells {
+                    for c in cells.iter() {
                         flat.push(num(c)?);
                     }
                 }
@@ -320,7 +320,7 @@ fn nd_from_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
     // Keep a sync snapshot for ops that don't touch the view; prefer f64 view when present.
     m.insert("data".into(), vector_out(&data));
     m.insert("zero_copy".into(), Value::Bool(true));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 /// Materialize / sync ndarray into a Float64Array (in-place write when view supplied).
@@ -335,7 +335,7 @@ fn nd_to_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         m.insert("f64".into(), view.clone());
         m.insert("data".into(), vector_out(&data));
         m.insert("zero_copy".into(), Value::Bool(true));
-        return Ok(Value::Object(m));
+        return Ok(Value::from_object(m));
     }
     let bytes = data.len().saturating_mul(8).max(8);
     let buf = crate::runtime::shared_memory::sab_new(bytes)?;
@@ -345,7 +345,7 @@ fn nd_to_f64(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     view_map.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
     view_map.insert("byteOffset".into(), Value::Number(0));
     view_map.insert("length".into(), Value::Number(data.len() as i64));
-    let view = Value::Object(view_map);
+    let view = Value::from_object(view_map);
     crate::runtime::shared_memory::float64_array_write_slice(&view, &data)?;
     nd_from_f64(&[view, shape_val(&shape)], _env)
 }
@@ -457,7 +457,7 @@ fn nd_from(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
                 Some(Value::Array(cells)) => cells.len(),
                 _ => 0,
             };
-            for row in rows {
+            for row in rows.iter() {
                 let Value::Array(cells) = row else {
                     return Err("nd_from: jagged matrix".into());
                 };
@@ -500,8 +500,7 @@ fn nd_reshape(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
 fn flat_index_from(idx: &Value, shape: &[usize], name: &str) -> Result<usize, String> {
     match idx {
         Value::Number(n) if *n >= 0 => Ok(*n as usize),
-        Value::Float(f) if *f >= 0.0 => Ok(*f as usize),
-        Value::Array(items) => {
+        Value::Float(f) if *f >= 0.0 => Ok(*f as usize), Value::Array(items) => {
             if items.len() != shape.len() {
                 return Err(format!("{name}: index rank must match shape"));
             }
@@ -531,7 +530,7 @@ fn nd_get(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         if base + 1 >= data.len() {
             return Err("nd_get: index out of bounds".into());
         }
-        return Ok(Value::Array(vec![
+        return Ok(Value::from_array(vec![
             float_out(data[base]),
             float_out(data[base + 1]),
         ]));
@@ -905,8 +904,7 @@ fn view_from_ranges(parent: &NdView, ranges: &[Value]) -> Result<Value, String> 
 
 fn is_slice_spec(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true)))
+        v, Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true)))
     )
 }
 
@@ -965,7 +963,7 @@ fn nd_index_view(args: &[Value], env: &mut Environment) -> Result<Value, String>
     let idx = args.get(1).ok_or("nd_index_view: missing idx")?;
     match idx {
         Value::Object(m) if matches!(m.get(SLICE_MARK), Some(Value::Bool(true))) => {
-            nd_slice(&[a.clone(), Value::Array(vec![idx.clone()])], env)
+            nd_slice(&[a.clone(), Value::from_array(vec![idx.clone()])], env)
         }
         Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
             let dtype = match m.get("dtype") {
@@ -978,15 +976,14 @@ fn nd_index_view(args: &[Value], env: &mut Environment) -> Result<Value, String>
                 nd_gather(&[a.clone(), idx.clone()], env)
             }
         }
-        Value::Array(items)
-            if !items.is_empty()
+        Value::Array(items) if !items.is_empty()
                 && items
                     .iter()
                     .all(|x| matches!(x, Value::Number(_) | Value::Float(_))) =>
         {
             nd_gather(&[a.clone(), idx.clone()], env)
         }
-        Value::Array(items) => nd_slice(&[a.clone(), Value::Array(items.clone())], env),
+        Value::Array(items) => nd_slice(&[a.clone(), Value::from_array(items.as_ref().clone())], env),
         Value::Number(_) | Value::Float(_) => nd_get(&[a.clone(), idx.clone()], env),
         _ => Err("nd_index_view: bad index".into()),
     }
@@ -1003,8 +1000,7 @@ fn parse_index_list(v: &Value, name: &str) -> Result<Vec<usize>, String> {
                 }
                 Ok(n as usize)
             })
-            .collect(),
-        Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
+            .collect(), Value::Object(m) if matches!(m.get(ND_MARK), Some(Value::Bool(true))) => {
             let view = nd_from_object(m)?;
             let data = view.to_vec();
             data.into_iter()
@@ -1290,8 +1286,8 @@ fn nd_tensor(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     };
     let mut out = NdView::owned(shape, data, "f64").into_value();
     if let Value::Object(ref mut m) = out {
-        m.insert("kind".into(), Value::String("tensor".into()));
-        m.insert("meta".into(), Value::Object(HashMap::new()));
+        Rc::make_mut(m).insert("kind".into(), Value::String("tensor".into()));
+        Rc::make_mut(m).insert("meta".into(), Value::from_object(HashMap::new()));
     }
     Ok(out)
 }
@@ -1352,8 +1348,7 @@ fn count_buf_in_value(v: &Value, ptr: *const Vec<f64>, depth: usize) -> usize {
         return 0;
     }
     match v {
-        Value::NdShared(buf) if buf_ptr(buf) == ptr => 1,
-        Value::Object(m) => {
+        Value::NdShared(buf) if buf_ptr(buf) == ptr => 1, Value::Object(m) => {
             let mut n = 0;
             for val in m.values() {
                 n += count_buf_in_value(val, ptr, depth + 1);
@@ -1455,7 +1450,7 @@ fn nd_take(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         Some(id) => id,
         None => {
             let mut stamped = m.clone();
-            let id = object_oid(&mut stamped);
+            let id = object_oid(Value::object_make_mut(&mut stamped));
             writeback_object_by_oid(&Value::Object(stamped), env);
             id
         }
@@ -1467,11 +1462,11 @@ fn nd_take(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     };
 
     let mut emptied = m.clone();
-    emptied.insert("__kab_oid".into(), Value::Number(oid as i64));
-    emptied.insert(ND_MOVED.into(), Value::Bool(true));
-    emptied.insert(ND_BUF.into(), Value::Null);
-    emptied.insert("rc".into(), Value::Number(0));
-    emptied.insert("data".into(), Value::Array(vec![]));
+    Rc::make_mut(&mut emptied).insert("__kab_oid".into(), Value::Number(oid as i64));
+    Rc::make_mut(&mut emptied).insert(ND_MOVED.into(), Value::Bool(true));
+    Rc::make_mut(&mut emptied).insert(ND_BUF.into(), Value::Null);
+    Rc::make_mut(&mut emptied).insert("rc".into(), Value::Number(0));
+    Rc::make_mut(&mut emptied).insert("data".into(), Value::from_array(vec![]));
     writeback_object_by_oid(&Value::Object(emptied), env);
 
     let mut out = NdView {
@@ -1484,10 +1479,10 @@ fn nd_take(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     .into_value();
     if let Value::Object(ref mut om) = out {
         if matches!(m.get("kind"), Some(Value::String(k)) if k == "tensor") {
-            om.insert("kind".into(), Value::String("tensor".into()));
+            Rc::make_mut(om).insert("kind".into(), Value::String("tensor".into()));
         }
         if let Some(meta) = m.get("meta") {
-            om.insert("meta".into(), meta.clone());
+            Rc::make_mut(om).insert("meta".into(), meta.clone());
         }
     }
     Ok(out)
@@ -1506,7 +1501,7 @@ fn nd_concat(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         .and_then(|v| num(v).ok())
         .unwrap_or(0.0) as usize;
     let mut parts: Vec<(Vec<usize>, Vec<f64>)> = Vec::new();
-    for a in arrays {
+    for a in arrays.iter() {
         parts.push(nd_parts(a)?);
     }
     let rank = parts[0].0.len();
@@ -1560,7 +1555,7 @@ fn nd_stack(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         .and_then(|v| num(v).ok())
         .unwrap_or(0.0) as usize;
     let mut parts: Vec<(Vec<usize>, Vec<f64>)> = Vec::new();
-    for a in arrays {
+    for a in arrays.iter() {
         parts.push(nd_parts(a)?);
     }
     let base = parts[0].0.clone();
@@ -1581,7 +1576,7 @@ fn nd_stack(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         es.insert(axis, 1);
         expanded.push(nd_out(&es, d));
     }
-    nd_concat(&[Value::Array(expanded), Value::Number(axis as i64)], _env)
+    nd_concat(&[Value::from_array(expanded), Value::Number(axis as i64)], _env)
 }
 
 fn nd_split(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -1601,20 +1596,18 @@ fn nd_split(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         for d in 0..shape.len() {
             if d == axis {
                 let start = i * chunk;
-                ranges.push(Value::Array(vec![
-                    Value::Number(start as i64),
-                    Value::Number((start + chunk) as i64),
+                ranges.push(Value::from_array(vec![
+                    Value::Number(start as i64), Value::Number((start + chunk) as i64),
                 ]));
             } else {
-                ranges.push(Value::Array(vec![
-                    Value::Number(0),
-                    Value::Number(shape[d] as i64),
+                ranges.push(Value::from_array(vec![
+                    Value::Number(0), Value::Number(shape[d] as i64),
                 ]));
             }
         }
-        out.push(nd_slice(&[nd_out(&shape, &data), Value::Array(ranges)], _env)?);
+        out.push(nd_slice(&[nd_out(&shape, &data), Value::from_array(ranges)], _env)?);
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn nd_scale(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -2108,9 +2101,8 @@ fn nd_einsum_path(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
         flops_total += flops;
         let ia = live[ai];
         let ib = live[bi];
-        path.push(Value::Array(vec![
-            Value::Number(ia as i64),
-            Value::Number(ib as i64),
+        path.push(Value::from_array(vec![
+            Value::Number(ia as i64), Value::Number(ib as i64),
         ]));
         // Merge labels/shapes into slot ia; remove ib.
         let mut merged_labs = labels[ia].clone();
@@ -2155,18 +2147,17 @@ fn nd_einsum_path(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
         live.retain(|&idx| idx != ib);
     }
     let mut out = HashMap::new();
-    out.insert("path".into(), Value::Array(path));
+    out.insert("path".into(), Value::from_array(path));
     out.insert("flops".into(), float_out(flops_total));
     out.insert(
-        "order".into(),
-        Value::Array(
+        "order".into(), Value::from_array(
             live.iter()
                 .map(|i| Value::Number(*i as i64))
                 .collect(),
         ),
     );
     out.insert("kind".into(), Value::String("einsum_path".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -2523,7 +2514,7 @@ fn sci_blas_set_num_threads(args: &[Value], _env: &mut Environment) -> Result<Va
             "backend".into(),
             Value::String(system_blas::backend_name().into()),
         );
-        Ok(Value::Object(out))
+        Ok(Value::from_object(out))
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -2532,7 +2523,7 @@ fn sci_blas_set_num_threads(args: &[Value], _env: &mut Environment) -> Result<Va
         out.insert("threads".into(), Value::Number(1));
         out.insert("controllable".into(), Value::Bool(false));
         out.insert("backend".into(), Value::String("matrixmultiply".into()));
-        Ok(Value::Object(out))
+        Ok(Value::from_object(out))
     }
 }
 
@@ -2571,7 +2562,7 @@ fn sci_blas_info(_args: &[Value], _env: &mut Environment) -> Result<Value, Strin
         out.insert("threads".into(), Value::Number(1));
         out.insert("controllable".into(), Value::Bool(false));
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// sci_blas_dgemm(a, m, k, b, n, alpha?, beta?, c?) — BLAS-style DGEMM API (SC4a).

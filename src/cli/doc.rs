@@ -67,12 +67,12 @@ pub fn render_markdown(title: &str, items: &[DocItem]) -> String {
     }
     let mut by_file: std::collections::BTreeMap<String, Vec<&DocItem>> =
         std::collections::BTreeMap::new();
-    for it in items {
+    for it in items.iter() {
         by_file.entry(it.file.clone()).or_default().push(it);
     }
     for (file, list) in by_file {
         out.push_str(&format!("## `{file}`\n\n"));
-        for it in list {
+        for it in list.iter() {
             out.push_str(&format!("### {} `{}`\n\n{}\n\n", it.kind, it.name, it.docs));
         }
     }

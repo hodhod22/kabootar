@@ -89,7 +89,7 @@ pub fn frame_info_object(delta_ms: u64, frame: u64, time_ms: u64) -> Value {
     m.insert("delta_ms".into(), Value::Float(delta_ms as f64));
     m.insert("frame".into(), Value::Number(frame as i64));
     m.insert("time_ms".into(), Value::Number(time_ms as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn reset_for_tests() {

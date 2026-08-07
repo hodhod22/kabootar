@@ -108,10 +108,9 @@ fn read_connack(stream: &mut TcpStream) -> Result<(), String> {
 
 fn value_bytes(v: &Value) -> Result<Vec<u8>, String> {
     match v {
-        Value::String(s) => Ok(s.as_bytes().to_vec()),
-        Value::Array(items) => {
+        Value::String(s) => Ok(s.as_bytes().to_vec()), Value::Array(items) => {
             let mut out = Vec::new();
-            for it in items {
+            for it in items.iter() {
                 match it {
                     Value::Number(n) => out.push(*n as u8),
                     Value::Float(f) => out.push(*f as u8),
@@ -164,7 +163,7 @@ fn mqtt_connect_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
     m.insert("host".into(), Value::String(host.into()));
     m.insert("port".into(), Value::Number(port as i64));
     m.insert("clientId".into(), Value::String(client_id));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn mqtt_id(args: &[Value]) -> Result<u64, String> {
@@ -238,7 +237,7 @@ fn mqtt_try_connect_native(args: &[Value], env: &mut Environment) -> Result<Valu
             m.insert("host".into(), Value::String(host));
             m.insert("port".into(), Value::Number(port));
             m.insert("reason".into(), Value::String(e));
-            Ok(Value::Object(m))
+            Ok(Value::from_object(m))
         }
     }
 }

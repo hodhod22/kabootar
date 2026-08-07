@@ -172,7 +172,7 @@ fn hypot_native(args: &[Value], _env: &mut Environment) -> Result<Value, String>
         return Err("hypot() expects at least one number".into());
     }
     let mut sum = 0.0f64;
-    for v in args {
+    for v in args.iter() {
         let x = to_f64(v)?;
         sum += x * x;
     }
@@ -356,7 +356,7 @@ fn sum_precise_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     }
     // Shewchuk / Python math.fsum partials — recovers small addends lost by naive +/Kahan.
     let mut partials: Vec<f64> = Vec::new();
-    for v in arr {
+    for v in arr.iter() {
         let mut x = to_f64(v)?;
         let mut i = 0usize;
         for j in 0..partials.len() {
@@ -487,7 +487,7 @@ fn build_math_namespace() -> Value {
         "SQRT1_2".into(),
         Value::Float(std::f64::consts::FRAC_1_SQRT_2),
     );
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_math(env: &mut Environment) {
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn sum_precise_recovers_small_addend() {
         let mut env = Environment::new();
-        let args = [Value::Array(vec![
+        let args = [Value::from_array(vec![
             Value::Float(1e16),
             Value::Float(1.0),
             Value::Float(-1e16),

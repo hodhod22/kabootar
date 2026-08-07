@@ -31,7 +31,7 @@ impl RowStore {
 
     pub fn from_maps(columns: &[ColumnDef], rows: Vec<HashMap<String, Value>>) -> Self {
         let mut store = Self::with_columns(columns);
-        for row in rows {
+        for row in rows.iter() {
             store.insert_map(&row, columns);
         }
         store

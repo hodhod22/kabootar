@@ -11,7 +11,7 @@ fn df_out(columns: HashMap<String, Vec<Value>>, nrows: usize) -> Value {
     let mut names = Vec::new();
     for (k, v) in columns {
         names.push(Value::String(k.clone()));
-        cols_obj.insert(k, Value::Array(v));
+        cols_obj.insert(k, Value::from_array(v));
     }
     names.sort_by(|a, b| match (a, b) {
         (Value::String(x), Value::String(y)) => x.cmp(y),
@@ -19,10 +19,10 @@ fn df_out(columns: HashMap<String, Vec<Value>>, nrows: usize) -> Value {
     });
     let mut m = HashMap::new();
     m.insert(DF_MARK.into(), Value::Bool(true));
-    m.insert("columns".into(), Value::Object(cols_obj));
-    m.insert("names".into(), Value::Array(names));
+    m.insert("columns".into(), Value::from_object(cols_obj));
+    m.insert("names".into(), Value::from_array(names));
     m.insert("nrows".into(), int_out(nrows as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn df_parts(v: &Value) -> Result<(HashMap<String, Vec<Value>>, usize), String> {
@@ -34,7 +34,7 @@ fn df_parts(v: &Value) -> Result<(HashMap<String, Vec<Value>>, usize), String> {
             };
             let mut out = HashMap::new();
             let mut nrows = 0usize;
-            for (k, val) in cols {
+            for (k, val) in cols.iter() {
                 let Value::Array(items) = val else {
                     return Err("df: column must be array".into());
                 };
@@ -43,7 +43,7 @@ fn df_parts(v: &Value) -> Result<(HashMap<String, Vec<Value>>, usize), String> {
                 } else if items.len() != nrows {
                     return Err("df: column length mismatch".into());
                 }
-                out.insert(k.clone(), items.clone());
+                out.insert(k.clone(), items.as_ref().clone());
             }
             Ok((out, nrows))
         }
@@ -57,7 +57,7 @@ fn df_from(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         if !matches!(m.get(DF_MARK), Some(Value::Bool(true))) {
             let mut cols = HashMap::new();
             let mut nrows = None;
-            for (k, v) in m {
+            for (k, v) in m.iter() {
                 if k.starts_with("__kab") {
                     continue;
                 }
@@ -71,7 +71,7 @@ fn df_from(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
                 } else {
                     nrows = Some(items.len());
                 }
-                cols.insert(k.clone(), items.clone());
+                cols.insert(k.clone(), items.as_ref().clone());
             }
             if cols.is_empty() {
                 return Err("df_from: columns must be arrays".into());
@@ -105,7 +105,7 @@ fn df_from(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     };
     let mut cols: HashMap<String, Vec<Value>> =
         names.iter().map(|n| (n.clone(), Vec::new())).collect();
-    for row in rows {
+    for row in rows.iter() {
         let Value::Array(cells) = row else {
             return Err("df_from: jagged row".into());
         };
@@ -132,7 +132,7 @@ fn df_select(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         _ => return Err("df_select(df, [names]|name)".into()),
     };
     let mut out = HashMap::new();
-    for n in names {
+    for n in names.iter() {
         let Value::String(s) = n else {
             return Err("df_select: name must be string".into());
         };

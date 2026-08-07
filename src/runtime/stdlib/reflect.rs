@@ -13,6 +13,7 @@ use crate::runtime::stdlib::object::{
 use crate::runtime::stdlib::opt::{get_member_value, is_nullish};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub(crate) fn get_internal(
     target: &Value,
@@ -35,16 +36,20 @@ pub(crate) fn set_internal(
 ) -> Result<bool, String> {
     let pk = property_key_from_value(key)?;
     match target {
-        Value::Object(map) => match crate::runtime::stdlib::descriptor::set_own_property_key(
-            map, &pk, value, receiver, env,
-        ) {
-            Ok(()) => Ok(true),
-            Err(e) if is_set_failure(&e) => Ok(false),
-            Err(e) => Err(e),
-        },
-        Value::Array(items) => {
+        Value::Object(ref mut map_rc) => {
+            let map = Value::object_make_mut(map_rc);
+            match crate::runtime::stdlib::descriptor::set_own_property_key(
+                map, &pk, value, receiver, env,
+            ) {
+                Ok(()) => Ok(true),
+                Err(e) if is_set_failure(&e) => Ok(false),
+                Err(e) => Err(e),
+            }
+        }
+        Value::Array(ref mut items_rc) => {
             if let PropertyKey::String(s) = &pk {
                 if let Ok(i) = s.parse::<usize>() {
+                    let items = Value::array_make_mut(items_rc);
                     if i < items.len() {
                         items[i] = value;
                         return Ok(true);
@@ -69,10 +74,10 @@ pub(crate) fn has_internal(
     let pk = property_key_from_value(key)?;
     match target {
         Value::Object(map) => {
-            if has_own_property_key(map, &pk) {
+            if has_own_property_key(map.as_ref(), &pk) {
                 return Ok(true);
             }
-            let parent = get_object_parent(map);
+            let parent = get_object_parent(map.as_ref());
             if !is_nullish(&parent) {
                 return has_internal(&parent, key, env);
             }
@@ -99,7 +104,10 @@ pub(crate) fn delete_property_internal(
 ) -> Result<bool, String> {
     let pk = property_key_from_value(key)?;
     match target {
-        Value::Object(map) => crate::runtime::stdlib::descriptor::delete_own_property_key(map, &pk),
+        Value::Object(ref mut map_rc) => {
+            let map = Value::object_make_mut(map_rc);
+            crate::runtime::stdlib::descriptor::delete_own_property_key(map, &pk)
+        }
         _ => Ok(false),
     }
 }
@@ -107,11 +115,11 @@ pub(crate) fn delete_property_internal(
 pub(crate) fn own_keys_internal(target: &Value) -> Result<Vec<Value>, String> {
     match target {
         Value::Object(map) => {
-            let mut keys: Vec<Value> = own_property_keys(map)
+            let mut keys: Vec<Value> = own_property_keys(map.as_ref())
                 .into_iter()
                 .map(Value::String)
                 .collect();
-            keys.extend(get_own_property_symbols(map));
+            keys.extend(get_own_property_symbols(map.as_ref()));
             Ok(keys)
         }
         Value::Array(items) => Ok((0..items.len())
@@ -127,7 +135,7 @@ pub(crate) fn get_own_property_descriptor_internal(
 ) -> Result<Value, String> {
     let pk = property_key_from_value(key)?;
     match target {
-        Value::Object(map) => Ok(get_own_property_descriptor_key(map, &pk)),
+        Value::Object(map) => Ok(get_own_property_descriptor_key(map.as_ref(), &pk)),
         _ => Ok(Value::Undefined),
     }
 }
@@ -140,9 +148,10 @@ pub(crate) fn define_property_internal(
     env: &mut Environment,
 ) -> Result<bool, String> {
     let pk = property_key_from_value(key)?;
-    let Value::Object(map) = target else {
+    let Value::Object(ref mut map_rc) = target else {
         return Ok(false);
     };
+    let map = Value::object_make_mut(map_rc);
     let desc = if crate::runtime::stdlib::descriptor::is_descriptor_object(desc) {
         parse_descriptor_input(desc)?
     } else {
@@ -157,7 +166,7 @@ pub(crate) fn define_property_internal(
 
 pub(crate) fn get_parent_of_internal(target: &Value) -> Result<Value, String> {
     match target {
-        Value::Object(map) => Ok(get_object_parent(map)),
+        Value::Object(map) => Ok(get_object_parent(map.as_ref())),
         _ => Ok(Value::Null),
     }
 }
@@ -169,10 +178,11 @@ pub(crate) fn set_parent_of_internal(
     if !matches!(parent, Value::Object(_) | Value::Null) {
         return Ok(false);
     }
-    let Value::Object(mut map) = target.clone() else {
+    let Value::Object(ref mut map_rc) = target.clone() else {
         return Ok(false);
     };
-    let oid = object_oid(&mut map);
+    let map = Value::object_make_mut(map_rc);
+    let oid = object_oid(map);
     if !matches!(parent, Value::Null) && would_parent_cycle(oid, parent) {
         return Ok(false);
     }
@@ -186,23 +196,24 @@ pub(crate) fn set_parent_of_internal(
             parent.clone(),
         );
     }
-    *target = Value::Object(map);
+    *target = Value::Object(map_rc.clone());
     Ok(true)
 }
 
 pub(crate) fn is_extensible_internal(target: &Value) -> bool {
     match target {
-        Value::Object(map) => is_extensible(map),
+        Value::Object(map) => is_extensible(map.as_ref()),
         _ => false,
     }
 }
 
 pub(crate) fn prevent_extensions_internal(target: &mut Value) -> Result<bool, String> {
-    let Value::Object(mut map) = target.clone() else {
+    let Value::Object(ref mut map_rc) = target.clone() else {
         return Ok(false);
     };
+    let map = Value::object_make_mut(map_rc);
     map.insert("__kab_prevent_extensions".into(), Value::Bool(true));
-    *target = Value::Object(map);
+    *target = Value::Object(map_rc.clone());
     Ok(true)
 }
 
@@ -418,7 +429,7 @@ fn reflect_delete_property_native(args: &[Value], env: &mut Environment) -> Resu
 
 fn reflect_own_keys_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let target = args.first().ok_or("Reflect.ownKeys(target)")?;
-    Ok(Value::Array(reflect_own_keys(target, env)?))
+    Ok(Value::from_array(reflect_own_keys(target, env)?))
 }
 
 fn reflect_get_own_property_descriptor_native(
@@ -474,7 +485,7 @@ fn reflect_apply_native(args: &[Value], env: &mut Environment) -> Result<Value, 
         .cloned()
         .unwrap_or(Value::Undefined);
     let arg_list = match args.get(2) {
-        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Array(items)) => items.as_ref().clone(),
         Some(Value::Undefined) | None => Vec::new(),
         _ => return Err("Reflect.apply third argument must be array".into()),
     };
@@ -484,7 +495,7 @@ fn reflect_apply_native(args: &[Value], env: &mut Environment) -> Result<Value, 
 fn reflect_construct_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let target = args.first().ok_or("Reflect.construct(target, args, newTarget?)")?;
     let arg_list = match args.get(1) {
-        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Array(items)) => items.as_ref().clone(),
         Some(Value::Undefined) | None => Vec::new(),
         _ => return Err("Reflect.construct second argument must be array".into()),
     };
@@ -521,7 +532,7 @@ fn build_reflect_namespace() -> Value {
     insert_native(&mut m, "preventExtensions", reflect_prevent_extensions_native);
     insert_native(&mut m, "set", reflect_set_native);
     insert_native(&mut m, "setParent", reflect_set_parent_native);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_reflect(env: &mut Environment) {

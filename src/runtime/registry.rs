@@ -20,7 +20,7 @@ fn registry_publish_native(args: &[Value], _env: &mut Environment) -> Result<Val
     let mut map = HashMap::new();
     map.insert("name".to_string(), Value::String(info.name));
     map.insert("version".to_string(), Value::String(info.version));
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn registry_install_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -36,7 +36,7 @@ fn registry_install_native(args: &[Value], _env: &mut Environment) -> Result<Val
     let mut map = HashMap::new();
     map.insert("name".to_string(), Value::String(info.name));
     map.insert("version".to_string(), Value::String(info.version));
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn registry_list_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -48,10 +48,10 @@ fn registry_list_native(_args: &[Value], _env: &mut Environment) -> Result<Value
             let mut map = HashMap::new();
             map.insert("name".to_string(), Value::String(p.name));
             map.insert("version".to_string(), Value::String(p.version));
-            Value::Object(map)
+            Value::from_object(map)
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 pub fn registry_globals(env: &mut Environment) {

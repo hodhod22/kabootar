@@ -98,7 +98,7 @@ fn collect_columns(
     let nrows = rows.len();
     let mut kinds = vec![ColKind::Float; ncols];
     let mut cols: Vec<Vec<Value>> = vec![Vec::with_capacity(nrows); ncols];
-    for row in rows {
+    for row in rows.iter() {
         let Value::Object(m) = row else {
             return Err("parquet_save: jagged rows".into());
         };
@@ -191,9 +191,8 @@ pub fn apache_parquet_save(path: &str, rows: &[Value]) -> Result<i64, String> {
                     let mut builder = ListBuilder::new(Int64Builder::new());
                     for cell in &cols[ci] {
                         match cell {
-                            Value::Null => builder.append(false),
-                            Value::Array(items) => {
-                                for it in items {
+                            Value::Null => builder.append(false), Value::Array(items) => {
+                                for it in items.iter() {
                                     match it {
                                         Value::Null => builder.values().append_null(),
                                         other => builder
@@ -216,9 +215,8 @@ pub fn apache_parquet_save(path: &str, rows: &[Value]) -> Result<i64, String> {
                     let mut builder = ListBuilder::new(Float64Builder::new());
                     for cell in &cols[ci] {
                         match cell {
-                            Value::Null => builder.append(false),
-                            Value::Array(items) => {
-                                for it in items {
+                            Value::Null => builder.append(false), Value::Array(items) => {
+                                for it in items.iter() {
                                     match it {
                                         Value::Null => builder.values().append_null(),
                                         other => {
@@ -246,9 +244,8 @@ pub fn apache_parquet_save(path: &str, rows: &[Value]) -> Result<i64, String> {
                 let mut builder = ListBuilder::new(StringBuilder::new());
                 for cell in &cols[ci] {
                     match cell {
-                        Value::Null => builder.append(false),
-                        Value::Array(items) => {
-                            for it in items {
+                        Value::Null => builder.append(false), Value::Array(items) => {
+                            for it in items.iter() {
                                 match it {
                                     Value::Null => builder.values().append_null(),
                                     Value::String(s) => builder.values().append_value(s),
@@ -360,7 +357,7 @@ fn list_cell(col: &dyn Array, r: usize) -> Value {
             out.push(Value::String(format!("{values:?}")));
         }
     }
-    Value::Array(out)
+    Value::from_array(out)
 }
 
 fn struct_cell(col: &dyn Array, r: usize) -> Value {
@@ -390,7 +387,7 @@ fn struct_cell(col: &dyn Array, r: usize) -> Value {
         };
         m.insert(field.name().clone(), cell);
     }
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn apache_parquet_load(path: &str) -> Result<Vec<Value>, String> {
@@ -433,5 +430,5 @@ pub fn apache_parquet_load(path: &str) -> Result<Vec<Value>, String> {
             }
         }
     }
-    Ok(out_rows.into_iter().map(Value::Object).collect())
+    Ok(out_rows.into_iter().map(Value::from_object).collect())
 }

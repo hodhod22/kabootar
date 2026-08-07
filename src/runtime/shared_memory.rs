@@ -33,7 +33,7 @@ fn sab_object(id: u64, byte_length: usize) -> Value {
     m.insert("__kab_sab".into(), Value::Bool(true));
     m.insert("__kab_id".into(), Value::Number(id as i64));
     m.insert("byteLength".into(), Value::Number(byte_length as i64));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn sab_id(v: &Value) -> Result<u64, String> {
@@ -77,8 +77,7 @@ fn atomic_i32_at(block: &SharedBlock, byte_offset: usize) -> Result<&AtomicI32, 
 
 pub fn is_uint8_array(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_u8"), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get("__kab_u8"), Some(Value::Bool(true)))
     )
 }
 
@@ -201,7 +200,7 @@ pub fn sab_transfer(sab_id: u64) -> Result<Value, String> {
     out.insert("__kab_sab_transfer".into(), Value::Bool(true));
     out.insert("kabTransfer".into(), Value::String("sab".into()));
     out.insert("token".into(), Value::Number(token as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn sab_from_transfer(token: u64) -> Result<Value, String> {
@@ -264,7 +263,7 @@ fn uint8_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
     m.insert("byteOffset".into(), Value::Number(offset as i64));
     m.insert("byteLength".into(), Value::Number(length as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn uint8_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -324,7 +323,7 @@ fn int32_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
     m.insert("byteOffset".into(), Value::Number(offset as i64));
     m.insert("length".into(), Value::Number(length as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn int32_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -428,7 +427,7 @@ fn float64_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Va
     m.insert("byteOffset".into(), Value::Number(offset as i64));
     m.insert("length".into(), Value::Number(length as i64));
     m.insert("BYTES_PER_ELEMENT".into(), Value::Number(8));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn float64_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -531,7 +530,7 @@ fn float32_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Va
     m.insert("byteOffset".into(), Value::Number(offset as i64));
     m.insert("length".into(), Value::Number(length as i64));
     m.insert("BYTES_PER_ELEMENT".into(), Value::Number(4));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn float32_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -580,8 +579,7 @@ pub fn float64_array_to_f64_vec(v: &Value) -> Result<Vec<f64>, String> {
 
 pub fn is_float64_array(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_f64"), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get("__kab_f64"), Some(Value::Bool(true)))
     )
 }
 
@@ -620,8 +618,7 @@ pub fn float32_array_to_f32_vec(v: &Value) -> Result<Vec<f32>, String> {
 
 pub fn is_float32_array(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_f32"), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get("__kab_f32"), Some(Value::Bool(true)))
     )
 }
 
@@ -678,7 +675,7 @@ fn data_view_new_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
     m.insert("byteOffset".into(), Value::Number(offset as i64));
     m.insert("byteLength".into(), Value::Number(length as i64));
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 fn data_view_get_float64_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -722,8 +719,7 @@ fn data_view_set_float64_native(args: &[Value], _env: &mut Environment) -> Resul
 
 pub fn is_data_view(v: &Value) -> bool {
     matches!(
-        v,
-        Value::Object(o) if matches!(o.get("__kab_dv"), Some(Value::Bool(true)))
+        v, Value::Object(o) if matches!(o.get("__kab_dv"), Some(Value::Bool(true)))
     )
 }
 
@@ -998,9 +994,9 @@ mod tests {
         assert!(json.contains("kabTransfer"));
         let parsed = crate::runtime::stdlib::json::parse(&json).unwrap();
         let mut msg = HashMap::new();
-        msg.insert("transfers".into(), Value::Array(vec![parsed]));
+        msg.insert("transfers".into(), Value::from_array(vec![parsed]));
         let adopted =
-            crate::runtime::web_streams::adopt_transfers_in_message(&Value::Object(msg)).unwrap();
+            crate::runtime::web_streams::adopt_transfers_in_message(&Value::from_object(msg)).unwrap();
         let Value::Object(map) = adopted else {
             panic!("expected object");
         };

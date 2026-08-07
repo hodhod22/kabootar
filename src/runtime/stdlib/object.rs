@@ -11,6 +11,7 @@ use crate::runtime::stdlib::descriptor::{
 use crate::value::{BytecodeFunction, Environment, Value};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::rc::Rc;
 
 static NEXT_OID: AtomicU64 = AtomicU64::new(1);
 
@@ -48,7 +49,7 @@ pub fn bind_object_method(receiver: Value, method: Value) -> Value {
             binding.insert("__kab_obj_method".into(), Value::Bool(true));
             binding.insert("__kab_method_recv".into(), receiver);
             binding.insert("__kab_method_fn".into(), method);
-            Value::BoundNative(Box::new(Value::Object(binding)), object_method_native)
+            Value::BoundNative(Box::new(Value::from_object(binding)), object_method_native)
         }
         _ => method,
     }
@@ -71,9 +72,9 @@ pub fn writeback_generator_by_oid(updated: &Value, env: &mut Environment) {
         if object_oid_of(live_map) == Some(oid) {
             let mut merged = live.clone();
             if let Value::Object(dst) = &mut merged {
-                for (k, v) in updated_map {
+                for (k, v) in updated_map.iter() {
                     if k.starts_with("__kab_gen_") || k == "next" {
-                        dst.insert(k.clone(), v.clone());
+                        Rc::make_mut(dst).insert(k.clone(), v.clone());
                     }
                 }
             }
@@ -127,10 +128,10 @@ pub fn refresh_value_from_env_by_oid(v: &mut Value, env: &Environment) {
 }
 
 pub fn writeback_bytecode_fn_closure_on_receiver(receiver: &mut Value, func: &BytecodeFunction) {
-    let Value::Object(map) = receiver else {
+    let Value::Object(ref mut map) = receiver else {
         return;
     };
-    for v in map.values_mut() {
+    for v in Rc::make_mut(map).values_mut() {
         if let Value::BytecodeFn(stored) = v {
             if std::rc::Rc::ptr_eq(&stored.def, &func.def) {
                 stored.closure = func.closure.clone();
@@ -348,8 +349,8 @@ pub fn check_can_delete(map: &HashMap<String, Value>) -> Result<(), String> {
     Ok(())
 }
 
-fn mark_object(mut map: HashMap<String, Value>, key: &str) -> Value {
-    map.insert(key.to_string(), Value::Bool(true));
+fn mark_object(mut map: Rc<HashMap<String, Value>>, key: &str) -> Value {
+    Rc::make_mut(&mut map).insert(key.to_string(), Value::Bool(true));
     Value::Object(map)
 }
 
@@ -395,9 +396,10 @@ fn object_define_property_native(args: &[Value], env: &mut Environment) -> Resul
     let key_v = args.get(1).ok_or("Object.defineProperty(obj, key, desc)")?;
     let key = property_key_from_value(key_v)?;
     let third = args.get(2).ok_or("Object.defineProperty(obj, key, desc)")?;
-    let Value::Object(mut map) = obj.clone() else {
+    let Value::Object(ref mut map_rc) = obj.clone() else {
         return Err("Object.defineProperty() expects object".into());
     };
+    let map = Value::object_make_mut(map_rc);
     let mut desc = if is_descriptor_object(third) {
         parse_descriptor_input(third)?
     } else {
@@ -406,13 +408,13 @@ fn object_define_property_native(args: &[Value], env: &mut Environment) -> Resul
     if desc.get.is_none()
         && desc.set.is_none()
         && desc.value.is_none()
-        && has_own_property_key(&map, &key)
+        && has_own_property_key(map, &key)
     {
         if let PropertyKey::String(s) = &key {
             desc.value = map.get(s).cloned();
         } else if let PropertyKey::Symbol(id) = &key {
             if let Ok(Some(v)) = crate::runtime::stdlib::descriptor::get_own_symbol(
-                &map,
+                map,
                 *id,
                 obj,
                 env,
@@ -421,8 +423,8 @@ fn object_define_property_native(args: &[Value], env: &mut Environment) -> Resul
             }
         }
     }
-    define_property_key(&mut map, key, desc, obj, env)?;
-    Ok(Value::Object(map))
+    define_property_key(map, key, desc, obj, env)?;
+    Ok(Value::Object(map_rc.clone()))
 }
 
 fn object_get_own_property_descriptor_native(
@@ -434,7 +436,7 @@ fn object_get_own_property_descriptor_native(
     let Value::Object(map) = obj else {
         return Err("Object.getOwnPropertyDescriptor() expects object".into());
     };
-    Ok(get_own_property_descriptor_key(map, &key))
+    Ok(get_own_property_descriptor_key(map.as_ref(), &key))
 }
 
 fn object_get_own_property_symbols_native(
@@ -445,7 +447,7 @@ fn object_get_own_property_symbols_native(
     let Value::Object(map) = obj else {
         return Err("Object.getOwnPropertySymbols() expects object".into());
     };
-    Ok(Value::Array(get_own_property_symbols(map)))
+    Ok(Value::from_array(get_own_property_symbols(map.as_ref())))
 }
 
 fn object_create_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -458,7 +460,7 @@ fn object_create_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     if !matches!(parent, Value::Null) {
         set_object_parent_map(&mut map, Some(parent.clone()));
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn object_get_parent_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -466,7 +468,7 @@ fn object_get_parent_native(args: &[Value], _env: &mut Environment) -> Result<Va
     let Value::Object(map) = v else {
         return Err("Object.getParent() expects object".into());
     };
-    Ok(get_object_parent(map))
+    Ok(get_object_parent(map.as_ref()))
 }
 
 fn object_set_parent_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -475,19 +477,20 @@ fn object_set_parent_native(args: &[Value], _env: &mut Environment) -> Result<Va
     if !parent_is_object_or_null(parent) {
         return Err("Object.setParent() parent must be object or null".into());
     }
-    let Value::Object(mut map) = obj.clone() else {
+    let Value::Object(ref mut map_rc) = obj.clone() else {
         return Err("Object.setParent() expects object".into());
     };
-    let oid = object_oid(&mut map);
+    let map = Value::object_make_mut(map_rc);
+    let oid = object_oid(map);
     if !matches!(parent, Value::Null) && would_parent_cycle(oid, parent) {
         return Err("Object.setParent() would introduce parent cycle".into());
     }
     if matches!(parent, Value::Null) {
-        set_object_parent_map(&mut map, None);
+        set_object_parent_map(map, None);
     } else {
-        set_object_parent_map(&mut map, Some(parent.clone()));
+        set_object_parent_map(map, Some(parent.clone()));
     }
-    Ok(Value::Object(map))
+    Ok(Value::Object(map_rc.clone()))
 }
 
 fn object_define_properties_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -500,7 +503,7 @@ fn object_define_properties_native(args: &[Value], env: &mut Environment) -> Res
         return Err("Object.defineProperties() props must be object".into());
     };
     let mut current = obj;
-    for (key, desc) in prop_map {
+    for (key, desc) in prop_map.iter() {
         if key.starts_with("__kab_") {
             continue;
         }
@@ -521,24 +524,24 @@ fn object_get_own_property_descriptors_native(
         .ok_or("Object.getOwnPropertyDescriptors(obj)")?;
     let names = object_get_own_property_names_native(&[obj.clone()], env)?;
     let Value::Array(name_vals) = names else {
-        return Ok(Value::Object(HashMap::new()));
+        return Ok(Value::from_object(HashMap::new()));
     };
     let mut out = HashMap::new();
-    for nv in name_vals {
+    for nv in name_vals.iter() {
         let desc = object_get_own_property_descriptor_native(&[obj.clone(), nv.clone()], env)?;
         if let Value::String(k) = nv {
             if !matches!(desc, Value::Undefined) {
-                out.insert(k, desc);
+                out.insert(k.clone(), desc);
             }
         }
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn object_is_extensible_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("Object.isExtensible(obj)")?;
     Ok(Value::Bool(match v {
-        Value::Object(map) => is_extensible(map),
+        Value::Object(map) => is_extensible(map.as_ref()),
         _ => false,
     }))
 }
@@ -549,13 +552,13 @@ fn object_get_own_property_names_native(
 ) -> Result<Value, String> {
     let v = args.first().ok_or("Object.getOwnPropertyNames(obj)")?;
     match v {
-        Value::Object(map) => Ok(Value::Array(
+        Value::Object(map) => Ok(Value::from_array(
             own_property_names(map)
                 .into_iter()
                 .map(Value::String)
                 .collect(),
         )),
-        Value::Array(items) => Ok(Value::Array(
+        Value::Array(items) => Ok(Value::from_array(
             (0..items.len())
                 .map(|i| Value::String(i.to_string()))
                 .collect(),
@@ -564,9 +567,9 @@ fn object_get_own_property_names_native(
     }
 }
 
-fn array_arg(v: &Value) -> Result<&Vec<Value>, String> {
+fn array_arg(v: &Value) -> Result<&[Value], String> {
     match v {
-        Value::Array(items) => Ok(items),
+        Value::Array(items) => Ok(items.as_ref()),
         _ => Err("expected array".into()),
     }
 }
@@ -574,16 +577,16 @@ fn array_arg(v: &Value) -> Result<&Vec<Value>, String> {
 fn assign_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let target = args.first().ok_or("assign(target, ...sources)")?;
     let mut out = match target {
-        Value::Object(map) => map.clone(),
+        Value::Object(map) => map.as_ref().clone(),
         _ => return Err("assign() target must be an object".into()),
     };
     for src in args.iter().skip(1) {
         let Value::Object(map) = src else {
             continue;
         };
-        for key in enumerable_own_keys(map) {
+        for key in enumerable_own_keys(map.as_ref()) {
             if let Some(val) =
-                crate::runtime::stdlib::descriptor::get_own_property(map, &key, src, env)?
+                crate::runtime::stdlib::descriptor::get_own_property(map.as_ref(), &key, src, env)?
             {
                 crate::runtime::stdlib::descriptor::set_own_property(
                     &mut out,
@@ -594,14 +597,14 @@ fn assign_native(args: &[Value], env: &mut Environment) -> Result<Value, String>
                 )?;
             }
         }
-        for sym_id in enumerable_own_symbol_ids(map) {
+        for sym_id in enumerable_own_symbol_ids(map.as_ref()) {
             let key = PropertyKey::Symbol(sym_id);
-            if let Some(val) = get_own_property_key(map, &key, src, env)? {
+            if let Some(val) = get_own_property_key(map.as_ref(), &key, src, env)? {
                 set_own_property_key(&mut out, &key, val, target, env)?;
             }
         }
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn has_key_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -611,8 +614,7 @@ fn has_key_native(args: &[Value], _env: &mut Environment) -> Result<Value, Strin
         Value::Object(map) => match property_key_from_value(key_v) {
             Ok(k) => has_own_property_key(map, &k),
             Err(_) => false,
-        },
-        Value::Array(items) => match key_v {
+        }, Value::Array(items) => match key_v {
             Value::String(k) => k.parse::<usize>().is_ok_and(|i| i < items.len()),
             Value::Number(n) => (*n as usize) < items.len(),
             _ => false,
@@ -636,16 +638,15 @@ fn delete_prop_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     let Value::Object(map) = obj else {
         return Err("delete_prop() expects object".into());
     };
-    let mut out = map.clone();
+    let mut out = map.as_ref().clone();
     let _ = crate::runtime::stdlib::descriptor::delete_own_property_key(&mut out, &key)?;
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn clone_shallow_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("clone_shallow(v)")?;
     Ok(match v {
-        Value::Array(items) => Value::Array(items.clone()),
-        Value::Object(map) => Value::Object(map.clone()),
+        Value::Array(items) => Value::Array(items.clone()), Value::Object(map) => Value::Object(map.clone()),
         other => other.clone(),
     })
 }
@@ -675,7 +676,7 @@ fn object_from_entries_native(args: &[Value], _env: &mut Environment) -> Result<
         };
         map.insert(key, entry[1].clone());
     }
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 fn structured_clone_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -685,8 +686,8 @@ fn structured_clone_native(args: &[Value], _env: &mut Environment) -> Result<Val
 
 fn clone_structured(v: &Value) -> Value {
     match v {
-        Value::Array(items) => Value::Array(items.iter().map(clone_structured).collect()),
-        Value::Object(map) => Value::Object(
+        Value::Array(items) => Value::from_array(items.iter().map(clone_structured).collect()),
+        Value::Object(map) => Value::from_object(
             map.iter()
                 .filter(|(k, _)| !k.starts_with("__kab_"))
                 .map(|(k, v)| (k.clone(), clone_structured(v)))
@@ -764,25 +765,24 @@ fn object_group_by_native(args: &[Value], env: &mut Environment) -> Result<Value
             other => crate::value::format_value(other),
         };
         match out.get_mut(&key) {
-            Some(Value::Array(bucket)) => bucket.push(item.clone()),
+            Some(Value::Array(bucket)) => Rc::make_mut(bucket).push(item.clone()),
             _ => {
-                out.insert(key, Value::Array(vec![item.clone()]));
+                out.insert(key, Value::from_array(vec![item.clone()]));
             }
         }
     }
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn object_keys_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("Object.keys(obj)")?;
     match v {
-        Value::Object(map) => Ok(Value::Array(
+        Value::Object(map) => Ok(Value::from_array(
             enumerable_own_keys(map)
                 .into_iter()
                 .map(Value::String)
                 .collect(),
-        )),
-        Value::Array(items) => Ok(Value::Array(
+        )), Value::Array(items) => Ok(Value::from_array(
             (0..items.len())
                 .map(|i| Value::String(i.to_string()))
                 .collect(),
@@ -847,7 +847,7 @@ fn build_object_namespace() -> Value {
     insert_native(&mut m, "preventExtensions", object_prevent_extensions_native);
     insert_native(&mut m, "seal", object_seal_native);
     insert_native(&mut m, "values", object_values_native);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 pub fn register_object(env: &mut Environment) {

@@ -156,12 +156,11 @@ pub fn dom_tree_value(node: &DomNode) -> Value {
     if let Some(text) = &node.text {
         o.insert("text".into(), Value::String(text.clone()));
     }
-    o.insert("attrs".into(), Value::Object(attrs));
+    o.insert("attrs".into(), Value::from_object(attrs));
     o.insert(
-        "children".into(),
-        Value::Array(node.children.iter().map(dom_tree_value).collect()),
+        "children".into(), Value::from_array(node.children.iter().map(dom_tree_value).collect()),
     );
-    Value::Object(o)
+    Value::from_object(o)
 }
 
 fn dom_tree_json(node: &DomNode) -> String {
@@ -500,8 +499,7 @@ pub fn profile_stop() -> Result<HashMap<String, Value>, String> {
     o.insert("label".into(), Value::String(session.label));
     o.insert("total_ms".into(), Value::Float(total_ms));
     o.insert(
-        "marks".into(),
-        Value::Array(
+        "marks".into(), Value::from_array(
             session
                 .marks
                 .into_iter()
@@ -509,14 +507,13 @@ pub fn profile_stop() -> Result<HashMap<String, Value>, String> {
                     let mut x = HashMap::new();
                     x.insert("name".into(), Value::String(m.name));
                     x.insert("t_ms".into(), Value::Float(m.t_ms));
-                    Value::Object(x)
+                    Value::from_object(x)
                 })
                 .collect(),
         ),
     );
     o.insert(
-        "measures".into(),
-        Value::Array(
+        "measures".into(), Value::from_array(
             session
                 .measures
                 .into_iter()
@@ -526,7 +523,7 @@ pub fn profile_stop() -> Result<HashMap<String, Value>, String> {
                     x.insert("duration_ms".into(), Value::Float(m.duration_ms));
                     x.insert("start".into(), Value::String(m.start));
                     x.insert("end".into(), Value::String(m.end));
-                    Value::Object(x)
+                    Value::from_object(x)
                 })
                 .collect(),
         ),
@@ -541,22 +538,20 @@ pub fn profile_dump() -> HashMap<String, Value> {
             o.insert("label".into(), Value::String(label.clone()));
             o.insert("total_ms".into(), Value::Float(*total_ms));
             o.insert(
-                "marks".into(),
-                Value::Array(
+                "marks".into(), Value::from_array(
                     marks
                         .iter()
                         .map(|m| {
                             let mut x = HashMap::new();
                             x.insert("name".into(), Value::String(m.name.clone()));
                             x.insert("t_ms".into(), Value::Float(m.t_ms));
-                            Value::Object(x)
+                            Value::from_object(x)
                         })
                         .collect(),
                 ),
             );
             o.insert(
-                "measures".into(),
-                Value::Array(
+                "measures".into(), Value::from_array(
                     measures
                         .iter()
                         .map(|m| {
@@ -565,7 +560,7 @@ pub fn profile_dump() -> HashMap<String, Value> {
                             x.insert("duration_ms".into(), Value::Float(m.duration_ms));
                             x.insert("start".into(), Value::String(m.start.clone()));
                             x.insert("end".into(), Value::String(m.end.clone()));
-                            Value::Object(x)
+                            Value::from_object(x)
                         })
                         .collect(),
                 ),

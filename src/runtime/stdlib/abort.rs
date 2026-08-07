@@ -47,7 +47,7 @@ pub fn signal_object(id: u64) -> Value {
     obj.insert("__kab_abort_id".into(), Value::Number(id as i64));
     obj.insert("aborted".into(), Value::Bool(state.aborted));
     obj.insert("reason".into(), state.reason);
-    Value::Object(obj)
+    Value::from_object(obj)
 }
 
 pub fn signal_id(v: &Value) -> Option<u64> {
@@ -99,7 +99,7 @@ fn abort_controller_new_native(_args: &[Value], _env: &mut Environment) -> Resul
     ctrl.insert("__kab_abort_ctrl".into(), Value::Bool(true));
     ctrl.insert("__kab_abort_id".into(), Value::Number(id as i64));
     ctrl.insert("signal".into(), signal_object(id));
-    Ok(Value::Object(ctrl))
+    Ok(Value::from_object(ctrl))
 }
 
 fn abort_controller_abort_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -113,9 +113,9 @@ fn abort_controller_abort_native(args: &[Value], env: &mut Environment) -> Resul
     };
     let reason = args.get(1).cloned().unwrap_or(Value::String("AbortError".into()));
     abort_signal(id, reason.clone(), env);
-    let mut out = map.clone();
+    let mut out = map.as_ref().clone();
     out.insert("signal".into(), signal_object(id));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn abort_signal_aborted_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

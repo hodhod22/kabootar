@@ -735,7 +735,7 @@ fn run_chunk(
                 }
                 items.reverse();
                 crate::runtime::stdlib::weak::note_heap_alloc(1);
-                push_stack(stack, Value::Array(items))?;
+                push_stack(stack, Value::from_array(items))?;
             }
             Opcode::MakeObject(n) => {
                 let count = *n as usize;
@@ -753,7 +753,7 @@ fn run_chunk(
                 }
                 crate::runtime::stdlib::object::object_oid(&mut map);
                 crate::runtime::stdlib::weak::note_heap_alloc(1);
-                push_stack(stack, Value::Object(map))?;
+                push_stack(stack, Value::from_object(map))?;
             }
             Opcode::IndexGet => {
                 let idx = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -800,13 +800,14 @@ fn run_chunk(
             }
             Opcode::ArrayPush => {
                 let item = stack.pop().ok_or("Bytecode stack underflow")?;
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
-                let Value::Array(mut items) = arr else {
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                Value::reject_direct_container_cycle(&arr, &item)?;
+                let Value::Array(ref mut items) = arr else {
                     return Err("array_push requires an array receiver".into());
                 };
-                items.push(item);
+                Value::array_make_mut(items).push(item);
                 let len = items.len() as i64;
-                push_stack(stack, Value::Array(items))?;
+                push_stack(stack, arr)?;
                 push_stack(stack, Value::Number(len))?;
             }
             Opcode::TakeLocal(idx) => {
@@ -861,7 +862,7 @@ fn run_chunk(
             }
             Opcode::ArrayPushLocal(idx) => {
                 let item = stack.pop().ok_or("Bytecode stack underflow")?;
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let i = *idx as usize;
                 if i >= local_vals.len() {
                     local_vals.resize(i + 1, Value::Undefined);
@@ -873,15 +874,15 @@ fn run_chunk(
                         .unwrap_or("binding");
                     return Err(format!("Cannot assign to const `{name}`"));
                 }
-                let Value::Array(mut items) = arr else {
+                let Value::Array(ref mut items) = arr else {
                     return Err(format!(
                         "array_push_local requires an array (got {})",
                         crate::value::format_value(&arr)
                     ));
                 };
-                items.push(item);
+                Rc::make_mut(items).push(item);
                 let len = items.len() as i64;
-                let stored = Value::Array(items);
+                let stored = arr;
                 if args.is_none() {
                     let name = locals
                         .get(i)
@@ -906,21 +907,19 @@ fn run_chunk(
             }
             Opcode::ArrayPushGlobal(idx) => {
                 let item = stack.pop().ok_or("Bytecode stack underflow")?;
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let name = globals
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?;
-                let Value::Array(mut items) = arr else {
+                let Value::Array(ref mut items) = arr else {
                     return Err(format!(
                         "array_push_global requires an array (got {})",
                         crate::value::format_value(&arr)
                     ));
                 };
-                items.push(item);
+                Rc::make_mut(items).push(item);
                 let len = items.len() as i64;
-                // Assign into the owning frame (after TakeGlobal left Undefined there).
-                // `env.set` would shadow on a child call frame and break nested emitIfStmt.
-                ownership::store_binding(env, name, Value::Array(items))?;
+                ownership::store_binding(env, name, arr)?;
                 push_stack(stack, Value::Number(len))?;
             }
             Opcode::ArrayPopLocal(idx) => {
@@ -942,8 +941,8 @@ fn run_chunk(
                     env.array_pop_inplace(name)?;
                 } else {
                     match local_vals.get_mut(i) {
-                        Some(Value::Array(items)) => {
-                            let _ = items.pop();
+                        Some(Value::Array(ref mut items)) => {
+                            let _ = Rc::make_mut(items).pop();
                         }
                         other => {
                             return Err(format!(
@@ -1146,23 +1145,29 @@ fn run_chunk(
             }
             Opcode::ConcatArray => {
                 let right = stack.pop().ok_or("Bytecode stack underflow")?;
-                let left = stack.pop().ok_or("Bytecode stack underflow")?;
-                let (Value::Array(mut a), Value::Array(b)) = (left, right) else {
+                let mut left = stack.pop().ok_or("Bytecode stack underflow")?;
+                let Value::Array(ref mut a) = left else {
                     return Err("ConcatArray requires two arrays".into());
                 };
-                a.extend(b);
-                push_stack(stack, Value::Array(a))?;
+                let Value::Array(b) = right else {
+                    return Err("ConcatArray requires two arrays".into());
+                };
+                Rc::make_mut(a).extend(b.iter().cloned());
+                push_stack(stack, left)?;
             }
             Opcode::MergeObject => {
                 let right = stack.pop().ok_or("Bytecode stack underflow")?;
-                let left = stack.pop().ok_or("Bytecode stack underflow")?;
-                let (Value::Object(mut a), Value::Object(b)) = (left, right) else {
+                let mut left = stack.pop().ok_or("Bytecode stack underflow")?;
+                let Value::Object(ref mut a) = left else {
                     return Err("MergeObject requires two objects".into());
                 };
-                for (k, v) in b {
-                    a.insert(k, v);
+                let Value::Object(b) = right else {
+                    return Err("MergeObject requires two objects".into());
+                };
+                for (k, v) in b.iter() {
+                    Rc::make_mut(a).insert(k.clone(), v.clone());
                 }
-                push_stack(stack, Value::Object(a))?;
+                push_stack(stack, left)?;
             }
             Opcode::CallFromArray => {
                 let args_arr = stack.pop().ok_or("Bytecode stack underflow")?;
@@ -1172,7 +1177,7 @@ fn run_chunk(
                 };
                 let result = match call_value(
                     callee,
-                    items,
+                    items.to_vec(),
                     constants,
                     globals,
                     arrow_functions,
@@ -1228,12 +1233,12 @@ fn run_chunk(
                 }
             }
             Opcode::ArraySliceFrom(start) => {
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(items) = arr else {
                     return Err("ArraySliceFrom requires an array".into());
                 };
                 let start = *start as usize;
-                push_stack(stack, Value::Array(items.get(start..).unwrap_or(&[]).to_vec()))?;
+                push_stack(stack, Value::from_array(items.get(start..).unwrap_or(&[]).to_vec()))?;
             }
             Opcode::MakeArrowFn(idx) => {
                 sync_locals_into_env(locals, &local_vals, env);
@@ -1414,16 +1419,16 @@ fn run_chunk(
                 push_stack(stack, peek)?;
             }
             Opcode::ArraySliceRest(start_trim, end_trim) => {
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(items) = arr else {
                     return Err("ArraySliceRest requires an array".into());
                 };
                 let start = *start_trim as usize;
                 let end_trim = *end_trim as usize;
                 if start + end_trim > items.len() {
-                    push_stack(stack, Value::Array(Vec::new()))?;
+                    push_stack(stack, Value::from_array(Vec::new()))?;
                 } else {
-                    push_stack(stack, Value::Array(items[start..items.len() - end_trim].to_vec()))?;
+                    push_stack(stack, Value::from_array(items[start..items.len() - end_trim].to_vec()))?;
                 }
             }
             Opcode::ObjectRest(key_count) => {
@@ -1444,10 +1449,11 @@ fn run_chunk(
                     return Err("ObjectRest requires an object".into());
                 };
                 let rest: std::collections::HashMap<String, Value> = map
-                    .into_iter()
-                    .filter(|(k, _)| !exclude.contains(k))
+                    .iter()
+                    .filter(|(k, _)| !exclude.contains(k.as_str()))
+                    .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
-                push_stack(stack, Value::Object(rest))?;
+                push_stack(stack, Value::from_object(rest))?;
             }
             Opcode::MatchFail => return Err("No matching pattern".into()),
             Opcode::Await => {
@@ -1517,18 +1523,18 @@ fn run_chunk(
                 let class = classes
                     .get(*class_idx as usize)
                     .ok_or_else(|| format!("Invalid class index {class_idx}"))?;
-                let instance = instantiate_class(class, classes, call_args, env)?;
+                let instance = instantiate_class(class, classes, call_args.to_vec(), env)?;
                 push_stack(stack, instance)?;
             }
             Opcode::NewInstanceFromArray(class_idx) => {
-                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(call_args) = arr else {
                     return Err("Spread constructor requires an array of arguments".into());
                 };
                 let class = classes
                     .get(*class_idx as usize)
                     .ok_or_else(|| format!("Invalid class index {class_idx}"))?;
-                let instance = instantiate_class(class, classes, call_args, env)?;
+                let instance = instantiate_class(class, classes, call_args.to_vec(), env)?;
                 push_stack(stack, instance)?;
             }
             Opcode::GetSuperMethod(key_idx) => {
@@ -1812,11 +1818,11 @@ fn delegate_throw_step(
         return crate::runtime::stdlib::generator::throw_generator(del, reason, env);
     }
     if host_async || crate::runtime::stdlib::async_iterator::is_async_iterator_value(del) {
-        if let Value::Object(map) = del {
+        if let Value::Object(ref mut map) = del {
             if let Some(mut sync) = map.get(crate::runtime::stdlib::async_iterator::ASYNC_SYNC_DELEGATE).cloned() {
                 let result =
                     crate::runtime::stdlib::iterator::iterator_throw(&mut sync, reason, env)?;
-                map.insert(
+                Rc::make_mut(map).insert(
                     crate::runtime::stdlib::async_iterator::ASYNC_SYNC_DELEGATE.into(),
                     sync,
                 );
@@ -1838,11 +1844,11 @@ fn delegate_return_step(
         return crate::runtime::stdlib::iterator::parse_iterator_result(&result);
     }
     if host_async || crate::runtime::stdlib::async_iterator::is_async_iterator_value(del) {
-        if let Value::Object(map) = del {
+        if let Value::Object(ref mut map) = del {
             if let Some(mut sync) = map.get(crate::runtime::stdlib::async_iterator::ASYNC_SYNC_DELEGATE).cloned() {
                 let result =
                     crate::runtime::stdlib::iterator::iterator_return(&mut sync, value, env)?;
-                map.insert(
+                Rc::make_mut(map).insert(
                     crate::runtime::stdlib::async_iterator::ASYNC_SYNC_DELEGATE.into(),
                     sync,
                 );
@@ -2243,5 +2249,20 @@ mod tests {
         let mut env = create_global_env();
         let v = run_module(&bc, &mut env).unwrap();
         assert!(matches!(v, Value::Object(_)), "got {v:?}");
+    }
+
+    #[test]
+    fn rejects_direct_array_self_cycle() {
+        use std::rc::Rc;
+        let arr = Value::from_array(vec![Value::Number(1)]);
+        let Value::Array(rc) = &arr else {
+            panic!("expected array");
+        };
+        let same = Value::Array(Rc::clone(rc));
+        let err = Value::reject_direct_container_cycle(&arr, &same).unwrap_err();
+        assert!(err.contains("cycle"), "{err}");
+        // Distinct allocation is fine.
+        let other = Value::from_array(vec![Value::Number(2)]);
+        Value::reject_direct_container_cycle(&arr, &other).unwrap();
     }
 }

@@ -135,7 +135,7 @@ fn settled_entry(status: &str, key: &str, val: Value) -> Value {
     let mut map = HashMap::new();
     map.insert("status".into(), Value::String(status.into()));
     map.insert(key.into(), val);
-    Value::Object(map)
+    Value::from_object(map)
 }
 
 fn wrap_promise(value: Value) -> Value {
@@ -224,7 +224,7 @@ fn collect_all_resolved(args: &[Value], env: &mut Environment) -> Result<Value, 
         }
         out.push(unwrap_fulfilled(v));
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn await_all_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -286,7 +286,7 @@ fn promise_all_settled_native(args: &[Value], env: &mut Environment) -> Result<V
             ));
         }
     }
-    chain_promise(Value::Array(out), env)
+    chain_promise(Value::from_array(out), env)
 }
 
 fn promise_any_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -312,7 +312,7 @@ fn promise_any_native(args: &[Value], env: &mut Environment) -> Result<Value, St
         }
         if all_done {
             return chain_promise(
-                make_rejected(Value::Array(reasons)),
+                make_rejected(Value::from_array(reasons)),
                 env,
             );
         }
@@ -387,7 +387,7 @@ fn promise_with_resolvers_native(_args: &[Value], _env: &mut Environment) -> Res
             reject: true,
         },
     );
-    Ok(Value::Object(obj))
+    Ok(Value::from_object(obj))
 }
 
 fn promise_try_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -445,7 +445,7 @@ fn build_promise_namespace() -> Value {
     insert(&mut m, "then", promise_then_native);
     insert(&mut m, "catch", promise_catch_native);
     insert(&mut m, "finally", promise_finally_native);
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 #[cfg(test)]

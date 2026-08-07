@@ -62,7 +62,7 @@ pub fn bind_call_params(
         } else {
             Vec::new()
         };
-        env.set(rest_name.clone(), Value::Array(tail));
+        env.set(rest_name.clone(), Value::from_array(tail));
     }
     Ok(())
 }
@@ -232,7 +232,7 @@ fn inject_request_context(call_env: &mut Environment, env: &Environment) {
 }
 
 fn println_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    for arg in args {
+    for arg in args.iter() {
         print!("{} ", format_value(arg));
     }
     println!();
@@ -246,7 +246,7 @@ fn console_warn_native(args: &[Value], env: &mut Environment) -> Result<Value, S
 
 fn console_error_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     eprint!("[error] ");
-    for arg in args {
+    for arg in args.iter() {
         eprint!("{} ", format_value(arg));
     }
     eprintln!();
@@ -302,7 +302,7 @@ fn push_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
     let mut out = Vec::with_capacity(items.len() + 1);
     out.extend_from_slice(items);
     out.push(item.clone());
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn pop_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -311,9 +311,9 @@ fn pop_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
         return Err("pop() expects an array".into());
     };
     if items.is_empty() {
-        return Ok(Value::Array(Vec::new()));
+        return Ok(Value::from_array(Vec::new()));
     }
-    Ok(Value::Array(items[..items.len() - 1].to_vec()))
+    Ok(Value::from_array(items[..items.len() - 1].to_vec()))
 }
 
 fn call_with_args(func: &Value, args: Vec<Value>, env: &mut Environment) -> Result<Value, String> {
@@ -327,10 +327,10 @@ fn map_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         return Err("map() first argument must be an array".into());
     };
     let mut out = Vec::with_capacity(items.len());
-    for item in items {
+    for item in items.iter() {
         out.push(call_with_args(func, vec![item.clone()], env)?);
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn filter_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -340,12 +340,12 @@ fn filter_native(args: &[Value], env: &mut Environment) -> Result<Value, String>
         return Err("filter() first argument must be an array".into());
     };
     let mut out = Vec::new();
-    for item in items {
+    for item in items.iter() {
         if call_with_args(func, vec![item.clone()], env)?.is_truthy() {
             out.push(item.clone());
         }
     }
-    Ok(Value::Array(out))
+    Ok(Value::from_array(out))
 }
 
 fn typeof_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -365,11 +365,11 @@ fn keys_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                 .cloned()
                 .collect();
             names.sort();
-            Ok(Value::Array(
+            Ok(Value::from_array(
                 names.into_iter().map(Value::String).collect(),
             ))
         }
-        Value::Array(items) => Ok(Value::Array(
+        Value::Array(items) => Ok(Value::from_array(
             (0..items.len())
                 .map(|i| Value::String(i.to_string()))
                 .collect(),
@@ -593,7 +593,7 @@ fn bytecode_opt_info_native(args: &[Value], _env: &mut Environment) -> Result<Va
         "constants".into(),
         Value::Number(module.constants.len() as i64),
     );
-    Ok(Value::Object(m))
+    Ok(Value::from_object(m))
 }
 
 /// H6e hard path: thin VM syscall — deserialize `.kbc` text and run (policy in `kab/vm`).
@@ -636,7 +636,7 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
         .cloned()
         .ok_or("bytecode_host_call(callee, args)")?;
     let call_args = match args.get(1) {
-        Some(Value::Array(items)) => items.clone(),
+        Some(Value::Array(items)) => items.as_ref().clone(),
         Some(_) => return Err("bytecode_host_call args must be an array".into()),
         None => Vec::new(),
     };
@@ -653,10 +653,10 @@ fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<
     let mut pairs = Vec::new();
     for en in exported {
         if let Some(v) = env.get(&en) {
-            pairs.push(Value::Array(vec![Value::String(en), v]));
+            pairs.push(Value::from_array(vec![Value::String(en), v]));
         }
     }
-    Ok(Value::Array(pairs))
+    Ok(Value::from_array(pairs))
 }
 
 /// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.
@@ -670,7 +670,7 @@ fn bytecode_iterator_step_in_place_native(
         .ok_or("bytecode_iterator_step_in_place(iterator)")?;
     let (value, done) = crate::runtime::stdlib::iterator::iterator_next(&mut it, env)?;
     let result = crate::runtime::stdlib::iterator::iterator_result(value, done);
-    Ok(Value::Array(vec![it, result]))
+    Ok(Value::from_array(vec![it, result]))
 }
 
 fn index_to_usize(idx: &Value, len: usize) -> Result<usize, String> {
@@ -833,15 +833,16 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Environment) -> Result<Value, String> {
 fn eval_delete(inner: &Expr, env: &mut Environment) -> Result<Value, String> {
     match inner {
         Expr::Member(obj_expr, field, _) => {
-            let obj = eval_expr(obj_expr, env)?;
+            let mut obj = eval_expr(obj_expr, env)?;
             match obj {
-                Value::Object(mut map) => {
+                Value::Object(ref mut map_rc) => {
+                    let map = Value::object_make_mut(map_rc);
                     let removed = crate::runtime::stdlib::descriptor::delete_own_property(
-                        &mut map,
+                        map,
                         field,
                     )
                     .unwrap_or(false);
-                    store_lvalue(obj_expr, Value::Object(map), env)?;
+                    store_lvalue(obj_expr, Value::Object(map_rc.clone()), env)?;
                     Ok(Value::Bool(removed))
                 }
                 _ => Ok(Value::Bool(false)),
@@ -995,7 +996,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                         let Value::Array(ref mut items) = arr_val else {
                             return Err("push() requires an array".into());
                         };
-                        items.push(pushed);
+                        Rc::make_mut(items).push(pushed);
                         let len = items.len() as i64;
                         env.assign(var_name, arr_val)?;
                         return Ok(Value::Number(len));
@@ -1004,7 +1005,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                     let Value::Array(ref mut items) = arr_val else {
                         return Err("push() requires an array".into());
                     };
-                    items.push(pushed);
+                    Rc::make_mut(items).push(pushed);
                     return Ok(Value::Number(items.len() as i64));
                 }
             }
@@ -1549,7 +1550,7 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                     None => Value::Number(1),
                 },
             );
-            Ok(Value::Object(m))
+            Ok(Value::from_object(m))
         }
         Expr::Member(obj_expr, field, _) => {
             if matches!(obj_expr.as_ref(), Expr::Super) {
@@ -1676,20 +1677,20 @@ fn eval_literal(lit: &Literal, env: &mut Environment) -> Result<Value, String> {
             let v = eval_expr(inner, env)?;
             Ok(Value::Result(Err(Box::new(v))))
         }
-        Literal::Array(items) => Ok(Value::Array(expand_array_pieces(items, env)?)),
-        Literal::Object(fields) => Ok(Value::Object(expand_object_pieces(fields, env)?)),
+        Literal::Array(items) => Ok(Value::from_array(expand_array_pieces(items, env)?)),
+        Literal::Object(fields) => Ok(Value::from_object(expand_object_pieces(fields, env)?)),
     }
 }
 
 fn eval_call_args(args: &[CallArg], env: &mut Environment) -> Result<Vec<Value>, String> {
     let mut out = Vec::new();
-    for arg in args {
+    for arg in args.iter() {
         match arg {
             CallArg::Expr(e) => out.push(eval_expr(e, env)?),
             CallArg::Spread(e) => {
                 let v = eval_expr(e, env)?;
                 match v {
-                    Value::Array(items) => out.extend(items),
+                    Value::Array(items) => out.extend(items.iter().cloned()),
                     _ => return Err("Spread in call requires an array".into()),
                 }
             }
@@ -1706,7 +1707,7 @@ fn expand_array_pieces(pieces: &[ArrayPiece], env: &mut Environment) -> Result<V
             ArrayPiece::Spread(e) => {
                 let v = eval_expr(e, env)?;
                 match v {
-                    Value::Array(items) => out.extend(items),
+                    Value::Array(items) => out.extend(items.iter().cloned()),
                     _ => return Err("Spread requires an array".into()),
                 }
             }
@@ -1750,8 +1751,8 @@ fn expand_object_pieces(
                 let v = eval_expr(e, env)?;
                 match v {
                     Value::Object(obj) => {
-                        for (k, v) in obj {
-                            map.insert(k, v);
+                        for (k, v) in obj.iter() {
+                            map.insert(k.clone(), v.clone());
                         }
                     }
                     _ => return Err("Spread in object requires an object".into()),
@@ -1788,15 +1789,15 @@ fn bind_binding_pattern(
                 _ => return Err("Array destructuring requires an array".into()),
             };
             let mut idx = 0usize;
-            for item in items {
+            for item in items.iter() {
                 match item {
                     BindingPattern::Rest(name) => {
                         if !name.is_empty() {
                             let rest: Vec<Value> = arr[idx..].to_vec();
                             if immutable {
-                                env.set_const(name.clone(), Value::Array(rest));
+                                env.set_const(name.clone(), Value::from_array(rest));
                             } else {
-                                env.set(name.clone(), Value::Array(rest));
+                                env.set(name.clone(), Value::from_array(rest));
                             }
                         }
                         return Ok(());
@@ -1819,7 +1820,7 @@ fn bind_binding_pattern(
                 _ => return Err("Object destructuring requires an object".into()),
             };
             let mut bound_keys = HashSet::new();
-            for field in fields {
+            for field in fields.iter() {
                 match field {
                     ObjectBind::Shorthand(key) => {
                         let v = map.get(key).cloned().unwrap_or(Value::Undefined);
@@ -1840,15 +1841,15 @@ fn bind_binding_pattern(
                             continue;
                         }
                         let mut rest = HashMap::new();
-                        for (k, v) in map {
+                        for (k, v) in map.iter() {
                             if !bound_keys.contains(k) {
                                 rest.insert(k.clone(), v.clone());
                             }
                         }
                         if immutable {
-                            env.set_const(name.clone(), Value::Object(rest));
+                            env.set_const(name.clone(), Value::from_object(rest));
                         } else {
-                            env.set(name.clone(), Value::Object(rest));
+                            env.set(name.clone(), Value::from_object(rest));
                         }
                     }
                 }
@@ -2021,7 +2022,8 @@ fn assign_member_value(
 ) -> Result<(), String> {
     let receiver = obj.clone();
     match obj {
-        Value::Object(map) => {
+        Value::Object(ref mut map_rc) => {
+            let map = Value::object_make_mut(map_rc);
             if crate::runtime::browser_platform::canvas_props::try_write_property(
                 map,
                 field,
@@ -2663,7 +2665,7 @@ fn object_pattern_matches(fields: &[PatternField], map: &HashMap<String, Value>)
     if fields.is_empty() {
         return crate::runtime::stdlib::object::object_is_pattern_empty(map);
     }
-    for field in fields {
+    for field in fields.iter() {
         match field {
             PatternField::Shorthand(key) => {
                 if !map.contains_key(key) {
@@ -2738,7 +2740,7 @@ fn bind_array_pattern(pieces: &[PatternPiece], vals: &[Value], env: &mut Environ
                 if !name.is_empty() {
                     let after_start = vals.len().saturating_sub(fixed_after.len());
                     let rest_vals = vals[idx..after_start].to_vec();
-                    env.set(name.clone(), Value::Array(rest_vals));
+                    env.set(name.clone(), Value::from_array(rest_vals));
                 }
             }
             let after_start = vals.len() - fixed_after.len();
@@ -2761,7 +2763,7 @@ fn bind_array_piece(piece: &PatternPiece, val: &Value, env: &mut Environment) {
         PatternPiece::Rest(name) => {
             if !name.is_empty() {
                 if let Value::Array(items) = val {
-                    env.set(name.clone(), Value::Array(items.clone()));
+                    env.set(name.clone(), Value::from_array(items.as_ref().clone()));
                 }
             }
         }
@@ -2770,7 +2772,7 @@ fn bind_array_piece(piece: &PatternPiece, val: &Value, env: &mut Environment) {
 
 fn bind_object_pattern(fields: &[PatternField], map: &HashMap<String, Value>, env: &mut Environment) {
     let mut bound_keys = HashSet::new();
-    for field in fields {
+    for field in fields.iter() {
         match field {
             PatternField::Shorthand(key) => {
                 let v = map.get(key).cloned().unwrap_or(Value::Undefined);
@@ -2787,12 +2789,12 @@ fn bind_object_pattern(fields: &[PatternField], map: &HashMap<String, Value>, en
                     continue;
                 }
                 let mut rest = HashMap::new();
-                for (k, v) in map {
+                for (k, v) in map.iter() {
                     if !bound_keys.contains(k) {
                         rest.insert(k.clone(), v.clone());
                     }
                 }
-                env.set(name.clone(), Value::Object(rest));
+                env.set(name.clone(), Value::from_object(rest));
             }
         }
     }

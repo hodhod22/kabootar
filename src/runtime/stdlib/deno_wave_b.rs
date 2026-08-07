@@ -38,8 +38,8 @@ fn serve_dispatch_native(args: &[Value], env: &mut Environment) -> Result<Value,
     for (k, v) in res.headers {
         headers.insert(k, Value::String(v));
     }
-    out.insert("headers".into(), Value::Object(headers));
-    Ok(Value::Object(out))
+    out.insert("headers".into(), Value::from_object(headers));
+    Ok(Value::from_object(out))
 }
 
 fn serve_async_ready_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -58,7 +58,7 @@ fn serve_async_ready_native(args: &[Value], env: &mut Environment) -> Result<Val
     map.insert("ready".into(), Value::Bool(true));
     map.insert("http2".into(), Value::Bool(crate::runtime::http2::supported()));
     map.insert("serveId".into(), Value::Number(serve_id as i64));
-    Ok(Value::Object(map))
+    Ok(Value::from_object(map))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -284,15 +284,15 @@ fn shared_worker_post_message_native(
     let wire = if let Some(list) = transfers {
         let encoded = crate::runtime::web_streams::encode_transfer_list(list)?;
         let mut map = match msg {
-            Value::Object(m) => m,
+            Value::Object(m) => m.as_ref().clone(),
             other => {
                 let mut m = HashMap::new();
                 m.insert("payload".into(), other);
                 m
             }
         };
-        map.insert("transfers".into(), Value::Array(encoded));
-        Value::Object(map)
+        map.insert("transfers".into(), Value::from_array(encoded));
+        Value::from_object(map)
     } else {
         msg
     };

@@ -13,6 +13,7 @@ use super::promise::{
 use crate::runtime::kabootar_dom::{assign_ids, DomNode};
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 thread_local! {
     static EVENT_PROPAGATION_STOPPED: Cell<bool> = const { Cell::new(false) };
@@ -4120,7 +4121,7 @@ fn object_spread_entries(
     map: &HashMap<String, Kv8Value>,
 ) -> Result<Vec<(String, Kv8Value)>, String> {
     let mut out = Vec::new();
-    for (k, v) in map {
+    for (k, v) in map.iter() {
         if is_object_own_key(k) {
             out.push((k.clone(), v.clone()));
         }
@@ -5213,8 +5214,8 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                     return Err("Array.push: this is not an array".into());
                 };
                 let mut len = array_length_of(m);
-                for arg in args {
-                    m.insert(len.to_string(), arg);
+                for arg in args.iter() {
+                    m.insert(len.to_string(), arg.clone());
                     len += 1;
                 }
                 m.insert("length".into(), Kv8Value::Num(len as f64));
@@ -5323,7 +5324,7 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                         .unwrap_or(Kv8Value::Undefined),
                 );
             }
-            for arg in args {
+            for arg in args.iter() {
                 if is_kv8_array(&arg) {
                     let Kv8Value::Obj(a) = arg else { continue };
                     let alen = array_length_of(&a);
@@ -5335,7 +5336,7 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
                         );
                     }
                 } else {
-                    out.push(arg);
+                    out.push(arg.clone());
                 }
             }
             Ok(array_from_values(out))
@@ -5984,7 +5985,7 @@ fn call_native(ctx: &Kv8Context, callee: Kv8Value, args: Vec<Kv8Value>) -> Resul
             let mut map = HashMap::new();
             if let Kv8Value::Obj(m) = &iter {
                 let vals = array_values_of(&Kv8Value::Obj(m.clone()));
-                for pair in vals {
+                for pair in vals.iter() {
                     if let Kv8Value::Obj(pm) = &pair {
                         let pv = array_values_of(&Kv8Value::Obj(pm.clone()));
                         if let (Some(Kv8Value::Str(k)), Some(v)) = (pv.first(), pv.get(1)) {

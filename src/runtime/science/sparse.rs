@@ -18,14 +18,13 @@ fn sparse_out(
     m.insert("nrows".into(), int_out(rows as i64));
     m.insert("ncols".into(), int_out(cols as i64));
     m.insert("data".into(), vector_out(data));
-    m.insert("indices".into(), Value::Array(indices.iter().map(|n| int_out(*n)).collect()));
+    m.insert("indices".into(), Value::from_array(indices.iter().map(|n| int_out(*n)).collect()));
     if !indptr.is_empty() {
         m.insert(
-            "indptr".into(),
-            Value::Array(indptr.iter().map(|n| int_out(*n)).collect()),
+            "indptr".into(), Value::from_array(indptr.iter().map(|n| int_out(*n)).collect()),
         );
     }
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn parse_sparse(v: &Value) -> Result<(String, usize, usize, Vec<f64>, Vec<i64>, Vec<i64>), String> {
@@ -386,7 +385,7 @@ fn sparse_compress_rows(args: &[Value], env: &mut Environment) -> Result<Value, 
     if mask.len() != nrows {
         return Err("sparse_compress_rows: mask length".into());
     }
-    let ix_arr = Value::Array(
+    let ix_arr = Value::from_array(
         mask.iter()
             .enumerate()
             .filter(|(_, m)| **m != 0.0)
@@ -494,7 +493,7 @@ fn sparse_compress_cols(args: &[Value], env: &mut Environment) -> Result<Value, 
     if mask.len() != ncols {
         return Err("sparse_compress_cols: mask length".into());
     }
-    let ix_arr = Value::Array(
+    let ix_arr = Value::from_array(
         mask.iter()
             .enumerate()
             .filter(|(_, m)| **m != 0.0)
@@ -702,7 +701,7 @@ fn sparse_ilu0(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
     out.insert("u".into(), dense_to_csr_pattern(&u, &up));
     out.insert("kind".into(), Value::String("ilu0".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// sparse_icc0(A) — incomplete Cholesky (no-fill) for SPD. Returns L as CSR.
@@ -757,7 +756,7 @@ fn sparse_icc0(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
     out.insert("kind".into(), Value::String("icc0".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn ensure_csr(a: &Value, env: &mut Environment) -> Result<Value, String> {
@@ -836,7 +835,7 @@ fn sparse_ilut(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
     out.insert("u".into(), dense_to_csr_pattern(&u, &up));
     out.insert("kind".into(), Value::String("ilut".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// sparse_ic_k(A, level) — incomplete Cholesky with level-of-fill k (0 = icc0).
@@ -913,7 +912,7 @@ fn sparse_ic_k(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
     out.insert("kind".into(), Value::String("ic_k".into()));
     out.insert("level".into(), Value::Number(level as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn csr_forward_solve(
@@ -1107,7 +1106,7 @@ fn sparse_rcm(args: &[Value], env: &mut Environment) -> Result<Value, String> {
         }
     }
     order.reverse();
-    Ok(Value::Array(
+    Ok(Value::from_array(
         order.iter().map(|&i| Value::Number(i as i64)).collect(),
     ))
 }
@@ -1213,7 +1212,7 @@ fn sparse_lu(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     out.insert("u".into(), dense_to_csr_pattern(&u, &up));
     out.insert("p".into(), perm_v);
     out.insert("kind".into(), Value::String("lu".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// sparse_chol(A) — Cholesky on RCM-permuted SPD → {l,p,kind}.
@@ -1260,7 +1259,7 @@ fn sparse_chol(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
     out.insert("p".into(), perm_v);
     out.insert("kind".into(), Value::String("chol".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {

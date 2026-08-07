@@ -127,7 +127,7 @@ fn build_http_request(
     ];
     let mut has_content_length = false;
     let mut has_connection = false;
-    for (key, value) in headers {
+    for (key, value) in headers.iter() {
         let key_lower = key.to_ascii_lowercase();
         if key_lower == "host" {
             continue;

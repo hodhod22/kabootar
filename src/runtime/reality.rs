@@ -164,7 +164,7 @@ fn feature_entry(f: &FeatureTruth) -> Value {
     m.insert("tier".into(), Value::String(f.tier.into()));
     m.insert("claim".into(), Value::String(f.claim.into()));
     m.insert("reality".into(), Value::String(f.reality.into()));
-    Value::Object(m)
+    Value::from_object(m)
 }
 
 fn find_feature(id: &str) -> Option<&'static FeatureTruth> {
@@ -187,13 +187,11 @@ fn kabootar_reality_native(_args: &[Value], _env: &mut Environment) -> Result<Va
         Value::String("early".into()),
     );
     root.insert(
-        "builtin_modules".into(),
-        Value::Array(builtins),
+        "builtin_modules".into(), Value::from_array(builtins),
     );
-    root.insert("features".into(), Value::Array(features));
+    root.insert("features".into(), Value::from_array(features));
     root.insert(
-        "tier_legend".into(),
-        Value::Object(
+        "tier_legend".into(), Value::from_object(
             [
                 ("native", "Runs for real inside Kabootar process"),
                 ("sandbox", "Modeled API — simulated OS/browser behavior"),
@@ -212,7 +210,7 @@ fn kabootar_reality_native(_args: &[Value], _env: &mut Environment) -> Result<Va
             "Kabootar is a broad fullstack runtime, not a drop-in replacement for Windows, Chrome, or Rust. Use kabootar_reality() and feature_tier(id) before trusting marketing claims.".into(),
         ),
     );
-    Ok(Value::Object(root))
+    Ok(Value::from_object(root))
 }
 
 fn feature_tier_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

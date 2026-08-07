@@ -321,7 +321,7 @@ fn mat_svd2(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     out.insert("u".into(), u);
     out.insert("s".into(), vector_out(&[s1, s2]));
     out.insert("vt".into(), vt);
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 fn eigenvec2(a: f64, b: f64, lambda: f64) -> (f64, f64) {
@@ -413,14 +413,14 @@ fn num_stft(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
             chunk.push(sig[start + i] * w[i]);
         }
         let mag = fft_mag(&chunk)?;
-        rows.push(Value::Array(mag.iter().map(|v| float_out(*v)).collect()));
+        rows.push(Value::from_array(mag.iter().map(|v| float_out(*v)).collect()));
         start += hop;
     }
     let mut out = HashMap::new();
     out.insert("frames".into(), int_out(frames as i64));
     out.insert("freqs".into(), int_out(nfft as i64));
-    out.insert("data".into(), Value::Array(rows));
-    Ok(Value::Object(out))
+    out.insert("data".into(), Value::from_array(rows));
+    Ok(Value::from_object(out))
 }
 
 /// num_fft2d(matrix) — separable 2D FFT magnitude
@@ -500,9 +500,9 @@ fn num_fftn(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mut out = HashMap::new();
     out.insert("rows".into(), int_out(nr as i64));
     out.insert("cols".into(), int_out(nc as i64));
-    out.insert("data".into(), Value::Array(data_rows));
+    out.insert("data".into(), Value::from_array(data_rows));
     out.insert("kind".into(), Value::String("fftn".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_firwin(numtaps, cutoff) — windowed-sinc lowpass FIR (cutoff in Nyquist units 0..1).
@@ -582,7 +582,7 @@ fn num_butter_biquad(args: &[Value], _env: &mut Environment) -> Result<Value, St
     out.insert("a0".into(), float_out(a0));
     out.insert("a1".into(), float_out(a1));
     out.insert("a2".into(), float_out(a2));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_polyphase_resample(x, up, down) — upsample-by-up, FIR lowpass, downsample-by-down.
@@ -626,7 +626,7 @@ fn num_polyphase_decompose(args: &[Value], _env: &mut Environment) -> Result<Val
     for (i, v) in h.iter().enumerate() {
         branches[i % n].push(*v);
     }
-    Ok(Value::Array(
+    Ok(Value::from_array(
         branches.iter().map(|b| vector_out(b)).collect(),
     ))
 }
@@ -656,7 +656,7 @@ fn num_polyphase_analyze(args: &[Value], env: &mut Environment) -> Result<Value,
         let filtered = num_fir(&[vector_out(&phase), vector_out(&coeffs)], env)?;
         bands.push(filtered);
     }
-    Ok(Value::Array(bands))
+    Ok(Value::from_array(bands))
 }
 
 /// num_polyphase_synthesize(bands, h, n) — inverse FIR bank (upsample+filter+sum).
@@ -715,7 +715,7 @@ fn num_dwt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     out.insert("a".into(), vector_out(&a));
     out.insert("d".into(), vector_out(&d));
     out.insert("kind".into(), Value::String("haar".into()));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_idwt_haar(a, d) — inverse Haar DWT.
@@ -777,10 +777,10 @@ fn num_dwt_haar_levels(args: &[Value], _env: &mut Environment) -> Result<Value, 
     }
     let mut out = HashMap::new();
     out.insert("a".into(), vector_out(&x));
-    out.insert("details".into(), Value::Array(details));
+    out.insert("details".into(), Value::from_array(details));
     out.insert("kind".into(), Value::String("haar_levels".into()));
     out.insert("levels".into(), Value::Number(levels as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_idwt_haar_levels(a, details) — inverse multi-level Haar.
@@ -813,12 +813,11 @@ fn num_wpt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String>
     }
     let mut out = HashMap::new();
     out.insert(
-        "packets".into(),
-        Value::Array(leaves.iter().map(|v| vector_out(v)).collect()),
+        "packets".into(), Value::from_array(leaves.iter().map(|v| vector_out(v)).collect()),
     );
     out.insert("kind".into(), Value::String("wpt_haar".into()));
     out.insert("levels".into(), Value::Number(levels as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_iwpt_haar(packets, levels) — inverse Haar wavelet packet.
@@ -879,7 +878,7 @@ fn num_dtcwt(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     );
     out.insert("kind".into(), Value::String("dtcwt".into()));
     out.insert("levels".into(), Value::Number(levels as i64));
-    Ok(Value::Object(out))
+    Ok(Value::from_object(out))
 }
 
 /// num_idtcwt(aRe, aIm, detailsRe, detailsIm) — inverse dual-tree (average of two iDWTs).

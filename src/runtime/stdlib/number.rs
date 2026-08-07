@@ -215,5 +215,5 @@ pub fn register_number(env: &mut Environment) {
         "parseFloat".into(),
         Value::NativeFunction(parse_float_native),
     );
-    env.set("Number".to_string(), Value::Object(n));
+    env.set("Number".to_string(), Value::from_object(n));
 }

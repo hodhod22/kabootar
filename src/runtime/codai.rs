@@ -12,7 +12,7 @@ fn code_utils_native(_args: &[Value], _env: &mut Environment) -> Result<Value, S
         .into_iter()
         .map(|id| Value::String(id.to_string()))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_util_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -44,14 +44,14 @@ fn code_suggest_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
             ))
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_compose_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let ids = match args.first() {
         Some(Value::Array(items)) => {
             let mut out = Vec::new();
-            for v in items {
+            for v in items.iter() {
                 match v {
                     Value::String(s) => out.push(s.as_str()),
                     _ => return Err("code_compose expects array of strings".into()),
@@ -99,7 +99,7 @@ fn code_categories_native(_args: &[Value], _env: &mut Environment) -> Result<Val
         .into_iter()
         .map(|c| Value::String(c.to_string()))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_projects_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -107,7 +107,7 @@ fn code_projects_native(_args: &[Value], _env: &mut Environment) -> Result<Value
         .into_iter()
         .map(|id| Value::String(id.to_string()))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_project_suggest_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -131,7 +131,7 @@ fn code_project_suggest_native(args: &[Value], _env: &mut Environment) -> Result
             ))
         })
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_project_tree_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -152,7 +152,7 @@ fn code_project_plan_native(args: &[Value], _env: &mut Environment) -> Result<Va
         .into_iter()
         .map(|(path, desc)| Value::String(format!("{path} — {desc}")))
         .collect();
-    Ok(Value::Array(items))
+    Ok(Value::from_array(items))
 }
 
 fn code_project_scaffold_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

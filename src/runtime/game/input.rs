@@ -84,11 +84,11 @@ pub fn poll() -> Value {
         pm.insert("y".into(), Value::Float(s.pointer.y));
         pm.insert("down".into(), Value::Bool(s.pointer.down));
         let mut m = std::collections::HashMap::new();
-        m.insert("pressed".into(), Value::Array(pressed));
-        m.insert("released".into(), Value::Array(released));
-        m.insert("down".into(), Value::Array(down));
-        m.insert("pointer".into(), Value::Object(pm));
-        Value::Object(m)
+        m.insert("pressed".into(), Value::from_array(pressed));
+        m.insert("released".into(), Value::from_array(released));
+        m.insert("down".into(), Value::from_array(down));
+        m.insert("pointer".into(), Value::from_object(pm));
+        Value::from_object(m)
     })
 }
 
