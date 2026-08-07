@@ -5,6 +5,8 @@
 // the 64KB self-host-attempt size threshold — self-hosting cost scales with AST size
 // of the source being compiled, not with import-time cost of its dependents. Keep it
 // skip-listed and only ever load it via the Rust module loader (fast, exact).
+// P6b: densify source (irOpLine membership) + speed emit AccAdd in emit_impl; measure
+// with p6b_serialize_body_compile_budget before emptying SELF_HOST_SKIP_LISTED_LEAVES.
 //
 // Everything here shares the module-level `s*` accumulators (sOut, sI, sJ, …) via
 // plain call/return. Kabootar modules do not share mutable globals across files —

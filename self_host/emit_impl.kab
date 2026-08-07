@@ -328,43 +328,52 @@ fn tryEmitArrayPushAssign(sym, rhs) {
     return true
 }
 
-/// `name = name + a + b + …` → AccAdd* (in-place; leave null on stack).
+/// `name = name + a + b + …` → AccAdd* (in-place).
+/// Statement path: AccAdd pops rhs only — no Const(null) junk on the stack
+/// (expr-assign value is unused for AST_ASSIGN stmts; ArrayPush uses POP similarly).
+/// P6b: early reject + recurse (no pieces[] push) so emit of dense `sOut = sOut + …`
+/// chains stays O(depth) instead of O(n²) array copies.
 fn tryEmitAccAddAssign(sym, rhs) {
-    let pieces = []
-    let cur = rhs
-    while cur.kind == AST_BINARY && cur["op"] == "+" {
-        pieces = push(pieces, cur["right"])
-        cur = cur["left"]
-    }
-    if cur.kind != AST_VAR {
+    if rhs.kind != AST_BINARY {
         return false
     }
-    if cur["sym"] != sym {
+    if rhs["op"] != "+" {
         return false
     }
-    if len(pieces) == 0 {
-        return false
-    }
-    // pieces collected right-to-left; reverse for left-to-right AccAdd order
-    let i = len(pieces) - 1
-    let li = localSymIndex(sym)
-    if li >= 0 {
-        while i >= 0 {
-            emitExpr(pieces[i])
-            emitOp(OP_ACC_ADD_LOCAL, li)
-            i = i - 1
+    let left = rhs["left"]
+    let right = rhs["right"]
+    if left.kind == AST_VAR {
+        if left["sym"] != sym {
+            return false
         }
-        emitOp(OP_CONST, symIndex("const", null))
+        let li = localSymIndex(sym)
+        if li >= 0 {
+            emitExpr(right)
+            emitOp(OP_ACC_ADD_LOCAL, li)
+            return true
+        }
+        let gi = symIndex("global", sym)
+        emitExpr(right)
+        emitOp(OP_ACC_ADD_GLOBAL, gi)
         return true
     }
-    let gi = symIndex("global", sym)
-    while i >= 0 {
-        emitExpr(pieces[i])
-        emitOp(OP_ACC_ADD_GLOBAL, gi)
-        i = i - 1
+    if left.kind == AST_BINARY {
+        if left["op"] == "+" {
+            if tryEmitAccAddAssign(sym, left) {
+                let li = localSymIndex(sym)
+                if li >= 0 {
+                    emitExpr(right)
+                    emitOp(OP_ACC_ADD_LOCAL, li)
+                    return true
+                }
+                let gi = symIndex("global", sym)
+                emitExpr(right)
+                emitOp(OP_ACC_ADD_GLOBAL, gi)
+                return true
+            }
+        }
     }
-    emitOp(OP_CONST, symIndex("const", null))
-    return true
+    return false
 }
 
 fn emitExpr(node) {
