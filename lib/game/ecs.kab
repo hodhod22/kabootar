@@ -1,4 +1,5 @@
-@version "1.0.0"
+@version "2.0.0"
 
-// Compatibility shim - engine lives in game/core/ecs.
-pub import "game/core/ecs"
+// Compatibility shim - uses ECS 3.0 by default.
+// For legacy ECS 1.0, use explicit import: import "game/core/ecs"
+pub import "game/core/ecs3"

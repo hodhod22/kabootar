@@ -3,6 +3,8 @@
 // Kabootar game/core/ecs3 - ECS 2.1 with automatic archetypes, fast isAlive, and reduced allocations.
 // Canonical path: import "game/core/ecs3"
 
+import "game/core/performance"
+
 pub fn createWorld() {
     return {
         "nextId": 1,
@@ -13,7 +15,8 @@ pub fn createWorld() {
         "archetypes": {},
         "entityComponents": {},
         "componentCount": 0,
-        "queryBuffer": []
+        "queryBuffer": [],
+        "queryPool": createQueryResultPool(10)
     }
 }
 
@@ -303,12 +306,15 @@ pub fn query(world, componentName) {
         return []
     }
     
-    let out = []
+    let queryResult = getQueryResult(world["queryPool"])
     let i = 0
     while i < len(dense) {
-        out = push(out, dense[i])
+        addQueryResult(queryResult, dense[i]["id"], { "data": dense[i]["data"] })
         i = i + 1
     }
+    
+    let out = queryResult["results"]
+    returnQueryResult(world["queryPool"], queryResult)
     return out
 }
 
@@ -321,20 +327,22 @@ pub fn query2(world, componentA, componentB) {
     }
     
     let sparseB = world["sparse"][componentB]
-    let out = []
+    let queryResult = getQueryResult(world["queryPool"])
     let i = 0
     while i < len(denseA) {
         let entityId = denseA[i]["id"]
         if sparseB["" + entityId] != null && sparseB["" + entityId] != undefined {
             let dataB = denseB[sparseB["" + entityId]]["data"]
-            out = push(out, {
-                "id": entityId,
+            addQueryResult(queryResult, entityId, {
                 "dataA": denseA[i]["data"],
                 "dataB": dataB
             })
         }
         i = i + 1
     }
+    
+    let out = queryResult["results"]
+    returnQueryResult(world["queryPool"], queryResult)
     return out
 }
 
@@ -349,13 +357,12 @@ pub fn query3(world, componentA, componentB, componentC) {
     
     let denseB = world["dense"][componentB]
     let denseC = world["dense"][componentC]
-    let out = []
+    let queryResult = getQueryResult(world["queryPool"])
     let i = 0
     while i < len(denseA) {
         let entityId = denseA[i]["id"]
         if sparseB["" + entityId] != null && sparseC["" + entityId] != null {
-            out = push(out, {
-                "id": entityId,
+            addQueryResult(queryResult, entityId, {
                 "dataA": denseA[i]["data"],
                 "dataB": denseB[sparseB["" + entityId]]["data"],
                 "dataC": denseC[sparseC["" + entityId]]["data"]
@@ -363,6 +370,9 @@ pub fn query3(world, componentA, componentB, componentC) {
         }
         i = i + 1
     }
+    
+    let out = queryResult["results"]
+    returnQueryResult(world["queryPool"], queryResult)
     return out
 }
 

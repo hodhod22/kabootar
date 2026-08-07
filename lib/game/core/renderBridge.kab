@@ -1,0 +1,193 @@
+@version "1.0.0"
+
+// Kabootar game/core/renderBridge - Render bridge to GPU for draw calls.
+// Canonical path: import "game/core/renderBridge"
+
+import "game/render"
+
+pub fn createRenderBridge() {
+    return {
+        "kind": "RenderBridge",
+        "currentShader": null,
+        "currentTexture": null,
+        "drawCallCount": 0,
+        "trianglesDrawn": 0
+    }
+}
+
+pub fn drawDrawCalls(drawCalls, gl) {
+    if gl == null || gl == undefined {
+        return { "success": false, "error": "GL context is null" }
+    }
+    
+    let bridge = createRenderBridge()
+    let i = 0
+    while i < len(drawCalls) {
+        let drawCall = drawCalls[i]
+        bridge = executeDrawCall(bridge, drawCall, gl)
+        i = i + 1
+    }
+    
+    return { "success": true, "drawCallCount": bridge["drawCallCount"], "trianglesDrawn": bridge["trianglesDrawn"] }
+}
+
+fn executeDrawCall(bridge, drawCall, gl) {
+    if drawCall["type"] == "mesh" {
+        bridge = drawMeshCall(bridge, drawCall, gl)
+    } else if drawCall["type"] == "instanced" {
+        bridge = drawInstancedCall(bridge, drawCall, gl)
+    } else if drawCall["type"] == "indexed" {
+        bridge = drawIndexedCall(bridge, drawCall, gl)
+    }
+    
+    bridge["drawCallCount"] = bridge["drawCallCount"] + 1
+    return bridge
+}
+
+fn drawMeshCall(bridge, drawCall, gl) {
+    let mesh = drawCall["mesh"]
+    let material = drawCall["material"]
+    let worldMatrix = drawCall["worldMatrix"]
+    
+    if mesh == null || mesh == undefined {
+        return bridge
+    }
+    
+    gl.uniformMatrix4fv(1, worldMatrix)
+    
+    if material != null {
+        if material["color"] != null {
+            gl.uniform4f(0, material["color"]["r"], material["color"]["g"], material["color"]["b"], material["color"]["a"])
+        }
+        if material["texture"] != null {
+            gl.bindTexture(material["texture"])
+        }
+    }
+    
+    gl.bindBuffer(mesh["vbo"])
+    gl.drawArrays(mesh["vertexCount"])
+    
+    bridge["trianglesDrawn"] = bridge["trianglesDrawn"] + mesh["vertexCount"] / 3
+    return bridge
+}
+
+fn drawInstancedCall(bridge, drawCall, gl) {
+    let mesh = drawCall["mesh"]
+    let material = drawCall["material"]
+    let instanceCount = drawCall["instanceCount"]
+    let instanceMatrices = drawCall["instanceMatrices"]
+    
+    if mesh == null || mesh == undefined {
+        return bridge
+    }
+    
+    if material != null {
+        if material["color"] != null {
+            gl.uniform4f(0, material["color"]["r"], material["color"]["g"], material["color"]["b"], material["color"]["a"])
+        }
+    }
+    
+    gl.bindBuffer(mesh["vbo"])
+    gl.drawMeshInstanced(mesh["vertexCount"], instanceCount, instanceMatrices)
+    
+    bridge["trianglesDrawn"] = bridge["trianglesDrawn"] + (mesh["vertexCount"] / 3) * instanceCount
+    return bridge
+}
+
+fn drawIndexedCall(bridge, drawCall, gl) {
+    let mesh = drawCall["mesh"]
+    let material = drawCall["material"]
+    let worldMatrix = drawCall["worldMatrix"]
+    
+    if mesh == null || mesh == undefined {
+        return bridge
+    }
+    
+    gl.uniformMatrix4fv(1, worldMatrix)
+    
+    if material != null {
+        if material["color"] != null {
+            gl.uniform4f(0, material["color"]["r"], material["color"]["g"], material["color"]["b"], material["color"]["a"])
+        }
+        if material["texture"] != null {
+            gl.bindTexture(material["texture"])
+        }
+    }
+    
+    gl.bindBuffer(mesh["vbo"])
+    gl.bindBuffer(mesh["ibo"])
+    gl.drawIndexedMesh(mesh["indexCount"])
+    
+    bridge["trianglesDrawn"] = bridge["trianglesDrawn"] + mesh["indexCount"] / 3
+    return bridge
+}
+
+pub fn clearScreen(gl, color) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    gl.clearColor(color["r"], color["g"], color["b"], color["a"])
+    gl.clear()
+}
+
+pub fn setViewport(gl, x, y, width, height) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    gl.viewport(x, y, width, height)
+}
+
+pub fn enableDepthTest(gl, enabled) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    if enabled == true {
+        gl.enableDepthTest()
+    } else {
+        gl.disableDepthTest()
+    }
+}
+
+pub fn setDepthFunc(gl, func) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    gl.depthFunc(func)
+}
+
+pub fn enableBlending(gl, enabled) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    if enabled == true {
+        gl.enableBlend()
+    } else {
+        gl.disableBlend()
+    }
+}
+
+pub fn setBlendFunc(gl, srcFactor, dstFactor) {
+    if gl == null || gl == undefined {
+        return
+    }
+    
+    gl.blendFunc(srcFactor, dstFactor)
+}
+
+pub fn getBridgeStats(bridge) {
+    return {
+        "drawCallCount": bridge["drawCallCount"],
+        "trianglesDrawn": bridge["trianglesDrawn"]
+    }
+}
+
+pub fn resetBridge(bridge) {
+    bridge["drawCallCount"] = 0
+    bridge["trianglesDrawn"] = 0
+    return bridge
+}

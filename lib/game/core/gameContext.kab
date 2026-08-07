@@ -11,6 +11,7 @@ import "game/core/renderPipeline2"
 import "game/core/characterController"
 import "game/core/instancing"
 import "game/core/sceneGraph"
+import "game/core/baziIntegration"
 
 pub fn createGameContext(width, height) {
     return {
@@ -19,6 +20,7 @@ pub fn createGameContext(width, height) {
         "physicsWorld": createPhysicsWorld(),
         "renderPipeline": createRenderPipeline(),
         "instancingSystem": createInstancingSystem(),
+        "behaviourSystem": createBehaviourSystem(),
         "time": createTimeManager(),
         "input": createInputSystem(),
         "events": createEventManager(),
@@ -63,7 +65,27 @@ pub fn fixedUpdateGameContext(context) {
     while i < len(triggerEvents) {
         let event = triggerEvents[i]
         context["events"] = emitEvent(context["events"], event["type"], event)
+        
+        context = dispatchPhysicsEventToBehaviours(context, event)
         i = i + 1
+    }
+    
+    return context
+}
+
+fn dispatchPhysicsEventToBehaviours(context, event) {
+    let entityId = event["entityId"]
+    let otherEntityId = event["otherEntityId"]
+    let eventType = event["type"]
+    
+    if eventType == "triggerEnter" {
+        context = onTriggerEvent(context["behaviourSystem"], context["world"], entityId, event, "enter")
+    } else if eventType == "triggerExit" {
+        context = onTriggerEvent(context["behaviourSystem"], context["world"], entityId, event, "exit")
+    } else if eventType == "collisionEnter" {
+        context = onCollisionEvent(context["behaviourSystem"], context["world"], entityId, event, "enter")
+    } else if eventType == "collisionExit" {
+        context = onCollisionEvent(context["behaviourSystem"], context["world"], entityId, event, "exit")
     }
     
     return context

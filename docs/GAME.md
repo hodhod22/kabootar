@@ -1,6 +1,56 @@
-# Kabootar Game Runtime (v2.59)
+# Kabootar Game Runtime (v3.0)
 
-Spel-loop, input och enhetlig canvas-yta för 2D-spel i Kabootar Browser och host-WASM.
+Spel-loop, input och enhetlig canvas-yta för 2D/3D-spel i Kabootar Browser och host-WASM.
+
+## Rekommenderad Entrépunkt
+
+För nya projekt, använd **GameContext 2.0** som integrerar ECS 3.0, Physics 3.0, och Render Pipeline 2.0:
+
+```kabootar
+import "game/core/gameContext"
+
+let context = createGameContext(1920, 1080)
+
+// Spawn player
+let spawned = spawn(context["world"])
+context["world"] = spawned["world"]
+let playerId = spawned["entityId"]
+
+let transform = createTransform(0.0, 1.0, 0.0)
+context["world"] = add(context["world"], playerId, "Transform", transform)
+
+// Game loop
+while true {
+    let dt = 0.016
+    context = updateGameContext(context, dt)
+    context = fixedUpdateGameContext(context)
+    let renderResult = renderGameContext(context)
+}
+```
+
+## ECS 3.0 (Default)
+
+ECS 3.0 är nu standard och används automatiskt via `import "game/core"` eller `import "game/ecs"`.
+
+**Nya funktioner:**
+- **Automatiska archetypes** - Entities flyttas automatiskt mellan archetypes vid add/remove
+- **Snabb isAlive** - O(1) entity-livskontroll med sparse table
+- **Minskade allokeringar** - Reuse av buffers och iterators
+- **Dictionary-based entities** - Snabbare access än array-baserad ECS 1.0
+
+```kabootar
+import "game/core/ecs3"
+
+let world = createWorld()
+let spawned = spawn(world)
+world = spawned["world"]
+let entityId = spawned["entityId"]
+
+world = add(world, entityId, "Transform", transform)
+let results = queryArchetype(world, ["Transform", "Rigidbody"])
+```
+
+**Legacy ECS 1.0** finns kvar via explicit import: `import "game/core/ecs"`
 
 ## Snabbstart
 
@@ -138,7 +188,20 @@ lib/game/
 
 | Import | API |
 |--------|-----|
-| `import "game/core"` | ECS + scene + render |
+| `import "game/core"` | ECS 3.0 + Physics 3.0 + Render Pipeline 2.0 + GameContext (rekommenderat) |
+| `import "game/ecs"` | ECS 3.0 (shim → `game/core/ecs3`) |
+| `import "game/core/gameContext"` | `createGameContext`, `updateGameContext`, `fixedUpdateGameContext`, `renderGameContext` |
+| `import "game/core/ecs3"` | ECS 3.0: `createWorld`, `spawn`, `add`, `get`, `has`, `queryArchetype`, automatic archetypes |
+| `import "game/core/physics3"` | Physics 3.0: `createPhysicsWorld`, `physicsStep`, CCD, sleeping bodies, trigger events |
+| `import "game/core/renderPipeline2"` | Render Pipeline 2.0: material system, opaque/transparent sorting, culling |
+| `import "game/core/instancing"` | GPU instancing system |
+| `import "game/core/culling"` | Frustum/occlusion culling med LOD |
+| `import "game/core/postprocessing"` | Shadow och post-processing (bloom, tone mapping, AA) |
+| `import "game/core/typedArrays"` | Typed arrays för prestanda (Float32Array, Vector3Array, etc.) |
+| `import "game/core/performance"` | Object pooling för komponenter och query-resultat |
+| `import "game/core/profiler"` | Profiling system för physics, hierarchy, render |
+| `import "game/core/baziIntegration"` | Behaviour system, prefab manager, tag/layer components |
+| `import "game/core/characterController"` | Character controller med collider integration |
 | `import "game/scene"` | `createNode`, `addChild`, `setLocal`, `setLayer`, `worldPos` (Parent-walk) |
 | `import "game/render"` | `createMesh`, `createIndexedMesh`, `setColor`, `drawMesh`, `drawIndexedMesh`, `drawMeshInstanced`, `drawIndexedMeshInstanced` |
 | `import "game/input"` | `createActions`, `actionPressed` |
@@ -147,7 +210,7 @@ lib/game/
 | `import "game/atlas"` | `bakeAtlas(images)` row-pack → `{ width, height, rgba, uvs }` |
 | `import "game/batch"` | `buildSpriteQuads`, `createSpriteBatch`, `drawSpriteBatch`, `buildTilemapSprites` |
 | `import "game/physics"` | `aabbOverlap`, `circleOverlap`, `resolveAabb`, `rayAabb`, `characterStep`, `createPhysicsCharacter`, `characterDrive`, `syncTransformFromCharacter` |
-| `import "game/ecs"` | `createWorld`, `spawn`, `add`, `get`, `has`, `query` (shim → `game/core/ecs`) |
+| `import "game/core/ecs"` | Legacy ECS 1.0: `createWorld`, `spawn`, `add`, `get`, `has`, `query` (AoS, deprecated) |
 | `import "game/audio"` | `createBus`, `setBusVolume`, `playPcm` (Array **eller Uint8Array LE i16**), `pcmToUint8`, `makeTone`, `playTone`, spatial/group/duck/stream (GP6h) |
 | `import "game/terrain"` | heightmap, LOD mesh, splat, async streaming poll (`beginAsyncLoad`/`pollStreamingLoads`) (GP6d) |
 | `import "game/procgen"` | seeded RNG, `noise2d`/`fbm2d`, dungeon, scatter, heightmap fill (GP6l) |
