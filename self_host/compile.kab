@@ -2,12 +2,35 @@
 import "self_host/parse"
 import "self_host/emit"
 import "self_host/serialize"
+import "self_host/ownership"
+
+/// True when source opts into affine ownership (@manual).
+fn sourceIsManual(source) {
+    let s = "" + source
+    if str_includes(s, "@manual") {
+        return true
+    }
+    return false
+}
 
 pub fn compile(source) {
+    // O5 product wire: Kab ownership checker on @manual modules only.
+    if sourceIsManual(source) {
+        let err = checkOwnership(source)
+        if err != null {
+            throw err
+        }
+    }
     return serialize_bc(emit(parse(source)))
 }
 
 /// IR module for Kab VM (`runModule` in self_host/vm).
 pub fn compileIr(source) {
+    if sourceIsManual(source) {
+        let err = checkOwnership(source)
+        if err != null {
+            throw err
+        }
+    }
     return emit(parse(source))
 }

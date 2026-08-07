@@ -42,7 +42,28 @@ let evActiveEnv = null
 // Stack pop uses native `pop` (O(1) slice) — old evPopStack rebuilt arrays in Kabootar (C2 hot path).
 
 fn makeK8Promise(value) {
-    return { "__k8promise": true, "value": value, "then": { "tag": "k8then" } }
+    return { "__k8promise": true, "rejected": false, "value": value, "then": { "tag": "k8then" } }
+}
+
+fn makeK8Rejected(reason) {
+    return { "__k8promise": true, "rejected": true, "reason": reason, "value": undefined, "then": { "tag": "k8then" } }
+}
+
+fn resolveParentClass() {
+    let parentCls = evPendingSuper
+    if parentCls != null && parentCls != undefined {
+        return parentCls
+    }
+    if bindHas("this") {
+        let thisVal = bindGet("this")
+        if thisVal != null && object_has_own(thisVal, "__k8class") {
+            let ownCls = thisVal["__k8class"]
+            if ownCls != true && object_has_own(ownCls, "__superclass") {
+                return ownCls["__superclass"]
+            }
+        }
+    }
+    return null
 }
 
 /// Bindings always go through module `evActiveEnv` — never pass that object as a
@@ -69,7 +90,11 @@ fn seedBuiltinEnv() {
     evTimerId = 1
     evMicroQ = []
     evMicroLast = undefined
-    bindSet("Promise", { "resolve": { "tag": "k8resolve" } })
+    bindSet("Promise", {
+        "resolve": { "tag": "k8resolve" },
+        "reject": { "tag": "k8reject" },
+        "all": { "tag": "k8all" }
+    })
     bindSet("Object", {
         "keys": { "tag": "k8host", "name": "objectKeys" },
         "assign": { "tag": "k8host", "name": "objectAssign" },
@@ -457,8 +482,33 @@ fn evExpr(node, env) {
         let thisRecv = null
         let callee = null
         if calleeNode.kind == K_MEMBER {
-            thisRecv = evExpr(calleeNode["object"], env)
             let memField = "" + calleeNode["field"]
+            // K1d: super.method(...) → parent instance method with current this
+            let superObj = calleeNode["object"]
+            if superObj.kind == K_IDENT {
+                if ("" + superObj["sym"]) == "super" {
+                    let parentCls = resolveParentClass()
+                    if parentCls == null || parentCls == undefined {
+                        throw "ReferenceError: super"
+                    }
+                    let pMethods = parentCls["methods"]
+                    if !object_has_own(pMethods, memField) {
+                        throw "TypeError: super." + memField + " is not a function"
+                    }
+                    let fnArgs = []
+                    evAiStack = push(evAiStack, 0)
+                    while evAiStack[len(evAiStack) - 1] < len(callArgNodes) {
+                        evAi = evAiStack[len(evAiStack) - 1]
+                        fnArgs = push(fnArgs, evExpr(callArgNodes[evAi], env))
+                        evAi = evAiStack[len(evAiStack) - 1] + 1
+                        evAiStack = pop(evAiStack)
+                        evAiStack = push(evAiStack, evAi)
+                    }
+                    evAiStack = pop(evAiStack)
+                    return evCallThis(pMethods[memField], fnArgs, bindGet("this"))
+                }
+            }
+            thisRecv = evExpr(calleeNode["object"], env)
             if thisRecv == null || thisRecv == undefined {
                 throw "TypeError: cannot read property " + memField
             }
@@ -574,15 +624,7 @@ fn evExpr(node, env) {
             if calleeNode.kind == K_IDENT {
                 if ("" + calleeNode["sym"]) == "super" {
                     let thisVal = bindGet("this")
-                    let parentCls = evPendingSuper
-                    if parentCls == null || parentCls == undefined {
-                        if thisVal != null && object_has_own(thisVal, "__k8class") {
-                            let ownCls = thisVal["__k8class"]
-                            if ownCls != true && object_has_own(ownCls, "__superclass") {
-                                parentCls = ownCls["__superclass"]
-                            }
-                        }
-                    }
+                    let parentCls = resolveParentClass()
                     if parentCls == null || parentCls == undefined {
                         throw "ReferenceError: super"
                     }
@@ -657,9 +699,51 @@ fn evExpr(node, env) {
         if calleeTag == "k8resolve" {
             return evCall(callee, fnArgs)
         }
+        if calleeTag == "k8reject" {
+            let reason = undefined
+            if len(fnArgs) > 0 {
+                reason = fnArgs[0]
+            }
+            return makeK8Rejected(reason)
+        }
+        if calleeTag == "k8all" {
+            let items = []
+            if len(fnArgs) > 0 {
+                items = fnArgs[0]
+            }
+            // Kab arrays report typeof "array" (not "object")
+            let kind = typeof(items)
+            if kind != "array" && kind != "object" {
+                throw "TypeError: Promise.all expects array"
+            }
+            let out = []
+            let ai = 0
+            while ai < len(items) {
+                let it = items[ai]
+                if it != null && typeof(it) == "object" && object_has_own(it, "__k8promise") {
+                    if it["rejected"] == true {
+                        return makeK8Rejected(it["reason"])
+                    }
+                    out = push(out, it["value"])
+                } else {
+                    out = push(out, it)
+                }
+                ai = ai + 1
+            }
+            return makeK8Promise(out)
+        }
         // K1g: promise.then(cb) queues microtask; drain before return so value is set
         // (Kv8 object assign deep-copies — cannot mutate a returned promise later).
         if calleeTag == "k8then" {
+            if thisRecv != null && thisRecv["rejected"] == true {
+                // Minimal reject path: second arg onRejected, else pass rejected promise
+                if len(fnArgs) > 1 && fnArgs[1] != null && fnArgs[1] != undefined {
+                    evMicroQ = push(evMicroQ, { "cb": fnArgs[1], "value": thisRecv["reason"] })
+                    drainMicrotasks()
+                    return makeK8Promise(evMicroLast)
+                }
+                return thisRecv
+            }
             evMicroQ = push(evMicroQ, { "cb": fnArgs[0], "value": thisRecv["value"] })
             drainMicrotasks()
             return makeK8Promise(evMicroLast)

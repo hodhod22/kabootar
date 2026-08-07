@@ -1,0 +1,6 @@
+// K1d deepen: Promise.reject + Promise.all via evalSourceKab
+import "kv8/eval"
+
+let rej = evalSourceKab("let p = Promise.reject('nope'); p.rejected == true && p.reason == 'nope'")
+let allOk = evalSourceKab("let a = Promise.all([Promise.resolve(1), Promise.resolve(2), 3]); a.value[0] + a.value[1] + a.value[2]")
+return rej == true && allOk == 6

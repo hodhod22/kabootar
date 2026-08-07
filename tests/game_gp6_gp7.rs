@@ -611,3 +611,49 @@ fn xr_wgpu_swapchain_images_and_promise_then_reject() {
     std::env::remove_var("KABOOTAR_XR_GRAPHICS");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn xr_layer_submit_echoes_wgpu_image_handles() {
+    env_host();
+    std::env::set_var("KABOOTAR_XR_STUB", "1");
+    std::env::set_var("KABOOTAR_XR_WGPU", "1");
+    std::env::set_var("KABOOTAR_XR_GRAPHICS", "vulkan");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        let hit = { "ok": false }
+        let p = xrSessionThen(xr, "immersive-vr", (out) => {
+            hit["ok"] = out["then"] == true
+            hit["session"] = out["session"]
+            return out
+        })
+        xr = hit["session"]
+        xr = xrBegin(xr)
+        xr = createStereoSwapchains(xr, 1280, 720)
+        let frame = xr_wait_frame()
+        let left = xr["swapchains"][0]
+        let right = xr["swapchains"][1]
+        let imgL = xr_acquire_swapchain_image(left)
+        let imgR = xr_acquire_swapchain_image(right)
+        let viewL = createProjectionView("left", imgL, null, null)
+        let viewR = createProjectionView("right", imgR, null, null)
+        let layer = createProjectionLayer([viewL, viewR], "stage")
+        let composition = composeHmdLayers([layer])
+        composition["frameIndex"] = frame["frameIndex"]
+        xrCompositorOpen(xr)
+        let sub = xrCompositorSubmit(composition)
+        xr_release_swapchain_image(imgL)
+        xr_release_swapchain_image(imgR)
+        return is_promise(p) == true && hit["ok"] == true && imgL["nativeImage"] != 0 && imgL["wgpuTextureId"] != 0 && viewL["subImage"]["nativeImage"] == imgL["nativeImage"] && sub["ok"] == true && len(sub["submittedImages"]) >= 2 && len(sub["wgpuTextureIds"]) >= 2 && sub["submittedImages"][0] != 0 && sub["wgpuTextureIds"][0] != 0
+        "#,
+        &mut env,
+    )
+    .expect("eval");
+    std::env::remove_var("KABOOTAR_XR_STUB");
+    std::env::remove_var("KABOOTAR_XR_WGPU");
+    std::env::remove_var("KABOOTAR_XR_GRAPHICS");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}

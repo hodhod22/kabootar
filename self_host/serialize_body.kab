@@ -30,32 +30,29 @@ let sEscCh = ""
 
 // ----- HELPER FUNCTIONS -----
 
+// P6b: sequential escapes (fewer nested If AST nodes for self-host leaf compile).
 fn escStr(s) {
     sEscOut = ""
     sEscI = 0
     while sEscI < len(s) {
         sEscCh = char_at(s, sEscI)
+        let piece = sEscCh
         if sEscCh == "\\" {
-            sEscOut = sEscOut + "\\\\"
-        } else {
-            if sEscCh == " " {
-                sEscOut = sEscOut + "\\s"
-            } else {
-                if sEscCh == "\n" {
-                    sEscOut = sEscOut + "\\n"
-                } else {
-                    if sEscCh == "\r" {
-                        sEscOut = sEscOut + "\\r"
-                    } else {
-                        if sEscCh == "\t" {
-                            sEscOut = sEscOut + "\\t"
-                        } else {
-                            sEscOut = sEscOut + sEscCh
-                        }
-                    }
-                }
-            }
+            piece = "\\\\"
         }
+        if sEscCh == " " {
+            piece = "\\s"
+        }
+        if sEscCh == "\n" {
+            piece = "\\n"
+        }
+        if sEscCh == "\r" {
+            piece = "\\r"
+        }
+        if sEscCh == "\t" {
+            piece = "\\t"
+        }
+        sEscOut = sEscOut + piece
         sEscI = sEscI + 1
     }
     return sEscOut

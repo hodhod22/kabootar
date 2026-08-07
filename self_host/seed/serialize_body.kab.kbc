@@ -237,7 +237,7 @@ local 12 sEscCh
 functions=7
 fn 0 escStr
 fn_params 0 s
-fn_locals 0 s
+fn_locals 0 s,piece
 fn_op 0 const 0
 fn_op 0 dup
 fn_op 0 store_global 0
@@ -251,7 +251,7 @@ fn_op 0 load_local 0
 fn_op 0 load_global 2
 fn_op 0 call 1
 fn_op 0 lt
-fn_op 0 jump_if_false 47
+fn_op 0 jump_if_false 54
 fn_op 0 load_local 0
 fn_op 0 load_global 1
 fn_op 0 load_global 3
@@ -260,45 +260,52 @@ fn_op 0 dup
 fn_op 0 store_global 4
 fn_op 0 pop
 fn_op 0 load_global 4
+fn_op 0 store_local 1
+fn_op 0 load_global 4
 fn_op 0 const 3
 fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 jump_if_false 4
 fn_op 0 const 4
-fn_op 0 acc_add_global 0
-fn_op 0 jump 30
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
 fn_op 0 load_global 4
 fn_op 0 const 5
 fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 jump_if_false 4
 fn_op 0 const 6
-fn_op 0 acc_add_global 0
-fn_op 0 jump 23
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
 fn_op 0 load_global 4
 fn_op 0 const 7
 fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 jump_if_false 4
 fn_op 0 const 8
-fn_op 0 acc_add_global 0
-fn_op 0 jump 16
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
 fn_op 0 load_global 4
 fn_op 0 const 9
 fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 jump_if_false 4
 fn_op 0 const 10
-fn_op 0 acc_add_global 0
-fn_op 0 jump 9
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
 fn_op 0 load_global 4
 fn_op 0 const 11
 fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 jump_if_false 4
 fn_op 0 const 12
-fn_op 0 acc_add_global 0
-fn_op 0 jump 2
-fn_op 0 load_global 4
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
 fn_op 0 acc_add_global 0
 fn_op 0 const 13
 fn_op 0 acc_add_global 1
-fn_op 0 jump -53
+fn_op 0 jump -60
 fn_op 0 load_global 0
 fn_op 0 return
 fn_arrows 0 0
@@ -1993,4 +2000,4 @@ halt
 
 source=self_host/serialize_body.kab
 statements=23
-fingerprint=38ceebbe2db8e1c9
+fingerprint=c214913e13ed427d

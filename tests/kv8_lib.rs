@@ -181,6 +181,32 @@ fn k1d_super_kab_eval() {
 }
 
 #[test]
+fn k1d_super_method_kab_eval() {
+    let path = format!("{}/examples/kv8_k1d_super_method.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1d-super-method".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
+        .expect("spawn k1d-super-method thread")
+        .join()
+        .expect("k1d-super-method join");
+    assert!(ok);
+}
+
+#[test]
+fn k1d_promise_all_kab_eval() {
+    let path = format!("{}/examples/kv8_k1d_promise_all.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1d-promise-all".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
+        .expect("spawn k1d-promise-all thread")
+        .join()
+        .expect("k1d-promise-all join");
+    assert!(ok);
+}
+
+#[test]
 fn k1e_extends_kab_eval() {
     let path = format!("{}/examples/kv8_k1e_extends.kab", manifest_dir());
     let ok = std::thread::Builder::new()

@@ -1,0 +1,4 @@
+// K1d deepen: super.method(...) via evalSourceKab
+import "kv8/eval"
+
+return evalSourceKab("class A { greet(n) { return 'hi-' + n } } class B extends A { greet(n) { return super.greet(n) + '-b' } } let x = new B(); x.greet('z')") == "hi-z-b"
