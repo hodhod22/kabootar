@@ -51,6 +51,20 @@ pub fn randomizedSvd(a, rank, nOver, seed) {
     return mat_randomized_svd(a, rank)
 }
 
+/// Streaming / blocked truncated SVD.
+pub fn streamingSvd(a, rank, blockRows, nOver, seed) {
+    if seed != null && seed != undefined {
+        return mat_streaming_svd(a, rank, blockRows, nOver, seed)
+    }
+    if nOver != null && nOver != undefined {
+        return mat_streaming_svd(a, rank, blockRows, nOver)
+    }
+    if blockRows != null && blockRows != undefined {
+        return mat_streaming_svd(a, rank, blockRows)
+    }
+    return mat_streaming_svd(a, rank)
+}
+
 pub fn pinv(a) {
     return mat_pinv(a)
 }

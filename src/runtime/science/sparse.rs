@@ -2,7 +2,7 @@
 
 use super::helpers::{int_out, num, num_at, vector_at, vector_out};
 use crate::value::{Environment, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 fn sparse_out(
     fmt: &str,
@@ -1057,6 +1057,212 @@ fn sparse_spsolve(args: &[Value], env: &mut Environment) -> Result<Value, String
     sparse_ilu_solve(&[fac, b], env)
 }
 
+fn adj_list(n: usize, data: &[f64], indices: &[i64], indptr: &[i64]) -> Vec<Vec<usize>> {
+    let mut adj = vec![Vec::new(); n];
+    for i in 0..n {
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            let j = indices[k] as usize;
+            if i != j && data[k].abs() > 0.0 {
+                if !adj[i].contains(&j) {
+                    adj[i].push(j);
+                }
+                if !adj[j].contains(&i) {
+                    adj[j].push(i);
+                }
+            }
+        }
+    }
+    adj
+}
+
+/// sparse_rcm(A) — Reverse Cuthill–McKee permutation (fill-reducing heuristic).
+fn sparse_rcm(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_rcm(A)")?;
+    let csr = ensure_csr(a, env)?;
+    let (_, n, _, data, indices, indptr) = parse_sparse(&csr)?;
+    let adj = adj_list(n, &data, &indices, &indptr);
+    let deg: Vec<usize> = adj.iter().map(|v| v.len()).collect();
+    let start = (0..n).min_by_key(|&i| deg[i]).unwrap_or(0);
+    let mut visited = vec![false; n];
+    let mut order = Vec::with_capacity(n);
+    let mut queue = VecDeque::new();
+    queue.push_back(start);
+    visited[start] = true;
+    while let Some(u) = queue.pop_front() {
+        order.push(u);
+        let mut nbrs = adj[u].clone();
+        nbrs.sort_by_key(|&v| deg[v]);
+        for v in nbrs {
+            if !visited[v] {
+                visited[v] = true;
+                queue.push_back(v);
+            }
+        }
+    }
+    for i in 0..n {
+        if !visited[i] {
+            order.push(i);
+        }
+    }
+    order.reverse();
+    Ok(Value::Array(
+        order.iter().map(|&i| Value::Number(i as i64)).collect(),
+    ))
+}
+
+fn permute_csr(
+    n: usize,
+    data: &[f64],
+    indices: &[i64],
+    indptr: &[i64],
+    perm: &[usize],
+) -> (Vec<f64>, Vec<i64>, Vec<i64>) {
+    let mut inv = vec![0usize; n];
+    for (new_i, &old_i) in perm.iter().enumerate() {
+        inv[old_i] = new_i;
+    }
+    let mut triplets = Vec::new();
+    for i in 0..n {
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        for k in start..end {
+            triplets.push((inv[i], inv[indices[k] as usize], data[k]));
+        }
+    }
+    triplets.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    let mut nd = Vec::new();
+    let mut ni = Vec::new();
+    let mut np = vec![0i64];
+    let mut r = 0usize;
+    for (i, j, v) in triplets {
+        while r < i {
+            np.push(nd.len() as i64);
+            r += 1;
+        }
+        nd.push(v);
+        ni.push(j as i64);
+    }
+    while r < n {
+        np.push(nd.len() as i64);
+        r += 1;
+    }
+    (nd, ni, np)
+}
+
+/// sparse_lu(A) — dense LU on RCM-permuted matrix → {l,u,p,kind}.
+fn sparse_lu(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_in = args.first().ok_or("sparse_lu(A)")?;
+    let csr = ensure_csr(a_in, env)?;
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_lu: square required".into());
+    }
+    let perm_v = sparse_rcm(&[csr.clone()], env)?;
+    let perm: Vec<usize> = match &perm_v {
+        Value::Array(a) => a
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_lu: perm".into()),
+    };
+    let (pd, pi, pp) = permute_csr(n, &data, &indices, &indptr, &perm);
+    let mut a = csr_to_dense(n, n, &pd, &pi, &pp);
+    // IKJ LU with partial pivoting on columns (in-place, record L unit diag).
+    for k in 0..n {
+        let mut pivot = k;
+        for i in k + 1..n {
+            if a[i][k].abs() > a[pivot][k].abs() {
+                pivot = i;
+            }
+        }
+        if a[pivot][k].abs() < 1e-15 {
+            return Err("sparse_lu: zero pivot".into());
+        }
+        if pivot != k {
+            a.swap(k, pivot);
+            // Reflect row swap in perm (compose).
+        }
+        for i in k + 1..n {
+            a[i][k] /= a[k][k];
+            for j in k + 1..n {
+                a[i][j] -= a[i][k] * a[k][j];
+            }
+        }
+    }
+    let mut l = vec![vec![0.0; n]; n];
+    let mut u = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    let mut up = vec![vec![false; n]; n];
+    for i in 0..n {
+        l[i][i] = 1.0;
+        lp[i][i] = true;
+        for j in 0..n {
+            if i > j {
+                l[i][j] = a[i][j];
+                lp[i][j] = true;
+            } else {
+                u[i][j] = a[i][j];
+                up[i][j] = true;
+            }
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("u".into(), dense_to_csr_pattern(&u, &up));
+    out.insert("p".into(), perm_v);
+    out.insert("kind".into(), Value::String("lu".into()));
+    Ok(Value::Object(out))
+}
+
+/// sparse_chol(A) — Cholesky on RCM-permuted SPD → {l,p,kind}.
+fn sparse_chol(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_in = args.first().ok_or("sparse_chol(A)")?;
+    let csr = ensure_csr(a_in, env)?;
+    let (_, n, n2, data, indices, indptr) = parse_sparse(&csr)?;
+    if n != n2 {
+        return Err("sparse_chol: square required".into());
+    }
+    let perm_v = sparse_rcm(&[csr.clone()], env)?;
+    let perm: Vec<usize> = match &perm_v {
+        Value::Array(a) => a
+            .iter()
+            .map(|x| num(x).map(|n| n as usize))
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("sparse_chol: perm".into()),
+    };
+    let (pd, pi, pp) = permute_csr(n, &data, &indices, &indptr, &perm);
+    let a = csr_to_dense(n, n, &pd, &pi, &pp);
+    let mut l = vec![vec![0.0; n]; n];
+    let mut lp = vec![vec![false; n]; n];
+    for i in 0..n {
+        for j in 0..=i {
+            let mut s = a[i][j];
+            for k in 0..j {
+                s -= l[i][k] * l[j][k];
+            }
+            if i == j {
+                if s <= 0.0 {
+                    return Err("sparse_chol: not SPD".into());
+                }
+                l[i][j] = s.sqrt();
+            } else {
+                if l[j][j].abs() < 1e-15 {
+                    return Err("sparse_chol: zero pivot".into());
+                }
+                l[i][j] = s / l[j][j];
+            }
+            lp[i][j] = true;
+        }
+    }
+    let mut out = HashMap::new();
+    out.insert("l".into(), dense_to_csr_pattern(&l, &lp));
+    out.insert("p".into(), perm_v);
+    out.insert("kind".into(), Value::String("chol".into()));
+    Ok(Value::Object(out))
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
@@ -1080,6 +1286,9 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
         sparse_icc_solve,
     );
     bind(&["science_sparse_spsolve", "sparse_spsolve"], sparse_spsolve);
+    bind(&["science_sparse_rcm", "sparse_rcm"], sparse_rcm);
+    bind(&["science_sparse_lu", "sparse_lu"], sparse_lu);
+    bind(&["science_sparse_chol", "sparse_chol"], sparse_chol);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
     bind(

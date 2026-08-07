@@ -2037,6 +2037,138 @@ fn nd_einsum(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     }
 }
 
+/// nd_einsum_path(subscripts, shape0, shape1, ...) — greedy pairwise contraction order.
+fn nd_einsum_path(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let subs = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("nd_einsum_path(subscripts, shapes...)".into()),
+    };
+    let normalized: String = subs.chars().filter(|c| !c.is_whitespace()).collect();
+    let (left, right) = normalized
+        .split_once("->")
+        .ok_or_else(|| format!("nd_einsum_path: missing '->' in '{normalized}'"))?;
+    let op_specs: Vec<&str> = left.split(',').filter(|s| !s.is_empty()).collect();
+    if args.len() < 1 + op_specs.len() {
+        return Err(format!("nd_einsum_path: need {} shape(s)", op_specs.len()));
+    }
+    let mut shapes: Vec<Vec<usize>> = Vec::new();
+    let mut labels: Vec<Vec<i32>> = Vec::new();
+    let mut max_ell = 0usize;
+    for (i, spec) in op_specs.iter().enumerate() {
+        let shape = parse_shape(args.get(1 + i).ok_or("nd_einsum_path: shape")?)?;
+        let labs = einsum_expand_labels(spec, shape.len())?;
+        max_ell = max_ell.max(labs.iter().filter(|&&l| l < 0).count());
+        shapes.push(shape);
+        labels.push(labs);
+    }
+    let out_labels: Vec<i32> = if right.contains("...") {
+        let fixed = right.chars().filter(|c| c.is_ascii_alphabetic()).count();
+        einsum_expand_labels(right, fixed + max_ell)?
+    } else {
+        right
+            .chars()
+            .filter(|c| c.is_ascii_alphabetic())
+            .map(|c| c as i32)
+            .collect()
+    };
+    // Greedy: repeatedly contract the pair with largest shared labels (then smallest flops).
+    let mut live: Vec<usize> = (0..shapes.len()).collect();
+    let mut path: Vec<Value> = Vec::new();
+    let mut flops_total = 0.0;
+    while live.len() > 1 {
+        let mut best: Option<(usize, usize, f64, f64)> = None; // i,j,score,flops
+        for ai in 0..live.len() {
+            for bi in ai + 1..live.len() {
+                let a = live[ai];
+                let b = live[bi];
+                let shared = labels[a]
+                    .iter()
+                    .filter(|l| labels[b].contains(l))
+                    .count() as f64;
+                let mut size_a = 1.0;
+                for &d in &shapes[a] {
+                    size_a *= d as f64;
+                }
+                let mut size_b = 1.0;
+                for &d in &shapes[b] {
+                    size_b *= d as f64;
+                }
+                let flops = size_a * size_b;
+                let score = shared * 1.0e12 - flops; // prefer more shared, then fewer flops
+                let take = match best {
+                    None => true,
+                    Some((_, _, bs, bf)) => score > bs || (score == bs && flops < bf),
+                };
+                if take {
+                    best = Some((ai, bi, score, flops));
+                }
+            }
+        }
+        let (ai, bi, _, flops) = best.ok_or("nd_einsum_path: internal")?;
+        flops_total += flops;
+        let ia = live[ai];
+        let ib = live[bi];
+        path.push(Value::Array(vec![
+            Value::Number(ia as i64),
+            Value::Number(ib as i64),
+        ]));
+        // Merge labels/shapes into slot ia; remove ib.
+        let mut merged_labs = labels[ia].clone();
+        for l in &labels[ib] {
+            if !merged_labs.contains(l) {
+                merged_labs.push(*l);
+            }
+        }
+        // Keep labels that still appear in remaining ops or output.
+        let mut still = out_labels.clone();
+        for (idx, labs) in labels.iter().enumerate() {
+            if idx == ia || idx == ib {
+                continue;
+            }
+            if !live.contains(&idx) {
+                continue;
+            }
+            for l in labs {
+                if !still.contains(l) {
+                    still.push(*l);
+                }
+            }
+        }
+        merged_labs.retain(|l| still.contains(l) || out_labels.contains(l));
+        let mut merged_shape = Vec::new();
+        for l in &merged_labs {
+            let dim = labels[ia]
+                .iter()
+                .position(|x| x == l)
+                .map(|p| shapes[ia][p])
+                .or_else(|| {
+                    labels[ib]
+                        .iter()
+                        .position(|x| x == l)
+                        .map(|p| shapes[ib][p])
+                })
+                .unwrap_or(1);
+            merged_shape.push(dim);
+        }
+        labels[ia] = merged_labs;
+        shapes[ia] = merged_shape;
+        live.retain(|&idx| idx != ib);
+    }
+    let mut out = HashMap::new();
+    out.insert("path".into(), Value::Array(path));
+    out.insert("flops".into(), float_out(flops_total));
+    out.insert(
+        "order".into(),
+        Value::Array(
+            live.iter()
+                .map(|i| Value::Number(*i as i64))
+                .collect(),
+        ),
+    );
+    out.insert("kind".into(), Value::String("einsum_path".into()));
+    Ok(Value::Object(out))
+}
+
 fn nd_dot(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let (sa, a) = nd_at(args, 0, "nd_dot")?;
     let (sb, b) = nd_at(args, 1, "nd_dot")?;
@@ -2906,6 +3038,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_nd_pad", "nd_pad"], nd_pad);
     bind(&["science_nd_tensordot", "nd_tensordot"], nd_tensordot);
     bind(&["science_nd_einsum", "nd_einsum"], nd_einsum);
+    bind(&["science_nd_einsum_path", "nd_einsum_path"], nd_einsum_path);
     bind(&["science_nd_dot", "nd_dot"], nd_dot);
     bind(&["science_nd_matmul", "nd_matmul"], nd_matmul);
     bind(&["science_nd_solve", "nd_solve"], nd_solve);

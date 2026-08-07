@@ -100,6 +100,14 @@ pub fn iwptHaar(packets, levels) {
     return num_iwpt_haar(packets, levels)
 }
 
+pub fn dtcwt(x, levels) {
+    return num_dtcwt(x, levels)
+}
+
+pub fn idtcwt(aRe, aIm, detailsRe, detailsIm) {
+    return num_idtcwt(aRe, aIm, detailsRe, detailsIm)
+}
+
 pub fn hann(n) {
     return num_window_hann(n)
 }

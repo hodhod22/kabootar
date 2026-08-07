@@ -62,6 +62,18 @@ pub fn spsolve(a, b) {
     return sparse_spsolve(a, b)
 }
 
+pub fn rcm(a) {
+    return sparse_rcm(a)
+}
+
+pub fn lu(a) {
+    return sparse_lu(a)
+}
+
+pub fn chol(a) {
+    return sparse_chol(a)
+}
+
 pub fn spmv(a, x) {
     return sparse_spmv(a, x)
 }

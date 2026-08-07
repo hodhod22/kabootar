@@ -528,6 +528,90 @@ fn mat_randomized_svd(args: &[Value], env: &mut Environment) -> Result<Value, St
     Ok(Value::Object(out))
 }
 
+/// mat_streaming_svd(A, rank, blockRows?, nOver?, seed?) — truncated SVD via row-block sketch.
+fn mat_streaming_svd(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let (m, n, data) = matrix_dims(args, 0, "mat_streaming_svd")?;
+    let rank = num_at(args, 1, "mat_streaming_svd")? as usize;
+    let block = args
+        .get(2)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(32.0)
+        .max(1.0) as usize;
+    let n_over = args
+        .get(3)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(5.0)
+        .max(0.0) as usize;
+    let seed = args
+        .get(4)
+        .and_then(|v| num(v).ok())
+        .unwrap_or(42.0) as u64;
+    if rank == 0 || rank > m.min(n) {
+        return Err("mat_streaming_svd: bad rank".into());
+    }
+    let l = (rank + n_over).min(n).min(m);
+    let mut state = if seed == 0 { 1 } else { seed };
+    let mut omega = vec![vec![0.0; l]; n];
+    for i in 0..n {
+        for j in 0..l {
+            omega[i][j] = rsvd_randn(&mut state);
+        }
+    }
+    // Stream rows: Y (m x l) = A @ Omega accumulated by blocks.
+    let mut y = vec![vec![0.0; l]; m];
+    let mut row0 = 0usize;
+    while row0 < m {
+        let row1 = (row0 + block).min(m);
+        for i in row0..row1 {
+            for j in 0..l {
+                let mut s = 0.0;
+                for t in 0..n {
+                    s += data[i * n + t] * omega[t][j];
+                }
+                y[i][j] = s;
+            }
+        }
+        row0 = row1;
+    }
+    let y_v = matrix_out(&y);
+    let qr = mat_qr(&[y_v], env)?;
+    let Value::Object(qrm) = qr else {
+        return Err("mat_streaming_svd: qr".into());
+    };
+    let q = matrix_at(
+        &[qrm.get("q").cloned().ok_or("mat_streaming_svd: q")?],
+        0,
+        "mat_streaming_svd",
+    )?;
+    let qt = transpose(&q);
+    let a = mat_from_flat(m, n, &data);
+    let b = matmul_nn(&qt, &a)?;
+    let svd = mat_svd(&[matrix_out(&b), Value::String("econ".into())], env)?;
+    let Value::Object(sm) = svd else {
+        return Err("mat_streaming_svd: svd".into());
+    };
+    let uhat = matrix_at(&[sm.get("u").cloned().ok_or("u")?], 0, "mat_streaming_svd")?;
+    let s_full = vector_at(&[sm.get("s").cloned().ok_or("s")?], 0, "mat_streaming_svd")?;
+    let vt_full = matrix_at(&[sm.get("vt").cloned().ok_or("vt")?], 0, "mat_streaming_svd")?;
+    let u = matmul_nn(&q, &uhat)?;
+    let k = rank.min(s_full.len()).min(u[0].len()).min(vt_full.len());
+    let u_k: Vec<Vec<f64>> = u
+        .iter()
+        .map(|row| row.iter().take(k).copied().collect())
+        .collect();
+    let mut out = HashMap::new();
+    out.insert("u".into(), matrix_out(&u_k));
+    out.insert("s".into(), vector_out(&s_full[..k]));
+    out.insert(
+        "vt".into(),
+        matrix_out(&vt_full.iter().take(k).cloned().collect::<Vec<_>>()),
+    );
+    out.insert("mode".into(), Value::String("stream".into()));
+    out.insert("rank".into(), Value::Number(k as i64));
+    out.insert("blockRows".into(), Value::Number(block as i64));
+    Ok(Value::Object(out))
+}
+
 /// Moore–Penrose pseudoinverse via thin SVD.
 fn mat_pinv(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let (m, n, _) = matrix_dims(args, 0, "mat_pinv")?;
@@ -919,6 +1003,10 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(
         &["science_mat_randomized_svd", "mat_randomized_svd"],
         mat_randomized_svd,
+    );
+    bind(
+        &["science_mat_streaming_svd", "mat_streaming_svd"],
+        mat_streaming_svd,
     );
     bind(&["science_mat_pinv", "mat_pinv"], mat_pinv);
     bind(&["science_mat_cholesky", "mat_cholesky"], mat_cholesky);

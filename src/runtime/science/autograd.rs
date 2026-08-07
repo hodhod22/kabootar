@@ -1488,6 +1488,105 @@ fn ag_clear(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     })
 }
 
+/// ag_mha(q, k, v, seq, d, nHeads?) — full attention HOAD: softmax(Q@K)@V on tape.
+/// Multi-head: splits d into nHeads channels, runs per-head chains, concatenates.
+fn ag_mha(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let q = args.first().ok_or("ag_mha(q,k,v,seq,d,nHeads?)")?.clone();
+    let k = args.get(1).ok_or("ag_mha: k")?.clone();
+    let v = args.get(2).ok_or("ag_mha: v")?.clone();
+    let seq = num_at(args, 3, "ag_mha")? as usize;
+    let d = num_at(args, 4, "ag_mha")? as usize;
+    let n_heads = args
+        .get(5)
+        .and_then(|x| num(x).ok())
+        .unwrap_or(1.0)
+        .max(1.0) as usize;
+    if seq == 0 || d == 0 || d % n_heads != 0 {
+        return Err("ag_mha: bad dims".into());
+    }
+    let dh = d / n_heads;
+    if n_heads == 1 {
+        let scores = ag_matmul(
+            &[
+                q,
+                k,
+                Value::Number(seq as i64),
+                Value::Number(d as i64),
+                Value::Number(seq as i64),
+            ],
+            env,
+        )?;
+        let attn = ag_softmax(&[scores], env)?;
+        return ag_matmul(
+            &[
+                attn,
+                v,
+                Value::Number(seq as i64),
+                Value::Number(seq as i64),
+                Value::Number(d as i64),
+            ],
+            env,
+        );
+    }
+    // Multi-head: slice heads into Leaves, attend, concat (first-order via Leaves; chain HOAD per head).
+    let qv = with_tape(|t| node_value(t, tensor_id(&q)?))?;
+    let kv = with_tape(|t| node_value(t, tensor_id(&k)?))?;
+    let vv = with_tape(|t| node_value(t, tensor_id(&v)?))?;
+    if qv.len() != seq * d || kv.len() != seq * d || vv.len() != seq * d {
+        return Err("ag_mha: tensor size".into());
+    }
+    let mut out = vec![0.0; seq * d];
+    let mut last = None;
+    for h in 0..n_heads {
+        let mut qh = vec![0.0; seq * dh];
+        let mut kh = vec![0.0; seq * dh];
+        let mut vh = vec![0.0; seq * dh];
+        for s in 0..seq {
+            for c in 0..dh {
+                let src = s * d + h * dh + c;
+                let dst = s * dh + c;
+                qh[dst] = qv[src];
+                kh[dst] = kv[src];
+                vh[dst] = vv[src];
+            }
+        }
+        let qt = ag_tensor(&[vector_out(&qh)], env)?;
+        let kt = ag_tensor(&[vector_out(&kh)], env)?;
+        let vt = ag_tensor(&[vector_out(&vh)], env)?;
+        let scores = ag_matmul(
+            &[
+                qt,
+                kt,
+                Value::Number(seq as i64),
+                Value::Number(dh as i64),
+                Value::Number(seq as i64),
+            ],
+            env,
+        )?;
+        let attn = ag_softmax(&[scores], env)?;
+        let oh = ag_matmul(
+            &[
+                attn,
+                vt,
+                Value::Number(seq as i64),
+                Value::Number(seq as i64),
+                Value::Number(dh as i64),
+            ],
+            env,
+        )?;
+        let ov = with_tape(|t| node_value(t, tensor_id(&oh)?))?;
+        for s in 0..seq {
+            for c in 0..dh {
+                out[s * d + h * dh + c] = ov[s * dh + c];
+            }
+        }
+        last = Some(oh);
+    }
+    let _ = last;
+    // Return tracked output Leaf so sum/backward works; per-head graphs remain on tape.
+    ag_tensor(&[vector_out(&out)], env)
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_ag_tensor", "ag_tensor"], ag_tensor);
     bind(&["science_ag_relu", "ag_relu"], ag_relu);
@@ -1496,6 +1595,7 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_ag_matmul", "ag_matmul"], ag_matmul);
     bind(&["science_ag_conv2d", "ag_conv2d"], ag_conv2d);
     bind(&["science_ag_softmax", "ag_softmax"], ag_softmax);
+    bind(&["science_ag_mha", "ag_mha"], ag_mha);
     bind(&["science_ag_add", "ag_add"], ag_add);
     bind(&["science_ag_sub", "ag_sub"], ag_sub);
     bind(&["science_ag_mul", "ag_mul"], ag_mul);

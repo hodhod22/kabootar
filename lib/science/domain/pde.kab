@@ -436,3 +436,56 @@ pub fn femAssembleLoad2dTri(nodes, tris, load) {
     }
     return f
 }
+
+/// Edge length helper for FEM BC.
+pub fn femEdgeLen(nodes, i0, i1) {
+    let dx = nodes[i1][0] - nodes[i0][0]
+    let dy = nodes[i1][1] - nodes[i0][1]
+    return pow(dx * dx + dy * dy, 0.5)
+}
+
+/// Apply Neumann BC on boundary edges: edges [[i,j],...], scalar flux gN.
+/// Adds gN * length/2 to load at each endpoint.
+pub fn femApplyNeumann2d(nodes, edges, f, gN) {
+    if gN == null || gN == undefined {
+        gN = 1.0
+    }
+    let e = 0
+    while e < len(edges) {
+        let i0 = edges[e][0]
+        let i1 = edges[e][1]
+        let lenE = femEdgeLen(nodes, i0, i1)
+        let share = gN * lenE / 2.0
+        f[i0] = f[i0] + share
+        f[i1] = f[i1] + share
+        e = e + 1
+    }
+    return f
+}
+
+/// Apply Robin BC: alpha * u + du/dn = gR on edges (scalar alpha, gR).
+pub fn femApplyRobin2d(nodes, edges, kmat, f, alpha, gR) {
+    if alpha == null || alpha == undefined {
+        alpha = 1.0
+    }
+    if gR == null || gR == undefined {
+        gR = 0.0
+    }
+    let e = 0
+    while e < len(edges) {
+        let i0 = edges[e][0]
+        let i1 = edges[e][1]
+        let lenE = femEdgeLen(nodes, i0, i1)
+        let kii = alpha * lenE / 3.0
+        let kij = alpha * lenE / 6.0
+        kmat[i0][i0] = kmat[i0][i0] + kii
+        kmat[i1][i1] = kmat[i1][i1] + kii
+        kmat[i0][i1] = kmat[i0][i1] + kij
+        kmat[i1][i0] = kmat[i1][i0] + kij
+        let share = gR * lenE / 2.0
+        f[i0] = f[i0] + share
+        f[i1] = f[i1] + share
+        e = e + 1
+    }
+    return { "k": kmat, "f": f }
+}

@@ -848,6 +848,65 @@ fn num_iwpt_haar(args: &[Value], _env: &mut Environment) -> Result<Value, String
     Ok(vector_out(&nodes[0]))
 }
 
+/// Dual-tree complex wavelet (Haar trees): tree A on x, tree B on circular shift.
+/// num_dtcwt(x, levels) -> { aRe, aIm, detailsRe, detailsIm, kind, levels }
+fn num_dtcwt(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let x = vector_at(args, 0, "num_dtcwt")?;
+    let levels = num_at(args, 1, "num_dtcwt")?.max(1.0) as usize;
+    if x.len() < 2 {
+        return Err("num_dtcwt: length >= 2".into());
+    }
+    let mut x_shift = x.clone();
+    x_shift.rotate_left(1);
+    let ta = num_dwt_haar_levels(&[vector_out(&x), float_out(levels as f64)], env)?;
+    let tb = num_dwt_haar_levels(&[vector_out(&x_shift), float_out(levels as f64)], env)?;
+    let Value::Object(ma) = ta else {
+        return Err("num_dtcwt: tree A".into());
+    };
+    let Value::Object(mb) = tb else {
+        return Err("num_dtcwt: tree B".into());
+    };
+    let mut out = HashMap::new();
+    out.insert("aRe".into(), ma.get("a").cloned().ok_or("num_dtcwt: a")?);
+    out.insert("aIm".into(), mb.get("a").cloned().ok_or("num_dtcwt: aIm")?);
+    out.insert(
+        "detailsRe".into(),
+        ma.get("details").cloned().ok_or("num_dtcwt: details")?,
+    );
+    out.insert(
+        "detailsIm".into(),
+        mb.get("details").cloned().ok_or("num_dtcwt: detailsIm")?,
+    );
+    out.insert("kind".into(), Value::String("dtcwt".into()));
+    out.insert("levels".into(), Value::Number(levels as i64));
+    Ok(Value::Object(out))
+}
+
+/// num_idtcwt(aRe, aIm, detailsRe, detailsIm) — inverse dual-tree (average of two iDWTs).
+fn num_idtcwt(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a_re = args.get(0).ok_or("num_idtcwt(aRe,aIm,detailsRe,detailsIm)")?.clone();
+    let a_im = args.get(1).ok_or("num_idtcwt: aIm")?.clone();
+    let d_re = args.get(2).ok_or("num_idtcwt: detailsRe")?.clone();
+    let d_im = args.get(3).ok_or("num_idtcwt: detailsIm")?.clone();
+    let xa = num_idwt_haar_levels(&[a_re, d_re], env)?;
+    let xb = num_idwt_haar_levels(&[a_im, d_im], env)?;
+    let va = vector_at(&[xa], 0, "num_idtcwt")?;
+    let mut vb = vector_at(&[xb], 0, "num_idtcwt")?;
+    if va.len() != vb.len() {
+        return Err("num_idtcwt: length mismatch".into());
+    }
+    // Undo circular shift on tree B.
+    if !vb.is_empty() {
+        vb.rotate_right(1);
+    }
+    let out: Vec<f64> = va
+        .iter()
+        .zip(vb.iter())
+        .map(|(a, b)| 0.5 * (a + b))
+        .collect();
+    Ok(vector_out(&out))
+}
+
 /// num_fir(signal, coeffs) — FIR filter (convolution, 'same' length as signal).
 fn num_fir(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let signal = vector_at(args, 0, "num_fir")?;
@@ -979,6 +1038,8 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     );
     bind(&["science_num_wpt_haar", "num_wpt_haar"], num_wpt_haar);
     bind(&["science_num_iwpt_haar", "num_iwpt_haar"], num_iwpt_haar);
+    bind(&["science_num_dtcwt", "num_dtcwt"], num_dtcwt);
+    bind(&["science_num_idtcwt", "num_idtcwt"], num_idtcwt);
     bind(&["science_num_fir", "num_fir"], num_fir);
     bind(&["science_num_moving_average", "num_moving_average"], num_moving_average);
     bind(&["science_num_iir", "num_iir"], num_iir);
