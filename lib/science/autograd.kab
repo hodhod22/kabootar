@@ -31,6 +31,12 @@ pub fn softmax(t) {
     return ag_softmax(t)
 }
 
+/// Attention HOAD helper: softmax(Q @ K) for flat row-major Q,K [seq,d] (smoke / HOAD path).
+pub fn scaledDotAttn(q, k, seq, d) {
+    let scores = matmul(q, k, seq, d, seq)
+    return softmax(scores)
+}
+
 pub fn add(a, b) {
     return ag_add(a, b)
 }

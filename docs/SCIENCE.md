@@ -528,11 +528,12 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `nd_from_f64` / `nd_to_f64` | Float64Array zero-copy wrap |
 | `nd_sub` / `nd_div` / broadcast `nd_add`/`nd_mul` | Broadcast-binop |
 | `nd_broadcast_to` / `nd_broadcast_shapes` / `broadcastTo` | Explicit expand + shape algebra |
-| `nd_max` / `nd_min` / `nd_argmax` / `nd_transpose` / `nd_swapaxes` / `nd_pad` / `nd_roll` / `nd_tensordot` / `nd_einsum` | Reductions + layout + contract + general einsum parser (multi-operand labels) |
-| `mat_batch_qr` / `mat_batch_svd` / `mat_batch_solve` / `mat_batch_eig` | Batched decomps/solve/eig (`svd`/`batchSvd` modes: thin\|econ\|full) |
-| `num_fftn` / `num_firwin` / `num_butter_biquad` / `num_polyphase_*` / `num_dwt_haar` / `num_idwt_haar` | n-D FFT + FIR/polyphase banks + Haar DWT |
-| `sparse_to_csc` / `sparse_from_csc` / `sparse_ilu0` / `sparse_icc0` / `sparse_ilut` / `sparse_ic_k` | CSC + ILU0/ILUT + IC(0)/IC(k) |
-| `science/domain/pde` | 1D/2D/3D heat/poisson FD + FEM lite assemble/solve |
+| `nd_max` / `nd_min` / `nd_argmax` / `nd_transpose` / `nd_swapaxes` / `nd_pad` / `nd_roll` / `nd_tensordot` / `nd_einsum` | Reductions + layout + einsum (ellipsis `...`, broadcast) |
+| `mat_batch_qr` / `mat_batch_svd` / `mat_batch_solve` / `mat_batch_eig` / `mat_randomized_svd` | Batched decomps + randomized SVD |
+| `num_fftn` / `num_firwin` / `num_polyphase_*` / `num_dwt_haar*` / `num_wpt_haar` | FFT + FIR/polyphase + multilevel Haar / WPT |
+| `sparse_*` ILU/IC + `sparse_spsolve` / `sparse_ilu_solve` / `sparse_icc_solve` / `sparse_triangular_solve` | Incomplete factors + sparse direct solve |
+| `science/domain/pde` | 1D/2D/3D FD + FEM 1D/2D triangles |
+| `ag_softmax` create_graph / `scaledDotAttn` | Softmax + attention HOAD subset |
 | `nd_abs` / `nd_exp` / `nd_log` / `nd_sqrt` / `nd_clip` / `nd_where` | Ufuncs |
 | `nd_slice` / `nd_concat` / `nd_stack` / `nd_split` | Slice / stack |
 | `nd_astype` / `nd_dtype` / `nd_seed` / `nd_rand_*` / `nd_save` / `nd_load` | Dtypes, RNG, KND1 I/O |

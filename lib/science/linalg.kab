@@ -32,12 +32,23 @@ pub fn qrErr(a) {
     return mat_qr_err(a)
 }
 
-/// Thin (default) or full SVD. mode: "thin" | "full".
+/// Thin (default) or full SVD. mode: "thin" | "full" | "econ".
 pub fn svd(a, mode) {
     if mode == null || mode == undefined {
         return mat_svd(a)
     }
     return mat_svd(a, mode)
+}
+
+/// Randomized SVD (Halko). nOver and seed optional.
+pub fn randomizedSvd(a, rank, nOver, seed) {
+    if seed != null && seed != undefined {
+        return mat_randomized_svd(a, rank, nOver, seed)
+    }
+    if nOver != null && nOver != undefined {
+        return mat_randomized_svd(a, rank, nOver)
+    }
+    return mat_randomized_svd(a, rank)
 }
 
 pub fn pinv(a) {

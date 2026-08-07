@@ -916,6 +916,147 @@ fn sparse_ic_k(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     Ok(Value::Object(out))
 }
 
+fn csr_forward_solve(
+    n: usize,
+    data: &[f64],
+    indices: &[i64],
+    indptr: &[i64],
+    b: &[f64],
+    unit_diag: bool,
+) -> Result<Vec<f64>, String> {
+    let mut x = vec![0.0; n];
+    for i in 0..n {
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        let mut s = b[i];
+        let mut diag = if unit_diag { 1.0 } else { 0.0 };
+        for k in start..end {
+            let j = indices[k] as usize;
+            if j < i {
+                s -= data[k] * x[j];
+            } else if j == i {
+                diag = if unit_diag { 1.0 } else { data[k] };
+            }
+        }
+        if diag.abs() < 1e-15 {
+            return Err("sparse triangular: zero diagonal".into());
+        }
+        x[i] = s / diag;
+    }
+    Ok(x)
+}
+
+fn csr_back_solve(
+    n: usize,
+    data: &[f64],
+    indices: &[i64],
+    indptr: &[i64],
+    b: &[f64],
+) -> Result<Vec<f64>, String> {
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        let start = indptr[i] as usize;
+        let end = indptr[i + 1] as usize;
+        let mut s = b[i];
+        let mut diag = 0.0;
+        for k in start..end {
+            let j = indices[k] as usize;
+            if j > i {
+                s -= data[k] * x[j];
+            } else if j == i {
+                diag = data[k];
+            }
+        }
+        if diag.abs() < 1e-15 {
+            return Err("sparse triangular: zero diagonal".into());
+        }
+        x[i] = s / diag;
+    }
+    Ok(x)
+}
+
+/// sparse_triangular_solve(factor, b, lower?) — CSR triangular solve.
+fn sparse_triangular_solve(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let fac = args.first().ok_or("sparse_triangular_solve(A, b, lower?)")?;
+    let b = vector_at(args, 1, "sparse_triangular_solve")?;
+    let lower = match args.get(2) {
+        Some(Value::Bool(v)) => *v,
+        Some(Value::Number(n)) => *n != 0,
+        Some(Value::String(s)) => s == "lower" || s == "L" || s == "l",
+        _ => true,
+    };
+    let csr = ensure_csr(fac, env)?;
+    let (_, n, _, data, indices, indptr) = parse_sparse(&csr)?;
+    if b.len() != n {
+        return Err("sparse_triangular_solve: b length".into());
+    }
+    let x = if lower {
+        csr_forward_solve(n, &data, &indices, &indptr, &b, false)?
+    } else {
+        csr_back_solve(n, &data, &indices, &indptr, &b)?
+    };
+    Ok(vector_out(&x))
+}
+
+/// sparse_ilu_solve({l,u}, b) — forward L (unit) + back U.
+fn sparse_ilu_solve(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let fac = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("sparse_ilu_solve(fac, b)".into()),
+    };
+    let b = vector_at(args, 1, "sparse_ilu_solve")?;
+    let l = fac.get("l").ok_or("sparse_ilu_solve: l")?;
+    let u = fac.get("u").ok_or("sparse_ilu_solve: u")?;
+    let lcsr = ensure_csr(l, env)?;
+    let ucsr = ensure_csr(u, env)?;
+    let (_, n, _, ld, li, lp) = parse_sparse(&lcsr)?;
+    if b.len() != n {
+        return Err("sparse_ilu_solve: b length".into());
+    }
+    let y = csr_forward_solve(n, &ld, &li, &lp, &b, true)?;
+    let (_, _, _, ud, ui, up) = parse_sparse(&ucsr)?;
+    let x = csr_back_solve(n, &ud, &ui, &up, &y)?;
+    Ok(vector_out(&x))
+}
+
+/// sparse_icc_solve({l}, b) — solve L Lᵀ x = b.
+fn sparse_icc_solve(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let fac = match args.first() {
+        Some(Value::Object(m)) => m,
+        _ => return Err("sparse_icc_solve(fac, b)".into()),
+    };
+    let b = vector_at(args, 1, "sparse_icc_solve")?;
+    let l = fac.get("l").ok_or("sparse_icc_solve: l")?;
+    let lcsr = ensure_csr(l, env)?;
+    let (_, n, _, ld, li, lp) = parse_sparse(&lcsr)?;
+    if b.len() != n {
+        return Err("sparse_icc_solve: b length".into());
+    }
+    let y = csr_forward_solve(n, &ld, &li, &lp, &b, false)?;
+    // Back-solve with Lᵀ: build dense LT pattern then CSR, or use dense transpose solve.
+    let lmat = csr_to_dense(n, n, &ld, &li, &lp);
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        let mut s = y[i];
+        for j in i + 1..n {
+            s -= lmat[j][i] * x[j];
+        }
+        if lmat[i][i].abs() < 1e-15 {
+            return Err("sparse_icc_solve: zero diagonal".into());
+        }
+        x[i] = s / lmat[i][i];
+    }
+    Ok(vector_out(&x))
+}
+
+/// sparse_spsolve(A, b) — ILU(0) factorize + solve.
+fn sparse_spsolve(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let a = args.first().ok_or("sparse_spsolve(A, b)")?.clone();
+    let b = args.get(1).ok_or("sparse_spsolve: b")?.clone();
+    let fac = sparse_ilu0(&[a], env)?;
+    sparse_ilu_solve(&[fac, b], env)
+}
+
 pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> Result<Value, String>)) {
     bind(&["science_sparse_from_coo", "sparse_from_coo"], sparse_from_coo);
     bind(&["science_sparse_from_csr", "sparse_from_csr"], sparse_from_csr);
@@ -926,6 +1067,19 @@ pub fn register(bind: &mut dyn FnMut(&[&str], fn(&[Value], &mut Environment) -> 
     bind(&["science_sparse_icc0", "sparse_icc0"], sparse_icc0);
     bind(&["science_sparse_ilut", "sparse_ilut"], sparse_ilut);
     bind(&["science_sparse_ic_k", "sparse_ic_k"], sparse_ic_k);
+    bind(
+        &["science_sparse_triangular_solve", "sparse_triangular_solve"],
+        sparse_triangular_solve,
+    );
+    bind(
+        &["science_sparse_ilu_solve", "sparse_ilu_solve"],
+        sparse_ilu_solve,
+    );
+    bind(
+        &["science_sparse_icc_solve", "sparse_icc_solve"],
+        sparse_icc_solve,
+    );
+    bind(&["science_sparse_spsolve", "sparse_spsolve"], sparse_spsolve);
     bind(&["science_sparse_spmv", "sparse_spmv"], sparse_spmv);
     bind(&["science_sparse_lstsq", "sparse_lstsq"], sparse_lstsq);
     bind(

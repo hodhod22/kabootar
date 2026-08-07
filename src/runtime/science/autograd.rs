@@ -75,6 +75,13 @@ enum Node {
         wout: usize,
     },
     Softmax { id: u64, parent: u64, value: Vec<f64> },
+    /// create_graph: dL/dx through softmax (parents: scores + s leaf).
+    SoftmaxGrad {
+        id: u64,
+        parent: u64,
+        s: u64,
+        value: Vec<f64>,
+    },
     Add { id: u64, left: u64, right: u64, value: Vec<f64> },
     Sub { id: u64, left: u64, right: u64, value: Vec<f64> },
     Mul { id: u64, left: u64, right: u64, value: Vec<f64> },
@@ -145,6 +152,7 @@ fn node_value(t: &Tape, id: u64) -> Result<Vec<f64>, String> {
         | Some(Node::Conv2dGradX { value, .. })
         | Some(Node::Conv2dGradW { value, .. })
         | Some(Node::Softmax { value, .. })
+        | Some(Node::SoftmaxGrad { value, .. })
         | Some(Node::Add { value, .. })
         | Some(Node::Sub { value, .. })
         | Some(Node::Mul { value, .. })
@@ -607,6 +615,7 @@ fn push_node(t: &mut Tape, node: Node) -> u64 {
         | Node::Conv2dGradX { id, .. }
         | Node::Conv2dGradW { id, .. }
         | Node::Softmax { id, .. }
+        | Node::SoftmaxGrad { id, .. }
         | Node::Add { id, .. }
         | Node::Sub { id, .. }
         | Node::Mul { id, .. }
@@ -1191,7 +1200,54 @@ fn ag_backward(args: &[Value], _env: &mut Environment) -> Result<Value, String> 
                             .zip(gy.iter())
                             .map(|(s, g)| s * (g - dot))
                             .collect();
-                        accumulate(t, parent, &gin);
+                        if create_graph {
+                            let s_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: s_id,
+                                    value: value.clone(),
+                                },
+                            );
+                            let gin_id = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::SoftmaxGrad {
+                                    id: gin_id,
+                                    parent,
+                                    s: s_id,
+                                    value: gin.clone(),
+                                },
+                            );
+                            accumulate_graph(t, parent, &gin, gin_id, true);
+                        } else {
+                            accumulate(t, parent, &gin);
+                        }
+                    }
+                }
+                Node::SoftmaxGrad { parent, s, .. } => {
+                    // Apply J again: dparent = s * (g2 - s·g2) for HOAD through attention.
+                    if let Some(g2) = t.grads.get(&id).cloned() {
+                        let sv = node_value(t, s)?;
+                        let dot: f64 = g2.iter().zip(sv.iter()).map(|(g, s)| g * s).sum();
+                        let dparent: Vec<f64> = sv
+                            .iter()
+                            .zip(g2.iter())
+                            .map(|(s, g)| s * (g - dot))
+                            .collect();
+                        if create_graph {
+                            let nid = alloc_id(t);
+                            push_node(
+                                t,
+                                Node::Leaf {
+                                    id: nid,
+                                    value: dparent.clone(),
+                                },
+                            );
+                            accumulate_graph(t, parent, &dparent, nid, true);
+                        } else {
+                            accumulate(t, parent, &dparent);
+                        }
                     }
                 }
                 Node::Add { left, right, .. } => {
