@@ -2570,23 +2570,55 @@ fn p6b_emit_symindex_map_progress() {
     );
 }
 
-/// P6b: iterative + / - in parseCompare (no right-recursive parseCompare on add).
+/// P6b: fully iterative compare/bit/&&/|| (no right-recursive parseCompare).
 #[test]
 fn p6b_parser_iterative_add_progress() {
     let root = env!("CARGO_MANIFEST_DIR");
     let path = format!("{root}/self_host/parser_impl.kab");
     let src = std::fs::read_to_string(&path).expect("read parser_impl");
     assert!(
-        src.contains("P6b: iterative left-assoc"),
-        "parseCompare must document iterative + / -"
+        src.contains("P6b: fully iterative precedence climb"),
+        "parseCompare must document fully iterative compare/bit/&&/||"
+    );
+    assert!(
+        src.contains("fn parseAddShift()") && src.contains("fn parseRelExpr()"),
+        "parseAddShift/parseRelExpr helpers required for iterative climb"
     );
     assert!(
         !src.contains("pRight = parseCompare()\n        pInAddSub = 0\n        pAddLeft"),
         "add/sub must not right-recurse through parseCompare + pAddLeftStack"
     );
     assert!(
+        !src.contains("pRight = parseCompare()\n        pLeft = { \"kind\": AST_BINARY, \"op\": \"&&\""),
+        "&& must not right-recurse through parseCompare"
+    );
+    assert!(
         src.contains("P6b: early IDENT= assign"),
         "parseStmt must early-dispatch IDENT= before enum/class/fn"
+    );
+}
+
+/// P6b: emit Call/block loops use depth counters (avoid len(stack) clones).
+#[test]
+fn p6b_emit_call_block_depth_progress() {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/emit_impl.kab");
+    let src = std::fs::read_to_string(&path).expect("read emit_impl");
+    assert!(
+        src.contains("let eCalleeDepth = 0") && src.contains("let eBlockDepth = 0"),
+        "eCalleeDepth/eBlockDepth required for Call/block hotpaths"
+    );
+    assert!(
+        src.contains("P6b: use eCalleeDepth"),
+        "emitCallCallee must use eCalleeDepth"
+    );
+    assert!(
+        src.contains("fn dropCallCallee()"),
+        "dropCallCallee required for early Call returns"
+    );
+    assert!(
+        !src.contains("while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1]"),
+        "block/program loops must index via eBlockDepth (not len clones)"
     );
 }
 

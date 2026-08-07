@@ -770,7 +770,7 @@ fn xr_hand_joints_and_input_profiles() {
         let loc = xrLocateHandJoints("left")
         let st = xrHandTrackingStatus()
         let hand = xrHandJoints("left")
-        return loc["ok"] == true && loc["path"] == "stub-xrLocateHandJointsEXT" && loc["jointCount"] == 26 && st["liveBuffers"]["left"] == true && st["locatePath"] == "stub-xrLocateHandJointsEXT" && hand["source"] == "live-buffer" && len(hand["joints"]) == 26 && hand["joints"][0]["joint"] == "palm" && hand["joints"][5]["joint"] == "thumb-tip" && hand["joints"][5]["pose"]["emulated"] == false
+        return loc["ok"] == true && loc["path"] == "stub-xrLocateHandJointsEXT" && loc["ffiInvoked"] == true && loc["ffiMode"] == "stub-trampoline" && loc["jointCount"] == 26 && st["liveBuffers"]["left"] == true && st["locatePath"] == "stub-xrLocateHandJointsEXT" && hand["source"] == "live-buffer" && len(hand["joints"]) == 26 && hand["joints"][0]["joint"] == "palm" && hand["joints"][5]["joint"] == "thumb-tip" && hand["joints"][5]["pose"]["emulated"] == false
         "#,
         &mut env,
     )

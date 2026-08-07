@@ -105,6 +105,7 @@ struct OpenXrLoaderFns {
     /// `xrLocateHandJointsEXT` when resolved (0 = unresolved / stub path).
     locate_hand_joints_ext: usize,
     locate_hand_joints_ext_resolved: bool,
+    locate_hand_joints_ext_calls: i64,
 }
 
 static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
@@ -124,6 +125,7 @@ static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
     get_system_resolved: false,
     locate_hand_joints_ext: 0,
     locate_hand_joints_ext_resolved: false,
+    locate_hand_joints_ext_calls: 0,
 });
 
 /// Live OpenXR / WebXR session (handles + FFI accounting).
@@ -440,6 +442,34 @@ fn stub_xr_end_frame_addr() -> usize {
 #[cfg(not(target_arch = "wasm32"))]
 fn stub_xr_end_frame_addr() -> usize {
     stub_xr_end_frame as *const () as usize
+}
+
+/// Minimal ABI for `xrLocateHandJointsEXT` (tracker + opaque locate/locations).
+#[cfg(not(target_arch = "wasm32"))]
+type XrLocateHandJointsExtFn = unsafe extern "system" fn(
+    hand_tracker: u64,
+    locate_info: *const std::os::raw::c_void,
+    locations: *mut std::os::raw::c_void,
+) -> XrResult;
+
+/// Stub trampoline for XR_EXT_hand_tracking locate (CI / unresolved loader).
+#[cfg(not(target_arch = "wasm32"))]
+unsafe extern "system" fn stub_xr_locate_hand_joints_ext(
+    _hand_tracker: u64,
+    _locate_info: *const std::os::raw::c_void,
+    _locations: *mut std::os::raw::c_void,
+) -> XrResult {
+    0
+}
+
+#[cfg(target_arch = "wasm32")]
+fn stub_xr_locate_hand_joints_ext_addr() -> usize {
+    0
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn stub_xr_locate_hand_joints_ext_addr() -> usize {
+    stub_xr_locate_hand_joints_ext as *const () as usize
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1137,6 +1167,13 @@ fn openxr_create_instance_and_session(use_stub: bool) -> OpenXrCreateResult {
                     fns.end_frame_resolved = true;
                 }
             }
+            if use_stub || !fns.locate_hand_joints_ext_resolved || fns.locate_hand_joints_ext == 0 {
+                let addr = stub_xr_locate_hand_joints_ext_addr();
+                if addr != 0 {
+                    fns.locate_hand_joints_ext = addr;
+                    fns.locate_hand_joints_ext_resolved = true;
+                }
+            }
         }
 
         let (create_inst_addr, create_sess_addr, get_system_addr, path, force_stub) = {
@@ -1423,7 +1460,7 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
         ("descriptor-live".to_string(), false)
     };
 
-    // Ensure stub trampoline is available when loader did not resolve xrEndFrame.
+    // Ensure stub trampolines when loader did not resolve xrEndFrame / locate.
     if let Ok(mut fns) = OPENXR_FNS.lock() {
         if !fns.end_frame_resolved || fns.end_frame == 0 {
             let addr = stub_xr_end_frame_addr();
@@ -1433,6 +1470,13 @@ pub fn create_live_session(mode: &str) -> Result<Value, String> {
                 if fns.last_path.is_empty() {
                     fns.last_path = "stub-trampoline".into();
                 }
+            }
+        }
+        if !fns.locate_hand_joints_ext_resolved || fns.locate_hand_joints_ext == 0 {
+            let addr = stub_xr_locate_hand_joints_ext_addr();
+            if addr != 0 {
+                fns.locate_hand_joints_ext = addr;
+                fns.locate_hand_joints_ext_resolved = true;
             }
         }
     }
@@ -3172,6 +3216,66 @@ fn locate_hand_joints_fill(handedness: &str) -> Result<usize, String> {
     Ok(count)
 }
 
+/// Invoke `xrLocateHandJointsEXT` (resolved loader proc or stub trampoline).
+/// Real runtimes need a live `XrHandTrackerEXT`; we pass synthetic handles and
+/// always synth-fill joint buffers afterward (CI-safe pose data).
+fn invoke_locate_hand_joints_ffi(handedness: &str) -> (bool, i32, String) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = handedness;
+        return (false, 0, "webxr-no-ext-locate".into());
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Install stub trampoline when loader did not resolve the EXT.
+        if let Ok(mut fns) = OPENXR_FNS.lock() {
+            if !fns.locate_hand_joints_ext_resolved || fns.locate_hand_joints_ext == 0 {
+                let addr = stub_xr_locate_hand_joints_ext_addr();
+                if addr != 0 {
+                    fns.locate_hand_joints_ext = addr;
+                    fns.locate_hand_joints_ext_resolved = true;
+                }
+            }
+        }
+        let (fn_addr, use_stub) = {
+            let fns = match OPENXR_FNS.lock() {
+                Ok(f) => f,
+                Err(_) => return (false, -1, "fns-lock-failed".into()),
+            };
+            let stub = stub_enabled();
+            if stub {
+                (stub_xr_locate_hand_joints_ext_addr(), true)
+            } else if fns.locate_hand_joints_ext_resolved && fns.locate_hand_joints_ext != 0 {
+                let is_stub_addr = fns.locate_hand_joints_ext == stub_xr_locate_hand_joints_ext_addr();
+                (fns.locate_hand_joints_ext, is_stub_addr)
+            } else {
+                (stub_xr_locate_hand_joints_ext_addr(), true)
+            }
+        };
+        if fn_addr == 0 {
+            return (false, -1, "no-locate-hand-joints-proc".into());
+        }
+        // Synthetic tracker handles (left/right) — real OpenXR needs xrCreateHandTrackerEXT.
+        let tracker = if handedness == "left" {
+            0x48_0000_0001u64
+        } else {
+            0x48_0000_0002u64
+        };
+        let locate: XrLocateHandJointsExtFn = unsafe { std::mem::transmute(fn_addr) };
+        let rc = unsafe { locate(tracker, std::ptr::null(), std::ptr::null_mut()) };
+        let mode = if use_stub {
+            "stub-trampoline".to_string()
+        } else {
+            "direct".to_string()
+        };
+        if let Ok(mut fns) = OPENXR_FNS.lock() {
+            fns.locate_hand_joints_ext_calls += 1;
+        }
+        (true, rc, mode)
+    }
+}
+
 /// Stub/OpenXR path: locate joints into live buffers (CI-safe synth of XRLocateHandJointsEXT).
 pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
     ensure_input_sources();
@@ -3193,20 +3297,38 @@ pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
             "xr_locate_hand_joints: handedness left|right|both, got {handedness}"
         ));
     };
+    let mut ffi_invoked = false;
+    let mut ffi_result = 0i32;
+    let mut ffi_mode = String::new();
+    for h in &hands {
+        let (ok, rc, mode) = invoke_locate_hand_joints_ffi(h);
+        if ok {
+            ffi_invoked = true;
+            ffi_result = rc;
+            ffi_mode = mode;
+        }
+    }
+    // Always synth-fill: stub trampoline / unresolved loader do not write joint poses.
     let mut total = 0i64;
     for h in &hands {
         total += locate_hand_joints_fill(h)? as i64;
     }
+    let resolved = OPENXR_FNS
+        .lock()
+        .map(|f| f.locate_hand_joints_ext_resolved && f.locate_hand_joints_ext != 0)
+        .unwrap_or(false);
     let path = if backend == "openxr-ext" {
-        let ext = OPENXR_FNS
-            .lock()
-            .map(|f| f.locate_hand_joints_ext_resolved)
-            .unwrap_or(false);
-        if ext {
+        if ffi_invoked && ffi_mode == "direct" {
             "xrLocateHandJointsEXT"
+        } else if resolved && ffi_invoked {
+            "xrLocateHandJointsEXT"
+        } else if ffi_invoked {
+            "stub-xrLocateHandJointsEXT-ffi"
         } else {
             "openxr-ext-synth-pending"
         }
+    } else if ffi_invoked {
+        "stub-xrLocateHandJointsEXT"
     } else {
         "stub-xrLocateHandJointsEXT"
     };
@@ -3215,13 +3337,17 @@ pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
     out.insert("backend".into(), Value::String(backend));
     out.insert("path".into(), Value::String(path.into()));
     out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+    out.insert("extResolved".into(), Value::Bool(resolved));
+    out.insert("ffiInvoked".into(), Value::Bool(ffi_invoked));
+    out.insert("ffiResult".into(), Value::Number(ffi_result as i64));
+    out.insert("ffiMode".into(), Value::String(ffi_mode));
     out.insert(
-        "extResolved".into(),
-        Value::Bool(
+        "ffiCalls".into(),
+        Value::Number(
             OPENXR_FNS
                 .lock()
-                .map(|f| f.locate_hand_joints_ext_resolved)
-                .unwrap_or(false),
+                .map(|f| f.locate_hand_joints_ext_calls)
+                .unwrap_or(0),
         ),
     );
     out.insert("jointCount".into(), Value::Number(26));

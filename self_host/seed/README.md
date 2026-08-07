@@ -28,12 +28,12 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
 Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
-**Full leaf:** `p6b_serialize_body_compile_budget` **~643 s** (was ~689 s) with `eLocalMap` +
-map-only `emitSym` + early `IDENT=`. Still ≫ 10 s — skip-list stays.
+**Full leaf:** `p6b_serialize_body_compile_budget` **~726 s** after iterative compare +
+Call/block depth (prior ~643 s / ~689 s). Toolchain seed grew; leaf still ≫ 10 s —
+skip-list stays.
 
-**Toolchain focus (after leaf densify plateau):** finish `emitSym`/`localSymIndex`
-maps + early `IDENT=` in `parseStmt`. Profile script uses `KABOOTAR_COMPILE=rust` +
-`kabootar run` so `PROFILE phase *_ms` lines are reliable on Windows.
+**Toolchain focus:** parse climb + emit Call/block depth (fewer `len(stack)` clones).
+Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
 
 ## P6b playbook
 
@@ -43,7 +43,9 @@ maps + early `IDENT=` in `parseStmt`. Profile script uses `KABOOTAR_COMPILE=rust
 2. **Speed toolchain:**
    - `symIndex` const/global **maps** + **`eLocalMap` / map-only `emitSym`**
    - AccAdd recurse; early `emitIfStmt`; **`eOpsN`/`eFnOpsN`** in jump patches
-   - **iterative left-assoc `+`/`-`** + **early `IDENT=`** in `parser_impl`
+   - **fully iterative** compare/`&&`/`||`/bit via `parseAddShift`/`parseRelExpr`
+   - **`eCalleeDepth` / `eBlockDepth`** (Call + block/program loops)
+   - **early `IDENT=`** in `parser_impl`
 3. **Measure** before flipping any flag:
    ```bash
    cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
@@ -56,7 +58,7 @@ maps + early `IDENT=` in `parseStmt`. Profile script uses `KABOOTAR_COMPILE=rust
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | IR in defs + toolchain `eLocalMap`/`emitSym` maps + early `IDENT=` | **~643 s** debug (2026-08-07; prior ~689 s / ~670 s / ~885–964 s) — still ≫ 10 s |
+| `serialize_body.kab` | IR in defs + maps/`emitSym` + iterative compare + Call/block depth | **~726 s** debug (2026-08-07; prior ~643 s / ~689 s) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
@@ -70,7 +72,8 @@ maps + early `IDENT=` in `parseStmt`. Profile script uses `KABOOTAR_COMPILE=rust
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath |
 | `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` |
 | `p6b_emit_symindex_map_progress` | `eConstMap` + `eLocalMap` / map-only `emitSym` |
-| `p6b_parser_iterative_add_progress` | Iterative `+`/`-` + early `IDENT=` assign |
+| `p6b_emit_call_block_depth_progress` | `eCalleeDepth` / `eBlockDepth` Call+block loops |
+| `p6b_parser_iterative_add_progress` | Fully iterative compare/bit/`&&`/`||` + early `IDENT=` |
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
 
