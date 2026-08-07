@@ -738,6 +738,13 @@ fn xr_input_profiles_native(args: &[Value], _env: &mut Environment) -> Result<Va
     xr_ffi::input_profiles(handedness)
 }
 
+fn xr_hand_tracking_status_native(
+    _args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    Ok(xr_ffi::hand_tracking_status())
+}
+
 fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mode = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1543,6 +1550,7 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_poll_input_events", xr_poll_input_events_native),
         ("xr_hand_joints", xr_hand_joints_native),
         ("xr_input_profiles", xr_input_profiles_native),
+        ("xr_hand_tracking_status", xr_hand_tracking_status_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),

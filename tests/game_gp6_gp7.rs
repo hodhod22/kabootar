@@ -690,7 +690,9 @@ fn xr_input_sources_select_and_poses() {
 
 #[test]
 fn xr_hand_joints_and_input_profiles() {
+    // Sequential: XR stub/hand env + global session state is process-wide.
     env_host();
+    std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
     std::env::set_var("KABOOTAR_XR_STUB", "1");
     kabootar_lib::runtime::game::reset_all();
     let mut env = create_global_env();
@@ -707,6 +709,24 @@ fn xr_hand_joints_and_input_profiles() {
         &mut env,
     )
     .expect("eval");
+    assert!(matches!(v, Value::Bool(true)), "emulated hand got {v:?}");
+
+    std::env::set_var("KABOOTAR_XR_HAND_TRACKING", "1");
+    kabootar_lib::runtime::game::reset_all();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        import "game/xr"
+        let xr = xrBindHeadset(createXrSession("vr"), true)
+        xr = xrBegin(xr)
+        let st = xrHandTrackingStatus()
+        let hand = xrHandJoints("right")
+        return st["ok"] == true && st["extension"] == "XR_EXT_hand_tracking" && st["live"] == true && st["backend"] == "openxr-stub" && hand["tracking"] == "openxr-stub" && hand["extension"] == "XR_EXT_hand_tracking" && len(hand["joints"]) >= 8
+        "#,
+        &mut env,
+    )
+    .expect("eval");
     std::env::remove_var("KABOOTAR_XR_STUB");
-    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    std::env::remove_var("KABOOTAR_XR_HAND_TRACKING");
+    assert!(matches!(v, Value::Bool(true)), "openxr-stub hand got {v:?}");
 }

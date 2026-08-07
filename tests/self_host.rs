@@ -456,7 +456,14 @@ fn run_parser_test_suite() -> Result<(), String> {
 
 #[test]
 fn self_host_parser_suite() {
-    run_parser_test_suite().expect("self_host/test_parser.kab should pass");
+    // Windows cargo-test default stack overflows on self-host parse of the suite.
+    let ok = std::thread::Builder::new()
+        .name("parser-suite".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| run_parser_test_suite().expect("self_host/test_parser.kab should pass"))
+        .expect("spawn parser suite")
+        .join();
+    ok.expect("parser suite thread");
 }
 
 #[test]
@@ -2535,6 +2542,23 @@ fn p6b_emit_symindex_map_progress() {
         "const symIndex must not scan eConsts with len/index clones"
     );
 }
+
+/// P6b: iterative + / - in parseCompare (no right-recursive parseCompare on add).
+#[test]
+fn p6b_parser_iterative_add_progress() {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/parser_impl.kab");
+    let src = std::fs::read_to_string(&path).expect("read parser_impl");
+    assert!(
+        src.contains("P6b: iterative left-assoc"),
+        "parseCompare must document iterative + / -"
+    );
+    assert!(
+        !src.contains("pRight = parseCompare()\n        pInAddSub = 0\n        pAddLeft"),
+        "add/sub must not right-recurse through parseCompare + pAddLeftStack"
+    );
+}
+
 
 #[test]
 fn self_host_vm_full_compile() {
