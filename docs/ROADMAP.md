@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b leaf self-host <10s (serialize_body AST flatten; list stays 5); T5 default bodies in self-host parser; O5 `compile.kab` wires `checkOwnership`; K1d `super.method` + Promise.reject/all; XR layer submit echoes wgpu/Vulkan handles. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6b leaf self-host <10s — `serialize_body` densified (`IR_WITH_ARG`/`IR_ZERO_ARG`); list stays 5 until budget; GP6n WebXR input sources. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -679,7 +679,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **seed-only product path** (5 leaves + fingerprint gates). **P6b** empty list 📋 när `p6_leaf_self_host_compile_budget` <10s — `serialize_body` escStr AST flatten (list stays 5) |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **seed-only product path** (5 leaves + fingerprint gates). **P6b** empty list 📋 när `p6_leaf_self_host_compile_budget` <10s — `serialize_body` irOpLine membership tables + joinComma densify (list stays 5) |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
