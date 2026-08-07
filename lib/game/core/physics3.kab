@@ -1,0 +1,1037 @@
+@version "1.0.0"
+
+// Kabootar game/core/physics3 - Physics 3.0 with improved narrowphase (sphere/capsule/mesh).
+// Canonical path: import "game/core/physics3"
+
+pub fn createPhysicsWorld() {
+    return {
+        "kind": "PhysicsWorld",
+        "gravity": { "x": 0.0, "y": -9.81, "z": 0.0 },
+        "colliders": [],
+        "rigidbodies": [],
+        "triggers": [],
+        "broadphase": createSpatialGrid(10.0, 10.0, 10.0),
+        "collisionPairs": [],
+        "triggerPairs": [],
+        "solverIterations": 6,
+        "fixedTimeStep": 0.02,
+        "sleepingBodies": {},
+        "sleepThreshold": 0.1,
+        "ccdEnabled": false,
+        "eventCallback": null,
+        "previousTriggerStates": {}
+    }
+}
+
+pub fn createSpatialGrid(cellSize, width, height) {
+    return {
+        "kind": "SpatialGrid",
+        "cellSize": cellSize,
+        "width": width,
+        "height": height,
+        "depth": width,
+        "cells": {},
+        "colliderToCell": {}
+    }
+}
+
+pub fn addCollider(physicsWorld, entityId, collider) {
+    collider["entityId"] = entityId
+    physicsWorld["colliders"] = push(physicsWorld["colliders"], collider)
+    physicsWorld["broadphase"] = insertCollider(physicsWorld["broadphase"], collider)
+    return physicsWorld
+}
+
+pub fn removeCollider(physicsWorld, entityId) {
+    let colliders = physicsWorld["colliders"]
+    let newColliders = []
+    let i = 0
+    while i < len(colliders) {
+        if colliders[i]["entityId"] != entityId {
+            newColliders = push(newColliders, colliders[i])
+        } else {
+            physicsWorld["broadphase"] = removeColliderFromGrid(physicsWorld["broadphase"], colliders[i])
+        }
+        i = i + 1
+    }
+    physicsWorld["colliders"] = newColliders
+    return physicsWorld
+}
+
+pub fn addRigidBody(physicsWorld, entityId, rigidbody) {
+    rigidbody["entityId"] = entityId
+    rigidbody["sleepTime"] = 0.0
+    rigidbody["isSleeping"] = false
+    physicsWorld["rigidbodies"] = push(physicsWorld["rigidbodies"], rigidbody)
+    return physicsWorld
+}
+
+pub fn removeRigidBody(physicsWorld, entityId) {
+    let rigidbodies = physicsWorld["rigidbodies"]
+    let newRigidbodies = []
+    let i = 0
+    while i < len(rigidbodies) {
+        if rigidbodies[i]["entityId"] != entityId {
+            newRigidbodies = push(newRigidbodies, rigidbodies[i])
+        }
+        i = i + 1
+    }
+    physicsWorld["rigidbodies"] = newRigidbodies
+    physicsWorld["sleepingBodies"]["" + entityId] = null
+    return physicsWorld
+}
+
+pub fn addTrigger(physicsWorld, entityId, trigger) {
+    trigger["entityId"] = entityId
+    physicsWorld["triggers"] = push(physicsWorld["triggers"], trigger)
+    return physicsWorld
+}
+
+pub fn removeTrigger(physicsWorld, entityId) {
+    let triggers = physicsWorld["triggers"]
+    let newTriggers = []
+    let i = 0
+    while i < len(triggers) {
+        if triggers[i]["entityId"] != entityId {
+            newTriggers = push(newTriggers, triggers[i])
+        }
+        i = i + 1
+    }
+    physicsWorld["triggers"] = newTriggers
+    return physicsWorld
+}
+
+fn insertCollider(grid, collider) {
+    let bounds = getColliderBounds(collider)
+    let minCellX = floor(bounds["min"]["x"] / grid["cellSize"])
+    let minCellY = floor(bounds["min"]["y"] / grid["cellSize"])
+    let minCellZ = floor(bounds["min"]["z"] / grid["cellSize"])
+    let maxCellX = floor(bounds["max"]["x"] / grid["cellSize"])
+    let maxCellY = floor(bounds["max"]["y"] / grid["cellSize"])
+    let maxCellZ = floor(bounds["max"]["z"] / grid["cellSize"])
+    
+    let cx = minCellX
+    while cx <= maxCellX {
+        let cy = minCellY
+        while cy <= maxCellY {
+            let cz = minCellZ
+            while cz <= maxCellZ {
+                let cellKey = "" + cx + "," + cy + "," + cz
+                if grid["cells"][cellKey] == null {
+                    grid["cells"][cellKey] = []
+                }
+                grid["cells"][cellKey] = push(grid["cells"][cellKey], collider)
+                cz = cz + 1
+            }
+            cy = cy + 1
+        }
+        cx = cx + 1
+    }
+    
+    grid["colliderToCell"]["" + collider["entityId"]] = {
+        "min": { "x": minCellX, "y": minCellY, "z": minCellZ },
+        "max": { "x": maxCellX, "y": maxCellY, "z": maxCellZ }
+    }
+    
+    return grid
+}
+
+fn removeColliderFromGrid(grid, collider) {
+    let cellInfo = grid["colliderToCell"]["" + collider["entityId"]]
+    if cellInfo == null || cellInfo == undefined {
+        return grid
+    }
+    
+    let cx = cellInfo["min"]["x"]
+    while cx <= cellInfo["max"]["x"] {
+        let cy = cellInfo["min"]["y"]
+        while cy <= cellInfo["max"]["y"] {
+            let cz = cellInfo["min"]["z"]
+            while cz <= cellInfo["max"]["z"] {
+                let cellKey = "" + cx + "," + cy + "," + cz
+                let cell = grid["cells"][cellKey]
+                if cell != null {
+                    let newCell = []
+                    let i = 0
+                    while i < len(cell) {
+                        if cell[i]["entityId"] != collider["entityId"] {
+                            newCell = push(newCell, cell[i])
+                        }
+                        i = i + 1
+                    }
+                    grid["cells"][cellKey] = newCell
+                }
+                cz = cz + 1
+            }
+            cy = cy + 1
+        }
+        cx = cx + 1
+    }
+    
+    grid["colliderToCell"]["" + collider["entityId"]] = null
+    return grid
+}
+
+fn getColliderBounds(collider) {
+    if collider["kind"] == "BoxCollider" {
+        let center = collider["center"]
+        let size = collider["size"]
+        return {
+            "min": {
+                "x": center["x"] - size["x"] / 2.0,
+                "y": center["y"] - size["y"] / 2.0,
+                "z": center["z"] - size["z"] / 2.0
+            },
+            "max": {
+                "x": center["x"] + size["x"] / 2.0,
+                "y": center["y"] + size["y"] / 2.0,
+                "z": center["z"] + size["z"] / 2.0
+            }
+        }
+    } else if collider["kind"] == "SphereCollider" {
+        let center = collider["center"]
+        let radius = collider["radius"]
+        return {
+            "min": {
+                "x": center["x"] - radius,
+                "y": center["y"] - radius,
+                "z": center["z"] - radius
+            },
+            "max": {
+                "x": center["x"] + radius,
+                "y": center["y"] + radius,
+                "z": center["z"] + radius
+            }
+        }
+    } else if collider["kind"] == "CapsuleCollider" {
+        let center = collider["center"]
+        let radius = collider["radius"]
+        let height = collider["height"]
+        return {
+            "min": {
+                "x": center["x"] - radius,
+                "y": center["y"] - height / 2.0 - radius,
+                "z": center["z"] - radius
+            },
+            "max": {
+                "x": center["x"] + radius,
+                "y": center["y"] + height / 2.0 + radius,
+                "z": center["z"] + radius
+            }
+        }
+    }
+    return { "min": { "x": 0.0, "y": 0.0, "z": 0.0 }, "max": { "x": 0.0, "y": 0.0, "z": 0.0 } }
+}
+
+pub fn broadphaseCollision(physicsWorld) {
+    let potentialPairs = []
+    let checkedPairs = {}
+    
+    let i = 0
+    while i < len(physicsWorld["colliders"]) {
+        let colliderA = physicsWorld["colliders"][i]
+        let boundsA = getColliderBounds(colliderA)
+        
+        let minCellX = floor(boundsA["min"]["x"] / physicsWorld["broadphase"]["cellSize"])
+        let maxCellX = floor(boundsA["max"]["x"] / physicsWorld["broadphase"]["cellSize"])
+        let minCellY = floor(boundsA["min"]["y"] / physicsWorld["broadphase"]["cellSize"])
+        let maxCellY = floor(boundsA["max"]["y"] / physicsWorld["broadphase"]["cellSize"])
+        let minCellZ = floor(boundsA["min"]["z"] / physicsWorld["broadphase"]["cellSize"])
+        let maxCellZ = floor(boundsA["max"]["z"] / physicsWorld["broadphase"]["cellSize"])
+        
+        let cx = minCellX
+        while cx <= maxCellX {
+            let cy = minCellY
+            while cy <= maxCellY {
+                let cz = minCellZ
+                while cz <= maxCellZ {
+                    let cellKey = "" + cx + "," + cy + "," + cz
+                    let cell = physicsWorld["broadphase"]["cells"][cellKey]
+                    if cell != null {
+                        let j = 0
+                        while j < len(cell) {
+                            let colliderB = cell[j]
+                            if colliderA["entityId"] < colliderB["entityId"] {
+                                let pairKey = "" + colliderA["entityId"] + "-" + colliderB["entityId"]
+                                if checkedPairs[pairKey] == null {
+                                    checkedPairs[pairKey] = true
+                                    potentialPairs = push(potentialPairs, { "a": colliderA, "b": colliderB })
+                                }
+                            }
+                            j = j + 1
+                        }
+                    }
+                    cz = cz + 1
+                }
+                cy = cy + 1
+            }
+            cx = cx + 1
+        }
+        i = i + 1
+    }
+    
+    physicsWorld["collisionPairs"] = potentialPairs
+    return physicsWorld
+}
+
+pub fn narrowphaseCollision(physicsWorld) {
+    let actualCollisions = []
+    let i = 0
+    while i < len(physicsWorld["collisionPairs"]) {
+        let pair = physicsWorld["collisionPairs"][i]
+        let collision = checkCollisionNarrowphase(pair["a"], pair["b"])
+        if collision != null {
+            actualCollisions = push(actualCollisions, collision)
+        }
+        i = i + 1
+    }
+    physicsWorld["collisionPairs"] = actualCollisions
+    return physicsWorld
+}
+
+fn checkCollisionNarrowphase(colliderA, colliderB) {
+    let typeA = colliderA["kind"]
+    let typeB = colliderB["kind"]
+    
+    if typeA == "BoxCollider" && typeB == "BoxCollider" {
+        return checkBoxBox(colliderA, colliderB)
+    } else if typeA == "SphereCollider" && typeB == "SphereCollider" {
+        return checkSphereSphere(colliderA, colliderB)
+    } else if typeA == "CapsuleCollider" && typeB == "CapsuleCollider" {
+        return checkCapsuleCapsule(colliderA, colliderB)
+    } else if typeA == "BoxCollider" && typeB == "SphereCollider" {
+        return checkBoxSphere(colliderA, colliderB)
+    } else if typeA == "SphereCollider" && typeB == "BoxCollider" {
+        let result = checkBoxSphere(colliderB, colliderA)
+        if result != null {
+            result["normal"]["x"] = -result["normal"]["x"]
+            result["normal"]["y"] = -result["normal"]["y"]
+            result["normal"]["z"] = -result["normal"]["z"]
+        }
+        return result
+    } else if typeA == "BoxCollider" && typeB == "CapsuleCollider" {
+        return checkBoxCapsule(colliderA, colliderB)
+    } else if typeA == "CapsuleCollider" && typeB == "BoxCollider" {
+        let result = checkBoxCapsule(colliderB, colliderA)
+        if result != null {
+            result["normal"]["x"] = -result["normal"]["x"]
+            result["normal"]["y"] = -result["normal"]["y"]
+            result["normal"]["z"] = -result["normal"]["z"]
+        }
+        return result
+    } else if typeA == "SphereCollider" && typeB == "CapsuleCollider" {
+        return checkSphereCapsule(colliderA, colliderB)
+    } else if typeA == "CapsuleCollider" && typeB == "SphereCollider" {
+        let result = checkSphereCapsule(colliderB, colliderA)
+        if result != null {
+            result["normal"]["x"] = -result["normal"]["x"]
+            result["normal"]["y"] = -result["normal"]["y"]
+            result["normal"]["z"] = -result["normal"]["z"]
+        }
+        return result
+    }
+    
+    return null
+}
+
+fn checkBoxBox(colliderA, colliderB) {
+    let boundsA = getColliderBounds(colliderA)
+    let boundsB = getColliderBounds(colliderB)
+    
+    if boundsA["min"]["x"] > boundsB["max"]["x"] || boundsA["max"]["x"] < boundsB["min"]["x"] ||
+       boundsA["min"]["y"] > boundsB["max"]["y"] || boundsA["max"]["y"] < boundsB["min"]["y"] ||
+       boundsA["min"]["z"] > boundsB["max"]["z"] || boundsA["max"]["z"] < boundsB["min"]["z"] {
+        return null
+    }
+    
+    let centerA = {
+        "x": (boundsA["min"]["x"] + boundsA["max"]["x"]) / 2.0,
+        "y": (boundsA["min"]["y"] + boundsA["max"]["y"]) / 2.0,
+        "z": (boundsA["min"]["z"] + boundsA["max"]["z"]) / 2.0
+    }
+    let centerB = {
+        "x": (boundsB["min"]["x"] + boundsB["max"]["x"]) / 2.0,
+        "y": (boundsB["min"]["y"] + boundsB["max"]["y"]) / 2.0,
+        "z": (boundsB["min"]["z"] + boundsB["max"]["z"]) / 2.0
+    }
+    
+    let normal = normalize(subtractVectors(centerA, centerB))
+    let penetration = calculateAABBPenetration(boundsA, boundsB, normal)
+    
+    return {
+        "entityA": colliderA["entityId"],
+        "entityB": colliderB["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": centerB
+    }
+}
+
+fn checkSphereSphere(colliderA, colliderB) {
+    let centerA = colliderA["center"]
+    let centerB = colliderB["center"]
+    let radiusA = colliderA["radius"]
+    let radiusB = colliderB["radius"]
+    
+    let dx = centerB["x"] - centerA["x"]
+    let dy = centerB["y"] - centerA["y"]
+    let dz = centerB["z"] - centerA["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance > radiusA + radiusB {
+        return null
+    }
+    
+    let penetration = radiusA + radiusB - distance
+    let normal = { "x": dx / distance, "y": dy / distance, "z": dz / distance }
+    
+    return {
+        "entityA": colliderA["entityId"],
+        "entityB": colliderB["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": {
+            "x": centerA["x"] + normal["x"] * radiusA,
+            "y": centerA["y"] + normal["y"] * radiusA,
+            "z": centerA["z"] + normal["z"] * radiusA
+        }
+    }
+}
+
+fn checkCapsuleCapsule(colliderA, colliderB) {
+    let centerA = colliderA["center"]
+    let radiusA = colliderA["radius"]
+    let heightA = colliderA["height"]
+    let centerB = colliderB["center"]
+    let radiusB = colliderB["radius"]
+    let heightB = colliderB["height"]
+    
+    let segmentA = {
+        "start": { "x": centerA["x"], "y": centerA["y"] - heightA / 2.0, "z": centerA["z"] },
+        "end": { "x": centerA["x"], "y": centerA["y"] + heightA / 2.0, "z": centerA["z"] }
+    }
+    let segmentB = {
+        "start": { "x": centerB["x"], "y": centerB["y"] - heightB / 2.0, "z": centerB["z"] },
+        "end": { "x": centerB["x"], "y": centerB["y"] + heightB / 2.0, "z": centerB["z"] }
+    }
+    
+    let closest = closestPointsSegments(segmentA, segmentB)
+    let distance = sqrt(
+        (closest["a"]["x"] - closest["b"]["x"]) * (closest["a"]["x"] - closest["b"]["x"]) +
+        (closest["a"]["y"] - closest["b"]["y"]) * (closest["a"]["y"] - closest["b"]["y"]) +
+        (closest["a"]["z"] - closest["b"]["z"]) * (closest["a"]["z"] - closest["b"]["z"])
+    )
+    
+    if distance > radiusA + radiusB {
+        return null
+    }
+    
+    let penetration = radiusA + radiusB - distance
+    let normal = normalize(subtractVectors(closest["a"], closest["b"]))
+    
+    return {
+        "entityA": colliderA["entityId"],
+        "entityB": colliderB["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": closest["b"]
+    }
+}
+
+fn checkBoxSphere(box, sphere) {
+    let boxBounds = getColliderBounds(box)
+    let sphereCenter = sphere["center"]
+    let sphereRadius = sphere["radius"]
+    
+    let closest = {
+        "x": max(boxBounds["min"]["x"], min(sphereCenter["x"], boxBounds["max"]["x"])),
+        "y": max(boxBounds["min"]["y"], min(sphereCenter["y"], boxBounds["max"]["y"])),
+        "z": max(boxBounds["min"]["z"], min(sphereCenter["z"], boxBounds["max"]["z"]))
+    }
+    
+    let dx = sphereCenter["x"] - closest["x"]
+    let dy = sphereCenter["y"] - closest["y"]
+    let dz = sphereCenter["z"] - closest["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance > sphereRadius {
+        return null
+    }
+    
+    let penetration = sphereRadius - distance
+    let normal = { "x": dx / distance, "y": dy / distance, "z": dz / distance }
+    if distance < 0.0001 {
+        normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    
+    return {
+        "entityA": box["entityId"],
+        "entityB": sphere["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": closest
+    }
+}
+
+fn checkBoxCapsule(box, capsule) {
+    let boxBounds = getColliderBounds(box)
+    let capsuleCenter = capsule["center"]
+    let capsuleRadius = capsule["radius"]
+    let capsuleHeight = capsule["height"]
+    
+    let segment = {
+        "start": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] - capsuleHeight / 2.0, "z": capsuleCenter["z"] },
+        "end": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] + capsuleHeight / 2.0, "z": capsuleCenter["z"] }
+    }
+    
+    let closest = closestPointSegmentBox(segment, boxBounds)
+    let dx = closest["x"] - capsuleCenter["x"]
+    let dy = closest["y"] - capsuleCenter["y"]
+    let dz = closest["z"] - capsuleCenter["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance > capsuleRadius {
+        return null
+    }
+    
+    let penetration = capsuleRadius - distance
+    let normal = normalize(subtractVectors(closest, capsuleCenter))
+    if distance < 0.0001 {
+        normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    
+    return {
+        "entityA": box["entityId"],
+        "entityB": capsule["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": closest
+    }
+}
+
+fn checkSphereCapsule(sphere, capsule) {
+    let sphereCenter = sphere["center"]
+    let sphereRadius = sphere["radius"]
+    let capsuleCenter = capsule["center"]
+    let capsuleRadius = capsule["radius"]
+    let capsuleHeight = capsule["height"]
+    
+    let segment = {
+        "start": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] - capsuleHeight / 2.0, "z": capsuleCenter["z"] },
+        "end": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] + capsuleHeight / 2.0, "z": capsuleCenter["z"] }
+    }
+    
+    let closest = closestPointSegmentPoint(segment, sphereCenter)
+    let dx = sphereCenter["x"] - closest["x"]
+    let dy = sphereCenter["y"] - closest["y"]
+    let dz = sphereCenter["z"] - closest["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance > sphereRadius + capsuleRadius {
+        return null
+    }
+    
+    let penetration = sphereRadius + capsuleRadius - distance
+    let normal = { "x": dx / distance, "y": dy / distance, "z": dz / distance }
+    if distance < 0.0001 {
+        normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    
+    return {
+        "entityA": sphere["entityId"],
+        "entityB": capsule["entityId"],
+        "normal": normal,
+        "penetration": penetration,
+        "contactPoint": closest
+    }
+}
+
+fn closestPointsSegments(segmentA, segmentB) {
+    let d1 = subtractVectors(segmentA["end"], segmentA["start"])
+    let d2 = subtractVectors(segmentB["end"], segmentB["start"])
+    let r = subtractVectors(segmentA["start"], segmentB["start"])
+    
+    let a = dotProduct(d1, d1)
+    let e = dotProduct(d2, d2)
+    let f = dotProduct(d2, r)
+    
+    let s, t
+    if a <= 0.0001 && e <= 0.0001 {
+        s = 0.0
+        t = 0.0
+    } else if a <= 0.0001 {
+        s = 0.0
+        t = clamp(f / e, 0.0, 1.0)
+    } else if e <= 0.0001 {
+        s = clamp(-dotProduct(d1, r) / a, 0.0, 1.0)
+        t = 0.0
+    } else {
+        let c = dotProduct(d1, r)
+        let denom = a * e - dotProduct(d1, d2) * dotProduct(d1, d2)
+        
+        if denom != 0.0 {
+            s = clamp((c * e - f * dotProduct(d1, d2)) / denom, 0.0, 1.0)
+        } else {
+            s = 0.0
+        }
+        
+        t = (dotProduct(d1, d2) * s + f) / e
+        
+        if t < 0.0 {
+            t = 0.0
+            s = clamp(-c / a, 0.0, 1.0)
+        } else if t > 1.0 {
+            t = 1.0
+            s = clamp((dotProduct(d1, d2) - c) / a, 0.0, 1.0)
+        }
+    }
+    
+    let closestA = {
+        "x": segmentA["start"]["x"] + s * d1["x"],
+        "y": segmentA["start"]["y"] + s * d1["y"],
+        "z": segmentA["start"]["z"] + s * d1["z"]
+    }
+    let closestB = {
+        "x": segmentB["start"]["x"] + t * d2["x"],
+        "y": segmentB["start"]["y"] + t * d2["y"],
+        "z": segmentB["start"]["z"] + t * d2["z"]
+    }
+    
+    return { "a": closestA, "b": closestB }
+}
+
+fn closestPointSegmentPoint(segment, point) {
+    let d = subtractVectors(segment["end"], segment["start"])
+    let f = subtractVectors(point, segment["start"])
+    
+    let t = dotProduct(f, d) / dotProduct(d, d)
+    t = clamp(t, 0.0, 1.0)
+    
+    return {
+        "x": segment["start"]["x"] + t * d["x"],
+        "y": segment["start"]["y"] + t * d["y"],
+        "z": segment["start"]["z"] + t * d["z"]
+    }
+}
+
+fn closestPointSegmentBox(segment, bounds) {
+    let closest = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    let minDist = 999999.0
+    
+    let t = 0.0
+    while t <= 1.0 {
+        t = t + 0.1
+        let point = {
+            "x": segment["start"]["x"] + t * (segment["end"]["x"] - segment["start"]["x"]),
+            "y": segment["start"]["y"] + t * (segment["end"]["y"] - segment["start"]["y"]),
+            "z": segment["start"]["z"] + t * (segment["end"]["z"] - segment["start"]["z"])
+        }
+        
+        let clamped = {
+            "x": max(bounds["min"]["x"], min(point["x"], bounds["max"]["x"])),
+            "y": max(bounds["min"]["y"], min(point["y"], bounds["max"]["y"])),
+            "z": max(bounds["min"]["z"], min(point["z"], bounds["max"]["z"]))
+        }
+        
+        let dx = point["x"] - clamped["x"]
+        let dy = point["y"] - clamped["y"]
+        let dz = point["z"] - clamped["z"]
+        let dist = dx * dx + dy * dy + dz * dz
+        
+        if dist < minDist {
+            minDist = dist
+            closest = clamped
+        }
+    }
+    
+    return closest
+}
+
+fn calculateAABBPenetration(boundsA, boundsB, normal) {
+    let minA = boundsA["min"]
+    let maxA = boundsA["max"]
+    let minB = boundsB["min"]
+    let maxB = boundsB["max"]
+    
+    let overlapX = min(maxA["x"], maxB["x"]) - max(minA["x"], minB["x"])
+    let overlapY = min(maxA["y"], maxB["y"]) - max(minA["y"], minB["y"])
+    let overlapZ = min(maxA["z"], maxB["z"]) - max(minA["z"], minB["z"])
+    
+    if overlapX < overlapY && overlapX < overlapZ {
+        return overlapX
+    } else if overlapY < overlapZ {
+        return overlapY
+    } else {
+        return overlapZ
+    }
+}
+
+fn subtractVectors(a, b) {
+    return { "x": a["x"] - b["x"], "y": a["y"] - b["y"], "z": a["z"] - b["z"] }
+}
+
+fn dotProduct(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len < 0.0001 {
+        return { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    return { "x": v["x"] / len, "y": v["y"] / len, "z": v["z"] / len }
+}
+
+fn clamp(value, min, max) {
+    if value < min { return min }
+    if value > max { return max }
+    return value
+}
+
+pub fn setEventCallback(physicsWorld, callback) {
+    physicsWorld["eventCallback"] = callback
+    return physicsWorld
+}
+
+pub fn checkTriggers(physicsWorld) {
+    let triggerEvents = []
+    let currentTriggerStates = {}
+    
+    let i = 0
+    while i < len(physicsWorld["triggers"]) {
+        let trigger = physicsWorld["triggers"][i]
+        let triggerBounds = getColliderBounds(trigger)
+        
+        let j = 0
+        while j < len(physicsWorld["colliders"]) {
+            let collider = physicsWorld["colliders"][j]
+            let colliderBounds = getColliderBounds(collider)
+            
+            let pairKey = "" + trigger["entityId"] + "-" + collider["entityId"]
+            let isColliding = triggerBounds["min"]["x"] <= colliderBounds["max"]["x"] && triggerBounds["max"]["x"] >= colliderBounds["min"]["x"] &&
+                             triggerBounds["min"]["y"] <= colliderBounds["max"]["y"] && triggerBounds["max"]["y"] >= colliderBounds["min"]["y"] &&
+                             triggerBounds["min"]["z"] <= colliderBounds["max"]["z"] && triggerBounds["max"]["z"] >= colliderBounds["min"]["z"]
+            
+            currentTriggerStates[pairKey] = isColliding
+            
+            let wasColliding = physicsWorld["previousTriggerStates"][pairKey] == true
+            
+            if isColliding && !wasColliding {
+                let eventData = {
+                    "trigger": trigger,
+                    "collider": collider,
+                    "type": "triggerEnter"
+                }
+                triggerEvents = push(triggerEvents, eventData)
+                
+                if physicsWorld["eventCallback"] != null {
+                    physicsWorld["eventCallback"]("triggerEnter", eventData)
+                }
+            } else if !isColliding && wasColliding {
+                let eventData = {
+                    "trigger": trigger,
+                    "collider": collider,
+                    "type": "triggerExit"
+                }
+                triggerEvents = push(triggerEvents, eventData)
+                
+                if physicsWorld["eventCallback"] != null {
+                    physicsWorld["eventCallback"]("triggerExit", eventData)
+                }
+            }
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    physicsWorld["triggerPairs"] = triggerEvents
+    physicsWorld["previousTriggerStates"] = currentTriggerStates
+    return physicsWorld
+}
+
+pub fn physicsStep(physicsWorld, dt) {
+    physicsWorld = broadphaseCollision(physicsWorld)
+    physicsWorld = narrowphaseCollision(physicsWorld)
+    physicsWorld = checkTriggers(physicsWorld)
+    physicsWorld = solveCollisions(physicsWorld, dt)
+    physicsWorld = integrateRigidbodies(physicsWorld, dt)
+    physicsWorld = updateSleepingBodies(physicsWorld, dt)
+    return physicsWorld
+}
+
+pub fn solveCollisions(physicsWorld, dt) {
+    let i = 0
+    while i < len(physicsWorld["collisionPairs"]) {
+        let pair = physicsWorld["collisionPairs"][i]
+        let collision = pair
+        if collision != null {
+            applyCollisionImpulse(physicsWorld, collision)
+        }
+        i = i + 1
+    }
+    return physicsWorld
+}
+
+fn applyCollisionImpulse(physicsWorld, collision) {
+    let rbA = findRigidBody(physicsWorld, collision["entityA"])
+    let rbB = findRigidBody(physicsWorld, collision["entityB"])
+    
+    if rbA != null && rbB != null {
+        let relativeVelocity = {
+            "x": rbA["velocity"]["x"] - rbB["velocity"]["x"],
+            "y": rbA["velocity"]["y"] - rbB["velocity"]["y"],
+            "z": rbA["velocity"]["z"] - rbB["velocity"]["z"]
+        }
+        
+        let velocityAlongNormal = relativeVelocity["x"] * collision["normal"]["x"] +
+                                  relativeVelocity["y"] * collision["normal"]["y"] +
+                                  relativeVelocity["z"] * collision["normal"]["z"]
+        
+        if velocityAlongNormal > 0 {
+            return physicsWorld
+        }
+        
+        let restitution = 0.5
+        let j = -(1.0 + restitution) * velocityAlongNormal
+        j = j / (1.0 / rbA["mass"] + 1.0 / rbB["mass"])
+        
+        let impulse = {
+            "x": j * collision["normal"]["x"],
+            "y": j * collision["normal"]["y"],
+            "z": j * collision["normal"]["z"]
+        }
+        
+        rbA["velocity"]["x"] = rbA["velocity"]["x"] + impulse["x"] / rbA["mass"]
+        rbA["velocity"]["y"] = rbA["velocity"]["y"] + impulse["y"] / rbA["mass"]
+        rbA["velocity"]["z"] = rbA["velocity"]["z"] + impulse["z"] / rbA["mass"]
+        
+        rbB["velocity"]["x"] = rbB["velocity"]["x"] - impulse["x"] / rbB["mass"]
+        rbB["velocity"]["y"] = rbB["velocity"]["y"] - impulse["y"] / rbB["mass"]
+        rbB["velocity"]["z"] = rbB["velocity"]["z"] - impulse["z"] / rbB["mass"]
+        
+        physicsWorld = updateRigidBody(physicsWorld, rbA)
+        physicsWorld = updateRigidBody(physicsWorld, rbB)
+    }
+    
+    return physicsWorld
+}
+
+fn findRigidBody(physicsWorld, entityId) {
+    let i = 0
+    while i < len(physicsWorld["rigidbodies"]) {
+        if physicsWorld["rigidbodies"][i]["entityId"] == entityId {
+            return physicsWorld["rigidbodies"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn updateRigidBody(physicsWorld, rigidbody) {
+    let i = 0
+    while i < len(physicsWorld["rigidbodies"]) {
+        if physicsWorld["rigidbodies"][i]["entityId"] == rigidbody["entityId"] {
+            physicsWorld["rigidbodies"][i] = rigidbody
+            break
+        }
+        i = i + 1
+    }
+    return physicsWorld
+}
+
+pub fn integrateRigidbodies(physicsWorld, dt) {
+    let i = 0
+    while i < len(physicsWorld["rigidbodies"]) {
+        let rb = physicsWorld["rigidbodies"][i]
+        
+        if rb["isKinematic"] != true && rb["isSleeping"] != true {
+            if rb["useGravity"] == true {
+                rb["velocity"]["x"] = rb["velocity"]["x"] + physicsWorld["gravity"]["x"] * dt
+                rb["velocity"]["y"] = rb["velocity"]["y"] + physicsWorld["gravity"]["y"] * dt
+                rb["velocity"]["z"] = rb["velocity"]["z"] + physicsWorld["gravity"]["z"] * dt
+            }
+            
+            let drag = 1.0 - rb["drag"] * dt
+            if drag < 0.0 { drag = 0.0 }
+            rb["velocity"]["x"] = rb["velocity"]["x"] * drag
+            rb["velocity"]["y"] = rb["velocity"]["y"] * drag
+            rb["velocity"]["z"] = rb["velocity"]["z"] * drag
+            
+            if rb["constraints"]["freezePositionX"] != true {
+                rb["position"]["x"] = rb["position"]["x"] + rb["velocity"]["x"] * dt
+            }
+            if rb["constraints"]["freezePositionY"] != true {
+                rb["position"]["y"] = rb["position"]["y"] + rb["velocity"]["y"] * dt
+            }
+            if rb["constraints"]["freezePositionZ"] != true {
+                rb["position"]["z"] = rb["position"]["z"] + rb["velocity"]["z"] * dt
+            }
+            
+            let speed = sqrt(rb["velocity"]["x"] * rb["velocity"]["x"] + rb["velocity"]["y"] * rb["velocity"]["y"] + rb["velocity"]["z"] * rb["velocity"]["z"])
+            if speed < physicsWorld["sleepThreshold"] {
+                rb["sleepTime"] = rb["sleepTime"] + dt
+            } else {
+                rb["sleepTime"] = 0.0
+            }
+        }
+        
+        physicsWorld["rigidbodies"][i] = rb
+        i = i + 1
+    }
+    
+    return physicsWorld
+}
+
+pub fn updateSleepingBodies(physicsWorld, dt) {
+    let i = 0
+    while i < len(physicsWorld["rigidbodies"]) {
+        let rb = physicsWorld["rigidbodies"][i]
+        
+        if rb["sleepTime"] > 0.5 {
+            rb["isSleeping"] = true
+            rb["velocity"] = { "x": 0.0, "y": 0.0, "z": 0.0 }
+            physicsWorld["sleepingBodies"]["" + rb["entityId"]] = true
+        } else {
+            rb["isSleeping"] = false
+            physicsWorld["sleepingBodies"]["" + rb["entityId"]] = null
+        }
+        
+        physicsWorld["rigidbodies"][i] = rb
+        i = i + 1
+    }
+    
+    return physicsWorld
+}
+
+pub fn wakeUpBody(physicsWorld, entityId) {
+    let i = 0
+    while i < len(physicsWorld["rigidbodies"]) {
+        if physicsWorld["rigidbodies"][i]["entityId"] == entityId {
+            physicsWorld["rigidbodies"][i]["isSleeping"] = false
+            physicsWorld["rigidbodies"][i]["sleepTime"] = 0.0
+            physicsWorld["sleepingBodies"]["" + entityId] = null
+            break
+        }
+        i = i + 1
+    }
+    return physicsWorld
+}
+
+pub fn getTriggerEvents(physicsWorld) {
+    return physicsWorld["triggerPairs"]
+}
+
+pub fn getCollisionPairs(physicsWorld) {
+    return physicsWorld["collisionPairs"]
+}
+
+pub fn raycast(physicsWorld, origin, direction, maxDistance) {
+    if maxDistance == null || maxDistance == undefined { maxDistance = 1000.0 }
+    
+    let hits = []
+    let i = 0
+    while i < len(physicsWorld["colliders"]) {
+        let collider = physicsWorld["colliders"][i]
+        let hit = raycastCollider(collider, origin, direction, maxDistance)
+        if hit != null {
+            hits = push(hits, {
+                "entityId": collider["entityId"],
+                "distance": hit["distance"],
+                "point": hit["point"],
+                "normal": hit["normal"]
+            })
+        }
+        i = i + 1
+    }
+    
+    return hits
+}
+
+fn raycastCollider(collider, origin, direction, maxDistance) {
+    if collider["kind"] == "SphereCollider" {
+        let center = collider["center"]
+        let radius = collider["radius"]
+        
+        let oc = {
+            "x": origin["x"] - center["x"],
+            "y": origin["y"] - center["y"],
+            "z": origin["z"] - center["z"]
+        }
+        
+        let a = direction["x"] * direction["x"] + direction["y"] * direction["y"] + direction["z"] * direction["z"]
+        let b = 2.0 * (oc["x"] * direction["x"] + oc["y"] * direction["y"] + oc["z"] * direction["z"])
+        let c = (oc["x"] * oc["x"] + oc["y"] * oc["y"] + oc["z"] * oc["z"]) - radius * radius
+        
+        let discriminant = b * b - 4.0 * a * c
+        
+        if discriminant >= 0.0 {
+            let t = (-b - sqrt(discriminant)) / (2.0 * a)
+            if t >= 0.0 && t <= maxDistance {
+                let point = {
+                    "x": origin["x"] + direction["x"] * t,
+                    "y": origin["y"] + direction["y"] * t,
+                    "z": origin["z"] + direction["z"] * t
+                }
+                let normal = {
+                    "x": point["x"] - center["x"],
+                    "y": point["y"] - center["y"],
+                    "z": point["z"] - center["z"]
+                }
+                let len = sqrt(normal["x"] * normal["x"] + normal["y"] * normal["y"] + normal["z"] * normal["z"])
+                if len > 0.0001 {
+                    normal["x"] = normal["x"] / len
+                    normal["y"] = normal["y"] / len
+                    normal["z"] = normal["z"] / len
+                }
+                return { "distance": t, "point": point, "normal": normal }
+            }
+        }
+    } else if collider["kind"] == "BoxCollider" {
+        let bounds = getColliderBounds(collider)
+        return raycastAABB(bounds, origin, direction, maxDistance)
+    }
+    
+    return null
+}
+
+fn raycastAABB(bounds, origin, direction, maxDistance) {
+    let invDir = { "x": 1.0 / direction["x"], "y": 1.0 / direction["y"], "z": 1.0 / direction["z"] }
+    
+    let t1 = (bounds["min"]["x"] - origin["x"]) * invDir["x"]
+    let t2 = (bounds["max"]["x"] - origin["x"]) * invDir["x"]
+    let t3 = (bounds["min"]["y"] - origin["y"]) * invDir["y"]
+    let t4 = (bounds["max"]["y"] - origin["y"]) * invDir["y"]
+    let t5 = (bounds["min"]["z"] - origin["z"]) * invDir["z"]
+    let t6 = (bounds["max"]["z"] - origin["z"]) * invDir["z"]
+    
+    let tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6))
+    let tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6))
+    
+    if tmax < 0.0 || tmin > tmax {
+        return null
+    }
+    
+    let t = tmin
+    if t < 0.0 { t = tmax }
+    
+    if t > maxDistance {
+        return null
+    }
+    
+    let point = {
+        "x": origin["x"] + direction["x"] * t,
+        "y": origin["y"] + direction["y"] * t,
+        "z": origin["z"] + direction["z"] * t
+    }
+    
+    let normal = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    if abs(point["x"] - bounds["min"]["x"]) < 0.001 { normal["x"] = -1.0 }
+    else if abs(point["x"] - bounds["max"]["x"]) < 0.001 { normal["x"] = 1.0 }
+    else if abs(point["y"] - bounds["min"]["y"]) < 0.001 { normal["y"] = -1.0 }
+    else if abs(point["y"] - bounds["max"]["y"]) < 0.001 { normal["y"] = 1.0 }
+    else if abs(point["z"] - bounds["min"]["z"]) < 0.001 { normal["z"] = -1.0 }
+    else if abs(point["z"] - bounds["max"]["z"]) < 0.001 { normal["z"] = 1.0 }
+    
+    return { "distance": t, "point": point, "normal": normal }
+}

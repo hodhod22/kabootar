@@ -1,0 +1,534 @@
+@version "1.0.0"
+
+// Kabootar game/core/characterController - Character controller using colliders directly.
+// Canonical path: import "game/core/characterController"
+
+pub fn createCharacterController(entityId, height, radius) {
+    return {
+        "kind": "CharacterController",
+        "entityId": entityId,
+        "height": height,
+        "radius": radius,
+        "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "velocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "grounded": false,
+        "groundNormal": { "x": 0.0, "y": 1.0, "z": 0.0 },
+        "slopeLimit": 45.0,
+        "stepOffset": 0.3,
+        "skinWidth": 0.08,
+        "moveDirection": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "moveSpeed": 5.0,
+        "jumpSpeed": 8.0,
+        "gravity": -20.0,
+        "isJumping": false,
+        "colliderLayers": 0xFFFFFFFF
+    }
+}
+
+pub fn move(controller, physicsWorld, direction, dt) {
+    controller["moveDirection"] = direction
+    
+    let moveSpeed = controller["moveSpeed"]
+    let velocity = {
+        "x": direction["x"] * moveSpeed,
+        "y": controller["velocity"]["y"],
+        "z": direction["z"] * moveSpeed
+    }
+    
+    velocity["y"] = velocity["y"] + controller["gravity"] * dt
+    
+    let deltaPosition = {
+        "x": velocity["x"] * dt,
+        "y": velocity["y"] * dt,
+        "z": velocity["z"] * dt
+    }
+    
+    controller = moveWithCollision(controller, physicsWorld, deltaPosition)
+    
+    controller["velocity"] = velocity
+    controller["position"] = {
+        "x": controller["position"]["x"] + deltaPosition["x"],
+        "y": controller["position"]["y"] + deltaPosition["y"],
+        "z": controller["position"]["z"] + deltaPosition["z"]
+    }
+    
+    return controller
+}
+
+fn moveWithCollision(controller, physicsWorld, deltaPosition) {
+    let skinWidth = controller["skinWidth"]
+    let height = controller["height"]
+    let radius = controller["radius"]
+    
+    let currentPos = controller["position"]
+    let targetPos = {
+        "x": currentPos["x"] + deltaPosition["x"],
+        "y": currentPos["y"] + deltaPosition["y"],
+        "z": currentPos["z"] + deltaPosition["z"]
+    }
+    
+    let capsule = createCapsuleFromController(controller)
+    
+    let horizontalDelta = { "x": deltaPosition["x"], "y": 0.0, "z": deltaPosition["z"] }
+    let horizontalDist = sqrt(horizontalDelta["x"] * horizontalDelta["x"] + horizontalDelta["z"] * horizontalDelta["z"])
+    
+    if horizontalDist > 0.0001 {
+        let horizontalDir = {
+            "x": horizontalDelta["x"] / horizontalDist,
+            "y": 0.0,
+            "z": horizontalDelta["z"] / horizontalDist
+        }
+        
+        let horizontalHit = sweepCapsule(physicsWorld, capsule, currentPos, horizontalDir, horizontalDist + skinWidth)
+        if horizontalHit != null {
+            let penetration = horizontalDist - horizontalHit["distance"] + skinWidth
+            if penetration > 0.0 {
+                targetPos["x"] = targetPos["x"] - horizontalDir["x"] * penetration
+                targetPos["z"] = targetPos["z"] - horizontalDir["z"] * penetration
+            }
+        }
+    }
+    
+    let verticalHit = sweepCapsule(physicsWorld, capsule, targetPos, { "x": 0.0, "y": -1.0, "z": 0.0 }, deltaPosition["y"] + skinWidth)
+    if verticalHit != null && deltaPosition["y"] < 0.0 {
+        let penetration = deltaPosition["y"] - verticalHit["distance"] + skinWidth
+        if penetration > 0.0 {
+            targetPos["y"] = targetPos["y"] - penetration
+            controller["grounded"] = true
+            controller["groundNormal"] = verticalHit["normal"]
+            controller["velocity"]["y"] = 0.0
+            controller["isJumping"] = false
+        }
+    } else {
+        controller["grounded"] = false
+    }
+    
+    controller["position"] = targetPos
+    return controller
+}
+
+fn createCapsuleFromController(controller) {
+    let center = controller["position"]
+    let height = controller["height"]
+    let radius = controller["radius"]
+    
+    return {
+        "kind": "CapsuleCollider",
+        "center": center,
+        "radius": radius,
+        "height": height,
+        "entityId": controller["entityId"]
+    }
+}
+
+fn sweepCapsule(physicsWorld, capsule, from, direction, maxDistance) {
+    let i = 0
+    let closestHit = null
+    let closestDistance = maxDistance
+    
+    while i < len(physicsWorld["colliders"]) {
+        let collider = physicsWorld["colliders"][i]
+        if collider["entityId"] != capsule["entityId"] {
+            let hit = sweepCapsuleAgainstCollider(capsule, collider, from, direction, maxDistance)
+            if hit != null && hit["distance"] < closestDistance {
+                closestHit = hit
+                closestDistance = hit["distance"]
+            }
+        }
+        i = i + 1
+    }
+    
+    return closestHit
+}
+
+fn sweepCapsuleAgainstCollider(capsule, collider, from, direction, maxDistance) {
+    let colliderType = collider["kind"]
+    
+    if colliderType == "BoxCollider" {
+        return sweepCapsuleBox(capsule, collider, from, direction, maxDistance)
+    } else if colliderType == "SphereCollider" {
+        return sweepCapsuleSphere(capsule, collider, from, direction, maxDistance)
+    } else if colliderType == "CapsuleCollider" {
+        return sweepCapsuleCapsule(capsule, collider, from, direction, maxDistance)
+    }
+    
+    return null
+}
+
+fn sweepCapsuleBox(capsule, box, from, direction, maxDistance) {
+    let capsuleCenter = capsule["center"]
+    let capsuleRadius = capsule["radius"]
+    let capsuleHeight = capsule["height"]
+    
+    let boxBounds = getColliderBounds(box)
+    
+    let segment = {
+        "start": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] - capsuleHeight / 2.0, "z": capsuleCenter["z"] },
+        "end": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] + capsuleHeight / 2.0, "z": capsuleCenter["z"] }
+    }
+    
+    let movedSegment = {
+        "start": {
+            "x": segment["start"]["x"] + direction["x"] * maxDistance,
+            "y": segment["start"]["y"] + direction["y"] * maxDistance,
+            "z": segment["start"]["z"] + direction["z"] * maxDistance
+        },
+        "end": {
+            "x": segment["end"]["x"] + direction["x"] * maxDistance,
+            "y": segment["end"]["y"] + direction["y"] * maxDistance,
+            "z": segment["end"]["z"] + direction["z"] * maxDistance
+        }
+    }
+    
+    let closest = closestPointSegmentBox(movedSegment, boxBounds)
+    
+    let dx = closest["x"] - capsuleCenter["x"]
+    let dy = closest["y"] - capsuleCenter["y"]
+    let dz = closest["z"] - capsuleCenter["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance < capsuleRadius {
+        let penetration = capsuleRadius - distance
+        let hitDistance = maxDistance - penetration
+        if hitDistance >= 0.0 {
+            let normal = normalize(subtractVectors(closest, capsuleCenter))
+            if distance < 0.0001 {
+                normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+            }
+            return {
+                "distance": hitDistance,
+                "normal": normal,
+                "point": closest
+            }
+        }
+    }
+    
+    return null
+}
+
+fn sweepCapsuleSphere(capsule, sphere, from, direction, maxDistance) {
+    let capsuleCenter = capsule["center"]
+    let capsuleRadius = capsule["radius"]
+    let capsuleHeight = capsule["height"]
+    let sphereCenter = sphere["center"]
+    let sphereRadius = sphere["radius"]
+    
+    let segment = {
+        "start": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] - capsuleHeight / 2.0, "z": capsuleCenter["z"] },
+        "end": { "x": capsuleCenter["x"], "y": capsuleCenter["y"] + capsuleHeight / 2.0, "z": capsuleCenter["z"] }
+    }
+    
+    let movedSegment = {
+        "start": {
+            "x": segment["start"]["x"] + direction["x"] * maxDistance,
+            "y": segment["start"]["y"] + direction["y"] * maxDistance,
+            "z": segment["start"]["z"] + direction["z"] * maxDistance
+        },
+        "end": {
+            "x": segment["end"]["x"] + direction["x"] * maxDistance,
+            "y": segment["end"]["y"] + direction["y"] * maxDistance,
+            "z": segment["end"]["z"] + direction["z"] * maxDistance
+        }
+    }
+    
+    let closest = closestPointSegmentPoint(movedSegment, sphereCenter)
+    
+    let dx = closest["x"] - sphereCenter["x"]
+    let dy = closest["y"] - sphereCenter["y"]
+    let dz = closest["z"] - sphereCenter["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance < capsuleRadius + sphereRadius {
+        let penetration = capsuleRadius + sphereRadius - distance
+        let hitDistance = maxDistance - penetration
+        if hitDistance >= 0.0 {
+            let normal = normalize(subtractVectors(closest, sphereCenter))
+            if distance < 0.0001 {
+                normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+            }
+            return {
+                "distance": hitDistance,
+                "normal": normal,
+                "point": closest
+            }
+        }
+    }
+    
+    return null
+}
+
+fn sweepCapsuleCapsule(capsuleA, capsuleB, from, direction, maxDistance) {
+    let centerA = capsuleA["center"]
+    let radiusA = capsuleA["radius"]
+    let heightA = capsuleA["height"]
+    let centerB = capsuleB["center"]
+    let radiusB = capsuleB["radius"]
+    let heightB = capsuleB["height"]
+    
+    let segmentA = {
+        "start": { "x": centerA["x"], "y": centerA["y"] - heightA / 2.0, "z": centerA["z"] },
+        "end": { "x": centerA["x"], "y": centerA["y"] + heightA / 2.0, "z": centerA["z"] }
+    }
+    
+    let movedSegmentA = {
+        "start": {
+            "x": segmentA["start"]["x"] + direction["x"] * maxDistance,
+            "y": segmentA["start"]["y"] + direction["y"] * maxDistance,
+            "z": segmentA["start"]["z"] + direction["z"] * maxDistance
+        },
+        "end": {
+            "x": segmentA["end"]["x"] + direction["x"] * maxDistance,
+            "y": segmentA["end"]["y"] + direction["y"] * maxDistance,
+            "z": segmentA["end"]["z"] + direction["z"] * maxDistance
+        }
+    }
+    
+    let segmentB = {
+        "start": { "x": centerB["x"], "y": centerB["y"] - heightB / 2.0, "z": centerB["z"] },
+        "end": { "x": centerB["x"], "y": centerB["y"] + heightB / 2.0, "z": centerB["z"] }
+    }
+    
+    let closest = closestPointsSegments(movedSegmentA, segmentB)
+    
+    let dx = closest["a"]["x"] - closest["b"]["x"]
+    let dy = closest["a"]["y"] - closest["b"]["y"]
+    let dz = closest["a"]["z"] - closest["b"]["z"]
+    let distance = sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if distance < radiusA + radiusB {
+        let penetration = radiusA + radiusB - distance
+        let hitDistance = maxDistance - penetration
+        if hitDistance >= 0.0 {
+            let normal = normalize(subtractVectors(closest["a"], closest["b"]))
+            if distance < 0.0001 {
+                normal = { "x": 0.0, "y": 1.0, "z": 0.0 }
+            }
+            return {
+                "distance": hitDistance,
+                "normal": normal,
+                "point": closest["b"]
+            }
+        }
+    }
+    
+    return null
+}
+
+fn closestPointSegmentBox(segment, bounds) {
+    let closest = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    let minDist = 999999.0
+    
+    let t = 0.0
+    while t <= 1.0 {
+        t = t + 0.1
+        let point = {
+            "x": segment["start"]["x"] + t * (segment["end"]["x"] - segment["start"]["x"]),
+            "y": segment["start"]["y"] + t * (segment["end"]["y"] - segment["start"]["y"]),
+            "z": segment["start"]["z"] + t * (segment["end"]["z"] - segment["start"]["z"])
+        }
+        
+        let clamped = {
+            "x": max(bounds["min"]["x"], min(point["x"], bounds["max"]["x"])),
+            "y": max(bounds["min"]["y"], min(point["y"], bounds["max"]["y"])),
+            "z": max(bounds["min"]["z"], min(point["z"], bounds["max"]["z"]))
+        }
+        
+        let dx = point["x"] - clamped["x"]
+        let dy = point["y"] - clamped["y"]
+        let dz = point["z"] - clamped["z"]
+        let dist = dx * dx + dy * dy + dz * dz
+        
+        if dist < minDist {
+            minDist = dist
+            closest = clamped
+        }
+    }
+    
+    return closest
+}
+
+fn closestPointSegmentPoint(segment, point) {
+    let d = subtractVectors(segment["end"], segment["start"])
+    let f = subtractVectors(point, segment["start"])
+    
+    let t = dotProduct(f, d) / dotProduct(d, d)
+    t = clamp(t, 0.0, 1.0)
+    
+    return {
+        "x": segment["start"]["x"] + t * d["x"],
+        "y": segment["start"]["y"] + t * d["y"],
+        "z": segment["start"]["z"] + t * d["z"]
+    }
+}
+
+fn closestPointsSegments(segmentA, segmentB) {
+    let d1 = subtractVectors(segmentA["end"], segmentA["start"])
+    let d2 = subtractVectors(segmentB["end"], segmentB["start"])
+    let r = subtractVectors(segmentA["start"], segmentB["start"])
+    
+    let a = dotProduct(d1, d1)
+    let e = dotProduct(d2, d2)
+    let f = dotProduct(d2, r)
+    
+    let s, t
+    if a <= 0.0001 && e <= 0.0001 {
+        s = 0.0
+        t = 0.0
+    } else if a <= 0.0001 {
+        s = 0.0
+        t = clamp(f / e, 0.0, 1.0)
+    } else if e <= 0.0001 {
+        s = clamp(-dotProduct(d1, r) / a, 0.0, 1.0)
+        t = 0.0
+    } else {
+        let c = dotProduct(d1, r)
+        let denom = a * e - dotProduct(d1, d2) * dotProduct(d1, d2)
+        
+        if denom != 0.0 {
+            s = clamp((c * e - f * dotProduct(d1, d2)) / denom, 0.0, 1.0)
+        } else {
+            s = 0.0
+        }
+        
+        t = (dotProduct(d1, d2) * s + f) / e
+        
+        if t < 0.0 {
+            t = 0.0
+            s = clamp(-c / a, 0.0, 1.0)
+        } else if t > 1.0 {
+            t = 1.0
+            s = clamp((dotProduct(d1, d2) - c) / a, 0.0, 1.0)
+        }
+    }
+    
+    let closestA = {
+        "x": segmentA["start"]["x"] + s * d1["x"],
+        "y": segmentA["start"]["y"] + s * d1["y"],
+        "z": segmentA["start"]["z"] + s * d1["z"]
+    }
+    let closestB = {
+        "x": segmentB["start"]["x"] + t * d2["x"],
+        "y": segmentB["start"]["y"] + t * d2["y"],
+        "z": segmentB["start"]["z"] + t * d2["z"]
+    }
+    
+    return { "a": closestA, "b": closestB }
+}
+
+fn getColliderBounds(collider) {
+    if collider["kind"] == "BoxCollider" {
+        let center = collider["center"]
+        let size = collider["size"]
+        return {
+            "min": {
+                "x": center["x"] - size["x"] / 2.0,
+                "y": center["y"] - size["y"] / 2.0,
+                "z": center["z"] - size["z"] / 2.0
+            },
+            "max": {
+                "x": center["x"] + size["x"] / 2.0,
+                "y": center["y"] + size["y"] / 2.0,
+                "z": center["z"] + size["z"] / 2.0
+            }
+        }
+    } else if collider["kind"] == "SphereCollider" {
+        let center = collider["center"]
+        let radius = collider["radius"]
+        return {
+            "min": {
+                "x": center["x"] - radius,
+                "y": center["y"] - radius,
+                "z": center["z"] - radius
+            },
+            "max": {
+                "x": center["x"] + radius,
+                "y": center["y"] + radius,
+                "z": center["z"] + radius
+            }
+        }
+    } else if collider["kind"] == "CapsuleCollider" {
+        let center = collider["center"]
+        let radius = collider["radius"]
+        let height = collider["height"]
+        return {
+            "min": {
+                "x": center["x"] - radius,
+                "y": center["y"] - height / 2.0 - radius,
+                "z": center["z"] - radius
+            },
+            "max": {
+                "x": center["x"] + radius,
+                "y": center["y"] + height / 2.0 + radius,
+                "z": center["z"] + radius
+            }
+        }
+    }
+    return { "min": { "x": 0.0, "y": 0.0, "z": 0.0 }, "max": { "x": 0.0, "y": 0.0, "z": 0.0 } }
+}
+
+fn subtractVectors(a, b) {
+    return { "x": a["x"] - b["x"], "y": a["y"] - b["y"], "z": a["z"] - b["z"] }
+}
+
+fn dotProduct(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len < 0.0001 {
+        return { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    return { "x": v["x"] / len, "y": v["y"] / len, "z": v["z"] / len }
+}
+
+fn clamp(value, min, max) {
+    if value < min { return min }
+    if value > max { return max }
+    return value
+}
+
+pub fn jump(controller) {
+    if controller["grounded"] == true {
+        controller["velocity"]["y"] = controller["jumpSpeed"]
+        controller["isJumping"] = true
+        controller["grounded"] = false
+    }
+    return controller
+}
+
+pub fn setMoveSpeed(controller, speed) {
+    controller["moveSpeed"] = speed
+    return controller
+}
+
+pub fn setJumpSpeed(controller, speed) {
+    controller["jumpSpeed"] = speed
+    return controller
+}
+
+pub fn setGravity(controller, gravity) {
+    controller["gravity"] = gravity
+    return controller
+}
+
+pub fn isGrounded(controller) {
+    return controller["grounded"] == true
+}
+
+pub fn getGroundNormal(controller) {
+    return controller["groundNormal"]
+}
+
+pub fn setPosition(controller, x, y, z) {
+    controller["position"] = { "x": x, "y": y, "z": z }
+    return controller
+}
+
+pub fn getPosition(controller) {
+    return controller["position"]
+}
+
+pub fn getVelocity(controller) {
+    return controller["velocity"]
+}

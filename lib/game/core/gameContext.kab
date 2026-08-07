@@ -1,12 +1,16 @@
-@version "1.0.0"
+@version "2.0.0"
 
-// Kabootar game/core/gameContext - Unified game context with input, time, and event systems.
+// Kabootar game/core/gameContext - Unified game context with ECS 3.0, physics, rendering, input, and events.
+// This is the recommended entry point for the game engine.
 // Canonical path: import "game/core/gameContext"
 
-import "game/core/ecs2"
+import "game/core/ecs3"
 import "game/core/transform2"
-import "game/core/physics2"
-import "game/core/renderPipeline"
+import "game/core/physics3"
+import "game/core/renderPipeline2"
+import "game/core/characterController"
+import "game/core/instancing"
+import "game/core/sceneGraph"
 
 pub fn createGameContext(width, height) {
     return {
@@ -14,6 +18,7 @@ pub fn createGameContext(width, height) {
         "world": createWorld(),
         "physicsWorld": createPhysicsWorld(),
         "renderPipeline": createRenderPipeline(),
+        "instancingSystem": createInstancingSystem(),
         "time": createTimeManager(),
         "input": createInputSystem(),
         "events": createEventManager(),
@@ -24,7 +29,8 @@ pub fn createGameContext(width, height) {
         "elapsedTime": 0.0,
         "frameCount": 0,
         "isPaused": false,
-        "timeScale": 1.0
+        "timeScale": 1.0,
+        "version": "2.0.0"
     }
 }
 
@@ -52,10 +58,19 @@ pub fn fixedUpdateGameContext(context) {
     let fixedDt = context["fixedDeltaTime"] * context["timeScale"]
     context["physicsWorld"] = physicsStep(context["physicsWorld"], fixedDt)
     
+    let triggerEvents = getTriggerEvents(context["physicsWorld"])
+    let i = 0
+    while i < len(triggerEvents) {
+        let event = triggerEvents[i]
+        context["events"] = emitEvent(context["events"], event["type"], event)
+        i = i + 1
+    }
+    
     return context
 }
 
 pub fn renderGameContext(context) {
+    context["renderPipeline"] = mergeInstancingWithPipeline(context["instancingSystem"], context["renderPipeline"])
     let result = executeRenderPipeline(context["renderPipeline"])
     context["renderPipeline"] = result["pipeline"]
     return { "context": context, "drawCalls": result["drawCalls"] }

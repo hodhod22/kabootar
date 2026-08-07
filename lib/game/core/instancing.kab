@@ -1,0 +1,150 @@
+@version "1.0.0"
+
+// Kabootar game/core/instancing - Automatic GPU instancing system.
+// Canonical path: import "game/core/instancing"
+
+pub fn createInstancingSystem() {
+    return {
+        "kind": "InstancingSystem",
+        "instanceGroups": {},
+        "maxInstancesPerGroup": 1024,
+        "enabled": true
+    }
+}
+
+pub fn addRenderableForInstancing(system, renderable) {
+    let mesh = renderable["mesh"]
+    let material = renderable["material"]
+    let groupKey = mesh + "|" + material
+    
+    let group = system["instanceGroups"][groupKey]
+    if group == null || group == undefined {
+        group = {
+            "mesh": mesh,
+            "material": material,
+            "instances": [],
+            "transforms": [],
+            "count": 0
+        }
+    }
+    
+    if group["count"] < system["maxInstancesPerGroup"] {
+        group["instances"] = push(group["instances"], renderable["entityId"])
+        group["transforms"] = push(group["transforms"], renderable["transform"])
+        group["count"] = group["count"] + 1
+    }
+    
+    system["instanceGroups"][groupKey] = group
+    return system
+}
+
+pub fn removeRenderableFromInstancing(system, entityId) {
+    for groupKey in system["instanceGroups"] {
+        let group = system["instanceGroups"][groupKey]
+        let newInstances = []
+        let newTransforms = []
+        let i = 0
+        while i < len(group["instances"]) {
+            if group["instances"][i] != entityId {
+                newInstances = push(newInstances, group["instances"][i])
+                newTransforms = push(newTransforms, group["transforms"][i])
+            }
+            i = i + 1
+        }
+        group["instances"] = newInstances
+        group["transforms"] = newTransforms
+        group["count"] = len(newInstances)
+        system["instanceGroups"][groupKey] = group
+    }
+    return system
+}
+
+pub fn updateInstanceTransform(system, entityId, transform) {
+    for groupKey in system["instanceGroups"] {
+        let group = system["instanceGroups"][groupKey]
+        let i = 0
+        while i < len(group["instances"]) {
+            if group["instances"][i] == entityId {
+                group["transforms"][i] = transform
+                system["instanceGroups"][groupKey] = group
+                break
+            }
+            i = i + 1
+        }
+    }
+    return system
+}
+
+pub fn getInstancedDrawCalls(system) {
+    let drawCalls = []
+    
+    for groupKey in system["instanceGroups"] {
+        let group = system["instanceGroups"][groupKey]
+        if group["count"] > 1 {
+            drawCalls = push(drawCalls, {
+                "mesh": group["mesh"],
+                "material": group["material"],
+                "instanceCount": group["count"],
+                "transforms": group["transforms"],
+                "isInstanced": true
+            })
+        }
+    }
+    
+    return drawCalls
+}
+
+pub fn clearInstancingSystem(system) {
+    system["instanceGroups"] = {}
+    return system
+}
+
+pub fn getInstancingStats(system) {
+    let totalInstances = 0
+    let groupCount = len(system["instanceGroups"])
+    
+    for groupKey in system["instanceGroups"] {
+        let group = system["instanceGroups"][groupKey]
+        totalInstances = totalInstances + group["count"]
+    }
+    
+    return {
+        "groupCount": groupCount,
+        "totalInstances": totalInstances,
+        "maxInstancesPerGroup": system["maxInstancesPerGroup"]
+    }
+}
+
+pub fn setMaxInstancesPerGroup(system, maxInstances) {
+    system["maxInstancesPerGroup"] = maxInstances
+    return system
+}
+
+pub fn enableInstancing(system, enabled) {
+    system["enabled"] = enabled == true
+    return system
+}
+
+pub fn isInstancingEnabled(system) {
+    return system["enabled"] == true
+}
+
+pub fn mergeInstancingWithPipeline(system, pipeline) {
+    if system["enabled"] != true {
+        return pipeline
+    }
+    
+    let instancedDrawCalls = getInstancedDrawCalls(system)
+    let i = 0
+    while i < len(instancedDrawCalls) {
+        let instancedCall = instancedDrawCalls[i]
+        let renderable = createRenderable(0, instancedCall["mesh"], instancedCall["material"], null, null)
+        renderable["instanceCount"] = instancedCall["instanceCount"]
+        renderable["transforms"] = instancedCall["transforms"]
+        renderable["isInstanced"] = true
+        pipeline = addRenderable(pipeline, renderable)
+        i = i + 1
+    }
+    
+    return pipeline
+}
