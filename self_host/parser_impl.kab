@@ -546,13 +546,9 @@ fn parseMul() {
     return pLeft
 }
 
-fn parseCompare() {
-    if pCur.type == "EOF" {
-        throw "parseCompare EOF"
-    }
+// P6b: mul + iterative +/- + shifts (no compare/bit/&&). Used as RHS of compares.
+fn parseAddShift() {
     pLeft = parseMul()
-    // P6b: iterative left-assoc + / - (was right-recursive parseCompare → deep call + work).
-    // RHS = mul + optional tighter shifts (JS: << binds tighter than +).
     while pCur.type == "+" {
         bump()
         pSave = pLeft
@@ -575,96 +571,68 @@ fn parseCompare() {
         }
         pLeft = { "kind": AST_BINARY, "op": "-", "left": pSave, "right": pRight }
     }
-    // Shifts bind tighter than comparisons (and must run even inside + / bit RHS).
     while pCur.type == "<<" || pCur.type == ">>" || pCur.type == ">>>" {
         pBinOp = pCur.type
         bump()
         pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
+        // JS: + binds tighter than << — allow +/- on shift RHS.
+        pRight = parseMul()
+        while pCur.type == "+" || pCur.type == "-" {
+            let addOp = pCur.type
+            bump()
+            pRight = { "kind": AST_BINARY, "op": addOp, "left": pRight, "right": parseMul() }
+        }
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
+    return pLeft
+}
+
+// P6b: compares only (no bit/&&). Used as RHS of &/^/| when pNoBit.
+fn parseRelExpr() {
+    pLeft = parseAddShift()
+    while pCur.type == "==" || pCur.type == "!=" || pCur.type == "<" || pCur.type == ">" || pCur.type == ">=" || pCur.type == "<=" {
+        pBinOp = pCur.type
+        bump()
+        pSave = pLeft
+        pRight = parseAddShift()
+        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
+    }
+    return pLeft
+}
+
+fn parseCompare() {
+    if pCur.type == "EOF" {
+        throw "parseCompare EOF"
+    }
+    // P6b: fully iterative precedence climb (no right-recursive parseCompare).
+    pLeft = parseAddShift()
     if pInAddSub == 1 {
         return pLeft
     }
-    while pCur.type == "==" {
+    while pCur.type == "==" || pCur.type == "!=" || pCur.type == "<" || pCur.type == ">" || pCur.type == ">=" || pCur.type == "<=" {
         pBinOp = pCur.type
         bump()
         pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
-    }
-    while pCur.type == "!=" {
-        pBinOp = pCur.type
-        bump()
-        pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
-    }
-    while pCur.type == "<" {
-        pBinOp = pCur.type
-        bump()
-        pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
-    }
-    while pCur.type == ">" {
-        pBinOp = pCur.type
-        bump()
-        pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
-    }
-    while pCur.type == ">=" {
-        pBinOp = pCur.type
-        bump()
-        pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
-    }
-    while pCur.type == "<=" {
-        pBinOp = pCur.type
-        bump()
-        pSave = pLeft
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
+        pRight = parseAddShift()
         pLeft = { "kind": AST_BINARY, "op": pBinOp, "left": pSave, "right": pRight }
     }
     if pNoBit == 0 {
         while pCur.type == "&" {
             bump()
             pSave = pLeft
-            pNoBit = 1
-            pRight = parseCompare()
-            pNoBit = 0
+            pRight = parseRelExpr()
             pLeft = { "kind": AST_BINARY, "op": "&", "left": pSave, "right": pRight }
         }
         while pCur.type == "^" {
             bump()
             pSave = pLeft
-            pNoBit = 1
-            pRight = parseCompare()
-            pNoBit = 0
+            pRight = parseRelExpr()
             pLeft = { "kind": AST_BINARY, "op": "^", "left": pSave, "right": pRight }
         }
         while pCur.type == "|" {
             bump()
             pSave = pLeft
-            pNoBit = 1
-            pRight = parseCompare()
-            pNoBit = 0
+            pRight = parseRelExpr()
             pLeft = { "kind": AST_BINARY, "op": "|", "left": pSave, "right": pRight }
         }
     }
@@ -674,13 +642,42 @@ fn parseCompare() {
     while pCur.type == "&&" {
         bump()
         pExprLeft = pLeft
-        pRight = parseCompare()
+        pRight = parseRelExpr()
+        // bit binds tighter — allow &/^/| on && RHS
+        if pNoBit == 0 {
+            while pCur.type == "&" || pCur.type == "^" || pCur.type == "|" {
+                pBinOp = pCur.type
+                bump()
+                pRight = { "kind": AST_BINARY, "op": pBinOp, "left": pRight, "right": parseRelExpr() }
+            }
+        }
         pLeft = { "kind": AST_BINARY, "op": "&&", "left": pExprLeft, "right": pRight }
     }
     while pCur.type == "||" {
         bump()
         pExprLeft = pLeft
-        pRight = parseCompare()
+        // || RHS: &&-chain of rel/bit
+        pRight = parseRelExpr()
+        if pNoBit == 0 {
+            while pCur.type == "&" || pCur.type == "^" || pCur.type == "|" {
+                pBinOp = pCur.type
+                bump()
+                pRight = { "kind": AST_BINARY, "op": pBinOp, "left": pRight, "right": parseRelExpr() }
+            }
+        }
+        while pCur.type == "&&" {
+            bump()
+            let andLeft = pRight
+            let andRight = parseRelExpr()
+            if pNoBit == 0 {
+                while pCur.type == "&" || pCur.type == "^" || pCur.type == "|" {
+                    pBinOp = pCur.type
+                    bump()
+                    andRight = { "kind": AST_BINARY, "op": pBinOp, "left": andRight, "right": parseRelExpr() }
+                }
+            }
+            pRight = { "kind": AST_BINARY, "op": "&&", "left": andLeft, "right": andRight }
+        }
         pLeft = { "kind": AST_BINARY, "op": "||", "left": pExprLeft, "right": pRight }
     }
     return pLeft

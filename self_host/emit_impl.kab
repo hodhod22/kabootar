@@ -77,6 +77,8 @@ let eBlockI = 0
 let eBlockNStack = []
 let eBlockIStack = []
 let eBlockStmtsStack = []
+let eBlockDepth = 0
+let eCalleeDepth = 0
 let eLenScratch = 0
 let eFld = null
 let eIfJmpStack = []
@@ -263,9 +265,16 @@ fn emitOp(op, arg) {
 
 /// Nested calls: save callee before recursive emitExpr on args (module-global eCallee).
 fn emitCallCallee() {
-    eCallee = eCalleeStack[len(eCalleeStack) - 1]
+    // P6b: use eCalleeDepth (avoid len(eCalleeStack) LoadGlobal clone).
+    eCallee = eCalleeStack[eCalleeDepth - 1]
     eCalleeStack = pop(eCalleeStack)
+    eCalleeDepth = eCalleeDepth - 1
     emitExpr(eCallee)
+}
+
+fn dropCallCallee() {
+    eCalleeStack = pop(eCalleeStack)
+    eCalleeDepth = eCalleeDepth - 1
 }
 
 fn emitSym(store, sym) {
@@ -681,6 +690,7 @@ fn emitExpr(node) {
     if eNode.kind == AST_CALL {
         eArgs = eNode["args"]
         eCalleeStack = push(eCalleeStack, eNode["callee"])
+        eCalleeDepth = eCalleeDepth + 1
         eCallee = eNode["callee"]
         if eCallee.kind == AST_VAR {
             let ctorName = eCallee["sym"]
@@ -689,18 +699,21 @@ fn emitExpr(node) {
                     emitExpr(eArgs[0])
                     emitOp(OP_MAKE_OK, 0)
                     eCalleeStack = pop(eCalleeStack)
+                    eCalleeDepth = eCalleeDepth - 1
                     return
                 }
                 if ctorName == "Err" {
                     emitExpr(eArgs[0])
                     emitOp(OP_MAKE_ERR, 0)
                     eCalleeStack = pop(eCalleeStack)
+                    eCalleeDepth = eCalleeDepth - 1
                     return
                 }
                 if ctorName == "Some" {
                     emitExpr(eArgs[0])
                     emitOp(OP_MAKE_SOME, 0)
                     eCalleeStack = pop(eCalleeStack)
+                    eCalleeDepth = eCalleeDepth - 1
                     return
                 }
             }
@@ -810,6 +823,7 @@ fn emitExpr(node) {
                         emitOp(OP_POP, 0)
                         eArgN = eArgN - 1
                     }
+                    dropCallCallee()
                     return
                 }
             }
@@ -980,6 +994,7 @@ fn emitExpr(node) {
             eCallArgIStack = pop(eCallArgIStack)
             eCallArgNStack = pop(eCallArgNStack)
             emitOp(OP_CALL, eArgN)
+            dropCallCallee()
             return
         }
         }
@@ -1119,9 +1134,12 @@ fn emitExpr(node) {
                 }
                 if eInFn == 1 {
                     eFnOps = push(eFnOps, { "op": OP_NEW_INSTANCE, "arg": eClassIdx, "arg2": eArgN })
+                    eFnOpsN = eFnOpsN + 1
                 } else {
                     eOps = push(eOps, { "op": OP_NEW_INSTANCE, "arg": eClassIdx, "arg2": eArgN })
+                    eOpsN = eOpsN + 1
                 }
+                dropCallCallee()
                 return
             }
             eGenTmpl = null
@@ -1258,9 +1276,12 @@ fn emitExpr(node) {
                 eCallArgNStack = pop(eCallArgNStack)
                 if eInFn == 1 {
                     eFnOps = push(eFnOps, { "op": OP_NEW_INSTANCE, "arg": eClassIdx, "arg2": eArgN })
+                    eFnOpsN = eFnOpsN + 1
                 } else {
                     eOps = push(eOps, { "op": OP_NEW_INSTANCE, "arg": eClassIdx, "arg2": eArgN })
+                    eOpsN = eOpsN + 1
                 }
+                dropCallCallee()
                 return
             }
         }
@@ -1554,13 +1575,13 @@ fn emitStmt(node) {
         let tryBody = eNode["body"]
         let tryHandler = eNode["handler"]
         let errName = eNode["errName"]
-        let bodyStart = len(eFnOps)
+        let bodyStart = eFnOpsN
         emitStmt(tryBody)
-        let bodyEnd = len(eFnOps)
+        let bodyEnd = eFnOpsN
         // Statement try: jump over catch on success (throw uses tryRegions).
         emitOp(OP_JUMP, 0)
         let jmpEndIdx = bodyEnd
-        let catchStart = len(eFnOps)
+        let catchStart = eFnOpsN
         let errLocal = symIndex("local", errName)
         eFnTryRegions = push(eFnTryRegions, {
             "bodyStart": bodyStart,
@@ -1570,7 +1591,7 @@ fn emitStmt(node) {
         })
         emitOp(OP_STORE_LOCAL, errLocal)
         emitStmt(tryHandler)
-        let afterCatch = len(eFnOps)
+        let afterCatch = eFnOpsN
         eFnOps[jmpEndIdx] = { "op": OP_JUMP, "arg": afterCatch - jmpEndIdx - 1 }
         return
     }
@@ -1595,7 +1616,7 @@ fn emitStmt(node) {
         emitOp(OP_CALL, 1)
         emitOp(OP_STORE_LOCAL, srcIdx)
         eBreakFromStack = arrUtil("pushLen", eBreakFromStack, eBreakIdxs)
-        let loopStart = len(eFnOps)
+        let loopStart = eFnOpsN
         eWhileHeads = push(eWhileHeads, loopStart)
         emitOp(OP_LOAD_LOCAL, srcIdx)
         emitOp(OP_ITER_STEP, 0)
@@ -1604,19 +1625,19 @@ fn emitStmt(node) {
         emitOp(OP_LOAD_LOCAL, resIdx)
         emitOp(OP_CONST, symIndex("const", "done"))
         emitOp(OP_INDEX_GET, 0)
-        let jmpDoneIdx = len(eFnOps)
+        let jmpDoneIdx = eFnOpsN
         emitOp(OP_JUMP_IF_FALSE, 0)
-        let jmpExitIdx = len(eFnOps)
+        let jmpExitIdx = eFnOpsN
         emitOp(OP_JUMP, 0)
-        let bodyStart = len(eFnOps)
+        let bodyStart = eFnOpsN
         eFnOps[jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": bodyStart - jmpDoneIdx - 1 }
         emitOp(OP_LOAD_LOCAL, resIdx)
         emitOp(OP_CONST, symIndex("const", "value"))
         emitOp(OP_INDEX_GET, 0)
         emitOp(OP_STORE_LOCAL, varIdx)
         emitStmt(forBody)
-        emitOp(OP_JUMP, loopStart - len(eFnOps) - 1)
-        let loopEnd = len(eFnOps)
+        emitOp(OP_JUMP, loopStart - eFnOpsN - 1)
+        let loopEnd = eFnOpsN
         eFnOps[jmpExitIdx] = { "op": OP_JUMP, "arg": loopEnd - jmpExitIdx - 1 }
         eBf = eBreakFromStack[len(eBreakFromStack) - 1]
         eBi = eBf
@@ -1655,21 +1676,22 @@ fn emitStmt(node) {
         eBlockStmtsStack = push(eBlockStmtsStack, eNode["body"])
         eBlockNStack = arrUtil("pushLen",eBlockNStack, eNode["body"])
         eBlockIStack = push(eBlockIStack, 0)
-        while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1] {
-            eBlockStmts = eBlockStmtsStack[len(eBlockStmtsStack) - 1]
-            eBlockI = eBlockIStack[len(eBlockIStack) - 1]
+        eBlockDepth = eBlockDepth + 1
+        let bd = eBlockDepth
+        while eBlockIStack[bd - 1] < eBlockNStack[bd - 1] {
+            eBlockStmts = eBlockStmtsStack[bd - 1]
+            eBlockI = eBlockIStack[bd - 1]
             eStmtNode = eBlockStmts[eBlockI]
             if eStmtNode == null {
                 throw "emit block null stmt at " + ("" + eBlockI)
             }
             emitStmt(eStmtNode)
-            eBlockI = eBlockIStack[len(eBlockIStack) - 1] + 1
-            eBlockIStack = pop(eBlockIStack)
-            eBlockIStack = push(eBlockIStack, eBlockI)
+            eBlockIStack[bd - 1] = eBlockIStack[bd - 1] + 1
         }
         eBlockStmtsStack = pop(eBlockStmtsStack)
         eBlockNStack = pop(eBlockNStack)
         eBlockIStack = pop(eBlockIStack)
+        eBlockDepth = eBlockDepth - 1
         return
     }
     if eNode.kind == AST_CONTINUE {
@@ -1906,6 +1928,8 @@ pub fn emitImpl(program) {
     eFunctions = []
     eFnOps = []
     eFnOpsN = 0
+    eBlockDepth = 0
+    eCalleeDepth = 0
     eFnGlobals = []
     eFnLocals = []
     resetLocalMap()
@@ -1949,18 +1973,19 @@ pub fn emitImpl(program) {
     eBlockStmtsStack = push(eBlockStmtsStack, eProgram["body"])
     eBlockNStack = arrUtil("pushLen",eBlockNStack, eProgram["body"])
     eBlockIStack = push(eBlockIStack, 0)
-    while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1] {
-        eBlockStmts = eBlockStmtsStack[len(eBlockStmtsStack) - 1]
-        eBlockI = eBlockIStack[len(eBlockIStack) - 1]
+    eBlockDepth = eBlockDepth + 1
+    let pd = eBlockDepth
+    while eBlockIStack[pd - 1] < eBlockNStack[pd - 1] {
+        eBlockStmts = eBlockStmtsStack[pd - 1]
+        eBlockI = eBlockIStack[pd - 1]
         eStmtNode = eBlockStmts[eBlockI]
         if eStmtNode == null {
             throw "emit program null stmt at " + ("" + eBlockI)
         }
         emitStmt(eStmtNode)
-        eBlockI = eBlockIStack[len(eBlockIStack) - 1] + 1
-        eBlockIStack = pop(eBlockIStack)
-        eBlockIStack = push(eBlockIStack, eBlockI)
+        eBlockIStack[pd - 1] = eBlockIStack[pd - 1] + 1
     }
+    eBlockDepth = eBlockDepth - 1
     emitOp(OP_HALT, 0)
     return {
         "constants": eConsts,
