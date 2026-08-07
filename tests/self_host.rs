@@ -2598,7 +2598,7 @@ fn p6b_parser_iterative_add_progress() {
     );
 }
 
-/// P6b: emit Call/block loops use depth counters (avoid len(stack) clones).
+/// P6b: emit Call/block/obj/arr loops use depth counters (avoid len(stack) clones).
 #[test]
 fn p6b_emit_call_block_depth_progress() {
     let root = env!("CARGO_MANIFEST_DIR");
@@ -2607,6 +2607,13 @@ fn p6b_emit_call_block_depth_progress() {
     assert!(
         src.contains("let eCalleeDepth = 0") && src.contains("let eBlockDepth = 0"),
         "eCalleeDepth/eBlockDepth required for Call/block hotpaths"
+    );
+    assert!(
+        src.contains("let eCallArgDepth = 0")
+            && src.contains("fn emitCallArgExprs()")
+            && src.contains("let eObjDepth = 0")
+            && src.contains("let eArrDepth = 0"),
+        "eCallArgDepth/eObjDepth/eArrDepth required for Call-arg/object/array hotpaths"
     );
     assert!(
         src.contains("P6b: use eCalleeDepth"),
@@ -2619,6 +2626,10 @@ fn p6b_emit_call_block_depth_progress() {
     assert!(
         !src.contains("while eBlockIStack[len(eBlockIStack) - 1] < eBlockNStack[len(eBlockNStack) - 1]"),
         "block/program loops must index via eBlockDepth (not len clones)"
+    );
+    assert!(
+        !src.contains("while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1]"),
+        "Call-arg loops must use eCallArgDepth (not len clones)"
     );
 }
 

@@ -3030,12 +3030,46 @@ struct LiveJointPose {
 struct HandJointBuffers {
     left: Option<Vec<LiveJointPose>>,
     right: Option<Vec<LiveJointPose>>,
+    /// Synthetic `XrHandTrackerEXT` handles (CI / until xrCreateHandTrackerEXT).
+    left_tracker: u64,
+    right_tracker: u64,
 }
 
 static HAND_JOINT_BUFFERS: Mutex<HandJointBuffers> = Mutex::new(HandJointBuffers {
     left: None,
     right: None,
+    left_tracker: 0,
+    right_tracker: 0,
 });
+
+const XR_HAND_TRACKER_LEFT: u64 = 0x48_0000_0001;
+const XR_HAND_TRACKER_RIGHT: u64 = 0x48_0000_0002;
+
+/// Ensure synthetic left/right hand trackers exist (idempotent).
+fn ensure_hand_trackers() {
+    if let Ok(mut st) = HAND_JOINT_BUFFERS.lock() {
+        if st.left_tracker == 0 {
+            st.left_tracker = XR_HAND_TRACKER_LEFT;
+        }
+        if st.right_tracker == 0 {
+            st.right_tracker = XR_HAND_TRACKER_RIGHT;
+        }
+    }
+}
+
+fn hand_tracker_handle(handedness: &str) -> u64 {
+    ensure_hand_trackers();
+    HAND_JOINT_BUFFERS
+        .lock()
+        .map(|st| {
+            if handedness == "left" {
+                st.left_tracker
+            } else {
+                st.right_tracker
+            }
+        })
+        .unwrap_or(0)
+}
 
 fn pose_map(x: f64, y: f64, z: f64) -> Value {
     let mut m = HashMap::new();
@@ -3091,6 +3125,17 @@ fn stub_source(handedness: &str) -> Value {
     m.insert("gamepad".into(), Value::Object(gamepad));
     m.insert("gripPose".into(), pose_map(gx, 1.2, gz));
     m.insert("targetRayPose".into(), pose_map(gx, 1.25, gz - 0.05));
+    // WebXR: when XR_EXT_hand_tracking is live, expose synth hand tracker on the source.
+    let ht = hand_tracking_backend();
+    if ht == "openxr-stub" || ht == "openxr-ext" {
+        let tracker = hand_tracker_handle(handedness);
+        let mut hand = HashMap::new();
+        hand.insert("ok".into(), Value::Bool(tracker != 0));
+        hand.insert("tracker".into(), Value::Number(tracker as i64));
+        hand.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+        hand.insert("backend".into(), Value::String(ht));
+        m.insert("hand".into(), Value::Object(hand));
+    }
     m.insert("kind".into(), Value::String("xr_input_source".into()));
     Value::Object(m)
 }
@@ -3256,12 +3301,8 @@ fn invoke_locate_hand_joints_ffi(handedness: &str) -> (bool, i32, String) {
         if fn_addr == 0 {
             return (false, -1, "no-locate-hand-joints-proc".into());
         }
-        // Synthetic tracker handles (left/right) — real OpenXR needs xrCreateHandTrackerEXT.
-        let tracker = if handedness == "left" {
-            0x48_0000_0001u64
-        } else {
-            0x48_0000_0002u64
-        };
+        // Synthetic tracker handles — real OpenXR needs xrCreateHandTrackerEXT.
+        let tracker = hand_tracker_handle(handedness);
         let locate: XrLocateHandJointsExtFn = unsafe { std::mem::transmute(fn_addr) };
         let rc = unsafe { locate(tracker, std::ptr::null(), std::ptr::null_mut()) };
         let mode = if use_stub {
@@ -3515,17 +3556,32 @@ pub fn clear_hand_joint_buffer(handedness: &str) -> Result<Value, String> {
 
 /// Status bag for hand tracking capability (extension + backend + live buffers).
 pub fn hand_tracking_status() -> Value {
+    ensure_hand_trackers();
     let backend = hand_tracking_backend();
-    let (left_live, right_live) = HAND_JOINT_BUFFERS
+    let (left_live, right_live, left_tracker, right_tracker) = HAND_JOINT_BUFFERS
         .lock()
-        .map(|b| (b.left.is_some(), b.right.is_some()))
-        .unwrap_or((false, false));
+        .map(|b| {
+            (
+                b.left.is_some(),
+                b.right.is_some(),
+                b.left_tracker,
+                b.right_tracker,
+            )
+        })
+        .unwrap_or((false, false, 0, 0));
     let mut live_buf = HashMap::new();
     live_buf.insert("left".into(), Value::Bool(left_live));
     live_buf.insert("right".into(), Value::Bool(right_live));
     live_buf.insert(
         "count".into(),
         Value::Number((left_live as i64) + (right_live as i64)),
+    );
+    let mut trackers = HashMap::new();
+    trackers.insert("left".into(), Value::Number(left_tracker as i64));
+    trackers.insert("right".into(), Value::Number(right_tracker as i64));
+    trackers.insert(
+        "ready".into(),
+        Value::Bool(left_tracker != 0 && right_tracker != 0),
     );
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
@@ -3540,6 +3596,7 @@ pub fn hand_tracking_status() -> Value {
         Value::Bool(backend == "openxr-ext" || backend == "openxr-stub"),
     );
     out.insert("liveBuffers".into(), Value::Object(live_buf));
+    out.insert("trackers".into(), Value::Object(trackers));
     out.insert(
         "locatePath".into(),
         Value::String(if backend == "openxr-ext" {

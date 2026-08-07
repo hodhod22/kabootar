@@ -79,6 +79,9 @@ let eBlockIStack = []
 let eBlockStmtsStack = []
 let eBlockDepth = 0
 let eCalleeDepth = 0
+let eCallArgDepth = 0
+let eObjDepth = 0
+let eArrDepth = 0
 let eLenScratch = 0
 let eFld = null
 let eIfJmpStack = []
@@ -275,6 +278,23 @@ fn emitCallCallee() {
 fn dropCallCallee() {
     eCalleeStack = pop(eCalleeStack)
     eCalleeDepth = eCalleeDepth - 1
+}
+
+/// P6b: emit each Call arg via eCallArgDepth (no len(stack) clones / pop-push per arg).
+/// Caller must push eCallArgIStack(0), eCallArgNStack(n), eArgsStack(args) first.
+fn emitCallArgExprs() {
+    eCallArgDepth = eCallArgDepth + 1
+    let cad = eCallArgDepth
+    while eCallArgIStack[cad - 1] < eCallArgNStack[cad - 1] {
+        eArgs = eArgsStack[cad - 1]
+        emitExpr(eArgs[eCallArgIStack[cad - 1]])
+        eCallArgIStack[cad - 1] = eCallArgIStack[cad - 1] + 1
+    }
+    eArgsStack = pop(eArgsStack)
+    eArgN = eCallArgNStack[cad - 1]
+    eCallArgIStack = pop(eCallArgIStack)
+    eCallArgNStack = pop(eCallArgNStack)
+    eCallArgDepth = eCallArgDepth - 1
 }
 
 fn emitSym(store, sym) {
@@ -588,37 +608,41 @@ fn emitExpr(node) {
     }
     if eNode.kind == AST_OBJECT {
         // Use fn-local field list — nested array/object emit must not clobber a shared eList.
+        // P6b: eObjDepth avoids len(eObjIStack) clones + pop/push per field.
         let objFields = eNode["fields"]
         eObjIStack = push(eObjIStack, 0)
         eObjNStack = arrUtil("pushLen",eObjNStack, objFields)
-        while eObjIStack[len(eObjIStack) - 1] < eObjNStack[len(eObjNStack) - 1] {
-            eObjI = eObjIStack[len(eObjIStack) - 1]
+        eObjDepth = eObjDepth + 1
+        let od = eObjDepth
+        while eObjIStack[od - 1] < eObjNStack[od - 1] {
+            eObjI = eObjIStack[od - 1]
             eFld = objFields[eObjI]
             emitExpr(eFld["value"])
             eIdx = symIndex("const",eFld["key"])
             emitOp(OP_CONST, eIdx)
-            eObjI = eObjIStack[len(eObjIStack) - 1] + 1
-            eObjIStack = pop(eObjIStack)
-            eObjIStack = push(eObjIStack, eObjI)
+            eObjIStack[od - 1] = eObjIStack[od - 1] + 1
         }
         eObjIStack = pop(eObjIStack)
         eObjNStack = pop(eObjNStack)
+        eObjDepth = eObjDepth - 1
         emitOp(OP_MAKE_OBJECT, len(objFields))
         return
     }
     if eNode.kind == AST_ARRAY {
+        // P6b: eArrDepth avoids len(eArrIStack) clones + pop/push per elem.
         let arrElems = eNode["elems"]
         eArrIStack = push(eArrIStack, 0)
         eArrNStack = arrUtil("pushLen",eArrNStack, arrElems)
-        while eArrIStack[len(eArrIStack) - 1] < eArrNStack[len(eArrNStack) - 1] {
-            eObjI = eArrIStack[len(eArrIStack) - 1]
+        eArrDepth = eArrDepth + 1
+        let ad = eArrDepth
+        while eArrIStack[ad - 1] < eArrNStack[ad - 1] {
+            eObjI = eArrIStack[ad - 1]
             emitExpr(arrElems[eObjI])
-            eObjI = eArrIStack[len(eArrIStack) - 1] + 1
-            eArrIStack = pop(eArrIStack)
-            eArrIStack = push(eArrIStack, eObjI)
+            eArrIStack[ad - 1] = eArrIStack[ad - 1] + 1
         }
         eArrIStack = pop(eArrIStack)
         eArrNStack = pop(eArrNStack)
+        eArrDepth = eArrDepth - 1
         emitOp(OP_MAKE_ARRAY, len(arrElems))
         return
     }
@@ -808,17 +832,7 @@ fn emitExpr(node) {
                     eCallArgIStack = push(eCallArgIStack, 0)
                     eCallArgNStack = push(eCallArgNStack, eArgN)
                     eArgsStack = push(eArgsStack, eArgs)
-                    while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1] {
-                        eArgs = eArgsStack[len(eArgsStack) - 1]
-                        emitExpr(eArgs[eCallArgIStack[len(eCallArgIStack) - 1]])
-                        eCallArgI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-                        eCallArgIStack = pop(eCallArgIStack)
-                        eCallArgIStack = push(eCallArgIStack, eCallArgI)
-                    }
-                    eArgsStack = pop(eArgsStack)
-                    eArgN = eCallArgNStack[len(eCallArgNStack) - 1]
-                    eCallArgIStack = pop(eCallArgIStack)
-                    eCallArgNStack = pop(eCallArgNStack)
+                    emitCallArgExprs()
                     while eArgN > 0 {
                         emitOp(OP_POP, 0)
                         eArgN = eArgN - 1
@@ -982,17 +996,7 @@ fn emitExpr(node) {
             eCallArgIStack = push(eCallArgIStack, 0)
             eCallArgNStack = push(eCallArgNStack, eArgN)
             eArgsStack = push(eArgsStack, eArgs)
-            while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1] {
-                eArgs = eArgsStack[len(eArgsStack) - 1]
-                emitExpr(eArgs[eCallArgIStack[len(eCallArgIStack) - 1]])
-                eCallArgI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-                eCallArgIStack = pop(eCallArgIStack)
-                eCallArgIStack = push(eCallArgIStack, eCallArgI)
-            }
-            eArgsStack = pop(eArgsStack)
-            eArgN = eCallArgNStack[len(eCallArgNStack) - 1]
-            eCallArgIStack = pop(eCallArgIStack)
-            eCallArgNStack = pop(eCallArgNStack)
+            emitCallArgExprs()
             emitOp(OP_CALL, eArgN)
             dropCallCallee()
             return
@@ -1117,17 +1121,7 @@ fn emitExpr(node) {
                 eCallArgIStack = push(eCallArgIStack, 0)
                 eCallArgNStack = push(eCallArgNStack, eArgN)
                 eArgsStack = push(eArgsStack, eArgs)
-                while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1] {
-                    eArgs = eArgsStack[len(eArgsStack) - 1]
-                    emitExpr(eArgs[eCallArgIStack[len(eCallArgIStack) - 1]])
-                    eCallArgI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-                    eCallArgIStack = pop(eCallArgIStack)
-                    eCallArgIStack = push(eCallArgIStack, eCallArgI)
-                }
-                eArgsStack = pop(eArgsStack)
-                eArgN = eCallArgNStack[len(eCallArgNStack) - 1]
-                eCallArgIStack = pop(eCallArgIStack)
-                eCallArgNStack = pop(eCallArgNStack)
+                emitCallArgExprs()
                 eClassIdx = symIndex("class",eMangled)
                 if eClassIdx < 0 {
                     throw "Missing specialized class " + eMangled
@@ -1263,17 +1257,7 @@ fn emitExpr(node) {
                 eCallArgIStack = push(eCallArgIStack, 0)
                 eCallArgNStack = push(eCallArgNStack, eArgN)
                 eArgsStack = push(eArgsStack, eArgs)
-                while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1] {
-                    eArgs = eArgsStack[len(eArgsStack) - 1]
-                    emitExpr(eArgs[eCallArgIStack[len(eCallArgIStack) - 1]])
-                    eCallArgI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-                    eCallArgIStack = pop(eCallArgIStack)
-                    eCallArgIStack = push(eCallArgIStack, eCallArgI)
-                }
-                eArgsStack = pop(eArgsStack)
-                eArgN = eCallArgNStack[len(eCallArgNStack) - 1]
-                eCallArgIStack = pop(eCallArgIStack)
-                eCallArgNStack = pop(eCallArgNStack)
+                emitCallArgExprs()
                 if eInFn == 1 {
                     eFnOps = push(eFnOps, { "op": OP_NEW_INSTANCE, "arg": eClassIdx, "arg2": eArgN })
                     eFnOpsN = eFnOpsN + 1
@@ -1340,9 +1324,11 @@ fn emitExpr(node) {
         eCallArgIStack = push(eCallArgIStack, 0)
         eCallArgNStack = push(eCallArgNStack, eArgN)
         eArgsStack = push(eArgsStack, eArgs)
-        while eCallArgIStack[len(eCallArgIStack) - 1] < eCallArgNStack[len(eCallArgNStack) - 1] {
-            eArgs = eArgsStack[len(eArgsStack) - 1]
-            eCallI = eCallArgIStack[len(eCallArgIStack) - 1]
+        eCallArgDepth = eCallArgDepth + 1
+        let cad = eCallArgDepth
+        while eCallArgIStack[cad - 1] < eCallArgNStack[cad - 1] {
+            eArgs = eArgsStack[cad - 1]
+            eCallI = eCallArgIStack[cad - 1]
             eBxL = eArgs[eCallI]
             if eBxL.kind == AST_LITERAL {
                 eIdx = symIndex("constLit",eBxL)
@@ -1355,14 +1341,13 @@ fn emitExpr(node) {
                     emitExpr(eBxL)
                 }
             }
-            eCallI = eCallArgIStack[len(eCallArgIStack) - 1] + 1
-            eCallArgIStack = pop(eCallArgIStack)
-            eCallArgIStack = push(eCallArgIStack, eCallI)
+            eCallArgIStack[cad - 1] = eCallArgIStack[cad - 1] + 1
         }
         eArgsStack = pop(eArgsStack)
-        eArgN = eCallArgNStack[len(eCallArgNStack) - 1]
+        eArgN = eCallArgNStack[cad - 1]
         eCallArgIStack = pop(eCallArgIStack)
         eCallArgNStack = pop(eCallArgNStack)
+        eCallArgDepth = eCallArgDepth - 1
         emitCallCallee()
         emitOp(OP_CALL, eArgN)
         return
@@ -1930,6 +1915,9 @@ pub fn emitImpl(program) {
     eFnOpsN = 0
     eBlockDepth = 0
     eCalleeDepth = 0
+    eCallArgDepth = 0
+    eObjDepth = 0
+    eArrDepth = 0
     eFnGlobals = []
     eFnLocals = []
     resetLocalMap()

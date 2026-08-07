@@ -196,8 +196,8 @@ Se [seed/README.md](seed/README.md) för policy, playbook, **fas-profil** och ba
 
 - Produktpath = committed seeds; **töm inte** listan förrän alla fem löv
   `compile_source_self_host` < 10 s (`P6_SELF_HOST_LEAF_CI_FAST_MS`).
-- Fas-profil (tiny if/+): parse ≈ emit ≫ serialize. Landade cuts: `symIndex` maps +
-  **`eLocalMap`/map-only `emitSym`**, **fully iterative** compare/`&&`/`||`,
-  **`eCalleeDepth`/`eBlockDepth`**, early `IDENT=`, `eOpsN` patches, IR membership + AccAdd densify.
-- Leaf densify plateau → **toolchain focus**. `serialize_body` **~726 s** debug after Call/block depth (was ~643 s) — still ≫ 10 s, **skip-list stays**.
+- Fas-profil (mid AccAdd): parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%. Landade cuts:
+  maps/`emitSym`, iterative compare, **`eCallArgDepth`/`eObjDepth`/`eArrDepth`**,
+  `eCalleeDepth`/`eBlockDepth`, early `IDENT=`, `eOpsN` patches, IR membership + AccAdd densify.
+- Leaf densify plateau → **toolchain focus**. `serialize_body` **~690 s** debug (was ~726 s) — still ≫ 10 s, **skip-list stays**.
 - Efter `emit_impl` / `parser_impl` / `serialize_body`-ändring: regenerera motsvarande `self_host/seed/*.kbc`.
