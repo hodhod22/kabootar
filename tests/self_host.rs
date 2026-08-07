@@ -2516,6 +2516,26 @@ fn p6b_emit_if_hotpath_progress() {
     );
 }
 
+/// P6b: symIndex uses const/global maps (no O(C²) LoadGlobal clone scans).
+#[test]
+fn p6b_emit_symindex_map_progress() {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/emit_impl.kab");
+    let src = std::fs::read_to_string(&path).expect("read emit_impl");
+    assert!(
+        src.contains("let eConstMap = {}"),
+        "eConstMap required for O(1) const dedup"
+    );
+    assert!(
+        src.contains("fn constKey("),
+        "constKey required for map keys"
+    );
+    assert!(
+        !src.contains("while eConstI < len(eConsts)"),
+        "const symIndex must not scan eConsts with len/index clones"
+    );
+}
+
 #[test]
 fn self_host_vm_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};

@@ -722,6 +722,22 @@ fn xr_poll_input_events_native(_args: &[Value], _env: &mut Environment) -> Resul
     Ok(xr_ffi::poll_input_events())
 }
 
+fn xr_hand_joints_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "right",
+    };
+    xr_ffi::hand_joints(handedness)
+}
+
+fn xr_input_profiles_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let handedness = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => "right",
+    };
+    xr_ffi::input_profiles(handedness)
+}
+
 fn xr_request_session_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let mode = match args.first() {
         Some(Value::String(s)) => s.as_str(),
@@ -1525,6 +1541,8 @@ pub fn game_globals(env: &mut Environment) {
         ("xr_input_source_pose", xr_input_source_pose_native),
         ("xr_inject_input_event", xr_inject_input_event_native),
         ("xr_poll_input_events", xr_poll_input_events_native),
+        ("xr_hand_joints", xr_hand_joints_native),
+        ("xr_input_profiles", xr_input_profiles_native),
         ("gltf_load_json", gltf::gltf_load_json_native),
         ("image_decode_png", image_png::image_decode_png_native),
         ("asset_watch", hot_reload::asset_watch_native),
