@@ -1,0 +1,200 @@
+@version "1.0.0"
+
+// Kabootar game/core/ecsValidation - Validation and error detection for ECS version mixing.
+// Canonical path: import "game/core/ecsValidation"
+
+pub fn validateWorldVersion(world) {
+    if world == null || world == undefined {
+        return { "valid": false, "error": "World is null", "version": "unknown" }
+    }
+    
+    if world["entities"] != null && world["entities"] != undefined {
+        if world["entities"] is array {
+            return { "valid": true, "version": "1.0", "error": null }
+        }
+    }
+    
+    if world["entities"] != null && world["entities"] is object {
+        return { "valid": true, "version": "3.0", "error": null }
+    }
+    
+    if world["nextId"] != null && world["freeList"] != null {
+        return { "valid": true, "version": "2.0", "error": null }
+    }
+    
+    return { "valid": false, "error": "Unknown world structure", "version": "unknown" }
+}
+
+pub fn checkECSVersionMismatch(world, expectedVersion) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return { "mismatch": true, "error": validation["error"], "detected": validation["version"], "expected": expectedVersion }
+    }
+    
+    if validation["version"] != expectedVersion {
+        return { "mismatch": true, "error": "ECS version mismatch", "detected": validation["version"], "expected": expectedVersion }
+    }
+    
+    return { "mismatch": false, "error": null, "detected": validation["version"], "expected": expectedVersion }
+}
+
+pub fn getECSVersionError(world, operation) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return "Cannot perform " + operation + " on invalid world: " + validation["error"]
+    }
+    
+    let version = validation["version"]
+    
+    if version == "1.0" {
+        return "Operation '" + operation + "' requires ECS 2.0 or later. Current world uses ECS 1.0 (legacy). Please migrate to ECS 3.0 by using 'import \"game/core/ecs3\"' or GameContext 2.0."
+    }
+    
+    if version == "2.0" {
+        return "Operation '" + operation + "' requires ECS 3.0. Current world uses ECS 2.0. Please migrate to ECS 3.0 by using 'import \"game/core/ecs3\"' or GameContext 2.0."
+    }
+    
+    return null
+}
+
+pub fn validateComponentCompatibility(world, componentName) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return { "compatible": false, "error": validation["error"] }
+    }
+    
+    if validation["version"] == "1.0" {
+        return { "compatible": true, "error": null }
+    }
+    
+    if validation["version"] == "2.0" || validation["version"] == "3.0" {
+        return { "compatible": true, "error": null }
+    }
+    
+    return { "compatible": false, "error": "Unknown ECS version" }
+}
+
+pub fn validateQueryCompatibility(world, componentNames) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return { "compatible": false, "error": validation["error"] }
+    }
+    
+    if validation["version"] == "1.0" {
+        if len(componentNames) > 1 {
+            return { "compatible": false, "error": "ECS 1.0 only supports single-component queries. Use ECS 3.0 for multi-component queries." }
+        }
+        return { "compatible": true, "error": null }
+    }
+    
+    if validation["version"] == "2.0" {
+        if len(componentNames) > 3 {
+            return { "compatible": false, "error": "ECS 2.0 supports up to 3 components in queryWith. Use ECS 3.0 for unlimited component queries." }
+        }
+        return { "compatible": true, "error": null }
+    }
+    
+    if validation["version"] == "3.0" {
+        return { "compatible": true, "error": null }
+    }
+    
+    return { "compatible": false, "error": "Unknown ECS version" }
+}
+
+pub fn validateEntityId(world, entityId) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return { "valid": false, "error": validation["error"] }
+    }
+    
+    if validation["version"] == "1.0" {
+        if entityId is number {
+            return { "valid": true, "error": null }
+        }
+        return { "valid": false, "error": "ECS 1.0 expects numeric entity IDs" }
+    }
+    
+    if validation["version"] == "2.0" || validation["version"] == "3.0" {
+        if entityId is number {
+            return { "valid": true, "error": null }
+        }
+        return { "valid": false, "error": "ECS 2.0/3.0 expects numeric entity IDs" }
+    }
+    
+    return { "valid": false, "error": "Unknown ECS version" }
+}
+
+pub fn logECSVersionWarning(world, operation) {
+    let error = getECSVersionError(world, operation)
+    if error != null {
+        return error
+    }
+    return null
+}
+
+pub fn suggestMigration(world) {
+    let validation = validateWorldVersion(world)
+    
+    if validation["valid"] != true {
+        return "Cannot suggest migration for invalid world"
+    }
+    
+    let version = validation["version"]
+    
+    if version == "1.0" {
+        return "To migrate from ECS 1.0 to ECS 3.0:\n1. Replace 'import \"game/core/ecs\"' with 'import \"game/core/ecs3\"'\n2. Update spawn() to handle { world, entityId } return value\n3. Use add(world, entityId, component, data) instead of add(world, id, component, data)\n4. Use queryArchetype() for archetype-based queries\n5. See versioning.md for detailed migration guide"
+    }
+    
+    if version == "2.0" {
+        return "To migrate from ECS 2.0 to ECS 3.0:\n1. Replace 'import \"game/core/ecs2\"' with 'import \"game/core/ecs3\"'\n2. Automatic archetypes are now enabled - remove manual archetype management\n3. isAlive() is now O(1) with sparse entity table\n4. Use queryArchetype() for archetype-based queries\n5. See versioning.md for detailed migration guide"
+    }
+    
+    return "Already using ECS 3.0 - no migration needed"
+}
+
+pub fn validateGameContext(context) {
+    if context == null || context == undefined {
+        return { "valid": false, "error": "GameContext is null" }
+    }
+    
+    if context["version"] == null || context["version"] == undefined {
+        return { "valid": false, "error": "GameContext has no version information" }
+    }
+    
+    let version = context["version"]
+    
+    if version == "2.0.0" {
+        return { "valid": true, "version": version, "error": null }
+    }
+    
+    if version == "1.0.0" {
+        return { "valid": false, "error": "GameContext 1.0 is deprecated. Please upgrade to GameContext 2.0 which uses ECS 3.0." }
+    }
+    
+    return { "valid": false, "error": "Unknown GameContext version: " + version }
+}
+
+pub fn getCompatibilityReport(world) {
+    let validation = validateWorldVersion(world)
+    
+    let report = {
+        "version": validation["version"],
+        "valid": validation["valid"],
+        "error": validation["error"],
+        "features": {
+            "entityRecycling": validation["version"] != "1.0",
+            "automaticArchetypes": validation["version"] == "3.0",
+            "fastIsAlive": validation["version"] == "3.0",
+            "sparseStorage": validation["version"] == "3.0",
+            "archetypeQueries": validation["version"] == "3.0",
+            "multiComponentQueries": validation["version"] != "1.0"
+        }
+    }
+    
+    return report
+}

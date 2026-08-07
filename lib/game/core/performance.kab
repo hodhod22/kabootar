@@ -3,6 +3,157 @@
 // Kabootar game/core/performance - Performance utilities for reducing allocations in hot paths.
 // Canonical path: import "game/core/performance"
 
+// Component pooling for ECS
+pub fn createComponentPool(componentType, initialSize) {
+    let pool = createObjectPool(initialSize)
+    pool["componentType"] = componentType
+    
+    pool = setPoolCreateFn(pool, fn() {
+        return createDefaultComponent(componentType)
+    })
+    
+    pool = setPoolResetFn(pool, fn(component) {
+        return resetComponent(componentType, component)
+    })
+    
+    return pool
+}
+
+fn createDefaultComponent(componentType) {
+    if componentType == "Transform" {
+        return {
+            "kind": "Transform",
+            "localPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+            "localRotation": { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 },
+            "localScale": { "x": 1.0, "y": 1.0, "z": 1.0 },
+            "worldMatrix": null,
+            "dirty": true
+        }
+    } else if componentType == "Rigidbody" {
+        return {
+            "kind": "Rigidbody",
+            "mass": 1.0,
+            "velocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+            "angularVelocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+            "useGravity": true,
+            "isKinematic": false,
+            "drag": 0.0,
+            "angularDrag": 0.05,
+            "constraints": {
+                "freezePositionX": false,
+                "freezePositionY": false,
+                "freezePositionZ": false,
+                "freezeRotationX": false,
+                "freezeRotationY": false,
+                "freezeRotationZ": false
+            }
+        }
+    } else if componentType == "Collider" {
+        return {
+            "kind": "BoxCollider",
+            "center": { "x": 0.0, "y": 0.0, "z": 0.0 },
+            "size": { "x": 1.0, "y": 1.0, "z": 1.0 },
+            "isTrigger": false
+        }
+    }
+    return { "kind": componentType }
+}
+
+fn resetComponent(componentType, component) {
+    if componentType == "Transform" {
+        component["localPosition"] = { "x": 0.0, "y": 0.0, "z": 0.0 }
+        component["localRotation"] = { "x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0 }
+        component["localScale"] = { "x": 1.0, "y": 1.0, "z": 1.0 }
+        component["worldMatrix"] = null
+        component["dirty"] = true
+    } else if componentType == "Rigidbody" {
+        component["velocity"] = { "x": 0.0, "y": 0.0, "z": 0.0 }
+        component["angularVelocity"] = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    }
+    return component
+}
+
+pub fn getComponentFromPool(pool) {
+    return poolGet(pool)
+}
+
+pub fn returnComponentToPool(pool, component) {
+    return poolRelease(pool, component)
+}
+
+// Query result pooling
+pub fn createQueryResultPool(initialSize) {
+    let pool = createObjectPool(initialSize)
+    
+    pool = setPoolCreateFn(pool, fn() {
+        return {
+            "results": [],
+            "count": 0,
+            "capacity": 100
+        }
+    })
+    
+    pool = setPoolResetFn(pool, fn(queryResult) {
+        queryResult["results"] = []
+        queryResult["count"] = 0
+        return queryResult
+    })
+    
+    return pool
+}
+
+pub fn getQueryResult(pool) {
+    return poolGet(pool)
+}
+
+pub fn returnQueryResult(pool, queryResult) {
+    return poolRelease(pool, queryResult)
+}
+
+pub fn addQueryResult(queryResult, entity, components) {
+    queryResult["results"] = push(queryResult["results"], {
+        "entity": entity,
+        "components": components
+    })
+    queryResult["count"] = queryResult["count"] + 1
+    return queryResult
+}
+
+// Array pooling for temporary allocations
+pub fn createArrayPool(initialSize, arraySize) {
+    let pool = createObjectPool(initialSize)
+    pool["arraySize"] = arraySize
+    
+    pool = setPoolCreateFn(pool, fn() {
+        let arr = []
+        let i = 0
+        while i < arraySize {
+            arr = push(arr, null)
+            i = i + 1
+        }
+        return arr
+    })
+    
+    pool = setPoolResetFn(pool, fn(arr) {
+        let i = 0
+        while i < len(arr) {
+            arr[i] = null
+            i = i + 1
+        }
+        return arr
+    })
+    
+    return pool
+}
+
+pub fn getArrayFromPool(pool) {
+    return poolGet(pool)
+}
+
+pub fn returnArrayToPool(pool, array) {
+    return poolRelease(pool, array)
+}
+
 pub fn createObjectPool(initialSize) {
     if initialSize == null || initial == undefined { initialSize = 10 }
     

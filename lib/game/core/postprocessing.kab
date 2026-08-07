@@ -1,0 +1,322 @@
+@version "1.0.0"
+
+// Kabootar game/core/postprocessing - Shadow and post-processing integration.
+// Canonical path: import "game/core/postprocessing"
+
+pub fn createPostProcessingSystem() {
+    return {
+        "kind": "PostProcessingSystem",
+        "shadowsEnabled": false,
+        "shadowCascadeCount": 4,
+        "shadowMapSize": 2048,
+        "shadowBias": 0.005,
+        "shadowNormalBias": 0.001,
+        "bloomEnabled": false,
+        "bloomThreshold": 1.0,
+        "bloomIntensity": 0.5,
+        "bloomRadius": 4,
+        "toneMappingEnabled": false,
+        "toneMappingMethod": "ACES",
+        "exposure": 1.0,
+        "gamma": 2.2,
+        "antiAliasingEnabled": false,
+        "antiAliasingMethod": "FXAA",
+        "colorGradingEnabled": false,
+        "colorGradingLUT": null,
+        "vignetteEnabled": false,
+        "vignetteIntensity": 0.3,
+        "chromaticAberrationEnabled": false,
+        "chromaticAberrationIntensity": 0.01
+    }
+}
+
+pub fn enableShadows(system, enabled) {
+    system["shadowsEnabled"] = enabled == true
+    return system
+}
+
+pub fn setShadowCascadeCount(system, count) {
+    system["shadowCascadeCount"] = count
+    return system
+}
+
+pub fn setShadowMapSize(system, size) {
+    system["shadowMapSize"] = size
+    return system
+}
+
+pub fn setShadowBias(system, bias) {
+    system["shadowBias"] = bias
+    return system
+}
+
+pub fn enableBloom(system, enabled) {
+    system["bloomEnabled"] = enabled == true
+    return system
+}
+
+pub fn setBloomThreshold(system, threshold) {
+    system["bloomThreshold"] = threshold
+    return system
+}
+
+pub fn setBloomIntensity(system, intensity) {
+    system["bloomIntensity"] = intensity
+    return system
+}
+
+pub fn setBloomRadius(system, radius) {
+    system["bloomRadius"] = radius
+    return system
+}
+
+pub fn enableToneMapping(system, enabled) {
+    system["toneMappingEnabled"] = enabled == true
+    return system
+}
+
+pub fn setToneMappingMethod(system, method) {
+    system["toneMappingMethod"] = method
+    return system
+}
+
+pub fn setExposure(system, exposure) {
+    system["exposure"] = exposure
+    return system
+}
+
+pub fn setGamma(system, gamma) {
+    system["gamma"] = gamma
+    return system
+}
+
+pub fn enableAntiAliasing(system, enabled) {
+    system["antiAliasingEnabled"] = enabled == true
+    return system
+}
+
+pub fn setAntiAliasingMethod(system, method) {
+    system["antiAliasingMethod"] = method
+    return system
+}
+
+pub fn enableColorGrading(system, enabled) {
+    system["colorGradingEnabled"] = enabled == true
+    return system
+}
+
+pub fn setColorGradingLUT(system, lut) {
+    system["colorGradingLUT"] = lut
+    return system
+}
+
+pub fn enableVignette(system, enabled) {
+    system["vignetteEnabled"] = enabled == true
+    return system
+}
+
+pub fn setVignetteIntensity(system, intensity) {
+    system["vignetteIntensity"] = intensity
+    return system
+}
+
+pub fn enableChromaticAberration(system, enabled) {
+    system["chromaticAberrationEnabled"] = enabled == true
+    return system
+}
+
+pub fn setChromaticAberrationIntensity(system, intensity) {
+    system["chromaticAberrationIntensity"] = intensity
+    return system
+}
+
+pub fn getShadowPasses(system, lights, camera) {
+    if system["shadowsEnabled"] != true {
+        return []
+    }
+    
+    let shadowPasses = []
+    
+    let i = 0
+    while i < len(lights) {
+        let light = lights[i]
+        if light["type"] == "Directional" && light["castShadows"] == true {
+            let shadowPass = createShadowPass(light, camera, system)
+            shadowPasses = push(shadowPasses, shadowPass)
+        }
+        i = i + 1
+    }
+    
+    return shadowPasses
+}
+
+fn createShadowPass(light, camera, system) {
+    let cascadeCount = system["shadowCascadeCount"]
+    let cascades = []
+    
+    let i = 0
+    while i < cascadeCount {
+        let cascade = {
+            "index": i,
+            "near": 0.1 + i * (camera["farClipPlane"] - 0.1) / cascadeCount,
+            "far": 0.1 + (i + 1) * (camera["farClipPlane"] - 0.1) / cascadeCount,
+            "viewMatrix": calculateShadowViewMatrix(light),
+            "projectionMatrix": calculateShadowProjectionMatrix(light, camera, i, cascadeCount)
+        }
+        cascades = push(cascades, cascade)
+        i = i + 1
+    }
+    
+    return {
+        "light": light,
+        "cascades": cascades,
+        "mapSize": system["shadowMapSize"],
+        "bias": system["shadowBias"],
+        "normalBias": system["shadowNormalBias"]
+    }
+}
+
+fn calculateShadowViewMatrix(light) {
+    let lightDir = light["direction"]
+    let target = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    let up = { "x": 0.0, "y": 1.0, "z": 0.0 }
+    
+    let position = {
+        "x": -lightDir["x"] * 50.0,
+        "y": -lightDir["y"] * 50.0,
+        "z": -lightDir["z"] * 50.0
+    }
+    
+    return createLookAtMatrix(position, target, up)
+}
+
+fn calculateShadowProjectionMatrix(light, camera, cascadeIndex, cascadeCount) {
+    let near = 0.1 + cascadeIndex * (camera["farClipPlane"] - 0.1) / cascadeCount
+    let far = 0.1 + (cascadeIndex + 1) * (camera["farClipPlane"] - 0.1) / cascadeCount
+    
+    let size = 50.0 + cascadeIndex * 20.0
+    
+    return createOrthographicMatrix(-size, size, -size, size, near, far)
+}
+
+fn createLookAtMatrix(eye, target, up) {
+    let zAxis = normalize(subtractVectors(eye, target))
+    let xAxis = normalize(crossProduct(up, zAxis))
+    let yAxis = crossProduct(zAxis, xAxis)
+    
+    return {
+        "m00": xAxis["x"], "m01": xAxis["y"], "m02": xAxis["z"], "m03": -dotProduct(xAxis, eye),
+        "m10": yAxis["x"], "m11": yAxis["y"], "m12": yAxis["z"], "m13": -dotProduct(yAxis, eye),
+        "m20": zAxis["x"], "m21": zAxis["y"], "m22": zAxis["z"], "m23": -dotProduct(zAxis, eye),
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+fn createOrthographicMatrix(left, right, bottom, top, near, far) {
+    return {
+        "m00": 2.0 / (right - left), "m01": 0.0, "m02": 0.0, "m03": -(right + left) / (right - left),
+        "m10": 0.0, "m11": 2.0 / (top - bottom), "m12": 0.0, "m13": -(top + bottom) / (top - bottom),
+        "m20": 0.0, "m21": 0.0, "m22": -2.0 / (far - near), "m23": -(far + near) / (far - near),
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+pub fn getPostProcessingPasses(system) {
+    let passes = []
+    
+    if system["bloomEnabled"] == true {
+        passes = push(passes, {
+            "type": "bloom",
+            "threshold": system["bloomThreshold"],
+            "intensity": system["bloomIntensity"],
+            "radius": system["bloomRadius"]
+        })
+    }
+    
+    if system["toneMappingEnabled"] == true {
+        passes = push(passes, {
+            "type": "toneMapping",
+            "method": system["toneMappingMethod"],
+            "exposure": system["exposure"]
+        })
+    }
+    
+    if system["antiAliasingEnabled"] == true {
+        passes = push(passes, {
+            "type": "antiAliasing",
+            "method": system["antiAliasingMethod"]
+        })
+    }
+    
+    if system["colorGradingEnabled"] == true {
+        passes = push(passes, {
+            "type": "colorGrading",
+            "lut": system["colorGradingLUT"]
+        })
+    }
+    
+    if system["vignetteEnabled"] == true {
+        passes = push(passes, {
+            "type": "vignette",
+            "intensity": system["vignetteIntensity"]
+        })
+    }
+    
+    if system["chromaticAberrationEnabled"] == true {
+        passes = push(passes, {
+            "type": "chromaticAberration",
+            "intensity": system["chromaticAberrationIntensity"]
+        })
+    }
+    
+    passes = push(passes, {
+        "type": "gammaCorrection",
+        "gamma": system["gamma"]
+    })
+    
+    return passes
+}
+
+pub fn applyPostProcessingSettings(system, settings) {
+    for key in settings {
+        system[key] = settings[key]
+    }
+    return system
+}
+
+pub fn getPostProcessingStats(system) {
+    return {
+        "shadowsEnabled": system["shadowsEnabled"],
+        "shadowCascadeCount": system["shadowCascadeCount"],
+        "bloomEnabled": system["bloomEnabled"],
+        "toneMappingEnabled": system["toneMappingEnabled"],
+        "antiAliasingEnabled": system["antiAliasingEnabled"],
+        "colorGradingEnabled": system["colorGradingEnabled"],
+        "vignetteEnabled": system["vignetteEnabled"],
+        "chromaticAberrationEnabled": system["chromaticAberrationEnabled"]
+    }
+}
+
+fn subtractVectors(a, b) {
+    return { "x": a["x"] - b["x"], "y": a["y"] - b["y"], "z": a["z"] - b["z"] }
+}
+
+fn crossProduct(a, b) {
+    return {
+        "x": a["y"] * b["z"] - a["z"] * b["y"],
+        "y": a["z"] * b["x"] - a["x"] * b["z"],
+        "z": a["x"] * b["y"] - a["y"] * b["x"]
+    }
+}
+
+fn dotProduct(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len < 0.0001 {
+        return { "x": 0.0, "y": 1.0, "z": 0.0 }
+    }
+    return { "x": v["x"] / len, "y": v["y"] / len, "z": v["z"] / len }
+}

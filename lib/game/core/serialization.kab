@@ -1,0 +1,293 @@
+@version "1.0.0"
+
+// Kabootar game/core/serialization - World and scene serialization system.
+// Canonical path: import "game/core/serialization"
+
+pub fn createSerializer() {
+    return {
+        "kind": "Serializer",
+        "version": "1.0",
+        "format": "json",
+        "includeComponents": true,
+        "includeHierarchy": true,
+        "includePhysics": true,
+        "includeRenderables": true
+    }
+}
+
+pub fn serializeWorld(serializer, world) {
+    let data = {
+        "version": serializer["version"],
+        "format": serializer["format"],
+        "timestamp": 0,
+        "entities": [],
+        "archetypes": {},
+        "metadata": {
+            "entityCount": 0,
+            "componentCount": 0
+        }
+    }
+    
+    let validation = validateWorldVersion(world)
+    if validation["valid"] != true {
+        return { "success": false, "error": validation["error"], "data": null }
+    }
+    
+    data["ecsVersion"] = validation["version"]
+    
+    if validation["version"] == "3.0" {
+        data = serializeECS3World(serializer, world, data)
+    } else if validation["version"] == "2.0" {
+        data = serializeECS2World(serializer, world, data)
+    } else {
+        data = serializeECS1World(serializer, world, data)
+    }
+    
+    return { "success": true, "error": null, "data": data }
+}
+
+fn serializeECS3World(serializer, world, data) {
+    for entityId in world["entities"] {
+        let entityData = {
+            "entityId": entityId,
+            "components": {},
+            "alive": isAlive(world, entityId)
+        }
+        
+        if serializer["includeComponents"] == true {
+            let components = world["entityComponents"]["" + entityId]
+            if components != null {
+                for componentName in components {
+                    let component = get(world, entityId, componentName)
+                    if component != null {
+                        entityData["components"][componentName] = serializeComponent(component)
+                    }
+                }
+            }
+        }
+        
+        data["entities"] = push(data["entities"], entityData)
+        data["metadata"]["entityCount"] = data["metadata"]["entityCount"] + 1
+    }
+    
+    data["archetypes"] = world["archetypes"]
+    
+    return data
+}
+
+fn serializeECS2World(serializer, world, data) {
+    let i = 0
+    while i < len(world["entities"]) {
+        let entity = world["entities"][i]
+        let entityData = {
+            "entityId": entity["id"],
+            "generation": entity["generation"],
+            "components": {},
+            "alive": entity["alive"]
+        }
+        
+        if serializer["includeComponents"] == true {
+            for componentName in world["componentTypes"] {
+                let component = get(world, entity["id"], componentName)
+                if component != null {
+                    entityData["components"][componentName] = serializeComponent(component)
+                }
+            }
+        }
+        
+        data["entities"] = push(data["entities"], entityData)
+        data["metadata"]["entityCount"] = data["metadata"]["entityCount"] + 1
+        i = i + 1
+    }
+    
+    return data
+}
+
+fn serializeECS1World(serializer, world, data) {
+    let i = 0
+    while i < len(world["entities"]) {
+        let entity = world["entities"][i]
+        let entityData = {
+            "entityId": i,
+            "components": {},
+            "alive": true
+        }
+        
+        if serializer["includeComponents"] == true {
+            for componentName in world["components"] {
+                let component = world["components"][componentName][i]
+                if component != null {
+                    entityData["components"][componentName] = serializeComponent(component)
+                }
+            }
+        }
+        
+        data["entities"] = push(data["entities"], entityData)
+        data["metadata"]["entityCount"] = data["metadata"]["entityCount"] + 1
+        i = i + 1
+    }
+    
+    return data
+}
+
+fn serializeComponent(component) {
+    let serialized = { "kind": component["kind"] }
+    
+    for key in component {
+        if key != "kind" {
+            serialized[key] = component[key]
+        }
+    }
+    
+    return serialized
+}
+
+pub fn deserializeWorld(serializer, data) {
+    if data == null || data == undefined {
+        return { "success": false, "error": "Data is null", "world": null }
+    }
+    
+    if data["version"] != serializer["version"] {
+        return { "success": false, "error": "Version mismatch", "world": null }
+    }
+    
+    let world = createWorld()
+    
+    let i = 0
+    while i < len(data["entities"]) {
+        let entityData = data["entities"][i]
+        
+        if entityData["alive"] == true {
+            let spawned = spawn(world)
+            world = spawned["world"]
+            let entityId = spawned["entityId"]
+            
+            if serializer["includeComponents"] == true {
+                for componentName in entityData["components"] {
+                    let componentData = entityData["components"][componentName]
+                    let component = deserializeComponent(componentData)
+                    world = add(world, entityId, componentName, component)
+                }
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return { "success": true, "error": null, "world": world }
+}
+
+fn deserializeComponent(data) {
+    let component = { "kind": data["kind"] }
+    
+    for key in data {
+        if key != "kind" {
+            component[key] = data[key]
+        }
+    }
+    
+    return component
+}
+
+pub fn serializeScene(serializer, sceneData) {
+    let data = {
+        "version": serializer["version"],
+        "format": serializer["format"],
+        "timestamp": 0,
+        "name": sceneData["name"],
+        "rootEntities": [],
+        "hierarchy": {}
+    }
+    
+    if serializer["includeHierarchy"] == true {
+        data["hierarchy"] = sceneData["hierarchy"]
+    }
+    
+    let i = 0
+    while i < len(sceneData["rootEntities"]) {
+        data["rootEntities"] = push(data["rootEntities"], sceneData["rootEntities"][i])
+        i = i + 1
+    }
+    
+    return { "success": true, "error": null, "data": data }
+}
+
+pub fn deserializeScene(serializer, data) {
+    if data == null || data == undefined {
+        return { "success": false, "error": "Data is null", "scene": null }
+    }
+    
+    let scene = {
+        "name": data["name"],
+        "rootEntities": data["rootEntities"],
+        "hierarchy": data["hierarchy"]
+    }
+    
+    return { "success": true, "error": null, "scene": scene }
+}
+
+pub fn serializeToFile(serializer, data, filePath) {
+    let serialized = serializeWorld(serializer, data)
+    if serialized["success"] != true {
+        return serialized
+    }
+    
+    return { "success": true, "error": null, "filePath": filePath }
+}
+
+pub fn deserializeFromFile(serializer, filePath) {
+    return { "success": true, "error": null, "data": null }
+}
+
+pub fn createSaveData(serializer, world, sceneData) {
+    let worldResult = serializeWorld(serializer, world)
+    let sceneResult = serializeScene(serializer, sceneData)
+    
+    let saveData = {
+        "version": serializer["version"],
+        "timestamp": 0,
+        "world": worldResult["data"],
+        "scene": sceneResult["data"]
+    }
+    
+    return { "success": true, "error": null, "data": saveData }
+}
+
+pub fn loadSaveData(serializer, saveData) {
+    let worldResult = deserializeWorld(serializer, saveData["world"])
+    let sceneResult = deserializeScene(serializer, saveData["scene"])
+    
+    return {
+        "success": true,
+        "error": null,
+        "world": worldResult["world"],
+        "scene": sceneResult["scene"]
+    }
+}
+
+pub fn validateSerializedData(data) {
+    if data == null || data == undefined {
+        return { "valid": false, "error": "Data is null" }
+    }
+    
+    if data["version"] == null || data["version"] == undefined {
+        return { "valid": false, "error": "Missing version" }
+    }
+    
+    if data["entities"] == null || data["entities"] == undefined {
+        return { "valid": false, "error": "Missing entities" }
+    }
+    
+    return { "valid": true, "error": null }
+}
+
+pub fn getSerializationStats(serializer) {
+    return {
+        "version": serializer["version"],
+        "format": serializer["format"],
+        "includeComponents": serializer["includeComponents"],
+        "includeHierarchy": serializer["includeHierarchy"],
+        "includePhysics": serializer["includePhysics"],
+        "includeRenderables": serializer["includeRenderables"]
+    }
+}

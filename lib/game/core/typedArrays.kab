@@ -1,0 +1,343 @@
+@version "1.0.0"
+
+// Kabootar game/core/typedArrays - Typed arrays for performance in hot paths.
+// Canonical path: import "game/core/typedArrays"
+
+pub fn createFloat32Array(size) {
+    let arr = []
+    let i = 0
+    while i < size {
+        arr = push(arr, 0.0)
+        i = i + 1
+    }
+    return { "kind": "Float32Array", "data": arr, "length": size }
+}
+
+pub fn createInt32Array(size) {
+    let arr = []
+    let i = 0
+    while i < size {
+        arr = push(arr, 0)
+        i = i + 1
+    }
+    return { "kind": "Int32Array", "data": arr, "length": size }
+}
+
+pub fn createUint32Array(size) {
+    let arr = []
+    let i = 0
+    while i < size {
+        arr = push(arr, 0)
+        i = i + 1
+    }
+    return { "kind": "Uint32Array", "data": arr, "length": size }
+}
+
+pub fn setFloat32(array, index, value) {
+    if index >= 0 && index < array["length"] {
+        array["data"][index] = value
+    }
+    return array
+}
+
+pub fn getFloat32(array, index) {
+    if index >= 0 && index < array["length"] {
+        return array["data"][index]
+    }
+    return 0.0
+}
+
+pub fn setInt32(array, index, value) {
+    if index >= 0 && index < array["length"] {
+        array["data"][index] = value
+    }
+    return array
+}
+
+pub fn getInt32(array, index) {
+    if index >= 0 && index < array["length"] {
+        return array["data"][index]
+    }
+    return 0
+}
+
+pub fn setUint32(array, index, value) {
+    if index >= 0 && index < array["length"] {
+        array["data"][index] = value
+    }
+    return array
+}
+
+pub fn getUint32(array, index) {
+    if index >= 0 && index < array["length"] {
+        return array["data"][index]
+    }
+    return 0
+}
+
+pub fn createVector3Array(size) {
+    let arr = []
+    let i = 0
+    while i < size {
+        arr = push(arr, { "x": 0.0, "y": 0.0, "z": 0.0 })
+        i = i + 1
+    }
+    return { "kind": "Vector3Array", "data": arr, "length": size }
+}
+
+pub fn setVector3(array, index, x, y, z) {
+    if index >= 0 && index < array["length"] {
+        array["data"][index] = { "x": x, "y": y, "z": z }
+    }
+    return array
+}
+
+pub fn getVector3(array, index) {
+    if index >= 0 && index < array["length"] {
+        return array["data"][index]
+    }
+    return { "x": 0.0, "y": 0.0, "z": 0.0 }
+}
+
+pub fn createMatrix4Array(size) {
+    let arr = []
+    let i = 0
+    while i < size {
+        arr = push(arr, {
+            "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+            "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+            "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+            "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+        })
+        i = i + 1
+    }
+    return { "kind": "Matrix4Array", "data": arr, "length": size }
+}
+
+pub fn setMatrix4(array, index, matrix) {
+    if index >= 0 && index < array["length"] {
+        array["data"][index] = matrix
+    }
+    return array
+}
+
+pub fn getMatrix4(array, index) {
+    if index >= 0 && index < array["length"] {
+        return array["data"][index]
+    }
+    return {
+        "m00": 1.0, "m01": 0.0, "m02": 0.0, "m03": 0.0,
+        "m10": 0.0, "m11": 1.0, "m12": 0.0, "m13": 0.0,
+        "m20": 0.0, "m21": 0.0, "m22": 1.0, "m23": 0.0,
+        "m30": 0.0, "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+pub fn createTransformBuffer(size) {
+    return {
+        "kind": "TransformBuffer",
+        "positions": createVector3Array(size),
+        "rotations": createVector3Array(size),
+        "scales": createVector3Array(size),
+        "matrices": createMatrix4Array(size),
+        "count": 0,
+        "capacity": size
+    }
+}
+
+pub fn addTransform(buffer, position, rotation, scale) {
+    if buffer["count"] < buffer["capacity"] {
+        let index = buffer["count"]
+        buffer["positions"] = setVector3(buffer["positions"], index, position["x"], position["y"], position["z"])
+        buffer["rotations"] = setVector3(buffer["rotations"], index, rotation["x"], rotation["y"], rotation["z"])
+        buffer["scales"] = setVector3(buffer["scales"], index, scale["x"], scale["y"], scale["z"])
+        buffer["count"] = buffer["count"] + 1
+    }
+    return buffer
+}
+
+pub fn clearTransformBuffer(buffer) {
+    buffer["count"] = 0
+    return buffer
+}
+
+pub fn createPhysicsBuffer(size) {
+    return {
+        "kind": "PhysicsBuffer",
+        "velocities": createVector3Array(size),
+        "forces": createVector3Array(size),
+        "masses": createFloat32Array(size),
+        "invMasses": createFloat32Array(size),
+        "count": 0,
+        "capacity": size
+    }
+}
+
+pub fn addPhysicsBody(buffer, velocity, force, mass) {
+    if buffer["count"] < buffer["capacity"] {
+        let index = buffer["count"]
+        buffer["velocities"] = setVector3(buffer["velocities"], index, velocity["x"], velocity["y"], velocity["z"])
+        buffer["forces"] = setVector3(buffer["forces"], index, force["x"], force["y"], force["z"])
+        buffer["masses"] = setFloat32(buffer["masses"], index, mass)
+        let invMass = if mass > 0.0001 { 1.0 / mass } else { 0.0 }
+        buffer["invMasses"] = setFloat32(buffer["invMasses"], index, invMass)
+        buffer["count"] = buffer["count"] + 1
+    }
+    return buffer
+}
+
+pub fn clearPhysicsBuffer(buffer) {
+    buffer["count"] = 0
+    return buffer
+}
+
+pub fn createRenderBuffer(size) {
+    return {
+        "kind": "RenderBuffer",
+        "worldMatrices": createMatrix4Array(size),
+        "materialIds": createInt32Array(size),
+        "layerMasks": createUint32Array(size),
+        "count": 0,
+        "capacity": size
+    }
+}
+
+pub fn addRenderItem(buffer, worldMatrix, materialId, layerMask) {
+    if buffer["count"] < buffer["capacity"] {
+        let index = buffer["count"]
+        buffer["worldMatrices"] = setMatrix4(buffer["worldMatrices"], index, worldMatrix)
+        buffer["materialIds"] = setInt32(buffer["materialIds"], index, materialId)
+        buffer["layerMasks"] = setUint32(buffer["layerMasks"], index, layerMask)
+        buffer["count"] = buffer["count"] + 1
+    }
+    return buffer
+}
+
+pub fn clearRenderBuffer(buffer) {
+    buffer["count"] = 0
+    return buffer
+}
+
+pub fn createIndexBuffer(size) {
+    return {
+        "kind": "IndexBuffer",
+        "indices": createUint32Array(size),
+        "count": 0,
+        "capacity": size
+    }
+}
+
+pub fn addIndex(buffer, index) {
+    if buffer["count"] < buffer["capacity"] {
+        buffer["indices"] = setUint32(buffer["indices"], buffer["count"], index)
+        buffer["count"] = buffer["count"] + 1
+    }
+    return buffer
+}
+
+pub fn clearIndexBuffer(buffer) {
+    buffer["count"] = 0
+    return buffer
+}
+
+pub fn createVertexBuffer(size, vertexSize) {
+    let data = createFloat32Array(size * vertexSize)
+    return {
+        "kind": "VertexBuffer",
+        "data": data,
+        "vertexSize": vertexSize,
+        "count": 0,
+        "capacity": size
+    }
+}
+
+pub fn addVertex(buffer, vertexData) {
+    if buffer["count"] < buffer["capacity"] {
+        let i = 0
+        while i < len(vertexData) {
+            let index = buffer["count"] * buffer["vertexSize"] + i
+            buffer["data"] = setFloat32(buffer["data"], index, vertexData[i])
+            i = i + 1
+        }
+        buffer["count"] = buffer["count"] + 1
+    }
+    return buffer
+}
+
+pub fn clearVertexBuffer(buffer) {
+    buffer["count"] = 0
+    return buffer
+}
+
+pub fn getArrayStats(array) {
+    return {
+        "kind": array["kind"],
+        "length": array["length"],
+        "dataLength": len(array["data"])
+    }
+}
+
+pub fn resizeFloat32Array(array, newSize) {
+    let oldData = array["data"]
+    let newData = []
+    let i = 0
+    while i < newSize {
+        if i < len(oldData) {
+            newData = push(newData, oldData[i])
+        } else {
+            newData = push(newData, 0.0)
+        }
+        i = i + 1
+    }
+    array["data"] = newData
+    array["length"] = newSize
+    return array
+}
+
+pub fn resizeInt32Array(array, newSize) {
+    let oldData = array["data"]
+    let newData = []
+    let i = 0
+    while i < newSize {
+        if i < len(oldData) {
+            newData = push(newData, oldData[i])
+        } else {
+            newData = push(newData, 0)
+        }
+        i = i + 1
+    }
+    array["data"] = newData
+    array["length"] = newSize
+    return array
+}
+
+pub fn fillFloat32Array(array, value) {
+    let i = 0
+    while i < array["length"] {
+        array["data"][i] = value
+        i = i + 1
+    }
+    return array
+}
+
+pub fn fillInt32Array(array, value) {
+    let i = 0
+    while i < array["length"] {
+        array["data"][i] = value
+        i = i + 1
+    }
+    return array
+}
+
+pub fn copyFloat32Array(source, sourceOffset, destination, destinationOffset, length) {
+    let i = 0
+    while i < length {
+        let srcIndex = sourceOffset + i
+        let dstIndex = destinationOffset + i
+        if srcIndex < source["length"] && dstIndex < destination["length"] {
+            destination["data"][dstIndex] = source["data"][srcIndex]
+        }
+        i = i + 1
+    }
+    return destination
+}
