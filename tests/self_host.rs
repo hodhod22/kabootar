@@ -504,8 +504,17 @@ fn self_host_emit_section_count() {
 
 #[test]
 fn self_host_serialize_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_serialize.kab"))
-        .expect("self_host/test_serialize.kab should pass");
+    // Windows cargo-test default stack overflows on self-host serialize suite.
+    let path = self_host_path("test_serialize.kab");
+    let ok = std::thread::Builder::new()
+        .name("serialize-suite".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            kabootar_lib::cli::run_file(&path).expect("self_host/test_serialize.kab should pass");
+        })
+        .expect("spawn serialize suite")
+        .join();
+    ok.expect("serialize suite thread");
 }
 
 #[test]
@@ -2237,6 +2246,10 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     assert!(
         src.contains("let IR_WITH_ARG"),
         "P6b: irOpLine must use membership tables (not ~58 If arms)"
+    );
+    assert!(
+        src.contains("fn appendNl(") && src.contains("fn beginTag("),
+        "P6b: shallow AccAdd append helpers required (no depth-16+ Binary + trees)"
     );
     assert!(
         !src.contains("if sOp == OP_ADD"),

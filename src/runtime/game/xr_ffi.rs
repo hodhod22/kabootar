@@ -2952,6 +2952,31 @@ static XR_INPUT: Mutex<XrInputState> = Mutex::new(XrInputState {
     frame_index: 0,
 });
 
+/// Live XR_EXT_hand_tracking joint pose buffers (host / OpenXR stub fills these).
+#[derive(Debug, Clone)]
+struct LiveJointPose {
+    joint: String,
+    x: f64,
+    y: f64,
+    z: f64,
+    qx: f64,
+    qy: f64,
+    qz: f64,
+    qw: f64,
+    radius: f64,
+}
+
+#[derive(Debug, Default)]
+struct HandJointBuffers {
+    left: Option<Vec<LiveJointPose>>,
+    right: Option<Vec<LiveJointPose>>,
+}
+
+static HAND_JOINT_BUFFERS: Mutex<HandJointBuffers> = Mutex::new(HandJointBuffers {
+    left: None,
+    right: None,
+});
+
 fn pose_map(x: f64, y: f64, z: f64) -> Value {
     let mut m = HashMap::new();
     m.insert("x".into(), Value::Float(x));
@@ -3069,18 +3094,169 @@ fn hand_tracking_backend() -> String {
     "emulated".into()
 }
 
-/// XRHand-style joint poses (emulated or OpenXR EXT hand tracking path).
+/// XRHand-style joint poses (live buffer if set, else emulated / OpenXR stub synth).
 pub fn hand_joints(handedness: &str) -> Result<Value, String> {
     ensure_input_sources();
     if handedness != "left" && handedness != "right" {
         return Err(format!("xr_hand_joints: handedness left|right, got {handedness}"));
     }
+    if let Some(live) = take_live_hand_view(handedness) {
+        return Ok(live);
+    }
     Ok(stub_hand_joints(handedness))
 }
 
-/// Status bag for hand tracking capability (extension + backend).
+fn take_live_hand_view(handedness: &str) -> Option<Value> {
+    let buf = HAND_JOINT_BUFFERS.lock().ok()?;
+    let joints = if handedness == "left" {
+        buf.left.as_ref()
+    } else {
+        buf.right.as_ref()
+    }?;
+    let backend = hand_tracking_backend();
+    let arr: Vec<Value> = joints
+        .iter()
+        .map(|j| {
+            let mut pose = HashMap::new();
+            pose.insert("x".into(), Value::Float(j.x));
+            pose.insert("y".into(), Value::Float(j.y));
+            pose.insert("z".into(), Value::Float(j.z));
+            pose.insert("qx".into(), Value::Float(j.qx));
+            pose.insert("qy".into(), Value::Float(j.qy));
+            pose.insert("qz".into(), Value::Float(j.qz));
+            pose.insert("qw".into(), Value::Float(j.qw));
+            pose.insert("emulated".into(), Value::Bool(false));
+            let mut m = HashMap::new();
+            m.insert("joint".into(), Value::String(j.joint.clone()));
+            m.insert("pose".into(), Value::Object(pose));
+            m.insert("radius".into(), Value::Float(j.radius));
+            Value::Object(m)
+        })
+        .collect();
+    let mut out = HashMap::new();
+    out.insert("handedness".into(), Value::String(handedness.into()));
+    out.insert("joints".into(), Value::Array(arr));
+    out.insert("tracking".into(), Value::String(backend));
+    out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+    out.insert("source".into(), Value::String("live-buffer".into()));
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("kind".into(), Value::String("xr_hand".into()));
+    Some(Value::Object(out))
+}
+
+fn parse_live_joint(v: &Value) -> Result<LiveJointPose, String> {
+    let Value::Object(m) = v else {
+        return Err("xr_set_hand_joint_buffer: joint must be object".into());
+    };
+    let joint = match m.get("joint") {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err("xr_set_hand_joint_buffer: joint.name required".into()),
+    };
+    let pose = match m.get("pose") {
+        Some(Value::Object(p)) => p,
+        _ => return Err("xr_set_hand_joint_buffer: joint.pose required".into()),
+    };
+    let num = |key: &str, default: f64| -> f64 {
+        match pose.get(key) {
+            Some(Value::Float(f)) => *f,
+            Some(Value::Number(n)) => *n as f64,
+            _ => default,
+        }
+    };
+    let radius = match m.get("radius") {
+        Some(Value::Float(f)) => *f,
+        Some(Value::Number(n)) => *n as f64,
+        _ => 0.008,
+    };
+    Ok(LiveJointPose {
+        joint,
+        x: num("x", 0.0),
+        y: num("y", 0.0),
+        z: num("z", 0.0),
+        qx: num("qx", 0.0),
+        qy: num("qy", 0.0),
+        qz: num("qz", 0.0),
+        qw: num("qw", 1.0),
+        radius,
+    })
+}
+
+/// Push a live joint array for one hand (OpenXR EXT / host compositor path).
+pub fn set_hand_joint_buffer(handedness: &str, joints: Value) -> Result<Value, String> {
+    if handedness != "left" && handedness != "right" {
+        return Err(format!(
+            "xr_set_hand_joint_buffer: handedness left|right, got {handedness}"
+        ));
+    }
+    let Value::Array(arr) = joints else {
+        return Err("xr_set_hand_joint_buffer: joints must be array".into());
+    };
+    if arr.is_empty() {
+        return Err("xr_set_hand_joint_buffer: joints must be non-empty".into());
+    }
+    let parsed: Result<Vec<_>, _> = arr.iter().map(parse_live_joint).collect();
+    let parsed = parsed?;
+    let count = parsed.len() as i64;
+    let mut st = HAND_JOINT_BUFFERS
+        .lock()
+        .map_err(|_| "xr_set_hand_joint_buffer: lock".to_string())?;
+    if handedness == "left" {
+        st.left = Some(parsed);
+    } else {
+        st.right = Some(parsed);
+    }
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("handedness".into(), Value::String(handedness.into()));
+    out.insert("count".into(), Value::Number(count));
+    out.insert("kind".into(), Value::String("xr_hand_joint_buffer".into()));
+    Ok(Value::Object(out))
+}
+
+/// Clear live joint buffer(s). Pass null/empty handedness to clear both.
+pub fn clear_hand_joint_buffer(handedness: &str) -> Result<Value, String> {
+    let mut st = HAND_JOINT_BUFFERS
+        .lock()
+        .map_err(|_| "xr_clear_hand_joint_buffer: lock".to_string())?;
+    if handedness.is_empty() || handedness == "*" || handedness == "both" {
+        st.left = None;
+        st.right = None;
+    } else if handedness == "left" {
+        st.left = None;
+    } else if handedness == "right" {
+        st.right = None;
+    } else {
+        return Err(format!(
+            "xr_clear_hand_joint_buffer: handedness left|right|both, got {handedness}"
+        ));
+    }
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert(
+        "left".into(),
+        Value::Bool(st.left.is_some()),
+    );
+    out.insert(
+        "right".into(),
+        Value::Bool(st.right.is_some()),
+    );
+    Ok(Value::Object(out))
+}
+
+/// Status bag for hand tracking capability (extension + backend + live buffers).
 pub fn hand_tracking_status() -> Value {
     let backend = hand_tracking_backend();
+    let (left_live, right_live) = HAND_JOINT_BUFFERS
+        .lock()
+        .map(|b| (b.left.is_some(), b.right.is_some()))
+        .unwrap_or((false, false));
+    let mut live_buf = HashMap::new();
+    live_buf.insert("left".into(), Value::Bool(left_live));
+    live_buf.insert("right".into(), Value::Bool(right_live));
+    live_buf.insert(
+        "count".into(),
+        Value::Number((left_live as i64) + (right_live as i64)),
+    );
     let mut out = HashMap::new();
     out.insert("ok".into(), Value::Bool(true));
     out.insert("backend".into(), Value::String(backend.clone()));
@@ -3093,6 +3269,7 @@ pub fn hand_tracking_status() -> Value {
         "live".into(),
         Value::Bool(backend == "openxr-ext" || backend == "openxr-stub"),
     );
+    out.insert("liveBuffers".into(), Value::Object(live_buf));
     out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
     Value::Object(out)
 }
@@ -3214,6 +3391,9 @@ pub fn poll_input_events() -> Value {
 fn reset_input_for_tests() {
     if let Ok(mut st) = XR_INPUT.lock() {
         *st = XrInputState::default();
+    }
+    if let Ok(mut b) = HAND_JOINT_BUFFERS.lock() {
+        *b = HandJointBuffers::default();
     }
 }
 
