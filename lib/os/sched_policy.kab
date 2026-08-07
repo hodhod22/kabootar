@@ -29,3 +29,23 @@ pub fn runPrefetch(names) {
     preempt()
     return t
 }
+
+/// Round-robin fairness: expand names `passes` times, then one fair tick.
+/// Pure Kab policy over CFS enqueue — host heap still native.
+pub fn runRoundRobin(names, passes) {
+    let n = parse_int("" + passes)
+    if n < 1 {
+        n = 1
+    }
+    let all = []
+    let p = 0
+    while p < n {
+        let i = 0
+        while i < len(names) {
+            all = push(all, names[i])
+            i = i + 1
+        }
+        p = p + 1
+    }
+    return runFairTick(all)
+}

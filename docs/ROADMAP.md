@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b empty skip-list when self-host leaf compile is CI-fast; XR layer submit with wgpu/Vulkan images. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6b leaf self-host <10s (serialize_body first; list stays 5); K1d Kab static/super; O5 borrow parity in `ownership.kab`. XR layer submit with wgpu/Vulkan images. **P/GP0–GP5** + **GP6a–n subset** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -510,7 +510,7 @@ GC förblir default. Ownership gäller **bara** `@manual`-moduler. Se [OWNERSHIP
 | **O2** | **Signaturer** — `fn f(b: Owned)`, `fn g(b: &Owned)`; call-arg med Owned flyttar (om inte `&`/`&mut`) | ✅ |
 | **O3** | **Borrow** — `&x` / `&mut x`, typer `&Owned` / `&mut Owned`; shared vs exclusive; borrow-scope = call-uttryck | ✅ |
 | **O4** | **Scope drop** — compile-time varning/fel om Owned lever över scope utan `drop`/`move` (leak-lint); runtime drop oförändrad | ✅ |
-| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | ✅ subset (+ `&`/`&mut` peek i `ownership.kab`) |
+| **O5** | **Self-host checker** — port O1–O3 till `self_host/` så produktkompilatorn checkar ownership | ✅ subset (+ `&`/`&mut` peek; exclusive borrow + move-while-borrowed i `ownership.kab`; ej produkt-wired) |
 
 **Checkpoint O1–O3:** `cargo test --test ownership_check` + `cargo test --test ownership_manual`
 
@@ -527,7 +527,7 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 | **T2** | **Generiska traits** — `trait Show<T> { … }` | ✅ |
 | **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | ✅ |
 | **T4** | **Default-metoder** i trait-kropp | ✅ |
-| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset (+ `type Item;` → `associatedTypes`) |
+| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset (+ `type Item;` → `associatedTypes`; default method body nästa) |
 
 **Icke-mål:** HKT, `dyn Trait`-objekt, Rust-coherence.
 
@@ -615,15 +615,15 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Fas | Innehåll |
 |-----|----------|
 | **K1** | **Kv8** — lexer/parser/eval/JIT-policy i `.kab` (ersätt Rust `kv8_*`) — ✅ **subset** (lexer+parser i `lib/kv8`; eval hybrid). Gate: `cargo test --test kv8_lib -- --test-threads=1` |
-| **K1c** | **Kv8 Kabootar eval** — ✅ **subset**: `evalSourceKab` → `evalSourceWith` (literals/ops/control); class/async kvar via Rust `evalSource` |
-| **K1d** | **Kv8 class/new/async** — ✅ **subset**: `K_NEW` + `this` + `K_CLASS`/`K_NEW`/`K_AWAIT` i `evalSourceKab` (`k1d_class_new_kab_eval`); async kör sync |
-| **K1e** | **Kv8 extends + Kab evalSource** — ✅ **subset**: `extends` mergar parent-metoder; `evalSource` → Kab-path (`evalSourceWith`); Rust kvar som `evalSourceRust` (`k1e_extends_kab_eval`, `k1e_eval_source_prefers_kab`) |
+| **K1c** | **Kv8 Kabootar eval** — ✅ **subset**: `evalSourceKab` → `evalSourceWith` (H6a Kab-only; ingen Rust `evalSource`-fallback) |
+| **K1d** | **Kv8 class/new/async** — ✅ **subset**: `K_NEW`/`this`/`K_AWAIT` + **static** + **super()** i `evalSourceKab` (`k1d_class_new_kab_eval`, `k1d_static_kab_eval`, `k1d_super_kab_eval`) |
+| **K1e** | **Kv8 extends + Kab evalSource** — ✅ **subset**: `extends` mergar parent-metoder; `evalSource` → Kab-path (`evalSourceWith`) (`k1e_extends_kab_eval`, `k1e_eval_source_prefers_kab`) |
 | **K1f** | **Kv8 async/Promise** — ✅ **subset**: async fn returnerar `{__k8promise,value}`; `K_AWAIT` unwrap; `Promise.resolve` stub i `evalSourceWith` (`k1f_async_promise_kab_eval`) |
 | **K1g** | **Promise.then microtask** — ✅ **subset**: `.then(cb)` köar microtask; `drainMicrotasks` efter stmt i `evalSourceWith` (`k1g_promise_then_microtask`) |
 | **K2** | **DOM + CSS/KSS** — ✅ **subset**: `querySelector` + KSS object→CSS i `.kab` (`kdom_query_kss_smoke`); layout/paint fortfarande Rust |
 | **K2 deepen** | **applyCss + matches** — ✅ **subset**: `kdom_applycss_matches_smoke` (kdom + kss + selectors + theme `applyCss`) |
 | **K2-layout** | **flex/box orchestration** — ✅ **subset**: `lib/kstyle/layout` `flexColumn`/`flexRow`/`gap`/`pad`/`applyFlex` (stil-helpers; native layout engine kvar) (`k2_layout_smoke`) |
-| **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` (enqueue/tick/yield/preempt). Gate: `cargo test --test os_lib` |
+| **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` + policy (`runRoundRobin`, `canWrite` /apps sandbox). Gate: `cargo test --test os_lib` |
 | **K4** | **Webläsare** — ✅ **subset**: `lib/kbrowser` tabs + VFS navigate + paint (`k4_kbrowser_tabs_smoke`) |
 | **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5 + launch + Start click + event drain + app body): `launchApp` / `clickStartApp` / `drainKosEvents` → `openWindow` med VFS-body (`kos_launch_app_smoke`, `kos_start_click_smoke`, `kos_event_drain_smoke`, `kos_app_body_smoke`) |
 
@@ -679,7 +679,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **seed-only product path** (5 leaves + fingerprint gates). **P6b** empty list 📋 när `p6_leaf_self_host_compile_budget` <10s |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **seed-only product path** (5 leaves + fingerprint gates). **P6b** empty list 📋 när `p6_leaf_self_host_compile_budget` <10s — progress: `serialize_body` first target + `p6b_serialize_body_still_skip_listed_progress` |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |

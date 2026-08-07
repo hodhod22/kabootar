@@ -71,6 +71,18 @@ fn assert_contains(hay, needle, msg) {
     assert_contains(err, "use after move", "use after drop via borrow")
 }
 
+// O5 deepen: double &mut rejected
+{
+    let err = checkOwnership("@manual\nfn poke(a, b) {\n}\nlet x = owned_alloc(4, \"t\")\npoke(&mut x, &mut x)\ndrop(x)\n")
+    assert_contains(err, "&mut", "double &mut")
+}
+
+// O5 deepen: move while borrowed rejected
+{
+    let err = checkOwnership("@manual\nfn both(r, x) {\n}\nlet b = owned_alloc(4, \"t\")\nboth(&b, b)\n")
+    assert_contains(err, "borrow", "move while borrowed")
+}
+
 println("")
 println("Self-hosted ownership tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

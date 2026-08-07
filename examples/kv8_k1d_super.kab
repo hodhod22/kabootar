@@ -1,0 +1,6 @@
+// K1d deepen: super() constructor via evalSourceKab
+// cargo run --bin kabootar -- examples/kv8_k1d_super.kab
+
+import "kv8/eval"
+
+return evalSourceKab("class Shape { constructor(color) { this.color = color } } class Circle extends Shape { constructor(color, radius) { super(color); this.radius = radius } } let c = new Circle('red', 5); c.color + ':' + c.radius") == "red:5"

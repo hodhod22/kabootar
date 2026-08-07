@@ -10,12 +10,15 @@ import "os/process"
 ensureAppsRoot()
 let body = writeFile("/apps/h6d.txt", "h6d-ok")
 let appsOk = underApps("/apps/h6d.txt") && body == "h6d-ok" && exists("/apps/h6d.txt")
+let writePol = canWrite("/apps/x") == true && canWrite("/etc/passwd") == false
 
 copyFile("/apps/h6d.txt", "/apps/h6d-copy.txt")
 let copyOk = read("/apps/h6d-copy.txt") == "h6d-ok"
 
-let tick = runFairTick(["h6d-a", "h6d-b"])
-let schedOk = tick != null && tick != undefined
+// Avoid naming a local `tick` — it shadows the sched import binding.
+let fair = runFairTick(["h6d-a", "h6d-b"])
+let rr = runRoundRobin(["h6d-rr-a", "h6d-rr-b"], 2)
+let schedOk = fair != null && fair != undefined && rr != null && rr != undefined
 
 let worker = spawnAppsWorker("h6d-worker")
 let capOk = worker > 0 && hasCap(worker, "vfs:read:/apps") == true
@@ -24,5 +27,5 @@ let killOk = canKill(1) == false && canKill(worker) == true
 let procs = list()
 let listOk = len(procs) >= 1
 
-println("h6d vfs=" + appsOk + " copy=" + copyOk + " sched=" + schedOk + " proc=" + capOk + " kill=" + killOk)
-return appsOk && copyOk && schedOk && capOk && killOk && listOk
+println("h6d vfs=" + appsOk + " writePol=" + writePol + " copy=" + copyOk + " sched=" + schedOk + " proc=" + capOk + " kill=" + killOk)
+return appsOk && writePol && copyOk && schedOk && capOk && killOk && listOk

@@ -1,7 +1,10 @@
 // Minimal affine ownership checker for @manual modules (O5 subset).
 // Tracks Owned from owned_alloc and moves via let-assign / drop / owned_move / move.
+// O5 deepen: exclusive/shared borrow counts (double &mut, move-while-borrowed).
 
 let oPlaces = {}
+let oMutBorrows = {}
+let oSharedBorrows = {}
 let oErrors = []
 let oToks = []
 let oI = 0
@@ -116,6 +119,49 @@ fn oAtId(name) {
     return 0
 }
 
+fn oMutCount(name) {
+    if object_has_own(oMutBorrows, name) {
+        return oMutBorrows[name]
+    }
+    return 0
+}
+
+fn oSharedCount(name) {
+    if object_has_own(oSharedBorrows, name) {
+        return oSharedBorrows[name]
+    }
+    return 0
+}
+
+fn oMutAdd(name, delta) {
+    // Mutate module maps directly (Kab CoW: map args do not write back)
+    let n = oMutCount(name) + delta
+    if n <= 0 {
+        oMutBorrows[name] = 0
+    } else {
+        oMutBorrows[name] = n
+    }
+}
+
+fn oSharedAdd(name, delta) {
+    let n = oSharedCount(name) + delta
+    if n <= 0 {
+        oSharedBorrows[name] = 0
+    } else {
+        oSharedBorrows[name] = n
+    }
+}
+
+fn oIsBorrowed(name) {
+    if oMutCount(name) > 0 {
+        return 1
+    }
+    if oSharedCount(name) > 0 {
+        return 1
+    }
+    return 0
+}
+
 fn oUse(name, doMove) {
     let st = oPlaces[name]
     if st == "moved" {
@@ -124,6 +170,10 @@ fn oUse(name, doMove) {
     }
     if st == "owned" {
         if doMove == 1 {
+            if oIsBorrowed(name) == 1 {
+                oErr("ownership: cannot move `" + name + "` while borrowed")
+                return 0
+            }
             oPlaces[name] = "moved"
             return 1
         }
@@ -132,12 +182,55 @@ fn oUse(name, doMove) {
     return 0
 }
 
+fn oBorrow(name, isMut) {
+    let st = oPlaces[name]
+    if st == "moved" {
+        oErr("ownership: use after move of `" + name + "`")
+        return
+    }
+    if st != "owned" {
+        return
+    }
+    if isMut == 1 {
+        if oMutCount(name) > 0 {
+            oErr("ownership: exclusive &mut borrow of `" + name + "` already active")
+            return
+        }
+        if oSharedCount(name) > 0 {
+            oErr("ownership: cannot &mut `" + name + "` while shared-borrowed")
+            return
+        }
+        oMutAdd(name, 1)
+    } else {
+        if oMutCount(name) > 0 {
+            oErr("ownership: cannot shared-borrow `" + name + "` while &mut active")
+            return
+        }
+        oSharedAdd(name, 1)
+    }
+}
+
+fn oClearCallBorrows(names) {
+    let i = 0
+    while i < len(names) {
+        let n = names[i]
+        if oMutCount(n) > 0 {
+            oMutAdd(n, -1)
+        }
+        if oSharedCount(n) > 0 {
+            oSharedAdd(n, -1)
+        }
+        i = i + 1
+    }
+}
+
 fn oSkipCallArgs(doMove) {
     if oPeek().v != "(" {
         return
     }
     oBump()
     let depth = 1
+    let callBorrows = []
     while oI < len(oToks) && depth > 0 {
         let t = oPeek()
         if t.v == "(" {
@@ -149,15 +242,18 @@ fn oSkipCallArgs(doMove) {
                 depth = depth - 1
             } else {
                 if depth == 1 && t.k == "op" && t.v == "&" {
-                    // & / &mut borrow — peek, do not move
+                    // & / &mut borrow — peek, do not move; track for exclusivity
                     oBump()
+                    let isMut = 0
                     if oAtId("mut") == 1 {
                         oBump()
+                        isMut = 1
                     }
                     if oPeek().k == "id" {
                         let n = oPeek().v
                         oBump()
-                        oUse(n, 0)
+                        oBorrow(n, isMut)
+                        callBorrows = push(callBorrows, n)
                     }
                 } else {
                     if t.k == "id" && depth == 1 {
@@ -170,12 +266,14 @@ fn oSkipCallArgs(doMove) {
             }
         }
     }
+    // Borrow scope = call expression
+    oClearCallBorrows(callBorrows)
 }
 
 /// Parse a primary/call expression. Returns 1 if it produces Owned.
 fn oExpr(doMove) {
     let t = oPeek()
-    // O5 deepen: &x / &mut x — peek use (no move)
+    // O5 deepen: bare &x / &mut x — peek (no move). Call-arg borrows tracked in oSkipCallArgs.
     if t.k == "op" && t.v == "&" {
         oBump()
         if oAtId("mut") == 1 {
@@ -278,6 +376,8 @@ fn oStmt() {
 
 pub fn checkOwnership(source) {
     oPlaces = {}
+    oMutBorrows = {}
+    oSharedBorrows = {}
     oErrors = []
     oToks = oTokenize(source)
     oI = 0

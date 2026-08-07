@@ -7,6 +7,17 @@ fn manifest_dir() -> String {
     env!("CARGO_MANIFEST_DIR").to_string()
 }
 
+fn run_file_host(path: &str) -> Value {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "host");
+    let v = cli::run_file(path);
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    v.expect("run_file_host")
+}
+
 #[test]
 fn os_vfs_read_write_roundtrip() {
     let code = r#"
@@ -136,12 +147,7 @@ fn os_h6d_policy_smoke() {
     let ok = std::thread::Builder::new()
         .name("h6d-os".into())
         .stack_size(16 * 1024 * 1024)
-        .spawn(move || {
-            matches!(
-                cli::run_file(&path).expect("examples/h6d_os_policy_smoke.kab should run"),
-                Value::Bool(true)
-            )
-        })
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn h6d thread")
         .join()
         .expect("h6d thread join");

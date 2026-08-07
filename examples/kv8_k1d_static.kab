@@ -1,0 +1,6 @@
+// K1d deepen: static class methods via evalSourceKab
+// cargo run --bin kabootar -- examples/kv8_k1d_static.kab
+
+import "kv8/eval"
+
+return evalSourceKab("class MathHelper { static square(x) { return x * x } } MathHelper.square(7)") == 49
