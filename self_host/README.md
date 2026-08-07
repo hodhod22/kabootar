@@ -170,6 +170,9 @@ Efter grön `emit` full compile — hitta flaskhalsar innan M11/M12.
 # Fas-tid: parse / emit / serialize (emit.kab, kan ta timmar)
 python scripts/profile_emit_compile.py phases emit.kab
 
+# P6b leaf (minsta skip-listade källan) — samma pipeline
+python scripts/profile_emit_compile.py phases self_host/serialize_body.kab
+
 # Wall-time compile() end-to-end
 python scripts/profile_emit_compile.py compile emit.kab
 
@@ -186,3 +189,14 @@ CARGO_TARGET_DIR=target-alt3 cargo test --test self_host self_host_emit_profile_
 Output-rader `PROFILE ...` är maskinläsbara. `popStack()` och stack-trim-loopar använder nu native `pop()` (kräver ny `compile(emit.kab)` för `.kbc`).
 
 Snabb smoke: `cargo test --test self_host self_host_profile_phases_smoke`.
+
+### P6b (skip-list → tom lista)
+
+Se [seed/README.md](seed/README.md) för policy, playbook och mätta baslinjer.
+
+- Produktpath = committed seeds; **töm inte** listan förrän alla fem löv
+  `compile_source_self_host` < 10 s (`P6_SELF_HOST_LEAF_CI_FAST_MS`).
+- Leaf-densify (`serialize_body` membership tables) hjälper, men räcker inte ensamt
+  (~889 s debug efter densify). Nästa: **emit AccAdd-hotpath** i `emit_impl`
+  (recurse, ingen `pieces[]`, ingen stmt-`Const(null)`).
+- Efter `emit_impl`-ändring: regenerera `self_host/seed/emit_impl.kab.kbc`.

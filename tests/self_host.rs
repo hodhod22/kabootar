@@ -2446,6 +2446,7 @@ fn self_host_deserialize_full_compile() {
 /// Else-if chains, AccAdd peephole, and bitwise ops must self-host-parse/emit.
 #[test]
 fn self_host_elseif_accadd_bitops_compile() {
+    use kabootar_lib::bytecode::serialize;
     use kabootar_lib::compile::compile_source_self_host;
     let src = r#"
 fn f(x) {
@@ -2472,6 +2473,27 @@ fn bits() {
         .join()
         .expect("join");
     assert!(program.has_bytecode());
+    let kbc = serialize(program.bytecode.as_ref().expect("bc"));
+    assert!(
+        kbc.contains("acc_add_local"),
+        "AccAdd peephole should emit acc_add_local for x = x + …"
+    );
+}
+
+/// P6b: emit AccAdd uses recurse/early-reject (no pieces[]), no stmt Const(null).
+#[test]
+fn p6b_emit_accadd_hotpath_progress() {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/emit_impl.kab");
+    let src = std::fs::read_to_string(&path).expect("read emit_impl");
+    assert!(
+        src.contains("P6b: early reject + recurse"),
+        "tryEmitAccAddAssign should document P6b recurse hotpath"
+    );
+    assert!(
+        !src.contains("pieces = push(pieces"),
+        "AccAdd must not rebuild pieces[] (O(n²) push during emit)"
+    );
 }
 
 #[test]

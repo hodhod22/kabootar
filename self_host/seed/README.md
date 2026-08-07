@@ -3,28 +3,59 @@
 Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 **without a live Rust compile** (fingerprint must match source).
 
-## Policy (P6 product path — do not empty yet)
+## Policy
 
-**P6 ✅** = seed-only is the product path for the five leaves.
-**P6b 📋** = empty `SELF_HOST_SKIP_LISTED_LEAVES` only when every leaf
-self-host-compiles under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Today even
-~13KB leaves take minutes (AST-cost); see `self_host/emit.kab` comments.
+| Track | Meaning |
+|-------|---------|
+| **P6 ✅** | Seed-only is the **product path** for the five leaves. |
+| **P6b 📋** | Empty `SELF_HOST_SKIP_LISTED_LEAVES` **only** when every leaf self-host-compiles under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10 000 ms). |
+| **Flag** | `P6B_EMPTY_SKIP_LIST_READY` must stay `false` until that budget passes (asserted in `p6_skip_list_stays_until_ci_fast_gate`). |
 
-**P6b progress:** first speed target = `serialize_body.kab` (smallest leaf).
-`irOpLine` uses `IR_WITH_ARG`/`IR_ZERO_ARG` membership (+ `joinComma`) instead of
-~58 If arms; source ~8.8KB. Measured self-host compile (debug `cargo test`):
-~889s — still ≫ `P6_SELF_HOST_LEAF_CI_FAST_MS` (10s); skip-list stays 5.
-Run `cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture`
-(or full `p6_leaf_self_host_compile_budget`) to re-record ms; do not flip
-`P6B_EMPTY_SKIP_LIST_READY` until all five are under budget.
+Self-host cost scales with **AST density of the source being compiled**, not with
+import-time cost of dependents. Even a ~9 KB leaf can take **minutes** in debug
+`cargo test` until emit/parse hot paths catch up.
 
-Gates:
+## P6b playbook
 
-- `p6_seed_only_all_leaves_have_seeds` — files exist, list length stays 5
-- `p6_seed_fingerprint_all_leaves_load` — each seed deserializes and fingerprint matches source
-- `p6_skip_list_stays_until_ci_fast_gate` — oversize emit stays skipped
-- `p6_leaf_self_host_compile_budget` (ignored) — timing probe for P6b
-- `P6B_EMPTY_SKIP_LIST_READY` — must stay `false` until budget passes (asserted in `p6_skip_list_stays_until_ci_fast_gate`)
+1. **Densify the leaf source** (fewer If / Binary trees) — e.g. `serialize_body`
+   `irOpLine` → `IR_WITH_ARG` / `IR_ZERO_ARG` membership (~8.8 KB).
+2. **Speed the toolchain emit** — `emit_impl` AccAdd recurse (no `pieces[]`),
+   no statement `Const(null)` junk; regenerate **this** leaf’s seed after edits.
+3. **Measure** before flipping any flag:
+   ```bash
+   # Single leaf (serialize_body)
+   cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
+
+   # All five skip-listed leaves
+   cargo test --test self_host p6_leaf_self_host_compile_budget -- --ignored --nocapture
+
+   # Phase split: parse / emit / serialize (needs kabootar bin)
+   python scripts/profile_emit_compile.py phases self_host/serialize_body.kab
+   ```
+4. **Do not** empty the skip-list or set `P6B_EMPTY_SKIP_LIST_READY=true` until
+   step 3 shows **all five** leaves `ok` and `ms ≤ 10000`.
+
+### Measured baselines (debug `cargo test`, host VM)
+
+| Leaf | Notes | Last recorded |
+|------|-------|---------------|
+| `serialize_body.kab` | Densified irOpLine + joinComma | **~889 s** (still ≫ 10 s) |
+| others | Larger / denser | not under budget |
+
+Next lever after leaf densify: **emit AccAdd / If hotpath** in `emit_impl.kab`
+(product loads the seed — always regen after emit_impl edits).
+
+## Gates
+
+| Test | Role |
+|------|------|
+| `p6_seed_only_all_leaves_have_seeds` | Files exist; list length stays 5 |
+| `p6_seed_fingerprint_all_leaves_load` | Seed deserializes; fingerprint matches source |
+| `p6_skip_list_stays_until_ci_fast_gate` | Oversize emit stays skipped; flag off |
+| `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed + densified |
+| `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath present in emit_impl |
+| `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
+| `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
 
 ## Seeds
 
@@ -40,6 +71,9 @@ Regenerate after editing a leaf:
 
 ```bash
 ./scripts/regen_self_host_seeds.sh
+# or a single leaf:
+KABOOTAR_COMPILE=rust "$BIN" compile self_host/emit_impl.kab --rust
+# then copy .kabootar/cache/… → self_host/seed/… with source= rewritten
 ```
 
 Requires a built `kabootar` binary (`CARGO_TARGET_DIR` / `KABOOTAR_BIN` optional).
