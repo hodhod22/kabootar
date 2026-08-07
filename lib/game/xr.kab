@@ -119,6 +119,11 @@ pub fn xrHandJoints(handedness) {
     return xr_hand_joints(handedness)
 }
 
+/// Hand-tracking capability: backend emulated | openxr-stub | openxr-ext.
+pub fn xrHandTrackingStatus() {
+    return xr_hand_tracking_status()
+}
+
 /// Tracked controller stubs (left/right) — derived from inputSources when present.
 pub fn trackedControllers(session) {
     let sources = null

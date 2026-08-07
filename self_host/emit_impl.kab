@@ -6,8 +6,10 @@ import "self_host/emit_defs"
 
 let eConsts = []
 let eOps = []
+let eOpsN = 0
 let eGlobals = []
 let eFnOps = []
+let eFnOpsN = 0
 let eFnGlobals = []
 let eFnLocals = []
 // P6b: O(1) sym dedup maps (avoid per-probe LoadGlobal clone of eConsts/eGlobals).
@@ -232,8 +234,10 @@ fn arrUtil(mode, stack, arr) {
 fn emitOp(op, arg) {
     if eInFn == 1 {
         eFnOps = push(eFnOps, { "op": op, "arg": arg })
+        eFnOpsN = eFnOpsN + 1
     } else {
         eOps = push(eOps, { "op": op, "arg": arg })
+        eOpsN = eOpsN + 1
     }
 }
 
@@ -445,6 +449,7 @@ fn emitExpr(node) {
         let saveTry = arrUtil("snap", eFnTryRegions)
         eInFn = 1
         eFnOps = []
+        eFnOpsN = 0
         eFnLocals = []
         eFnGlobals = []
         eFnTryRegions = []
@@ -469,6 +474,7 @@ fn emitExpr(node) {
         })
         eInFn = saveIn
         eFnOps = saveOps
+        eFnOpsN = len(saveOps)
         eFnLocals = saveLocals
         eFnGlobals = saveGlobals
         eFnTryRegions = saveTry
@@ -903,6 +909,7 @@ fn emitExpr(node) {
                         eSaveFnGlobals = arrUtil("snap",eFnGlobals)
                         eInFn = 1
                         eFnOps = []
+                        eFnOpsN = 0
                         eFnGlobals = []
                         eFnLocals = []
                         eParams = eMethTmpl["params"]
@@ -937,6 +944,7 @@ fn emitExpr(node) {
                         eClasses = eNewClasses
                         eInFn = eSaveInFn
                         eFnOps = eSaveFnOps
+                        eFnOpsN = len(eSaveFnOps)
                         eFnLocals = eSaveFnLocals
                         eFnGlobals = eSaveFnGlobals
                     }
@@ -1046,6 +1054,7 @@ fn emitExpr(node) {
                         if len(eMethTypeParams) == 0 {
                             eInFn = 1
                             eFnOps = []
+                            eFnOpsN = 0
                             eFnGlobals = []
                             eFnLocals = []
                             eParams = eMeth["params"]
@@ -1190,6 +1199,7 @@ fn emitExpr(node) {
                     eFnBody = eGenTmpl["body"]
                     eInFn = 1
                     eFnOps = []
+                    eFnOpsN = 0
                     eFnGlobals = []
                     eFnLocals = []
                     eParamI = 0
@@ -1210,6 +1220,7 @@ fn emitExpr(node) {
                     eSpecMangled = push(eSpecMangled, eMangled)
                     eInFn = eSaveInFn
                     eFnOps = eSaveFnOps
+                    eFnOpsN = len(eSaveFnOps)
                     eFnLocals = eSaveFnLocals
                     eFnGlobals = eSaveFnGlobals
                 }
@@ -1325,24 +1336,22 @@ fn emitExpr(node) {
     throw "Unsupported expr: " + eNode.kind
 }
 
-// P6b: shared jump patch / len push — cuts duplicated eInFn If AST in emitIfStmt.
+// P6b: shared jump patch / len push — use op counters (avoid len(eOps) LoadGlobal clone).
 fn patchRelJump(opName, idx) {
     if eInFn == 1 {
-        eEnd = len(eFnOps)
-        eJumpOff = eEnd - idx - 1
+        eJumpOff = eFnOpsN - idx - 1
         eFnOps[idx] = { "op": opName, "arg": eJumpOff }
     } else {
-        eEnd = len(eOps)
-        eJumpOff = eEnd - idx - 1
+        eJumpOff = eOpsN - idx - 1
         eOps[idx] = { "op": opName, "arg": eJumpOff }
     }
 }
 
 fn pushJmpAtLen(stack) {
     if eInFn == 1 {
-        return arrUtil("pushLen", stack, eFnOps)
+        return push(stack, eFnOpsN)
     }
-    return arrUtil("pushLen", stack, eOps)
+    return push(stack, eOpsN)
 }
 
 /// If stmt body (called early from emitStmt — dense leaves are If-heavy).
@@ -1656,9 +1665,9 @@ fn emitStmt(node) {
         }
         eWh = eWhileHeads[len(eWhileHeads) - 1]
         if eInFn == 1 {
-            eJumpOff = eWh - len(eFnOps) - 1
+            eJumpOff = eWh - eFnOpsN - 1
         } else {
-            eJumpOff = eWh - len(eOps) - 1
+            eJumpOff = eWh - eOpsN - 1
         }
         emitOp(OP_JUMP, eJumpOff)
         return
@@ -1667,11 +1676,7 @@ fn emitStmt(node) {
         if len(eBreakFromStack) == 0 {
             throw "break outside loop"
         }
-        if eInFn == 1 {
-            eBreakIdxs = arrUtil("pushLen",eBreakIdxs, eFnOps)
-        } else {
-            eBreakIdxs = arrUtil("pushLen",eBreakIdxs, eOps)
-        }
+        eBreakIdxs = pushJmpAtLen(eBreakIdxs)
         emitOp(OP_JUMP, 0)
         return
     }
@@ -1680,45 +1685,36 @@ fn emitStmt(node) {
         eThen = eNode["body"]
         eBreakFromStack = arrUtil("pushLen",eBreakFromStack, eBreakIdxs)
         if eInFn == 1 {
-            eWhileHead = len(eFnOps)
+            eWhileHead = eFnOpsN
         } else {
-            eWhileHead = len(eOps)
+            eWhileHead = eOpsN
         }
         eWhileHeads = push(eWhileHeads, eWhileHead)
         emitExpr(eCond)
-        if eInFn == 1 {
-            eIfJmpStack = arrUtil("pushLen",eIfJmpStack, eFnOps)
-        } else {
-            eIfJmpStack = arrUtil("pushLen",eIfJmpStack, eOps)
-        }
+        eIfJmpStack = pushJmpAtLen(eIfJmpStack)
         emitOp(OP_JUMP_IF_FALSE, 0)
         emitStmt(eThen)
         if eInFn == 1 {
-            eJumpOff = eWhileHead - len(eFnOps) - 1
+            eJumpOff = eWhileHead - eFnOpsN - 1
         } else {
-            eJumpOff = eWhileHead - len(eOps) - 1
+            eJumpOff = eWhileHead - eOpsN - 1
         }
         emitOp(OP_JUMP, eJumpOff)
-        if eInFn == 1 {
-            eEnd = len(eFnOps)
-            eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-            eJumpOff = eEnd - eJmp - 1
-            eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-        } else {
-            eEnd = len(eOps)
-            eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-            eJumpOff = eEnd - eJmp - 1
-            eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-        }
+        eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
+        patchRelJump(OP_JUMP_IF_FALSE, eJmp)
         eIfJmpStack = pop(eIfJmpStack)
+        if eInFn == 1 {
+            eEnd = eFnOpsN
+        } else {
+            eEnd = eOpsN
+        }
         eBf = eBreakFromStack[len(eBreakFromStack) - 1]
         eBi = eBf
         while eBi < len(eBreakIdxs) {
+            eJumpOff = eEnd - eBreakIdxs[eBi] - 1
             if eInFn == 1 {
-                eJumpOff = eEnd - eBreakIdxs[eBi] - 1
                 eFnOps[eBreakIdxs[eBi]] = { "op": OP_JUMP, "arg": eJumpOff }
             } else {
-                eJumpOff = eEnd - eBreakIdxs[eBi] - 1
                 eOps[eBreakIdxs[eBi]] = { "op": OP_JUMP, "arg": eJumpOff }
             }
             eBi = eBi + 1
@@ -1790,6 +1786,7 @@ fn emitStmt(node) {
             } else {
                 eInFn = 1
                 eFnOps = []
+                eFnOpsN = 0
                 eFnGlobals = []
                 eFnLocals = []
                 eParams = eMeth["params"]
@@ -1845,6 +1842,7 @@ fn emitStmt(node) {
         }
         eInFn = 1
         eFnOps = []
+        eFnOpsN = 0
         eFnGlobals = []
         eFnLocals = []
         eFnTryRegions = []
@@ -1886,11 +1884,13 @@ pub fn emitImpl(program) {
     eConstMap = {}
     eConstN = 0
     eOps = []
+    eOpsN = 0
     eGlobals = []
     eGlobalMap = {}
     eGlobalN = 0
     eFunctions = []
     eFnOps = []
+    eFnOpsN = 0
     eFnGlobals = []
     eFnLocals = []
     eInFn = 0

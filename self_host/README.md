@@ -192,10 +192,11 @@ Snabb smoke: `cargo test --test self_host self_host_profile_phases_smoke`.
 
 ### P6b (skip-list → tom lista)
 
-Se [seed/README.md](seed/README.md) för policy, playbook och mätta baslinjer.
+Se [seed/README.md](seed/README.md) för policy, playbook, **fas-profil** och baslinjer.
 
 - Produktpath = committed seeds; **töm inte** listan förrän alla fem löv
   `compile_source_self_host` < 10 s (`P6_SELF_HOST_LEAF_CI_FAST_MS`).
-- Leaf-densify + AccAdd/If + `symIndex` maps: `serialize_body` still ~964 s debug.
-  Maps help large tables; this leaf is not yet under the 10 s gate — **skip-list stays**.
-- Efter `emit_impl`-ändring: regenerera `self_host/seed/emit_impl.kab.kbc`.
+- Fas-profil (tiny if/+): parse ≈ emit ≫ serialize. Landade cuts: `symIndex` maps,
+  iterative `+`/`-` i `parser_impl`, `eOpsN` jump patches i `emit_impl`.
+- Leaf densify + toolchain cuts: `serialize_body` fortfarande ≫ 10 s — **skip-list stays**.
+- Efter `emit_impl` / `parser_impl`-ändring: regenerera motsvarande `self_host/seed/*.kbc`.

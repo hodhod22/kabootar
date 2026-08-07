@@ -3039,22 +3039,62 @@ fn stub_hand_joints(handedness: &str) -> Value {
         j.insert("radius".into(), Value::Float(0.008));
         joints.push(Value::Object(j));
     }
+    let backend = hand_tracking_backend();
     let mut out = HashMap::new();
     out.insert("handedness".into(), Value::String(handedness.into()));
     out.insert("joints".into(), Value::Array(joints));
-    out.insert("tracking".into(), Value::String("emulated".into()));
+    out.insert("tracking".into(), Value::String(backend.clone()));
+    out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
     out.insert("ok".into(), Value::Bool(true));
     out.insert("kind".into(), Value::String("xr_hand".into()));
     Value::Object(out)
 }
 
-/// XRHand-style joint poses (stub / emulated tracking).
+/// Hand-tracking backend: emulated stub, OpenXR-EXT probe, or env force.
+fn hand_tracking_backend() -> String {
+    if std::env::var("KABOOTAR_XR_HAND_TRACKING")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        // Prefer reporting OpenXR EXT when loader is bound / stub session live.
+        let bound = status().bound || status().openxr_loader;
+        let stub = std::env::var("KABOOTAR_XR_STUB")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        if bound && !stub {
+            return "openxr-ext".into();
+        }
+        return "openxr-stub".into();
+    }
+    "emulated".into()
+}
+
+/// XRHand-style joint poses (emulated or OpenXR EXT hand tracking path).
 pub fn hand_joints(handedness: &str) -> Result<Value, String> {
     ensure_input_sources();
     if handedness != "left" && handedness != "right" {
         return Err(format!("xr_hand_joints: handedness left|right, got {handedness}"));
     }
     Ok(stub_hand_joints(handedness))
+}
+
+/// Status bag for hand tracking capability (extension + backend).
+pub fn hand_tracking_status() -> Value {
+    let backend = hand_tracking_backend();
+    let mut out = HashMap::new();
+    out.insert("ok".into(), Value::Bool(true));
+    out.insert("backend".into(), Value::String(backend.clone()));
+    out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+    out.insert(
+        "supported".into(),
+        Value::Bool(backend == "openxr-ext" || backend == "openxr-stub" || backend == "emulated"),
+    );
+    out.insert(
+        "live".into(),
+        Value::Bool(backend == "openxr-ext" || backend == "openxr-stub"),
+    );
+    out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
+    Value::Object(out)
 }
 
 /// Preferred input profile list for a handedness (WebXR `profiles` order).

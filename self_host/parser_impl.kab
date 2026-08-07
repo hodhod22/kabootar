@@ -551,25 +551,29 @@ fn parseCompare() {
         throw "parseCompare EOF"
     }
     pLeft = parseMul()
+    // P6b: iterative left-assoc + / - (was right-recursive parseCompare → deep call + work).
+    // RHS = mul + optional tighter shifts (JS: << binds tighter than +).
     while pCur.type == "+" {
         bump()
-        pAddLeftStack = push(pAddLeftStack, pLeft)
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
-        pLeft = { "kind": AST_BINARY, "op": "+", "left": pAddLeft, "right": pRight }
-        pAddLeftStack = pop(pAddLeftStack)
+        pSave = pLeft
+        pRight = parseMul()
+        while pCur.type == "<<" || pCur.type == ">>" || pCur.type == ">>>" {
+            pBinOp = pCur.type
+            bump()
+            pRight = { "kind": AST_BINARY, "op": pBinOp, "left": pRight, "right": parseMul() }
+        }
+        pLeft = { "kind": AST_BINARY, "op": "+", "left": pSave, "right": pRight }
     }
     while pCur.type == "-" {
         bump()
-        pAddLeftStack = push(pAddLeftStack, pLeft)
-        pInAddSub = 1
-        pRight = parseCompare()
-        pInAddSub = 0
-        pAddLeft = pAddLeftStack[len(pAddLeftStack) - 1]
-        pLeft = { "kind": AST_BINARY, "op": "-", "left": pAddLeft, "right": pRight }
-        pAddLeftStack = pop(pAddLeftStack)
+        pSave = pLeft
+        pRight = parseMul()
+        while pCur.type == "<<" || pCur.type == ">>" || pCur.type == ">>>" {
+            pBinOp = pCur.type
+            bump()
+            pRight = { "kind": AST_BINARY, "op": pBinOp, "left": pRight, "right": parseMul() }
+        }
+        pLeft = { "kind": AST_BINARY, "op": "-", "left": pSave, "right": pRight }
     }
     // Shifts bind tighter than comparisons (and must run even inside + / bit RHS).
     while pCur.type == "<<" || pCur.type == ">>" || pCur.type == ">>>" {

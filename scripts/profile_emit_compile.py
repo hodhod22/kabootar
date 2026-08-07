@@ -21,7 +21,10 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# os_mount on Windows needs forward-slash drive paths (c:/...).
 MANIFEST = ROOT.replace("\\", "/")
+if len(MANIFEST) >= 2 and MANIFEST[1] == ":":
+    MANIFEST = MANIFEST[0].lower() + MANIFEST[1:]
 
 
 def kabootar_bin() -> str:
