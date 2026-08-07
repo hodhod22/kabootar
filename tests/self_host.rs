@@ -2227,6 +2227,14 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         src.len() < 20 * 1024,
         "serialize_body should stay the smallest leaf (~13KB class)"
     );
+    assert!(
+        src.contains("let IR_WITH_ARG"),
+        "P6b: irOpLine must use membership tables (not ~58 If arms)"
+    );
+    assert!(
+        !src.contains("if sOp == OP_ADD"),
+        "P6b: per-op If arms in irOpLine should stay collapsed"
+    );
     assert!(self_host_is_skip_listed(&path));
 }
 
@@ -2601,3 +2609,30 @@ fn self_host_unescape_probe() {
     assert!(ok);
 }
 
+
+/// P6b: time only serialize_body (ignored — may still be minutes until denser).
+#[test]
+#[ignore = "slow: serialize_body self-host compile timing probe"]
+fn p6b_serialize_body_compile_budget() {
+    use kabootar_lib::compile::{compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS};
+    use std::time::Instant;
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/serialize_body.kab");
+    let src = std::fs::read_to_string(&path).expect("read");
+    let (ok, ms) = std::thread::Builder::new()
+        .name("p6b-ser".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let t0 = Instant::now();
+            let r = compile_source_self_host(&src);
+            (r.is_ok(), t0.elapsed().as_millis() as u64)
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    eprintln!(
+        "serialize_body.kab: ok={ok} ms={ms} budget={}",
+        P6_SELF_HOST_LEAF_CI_FAST_MS
+    );
+    assert!(ok, "serialize_body must self-host-compile");
+}

@@ -77,189 +77,43 @@ fn constLine(idx, val) {
     return "const " + ("" + idx) + " number " + ("" + val)
 }
 
+// P6b: OP_* wire names already match .kbc text. Membership tables avoid ~58 If arms
+// so self-host leaf compile AST stays small (cost scales with source AST density).
+let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|"
+let IR_ZERO_ARG = "|pop|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|"
+
 fn irOpLine(op) {
     if op == null {
         throw "serialize: null op in IR"
     }
     sOp = op.op
-    if sOp == OP_CONST {
-        return "const " + ("" + op.arg)
-    }
-    if sOp == OP_LOAD_GLOBAL {
-        return "load_global " + ("" + op.arg)
-    }
-    if sOp == OP_STORE_GLOBAL {
-        return "store_global " + ("" + op.arg)
-    }
-    if sOp == OP_LOAD_LOCAL {
-        return "load_local " + ("" + op.arg)
-    }
-    if sOp == OP_STORE_LOCAL {
-        return "store_local " + ("" + op.arg)
-    }
-    if sOp == OP_TAKE_LOCAL {
-        return "take_local " + ("" + op.arg)
-    }
-    if sOp == OP_TAKE_GLOBAL {
-        return "take_global " + ("" + op.arg)
-    }
-    if sOp == OP_ARRAY_PUSH_LOCAL {
-        return "array_push_local " + ("" + op.arg)
-    }
-    if sOp == OP_ARRAY_PUSH_GLOBAL {
-        return "array_push_global " + ("" + op.arg)
-    }
-    if sOp == OP_ARRAY_POP_LOCAL {
-        return "array_pop_local " + ("" + op.arg)
-    }
-    if sOp == OP_ARRAY_POP_GLOBAL {
-        return "array_pop_global " + ("" + op.arg)
-    }
-    if sOp == OP_ACC_ADD_LOCAL {
-        return "acc_add_local " + ("" + op.arg)
-    }
-    if sOp == OP_ACC_ADD_GLOBAL {
-        return "acc_add_global " + ("" + op.arg)
-    }
-    if sOp == OP_POP {
-        return "pop"
-    }
-    if sOp == OP_ADD {
-        return "add"
-    }
-    if sOp == OP_SUB {
-        return "sub"
-    }
-    if sOp == OP_MUL {
-        return "mul"
-    }
-    if sOp == OP_DIV {
-        return "div"
-    }
-    if sOp == OP_MOD {
-        return "mod"
-    }
-    if sOp == OP_POW {
-        return "pow"
-    }
-    if sOp == OP_NEG {
-        return "neg"
-    }
-    if sOp == OP_NOT {
-        return "not"
-    }
-    if sOp == OP_EQ {
-        return "eq"
-    }
-    if sOp == OP_NE {
-        return "ne"
-    }
-    if sOp == OP_LT {
-        return "lt"
-    }
-    if sOp == OP_GT {
-        return "gt"
-    }
-    if sOp == OP_GE {
-        return "ge"
-    }
-    if sOp == OP_LE {
-        return "le"
-    }
-    if sOp == OP_AND {
-        return "and"
-    }
-    if sOp == OP_OR {
-        return "or"
-    }
-    if sOp == OP_BIT_AND {
-        return "bit_and"
-    }
-    if sOp == OP_BIT_OR {
-        return "bit_or"
-    }
-    if sOp == OP_BIT_XOR {
-        return "bit_xor"
-    }
-    if sOp == OP_SHL {
-        return "shl"
-    }
-    if sOp == OP_SHR {
-        return "shr"
-    }
-    if sOp == OP_USHR {
-        return "ushr"
-    }
-    if sOp == OP_BIT_NOT {
-        return "bit_not"
-    }
-    if sOp == OP_MAKE_OBJECT {
-        return "make_object " + ("" + op.arg)
-    }
-    if sOp == OP_MAKE_ARRAY {
-        return "make_array " + ("" + op.arg)
-    }
-    if sOp == OP_INDEX_GET {
-        return "index_get"
-    }
-    if sOp == OP_INDEX_SET {
-        return "index_set"
-    }
-    if sOp == OP_GET_MEMBER {
-        return "get_member " + ("" + op.arg)
-    }
-    if sOp == OP_SET_MEMBER {
-        return "set_member " + ("" + op.arg)
-    }
-    if sOp == OP_JUMP {
-        return "jump " + ("" + op.arg)
-    }
-    if sOp == OP_JUMP_IF_FALSE {
-        return "jump_if_false " + ("" + op.arg)
-    }
-    if sOp == OP_JUMP_IF_TRUE {
-        return "jump_if_true " + ("" + op.arg)
-    }
-    if sOp == OP_CALL {
-        return "call " + ("" + op.arg)
-    }
     if sOp == OP_NEW_INSTANCE {
         if op.arg2 == undefined {
-            return "new_instance " + ("" + op.arg) + " 0"
+            return OP_NEW_INSTANCE + " " + ("" + op.arg) + " 0"
         }
-        return "new_instance " + ("" + op.arg) + " " + ("" + op.arg2)
+        return OP_NEW_INSTANCE + " " + ("" + op.arg) + " " + ("" + op.arg2)
     }
-    if sOp == OP_RETURN {
-        return "return"
+    if str_index_of(IR_WITH_ARG, "|" + sOp + "|") >= 0 {
+        return sOp + " " + ("" + op.arg)
     }
-    if sOp == OP_THROW {
-        return "throw"
-    }
-    if sOp == OP_JUMP_IF_RESULT_ERR {
-        return "jump_if_result_err " + ("" + op.arg)
-    }
-    if sOp == OP_MAKE_ARROW {
-        return "make_arrow_fn " + ("" + op.arg)
-    }
-    if sOp == OP_ITER_STEP {
-        return "iterator_step_in_place"
-    }
-    if sOp == OP_MAKE_OK {
-        return "make_ok"
-    }
-    if sOp == OP_MAKE_ERR {
-        return "make_err"
-    }
-    if sOp == OP_MAKE_SOME {
-        return "make_some"
-    }
-    if sOp == OP_MAKE_NONE {
-        return "make_none"
-    }
-    if sOp == OP_HALT {
-        return "halt"
+    if str_index_of(IR_ZERO_ARG, "|" + sOp + "|") >= 0 {
+        return sOp
     }
     throw "Unsupported IR op: " + sOp
+}
+
+fn joinComma(arr) {
+    sParams = ""
+    sK = 0
+    while sK < len(arr) {
+        if sParams == "" {
+            sParams = arr[sK]
+        } else {
+            sParams = sParams + "," + arr[sK]
+        }
+        sK = sK + 1
+    }
+    return sParams
 }
 
 fn appendOps(ops) {
@@ -283,39 +137,9 @@ fn appendClassMethods(ci, methods) {
     while sJ < len(methods) {
         sMeth = methods[sJ]
         sOut = sOut + CHAR_NL + ("class_method " + ("" + ci) + " " + ("" + sJ) + " " + sMeth["sym"])
-        sParams = ""
-        sK = 0
-        while sK < len(sMeth["params"]) {
-            if sParams == "" {
-                sParams = sMeth["params"][sK]
-            } else {
-                sParams = sParams + "," + sMeth["params"][sK]
-            }
-            sK = sK + 1
-        }
-        sOut = sOut + CHAR_NL + ("class_method_params " + ("" + ci) + " " + ("" + sJ) + " " + sParams)
-        sParams = ""
-        sK = 0
-        while sK < len(sMeth["locals"]) {
-            if sParams == "" {
-                sParams = sMeth["locals"][sK]
-            } else {
-                sParams = sParams + "," + sMeth["locals"][sK]
-            }
-            sK = sK + 1
-        }
-        sOut = sOut + CHAR_NL + ("class_method_locals " + ("" + ci) + " " + ("" + sJ) + " " + sParams)
-        sParams = ""
-        sK = 0
-        while sK < len(sMeth["globals"]) {
-            if sParams == "" {
-                sParams = sMeth["globals"][sK]
-            } else {
-                sParams = sParams + "," + sMeth["globals"][sK]
-            }
-            sK = sK + 1
-        }
-        sOut = sOut + CHAR_NL + ("class_method_globals " + ("" + ci) + " " + ("" + sJ) + " " + sParams)
+        sOut = sOut + CHAR_NL + ("class_method_params " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["params"]))
+        sOut = sOut + CHAR_NL + ("class_method_locals " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["locals"]))
+        sOut = sOut + CHAR_NL + ("class_method_globals " + ("" + ci) + " " + ("" + sJ) + " " + joinComma(sMeth["globals"]))
         appendEmbeddedMethodOps(ci, sJ, sMeth["ops"])
         sJ = sJ + 1
     }
@@ -341,31 +165,8 @@ pub fn serializeBcImplCore(bc) {
     while sI < len(bc.functions) {
         sFn = bc.functions[sI]
         sOut = sOut + CHAR_NL + ("fn " + ("" + sI) + " " + sFn.sym)
-        // Params
-        sParams = ""
-        sJ = 0
-        while sJ < len(sFn.params) {
-            if sParams == "" {
-                sParams = sFn.params[sJ]
-            } else {
-                sParams = sParams + "," + sFn.params[sJ]
-            }
-            sJ = sJ + 1
-        }
-        sOut = sOut + CHAR_NL + ("fn_params " + ("" + sI) + " " + sParams)
-        // Locals
-        sParams = ""
-        sJ = 0
-        while sJ < len(sFn.locals) {
-            if sParams == "" {
-                sParams = sFn.locals[sJ]
-            } else {
-                sParams = sParams + "," + sFn.locals[sJ]
-            }
-            sJ = sJ + 1
-        }
-        sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + sParams)
-        // Function try regions
+        sOut = sOut + CHAR_NL + ("fn_params " + ("" + sI) + " " + joinComma(sFn.params))
+        sOut = sOut + CHAR_NL + ("fn_locals " + ("" + sI) + " " + joinComma(sFn.locals))
         if sFn["tryRegions"] != undefined {
             sJ = 0
             while sJ < len(sFn["tryRegions"]) {
@@ -374,7 +175,6 @@ pub fn serializeBcImplCore(bc) {
                 sJ = sJ + 1
             }
         }
-        // Function ops
         sJ = 0
         while sJ < len(sFn.ops) {
             sOut = sOut + CHAR_NL + ("fn_op " + ("" + sI) + " " + irOpLine(sFn.ops[sJ]))
@@ -391,28 +191,8 @@ pub fn serializeBcImplCore(bc) {
         while sI < len(bc.arrows) {
             let arr = bc.arrows[sI]
             sOut = sOut + CHAR_NL + ("arrow " + ("" + sI) + " " + arr["sym"])
-            sParams = ""
-            sJ = 0
-            while sJ < len(arr["params"]) {
-                if sParams == "" {
-                    sParams = arr["params"][sJ]
-                } else {
-                    sParams = sParams + "," + arr["params"][sJ]
-                }
-                sJ = sJ + 1
-            }
-            sOut = sOut + CHAR_NL + ("arrow_params " + ("" + sI) + " " + sParams)
-            sParams = ""
-            sJ = 0
-            while sJ < len(arr["locals"]) {
-                if sParams == "" {
-                    sParams = arr["locals"][sJ]
-                } else {
-                    sParams = sParams + "," + arr["locals"][sJ]
-                }
-                sJ = sJ + 1
-            }
-            sOut = sOut + CHAR_NL + ("arrow_locals " + ("" + sI) + " " + sParams)
+            sOut = sOut + CHAR_NL + ("arrow_params " + ("" + sI) + " " + joinComma(arr["params"]))
+            sOut = sOut + CHAR_NL + ("arrow_locals " + ("" + sI) + " " + joinComma(arr["locals"]))
             sJ = 0
             while sJ < len(arr["ops"]) {
                 sOut = sOut + CHAR_NL + ("arrow_op " + ("" + sI) + " " + irOpLine(arr["ops"][sJ]))
