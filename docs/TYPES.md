@@ -102,3 +102,15 @@ Err("failed")
 ```
 
 Använd `Option`/`Result` när operationer kan misslyckas — inte `null` som universal-felvärde.
+
+## Typed arrays (A6 + P2)
+
+| API | Roll |
+|-----|------|
+| `array_buffer_new` / `shared_array_buffer_new` | bakomliggande bytebuffer |
+| `uint8_array_new/get/set` | bytes; PCM LE i16 + `texImage2D` staging |
+| `float32_array_*` / `float64_array_*` | floats; Float32→`createBuffer` bulk |
+| `int32_array_*` | signed 32-bit |
+| `data_view_*` | endian-aware reads/writes |
+
+Se [FEATURES.md](FEATURES.md) och [GAME.md](GAME.md).

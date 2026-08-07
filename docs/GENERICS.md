@@ -16,8 +16,8 @@
 - Parametriserade **funktioner** med compile-time typargument: `fn id<T>(x: T) -> T`
 - **Monomorphisering** vid compile — varje konkret typ får en egen bytecode-funktion (samma modell som `.kbc` + `functions[]`)
 - Tydlig gräns mot **TS type-erasure** (`ts_strip_types`) — separata spår, ingen blandning i v1
-- `this` för **klasser** (C#-stil); **`self`** reserverat för framtida **struct** (Rust-stil)
-- **Struct** planeras i ROADMAP **Våg R** (tidigare icke-mål)
+- `this` för **klasser** (C#-stil); **`self` / `&self` / `&mut self`** för **struct** (Våg R ✅)
+- **Struct** landad — se ROADMAP **Våg R** (inte längre icke-mål)
 
 ## Icke-mål (v1)
 
@@ -373,6 +373,27 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 | T3 | Associated types ✅ subset |
 | T4 | Default-metoder ✅ |
 | T5 | Self-host ✅ subset |
+
+### Cookbook (T1–T4)
+
+```kabootar
+trait Show {
+    fn show(self) -> string { return "<value>" }   // default method (T4)
+}
+
+trait Iter {
+    type Item;   // associated type (T3)
+    fn next(self) -> Option<Self.Item>
+}
+
+fn print_all<T>(xs: T) where T: Iter {
+    // where-bound (T1)
+}
+
+trait PairShow<A, B> {   // generic trait (T2)
+    fn show_pair(self, a: A, b: B) -> string
+}
+```
 
 ```kabootar
 trait Iter {

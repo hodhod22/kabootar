@@ -174,6 +174,23 @@ modules_catalog()         // alla tillgängliga moduler
 
 Kör `registry_seed()` för att publicera `lib/*.kab` till lokalt registry.
 
+## Pillar-moduler (`lib/`)
+
+| Import | Doc | Innehåll (subset) |
+|--------|-----|-------------------|
+| `game` / `game/audio` / `game/xr` / … | [GAME.md](GAME.md), [XR.md](XR.md) | GPU, audio (PCM + Uint8), physics, editor, XR FFI |
+| `std` / `std/array` / … | [STDLIB.md](STDLIB.md) | Fil-stdlib wrappers |
+| `science` / `science/nd` / … | [SCIENCE.md](SCIENCE.md) | ndarray, linalg, ML, PDE |
+| `app` | [APP.md](APP.md) | App shell |
+| `iot` | [IOT.md](IOT.md) | IoT |
+| `sim` | [SIM.md](SIM.md) | Robot / digital twin |
+| `data` | [DATA.md](DATA.md) | Data pillar |
+| `cad` | [FRAMEWORK_PILLARS.md](FRAMEWORK_PILLARS.md) | CAD |
+| `web` / `kdom` / `kstyle` / `kv8` | [RUNTIME.md](RUNTIME.md), [KV8.md](KV8.md) | DOM, CSS, Kv8 |
+| `doc` / `dx` / `os` | [DOCAI.md](DOCAI.md), [DX_TOOLING.md](DX_TOOLING.md), [OS.md](OS.md) | DocAI, exploration DX, kOS |
+
+Sökordning: projekt-`lib/`, installerade paket, `KABOOTAR_PATH`.
+
 Kräver `@version` i modulfilen vid publicering.
 
 ### `pub let` (v2.1)

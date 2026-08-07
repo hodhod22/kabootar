@@ -596,6 +596,18 @@ fn value_f32(args: &[crate::value::Value], i: usize, name: &str) -> Result<f32, 
 
 fn value_i16_array(args: &[crate::value::Value], i: usize, name: &str) -> Result<Vec<i16>, String> {
     match args.get(i) {
+        // P2: Uint8Array as little-endian i16 PCM (zero-copy staging vs Array-of-numbers).
+        Some(v) if crate::runtime::shared_memory::is_uint8_array(v) => {
+            let bytes = crate::runtime::shared_memory::uint8_array_to_vec(v)?;
+            if bytes.len() % 2 != 0 {
+                return Err(format!("{name}: Uint8Array length must be even (LE i16 PCM)"));
+            }
+            let mut out = Vec::with_capacity(bytes.len() / 2);
+            for chunk in bytes.chunks_exact(2) {
+                out.push(i16::from_le_bytes([chunk[0], chunk[1]]));
+            }
+            Ok(out)
+        }
         Some(crate::value::Value::Array(vals)) => vals
             .iter()
             .map(|v| match v {
@@ -603,6 +615,6 @@ fn value_i16_array(args: &[crate::value::Value], i: usize, name: &str) -> Result
                 _ => Err(format!("{name} expects array of numbers")),
             })
             .collect(),
-        _ => Err(format!("{name} expects array")),
+        _ => Err(format!("{name} expects array or Uint8Array")),
     }
 }

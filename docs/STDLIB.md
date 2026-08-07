@@ -25,17 +25,18 @@ Kör `std_info()` för aktuell capability-lista.
 | **Loop** | `for x of arr`, `for await x of gen()` | `for…of` / `for await…of` |
 | **Iterator** | `Iterator.from`, `.map`, `.filter`, `.take`, `.flatMap`, … | ES2023 Iterator helpers |
 
-### 🚧 Planerat (Våg G — se [ROADMAP.md](ROADMAP.md))
+### ✅ Landat (Våg G / T — se [ROADMAP.md](ROADMAP.md))
 
-| Gap | Prioritet |
-|-----|-----------|
-| `Array.prototype.toLocaleString` / `toString` på värden | G2 ✅ |
-| `String.prototype.matchAll` (global regex iterator) | G2 ✅ |
-| `String.prototype.localeCompare` med `Intl` locales | G3 ✅ subset (`sensitivity`) |
-| `Math.f16round`, `Math.sumPrecise` | G4 ✅ (`f16round` / `sumPrecise` globals) |
-| Method-syntax `arr.push(x)` på icke-variabel receiver (bytecode) | G2 ✅ |
-| `import "std"` som enda entry (aggregator-modul) | G3 ✅ (`lib/std.kab` + builtin) |
-| **Traits** för generics (se [GENERICS.md#traits](GENERICS.md#traits)) | G5 |
+| Yta | Status |
+|-----|--------|
+| `toLocaleString` / värde-`toString` | G2 ✅ |
+| `String.matchAll` | G2 ✅ |
+| `localeCompare` + `Intl` sensitivity | G3 ✅ subset |
+| `Math.f16round` / `sumPrecise` | G4 ✅ |
+| Method-syntax `arr.push(x)` (bytecode) | G2 ✅ |
+| `import "std"` aggregator | G3 ✅ |
+| **Traits** + generics cookbook | G5 / Våg T ✅ — [GENERICS.md](GENERICS.md) |
+| Typed arrays (`Uint8`/`Float32`/`Float64`/`DataView`) | A6 + P2 ✅ subset — Uint8→PCM/tex staging |
 
 ### ❌ Medvetet borttaget
 
@@ -138,10 +139,10 @@ Tester: `cargo test --test os_lib`; ownership: `cargo test --test ownership_manu
 
 | Komponent | Status | Doc |
 |-----------|--------|-----|
-| **kDOM** | 🚧 querySelector, events; **`lib/kdom/`** Kabootar wrappers ✅ | [RUNTIME.md](RUNTIME.md) |
-| **Kv8** | 🚧 **`lib/kv8/lexer.kab`** Kabootar JS lexer (G9 start); eval prestanda | [KV8.md](KV8.md) |
-| **kss** (Kabootar Stylesheets) | 🚧 **`lib/kstyle/`** Kabootar wrappers ✅ | [ROADMAP.md](ROADMAP.md) |
-| **Next-lik routing** | 🚧 `http_route` + filbaserad pages | Våg G6 |
+| **kDOM** | ✅ subset — querySelector/events + **`lib/kdom/`** | [RUNTIME.md](RUNTIME.md) |
+| **Kv8** | ✅ subset — **`lib/kv8/`** lexer/parser; eval deepen kvar | [KV8.md](KV8.md) |
+| **kss** (Kabootar Stylesheets) | ✅ subset — **`lib/kstyle/`** | [ROADMAP.md](ROADMAP.md) |
+| **Next-lik routing** | ✅ subset — `http_route` + pages (G6) | [HTTP.md](HTTP.md) |
 
 Mål: **Kv8 skrivet i Kabootar** när self-host bootstrap når lexer/parser/emit full compile (Våg E ✅ subset).
 

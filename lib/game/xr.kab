@@ -1,6 +1,7 @@
 @version "1.0.0"
 
 // GP6n - VR/AR session + OpenXR/WebXR-style runtime swapchain.
+// Host contract + hand EXT create/locate: docs/XR.md
 // import "game/xr"
 
 pub fn xrInfo() {

@@ -103,3 +103,14 @@ drop(b)        // konsumera — annars leak-lint
 - Class-metoder har fortfarande otypade params (skip)
 
 Tester: `cargo test --test ownership_check` + `cargo test --test ownership_manual`.
+
+## Done / non-goals (Våg O)
+
+| Landat ✅ | Icke-mål ❌ |
+|-----------|-------------|
+| O1–O4 affine + borrow + leak-lint i `@manual` | Lifetimes à la Rust |
+| O5 self-host ownership subset | Borrow över `async` |
+| R2 struct-typer affine i `@manual` | GC-moduler med ownership-syntax |
+| Science buffer `take` / `ensureOwned` (hybrid) | HKT / `dyn Trait` |
+
+Default-GC-kod behöver **ingen** ownership-syntax. Se [ROADMAP.md](ROADMAP.md) Våg O.
