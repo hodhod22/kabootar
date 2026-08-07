@@ -1,0 +1,146 @@
+@version "1.0.0"
+
+// Smoke test for Physics 3.0 - step, trigger enter/exit
+import "game/core/physics3"
+
+fn testPhysicsStep() {
+    let physicsWorld = createPhysicsWorld()
+    
+    let collider1 = {
+        "kind": "BoxCollider",
+        "center": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "size": { "x": 1.0, "y": 1.0, "z": 1.0 }
+    }
+    
+    let collider2 = {
+        "kind": "BoxCollider",
+        "center": { "x": 0.5, "y": 0.0, "z": 0.0 },
+        "size": { "x": 1.0, "y": 1.0, "z": 1.0 }
+    }
+    
+    physicsWorld = addCollider(physicsWorld, 1, collider1)
+    physicsWorld = addCollider(physicsWorld, 2, collider2)
+    
+    let rigidbody1 = {
+        "kind": "Rigidbody",
+        "mass": 1.0,
+        "velocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "angularVelocity": { "x": 0.0, "y": 0.0, "z": 0.0 }
+    }
+    
+    physicsWorld = addRigidBody(physicsWorld, 1, rigidbody1)
+    
+    let dt = 0.02
+    physicsWorld = physicsStep(physicsWorld, dt)
+    
+    if len(physicsWorld["collisionPairs"]) == 0 {
+        return { "success": false, "error": "No collision detected for overlapping colliders" }
+    }
+    
+    return { "success": true }
+}
+
+fn testTriggerEnterExit() {
+    let physicsWorld = createPhysicsWorld()
+    
+    let trigger = {
+        "kind": "BoxCollider",
+        "center": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "size": { "x": 2.0, "y": 2.0, "z": 2.0 },
+        "isTrigger": true
+    }
+    
+    let collider = {
+        "kind": "BoxCollider",
+        "center": { "x": 10.0, "y": 0.0, "z": 0.0 },
+        "size": { "x": 1.0, "y": 1.0, "z": 1.0 }
+    }
+    
+    physicsWorld = addTrigger(physicsWorld, 1, trigger)
+    physicsWorld = addCollider(physicsWorld, 2, collider)
+    
+    let dt = 0.02
+    physicsWorld = physicsStep(physicsWorld, dt)
+    
+    let triggerEvents = getTriggerEvents(physicsWorld)
+    
+    if len(triggerEvents) != 0 {
+        return { "success": false, "error": "Trigger event detected for non-overlapping entities" }
+    }
+    
+    collider["center"] = { "x": 0.0, "y": 0.0, "z": 0.0 }
+    physicsWorld = updateColliderPosition(physicsWorld, 2, collider["center"])
+    
+    physicsWorld = physicsStep(physicsWorld, dt)
+    
+    triggerEvents = getTriggerEvents(physicsWorld)
+    
+    if len(triggerEvents) == 0 {
+        return { "success": false, "error": "No trigger event detected for overlapping entities" }
+    }
+    
+    if triggerEvents[0]["type"] != "triggerEnter" {
+        return { "success": false, "error": "Expected triggerEnter event" }
+    }
+    
+    return { "success": true }
+}
+
+fn testSleepingBodies() {
+    let physicsWorld = createPhysicsWorld()
+    
+    let rigidbody = {
+        "kind": "Rigidbody",
+        "mass": 1.0,
+        "velocity": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "angularVelocity": { "x": 0.0, "y": 0.0, "z": 0.0 }
+    }
+    
+    physicsWorld = addRigidBody(physicsWorld, 1, rigidbody)
+    
+    let dt = 0.02
+    let i = 0
+    while i < 100 {
+        physicsWorld = physicsStep(physicsWorld, dt)
+        i = i + 1
+    }
+    
+    let sleepingBodies = physicsWorld["sleepingBodies"]
+    
+    if sleepingBodies["" + 1] == null || sleepingBodies["" + 1]["isSleeping"] != true {
+        return { "success": false, "error": "Body not sleeping after 100 steps with zero velocity" }
+    }
+    
+    return { "success": true }
+}
+
+fn runSmokeTests() {
+    let results = []
+    
+    let test1 = testPhysicsStep()
+    results = push(results, { "name": "PhysicsStep", "result": test1 })
+    
+    let test2 = testTriggerEnterExit()
+    results = push(results, { "name": "TriggerEnterExit", "result": test2 })
+    
+    let test3 = testSleepingBodies()
+    results = push(results, { "name": "SleepingBodies", "result": test3 })
+    
+    let passed = 0
+    let i = 0
+    while i < len(results) {
+        if results[i]["result"]["success"] == true {
+            passed = passed + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "total": len(results),
+        "passed": passed,
+        "failed": len(results) - passed,
+        "results": results
+    }
+}
+
+runSmokeTests()

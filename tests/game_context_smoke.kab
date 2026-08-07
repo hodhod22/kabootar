@@ -1,0 +1,171 @@
+@version "1.0.0"
+
+// Smoke test for GameContext full loop - update, fixedUpdate, render
+import "game/core/gameContext"
+
+fn testGameContextCreation() {
+    let context = createGameContext(1280, 720)
+    
+    if context["kind"] != "GameContext" {
+        return { "success": false, "error": "Context kind is not GameContext" }
+    }
+    
+    if context["width"] != 1280 || context["height"] != 720 {
+        return { "success": false, "error": "Context dimensions incorrect" }
+    }
+    
+    if context["world"] == null || context["physicsWorld"] == null {
+        return { "success": false, "error": "World or physicsWorld is null" }
+    }
+    
+    return { "success": true }
+}
+
+fn testUpdateLoop() {
+    let context = createGameContext(1280, 720)
+    
+    let dt = 0.016
+    context = updateGameContext(context, dt)
+    
+    if context["deltaTime"] != dt {
+        return { "success": false, "error": "DeltaTime not updated" }
+    }
+    
+    if context["frameCount"] != 1 {
+        return { "success": false, "error": "FrameCount not incremented" }
+    }
+    
+    return { "success": true }
+}
+
+fn testFixedUpdateLoop() {
+    let context = createGameContext(1280, 720)
+    
+    context = fixedUpdateGameContext(context)
+    
+    if context["physicsWorld"] == null {
+        return { "success": false, "error": "PhysicsWorld is null after fixedUpdate" }
+    }
+    
+    return { "success": true }
+}
+
+fn testRenderLoop() {
+    let context = createGameContext(1280, 720)
+    
+    let renderResult = renderGameContext(context, null)
+    
+    if renderResult["context"] == null {
+        return { "success": false, "error": "Context is null after render" }
+    }
+    
+    if renderResult["drawCalls"] == null {
+        return { "success": false, "error": "DrawCalls is null after render" }
+    }
+    
+    return { "success": true }
+}
+
+fn testFullLoopIntegration() {
+    let context = createGameContext(1280, 720)
+    
+    let spawned = spawn(context["world"])
+    context["world"] = spawned["world"]
+    let playerId = spawned["entityId"]
+    
+    context["world"] = add(context["world"], playerId, "Transform", {
+        "kind": "Transform",
+        "localPosition": { "x": 0.0, "y": 0.0, "z": 0.0 }
+    })
+    
+    let i = 0
+    while i < 10 {
+        let dt = 0.016
+        context = updateGameContext(context, dt)
+        context = fixedUpdateGameContext(context)
+        let renderResult = renderGameContext(context, null)
+        context = renderResult["context"]
+        i = i + 1
+    }
+    
+    if context["frameCount"] != 10 {
+        return { "success": false, "error": "FrameCount incorrect after 10 loops" }
+    }
+    
+    if isAlive(context["world"], playerId) != true {
+        return { "success": false, "error": "Player entity not alive after loop" }
+    }
+    
+    return { "success": true }
+}
+
+fn testPauseResume() {
+    let context = createGameContext(1280, 720)
+    
+    context = pauseGame(context)
+    
+    if context["isPaused"] != true {
+        return { "success": false, "error": "Context not paused" }
+    }
+    
+    let dt = 0.016
+    context = updateGameContext(context, dt)
+    
+    if context["frameCount"] != 0 {
+        return { "success": false, "error": "FrameCount incremented while paused" }
+    }
+    
+    context = resumeGame(context)
+    
+    if context["isPaused"] != false {
+        return { "success": false, "error": "Context not resumed" }
+    }
+    
+    context = updateGameContext(context, dt)
+    
+    if context["frameCount"] != 1 {
+        return { "success": false, "error": "FrameCount not incremented after resume" }
+    }
+    
+    return { "success": true }
+}
+
+fn runSmokeTests() {
+    let results = []
+    
+    let test1 = testGameContextCreation()
+    results = push(results, { "name": "GameContextCreation", "result": test1 })
+    
+    let test2 = testUpdateLoop()
+    results = push(results, { "name": "UpdateLoop", "result": test2 })
+    
+    let test3 = testFixedUpdateLoop()
+    results = push(results, { "name": "FixedUpdateLoop", "result": test3 })
+    
+    let test4 = testRenderLoop()
+    results = push(results, { "name": "RenderLoop", "result": test4 })
+    
+    let test5 = testFullLoopIntegration()
+    results = push(results, { "name": "FullLoopIntegration", "result": test5 })
+    
+    let test6 = testPauseResume()
+    results = push(results, { "name": "PauseResume", "result": test6 })
+    
+    let passed = 0
+    let i = 0
+    while i < len(results) {
+        if results[i]["result"]["success"] == true {
+            passed = passed + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "total": len(results),
+        "passed": passed,
+        "failed": len(results) - passed,
+        "results": results
+    }
+}
+
+runSmokeTests()

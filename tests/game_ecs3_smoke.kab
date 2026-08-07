@@ -1,0 +1,122 @@
+@version "1.0.0"
+
+// Smoke test for ECS 3.0 - spawn, destroy, queryArchetype
+import "game/core/ecs3"
+
+fn testSpawnDestroy() {
+    let world = createWorld()
+    
+    let spawned = spawn(world)
+    world = spawned["world"]
+    let entityId = spawned["entityId"]
+    
+    if isAlive(world, entityId) != true {
+        return { "success": false, "error": "Entity not alive after spawn" }
+    }
+    
+    world = add(world, entityId, "Transform", { "kind": "Transform", "localPosition": { "x": 0.0, "y": 0.0, "z": 0.0 } })
+    
+    if has(world, entityId, "Transform") != true {
+        return { "success": false, "error": "Transform component not added" }
+    }
+    
+    world = destroy(world, entityId)
+    
+    if isAlive(world, entityId) == true {
+        return { "success": false, "error": "Entity still alive after destroy" }
+    }
+    
+    return { "success": true }
+}
+
+fn testQueryArchetype() {
+    let world = createWorld()
+    
+    let spawned1 = spawn(world)
+    world = spawned1["world"]
+    let entityId1 = spawned1["entityId"]
+    
+    let spawned2 = spawn(world)
+    world = spawned2["world"]
+    let entityId2 = spawned2["entityId"]
+    
+    world = add(world, entityId1, "Transform", { "kind": "Transform" })
+    world = add(world, entityId1, "Rigidbody", { "kind": "Rigidbody" })
+    
+    world = add(world, entityId2, "Transform", { "kind": "Transform" })
+    
+    let results = queryArchetype(world, ["Transform", "Rigidbody"])
+    
+    if len(results) != 1 {
+        return { "success": false, "error": "Expected 1 result, got " + len(results) }
+    }
+    
+    if results[0]["id"] != entityId1 {
+        return { "success": false, "error": "Wrong entity in query result" }
+    }
+    
+    return { "success": true }
+}
+
+fn testAutomaticArchetypes() {
+    let world = createWorld()
+    
+    let spawned = spawn(world)
+    world = spawned["world"]
+    let entityId = spawned["entityId"]
+    
+    world = add(world, entityId, "Transform", { "kind": "Transform" })
+    
+    let archetypeKey = getArchetypeKey(["Transform"])
+    let archetype = world["archetypes"][archetypeKey]
+    
+    if archetype == null || archetype == undefined {
+        return { "success": false, "error": "Archetype not created" }
+    }
+    
+    if len(archetype["entities"]) != 1 {
+        return { "success": false, "error": "Entity not in archetype" }
+    }
+    
+    world = add(world, entityId, "Rigidbody", { "kind": "Rigidbody" })
+    
+    let newArchetypeKey = getArchetypeKey(["Transform", "Rigidbody"])
+    let newArchetype = world["archetypes"][newArchetypeKey]
+    
+    if newArchetype == null || newArchetype == undefined {
+        return { "success": false, "error": "New archetype not created on component add" }
+    }
+    
+    return { "success": true }
+}
+
+fn runSmokeTests() {
+    let results = []
+    
+    let test1 = testSpawnDestroy()
+    results = push(results, { "name": "SpawnDestroy", "result": test1 })
+    
+    let test2 = testQueryArchetype()
+    results = push(results, { "name": "QueryArchetype", "result": test2 })
+    
+    let test3 = testAutomaticArchetypes()
+    results = push(results, { "name": "AutomaticArchetypes", "result": test3 })
+    
+    let passed = 0
+    let i = 0
+    while i < len(results) {
+        if results[i]["result"]["success"] == true {
+            passed = passed + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "total": len(results),
+        "passed": passed,
+        "failed": len(results) - passed,
+        "results": results
+    }
+}
+
+runSmokeTests()
