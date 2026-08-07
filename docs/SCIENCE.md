@@ -20,10 +20,11 @@ import "science";
 10. [Matriser](#matriser)
 11. [Numerisk analys](#numerisk-analys)
 12. [Ndarray (SC0)](#ndarray-sc0)
-13. [ML / AI (SC2)](#ml--ai-sc2)
-14. [Felsökning](#felsökning)
+13. [Science deepen (SC6+)](#science-deepen-sc6)
+14. [ML / AI (SC2)](#ml--ai-sc2)
+15. [Felsökning](#felsökning)
 
-**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 ✅** + **SC7 ✅ subset** (`io`, `parallel`, `visualize`, `nd_gpu`).
+**Roadmap:** [ROADMAP.md](ROADMAP.md) **Våg SC** — ta över Pythons roll för forskning & AI. Gap vs NumPy/SciPy/sklearn/PyTorch + **Kab-first / SC5 self-host** + **SC6 ✅** + **SC7 ✅ subset** (`io`, `parallel`, `visualize`, `nd_gpu`). Senaste checkpoint: **2026-08-06l** (`tests/science_sc_checkpoint_sc6d.rs`).
 ---
 
 ## Kom igång
@@ -573,6 +574,121 @@ let x = nd_solve(nd_from([[2.0, 1.0], [1.0, 3.0]]), nd_from([5.0, 10.0]));
 | `science/kab_algo` SC5b | PCA/stump/kmeans + bagging/AdaBoost + **`gbdtFitKab`/`gbdtPredictKab`** |
 | `sparse_gather_rows` / `sparse_compress_rows` / `sparse_gather_cols` / `sparse_compress_cols` / `sparse_slice` / `sparse_from_dense_mask` | Sparse fancy row/col/slice views (`science/sparse`) |)
 
+## Science deepen (SC6+)
+
+Kab-wrappers under `lib/science/*.kab`. Importera `science` först, sedan submodule. Smoke: `tests/science_sc_checkpoint_sc6.rs` … `sc6d.rs`.
+
+### Einsum (`science/nd`)
+
+General label parser med **ellipsis** (`...`) och **broadcast** (storlek `1` ↔ `n`).
+
+| Kab | Native | Notes |
+|-----|--------|-------|
+| `einsum(subs, a, b?, c?)` | `nd_einsum` | t.ex. `"ij,jk->ik"`, `"...ij,j->...i"`, `"ij,ij->ij"` |
+
+```kabootar
+import "science"
+import "science/nd"
+let batch = from([1.0, 2.0, 3.0, 4.0, 0.0, 1.0, 1.0, 0.0], [2, 2, 2])
+let vv = from([1.0, 1.0], [2])
+let out = einsum("...ij,j->...i", batch, vv)   // shape [2, 2]
+```
+
+### Linalg deepen (`science/linalg`)
+
+| Kab | Native | Notes |
+|-----|--------|-------|
+| `svd(a, mode?)` / `batchSvd(batch, mode?)` | `mat_svd` / `mat_batch_svd` | mode: `"thin"` \| `"econ"` \| `"full"` |
+| `batchEig(batch)` / `batchQr` / `batchSolve` | `mat_batch_*` | batched decomps |
+| `randomizedSvd(a, rank, nOver?, seed?)` | `mat_randomized_svd` | Halko rSVD → `{u,s,vt,mode:"rand",rank}` |
+
+```kabootar
+import "science"
+import "science/linalg"
+let a = [[4.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 2.0]]
+let rs = randomizedSvd(a, 2, 2, 7)
+rs["mode"]   // "rand"
+```
+
+### Signal / wavelets (`science/signal`)
+
+| Kab | Native | Notes |
+|-----|--------|-------|
+| `polyphaseResample` / `polyphaseDecompose` / `polyphaseAnalyze` / `polyphaseSynthesize` | `num_polyphase_*` | FIR banks |
+| `dwtHaar` / `idwtHaar` | `num_dwt_haar` / `num_idwt_haar` | 1-level Haar |
+| `dwtHaarLevels` / `idwtHaarLevels` | `num_dwt_haar_levels` / `num_idwt_haar_levels` | multilevel → `{a, details, levels}` |
+| `wptHaar` / `iwptHaar` | `num_wpt_haar` / `num_iwpt_haar` | wavelet packets |
+
+```kabootar
+import "science"
+import "science/signal"
+let x = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+let w = dwtHaarLevels(x, 2)
+let xr = idwtHaarLevels(w["a"], w["details"])
+let pkt = wptHaar(x, 2)
+let xi = iwptHaar(pkt["packets"], 2)
+```
+
+### Sparse direct (`science/sparse`)
+
+| Kab | Native | Notes |
+|-----|--------|-------|
+| `ilu0` / `ilut` / `icc0` / `icK` | `sparse_ilu0` / `sparse_ilut` / `sparse_icc0` / `sparse_ic_k` | incomplete factors |
+| `triangularSolve(A, b, lower?)` | `sparse_triangular_solve` | CSR triangular |
+| `iluSolve(fac, b)` / `iccSolve(fac, b)` | `sparse_ilu_solve` / `sparse_icc_solve` | L/U or L Lᵀ |
+| `spsolve(A, b)` | `sparse_spsolve` | ILU(0) + solve |
+
+```kabootar
+import "science"
+import "science/sparse"
+let coo = fromCoo([0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 1, 2], [4.0, 1.0, 1.0, 3.0, 1.0, 2.0], 3, 3)
+let x = spsolve(coo, [1.0, 2.0, 3.0])
+let fac = ilu0(coo)
+let y = iluSolve(fac, [1.0, 2.0, 3.0])
+```
+
+**Obs:** undvik vetenskaplig notation i Kab (`1e-8` → `0.00000001`).
+
+### Autograd HOAD (`science/autograd`)
+
+`backward(loss, true)` bygger tape-noder för högre ordning. Stödjer bl.a. matmul, conv (`Conv2dGrad*`), **softmax** (`SoftmaxGrad`), sum/mul/add/…
+
+| Kab | Notes |
+|-----|-------|
+| `backward(loss, createGraph?)` / `gradTensor(t)` | HOAD entry |
+| `softmax` / `matmul` / `conv2d` / `scaledDotAttn` | attention smoke: `scaledDotAttn(q, k, seq, d)` |
+
+```kabootar
+import "science"
+import "science/autograd"
+clear()
+let logits = tensor([1.0, 2.0, 3.0])
+backward(sum(softmax(logits)), true)
+let g = gradTensor(logits)
+backward(sum(g), true)
+grad(logits)   // andra ordningen
+```
+
+### PDE / FEM (`science/domain/pde`)
+
+| Kab | Notes |
+|-----|-------|
+| `heat1dStep` / `heat2dStep` / `heat3dStep` | FTCS heat, Dirichlet |
+| `poisson*Jacobi` / `poisson*Residual` | 1D/2D/3D Jacobi |
+| `femAssemblePoisson1d` / `femSolveJacobi` | 1D FEM lite |
+| `femAssemblePoisson2dTri(nodes, tris)` | linear triangles → dense K |
+| `femAssembleLoad2dTri(nodes, tris, load?)` | constant load → f |
+
+```kabootar
+import "science"
+import "science/domain/pde"
+let nodes = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]
+let tris = [[0, 1, 2], [1, 3, 2]]
+let km = femAssemblePoisson2dTri(nodes, tris)
+let f = femAssembleLoad2dTri(nodes, tris, 1.0)
+let u = femSolveJacobi(km, f, 80)
+```
+
 ## ML / AI (SC2)
 
 ```kabootar
@@ -605,7 +721,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 - Motor (tillfällig hotpath): `src/runtime/science/` — krymper enligt **SC5**; ny produktlogik ska inte växa här
 - Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`; **SC7:** `io`, `parallel`, `visualize`, `nd_gpu`; **STEM sandlåda:** `mechanics`)
 - Registrering: `science_register` vid `import "science"`
-- Tester: `tests/science_sc*.rs` inkl. `science_sc_wave7.rs`
+- Tester: `tests/science_sc*.rs`, checkpoints `science_sc_checkpoint_sc6.rs` … `sc6d.rs`, plus `science_sc_wave7.rs`
 - Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
 
 ### Policy SC5c (inga nya Rust-produkt-API)
@@ -622,8 +738,11 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 | Lager | Rust-native (tillfällig) | Kab (`lib/science`) |
 |-------|--------------------------|---------------------|
 | ndarray bulk | `nd_*`, `nd_from_f64`, matmul, FFT | wrappers, slice/stack, I/O API |
-| linalg heavy | QR/SVD/eig, solve | `optimize.kab`, future spline |
-| NN hotpath | conv2d, mha, embedding, GPU tensors | `fit.kab`, `ml.kab` training loop |
+| linalg heavy | QR/SVD/eig/rSVD, batch decomps, solve | `linalg.kab` |
+| sparse direct | ILU/IC + triangular / `spsolve` | `sparse.kab` |
+| signal / wavelet | FIR/polyphase, Haar DWT/WPT | `signal.kab` |
+| NN hotpath | conv2d, mha, embedding, GPU tensors; AG softmax/matmul/conv HOAD | `autograd.kab`, `fit.kab`, `ml.kab` |
+| PDE / FEM | — (Kab FD + FEM assemble) | `domain/pde.kab` |
 | tokenizer/transformer | BPE train, transformer forward matmul | `tokenizer.kab`, `transformer.kab` |
 | training DX | `ml_train_log` (progress emit) | `fit.kab` — loop, schedulers, early stop |
 | GPU compute | WGSL matmul+conv2d (`gpu` feature) via `gpu_compute` | `gpu.kab` wrappers; CPU fallback always |
