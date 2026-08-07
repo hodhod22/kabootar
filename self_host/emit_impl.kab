@@ -1303,10 +1303,70 @@ fn emitExpr(node) {
     throw "Unsupported expr: " + eNode.kind
 }
 
+// P6b: shared jump patch / len push — cuts duplicated eInFn If AST in emitIfStmt.
+fn patchRelJump(opName, idx) {
+    if eInFn == 1 {
+        eEnd = len(eFnOps)
+        eJumpOff = eEnd - idx - 1
+        eFnOps[idx] = { "op": opName, "arg": eJumpOff }
+    } else {
+        eEnd = len(eOps)
+        eJumpOff = eEnd - idx - 1
+        eOps[idx] = { "op": opName, "arg": eJumpOff }
+    }
+}
+
+fn pushJmpAtLen(stack) {
+    if eInFn == 1 {
+        return arrUtil("pushLen", stack, eFnOps)
+    }
+    return arrUtil("pushLen", stack, eOps)
+}
+
+/// If stmt body (called early from emitStmt — dense leaves are If-heavy).
+fn emitIfStmt() {
+    eCondStack = push(eCondStack, eCond)
+    eThenStack = push(eThenStack, eThen)
+    eElseStack = push(eElseStack, eElse)
+    eCond = eNode["cond"]
+    eThen = eNode["then"]
+    eElse = eNode["elseBranch"]
+    emitExpr(eCond)
+    eIfJmpStack = pushJmpAtLen(eIfJmpStack)
+    emitOp(OP_JUMP_IF_FALSE, 0)
+    emitStmt(eThen)
+    if eElse != null {
+        eIfSkipStack = pushJmpAtLen(eIfSkipStack)
+        emitOp(OP_JUMP, 0)
+        eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
+        patchRelJump(OP_JUMP_IF_FALSE, eJmp)
+        eIfJmpStack = pop(eIfJmpStack)
+        emitStmt(eElse)
+        eIdx = eIfSkipStack[len(eIfSkipStack) - 1]
+        patchRelJump(OP_JUMP, eIdx)
+        eIfSkipStack = pop(eIfSkipStack)
+    } else {
+        eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
+        patchRelJump(OP_JUMP_IF_FALSE, eJmp)
+        eIfJmpStack = pop(eIfJmpStack)
+    }
+    eCond = eCondStack[len(eCondStack) - 1]
+    eThen = eThenStack[len(eThenStack) - 1]
+    eElse = eElseStack[len(eElseStack) - 1]
+    eCondStack = pop(eCondStack)
+    eThenStack = pop(eThenStack)
+    eElseStack = pop(eElseStack)
+}
+
 fn emitStmt(node) {
     eStmtNode = node
     eNode = node
     eStmtKind = eStmtNode.kind
+    // P6b: check If before the long Let/Assign/… chain (serialize_body is If-dense).
+    if eStmtKind == AST_IF {
+        emitIfStmt()
+        return
+    }
     if eNode.kind == AST_LET {
         eAssignSym = eNode["sym"]
         eLitNode = eNode["init"]
@@ -1566,75 +1626,6 @@ fn emitStmt(node) {
         eBlockStmtsStack = pop(eBlockStmtsStack)
         eBlockNStack = pop(eBlockNStack)
         eBlockIStack = pop(eBlockIStack)
-        return
-    }
-    if eNode.kind == AST_IF {
-        eCondStack = push(eCondStack, eCond)
-        eThenStack = push(eThenStack, eThen)
-        eElseStack = push(eElseStack, eElse)
-        eCond = eNode["cond"]
-        eThen = eNode["then"]
-        eElse = eNode["elseBranch"]
-        emitExpr(eCond)
-        if eInFn == 1 {
-            eIfJmpStack = arrUtil("pushLen",eIfJmpStack, eFnOps)
-        } else {
-            eIfJmpStack = arrUtil("pushLen",eIfJmpStack, eOps)
-        }
-        emitOp(OP_JUMP_IF_FALSE, 0)
-        emitStmt(eThen)
-        if eElse != null {
-            if eInFn == 1 {
-                eIfSkipStack = arrUtil("pushLen",eIfSkipStack, eFnOps)
-            } else {
-                eIfSkipStack = arrUtil("pushLen",eIfSkipStack, eOps)
-            }
-            emitOp(OP_JUMP, 0)
-            if eInFn == 1 {
-                eEnd = len(eFnOps)
-                eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-                eJumpOff = eEnd - eJmp - 1
-                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-            } else {
-                eEnd = len(eOps)
-                eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-                eJumpOff = eEnd - eJmp - 1
-                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-            }
-            eIfJmpStack = pop(eIfJmpStack)
-            emitStmt(eElse)
-            if eInFn == 1 {
-                eEnd = len(eFnOps)
-                eIdx = eIfSkipStack[len(eIfSkipStack) - 1]
-                eJumpOff = eEnd - eIdx - 1
-                eFnOps[eIdx] = { "op": OP_JUMP, "arg": eJumpOff }
-            } else {
-                eEnd = len(eOps)
-                eIdx = eIfSkipStack[len(eIfSkipStack) - 1]
-                eJumpOff = eEnd - eIdx - 1
-                eOps[eIdx] = { "op": OP_JUMP, "arg": eJumpOff }
-            }
-            eIfSkipStack = pop(eIfSkipStack)
-        } else {
-            if eInFn == 1 {
-                eEnd = len(eFnOps)
-                eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-                eJumpOff = eEnd - eJmp - 1
-                eFnOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-            } else {
-                eEnd = len(eOps)
-                eJmp = eIfJmpStack[len(eIfJmpStack) - 1]
-                eJumpOff = eEnd - eJmp - 1
-                eOps[eJmp] = { "op": OP_JUMP_IF_FALSE, "arg": eJumpOff }
-            }
-            eIfJmpStack = pop(eIfJmpStack)
-        }
-        eCond = eCondStack[len(eCondStack) - 1]
-        eThen = eThenStack[len(eThenStack) - 1]
-        eElse = eElseStack[len(eElseStack) - 1]
-        eCondStack = pop(eCondStack)
-        eThenStack = pop(eThenStack)
-        eElseStack = pop(eElseStack)
         return
     }
     if eNode.kind == AST_CONTINUE {

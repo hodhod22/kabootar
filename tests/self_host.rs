@@ -2496,6 +2496,26 @@ fn p6b_emit_accadd_hotpath_progress() {
     );
 }
 
+/// P6b: AST_IF dispatched early via emitIfStmt + shared jump patch helpers.
+#[test]
+fn p6b_emit_if_hotpath_progress() {
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/emit_impl.kab");
+    let src = std::fs::read_to_string(&path).expect("read emit_impl");
+    assert!(
+        src.contains("fn emitIfStmt()"),
+        "emitIfStmt helper required for early If dispatch"
+    );
+    assert!(
+        src.contains("P6b: check If before the long Let/Assign"),
+        "emitStmt must early-dispatch AST_IF"
+    );
+    assert!(
+        src.contains("fn patchRelJump("),
+        "shared patchRelJump reduces duplicated If patch AST"
+    );
+}
+
 #[test]
 fn self_host_vm_full_compile() {
     use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};

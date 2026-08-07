@@ -34,6 +34,7 @@ pub fn xrBegin(session) {
         return session
     }
     session["active"] = true
+    session["inputSources"] = xrInputSources(session)
     session["controllers"] = trackedControllers(session)
     return session
 }
@@ -64,12 +65,73 @@ pub fn xrEnd(session) {
     return session
 }
 
-/// Tracked controller stubs (left/right).
+/// WebXR-style inputSources (stub left/right with grip/targetRay + gamepad).
+pub fn xrInputSources(session) {
+    let bag = xr_enumerate_input_sources()
+    let sources = bag["sources"]
+    if session != null && session != undefined {
+        session["inputSources"] = sources
+    }
+    return sources
+}
+
+/// Pose for one source: kind = "grip" | "targetRay".
+pub fn xrGetInputPose(source, kind) {
+    if kind == null || kind == undefined {
+        kind = "grip"
+    }
+    let hand = source["handedness"]
+    if hand == null || hand == undefined {
+        hand = source["id"]
+    }
+    return xr_input_source_pose(hand, kind)
+}
+
+/// Drain select/squeeze events (inject via xrInjectInputEvent for tests/host).
+pub fn xrPollInputEvents(session) {
+    let bag = xr_poll_input_events()
+    if session != null && session != undefined {
+        session["lastInputEvents"] = bag["events"]
+    }
+    return bag["events"]
+}
+
+pub fn xrInjectInputEvent(typeName, handedness) {
+    if handedness == null || handedness == undefined {
+        handedness = "right"
+    }
+    return xr_inject_input_event(typeName, handedness)
+}
+
+/// Tracked controller stubs (left/right) — derived from inputSources when present.
 pub fn trackedControllers(session) {
-    return [
-        { "id": "left", "x": -0.3, "y": 1.2, "z": -0.5, "buttons": [] },
-        { "id": "right", "x": 0.3, "y": 1.2, "z": -0.5, "buttons": [] }
-    ]
+    let sources = null
+    if session != null && session != undefined {
+        sources = session["inputSources"]
+    }
+    if sources == null || sources == undefined {
+        sources = xrInputSources(session)
+    }
+    let out = []
+    let i = 0
+    while i < len(sources) {
+        let s = sources[i]
+        let grip = s["gripPose"]
+        if grip == null || grip == undefined {
+            grip = xrGetInputPose(s, "grip")
+        }
+        out = push(out, {
+            "id": s["handedness"],
+            "handedness": s["handedness"],
+            "x": grip["x"],
+            "y": grip["y"],
+            "z": grip["z"],
+            "buttons": s["gamepad"]["buttons"],
+            "inputSource": s
+        })
+        i = i + 1
+    }
+    return out
 }
 
 /// Stereo eye cameras from head pose + IPD.

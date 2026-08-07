@@ -20,7 +20,8 @@ import-time cost of dependents. Even a ~9 KB leaf can take **minutes** in debu
 1. **Densify the leaf source** (fewer If / Binary trees) — e.g. `serialize_body`
    `irOpLine` → `IR_WITH_ARG` / `IR_ZERO_ARG` membership (~8.8 KB).
 2. **Speed the toolchain emit** — `emit_impl` AccAdd recurse (no `pieces[]`),
-   no statement `Const(null)` junk; regenerate **this** leaf’s seed after edits.
+   no statement `Const(null)`; early `emitIfStmt` + `patchRelJump`; regenerate
+   **emit_impl** seed after edits.
 3. **Measure** before flipping any flag:
    ```bash
    # Single leaf (serialize_body)
@@ -39,11 +40,13 @@ import-time cost of dependents. Even a ~9 KB leaf can take **minutes** in debu
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | Densified irOpLine + joinComma | **~889 s** (still ≫ 10 s) |
+| `serialize_body.kab` | Densify + AccAdd recurse + early `emitIfStmt` | **~885 s** (still ≫ 10 s; ~889 s before emit hotpaths) |
 | others | Larger / denser | not under budget |
 
-Next lever after leaf densify: **emit AccAdd / If hotpath** in `emit_impl.kab`
-(product loads the seed — always regen after emit_impl edits).
+Leaf densify and emit AccAdd/If micro-opts help IR/shape but do **not** yet unlock
+the 10 s gate. Next levers: fas-profil (`profile_emit_compile.py phases`) to see
+parse vs emit vs serialize share, then deeper emit/parse algorithmic cuts — or
+product track GP6n polish. **Do not** empty the skip-list yet.
 
 ## Gates
 
@@ -54,6 +57,7 @@ Next lever after leaf densify: **emit AccAdd / If hotpath** in `emit_impl.kab`
 | `p6_skip_list_stays_until_ci_fast_gate` | Oversize emit stays skipped; flag off |
 | `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed + densified |
 | `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath present in emit_impl |
+| `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` present |
 | `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
 
