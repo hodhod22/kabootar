@@ -1,6 +1,9 @@
 @version "1.0.0"
 
-// Kabootar game/physics - 2D AABB/circle (GP3a) + 3D ray/character (GP3b).
+// Kabootar game/physics - Legacy 2D AABB/circle (GP3a) + 3D ray/character (GP3b) helpers.
+// These are low-level utility functions for simple physics operations.
+// For full physics engine with ECS integration, use import "game/core/physics3"
+//
 // Bodies 2D: { x, y, w, h } or { x, y, r }.
 // import "game/physics"
 

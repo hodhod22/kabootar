@@ -12,6 +12,7 @@ import "game/core/characterController"
 import "game/core/instancing"
 import "game/core/sceneGraph"
 import "game/core/baziIntegration"
+import "game/core/renderBridge"
 
 pub fn createGameContext(width, height) {
     return {
@@ -21,6 +22,7 @@ pub fn createGameContext(width, height) {
         "renderPipeline": createRenderPipeline(),
         "instancingSystem": createInstancingSystem(),
         "behaviourSystem": createBehaviourSystem(),
+        "renderBridge": createRenderBridge(),
         "time": createTimeManager(),
         "input": createInputSystem(),
         "events": createEventManager(),
@@ -91,10 +93,16 @@ fn dispatchPhysicsEventToBehaviours(context, event) {
     return context
 }
 
-pub fn renderGameContext(context) {
+pub fn renderGameContext(context, gl) {
     context["renderPipeline"] = mergeInstancingWithPipeline(context["instancingSystem"], context["renderPipeline"])
     let result = executeRenderPipeline(context["renderPipeline"])
     context["renderPipeline"] = result["pipeline"]
+    
+    if gl != null && gl != undefined {
+        let drawResult = drawDrawCalls(result["drawCalls"], gl)
+        context["renderBridge"] = drawResult["bridge"]
+    }
+    
     return { "context": context, "drawCalls": result["drawCalls"] }
 }
 
