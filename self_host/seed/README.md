@@ -10,6 +10,10 @@ Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 self-host-compiles under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10s). Today even
 ~13KB leaves take minutes (AST-cost); see `self_host/emit.kab` comments.
 
+**P6b progress:** first speed target = `serialize_body.kab` (smallest leaf).
+Run `cargo test --test self_host p6_leaf_self_host_compile_budget -- --ignored --nocapture`
+to record ms; do not flip `P6B_EMPTY_SKIP_LIST_READY` until all five are under budget.
+
 Gates:
 
 - `p6_seed_only_all_leaves_have_seeds` — files exist, list length stays 5

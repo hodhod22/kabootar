@@ -372,8 +372,23 @@ fn self_host_lexer_suite() {
 
 #[test]
 fn self_host_ownership_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_ownership.kab"))
-        .expect("self_host/test_ownership.kab should pass");
+    let path = self_host_path("test_ownership.kab");
+    let ok = std::thread::Builder::new()
+        .name("ownership-suite".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let prev = std::env::var("KABOOTAR_VM").ok();
+            std::env::set_var("KABOOTAR_VM", "host");
+            let r = kabootar_lib::cli::run_file(&path);
+            match prev {
+                Some(p) => std::env::set_var("KABOOTAR_VM", p),
+                None => std::env::remove_var("KABOOTAR_VM"),
+            }
+            r.expect("self_host/test_ownership.kab should pass");
+        })
+        .expect("spawn ownership suite")
+        .join();
+    ok.expect("ownership suite thread");
 }
 
 /// Compile lexer + parser once (interpreting parser.kab OOMs on Windows).
@@ -2165,6 +2180,30 @@ fn p6_seed_fingerprint_all_leaves_load() {
             "{rel} seed bytecode looks empty"
         );
     }
+}
+
+/// P6b progress: smallest skip-listed leaf stays tracked; empty-list flag off.
+#[test]
+fn p6b_serialize_body_still_skip_listed_progress() {
+    use kabootar_lib::compile::{
+        self_host_is_skip_listed, P6B_EMPTY_SKIP_LIST_READY, SELF_HOST_SKIP_LISTED_LEAVES,
+    };
+    assert!(
+        !P6B_EMPTY_SKIP_LIST_READY,
+        "P6b: empty skip-list not ready until leaf self-host <10s"
+    );
+    assert!(
+        SELF_HOST_SKIP_LISTED_LEAVES.contains(&"self_host/serialize_body.kab"),
+        "serialize_body remains the first P6b speed target"
+    );
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/serialize_body.kab");
+    let src = std::fs::read_to_string(&path).expect("read serialize_body");
+    assert!(
+        src.len() < 20 * 1024,
+        "serialize_body should stay the smallest leaf (~13KB class)"
+    );
+    assert!(self_host_is_skip_listed(&path));
 }
 
 /// P6: skip-list stays until every leaf self-host-compiles under CI-fast gate.

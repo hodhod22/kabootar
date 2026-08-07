@@ -33,6 +33,11 @@ pub fn underApps(path) {
     return str_slice(s, 0, 6) == "/apps/"
 }
 
+/// Refuse writes outside /apps (product sandbox policy before vfs write).
+pub fn canWrite(path) {
+    return underApps(path)
+}
+
 /// Create directory if missing (and parent when needed, one level).
 pub fn ensureDir(path) {
     let p = "" + path
@@ -50,6 +55,9 @@ pub fn ensureDir(path) {
 /// Ensure parent dir, then write file (product write helper).
 pub fn writeFile(path, body) {
     let p = "" + path
+    if !canWrite(p) {
+        throw "vfs_policy: write refused outside /apps: " + p
+    }
     let parent = parentPath(p)
     if parent != "/" && !exists(parent) {
         ensureDir(parent)

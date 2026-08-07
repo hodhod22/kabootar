@@ -216,6 +216,14 @@ fn parsePostfix() {
             k8pNode = { "kind": K_IDENT, "sym": "this" }
         }
     }
+    // K1d deepen: super(...) → ident "super" (eval calls parent constructor)
+    if k8pNode == null {
+        k8pTok = k8pTokAt("peek")
+        if k8pTok.type == "super" {
+            k8pTokAt("bump")
+            k8pNode = { "kind": K_IDENT, "sym": "super" }
+        }
+    }
     if k8pNode == null {
         k8pTok = k8pTokAt("peek")
         if k8pTok.type == TOKEN_IDENT {
@@ -732,11 +740,15 @@ fn parseStmt() {
         k8pBodyStack = push(k8pBodyStack, k8pBlockBody)
         k8pBlockBody = []
         while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
+            let methStatic = false
             if k8pTokAt("peek").type == "static" {
                 k8pTokAt("bump")
+                methStatic = true
             }
+            let methAsync = false
             if k8pTokAt("peek").type == "async" {
                 k8pTokAt("bump")
+                methAsync = true
             }
             k8pTok = k8pTokAt("peek")
             if k8pTok.type != TOKEN_IDENT {
@@ -768,6 +780,8 @@ fn parseStmt() {
                 throw "Expected )"
             }
             k8pTokAt("bump")
+            // Snapshot before body — call/arrow parsing reuses k8pParams for args.
+            let methParams = k8pSnapList(k8pParams)
             if k8pTokAt("peek").type != "{" {
                 throw "Expected {"
             }
@@ -786,7 +800,14 @@ fn parseStmt() {
                 throw "Expected }"
             }
             k8pTokAt("bump")
-            k8pBlockBody = push(k8pBlockBody, { "kind": K_FN, "sym": methName, "params": k8pSnapList(k8pParams), "body": { "kind": K_BLOCK, "body": k8pSnapList(methStmts) } })
+            k8pBlockBody = push(k8pBlockBody, {
+                "kind": K_FN,
+                "sym": methName,
+                "params": methParams,
+                "body": { "kind": K_BLOCK, "body": k8pSnapList(methStmts) },
+                "static": methStatic,
+                "async": methAsync
+            })
         }
         if k8pTokAt("peek").type != "}" {
             throw "Expected }"

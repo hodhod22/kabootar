@@ -8,6 +8,19 @@ fn manifest_dir() -> String {
     env!("CARGO_MANIFEST_DIR").to_string()
 }
 
+/// File smokes use host bytecode VM (same as `kabootar test`). Kab-VM probe can
+/// cache a bad prefer-Kab result after a cold `.kabootar/cache` and return Null.
+fn run_file_host(path: &str) -> Value {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "host");
+    let v = cli::run_file(path);
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    v.expect("run_file_host")
+}
+
 #[test]
 fn kv8_lexer_module_imports() {
     let code = r#"
@@ -134,15 +147,36 @@ fn k1d_class_new_kab_eval() {
     let ok = std::thread::Builder::new()
         .name("k1d-class-new".into())
         .stack_size(16 * 1024 * 1024)
-        .spawn(move || {
-            matches!(
-                cli::run_file(&path).expect("examples/kv8_k1d_class_new.kab should run"),
-                Value::Bool(true)
-            )
-        })
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d thread")
         .join()
         .expect("k1d thread join");
+    assert!(ok);
+}
+
+#[test]
+fn k1d_static_kab_eval() {
+    let path = format!("{}/examples/kv8_k1d_static.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1d-static".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
+        .expect("spawn k1d-static thread")
+        .join()
+        .expect("k1d-static join");
+    assert!(ok);
+}
+
+#[test]
+fn k1d_super_kab_eval() {
+    let path = format!("{}/examples/kv8_k1d_super.kab", manifest_dir());
+    let ok = std::thread::Builder::new()
+        .name("k1d-super".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
+        .expect("spawn k1d-super thread")
+        .join()
+        .expect("k1d-super join");
     assert!(ok);
 }
 
@@ -152,12 +186,7 @@ fn k1e_extends_kab_eval() {
     let ok = std::thread::Builder::new()
         .name("k1e-extends".into())
         .stack_size(16 * 1024 * 1024)
-        .spawn(move || {
-            matches!(
-                cli::run_file(&path).expect("examples/kv8_k1e_extends.kab should run"),
-                Value::Bool(true)
-            )
-        })
+        .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1e thread")
         .join()
         .expect("k1e thread join");

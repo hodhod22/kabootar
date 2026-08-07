@@ -23,6 +23,8 @@ let evAiStack = []
 let evAi = 0
 let evLoopSig = 0
 let evThisOut = null
+// K1d deepen: parent class bound for ctor while running child constructor
+let evPendingSuper = null
 // K1g: Promise.then microtask queue
 let evMicroQ = []
 let evMicroLast = undefined
@@ -294,9 +296,18 @@ fn evExpr(node, env) {
             return obj[memField]
         }
         if object_has_own(obj, "__k8class") {
-            let clsMethods = obj["__k8class"]["methods"]
-            if object_has_own(clsMethods, memField) {
-                return clsMethods[memField]
+            let ck = obj["__k8class"]
+            // Class object itself: static methods live as __static__name
+            if ck == true {
+                let sk = "__static__" + memField
+                if object_has_own(obj, sk) {
+                    return obj[sk]
+                }
+            } else {
+                let clsMethods = ck["methods"]
+                if object_has_own(clsMethods, memField) {
+                    return clsMethods[memField]
+                }
             }
         }
         // H6a: el.style → style bag for el.style.color = ...
@@ -421,7 +432,12 @@ fn evExpr(node, env) {
         let methods = cls["methods"]
         if object_has_own(methods, "constructor") {
             evThisOut = instance
+            evPendingSuper = null
+            if object_has_own(cls, "__superclass") {
+                evPendingSuper = cls["__superclass"]
+            }
             let ctorRet = evCallThis(methods["constructor"], fnArgs, instance)
+            evPendingSuper = null
             if ctorRet != null && ctorRet != undefined && typeof(ctorRet) == "object" {
                 return ctorRet
             }
@@ -539,13 +555,59 @@ fn evExpr(node, env) {
                 callee = thisRecv[memField]
             } else {
                 if object_has_own(thisRecv, "__k8class") {
-                    let clsMethods = thisRecv["__k8class"]["methods"]
-                    if object_has_own(clsMethods, memField) {
-                        callee = clsMethods[memField]
+                    let ck = thisRecv["__k8class"]
+                    if ck == true {
+                        let sk = "__static__" + memField
+                        if object_has_own(thisRecv, sk) {
+                            callee = thisRecv[sk]
+                        }
+                    } else {
+                        let clsMethods = ck["methods"]
+                        if object_has_own(clsMethods, memField) {
+                            callee = clsMethods[memField]
+                        }
                     }
                 }
             }
         } else {
+            // K1d: super(...) → parent constructor with current this
+            if calleeNode.kind == K_IDENT {
+                if ("" + calleeNode["sym"]) == "super" {
+                    let thisVal = bindGet("this")
+                    let parentCls = evPendingSuper
+                    if parentCls == null || parentCls == undefined {
+                        if thisVal != null && object_has_own(thisVal, "__k8class") {
+                            let ownCls = thisVal["__k8class"]
+                            if ownCls != true && object_has_own(ownCls, "__superclass") {
+                                parentCls = ownCls["__superclass"]
+                            }
+                        }
+                    }
+                    if parentCls == null || parentCls == undefined {
+                        throw "ReferenceError: super"
+                    }
+                    let fnArgs = []
+                    evAiStack = push(evAiStack, 0)
+                    while evAiStack[len(evAiStack) - 1] < len(callArgNodes) {
+                        evAi = evAiStack[len(evAiStack) - 1]
+                        fnArgs = push(fnArgs, evExpr(callArgNodes[evAi], env))
+                        evAi = evAiStack[len(evAiStack) - 1] + 1
+                        evAiStack = pop(evAiStack)
+                        evAiStack = push(evAiStack, evAi)
+                    }
+                    evAiStack = pop(evAiStack)
+                    let pMethods = parentCls["methods"]
+                    if object_has_own(pMethods, "constructor") {
+                        let sret = evCallThis(pMethods["constructor"], fnArgs, thisVal)
+                        // Parent ctor mutates this under CoW — write back into child ctor env
+                        if evThisOut != null && evThisOut != undefined {
+                            bindSet("this", evThisOut)
+                        }
+                        return sret
+                    }
+                    return undefined
+                }
+            }
             callee = evExpr(calleeNode, env)
         }
         if callee == null || callee == undefined {
@@ -764,6 +826,9 @@ fn evCallThis(fnVal, args, thisVal) {
         restore = true
     }
     bindSet("this", thisVal)
+    if evPendingSuper != null && evPendingSuper != undefined {
+        bindSet("super", evPendingSuper)
+    }
     let pi = 0
     while pi < len(fnParams) {
         bindSet(fnParams[pi], args[pi])
@@ -798,6 +863,8 @@ fn evStmt(stmt, env) {
             fi = fi + 1
         }
         let methods = {}
+        let statics = {}
+        let parentCls = null
         // K1e: merge parent class methods when extends is set
         let classExt = stmt["extends"]
         if classExt != null && classExt != undefined {
@@ -805,6 +872,7 @@ fn evStmt(stmt, env) {
             if bindHas(parentName) {
                 let parent = bindGet(parentName)
                 if parent != null && parent != undefined && object_has_own(parent, "__k8class") {
+                    parentCls = parent
                     let parentMethods = parent["methods"]
                     let pKeys = object_keys(parentMethods)
                     let pi = 0
@@ -820,11 +888,36 @@ fn evStmt(stmt, env) {
         while mi < len(methList) {
             let m = methList[mi]
             let mName = "" + m["sym"]
-            methods[mName] = { "tag": "k8fn", "params": m.params, "body": m.body.body, "closure": scope, "arrow": false }
+            let isStatic = false
+            if object_has_own(m, "static") {
+                if m["static"] == true {
+                    isStatic = true
+                }
+            }
+            let isAsync = false
+            if object_has_own(m, "async") {
+                if m["async"] == true {
+                    isAsync = true
+                }
+            }
+            let fnVal = { "tag": "k8fn", "params": m.params, "body": m.body.body, "closure": scope, "arrow": false, "async": isAsync }
+            if isStatic {
+                statics["__static__" + mName] = fnVal
+            } else {
+                methods[mName] = fnVal
+            }
             mi = mi + 1
         }
         let classSym = "" + stmt["sym"]
-        bindSet(classSym, { "__k8class": true, "name": classSym, "methods": methods, "extends": classExt })
+        // Build class object after methods/statics are complete (CoW-safe)
+        let classObj = { "__k8class": true, "name": classSym, "methods": methods, "extends": classExt, "__superclass": parentCls }
+        let sKeys = object_keys(statics)
+        let si = 0
+        while si < len(sKeys) {
+            classObj[sKeys[si]] = statics[sKeys[si]]
+            si = si + 1
+        }
+        bindSet(classSym, classObj)
         return undefined
     }
     if stmtKind == K_FN {
