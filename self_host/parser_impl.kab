@@ -712,6 +712,23 @@ fn parseStmt() {
         pInit = parseCompare()
         return { "kind": AST_LET, "sym": pBindSym, "init": pInit, "isPub": pIsPub }
     }
+    // P6b: early IDENT= assign (AccAdd-dense leaves) — before enum/class/fn dispatch.
+    if pCur.type == TOKEN_IDENT {
+        if pPos + 1 < len(pToks) {
+            pNextTok = pToks[pPos + 1]
+        } else {
+            pNextTok = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+        }
+        if pNextTok.type == "=" {
+            pTok = pCur
+            pSymPool = push(pSymPool, pTok.value)
+            pBindSym = pSymPool[len(pSymPool) - 1]
+            bump()
+            bump()
+            pVal = parseCompare()
+            return { "kind": AST_ASSIGN, "sym": pBindSym, "rhs": pVal }
+        }
+    }
     if pCur.type == TOKEN_ENUM {
         bump()
         pTok = pCur

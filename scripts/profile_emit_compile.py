@@ -28,7 +28,7 @@ if len(MANIFEST) >= 2 and MANIFEST[1] == ":":
 
 
 def kabootar_bin() -> str:
-    for sub in ("target-h6e5", "target-alt3", "target-alt2", "target"):
+    for sub in ("target-p6b4", "target-h6e5", "target-alt3", "target-alt2", "target"):
         for name in ("kabootar.exe", "kabootar"):
             path = os.path.join(ROOT, sub, "debug", name)
             if os.path.isfile(path):
@@ -128,13 +128,18 @@ def run_probe(probe_src: str, timeout_s: int) -> tuple[bool, dict[str, float], f
     with open(PROBE, "w", encoding="utf-8", newline="\n") as f:
         f.write(probe_src)
     t0 = time.time()
+    env = os.environ.copy()
+    # Host VM + Rust compile so probe println/string concat is reliable on Windows.
+    env.setdefault("KABOOTAR_VM", "host")
+    env.setdefault("KABOOTAR_COMPILE", "rust")
     try:
         r = subprocess.run(
-            [KAB, PROBE],
+            [KAB, "run", PROBE],
             cwd=ROOT,
             capture_output=True,
             text=True,
             timeout=timeout_s,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         return False, {}, time.time() - t0, f"TIMEOUT after {timeout_s}s"

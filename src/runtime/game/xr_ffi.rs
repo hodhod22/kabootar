@@ -102,6 +102,9 @@ struct OpenXrLoaderFns {
     create_instance_resolved: bool,
     create_session_resolved: bool,
     get_system_resolved: bool,
+    /// `xrLocateHandJointsEXT` when resolved (0 = unresolved / stub path).
+    locate_hand_joints_ext: usize,
+    locate_hand_joints_ext_resolved: bool,
 }
 
 static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
@@ -119,6 +122,8 @@ static OPENXR_FNS: Mutex<OpenXrLoaderFns> = Mutex::new(OpenXrLoaderFns {
     create_instance_resolved: false,
     create_session_resolved: false,
     get_system_resolved: false,
+    locate_hand_joints_ext: 0,
+    locate_hand_joints_ext_resolved: false,
 });
 
 /// Live OpenXR / WebXR session (handles + FFI accounting).
@@ -645,6 +650,11 @@ fn probe_openxr_loader() -> (bool, bool, String, String) {
         });
         let _ = resolve_named_proc(get_proc_addr, "xrDestroySession", |fns, addr| {
             fns.destroy_session = addr;
+        });
+        // XR_EXT_hand_tracking — may be 0 until instance+extension enable; record best-effort.
+        let _ = resolve_named_proc(get_proc_addr, "xrLocateHandJointsEXT", |fns, addr| {
+            fns.locate_hand_joints_ext = addr;
+            fns.locate_hand_joints_ext_resolved = addr != 0;
         });
 
         if runtime_ok {
@@ -3188,7 +3198,15 @@ pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
         total += locate_hand_joints_fill(h)? as i64;
     }
     let path = if backend == "openxr-ext" {
-        "xrLocateHandJointsEXT"
+        let ext = OPENXR_FNS
+            .lock()
+            .map(|f| f.locate_hand_joints_ext_resolved)
+            .unwrap_or(false);
+        if ext {
+            "xrLocateHandJointsEXT"
+        } else {
+            "openxr-ext-synth-pending"
+        }
     } else {
         "stub-xrLocateHandJointsEXT"
     };
@@ -3197,6 +3215,15 @@ pub fn locate_hand_joints(handedness: &str) -> Result<Value, String> {
     out.insert("backend".into(), Value::String(backend));
     out.insert("path".into(), Value::String(path.into()));
     out.insert("extension".into(), Value::String("XR_EXT_hand_tracking".into()));
+    out.insert(
+        "extResolved".into(),
+        Value::Bool(
+            OPENXR_FNS
+                .lock()
+                .map(|f| f.locate_hand_joints_ext_resolved)
+                .unwrap_or(false),
+        ),
+    );
     out.insert("jointCount".into(), Value::Number(26));
     out.insert("filled".into(), Value::Number(total));
     out.insert(
@@ -3390,12 +3417,29 @@ pub fn hand_tracking_status() -> Value {
     out.insert(
         "locatePath".into(),
         Value::String(if backend == "openxr-ext" {
-            "xrLocateHandJointsEXT".into()
+            if OPENXR_FNS
+                .lock()
+                .map(|f| f.locate_hand_joints_ext_resolved)
+                .unwrap_or(false)
+            {
+                "xrLocateHandJointsEXT".into()
+            } else {
+                "openxr-ext-synth-pending".into()
+            }
         } else if backend == "openxr-stub" {
             "stub-xrLocateHandJointsEXT".into()
         } else {
             "none".into()
         }),
+    );
+    out.insert(
+        "extResolved".into(),
+        Value::Bool(
+            OPENXR_FNS
+                .lock()
+                .map(|f| f.locate_hand_joints_ext_resolved)
+                .unwrap_or(false),
+        ),
     );
     out.insert("kind".into(), Value::String("xr_hand_tracking".into()));
     Value::Object(out)
