@@ -1,8 +1,9 @@
 @version "1.0.0"
 
-// Electronics CAD pillar (MIT). Commercial kit: rasmemadar.
-// Thin layer on top of CAD core - uses document for parts, graph for nets
-// import "cad/circuit"
+// CAD Circuit - Thin adapter for electronic schematics
+// Features: circuit board, parts, nets, basic calculations (voltage division, Ohm's law)
+// Canonical path: import "cad/circuit"
+// Note: This is a thin adapter - creates nodes and graph links only, no separate document model
 
 import "cad/document"
 import "cad/graph"

@@ -1,7 +1,9 @@
 @version "1.0.0"
 
-// Aerodynamics CAD pillar (MIT). Commercial kit: rasmejaryan.
-// Thin layer on top of CAD core - uses document for surfaces, graph for flow connections
+// CAD Aero - Thin adapter for aerodynamic models
+// Features: aerodynamic model, airfoils, flow parameters, lift estimation
+// Canonical path: import "cad/aero"
+// Note: This is a thin adapter - creates nodes and graph links only, no separate document modelp of CAD core - uses document for surfaces, graph for flow connections
 // import "cad/aero"
 
 import "cad/document"

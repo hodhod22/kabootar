@@ -35,12 +35,18 @@ pub fn testDesignFrameLayout() {
     let nodeCount = getNodeCount(document)
     let frameNode = getNode(document, frame["id"])
     let layout = frameNode["layout"]
+    let profile = document["profile"]
+    let units = document["units"]
+    let epsilon = document["epsilon"]
     
     return {
         "test": "Design Frame Layout",
-        "passed": nodeCount == 3 && layout != null,
+        "passed": nodeCount == 3 && layout != null && profile == "design" && units == "px" && epsilon == 0.5,
         "nodeCount": nodeCount,
-        "frameLayout": layout
+        "frameLayout": layout,
+        "profile": profile,
+        "units": units,
+        "epsilon": epsilon
     }
 }
 
@@ -67,14 +73,24 @@ pub fn testDraftingLineDim() {
     document = addNode(document, document["sceneRoot"]["id"], lineNode)
     document = addNode(document, document["sceneRoot"]["id"], dimNode)
     
+    document = selectNode(document, lineNode["id"])
+    
     document = documentCommit(document)
     
     let nodeCount = getNodeCount(document)
+    let profile = document["profile"]
+    let units = document["units"]
+    let epsilon = document["epsilon"]
+    let selectedCount = getSelectedCount(document)
     
     return {
         "test": "Drafting Line Dimension",
-        "passed": nodeCount == 2,
-        "nodeCount": nodeCount
+        "passed": nodeCount == 2 && profile == "drafting" && units == "mm" && epsilon == 0.01 && selectedCount == 1,
+        "nodeCount": nodeCount,
+        "profile": profile,
+        "units": units,
+        "epsilon": epsilon,
+        "selectedCount": selectedCount
     }
 }
 
@@ -100,13 +116,19 @@ pub fn testSchematicComponentGraph() {
     let nodeCount = getNodeCount(document)
     let graphNodeCount = graph["nodeCounter"]
     let graphEdgeCount = graph["edgeCounter"]
+    let profile = document["profile"]
+    let units = document["units"]
+    let epsilon = document["epsilon"]
     
     return {
         "test": "Schematic Component Graph",
-        "passed": nodeCount == 1 && graphNodeCount == 2 && graphEdgeCount == 1,
+        "passed": nodeCount == 1 && graphNodeCount == 2 && graphEdgeCount == 1 && profile == "schematic" && units == "mm" && epsilon == 0.01,
         "nodeCount": nodeCount,
         "graphNodeCount": graphNodeCount,
-        "graphEdgeCount": graphEdgeCount
+        "graphEdgeCount": graphEdgeCount,
+        "profile": profile,
+        "units": units,
+        "epsilon": epsilon
     }
 }
 
