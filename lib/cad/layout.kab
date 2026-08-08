@@ -287,6 +287,49 @@ pub fn calculateLayoutContentSize(layout, children) {
     return { "width": 0.0, "height": 0.0 }
 }
 
+pub fn measureTextWidth(text, fontSize) {
+    if text == null || text == undefined {
+        return 0.0
+    }
+    let charCount = 0
+    let i = 0
+    while i < len(text) {
+        charCount = charCount + 1
+        i = i + 1
+    }
+    return charCount * fontSize * 0.6
+}
+
+pub fn measureTextHeight(fontSize, lineHeight) {
+    return fontSize * lineHeight
+}
+
+pub fn recomputeLayout(layout, children, containerWidth, containerHeight) {
+    let contentSize = calculateLayoutContentSize(layout, children)
+    
+    if layout["primaryAxisSizingMode"] == "auto" {
+        if layout["direction"] == "vertical" {
+            layout["width"] = contentSize["width"]
+        } else if layout["direction"] == "horizontal" {
+            layout["height"] = contentSize["height"]
+        }
+    }
+    
+    return applyLayout(layout, children, containerWidth, containerHeight)
+}
+
+pub fn setLayoutDirty(layout, dirty) {
+    layout["dirty"] = dirty
+    return layout
+}
+
+pub fn isLayoutDirty(layout) {
+    if layout["dirty"] == null {
+        return false
+    }
+    return layout["dirty"]
+}
+
 fn floor(value) {
     let int = value
     if value < 0.0 && value != int {
