@@ -10,6 +10,12 @@ import "cad/history"
 import "cad/host"
 
 pub fn createDocument(name, units) {
+    let sceneRoot = createSceneNode("root", "Root")
+    sceneRoot["id"] = "root"
+    
+    let nodes = {}
+    nodes["root"] = sceneRoot
+    
     return {
         "kind": "CADDocument",
         "id": generateDocumentId(),
@@ -29,14 +35,14 @@ pub fn createDocument(name, units) {
             "default": createLayer("default", { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 })
         },
         "activeLayer": "default",
-        "nodes": {},
+        "nodes": nodes,
         "nodeCounter": 0,
         "idCounter": 0,
         "selection": createSelection(),
         "undoStack": [],
         "redoStack": [],
         "maxUndoSteps": 100,
-        "sceneRoot": createSceneNode("root", "Root"),
+        "sceneRoot": sceneRoot,
         "pages": [],
         "activePage": 0,
         "useCommandHistory": true,
@@ -230,7 +236,6 @@ pub fn isNodeConstraintDirty(node) {
 }
 
 pub fn documentCommit(document) {
-    document = resolveConstraints(document)
     document = resolveLayout(document)
     document = updateWorldTransforms(document)
     document = clearDirtyFlags(document)
