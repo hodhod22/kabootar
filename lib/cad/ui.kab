@@ -1,0 +1,294 @@
+@version "1.0.0"
+
+// CAD UI - Thin adapter for Figma/Sketch-class design tools
+// Features: Frames, auto-layout, styling, components on top of CAD core
+// Canonical path: import "cad/ui"
+
+import "cad/document"
+import "cad/geom"
+import "cad/transform"
+import "cad/entities"
+import "cad/style"
+import "cad/layout"
+import "cad/symbol"
+
+pub fn createUIDocument(name) {
+    let document = createDocument(name, "px")
+    document = setDocumentProfile(document, "design")
+    return document
+}
+
+pub fn createFrame(name, x, y, width, height) {
+    let frame = createFrameNode(name, x, y, width, height)
+    frame["layout"] = createLayout()
+    frame["styleSet"] = createStyleSet()
+    return frame
+}
+
+pub fn setFrameLayout(frame, layout) {
+    frame["layout"] = layout
+    return frame
+}
+
+pub fn setFrameStyleSet(frame, styleSet) {
+    frame["styleSet"] = styleSet
+    return frame
+}
+
+pub fn addFillToFrame(frame, fill) {
+    frame["styleSet"] = addFillToStyleSet(frame["styleSet"], fill)
+    return frame
+}
+
+pub fn addStrokeToFrame(frame, stroke) {
+    frame["styleSet"] = addStrokeToStyleSet(frame["styleSet"], stroke)
+    return frame
+}
+
+pub fn addEffectToFrame(frame, effect) {
+    frame["styleSet"] = addEffectToStyleSet(frame["styleSet"], effect)
+    return frame
+}
+
+pub fn createButton(name, x, y, width, height, text) {
+    let button = createFrame(name, x, y, width, height)
+    
+    let fill = createSolidFill(0.2, 0.5, 1.0, 1.0)
+    button = addFillToFrame(button, fill)
+    
+    let stroke = createStroke({ "r": 0.0, "g": 0.3, "b": 0.8, "a": 1.0 }, 1.0)
+    button = addStrokeToFrame(button, stroke)
+    
+    let shadow = createShadow(0.0, 4.0, 8.0, 0.0, { "r": 0.0, "g": 0.0, "b": 0.0, "a": 0.2 })
+    button = addEffectToFrame(button, shadow)
+    
+    button["text"] = text
+    button["textStyle"] = createTextStyle("Inter", 14.0, "500", 1.4)
+    
+    return button
+}
+
+pub fn createCard(name, x, y, width, height) {
+    let card = createFrame(name, x, y, width, height)
+    
+    let fill = createSolidFill(1.0, 1.0, 1.0, 1.0)
+    card = addFillToFrame(card, fill)
+    
+    let shadow = createShadow(0.0, 2.0, 8.0, 0.0, { "r": 0.0, "g": 0.0, "b": 0.0, "a": 0.1 })
+    card = addEffectToFrame(card, shadow)
+    
+    let stroke = createStroke({ "r": 0.9, "g": 0.9, "b": 0.9, "a": 1.0 }, 1.0)
+    card = addStrokeToFrame(card, stroke)
+    
+    return card
+}
+
+pub fn createIcon(name, x, y, size) {
+    let icon = createFrame(name, x, y, size, size)
+    icon["styleSet"] = createStyleSet()
+    
+    let fill = createSolidFill(0.3, 0.3, 0.3, 1.0)
+    icon = addFillToFrame(icon, fill)
+    
+    return icon
+}
+
+pub fn createTextField(name, x, y, width, height, placeholder) {
+    let textField = createFrame(name, x, y, width, height)
+    
+    let fill = createSolidFill(1.0, 1.0, 1.0, 1.0)
+    textField = addFillToFrame(textField, fill)
+    
+    let stroke = createStroke({ "r": 0.8, "g": 0.8, "b": 0.8, "a": 1.0 }, 1.0)
+    textField = addStrokeToFrame(textField, stroke)
+    
+    textField["placeholder"] = placeholder
+    textField["textStyle"] = createTextStyle("Inter", 14.0, "400", 1.4)
+    
+    return textField
+}
+
+pub fn createUIComponentLibrary() {
+    return {
+        "kind": "UIComponentLibrary",
+        "buttons": {},
+        "cards": {},
+        "icons": {},
+        "textFields": {}
+    }
+}
+
+pub fn addUIButtonToLibrary(library, name, button) {
+    library["buttons"][name] = button
+    return library
+}
+
+pub fn addUICardToLibrary(library, name, card) {
+    library["cards"][name] = card
+    return library
+}
+
+pub fn addUIIconToLibrary(library, name, icon) {
+    library["icons"][name] = icon
+    return library
+}
+
+pub fn addUITextFieldToLibrary(library, name, textField) {
+    library["textFields"][name] = textField
+    return library
+}
+
+pub fn instantiateUIComponent(library, type, name, x, y) {
+    if type == "button" {
+        let template = library["buttons"][name]
+        if template == null {
+            return null
+        }
+        let instance = cloneFrame(template)
+        instance["transform"]["position"]["x"] = x
+        instance["transform"]["position"]["y"] = y
+        return instance
+    } else if type == "card" {
+        let template = library["cards"][name]
+        if template == null {
+            return null
+        }
+        let instance = cloneFrame(template)
+        instance["transform"]["position"]["x"] = x
+        instance["transform"]["position"]["y"] = y
+        return instance
+    } else if type == "icon" {
+        let template = library["icons"][name]
+        if template == null {
+            return null
+        }
+        let instance = cloneFrame(template)
+        instance["transform"]["position"]["x"] = x
+        instance["transform"]["position"]["y"] = y
+        return instance
+    } else if type == "textField" {
+        let template = library["textFields"][name]
+        if template == null {
+            return null
+        }
+        let instance = cloneFrame(template)
+        instance["transform"]["position"]["x"] = x
+        instance["transform"]["position"]["y"] = y
+        return instance
+    }
+    return null
+}
+
+fn cloneFrame(frame) {
+    let clone = {}
+    for key in frame {
+        if key == "layout" {
+            clone[key] = cloneLayout(frame["layout"])
+        } else if key == "styleSet" {
+            clone[key] = cloneStyleSet(frame["styleSet"])
+        } else if key == "transform" {
+            clone[key] = cloneTransform(frame["transform"])
+        } else {
+            clone[key] = frame[key]
+        }
+    }
+    clone["id"] = generateSymbolId()
+    return clone
+}
+
+fn cloneLayout(layout) {
+    let clone = {}
+    for key in layout {
+        if key == "padding" {
+            clone[key] = {
+                "top": layout["padding"]["top"],
+                "right": layout["padding"]["right"],
+                "bottom": layout["padding"]["bottom"],
+                "left": layout["padding"]["left"]
+            }
+        } else {
+            clone[key] = layout[key]
+        }
+    }
+    return clone
+}
+
+fn cloneStyleSet(styleSet) {
+    let clone = {
+        "kind": styleSet["kind"],
+        "fills": [],
+        "strokes": [],
+        "effects": [],
+        "textStyle": null
+    }
+    
+    let i = 0
+    while i < len(styleSet["fills"]) {
+        clone["fills"] = push(clone["fills"], cloneFill(styleSet["fills"][i]))
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(styleSet["strokes"]) {
+        clone["strokes"] = push(clone["strokes"], cloneStroke(styleSet["strokes"][j]))
+        j = j + 1
+    }
+    
+    let k = 0
+    while k < len(styleSet["effects"]) {
+        clone["effects"] = push(clone["effects"], cloneEffect(styleSet["effects"][k]))
+        k = k + 1
+    }
+    
+    if styleSet["textStyle"] != null {
+        clone["textStyle"] = cloneTextStyle(styleSet["textStyle"])
+    }
+    
+    return clone
+}
+
+fn cloneTransform(transform) {
+    return {
+        "kind": transform["kind"],
+        "id": transform["id"],
+        "position": vec2(transform["position"]["x"], transform["position"]["y"]),
+        "rotation": transform["rotation"],
+        "scale": vec2(transform["scale"]["x"], transform["scale"]["y"]),
+        "parent": transform["parent"],
+        "children": transform["children"],
+        "worldMatrix": transform["worldMatrix"],
+        "dirty": transform["dirty"]
+    }
+}
+
+fn generateSymbolId() {
+    return "ui-" + timestamp() + "-" + random()
+}
+
+fn timestamp() {
+    return floor(currentTime() * 1000.0)
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn random() {
+    return systemRandom()
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
+
+fn systemTime() {
+    return 0.0
+}
+
+fn systemRandom() {
+    return 0.0
+}
