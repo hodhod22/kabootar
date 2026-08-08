@@ -1,0 +1,578 @@
+@version "1.0.0"
+
+// CAD Constraint - Light constraint system (not full Sketch-solver)
+// Features: horizontal/vertical/fixed length (2D), coincident endpoints (for poly-chains), "solve one step"
+// Canonical path: import "cad/constraint"
+
+import "cad/geom"
+
+pub fn createConstraintSystem() {
+    return {
+        "kind": "ConstraintSystem",
+        "constraints": [],
+        "constraintCounter": 0
+    }
+}
+
+pub fn createHorizontalConstraint(entityId) {
+    return {
+        "kind": "HorizontalConstraint",
+        "id": generateConstraintId(),
+        "type": "horizontal",
+        "entityId": entityId,
+        "active": true
+    }
+}
+
+pub fn createVerticalConstraint(entityId) {
+    return {
+        "kind": "VerticalConstraint",
+        "id": generateConstraintId(),
+        "type": "vertical",
+        "entityId": entityId,
+        "active": true
+    }
+}
+
+pub fn createFixedLengthConstraint(entityId, length) {
+    return {
+        "kind": "FixedLengthConstraint",
+        "id": generateConstraintId(),
+        "type": "fixedLength",
+        "entityId": entityId,
+        "length": length,
+        "active": true
+    }
+}
+
+pub fn createCoincidentConstraint(entityIdA, pointIndexA, entityIdB, pointIndexB) {
+    return {
+        "kind": "CoincidentConstraint",
+        "id": generateConstraintId(),
+        "type": "coincident",
+        "entityIdA": entityIdA,
+        "pointIndexA": pointIndexA,
+        "entityIdB": entityIdB,
+        "pointIndexB": pointIndexB,
+        "active": true
+    }
+}
+
+pub fn createParallelConstraint(entityIdA, entityIdB) {
+    return {
+        "kind": "ParallelConstraint",
+        "id": generateConstraintId(),
+        "type": "parallel",
+        "entityIdA": entityIdA,
+        "entityIdB": entityIdB,
+        "active": true
+    }
+}
+
+pub fn createPerpendicularConstraint(entityIdA, entityIdB) {
+    return {
+        "kind": "PerpendicularConstraint",
+        "id": generateConstraintId(),
+        "type": "perpendicular",
+        "entityIdA": entityIdA,
+        "entityIdB": entityIdB,
+        "active": true
+    }
+}
+
+pub fn createTangentConstraint(entityIdA, entityIdB) {
+    return {
+        "kind": "TangentConstraint",
+        "id": generateConstraintId(),
+        "type": "tangent",
+        "entityIdA": entityIdA,
+        "entityIdB": entityIdB,
+        "active": true
+    }
+}
+
+pub fn addConstraint(system, constraint) {
+    system["constraints"] = push(system["constraints"], constraint)
+    return system
+}
+
+pub fn removeConstraint(system, constraintId) {
+    let newConstraints = []
+    let i = 0
+    while i < len(system["constraints"]) {
+        if system["constraints"][i]["id"] != constraintId {
+            newConstraints = push(newConstraints, system["constraints"][i])
+        }
+        i = i + 1
+    }
+    system["constraints"] = newConstraints
+    return system
+}
+
+pub fn getConstraint(system, constraintId) {
+    let i = 0
+    while i < len(system["constraints"]) {
+        if system["constraints"][i]["id"] == constraintId {
+            return system["constraints"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn setConstraintActive(system, constraintId, active) {
+    let i = 0
+    while i < len(system["constraints"]) {
+        if system["constraints"][i]["id"] == constraintId {
+            system["constraints"][i]["active"] = active
+        }
+        i = i + 1
+    }
+    return system
+}
+
+pub fn solveConstraints(system, document) {
+    let entities = document["entities"]
+    let maxIterations = 10
+    let iteration = 0
+    
+    while iteration < maxIterations {
+        let changed = false
+        
+        let i = 0
+        while i < len(system["constraints"]) {
+            let constraint = system["constraints"][i]
+            if constraint["active"] == true {
+                let result = solveConstraint(constraint, entities)
+                if result["changed"] == true {
+                    changed = true
+                    entities = result["entities"]
+                }
+            }
+            i = i + 1
+        }
+        
+        if changed == false {
+            break
+        }
+        
+        iteration = iteration + 1
+    }
+    
+    document["entities"] = entities
+    return document
+}
+
+fn solveConstraint(constraint, entities) {
+    if constraint["type"] == "horizontal" {
+        return solveHorizontalConstraint(constraint, entities)
+    } else if constraint["type"] == "vertical" {
+        return solveVerticalConstraint(constraint, entities)
+    } else if constraint["type"] == "fixedLength" {
+        return solveFixedLengthConstraint(constraint, entities)
+    } else if constraint["type"] == "coincident" {
+        return solveCoincidentConstraint(constraint, entities)
+    } else if constraint["type"] == "parallel" {
+        return solveParallelConstraint(constraint, entities)
+    } else if constraint["type"] == "perpendicular" {
+        return solvePerpendicularConstraint(constraint, entities)
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solveHorizontalConstraint(constraint, entities) {
+    let entity = entities[constraint["entityId"]]
+    if entity == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        let dy = data["end"]["y"] - data["start"]["y"]
+        if abs(dy) > 0.001 {
+            data["end"]["y"] = data["start"]["y"]
+            entity["data"] = data
+            entities[constraint["entityId"]] = entity
+            return { "changed": true, "entities": entities }
+        }
+    } else if entity["kind"] == "Polyline" {
+        let changed = false
+        let i = 0
+        while i < len(data["points"]) - 1 {
+            let dy = data["points"][i + 1]["y"] - data["points"][i]["y"]
+            if abs(dy) > 0.001 {
+                data["points"][i + 1]["y"] = data["points"][i]["y"]
+                changed = true
+            }
+            i = i + 1
+        }
+        if changed == true {
+            entity["data"] = data
+            entities[constraint["entityId"]] = entity
+            return { "changed": true, "entities": entities }
+        }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solveVerticalConstraint(constraint, entities) {
+    let entity = entities[constraint["entityId"]]
+    if entity == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        let dx = data["end"]["x"] - data["start"]["x"]
+        if abs(dx) > 0.001 {
+            data["end"]["x"] = data["start"]["x"]
+            entity["data"] = data
+            entities[constraint["entityId"]] = entity
+            return { "changed": true, "entities": entities }
+        }
+    } else if entity["kind"] == "Polyline" {
+        let changed = false
+        let i = 0
+        while i < len(data["points"]) - 1 {
+            let dx = data["points"][i + 1]["x"] - data["points"][i]["x"]
+            if abs(dx) > 0.001 {
+                data["points"][i + 1]["x"] = data["points"][i]["x"]
+                changed = true
+            }
+            i = i + 1
+        }
+        if changed == true {
+            entity["data"] = data
+            entities[constraint["entityId"]] = entity
+            return { "changed": true, "entities": entities }
+        }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solveFixedLengthConstraint(constraint, entities) {
+    let entity = entities[constraint["entityId"]]
+    if entity == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let data = entity["data"]
+    let targetLength = constraint["length"]
+    
+    if entity["kind"] == "Line" {
+        let currentLength = segmentLength(createSegment(data["start"], data["end"]))
+        if abs(currentLength - targetLength) > 0.001 {
+            let direction = segmentDirection(createSegment(data["start"], data["end"]))
+            data["end"] = vec2Add(data["start"], vec2Mul(direction, targetLength))
+            entity["data"] = data
+            entities[constraint["entityId"]] = entity
+            return { "changed": true, "entities": entities }
+        }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solveCoincidentConstraint(constraint, entities) {
+    let entityA = entities[constraint["entityIdA"]]
+    let entityB = entities[constraint["entityIdB"]]
+    
+    if entityA == null || entityB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let pointA = getEntityPoint(entityA, constraint["pointIndexA"])
+    let pointB = getEntityPoint(entityB, constraint["pointIndexB"])
+    
+    if pointA == null || pointB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let dx = pointB["x"] - pointA["x"]
+    let dy = pointB["y"] - pointA["y"]
+    
+    if abs(dx) > 0.001 || abs(dy) > 0.001 {
+        let midpoint = vec2Lerp(pointA, pointB, 0.5)
+        
+        entityA = setEntityPoint(entityA, constraint["pointIndexA"], midpoint)
+        entityB = setEntityPoint(entityB, constraint["pointIndexB"], midpoint)
+        
+        entities[constraint["entityIdA"]] = entityA
+        entities[constraint["entityIdB"]] = entityB
+        
+        return { "changed": true, "entities": entities }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solveParallelConstraint(constraint, entities) {
+    let entityA = entities[constraint["entityIdA"]]
+    let entityB = entities[constraint["entityIdB"]]
+    
+    if entityA == null || entityB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let dirA = getEntityDirection(entityA)
+    let dirB = getEntityDirection(entityB)
+    
+    if dirA == null || dirB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let cross = abs(vec2Cross(dirA, dirB))
+    if cross > 0.001 {
+        let angle = atan2(dirB["y"], dirB["x"]) - atan2(dirA["y"], dirA["x"])
+        entityB = rotateEntity(entityB, -angle)
+        entities[constraint["entityIdB"]] = entityB
+        return { "changed": true, "entities": entities }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn solvePerpendicularConstraint(constraint, entities) {
+    let entityA = entities[constraint["entityIdA"]]
+    let entityB = entities[constraint["entityIdB"]]
+    
+    if entityA == null || entityB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let dirA = getEntityDirection(entityA)
+    let dirB = getEntityDirection(entityB)
+    
+    if dirA == null || dirB == null {
+        return { "changed": false, "entities": entities }
+    }
+    
+    let dot = vec2Dot(dirA, dirB)
+    if abs(dot) > 0.001 {
+        let angle = atan2(dirB["y"], dirB["x"]) - atan2(dirA["y"], dirA["x"])
+        let targetAngle = 1.5708
+        let correction = targetAngle - angle
+        entityB = rotateEntity(entityB, correction)
+        entities[constraint["entityIdB"]] = entityB
+        return { "changed": true, "entities": entities }
+    }
+    
+    return { "changed": false, "entities": entities }
+}
+
+fn getEntityPoint(entity, pointIndex) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        if pointIndex == 0 {
+            return data["start"]
+        } else if pointIndex == 1 {
+            return data["end"]
+        }
+    } else if entity["kind"] == "Polyline" {
+        if pointIndex >= 0 && pointIndex < len(data["points"]) {
+            return data["points"][pointIndex]
+        }
+    } else if entity["kind"] == "Circle" {
+        return data["center"]
+    }
+    
+    return null
+}
+
+fn setEntityPoint(entity, pointIndex, point) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        if pointIndex == 0 {
+            data["start"] = point
+        } else if pointIndex == 1 {
+            data["end"] = point
+        }
+    } else if entity["kind"] == "Polyline" {
+        if pointIndex >= 0 && pointIndex < len(data["points"]) {
+            data["points"][pointIndex] = point
+        }
+    } else if entity["kind"] == "Circle" {
+        data["center"] = point
+    }
+    
+    entity["data"] = data
+    return entity
+}
+
+fn getEntityDirection(entity) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        return segmentDirection(createSegment(data["start"], data["end"]))
+    } else if entity["kind"] == "Polyline" && len(data["points"]) >= 2 {
+        return segmentDirection(createSegment(data["points"][0], data["points"][1]))
+    }
+    
+    return null
+}
+
+fn rotateEntity(entity, angle) {
+    let data = entity["data"]
+    let center = getEntityCenter(entity)
+    
+    if entity["kind"] == "Line" {
+        data["start"] = rotatePointAround(data["start"], center, angle)
+        data["end"] = rotatePointAround(data["end"], center, angle)
+    } else if entity["kind"] == "Polyline" {
+        let i = 0
+        while i < len(data["points"]) {
+            data["points"][i] = rotatePointAround(data["points"][i], center, angle)
+            i = i + 1
+        }
+    } else if entity["kind"] == "Rectangle" {
+        let p1 = vec2(data["x"], data["y"])
+        let p2 = vec2(data["x"] + data["width"], data["y"])
+        let p3 = vec2(data["x"] + data["width"], data["y"] + data["height"])
+        let p4 = vec2(data["x"], data["y"] + data["height"])
+        
+        p1 = rotatePointAround(p1, center, angle)
+        p2 = rotatePointAround(p2, center, angle)
+        p3 = rotatePointAround(p3, center, angle)
+        p4 = rotatePointAround(p4, center, angle)
+        
+        let minX = min(p1["x"], p2["x"], p3["x"], p4["x"])
+        let minY = min(p1["y"], p2["y"], p3["y"], p4["y"])
+        let maxX = max(p1["x"], p2["x"], p3["x"], p4["x"])
+        let maxY = max(p1["y"], p2["y"], p3["y"], p4["y"])
+        
+        data["x"] = minX
+        data["y"] = minY
+        data["width"] = maxX - minX
+        data["height"] = maxY - minY
+    }
+    
+    entity["data"] = data
+    return entity
+}
+
+fn getEntityCenter(entity) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        return segmentMidpoint(createSegment(data["start"], data["end"]))
+    } else if entity["kind"] == "Rectangle" {
+        return rectCenter(createRect(data["x"], data["y"], data["width"], data["height"]))
+    } else if entity["kind"] == "Circle" {
+        return data["center"]
+    }
+    
+    return vec2(0.0, 0.0)
+}
+
+fn rotatePointAround(point, center, angle) {
+    let cosA = cos(angle)
+    let sinA = sin(angle)
+    let dx = point["x"] - center["x"]
+    let dy = point["y"] - center["y"]
+    return vec2(
+        center["x"] + dx * cosA - dy * sinA,
+        center["y"] + dx * sinA + dy * cosA
+    )
+}
+
+pub fn clearConstraints(system) {
+    system["constraints"] = []
+    return system
+}
+
+pub fn getConstraintCount(system) {
+    return len(system["constraints"])
+}
+
+pub fn getConstraintsByEntity(system, entityId) {
+    let result = []
+    let i = 0
+    while i < len(system["constraints"]) {
+        let constraint = system["constraints"][i]
+        if constraint["entityId"] == entityId || 
+           constraint["entityIdA"] == entityId || 
+           constraint["entityIdB"] == entityId {
+            result = push(result, constraint)
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn generateConstraintId() {
+    return "con-" + timestamp() + "-" + random()
+}
+
+fn timestamp() {
+    return floor(currentTime() * 1000.0)
+}
+
+fn currentTime() {
+    return 0.0
+}
+
+fn random() {
+    return 0.0
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
+
+fn abs(value) {
+    if value < 0.0 {
+        return -value
+    }
+    return value
+}
+
+fn min(a, b, c, d) {
+    let result = a
+    if b < result {
+        result = b
+    }
+    if c < result {
+        result = c
+    }
+    if d < result {
+        result = d
+    }
+    return result
+}
+
+fn max(a, b, c, d) {
+    let result = a
+    if b > result {
+        result = b
+    }
+    if c > result {
+        result = c
+    }
+    if d > result {
+        result = d
+    }
+    return result
+}
+
+fn cos(value) {
+    return 1.0
+}
+
+fn sin(value) {
+    return 0.0
+}
+
+fn atan2(y, x) {
+    return 0.0
+}

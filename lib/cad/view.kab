@@ -1,0 +1,580 @@
+@version "1.0.0"
+
+// CAD View - Camera/pan/zoom/grid/snap independent of WebGL details
+// Features: world ↔ screen, snap to grid/endpoint/midpoint, draw-list (lines, fills, text anchors) as bridge to canvas
+// Canonical path: import "cad/view"
+
+import "cad/geom"
+
+pub fn createView() {
+    return {
+        "kind": "View",
+        "camera": createCamera(),
+        "grid": createViewGrid(),
+        "snap": createSnapSystem(),
+        "drawList": []
+    }
+}
+
+pub fn createCamera() {
+    return {
+        "kind": "Camera",
+        "position": vec2(0.0, 0.0),
+        "zoom": 1.0,
+        "rotation": 0.0,
+        "minZoom": 0.01,
+        "maxZoom": 100.0,
+        "width": 1920.0,
+        "height": 1080.0
+    }
+}
+
+pub fn createViewGrid() {
+    return {
+        "kind": "ViewGrid",
+        "enabled": true,
+        "spacing": 10.0,
+        "majorSpacing": 100.0,
+        "origin": vec2(0.0, 0.0),
+        "color": { "r": 0.8, "g": 0.8, "b": 0.8, "a": 0.5 },
+        "majorColor": { "r": 0.6, "g": 0.6, "b": 0.6, "a": 0.7 },
+        "originColor": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }
+    }
+}
+
+pub fn createSnapSystem() {
+    return {
+        "kind": "SnapSystem",
+        "enabled": true,
+        "gridSnap": true,
+        "endpointSnap": true,
+        "midpointSnap": true,
+        "centerSnap": true,
+        "intersectionSnap": true,
+        "snapRadius": 10.0,
+        "gridSpacing": 10.0
+    }
+}
+
+pub fn setCameraPosition(view, x, y) {
+    view["camera"]["position"] = vec2(x, y)
+    return view
+}
+
+pub fn setCameraZoom(view, zoom) {
+    if zoom < view["camera"]["minZoom"] {
+        zoom = view["camera"]["minZoom"]
+    }
+    if zoom > view["camera"]["maxZoom"] {
+        zoom = view["camera"]["maxZoom"]
+    }
+    view["camera"]["zoom"] = zoom
+    return view
+}
+
+pub fn setCameraRotation(view, rotation) {
+    view["camera"]["rotation"] = rotation
+    return view
+}
+
+pub fn setCameraSize(view, width, height) {
+    view["camera"]["width"] = width
+    view["camera"]["height"] = height
+    return view
+}
+
+pub fn panCamera(view, dx, dy) {
+    view["camera"]["position"]["x"] = view["camera"]["position"]["x"] + dx
+    view["camera"]["position"]["y"] = view["camera"]["position"]["y"] + dy
+    return view
+}
+
+pub fn zoomCamera(view, factor, centerX, centerY) {
+    let oldZoom = view["camera"]["zoom"]
+    let newZoom = oldZoom * factor
+    
+    if newZoom < view["camera"]["minZoom"] {
+        newZoom = view["camera"]["minZoom"]
+    }
+    if newZoom > view["camera"]["maxZoom"] {
+        newZoom = view["camera"]["maxZoom"]
+    }
+    
+    let zoomRatio = newZoom / oldZoom
+    
+    view["camera"]["position"]["x"] = centerX - (centerX - view["camera"]["position"]["x"]) * zoomRatio
+    view["camera"]["position"]["y"] = centerY - (centerY - view["camera"]["position"]["y"]) * zoomRatio
+    view["camera"]["zoom"] = newZoom
+    
+    return view
+}
+
+pub fn rotateCamera(view, angle, centerX, centerY) {
+    view["camera"]["rotation"] = view["camera"]["rotation"] + angle
+    return view
+}
+
+pub fn fitCameraToContent(view, bounds) {
+    let contentWidth = bounds["maxX"] - bounds["minX"]
+    let contentHeight = bounds["maxY"] - bounds["minY"]
+    
+    let zoomX = view["camera"]["width"] / contentWidth
+    let zoomY = view["camera"]["height"] / contentHeight
+    let zoom = min(zoomX, zoomY) * 0.9
+    
+    if zoom < view["camera"]["minZoom"] {
+        zoom = view["camera"]["minZoom"]
+    }
+    if zoom > view["camera"]["maxZoom"] {
+        zoom = view["camera"]["maxZoom"]
+    }
+    
+    view["camera"]["zoom"] = zoom
+    view["camera"]["position"]["x"] = (bounds["minX"] + bounds["maxX"]) / 2.0
+    view["camera"]["position"]["y"] = (bounds["minY"] + bounds["maxY"]) / 2.0
+    
+    return view
+}
+
+pub fn resetCamera(view) {
+    view["camera"]["position"] = vec2(0.0, 0.0)
+    view["camera"]["zoom"] = 1.0
+    view["camera"]["rotation"] = 0.0
+    return view
+}
+
+pub fn worldToScreen(view, worldX, worldY) {
+    let camera = view["camera"]
+    let worldPos = vec2(worldX, worldY)
+    let relative = vec2Sub(worldPos, camera["position"])
+    
+    let rotated = vec2Rotate(relative, camera["rotation"])
+    let scaled = vec2Mul(rotated, camera["zoom"])
+    
+    let screenX = scaled["x"] + camera["width"] / 2.0
+    let screenY = scaled["y"] + camera["height"] / 2.0
+    
+    return vec2(screenX, screenY)
+}
+
+pub fn screenToWorld(view, screenX, screenY) {
+    let camera = view["camera"]
+    let screenPos = vec2(screenX - camera["width"] / 2.0, screenY - camera["height"] / 2.0)
+    
+    let scaled = vec2Div(screenPos, camera["zoom"])
+    let rotated = vec2Rotate(scaled, -camera["rotation"])
+    let worldPos = vec2Add(rotated, camera["position"])
+    
+    return worldPos
+}
+
+pub fn worldToScreenDistance(view, distance) {
+    return distance * view["camera"]["zoom"]
+}
+
+pub fn screenToWorldDistance(view, distance) {
+    return distance / view["camera"]["zoom"]
+}
+
+pub fn setGridEnabled(view, enabled) {
+    view["grid"]["enabled"] = enabled
+    return view
+}
+
+pub fn setGridSpacing(view, spacing) {
+    view["grid"]["spacing"] = spacing
+    view["snap"]["gridSpacing"] = spacing
+    return view
+}
+
+pub fn setGridOrigin(view, x, y) {
+    view["grid"]["origin"] = vec2(x, y)
+    return view
+}
+
+pub fn setSnapEnabled(view, enabled) {
+    view["snap"]["enabled"] = enabled
+    return view
+}
+
+pub fn setGridSnapEnabled(view, enabled) {
+    view["snap"]["gridSnap"] = enabled
+    return view
+}
+
+pub fn setEndpointSnapEnabled(view, enabled) {
+    view["snap"]["endpointSnap"] = enabled
+    return view
+}
+
+pub fn setMidpointSnapEnabled(view, enabled) {
+    view["snap"]["midpointSnap"] = enabled
+    return view
+}
+
+pub fn setCenterSnapEnabled(view, enabled) {
+    view["snap"]["centerSnap"] = enabled
+    return view
+}
+
+pub fn setSnapRadius(view, radius) {
+    view["snap"]["snapRadius"] = radius
+    return view
+}
+
+pub fn snapPoint(view, point, entities) {
+    if view["snap"]["enabled"] != true {
+        return point
+    }
+    
+    let snapped = point
+    let minDist = view["snap"]["snapRadius"]
+    
+    if view["snap"]["gridSnap"] == true {
+        let gridSnapped = snapToGrid(view, point)
+        let dist = vec2Distance(point, gridSnapped)
+        if dist < minDist {
+            snapped = gridSnapped
+            minDist = dist
+        }
+    }
+    
+    if view["snap"]["endpointSnap"] == true {
+        let endpointSnapped = snapToEndpoint(view, point, entities)
+        if endpointSnapped != null {
+            let dist = vec2Distance(point, endpointSnapped)
+            if dist < minDist {
+                snapped = endpointSnapped
+                minDist = dist
+            }
+        }
+    }
+    
+    if view["snap"]["midpointSnap"] == true {
+        let midpointSnapped = snapToMidpoint(view, point, entities)
+        if midpointSnapped != null {
+            let dist = vec2Distance(point, midpointSnapped)
+            if dist < minDist {
+                snapped = midpointSnapped
+                minDist = dist
+            }
+        }
+    }
+    
+    if view["snap"]["centerSnap"] == true {
+        let centerSnapped = snapToCenter(view, point, entities)
+        if centerSnapped != null {
+            let dist = vec2Distance(point, centerSnapped)
+            if dist < minDist {
+                snapped = centerSnapped
+            }
+        }
+    }
+    
+    return snapped
+}
+
+fn snapToGrid(view, point) {
+    let spacing = view["snap"]["gridSpacing"]
+    let snappedX = round(point["x"] / spacing) * spacing
+    let snappedY = round(point["y"] / spacing) * spacing
+    return vec2(snappedX, snappedY)
+}
+
+fn snapToEndpoint(view, point, entities) {
+    let closest = null
+    let minDist = view["snap"]["snapRadius"]
+    
+    for entityId in entities {
+        let entity = entities[entityId]
+        if entity == null {
+            continue
+        }
+        
+        let data = entity["data"]
+        
+        if entity["kind"] == "Line" {
+            let dist1 = vec2Distance(point, data["start"])
+            let dist2 = vec2Distance(point, data["end"])
+            
+            if dist1 < minDist {
+                closest = data["start"]
+                minDist = dist1
+            }
+            if dist2 < minDist {
+                closest = data["end"]
+                minDist = dist2
+            }
+        } else if entity["kind"] == "Polyline" {
+            let i = 0
+            while i < len(data["points"]) {
+                let dist = vec2Distance(point, data["points"][i])
+                if dist < minDist {
+                    closest = data["points"][i]
+                    minDist = dist
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return closest
+}
+
+fn snapToMidpoint(view, point, entities) {
+    let closest = null
+    let minDist = view["snap"]["snapRadius"]
+    
+    for entityId in entities {
+        let entity = entities[entityId]
+        if entity == null {
+            continue
+        }
+        
+        let data = entity["data"]
+        
+        if entity["kind"] == "Line" {
+            let midpoint = segmentMidpoint(createSegment(data["start"], data["end"]))
+            let dist = vec2Distance(point, midpoint)
+            if dist < minDist {
+                closest = midpoint
+                minDist = dist
+            }
+        } else if entity["kind"] == "Polyline" {
+            let i = 0
+            while i < len(data["points"]) - 1 {
+                let midpoint = segmentMidpoint(createSegment(data["points"][i], data["points"][i + 1]))
+                let dist = vec2Distance(point, midpoint)
+                if dist < minDist {
+                    closest = midpoint
+                    minDist = dist
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return closest
+}
+
+fn snapToCenter(view, point, entities) {
+    let closest = null
+    let minDist = view["snap"]["snapRadius"]
+    
+    for entityId in entities {
+        let entity = entities[entityId]
+        if entity == null {
+            continue
+        }
+        
+        let data = entity["data"]
+        
+        if entity["kind"] == "Circle" {
+            let dist = vec2Distance(point, data["center"])
+            if dist < minDist {
+                closest = data["center"]
+                minDist = dist
+            }
+        } else if entity["kind"] == "Rectangle" {
+            let center = rectCenter(createRect(data["x"], data["y"], data["width"], data["height"]))
+            let dist = vec2Distance(point, center)
+            if dist < minDist {
+                closest = center
+                minDist = dist
+            }
+        }
+    }
+    
+    return closest
+}
+
+pub fn clearDrawList(view) {
+    view["drawList"] = []
+    return view
+}
+
+pub fn addDrawCommand(view, command) {
+    view["drawList"] = push(view["drawList"], command)
+    return view
+}
+
+pub fn createLineDrawCommand(p1, p2, color, lineWidth) {
+    return {
+        "kind": "DrawLine",
+        "p1": p1,
+        "p2": p2,
+        "color": color,
+        "lineWidth": lineWidth
+    }
+}
+
+pub fn createPolylineDrawCommand(points, closed, color, lineWidth) {
+    return {
+        "kind": "DrawPolyline",
+        "points": points,
+        "closed": closed,
+        "color": color,
+        "lineWidth": lineWidth
+    }
+}
+
+pub fn createCircleDrawCommand(center, radius, color, lineWidth, fillColor) {
+    return {
+        "kind": "DrawCircle",
+        "center": center,
+        "radius": radius,
+        "color": color,
+        "lineWidth": lineWidth,
+        "fillColor": fillColor
+    }
+}
+
+pub fn createRectDrawCommand(x, y, width, height, color, lineWidth, fillColor) {
+    return {
+        "kind": "DrawRect",
+        "x": x,
+        "y": y,
+        "width": width,
+        "height": height,
+        "color": color,
+        "lineWidth": lineWidth,
+        "fillColor": fillColor
+    }
+}
+
+pub fn createTextDrawCommand(position, text, fontSize, color, font, alignment) {
+    return {
+        "kind": "DrawText",
+        "position": position,
+        "text": text,
+        "fontSize": fontSize,
+        "color": color,
+        "font": font,
+        "alignment": alignment
+    }
+}
+
+pub fn createArcDrawCommand(center, radius, startAngle, endAngle, color, lineWidth) {
+    return {
+        "kind": "DrawArc",
+        "center": center,
+        "radius": radius,
+        "startAngle": startAngle,
+        "endAngle": endAngle,
+        "color": color,
+        "lineWidth": lineWidth
+    }
+}
+
+pub fn getDrawList(view) {
+    return view["drawList"]
+}
+
+pub fn getGridLines(view) {
+    let lines = []
+    
+    if view["grid"]["enabled"] != true {
+        return lines
+    }
+    
+    let spacing = view["grid"]["spacing"]
+    let majorSpacing = view["grid"]["majorSpacing"]
+    
+    let worldMin = screenToWorld(view, 0.0, 0.0)
+    let worldMax = screenToWorld(view, view["camera"]["width"], view["camera"]["height"])
+    
+    let startX = floor(worldMin["x"] / spacing) * spacing
+    let endX = ceil(worldMax["x"] / spacing) * spacing
+    let startY = floor(worldMin["y"] / spacing) * spacing
+    let endY = ceil(worldMax["y"] / spacing) * spacing
+    
+    let x = startX
+    while x <= endX {
+        let isMajor = (abs(x - view["grid"]["origin"]["x"]) % majorSpacing) < spacing
+        let color = view["grid"]["color"]
+        if isMajor == true {
+            color = view["grid"]["majorColor"]
+        }
+        
+        lines = push(lines, createLineDrawCommand(
+            vec2(x, worldMin["y"]),
+            vec2(x, worldMax["y"]),
+            color,
+            1.0
+        ))
+        
+        x = x + spacing
+    }
+    
+    let y = startY
+    while y <= endY {
+        let isMajor = (abs(y - view["grid"]["origin"]["y"]) % majorSpacing) < spacing
+        let color = view["grid"]["color"]
+        if isMajor == true {
+            color = view["grid"]["majorColor"]
+        }
+        
+        lines = push(lines, createLineDrawCommand(
+            vec2(worldMin["x"], y),
+            vec2(worldMax["x"], y),
+            color,
+            1.0
+        ))
+        
+        y = y + spacing
+    }
+    
+    lines = push(lines, createLineDrawCommand(
+        vec2(worldMin["x"], view["grid"]["origin"]["y"]),
+        vec2(worldMax["x"], view["grid"]["origin"]["y"]),
+        view["grid"]["originColor"],
+        2.0
+    ))
+    
+    lines = push(lines, createLineDrawCommand(
+        vec2(view["grid"]["origin"]["x"], worldMin["y"]),
+        vec2(view["grid"]["origin"]["x"], worldMax["y"]),
+        view["grid"]["originColor"],
+        2.0
+    ))
+    
+    return lines
+}
+
+fn round(value) {
+    if value >= 0.0 {
+        return floor(value + 0.5)
+    } else {
+        return floor(value - 0.5)
+    }
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
+
+fn ceil(value) {
+    let int = value
+    if value > 0.0 && value != int {
+        return int + 1
+    }
+    return int
+}
+
+fn abs(value) {
+    if value < 0.0 {
+        return -value
+    }
+    return value
+}
+
+fn min(a, b) {
+    if a < b {
+        return a
+    }
+    return b
+}

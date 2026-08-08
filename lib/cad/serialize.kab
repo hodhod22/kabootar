@@ -1,0 +1,405 @@
+@version "1.0.0"
+
+// CAD Serialize - Save/load of documents with JSON-like structure in Kabootar
+// Features: round-trip document → data → document, version field (cadVersion)
+// Canonical path: import "cad/serialize"
+
+pub fn serializeDocument(document) {
+    return {
+        "kind": "SerializedDocument",
+        "version": "1.0",
+        "cadVersion": document["cadVersion"],
+        "id": document["id"],
+        "name": document["name"],
+        "units": document["units"],
+        "metadata": document["metadata"],
+        "layers": serializeLayers(document["layers"]),
+        "entities": serializeEntities(document["entities"]),
+        "entityCounter": document["entityCounter"],
+        "selection": serializeSelection(document["selection"])
+    }
+}
+
+pub fn deserializeDocument(data) {
+    return {
+        "kind": "CADDocument",
+        "id": data["id"],
+        "name": data["name"],
+        "units": data["units"],
+        "version": data["version"],
+        "cadVersion": data["cadVersion"],
+        "metadata": data["metadata"],
+        "layers": deserializeLayers(data["layers"]),
+        "activeLayer": "default",
+        "entities": deserializeEntities(data["entities"]),
+        "entityCounter": data["entityCounter"],
+        "selection": deserializeSelection(data["selection"]),
+        "undoStack": [],
+        "redoStack": [],
+        "maxUndoSteps": 100
+    }
+}
+
+fn serializeLayers(layers) {
+    let serialized = {}
+    for layerName in layers {
+        let layer = layers[layerName]
+        if layer != null {
+            serialized[layerName] = {
+                "name": layer["name"],
+                "color": layer["color"],
+                "visible": layer["visible"],
+                "locked": layer["locked"],
+                "printable": layer["printable"],
+                "lineWidth": layer["lineWidth"],
+                "lineStyle": layer["lineStyle"]
+            }
+        }
+    }
+    return serialized
+}
+
+fn deserializeLayers(data) {
+    let layers = {}
+    for layerName in data {
+        let layerData = data[layerName]
+        layers[layerName] = {
+            "kind": "Layer",
+            "name": layerData["name"],
+            "color": layerData["color"],
+            "visible": layerData["visible"],
+            "locked": layerData["locked"],
+            "printable": layerData["printable"],
+            "lineWidth": layerData["lineWidth"],
+            "lineStyle": layerData["lineStyle"]
+        }
+    }
+    return layers
+}
+
+fn serializeEntities(entities) {
+    let serialized = {}
+    for entityId in entities {
+        let entity = entities[entityId]
+        if entity != null {
+            serialized[entityId] = {
+                "id": entity["id"],
+                "kind": entity["kind"],
+                "data": entity["data"],
+                "properties": entity["properties"],
+                "layer": entity["layer"],
+                "visible": entity["visible"],
+                "locked": entity["locked"],
+                "selected": entity["selected"],
+                "group": entity["group"]
+            }
+        }
+    }
+    return serialized
+}
+
+fn deserializeEntities(data) {
+    let entities = {}
+    for entityId in data {
+        let entityData = data[entityId]
+        entities[entityId] = {
+            "id": entityData["id"],
+            "kind": entityData["kind"],
+            "data": entityData["data"],
+            "properties": entityData["properties"],
+            "layer": entityData["layer"],
+            "visible": entityData["visible"],
+            "locked": entityData["locked"],
+            "selected": entityData["selected"],
+            "group": entityData["group"]
+        }
+    }
+    return entities
+}
+
+fn serializeSelection(selection) {
+    return {
+        "kind": selection["kind"],
+        "entityIds": selection["entityIds"],
+        "mode": selection["mode"]
+    }
+}
+
+fn deserializeSelection(data) {
+    return {
+        "kind": data["kind"],
+        "entityIds": data["entityIds"],
+        "mode": data["mode"]
+    }
+}
+
+pub fn serializeGraph(graph) {
+    return {
+        "kind": "SerializedGraph",
+        "version": "1.0",
+        "directed": graph["directed"],
+        "nodeCounter": graph["nodeCounter"],
+        "edgeCounter": graph["edgeCounter"],
+        "nodes": serializeGraphNodes(graph["nodes"]),
+        "edges": serializeGraphEdges(graph["edges"])
+    }
+}
+
+pub fn deserializeGraph(data) {
+    let graph = createGraph()
+    graph["directed"] = data["directed"]
+    graph["nodeCounter"] = data["nodeCounter"]
+    graph["edgeCounter"] = data["edgeCounter"]
+    graph["nodes"] = deserializeGraphNodes(data["nodes"])
+    graph["edges"] = deserializeGraphEdges(data["edges"])
+    return graph
+}
+
+fn serializeGraphNodes(nodes) {
+    let serialized = {}
+    for nodeId in nodes {
+        let node = nodes[nodeId]
+        if node != null {
+            serialized[nodeId] = {
+                "id": node["id"],
+                "data": node["data"],
+                "edges": node["edges"]
+            }
+        }
+    }
+    return serialized
+}
+
+fn deserializeGraphNodes(data) {
+    let nodes = {}
+    for nodeId in data {
+        let nodeData = data[nodeId]
+        nodes[nodeId] = {
+            "kind": "GraphNode",
+            "id": nodeData["id"],
+            "data": nodeData["data"],
+            "edges": nodeData["edges"]
+        }
+    }
+    return nodes
+}
+
+fn serializeGraphEdges(edges) {
+    let serialized = {}
+    for edgeId in edges {
+        let edge = edges[edgeId]
+        if edge != null {
+            serialized[edgeId] = {
+                "id": edge["id"],
+                "source": edge["source"],
+                "target": edge["target"],
+                "data": edge["data"]
+            }
+        }
+    }
+    return serialized
+}
+
+fn deserializeGraphEdges(data) {
+    let edges = {}
+    for edgeId in data {
+        let edgeData = data[edgeId]
+        edges[edgeId] = {
+            "kind": "GraphEdge",
+            "id": edgeData["id"],
+            "source": edgeData["source"],
+            "target": edgeData["target"],
+            "data": edgeData["data"]
+        }
+    }
+    return edges
+}
+
+pub fn serializeTransform(transform) {
+    return {
+        "kind": "SerializedTransform",
+        "version": "1.0",
+        "position": transform["position"],
+        "rotation": transform["rotation"],
+        "scale": transform["scale"],
+        "parent": transform["parent"],
+        "dirty": transform["dirty"]
+    }
+}
+
+pub fn deserializeTransform(data) {
+    let transform = createTransform()
+    transform["position"] = data["position"]
+    transform["rotation"] = data["rotation"]
+    transform["scale"] = data["scale"]
+    transform["parent"] = data["parent"]
+    transform["dirty"] = data["dirty"]
+    return transform
+}
+
+pub fn validateSerializedDocument(data) {
+    if data["kind"] != "SerializedDocument" {
+        return false
+    }
+    
+    if data["cadVersion"] == null {
+        return false
+    }
+    
+    if data["name"] == null {
+        return false
+    }
+    
+    if data["units"] == null {
+        return false
+    }
+    
+    if data["layers"] == null {
+        return false
+    }
+    
+    if data["entities"] == null {
+        return false
+    }
+    
+    return true
+}
+
+pub fn migrateDocument(data, fromVersion, toVersion) {
+    if fromVersion == toVersion {
+        return data
+    }
+    
+    if fromVersion == "1.0" && toVersion == "1.1" {
+        data = migrateFrom1_0To1_1(data)
+    }
+    
+    return data
+}
+
+fn migrateFrom1_0To1_1(data) {
+    if data["metadata"]["created"] == null {
+        data["metadata"]["created"] = null
+    }
+    
+    if data["metadata"]["modified"] == null {
+        data["metadata"]["modified"] = null
+    }
+    
+    return data
+}
+
+pub fn exportToJSON(data) {
+    return data
+}
+
+pub fn importFromJSON(jsonData) {
+    return jsonData
+}
+
+pub fn createSerializationContext() {
+    return {
+        "kind": "SerializationContext",
+        "version": "1.0",
+        "compress": false,
+        "encrypt": false
+    }
+}
+
+pub fn setCompressionEnabled(context, enabled) {
+    context["compress"] = enabled
+    return context
+}
+
+pub fn setEncryptionEnabled(context, enabled) {
+    context["encrypt"] = enabled
+    return context
+}
+
+pub fn serializeWithContext(document, context) {
+    let data = serializeDocument(document)
+    
+    if context["compress"] == true {
+        data = compressData(data)
+    }
+    
+    if context["encrypt"] == true {
+        data = encryptData(data)
+    }
+    
+    return data
+}
+
+pub fn deserializeWithContext(data, context) {
+    if context["encrypt"] == true {
+        data = decryptData(data)
+    }
+    
+    if context["compress"] == true {
+        data = decompressData(data)
+    }
+    
+    return deserializeDocument(data)
+}
+
+fn compressData(data) {
+    return data
+}
+
+fn decompressData(data) {
+    return data
+}
+
+fn encryptData(data) {
+    return data
+}
+
+fn decryptData(data) {
+    return data
+}
+
+pub fn createBackup(document) {
+    return serializeDocument(document)
+}
+
+pub fn restoreFromBackup(document, backup) {
+    return deserializeDocument(backup)
+}
+
+pub fn serializeToBinary(document) {
+    let json = serializeDocument(document)
+    return jsonToBinary(json)
+}
+
+pub fn deserializeFromBinary(binaryData) {
+    let json = binaryToJson(binaryData)
+    return deserializeDocument(json)
+}
+
+fn jsonToBinary(json) {
+    return json
+}
+
+fn binaryToJson(binary) {
+    return binary
+}
+
+pub fn getSupportedVersions() {
+    return ["1.0", "1.1"]
+}
+
+pub fn getCurrentVersion() {
+    return "1.0"
+}
+
+pub fn isVersionSupported(version) {
+    let versions = getSupportedVersions()
+    let i = 0
+    while i < len(versions) {
+        if versions[i] == version {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

@@ -1,0 +1,298 @@
+@version "1.0.0"
+
+// CAD Transform - Transform system for blocks/symbols with local/world transforms
+// Features: position, rotation, scale, parent/child hierarchy, world matrix cache, dirty flag
+// Canonical path: import "cad/transform"
+
+import "cad/geom"
+
+pub fn createTransform() {
+    return {
+        "kind": "Transform",
+        "position": vec2(0.0, 0.0),
+        "rotation": 0.0,
+        "scale": vec2(1.0, 1.0),
+        "parent": null,
+        "children": [],
+        "worldMatrix": createMatrix2D(),
+        "localMatrix": createMatrix2D(),
+        "dirty": true
+    }
+}
+
+pub fn createTransformWithPosition(x, y) {
+    let t = createTransform()
+    t["position"] = vec2(x, y)
+    t["dirty"] = true
+    return t
+}
+
+pub fn createTransformWithRotation(angle) {
+    let t = createTransform()
+    t["rotation"] = angle
+    t["dirty"] = true
+    return t
+}
+
+pub fn createTransformWithScale(sx, sy) {
+    let t = createTransform()
+    t["scale"] = vec2(sx, sy)
+    t["dirty"] = true
+    return t
+}
+
+pub fn setTransformPosition(transform, x, y) {
+    transform["position"] = vec2(x, y)
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setTransformRotation(transform, angle) {
+    transform["rotation"] = angle
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setTransformScale(transform, sx, sy) {
+    transform["scale"] = vec2(sx, sy)
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn translateTransform(transform, dx, dy) {
+    transform["position"]["x"] = transform["position"]["x"] + dx
+    transform["position"]["y"] = transform["position"]["y"] + dy
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn rotateTransform(transform, angle) {
+    transform["rotation"] = transform["rotation"] + angle
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn scaleTransform(transform, sx, sy) {
+    transform["scale"]["x"] = transform["scale"]["x"] * sx
+    transform["scale"]["y"] = transform["scale"]["y"] * sy
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn setTransformParent(transform, parent) {
+    transform["parent"] = parent
+    if parent != null {
+        parent["children"] = push(parent["children"], transform)
+    }
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn removeTransformParent(transform) {
+    let parent = transform["parent"]
+    if parent != null {
+        let newChildren = []
+        let i = 0
+        while i < len(parent["children"]) {
+            if parent["children"][i] != transform {
+                newChildren = push(newChildren, parent["children"][i])
+            }
+            i = i + 1
+        }
+        parent["children"] = newChildren
+    }
+    transform["parent"] = null
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn updateTransform(transform) {
+    if transform["dirty"] == false {
+        return transform
+    }
+    
+    let localMatrix = createMatrix2D()
+    localMatrix = matrix2DTranslate(localMatrix, transform["position"]["x"], transform["position"]["y"])
+    localMatrix = matrix2DRotate(localMatrix, transform["rotation"])
+    localMatrix = matrix2DScale(localMatrix, transform["scale"]["x"], transform["scale"]["y"])
+    
+    transform["localMatrix"] = localMatrix
+    
+    if transform["parent"] != null {
+        let parentTransform = updateTransform(transform["parent"])
+        transform["worldMatrix"] = matrix2DMultiply(parentTransform["worldMatrix"], localMatrix)
+    } else {
+        transform["worldMatrix"] = localMatrix
+    }
+    
+    transform["dirty"] = false
+    
+    let i = 0
+    while i < len(transform["children"]) {
+        transform["children"][i]["dirty"] = true
+        transform["children"][i] = updateTransform(transform["children"][i])
+        i = i + 1
+    }
+    
+    return transform
+}
+
+pub fn getLocalMatrix(transform) {
+    if transform["dirty"] == true {
+        transform = updateTransform(transform)
+    }
+    return transform["localMatrix"]
+}
+
+pub fn getWorldMatrix(transform) {
+    if transform["dirty"] == true {
+        transform = updateTransform(transform)
+    }
+    return transform["worldMatrix"]
+}
+
+pub fn transformPoint(transform, point) {
+    let matrix = getWorldMatrix(transform)
+    return matrix2DTransformPoint(matrix, point)
+}
+
+pub fn inverseTransformPoint(transform, point) {
+    let matrix = getWorldMatrix(transform)
+    let invMatrix = matrix2DInverse(matrix)
+    return matrix2DTransformPoint(invMatrix, point)
+}
+
+pub fn transformVector(transform, vector) {
+    let matrix = getWorldMatrix(transform)
+    return vec2(
+        matrix["m11"] * vector["x"] + matrix["m12"] * vector["y"],
+        matrix["m21"] * vector["x"] + matrix["m22"] * vector["y"]
+    )
+}
+
+pub fn inverseTransformVector(transform, vector) {
+    let matrix = getWorldMatrix(transform)
+    let invMatrix = matrix2DInverse(matrix)
+    return vec2(
+        invMatrix["m11"] * vector["x"] + invMatrix["m12"] * vector["y"],
+        invMatrix["m21"] * vector["x"] + invMatrix["m22"] * vector["y"]
+    )
+}
+
+pub fn getWorldPosition(transform) {
+    let matrix = getWorldMatrix(transform)
+    return vec2(matrix["m13"], matrix["m23"])
+}
+
+pub fn getWorldRotation(transform) {
+    if transform["parent"] != null {
+        return transform["rotation"] + getWorldRotation(transform["parent"])
+    }
+    return transform["rotation"]
+}
+
+pub fn getWorldScale(transform) {
+    if transform["parent"] != null {
+        let parentScale = getWorldScale(transform["parent"])
+        return vec2(
+            transform["scale"]["x"] * parentScale["x"],
+            transform["scale"]["y"] * parentScale["y"]
+        )
+    }
+    return transform["scale"]
+}
+
+pub fn setTransformDirty(transform) {
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn isTransformDirty(transform) {
+    return transform["dirty"]
+}
+
+pub fn markChildrenDirty(transform) {
+    let i = 0
+    while i < len(transform["children"]) {
+        transform["children"][i]["dirty"] = true
+        markChildrenDirty(transform["children"][i])
+        i = i + 1
+    }
+    return transform
+}
+
+pub fn getTransformPath(transform) {
+    let path = [transform]
+    let current = transform["parent"]
+    while current != null {
+        path = push(path, current)
+        current = current["parent"]
+    }
+    return path
+}
+
+pub fn findCommonAncestor(a, b) {
+    let pathA = getTransformPath(a)
+    let pathB = getTransformPath(b)
+    
+    let common = null
+    let i = 0
+    while i < len(pathA) && i < len(pathB) {
+        if pathA[i] == pathB[i] {
+            common = pathA[i]
+        } else {
+            break
+        }
+        i = i + 1
+    }
+    
+    return common
+}
+
+pub fn isChildOf(child, parent) {
+    let current = child["parent"]
+    while current != null {
+        if current == parent {
+            return true
+        }
+        current = current["parent"]
+    }
+    return false
+}
+
+pub fn getRootTransform(transform) {
+    let current = transform
+    while current["parent"] != null {
+        current = current["parent"]
+    }
+    return current
+}
+
+pub fn cloneTransform(transform) {
+    let clone = createTransform()
+    clone["position"] = vec2(transform["position"]["x"], transform["position"]["y"])
+    clone["rotation"] = transform["rotation"]
+    clone["scale"] = vec2(transform["scale"]["x"], transform["scale"]["y"])
+    clone["dirty"] = true
+    return clone
+}
+
+pub fn resetTransform(transform) {
+    transform["position"] = vec2(0.0, 0.0)
+    transform["rotation"] = 0.0
+    transform["scale"] = vec2(1.0, 1.0)
+    transform["dirty"] = true
+    return transform
+}
+
+pub fn lookAt(transform, target) {
+    let dx = target["x"] - transform["position"]["x"]
+    let dy = target["y"] - transform["position"]["y"]
+    transform["rotation"] = atan2(dy, dx)
+    transform["dirty"] = true
+    return transform
+}
+
+fn atan2(y, x) {
+    return 0.0
+}
