@@ -94,17 +94,30 @@ fn calculateDocumentBounds(document) {
 }
 
 fn getNodeBounds(node) {
-    if node["kind"] == "Frame" {
+    let kind = node["kind"]
+    
+    if kind == "Frame" {
         let pos = node["transform"]["position"]
-        let width = node["width"]
-        let height = node["height"]
-        return createBBox(pos["x"], pos["y"], pos["x"] + width, pos["y"] + height)
-    } else if node["kind"] == "Group" {
-        return calculateGroupBounds(node)
-    } else if node["kind"] == "Component" {
+        let worldPos = matrix2DTransformPoint(node["transform"]["worldMatrix"], pos)
+        return createBBox(worldPos["x"], worldPos["y"], worldPos["x"] + node["width"], worldPos["y"] + node["height"])
+    } else if kind == "Group" {
         let pos = node["transform"]["position"]
-        return createBBox(pos["x"], pos["y"], pos["x"] + 100.0, pos["y"] + 100.0)
+        let worldPos = matrix2DTransformPoint(node["transform"]["worldMatrix"], pos)
+        return createBBox(worldPos["x"] - 10.0, worldPos["y"] - 10.0, worldPos["x"] + 10.0, worldPos["y"] + 10.0)
+    } else if kind == "Component" {
+        let pos = node["transform"]["position"]
+        let worldPos = matrix2DTransformPoint(node["transform"]["worldMatrix"], pos)
+        return createBBox(worldPos["x"] - 20.0, worldPos["y"] - 20.0, worldPos["x"] + 20.0, worldPos["y"] + 20.0)
+    } else if kind == "Vector" || kind == "Shape" {
+        let data = node["data"]
+        if data != null && data["bounds"] != null {
+            let bounds = data["bounds"]
+            let minWorld = matrix2DTransformPoint(node["transform"]["worldMatrix"], vec2(bounds["minX"], bounds["minY"]))
+            let maxWorld = matrix2DTransformPoint(node["transform"]["worldMatrix"], vec2(bounds["maxX"], bounds["maxY"]))
+            return createBBox(minWorld["x"], minWorld["y"], maxWorld["x"], maxWorld["y"])
+        }
     }
+    
     return createBBox(0.0, 0.0, 0.0, 0.0)
 }
 

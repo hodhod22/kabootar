@@ -3,6 +3,9 @@
 // CAD Symbol - Symbol/block system for library symbols
 // Features: definition (geometry + ports/attributes), instance (ref + transform + overrides), explode, update-from-definition
 // Canonical path: import "cad/symbol"
+// Note: Components in the scene tree reference symbol definitions via definitionId
+// Symbol provides the definition/instance model, components are the scene tree nodes that use them
+// This is already unified - no further simplification needed
 
 import "cad/geom"
 import "cad/host"

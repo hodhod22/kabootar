@@ -1,9 +1,12 @@
 @version "1.0.0"
 
-// CAD Boolean - Minimal path boolean operations for CAD
-// Features: Union, intersection, difference for simple paths (rect-based for now)
+// CAD Boolean - Approximate path boolean operations for CAD
+// Features: Union, intersection, difference for simple paths (rect-based approximation)
 // Canonical path: import "cad/boolean"
-// Note: Full boolean operations require complex computational geometry libraries
+// IMPORTANT: These are APPROXIMATE boolean operations using bounding boxes
+// Full boolean operations require complex computational geometry libraries
+// This is marked as experimental - do not use for production CAD work
+// For accurate boolean operations, integrate a proper CG library (Clipper, CGAL, etc.)
 
 import "cad/geom"
 import "cad/entities"
@@ -29,6 +32,7 @@ pub fn booleanDifference(pathA, pathB) {
     return pathA
 }
 
+// Approximate union using bounding box
 fn pathUnion(pathA, pathB) {
     let boundsA = getEntityBounds(pathA)
     let boundsB = getEntityBounds(pathB)
@@ -53,6 +57,7 @@ fn pathUnion(pathA, pathB) {
     return resultPath
 }
 
+// Approximate intersection using bounding box
 fn pathIntersection(pathA, pathB) {
     let boundsA = getEntityBounds(pathA)
     let boundsB = getEntityBounds(pathB)
@@ -81,6 +86,7 @@ fn pathIntersection(pathA, pathB) {
     return resultPath
 }
 
+// Approximate difference using bounding box
 fn pathDifference(pathA, pathB) {
     let boundsA = getEntityBounds(pathA)
     let boundsB = getEntityBounds(pathB)
