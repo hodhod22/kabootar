@@ -3,7 +3,9 @@
 // CAD Host - Host system bindings for time, RNG, and math functions
 // Features: system time, random number generation, math functions (sqrt, cos, sin, atan2)
 // Canonical path: import "cad/host"
-// Note: These are host-provided functions that should be bound to the actual host system
+// IMPORTANT: These functions MUST be bound to the actual host system
+// The stub implementations below are placeholders - the host layer must provide real implementations
+// Without proper host bindings, document IDs will collide and geometry will be incorrect
 
 pub fn systemTime() {
     return hostSystemTime()
@@ -34,6 +36,7 @@ pub fn systemAtan(value) {
 }
 
 // Host-provided implementations (to be bound by the host system)
+// These stubs MUST be replaced with actual host implementations
 fn hostSystemTime() {
     return 0.0
 }
