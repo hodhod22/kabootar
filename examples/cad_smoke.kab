@@ -1,0 +1,240 @@
+@version "1.0.0"
+
+// CAD Smoke Example - End-to-end test: document → entity → pick/snap → serialize
+import "cad"
+
+fn main() {
+    print("=== CAD Core Smoke Test ===")
+    
+    // Step 1: Create document
+    print("Step 1: Creating document...")
+    let document = createDocument("Smoke Test Drawing", "mm")
+    document = setDocumentMetadata(document, "author", "CAD Smoke Test")
+    
+    print("  Document created: " + document["name"])
+    print("  Units: " + document["units"])
+    
+    // Step 2: Add layers
+    print("Step 2: Adding layers...")
+    document = addLayer(document, createLayer("wires", { "r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0 }))
+    document = addLayer(document, createLayer("devices", { "r": 0.0, "g": 0.0, "b": 1.0, "a": 1.0 }))
+    document = setActiveLayer(document, "wires")
+    
+    print("  Layer count: " + getLayerCount(document))
+    
+    // Step 3: Create and add entities
+    print("Step 3: Creating entities...")
+    
+    let line1 = createLineEntity(vec2(0.0, 0.0), vec2(100.0, 0.0))
+    line1 = setEntityId(line1, "wire1")
+    document = addEntity(document, line1)
+    
+    let line2 = createLineEntity(vec2(100.0, 0.0), vec2(100.0, 50.0))
+    line2 = setEntityId(line2, "wire2")
+    document = addEntity(document, line2)
+    
+    let circle = createCircleEntity(vec2(50.0, 25.0), 15.0)
+    circle = setEntityId(circle, "device1")
+    document = addEntity(document, circle)
+    
+    let rect = createRectEntity(120.0, 0.0, 80.0, 50.0)
+    rect = setEntityId(rect, "device2")
+    document = addEntity(document, rect)
+    
+    print("  Entity count: " + getEntityCount(document))
+    
+    // Step 4: Selection
+    print("Step 4: Testing selection...")
+    document = selectEntity(document, "wire1")
+    document = selectEntity(document, "device1")
+    
+    print("  Selection count: " + getSelectedCount(document))
+    print("  wire1 selected: " + isSelected(document, "wire1"))
+    
+    // Step 5: Undo/redo
+    print("Step 5: Testing undo/redo...")
+    document = beginUndo(document, "Add entities")
+    
+    document = removeEntity(document, "wire1")
+    print("  After remove: " + getEntityCount(document) + " entities")
+    
+    document = undo(document)
+    print("  After undo: " + getEntityCount(document) + " entities")
+    
+    document = redo(document)
+    print("  After redo: " + getEntityCount(document) + " entities")
+    
+    // Re-add wire1 for further tests
+    line1 = setEntityId(line1, "wire1")
+    document = addEntity(document, line1)
+    
+    // Step 6: Geometry operations
+    print("Step 6: Testing geometry...")
+    let p1 = vec2(0.0, 0.0)
+    let p2 = vec2(100.0, 0.0)
+    let dist = vec2Distance(p1, p2)
+    print("  Distance (0,0) to (100,0): " + dist)
+    
+    let seg = createSegment(p1, p2)
+    let segLen = segmentLength(seg)
+    print("  Segment length: " + segLen)
+    
+    let circleArea = circleArea(createCircle(vec2(0.0, 0.0), 10.0))
+    print("  Circle area (r=10): " + circleArea)
+    
+    // Step 7: Transform
+    print("Step 7: Testing transform...")
+    let transform = createTransformWithPosition(50.0, 50.0)
+    transform = setTransformRotation(transform, 1.57)
+    transform = setTransformScale(transform, 2.0, 2.0)
+    
+    let worldPos = getWorldPosition(transform)
+    print("  Transform position: (" + worldPos["x"] + ", " + worldPos["y"] + ")")
+    
+    let transformedPoint = transformPoint(transform, vec2(0.0, 0.0))
+    print("  Transformed point (0,0): (" + transformedPoint["x"] + ", " + transformedPoint["y"] + ")")
+    
+    // Step 8: Graph
+    print("Step 8: Testing graph...")
+    let graph = createGraph()
+    
+    let node1 = createNode({ "position": vec2(0.0, 0.0) })
+    let node2 = createNode({ "position": vec2(100.0, 0.0) })
+    let node3 = createNode({ "position": vec2(100.0, 50.0) })
+    
+    graph = addNode(graph, node1)
+    graph = addNode(graph, node2)
+    graph = addNode(graph, node3)
+    
+    let edge1 = createEdge(node1["id"], node2["id"], { "type": "cable" })
+    let edge2 = createEdge(node2["id"], node3["id"], { "type": "cable" })
+    
+    graph = addEdge(graph, edge1)
+    graph = addEdge(graph, edge2)
+    
+    print("  Graph nodes: " + getNodeCount(graph))
+    print("  Graph edges: " + getEdgeCount(graph))
+    
+    let path = findPath(graph, node1["id"], node3["id"])
+    print("  Path length: " + len(path))
+    
+    let components = getConnectedComponents(graph)
+    print("  Connected components: " + len(components))
+    
+    // Step 9: Serialize/Deserialize
+    print("Step 9: Testing serialize/deserialize...")
+    let serialized = serializeDocument(document)
+    print("  Serialized version: " + serialized["cadVersion"])
+    
+    let deserialized = deserializeDocument(serialized)
+    print("  Deserialized entity count: " + getEntityCount(deserialized))
+    print("  Round-trip match: " + (getEntityCount(deserialized) == getEntityCount(document)))
+    
+    // Step 10: Pick
+    print("Step 10: Testing pick...")
+    let spatialIndex = buildSpatialIndex(document)
+    let picked = pickPoint(spatialIndex, 50.0, 0.0, 5.0)
+    print("  Picked entity at (50,0): " + picked)
+    
+    let boxPicked = pickBox(spatialIndex, 0.0, 0.0, 110.0, 10.0)
+    print("  Box picked count: " + len(boxPicked))
+    
+    // Step 11: View and snap
+    print("Step 11: Testing view and snap...")
+    let view = createView()
+    view = setCameraZoom(view, 2.0)
+    view = setCameraPosition(view, 50.0, 25.0)
+    view = setGridSpacing(view, 10.0)
+    view = setSnapEnabled(view, true)
+    
+    let screenPos = worldToScreen(view, 50.0, 50.0)
+    print("  World (50,50) to screen: (" + screenPos["x"] + ", " + screenPos["y"] + ")")
+    
+    let worldPos2 = screenToWorld(view, screenPos["x"], screenPos["y"])
+    print("  Screen to world: (" + worldPos2["x"] + ", " + worldPos2["y"] + ")")
+    
+    let snapped = snapPoint(view, vec2(15.0, 15.0), document["entities"])
+    print("  Snapped (15,15) to: (" + snapped["x"] + ", " + snapped["y"] + ")")
+    
+    // Step 12: Symbol
+    print("Step 12: Testing symbol...")
+    let symbolLib = createSymbolLibrary()
+    let symbolDef = createSymbolDefinition("Resistor")
+    symbolDef = addSymbolGeometry(symbolDef, createLineEntity(vec2(0.0, 0.0), vec2(10.0, 0.0)))
+    symbolDef = addSymbolPort(symbolDef, createSymbolPort("A", vec2(0.0, 0.0), vec2(-1.0, 0.0)))
+    symbolDef = addSymbolPort(symbolDef, createSymbolPort("B", vec2(10.0, 0.0), vec2(1.0, 0.0)))
+    
+    symbolLib = addSymbolDefinitionToLibrary(symbolLib, symbolDef)
+    print("  Symbol library count: 1")
+    
+    let symbolTransform = createTransformWithPosition(200.0, 100.0)
+    let symbolInstance = createSymbolInstance(symbolDef["id"], symbolTransform)
+    print("  Symbol instance created")
+    
+    // Step 13: Constraint
+    print("Step 13: Testing constraint...")
+    let constraintSystem = createConstraintSystem()
+    let horizontalConstraint = createHorizontalConstraint("wire1")
+    let verticalConstraint = createVerticalConstraint("wire2")
+    
+    constraintSystem = addConstraint(constraintSystem, horizontalConstraint)
+    constraintSystem = addConstraint(constraintSystem, verticalConstraint)
+    
+    print("  Constraint count: " + getConstraintCount(constraintSystem))
+    
+    // Step 14: Render bridge
+    print("Step 14: Testing render bridge...")
+    let bridge = createRenderBridge()
+    bridge = setRenderBackend(bridge, createNullBackend())
+    
+    view = clearDrawList(view)
+    view = addDrawCommand(view, createLineDrawCommand(vec2(0.0, 0.0), vec2(100.0, 0.0), { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0))
+    view = addDrawCommand(view, createCircleDrawCommand(vec2(50.0, 25.0), 15.0, { "r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0, null))
+    
+    bridge = executeDrawList(bridge, view["drawList"])
+    print("  Total draw calls: " + getTotalDrawCalls(bridge))
+    
+    // Step 15: Entity bounds
+    print("Step 15: Testing entity bounds...")
+    let bounds = getEntityBounds(line1)
+    print("  Line bounds: min(" + bounds["minX"] + ", " + bounds["minY"] + ") max(" + bounds["maxX"] + ", " + bounds["maxY"] + ")")
+    
+    let circleBounds = getEntityBounds(circle)
+    print("  Circle bounds: min(" + circleBounds["minX"] + ", " + circleBounds["minY"] + ") max(" + circleBounds["maxX"] + ", " + circleBounds["maxY"] + ")")
+    
+    // Step 16: Clone entity
+    print("Step 16: Testing clone...")
+    let cloned = cloneEntity(line1)
+    print("  Cloned entity ID: " + cloned["id"])
+    print("  Clone different from original: " + (cloned["id"] != line1["id"]))
+    
+    // Step 17: Unit conversion
+    print("Step 17: Testing unit conversion...")
+    let mmValue = 1000.0
+    let mValue = convertUnits(mmValue, "mm", "m")
+    print("  1000mm to meters: " + mValue)
+    
+    let inchValue = convertUnits(100.0, "mm", "inch")
+    print("  100mm to inches: " + inchValue)
+    
+    // Summary
+    print("=== Smoke Test Complete ===")
+    print("Final entity count: " + getEntityCount(document))
+    print("Final layer count: " + getLayerCount(document))
+    print("Final selection count: " + getSelectedCount(document))
+    
+    return {
+        "success": true,
+        "entityCount": getEntityCount(document),
+        "layerCount": getLayerCount(document),
+        "selectionCount": getSelectedCount(document),
+        "graphNodes": getNodeCount(graph),
+        "graphEdges": getEdgeCount(graph),
+        "pathFound": len(path) > 0,
+        "roundTrip": getEntityCount(deserialized) == getEntityCount(document),
+        "picked": picked != null,
+        "drawCalls": getTotalDrawCalls(bridge)
+    }
+}
+
+main()

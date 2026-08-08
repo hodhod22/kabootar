@@ -295,19 +295,115 @@ pub fn clearUndoRedo(document) {
 
 fn createDocumentSnapshot(document) {
     return {
-        "entities": document["entities"],
-        "layers": document["layers"],
+        "entities": deepCopyEntities(document["entities"]),
+        "layers": deepCopyLayers(document["layers"]),
         "entityCounter": document["entityCounter"],
-        "selection": document["selection"]
+        "selection": deepCopySelection(document["selection"])
     }
 }
 
 fn restoreDocumentSnapshot(document, snapshot) {
-    document["entities"] = snapshot["entities"]
-    document["layers"] = snapshot["layers"]
+    document["entities"] = deepCopyEntities(snapshot["entities"])
+    document["layers"] = deepCopyLayers(snapshot["layers"])
     document["entityCounter"] = snapshot["entityCounter"]
-    document["selection"] = snapshot["selection"]
+    document["selection"] = deepCopySelection(snapshot["selection"])
     return document
+}
+
+fn deepCopyEntities(entities) {
+    let copy = {}
+    for entityId in entities {
+        let entity = entities[entityId]
+        if entity != null {
+            copy[entityId] = deepCopyEntity(entity)
+        }
+    }
+    return copy
+}
+
+fn deepCopyEntity(entity) {
+    let copy = {}
+    for key in entity {
+        if key == "data" {
+            copy[key] = deepCopyEntityData(entity["data"], entity["kind"])
+        } else if key == "properties" {
+            copy[key] = deepCopyProperties(entity["properties"])
+        } else {
+            copy[key] = entity[key]
+        }
+    }
+    return copy
+}
+
+fn deepCopyEntityData(data, kind) {
+    if kind == "Line" {
+        return createSegment(vec2(data["p1"]["x"], data["p1"]["y"]), vec2(data["p2"]["x"], data["p2"]["y"]))
+    } else if kind == "Circle" {
+        return createCircle(vec2(data["center"]["x"], data["center"]["y"]), data["radius"])
+    } else if kind == "Rectangle" {
+        return createRect(data["x"], data["y"], data["width"], data["height"])
+    } else if kind == "Polyline" {
+        let clonedPoints = []
+        let i = 0
+        while i < len(data["points"]) {
+            clonedPoints = push(clonedPoints, vec2(data["points"][i]["x"], data["points"][i]["y"]))
+            i = i + 1
+        }
+        return createPolyline(clonedPoints, data["closed"])
+    } else if kind == "Point" {
+        return { "position": vec2(data["position"]["x"], data["position"]["y"]) }
+    } else if kind == "Text" {
+        return {
+            "position": vec2(data["position"]["x"], data["position"]["y"]),
+            "text": data["text"],
+            "fontSize": data["fontSize"],
+            "font": data["font"],
+            "alignment": data["alignment"]
+        }
+    } else if kind == "Arc" {
+        return createArc(
+            vec2(data["center"]["x"], data["center"]["y"]),
+            data["radius"],
+            data["startAngle"],
+            data["endAngle"]
+        )
+    }
+    return data
+}
+
+fn deepCopyProperties(properties) {
+    let copy = {}
+    for key in properties {
+        copy[key] = properties[key]
+    }
+    return copy
+}
+
+fn deepCopyLayers(layers) {
+    let copy = {}
+    for layerName in layers {
+        let layer = layers[layerName]
+        if layer != null {
+            copy[layerName] = {
+                "name": layer["name"],
+                "color": layer["color"],
+                "visible": layer["visible"],
+                "locked": layer["locked"],
+                "printable": layer["printable"],
+                "lineWidth": layer["lineWidth"],
+                "lineStyle": layer["lineStyle"]
+            }
+        }
+    }
+    return copy
+}
+
+fn deepCopySelection(selection) {
+    return {
+        "kind": selection["kind"],
+        "entityIds": selection["entityIds"],
+        "mode": selection["mode"]
+    }
 }
 
 fn removeFirst(arr) {

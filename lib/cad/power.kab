@@ -1,32 +1,92 @@
 @version "1.0.0"
 
 // Electrical installation CAD pillar (MIT). Commercial kit: rasmebargh.
+// Thin layer on top of CAD core - uses document for devices, graph for cables
 // import "cad/power"
+
+import "cad/document"
+import "cad/graph"
+import "cad/entities"
 
 pub fn createInstall(name) {
     if name == null || name == undefined { name = "install" }
     return {
         "kind": "ElInstall",
         "name": name,
-        "circuits": [],
-        "devices": []
+        "document": createDocument(name, "mm"),
+        "circuitGraph": createGraph(),
+        "circuits": []
     }
 }
 
 pub fn powerAddCircuit(inst, id, amps) {
     if amps == null || amps == undefined { amps = 16.0 }
     inst["circuits"] = push(inst["circuits"], {
-        "id": id, "amps": amps, "volts": 230.0
+        "id": id,
+        "amps": amps,
+        "volts": 230.0
     })
     return inst
 }
 
-pub fn powerAddDevice(inst, id, circuitId, watts) {
+pub fn powerAddDevice(inst, id, circuitId, watts, position) {
     if watts == null || watts == undefined { watts = 100.0 }
+    if position == null || position == undefined {
+        position = vec2(0.0, 0.0)
+    }
+    
+    let deviceEntity = createCircleEntity(position, 10.0)
+    deviceEntity = setEntityId(deviceEntity, id)
+    deviceEntity = setEntityProperty(deviceEntity, "type", "device")
+    deviceEntity = setEntityProperty(deviceEntity, "circuitId", circuitId)
+    deviceEntity = setEntityProperty(deviceEntity, "watts", watts)
+    
+    inst["document"] = addEntity(inst["document"], deviceEntity)
+    
     inst["devices"] = push(inst["devices"], {
-        "id": id, "circuitId": circuitId, "watts": watts
+        "id": id,
+        "circuitId": circuitId,
+        "watts": watts,
+        "position": position
     })
+    
     return inst
+}
+
+pub fn powerAddCable(inst, fromDeviceId, toDeviceId, cableType) {
+    if cableType == null || cableType == undefined { cableType = "standard" }
+    
+    let fromNode = findDeviceNode(inst, fromDeviceId)
+    let toNode = findDeviceNode(inst, toDeviceId)
+    
+    if fromNode == null {
+        fromNode = createNode({ "deviceId": fromDeviceId })
+        inst["circuitGraph"] = addNode(inst["circuitGraph"], fromNode)
+    }
+    
+    if toNode == null {
+        toNode = createNode({ "deviceId": toDeviceId })
+        inst["circuitGraph"] = addNode(inst["circuitGraph"], toNode)
+    }
+    
+    let edge = createEdge(fromNode["id"], toNode["id"], {
+        "type": "cable",
+        "cableType": cableType
+    })
+    
+    inst["circuitGraph"] = addEdge(inst["circuitGraph"], edge)
+    
+    return inst
+}
+
+fn findDeviceNode(inst, deviceId) {
+    for nodeId in inst["circuitGraph"]["nodes"] {
+        let node = inst["circuitGraph"]["nodes"][nodeId]
+        if node != null && node["data"]["deviceId"] == deviceId {
+            return node
+        }
+    }
+    return null
 }
 
 pub fn powerCircuitLoadWatts(inst, circuitId) {
@@ -59,4 +119,32 @@ pub fn powerCircuitOk(inst, circuitId) {
     }
     let amps = powerEstimateCurrent(powerCircuitLoadWatts(inst, circuitId), 230.0)
     return amps <= rating
+}
+
+pub fn powerGetDocument(inst) {
+    return inst["document"]
+}
+
+pub fn powerGetGraph(inst) {
+    return inst["circuitGraph"]
+}
+
+pub fn powerSerialize(inst) {
+    return {
+        "kind": "SerializedInstall",
+        "name": inst["name"],
+        "document": serializeDocument(inst["document"]),
+        "graph": serializeGraph(inst["circuitGraph"]),
+        "circuits": inst["circuits"],
+        "devices": inst["devices"]
+    }
+}
+
+pub fn powerDeserialize(data) {
+    let inst = createInstall(data["name"])
+    inst["document"] = deserializeDocument(data["document"])
+    inst["circuitGraph"] = deserializeGraph(data["graph"])
+    inst["circuits"] = data["circuits"]
+    inst["devices"] = data["devices"]
+    return inst
 }
