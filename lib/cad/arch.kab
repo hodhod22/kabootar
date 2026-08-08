@@ -1,27 +1,81 @@
 @version "1.0.0"
 
 // Architecture CAD pillar (MIT). Commercial kit: rasmesakht.
+// Thin layer on top of CAD core - uses document for rooms/walls, graph for connections
 // import "cad/arch"
+
+import "cad/document"
+import "cad/graph"
+import "cad/entities"
 
 pub fn createBuilding(name) {
     if name == null || name == undefined { name = "building" }
-    return { "kind": "Building", "name": name, "rooms": [], "walls": [] }
+    return {
+        "kind": "Building",
+        "name": name,
+        "document": createDocument(name, "m"),
+        "wallGraph": createGraph(),
+        "rooms": [],
+        "walls": []
+    }
 }
 
-pub fn archAddRoom(b, id, w, d) {
+pub fn archAddRoom(building, id, w, d, position) {
     if w == null || w == undefined { w = 4.0 }
     if d == null || d == undefined { d = 3.0 }
-    b["rooms"] = push(b["rooms"], { "kind": "Room", "id": id, "w": w, "d": d })
-    return b
+    if position == null || position == undefined {
+        position = vec2(0.0, 0.0)
+    }
+    
+    let roomEntity = createRectEntity(position["x"], position["y"], w, d)
+    roomEntity = setEntityId(roomEntity, id)
+    roomEntity = setEntityProperty(roomEntity, "type", "room")
+    roomEntity = setEntityProperty(roomEntity, "width", w)
+    roomEntity = setEntityProperty(roomEntity, "depth", d)
+    
+    building["document"] = addEntity(building["document"], roomEntity)
+    
+    building["rooms"] = push(building["rooms"], {
+        "kind": "Room",
+        "id": id,
+        "w": w,
+        "d": d,
+        "position": position
+    })
+    
+    return building
 }
 
-pub fn archAddWall(b, id, ax, ay, bx, by) {
-    b["walls"] = push(b["walls"], {
+pub fn archAddWall(building, id, ax, ay, bx, by) {
+    let wallEntity = createLineEntity(vec2(ax, ay), vec2(bx, by))
+    wallEntity = setEntityId(wallEntity, id)
+    wallEntity = setEntityProperty(wallEntity, "type", "wall")
+    
+    building["document"] = addEntity(building["document"], wallEntity)
+    
+    let fromNode = createNode({ "position": vec2(ax, ay) })
+    let toNode = createNode({ "position": vec2(bx, by) })
+    
+    building["wallGraph"] = addNode(building["wallGraph"], fromNode)
+    building["wallGraph"] = addNode(building["wallGraph"], toNode)
+    
+    let edge = createEdge(fromNode["id"], toNode["id"], {
+        "type": "wall",
+        "id": id
+    })
+    
+    building["wallGraph"] = addEdge(building["wallGraph"], edge)
+    
+    building["walls"] = push(building["walls"], {
         "kind": "Wall",
         "id": id,
-        "ax": ax, "ay": ay, "bx": bx, "by": by
+        "ax": ax,
+        "ay": ay,
+        "bx": bx,
+        "by": by
     })
-    return b
+    
+    return building
 }
 
 pub fn archRoomArea(room) {
@@ -36,4 +90,32 @@ pub fn archFloorArea(building) {
         i = i + 1
     }
     return sum
+}
+
+pub fn archGetDocument(building) {
+    return building["document"]
+}
+
+pub fn archGetGraph(building) {
+    return building["wallGraph"]
+}
+
+pub fn archSerialize(building) {
+    return {
+        "kind": "SerializedBuilding",
+        "name": building["name"],
+        "document": serializeDocument(building["document"]),
+        "graph": serializeGraph(building["wallGraph"]),
+        "rooms": building["rooms"],
+        "walls": building["walls"]
+    }
+}
+
+pub fn archDeserialize(data) {
+    let building = createBuilding(data["name"])
+    building["document"] = deserializeDocument(data["document"])
+    building["wallGraph"] = deserializeGraph(data["graph"])
+    building["rooms"] = data["rooms"]
+    building["walls"] = data["walls"]
+    return building
 }
