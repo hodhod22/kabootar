@@ -81,7 +81,9 @@ fn addFrameToDrawList(node, drawList) {
         "height": node["height"],
         "styleSet": node["styleSet"],
         "layer": node["layer"],
-        "opacity": node["opacity"]
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
     drawList["items"] = push(drawList["items"], item)
     return drawList
@@ -122,7 +124,9 @@ fn addVectorToDrawList(node, drawList) {
         "data": node["data"],
         "styleSet": node["styleSet"],
         "layer": node["layer"],
-        "opacity": node["opacity"]
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
     drawList["items"] = push(drawList["items"], item)
     return drawList
@@ -137,7 +141,9 @@ fn addShapeToDrawList(node, drawList) {
         "data": node["data"],
         "styleSet": node["styleSet"],
         "layer": node["layer"],
-        "opacity": node["opacity"]
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
     drawList["items"] = push(drawList["items"], item)
     return drawList
@@ -154,7 +160,9 @@ fn addTextToDrawList(node, drawList) {
         "alignment": node["data"]["alignment"],
         "styleSet": node["styleSet"],
         "layer": node["layer"],
-        "opacity": node["opacity"]
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
     drawList["items"] = push(drawList["items"], item)
     return drawList
@@ -168,7 +176,26 @@ fn addDimensionToDrawList(node, drawList) {
         "data": node["data"],
         "styleSet": node["styleSet"],
         "layer": node["layer"],
-        "opacity": node["opacity"]
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addComponentToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawComponent",
+        "nodeId": node["id"],
+        "definitionId": node["definitionId"],
+        "transform": node["transform"],
+        "overrides": node["overrides"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"],
+        "fill": getFillFromStyleSet(node["styleSet"]),
+        "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
     drawList["items"] = push(drawList["items"], item)
     return drawList
@@ -261,4 +288,24 @@ pub fn cullDrawList(drawList, viewport) {
 
 fn isItemInViewport(item, viewport) {
     return true
+}
+
+fn getFillFromStyleSet(styleSet) {
+    if styleSet == null {
+        return null
+    }
+    if styleSet["fills"] != null && len(styleSet["fills"]) > 0 {
+        return styleSet["fills"][0]
+    }
+    return null
+}
+
+fn getStrokeFromStyleSet(styleSet) {
+    if styleSet == null {
+        return null
+    }
+    if styleSet["strokes"] != null && len(styleSet["strokes"]) > 0 {
+        return styleSet["strokes"][0]
+    }
+    return null
 }

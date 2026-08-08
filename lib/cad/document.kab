@@ -373,6 +373,50 @@ pub fn getActivePage(document) {
 
 pub fn setDocumentProfile(document, profile) {
     document["profile"] = profile
+    return applyProfile(document, profile)
+}
+
+pub fn applyProfile(document, profile) {
+    if profile == "design" {
+        document = applyDesignProfile(document)
+    } else if profile == "drafting" {
+        document = applyDraftingProfile(document)
+    } else if profile == "schematic" {
+        document = applySchematicProfile(document)
+    }
+    return document
+}
+
+fn applyDesignProfile(document) {
+    document["units"] = "px"
+    document["gridSize"] = 10.0
+    document["snapEnabled"] = true
+    document["snapToGrid"] = true
+    document["snapToPixel"] = true
+    document["defaultTools"] = ["select", "frame", "vector", "text", "hand"]
+    return document
+}
+
+fn applyDraftingProfile(document) {
+    document["units"] = "mm"
+    document["gridSize"] = 5.0
+    document["snapEnabled"] = true
+    document["snapToGrid"] = true
+    document["snapToEndpoint"] = true
+    document["snapToMidpoint"] = true
+    document["snapToCenter"] = true
+    document["defaultTools"] = ["select", "line", "arc", "circle", "dimension", "trim"]
+    return document
+}
+
+fn applySchematicProfile(document) {
+    document["units"] = "mm"
+    document["gridSize"] = 2.54
+    document["snapEnabled"] = true
+    document["snapToGrid"] = true
+    document["snapToPort"] = true
+    document["snapToComponent"] = true
+    document["defaultTools"] = ["select", "component", "wire", "net", "label"]
     return document
 }
 
