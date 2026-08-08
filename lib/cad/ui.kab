@@ -1,16 +1,16 @@
 @version "1.0.0"
 
 // CAD UI - Thin adapter for Figma/Sketch-class design tools
-// Features: Frames, auto-layout, styling, components on top of CAD core
+// Features: UI documents, frames, pre-built components (buttons, cards), UI component library
 // Canonical path: import "cad/ui"
 
 import "cad/document"
-import "cad/geom"
 import "cad/transform"
 import "cad/entities"
 import "cad/style"
 import "cad/layout"
 import "cad/symbol"
+import "cad/host"
 
 pub fn createUIDocument(name) {
     let document = createDocument(name, "px")
@@ -283,12 +283,4 @@ fn floor(value) {
         return int - 1
     }
     return int
-}
-
-fn systemTime() {
-    return 0.0
-}
-
-fn systemRandom() {
-    return 0.0
 }

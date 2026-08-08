@@ -5,6 +5,7 @@
 // Canonical path: import "cad/constraint"
 
 import "cad/geom"
+import "cad/host"
 
 pub fn createConstraintSystem() {
     return {
@@ -530,14 +531,6 @@ fn floor(value) {
     return int
 }
 
-fn systemTime() {
-    return 0.0
-}
-
-fn systemRandom() {
-    return 0.0
-}
-
 fn abs(value) {
     if value < 0.0 {
         return -value
@@ -585,38 +578,6 @@ fn atan2(y, x) {
     return systemAtan2(y, x)
 }
 
-fn systemCos(value) {
-    return 1.0
-}
-
-fn systemSin(value) {
-    return 0.0
-}
-
-fn systemAtan2(y, x) {
-    if x > 0.0 {
-        return atan(y / x)
-    } else if x < 0.0 {
-        if y >= 0.0 {
-            return atan(y / x) + 3.14159
-        } else {
-            return atan(y / x) - 3.14159
-        }
-    } else {
-        if y > 0.0 {
-            return 1.5708
-        } else if y < 0.0 {
-            return -1.5708
-        } else {
-            return 0.0
-        }
-    }
-}
-
 fn atan(value) {
     return systemAtan(value)
-}
-
-fn systemAtan(value) {
-    return value
 }

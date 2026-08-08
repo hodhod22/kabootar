@@ -4,8 +4,8 @@
 // Features: definition (geometry + ports/attributes), instance (ref + transform + overrides), explode, update-from-definition
 // Canonical path: import "cad/symbol"
 
-import "cad/transform"
 import "cad/geom"
+import "cad/host"
 
 pub fn createSymbolDefinition(name) {
     return {
@@ -465,14 +465,6 @@ fn floor(value) {
         return int - 1
     }
     return int
-}
-
-fn systemTime() {
-    return 0.0
-}
-
-fn systemRandom() {
-    return 0.0
 }
 
 fn min(a, b, c, d) {

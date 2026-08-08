@@ -4,6 +4,8 @@
 // Features: Vec2/Vec3, Matrix2D, segments, polylines, arcs, circles, rects, BBox, hit-test, distance, offset, trim/extend, units
 // Canonical path: import "cad/geom"
 
+import "cad/host"
+
 pub fn vec2(x, y) {
     return { "x": x, "y": y }
 }
@@ -616,18 +618,6 @@ fn cos(value) {
 
 fn sin(value) {
     return systemSin(value)
-}
-
-fn systemSqrt(value) {
-    return value
-}
-
-fn systemCos(value) {
-    return 1.0
-}
-
-fn systemSin(value) {
-    return 0.0
 }
 
 fn abs(value) {
