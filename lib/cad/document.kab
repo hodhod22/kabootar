@@ -12,6 +12,7 @@ pub fn createDocument(name, units) {
         "units": units,
         "version": "1.0",
         "cadVersion": "1.0",
+        "profile": "drafting",
         "metadata": {
             "title": name,
             "author": "",
@@ -28,8 +29,120 @@ pub fn createDocument(name, units) {
         "selection": createSelection(),
         "undoStack": [],
         "redoStack": [],
-        "maxUndoSteps": 100
+        "maxUndoSteps": 100,
+        "sceneRoot": createSceneNode("root", "Root"),
+        "pages": [],
+        "activePage": 0
     }
+}
+
+pub fn createSceneNode(kind, name) {
+    return {
+        "kind": kind,
+        "id": generateDocumentId(),
+        "name": name,
+        "transform": createTransform(),
+        "children": [],
+        "parent": null,
+        "visible": true,
+        "locked": false,
+        "opacity": 1.0
+    }
+}
+
+pub fn createFrameNode(name, x, y, width, height) {
+    let node = createSceneNode("Frame", name)
+    node["transform"]["position"] = vec2(x, y)
+    node["width"] = width
+    node["height"] = height
+    return node
+}
+
+pub fn createGroupNode(name) {
+    return createSceneNode("Group", name)
+}
+
+pub fn createComponentInstanceNode(name, definitionId) {
+    let node = createSceneNode("ComponentInstance", name)
+    node["definitionId"] = definitionId
+    node["overrides"] = {}
+    return node
+}
+
+pub fn addSceneChild(parent, child) {
+    parent["children"] = push(parent["children"], child["id"])
+    child["parent"] = parent["id"]
+    return parent
+}
+
+pub fn removeSceneChild(parent, childId) {
+    let newChildren = []
+    let i = 0
+    while i < len(parent["children"]) {
+        if parent["children"][i] != childId {
+            newChildren = push(newChildren, parent["children"][i])
+        }
+        i = i + 1
+    }
+    parent["children"] = newChildren
+    return parent
+}
+
+pub fn setSceneNodeParent(node, parentId) {
+    node["parent"] = parentId
+    return node
+}
+
+pub fn setSceneNodeTransform(node, transform) {
+    node["transform"] = transform
+    return node
+}
+
+pub fn setSceneNodeVisible(node, visible) {
+    node["visible"] = visible
+    return node
+}
+
+pub fn setSceneNodeLocked(node, locked) {
+    node["locked"] = locked
+    return node
+}
+
+pub fn setSceneNodeOpacity(node, opacity) {
+    node["opacity"] = opacity
+    return node
+}
+
+pub fn createPage(name) {
+    return {
+        "kind": "Page",
+        "id": generateDocumentId(),
+        "name": name,
+        "sceneRoot": createSceneNode("root", "Root")
+    }
+}
+
+pub fn addPage(document, page) {
+    document["pages"] = push(document["pages"], page)
+    return document
+}
+
+pub fn setActivePage(document, pageIndex) {
+    document["activePage"] = pageIndex
+    return document
+}
+
+pub fn getActivePage(document) {
+    return document["pages"][document["activePage"]]
+}
+
+pub fn setDocumentProfile(document, profile) {
+    document["profile"] = profile
+    return document
+}
+
+pub fn getDocumentProfile(document) {
+    return document["profile"]
 }
 
 pub fn createLayer(name, color) {
@@ -298,7 +411,10 @@ fn createDocumentSnapshot(document) {
         "entities": deepCopyEntities(document["entities"]),
         "layers": deepCopyLayers(document["layers"]),
         "entityCounter": document["entityCounter"],
-        "selection": deepCopySelection(document["selection"])
+        "selection": deepCopySelection(document["selection"]),
+        "sceneRoot": deepCopySceneNode(document["sceneRoot"]),
+        "pages": deepCopyPages(document["pages"]),
+        "activePage": document["activePage"]
     }
 }
 
@@ -307,6 +423,9 @@ fn restoreDocumentSnapshot(document, snapshot) {
     document["layers"] = deepCopyLayers(snapshot["layers"])
     document["entityCounter"] = snapshot["entityCounter"]
     document["selection"] = deepCopySelection(snapshot["selection"])
+    document["sceneRoot"] = deepCopySceneNode(snapshot["sceneRoot"])
+    document["pages"] = deepCopyPages(snapshot["pages"])
+    document["activePage"] = snapshot["activePage"]
     return document
 }
 
@@ -404,6 +523,49 @@ fn deepCopySelection(selection) {
         "entityIds": selection["entityIds"],
         "mode": selection["mode"]
     }
+}
+
+fn deepCopySceneNode(node) {
+    let copy = {}
+    for key in node {
+        if key == "transform" {
+            copy[key] = deepCopyTransform(node["transform"])
+        } else if key == "children" {
+            copy[key] = node["children"]
+        } else {
+            copy[key] = node[key]
+        }
+    }
+    return copy
+}
+
+fn deepCopyTransform(transform) {
+    return {
+        "kind": transform["kind"],
+        "id": transform["id"],
+        "position": vec2(transform["position"]["x"], transform["position"]["y"]),
+        "rotation": transform["rotation"],
+        "scale": vec2(transform["scale"]["x"], transform["scale"]["y"]),
+        "parent": transform["parent"],
+        "children": transform["children"],
+        "worldMatrix": transform["worldMatrix"],
+        "dirty": transform["dirty"]
+    }
+}
+
+fn deepCopyPages(pages) {
+    let copy = []
+    let i = 0
+    while i < len(pages) {
+        copy = push(copy, {
+            "kind": pages[i]["kind"],
+            "id": pages[i]["id"],
+            "name": pages[i]["name"],
+            "sceneRoot": deepCopySceneNode(pages[i]["sceneRoot"])
+        })
+        i = i + 1
+    }
+    return copy
 }
 
 fn removeFirst(arr) {

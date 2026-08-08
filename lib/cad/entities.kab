@@ -129,6 +129,67 @@ pub fn createDimensionEntity(p1, p2, offset) {
     }
 }
 
+pub fn createPathEntity(commands, closed) {
+    return {
+        "kind": "Path",
+        "id": null,
+        "data": {
+            "commands": commands,
+            "closed": closed
+        },
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createPathMoveCommand(x, y) {
+    return {
+        "kind": "Move",
+        "x": x,
+        "y": y
+    }
+}
+
+pub fn createPathLineCommand(x, y) {
+    return {
+        "kind": "Line",
+        "x": x,
+        "y": y
+    }
+}
+
+pub fn createPathCubicCommand(c1x, c1y, c2x, c2y, x, y) {
+    return {
+        "kind": "Cubic",
+        "c1x": c1x,
+        "c1y": c1y,
+        "c2x": c2x,
+        "c2y": c2y,
+        "x": x,
+        "y": y
+    }
+}
+
+pub fn createPathQuadCommand(cx, cy, x, y) {
+    return {
+        "kind": "Quad",
+        "cx": cx,
+        "cy": cy,
+        "x": x,
+        "y": y
+    }
+}
+
+pub fn createPathCloseCommand() {
+    return {
+        "kind": "Close"
+    }
+}
+
 pub fn setEntityId(entity, id) {
     entity["id"] = id
     return entity
@@ -208,9 +269,60 @@ pub fn getEntityBounds(entity) {
             data["position"]["x"] + 100.0,
             data["position"]["y"] + data["fontSize"]
         )
+    } else if entity["kind"] == "Path" {
+        return bboxFromPath(data)
     }
     
     return createBBox(0.0, 0.0, 0.0, 0.0)
+}
+
+fn bboxFromPath(pathData) {
+    if len(pathData["commands"]) == 0 {
+        return createBBox(0.0, 0.0, 0.0, 0.0)
+    }
+    
+    let minX = 1e10
+    let minY = 1e10
+    let maxX = -1e10
+    let maxY = -1e10
+    let currentX = 0.0
+    let currentY = 0.0
+    
+    let i = 0
+    while i < len(pathData["commands"]) {
+        let cmd = pathData["commands"][i]
+        
+        if cmd["kind"] == "Move" {
+            currentX = cmd["x"]
+            currentY = cmd["y"]
+        } else if cmd["kind"] == "Line" {
+            currentX = cmd["x"]
+            currentY = cmd["y"]
+        } else if cmd["kind"] == "Cubic" {
+            currentX = cmd["x"]
+            currentY = cmd["y"]
+        } else if cmd["kind"] == "Quad" {
+            currentX = cmd["x"]
+            currentY = cmd["y"]
+        }
+        
+        if currentX < minX {
+            minX = currentX
+        }
+        if currentY < minY {
+            minY = currentY
+        }
+        if currentX > maxX {
+            maxX = currentX
+        }
+        if currentY > maxY {
+            maxY = currentY
+        }
+        
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
 }
 
 pub fn cloneEntity(entity) {
@@ -242,6 +354,42 @@ fn cloneEntityData(data, kind) {
             i = i + 1
         }
         return createPolyline(clonedPoints, data["closed"])
+    } else if kind == "Point" {
+        return { "position": vec2(data["position"]["x"], data["position"]["y"]) }
+    } else if kind == "Text" {
+        return {
+            "position": vec2(data["position"]["x"], data["position"]["y"]),
+            "text": data["text"],
+            "fontSize": data["fontSize"],
+            "font": data["font"],
+            "alignment": data["alignment"]
+        }
+    } else if kind == "Arc" {
+        return createArc(
+            vec2(data["center"]["x"], data["center"]["y"]),
+            data["radius"],
+            data["startAngle"],
+            data["endAngle"]
+        )
+    } else if kind == "Path" {
+        let clonedCommands = []
+        let i = 0
+        while i < len(data["commands"]) {
+            let cmd = data["commands"][i]
+            if cmd["kind"] == "Move" {
+                clonedCommands = push(clonedCommands, createPathMoveCommand(cmd["x"], cmd["y"]))
+            } else if cmd["kind"] == "Line" {
+                clonedCommands = push(clonedCommands, createPathLineCommand(cmd["x"], cmd["y"]))
+            } else if cmd["kind"] == "Cubic" {
+                clonedCommands = push(clonedCommands, createPathCubicCommand(cmd["c1x"], cmd["c1y"], cmd["c2x"], cmd["c2y"], cmd["x"], cmd["y"]))
+            } else if cmd["kind"] == "Quad" {
+                clonedCommands = push(clonedCommands, createPathQuadCommand(cmd["cx"], cmd["cy"], cmd["x"], cmd["y"]))
+            } else if cmd["kind"] == "Close" {
+                clonedCommands = push(clonedCommands, createPathCloseCommand())
+            }
+            i = i + 1
+        }
+        return createPathEntity(clonedCommands, data["closed"])
     }
     return data
 }

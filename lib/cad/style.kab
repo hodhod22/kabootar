@@ -1,0 +1,279 @@
+@version "1.0.0"
+
+// CAD Style - Style system for Figma/Sketch-class design tools
+// Features: Fill (solid, gradient, image), Stroke (width, cap, join, dash), Effect (shadow, blur), Text style
+// Canonical path: import "cad/style"
+
+pub fn createSolidFill(r, g, b, a) {
+    return {
+        "kind": "SolidFill",
+        "type": "solid",
+        "color": { "r": r, "g": g, "b": b, "a": a }
+    }
+}
+
+pub fn createLinearGradientFill(x1, y1, x2, y2, stops) {
+    return {
+        "kind": "LinearGradientFill",
+        "type": "linearGradient",
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "stops": stops
+    }
+}
+
+pub fn createRadialGradientFill(cx, cy, r, stops) {
+    return {
+        "kind": "RadialGradientFill",
+        "type": "radialGradient",
+        "cx": cx,
+        "cy": cy,
+        "r": r,
+        "stops": stops
+    }
+}
+
+pub fn createGradientStop(offset, r, g, b, a) {
+    return {
+        "offset": offset,
+        "color": { "r": r, "g": g, "b": b, "a": a }
+    }
+}
+
+pub fn createImageFill(imageUrl, opacity) {
+    return {
+        "kind": "ImageFill",
+        "type": "image",
+        "imageUrl": imageUrl,
+        "opacity": opacity
+    }
+}
+
+pub fn createStroke(color, width) {
+    return {
+        "kind": "Stroke",
+        "color": color,
+        "width": width,
+        "cap": "butt",
+        "join": "miter",
+        "dashArray": [],
+        "dashOffset": 0.0
+    }
+}
+
+pub fn setStrokeCap(stroke, cap) {
+    stroke["cap"] = cap
+    return stroke
+}
+
+pub fn setStrokeJoin(stroke, join) {
+    stroke["join"] = join
+    return stroke
+}
+
+pub fn setStrokeDashArray(stroke, dashArray) {
+    stroke["dashArray"] = dashArray
+    return stroke
+}
+
+pub fn setStrokeDashOffset(stroke, offset) {
+    stroke["dashOffset"] = offset
+    return stroke
+}
+
+pub fn createShadow(offsetX, offsetY, blur, spread, color) {
+    return {
+        "kind": "Shadow",
+        "offsetX": offsetX,
+        "offsetY": offsetY,
+        "blur": blur,
+        "spread": spread,
+        "color": color
+    }
+}
+
+pub fn createInnerShadow(offsetX, offsetY, blur, spread, color) {
+    return {
+        "kind": "InnerShadow",
+        "offsetX": offsetX,
+        "offsetY": offsetY,
+        "blur": blur,
+        "spread": spread,
+        "color": color
+    }
+}
+
+pub fn createBlur(radius) {
+    return {
+        "kind": "Blur",
+        "radius": radius
+    }
+}
+
+pub fn createTextStyle(font, size, weight, lineHeight) {
+    return {
+        "kind": "TextStyle",
+        "font": font,
+        "size": size,
+        "weight": weight,
+        "lineHeight": lineHeight,
+        "letterSpacing": 0.0,
+        "color": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 },
+        "alignment": "left"
+    }
+}
+
+pub fn setTextStyleWeight(style, weight) {
+    style["weight"] = weight
+    return style
+}
+
+pub fn setTextStyleLineHeight(style, lineHeight) {
+    style["lineHeight"] = lineHeight
+    return style
+}
+
+pub fn setTextStyleLetterSpacing(style, spacing) {
+    style["letterSpacing"] = spacing
+    return style
+}
+
+pub fn setTextStyleColor(style, r, g, b, a) {
+    style["color"] = { "r": r, "g": g, "b": b, "a": a }
+    return style
+}
+
+pub fn setTextStyleAlignment(style, alignment) {
+    style["alignment"] = alignment
+    return style
+}
+
+pub fn createStyleLibrary() {
+    return {
+        "kind": "StyleLibrary",
+        "colors": {},
+        "gradients": {},
+        "textStyles": {},
+        "effects": {}
+    }
+}
+
+pub fn addColorToken(library, name, r, g, b, a) {
+    library["colors"][name] = { "r": r, "g": g, "b": b, "a": a }
+    return library
+}
+
+pub fn getColorToken(library, name) {
+    return library["colors"][name]
+}
+
+pub fn addTextStyle(library, name, style) {
+    library["textStyles"][name] = style
+    return library
+}
+
+pub fn getTextStyle(library, name) {
+    return library["textStyles"][name]
+}
+
+pub fn addEffect(library, name, effect) {
+    library["effects"][name] = effect
+    return library
+}
+
+pub fn getEffect(library, name) {
+    return library["effects"][name]
+}
+
+pub fn createStyleSet() {
+    return {
+        "kind": "StyleSet",
+        "fills": [],
+        "strokes": [],
+        "effects": [],
+        "textStyle": null
+    }
+}
+
+pub fn addFillToStyleSet(styleSet, fill) {
+    styleSet["fills"] = push(styleSet["fills"], fill)
+    return styleSet
+}
+
+pub fn addStrokeToStyleSet(styleSet, stroke) {
+    styleSet["strokes"] = push(styleSet["strokes"], stroke)
+    return styleSet
+}
+
+pub fn addEffectToStyleSet(styleSet, effect) {
+    styleSet["effects"] = push(styleSet["effects"], effect)
+    return styleSet
+}
+
+pub fn setTextStyleForStyleSet(styleSet, textStyle) {
+    styleSet["textStyle"] = textStyle
+    return styleSet
+}
+
+pub fn cloneFill(fill) {
+    let clone = {}
+    for key in fill {
+        if key == "color" {
+            clone[key] = { "r": fill["color"]["r"], "g": fill["color"]["g"], "b": fill["color"]["b"], "a": fill["color"]["a"] }
+        } else if key == "stops" {
+            let clonedStops = []
+            let i = 0
+            while i < len(fill["stops"]) {
+                clonedStops = push(clonedStops, {
+                    "offset": fill["stops"][i]["offset"],
+                    "color": { "r": fill["stops"][i]["color"]["r"], "g": fill["stops"][i]["color"]["g"], "b": fill["stops"][i]["color"]["b"], "a": fill["stops"][i]["color"]["a"] }
+                })
+                i = i + 1
+            }
+            clone[key] = clonedStops
+        } else {
+            clone[key] = fill[key]
+        }
+    }
+    return clone
+}
+
+pub fn cloneStroke(stroke) {
+    let clone = {}
+    for key in stroke {
+        if key == "color" {
+            clone[key] = { "r": stroke["color"]["r"], "g": stroke["color"]["g"], "b": stroke["color"]["b"], "a": stroke["color"]["a"] }
+        } else if key == "dashArray" {
+            clone[key] = stroke["dashArray"]
+        } else {
+            clone[key] = stroke[key]
+        }
+    }
+    return clone
+}
+
+pub fn cloneEffect(effect) {
+    let clone = {}
+    for key in effect {
+        if key == "color" {
+            clone[key] = { "r": effect["color"]["r"], "g": effect["color"]["g"], "b": effect["color"]["b"], "a": effect["color"]["a"] }
+        } else {
+            clone[key] = effect[key]
+        }
+    }
+    return clone
+}
+
+pub fn cloneTextStyle(style) {
+    let clone = {}
+    for key in style {
+        if key == "color" {
+            clone[key] = { "r": style["color"]["r"], "g": style["color"]["g"], "b": style["color"]["b"], "a": style["color"]["a"] }
+        } else {
+            clone[key] = style[key]
+        }
+    }
+    return clone
+}
