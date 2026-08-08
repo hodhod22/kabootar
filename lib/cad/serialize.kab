@@ -12,10 +12,15 @@ pub fn serializeDocument(document) {
         "id": document["id"],
         "name": document["name"],
         "units": document["units"],
+        "profile": document["profile"],
         "metadata": document["metadata"],
         "layers": serializeLayers(document["layers"]),
-        "entities": serializeEntities(document["entities"]),
-        "entityCounter": document["entityCounter"],
+        "nodes": serializeNodes(document["nodes"]),
+        "nodeCounter": document["nodeCounter"],
+        "idCounter": document["idCounter"],
+        "sceneRoot": serializeSceneNode(document["sceneRoot"]),
+        "pages": serializePages(document["pages"]),
+        "activePage": document["activePage"],
         "selection": serializeSelection(document["selection"])
     }
 }
@@ -28,11 +33,16 @@ pub fn deserializeDocument(data) {
         "units": data["units"],
         "version": data["version"],
         "cadVersion": data["cadVersion"],
+        "profile": data["profile"],
         "metadata": data["metadata"],
         "layers": deserializeLayers(data["layers"]),
         "activeLayer": "default",
-        "entities": deserializeEntities(data["entities"]),
-        "entityCounter": data["entityCounter"],
+        "nodes": deserializeNodes(data["nodes"]),
+        "nodeCounter": data["nodeCounter"],
+        "idCounter": data["idCounter"],
+        "sceneRoot": deserializeSceneNode(data["sceneRoot"]),
+        "pages": deserializePages(data["pages"]),
+        "activePage": data["activePage"],
         "selection": deserializeSelection(data["selection"]),
         "undoStack": [],
         "redoStack": [],
@@ -87,6 +97,7 @@ fn serializeEntities(entities) {
                 "kind": entity["kind"],
                 "data": entity["data"],
                 "properties": entity["properties"],
+                "styleSet": entity["styleSet"],
                 "layer": entity["layer"],
                 "visible": entity["visible"],
                 "locked": entity["locked"],
@@ -94,6 +105,57 @@ fn serializeEntities(entities) {
                 "group": entity["group"]
             }
         }
+    }
+    return serialized
+}
+
+fn serializeNodes(nodes) {
+    let serialized = {}
+    for nodeId in nodes {
+        let node = nodes[nodeId]
+        if node != null {
+            serialized[nodeId] = {
+                "id": node["id"],
+                "kind": node["kind"],
+                "name": node["name"],
+                "transform": node["transform"],
+                "children": node["children"],
+                "parent": node["parent"],
+                "visible": node["visible"],
+                "locked": node["locked"],
+                "opacity": node["opacity"]
+            }
+        }
+    }
+    return serialized
+}
+
+fn serializeSceneNode(sceneNode) {
+    return {
+        "id": sceneNode["id"],
+        "kind": sceneNode["kind"],
+        "name": sceneNode["name"],
+        "transform": sceneNode["transform"],
+        "children": sceneNode["children"],
+        "parent": sceneNode["parent"],
+        "visible": sceneNode["visible"],
+        "locked": sceneNode["locked"],
+        "opacity": sceneNode["opacity"]
+    }
+}
+
+fn serializePages(pages) {
+    let serialized = []
+    let i = 0
+    while i < len(pages) {
+        let page = pages[i]
+        serialized = push(serialized, {
+            "kind": page["kind"],
+            "id": page["id"],
+            "name": page["name"],
+            "sceneRoot": serializeSceneNode(page["sceneRoot"])
+        })
+        i = i + 1
     }
     return serialized
 }
@@ -107,6 +169,7 @@ fn deserializeEntities(data) {
             "kind": entityData["kind"],
             "data": entityData["data"],
             "properties": entityData["properties"],
+            "styleSet": entityData["styleSet"],
             "layer": entityData["layer"],
             "visible": entityData["visible"],
             "locked": entityData["locked"],
@@ -115,6 +178,55 @@ fn deserializeEntities(data) {
         }
     }
     return entities
+}
+
+fn deserializeNodes(data) {
+    let nodes = {}
+    for nodeId in data {
+        let nodeData = data[nodeId]
+        nodes[nodeId] = {
+            "kind": nodeData["kind"],
+            "id": nodeData["id"],
+            "name": nodeData["name"],
+            "transform": nodeData["transform"],
+            "children": nodeData["children"],
+            "parent": nodeData["parent"],
+            "visible": nodeData["visible"],
+            "locked": nodeData["locked"],
+            "opacity": nodeData["opacity"]
+        }
+    }
+    return nodes
+}
+
+fn deserializeSceneNode(data) {
+    return {
+        "kind": data["kind"],
+        "id": data["id"],
+        "name": data["name"],
+        "transform": data["transform"],
+        "children": data["children"],
+        "parent": data["parent"],
+        "visible": data["visible"],
+        "locked": data["locked"],
+        "opacity": data["opacity"]
+    }
+}
+
+fn deserializePages(data) {
+    let pages = []
+    let i = 0
+    while i < len(data) {
+        let pageData = data[i]
+        pages = push(pages, {
+            "kind": pageData["kind"],
+            "id": pageData["id"],
+            "name": pageData["name"],
+            "sceneRoot": deserializeSceneNode(pageData["sceneRoot"])
+        })
+        i = i + 1
+    }
+    return pages
 }
 
 fn serializeSelection(selection) {
