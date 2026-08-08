@@ -5,6 +5,7 @@
 
 import "cad/transform"
 import "cad/geom"
+import "cad/layout"
 
 pub fn createDocument(name, units) {
     return {
@@ -54,7 +55,10 @@ pub fn createSceneNode(kind, name) {
         "styleSet": null,
         "layout": null,
         "data": {},
-        "meta": {}
+        "meta": {},
+        "transformDirty": false,
+        "layoutDirty": false,
+        "constraintDirty": false
     }
 }
 
@@ -154,6 +158,129 @@ pub fn setSceneNodeLocked(node, locked) {
 pub fn setSceneNodeOpacity(node, opacity) {
     node["opacity"] = opacity
     return node
+}
+
+pub fn setNodeTransformDirty(node, dirty) {
+    node["transformDirty"] = dirty
+    return node
+}
+
+pub fn setNodeLayoutDirty(node, dirty) {
+    node["layoutDirty"] = dirty
+    return node
+}
+
+pub fn setNodeConstraintDirty(node, dirty) {
+    node["constraintDirty"] = dirty
+    return node
+}
+
+pub fn isNodeTransformDirty(node) {
+    return node["transformDirty"]
+}
+
+pub fn isNodeLayoutDirty(node) {
+    return node["layoutDirty"]
+}
+
+pub fn isNodeConstraintDirty(node) {
+    return node["constraintDirty"]
+}
+
+pub fn documentCommit(document) {
+    document = resolveConstraints(document)
+    document = resolveLayout(document)
+    document = updateWorldTransforms(document)
+    document = clearDirtyFlags(document)
+    return document
+}
+
+pub fn resolveConstraints(document) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["constraintDirty"] == true {
+            node = resolveNodeConstraints(node)
+            node["constraintDirty"] = false
+            document["nodes"][nodeId] = node
+        }
+    }
+    return document
+}
+
+fn resolveNodeConstraints(node) {
+    return node
+}
+
+pub fn resolveLayout(document) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["layoutDirty"] == true && node["layout"] != null {
+            node = resolveNodeLayout(document, node)
+            node["layoutDirty"] = false
+            document["nodes"][nodeId] = node
+        }
+    }
+    return document
+}
+
+fn resolveNodeLayout(document, node) {
+    let layout = node["layout"]
+    let children = []
+    let i = 0
+    while i < len(node["children"]) {
+        let childId = node["children"][i]
+        let child = document["nodes"][childId]
+        if child != null {
+            children = push(children, child)
+        }
+        i = i + 1
+    }
+    
+    if layout != null {
+        let containerWidth = node["width"]
+        let containerHeight = node["height"]
+        layout = recomputeLayout(layout, children, containerWidth, containerHeight)
+        node["layout"] = layout
+    }
+    
+    return node
+}
+
+pub fn updateWorldTransforms(document) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["transformDirty"] == true {
+            node = updateNodeWorldTransform(document, node)
+            node["transformDirty"] = false
+            document["nodes"][nodeId] = node
+        }
+    }
+    return document
+}
+
+fn updateNodeWorldTransform(document, node) {
+    if node["parent"] == null {
+        node["transform"]["worldMatrix"] = node["transform"]["localMatrix"]
+    } else {
+        let parent = document["nodes"][node["parent"]]
+        if parent != null {
+            node["transform"]["worldMatrix"] = matrix2DMultiply(parent["transform"]["worldMatrix"], node["transform"]["localMatrix"])
+        }
+    }
+    return node
+}
+
+pub fn clearDirtyFlags(document) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            node["transformDirty"] = false
+            node["layoutDirty"] = false
+            node["constraintDirty"] = false
+            document["nodes"][nodeId] = node
+        }
+    }
+    return document
 }
 
 pub fn createPage(name) {

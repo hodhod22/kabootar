@@ -1,0 +1,264 @@
+@version "1.0.0"
+
+// CAD Render - Draw list generation from scene for rendering
+// Features: build drawList from scene, culling, layer order, selection overlay
+// Canonical path: import "cad/render"
+
+import "cad/geom"
+import "cad/document"
+
+pub fn createDrawList() {
+    return {
+        "kind": "DrawList",
+        "items": [],
+        "overlayItems": []
+    }
+}
+
+pub fn buildDrawList(document, viewport) {
+    let drawList = createDrawList()
+    
+    let sceneRoot = document["sceneRoot"]
+    drawList = buildNodeDrawList(document, sceneRoot, drawList, viewport)
+    
+    drawList = buildSelectionOverlay(document, drawList)
+    
+    return drawList
+}
+
+fn buildNodeDrawList(document, node, drawList, viewport) {
+    if node == null || node["visible"] == false {
+        return drawList
+    }
+    
+    if isNodeInViewport(node, viewport) == false {
+        return drawList
+    }
+    
+    drawList = addNodeToDrawList(node, drawList)
+    
+    let i = 0
+    while i < len(node["children"]) {
+        let childId = node["children"][i]
+        let child = document["nodes"][childId]
+        if child != null {
+            drawList = buildNodeDrawList(document, child, drawList, viewport)
+        }
+        i = i + 1
+    }
+    
+    return drawList
+}
+
+fn addNodeToDrawList(node, drawList) {
+    let kind = node["kind"]
+    
+    if kind == "Frame" {
+        drawList = addFrameToDrawList(node, drawList)
+    } else if kind == "Group" {
+        drawList = addGroupToDrawList(node, drawList)
+    } else if kind == "Component" {
+        drawList = addComponentToDrawList(node, drawList)
+    } else if kind == "Vector" {
+        drawList = addVectorToDrawList(node, drawList)
+    } else if kind == "Shape" {
+        drawList = addShapeToDrawList(node, drawList)
+    } else if kind == "Text" {
+        drawList = addTextToDrawList(node, drawList)
+    } else if kind == "Dimension" {
+        drawList = addDimensionToDrawList(node, drawList)
+    }
+    
+    return drawList
+}
+
+fn addFrameToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawFrame",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "width": node["width"],
+        "height": node["height"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addGroupToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawGroup",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addComponentToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawComponent",
+        "nodeId": node["id"],
+        "definitionId": node["definitionId"],
+        "transform": node["transform"],
+        "overrides": node["overrides"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addVectorToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawVector",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "data": node["data"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addShapeToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawShape",
+        "nodeId": node["id"],
+        "shapeType": node["data"]["type"],
+        "transform": node["transform"],
+        "data": node["data"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addTextToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawText",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "text": node["data"]["text"],
+        "fontSize": node["data"]["fontSize"],
+        "font": node["data"]["font"],
+        "alignment": node["data"]["alignment"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn addDimensionToDrawList(node, drawList) {
+    let item = {
+        "kind": "DrawDimension",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "data": node["data"],
+        "styleSet": node["styleSet"],
+        "layer": node["layer"],
+        "opacity": node["opacity"]
+    }
+    drawList["items"] = push(drawList["items"], item)
+    return drawList
+}
+
+fn buildSelectionOverlay(document, drawList) {
+    let selection = document["selection"]
+    let nodeIds = selection["nodeIds"]
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            drawList = addSelectionHandle(node, drawList)
+        }
+        i = i + 1
+    }
+    
+    return drawList
+}
+
+fn addSelectionHandle(node, drawList) {
+    let item = {
+        "kind": "DrawSelection",
+        "nodeId": node["id"],
+        "transform": node["transform"],
+        "bounds": getNodeDrawBounds(node)
+    }
+    drawList["overlayItems"] = push(drawList["overlayItems"], item)
+    return drawList
+}
+
+fn getNodeDrawBounds(node) {
+    if node["kind"] == "Frame" {
+        let pos = node["transform"]["position"]
+        return createBBox(pos["x"], pos["y"], pos["x"] + node["width"], pos["y"] + node["height"])
+    }
+    return createBBox(0.0, 0.0, 0.0, 0.0)
+.
+
+fn isNodeInViewport(node, viewport) {
+    let bounds = getNodeDrawBounds(node)
+    return bboxIntersectsBBox(bounds, viewport)
+}
+
+pub fn sortDrawListByLayer(drawList, layers) {
+    let sorted = []
+    let layerOrder = getLayerOrder(layers)
+    
+    let i = 0
+    while i < len(layerOrder) {
+        let layerName = layerOrder[i]
+        let j = 0
+        while j < len(drawList["items"]) {
+            let item = drawList["items"][j]
+            if item["layer"] == layerName {
+                sorted = push(sorted, item)
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    drawList["items"] = sorted
+    return drawList
+}
+
+fn getLayerOrder(layers) {
+    let order = []
+    for layerName in layers {
+        order = push(order, layerName)
+    }
+    return order
+}
+
+pub fn cullDrawList(drawList, viewport) {
+    let culled = []
+    let i = 0
+    while i < len(drawList["items"]) {
+        let item = drawList["items"][i]
+        if isItemInViewport(item, viewport) {
+            culled = push(culled, item)
+        }
+        i = i + 1
+    }
+    drawList["items"] = culled
+    return drawList
+}
+
+fn isItemInViewport(item, viewport) {
+    return true
+}
