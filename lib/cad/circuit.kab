@@ -1,25 +1,85 @@
 @version "1.0.0"
 
 // Electronics CAD pillar (MIT). Commercial kit: rasmemadar.
+// Thin layer on top of CAD core - uses document for parts, graph for nets
 // import "cad/circuit"
+
+import "cad/document"
+import "cad/graph"
+import "cad/entities"
 
 pub fn createBoard(name) {
     if name == null || name == undefined { name = "board" }
-    return { "kind": "Board", "name": name, "parts": [], "nets": [] }
+    return {
+        "kind": "Board",
+        "name": name,
+        "document": createDocument(name, "mm"),
+        "netGraph": createGraph(),
+        "parts": [],
+        "nets": []
+    }
 }
 
-pub fn circuitAddPart(board, id, kind, value) {
+pub fn circuitAddPart(board, id, kind, value, position) {
     if kind == null || kind == undefined { kind = "R" }
     if value == null || value == undefined { value = 1000.0 }
+    if position == null || position == undefined {
+        position = vec2(0.0, 0.0)
+    }
+    
+    let partEntity = createRectEntity(position["x"], position["y"], 20.0, 10.0)
+    partEntity = setEntityId(partEntity, id)
+    partEntity = setEntityProperty(partEntity, "type", "part")
+    partEntity = setEntityProperty(partEntity, "kind", kind)
+    partEntity = setEntityProperty(partEntity, "value", value)
+    partEntity = setEntityProperty(partEntity, "pins", ["a", "b"])
+    
+    board["document"] = addEntity(board["document"], partEntity)
+    
     board["parts"] = push(board["parts"], {
-        "id": id, "kind": kind, "value": value, "pins": ["a", "b"]
+        "id": id,
+        "kind": kind,
+        "value": value,
+        "pins": ["a", "b"],
+        "position": position
     })
+    
     return board
 }
 
 pub fn circuitAddNet(board, name, a, b) {
+    let fromNode = findPartNode(board, a)
+    let toNode = findPartNode(board, b)
+    
+    if fromNode == null {
+        fromNode = createNode({ "partId": a })
+        board["netGraph"] = addNode(board["netGraph"], fromNode)
+    }
+    
+    if toNode == null {
+        toNode = createNode({ "partId": b })
+        board["netGraph"] = addNode(board["netGraph"], toNode)
+    }
+    
+    let edge = createEdge(fromNode["id"], toNode["id"], {
+        "type": "net",
+        "name": name
+    })
+    
+    board["netGraph"] = addEdge(board["netGraph"], edge)
+    
     board["nets"] = push(board["nets"], { "name": name, "a": a, "b": b })
     return board
+}
+
+fn findPartNode(board, partId) {
+    for nodeId in board["netGraph"]["nodes"] {
+        let node = board["netGraph"]["nodes"][nodeId]
+        if node != null && node["data"]["partId"] == partId {
+            return node
+        }
+    }
+    return null
 }
 
 pub fn circuitDividerVout(vin, r1, r2) {
@@ -32,4 +92,32 @@ pub fn circuitDividerVout(vin, r1, r2) {
 pub fn circuitOhmCurrent(volts, ohms) {
     if ohms == null || ohms == undefined || ohms == 0.0 { return 0.0 }
     return volts / ohms
+}
+
+pub fn circuitGetDocument(board) {
+    return board["document"]
+}
+
+pub fn circuitGetGraph(board) {
+    return board["netGraph"]
+}
+
+pub fn circuitSerialize(board) {
+    return {
+        "kind": "SerializedBoard",
+        "name": board["name"],
+        "document": serializeDocument(board["document"]),
+        "graph": serializeGraph(board["netGraph"]),
+        "parts": board["parts"],
+        "nets": board["nets"]
+    }
+}
+
+pub fn circuitDeserialize(data) {
+    let board = createBoard(data["name"])
+    board["document"] = deserializeDocument(data["document"])
+    board["netGraph"] = deserializeGraph(data["graph"])
+    board["parts"] = data["parts"]
+    board["nets"] = data["nets"]
+    return board
 }

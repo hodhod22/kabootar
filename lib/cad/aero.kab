@@ -1,28 +1,53 @@
 @version "1.0.0"
 
 // Aerodynamics CAD pillar (MIT). Commercial kit: rasmejaryan.
+// Thin layer on top of CAD core - uses document for surfaces, graph for flow connections
 // import "cad/aero"
+
+import "cad/document"
+import "cad/graph"
+import "cad/entities"
 
 pub fn createAeroModel(name) {
     if name == null || name == undefined { name = "aero" }
     return {
         "kind": "AeroModel",
         "name": name,
+        "document": createDocument(name, "m"),
+        "surfaceGraph": createGraph(),
         "surfaces": [],
         "flow": { "rho": 1.225, "v": 50.0, "alphaDeg": 0.0 }
     }
 }
 
-pub fn aeroAddAirfoil(model, id, chord, area) {
+pub fn aeroAddAirfoil(model, id, chord, area, position) {
     if chord == null || chord == undefined { chord = 1.0 }
     if area == null || area == undefined { area = 1.0 }
+    if position == null || position == undefined {
+        position = vec2(0.0, 0.0)
+    }
+    
+    let surfaceEntity = createRectEntity(position["x"], position["y"], chord, chord * 0.15)
+    surfaceEntity = setEntityId(surfaceEntity, id)
+    surfaceEntity = setEntityProperty(surfaceEntity, "type", "airfoil")
+    surfaceEntity = setEntityProperty(surfaceEntity, "chord", chord)
+    surfaceEntity = setEntityProperty(surfaceEntity, "area", area)
+    surfaceEntity = setEntityProperty(surfaceEntity, "cl0", 0.3)
+    surfaceEntity = setEntityProperty(surfaceEntity, "cla", 0.1)
+    
+    model["document"] = addEntity(model["document"], surfaceEntity)
+    
+    let surfaceNode = createNode({ "surfaceId": id })
+    model["surfaceGraph"] = addNode(model["surfaceGraph"], surfaceNode)
+    
     let s = {
         "kind": "airfoil",
         "id": id,
         "chord": chord,
         "area": area,
         "cl0": 0.3,
-        "cla": 0.1
+        "cla": 0.1,
+        "position": position
     }
     model["surfaces"] = push(model["surfaces"], s)
     return model
@@ -47,4 +72,32 @@ pub fn aeroEstimateLift(model, surfaceIndex) {
     let cl = aeroEstimateCl(s, flow["alphaDeg"])
     let q = 0.5 * flow["rho"] * flow["v"] * flow["v"]
     return q * s["area"] * cl
+}
+
+pub fn aeroGetDocument(model) {
+    return model["document"]
+}
+
+pub fn aeroGetGraph(model) {
+    return model["surfaceGraph"]
+}
+
+pub fn aeroSerialize(model) {
+    return {
+        "kind": "SerializedAeroModel",
+        "name": model["name"],
+        "document": serializeDocument(model["document"]),
+        "graph": serializeGraph(model["surfaceGraph"]),
+        "surfaces": model["surfaces"],
+        "flow": model["flow"]
+    }
+}
+
+pub fn aeroDeserialize(data) {
+    let model = createAeroModel(data["name"])
+    model["document"] = deserializeDocument(data["document"])
+    model["surfaceGraph"] = deserializeGraph(data["graph"])
+    model["surfaces"] = data["surfaces"]
+    model["flow"] = data["flow"]
+    return model
 }
