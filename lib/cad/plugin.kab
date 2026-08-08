@@ -1,0 +1,137 @@
+@version "1.0.0"
+
+// CAD Plugin - Plugin API for tools, exporters, analyzers, and snap providers
+// Features: registerTool, registerExporter, registerAnalyzer, registerSnapProvider
+// Canonical path: import "cad/plugin"
+// Note: Kits (rasme*, design-kit) register plugins instead of forking the engine
+
+import "cad/document"
+import "cad/geom"
+
+pub fn createPluginSystem() {
+    return {
+        "kind": "PluginSystem",
+        "tools": {},
+        "exporters": {},
+        "analyzers": {},
+        "snapProviders": {}
+    }
+}
+
+pub fn registerTool(system, name, tool) {
+    system["tools"][name] = tool
+    return system
+}
+
+pub fn registerExporter(system, name, exporter) {
+    system["exporters"][name] = exporter
+    return system
+}
+
+pub fn registerAnalyzer(system, name, analyzer) {
+    system["analyzers"][name] = analyzer
+    return system
+}
+
+pub fn registerSnapProvider(system, provider) {
+    system["snapProviders"] = push(system["snapProviders"], provider)
+    return system
+}
+
+pub fn getTool(system, name) {
+    return system["tools"][name]
+}
+
+pub fn getExporter(system, name) {
+    return system["exporters"][name]
+}
+
+pub fn getAnalyzer(system, name) {
+    return system["analyzers"][name]
+}
+
+pub fn getSnapProviders(system) {
+    return system["snapProviders"]
+}
+
+pub fn executeTool(system, name, document, input) {
+    let tool = system["tools"][name]
+    if tool == null {
+        return { "success": false, "error": "Tool not found" }
+    }
+    
+    let handler = tool["onPointer"]
+    if handler != null {
+        return handler(document, input)
+    }
+    
+    return { "success": false, "error": "Tool has no handler" }
+}
+
+pub fn runExporter(system, name, document, options) {
+    let exporter = system["exporters"][name]
+    if exporter == null {
+        return { "success": false, "error": "Exporter not found" }
+    }
+    
+    return exporter(document, options)
+}
+
+pub fn runAnalyzer(system, name, document) {
+    let analyzer = system["analyzers"][name]
+    if analyzer == null {
+        return { "success": false, "error": "Analyzer not found" }
+    }
+    
+    return analyzer(document)
+}
+
+pub fn getSnapPoints(system, document, point, tolerance) {
+    let snapPoints = []
+    let providers = system["snapProviders"]
+    let i = 0
+    while i < len(providers) {
+        let provider = providers[i]
+        let points = provider(document, point, tolerance)
+        let j = 0
+        while j < len(points) {
+            snapPoints = push(snapPoints, points[j])
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return snapPoints
+}
+
+pub fn createTool(name, onPointer, onKey, preview) {
+    return {
+        "kind": "Tool",
+        "name": name,
+        "onPointer": onPointer,
+        "onKey": onKey,
+        "preview": preview
+    }
+}
+
+pub fn createExporter(name, fn) {
+    return {
+        "kind": "Exporter",
+        "name": name,
+        "export": fn
+    }
+}
+
+pub fn createAnalyzer(name, fn) {
+    return {
+        "kind": "Analyzer",
+        "name": name,
+        "analyze": fn
+    }
+}
+
+pub fn createSnapProvider(fn) {
+    return {
+        "kind": "SnapProvider",
+        "provide": fn
+    }
+}
