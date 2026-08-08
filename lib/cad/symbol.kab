@@ -15,8 +15,110 @@ pub fn createSymbolDefinition(name) {
         "geometry": [],
         "ports": [],
         "attributes": {},
-        "bounds": createBBox(0.0, 0.0, 0.0, 0.0)
+        "bounds": createBBox(0.0, 0.0, 0.0, 0.0),
+        "variants": [],
+        "defaultVariant": null
     }
+}
+
+pub fn addSymbolVariant(definition, name, propertyOverrides) {
+    let variant = {
+        "kind": "SymbolVariant",
+        "id": generateSymbolId(),
+        "name": name,
+        "propertyOverrides": propertyOverrides,
+        "geometryOverrides": []
+    }
+    definition["variants"] = push(definition["variants"], variant)
+    
+    if definition["defaultVariant"] == null {
+        definition["defaultVariant"] = variant["id"]
+    }
+    
+    return definition
+}
+
+pub fn setDefaultVariant(definition, variantId) {
+    definition["defaultVariant"] = variantId
+    return definition
+}
+
+pub fn getSymbolVariant(definition, variantId) {
+    let i = 0
+    while i < len(definition["variants"]) {
+        if definition["variants"][i]["id"] == variantId {
+            return definition["variants"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn createSymbolInstance(definitionId, transform) {
+    return {
+        "kind": "SymbolInstance",
+        "id": generateSymbolId(),
+        "definitionId": definitionId,
+        "transform": transform,
+        "overrides": {},
+        "variantId": null,
+        "visible": true,
+        "locked": false
+    }
+}
+
+pub fn setSymbolInstanceVariant(instance, variantId) {
+    instance["variantId"] = variantId
+    return instance
+}
+
+pub fn setSymbolInstanceOverride(instance, attributeName, value) {
+    instance["overrides"][attributeName] = value
+    return instance
+}
+
+pub fn setSymbolInstanceGeometryOverride(instance, geometryId, geometry) {
+    if instance["geometryOverrides"] == null {
+        instance["geometryOverrides"] = []
+    }
+    instance["geometryOverrides"] = push(instance["geometryOverrides"], {
+        "geometryId": geometryId,
+        "geometry": geometry
+    })
+    return instance
+}
+
+pub fn detachSymbolInstance(instance, definition) {
+    let exploded = explodeSymbolInstance(instance, definition)
+    
+    let detached = {
+        "kind": "DetachedComponent",
+        "id": instance["id"],
+        "geometry": exploded,
+        "originalDefinitionId": definition["id"]
+    }
+    
+    return detached
+}
+
+pub fn pushToMain(instance, definition, modifiedGeometry) {
+    let updatedDefinition = cloneSymbolDefinition(definition)
+    
+    let i = 0
+    while i < len(modifiedGeometry) {
+        let j = 0
+        while j < len(updatedDefinition["geometry"]) {
+            if updatedDefinition["geometry"][j]["id"] == modifiedGeometry[i]["id"] {
+                updatedDefinition["geometry"][j] = modifiedGeometry[i]
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    updatedDefinition["bounds"] = recalculateSymbolBounds(updatedDefinition)
+    
+    return updatedDefinition
 }
 
 pub fn addSymbolGeometry(definition, entity) {

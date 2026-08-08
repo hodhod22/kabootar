@@ -1,0 +1,296 @@
+@version "1.0.0"
+
+// CAD Layout - Auto-layout system for Figma-class design tools
+// Features: Frame layout (horizontal/vertical/grid), padding, gap, alignment, hug/fill/fixed size
+// Canonical path: import "cad/layout"
+
+import "cad/geom"
+
+pub fn createLayout() {
+    return {
+        "kind": "Layout",
+        "direction": "vertical",
+        "padding": { "top": 0.0, "right": 0.0, "bottom": 0.0, "left": 0.0 },
+        "gap": 0.0,
+        "primaryAxis": "vertical",
+        "primaryAxisAlignItems": "min",
+        "counterAxisAlignItems": "min",
+        "primaryAxisSizingMode": "auto",
+        "counterAxisSizingMode": "auto"
+    }
+}
+
+pub fn setLayoutDirection(layout, direction) {
+    layout["direction"] = direction
+    layout["primaryAxis"] = direction
+    return layout
+}
+
+pub fn setLayoutPadding(layout, top, right, bottom, left) {
+    layout["padding"] = { "top": top, "right": right, "bottom": bottom, "left": left }
+    return layout
+}
+
+pub fn setLayoutGap(layout, gap) {
+    layout["gap"] = gap
+    return layout
+}
+
+pub fn setLayoutPrimaryAxisAlignItems(layout, align) {
+    layout["primaryAxisAlignItems"] = align
+    return layout
+}
+
+pub fn setLayoutCounterAxisAlignItems(layout, align) {
+    layout["counterAxisAlignItems"] = align
+    return layout
+}
+
+pub fn setLayoutPrimaryAxisSizingMode(layout, mode) {
+    layout["primaryAxisSizingMode"] = mode
+    return layout
+}
+
+pub fn setLayoutCounterAxisSizingMode(layout, mode) {
+    layout["counterAxisSizingMode"] = mode
+    return layout
+}
+
+pub fn createLayoutChild(node, sizingMode) {
+    return {
+        "node": node,
+        "sizingMode": sizingMode,
+        "constraints": createLayoutConstraints()
+    }
+}
+
+pub fn createLayoutConstraints() {
+    return {
+        "left": "none",
+        "right": "none",
+        "top": "none",
+        "bottom": "none",
+        "center": false,
+        "scale": false
+    }
+}
+
+pub fn setLayoutConstraintLeft(constraints, value) {
+    constraints["left"] = value
+    return constraints
+}
+
+pub fn setLayoutConstraintRight(constraints, value) {
+    constraints["right"] = value
+    return constraints
+}
+
+pub fn setLayoutConstraintTop(constraints, value) {
+    constraints["top"] = value
+    return constraints
+}
+
+pub fn setLayoutConstraintBottom(constraints, value) {
+    constraints["bottom"] = value
+    return constraints
+}
+
+pub fn setLayoutConstraintCenter(constraints, enabled) {
+    constraints["center"] = enabled
+    return constraints
+}
+
+pub fn setLayoutConstraintScale(constraints, enabled) {
+    constraints["scale"] = enabled
+    return constraints
+}
+
+pub fn applyLayout(layout, children, containerWidth, containerHeight) {
+    if layout["direction"] == "vertical" {
+        return applyVerticalLayout(layout, children, containerWidth, containerHeight)
+    } else if layout["direction"] == "horizontal" {
+        return applyHorizontalLayout(layout, children, containerWidth, containerHeight)
+    } else if layout["direction"] == "grid" {
+        return applyGridLayout(layout, children, containerWidth, containerHeight)
+    }
+    return children
+}
+
+fn applyVerticalLayout(layout, children, containerWidth, containerHeight) {
+    let padding = layout["padding"]
+    let gap = layout["gap"]
+    let currentY = padding["top"]
+    let result = []
+    
+    let i = 0
+    while i < len(children) {
+        let child = children[i]
+        let node = child["node"]
+        
+        let childWidth = getChildWidth(child, containerWidth - padding["left"] - padding["right"])
+        let childHeight = getChildHeight(child)
+        
+        let x = padding["left"]
+        
+        if layout["counterAxisAlignItems"] == "center" {
+            x = padding["left"] + (containerWidth - padding["left"] - padding["right"] - childWidth) / 2.0
+        } else if layout["counterAxisAlignItems"] == "max" {
+            x = containerWidth - padding["right"] - childWidth
+        }
+        
+        node["transform"]["position"]["x"] = x
+        node["transform"]["position"]["y"] = currentY
+        
+        result = push(result, node)
+        currentY = currentY + childHeight + gap
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn applyHorizontalLayout(layout, children, containerWidth, containerHeight) {
+    let padding = layout["padding"]
+    let gap = layout["gap"]
+    let currentX = padding["left"]
+    let result = []
+    
+    let i = 0
+    while i < len(children) {
+        let child = children[i]
+        let node = child["node"]
+        
+        let childWidth = getChildWidth(child, containerWidth - padding["left"] - padding["right"])
+        let childHeight = getChildHeight(child)
+        
+        let y = padding["top"]
+        
+        if layout["counterAxisAlignItems"] == "center" {
+            y = padding["top"] + (containerHeight - padding["top"] - padding["bottom"] - childHeight) / 2.0
+        } else if layout["counterAxisAlignItems"] == "max" {
+            y = containerHeight - padding["bottom"] - childHeight
+        }
+        
+        node["transform"]["position"]["x"] = currentX
+        node["transform"]["position"]["y"] = y
+        
+        result = push(result, node)
+        currentX = currentX + childWidth + gap
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn applyGridLayout(layout, children, containerWidth, containerHeight) {
+    let padding = layout["padding"]
+    let gap = layout["gap"]
+    let columns = 2
+    let columnWidth = (containerWidth - padding["left"] - padding["right"] - gap * (columns - 1)) / columns
+    let result = []
+    
+    let i = 0
+    while i < len(children) {
+        let child = children[i]
+        let node = child["node"]
+        
+        let col = i % columns
+        let row = floor(i / columns)
+        
+        let x = padding["left"] + col * (columnWidth + gap)
+        let y = padding["top"] + row * (getChildHeight(child) + gap)
+        
+        node["transform"]["position"]["x"] = x
+        node["transform"]["position"]["y"] = y
+        
+        result = push(result, node)
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn getChildWidth(child, availableWidth) {
+    if child["sizingMode"] == "fill" {
+        return availableWidth
+    } else if child["sizingMode"] == "fixed" {
+        return child["node"]["width"]
+    }
+    return child["node"]["width"]
+}
+
+fn getChildHeight(child) {
+    if child["sizingMode"] == "fill" {
+        return child["node"]["height"]
+    } else if child["sizingMode"] == "fixed" {
+        return child["node"]["height"]
+    }
+    return child["node"]["height"]
+}
+
+pub fn calculateLayoutContentSize(layout, children) {
+    let padding = layout["padding"]
+    let gap = layout["gap"]
+    
+    if layout["direction"] == "vertical" {
+        let totalHeight = padding["top"] + padding["bottom"]
+        let maxWidth = 0.0
+        
+        let i = 0
+        while i < len(children) {
+            let child = children[i]
+            let childWidth = getChildWidth(child, 1000.0)
+            let childHeight = getChildHeight(child)
+            
+            if childWidth > maxWidth {
+                maxWidth = childWidth
+            }
+            
+            totalHeight = totalHeight + childHeight
+            if i < len(children) - 1 {
+                totalHeight = totalHeight + gap
+            }
+            i = i + 1
+        }
+        
+        return {
+            "width": maxWidth + padding["left"] + padding["right"],
+            "height": totalHeight
+        }
+    } else if layout["direction"] == "horizontal" {
+        let totalWidth = padding["left"] + padding["right"]
+        let maxHeight = 0.0
+        
+        let i = 0
+        while i < len(children) {
+            let child = children[i]
+            let childWidth = getChildWidth(child, 1000.0)
+            let childHeight = getChildHeight(child)
+            
+            if childHeight > maxHeight {
+                maxHeight = childHeight
+            }
+            
+            totalWidth = totalWidth + childWidth
+            if i < len(children) - 1 {
+                totalWidth = totalWidth + gap
+            }
+            i = i + 1
+        }
+        
+        return {
+            "width": totalWidth,
+            "height": maxHeight + padding["top"] + padding["bottom"]
+        }
+    }
+    
+    return { "width": 0.0, "height": 0.0 }
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
