@@ -56,7 +56,7 @@ pub fn getSymbolVariant(definition, variantId) {
 
 pub fn createSymbolInstance(definitionId, transform) {
     return {
-        "kind": "SymbolInstance",
+        "kind": "Component",
         "id": generateSymbolId(),
         "definitionId": definitionId,
         "transform": transform,

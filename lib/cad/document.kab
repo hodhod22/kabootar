@@ -71,8 +71,8 @@ pub fn createGroupNode(name) {
     return createSceneNode("Group", name)
 }
 
-pub fn createComponentInstanceNode(name, definitionId) {
-    let node = createSceneNode("ComponentInstance", name)
+pub fn createComponentNode(name, definitionId) {
+    let node = createSceneNode("Component", name)
     node["definitionId"] = definitionId
     node["overrides"] = {}
     return node
