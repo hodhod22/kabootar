@@ -31,14 +31,14 @@ pub fn createGridSpatialIndex(cellSize, bounds) {
 pub fn buildSpatialIndex(document) {
     let index = createSpatialIndex()
     
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null && entity["visible"] == true {
-            let bounds = getEntityBounds(entity)
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            let bounds = getNodeBounds(node)
             index["entities"] = push(index["entities"], {
-                "entityId": entityId,
+                "nodeId": nodeId,
                 "bounds": bounds,
-                "entity": entity
+                "node": node
             })
         }
     }
@@ -62,7 +62,7 @@ pub fn buildGridSpatialIndex(document, cellSize) {
 }
 
 fn calculateDocumentBounds(document) {
-    if len(document["entities"]) == 0 {
+    if len(document["nodes"]) == 0 {
         return createBBox(0.0, 0.0, 1000.0, 1000.0)
     }
     
@@ -71,10 +71,10 @@ fn calculateDocumentBounds(document) {
     let maxX = -1e10
     let maxY = -1e10
     
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null {
-            let bounds = getEntityBounds(entity)
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let bounds = getNodeBounds(node)
             if bounds["minX"] < minX {
                 minX = bounds["minX"]
             }
@@ -91,6 +91,26 @@ fn calculateDocumentBounds(document) {
     }
     
     return createBBox(minX, minY, maxX, maxY)
+}
+
+fn getNodeBounds(node) {
+    if node["kind"] == "Frame" {
+        let pos = node["transform"]["position"]
+        let width = node["width"]
+        let height = node["height"]
+        return createBBox(pos["x"], pos["y"], pos["x"] + width, pos["y"] + height)
+    } else if node["kind"] == "Group" {
+        return calculateGroupBounds(node)
+    } else if node["kind"] == "Component" {
+        let pos = node["transform"]["position"]
+        return createBBox(pos["x"], pos["y"], pos["x"] + 100.0, pos["y"] + 100.0)
+    }
+    return createBBox(0.0, 0.0, 0.0, 0.0)
+}
+
+fn calculateGroupBounds(group) {
+    let pos = group["transform"]["position"]
+    return createBBox(pos["x"], pos["y"], pos["x"] + 50.0, pos["y"] + 50.0)
 }
 
 fn insertEntityIntoGrid(index, entityId, bounds, entity) {
@@ -211,7 +231,7 @@ pub fn pickBox(index, x1, y1, x2, y2) {
         while i < len(index["entities"]) {
             let item = index["entities"][i]
             if bboxIntersectsBBox(item["bounds"], pickBBox) {
-                picked = push(picked, item["entityId"])
+                picked = push(picked, item["nodeId"])
             }
             i = i + 1
         }
@@ -233,17 +253,7 @@ pub fn pickBox(index, x1, y1, x2, y2) {
                     while j < len(cellEntities) {
                         let item = cellEntities[j]
                         if bboxIntersectsBBox(item["bounds"], pickBBox) {
-                            let found = false
-                            let k = 0
-                            while k < len(picked) {
-                                if picked[k] == item["entityId"] {
-                                    found = true
-                                }
-                                k = k + 1
-                            }
-                            if found == false {
-                                picked = push(picked, item["entityId"])
-                            }
+                            picked = push(picked, item["nodeId"])
                         }
                         j = j + 1
                     }
@@ -264,9 +274,43 @@ pub fn pickRay(index, origin, direction, maxDistance) {
     while i < len(index["entities"]) {
         let item = index["entities"][i]
         if rayIntersectsBBox(origin, direction, item["bounds"], maxDistance) {
-            picked = push(picked, item["entityId"])
+            picked = push(picked, item["nodeId"])
         }
         i = i + 1
+    }
+    
+    return picked
+}
+
+pub fn pickPoint(index, x, y, tolerance) {
+    let point = vec2(x, y)
+    let picked = []
+    
+    if index["type"] == "linear" {
+        let i = 0
+        while i < len(index["entities"]) {
+            let item = index["entities"][i]
+            if pointInBBox(point, item["bounds"], tolerance) {
+                picked = push(picked, item["nodeId"])
+            }
+            i = i + 1
+        }
+    } else if index["type"] == "grid" {
+        let cellSize = index["cellSize"]
+        let cellX = floor(x / cellSize)
+        let cellY = floor(y / cellSize)
+        let cellKey = "" + cellX + "," + cellY
+        let cellEntities = index["grid"][cellKey]
+        if cellEntities != null {
+            let j = 0
+            while j < len(cellEntities) {
+                let item = cellEntities[j]
+                if pointInBBox(point, item["bounds"], tolerance) {
+                    picked = push(picked, item["nodeId"])
+                }
+                j = j + 1
+            }
+        }
     }
     
     return picked
