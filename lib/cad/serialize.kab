@@ -87,28 +87,6 @@ fn deserializeLayers(data) {
     return layers
 }
 
-fn serializeEntities(entities) {
-    let serialized = {}
-    for entityId in entities {
-        let entity = entities[entityId]
-        if entity != null {
-            serialized[entityId] = {
-                "id": entity["id"],
-                "kind": entity["kind"],
-                "data": entity["data"],
-                "properties": entity["properties"],
-                "styleSet": entity["styleSet"],
-                "layer": entity["layer"],
-                "visible": entity["visible"],
-                "locked": entity["locked"],
-                "selected": entity["selected"],
-                "group": entity["group"]
-            }
-        }
-    }
-    return serialized
-}
-
 fn serializeNodes(nodes) {
     let serialized = {}
     for nodeId in nodes {
@@ -158,26 +136,6 @@ fn serializePages(pages) {
         i = i + 1
     }
     return serialized
-}
-
-fn deserializeEntities(data) {
-    let entities = {}
-    for entityId in data {
-        let entityData = data[entityId]
-        entities[entityId] = {
-            "id": entityData["id"],
-            "kind": entityData["kind"],
-            "data": entityData["data"],
-            "properties": entityData["properties"],
-            "styleSet": entityData["styleSet"],
-            "layer": entityData["layer"],
-            "visible": entityData["visible"],
-            "locked": entityData["locked"],
-            "selected": entityData["selected"],
-            "group": entityData["group"]
-        }
-    }
-    return entities
 }
 
 fn deserializeNodes(data) {
@@ -232,7 +190,7 @@ fn deserializePages(data) {
 fn serializeSelection(selection) {
     return {
         "kind": selection["kind"],
-        "entityIds": selection["entityIds"],
+        "nodeIds": selection["nodeIds"],
         "mode": selection["mode"]
     }
 }
@@ -240,7 +198,7 @@ fn serializeSelection(selection) {
 fn deserializeSelection(data) {
     return {
         "kind": data["kind"],
-        "entityIds": data["entityIds"],
+        "nodeIds": data["nodeIds"],
         "mode": data["mode"]
     }
 }
@@ -370,7 +328,7 @@ pub fn validateSerializedDocument(data) {
         return false
     }
     
-    if data["entities"] == null {
+    if data["nodes"] == null {
         return false
     }
     
