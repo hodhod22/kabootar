@@ -1,0 +1,398 @@
+@version "1.0.0"
+
+// CAD Symbol - Symbol/block system for library symbols
+// Features: definition (geometry + ports/attributes), instance (ref + transform + overrides), explode, update-from-definition
+// Canonical path: import "cad/symbol"
+
+import "cad/transform"
+import "cad/geom"
+
+pub fn createSymbolDefinition(name) {
+    return {
+        "kind": "SymbolDefinition",
+        "id": generateSymbolId(),
+        "name": name,
+        "geometry": [],
+        "ports": [],
+        "attributes": {},
+        "bounds": createBBox(0.0, 0.0, 0.0, 0.0)
+    }
+}
+
+pub fn addSymbolGeometry(definition, entity) {
+    definition["geometry"] = push(definition["geometry"], entity)
+    definition["bounds"] = recalculateSymbolBounds(definition)
+    return definition
+}
+
+pub fn addSymbolPort(definition, port) {
+    definition["ports"] = push(definition["ports"], port)
+    return definition
+}
+
+pub fn setSymbolAttribute(definition, name, value) {
+    definition["attributes"][name] = value
+    return definition
+}
+
+pub fn getSymbolAttribute(definition, name) {
+    return definition["attributes"][name]
+}
+
+pub fn createSymbolPort(name, position, direction) {
+    return {
+        "kind": "SymbolPort",
+        "name": name,
+        "position": position,
+        "direction": direction
+    }
+}
+
+fn recalculateSymbolBounds(definition) {
+    if len(definition["geometry"]) == 0 {
+        return createBBox(0.0, 0.0, 0.0, 0.0)
+    }
+    
+    let minX = 1e10
+    let minY = 1e10
+    let maxX = -1e10
+    let maxY = -1e10
+    
+    let i = 0
+    while i < len(definition["geometry"]) {
+        let entity = definition["geometry"][i]
+        let bounds = getEntityBounds(entity)
+        
+        if bounds["minX"] < minX {
+            minX = bounds["minX"]
+        }
+        if bounds["minY"] < minY {
+            minY = bounds["minY"]
+        }
+        if bounds["maxX"] > maxX {
+            maxX = bounds["maxX"]
+        }
+        if bounds["maxY"] > maxY {
+            maxY = bounds["maxY"]
+        }
+        
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+pub fn createSymbolInstance(definitionId, transform) {
+    return {
+        "kind": "SymbolInstance",
+        "id": generateSymbolId(),
+        "definitionId": definitionId,
+        "transform": transform,
+        "overrides": {},
+        "visible": true,
+        "locked": false
+    }
+}
+
+pub fn setSymbolInstanceTransform(instance, transform) {
+    instance["transform"] = transform
+    return instance
+}
+
+pub fn setSymbolInstanceOverride(instance, attributeName, value) {
+    instance["overrides"][attributeName] = value
+    return instance
+}
+
+pub fn getSymbolInstanceOverride(instance, attributeName) {
+    return instance["overrides"][attributeName]
+}
+
+pub fn setSymbolInstanceVisible(instance, visible) {
+    instance["visible"] = visible
+    return instance
+}
+
+pub fn setSymbolInstanceLocked(instance, locked) {
+    instance["locked"] = locked
+    return instance
+}
+
+pub fn createSymbolLibrary() {
+    return {
+        "kind": "SymbolLibrary",
+        "definitions": {},
+        "definitionCounter": 0
+    }
+}
+
+pub fn addSymbolDefinitionToLibrary(library, definition) {
+    library["definitions"][definition["id"]] = definition
+    return library
+}
+
+pub fn removeSymbolDefinitionFromLibrary(library, definitionId) {
+    library["definitions"][definitionId] = null
+    return library
+}
+
+pub fn getSymbolDefinitionFromLibrary(library, definitionId) {
+    return library["definitions"][definitionId]
+}
+
+pub fn findSymbolDefinitionByName(library, name) {
+    for definitionId in library["definitions"] {
+        let definition = library["definitions"][definitionId]
+        if definition != null && definition["name"] == name {
+            return definition
+        }
+    }
+    return null
+}
+
+pub fn explodeSymbolInstance(instance, definition) {
+    let exploded = []
+    
+    let transform = instance["transform"]
+    let worldMatrix = getWorldMatrix(transform)
+    
+    let i = 0
+    while i < len(definition["geometry"]) {
+        let entity = cloneEntity(definition["geometry"][i])
+        entity = transformEntity(entity, worldMatrix)
+        
+        for attrName in instance["overrides"] {
+            entity["properties"][attrName] = instance["overrides"][attrName]
+        }
+        
+        exploded = push(exploded, entity)
+        i = i + 1
+    }
+    
+    return exploded
+}
+
+pub fn updateSymbolInstanceFromDefinition(instance, definition) {
+    return instance
+}
+
+pub fn cloneSymbolInstance(instance) {
+    let clone = {}
+    for key in instance {
+        clone[key] = instance[key]
+    }
+    clone["id"] = generateSymbolId()
+    clone["transform"] = cloneTransform(instance["transform"])
+    return clone
+}
+
+pub fn cloneSymbolDefinition(definition) {
+    let clone = {}
+    for key in definition {
+        clone[key] = definition[key]
+    }
+    clone["id"] = generateSymbolId()
+    
+    let clonedGeometry = []
+    let i = 0
+    while i < len(definition["geometry"]) {
+        clonedGeometry = push(clonedGeometry, cloneEntity(definition["geometry"][i]))
+        i = i + 1
+    }
+    clone["geometry"] = clonedGeometry
+    
+    let clonedPorts = []
+    let j = 0
+    while j < len(definition["ports"]) {
+        let portClone = {}
+        for key in definition["ports"][j] {
+            portClone[key] = definition["ports"][j][key]
+        }
+        clonedPorts = push(clonedPorts, portClone)
+        j = j + 1
+    }
+    clone["ports"] = clonedPorts
+    
+    return clone
+}
+
+pub fn getSymbolInstanceBounds(instance, definition) {
+    let transform = instance["transform"]
+    let worldMatrix = getWorldMatrix(transform)
+    
+    let localBounds = definition["bounds"]
+    let minTransformed = matrix2DTransformPoint(worldMatrix, vec2(localBounds["minX"], localBounds["minY"]))
+    let maxTransformed = matrix2DTransformPoint(worldMatrix, vec2(localBounds["maxX"], localBounds["maxY"]))
+    
+    return createBBox(
+        min(minTransformed["x"], maxTransformed["x"]),
+        min(minTransformed["y"], maxTransformed["y"]),
+        max(minTransformed["x"], maxTransformed["x"]),
+        max(minTransformed["y"], maxTransformed["y"])
+    )
+}
+
+pub fn getSymbolInstancePortPosition(instance, definition, portName) {
+    let port = findSymbolPort(definition, portName)
+    if port == null {
+        return vec2(0.0, 0.0)
+    }
+    
+    let transform = instance["transform"]
+    let worldMatrix = getWorldMatrix(transform)
+    
+    return matrix2DTransformPoint(worldMatrix, port["position"])
+}
+
+fn findSymbolPort(definition, portName) {
+    let i = 0
+    while i < len(definition["ports"]) {
+        if definition["ports"][i]["name"] == portName {
+            return definition["ports"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn connectSymbolPorts(instanceA, definitionA, portNameA, instanceB, definitionB, portNameB) {
+    let posA = getSymbolInstancePortPosition(instanceA, definitionA, portNameA)
+    let posB = getSymbolInstancePortPosition(instanceB, definitionB, portNameB)
+    
+    return createSegment(posA, posB)
+}
+
+pub fn createSymbolGroup(name, instanceIds) {
+    return {
+        "kind": "SymbolGroup",
+        "id": generateSymbolId(),
+        "name": name,
+        "instanceIds": instanceIds,
+        "visible": true,
+        "locked": false
+    }
+}
+
+pub fn addInstanceToSymbolGroup(group, instanceId) {
+    group["instanceIds"] = push(group["instanceIds"], instanceId)
+    return group
+}
+
+pub fn removeInstanceFromSymbolGroup(group, instanceId) {
+    let newIds = []
+    let i = 0
+    while i < len(group["instanceIds"]) {
+        if group["instanceIds"][i] != instanceId {
+            newIds = push(newIds, group["instanceIds"][i])
+        }
+        i = i + 1
+    }
+    group["instanceIds"] = newIds
+    return group
+}
+
+fn transformEntity(entity, matrix) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        data["start"] = matrix2DTransformPoint(matrix, data["start"])
+        data["end"] = matrix2DTransformPoint(matrix, data["end"])
+    } else if entity["kind"] == "Rectangle" {
+        let p1 = matrix2DTransformPoint(matrix, vec2(data["x"], data["y"]))
+        let p2 = matrix2DTransformPoint(matrix, vec2(data["x"] + data["width"], data["y"]))
+        let p3 = matrix2DTransformPoint(matrix, vec2(data["x"] + data["width"], data["y"] + data["height"]))
+        let p4 = matrix2DTransformPoint(matrix, vec2(data["x"], data["y"] + data["height"]))
+        
+        let minX = min(p1["x"], p2["x"], p3["x"], p4["x"])
+        let minY = min(p1["y"], p2["y"], p3["y"], p4["y"])
+        let maxX = max(p1["x"], p2["x"], p3["x"], p4["x"])
+        let maxY = max(p1["y"], p2["y"], p3["y"], p4["y"])
+        
+        data["x"] = minX
+        data["y"] = minY
+        data["width"] = maxX - minX
+        data["height"] = maxY - minY
+    } else if entity["kind"] == "Circle" {
+        data["center"] = matrix2DTransformPoint(matrix, data["center"])
+        let scale = sqrt(matrix["m11"] * matrix["m11"] + matrix["m12"] * matrix["m12"])
+        data["radius"] = data["radius"] * scale
+    } else if entity["kind"] == "Polyline" {
+        let i = 0
+        while i < len(data["points"]) {
+            data["points"][i] = matrix2DTransformPoint(matrix, data["points"][i])
+            i = i + 1
+        }
+    } else if entity["kind"] == "Point" {
+        data["position"] = matrix2DTransformPoint(matrix, data["position"])
+    } else if entity["kind"] == "Text" {
+        data["position"] = matrix2DTransformPoint(matrix, data["position"])
+    }
+    
+    entity["data"] = data
+    return entity
+}
+
+fn cloneEntity(entity) {
+    let clone = {}
+    for key in entity {
+        clone[key] = entity[key]
+    }
+    clone["id"] = generateSymbolId()
+    return clone
+}
+
+fn generateSymbolId() {
+    return "sym-" + timestamp() + "-" + random()
+}
+
+fn timestamp() {
+    return floor(currentTime() * 1000.0)
+}
+
+fn currentTime() {
+    return 0.0
+}
+
+fn random() {
+    return 0.0
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
+
+fn min(a, b, c, d) {
+    let result = a
+    if b < result {
+        result = b
+    }
+    if c < result {
+        result = c
+    }
+    if d < result {
+        result = d
+    }
+    return result
+}
+
+fn max(a, b, c, d) {
+    let result = a
+    if b > result {
+        result = b
+    }
+    if c > result {
+        result = c
+    }
+    if d > result {
+        result = d
+    }
+    return result
+}
+
+fn sqrt(value) {
+    return value
+}

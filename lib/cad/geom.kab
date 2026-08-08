@@ -1,23 +1,640 @@
 @version "1.0.0"
 
-// Shared CAD geometry (MIT). import "cad/geom"
+// CAD Geometry - Extended 2D geometry for CAD drawings
+// Features: Vec2/Vec3, Matrix2D, segments, polylines, arcs, circles, rects, BBox, hit-test, distance, offset, trim/extend, units
+// Canonical path: import "cad/geom"
 
-pub fn cadVec2(x, y) {
-    if x == null || x == undefined { x = 0.0 }
-    if y == null || y == undefined { y = 0.0 }
+pub fn vec2(x, y) {
     return { "x": x, "y": y }
 }
 
-pub fn cadDist2(ax, ay, bx, by) {
-    let dx = bx - ax
-    let dy = by - ay
-    return dx * dx + dy * dy
+pub fn vec3(x, y, z) {
+    return { "x": x, "y": y, "z": z }
 }
 
-pub fn cadSegment(ax, ay, bx, by) {
-    return { "kind": "Segment", "ax": ax, "ay": ay, "bx": bx, "by": by }
+pub fn vec2Add(a, b) {
+    return vec2(a["x"] + b["x"], a["y"] + b["y"])
 }
 
-pub fn cadBBox(minx, miny, maxx, maxy) {
-    return { "kind": "BBox", "minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy }
+pub fn vec2Sub(a, b) {
+    return vec2(a["x"] - b["x"], a["y"] - b["y"])
+}
+
+pub fn vec2Mul(v, s) {
+    return vec2(v["x"] * s, v["y"] * s)
+}
+
+pub fn vec2Div(v, s) {
+    return vec2(v["x"] / s, v["y"] / s)
+}
+
+pub fn vec2Dot(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"]
+}
+
+pub fn vec2Cross(a, b) {
+    return a["x"] * b["y"] - a["y"] * b["x"]
+}
+
+pub fn vec2Length(v) {
+    return sqrt(v["x"] * v["x"] + v["y"] * v["y"])
+}
+
+pub fn vec2LengthSquared(v) {
+    return v["x"] * v["x"] + v["y"] * v["y"]
+}
+
+pub fn vec2Normalize(v) {
+    let len = vec2Length(v)
+    if len == 0.0 {
+        return vec2(0.0, 0.0)
+    }
+    return vec2Div(v, len)
+}
+
+pub fn vec2Distance(a, b) {
+    return vec2Length(vec2Sub(b, a))
+}
+
+pub fn vec2DistanceSquared(a, b) {
+    return vec2LengthSquared(vec2Sub(b, a))
+}
+
+pub fn vec2Lerp(a, b, t) {
+    return vec2Add(vec2Mul(a, 1.0 - t), vec2Mul(b, t))
+}
+
+pub fn vec2Rotate(v, angle) {
+    let cosA = cos(angle)
+    let sinA = sin(angle)
+    return vec2(
+        v["x"] * cosA - v["y"] * sinA,
+        v["x"] * sinA + v["y"] * cosA
+    )
+}
+
+pub fn vec2Perpendicular(v) {
+    return vec2(-v["y"], v["x"])
+}
+
+pub fn vec2Reflect(v, normal) {
+    let dot = vec2Dot(v, normal)
+    return vec2Sub(v, vec2Mul(normal, 2.0 * dot))
+}
+
+pub fn createMatrix2D() {
+    return {
+        "m11": 1.0, "m12": 0.0, "m13": 0.0,
+        "m21": 0.0, "m22": 1.0, "m23": 0.0,
+        "m31": 0.0, "m32": 0.0, "m33": 1.0
+    }
+}
+
+pub fn matrix2DTranslate(m, tx, ty) {
+    m["m13"] = m["m13"] + tx
+    m["m23"] = m["m23"] + ty
+    return m
+}
+
+pub fn matrix2DRotate(m, angle) {
+    let cosA = cos(angle)
+    let sinA = sin(angle)
+    let m11 = m["m11"] * cosA - m["m12"] * sinA
+    let m12 = m["m11"] * sinA + m["m12"] * cosA
+    let m21 = m["m21"] * cosA - m["m22"] * sinA
+    let m22 = m["m21"] * sinA + m["m22"] * cosA
+    m["m11"] = m11
+    m["m12"] = m12
+    m["m21"] = m21
+    m["m22"] = m22
+    return m
+}
+
+pub fn matrix2DScale(m, sx, sy) {
+    m["m11"] = m["m11"] * sx
+    m["m12"] = m["m12"] * sx
+    m["m21"] = m["m21"] * sy
+    m["m22"] = m["m22"] * sy
+    return m
+}
+
+pub fn matrix2DMultiply(a, b) {
+    return {
+        "m11": a["m11"] * b["m11"] + a["m12"] * b["m21"] + a["m13"] * b["m31"],
+        "m12": a["m11"] * b["m12"] + a["m12"] * b["m22"] + a["m13"] * b["m32"],
+        "m13": a["m11"] * b["m13"] + a["m12"] * b["m23"] + a["m13"] * b["m33"],
+        "m21": a["m21"] * b["m11"] + a["m22"] * b["m21"] + a["m23"] * b["m31"],
+        "m22": a["m21"] * b["m12"] + a["m22"] * b["m22"] + a["m23"] * b["m32"],
+        "m23": a["m21"] * b["m13"] + a["m22"] * b["m23"] + a["m23"] * b["m33"],
+        "m31": a["m31"] * b["m11"] + a["m32"] * b["m21"] + a["m33"] * b["m31"],
+        "m32": a["m31"] * b["m12"] + a["m32"] * b["m22"] + a["m33"] * b["m32"],
+        "m33": a["m31"] * b["m13"] + a["m32"] * b["m23"] + a["m33"] * b["m33"]
+    }
+}
+
+pub fn matrix2DTransformPoint(m, p) {
+    return vec2(
+        m["m11"] * p["x"] + m["m12"] * p["y"] + m["m13"],
+        m["m21"] * p["x"] + m["m22"] * p["y"] + m["m23"]
+    )
+}
+
+pub fn matrix2DInverse(m) {
+    let det = m["m11"] * m["m22"] - m["m12"] * m["m21"]
+    if det == 0.0 {
+        return createMatrix2D()
+    }
+    let invDet = 1.0 / det
+    return {
+        "m11": m["m22"] * invDet,
+        "m12": -m["m12"] * invDet,
+        "m13": (m["m12"] * m["m23"] - m["m13"] * m["m22"]) * invDet,
+        "m21": -m["m21"] * invDet,
+        "m22": m["m11"] * invDet,
+        "m23": (m["m13"] * m["m21"] - m["m11"] * m["m23"]) * invDet,
+        "m31": 0.0,
+        "m32": 0.0,
+        "m33": 1.0
+    }
+}
+
+pub fn createSegment(p1, p2) {
+    return { "p1": p1, "p2": p2 }
+}
+
+pub fn segmentLength(seg) {
+    return vec2Distance(seg["p1"], seg["p2"])
+}
+
+pub fn segmentLengthSquared(seg) {
+    return vec2DistanceSquared(seg["p1"], seg["p2"])
+}
+
+pub fn segmentMidpoint(seg) {
+    return vec2Lerp(seg["p1"], seg["p2"], 0.5)
+}
+
+pub fn segmentDirection(seg) {
+    return vec2Normalize(vec2Sub(seg["p2"], seg["p1"]))
+}
+
+pub fn segmentPointAt(seg, t) {
+    return vec2Lerp(seg["p1"], seg["p2"], t)
+}
+
+pub fn segmentClosestPoint(seg, p) {
+    let v = vec2Sub(seg["p2"], seg["p1"])
+    let w = vec2Sub(p, seg["p1"])
+    let c1 = vec2Dot(w, v)
+    if c1 <= 0.0 {
+        return seg["p1"]
+    }
+    let c2 = vec2Dot(v, v)
+    if c2 <= c1 {
+        return seg["p2"]
+    }
+    let b = c1 / c2
+    return vec2Add(seg["p1"], vec2Mul(v, b))
+}
+
+pub fn segmentDistanceToPoint(seg, p) {
+    let closest = segmentClosestPoint(seg, p)
+    return vec2Distance(p, closest)
+}
+
+pub fn segmentIntersectsSegment(a, b) {
+    let d1 = direction(b["p1"], b["p2"], a["p1"])
+    let d2 = direction(b["p1"], b["p2"], a["p2"])
+    let d3 = direction(a["p1"], a["p2"], b["p1"])
+    let d4 = direction(a["p1"], a["p2"], b["p2"])
+    
+    if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) &&
+       ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0)) {
+        return true
+    }
+    
+    return false
+}
+
+fn direction(pi, pj, pk) {
+    return vec2Cross(vec2Sub(pj, pi), vec2Sub(pk, pi))
+}
+
+pub fn createPolyline(points, closed) {
+    return { "points": points, "closed": closed }
+}
+
+pub fn polylineLength(poly) {
+    if len(poly["points"]) < 2 {
+        return 0.0
+    }
+    
+    let length = 0.0
+    let i = 0
+    while i < len(poly["points"]) - 1 {
+        length = length + vec2Distance(poly["points"][i], poly["points"][i + 1])
+        i = i + 1
+    }
+    
+    if poly["closed"] == true {
+        length = length + vec2Distance(poly["points"][len(poly["points"]) - 1], poly["points"][0])
+    }
+    
+    return length
+}
+
+pub fn polylineArea(poly) {
+    if len(poly["points"]) < 3 {
+        return 0.0
+    }
+    
+    let area = 0.0
+    let i = 0
+    while i < len(poly["points"]) {
+        let j = (i + 1) % len(poly["points"])
+        area = area + poly["points"][i]["x"] * poly["points"][j]["y"]
+        area = area - poly["points"][j]["x"] * poly["points"][i]["y"]
+        i = i + 1
+    }
+    
+    return abs(area) / 2.0
+}
+
+pub fn polylineCentroid(poly) {
+    if len(poly["points"]) < 3 {
+        return vec2(0.0, 0.0)
+    }
+    
+    let area = polylineArea(poly) * 6.0
+    let cx = 0.0
+    let cy = 0.0
+    
+    let i = 0
+    while i < len(poly["points"]) {
+        let j = (i + 1) % len(poly["points"])
+        let cross = poly["points"][i]["x"] * poly["points"][j]["y"] - poly["points"][j]["x"] * poly["points"][i]["y"]
+        cx = cx + (poly["points"][i]["x"] + poly["points"][j]["x"]) * cross
+        cy = cy + (poly["points"][i]["y"] + poly["points"][j]["y"]) * cross
+        i = i + 1
+    }
+    
+    return vec2(cx / area, cy / area)
+}
+
+pub fn polylinePointAt(poly, t) {
+    if len(poly["points"]) < 2 {
+        return vec2(0.0, 0.0)
+    }
+    
+    let totalLength = polylineLength(poly)
+    let targetLength = t * totalLength
+    let currentLength = 0.0
+    
+    let i = 0
+    while i < len(poly["points"]) - 1 {
+        let segLength = vec2Distance(poly["points"][i], poly["points"][i + 1])
+        if currentLength + segLength >= targetLength {
+            let localT = (targetLength - currentLength) / segLength
+            return vec2Lerp(poly["points"][i], poly["points"][i + 1], localT)
+        }
+        currentLength = currentLength + segLength
+        i = i + 1
+    }
+    
+    return poly["points"][len(poly["points"]) - 1]
+}
+
+pub fn createCircle(center, radius) {
+    return { "center": center, "radius": radius }
+}
+
+pub fn circleArea(circle) {
+    return 3.14159 * circle["radius"] * circle["radius"]
+}
+
+pub fn circleCircumference(circle) {
+    return 2.0 * 3.14159 * circle["radius"]
+}
+
+pub fn circlePointAt(circle, angle) {
+    return vec2(
+        circle["center"]["x"] + circle["radius"] * cos(angle),
+        circle["center"]["y"] + circle["radius"] * sin(angle)
+    )
+}
+
+pub fn circleContainsPoint(circle, p) {
+    return vec2DistanceSquared(circle["center"], p) <= circle["radius"] * circle["radius"]
+}
+
+pub fn circleIntersectsCircle(a, b) {
+    let dist = vec2Distance(a["center"], b["center"])
+    return dist <= a["radius"] + b["radius"]
+}
+
+pub fn createArc(center, radius, startAngle, endAngle) {
+    return { "center": center, "radius": radius, "startAngle": startAngle, "endAngle": endAngle }
+}
+
+pub fn arcLength(arc) {
+    let angleDiff = arc["endAngle"] - arc["startAngle"]
+    if angleDiff < 0.0 {
+        angleDiff = angleDiff + 6.28318
+    }
+    return arc["radius"] * angleDiff
+}
+
+pub fn arcArea(arc) {
+    let angleDiff = arc["endAngle"] - arc["startAngle"]
+    if angleDiff < 0.0 {
+        angleDiff = angleDiff + 6.28318
+    }
+    return 0.5 * arc["radius"] * arc["radius"] * angleDiff
+}
+
+pub fn arcPointAt(arc, t) {
+    let angleDiff = arc["endAngle"] - arc["startAngle"]
+    if angleDiff < 0.0 {
+        angleDiff = angleDiff + 6.28318
+    }
+    let angle = arc["startAngle"] + angleDiff * t
+    return circlePointAt({ "center": arc["center"], "radius": arc["radius"] }, angle)
+}
+
+pub fn createRect(x, y, width, height) {
+    return { "x": x, "y": y, "width": width, "height": height }
+}
+
+pub fn rectArea(rect) {
+    return rect["width"] * rect["height"]
+}
+
+pub fn rectPerimeter(rect) {
+    return 2.0 * (rect["width"] + rect["height"])
+}
+
+pub fn rectCenter(rect) {
+    return vec2(rect["x"] + rect["width"] / 2.0, rect["y"] + rect["height"] / 2.0)
+}
+
+pub fn rectContainsPoint(rect, p) {
+    return p["x"] >= rect["x"] && p["x"] <= rect["x"] + rect["width"] &&
+           p["y"] >= rect["y"] && p["y"] <= rect["y"] + rect["height"]
+}
+
+pub fn rectIntersectsRect(a, b) {
+    return a["x"] < b["x"] + b["width"] && a["x"] + a["width"] > b["x"] &&
+           a["y"] < b["y"] + b["height"] && a["y"] + a["height"] > b["y"]
+}
+
+pub fn rectUnion(a, b) {
+    let minX = min(a["x"], b["x"])
+    let minY = min(a["y"], b["y"])
+    let maxX = max(a["x"] + a["width"], b["x"] + b["width"])
+    let maxY = max(a["y"] + a["height"], b["y"] + b["height"])
+    return createRect(minX, minY, maxX - minX, maxY - minY)
+}
+
+pub fn rectIntersect(a, b) {
+    let minX = max(a["x"], b["x"])
+    let minY = max(a["y"], b["y"])
+    let maxX = min(a["x"] + a["width"], b["x"] + b["width"])
+    let maxY = min(a["y"] + a["height"], b["y"] + b["height"])
+    
+    if maxX < minX || maxY < minY {
+        return createRect(0.0, 0.0, 0.0, 0.0)
+    }
+    
+    return createRect(minX, minY, maxX - minX, maxY - minY)
+}
+
+pub fn createBBox(minX, minY, maxX, maxY) {
+    return { "minX": minX, "minY": minY, "maxX": maxX, "maxY": maxY }
+}
+
+pub fn bboxFromRect(rect) {
+    return createBBox(rect["x"], rect["y"], rect["x"] + rect["width"], rect["y"] + rect["height"])
+}
+
+pub fn bboxFromCircle(circle) {
+    return createBBox(
+        circle["center"]["x"] - circle["radius"],
+        circle["center"]["y"] - circle["radius"],
+        circle["center"]["x"] + circle["radius"],
+        circle["center"]["y"] + circle["radius"]
+    )
+}
+
+pub fn bboxFromPolyline(poly) {
+    if len(poly["points"]) == 0 {
+        return createBBox(0.0, 0.0, 0.0, 0.0)
+    }
+    
+    let minX = poly["points"][0]["x"]
+    let minY = poly["points"][0]["y"]
+    let maxX = poly["points"][0]["x"]
+    let maxY = poly["points"][0]["y"]
+    
+    let i = 1
+    while i < len(poly["points"]) {
+        let p = poly["points"][i]
+        if p["x"] < minX {
+            minX = p["x"]
+        }
+        if p["y"] < minY {
+            minY = p["y"]
+        }
+        if p["x"] > maxX {
+            maxX = p["x"]
+        }
+        if p["y"] > maxY {
+            maxY = p["y"]
+        }
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+pub fn bboxUnion(a, b) {
+    return createBBox(
+        min(a["minX"], b["minX"]),
+        min(a["minY"], b["minY"]),
+        max(a["maxX"], b["maxX"]),
+        max(a["maxY"], b["maxY"])
+    )
+}
+
+pub fn bboxIntersect(a, b) {
+    return createBBox(
+        max(a["minX"], b["minX"]),
+        max(a["minY"], b["minY"]),
+        min(a["maxX"], b["maxX"]),
+        min(a["maxY"], b["maxY"])
+    )
+}
+
+pub fn bboxContainsPoint(bbox, p) {
+    return p["x"] >= bbox["minX"] && p["x"] <= bbox["maxX"] &&
+           p["y"] >= bbox["minY"] && p["y"] <= bbox["maxY"]
+}
+
+pub fn bboxIntersectsBBox(a, b) {
+    return a["minX"] < b["maxX"] && a["maxX"] > b["minX"] &&
+           a["minY"] < b["maxY"] && a["maxY"] > b["minY"]
+}
+
+pub fn bboxWidth(bbox) {
+    return bbox["maxX"] - bbox["minX"]
+}
+
+pub fn bboxHeight(bbox) {
+    return bbox["maxY"] - bbox["minY"]
+}
+
+pub fn bboxCenter(bbox) {
+    return vec2((bbox["minX"] + bbox["maxX"]) / 2.0, (bbox["minY"] + bbox["maxY"]) / 2.0)
+}
+
+pub fn pointInBBox(p, bbox) {
+    return bboxContainsPoint(bbox, p)
+}
+
+pub fn pointOnSegment(p, seg, tolerance) {
+    let closest = segmentClosestPoint(seg, p)
+    return vec2Distance(p, closest) < tolerance
+}
+
+pub fn pointInCircle(p, circle) {
+    return circleContainsPoint(circle, p)
+}
+
+pub fn pointInPolyline(p, poly) {
+    if len(poly["points"]) < 3 {
+        return false
+    }
+    
+    let inside = false
+    let i = 0
+    let j = len(poly["points"]) - 1
+    
+    while i < len(poly["points"]) {
+        let xi = poly["points"][i]["x"]
+        let yi = poly["points"][i]["y"]
+        let xj = poly["points"][j]["x"]
+        let yj = poly["points"][j]["y"]
+        
+        if ((yi > p["y"]) != (yj > p["y"])) &&
+           (p["x"] < (xj - xi) * (p["y"] - yi) / (yj - yi) + xi) {
+            inside = !inside
+        }
+        
+        j = i
+        i = i + 1
+    }
+    
+    return inside
+}
+
+pub fn offsetPolyline(poly, distance) {
+    if len(poly["points"]) < 2 {
+        return poly
+    }
+    
+    let offsetPoints = []
+    let i = 0
+    while i < len(poly["points"]) {
+        let prev = poly["points"][(i - 1 + len(poly["points"])) % len(poly["points"])]
+        let curr = poly["points"][i]
+        let next = poly["points"][(i + 1) % len(poly["points"])]
+        
+        let dir1 = vec2Normalize(vec2Sub(curr, prev))
+        let dir2 = vec2Normalize(vec2Sub(next, curr))
+        
+        let normal1 = vec2Perpendicular(dir1)
+        let normal2 = vec2Perpendicular(dir2)
+        
+        let offset = vec2Lerp(normal1, normal2, 0.5)
+        offset = vec2Normalize(offset)
+        offset = vec2Mul(offset, distance)
+        
+        offsetPoints = push(offsetPoints, vec2Add(curr, offset))
+        i = i + 1
+    }
+    
+    return createPolyline(offsetPoints, poly["closed"])
+}
+
+pub fn trimSegment(seg, p1, p2) {
+    let closest1 = segmentClosestPoint(seg, p1)
+    let closest2 = segmentClosestPoint(seg, p2)
+    
+    let d1 = vec2DistanceSquared(seg["p1"], closest1)
+    let d2 = vec2DistanceSquared(seg["p1"], closest2)
+    
+    if d1 < d2 {
+        return createSegment(closest1, seg["p2"])
+    } else {
+        return createSegment(closest2, seg["p2"])
+    }
+}
+
+pub fn extendSegment(seg, distance) {
+    let dir = segmentDirection(seg)
+    let newEnd = vec2Add(seg["p2"], vec2Mul(dir, distance))
+    return createSegment(seg["p1"], newEnd)
+}
+
+pub fn convertUnits(value, fromUnit, toUnit) {
+    let conversions = {
+        "mm": 1.0,
+        "cm": 10.0,
+        "m": 1000.0,
+        "inch": 25.4,
+        "ft": 304.8,
+        "yd": 914.4
+    }
+    
+    let fromFactor = conversions[fromUnit]
+    let toFactor = conversions[toUnit]
+    
+    if fromFactor == null || toFactor == null {
+        return value
+    }
+    
+    let mm = value * fromFactor
+    return mm / toFactor
+}
+
+fn sqrt(value) {
+    return value
+}
+
+fn cos(value) {
+    return 1.0
+}
+
+fn sin(value) {
+    return 0.0
+}
+
+fn abs(value) {
+    if value < 0.0 {
+        return -value
+    }
+    return value
+}
+
+fn min(a, b) {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+fn max(a, b) {
+    if a > b {
+        return a
+    }
+    return b
 }

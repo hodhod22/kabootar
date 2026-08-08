@@ -1,0 +1,399 @@
+@version "1.0.0"
+
+// CAD Document - Core document management for CAD drawings
+// Features: Document creation, layers, entities, selection, undo/redo, metadata
+// Canonical path: import "cad/document"
+
+pub fn createDocument(name, units) {
+    return {
+        "kind": "CADDocument",
+        "id": generateDocumentId(),
+        "name": name,
+        "units": units,
+        "version": "1.0",
+        "cadVersion": "1.0",
+        "metadata": {
+            "title": name,
+            "author": "",
+            "created": null,
+            "modified": null,
+            "description": ""
+        },
+        "layers": {
+            "default": createLayer("default", { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 })
+        },
+        "activeLayer": "default",
+        "entities": {},
+        "entityCounter": 0,
+        "selection": createSelection(),
+        "undoStack": [],
+        "redoStack": [],
+        "maxUndoSteps": 100
+    }
+}
+
+pub fn createLayer(name, color) {
+    return {
+        "kind": "Layer",
+        "name": name,
+        "color": color,
+        "visible": true,
+        "locked": false,
+        "printable": true,
+        "lineWidth": 1.0,
+        "lineStyle": "solid"
+    }
+}
+
+pub fn createSelection() {
+    return {
+        "kind": "Selection",
+        "entityIds": [],
+        "mode": "single"
+    }
+}
+
+pub fn addLayer(document, layer) {
+    document["layers"][layer["name"]] = layer
+    return document
+}
+
+pub fn removeLayer(document, layerName) {
+    if layerName == "default" {
+        return document
+    }
+    document["layers"][layerName] = null
+    return document
+}
+
+pub fn setActiveLayer(document, layerName) {
+    if document["layers"][layerName] != null {
+        document["activeLayer"] = layerName
+    }
+    return document
+}
+
+pub fn getLayer(document, layerName) {
+    return document["layers"][layerName]
+}
+
+pub fn setLayerVisible(document, layerName, visible) {
+    if document["layers"][layerName] != null {
+        document["layers"][layerName]["visible"] = visible
+    }
+    return document
+}
+
+pub fn setLayerLocked(document, layerName, locked) {
+    if document["layers"][layerName] != null {
+        document["layers"][layerName]["locked"] = locked
+    }
+    return document
+}
+
+pub fn addEntity(document, entity) {
+    let entityId = "" + document["entityCounter"]
+    document["entityCounter"] = document["entityCounter"] + 1
+    entity["id"] = entityId
+    entity["layer"] = document["activeLayer"]
+    document["entities"][entityId] = entity
+    return document
+}
+
+pub fn removeEntity(document, entityId) {
+    document["entities"][entityId] = null
+    document = removeFromSelection(document, entityId)
+    return document
+}
+
+pub fn getEntity(document, entityId) {
+    return document["entities"][entityId]
+}
+
+pub fn updateEntity(document, entityId, entity) {
+    document["entities"][entityId] = entity
+    return document
+}
+
+pub fn selectEntity(document, entityId) {
+    let selection = document["selection"]
+    if selection["mode"] == "single" {
+        selection["entityIds"] = [entityId]
+    } else {
+        let found = false
+        let i = 0
+        while i < len(selection["entityIds"]) {
+            if selection["entityIds"][i] == entityId {
+                found = true
+            }
+            i = i + 1
+        }
+        if found == false {
+            selection["entityIds"] = push(selection["entityIds"], entityId)
+        }
+    }
+    document["selection"] = selection
+    return document
+}
+
+pub fn deselectEntity(document, entityId) {
+    let selection = document["selection"]
+    let newIds = []
+    let i = 0
+    while i < len(selection["entityIds"]) {
+        if selection["entityIds"][i] != entityId {
+            newIds = push(newIds, selection["entityIds"][i])
+        }
+        i = i + 1
+    }
+    selection["entityIds"] = newIds
+    document["selection"] = selection
+    return document
+}
+
+fn removeFromSelection(document, entityId) {
+    let selection = document["selection"]
+    let newIds = []
+    let i = 0
+    while i < len(selection["entityIds"]) {
+        if selection["entityIds"][i] != entityId {
+            newIds = push(newIds, selection["entityIds"][i])
+        }
+        i = i + 1
+    }
+    selection["entityIds"] = newIds
+    document["selection"] = selection
+    return document
+}
+
+pub fn clearSelection(document) {
+    document["selection"]["entityIds"] = []
+    return document
+}
+
+pub fn selectAll(document) {
+    let selection = document["selection"]
+    selection["entityIds"] = []
+    for entityId in document["entities"] {
+        let entity = document["entities"][entityId]
+        if entity != null {
+            selection["entityIds"] = push(selection["entityIds"], entityId)
+        }
+    }
+    document["selection"] = selection
+    return document
+}
+
+pub fn invertSelection(document) {
+    let selection = document["selection"]
+    let newIds = []
+    for entityId in document["entities"] {
+        let entity = document["entities"][entityId]
+        if entity != null {
+            let selected = false
+            let i = 0
+            while i < len(selection["entityIds"]) {
+                if selection["entityIds"][i] == entityId {
+                    selected = true
+                }
+                i = i + 1
+            }
+            if selected == false {
+                newIds = push(newIds, entityId)
+            }
+        }
+    }
+    selection["entityIds"] = newIds
+    document["selection"] = selection
+    return document
+}
+
+pub fn getSelectedCount(document) {
+    return len(document["selection"]["entityIds"])
+}
+
+pub fn isSelected(document, entityId) {
+    let i = 0
+    while i < len(document["selection"]["entityIds"]) {
+        if document["selection"]["entityIds"][i] == entityId {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn setSelectionMode(document, mode) {
+    document["selection"]["mode"] = mode
+    return document
+}
+
+pub fn beginUndo(document, description) {
+    let snapshot = createDocumentSnapshot(document)
+    document["undoStack"] = push(document["undoStack"], {
+        "description": description,
+        "snapshot": snapshot
+    })
+    
+    if len(document["undoStack"]) > document["maxUndoSteps"] {
+        document["undoStack"] = removeFirst(document["undoStack"])
+    }
+    
+    document["redoStack"] = []
+    return document
+}
+
+pub fn undo(document) {
+    if len(document["undoStack"]) == 0 {
+        return document
+    }
+    
+    let action = document["undoStack"][len(document["undoStack"]) - 1]
+    document["undoStack"] = removeLast(document["undoStack"])
+    
+    let currentSnapshot = createDocumentSnapshot(document)
+    document["redoStack"] = push(document["redoStack"], {
+        "description": action["description"],
+        "snapshot": currentSnapshot
+    })
+    
+    document = restoreDocumentSnapshot(document, action["snapshot"])
+    return document
+}
+
+pub fn redo(document) {
+    if len(document["redoStack"]) == 0 {
+        return document
+    }
+    
+    let action = document["redoStack"][len(document["redoStack"]) - 1]
+    document["redoStack"] = removeLast(document["redoStack"])
+    
+    let currentSnapshot = createDocumentSnapshot(document)
+    document["undoStack"] = push(document["undoStack"], {
+        "description": action["description"],
+        "snapshot": currentSnapshot
+    })
+    
+    document = restoreDocumentSnapshot(document, action["snapshot"])
+    return document
+}
+
+pub fn canUndo(document) {
+    return len(document["undoStack"]) > 0
+}
+
+pub fn canRedo(document) {
+    return len(document["redoStack"]) > 0
+}
+
+pub fn clearUndoRedo(document) {
+    document["undoStack"] = []
+    document["redoStack"] = []
+    return document
+}
+
+fn createDocumentSnapshot(document) {
+    return {
+        "entities": document["entities"],
+        "layers": document["layers"],
+        "entityCounter": document["entityCounter"],
+        "selection": document["selection"]
+    }
+}
+
+fn restoreDocumentSnapshot(document, snapshot) {
+    document["entities"] = snapshot["entities"]
+    document["layers"] = snapshot["layers"]
+    document["entityCounter"] = snapshot["entityCounter"]
+    document["selection"] = snapshot["selection"]
+    return document
+}
+
+fn removeFirst(arr) {
+    let result = []
+    let i = 1
+    while i < len(arr) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+fn removeLast(arr) {
+    let result = []
+    let i = 0
+    while i < len(arr) - 1 {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+pub fn setDocumentMetadata(document, key, value) {
+    document["metadata"][key] = value
+    return document
+}
+
+pub fn getDocumentMetadata(document, key) {
+    return document["metadata"][key]
+}
+
+pub fn setDocumentName(document, name) {
+    document["name"] = name
+    document["metadata"]["title"] = name
+    return document
+}
+
+pub fn setDocumentUnits(document, units) {
+    document["units"] = units
+    return document
+}
+
+pub fn getDocumentUnits(document) {
+    return document["units"]
+}
+
+pub fn getEntityCount(document) {
+    let count = 0
+    for entityId in document["entities"] {
+        if document["entities"][entityId] != null {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn getLayerCount(document) {
+    let count = 0
+    for layerName in document["layers"] {
+        if document["layers"][layerName] != null {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn generateDocumentId() {
+    return "doc-" + timestamp() + "-" + random()
+}
+
+fn timestamp() {
+    return floor(currentTime() * 1000.0)
+}
+
+fn currentTime() {
+    return 0.0
+}
+
+fn random() {
+    return 0.0
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}

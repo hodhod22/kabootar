@@ -1,0 +1,450 @@
+@version "1.0.0"
+
+// CAD Render Bridge - Logical draw commands → actual surface (game canvas / host)
+// Features: Bridge between CAD draw list and rendering backend, statistics
+// Canonical path: import "cad/renderBridge"
+
+pub fn createRenderBridge() {
+    return {
+        "kind": "RenderBridge",
+        "backend": null,
+        "statistics": {
+            "linesDrawn": 0,
+            "circlesDrawn": 0,
+            "rectsDrawn": 0,
+            "textDrawn": 0,
+            "arcsDrawn": 0,
+            "polylinesDrawn": 0
+        }
+    }
+}
+
+pub fn setRenderBackend(bridge, backend) {
+    bridge["backend"] = backend
+    return bridge
+}
+
+pub fn getRenderBackend(bridge) {
+    return bridge["backend"]
+}
+
+pub fn executeDrawList(bridge, drawList) {
+    bridge = resetStatistics(bridge)
+    
+    let i = 0
+    while i < len(drawList) {
+        let command = drawList[i]
+        bridge = executeDrawCommand(bridge, command)
+        i = i + 1
+    }
+    
+    return bridge
+}
+
+pub fn executeDrawCommand(bridge, command) {
+    if command["kind"] == "DrawLine" {
+        bridge = drawLine(bridge, command)
+    } else if command["kind"] == "DrawPolyline" {
+        bridge = drawPolyline(bridge, command)
+    } else if command["kind"] == "DrawCircle" {
+        bridge = drawCircle(bridge, command)
+    } else if command["kind"] == "DrawRect" {
+        bridge = drawRect(bridge, command)
+    } else if command["kind"] == "DrawText" {
+        bridge = drawText(bridge, command)
+    } else if command["kind"] == "DrawArc" {
+        bridge = drawArc(bridge, command)
+    }
+    
+    return bridge
+}
+
+fn drawLine(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawLine(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["linesDrawn"] = bridge["statistics"]["linesDrawn"] + 1
+    return bridge
+}
+
+fn drawPolyline(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawPolyline(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["polylinesDrawn"] = bridge["statistics"]["polylinesDrawn"] + 1
+    return bridge
+}
+
+fn drawCircle(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawCircle(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["circlesDrawn"] = bridge["statistics"]["circlesDrawn"] + 1
+    return bridge
+}
+
+fn drawRect(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawRect(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["rectsDrawn"] = bridge["statistics"]["rectsDrawn"] + 1
+    return bridge
+}
+
+fn drawText(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawText(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["textDrawn"] = bridge["statistics"]["textDrawn"] + 1
+    return bridge
+}
+
+fn drawArc(bridge, command) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendDrawArc(backend, command)
+        bridge["backend"] = backend
+    }
+    
+    bridge["statistics"]["arcsDrawn"] = bridge["statistics"]["arcsDrawn"] + 1
+    return bridge
+}
+
+fn backendDrawLine(backend, command) {
+    return backend
+}
+
+fn backendDrawPolyline(backend, command) {
+    return backend
+}
+
+fn backendDrawCircle(backend, command) {
+    return backend
+}
+
+fn backendDrawRect(backend, command) {
+    return backend
+}
+
+fn backendDrawText(backend, command) {
+    return backend
+}
+
+fn backendDrawArc(backend, command) {
+    return backend
+}
+
+pub fn clearSurface(bridge, color) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendClearSurface(backend, color)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendClearSurface(backend, color) {
+    return backend
+}
+
+pub fn setViewport(bridge, x, y, width, height) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSetViewport(backend, x, y, width, height)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSetViewport(backend, x, y, width, height) {
+    return backend
+}
+
+pub fn enableDepthTest(bridge, enabled) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendEnableDepthTest(backend, enabled)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendEnableDepthTest(backend, enabled) {
+    return backend
+}
+
+pub fn enableBlending(bridge, enabled) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendEnableBlending(backend, enabled)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendEnableBlending(backend, enabled) {
+    return backend
+}
+
+pub fn resetStatistics(bridge) {
+    bridge["statistics"] = {
+        "linesDrawn": 0,
+        "circlesDrawn": 0,
+        "rectsDrawn": 0,
+        "textDrawn": 0,
+        "arcsDrawn": 0,
+        "polylinesDrawn": 0
+    }
+    return bridge
+}
+
+pub fn getStatistics(bridge) {
+    return bridge["statistics"]
+}
+
+pub fn getTotalDrawCalls(bridge) {
+    let stats = bridge["statistics"]
+    return stats["linesDrawn"] + stats["circlesDrawn"] + stats["rectsDrawn"] + 
+           stats["textDrawn"] + stats["arcsDrawn"] + stats["polylinesDrawn"]
+}
+
+pub fn createCanvasBackend(canvas) {
+    return {
+        "kind": "CanvasBackend",
+        "canvas": canvas,
+        "context": null
+    }
+}
+
+pub fn createWebGLBackend(gl) {
+    return {
+        "kind": "WebGLBackend",
+        "gl": gl,
+        "shaders": {},
+        "buffers": {}
+    }
+}
+
+pub fn createSVGBackend() {
+    return {
+        "kind": "SVGBackend",
+        "svg": "",
+        "elements": []
+    }
+}
+
+pub fn createNullBackend() {
+    return {
+        "kind": "NullBackend"
+    }
+}
+
+pub fn flush(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendFlush(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendFlush(backend) {
+    return backend
+}
+
+pub fn present(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendPresent(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendPresent(backend) {
+    return backend
+}
+
+pub fn setLineWidth(bridge, width) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSetLineWidth(backend, width)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSetLineWidth(backend, width) {
+    return backend
+}
+
+pub fn setLineColor(bridge, r, g, b, a) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSetLineColor(backend, r, g, b, a)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSetLineColor(backend, r, g, b, a) {
+    return backend
+}
+
+pub fn setFillColor(bridge, r, g, b, a) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSetFillColor(backend, r, g, b, a)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSetFillColor(backend, r, g, b, a) {
+    return backend
+}
+
+pub fn setFont(bridge, font, size) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSetFont(backend, font, size)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSetFont(backend, font, size) {
+    return backend
+}
+
+pub fn pushTransform(bridge, matrix) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendPushTransform(backend, matrix)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendPushTransform(backend, matrix) {
+    return backend
+}
+
+pub fn popTransform(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendPopTransform(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendPopTransform(backend) {
+    return backend
+}
+
+pub fn saveState(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendSaveState(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendSaveState(backend) {
+    return backend
+}
+
+pub fn restoreState(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendRestoreState(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendRestoreState(backend) {
+    return backend
+}
+
+pub fn beginFrame(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendBeginFrame(backend)
+        bridge["backend"] = backend
+    }
+    
+    bridge = resetStatistics(bridge)
+    return bridge
+}
+
+fn backendBeginFrame(backend) {
+    return backend
+}
+
+pub fn endFrame(bridge) {
+    let backend = bridge["backend"]
+    
+    if backend != null {
+        backend = backendEndFrame(backend)
+        bridge["backend"] = backend
+    }
+    
+    return bridge
+}
+
+fn backendEndFrame(backend) {
+    return backend
+}

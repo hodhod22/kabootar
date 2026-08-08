@@ -1,28 +1,558 @@
 @version "1.0.0"
 
-// Generic CAD graph (nodes + edges). import "cad/graph"
+// CAD Graph - Real topology for cables, nets, walls, flows
+// Features: nodes/edges with lookup by id, remove node/edge, neighbors, degree, connected components, path find (BFS), cycle detect
+// Canonical path: import "cad/graph"
 
-pub fn createCadGraph(name) {
-    if name == null || name == undefined { name = "cad" }
-    return { "kind": "CadGraph", "name": name, "nodes": [], "edges": [] }
+pub fn createGraph() {
+    return {
+        "kind": "Graph",
+        "nodes": {},
+        "edges": {},
+        "nodeCounter": 0,
+        "edgeCounter": 0,
+        "directed": false
+    }
 }
 
-pub fn cadAddNode(g, id, data) {
-    if data == null || data == undefined { data = {} }
-    g["nodes"] = push(g["nodes"], { "id": id, "data": data })
-    return g
+pub fn createDirectedGraph() {
+    let graph = createGraph()
+    graph["directed"] = true
+    return graph
 }
 
-pub fn cadAddEdge(g, id, a, b, data) {
-    if data == null || data == undefined { data = {} }
-    g["edges"] = push(g["edges"], { "id": id, "a": a, "b": b, "data": data })
-    return g
+pub fn createNode(data) {
+    return {
+        "kind": "GraphNode",
+        "id": null,
+        "data": data,
+        "edges": []
+    }
 }
 
-pub fn cadNodeCount(g) {
-    return len(g["nodes"])
+pub fn createEdge(sourceId, targetId, data) {
+    return {
+        "kind": "GraphEdge",
+        "id": null,
+        "source": sourceId,
+        "target": targetId,
+        "data": data
+    }
 }
 
-pub fn cadEdgeCount(g) {
-    return len(g["edges"])
+pub fn addNode(graph, node) {
+    let nodeId = "" + graph["nodeCounter"]
+    graph["nodeCounter"] = graph["nodeCounter"] + 1
+    node["id"] = nodeId
+    graph["nodes"][nodeId] = node
+    return graph
+}
+
+pub fn removeNode(graph, nodeId) {
+    let node = graph["nodes"][nodeId]
+    if node == null {
+        return graph
+    }
+    
+    let i = 0
+    while i < len(node["edges"]) {
+        let edgeId = node["edges"][i]
+        graph = removeEdge(graph, edgeId)
+        i = i + 1
+    }
+    
+    graph["nodes"][nodeId] = null
+    return graph
+}
+
+pub fn getNode(graph, nodeId) {
+    return graph["nodes"][nodeId]
+}
+
+pub fn addEdge(graph, edge) {
+    let sourceNode = graph["nodes"][edge["source"]]
+    let targetNode = graph["nodes"][edge["target"]]
+    
+    if sourceNode == null || targetNode == null {
+        return graph
+    }
+    
+    let edgeId = "" + graph["edgeCounter"]
+    graph["edgeCounter"] = graph["edgeCounter"] + 1
+    edge["id"] = edgeId
+    graph["edges"][edgeId] = edge
+    
+    sourceNode["edges"] = push(sourceNode["edges"], edgeId)
+    
+    if graph["directed"] == false {
+        targetNode["edges"] = push(targetNode["edges"], edgeId)
+    }
+    
+    graph["nodes"][edge["source"]] = sourceNode
+    graph["nodes"][edge["target"]] = targetNode
+    
+    return graph
+}
+
+pub fn removeEdge(graph, edgeId) {
+    let edge = graph["edges"][edgeId]
+    if edge == null {
+        return graph
+    }
+    
+    let sourceNode = graph["nodes"][edge["source"]]
+    let targetNode = graph["nodes"][edge["target"]]
+    
+    if sourceNode != null {
+        sourceNode["edges"] = removeEdgeFromList(sourceNode["edges"], edgeId)
+        graph["nodes"][edge["source"]] = sourceNode
+    }
+    
+    if graph["directed"] == false && targetNode != null {
+        targetNode["edges"] = removeEdgeFromList(targetNode["edges"], edgeId)
+        graph["nodes"][edge["target"]] = targetNode
+    }
+    
+    graph["edges"][edgeId] = null
+    return graph
+}
+
+fn removeEdgeFromList(edgeList, edgeId) {
+    let result = []
+    let i = 0
+    while i < len(edgeList) {
+        if edgeList[i] != edgeId {
+            result = push(result, edgeList[i])
+        }
+        i = i + 1
+    }
+    return result
+}
+
+pub fn getEdge(graph, edgeId) {
+    return graph["edges"][edgeId]
+}
+
+pub fn getNeighbors(graph, nodeId) {
+    let node = graph["nodes"][nodeId]
+    if node == null {
+        return []
+    }
+    
+    let neighbors = []
+    let i = 0
+    while i < len(node["edges"]) {
+        let edge = graph["edges"][node["edges"][i]]
+        if edge != null {
+            let neighborId = edge["target"]
+            if neighborId == nodeId {
+                neighborId = edge["source"]
+            }
+            neighbors = push(neighbors, neighborId)
+        }
+        i = i + 1
+    }
+    
+    return neighbors
+}
+
+pub fn getDegree(graph, nodeId) {
+    let node = graph["nodes"][nodeId]
+    if node == null {
+        return 0
+    }
+    return len(node["edges"])
+}
+
+pub fn getInDegree(graph, nodeId) {
+    if graph["directed"] == false {
+        return getDegree(graph, nodeId)
+    }
+    
+    let count = 0
+    for edgeId in graph["edges"] {
+        let edge = graph["edges"][edgeId]
+        if edge != null && edge["target"] == nodeId {
+            count = count + 1
+        }
+    }
+    
+    return count
+}
+
+pub fn getOutDegree(graph, nodeId) {
+    if graph["directed"] == false {
+        return getDegree(graph, nodeId)
+    }
+    
+    let node = graph["nodes"][nodeId]
+    if node == null {
+        return 0
+    }
+    return len(node["edges"])
+}
+
+pub fn getNodeCount(graph) {
+    let count = 0
+    for nodeId in graph["nodes"] {
+        if graph["nodes"][nodeId] != null {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn getEdgeCount(graph) {
+    let count = 0
+    for edgeId in graph["edges"] {
+        if graph["edges"][edgeId] != null {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn findPath(graph, startId, endId) {
+    if startId == endId {
+        return [startId]
+    }
+    
+    let visited = {}
+    let parent = {}
+    let queue = [startId]
+    visited[startId] = true
+    
+    while len(queue) > 0 {
+        let current = queue[0]
+        queue = removeFirst(queue)
+        
+        let neighbors = getNeighbors(graph, current)
+        let i = 0
+        while i < len(neighbors) {
+            let neighbor = neighbors[i]
+            if visited[neighbor] != true {
+                visited[neighbor] = true
+                parent[neighbor] = current
+                
+                if neighbor == endId {
+                    return reconstructPath(parent, startId, endId)
+                }
+                
+                queue = push(queue, neighbor)
+            }
+            i = i + 1
+        }
+    }
+    
+    return []
+}
+
+fn reconstructPath(parent, startId, endId) {
+    let path = [endId]
+    let current = endId
+    
+    while current != startId {
+        current = parent[current]
+        path = push(path, current)
+    }
+    
+    return reverseArray(path)
+}
+
+fn reverseArray(arr) {
+    let result = []
+    let i = len(arr) - 1
+    while i >= 0 {
+        result = push(result, arr[i])
+        i = i - 1
+    }
+    return result
+}
+
+fn removeFirst(arr) {
+    let result = []
+    let i = 1
+    while i < len(arr) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+pub fn findShortestPath(graph, startId, endId) {
+    return findPath(graph, startId, endId)
+}
+
+pub fn findAllPaths(graph, startId, endId) {
+    let paths = []
+    let visited = {}
+    findAllPathsHelper(graph, startId, endId, visited, [startId], paths)
+    return paths
+}
+
+fn findAllPathsHelper(graph, currentId, endId, visited, currentPath, paths) {
+    visited[currentId] = true
+    
+    if currentId == endId {
+        paths = push(paths, currentPath)
+        visited[currentId] = false
+        return
+    }
+    
+    let neighbors = getNeighbors(graph, currentId)
+    let i = 0
+    while i < len(neighbors) {
+        let neighbor = neighbors[i]
+        if visited[neighbor] != true {
+            let newPath = []
+            let j = 0
+            while j < len(currentPath) {
+                newPath = push(newPath, currentPath[j])
+                j = j + 1
+            }
+            newPath = push(newPath, neighbor)
+            findAllPathsHelper(graph, neighbor, endId, visited, newPath, paths)
+        }
+        i = i + 1
+    }
+    
+    visited[currentId] = false
+}
+
+pub fn getConnectedComponents(graph) {
+    let components = []
+    let visited = {}
+    
+    for nodeId in graph["nodes"] {
+        if graph["nodes"][nodeId] != null && visited[nodeId] != true {
+            let component = []
+            let queue = [nodeId]
+            visited[nodeId] = true
+            
+            while len(queue) > 0 {
+                let current = queue[0]
+                queue = removeFirst(queue)
+                component = push(component, current)
+                
+                let neighbors = getNeighbors(graph, current)
+                let i = 0
+                while i < len(neighbors) {
+                    let neighbor = neighbors[i]
+                    if visited[neighbor] != true {
+                        visited[neighbor] = true
+                        queue = push(queue, neighbor)
+                    }
+                    i = i + 1
+                }
+            }
+            
+            components = push(components, component)
+        }
+    }
+    
+    return components
+}
+
+pub fn isConnected(graph) {
+    let components = getConnectedComponents(graph)
+    return len(components) == 1
+}
+
+pub fn hasCycle(graph) {
+    let visited = {}
+    let recStack = {}
+    
+    for nodeId in graph["nodes"] {
+        if graph["nodes"][nodeId] != null && visited[nodeId] != true {
+            if hasCycleHelper(graph, nodeId, visited, recStack) == true {
+                return true
+            }
+        }
+    }
+    
+    return false
+}
+
+fn hasCycleHelper(graph, nodeId, visited, recStack) {
+    visited[nodeId] = true
+    recStack[nodeId] = true
+    
+    let neighbors = getNeighbors(graph, nodeId)
+    let i = 0
+    while i < len(neighbors) {
+        let neighbor = neighbors[i]
+        
+        if visited[neighbor] != true {
+            if hasCycleHelper(graph, neighbor, visited, recStack) == true {
+                return true
+            }
+        } else if recStack[neighbor] == true {
+            return true
+        }
+        
+        i = i + 1
+    }
+    
+    recStack[nodeId] = false
+    return false
+}
+
+pub fn getSpanningTree(graph) {
+    let visited = {}
+    let tree = createGraph()
+    tree["directed"] = graph["directed"]
+    
+    let startNodeId = null
+    for nodeId in graph["nodes"] {
+        if graph["nodes"][nodeId] != null {
+            startNodeId = nodeId
+            break
+        }
+    }
+    
+    if startNodeId == null {
+        return tree
+    }
+    
+    let queue = [startNodeId]
+    visited[startNodeId] = true
+    
+    let startNode = graph["nodes"][startNodeId]
+    let newNode = createNode(startNode["data"])
+    tree = addNode(tree, newNode)
+    
+    while len(queue) > 0 {
+        let current = queue[0]
+        queue = removeFirst(queue)
+        
+        let neighbors = getNeighbors(graph, current)
+        let i = 0
+        while i < len(neighbors) {
+            let neighbor = neighbors[i]
+            if visited[neighbor] != true {
+                visited[neighbor] = true
+                
+                let neighborNode = graph["nodes"][neighbor]
+                let newNeighborNode = createNode(neighborNode["data"])
+                tree = addNode(tree, newNeighborNode)
+                
+                let edge = findEdgeBetween(graph, current, neighbor)
+                if edge != null {
+                    let newEdge = createEdge(current, neighbor, edge["data"])
+                    tree = addEdge(tree, newEdge)
+                }
+                
+                queue = push(queue, neighbor)
+            }
+            i = i + 1
+        }
+    }
+    
+    return tree
+}
+
+fn findEdgeBetween(graph, nodeA, nodeB) {
+    let node = graph["nodes"][nodeA]
+    if node == null {
+        return null
+    }
+    
+    let i = 0
+    while i < len(node["edges"]) {
+        let edge = graph["edges"][node["edges"][i]]
+        if edge != null {
+            if (edge["source"] == nodeA && edge["target"] == nodeB) ||
+               (edge["source"] == nodeB && edge["target"] == nodeA) {
+                return edge
+            }
+        }
+        i = i + 1
+    }
+    
+    return null
+}
+
+pub fn clearGraph(graph) {
+    graph["nodes"] = {}
+    graph["edges"] = {}
+    graph["nodeCounter"] = 0
+    graph["edgeCounter"] = 0
+    return graph
+}
+
+pub fn cloneGraph(graph) {
+    let clone = createGraph()
+    clone["directed"] = graph["directed"]
+    
+    for nodeId in graph["nodes"] {
+        let node = graph["nodes"][nodeId]
+        if node != null {
+            let newNode = createNode(node["data"])
+            clone = addNode(clone, newNode)
+        }
+    }
+    
+    for edgeId in graph["edges"] {
+        let edge = graph["edges"][edgeId]
+        if edge != null {
+            let newEdge = createEdge(edge["source"], edge["target"], edge["data"])
+            clone = addEdge(clone, newEdge)
+        }
+    }
+    
+    return clone
+}
+
+pub fn mergeGraphs(a, b) {
+    let merged = cloneGraph(a)
+    
+    for nodeId in b["nodes"] {
+        let node = b["nodes"][nodeId]
+        if node != null {
+            let newNode = createNode(node["data"])
+            merged = addNode(merged, newNode)
+        }
+    }
+    
+    for edgeId in b["edges"] {
+        let edge = b["edges"][edgeId]
+        if edge != null {
+            let newEdge = createEdge(edge["source"], edge["target"], edge["data"])
+            merged = addEdge(merged, newEdge)
+        }
+    }
+    
+    return merged
+}
+
+pub fn getSubgraph(graph, nodeIds) {
+    let subgraph = createGraph()
+    subgraph["directed"] = graph["directed"]
+    
+    let nodeIdSet = {}
+    let i = 0
+    while i < len(nodeIds) {
+        nodeIdSet[nodeIds[i]] = true
+        i = i + 1
+    }
+    
+    for nodeId in nodeIds {
+        let node = graph["nodes"][nodeId]
+        if node != null {
+            let newNode = createNode(node["data"])
+            subgraph = addNode(subgraph, newNode)
+        }
+    }
+    
+    for edgeId in graph["edges"] {
+        let edge = graph["edges"][edgeId]
+        if edge != null {
+            if nodeIdSet[edge["source"]] == true && nodeIdSet[edge["target"]] == true {
+                let newEdge = createEdge(edge["source"], edge["target"], edge["data"])
+                subgraph = addEdge(subgraph, newEdge)
+            }
+        }
+    }
+    
+    return subgraph
 }
