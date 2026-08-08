@@ -44,12 +44,17 @@ pub fn createSceneNode(kind, name) {
         "kind": kind,
         "id": null,
         "name": name,
-        "transform": createTransform(),
-        "children": [],
         "parent": null,
+        "children": [],
+        "transform": createTransform(),
         "visible": true,
         "locked": false,
-        "opacity": 1.0
+        "opacity": 1.0,
+        "layer": "default",
+        "styleSet": null,
+        "layout": null,
+        "data": {},
+        "meta": {}
     }
 }
 
@@ -199,7 +204,7 @@ pub fn createLayer(name, color) {
 pub fn createSelection() {
     return {
         "kind": "Selection",
-        "entityIds": [],
+        "nodeIds": [],
         "mode": "single"
     }
 }
@@ -242,93 +247,154 @@ pub fn setLayerLocked(document, layerName, locked) {
     return document
 }
 
-pub fn addEntity(document, entity) {
-    let entityId = "" + document["entityCounter"]
-    document["entityCounter"] = document["entityCounter"] + 1
-    entity["id"] = entityId
-    entity["layer"] = document["activeLayer"]
-    document["entities"][entityId] = entity
+pub fn addNode(document, parentId, node) {
+    let nodeId = generateNodeId(document)
+    node["id"] = nodeId
+    document["nodes"][nodeId] = node
+    document["nodeCounter"] = document["nodeCounter"] + 1
+    
+    if parentId != null {
+        let parent = document["nodes"][parentId]
+        if parent != null {
+            parent["children"] = push(parent["children"], nodeId)
+            node["parent"] = parentId
+        }
+    }
+    
     return document
 }
 
-pub fn removeEntity(document, entityId) {
-    document["entities"][entityId] = null
-    document = removeFromSelection(document, entityId)
+pub fn removeNode(document, nodeId) {
+    let node = document["nodes"][nodeId]
+    if node == null {
+        return document
+    }
+    
+    let parentId = node["parent"]
+    if parentId != null {
+        let parent = document["nodes"][parentId]
+        if parent != null {
+            let newChildren = []
+            let i = 0
+            while i < len(parent["children"]) {
+                if parent["children"][i] != nodeId {
+                    newChildren = push(newChildren, parent["children"][i])
+                }
+                i = i + 1
+            }
+            parent["children"] = newChildren
+        }
+    }
+    
+    let newNodes = {}
+    for id in document["nodes"] {
+        if id != nodeId {
+            newNodes[id] = document["nodes"][id]
+        }
+    }
+    document["nodes"] = newNodes
+    
     return document
 }
 
-pub fn getEntity(document, entityId) {
-    return document["entities"][entityId]
-}
-
-pub fn updateEntity(document, entityId, entity) {
-    document["entities"][entityId] = entity
+pub fn reparentNode(document, nodeId, newParentId) {
+    let node = document["nodes"][nodeId]
+    if node == null {
+        return document
+    }
+    
+    let oldParentId = node["parent"]
+    if oldParentId != null {
+        let oldParent = document["nodes"][oldParentId]
+        if oldParent != null {
+            let newChildren = []
+            let i = 0
+            while i < len(oldParent["children"]) {
+                if oldParent["children"][i] != nodeId {
+                    newChildren = push(newChildren, oldParent["children"][i])
+                }
+                i = i + 1
+            }
+            oldParent["children"] = newChildren
+        }
+    }
+    
+    if newParentId != null {
+        let newParent = document["nodes"][newParentId]
+        if newParent != null {
+            newParent["children"] = push(newParent["children"], nodeId)
+            node["parent"] = newParentId
+        }
+    } else {
+        node["parent"] = null
+    }
+    
     return document
 }
 
-pub fn selectEntity(document, entityId) {
+pub fn selectNode(document, nodeId) {
     let selection = document["selection"]
     if selection["mode"] == "single" {
-        selection["entityIds"] = [entityId]
+        selection["nodeIds"] = [nodeId]
     } else {
         let found = false
         let i = 0
-        while i < len(selection["entityIds"]) {
-            if selection["entityIds"][i] == entityId {
+        while i < len(selection["nodeIds"]) {
+            if selection["nodeIds"][i] == nodeId {
                 found = true
             }
             i = i + 1
         }
         if found == false {
-            selection["entityIds"] = push(selection["entityIds"], entityId)
+            selection["nodeIds"] = push(selection["nodeIds"], nodeId)
         }
     }
     document["selection"] = selection
     return document
 }
 
-pub fn deselectEntity(document, entityId) {
+pub fn deselectNode(document, nodeId) {
     let selection = document["selection"]
     let newIds = []
     let i = 0
-    while i < len(selection["entityIds"]) {
-        if selection["entityIds"][i] != entityId {
-            newIds = push(newIds, selection["entityIds"][i])
+    while i < len(selection["nodeIds"]) {
+        if selection["nodeIds"][i] != nodeId {
+            newIds = push(newIds, selection["nodeIds"][i])
         }
         i = i + 1
     }
-    selection["entityIds"] = newIds
+    selection["nodeIds"] = newIds
     document["selection"] = selection
     return document
 }
 
-fn removeFromSelection(document, entityId) {
+fn removeFromSelection(document, nodeId) {
     let selection = document["selection"]
     let newIds = []
     let i = 0
-    while i < len(selection["entityIds"]) {
-        if selection["entityIds"][i] != entityId {
-            newIds = push(newIds, selection["entityIds"][i])
+    while i < len(selection["nodeIds"]) {
+        if selection["nodeIds"][i] != nodeId {
+            newIds = push(newIds, selection["nodeIds"][i])
         }
         i = i + 1
     }
-    selection["entityIds"] = newIds
+    selection["nodeIds"] = newIds
     document["selection"] = selection
     return document
 }
 
 pub fn clearSelection(document) {
-    document["selection"]["entityIds"] = []
+    document["selection"]["nodeIds"] = []
     return document
 }
 
 pub fn selectAll(document) {
     let selection = document["selection"]
-    selection["entityIds"] = []
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null {
-            selection["entityIds"] = push(selection["entityIds"], entityId)
+    selection["nodeIds"] = []
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            selection["nodeIds"] = push(selection["nodeIds"], nodeId)
         }
     }
     document["selection"] = selection
@@ -338,35 +404,35 @@ pub fn selectAll(document) {
 pub fn invertSelection(document) {
     let selection = document["selection"]
     let newIds = []
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
             let selected = false
             let i = 0
-            while i < len(selection["entityIds"]) {
-                if selection["entityIds"][i] == entityId {
+            while i < len(selection["nodeIds"]) {
+                if selection["nodeIds"][i] == nodeId {
                     selected = true
                 }
                 i = i + 1
             }
             if selected == false {
-                newIds = push(newIds, entityId)
+                newIds = push(newIds, nodeId)
             }
         }
     }
-    selection["entityIds"] = newIds
+    selection["nodeIds"] = newIds
     document["selection"] = selection
     return document
 }
 
 pub fn getSelectedCount(document) {
-    return len(document["selection"]["entityIds"])
+    return len(document["selection"]["nodeIds"])
 }
 
-pub fn isSelected(document, entityId) {
+pub fn isSelected(document, nodeId) {
     let i = 0
-    while i < len(document["selection"]["entityIds"]) {
-        if document["selection"]["entityIds"][i] == entityId {
+    while i < len(document["selection"]["nodeIds"]) {
+        if document["selection"]["nodeIds"][i] == nodeId {
             return true
         }
         i = i + 1
@@ -494,75 +560,6 @@ fn deepCopyNode(node) {
     return copy
 }
 
-fn deepCopyEntities(entities) {
-    let copy = {}
-    for entityId in entities {
-        let entity = entities[entityId]
-        if entity != null {
-            copy[entityId] = deepCopyEntity(entity)
-        }
-    }
-    return copy
-}
-
-fn deepCopyEntity(entity) {
-    let copy = {}
-    for key in entity {
-        if key == "data" {
-            copy[key] = deepCopyEntityData(entity["data"], entity["kind"])
-        } else if key == "properties" {
-            copy[key] = deepCopyProperties(entity["properties"])
-        } else {
-            copy[key] = entity[key]
-        }
-    }
-    return copy
-}
-
-fn deepCopyEntityData(data, kind) {
-    if kind == "Line" {
-        return createSegment(vec2(data["p1"]["x"], data["p1"]["y"]), vec2(data["p2"]["x"], data["p2"]["y"]))
-    } else if kind == "Circle" {
-        return createCircle(vec2(data["center"]["x"], data["center"]["y"]), data["radius"])
-    } else if kind == "Rectangle" {
-        return createRect(data["x"], data["y"], data["width"], data["height"])
-    } else if kind == "Polyline" {
-        let clonedPoints = []
-        let i = 0
-        while i < len(data["points"]) {
-            clonedPoints = push(clonedPoints, vec2(data["points"][i]["x"], data["points"][i]["y"]))
-            i = i + 1
-        }
-        return createPolyline(clonedPoints, data["closed"])
-    } else if kind == "Point" {
-        return { "position": vec2(data["position"]["x"], data["position"]["y"]) }
-    } else if kind == "Text" {
-        return {
-            "position": vec2(data["position"]["x"], data["position"]["y"]),
-            "text": data["text"],
-            "fontSize": data["fontSize"],
-            "font": data["font"],
-            "alignment": data["alignment"]
-        }
-    } else if kind == "Arc" {
-        return createArc(
-            vec2(data["center"]["x"], data["center"]["y"]),
-            data["radius"],
-            data["startAngle"],
-            data["endAngle"]
-        )
-    }
-    return data
-}
-
-fn deepCopyProperties(properties) {
-    let copy = {}
-    for key in properties {
-        copy[key] = properties[key]
-    }
-    return copy
-}
-
 fn deepCopyLayers(layers) {
     let copy = {}
     for layerName in layers {
@@ -585,7 +582,7 @@ fn deepCopyLayers(layers) {
 fn deepCopySelection(selection) {
     return {
         "kind": selection["kind"],
-        "entityIds": selection["entityIds"],
+        "nodeIds": selection["nodeIds"],
         "mode": selection["mode"]
     }
 }
@@ -677,10 +674,10 @@ pub fn getDocumentUnits(document) {
     return document["units"]
 }
 
-pub fn getEntityCount(document) {
+pub fn getNodeCount(document) {
     let count = 0
-    for entityId in document["entities"] {
-        if document["entities"][entityId] != null {
+    for nodeId in document["nodes"] {
+        if document["nodes"][nodeId] != null {
             count = count + 1
         }
     }
