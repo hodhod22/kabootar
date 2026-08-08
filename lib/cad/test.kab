@@ -1,0 +1,165 @@
+@version "1.0.0"
+
+// CAD Test - Smoke tests for design, drafting, and schematic profiles
+// Features: Frame+layout test, line+dim test, component+graph test, serialize round-trip
+// Canonical path: import "cad/test"
+
+import "cad/document"
+import "cad/layout"
+import "cad/entities"
+import "cad/style"
+import "cad/graph"
+import "cad/symbol"
+import "cad/serialize"
+
+pub fn testDesignFrameLayout() {
+    let document = createDocument("Design Test", "px")
+    document = setDocumentProfile(document, "design")
+    
+    let frame = createFrameNode("Main Frame", 100.0, 100.0, 400.0, 300.0)
+    frame["layout"] = createLayout()
+    frame["layout"] = setLayoutDirection(frame["layout"], "vertical")
+    frame["layout"] = setLayoutPadding(frame["layout"], 20.0, 20.0, 20.0, 20.0)
+    frame["layout"] = setLayoutGap(frame["layout"], 10.0)
+    
+    document = addNode(document, document["sceneRoot"]["id"], frame)
+    
+    let child1 = createFrameNode("Child 1", 0.0, 0.0, 360.0, 50.0)
+    document = addNode(document, frame["id"], child1)
+    
+    let child2 = createFrameNode("Child 2", 0.0, 0.0, 360.0, 50.0)
+    document = addNode(document, frame["id"], child2)
+    
+    document = documentCommit(document)
+    
+    let nodeCount = getNodeCount(document)
+    let frameNode = getNode(document, frame["id"])
+    let layout = frameNode["layout"]
+    
+    return {
+        "test": "Design Frame Layout",
+        "passed": nodeCount == 3 && layout != null,
+        "nodeCount": nodeCount,
+        "frameLayout": layout
+    }
+}
+
+pub fn testDraftingLineDim() {
+    let document = createDocument("Drafting Test", "mm")
+    document = setDocumentProfile(document, "drafting")
+    
+    let line = createLineEntity(vec2(0.0, 0.0), vec2(100.0, 50.0))
+    line["styleSet"] = createStyleSet()
+    line["styleSet"] = addStrokeToStyleSet(line["styleSet"], createStroke({ "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0, "butt", "miter", []))
+    
+    let dim = createDimensionEntity(vec2(0.0, 0.0), vec2(100.0, 50.0), 10.0)
+    dim["styleSet"] = createStyleSet()
+    dim["styleSet"] = addStrokeToStyleSet(dim["styleSet"], createStroke({ "r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0 }, 0.5, "butt", "miter", []))
+    
+    let lineNode = createSceneNode("Vector", "Line")
+    lineNode["data"] = line["data"]
+    lineNode["styleSet"] = line["styleSet"]
+    
+    let dimNode = createSceneNode("Dimension", "Dimension")
+    dimNode["data"] = dim["data"]
+    dimNode["styleSet"] = dim["styleSet"]
+    
+    document = addNode(document, document["sceneRoot"]["id"], lineNode)
+    document = addNode(document, document["sceneRoot"]["id"], dimNode)
+    
+    document = documentCommit(document)
+    
+    let nodeCount = getNodeCount(document)
+    
+    return {
+        "test": "Drafting Line Dimension",
+        "passed": nodeCount == 2,
+        "nodeCount": nodeCount
+    }
+}
+
+pub fn testSchematicComponentGraph() {
+    let document = createDocument("Schematic Test", "mm")
+    document = setDocumentProfile(document, "schematic")
+    
+    let symbolDef = createSymbolDefinition("Resistor")
+    symbolDef = addSymbolGeometry(symbolDef, createRectEntity(0.0, 0.0, 20.0, 10.0))
+    
+    let component = createComponentNode("R1", symbolDef["id"])
+    component["transform"]["position"] = vec2(50.0, 50.0)
+    
+    document = addNode(document, document["sceneRoot"]["id"], component)
+    
+    let graph = createGraph()
+    graph = addNode(graph, "node1", { "kind": "Port", "position": vec2(50.0, 50.0) })
+    graph = addNode(graph, "node2", { "kind": "Port", "position": vec2(100.0, 50.0) })
+    graph = addEdge(graph, "edge1", "node1", "node2", { "kind": "Wire" })
+    
+    document = documentCommit(document)
+    
+    let nodeCount = getNodeCount(document)
+    let graphNodeCount = graph["nodeCounter"]
+    let graphEdgeCount = graph["edgeCounter"]
+    
+    return {
+        "test": "Schematic Component Graph",
+        "passed": nodeCount == 1 && graphNodeCount == 2 && graphEdgeCount == 1,
+        "nodeCount": nodeCount,
+        "graphNodeCount": graphNodeCount,
+        "graphEdgeCount": graphEdgeCount
+    }
+}
+
+pub fn testSerializeRoundTrip() {
+    let document = createDocument("Serialize Test", "mm")
+    document = setDocumentProfile(document, "drafting")
+    
+    let frame = createFrameNode("Test Frame", 0.0, 0.0, 100.0, 100.0)
+    document = addNode(document, document["sceneRoot"]["id"], frame)
+    
+    let originalNodeCount = getNodeCount(document)
+    let originalProfile = document["profile"]
+    
+    let serialized = serializeDocument(document)
+    
+    let deserialized = deserializeDocument(serialized)
+    
+    let deserializedNodeCount = getNodeCount(deserialized)
+    let deserializedProfile = deserialized["profile"]
+    
+    let passed = originalNodeCount == deserializedNodeCount && originalProfile == deserializedProfile
+    
+    return {
+        "test": "Serialize Round Trip",
+        "passed": passed,
+        "originalNodeCount": originalNodeCount,
+        "deserializedNodeCount": deserializedNodeCount,
+        "originalProfile": originalProfile,
+        "deserializedProfile": deserializedProfile
+    }
+}
+
+pub fn runAllSmokeTests() {
+    let results = []
+    
+    results = push(results, testDesignFrameLayout())
+    results = push(results, testDraftingLineDim())
+    results = push(results, testSchematicComponentGraph())
+    results = push(results, testSerializeRoundTrip())
+    
+    let passedCount = 0
+    let i = 0
+    while i < len(results) {
+        if results[i]["passed"] == true {
+            passedCount = passedCount + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "totalTests": len(results),
+        "passed": passedCount,
+        "failed": len(results) - passedCount,
+        "results": results
+    }
+}
