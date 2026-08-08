@@ -1,0 +1,120 @@
+@version "1.0.0"
+
+// CAD Boolean - Minimal path boolean operations for CAD
+// Features: Union, intersection, difference for simple paths (rect-based for now)
+// Canonical path: import "cad/boolean"
+// Note: Full boolean operations require complex computational geometry libraries
+
+import "cad/geom"
+import "cad/entities"
+
+pub fn booleanUnion(pathA, pathB) {
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return pathUnion(pathA, pathB)
+    }
+    return pathA
+}
+
+pub fn booleanIntersection(pathA, pathB) {
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return pathIntersection(pathA, pathB)
+    }
+    return pathA
+}
+
+pub fn booleanDifference(pathA, pathB) {
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return pathDifference(pathA, pathB)
+    }
+    return pathA
+}
+
+fn pathUnion(pathA, pathB) {
+    let boundsA = getEntityBounds(pathA)
+    let boundsB = getEntityBounds(pathB)
+    
+    let minX = min(boundsA["minX"], boundsB["minX"])
+    let minY = min(boundsA["minY"], boundsB["minY"])
+    let maxX = max(boundsA["maxX"], boundsB["maxX"])
+    let maxY = max(boundsA["maxY"], boundsB["maxY"])
+    
+    let width = maxX - minX
+    let height = maxY - minY
+    
+    let resultPath = createPathEntity([], true)
+    resultPath["data"]["commands"] = [
+        createPathMoveCommand(minX, minY),
+        createPathLineCommand(maxX, minY),
+        createPathLineCommand(maxX, maxY),
+        createPathLineCommand(minX, maxY),
+        createPathCloseCommand()
+    ]
+    
+    return resultPath
+}
+
+fn pathIntersection(pathA, pathB) {
+    let boundsA = getEntityBounds(pathA)
+    let boundsB = getEntityBounds(pathB)
+    
+    let minX = max(boundsA["minX"], boundsB["minX"])
+    let minY = max(boundsA["minY"], boundsB["minY"])
+    let maxX = min(boundsA["maxX"], boundsB["maxX"])
+    let maxY = min(boundsA["maxY"], boundsB["maxY"])
+    
+    if minX >= maxX || minY >= maxY {
+        return createPathEntity([], true)
+    }
+    
+    let width = maxX - minX
+    let height = maxY - minY
+    
+    let resultPath = createPathEntity([], true)
+    resultPath["data"]["commands"] = [
+        createPathMoveCommand(minX, minY),
+        createPathLineCommand(maxX, minY),
+        createPathLineCommand(maxX, maxY),
+        createPathLineCommand(minX, maxY),
+        createPathCloseCommand()
+    ]
+    
+    return resultPath
+}
+
+fn pathDifference(pathA, pathB) {
+    let boundsA = getEntityBounds(pathA)
+    let boundsB = getEntityBounds(pathB)
+    
+    if bboxContainsBBox(boundsB, boundsA) {
+        return createPathEntity([], true)
+    }
+    
+    if bboxIntersectsBBox(boundsA, boundsB) == false {
+        return pathA
+    }
+    
+    let resultPath = createPathEntity([], true)
+    resultPath["data"]["commands"] = [
+        createPathMoveCommand(boundsA["minX"], boundsA["minY"]),
+        createPathLineCommand(boundsA["maxX"], boundsA["minY"]),
+        createPathLineCommand(boundsA["maxX"], boundsA["maxY"]),
+        createPathLineCommand(boundsA["minX"], boundsA["maxY"]),
+        createPathCloseCommand()
+    ]
+    
+    return resultPath
+}
+
+fn min(a, b) {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+fn max(a, b) {
+    if a > b {
+        return a
+    }
+    return b
+}
