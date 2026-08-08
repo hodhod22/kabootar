@@ -4,6 +4,7 @@
 // Features: registerTool, registerExporter, registerAnalyzer, registerSnapProvider
 // Canonical path: import "cad/plugin"
 // Note: Kits (rasme*, design-kit) register plugins instead of forking the engine
+// Plugin API version: 1.0 - stable contract with version field for compatibility
 
 import "cad/document"
 import "cad/geom"
@@ -11,6 +12,7 @@ import "cad/geom"
 pub fn createPluginSystem() {
     return {
         "kind": "PluginSystem",
+        "version": "1.0",
         "tools": {},
         "exporters": {},
         "analyzers": {},
@@ -19,21 +21,25 @@ pub fn createPluginSystem() {
 }
 
 pub fn registerTool(system, name, tool) {
+    tool["pluginVersion"] = system["version"]
     system["tools"][name] = tool
     return system
 }
 
 pub fn registerExporter(system, name, exporter) {
+    exporter["pluginVersion"] = system["version"]
     system["exporters"][name] = exporter
     return system
 }
 
 pub fn registerAnalyzer(system, name, analyzer) {
+    analyzer["pluginVersion"] = system["version"]
     system["analyzers"][name] = analyzer
     return system
 }
 
 pub fn registerSnapProvider(system, provider) {
+    provider["pluginVersion"] = system["version"]
     system["snapProviders"] = push(system["snapProviders"], provider)
     return system
 }
@@ -107,6 +113,7 @@ pub fn createTool(name, onPointer, onKey, preview) {
     return {
         "kind": "Tool",
         "name": name,
+        "version": "1.0",
         "onPointer": onPointer,
         "onKey": onKey,
         "preview": preview
@@ -117,6 +124,7 @@ pub fn createExporter(name, fn) {
     return {
         "kind": "Exporter",
         "name": name,
+        "version": "1.0",
         "export": fn
     }
 }
@@ -125,6 +133,7 @@ pub fn createAnalyzer(name, fn) {
     return {
         "kind": "Analyzer",
         "name": name,
+        "version": "1.0",
         "analyze": fn
     }
 }
@@ -132,6 +141,7 @@ pub fn createAnalyzer(name, fn) {
 pub fn createSnapProvider(fn) {
     return {
         "kind": "SnapProvider",
+        "version": "1.0",
         "provide": fn
     }
 }

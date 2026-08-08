@@ -39,9 +39,48 @@ pub fn createDocument(name, units) {
         "sceneRoot": createSceneNode("root", "Root"),
         "pages": [],
         "activePage": 0,
-        "useCommandHistory": true
+        "useCommandHistory": true,
+        "epsilon": getEpsilonForUnits(units),
+        "displayPrecision": getDisplayPrecisionForUnits(units)
     }
 }
+
+pub fn getEpsilonForUnits(units) {
+    if units == "px" {
+        return 0.5
+    } else if units == "mm" {
+        return 0.01
+    } else if units == "in" {
+        return 0.001
+    }
+    return 0.01
+}
+
+pub fn getDisplayPrecisionForUnits(units) {
+    if units == "px" {
+        return 0
+    } else if units == "mm" {
+        return 2
+    } else if units == "in" {
+        return 3
+    }
+    return 2
+}
+
+pub fn setDocumentEpsilon(document, epsilon) {
+    document["epsilon"] = epsilon
+    return document
+}
+
+pub fn setDocumentDisplayPrecision(document, precision) {
+    document["displayPrecision"] = precision
+    return document
+}
+
+// Note: Command pattern is the primary undo/redo mechanism
+// useCommandHistory = true uses command pattern (recommended)
+// useCommandHistory = false uses snapshot-based undo (legacy, for batch operations only)
+// Command pattern is more memory-efficient and enables collaborative editing
 
 pub fn createSceneNode(kind, name) {
     return {
