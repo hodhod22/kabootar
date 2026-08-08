@@ -199,14 +199,30 @@ pub fn documentCommit(document) {
 }
 
 pub fn resolveConstraints(document) {
-    for nodeId in document["nodes"] {
-        let node = document["nodes"][nodeId]
-        if node != null && node["constraintDirty"] == true {
-            node = resolveNodeConstraints(node)
-            node["constraintDirty"] = false
-            document["nodes"][nodeId] = node
-        }
+    let sceneRoot = document["sceneRoot"]
+    document = resolveNodeConstraintsDFS(document, sceneRoot)
+    return document
+}
+
+fn resolveNodeConstraintsDFS(document, node) {
+    if node == null || node["constraintDirty"] == false {
+        return document
     }
+    
+    node = resolveNodeConstraints(node)
+    node["constraintDirty"] = false
+    document["nodes"][node["id"]] = node
+    
+    let i = 0
+    while i < len(node["children"]) {
+        let childId = node["children"][i]
+        let child = document["nodes"][childId]
+        if child != null {
+            document = resolveNodeConstraintsDFS(document, child)
+        }
+        i = i + 1
+    }
+    
     return document
 }
 
@@ -214,15 +230,40 @@ fn resolveNodeConstraints(node) {
     return node
 }
 
+// Note: Constraint resolution on nodes is Phase 2
+// Current constraint system (cad/constraint) operates on entities
+// To enable node constraints, either:
+// 1. Update constraint system to use nodes instead of entities
+// 2. Create new node-based constraint system
+// For now, this is a no-op - layout is Phase 1 priority
+
 pub fn resolveLayout(document) {
-    for nodeId in document["nodes"] {
-        let node = document["nodes"][nodeId]
-        if node != null && node["layoutDirty"] == true && node["layout"] != null {
-            node = resolveNodeLayout(document, node)
-            node["layoutDirty"] = false
-            document["nodes"][nodeId] = node
-        }
+    let sceneRoot = document["sceneRoot"]
+    document = resolveNodeLayoutDFS(document, sceneRoot)
+    return document
+}
+
+fn resolveNodeLayoutDFS(document, node) {
+    if node == null {
+        return document
     }
+    
+    let i = 0
+    while i < len(node["children"]) {
+        let childId = node["children"][i]
+        let child = document["nodes"][childId]
+        if child != null {
+            document = resolveNodeLayoutDFS(document, child)
+        }
+        i = i + 1
+    }
+    
+    if node["layoutDirty"] == true && node["layout"] != null {
+        node = resolveNodeLayout(document, node)
+        node["layoutDirty"] = false
+        document["nodes"][node["id"]] = node
+    }
+    
     return document
 }
 
@@ -244,33 +285,54 @@ fn resolveNodeLayout(document, node) {
         let containerHeight = node["height"]
         layout = recomputeLayout(layout, children, containerWidth, containerHeight)
         node["layout"] = layout
+        
+        let j = 0
+        while j < len(children) {
+            let child = children[j]
+            if layout["childPositions"] != null && j < len(layout["childPositions"]) {
+                let pos = layout["childPositions"][j]
+                child["transform"]["position"] = pos
+                child["transformDirty"] = true
+                document["nodes"][child["id"]] = child
+            }
+            j = j + 1
+        }
     }
     
     return node
 }
 
 pub fn updateWorldTransforms(document) {
-    for nodeId in document["nodes"] {
-        let node = document["nodes"][nodeId]
-        if node != null && node["transformDirty"] == true {
-            node = updateNodeWorldTransform(document, node)
-            node["transformDirty"] = false
-            document["nodes"][nodeId] = node
-        }
-    }
+    let sceneRoot = document["sceneRoot"]
+    document = updateNodeWorldTransformDFS(document, sceneRoot, null)
     return document
 }
 
-fn updateNodeWorldTransform(document, node) {
-    if node["parent"] == null {
+fn updateNodeWorldTransformDFS(document, node, parentWorldMatrix) {
+    if node == null {
+        return document
+    }
+    
+    if parentWorldMatrix == null {
         node["transform"]["worldMatrix"] = node["transform"]["localMatrix"]
     } else {
-        let parent = document["nodes"][node["parent"]]
-        if parent != null {
-            node["transform"]["worldMatrix"] = matrix2DMultiply(parent["transform"]["worldMatrix"], node["transform"]["localMatrix"])
-        }
+        node["transform"]["worldMatrix"] = matrix2DMultiply(parentWorldMatrix, node["transform"]["localMatrix"])
     }
-    return node
+    
+    node["transformDirty"] = false
+    document["nodes"][node["id"]] = node
+    
+    let i = 0
+    while i < len(node["children"]) {
+        let childId = node["children"][i]
+        let child = document["nodes"][childId]
+        if child != null {
+            document = updateNodeWorldTransformDFS(document, child, node["transform"]["worldMatrix"])
+        }
+        i = i + 1
+    }
+    
+    return document
 }
 
 pub fn clearDirtyFlags(document) {

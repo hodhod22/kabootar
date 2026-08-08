@@ -101,7 +101,12 @@ fn serializeNodes(nodes) {
                 "parent": node["parent"],
                 "visible": node["visible"],
                 "locked": node["locked"],
-                "opacity": node["opacity"]
+                "opacity": node["opacity"],
+                "layer": node["layer"],
+                "styleSet": node["styleSet"],
+                "layout": node["layout"],
+                "data": node["data"],
+                "meta": node["meta"]
             }
         }
     }
@@ -118,7 +123,12 @@ fn serializeSceneNode(sceneNode) {
         "parent": sceneNode["parent"],
         "visible": sceneNode["visible"],
         "locked": sceneNode["locked"],
-        "opacity": sceneNode["opacity"]
+        "opacity": sceneNode["opacity"],
+        "layer": sceneNode["layer"],
+        "styleSet": sceneNode["styleSet"],
+        "layout": sceneNode["layout"],
+        "data": sceneNode["data"],
+        "meta": sceneNode["meta"]
     }
 }
 
@@ -151,7 +161,15 @@ fn deserializeNodes(data) {
             "parent": nodeData["parent"],
             "visible": nodeData["visible"],
             "locked": nodeData["locked"],
-            "opacity": nodeData["opacity"]
+            "opacity": nodeData["opacity"],
+            "layer": nodeData["layer"],
+            "styleSet": nodeData["styleSet"],
+            "layout": nodeData["layout"],
+            "data": nodeData["data"],
+            "meta": nodeData["meta"],
+            "transformDirty": false,
+            "layoutDirty": false,
+            "constraintDirty": false
         }
     }
     return nodes
@@ -167,7 +185,15 @@ fn deserializeSceneNode(data) {
         "parent": data["parent"],
         "visible": data["visible"],
         "locked": data["locked"],
-        "opacity": data["opacity"]
+        "opacity": data["opacity"],
+        "layer": data["layer"],
+        "styleSet": data["styleSet"],
+        "layout": data["layout"],
+        "data": data["data"],
+        "meta": data["meta"],
+        "transformDirty": false,
+        "layoutDirty": false,
+        "constraintDirty": false
     }
 }
 
