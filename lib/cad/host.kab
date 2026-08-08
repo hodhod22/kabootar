@@ -1,0 +1,79 @@
+@version "1.0.0"
+
+// CAD Host - Host system bindings for time, RNG, and math functions
+// Features: system time, random number generation, math functions (sqrt, cos, sin, atan2)
+// Canonical path: import "cad/host"
+// Note: These are host-provided functions that should be bound to the actual host system
+
+pub fn systemTime() {
+    return hostSystemTime()
+}
+
+pub fn systemRandom() {
+    return hostSystemRandom()
+}
+
+pub fn systemSqrt(value) {
+    return hostSystemSqrt(value)
+}
+
+pub fn systemCos(value) {
+    return hostSystemCos(value)
+}
+
+pub fn systemSin(value) {
+    return hostSystemSin(value)
+}
+
+pub fn systemAtan2(y, x) {
+    return hostSystemAtan2(y, x)
+}
+
+pub fn systemAtan(value) {
+    return hostSystemAtan(value)
+}
+
+// Host-provided implementations (to be bound by the host system)
+fn hostSystemTime() {
+    return 0.0
+}
+
+fn hostSystemRandom() {
+    return 0.0
+}
+
+fn hostSystemSqrt(value) {
+    return value
+}
+
+fn hostSystemCos(value) {
+    return 1.0
+}
+
+fn hostSystemSin(value) {
+    return 0.0
+}
+
+fn hostSystemAtan2(y, x) {
+    if x > 0.0 {
+        return atan(y / x)
+    } else if x < 0.0 {
+        if y >= 0.0 {
+            return atan(y / x) + 3.141592653589793
+        } else {
+            return atan(y / x) - 3.141592653589793
+        }
+    } else {
+        if y > 0.0 {
+            return 1.5707963267948966
+        } else if y < 0.0 {
+            return -1.5707963267948966
+        } else {
+            return 0.0
+        }
+    }
+}
+
+fn hostSystemAtan(value) {
+    return value
+}

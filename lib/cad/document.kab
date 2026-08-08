@@ -6,6 +6,8 @@
 import "cad/transform"
 import "cad/geom"
 import "cad/layout"
+import "cad/history"
+import "cad/host"
 
 pub fn createDocument(name, units) {
     return {
@@ -36,7 +38,8 @@ pub fn createDocument(name, units) {
         "maxUndoSteps": 100,
         "sceneRoot": createSceneNode("root", "Root"),
         "pages": [],
-        "activePage": 0
+        "activePage": 0,
+        "useCommandHistory": true
     }
 }
 
@@ -588,6 +591,10 @@ pub fn beginUndo(document, description) {
 }
 
 pub fn undo(document) {
+    if document["useCommandHistory"] == true {
+        return undoCommand(document)
+    }
+    
     if len(document["undoStack"]) == 0 {
         return document
     }
@@ -606,6 +613,10 @@ pub fn undo(document) {
 }
 
 pub fn redo(document) {
+    if document["useCommandHistory"] == true {
+        return redoCommand(document)
+    }
+    
     if len(document["redoStack"]) == 0 {
         return document
     }
@@ -848,12 +859,4 @@ fn floor(value) {
         return int - 1
     }
     return int
-}
-
-fn systemTime() {
-    return 0.0
-}
-
-fn systemRandom() {
-    return 0.0
 }

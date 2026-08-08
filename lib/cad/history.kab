@@ -1,0 +1,343 @@
+@version "1.0.0"
+
+// CAD History - Command pattern for undo/redo with operations instead of snapshots
+// Features: command stack, AddNode, RemoveNode, MoveNode, SetProp, inverse operations
+// Canonical path: import "cad/history"
+
+import "cad/document"
+
+pub fn createCommandStack() {
+    return {
+        "kind": "CommandStack",
+        "undoStack": [],
+        "redoStack": [],
+        "maxUndoSteps": 100
+    }
+}
+
+pub fn executeCommand(document, command) {
+    let result = applyCommand(document, command)
+    document = result["document"]
+    let inverse = result["inverse"]
+    
+    document = pushUndoCommand(document, command, inverse)
+    document = clearRedoStack(document)
+    
+    return document
+}
+
+pub fn applyCommand(document, command) {
+    let kind = command["kind"]
+    
+    if kind == "AddNode" {
+        return applyAddNodeCommand(document, command)
+    } else if kind == "RemoveNode" {
+        return applyRemoveNodeCommand(document, command)
+    } else if kind == "MoveNode" {
+        return applyMoveNodeCommand(document, command)
+    } else if kind == "SetTransform" {
+        return applySetTransformCommand(document, command)
+    } else if kind == "SetParent" {
+        return applySetParentCommand(document, command)
+    } else if kind == "SetStyle" {
+        return applySetStyleCommand(document, command)
+    } else if kind == "SetText" {
+        return applySetTextCommand(document, command)
+    } else if kind == "SetProperty" {
+        return applySetPropertyCommand(document, command)
+    }
+    
+    return { "document": document, "inverse": null }
+}
+
+fn applyAddNodeCommand(document, command) {
+    let node = command["node"]
+    let parentId = command["parentId"]
+    
+    document = addNode(document, parentId, node)
+    
+    let inverse = {
+        "kind": "RemoveNode",
+        "nodeId": node["id"],
+        "parentId": parentId
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applyRemoveNodeCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let node = getNode(document, nodeId)
+    let parentId = node["parent"]
+    
+    document = removeNode(document, nodeId)
+    
+    let inverse = {
+        "kind": "AddNode",
+        "node": node,
+        "parentId": parentId
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applyMoveNodeCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let oldPosition = command["oldPosition"]
+    let newPosition = command["newPosition"]
+    
+    let node = getNode(document, nodeId)
+    if node != null {
+        node["transform"]["position"] = newPosition
+        node["transformDirty"] = true
+        document["nodes"][nodeId] = node
+    }
+    
+    let inverse = {
+        "kind": "MoveNode",
+        "nodeId": nodeId,
+        "oldPosition": newPosition,
+        "newPosition": oldPosition
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applySetTransformCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let oldTransform = command["oldTransform"]
+    let newTransform = command["newTransform"]
+    
+    let node = getNode(document, nodeId)
+    if node != null {
+        node["transform"] = newTransform
+        node["transformDirty"] = true
+        document["nodes"][nodeId] = node
+    }
+    
+    let inverse = {
+        "kind": "SetTransform",
+        "nodeId": nodeId,
+        "oldTransform": newTransform,
+        "newTransform": oldTransform
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applySetParentCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let oldParentId = command["oldParentId"]
+    let newParentId = command["newParentId"]
+    
+    document = reparentNode(document, nodeId, newParentId)
+    
+    let inverse = {
+        "kind": "SetParent",
+        "nodeId": nodeId,
+        "oldParentId": newParentId,
+        "newParentId": oldParentId
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applySetStyleCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let oldStyleSet = command["oldStyleSet"]
+    let newStyleSet = command["newStyleSet"]
+    
+    let node = getNode(document, nodeId)
+    if node != null {
+        node["styleSet"] = newStyleSet
+        document["nodes"][nodeId] = node
+    }
+    
+    let inverse = {
+        "kind": "SetStyle",
+        "nodeId": nodeId,
+        "oldStyleSet": newStyleSet,
+        "newStyleSet": oldStyleSet
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applySetTextCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let oldText = command["oldText"]
+    let newText = command["newText"]
+    
+    let node = getNode(document, nodeId)
+    if node != null {
+        node["data"]["text"] = newText
+        document["nodes"][nodeId] = node
+    }
+    
+    let inverse = {
+        "kind": "SetText",
+        "nodeId": nodeId,
+        "oldText": newText,
+        "newText": oldText
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+fn applySetPropertyCommand(document, command) {
+    let nodeId = command["nodeId"]
+    let key = command["key"]
+    let oldValue = command["oldValue"]
+    let newValue = command["newValue"]
+    
+    let node = getNode(document, nodeId)
+    if node != null {
+        node["properties"][key] = newValue
+        document["nodes"][nodeId] = node
+    }
+    
+    let inverse = {
+        "kind": "SetProperty",
+        "nodeId": nodeId,
+        "key": key,
+        "oldValue": newValue,
+        "newValue": oldValue
+    }
+    
+    return { "document": document, "inverse": inverse }
+}
+
+pub fn createAddNodeCommand(parentId, node) {
+    return {
+        "kind": "AddNode",
+        "parentId": parentId,
+        "node": node
+    }
+}
+
+pub fn createRemoveNodeCommand(nodeId) {
+    return {
+        "kind": "RemoveNode",
+        "nodeId": nodeId
+    }
+}
+
+pub fn createMoveNodeCommand(nodeId, oldPosition, newPosition) {
+    return {
+        "kind": "MoveNode",
+        "nodeId": nodeId,
+        "oldPosition": oldPosition,
+        "newPosition": newPosition
+    }
+}
+
+pub fn createSetTransformCommand(nodeId, oldTransform, newTransform) {
+    return {
+        "kind": "SetTransform",
+        "nodeId": nodeId,
+        "oldTransform": oldTransform,
+        "newTransform": newTransform
+    }
+}
+
+pub fn createSetParentCommand(nodeId, oldParentId, newParentId) {
+    return {
+        "kind": "SetParent",
+        "nodeId": nodeId,
+        "oldParentId": oldParentId,
+        "newParentId": newParentId
+    }
+}
+
+pub fn createSetStyleCommand(nodeId, oldStyleSet, newStyleSet) {
+    return {
+        "kind": "SetStyle",
+        "nodeId": nodeId,
+        "oldStyleSet": oldStyleSet,
+        "newStyleSet": newStyleSet
+    }
+}
+
+pub fn createSetTextCommand(nodeId, oldText, newText) {
+    return {
+        "kind": "SetText",
+        "nodeId": nodeId,
+        "oldText": oldText,
+        "newText": newText
+    }
+}
+
+pub fn createSetPropertyCommand(nodeId, key, oldValue, newValue) {
+    return {
+        "kind": "SetProperty",
+        "nodeId": nodeId,
+        "key": key,
+        "oldValue": oldValue,
+        "newValue": newValue
+    }
+}
+
+fn pushUndoCommand(document, command, inverse) {
+    let entry = {
+        "command": command,
+        "inverse": inverse
+    }
+    document["undoStack"] = push(document["undoStack"], entry)
+    
+    if len(document["undoStack"]) > document["maxUndoSteps"] {
+        document["undoStack"] = removeFirst(document["undoStack"])
+    }
+    
+    return document
+}
+
+fn clearRedoStack(document) {
+    document["redoStack"] = []
+    return document
+}
+
+pub fn undoCommand(document) {
+    if len(document["undoStack"]) == 0 {
+        return document
+    }
+    
+    let entry = document["undoStack"][len(document["undoStack"]) - 1]
+    document["undoStack"] = removeLast(document["undoStack"])
+    
+    let result = applyCommand(document, entry["inverse"])
+    document = result["document"]
+    
+    document["redoStack"] = push(document["redoStack"], entry)
+    
+    return document
+}
+
+pub fn redoCommand(document) {
+    if len(document["redoStack"]) == 0 {
+        return document
+    }
+    
+    let entry = document["redoStack"][len(document["redoStack"]) - 1]
+    document["redoStack"] = removeLast(document["redoStack"])
+    
+    let result = applyCommand(document, entry["command"])
+    document = result["document"]
+    
+    document["undoStack"] = push(document["undoStack"], entry)
+    
+    return document
+}
+
+pub fn canUndoCommand(document) {
+    return len(document["undoStack"]) > 0
+}
+
+pub fn canRedoCommand(document) {
+    return len(document["redoStack"]) > 0
+}
+
+pub fn clearCommandStack(document) {
+    document["undoStack"] = []
+    document["redoStack"] = []
+    return document
+}

@@ -5,6 +5,7 @@
 // Canonical path: import "cad/transform"
 
 import "cad/geom"
+import "cad/host"
 
 pub fn createTransform() {
     return {
@@ -297,30 +298,6 @@ fn atan2(y, x) {
     return systemAtan2(y, x)
 }
 
-fn systemAtan2(y, x) {
-    if x > 0.0 {
-        return atan(y / x)
-    } else if x < 0.0 {
-        if y >= 0.0 {
-            return atan(y / x) + 3.14159
-        } else {
-            return atan(y / x) - 3.14159
-        }
-    } else {
-        if y > 0.0 {
-            return 1.5708
-        } else if y < 0.0 {
-            return -1.5708
-        } else {
-            return 0.0
-        }
-    }
-}
-
 fn atan(value) {
     return systemAtan(value)
-}
-
-fn systemAtan(value) {
-    return value
 }
