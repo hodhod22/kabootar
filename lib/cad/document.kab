@@ -1,8 +1,10 @@
 @version "1.0.0"
 
-// CAD Document - Core document management for CAD drawings
-// Features: Document creation, layers, entities, selection, undo/redo, metadata
+// CAD Document - Document management with scene tree as single source of truth
 // Canonical path: import "cad/document"
+
+import "cad/transform"
+import "cad/geom"
 
 pub fn createDocument(name, units) {
     return {
@@ -24,8 +26,9 @@ pub fn createDocument(name, units) {
             "default": createLayer("default", { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 })
         },
         "activeLayer": "default",
-        "entities": {},
-        "entityCounter": 0,
+        "nodes": {},
+        "nodeCounter": 0,
+        "idCounter": 0,
         "selection": createSelection(),
         "undoStack": [],
         "redoStack": [],
@@ -39,7 +42,7 @@ pub fn createDocument(name, units) {
 pub fn createSceneNode(kind, name) {
     return {
         "kind": kind,
-        "id": generateDocumentId(),
+        "id": null,
         "name": name,
         "transform": createTransform(),
         "children": [],
@@ -48,6 +51,12 @@ pub fn createSceneNode(kind, name) {
         "locked": false,
         "opacity": 1.0
     }
+}
+
+pub fn createSceneNodeWithId(document, kind, name) {
+    let node = createSceneNode(kind, name)
+    node["id"] = generateNodeId(document)
+    return node
 }
 
 pub fn createFrameNode(name, x, y, width, height) {
@@ -73,6 +82,35 @@ pub fn addSceneChild(parent, child) {
     parent["children"] = push(parent["children"], child["id"])
     child["parent"] = parent["id"]
     return parent
+}
+
+pub fn addNodeToDocument(document, node) {
+    document["nodes"][node["id"]] = node
+    document["nodeCounter"] = document["nodeCounter"] + 1
+    return document
+}
+
+pub fn removeNodeFromDocument(document, nodeId) {
+    let newNodes = {}
+    for id in document["nodes"] {
+        if id != nodeId {
+            newNodes[id] = document["nodes"][id]
+        }
+    }
+    document["nodes"] = newNodes
+    return document
+}
+
+pub fn getNode(document, nodeId) {
+    return document["nodes"][nodeId]
+}
+
+pub fn getNodeCount(document) {
+    let count = 0
+    for id in document["nodes"] {
+        count = count + 1
+    }
+    return count
 }
 
 pub fn removeSceneChild(parent, childId) {
@@ -408,9 +446,10 @@ pub fn clearUndoRedo(document) {
 
 fn createDocumentSnapshot(document) {
     return {
-        "entities": deepCopyEntities(document["entities"]),
+        "nodes": deepCopyNodes(document["nodes"]),
         "layers": deepCopyLayers(document["layers"]),
-        "entityCounter": document["entityCounter"],
+        "nodeCounter": document["nodeCounter"],
+        "idCounter": document["idCounter"],
         "selection": deepCopySelection(document["selection"]),
         "sceneRoot": deepCopySceneNode(document["sceneRoot"]),
         "pages": deepCopyPages(document["pages"]),
@@ -419,14 +458,40 @@ fn createDocumentSnapshot(document) {
 }
 
 fn restoreDocumentSnapshot(document, snapshot) {
-    document["entities"] = deepCopyEntities(snapshot["entities"])
+    document["nodes"] = deepCopyNodes(snapshot["nodes"])
     document["layers"] = deepCopyLayers(snapshot["layers"])
-    document["entityCounter"] = snapshot["entityCounter"]
+    document["nodeCounter"] = snapshot["nodeCounter"]
+    document["idCounter"] = snapshot["idCounter"]
     document["selection"] = deepCopySelection(snapshot["selection"])
     document["sceneRoot"] = deepCopySceneNode(snapshot["sceneRoot"])
     document["pages"] = deepCopyPages(snapshot["pages"])
     document["activePage"] = snapshot["activePage"]
     return document
+}
+
+fn deepCopyNodes(nodes) {
+    let copy = {}
+    for nodeId in nodes {
+        let node = nodes[nodeId]
+        if node != null {
+            copy[nodeId] = deepCopyNode(node)
+        }
+    }
+    return copy
+}
+
+fn deepCopyNode(node) {
+    let copy = {}
+    for key in node {
+        if key == "transform" {
+            copy[key] = deepCopyTransform(node["transform"])
+        } else if key == "children" {
+            copy[key] = node["children"]
+        } else {
+            copy[key] = node[key]
+        }
+    }
+    return copy
 }
 
 fn deepCopyEntities(entities) {
@@ -634,6 +699,11 @@ pub fn getLayerCount(document) {
 
 pub fn generateDocumentId() {
     return "doc-" + timestamp() + "-" + random()
+}
+
+pub fn generateNodeId(document) {
+    document["idCounter"] = document["idCounter"] + 1
+    return "node-" + document["idCounter"]
 }
 
 fn timestamp() {

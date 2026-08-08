@@ -12,6 +12,7 @@ pub fn createLineEntity(p1, p2) {
         "id": null,
         "data": createSegment(p1, p2),
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -26,6 +27,7 @@ pub fn createPolylineEntity(points, closed) {
         "id": null,
         "data": createPolyline(points, closed),
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -40,6 +42,7 @@ pub fn createCircleEntity(center, radius) {
         "id": null,
         "data": createCircle(center, radius),
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -54,6 +57,7 @@ pub fn createRectEntity(x, y, width, height) {
         "id": null,
         "data": createRect(x, y, width, height),
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -68,6 +72,7 @@ pub fn createArcEntity(center, radius, startAngle, endAngle) {
         "id": null,
         "data": createArc(center, radius, startAngle, endAngle),
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -82,6 +87,7 @@ pub fn createPointEntity(position) {
         "id": null,
         "data": { "position": position },
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -102,6 +108,7 @@ pub fn createTextEntity(position, text, fontSize) {
             "alignment": "left"
         },
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -121,6 +128,7 @@ pub fn createDimensionEntity(p1, p2, offset) {
             "text": ""
         },
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -138,6 +146,7 @@ pub fn createPathEntity(commands, closed) {
             "closed": closed
         },
         "properties": {},
+        "styleSet": createStyleSet(),
         "layer": "default",
         "visible": true,
         "locked": false,
@@ -222,6 +231,26 @@ pub fn setEntityGroup(entity, group) {
 
 pub fn setEntityProperty(entity, key, value) {
     entity["properties"][key] = value
+    return entity
+}
+
+pub fn setEntityStyleSet(entity, styleSet) {
+    entity["styleSet"] = styleSet
+    return entity
+}
+
+pub fn addFillToEntity(entity, fill) {
+    entity["styleSet"] = addFillToStyleSet(entity["styleSet"], fill)
+    return entity
+}
+
+pub fn addStrokeToEntity(entity, stroke) {
+    entity["styleSet"] = addStrokeToStyleSet(entity["styleSet"], stroke)
+    return entity
+}
+
+pub fn addEffectToEntity(entity, effect) {
+    entity["styleSet"] = addEffectToStyleSet(entity["styleSet"], effect)
     return entity
 }
 
