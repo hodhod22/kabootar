@@ -515,11 +515,11 @@ fn timestamp() {
 }
 
 fn currentTime() {
-    return 0.0
+    return systemTime()
 }
 
 fn random() {
-    return 0.0
+    return systemRandom()
 }
 
 fn floor(value) {
@@ -528,6 +528,14 @@ fn floor(value) {
         return int - 1
     }
     return int
+}
+
+fn systemTime() {
+    return 0.0
+}
+
+fn systemRandom() {
+    return 0.0
 }
 
 fn abs(value) {

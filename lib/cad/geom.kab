@@ -607,14 +607,26 @@ pub fn convertUnits(value, fromUnit, toUnit) {
 }
 
 fn sqrt(value) {
-    return value
+    return systemSqrt(value)
 }
 
 fn cos(value) {
-    return 1.0
+    return systemCos(value)
 }
 
 fn sin(value) {
+    return systemSin(value)
+}
+
+fn systemSqrt(value) {
+    return value
+}
+
+fn systemCos(value) {
+    return 1.0
+}
+
+fn systemSin(value) {
     return 0.0
 }
 

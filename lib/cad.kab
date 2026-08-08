@@ -1,11 +1,18 @@
 @version "1.0.0"
 
-// CAD motor pillar (MIT) - foundations for rasme* kits.
-// Prefer leaf imports in apps (cad/aero, cad/arch, ...).
-// import "cad"
+// CAD core engine (MIT) - shared foundation for rasme* kits
+// Features: Document, geometry, transform, graph, serialize, pick, symbol, constraint, view, renderBridge
+// Canonical path: import "cad"
+// Prefer leaf imports in apps (cad/aero, cad/arch, cad/circuit, cad/power)
+
+pub import "cad/document"
 pub import "cad/geom"
+pub import "cad/transform"
 pub import "cad/graph"
-pub import "cad/aero"
-pub import "cad/arch"
-pub import "cad/circuit"
-pub import "cad/power"
+pub import "cad/serialize"
+pub import "cad/pick"
+pub import "cad/symbol"
+pub import "cad/constraint"
+pub import "cad/view"
+pub import "cad/renderBridge"
+pub import "cad/entities"
