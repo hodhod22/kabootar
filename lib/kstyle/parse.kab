@@ -2,6 +2,7 @@
 
 // KSS parser in Kabootar (mirrors src/runtime/kstyle.rs parse_stylesheet).
 // import "kstyle/parse"
+// Supports CSS variables (--custom-property)
 
 fn kssScan(mode, text, pos, ch) {
     let i = pos
@@ -47,7 +48,62 @@ fn parseDeclBlock(src) {
     return items
 }
 
-pub fn parseSheet(css) {
+fn parseVarDecl(src) {
+    let vars = {}
+    let parts = split(src, ";")
+    for part of parts {
+        let p = trim(part)
+        if len(p) == 0 {
+            continue
+        }
+        let colon = str_index_of(p, ":")
+        if colon >= 0 {
+            let prop = trim(str_slice(p, 0, colon))
+            let val = trim(str_slice(p, colon + 1, len(p)))
+            if len(prop) >= 2 && char_at(prop, 0) == "-" && char_at(prop, 1) == "-" {
+                vars[prop] = val
+            }
+        }
+    }
+    return vars
+}
+
+fn resolveVars(val, vars) {
+    let resolved = val
+    let i = 0
+    while i < len(vars) {
+        let k = vars[i]
+        let v = vars[k]
+        let varPattern = "var(" + k + ")"
+        let varIdx = str_index_of(resolved, varPattern)
+        if varIdx >= 0 {
+            resolved = str_slice(resolved, 0, varIdx) + v + str_slice(resolved, varIdx + len(varPattern), len(resolved))
+        }
+        i = i + 1
+    }
+    return resolved
+}
+
+fn parseMediaQuery(css, i) {
+    let mediaStart = str_index_of(css, "@media", i)
+    if mediaStart < 0 {
+        return { "rules": [], "next": i }
+    }
+    let braceOpen = kssScan("findChar", css, mediaStart + 6, "{")
+    if braceOpen >= len(css) {
+        return { "rules": [], "next": i }
+    }
+    let condition = trim(str_slice(css, mediaStart + 6, braceOpen))
+    let braceClose = kssScan("findChar", css, braceOpen + 1, "}")
+    if braceClose >= len(css) {
+        return { "rules": [], "next": i }
+    }
+    let innerCss = str_slice(css, braceOpen + 1, braceClose)
+    let innerRules = parseSheetInner(innerCss)
+    return { "rules": innerRules, "condition": condition, "next": braceClose + 1 }
+}
+
+fn parseSheetInner(css) {
     let rules = []
     let i = 0
     let n = len(css)
@@ -67,6 +123,53 @@ pub fn parseSheet(css) {
         let decls = str_slice(css, declStart, declEnd)
         if len(selector) > 0 {
             rules = push(rules, { "selector": selector, "items": parseDeclBlock(decls) })
+        }
+        i = declEnd + 1
+    }
+    return rules
+}
+
+pub fn parseSheet(css) {
+    let rules = []
+    let i = 0
+    let n = len(css)
+    let vars = {}
+    while i < n {
+        i = kssScan("skipWs", css, i, "")
+        if i >= n {
+            break
+        }
+        
+        let mediaAt = str_index_of(css, "@media", i)
+        if mediaAt == i {
+            let media = parseMediaQuery(css, i)
+            rules = push(rules, { "type": "media", "condition": media["condition"], "items": media["rules"] })
+            i = media["next"]
+            continue
+        }
+        
+        let selStart = i
+        let brace = kssScan("findChar", css, i, "{")
+        if brace >= n {
+            break
+        }
+        let selector = trim(str_slice(css, selStart, brace))
+        let declStart = brace + 1
+        let declEnd = kssScan("findChar", css, declStart, "}")
+        let decls = str_slice(css, declStart, declEnd)
+        
+        if selector == ":root" {
+            vars = parseVarDecl(decls)
+        }
+        
+        if len(selector) > 0 && selector != ":root" {
+            let resolvedDecls = []
+            let declItems = parseDeclBlock(decls)
+            for item of declItems {
+                let resolvedVal = resolveVars(item["value"], vars)
+                resolvedDecls = push(resolvedDecls, { "prop": item["prop"], "value": resolvedVal })
+            }
+            rules = push(rules, { "type": "rule", "selector": selector, "items": resolvedDecls })
         }
         i = declEnd + 1
     }

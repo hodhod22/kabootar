@@ -3,6 +3,36 @@
 // KSS selector matching in Kabootar (mirrors kstyle.rs / DomNode::matches_selector).
 // import "kstyle/selectors"
 // KEEP <=~7 top-level fn.
+// Supports: #id / .class / tag / tag#id / tag.class / descendant (space) / child (>) / sibling (+)
+
+fn splitSelector(sel) {
+    let parts = []
+    let current = ""
+    let i = 0
+    let n = len(sel)
+    while i < n {
+        let c = char_at(sel, i)
+        if c == " " {
+            if len(trim(current)) > 0 {
+                parts = push(parts, trim(current))
+                current = ""
+            }
+        } else if c == ">" || c == "+" {
+            if len(trim(current)) > 0 {
+                parts = push(parts, trim(current))
+                current = ""
+            }
+            parts = push(parts, "" + c)
+        } else {
+            current = current + c
+        }
+        i = i + 1
+    }
+    if len(trim(current)) > 0 {
+        parts = push(parts, trim(current))
+    }
+    return parts
+}
 
 pub fn matchesTag(sel, tag) {
     return sel == tag
@@ -80,7 +110,7 @@ fn stripQuotes(v) {
     return s
 }
 
-/// Full node match: :not(...), [attr]/[attr=value], then simple.
+/// Full node match: :not(...), [attr]/[attr=value], pseudo-classes, then simple.
 pub fn matchesNode(sel, node) {
     if node == null || node == undefined {
         return false
@@ -117,6 +147,42 @@ pub fn matchesNode(sel, node) {
         return matchesNode(base, node)
     }
 
+    let hoverAt = str_index_of(s, ":hover")
+    if hoverAt >= 0 && hoverAt + 6 == len(s) {
+        let base = trim(str_slice(s, 0, hoverAt))
+        if len(base) == 0 {
+            base = tag
+        }
+        if !matchesSimple(base, tag, classAttr, idAttr) {
+            return false
+        }
+        return kdom_is_hovered(node)
+    }
+
+    let activeAt = str_index_of(s, ":active")
+    if activeAt >= 0 && activeAt + 7 == len(s) {
+        let base = trim(str_slice(s, 0, activeAt))
+        if len(base) == 0 {
+            base = tag
+        }
+        if !matchesSimple(base, tag, classAttr, idAttr) {
+            return false
+        }
+        return kdom_is_active(node)
+    }
+
+    let focusAt = str_index_of(s, ":focus")
+    if focusAt >= 0 && focusAt + 6 == len(s) {
+        let base = trim(str_slice(s, 0, focusAt))
+        if len(base) == 0 {
+            base = tag
+        }
+        if !matchesSimple(base, tag, classAttr, idAttr) {
+            return false
+        }
+        return kdom_is_focused(node)
+    }
+
     let bracket = str_index_of(s, "[")
     if bracket >= 0 {
         let prefix = trim(str_slice(s, 0, bracket))
@@ -147,4 +213,58 @@ pub fn matchesNode(sel, node) {
     }
 
     return matchesSimple(s, tag, classAttr, idAttr)
+}
+
+/// Match compound selector (descendant space, child >, sibling +)
+pub fn matchesCompound(sel, node) {
+    if node == null || node == undefined {
+        return false
+    }
+    let parts = splitSelector(sel)
+    if len(parts) == 0 {
+        return false
+    }
+    if len(parts) == 1 {
+        return matchesNode(parts[0], node)
+    }
+    
+    let lastIdx = len(parts) - 1
+    if !matchesNode(parts[lastIdx], node) {
+        return false
+    }
+    
+    let parent = kdom_parent(node)
+    let partIdx = lastIdx - 1
+    
+    while partIdx >= 0 && parent != null {
+        let part = parts[partIdx]
+        if part == ">" {
+            partIdx = partIdx - 1
+            if partIdx < 0 {
+                break
+            }
+            if !matchesNode(parts[partIdx], parent) {
+                return false
+            }
+            parent = kdom_parent(parent)
+        } else if part == "+" {
+            partIdx = partIdx - 1
+            if partIdx < 0 {
+                break
+            }
+            let sibling = kdom_prev_sibling(parent)
+            if sibling == null || !matchesNode(parts[partIdx], sibling) {
+                return false
+            }
+            break
+        } else {
+            if matchesNode(part, parent) {
+                return true
+            }
+            parent = kdom_parent(parent)
+        }
+        partIdx = partIdx - 1
+    }
+    
+    return false
 }
