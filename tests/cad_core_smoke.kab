@@ -1,0 +1,236 @@
+@version "1.0.0"
+
+// CAD Core Smoke Test - Test core loop: create document → entity → snap → serialize → deserialize
+import "cad"
+
+fn main() {
+    let errors = []
+    
+    // Test 1: Create document
+    let document = createDocument("Smoke Test", "mm")
+    if document == null {
+        errors = push(errors, "Failed to create document")
+    }
+    if document["name"] != "Smoke Test" {
+        errors = push(errors, "Document name incorrect")
+    }
+    if document["units"] != "mm" {
+        errors = push(errors, "Document units incorrect")
+    }
+    
+    // Test 2: Add layer
+    document = addLayer(document, createLayer("test", { "r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0 }))
+    if document["layers"]["test"] == null {
+        errors = push(errors, "Failed to add layer")
+    }
+    
+    // Test 3: Create and add entity
+    let lineEntity = createLineEntity(vec2(0.0, 0.0), vec2(100.0, 0.0))
+    lineEntity = setEntityId(lineEntity, "line1")
+    document = addEntity(document, lineEntity)
+    
+    if document["entities"]["line1"] == null {
+        errors = push(errors, "Failed to add entity")
+    }
+    
+    // Test 4: Selection
+    document = selectEntity(document, "line1")
+    if isSelected(document, "line1") != true {
+        errors = push(errors, "Failed to select entity")
+    }
+    
+    // Test 5: Undo/redo
+    document = beginUndo(document, "Add line")
+    document = removeEntity(document, "line1")
+    if document["entities"]["line1"] != null {
+        errors = push(errors, "Failed to remove entity")
+    }
+    
+    document = undo(document)
+    if document["entities"]["line1"] == null {
+        errors = push(errors, "Failed to undo")
+    }
+    
+    document = redo(document)
+    if document["entities"]["line1"] != null {
+        errors = push(errors, "Failed to redo")
+    }
+    
+    // Re-add entity for further tests
+    lineEntity = setEntityId(lineEntity, "line2")
+    document = addEntity(document, lineEntity)
+    
+    // Test 6: Geometry operations
+    let p1 = vec2(0.0, 0.0)
+    let p2 = vec2(100.0, 0.0)
+    let dist = vec2Distance(p1, p2)
+    if dist < 99.9 || dist > 100.1 {
+        errors = push(errors, "Distance calculation incorrect")
+    }
+    
+    let seg = createSegment(p1, p2)
+    let segLen = segmentLength(seg)
+    if segLen < 99.9 || segLen > 100.1 {
+        errors = push(errors, "Segment length incorrect")
+    }
+    
+    // Test 7: Transform
+    let transform = createTransformWithPosition(50.0, 50.0)
+    transform = setTransformRotation(transform, 1.57)
+    transform = setTransformScale(transform, 2.0, 2.0)
+    
+    let worldPos = getWorldPosition(transform)
+    if worldPos["x"] < 49.9 || worldPos["x"] > 50.1 {
+        errors = push(errors, "Transform position incorrect")
+    }
+    
+    // Test 8: Graph
+    let graph = createGraph()
+    let node1 = createNode({ "position": vec2(0.0, 0.0) })
+    let node2 = createNode({ "position": vec2(100.0, 0.0) })
+    
+    graph = addNode(graph, node1)
+    graph = addNode(graph, node2)
+    
+    let edge = createEdge(node1["id"], node2["id"], { "type": "test" })
+    graph = addEdge(graph, edge)
+    
+    if getNodeCount(graph) != 2 {
+        errors = push(errors, "Graph node count incorrect")
+    }
+    if getEdgeCount(graph) != 1 {
+        errors = push(errors, "Graph edge count incorrect")
+    }
+    
+    let neighbors = getNeighbors(graph, node1["id"])
+    if len(neighbors) != 1 {
+        errors = push(errors, "Graph neighbors incorrect")
+    }
+    
+    // Test 9: Serialize/Deserialize
+    let serialized = serializeDocument(document)
+    if serialized == null {
+        errors = push(errors, "Failed to serialize document")
+    }
+    
+    let deserialized = deserializeDocument(serialized)
+    if deserialized == null {
+        errors = push(errors, "Failed to deserialize document")
+    }
+    
+    if getEntityCount(deserialized) != getEntityCount(document) {
+        errors = push(errors, "Round-trip entity count mismatch")
+    }
+    
+    // Test 10: Pick
+    let spatialIndex = buildSpatialIndex(document)
+    let picked = pickPoint(spatialIndex, 50.0, 0.0, 5.0)
+    if picked == null {
+        errors = push(errors, "Failed to pick entity")
+    }
+    
+    // Test 11: View and snap
+    let view = createView()
+    view = setCameraZoom(view, 2.0)
+    view = setGridSpacing(view, 10.0)
+    view = setSnapEnabled(view, true)
+    
+    let screenPos = worldToScreen(view, 50.0, 50.0)
+    let worldPos2 = screenToWorld(view, screenPos["x"], screenPos["y"])
+    
+    if worldPos2["x"] < 49.9 || worldPos2["x"] > 50.1 {
+        errors = push(errors, "World/screen conversion incorrect")
+    }
+    
+    let snapped = snapPoint(view, vec2(15.0, 15.0), document["entities"])
+    if snapped == null {
+        errors = push(errors, "Failed to snap point")
+    }
+    
+    // Test 12: Symbol
+    let symbolLib = createSymbolLibrary()
+    let symbolDef = createSymbolDefinition("TestSymbol")
+    symbolDef = addSymbolGeometry(symbolDef, createLineEntity(vec2(0.0, 0.0), vec2(10.0, 0.0)))
+    symbolDef = addSymbolPort(symbolDef, createSymbolPort("A", vec2(0.0, 0.0), vec2(-1.0, 0.0)))
+    
+    symbolLib = addSymbolDefinitionToLibrary(symbolLib, symbolDef)
+    
+    let symbolTransform = createTransformWithPosition(100.0, 100.0)
+    let symbolInstance = createSymbolInstance(symbolDef["id"], symbolTransform)
+    
+    if symbolInstance == null {
+        errors = push(errors, "Failed to create symbol instance")
+    }
+    
+    // Test 13: Constraint
+    let constraintSystem = createConstraintSystem()
+    let horizontalConstraint = createHorizontalConstraint("line2")
+    constraintSystem = addConstraint(constraintSystem, horizontalConstraint)
+    
+    if getConstraintCount(constraintSystem) != 1 {
+        errors = push(errors, "Failed to add constraint")
+    }
+    
+    // Test 14: Render bridge
+    let bridge = createRenderBridge()
+    bridge = setRenderBackend(bridge, createNullBackend())
+    
+    view = clearDrawList(view)
+    view = addDrawCommand(view, createLineDrawCommand(vec2(0.0, 0.0), vec2(100.0, 0.0), { "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0))
+    
+    bridge = executeDrawList(bridge, view["drawList"])
+    
+    if getTotalDrawCalls(bridge) != 1 {
+        errors = push(errors, "Render bridge draw calls incorrect")
+    }
+    
+    // Test 15: Entity bounds
+    let bounds = getEntityBounds(lineEntity)
+    if bounds["minX"] != 0.0 || bounds["maxX"] != 100.0 {
+        errors = push(errors, "Entity bounds incorrect")
+    }
+    
+    // Test 16: Clone entity
+    let cloned = cloneEntity(lineEntity)
+    if cloned == null || cloned["id"] == lineEntity["id"] {
+        errors = push(errors, "Failed to clone entity")
+    }
+    
+    // Test 17: Unit conversion
+    let mmValue = 1000.0
+    let mValue = convertUnits(mmValue, "mm", "m")
+    if mValue < 0.99 || mValue > 1.01 {
+        errors = push(errors, "Unit conversion incorrect")
+    }
+    
+    // Test 18: Polyline
+    let polyline = createPolylineEntity([vec2(0.0, 0.0), vec2(10.0, 0.0), vec2(10.0, 10.0)], true)
+    let polyBounds = getEntityBounds(polyline)
+    if polyBounds["minX"] != 0.0 || polyBounds["maxY"] != 10.0 {
+        errors = push(errors, "Polyline bounds incorrect")
+    }
+    
+    // Test 19: Circle
+    let circle = createCircleEntity(vec2(50.0, 50.0), 25.0)
+    let circleBounds = getEntityBounds(circle)
+    if circleBounds["minX"] != 25.0 || circleBounds["maxX"] != 75.0 {
+        errors = push(errors, "Circle bounds incorrect")
+    }
+    
+    // Test 20: Rectangle
+    let rect = createRectEntity(0.0, 0.0, 100.0, 50.0)
+    let rectBounds = getEntityBounds(rect)
+    if rectBounds["minX"] != 0.0 || rectBounds["maxX"] != 100.0 {
+        errors = push(errors, "Rectangle bounds incorrect")
+    }
+    
+    // Return results
+    return {
+        "success": len(errors) == 0,
+        "errors": errors,
+        "errorCount": len(errors),
+        "testCount": 20
+    }
+}
+
+main()

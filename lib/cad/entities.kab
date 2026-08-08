@@ -1,0 +1,261 @@
+@version "1.0.0"
+
+// CAD Entities - Entity contract for Line/Polyline/Circle/Rect/Text
+// Shared entity structure used by document + pick + view
+// Canonical path: import "cad/entities"
+
+import "cad/geom"
+
+pub fn createLineEntity(p1, p2) {
+    return {
+        "kind": "Line",
+        "id": null,
+        "data": createSegment(p1, p2),
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createPolylineEntity(points, closed) {
+    return {
+        "kind": "Polyline",
+        "id": null,
+        "data": createPolyline(points, closed),
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createCircleEntity(center, radius) {
+    return {
+        "kind": "Circle",
+        "id": null,
+        "data": createCircle(center, radius),
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createRectEntity(x, y, width, height) {
+    return {
+        "kind": "Rectangle",
+        "id": null,
+        "data": createRect(x, y, width, height),
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createArcEntity(center, radius, startAngle, endAngle) {
+    return {
+        "kind": "Arc",
+        "id": null,
+        "data": createArc(center, radius, startAngle, endAngle),
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createPointEntity(position) {
+    return {
+        "kind": "Point",
+        "id": null,
+        "data": { "position": position },
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createTextEntity(position, text, fontSize) {
+    return {
+        "kind": "Text",
+        "id": null,
+        "data": {
+            "position": position,
+            "text": text,
+            "fontSize": fontSize,
+            "font": "sans-serif",
+            "alignment": "left"
+        },
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn createDimensionEntity(p1, p2, offset) {
+    return {
+        "kind": "Dimension",
+        "id": null,
+        "data": {
+            "p1": p1,
+            "p2": p2,
+            "offset": offset,
+            "text": ""
+        },
+        "properties": {},
+        "layer": "default",
+        "visible": true,
+        "locked": false,
+        "selected": false,
+        "group": null
+    }
+}
+
+pub fn setEntityId(entity, id) {
+    entity["id"] = id
+    return entity
+}
+
+pub fn setEntityLayer(entity, layer) {
+    entity["layer"] = layer
+    return entity
+}
+
+pub fn setEntityVisible(entity, visible) {
+    entity["visible"] = visible
+    return entity
+}
+
+pub fn setEntityLocked(entity, locked) {
+    entity["locked"] = locked
+    return entity
+}
+
+pub fn setEntitySelected(entity, selected) {
+    entity["selected"] = selected
+    return entity
+}
+
+pub fn setEntityGroup(entity, group) {
+    entity["group"] = group
+    return entity
+}
+
+pub fn setEntityProperty(entity, key, value) {
+    entity["properties"][key] = value
+    return entity
+}
+
+pub fn getEntityProperty(entity, key) {
+    return entity["properties"][key]
+}
+
+pub fn getEntityBounds(entity) {
+    let data = entity["data"]
+    
+    if entity["kind"] == "Line" {
+        return createBBox(
+            min(data["p1"]["x"], data["p2"]["x"]),
+            min(data["p1"]["y"], data["p2"]["y"]),
+            max(data["p1"]["x"], data["p2"]["x"]),
+            max(data["p1"]["y"], data["p2"]["y"])
+        )
+    } else if entity["kind"] == "Rectangle" {
+        return createBBox(
+            data["x"],
+            data["y"],
+            data["x"] + data["width"],
+            data["y"] + data["height"]
+        )
+    } else if entity["kind"] == "Circle" {
+        return createBBox(
+            data["center"]["x"] - data["radius"],
+            data["center"]["y"] - data["radius"],
+            data["center"]["x"] + data["radius"],
+            data["center"]["y"] + data["radius"]
+        )
+    } else if entity["kind"] == "Polyline" {
+        return bboxFromPolyline(data)
+    } else if entity["kind"] == "Point" {
+        return createBBox(
+            data["position"]["x"],
+            data["position"]["y"],
+            data["position"]["x"],
+            data["position"]["y"]
+        )
+    } else if entity["kind"] == "Text" {
+        return createBBox(
+            data["position"]["x"],
+            data["position"]["y"],
+            data["position"]["x"] + 100.0,
+            data["position"]["y"] + data["fontSize"]
+        )
+    }
+    
+    return createBBox(0.0, 0.0, 0.0, 0.0)
+}
+
+pub fn cloneEntity(entity) {
+    let clone = {}
+    for key in entity {
+        if key == "data" {
+            clone[key] = cloneEntityData(entity["data"], entity["kind"])
+        } else {
+            clone[key] = entity[key]
+        }
+    }
+    clone["id"] = null
+    clone["selected"] = false
+    return clone
+}
+
+fn cloneEntityData(data, kind) {
+    if kind == "Line" {
+        return createSegment(vec2(data["p1"]["x"], data["p1"]["y"]), vec2(data["p2"]["x"], data["p2"]["y"]))
+    } else if kind == "Circle" {
+        return createCircle(vec2(data["center"]["x"], data["center"]["y"]), data["radius"])
+    } else if kind == "Rectangle" {
+        return createRect(data["x"], data["y"], data["width"], data["height"])
+    } else if kind == "Polyline" {
+        let clonedPoints = []
+        let i = 0
+        while i < len(data["points"]) {
+            clonedPoints = push(clonedPoints, vec2(data["points"][i]["x"], data["points"][i]["y"]))
+            i = i + 1
+        }
+        return createPolyline(clonedPoints, data["closed"])
+    }
+    return data
+}
+
+fn min(a, b) {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+fn max(a, b) {
+    if a > b {
+        return a
+    }
+    return b
+}
