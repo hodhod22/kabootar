@@ -3,10 +3,19 @@
 // CAD Graph - Real topology for cables, nets, walls, flows
 // Features: nodes/edges with lookup by id, remove node/edge, neighbors, degree, connected components, path find (BFS), cycle detect
 // Canonical path: import "cad/graph"
+// Uses unique ID prefixes to prevent collisions when merging graphs
+
+let globalGraphCounter = 0
+
+fn generateGraphId() {
+    globalGraphCounter = globalGraphCounter + 1
+    return "g" + globalGraphCounter
+}
 
 pub fn createGraph() {
     return {
         "kind": "Graph",
+        "id": generateGraphId(),
         "nodes": {},
         "edges": {},
         "nodeCounter": 0,
@@ -41,7 +50,8 @@ pub fn createEdge(sourceId, targetId, data) {
 }
 
 pub fn addNode(graph, node) {
-    let nodeId = "" + graph["nodeCounter"]
+    let graphId = graph["id"]
+    let nodeId = graphId + "_n" + graph["nodeCounter"]
     graph["nodeCounter"] = graph["nodeCounter"] + 1
     node["id"] = nodeId
     graph["nodes"][nodeId] = node
@@ -77,7 +87,8 @@ pub fn addEdge(graph, edge) {
         return graph
     }
     
-    let edgeId = "" + graph["edgeCounter"]
+    let graphId = graph["id"]
+    let edgeId = graphId + "_e" + graph["edgeCounter"]
     graph["edgeCounter"] = graph["edgeCounter"] + 1
     edge["id"] = edgeId
     graph["edges"][edgeId] = edge
