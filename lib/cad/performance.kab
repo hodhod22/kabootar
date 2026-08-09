@@ -1,0 +1,399 @@
+@version "1.0.0"
+
+// CAD Performance - Performance optimization for large documents (10k-50k nodes)
+// Features: spatial indexing, lazy evaluation, incremental updates, culling
+// Canonical path: import "cad/performance"
+// Target: Performance system for large-scale CAD documents
+
+import "cad/document"
+import "cad/geom"
+
+pub fn createPerformanceMonitor() {
+    return {
+        "kind": "PerformanceMonitor",
+        "frameTime": 0.0,
+        "nodeCount": 0,
+        "visibleNodeCount": 0,
+        "culledNodeCount": 0,
+        "cacheHitRate": 0.0
+    }
+}
+
+pub fn createSpatialIndex(cellSize, bounds) {
+    return {
+        "kind": "SpatialIndex",
+        "cellSize": cellSize,
+        "bounds": bounds,
+        "grid": {},
+        "nodeToCells": {}
+    }
+}
+
+pub fn buildSpatialIndex(document, cellSize) {
+    let bounds = calculateDocumentBounds(document)
+    let index = createSpatialIndex(cellSize, bounds)
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            let nodeBounds = getNodeBounds(node)
+            index = insertNodeIntoSpatialIndex(index, nodeId, nodeBounds)
+        }
+    }
+    
+    return index
+}
+
+fn insertNodeIntoSpatialIndex(index, nodeId, bounds) {
+    let cellSize = index["cellSize"]
+    let minCellX = floor(bounds["minX"] / cellSize)
+    let minCellY = floor(bounds["minY"] / cellSize)
+    let maxCellX = floor(bounds["maxX"] / cellSize)
+    let maxCellY = floor(bounds["maxY"] / cellSize)
+    
+    let x = minCellX
+    while x <= maxCellX {
+        let y = minCellY
+        while y <= maxCellY {
+            let cellKey = "" + x + "," + y
+            if index["grid"][cellKey] == null {
+                index["grid"][cellKey] = []
+            }
+            index["grid"][cellKey] = push(index["grid"][cellKey], nodeId)
+            y = y + 1
+        }
+        x = x + 1
+    }
+    
+    return index
+}
+
+pub fn querySpatialIndex(index, bounds) {
+    let cellSize = index["cellSize"]
+    let minCellX = floor(bounds["minX"] / cellSize)
+    let minCellY = floor(bounds["minY"] / cellSize)
+    let maxCellX = floor(bounds["maxX"] / cellSize)
+    let maxCellY = floor(bounds["maxY"] / cellSize)
+    
+    let nodeIds = []
+    let seen = {}
+    
+    let x = minCellX
+    while x <= maxCellX {
+        let y = minCellY
+        while y <= maxCellY {
+            let cellKey = "" + x + "," + y
+            let cell = index["grid"][cellKey]
+            if cell != null {
+                let i = 0
+                while i < len(cell) {
+                    let nodeId = cell[i]
+                    if seen[nodeId] == null {
+                        nodeIds = push(nodeIds, nodeId)
+                        seen[nodeId] = true
+                    }
+                    i = i + 1
+                }
+            }
+            y = y + 1
+        }
+        x = x + 1
+    }
+    
+    return nodeIds
+}
+
+pub fn createRenderCache() {
+    return {
+        "kind": "RenderCache",
+        "nodeCache": {},
+        "maxCacheSize": 1000,
+        "cacheHits": 0,
+        "cacheMisses": 0
+    }
+}
+
+pub fn getCachedRenderData(cache, nodeId) {
+    let data = cache["nodeCache"][nodeId]
+    if data != null {
+        cache["cacheHits"] = cache["cacheHits"] + 1
+        return data
+    }
+    cache["cacheMisses"] = cache["cacheMisses"] + 1
+    return null
+}
+
+pub fn setCachedRenderData(cache, nodeId, data) {
+    if len(cache["nodeCache"]) >= cache["maxCacheSize"] {
+        cache = evictOldestCacheEntry(cache)
+    }
+    cache["nodeCache"][nodeId] = {
+        "data": data,
+        "timestamp": systemTime()
+    }
+    return cache
+}
+
+fn evictOldestCacheEntry(cache) {
+    let oldestKey = null
+    let oldestTime = 1e10
+    
+    for key in cache["nodeCache"] {
+        let entry = cache["nodeCache"][key]
+        if entry["timestamp"] < oldestTime {
+            oldestTime = entry["timestamp"]
+            oldestKey = key
+        }
+    }
+    
+    if oldestKey != null {
+        let newCache = {}
+        for key in cache["nodeCache"] {
+            if key != oldestKey {
+                newCache[key] = cache["nodeCache"][key]
+            }
+        }
+        cache["nodeCache"] = newCache
+    }
+    
+    return cache
+}
+
+pub fn getCacheHitRate(cache) {
+    let total = cache["cacheHits"] + cache["cacheMisses"]
+    if total == 0 {
+        return 0.0
+    }
+    return cache["cacheHits"] / total
+}
+
+pub fn clearRenderCache(cache) {
+    cache["nodeCache"] = {}
+    cache["cacheHits"] = 0
+    cache["cacheMisses"] = 0
+    return cache
+}
+
+pub fn createDirtyFlagSystem() {
+    return {
+        "kind": "DirtyFlagSystem",
+        "dirtyNodes": {},
+        "dirtyLayers": {},
+        "globalDirty": false
+    }
+}
+
+pub fn markNodeDirty(system, nodeId) {
+    system["dirtyNodes"][nodeId] = true
+    system["globalDirty"] = true
+    return system
+}
+
+pub fn markLayerDirty(system, layerName) {
+    system["dirtyLayers"][layerName] = true
+    system["globalDirty"] = true
+    return system
+}
+
+pub fn markGlobalDirty(system) {
+    system["globalDirty"] = true
+    return system
+}
+
+pub fn clearNodeDirty(system, nodeId) {
+    system["dirtyNodes"][nodeId] = null
+    return system
+}
+
+pub fn clearLayerDirty(system, layerName) {
+    system["dirtyLayers"][layerName] = null
+    return system
+}
+
+pub fn clearAllDirty(system) {
+    system["dirtyNodes"] = {}
+    system["dirtyLayers"] = {}
+    system["globalDirty"] = false
+    return system
+}
+
+pub fn isNodeDirty(system, nodeId) {
+    return system["dirtyNodes"][nodeId] == true
+}
+
+pub fn isLayerDirty(system, layerName) {
+    return system["dirtyLayers"][layerName] == true
+}
+
+pub fn isGlobalDirty(system) {
+    return system["globalDirty"] == true
+}
+
+pub fn createLODSystem() {
+    return {
+        "kind": "LODSystem",
+        "levels": [
+            { "distance": 0.0, "detail": 1.0 },
+            { "distance": 100.0, "detail": 0.5 },
+            { "distance": 500.0, "detail": 0.25 }
+        ]
+    }
+}
+
+pub fn getLODLevel(system, distance) {
+    let i = 0
+    while i < len(system["levels"]) {
+        if distance < system["levels"][i]["distance"] {
+            return system["levels"][i]["detail"]
+        }
+        i = i + 1
+    }
+    return system["levels"][len(system["levels"]) - 1]["detail"]
+}
+
+pub fn cullNodesByViewport(document, viewport) {
+    let culledCount = 0
+    let visibleCount = 0
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let bounds = getNodeBounds(node)
+            if bboxIntersectsBBox(bounds, viewport) == false {
+                node["culled"] = true
+                culledCount = culledCount + 1
+            } else {
+                node["culled"] = false
+                visibleCount = visibleCount + 1
+            }
+            document["nodes"][nodeId] = node
+        }
+    }
+    
+    return {
+        "document": document,
+        "culledCount": culledCount,
+        "visibleCount": visibleCount
+    }
+}
+
+pub fn cullNodesByDistance(document, cameraPosition, maxDistance) {
+    let culledCount = 0
+    let visibleCount = 0
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let pos = node["transform"]["position"]
+            let dist = distance(pos, cameraPosition)
+            if dist > maxDistance {
+                node["culled"] = true
+                culledCount = culledCount + 1
+            } else {
+                node["culled"] = false
+                visibleCount = visibleCount + 1
+            }
+            document["nodes"][nodeId] = node
+        }
+    }
+    
+    return {
+        "document": document,
+        "culledCount": culledCount,
+        "visibleCount": visibleCount
+    }
+}
+
+pub fn createIncrementalRenderer() {
+    return {
+        "kind": "IncrementalRenderer",
+        "batchSize": 100,
+        "currentBatch": 0,
+        "totalBatches": 0
+    }
+}
+
+pub fn renderIncremental(document, renderer) {
+    let batchSize = renderer["batchSize"]
+    let nodeIds = []
+    let count = 0
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["culled"] == false {
+            nodeIds = push(nodeIds, nodeId)
+            count = count + 1
+            if count >= batchSize {
+                break
+            }
+        }
+    }
+    
+    renderer["currentBatch"] = renderer["currentBatch"] + 1
+    
+    return {
+        "nodeIds": nodeIds,
+        "complete": count < batchSize,
+        "renderer": renderer
+    }
+}
+
+pub fn resetIncrementalRenderer(renderer) {
+    renderer["currentBatch"] = 0
+    return renderer
+}
+
+pub fn optimizeDocument(document) {
+    let monitor = createPerformanceMonitor()
+    
+    monitor["nodeCount"] = getNodeCount(document)
+    
+    let spatialIndex = buildSpatialIndex(document, 100.0)
+    
+    let renderCache = createRenderCache()
+    
+    let dirtySystem = createDirtyFlagSystem()
+    
+    let lodSystem = createLODSystem()
+    
+    return {
+        "document": document,
+        "monitor": monitor,
+        "spatialIndex": spatialIndex,
+        "renderCache": renderCache,
+        "dirtySystem": dirtySystem,
+        "lodSystem": lodSystem
+    }
+}
+
+fn calculateDocumentBounds(document) {
+    if len(document["nodes"]) == 0 {
+        return createBBox(0.0, 0.0, 1000.0, 1000.0)
+    }
+    
+    let minX = 1e10
+    let minY = 1e10
+    let maxX = -1e10
+    let maxY = -1e10
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let bounds = getNodeBounds(node)
+            if bounds["minX"] < minX { minX = bounds["minX"] }
+            if bounds["minY"] < minY { minY = bounds["minY"] }
+            if bounds["maxX"] > maxX { maxX = bounds["maxX"] }
+            if bounds["maxY"] > maxY { maxY = bounds["maxY"] }
+        }
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
