@@ -1,8 +1,9 @@
 @version "1.0.0"
 
-// CAD Render - Draw list generation from scene for rendering
-// Features: build drawList from scene, culling, layer order, selection overlay
+// CAD Render - Draw list generation from scene for GPU rendering
+// Features: build drawList from scene, culling, layer order, selection overlay, blend modes, effects
 // Canonical path: import "cad/render"
+// Target: GPU-accelerated rendering engine comparable to Figma/Photoshop
 
 import "cad/geom"
 import "cad/document"
@@ -13,6 +14,128 @@ pub fn createDrawList() {
         "items": [],
         "overlayItems": []
     }
+}
+
+pub fn createBlendMode(mode) {
+    return {
+        "kind": "BlendMode",
+        "mode": mode
+    }
+}
+
+pub fn createEffect(effectType, params) {
+    return {
+        "kind": "Effect",
+        "type": effectType,
+        "params": params
+    }
+}
+
+pub fn createShadowEffect(offsetX, offsetY, blur, color, opacity) {
+    return createEffect("shadow", {
+        "offsetX": offsetX,
+        "offsetY": offsetY,
+        "blur": blur,
+        "color": color,
+        "opacity": opacity
+    })
+}
+
+pub fn createBlurEffect(radius) {
+    return createEffect("blur", {
+        "radius": radius
+    })
+}
+
+pub fn createGlowEffect(radius, color, opacity) {
+    return createEffect("glow", {
+        "radius": radius,
+        "color": color,
+        "opacity": opacity
+    })
+}
+
+// Standard blend modes (compatible with GPU rendering)
+pub fn blendModeNormal() {
+    return "normal"
+}
+
+pub fn blendModeMultiply() {
+    return "multiply"
+}
+
+pub fn blendModeScreen() {
+    return "screen"
+}
+
+pub fn blendModeOverlay() {
+    return "overlay"
+}
+
+pub fn blendModeDarken() {
+    return "darken"
+}
+
+pub fn blendModeLighten() {
+    return "lighten"
+}
+
+pub fn blendModeColorDodge() {
+    return "color-dodge"
+}
+
+pub fn blendModeColorBurn() {
+    return "color-burn"
+}
+
+pub fn blendModeHardLight() {
+    return "hard-light"
+}
+
+pub fn blendModeSoftLight() {
+    return "soft-light"
+}
+
+pub fn blendModeDifference() {
+    return "difference"
+}
+
+pub fn blendModeExclusion() {
+    return "exclusion"
+}
+
+pub fn blendModeHue() {
+    return "hue"
+}
+
+pub fn blendModeSaturation() {
+    return "saturation"
+}
+
+pub fn blendModeColor() {
+    return "color"
+}
+
+pub fn blendModeLuminosity() {
+    return "luminosity"
+}
+
+pub fn setNodeBlendMode(node, mode) {
+    node["blendMode"] = mode
+    return node
+}
+
+pub fn addNodeEffect(node, effect) {
+    if node["effects"] == null {
+        node["effects"] = []
+    }
+    node["effects"] = push(node["effects"], effect)
+    return node
+}
+
+pub fn clearNodeEffects(node) {
+    node["effects"] = []
+    return node
 }
 
 pub fn buildDrawList(document, viewport) {
@@ -82,6 +205,8 @@ fn addFrameToDrawList(node, drawList) {
         "styleSet": node["styleSet"],
         "layer": node["layer"],
         "opacity": node["opacity"],
+        "blendMode": node["blendMode"],
+        "effects": node["effects"],
         "fill": getFillFromStyleSet(node["styleSet"]),
         "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
@@ -125,6 +250,8 @@ fn addVectorToDrawList(node, drawList) {
         "styleSet": node["styleSet"],
         "layer": node["layer"],
         "opacity": node["opacity"],
+        "blendMode": node["blendMode"],
+        "effects": node["effects"],
         "fill": getFillFromStyleSet(node["styleSet"]),
         "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
@@ -142,6 +269,8 @@ fn addShapeToDrawList(node, drawList) {
         "styleSet": node["styleSet"],
         "layer": node["layer"],
         "opacity": node["opacity"],
+        "blendMode": node["blendMode"],
+        "effects": node["effects"],
         "fill": getFillFromStyleSet(node["styleSet"]),
         "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
@@ -161,6 +290,8 @@ fn addTextToDrawList(node, drawList) {
         "styleSet": node["styleSet"],
         "layer": node["layer"],
         "opacity": node["opacity"],
+        "blendMode": node["blendMode"],
+        "effects": node["effects"],
         "fill": getFillFromStyleSet(node["styleSet"]),
         "stroke": getStrokeFromStyleSet(node["styleSet"])
     }
