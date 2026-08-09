@@ -1,0 +1,426 @@
+@version "1.0.0"
+
+// CAD Selection - Professional selection and manipulation tools
+// Features: multi-select, selection modes, transform handles, alignment, distribution
+// Canonical path: import "cad/selection"
+// Target: Selection tools comparable to Figma/Photoshop/Sketch
+
+import "cad/document"
+import "cad/geom"
+
+pub fn createSelection() {
+    return {
+        "kind": "Selection",
+        "nodeIds": [],
+        "mode": "replace",
+        "bounds": null
+    }
+}
+
+pub fn selectNode(document, nodeId) {
+    let selection = document["selection"]
+    if selection == null {
+        selection = createSelection()
+    }
+    
+    if selection["mode"] == "replace" {
+        selection["nodeIds"] = [nodeId]
+    } else if selection["mode"] == "add" {
+        selection["nodeIds"] = push(selection["nodeIds"], nodeId)
+    } else if selection["mode"] == "toggle" {
+        let found = false
+        let i = 0
+        while i < len(selection["nodeIds"]) {
+            if selection["nodeIds"][i] == nodeId {
+                found = true
+                break
+            }
+            i = i + 1
+        }
+        if found == true {
+            let newIds = []
+            let j = 0
+            while j < len(selection["nodeIds"]) {
+                if selection["nodeIds"][j] != nodeId {
+                    newIds = push(newIds, selection["nodeIds"][j])
+                }
+                j = j + 1
+            }
+            selection["nodeIds"] = newIds
+        } else {
+            selection["nodeIds"] = push(selection["nodeIds"], nodeId)
+        }
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    document["selection"] = selection
+    return document
+}
+
+pub fn deselectNode(document, nodeId) {
+    let selection = document["selection"]
+    if selection == null {
+        return document
+    }
+    
+    let newIds = []
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        if selection["nodeIds"][i] != nodeId {
+            newIds = push(newIds, selection["nodeIds"][i])
+        }
+        i = i + 1
+    }
+    selection["nodeIds"] = newIds
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    document["selection"] = selection
+    return document
+}
+
+pub fn clearSelection(document) {
+    document["selection"] = createSelection()
+    return document
+}
+
+pub fn selectAll(document) {
+    let selection = createSelection()
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            selection["nodeIds"] = push(selection["nodeIds"], nodeId)
+        }
+    }
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    document["selection"] = selection
+    return document
+}
+
+pub fn selectInRect(document, rect) {
+    let selection = createSelection()
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            let bounds = getNodeBounds(node)
+            if bboxIntersectsBBox(bounds, rect) {
+                selection["nodeIds"] = push(selection["nodeIds"], nodeId)
+            }
+        }
+    }
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    document["selection"] = selection
+    return document
+}
+
+pub fn setSelectionMode(document, mode) {
+    let selection = document["selection"]
+    if selection == null {
+        selection = createSelection()
+    }
+    selection["mode"] = mode
+    document["selection"] = selection
+    return document
+}
+
+pub fn getSelectedCount(document) {
+    let selection = document["selection"]
+    if selection == null {
+        return 0
+    }
+    return len(selection["nodeIds"])
+}
+
+pub fn getSelectedNodes(document) {
+    let selection = document["selection"]
+    if selection == null {
+        return []
+    }
+    
+    let nodes = []
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            nodes = push(nodes, node)
+        }
+        i = i + 1
+    }
+    return nodes
+}
+
+pub fn getSelectionBounds(document) {
+    let selection = document["selection"]
+    if selection == null {
+        return null
+    }
+    return selection["bounds"]
+}
+
+fn calculateSelectionBounds(document, selection) {
+    if len(selection["nodeIds"]) == 0 {
+        return null
+    }
+    
+    let minX = 1e10
+    let minY = 1e10
+    let maxX = -1e10
+    let maxY = -1e10
+    
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let bounds = getNodeBounds(node)
+            if bounds["minX"] < minX { minX = bounds["minX"] }
+            if bounds["minY"] < minY { minY = bounds["minY"] }
+            if bounds["maxX"] > maxX { maxX = bounds["maxX"] }
+            if bounds["maxY"] > maxY { maxY = bounds["maxY"] }
+        }
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+pub fn moveSelection(document, dx, dy) {
+    let selection = document["selection"]
+    if selection == null {
+        return document
+    }
+    
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            node["transform"]["position"]["x"] = node["transform"]["position"]["x"] + dx
+            node["transform"]["position"]["y"] = node["transform"]["position"]["y"] + dy
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        i = i + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn scaleSelection(document, scaleX, scaleY, origin) {
+    let selection = document["selection"]
+    if selection == null {
+        return document
+    }
+    
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let pos = node["transform"]["position"]
+            let dx = pos["x"] - origin["x"]
+            let dy = pos["y"] - origin["y"]
+            node["transform"]["position"]["x"] = origin["x"] + dx * scaleX
+            node["transform"]["position"]["y"] = origin["y"] + dy * scaleY
+            node["transform"]["scale"]["x"] = node["transform"]["scale"]["x"] * scaleX
+            node["transform"]["scale"]["y"] = node["transform"]["scale"]["y"] * scaleY
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        i = i + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn rotateSelection(document, angle, origin) {
+    let selection = document["selection"]
+    if selection == null {
+        return document
+    }
+    
+    let cosA = cos(angle)
+    let sinA = sin(angle)
+    
+    let i = 0
+    while i < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let pos = node["transform"]["position"]
+            let dx = pos["x"] - origin["x"]
+            let dy = pos["y"] - origin["y"]
+            node["transform"]["position"]["x"] = origin["x"] + dx * cosA - dy * sinA
+            node["transform"]["position"]["y"] = origin["y"] + dx * sinA + dy * cosA
+            node["transform"]["rotation"] = node["transform"]["rotation"] + angle
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        i = i + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn alignSelectionLeft(document) {
+    let selection = document["selection"]
+    if selection == null || len(selection["nodeIds"]) < 2 {
+        return document
+    }
+    
+    let nodes = getSelectedNodes(document)
+    let minX = 1e10
+    let i = 0
+    while i < len(nodes) {
+        let pos = nodes[i]["transform"]["position"]
+        if pos["x"] < minX { minX = pos["x"] }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][j]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            node["transform"]["position"]["x"] = minX
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        j = j + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn alignSelectionCenter(document) {
+    let selection = document["selection"]
+    if selection == null || len(selection["nodeIds"]) < 2 {
+        return document
+    }
+    
+    let nodes = getSelectedNodes(document)
+    let sumX = 0.0
+    let i = 0
+    while i < len(nodes) {
+        sumX = sumX + nodes[i]["transform"]["position"]["x"]
+        i = i + 1
+    }
+    let centerX = sumX / len(nodes)
+    
+    let j = 0
+    while j < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][j]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            node["transform"]["position"]["x"] = centerX
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        j = j + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn alignSelectionRight(document) {
+    let selection = document["selection"]
+    if selection == null || len(selection["nodeIds"]) < 2 {
+        return document
+    }
+    
+    let nodes = getSelectedNodes(document)
+    let maxX = -1e10
+    let i = 0
+    while i < len(nodes) {
+        let pos = nodes[i]["transform"]["position"]
+        if pos["x"] > maxX { maxX = pos["x"] }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(selection["nodeIds"]) {
+        let nodeId = selection["nodeIds"][j]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            node["transform"]["position"]["x"] = maxX
+            node["transformDirty"] = true
+            document["nodes"][nodeId] = node
+        }
+        j = j + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+pub fn distributeSelectionHorizontal(document) {
+    let selection = document["selection"]
+    if selection == null || len(selection["nodeIds"]) < 3 {
+        return document
+    }
+    
+    let nodes = getSelectedNodes(document)
+    let minX = 1e10
+    let maxX = -1e10
+    let i = 0
+    while i < len(nodes) {
+        let pos = nodes[i]["transform"]["position"]["x"]
+        if pos["x"] < minX { minX = pos["x"] }
+        if pos["x"] > maxX { maxX = pos["x"] }
+        i = i + 1
+    }
+    
+    let step = (maxX - minX) / (len(nodes) - 1)
+    
+    let sorted = sortNodesByX(nodes)
+    let j = 0
+    while j < len(sorted) {
+        let node = sorted[j]
+        node["transform"]["position"]["x"] = minX + j * step
+        node["transformDirty"] = true
+        document["nodes"][node["id"]] = node
+        j = j + 1
+    }
+    
+    selection["bounds"] = calculateSelectionBounds(document, selection)
+    return document
+}
+
+fn sortNodesByX(nodes) {
+    let sorted = []
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        let pos = node["transform"]["position"]["x"]
+        let j = 0
+        let inserted = false
+        while j < len(sorted) {
+            if sorted[j]["transform"]["position"]["x"] > pos {
+                let newSorted = []
+                let k = 0
+                while k < j {
+                    newSorted = push(newSorted, sorted[k])
+                    k = k + 1
+                }
+                newSorted = push(newSorted, node)
+                while k < len(sorted) {
+                    newSorted = push(newSorted, sorted[k])
+                    k = k + 1
+                }
+                sorted = newSorted
+                inserted = true
+                break
+            }
+            j = j + 1
+        }
+        if inserted == false {
+            sorted = push(sorted, node)
+        }
+        i = i + 1
+    }
+    return sorted
+}
