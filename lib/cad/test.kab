@@ -173,10 +173,31 @@ pub fn testSerializeRoundTrip() {
     document = setDocumentProfile(document, "drafting")
     
     let frame = createFrameNode("Test Frame", 0.0, 0.0, 100.0, 100.0)
+    frame["transform"]["position"]["x"] = 50.0
+    frame["transform"]["position"]["y"] = 50.0
+    frame["transform"]["rotation"] = 0.5
+    frame["transform"]["scale"]["x"] = 1.5
+    frame["transform"]["scale"]["y"] = 1.5
+    frame["styleSet"] = createStyleSet()
+    frame["styleSet"] = addFillToStyleSet(frame["styleSet"], createFill({ "r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0))
+    frame["meta"] = { "customField": "testValue" }
+    
     document = addNode(document, document["sceneRoot"]["id"], frame)
+    
+    let child = createFrameNode("Child Frame", 0.0, 0.0, 50.0, 50.0)
+    child["transform"]["position"]["x"] = 10.0
+    child["transform"]["position"]["y"] = 10.0
+    document = addNode(document, frame["id"], child)
     
     let originalNodeCount = getNodeCount(document)
     let originalProfile = document["profile"]
+    let originalFrameId = frame["id"]
+    let originalChildId = child["id"]
+    let originalFrameParent = frame["parentId"]
+    let originalChildParent = child["parentId"]
+    let originalFramePos = frame["transform"]["position"]["x"]
+    let originalChildPos = child["transform"]["position"]["x"]
+    let originalMeta = frame["meta"]["customField"]
     
     let serialized = serializeDocument(document)
     
@@ -184,9 +205,18 @@ pub fn testSerializeRoundTrip() {
     
     let deserializedNodeCount = getNodeCount(deserialized)
     let deserializedProfile = deserialized["profile"]
+    let deserializedFrame = getNode(deserialized, originalFrameId)
+    let deserializedChild = getNode(deserialized, originalChildId)
     
     assert(originalNodeCount == deserializedNodeCount, "Expected originalNodeCount == deserializedNodeCount, got " + originalNodeCount + " vs " + deserializedNodeCount)
     assert(originalProfile == deserializedProfile, "Expected originalProfile == deserializedProfile, got " + originalProfile + " vs " + deserializedProfile)
+    assert(deserializedFrame != null, "Expected deserializedFrame != null")
+    assert(deserializedChild != null, "Expected deserializedChild != null")
+    assert(deserializedFrame["parentId"] == originalFrameParent, "Expected frame parentId match, got " + deserializedFrame["parentId"] + " vs " + originalFrameParent)
+    assert(deserializedChild["parentId"] == originalChildParent, "Expected child parentId match, got " + deserializedChild["parentId"] + " vs " + originalChildParent)
+    assert(deserializedFrame["transform"]["position"]["x"] == originalFramePos, "Expected frame position match, got " + deserializedFrame["transform"]["position"]["x"] + " vs " + originalFramePos)
+    assert(deserializedChild["transform"]["position"]["x"] == originalChildPos, "Expected child position match, got " + deserializedChild["transform"]["position"]["x"] + " vs " + originalChildPos)
+    assert(deserializedFrame["meta"]["customField"] == originalMeta, "Expected meta field match, got " + deserializedFrame["meta"]["customField"] + " vs " + originalMeta)
     
     return {
         "test": "Serialize Round Trip",
@@ -235,15 +265,30 @@ pub fn testCircuitSerializeRoundTrip() {
     
     let originalPartCount = len(board["document"]["nodes"])
     let originalGraphEdgeCount = board["netGraph"]["edgeCounter"]
+    let originalBoardName = board["name"]
     
     let serialized = circuitSerialize(board)
     let deserialized = circuitDeserialize(serialized)
     
     let deserializedPartCount = len(deserialized["document"]["nodes"])
     let deserializedGraphEdgeCount = deserialized["netGraph"]["edgeCounter"]
+    let deserializedBoardName = deserialized["name"]
     
     assert(originalPartCount == deserializedPartCount, "Expected originalPartCount == deserializedPartCount, got " + originalPartCount + " vs " + deserializedPartCount)
     assert(originalGraphEdgeCount == deserializedGraphEdgeCount, "Expected originalGraphEdgeCount == deserializedGraphEdgeCount, got " + originalGraphEdgeCount + " vs " + deserializedGraphEdgeCount)
+    assert(originalBoardName == deserializedBoardName, "Expected board name match, got " + originalBoardName + " vs " + deserializedBoardName)
+    
+    let i = 0
+    while i < len(board["document"]["nodes"]) {
+        let nodeId = board["document"]["nodes"][i]["id"]
+        let originalNode = board["document"]["nodes"][nodeId]
+        let deserializedNode = deserialized["document"]["nodes"][nodeId]
+        assert(deserializedNode != null, "Expected node " + nodeId + " to exist after deserialization")
+        if originalNode["meta"] != null {
+            assert(deserializedNode["meta"] != null, "Expected meta to exist for node " + nodeId)
+        }
+        i = i + 1
+    }
     
     return {
         "test": "Circuit Serialize Round Trip",
@@ -269,6 +314,7 @@ pub fn testArchSerializeRoundTrip() {
         }
     }
     let originalGraphEdgeCount = building["wallGraph"]["edgeCounter"]
+    let originalBuildingName = building["name"]
     
     let serialized = archSerialize(building)
     let deserialized = archDeserialize(serialized)
@@ -281,9 +327,23 @@ pub fn testArchSerializeRoundTrip() {
         }
     }
     let deserializedGraphEdgeCount = deserialized["wallGraph"]["edgeCounter"]
+    let deserializedBuildingName = deserialized["name"]
     
     assert(originalRoomCount == deserializedRoomCount, "Expected originalRoomCount == deserializedRoomCount, got " + originalRoomCount + " vs " + deserializedRoomCount)
     assert(originalGraphEdgeCount == deserializedGraphEdgeCount, "Expected originalGraphEdgeCount == deserializedGraphEdgeCount, got " + originalGraphEdgeCount + " vs " + deserializedGraphEdgeCount)
+    assert(originalBuildingName == deserializedBuildingName, "Expected building name match, got " + originalBuildingName + " vs " + deserializedBuildingName)
+    
+    let i = 0
+    while i < len(building["document"]["nodes"]) {
+        let nodeId = building["document"]["nodes"][i]["id"]
+        let originalNode = building["document"]["nodes"][nodeId]
+        let deserializedNode = deserialized["document"]["nodes"][nodeId]
+        assert(deserializedNode != null, "Expected node " + nodeId + " to exist after deserialization")
+        if originalNode["meta"] != null {
+            assert(deserializedNode["meta"] != null, "Expected meta to exist for node " + nodeId)
+        }
+        i = i + 1
+    }
     
     return {
         "test": "Arch Serialize Round Trip",
@@ -308,6 +368,7 @@ pub fn testPowerSerializeRoundTrip() {
             originalDeviceCount = originalDeviceCount + 1
         }
     }
+    let originalInstallName = install["name"]
     
     let serialized = powerSerialize(install)
     let deserialized = powerDeserialize(serialized)
@@ -319,8 +380,22 @@ pub fn testPowerSerializeRoundTrip() {
             deserializedDeviceCount = deserializedDeviceCount + 1
         }
     }
+    let deserializedInstallName = deserialized["name"]
     
     assert(originalDeviceCount == deserializedDeviceCount, "Expected originalDeviceCount == deserializedDeviceCount, got " + originalDeviceCount + " vs " + deserializedDeviceCount)
+    assert(originalInstallName == deserializedInstallName, "Expected install name match, got " + originalInstallName + " vs " + deserializedInstallName)
+    
+    let i = 0
+    while i < len(install["document"]["nodes"]) {
+        let nodeId = install["document"]["nodes"][i]["id"]
+        let originalNode = install["document"]["nodes"][nodeId]
+        let deserializedNode = deserialized["document"]["nodes"][nodeId]
+        assert(deserializedNode != null, "Expected node " + nodeId + " to exist after deserialization")
+        if originalNode["meta"] != null {
+            assert(deserializedNode["meta"] != null, "Expected meta to exist for node " + nodeId)
+        }
+        i = i + 1
+    }
     
     return {
         "test": "Power Serialize Round Trip",
@@ -344,6 +419,7 @@ pub fn testAeroSerializeRoundTrip() {
         }
     }
     let originalFlowV = model["flow"]["v"]
+    let originalModelName = model["name"]
     
     let serialized = aeroSerialize(model)
     let deserialized = aeroDeserialize(serialized)
@@ -356,9 +432,23 @@ pub fn testAeroSerializeRoundTrip() {
         }
     }
     let deserializedFlowV = deserialized["flow"]["v"]
+    let deserializedModelName = deserialized["name"]
     
     assert(originalAirfoilCount == deserializedAirfoilCount, "Expected originalAirfoilCount == deserializedAirfoilCount, got " + originalAirfoilCount + " vs " + deserializedAirfoilCount)
     assert(originalFlowV == deserializedFlowV, "Expected originalFlowV == deserializedFlowV, got " + originalFlowV + " vs " + deserializedFlowV)
+    assert(originalModelName == deserializedModelName, "Expected model name match, got " + originalModelName + " vs " + deserializedModelName)
+    
+    let i = 0
+    while i < len(model["document"]["nodes"]) {
+        let nodeId = model["document"]["nodes"][i]["id"]
+        let originalNode = model["document"]["nodes"][nodeId]
+        let deserializedNode = deserialized["document"]["nodes"][nodeId]
+        assert(deserializedNode != null, "Expected node " + nodeId + " to exist after deserialization")
+        if originalNode["meta"] != null {
+            assert(deserializedNode["meta"] != null, "Expected meta to exist for node " + nodeId)
+        }
+        i = i + 1
+    }
     
     return {
         "test": "Aero Serialize Round Trip",
