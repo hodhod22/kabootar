@@ -238,6 +238,9 @@ pub fn isNodeConstraintDirty(node) {
 pub fn documentCommit(document) {
     document = resolveLayout(document)
     document = updateWorldTransforms(document)
+    // Note: resolveConstraints is NOT called here - constraint system is experimental
+    // and not integrated with node-based architecture. Import "cad/constraint" explicitly
+    // if you need constraint solving, but it will not be part of automatic commit.
     document = clearDirtyFlags(document)
     return document
 }
