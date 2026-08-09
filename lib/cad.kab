@@ -4,6 +4,7 @@
 // Features: Document, geometry, transform, graph, serialize, pick, symbol, constraint, view, renderBridge
 // Canonical path: import "cad"
 // Prefer leaf imports in apps (cad/aero, cad/arch, cad/circuit, cad/power)
+// Note: boolean operations are experimental - import "cad/boolean" explicitly if needed
 
 pub import "cad/document"
 pub import "cad/geom"
@@ -23,5 +24,4 @@ pub import "cad/style"
 pub import "cad/layout"
 pub import "cad/ui"
 pub import "cad/test"
-pub import "cad/boolean"
 pub import "cad/plugin"

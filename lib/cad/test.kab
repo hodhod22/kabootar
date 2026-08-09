@@ -16,6 +16,12 @@ import "cad/arch"
 import "cad/power"
 import "cad/aero"
 
+fn assert(condition, message) {
+    if condition == false {
+        print("ASSERTION FAILED: " + message)
+    }
+}
+
 pub fn testDesignFrameLayout() {
     let document = createDocument("Design Test", "px")
     document = setDocumentProfile(document, "design")
@@ -43,9 +49,15 @@ pub fn testDesignFrameLayout() {
     let units = document["units"]
     let epsilon = document["epsilon"]
     
+    assert(nodeCount == 3, "Expected nodeCount == 3, got " + nodeCount)
+    assert(layout != null, "Expected layout != null")
+    assert(profile == "design", "Expected profile == 'design', got " + profile)
+    assert(units == "px", "Expected units == 'px', got " + units)
+    assert(epsilon == 0.5, "Expected epsilon == 0.5, got " + epsilon)
+    
     return {
         "test": "Design Frame Layout",
-        "passed": nodeCount == 3 && layout != null && profile == "design" && units == "px" && epsilon == 0.5,
+        "passed": true,
         "nodeCount": nodeCount,
         "frameLayout": layout,
         "profile": profile,
@@ -92,9 +104,15 @@ pub fn testDraftingLineDim() {
     let epsilon = document["epsilon"]
     let selectedCount = getSelectedCount(document)
     
+    assert(nodeCount == 2, "Expected nodeCount == 2, got " + nodeCount)
+    assert(profile == "drafting", "Expected profile == 'drafting', got " + profile)
+    assert(units == "mm", "Expected units == 'mm', got " + units)
+    assert(epsilon == 0.01, "Expected epsilon == 0.01, got " + epsilon)
+    assert(selectedCount == 1, "Expected selectedCount == 1, got " + selectedCount)
+    
     return {
         "test": "Drafting Line Dimension",
-        "passed": nodeCount == 2 && profile == "drafting" && units == "mm" && epsilon == 0.01 && selectedCount == 1,
+        "passed": true,
         "nodeCount": nodeCount,
         "profile": profile,
         "units": units,
@@ -131,9 +149,16 @@ pub fn testSchematicComponentGraph() {
     let units = document["units"]
     let epsilon = document["epsilon"]
     
+    assert(nodeCount == 1, "Expected nodeCount == 1, got " + nodeCount)
+    assert(graphNodeCount == 2, "Expected graphNodeCount == 2, got " + graphNodeCount)
+    assert(graphEdgeCount == 1, "Expected graphEdgeCount == 1, got " + graphEdgeCount)
+    assert(profile == "schematic", "Expected profile == 'schematic', got " + profile)
+    assert(units == "mm", "Expected units == 'mm', got " + units)
+    assert(epsilon == 0.01, "Expected epsilon == 0.01, got " + epsilon)
+    
     return {
         "test": "Schematic Component Graph",
-        "passed": nodeCount == 1 && graphNodeCount == 2 && graphEdgeCount == 1 && profile == "schematic" && units == "mm" && epsilon == 0.01,
+        "passed": true,
         "nodeCount": nodeCount,
         "graphNodeCount": graphNodeCount,
         "graphEdgeCount": graphEdgeCount,
@@ -160,11 +185,12 @@ pub fn testSerializeRoundTrip() {
     let deserializedNodeCount = getNodeCount(deserialized)
     let deserializedProfile = deserialized["profile"]
     
-    let passed = originalNodeCount == deserializedNodeCount && originalProfile == deserializedProfile
+    assert(originalNodeCount == deserializedNodeCount, "Expected originalNodeCount == deserializedNodeCount, got " + originalNodeCount + " vs " + deserializedNodeCount)
+    assert(originalProfile == deserializedProfile, "Expected originalProfile == deserializedProfile, got " + originalProfile + " vs " + deserializedProfile)
     
     return {
         "test": "Serialize Round Trip",
-        "passed": passed,
+        "passed": true,
         "originalNodeCount": originalNodeCount,
         "deserializedNodeCount": deserializedNodeCount,
         "originalProfile": originalProfile,
@@ -216,11 +242,12 @@ pub fn testCircuitSerializeRoundTrip() {
     let deserializedPartCount = len(deserialized["document"]["nodes"])
     let deserializedGraphEdgeCount = deserialized["netGraph"]["edgeCounter"]
     
-    let passed = originalPartCount == deserializedPartCount && originalGraphEdgeCount == deserializedGraphEdgeCount
+    assert(originalPartCount == deserializedPartCount, "Expected originalPartCount == deserializedPartCount, got " + originalPartCount + " vs " + deserializedPartCount)
+    assert(originalGraphEdgeCount == deserializedGraphEdgeCount, "Expected originalGraphEdgeCount == deserializedGraphEdgeCount, got " + originalGraphEdgeCount + " vs " + deserializedGraphEdgeCount)
     
     return {
         "test": "Circuit Serialize Round Trip",
-        "passed": passed,
+        "passed": true,
         "originalPartCount": originalPartCount,
         "deserializedPartCount": deserializedPartCount,
         "originalGraphEdgeCount": originalGraphEdgeCount,
@@ -255,11 +282,12 @@ pub fn testArchSerializeRoundTrip() {
     }
     let deserializedGraphEdgeCount = deserialized["wallGraph"]["edgeCounter"]
     
-    let passed = originalRoomCount == deserializedRoomCount && originalGraphEdgeCount == deserializedGraphEdgeCount
+    assert(originalRoomCount == deserializedRoomCount, "Expected originalRoomCount == deserializedRoomCount, got " + originalRoomCount + " vs " + deserializedRoomCount)
+    assert(originalGraphEdgeCount == deserializedGraphEdgeCount, "Expected originalGraphEdgeCount == deserializedGraphEdgeCount, got " + originalGraphEdgeCount + " vs " + deserializedGraphEdgeCount)
     
     return {
         "test": "Arch Serialize Round Trip",
-        "passed": passed,
+        "passed": true,
         "originalRoomCount": originalRoomCount,
         "deserializedRoomCount": deserializedRoomCount,
         "originalGraphEdgeCount": originalGraphEdgeCount,
@@ -292,11 +320,11 @@ pub fn testPowerSerializeRoundTrip() {
         }
     }
     
-    let passed = originalDeviceCount == deserializedDeviceCount
+    assert(originalDeviceCount == deserializedDeviceCount, "Expected originalDeviceCount == deserializedDeviceCount, got " + originalDeviceCount + " vs " + deserializedDeviceCount)
     
     return {
         "test": "Power Serialize Round Trip",
-        "passed": passed,
+        "passed": true,
         "originalDeviceCount": originalDeviceCount,
         "deserializedDeviceCount": deserializedDeviceCount
     }
@@ -329,11 +357,12 @@ pub fn testAeroSerializeRoundTrip() {
     }
     let deserializedFlowV = deserialized["flow"]["v"]
     
-    let passed = originalAirfoilCount == deserializedAirfoilCount && originalFlowV == deserializedFlowV
+    assert(originalAirfoilCount == deserializedAirfoilCount, "Expected originalAirfoilCount == deserializedAirfoilCount, got " + originalAirfoilCount + " vs " + deserializedAirfoilCount)
+    assert(originalFlowV == deserializedFlowV, "Expected originalFlowV == deserializedFlowV, got " + originalFlowV + " vs " + deserializedFlowV)
     
     return {
         "test": "Aero Serialize Round Trip",
-        "passed": passed,
+        "passed": true,
         "originalAirfoilCount": originalAirfoilCount,
         "deserializedAirfoilCount": deserializedAirfoilCount,
         "originalFlowV": originalFlowV,
