@@ -1,0 +1,541 @@
+@version "1.0.0"
+
+// CAD 3D Modeling - 3D modeling support for CAD/CAM
+// Features: 3D primitives, extrusion, boolean operations, mesh generation
+// Canonical path: import "cad/model3d"
+// Target: 3D modeling system comparable to AutoCAD/SolidWorks
+
+import "cad/geom"
+import "cad/document"
+
+pub fn create3DScene() {
+    return {
+        "kind": "Scene3D",
+        "objects": [],
+        "objectCounter": 0,
+        "camera": {
+            "position": vec3(0.0, 0.0, 10.0),
+            "target": vec3(0.0, 0.0, 0.0),
+            "up": vec3(0.0, 1.0, 0.0),
+            "fov": 45.0
+        }
+    }
+}
+
+pub fn vec3(x, y, z) {
+    return { "x": x, "y": y, "z": z }
+}
+
+pub fn vec4(x, y, z, w) {
+    return { "x": x, "y": y, "z": z, "w": w }
+}
+
+pub fn createCube(width, height, depth) {
+    return {
+        "kind": "Cube",
+        "width": width,
+        "height": height,
+        "depth": depth,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn createSphere(radius, segments) {
+    return {
+        "kind": "Sphere",
+        "radius": radius,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn createCylinder(radius, height, segments) {
+    return {
+        "kind": "Cylinder",
+        "radius": radius,
+        "height": height,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn createCone(radius, height, segments) {
+    return {
+        "kind": "Cone",
+        "radius": radius,
+        "height": height,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn createTorus(radius, tubeRadius, segments) {
+    return {
+        "kind": "Torus",
+        "radius": radius,
+        "tubeRadius": tubeRadius,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn createPlane(width, depth, segments) {
+    return {
+        "kind": "Plane",
+        "width": width,
+        "depth": depth,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn add3DObject(scene, object) {
+    object["id"] = scene["objectCounter"]
+    scene["objectCounter"] = scene["objectCounter"] + 1
+    scene["objects"] = push(scene["objects"], object)
+    return scene
+}
+
+pub fn remove3DObject(scene, objectId) {
+    let newObjects = []
+    let i = 0
+    while i < len(scene["objects"]) {
+        if scene["objects"][i]["id"] != objectId {
+            newObjects = push(newObjects, scene["objects"][i])
+        }
+        i = i + 1
+    }
+    scene["objects"] = newObjects
+    return scene
+}
+
+pub fn extrudePath(path, depth, segments) {
+    return {
+        "kind": "Extrusion",
+        "path": path,
+        "depth": depth,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn revolvePath(path, angle, segments) {
+    return {
+        "kind": "Revolution",
+        "path": path,
+        "angle": angle,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn loftPaths(paths, segments) {
+    return {
+        "kind": "Loft",
+        "paths": paths,
+        "segments": segments,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn booleanUnion(objectA, objectB) {
+    return {
+        "kind": "BooleanUnion",
+        "objectA": objectA,
+        "objectB": objectB,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn booleanDifference(objectA, objectB) {
+    return {
+        "kind": "BooleanDifference",
+        "objectA": objectA,
+        "objectB": objectB,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn booleanIntersection(objectA, objectB) {
+    return {
+        "kind": "BooleanIntersection",
+        "objectA": objectA,
+        "objectB": objectB,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "scale": vec3(1.0, 1.0, 1.0)
+    }
+}
+
+pub fn generateMesh(object) {
+    let kind = object["kind"]
+    
+    if kind == "Cube" {
+        return generateCubeMesh(object)
+    } else if kind == "Sphere" {
+        return generateSphereMesh(object)
+    } else if kind == "Cylinder" {
+        return generateCylinderMesh(object)
+    } else if kind == "Cone" {
+        return generateConeMesh(object)
+    } else if kind == "Torus" {
+        return generateTorusMesh(object)
+    } else if kind == "Plane" {
+        return generatePlaneMesh(object)
+    } else if kind == "Extrusion" {
+        return generateExtrusionMesh(object)
+    }
+    
+    return { "vertices": [], "indices": [], "normals": [] }
+}
+
+fn generateCubeMesh(object) {
+    let w = object["width"] / 2.0
+    let h = object["height"] / 2.0
+    let d = object["depth"] / 2.0
+    
+    let vertices = [
+        vec3(-w, -h, d), vec3(w, -h, d), vec3(w, h, d), vec3(-w, h, d),
+        vec3(-w, -h, -d), vec3(w, -h, -d), vec3(w, h, -d), vec3(-w, h, -d)
+    ]
+    
+    let indices = [
+        0, 1, 2, 0, 2, 3,
+        4, 7, 6, 4, 6, 5,
+        0, 4, 5, 0, 5, 1,
+        2, 6, 7, 2, 7, 3,
+        0, 3, 7, 0, 7, 4,
+        1, 5, 6, 1, 6, 2
+    ]
+    
+    let normals = [
+        vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0),
+        vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 0.0, -1.0)
+    ]
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generateSphereMesh(object) {
+    let radius = object["radius"]
+    let segments = object["segments"]
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    let latSegments = segments / 2
+    let lonSegments = segments
+    
+    let lat = 0
+    while lat <= latSegments {
+        let theta = lat * 3.14159 / latSegments
+        let sinTheta = sin(theta)
+        let cosTheta = cos(theta)
+        
+        let lon = 0
+        while lon <= lonSegments {
+            let phi = lon * 2.0 * 3.14159 / lonSegments
+            let sinPhi = sin(phi)
+            let cosPhi = cos(phi)
+            
+            let x = cosPhi * sinTheta
+            let y = cosTheta
+            let z = sinPhi * sinTheta
+            
+            vertices = push(vertices, vec3(x * radius, y * radius, z * radius))
+            normals = push(normals, vec3(x, y, z))
+            
+            lon = lon + 1
+        }
+        lat = lat + 1
+    }
+    
+    let i = 0
+    while i < latSegments {
+        let j = 0
+        while j < lonSegments {
+            let first = i * (lonSegments + 1) + j
+            let second = first + lonSegments + 1
+            
+            indices = push(indices, first)
+            indices = push(indices, second)
+            indices = push(indices, first + 1)
+            
+            indices = push(indices, first + 1)
+            indices = push(indices, second)
+            indices = push(indices, second + 1)
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generateCylinderMesh(object) {
+    let radius = object["radius"]
+    let height = object["height"]
+    let segments = object["segments"]
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    let halfHeight = height / 2.0
+    
+    let i = 0
+    while i <= segments {
+        let angle = i * 2.0 * 3.14159 / segments
+        let x = cos(angle) * radius
+        let z = sin(angle) * radius
+        
+        vertices = push(vertices, vec3(x, halfHeight, z))
+        vertices = push(vertices, vec3(x, -halfHeight, z))
+        normals = push(normals, vec3(cos(angle), 0.0, sin(angle)))
+        normals = push(normals, vec3(cos(angle), 0.0, sin(angle)))
+        
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < segments {
+        let top1 = j * 2
+        let top2 = (j + 1) * 2
+        let bottom1 = j * 2 + 1
+        let bottom2 = (j + 1) * 2 + 1
+        
+        indices = push(indices, top1)
+        indices = push(indices, bottom1)
+        indices = push(indices, top2)
+        
+        indices = push(indices, top2)
+        indices = push(indices, bottom1)
+        indices = push(indices, bottom2)
+        
+        j = j + 1
+    }
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generateConeMesh(object) {
+    let radius = object["radius"]
+    let height = object["height"]
+    let segments = object["segments"]
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    let halfHeight = height / 2.0
+    
+    vertices = push(vertices, vec3(0.0, halfHeight, 0.0))
+    normals = push(normals, vec3(0.0, 1.0, 0.0))
+    
+    let i = 0
+    while i <= segments {
+        let angle = i * 2.0 * 3.14159 / segments
+        let x = cos(angle) * radius
+        let z = sin(angle) * radius
+        
+        vertices = push(vertices, vec3(x, -halfHeight, z))
+        normals = push(normals, vec3(cos(angle), 0.0, sin(angle)))
+        
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < segments {
+        indices = push(indices, 0)
+        indices = push(indices, j + 1)
+        indices = push(indices, j + 2)
+        
+        j = j + 1
+    }
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generateTorusMesh(object) {
+    let radius = object["radius"]
+    let tubeRadius = object["tubeRadius"]
+    let segments = object["segments"]
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    let i = 0
+    while i <= segments {
+        let u = i * 2.0 * 3.14159 / segments
+        let cosU = cos(u)
+        let sinU = sin(u)
+        
+        let j = 0
+        while j <= segments {
+            let v = j * 2.0 * 3.14159 / segments
+            let cosV = cos(v)
+            let sinV = sin(v)
+            
+            let x = (radius + tubeRadius * cosV) * cosU
+            let y = tubeRadius * sinV
+            let z = (radius + tubeRadius * cosV) * sinU
+            
+            vertices = push(vertices, vec3(x, y, z))
+            normals = push(normals, vec3(cosV * cosU, sinV, cosV * sinU))
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    let k = 0
+    while k < segments {
+        let l = 0
+        while l < segments {
+            let first = k * (segments + 1) + l
+            let second = first + segments + 1
+            
+            indices = push(indices, first)
+            indices = push(indices, second)
+            indices = push(indices, first + 1)
+            
+            indices = push(indices, first + 1)
+            indices = push(indices, second)
+            indices = push(indices, second + 1)
+            
+            l = l + 1
+        }
+        k = k + 1
+    }
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generatePlaneMesh(object) {
+    let width = object["width"]
+    let depth = object["depth"]
+    let segments = object["segments"]
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    let halfWidth = width / 2.0
+    let halfDepth = depth / 2.0
+    
+    let i = 0
+    while i <= segments {
+        let z = (i / segments - 0.5) * depth
+        let j = 0
+        while j <= segments {
+            let x = (j / segments - 0.5) * width
+            
+            vertices = push(vertices, vec3(x, 0.0, z))
+            normals = push(normals, vec3(0.0, 1.0, 0.0))
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    let k = 0
+    while k < segments {
+        let l = 0
+        while l < segments {
+            let first = k * (segments + 1) + l
+            let second = first + segments + 1
+            
+            indices = push(indices, first)
+            indices = push(indices, second)
+            indices = push(indices, first + 1)
+            
+            indices = push(indices, first + 1)
+            indices = push(indices, second)
+            indices = push(indices, second + 1)
+            
+            l = l + 1
+        }
+        k = k + 1
+    }
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+fn generateExtrusionMesh(object) {
+    let path = object["path"]
+    let depth = object["depth"]
+    let segments = object["segments"]
+    
+    let vertices = []
+    let indices = []
+    let normals = []
+    
+    return {
+        "vertices": vertices,
+        "indices": indices,
+        "normals": normals
+    }
+}
+
+pub fn setCameraPosition(scene, position) {
+    scene["camera"]["position"] = position
+    return scene
+}
+
+pub fn setCameraTarget(scene, target) {
+    scene["camera"]["target"] = target
+    return scene
+}
+
+pub fn setCameraFOV(scene, fov) {
+    scene["camera"]["fov"] = fov
+    return scene
+}
+
+pub fn getObjectCount(scene) {
+    return len(scene["objects"])
+}
