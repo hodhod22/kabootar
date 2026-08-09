@@ -1,0 +1,299 @@
+@version "1.0.0"
+
+// CAD Snapping - Professional snapping, guides, and grid system
+// Features: grid snapping, smart guides, object snapping, guide lines
+// Canonical path: import "cad/snapping"
+// Target: Snapping system comparable to Figma/Photoshop/Sketch
+
+import "cad/geom"
+import "cad/document"
+
+pub fn createSnapSystem() {
+    return {
+        "kind": "SnapSystem",
+        "gridEnabled": true,
+        "gridSize": 10.0,
+        "gridMajor": 100.0,
+        "smartGuidesEnabled": true,
+        "objectSnappingEnabled": true,
+        "guides": []
+    }
+}
+
+pub fn setGridSize(snapSystem, size) {
+    snapSystem["gridSize"] = size
+    return snapSystem
+}
+
+pub fn setGridMajor(snapSystem, major) {
+    snapSystem["gridMajor"] = major
+    return snapSystem
+}
+
+pub fn enableGrid(snapSystem, enabled) {
+    snapSystem["gridEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn enableSmartGuides(snapSystem, enabled) {
+    snapSystem["smartGuidesEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn enableObjectSnapping(snapSystem, enabled) {
+    snapSystem["objectSnappingEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn snapToGrid(snapSystem, point) {
+    if snapSystem["gridEnabled"] == false {
+        return point
+    }
+    
+    let size = snapSystem["gridSize"]
+    let x = round(point["x"] / size) * size
+    let y = round(point["y"] / size) * size
+    
+    return vec2(x, y)
+}
+
+pub fn snapToGridWithTolerance(snapSystem, point, tolerance) {
+    if snapSystem["gridEnabled"] == false {
+        return point
+    }
+    
+    let size = snapSystem["gridSize"]
+    let x = point["x"]
+    let y = point["y"]
+    
+    let gridX = round(x / size) * size
+    let gridY = round(y / size) * size
+    
+    if abs(x - gridX) <= tolerance {
+        x = gridX
+    }
+    if abs(y - gridY) <= tolerance {
+        y = gridY
+    }
+    
+    return vec2(x, y)
+}
+
+pub fn findSmartGuides(snapSystem, document, point, tolerance) {
+    if snapSystem["smartGuidesEnabled"] == false {
+        return []
+    }
+    
+    let guides = []
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true && node["id"] != point["sourceId"] {
+            guides = appendNodeGuides(guides, node, point, tolerance)
+        }
+    }
+    
+    return guides
+}
+
+fn appendNodeGuides(guides, node, point, tolerance) {
+    let bounds = getNodeBounds(node)
+    
+    let centerX = (bounds["minX"] + bounds["maxX"]) / 2.0
+    let centerY = (bounds["minY"] + bounds["maxY"]) / 2.0
+    
+    let px = point["x"]
+    let py = point["y"]
+    
+    if abs(px - bounds["minX"]) <= tolerance {
+        guides = push(guides, {
+            "kind": "vertical",
+            "x": bounds["minX"],
+            "label": "left"
+        })
+    }
+    if abs(px - bounds["maxX"]) <= tolerance {
+        guides = push(guides, {
+            "kind": "vertical",
+            "x": bounds["maxX"],
+            "label": "right"
+        })
+    }
+    if abs(px - centerX) <= tolerance {
+        guides = push(guides, {
+            "kind": "vertical",
+            "x": centerX,
+            "label": "center"
+        })
+    }
+    if abs(py - bounds["minY"]) <= tolerance {
+        guides = push(guides, {
+            "kind": "horizontal",
+            "y": bounds["minY"],
+            "label": "top"
+        })
+    }
+    if abs(py - bounds["maxY"]) <= tolerance {
+        guides = push(guides, {
+            "kind": "horizontal",
+            "y": bounds["maxY"],
+            "label": "bottom"
+        })
+    }
+    if abs(py - centerY) <= tolerance {
+        guides = push(guides, {
+            "kind": "horizontal",
+            "y": centerY,
+            "label": "center"
+        })
+    }
+    
+    return guides
+}
+
+pub fn snapToGuides(point, guides, tolerance) {
+    let snapped = vec2(point["x"], point["y"])
+    let snappedX = false
+    let snappedY = false
+    
+    let i = 0
+    while i < len(guides) {
+        let guide = guides[i]
+        if guide["kind"] == "vertical" && snappedX == false {
+            if abs(point["x"] - guide["x"]) <= tolerance {
+                snapped["x"] = guide["x"]
+                snappedX = true
+            }
+        } else if guide["kind"] == "horizontal" && snappedY == false {
+            if abs(point["y"] - guide["y"]) <= tolerance {
+                snapped["y"] = guide["y"]
+                snappedY = true
+            }
+        }
+        i = i + 1
+    }
+    
+    return snapped
+}
+
+pub fn addGuide(snapSystem, kind, value) {
+    let guide = {
+        "kind": kind,
+        "value": value,
+        "visible": true
+    }
+    snapSystem["guides"] = push(snapSystem["guides"], guide)
+    return snapSystem
+}
+
+pub fn removeGuide(snapSystem, index) {
+    let newGuides = []
+    let i = 0
+    while i < len(snapSystem["guides"]) {
+        if i != index {
+            newGuides = push(newGuides, snapSystem["guides"][i])
+        }
+        i = i + 1
+    }
+    snapSystem["guides"] = newGuides
+    return snapSystem
+}
+
+pub fn clearGuides(snapSystem) {
+    snapSystem["guides"] = []
+    return snapSystem
+}
+
+pub fn snapToPoint(snapSystem, document, point, tolerance) {
+    let result = vec2(point["x"], point["y"])
+    
+    if snapSystem["gridEnabled"] == true {
+        result = snapToGridWithTolerance(snapSystem, result, tolerance)
+    }
+    
+    if snapSystem["smartGuidesEnabled"] == true {
+        let guides = findSmartGuides(snapSystem, document, result, tolerance)
+        result = snapToGuides(result, guides, tolerance)
+    }
+    
+    if snapSystem["objectSnappingEnabled"] == true {
+        result = snapToObjects(document, result, tolerance, point["sourceId"])
+    }
+    
+    return result
+}
+
+pub fn snapToObjects(document, point, tolerance, sourceId) {
+    let snapped = vec2(point["x"], point["y"])
+    let minDist = tolerance
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true && node["id"] != sourceId {
+            let bounds = getNodeBounds(node)
+            
+            let points = [
+                vec2(bounds["minX"], bounds["minY"]),
+                vec2(bounds["maxX"], bounds["minY"]),
+                vec2(bounds["minX"], bounds["maxY"]),
+                vec2(bounds["maxX"], bounds["maxY"]),
+                vec2((bounds["minX"] + bounds["maxX"]) / 2.0, (bounds["minY"] + bounds["maxY"]) / 2.0)
+            ]
+            
+            let i = 0
+            while i < len(points) {
+                let pt = points[i]
+                let dist = distance(point, pt)
+                if dist < minDist {
+                    snapped = pt
+                    minDist = dist
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return snapped
+}
+
+pub fn getGridLines(snapSystem, viewport) {
+    let lines = []
+    let size = snapSystem["gridSize"]
+    let major = snapSystem["gridMajor"]
+    
+    let minX = viewport["minX"]
+    let maxX = viewport["maxX"]
+    let minY = viewport["minY"]
+    let maxY = viewport["maxY"]
+    
+    let startX = floor(minX / size) * size
+    let startY = floor(minY / size) * size
+    
+    let x = startX
+    while x <= maxX {
+        let isMajor = (abs(x) % major) == 0
+        lines = push(lines, {
+            "kind": "vertical",
+            "x": x,
+            "isMajor": isMajor
+        })
+        x = x + size
+    }
+    
+    let y = startY
+    while y <= maxY {
+        let isMajor = (abs(y) % major) == 0
+        lines = push(lines, {
+            "kind": "horizontal",
+            "y": y,
+            "isMajor": isMajor
+        })
+        y = y + size
+    }
+    
+    return lines
+}
+
+pub fn getGuideLines(snapSystem) {
+    return snapSystem["guides"]
+}
