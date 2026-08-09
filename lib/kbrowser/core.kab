@@ -39,13 +39,13 @@ pub fn openTab(url) {
 }
 
 pub fn addBookmark(url, title) {
-    return addBookmark(url, title)
+    return bookmarksAdd(url, title)
 }
 
 pub fn removeBookmark(url) {
-    return removeBookmark(url)
+    return bookmarksRemove(url)
 }
 
 pub fn listBookmarks() {
-    return listBookmarks()
+    return bookmarksList()
 }
