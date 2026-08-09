@@ -1,35 +1,48 @@
 @version "1.0.0"
 
-// CAD Boolean - Approximate path boolean operations for CAD
+// CAD Boolean - EXPERIMENTAL: Approximate path boolean operations
 // Features: Union, intersection, difference for simple paths (rect-based approximation)
 // Canonical path: import "cad/boolean"
-// IMPORTANT: These are APPROXIMATE boolean operations using bounding boxes
-// Full boolean operations require complex computational geometry libraries
-// This is marked as experimental - do not use for production CAD work
+// ⚠️ EXPERIMENTAL - These are APPROXIMATE boolean operations using bounding boxes only
+// DO NOT use for production CAD work - results are inaccurate approximations
 // For accurate boolean operations, integrate a proper CG library (Clipper, CGAL, etc.)
+// Functions are prefixed with "approx" to indicate they are not true boolean operations
 
 import "cad/geom"
 import "cad/entities"
 
-pub fn booleanUnion(pathA, pathB) {
+pub fn approxBooleanUnion(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
         return pathUnion(pathA, pathB)
     }
     return pathA
 }
 
-pub fn booleanIntersection(pathA, pathB) {
+pub fn approxBooleanIntersection(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
         return pathIntersection(pathA, pathB)
     }
     return pathA
 }
 
-pub fn booleanDifference(pathA, pathB) {
+pub fn approxBooleanDifference(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
         return pathDifference(pathA, pathB)
     }
     return pathA
+}
+
+// Legacy aliases (deprecated - use approx* functions)
+pub fn booleanUnion(pathA, pathB) {
+    return approxBooleanUnion(pathA, pathB)
+}
+
+pub fn booleanIntersection(pathA, pathB) {
+    return approxBooleanIntersection(pathA, pathB)
+}
+
+pub fn booleanDifference(pathA, pathB) {
+    return approxBooleanDifference(pathA, pathB)
 }
 
 // Approximate union using bounding box
