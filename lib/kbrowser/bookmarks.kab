@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// Browser bookmarks - save and manage favorite URLs. import "kbrowser/bookmarks"
+// KEEP <=~7 top-level fn.
+
+let bookmarks = []
+
+pub fn addBookmark(url, title) {
+    let u = "" + url
+    let t = "" + title
+    if len(t) == 0 {
+        t = titleFromUrl(u)
+    }
+    let i = 0
+    while i < len(bookmarks) {
+        if bookmarks[i]["url"] == u {
+            return bookmarks
+        }
+        i = i + 1
+    }
+    bookmarks = push(bookmarks, { "url": u, "title": t })
+    return bookmarks
+}
+
+pub fn removeBookmark(url) {
+    let u = "" + url
+    let result = []
+    let i = 0
+    while i < len(bookmarks) {
+        if bookmarks[i]["url"] != u {
+            result = push(result, bookmarks[i])
+        }
+        i = i + 1
+    }
+    bookmarks = result
+    return bookmarks
+}
+
+pub fn listBookmarks() {
+    return bookmarks
+}
+
+pub fn hasBookmark(url) {
+    let u = "" + url
+    let i = 0
+    while i < len(bookmarks) {
+        if bookmarks[i]["url"] == u {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn clearBookmarks() {
+    bookmarks = []
+    return bookmarks
+}
+
+fn titleFromUrl(url) {
+    let u = "" + url
+    let slash = str_last_index_of(u, "/")
+    if slash >= 0 && slash + 1 < len(u) {
+        return str_slice(u, slash + 1, len(u))
+    }
+    return u
+}
