@@ -350,3 +350,133 @@ pub fn runAeroSandboxAnalysis(model) {
     model["analysis"] = analysis
     return model
 }
+
+// PythonOCC/CadQuery Integration
+pub fn createCadQueryModel(name) {
+    return {
+        "kind": "CadQueryModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-cadquery"),
+        "shapes": [],
+        "operations": []
+    }
+}
+
+pub fn addCadQueryBox(model, length, width, height, position) {
+    let box = {
+        "kind": "Box",
+        "length": length,
+        "width": width,
+        "height": height,
+        "position": position
+    }
+    model["shapes"] = push(model["shapes"], box)
+    return model
+}
+
+pub fn addCadQueryCylinder(model, radius, height, position) {
+    let cylinder = {
+        "kind": "Cylinder",
+        "radius": radius,
+        "height": height,
+        "position": position
+    }
+    model["shapes"] = push(model["shapes"], cylinder)
+    return model
+}
+
+pub fn addCadQuerySphere(model, radius, position) {
+    let sphere = {
+        "kind": "Sphere",
+        "radius": radius,
+        "position": position
+    }
+    model["shapes"] = push(model["shapes"], sphere)
+    return model
+}
+
+pub fn cadQueryUnion(model, shapeIndexA, shapeIndexB) {
+    let operation = {
+        "kind": "Union",
+        "shapeA": shapeIndexA,
+        "shapeB": shapeIndexB
+    }
+    model["operations"] = push(model["operations"], operation)
+    return model
+}
+
+pub fn cadQueryDifference(model, shapeIndexA, shapeIndexB) {
+    let operation = {
+        "kind": "Difference",
+        "shapeA": shapeIndexA,
+        "shapeB": shapeIndexB
+    }
+    model["operations"] = push(model["operations"], operation)
+    return model
+}
+
+pub fn cadQueryIntersection(model, shapeIndexA, shapeIndexB) {
+    let operation = {
+        "kind": "Intersection",
+        "shapeA": shapeIndexA,
+        "shapeB": shapeIndexB
+    }
+    model["operations"] = push(model["operations"], operation)
+    return model
+}
+
+pub fn cadQueryFillet(model, shapeIndex, radius, edges) {
+    let operation = {
+        "kind": "Fillet",
+        "shapeIndex": shapeIndex,
+        "radius": radius,
+        "edges": edges
+    }
+    model["operations"] = push(model["operations"], operation)
+    return model
+}
+
+pub fn cadQueryChamfer(model, shapeIndex, distance, edges) {
+    let operation = {
+        "kind": "Chamfer",
+        "shapeIndex": shapeIndex,
+        "distance": distance,
+        "edges": edges
+    }
+    model["operations"] = push(model["operations"], operation)
+    return model
+}
+
+pub fn exportToCadQuery(model) {
+    let export = {
+        "format": "cadquery",
+        "shapes": model["shapes"],
+        "operations": model["operations"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn exportToPythonOCC(model) {
+    let export = {
+        "format": "pythonocc",
+        "shapes": model["shapes"],
+        "operations": model["operations"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn importCadQueryResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
+
+pub fn importPythonOCCResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
