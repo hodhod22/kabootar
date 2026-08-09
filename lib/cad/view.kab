@@ -541,40 +541,18 @@ pub fn getGridLines(view) {
     return lines
 }
 
-fn round(value) {
+pub fn round(value) {
     if value >= 0.0 {
-        return floor(value + 0.5)
+        return systemFloor(value + 0.5)
     } else {
-        return floor(value - 0.5)
+        return systemFloor(value - 0.5)
     }
-}
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}
-
-fn ceil(value) {
-    let int = value
-    if value > 0.0 && value != int {
-        return int + 1
-    }
-    return int
-}
-
-fn abs(value) {
-    if value < 0.0 {
-        return -value
-    }
-    return value
 }
 
 fn min(a, b) {
-    if a < b {
-        return a
-    }
-    return b
+    return systemMin(a, b)
+}
+
+fn max(a, b) {
+    return systemMax(a, b)
 }

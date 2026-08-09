@@ -524,60 +524,6 @@ fn currentTime() {
     return systemTime()
 }
 
-fn random() {
-    return systemRandom()
-}
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}
-
-fn abs(value) {
-    if value < 0.0 {
-        return -value
-    }
-    return value
-}
-
-fn min(a, b, c, d) {
-    let result = a
-    if b < result {
-        result = b
-    }
-    if c < result {
-        result = c
-    }
-    if d < result {
-        result = d
-    }
-    return result
-}
-
-fn max(a, b, c, d) {
-    let result = a
-    if b > result {
-        result = b
-    }
-    if c > result {
-        result = c
-    }
-    if d > result {
-        result = d
-    }
-    return result
-}
-
-fn cos(value) {
-    return systemCos(value)
-}
-
-fn sin(value) {
-    return systemSin(value)
-}
 
 fn atan2(y, x) {
     return systemAtan2(y, x)
