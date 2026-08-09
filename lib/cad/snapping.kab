@@ -7,6 +7,7 @@
 
 import "cad/geom"
 import "cad/document"
+import "cad/host"
 
 pub fn createSnapSystem() {
     return {
@@ -16,6 +17,10 @@ pub fn createSnapSystem() {
         "gridMajor": 100.0,
         "smartGuidesEnabled": true,
         "objectSnappingEnabled": true,
+        "endpointSnappingEnabled": true,
+        "midpointSnappingEnabled": true,
+        "centerSnappingEnabled": true,
+        "orthoSnappingEnabled": true,
         "guides": []
     }
 }
@@ -45,6 +50,26 @@ pub fn enableObjectSnapping(snapSystem, enabled) {
     return snapSystem
 }
 
+pub fn enableEndpointSnapping(snapSystem, enabled) {
+    snapSystem["endpointSnappingEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn enableMidpointSnapping(snapSystem, enabled) {
+    snapSystem["midpointSnappingEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn enableCenterSnapping(snapSystem, enabled) {
+    snapSystem["centerSnappingEnabled"] = enabled
+    return snapSystem
+}
+
+pub fn enableOrthoSnapping(snapSystem, enabled) {
+    snapSystem["orthoSnappingEnabled"] = enabled
+    return snapSystem
+}
+
 pub fn snapToGrid(snapSystem, point) {
     if snapSystem["gridEnabled"] == false {
         return point
@@ -66,13 +91,13 @@ pub fn snapToGridWithTolerance(snapSystem, point, tolerance) {
     let x = point["x"]
     let y = point["y"]
     
-    let gridX = round(x / size) * size
-    let gridY = round(y / size) * size
+    let gridX = systemRound(x / size) * size
+    let gridY = systemRound(y / size) * size
     
-    if abs(x - gridX) <= tolerance {
+    if systemAbs(x - gridX) <= tolerance {
         x = gridX
     }
-    if abs(y - gridY) <= tolerance {
+    if systemAbs(y - gridY) <= tolerance {
         y = gridY
     }
     
@@ -105,42 +130,42 @@ fn appendNodeGuides(guides, node, point, tolerance) {
     let px = point["x"]
     let py = point["y"]
     
-    if abs(px - bounds["minX"]) <= tolerance {
+    if systemAbs(px - bounds["minX"]) <= tolerance {
         guides = push(guides, {
             "kind": "vertical",
             "x": bounds["minX"],
             "label": "left"
         })
     }
-    if abs(px - bounds["maxX"]) <= tolerance {
+    if systemAbs(px - bounds["maxX"]) <= tolerance {
         guides = push(guides, {
             "kind": "vertical",
             "x": bounds["maxX"],
             "label": "right"
         })
     }
-    if abs(px - centerX) <= tolerance {
+    if systemAbs(px - centerX) <= tolerance {
         guides = push(guides, {
             "kind": "vertical",
             "x": centerX,
             "label": "center"
         })
     }
-    if abs(py - bounds["minY"]) <= tolerance {
+    if systemAbs(py - bounds["minY"]) <= tolerance {
         guides = push(guides, {
             "kind": "horizontal",
             "y": bounds["minY"],
             "label": "top"
         })
     }
-    if abs(py - bounds["maxY"]) <= tolerance {
+    if systemAbs(py - bounds["maxY"]) <= tolerance {
         guides = push(guides, {
             "kind": "horizontal",
             "y": bounds["maxY"],
             "label": "bottom"
         })
     }
-    if abs(py - centerY) <= tolerance {
+    if systemAbs(py - centerY) <= tolerance {
         guides = push(guides, {
             "kind": "horizontal",
             "y": centerY,
@@ -160,12 +185,12 @@ pub fn snapToGuides(point, guides, tolerance) {
     while i < len(guides) {
         let guide = guides[i]
         if guide["kind"] == "vertical" && snappedX == false {
-            if abs(point["x"] - guide["x"]) <= tolerance {
+            if systemAbs(point["x"] - guide["x"]) <= tolerance {
                 snapped["x"] = guide["x"]
                 snappedX = true
             }
         } else if guide["kind"] == "horizontal" && snappedY == false {
-            if abs(point["y"] - guide["y"]) <= tolerance {
+            if systemAbs(point["y"] - guide["y"]) <= tolerance {
                 snapped["y"] = guide["y"]
                 snappedY = true
             }
@@ -220,6 +245,22 @@ pub fn snapToPoint(snapSystem, document, point, tolerance) {
         result = snapToObjects(document, result, tolerance, point["sourceId"])
     }
     
+    if snapSystem["endpointSnappingEnabled"] == true {
+        result = snapToEndpoints(document, result, tolerance, point["sourceId"])
+    }
+    
+    if snapSystem["midpointSnappingEnabled"] == true {
+        result = snapToMidpoints(document, result, tolerance, point["sourceId"])
+    }
+    
+    if snapSystem["centerSnappingEnabled"] == true {
+        result = snapToCenters(document, result, tolerance, point["sourceId"])
+    }
+    
+    if snapSystem["orthoSnappingEnabled"] == true {
+        result = snapToOrtho(result, tolerance)
+    }
+    
     return result
 }
 
@@ -243,7 +284,7 @@ pub fn snapToObjects(document, point, tolerance, sourceId) {
             let i = 0
             while i < len(points) {
                 let pt = points[i]
-                let dist = distance(point, pt)
+                let dist = vec2Distance(point, pt)
                 if dist < minDist {
                     snapped = pt
                     minDist = dist
@@ -256,6 +297,163 @@ pub fn snapToObjects(document, point, tolerance, sourceId) {
     return snapped
 }
 
+pub fn snapToEndpoints(document, point, tolerance, sourceId) {
+    let snapped = vec2(point["x"], point["y"])
+    let minDist = tolerance
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true && node["id"] != sourceId {
+            let endpoints = getNodeEndpoints(node)
+            
+            let i = 0
+            while i < len(endpoints) {
+                let pt = endpoints[i]
+                let dist = vec2Distance(point, pt)
+                if dist < minDist {
+                    snapped = pt
+                    minDist = dist
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return snapped
+}
+
+pub fn snapToMidpoints(document, point, tolerance, sourceId) {
+    let snapped = vec2(point["x"], point["y"])
+    let minDist = tolerance
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true && node["id"] != sourceId {
+            let midpoints = getNodeMidpoints(node)
+            
+            let i = 0
+            while i < len(midpoints) {
+                let pt = midpoints[i]
+                let dist = vec2Distance(point, pt)
+                if dist < minDist {
+                    snapped = pt
+                    minDist = dist
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return snapped
+}
+
+pub fn snapToCenters(document, point, tolerance, sourceId) {
+    let snapped = vec2(point["x"], point["y"])
+    let minDist = tolerance
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true && node["id"] != sourceId {
+            let bounds = getNodeBounds(node)
+            let center = vec2(
+                (bounds["minX"] + bounds["maxX"]) / 2.0,
+                (bounds["minY"] + bounds["maxY"]) / 2.0
+            )
+            let dist = vec2Distance(point, center)
+            if dist < minDist {
+                snapped = center
+                minDist = dist
+            }
+        }
+    }
+    
+    return snapped
+}
+
+pub fn snapToOrtho(point, tolerance) {
+    let snapped = vec2(point["x"], point["y"])
+    
+    if systemAbs(point["x"]) < tolerance {
+        snapped["x"] = 0.0
+    }
+    if systemAbs(point["y"]) < tolerance {
+        snapped["y"] = 0.0
+    }
+    
+    return snapped
+}
+
+fn getNodeEndpoints(node) {
+    let kind = node["kind"]
+    let endpoints = []
+    
+    if kind == "Frame" || kind == "Group" || kind == "Component" {
+        let bounds = getNodeBounds(node)
+        endpoints = push(endpoints, vec2(bounds["minX"], bounds["minY"]))
+        endpoints = push(endpoints, vec2(bounds["maxX"], bounds["minY"]))
+        endpoints = push(endpoints, vec2(bounds["minX"], bounds["maxY"]))
+        endpoints = push(endpoints, vec2(bounds["maxX"], bounds["maxY"]))
+    } else if kind == "Vector" || kind == "Shape" {
+        let data = node["data"]
+        if data != null && data["segments"] != null {
+            let i = 0
+            while i < len(data["segments"]) {
+                let seg = data["segments"][i]
+                if i == 0 {
+                    endpoints = push(endpoints, vec2(seg["x"], seg["y"]))
+                } else if i == len(data["segments"]) - 1 {
+                    endpoints = push(endpoints, vec2(seg["x"], seg["y"]))
+                }
+                i = i + 1
+            }
+        }
+    }
+    
+    return endpoints
+}
+
+fn getNodeMidpoints(node) {
+    let kind = node["kind"]
+    let midpoints = []
+    
+    if kind == "Frame" || kind == "Group" || kind == "Component" {
+        let bounds = getNodeBounds(node)
+        midpoints = push(midpoints, vec2(
+            (bounds["minX"] + bounds["maxX"]) / 2.0,
+            bounds["minY"]
+        ))
+        midpoints = push(midpoints, vec2(
+            (bounds["minX"] + bounds["maxX"]) / 2.0,
+            bounds["maxY"]
+        ))
+        midpoints = push(midpoints, vec2(
+            bounds["minX"],
+            (bounds["minY"] + bounds["maxY"]) / 2.0
+        ))
+        midpoints = push(midpoints, vec2(
+            bounds["maxX"],
+            (bounds["minY"] + bounds["maxY"]) / 2.0
+        ))
+    } else if kind == "Vector" || kind == "Shape" {
+        let data = node["data"]
+        if data != null && data["segments"] != null {
+            let i = 0
+            while i < len(data["segments"]) - 1 {
+                let seg1 = data["segments"][i]
+                let seg2 = data["segments"][i + 1]
+                let midpoint = vec2(
+                    (seg1["x"] + seg2["x"]) / 2.0,
+                    (seg1["y"] + seg2["y"]) / 2.0
+                )
+                midpoints = push(midpoints, midpoint)
+                i = i + 1
+            }
+        }
+    }
+    
+    return midpoints
+}
+
 pub fn getGridLines(snapSystem, viewport) {
     let lines = []
     let size = snapSystem["gridSize"]
@@ -266,12 +464,12 @@ pub fn getGridLines(snapSystem, viewport) {
     let minY = viewport["minY"]
     let maxY = viewport["maxY"]
     
-    let startX = floor(minX / size) * size
-    let startY = floor(minY / size) * size
+    let startX = systemFloor(minX / size) * size
+    let startY = systemFloor(minY / size) * size
     
     let x = startX
     while x <= maxX {
-        let isMajor = (abs(x) % major) == 0
+        let isMajor = (systemAbs(x) % major) == 0
         lines = push(lines, {
             "kind": "vertical",
             "x": x,
@@ -282,7 +480,7 @@ pub fn getGridLines(snapSystem, viewport) {
     
     let y = startY
     while y <= maxY {
-        let isMajor = (abs(y) % major) == 0
+        let isMajor = (systemAbs(y) % major) == 0
         lines = push(lines, {
             "kind": "horizontal",
             "y": y,
