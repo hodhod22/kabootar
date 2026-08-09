@@ -1,0 +1,392 @@
+@version "1.0.0"
+
+// CAD Dimensioning - Professional dimensioning and annotation system
+// Features: linear dimensions, angular dimensions, radial dimensions, leaders, text
+// Canonical path: import "cad/dimensioning"
+// Target: Dimensioning system comparable to AutoCAD/SolidWorks
+
+import "cad/geom"
+import "cad/document"
+
+pub fn createDimensionSystem() {
+    return {
+        "kind": "DimensionSystem",
+        "dimensions": [],
+        "annotations": [],
+        "dimensionCounter": 0,
+        "annotationCounter": 0,
+        "style": {
+            "arrowSize": 5.0,
+            "textHeight": 12.0,
+            "lineWidth": 1.0,
+            "extensionLineLength": 3.0,
+            "offset": 10.0
+        }
+    }
+}
+
+pub fn createLinearDimension(start, end, offset) {
+    return {
+        "kind": "LinearDimension",
+        "start": start,
+        "end": end,
+        "offset": offset,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createAngularDimension(center, start, end, radius) {
+    return {
+        "kind": "AngularDimension",
+        "center": center,
+        "start": start,
+        "end": end,
+        "radius": radius,
+        "text": "",
+        "units": "deg",
+        "precision": 1
+    }
+}
+
+pub fn createRadialDimension(center, point, radius) {
+    return {
+        "kind": "RadialDimension",
+        "center": center,
+        "point": point,
+        "radius": radius,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createDiameterDimension(center, point, radius) {
+    return {
+        "kind": "DiameterDimension",
+        "center": center,
+        "point": point,
+        "radius": radius,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createLeaderAnnotation(start, end, text) {
+    return {
+        "kind": "LeaderAnnotation",
+        "start": start,
+        "end": end,
+        "text": text
+    }
+}
+
+pub fn createTextAnnotation(position, text, height) {
+    return {
+        "kind": "TextAnnotation",
+        "position": position,
+        "text": text,
+        "height": height,
+        "rotation": 0.0
+    }
+}
+
+pub fn addDimension(system, dimension) {
+    dimension["id"] = system["dimensionCounter"]
+    system["dimensionCounter"] = system["dimensionCounter"] + 1
+    system["dimensions"] = push(system["dimensions"], dimension)
+    return system
+}
+
+pub fn removeDimension(system, dimensionId) {
+    let newDimensions = []
+    let i = 0
+    while i < len(system["dimensions"]) {
+        if system["dimensions"][i]["id"] != dimensionId {
+            newDimensions = push(newDimensions, system["dimensions"][i])
+        }
+        i = i + 1
+    }
+    system["dimensions"] = newDimensions
+    return system
+}
+
+pub fn addAnnotation(system, annotation) {
+    annotation["id"] = system["annotationCounter"]
+    system["annotationCounter"] = system["annotationCounter"] + 1
+    system["annotations"] = push(system["annotations"], annotation)
+    return system
+}
+
+pub fn removeAnnotation(system, annotationId) {
+    let newAnnotations = []
+    let i = 0
+    while i < len(system["annotations"]) {
+        if system["annotations"][i]["id"] != annotationId {
+            newAnnotations = push(newAnnotations, system["annotations"][i])
+        }
+        i = i + 1
+    }
+    system["annotations"] = newAnnotations
+    return system
+}
+
+pub fn updateLinearDimensionText(dimension) {
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let dist = distance(start, end)
+    let precision = dimension["precision"]
+    let value = roundToPrecision(dist, precision)
+    dimension["text"] = "" + value + " " + dimension["units"]
+    return dimension
+}
+
+pub fn updateAngularDimensionText(dimension) {
+    let center = dimension["center"]
+    let start = dimension["start"]
+    let end = dimension["end"]
+    
+    let v1 = vec2(start["x"] - center["x"], start["y"] - center["y"])
+    let v2 = vec2(end["x"] - center["x"], end["y"] - center["y"])
+    
+    let angle1 = atan2(v1["y"], v1["x"])
+    let angle2 = atan2(v2["y"], v2["x"])
+    let angle = abs(angle2 - angle1)
+    
+    let degrees = angle * 180.0 / 3.14159
+    let precision = dimension["precision"]
+    let value = roundToPrecision(degrees, precision)
+    dimension["text"] = "" + value + "°"
+    return dimension
+}
+
+pub fn updateRadialDimensionText(dimension) {
+    let radius = dimension["radius"]
+    let precision = dimension["precision"]
+    let value = roundToPrecision(radius, precision)
+    dimension["text"] = "R " + value + " " + dimension["units"]
+    return dimension
+}
+
+pub fn updateDiameterDimensionText(dimension) {
+    let radius = dimension["radius"]
+    let diameter = radius * 2.0
+    let precision = dimension["precision"]
+    let value = roundToPrecision(diameter, precision)
+    dimension["text"] = "Ø " + value + " " + dimension["units"]
+    return dimension
+}
+
+pub fn generateDimensionGeometry(dimension, style) {
+    let kind = dimension["kind"]
+    
+    if kind == "LinearDimension" {
+        return generateLinearDimensionGeometry(dimension, style)
+    } else if kind == "AngularDimension" {
+        return generateAngularDimensionGeometry(dimension, style)
+    } else if kind == "RadialDimension" {
+        return generateRadialDimensionGeometry(dimension, style)
+    } else if kind == "DiameterDimension" {
+        return generateDiameterDimensionGeometry(dimension, style)
+    }
+    
+    return { "lines": [], "arcs": [], "text": "" }
+}
+
+fn generateLinearDimensionGeometry(dimension, style) {
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let offset = dimension["offset"]
+    
+    let dx = end["x"] - start["x"]
+    let dy = end["y"] - start["y"]
+    let length = distance(start, end)
+    
+    let angle = atan2(dy, dx)
+    let perpAngle = angle + 1.5708
+    
+    let midX = (start["x"] + end["x"]) / 2.0
+    let midY = (start["y"] + end["y"]) / 2.0
+    
+    let dimStartX = midX + cos(perpAngle) * offset
+    let dimStartY = midY + sin(perpAngle) * offset
+    let dimEndX = dimStartX + cos(angle) * length
+    let dimEndY = dimStartY + sin(angle) * length
+    
+    let extLength = style["extensionLineLength"]
+    
+    let lines = [
+        { "start": start, "end": vec2(start["x"] + cos(perpAngle) * extLength, start["y"] + sin(perpAngle) * extLength) },
+        { "start": end, "end": vec2(end["x"] + cos(perpAngle) * extLength, end["y"] + sin(perpAngle) * extLength) },
+        { "start": vec2(dimStartX, dimStartY), "end": vec2(dimEndX, dimEndY) }
+    ]
+    
+    return {
+        "lines": lines,
+        "arcs": [],
+        "text": dimension["text"],
+        "textPosition": vec2((dimStartX + dimEndX) / 2.0, (dimStartY + dimEndY) / 2.0),
+        "textAngle": angle
+    }
+}
+
+fn generateAngularDimensionGeometry(dimension, style) {
+    let center = dimension["center"]
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let radius = dimension["radius"]
+    
+    let v1 = vec2(start["x"] - center["x"], start["y"] - center["y"])
+    let v2 = vec2(end["x"] - center["x"], end["y"] - center["y"])
+    
+    let angle1 = atan2(v1["y"], v1["x"])
+    let angle2 = atan2(v2["y"], v2["x"])
+    
+    let arcStart = vec2(center["x"] + cos(angle1) * radius, center["y"] + sin(angle1) * radius)
+    let arcEnd = vec2(center["x"] + cos(angle2) * radius, center["y"] + sin(angle2) * radius)
+    
+    let lines = [
+        { "start": center, "end": arcStart },
+        { "start": center, "end": arcEnd }
+    ]
+    
+    let arcs = [{
+        "center": center,
+        "radius": radius,
+        "startAngle": angle1,
+        "endAngle": angle2
+    }]
+    
+    let midAngle = (angle1 + angle2) / 2.0
+    let textPos = vec2(center["x"] + cos(midAngle) * (radius + 10.0), center["y"] + sin(midAngle) * (radius + 10.0))
+    
+    return {
+        "lines": lines,
+        "arcs": arcs,
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": midAngle
+    }
+}
+
+fn generateRadialDimensionGeometry(dimension, style) {
+    let center = dimension["center"]
+    let point = dimension["point"]
+    let radius = dimension["radius"]
+    
+    let angle = atan2(point["y"] - center["y"], point["x"] - center["x"])
+    let arrowEnd = vec2(center["x"] + cos(angle) * radius, center["y"] + sin(angle) * radius)
+    
+    let lines = [
+        { "start": center, "end": arrowEnd }
+    ]
+    
+    let textPos = vec2(arrowEnd["x"] + cos(angle) * 15.0, arrowEnd["y"] + sin(angle) * 15.0)
+    
+    return {
+        "lines": lines,
+        "arcs": [],
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": angle
+    }
+}
+
+fn generateDiameterDimensionGeometry(dimension, style) {
+    let center = dimension["center"]
+    let point = dimension["point"]
+    let radius = dimension["radius"]
+    
+    let angle = atan2(point["y"] - center["y"], point["x"] - center["x"])
+    let oppositeAngle = angle + 3.14159
+    
+    let arrowEnd1 = vec2(center["x"] + cos(angle) * radius, center["y"] + sin(angle) * radius)
+    let arrowEnd2 = vec2(center["x"] + cos(oppositeAngle) * radius, center["y"] + sin(oppositeAngle) * radius)
+    
+    let lines = [
+        { "start": arrowEnd1, "end": arrowEnd2 }
+    ]
+    
+    let textPos = vec2(center["x"] + cos(angle) * (radius + 15.0), center["y"] + sin(angle) * (radius + 15.0))
+    
+    return {
+        "lines": lines,
+        "arcs": [],
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": angle
+    }
+}
+
+pub fn generateLeaderGeometry(annotation, style) {
+    let start = annotation["start"]
+    let end = annotation["end"]
+    
+    let dx = end["x"] - start["x"]
+    let dy = end["y"] - start["y"]
+    let angle = atan2(dy, dx)
+    
+    let kneeOffset = 10.0
+    let kneeX = end["x"] - cos(angle) * kneeOffset
+    let kneeY = end["y"] - sin(angle) * kneeOffset
+    
+    let lines = [
+        { "start": start, "end": vec2(kneeX, kneeY) },
+        { "start": vec2(kneeX, kneeY), "end": end }
+    ]
+    
+    return {
+        "lines": lines,
+        "text": annotation["text"],
+        "textPosition": end,
+        "textAngle": 0.0
+    }
+}
+
+pub fn setDimensionStyle(system, style) {
+    system["style"] = style
+    return system
+}
+
+pub fn getDimensionCount(system) {
+    return len(system["dimensions"])
+}
+
+pub fn getAnnotationCount(system) {
+    return len(system["annotations"])
+}
+
+pub fn clearDimensions(system) {
+    system["dimensions"] = []
+    return system
+}
+
+pub fn clearAnnotations(system) {
+    system["annotations"] = []
+    return system
+}
+
+fn roundToPrecision(value, precision) {
+    let multiplier = pow(10.0, precision)
+    return floor(value * multiplier + 0.5) / multiplier
+}
+
+fn pow(base, exp) {
+    let result = 1.0
+    let i = 0
+    while i < exp {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
