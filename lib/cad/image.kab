@@ -1,0 +1,204 @@
+@version "1.0.0"
+
+// CAD Image - Image nodes with transform and crop support
+// Features: image nodes, transform, crop, blend modes, filters
+// Canonical path: import "cad/image"
+// Target: Image support comparable to Figma/Photoshop
+
+import "cad/document"
+import "cad/geom"
+import "cad/host"
+
+pub fn createImageNode(id, sourceUrl, position) {
+    return {
+        "kind": "Image",
+        "id": id,
+        "sourceUrl": sourceUrl,
+        "transform": {
+            "position": position,
+            "rotation": 0.0,
+            "scale": vec2(1.0, 1.0)
+        },
+        "crop": {
+            "enabled": false,
+            "x": 0.0,
+            "y": 0.0,
+            "width": 1.0,
+            "height": 1.0
+        },
+        "size": {
+            "width": 100.0,
+            "height": 100.0
+        },
+        "opacity": 1.0,
+        "blendMode": "normal",
+        "visible": true,
+        "locked": false,
+        "parentId": null
+    }
+}
+
+pub fn setImageTransform(node, position, rotation, scale) {
+    node["transform"]["position"] = position
+    node["transform"]["rotation"] = rotation
+    node["transform"]["scale"] = scale
+    return node
+}
+
+pub fn setImagePosition(node, position) {
+    node["transform"]["position"] = position
+    return node
+}
+
+pub fn setImageRotation(node, rotation) {
+    node["transform"]["rotation"] = rotation
+    return node
+}
+
+pub fn setImageScale(node, scale) {
+    node["transform"]["scale"] = scale
+    return node
+}
+
+pub fn setImageCrop(node, x, y, width, height) {
+    node["crop"]["enabled"] = true
+    node["crop"]["x"] = x
+    node["crop"]["y"] = y
+    node["crop"]["width"] = width
+    node["crop"]["height"] = height
+    return node
+}
+
+pub fn disableImageCrop(node) {
+    node["crop"]["enabled"] = false
+    return node
+}
+
+pub fn setImageSize(node, width, height) {
+    node["size"]["width"] = width
+    node["size"]["height"] = height
+    return node
+}
+
+pub fn setImageOpacity(node, opacity) {
+    node["opacity"] = opacity
+    return node
+}
+
+pub fn setImageBlendMode(node, blendMode) {
+    node["blendMode"] = blendMode
+    return node
+}
+
+pub fn addImageNodeToDocument(document, parentId, imageNode) {
+    imageNode["parentId"] = parentId
+    document["nodes"][imageNode["id"]] = imageNode
+    document["nodeCounter"] = document["nodeCounter"] + 1
+    return document
+}
+
+pub fn getImageNodeBounds(node) {
+    let transform = node["transform"]
+    let size = node["size"]
+    let scale = transform["scale"]
+    
+    let width = size["width"] * scale["x"]
+    let height = size["height"] * scale["y"]
+    
+    let position = transform["position"]
+    
+    let minX = position["x"] - width / 2.0
+    let minY = position["y"] - height / 2.0
+    let maxX = position["x"] + width / 2.0
+    let maxY = position["y"] + height / 2.0
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+pub fn transformImagePoint(node, point) {
+    let transform = node["transform"]
+    let position = transform["position"]
+    let rotation = transform["rotation"]
+    let scale = transform["scale"]
+    
+    let localX = (point["x"] - position["x"]) / scale["x"]
+    let localY = (point["y"] - position["y"]) / scale["y"]
+    
+    let cosR = systemCos(rotation)
+    let sinR = systemSin(rotation)
+    
+    let rotatedX = localX * cosR - localY * sinR
+    let rotatedY = localX * sinR + localY * cosR
+    
+    return vec2(rotatedX + position["x"], rotatedY + position["y"])
+}
+
+pub fn applyImageFilters(node, filters) {
+    node["filters"] = filters
+    return node
+}
+
+pub fn createImageFilter(type, params) {
+    return {
+        "type": type,
+        "params": params
+    }
+}
+
+pub fn addBrightnessFilter(node, amount) {
+    if node["filters"] == null {
+        node["filters"] = []
+    }
+    node["filters"] = push(node["filters"], createImageFilter("brightness", { "amount": amount }))
+    return node
+}
+
+pub fn addContrastFilter(node, amount) {
+    if node["filters"] == null {
+        node["filters"] = []
+    }
+    node["filters"] = push(node["filters"], createImageFilter("contrast", { "amount": amount }))
+    return node
+}
+
+pub fn addBlurFilter(node, radius) {
+    if node["filters"] == null {
+        node["filters"] = []
+    }
+    node["filters"] = push(node["filters"], createImageFilter("blur", { "radius": radius }))
+    return node
+}
+
+pub fn addSaturationFilter(node, amount) {
+    if node["filters"] == null {
+        node["filters"] = []
+    }
+    node["filters"] = push(node["filters"], createImageFilter("saturation", { "amount": amount }))
+    return node
+}
+
+pub fn clearImageFilters(node) {
+    node["filters"] = []
+    return node
+}
+
+pub fn cloneImageNode(node) {
+    let clone = {}
+    for key in node {
+        clone[key] = node[key]
+    }
+    clone["id"] = "img-" + systemFloor(systemTime() * 1000.0) + "-" + systemRandom()
+    return clone
+}
+
+pub fn serializeImageNode(node) {
+    return {
+        "kind": "SerializedImageNode",
+        "node": node,
+        "timestamp": systemTime()
+    }
+}
+
+pub fn deserializeImageNode(data) {
+    return data["node"]
+}
