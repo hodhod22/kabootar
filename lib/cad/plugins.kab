@@ -1,0 +1,351 @@
+@version "1.0.0"
+
+// CAD Plugins - Plugin architecture for CAD motor
+// Features: plugin registration, lifecycle, hooks, tool plugins, filter plugins
+// Canonical path: import "cad/plugins"
+// Target: Plugin system for extensible CAD applications
+
+import "cad/document"
+
+pub fn createPluginSystem() {
+    return {
+        "kind": "PluginSystem",
+        "plugins": {},
+        "hooks": {},
+        "pluginCounter": 0
+    }
+}
+
+pub fn createPlugin(name, version, author) {
+    return {
+        "kind": "Plugin",
+        "id": null,
+        "name": name,
+        "version": version,
+        "author": author,
+        "enabled": true,
+        "hooks": [],
+        "tools": [],
+        "filters": []
+    }
+}
+
+pub fn registerPlugin(system, plugin) {
+    plugin["id"] = system["pluginCounter"]
+    system["pluginCounter"] = system["pluginCounter"] + 1
+    system["plugins"][plugin["id"]] = plugin
+    
+    let i = 0
+    while i < len(plugin["hooks"]) {
+        let hook = plugin["hooks"][i]
+        system = registerHook(system, hook["event"], hook["callback"], plugin["id"])
+        i = i + 1
+    }
+    
+    return system
+}
+
+pub fn unregisterPlugin(system, pluginId) {
+    let plugin = system["plugins"][pluginId]
+    if plugin == null {
+        return system
+    }
+    
+    let i = 0
+    while i < len(plugin["hooks"]) {
+        let hook = plugin["hooks"][i]
+        system = unregisterHook(system, hook["event"], hook["callback"])
+        i = i + 1
+    }
+    
+    let newPlugins = {}
+    for id in system["plugins"] {
+        if id != pluginId {
+            newPlugins[id] = system["plugins"][id]
+        }
+    }
+    system["plugins"] = newPlugins
+    
+    return system
+}
+
+pub fn enablePlugin(system, pluginId) {
+    let plugin = system["plugins"][pluginId]
+    if plugin != null {
+        plugin["enabled"] = true
+        system["plugins"][pluginId] = plugin
+    }
+    return system
+}
+
+pub fn disablePlugin(system, pluginId) {
+    let plugin = system["plugins"][pluginId]
+    if plugin != null {
+        plugin["enabled"] = false
+        system["plugins"][pluginId] = plugin
+    }
+    return system
+}
+
+pub fn getPlugin(system, pluginId) {
+    return system["plugins"][pluginId]
+}
+
+pub fn getPluginByName(system, name) {
+    for pluginId in system["plugins"] {
+        let plugin = system["plugins"][pluginId]
+        if plugin["name"] == name {
+            return plugin
+        }
+    }
+    return null
+}
+
+pub fn getPluginCount(system) {
+    return len(system["plugins"])
+}
+
+pub fn registerHook(system, event, callback, pluginId) {
+    if system["hooks"][event] == null {
+        system["hooks"][event] = []
+    }
+    system["hooks"][event] = push(system["hooks"][event], {
+        "callback": callback,
+        "pluginId": pluginId
+    })
+    return system
+}
+
+pub fn unregisterHook(system, event, callback) {
+    let hooks = system["hooks"][event]
+    if hooks == null {
+        return system
+    }
+    
+    let newHooks = []
+    let i = 0
+    while i < len(hooks) {
+        if hooks[i]["callback"] != callback {
+            newHooks = push(newHooks, hooks[i])
+        }
+        i = i + 1
+    }
+    system["hooks"][event] = newHooks
+    return system
+}
+
+pub fn executeHooks(system, event, data) {
+    let hooks = system["hooks"][event]
+    if hooks == null {
+        return data
+    }
+    
+    let result = data
+    let i = 0
+    while i < len(hooks) {
+        let hook = hooks[i]
+        let plugin = system["plugins"][hook["pluginId"]]
+        if plugin != null && plugin["enabled"] == true {
+            result = hook["callback"](result)
+        }
+        i = i + 1
+    }
+    
+    return result
+}
+
+pub fn createToolPlugin(name, icon, execute) {
+    return {
+        "kind": "ToolPlugin",
+        "name": name,
+        "icon": icon,
+        "execute": execute,
+        "enabled": true
+    }
+}
+
+pub fn createFilterPlugin(name, filter) {
+    return {
+        "kind": "FilterPlugin",
+        "name": name,
+        "filter": filter,
+        "enabled": true
+    }
+}
+
+pub fn addToolToPlugin(plugin, tool) {
+    plugin["tools"] = push(plugin["tools"], tool)
+    return plugin
+}
+
+pub fn addFilterToPlugin(plugin, filter) {
+    plugin["filters"] = push(plugin["filters"], filter)
+    return plugin
+}
+
+pub fn addHookToPlugin(plugin, event, callback) {
+    plugin["hooks"] = push(plugin["hooks"], {
+        "event": event,
+        "callback": callback
+    })
+    return plugin
+}
+
+pub fn executeTool(plugin, toolName, context) {
+    let i = 0
+    while i < len(plugin["tools"]) {
+        let tool = plugin["tools"][i]
+        if tool["name"] == toolName && tool["enabled"] == true {
+            return tool["execute"](context)
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn applyFilter(plugin, filterName, data) {
+    let i = 0
+    while i < len(plugin["filters"]) {
+        let filter = plugin["filters"][i]
+        if filter["name"] == filterName && filter["enabled"] == true {
+            return filter["filter"](data)
+        }
+        i = i + 1
+    }
+    return data
+}
+
+pub fn getToolNames(plugin) {
+    let names = []
+    let i = 0
+    while i < len(plugin["tools"]) {
+        names = push(names, plugin["tools"][i]["name"])
+        i = i + 1
+    }
+    return names
+}
+
+pub fn getFilterNames(plugin) {
+    let names = []
+    let i = 0
+    while i < len(plugin["filters"]) {
+        names = push(names, plugin["filters"][i]["name"])
+        i = i + 1
+    }
+    return names
+}
+
+pub fn enableTool(plugin, toolName) {
+    let i = 0
+    while i < len(plugin["tools"]) {
+        if plugin["tools"][i]["name"] == toolName {
+            plugin["tools"][i]["enabled"] = true
+            break
+        }
+        i = i + 1
+    }
+    return plugin
+}
+
+pub fn disableTool(plugin, toolName) {
+    let i = 0
+    while i < len(plugin["tools"]) {
+        if plugin["tools"][i]["name"] == toolName {
+            plugin["tools"][i]["enabled"] = false
+            break
+        }
+        i = i + 1
+    }
+    return plugin
+}
+
+pub fn enableFilter(plugin, filterName) {
+    let i = 0
+    while i < len(plugin["filters"]) {
+        if plugin["filters"][i]["name"] == filterName {
+            plugin["filters"][i]["enabled"] = true
+            break
+        }
+        i = i + 1
+    }
+    return plugin
+}
+
+pub fn disableFilter(plugin, filterName) {
+    let i = 0
+    while i < len(plugin["filters"]) {
+        if plugin["filters"][i]["name"] == filterName {
+            plugin["filters"][i]["enabled"] = false
+            break
+        }
+        i = i + 1
+    }
+    return plugin
+}
+
+pub fn createPluginContext(document, selection, viewport) {
+    return {
+        "kind": "PluginContext",
+        "document": document,
+        "selection": selection,
+        "viewport": viewport,
+        "timestamp": systemTime()
+    }
+}
+
+pub fn validatePlugin(plugin) {
+    if plugin["name"] == null || plugin["name"] == "" {
+        return false
+    }
+    if plugin["version"] == null || plugin["version"] == "" {
+        return false
+    }
+    return true
+}
+
+pub fn getPluginDependencies(plugin) {
+    return plugin["dependencies"]
+}
+
+pub fn checkPluginDependencies(system, plugin) {
+    let dependencies = getPluginDependencies(plugin)
+    if dependencies == null {
+        return true
+    }
+    
+    let i = 0
+    while i < len(dependencies) {
+        let dep = dependencies[i]
+        let depPlugin = getPluginByName(system, dep)
+        if depPlugin == null {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+pub fn clearPlugins(system) {
+    system["plugins"] = {}
+    system["hooks"] = {}
+    system["pluginCounter"] = 0
+    return system
+}
+
+pub fn getHookCount(system, event) {
+    let hooks = system["hooks"][event]
+    if hooks == null {
+        return 0
+    }
+    return len(hooks)
+}
+
+pub fn getTotalHookCount(system) {
+    let total = 0
+    for event in system["hooks"] {
+        let hooks = system["hooks"][event]
+        total = total + len(hooks)
+    }
+    return total
+}
