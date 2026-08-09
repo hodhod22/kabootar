@@ -8,6 +8,7 @@
 import "cad/document"
 import "cad/render"
 import "cad/vector"
+import "cad/host"
 
 pub fn createExportOptions() {
     return {
@@ -30,6 +31,8 @@ pub fn exportDocument(document, options) {
         return exportPNG(document, options)
     } else if format == "pdf" {
         return exportPDF(document, options)
+    } else if format == "dxf" {
+        return exportDXF(document, options)
     }
     
     return ""
@@ -362,4 +365,262 @@ fn charToDigit(char) {
     if char == "8" { return 8 }
     if char == "9" { return 9 }
     return -1
+}
+
+// DXF Export for AutoCAD Parity
+pub fn exportDXF(document, options) {
+    let dxf = ""
+    
+    dxf = dxf + "0\nSECTION\n"
+    dxf = dxf + "2\nHEADER\n"
+    dxf = dxf + "9\n$ACADVER\n"
+    dxf = dxf + "1\nAC1015\n"
+    dxf = dxf + "9\n$INSBASE\n"
+    dxf = dxf + "10\n0.0\n"
+    dxf = dxf + "20\n0.0\n"
+    dxf = dxf + "30\n0.0\n"
+    dxf = dxf + "9\n$EXTMIN\n"
+    dxf = dxf + "10\n0.0\n"
+    dxf = dxf + "20\n0.0\n"
+    dxf = dxf + "9\n$EXTMAX\n"
+    dxf = dxf + "10\n" + document["width"] + "\n"
+    dxf = dxf + "20\n" + document["height"] + "\n"
+    dxf = dxf + "0\nENDSEC\n"
+    
+    dxf = dxf + "0\nSECTION\n"
+    dxf = dxf + "2\nTABLES\n"
+    dxf = dxf + "0\nTABLE\n"
+    dxf = dxf + "2\nLAYER\n"
+    dxf = dxf + "70\n1\n"
+    dxf = dxf + "0\nLAYER\n"
+    dxf = dxf + "2\n0\n"
+    dxf = dxf + "70\n0\n"
+    dxf = dxf + "62\n7\n"
+    dxf = dxf + "6\nCONTINUOUS\n"
+    dxf = dxf + "0\nENDTAB\n"
+    dxf = dxf + "0\nENDSEC\n"
+    
+    dxf = dxf + "0\nSECTION\n"
+    dxf = dxf + "2\nENTITIES\n"
+    
+    let drawList = buildDrawList(document, null)
+    
+    let i = 0
+    while i < len(drawList["items"]) {
+        let item = drawList["items"][i]
+        dxf = dxf + exportItemToDXF(item, options)
+        i = i + 1
+    }
+    
+    dxf = dxf + "0\nENDSEC\n"
+    dxf = dxf + "0\nEOF\n"
+    
+    return dxf
+}
+
+fn exportItemToDXF(item, options) {
+    let kind = item["kind"]
+    
+    if kind == "DrawFrame" {
+        return exportFrameToDXF(item, options)
+    } else if kind == "DrawVector" {
+        return exportVectorToDXF(item, options)
+    } else if kind == "DrawShape" {
+        return exportShapeToDXF(item, options)
+    } else if kind == "DrawText" {
+        return exportTextToDXF(item, options)
+    }
+    
+    return ""
+}
+
+fn exportFrameToDXF(item, options) {
+    let transform = item["transform"]
+    let x = transform["position"]["x"]
+    let y = transform["position"]["y"]
+    let width = item["width"]
+    let height = item["height"]
+    
+    let dxf = ""
+    dxf = dxf + "0\nLWPOLYLINE\n"
+    dxf = dxf + "8\n0\n"
+    dxf = dxf + "90\n4\n"
+    dxf = dxf + "70\n1\n"
+    dxf = dxf + "10\n" + x + "\n"
+    dxf = dxf + "20\n" + y + "\n"
+    dxf = dxf + "10\n" + (x + width) + "\n"
+    dxf = dxf + "20\n" + y + "\n"
+    dxf = dxf + "10\n" + (x + width) + "\n"
+    dxf = dxf + "20\n" + (y + height) + "\n"
+    dxf = dxf + "10\n" + x + "\n"
+    dxf = dxf + "20\n" + (y + height) + "\n"
+    
+    return dxf
+}
+
+fn exportVectorToDXF(item, options) {
+    let data = item["data"]
+    let transform = item["transform"]
+    
+    let dxf = ""
+    
+    if len(data["segments"]) == 0 {
+        return dxf
+    }
+    
+    let pointCount = 0
+    let i = 0
+    while i < len(data["segments"]) {
+        if data["segments"][i]["kind"] == "MoveTo" || data["segments"][i]["kind"] == "LineTo" {
+            pointCount = pointCount + 1
+        }
+        i = i + 1
+    }
+    
+    dxf = dxf + "0\nLWPOLYLINE\n"
+    dxf = dxf + "8\n0\n"
+    dxf = dxf + "90\n" + pointCount + "\n"
+    
+    if data["closed"] == true {
+        dxf = dxf + "70\n1\n"
+    } else {
+        dxf = dxf + "70\n0\n"
+    }
+    
+    let j = 0
+    while j < len(data["segments"]) {
+        let seg = data["segments"][j]
+        if seg["kind"] == "MoveTo" || seg["kind"] == "LineTo" {
+            dxf = dxf + "10\n" + seg["x"] + "\n"
+            dxf = dxf + "20\n" + seg["y"] + "\n"
+        } else if seg["kind"] == "CubicBezierTo" || seg["kind"] == "QuadraticBezierTo" {
+            let flattened = flattenBezierSegment(seg, 10)
+            let k = 0
+            while k < len(flattened) {
+                dxf = dxf + "10\n" + flattened[k]["x"] + "\n"
+                dxf = dxf + "20\n" + flattened[k]["y"] + "\n"
+                k = k + 1
+            }
+        }
+        j = j + 1
+    }
+    
+    return dxf
+}
+
+fn exportShapeToDXF(item, options) {
+    let shapeType = item["shapeType"]
+    let transform = item["transform"]
+    
+    let dxf = ""
+    
+    if shapeType == "rectangle" {
+        let x = transform["position"]["x"]
+        let y = transform["position"]["y"]
+        let width = item["data"]["width"]
+        let height = item["data"]["height"]
+        
+        dxf = dxf + "0\nLWPOLYLINE\n"
+        dxf = dxf + "8\n0\n"
+        dxf = dxf + "90\n4\n"
+        dxf = dxf + "70\n1\n"
+        dxf = dxf + "10\n" + x + "\n"
+        dxf = dxf + "20\n" + y + "\n"
+        dxf = dxf + "10\n" + (x + width) + "\n"
+        dxf = dxf + "20\n" + y + "\n"
+        dxf = dxf + "10\n" + (x + width) + "\n"
+        dxf = dxf + "20\n" + (y + height) + "\n"
+        dxf = dxf + "10\n" + x + "\n"
+        dxf = dxf + "20\n" + (y + height) + "\n"
+    } else if shapeType == "circle" {
+        let x = transform["position"]["x"]
+        let y = transform["position"]["y"]
+        let radius = item["data"]["radius"]
+        
+        dxf = dxf + "0\nCIRCLE\n"
+        dxf = dxf + "8\n0\n"
+        dxf = dxf + "10\n" + x + "\n"
+        dxf = dxf + "20\n" + y + "\n"
+        dxf = dxf + "40\n" + radius + "\n"
+    } else if shapeType == "ellipse" {
+        let x = transform["position"]["x"] + item["data"]["width"] / 2.0
+        let y = transform["position"]["y"] + item["data"]["height"] / 2.0
+        let rx = item["data"]["width"] / 2.0
+        let ry = item["data"]["height"] / 2.0
+        
+        dxf = dxf + "0\nELLIPSE\n"
+        dxf = dxf + "8\n0\n"
+        dxf = dxf + "10\n" + x + "\n"
+        dxf = dxf + "20\n" + y + "\n"
+        dxf = dxf + "11\n" + (x + rx) + "\n"
+        dxf = dxf + "21\n" + y + "\n"
+        dxf = dxf + "40\n" + systemAbs(rx) + "\n"
+    }
+    
+    return dxf
+}
+
+fn exportTextToDXF(item, options) {
+    let transform = item["transform"]
+    let text = item["text"]
+    let fontSize = item["fontSize"]
+    
+    let dxf = ""
+    dxf = dxf + "0\nTEXT\n"
+    dxf = dxf + "8\n0\n"
+    dxf = dxf + "10\n" + transform["position"]["x"] + "\n"
+    dxf = dxf + "20\n" + transform["position"]["y"] + "\n"
+    dxf = dxf + "40\n" + fontSize + "\n"
+    dxf = dxf + "1\n" + text + "\n"
+    
+    return dxf
+}
+
+fn flattenBezierSegment(seg, steps) {
+    let points = []
+    let x0 = 0.0
+    let y0 = 0.0
+    let x1 = 0.0
+    let y1 = 0.0
+    let x2 = 0.0
+    let y2 = 0.0
+    let x3 = 0.0
+    let y3 = 0.0
+    
+    if seg["kind"] == "CubicBezierTo" {
+        x1 = seg["cp1x"]
+        y1 = seg["cp1y"]
+        x2 = seg["cp2x"]
+        y2 = seg["cp2y"]
+        x3 = seg["x"]
+        y3 = seg["y"]
+    } else if seg["kind"] == "QuadraticBezierTo" {
+        x1 = seg["cpx"]
+        y1 = seg["cpy"]
+        x2 = seg["cpx"]
+        y2 = seg["cpy"]
+        x3 = seg["x"]
+        y3 = seg["y"]
+    }
+    
+    let t = 0.0
+    let dt = 1.0 / steps
+    while t <= 1.0 {
+        let mt = 1.0 - t
+        let mt2 = mt * mt
+        let mt3 = mt2 * mt
+        let t2 = t * t
+        let t3 = t2 * t
+        
+        let bx = mt3 * x0 + 3.0 * mt2 * t * x1 + 3.0 * mt * t2 * x2 + t3 * x3
+        let by = mt3 * y0 + 3.0 * mt2 * t * y1 + 3.0 * mt * t2 * y2 + t3 * y3
+        
+        if t > 0.0 {
+            points = push(points, vec2(bx, by))
+        }
+        
+        t = t + dt
+    }
+    
+    return points
 }
