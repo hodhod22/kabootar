@@ -9,6 +9,7 @@
 
 import "cad/geom"
 import "cad/host"
+import "cad/document"
 
 pub fn createSymbolDefinition(name) {
     return {
@@ -70,6 +71,22 @@ pub fn createSymbolInstance(definitionId, transform) {
     }
 }
 
+pub fn createSymbolInstanceNode(definitionId, position) {
+    let transform = createTransform()
+    transform["position"] = position
+    return {
+        "kind": "Component",
+        "id": generateSymbolId(),
+        "definitionId": definitionId,
+        "transform": transform,
+        "overrides": {},
+        "variantId": null,
+        "visible": true,
+        "locked": false,
+        "parentId": null
+    }
+}
+
 pub fn setSymbolInstanceVariant(instance, variantId) {
     instance["variantId"] = variantId
     return instance
@@ -78,6 +95,24 @@ pub fn setSymbolInstanceVariant(instance, variantId) {
 pub fn setSymbolInstanceOverride(instance, attributeName, value) {
     instance["overrides"][attributeName] = value
     return instance
+}
+
+pub fn addSymbolInstanceToDocument(document, parentId, instance) {
+    instance["parentId"] = parentId
+    document["nodes"][instance["id"]] = instance
+    document["nodeCounter"] = document["nodeCounter"] + 1
+    return document
+}
+
+pub fn getSymbolInstancesInDocument(document, definitionId) {
+    let instances = []
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["kind"] == "Component" && node["definitionId"] == definitionId {
+            instances = push(instances, node)
+        }
+    }
+    return instances
 }
 
 pub fn setSymbolInstanceGeometryOverride(instance, geometryId, geometry) {
@@ -89,6 +124,39 @@ pub fn setSymbolInstanceGeometryOverride(instance, geometryId, geometry) {
         "geometry": geometry
     })
     return instance
+}
+
+pub fn removeSymbolInstanceOverride(instance, attributeName) {
+    instance["overrides"][attributeName] = null
+    return instance
+}
+
+pub fn clearSymbolInstanceOverrides(instance) {
+    instance["overrides"] = {}
+    return instance
+}
+
+pub fn getEffectiveSymbolInstanceProperties(instance, definition) {
+    let properties = {}
+    
+    for attrName in definition["attributes"] {
+        properties[attrName] = definition["attributes"][attrName]
+    }
+    
+    for overrideName in instance["overrides"] {
+        properties[overrideName] = instance["overrides"][overrideName]
+    }
+    
+    if instance["variantId"] != null {
+        let variant = getSymbolVariant(definition, instance["variantId"])
+        if variant != null {
+            for overrideName in variant["propertyOverrides"] {
+                properties[overrideName] = variant["propertyOverrides"][overrideName]
+            }
+        }
+    }
+    
+    return properties
 }
 
 pub fn detachSymbolInstance(instance, definition) {
@@ -426,7 +494,7 @@ fn cloneEntity(entity) {
 }
 
 fn generateSymbolId() {
-    return "sym-" + floor(systemTime() * 1000.0) + "-" + systemRandom()
+    return "sym-" + systemFloor(systemTime() * 1000.0) + "-" + systemRandom()
 }
 
 fn min(a, b, c, d) {
