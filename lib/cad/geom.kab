@@ -3,6 +3,7 @@
 // CAD Geometry - Extended 2D geometry for CAD drawings
 // Features: Vec2/Vec3, Matrix2D, segments, polylines, arcs, circles, rects, BBox, hit-test, distance, offset, trim/extend, units
 // Canonical path: import "cad/geom"
+// Uses cad/host for accurate math functions (sqrt, cos, sin, atan2, atan, pi)
 
 import "cad/host"
 
@@ -39,7 +40,7 @@ pub fn vec2Cross(a, b) {
 }
 
 pub fn vec2Length(v) {
-    return sqrt(v["x"] * v["x"] + v["y"] * v["y"])
+    return systemSqrt(v["x"] * v["x"] + v["y"] * v["y"])
 }
 
 pub fn vec2LengthSquared(v) {
@@ -67,8 +68,8 @@ pub fn vec2Lerp(a, b, t) {
 }
 
 pub fn vec2Rotate(v, angle) {
-    let cosA = cos(angle)
-    let sinA = sin(angle)
+    let cosA = systemCos(angle)
+    let sinA = systemSin(angle)
     return vec2(
         v["x"] * cosA - v["y"] * sinA,
         v["x"] * sinA + v["y"] * cosA

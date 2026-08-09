@@ -1,14 +1,13 @@
 @version "1.0.0"
 
-// CAD Aero - Thin adapter for aerodynamic models
-// Features: aerodynamic model, airfoils, flow parameters, lift estimation
+// CAD Aero - Aerodynamic models using scene nodes + graph topology
+// Features: aerodynamic model, airfoils as scene nodes, flow parameters, lift estimation
 // Canonical path: import "cad/aero"
-// Note: This is a thin adapter - creates nodes and graph links only, no separate document modelp of CAD core - uses document for surfaces, graph for flow connections
-// import "cad/aero"
+// Uses addNode + graph only (no separate entity model)
 
 import "cad/document"
 import "cad/graph"
-import "cad/entities"
+import "cad/geom"
 
 pub fn createAeroModel(name) {
     if name == null || name == undefined { name = "aero" }
@@ -17,7 +16,7 @@ pub fn createAeroModel(name) {
         "name": name,
         "document": createDocument(name, "m"),
         "surfaceGraph": createGraph(),
-        "surfaces": [],
+        "surfaceToNodeMap": {},
         "flow": { "rho": 1.225, "v": 50.0, "alphaDeg": 0.0 }
     }
 }
@@ -29,29 +28,22 @@ pub fn aeroAddAirfoil(model, id, chord, area, position) {
         position = vec2(0.0, 0.0)
     }
     
-    let surfaceEntity = createRectEntity(position["x"], position["y"], chord, chord * 0.15)
-    surfaceEntity = setEntityId(surfaceEntity, id)
-    surfaceEntity = setEntityProperty(surfaceEntity, "type", "airfoil")
-    surfaceEntity = setEntityProperty(surfaceEntity, "chord", chord)
-    surfaceEntity = setEntityProperty(surfaceEntity, "area", area)
-    surfaceEntity = setEntityProperty(surfaceEntity, "cl0", 0.3)
-    surfaceEntity = setEntityProperty(surfaceEntity, "cla", 0.1)
-    
-    model["document"] = addEntity(model["document"], surfaceEntity)
-    
-    let surfaceNode = createNode({ "surfaceId": id })
-    model["surfaceGraph"] = addNode(model["surfaceGraph"], surfaceNode)
-    
-    let s = {
-        "kind": "airfoil",
-        "id": id,
+    let airfoilNode = createSceneNode("airfoil", id)
+    airfoilNode["transform"]["position"] = position
+    airfoilNode["meta"] = {
+        "type": "airfoil",
         "chord": chord,
         "area": area,
         "cl0": 0.3,
-        "cla": 0.1,
-        "position": position
+        "cla": 0.1
     }
-    model["surfaces"] = push(model["surfaces"], s)
+    
+    model["document"] = addNode(model["document"], "root", airfoilNode)
+    
+    let surfaceNode = createNode({ "surfaceId": id })
+    model["surfaceGraph"] = addNode(model["surfaceGraph"], surfaceNode)
+    model["surfaceToNodeMap"][id] = surfaceNode["id"]
+    
     return model
 }
 
@@ -63,17 +55,27 @@ pub fn aeroSetFlow(model, v, alphaDeg, rho) {
     return model
 }
 
-pub fn aeroEstimateCl(surface, alphaDeg) {
+pub fn aeroEstimateCl(airfoilNode, alphaDeg) {
     if alphaDeg == null || alphaDeg == undefined { alphaDeg = 0.0 }
-    return surface["cl0"] + surface["cla"] * alphaDeg
+    if airfoilNode["meta"] == null {
+        return 0.0
+    }
+    return airfoilNode["meta"]["cl0"] + airfoilNode["meta"]["cla"] * alphaDeg
 }
 
-pub fn aeroEstimateLift(model, surfaceIndex) {
-    let s = model["surfaces"][surfaceIndex]
+pub fn aeroEstimateLift(model, airfoilId) {
+    let nodeId = model["surfaceToNodeMap"][airfoilId]
+    if nodeId == null {
+        return 0.0
+    }
+    let airfoilNode = model["document"]["nodes"][airfoilId]
+    if airfoilNode == null {
+        return 0.0
+    }
     let flow = model["flow"]
-    let cl = aeroEstimateCl(s, flow["alphaDeg"])
+    let cl = aeroEstimateCl(airfoilNode, flow["alphaDeg"])
     let q = 0.5 * flow["rho"] * flow["v"] * flow["v"]
-    return q * s["area"] * cl
+    return q * airfoilNode["meta"]["area"] * cl
 }
 
 pub fn aeroGetDocument(model) {
@@ -88,18 +90,18 @@ pub fn aeroSerialize(model) {
     return {
         "kind": "SerializedAeroModel",
         "name": model["name"],
-        "document": serializeDocument(model["document"]),
-        "graph": serializeGraph(model["surfaceGraph"]),
-        "surfaces": model["surfaces"],
+        "document": model["document"],
+        "graph": model["surfaceGraph"],
+        "surfaceToNodeMap": model["surfaceToNodeMap"],
         "flow": model["flow"]
     }
 }
 
 pub fn aeroDeserialize(data) {
     let model = createAeroModel(data["name"])
-    model["document"] = deserializeDocument(data["document"])
-    model["surfaceGraph"] = deserializeGraph(data["graph"])
-    model["surfaces"] = data["surfaces"]
+    model["document"] = data["document"]
+    model["surfaceGraph"] = data["graph"]
+    model["surfaceToNodeMap"] = data["surfaceToNodeMap"]
     model["flow"] = data["flow"]
     return model
 }

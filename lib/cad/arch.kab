@@ -1,12 +1,12 @@
 @version "1.0.0"
 
-// CAD Arch - Thin adapter for architectural drawings
-// Features: building, rooms, walls, area calculations
+// CAD Arch - Architectural drawings using scene nodes + graph topology
+// Features: building, rooms as scene nodes, walls as graph edges, area calculations
 // Canonical path: import "cad/arch"
-// Note: This is a thin adapter - creates nodes and graph links only, no separate document model
+// Uses addNode + graph only (no separate entity model)
 import "cad/document"
 import "cad/graph"
-import "cad/entities"
+import "cad/geom"
 
 pub fn createBuilding(name) {
     if name == null || name == undefined { name = "building" }
@@ -14,9 +14,7 @@ pub fn createBuilding(name) {
         "kind": "Building",
         "name": name,
         "document": createDocument(name, "m"),
-        "wallGraph": createGraph(),
-        "rooms": [],
-        "walls": []
+        "wallGraph": createGraph()
     }
 }
 
@@ -27,31 +25,29 @@ pub fn archAddRoom(building, id, w, d, position) {
         position = vec2(0.0, 0.0)
     }
     
-    let roomEntity = createRectEntity(position["x"], position["y"], w, d)
-    roomEntity = setEntityId(roomEntity, id)
-    roomEntity = setEntityProperty(roomEntity, "type", "room")
-    roomEntity = setEntityProperty(roomEntity, "width", w)
-    roomEntity = setEntityProperty(roomEntity, "depth", d)
+    let roomNode = createSceneNode("room", id)
+    roomNode["transform"]["position"] = position
+    roomNode["meta"] = {
+        "type": "room",
+        "width": w,
+        "depth": d
+    }
     
-    building["document"] = addEntity(building["document"], roomEntity)
-    
-    building["rooms"] = push(building["rooms"], {
-        "kind": "Room",
-        "id": id,
-        "w": w,
-        "d": d,
-        "position": position
-    })
-    
+    building["document"] = addNode(building["document"], "root", roomNode)
     return building
 }
 
 pub fn archAddWall(building, id, ax, ay, bx, by) {
-    let wallEntity = createLineEntity(vec2(ax, ay), vec2(bx, by))
-    wallEntity = setEntityId(wallEntity, id)
-    wallEntity = setEntityProperty(wallEntity, "type", "wall")
+    let wallNode = createSceneNode("wall", id)
+    wallNode["meta"] = {
+        "type": "wall",
+        "ax": ax,
+        "ay": ay,
+        "bx": bx,
+        "by": by
+    }
     
-    building["document"] = addEntity(building["document"], wallEntity)
+    building["document"] = addNode(building["document"], "root", wallNode)
     
     let fromNode = createNode({ "position": vec2(ax, ay) })
     let toNode = createNode({ "position": vec2(bx, by) })
@@ -66,41 +62,20 @@ pub fn archAddWall(building, id, ax, ay, bx, by) {
     
     building["wallGraph"] = addEdge(building["wallGraph"], edge)
     
-    building["walls"] = push(building["walls"], {
-        "kind": "Wall",
-        "id": id,
-        "ax": ax,
-        "ay": ay,
-        "bx": bx,
-        "by": by
-    })
-    
     return building
 }
 
 pub fn archRemoveWall(building, id) {
-    let document = building["document"]
-    let entityId = findEntityIdByProperty(document, "id", id)
-    if entityId != null {
-        document = removeEntity(document, entityId)
-        building["document"] = document
+    let nodeId = findNodeIdByMeta(building["document"], "id", id)
+    if nodeId != null {
+        building["document"] = removeNode(building["document"], nodeId)
     }
-    
-    let walls = []
-    let i = 0
-    while i < len(building["walls"]) {
-        if building["walls"][i]["id"] != id {
-            walls = push(walls, building["walls"][i])
-        }
-        i = i + 1
-    }
-    building["walls"] = walls
     
     let wallGraph = building["wallGraph"]
-    for nodeId in wallGraph["nodes"] {
-        let node = wallGraph["nodes"][nodeId]
-        if node != null && node["data"]["wallId"] == id {
-            wallGraph = removeNode(wallGraph, nodeId)
+    for edgeId in wallGraph["edges"] {
+        let edge = wallGraph["edges"][edgeId]
+        if edge != null && edge["data"]["id"] == id {
+            wallGraph = removeEdge(wallGraph, edgeId)
         }
     }
     building["wallGraph"] = wallGraph
@@ -109,46 +84,37 @@ pub fn archRemoveWall(building, id) {
 }
 
 pub fn archRemoveRoom(building, id) {
-    let document = building["document"]
-    let entityId = findEntityIdByProperty(document, "id", id)
-    if entityId != null {
-        document = removeEntity(document, entityId)
-        building["document"] = document
+    let nodeId = findNodeIdByMeta(building["document"], "id", id)
+    if nodeId != null {
+        building["document"] = removeNode(building["document"], nodeId)
     }
-    
-    let rooms = []
-    let i = 0
-    while i < len(building["rooms"]) {
-        if building["rooms"][i]["id"] != id {
-            rooms = push(rooms, building["rooms"][i])
-        }
-        i = i + 1
-    }
-    building["rooms"] = rooms
-    
     return building
 }
 
-fn findEntityIdByProperty(document, prop, value) {
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null && entity[prop] == value {
-            return entityId
+fn findNodeIdByMeta(document, prop, value) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["meta"] != null && node["meta"][prop] == value {
+            return nodeId
         }
     }
     return null
 }
 
-pub fn archRoomArea(room) {
-    return room["w"] * room["d"]
+pub fn archRoomArea(roomNode) {
+    if roomNode["meta"] == null {
+        return 0.0
+    }
+    return roomNode["meta"]["width"] * roomNode["meta"]["depth"]
 }
 
 pub fn archFloorArea(building) {
     let sum = 0.0
-    let i = 0
-    while i < len(building["rooms"]) {
-        sum = sum + archRoomArea(building["rooms"][i])
-        i = i + 1
+    for nodeId in building["document"]["nodes"] {
+        let node = building["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "room" {
+            sum = sum + archRoomArea(node)
+        }
     }
     return sum
 }
@@ -165,18 +131,14 @@ pub fn archSerialize(building) {
     return {
         "kind": "SerializedBuilding",
         "name": building["name"],
-        "document": serializeDocument(building["document"]),
-        "graph": serializeGraph(building["wallGraph"]),
-        "rooms": building["rooms"],
-        "walls": building["walls"]
+        "document": building["document"],
+        "graph": building["wallGraph"]
     }
 }
 
 pub fn archDeserialize(data) {
     let building = createBuilding(data["name"])
-    building["document"] = deserializeDocument(data["document"])
-    building["wallGraph"] = deserializeGraph(data["graph"])
-    building["rooms"] = data["rooms"]
-    building["walls"] = data["walls"]
+    building["document"] = data["document"]
+    building["wallGraph"] = data["graph"]
     return building
 }

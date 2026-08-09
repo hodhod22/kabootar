@@ -1,12 +1,12 @@
 @version "1.0.0"
 
 // Electrical installation CAD pillar (MIT). Commercial kit: rasmebargh.
-// Thin layer on top of CAD core - uses document for devices, graph for cables
+// Uses scene nodes for devices, graph for cables
 // import "cad/power"
 
 import "cad/document"
 import "cad/graph"
-import "cad/entities"
+import "cad/geom"
 
 pub fn createInstall(name) {
     if name == null || name == undefined { name = "install" }
@@ -15,17 +15,19 @@ pub fn createInstall(name) {
         "name": name,
         "document": createDocument(name, "mm"),
         "circuitGraph": createGraph(),
-        "circuits": []
+        "deviceToNodeMap": {}
     }
 }
 
 pub fn powerAddCircuit(inst, id, amps) {
     if amps == null || amps == undefined { amps = 16.0 }
-    inst["circuits"] = push(inst["circuits"], {
-        "id": id,
+    let circuitNode = createSceneNode("circuit", id)
+    circuitNode["meta"] = {
+        "type": "circuit",
         "amps": amps,
         "volts": 230.0
-    })
+    }
+    inst["document"] = addNode(inst["document"], "root", circuitNode)
     return inst
 }
 
@@ -35,20 +37,16 @@ pub fn powerAddDevice(inst, id, circuitId, watts, position) {
         position = vec2(0.0, 0.0)
     }
     
-    let deviceEntity = createCircleEntity(position, 10.0)
-    deviceEntity = setEntityId(deviceEntity, id)
-    deviceEntity = setEntityProperty(deviceEntity, "type", "device")
-    deviceEntity = setEntityProperty(deviceEntity, "circuitId", circuitId)
-    deviceEntity = setEntityProperty(deviceEntity, "watts", watts)
-    
-    inst["document"] = addEntity(inst["document"], deviceEntity)
-    
-    inst["devices"] = push(inst["devices"], {
-        "id": id,
+    let deviceNode = createSceneNode("device", id)
+    deviceNode["transform"]["position"] = position
+    deviceNode["meta"] = {
+        "type": "device",
         "circuitId": circuitId,
-        "watts": watts,
-        "position": position
-    })
+        "watts": watts
+    }
+    
+    inst["document"] = addNode(inst["document"], "root", deviceNode)
+    inst["deviceToNodeMap"][id] = deviceNode["id"]
     
     return inst
 }
@@ -91,13 +89,11 @@ fn findDeviceNode(inst, deviceId) {
 
 pub fn powerCircuitLoadWatts(inst, circuitId) {
     let sum = 0.0
-    let i = 0
-    while i < len(inst["devices"]) {
-        let d = inst["devices"][i]
-        if d["circuitId"] == circuitId {
-            sum = sum + d["watts"]
+    for nodeId in inst["document"]["nodes"] {
+        let node = inst["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "device" && node["meta"]["circuitId"] == circuitId {
+            sum = sum + node["meta"]["watts"]
         }
-        i = i + 1
     }
     return sum
 }
@@ -108,14 +104,12 @@ pub fn powerEstimateCurrent(watts, volts) {
 }
 
 pub fn powerCircuitOk(inst, circuitId) {
-    let i = 0
     let rating = 16.0
-    while i < len(inst["circuits"]) {
-        let c = inst["circuits"][i]
-        if c["id"] == circuitId {
-            rating = c["amps"]
+    for nodeId in inst["document"]["nodes"] {
+        let node = inst["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "circuit" && node["meta"]["type"] == "circuit" && node["name"] == circuitId {
+            rating = node["meta"]["amps"]
         }
-        i = i + 1
     }
     let amps = powerEstimateCurrent(powerCircuitLoadWatts(inst, circuitId), 230.0)
     return amps <= rating
@@ -133,18 +127,16 @@ pub fn powerSerialize(inst) {
     return {
         "kind": "SerializedInstall",
         "name": inst["name"],
-        "document": serializeDocument(inst["document"]),
-        "graph": serializeGraph(inst["circuitGraph"]),
-        "circuits": inst["circuits"],
-        "devices": inst["devices"]
+        "document": inst["document"],
+        "graph": inst["circuitGraph"],
+        "deviceToNodeMap": inst["deviceToNodeMap"]
     }
 }
 
 pub fn powerDeserialize(data) {
     let inst = createInstall(data["name"])
-    inst["document"] = deserializeDocument(data["document"])
-    inst["circuitGraph"] = deserializeGraph(data["graph"])
-    inst["circuits"] = data["circuits"]
-    inst["devices"] = data["devices"]
+    inst["document"] = data["document"]
+    inst["circuitGraph"] = data["graph"]
+    inst["deviceToNodeMap"] = data["deviceToNodeMap"]
     return inst
 }
