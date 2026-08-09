@@ -12,7 +12,7 @@ pub fn createSpatialIndex() {
     return {
         "kind": "SpatialIndex",
         "type": "linear",
-        "entities": [],
+        "nodes": [],
         "grid": null,
         "rtree": null
     }
@@ -25,7 +25,7 @@ pub fn createGridSpatialIndex(cellSize, bounds) {
         "cellSize": cellSize,
         "bounds": bounds,
         "grid": {},
-        "entities": []
+        "nodes": []
     }
 }
 
@@ -35,8 +35,8 @@ pub fn buildSpatialIndex(document) {
     for nodeId in document["nodes"] {
         let node = document["nodes"][nodeId]
         if node != null && node["visible"] == true {
-            let bounds = getNodeBounds(node)
-            index["entities"] = push(index["entities"], {
+            let bounds = getNodeWorldBounds(node)
+            index["nodes"] = push(index["nodes"], {
                 "nodeId": nodeId,
                 "bounds": bounds,
                 "node": node
@@ -54,7 +54,7 @@ pub fn buildGridSpatialIndex(document, cellSize) {
     for nodeId in document["nodes"] {
         let node = document["nodes"][nodeId]
         if node != null && node["visible"] == true {
-            let nodeBounds = getNodeBounds(node)
+            let nodeBounds = getNodeWorldBounds(node)
             index = insertNodeIntoGrid(index, nodeId, nodeBounds, node)
         }
     }
@@ -75,7 +75,7 @@ fn calculateDocumentBounds(document) {
     for nodeId in document["nodes"] {
         let node = document["nodes"][nodeId]
         if node != null {
-            let bounds = getNodeBounds(node)
+            let bounds = getNodeWorldBounds(node)
             if bounds["minX"] < minX {
                 minX = bounds["minX"]
             }
@@ -94,7 +94,7 @@ fn calculateDocumentBounds(document) {
     return createBBox(minX, minY, maxX, maxY)
 }
 
-fn getNodeBounds(node) {
+fn getNodeWorldBounds(node) {
     let kind = node["kind"]
     
     if kind == "Frame" {
@@ -152,7 +152,7 @@ fn insertNodeIntoGrid(index, nodeId, bounds, node) {
         x = x + 1
     }
     
-    index["entities"] = push(index["entities"], {
+    index["nodes"] = push(index["nodes"], {
         "nodeId": nodeId,
         "bounds": bounds,
         "node": node
@@ -176,8 +176,8 @@ fn pickPointLinear(index, x, y, tolerance) {
     let closestDist = tolerance
     
     let i = 0
-    while i < len(index["entities"]) {
-        let item = index["entities"][i]
+    while i < len(index["nodes"]) {
+        let item = index["nodes"][i]
         if bboxIntersectsBBox(item["bounds"], pickBBox) {
             let dist = distanceToNode(item["node"], x, y)
             if dist < closestDist {
@@ -242,8 +242,8 @@ pub fn pickBox(index, x1, y1, x2, y2) {
     
     if index["type"] == "linear" {
         let i = 0
-        while i < len(index["entities"]) {
-            let item = index["entities"][i]
+        while i < len(index["nodes"]) {
+            let item = index["nodes"][i]
             if bboxIntersectsBBox(item["bounds"], pickBBox) {
                 picked = push(picked, item["nodeId"])
             }
@@ -261,11 +261,11 @@ pub fn pickBox(index, x1, y1, x2, y2) {
             let y = minCellY
             while y <= maxCellY {
                 let cellKey = "" + x + "," + y
-                let cellEntities = index["grid"][cellKey]
-                if cellEntities != null {
+                let cellNodes = index["grid"][cellKey]
+                if cellNodes != null {
                     let j = 0
-                    while j < len(cellEntities) {
-                        let item = cellEntities[j]
+                    while j < len(cellNodes) {
+                        let item = cellNodes[j]
                         if bboxIntersectsBBox(item["bounds"], pickBBox) {
                             picked = push(picked, item["nodeId"])
                         }
@@ -285,8 +285,8 @@ pub fn pickRay(index, origin, direction, maxDistance) {
     let picked = []
     
     let i = 0
-    while i < len(index["entities"]) {
-        let item = index["entities"][i]
+    while i < len(index["nodes"]) {
+        let item = index["nodes"][i]
         if rayIntersectsBBox(origin, direction, item["bounds"], maxDistance) {
             picked = push(picked, item["nodeId"])
         }
@@ -302,8 +302,8 @@ pub fn pickPoint(index, x, y, tolerance) {
     
     if index["type"] == "linear" {
         let i = 0
-        while i < len(index["entities"]) {
-            let item = index["entities"][i]
+        while i < len(index["nodes"]) {
+            let item = index["nodes"][i]
             if pointInBBox(point, item["bounds"], tolerance) {
                 picked = push(picked, item["nodeId"])
             }
@@ -314,11 +314,11 @@ pub fn pickPoint(index, x, y, tolerance) {
         let cellX = floor(x / cellSize)
         let cellY = floor(y / cellSize)
         let cellKey = "" + cellX + "," + cellY
-        let cellEntities = index["grid"][cellKey]
-        if cellEntities != null {
+        let cellNodes = index["grid"][cellKey]
+        if cellNodes != null {
             let j = 0
-            while j < len(cellEntities) {
-                let item = cellEntities[j]
+            while j < len(cellNodes) {
+                let item = cellNodes[j]
                 if pointInBBox(point, item["bounds"], tolerance) {
                     picked = push(picked, item["nodeId"])
                 }
@@ -425,12 +425,12 @@ pub fn clearSpatialIndex(index) {
     if index["type"] == "grid" {
         index["grid"] = {}
     }
-    index["entities"] = []
+    index["nodes"] = []
     return index
 }
 
-pub fn getEntityCount(index) {
-    return len(index["entities"])
+pub fn getNodeCount(index) {
+    return len(index["nodes"])
 }
 
 fn min(a, b) {
