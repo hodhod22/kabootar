@@ -3,9 +3,9 @@
 // CAD Symbol - Symbol/block system for library symbols
 // Features: definition (geometry + ports/attributes), instance (ref + transform + overrides), explode, update-from-definition
 // Canonical path: import "cad/symbol"
-// Note: Components in the scene tree reference symbol definitions via definitionId
-// Symbol provides the definition/instance model, components are the scene tree nodes that use them
-// This is already unified - no further simplification needed
+// API: SymbolDefinition (library) -> SymbolInstance (scene node with definitionId)
+// Components in the scene tree are SymbolInstance nodes that reference SymbolDefinitions
+// This is the unified API - no separate "Component" type needed
 
 import "cad/geom"
 import "cad/host"
@@ -187,30 +187,9 @@ fn recalculateSymbolBounds(definition) {
     return createBBox(minX, minY, maxX, maxY)
 }
 
-pub fn createSymbolInstance(definitionId, transform) {
-    return {
-        "kind": "SymbolInstance",
-        "id": generateSymbolId(),
-        "definitionId": definitionId,
-        "transform": transform,
-        "overrides": {},
-        "visible": true,
-        "locked": false
-    }
-}
-
 pub fn setSymbolInstanceTransform(instance, transform) {
     instance["transform"] = transform
     return instance
-}
-
-pub fn setSymbolInstanceOverride(instance, attributeName, value) {
-    instance["overrides"][attributeName] = value
-    return instance
-}
-
-pub fn getSymbolInstanceOverride(instance, attributeName) {
-    return instance["overrides"][attributeName]
 }
 
 pub fn setSymbolInstanceVisible(instance, visible) {
@@ -419,7 +398,7 @@ fn transformEntity(entity, matrix) {
         data["height"] = maxY - minY
     } else if entity["kind"] == "Circle" {
         data["center"] = matrix2DTransformPoint(matrix, data["center"])
-        let scale = sqrt(matrix["m11"] * matrix["m11"] + matrix["m12"] * matrix["m12"])
+        let scale = systemSqrt(matrix["m11"] * matrix["m11"] + matrix["m12"] * matrix["m12"])
         data["radius"] = data["radius"] * scale
     } else if entity["kind"] == "Polyline" {
         let i = 0
@@ -447,27 +426,7 @@ fn cloneEntity(entity) {
 }
 
 fn generateSymbolId() {
-    return "sym-" + timestamp() + "-" + random()
-}
-
-fn timestamp() {
-    return floor(currentTime() * 1000.0)
-}
-
-fn currentTime() {
-    return systemTime()
-}
-
-fn random() {
-    return systemRandom()
-}
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
+    return "sym-" + floor(systemTime() * 1000.0) + "-" + systemRandom()
 }
 
 fn min(a, b, c, d) {
@@ -496,12 +455,4 @@ fn max(a, b, c, d) {
         result = d
     }
     return result
-}
-
-fn sqrt(value) {
-    return systemSqrt(value)
-}
-
-fn systemSqrt(value) {
-    return value
 }

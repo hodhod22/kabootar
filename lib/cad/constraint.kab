@@ -1,8 +1,13 @@
 @version "1.0.0"
 
-// CAD Constraint - Light constraint system (not full Sketch-solver)
+// CAD Constraint - EXPERIMENTAL: Light constraint system (not full Sketch-solver)
 // Features: horizontal/vertical/fixed length (2D), coincident endpoints (for poly-chains), "solve one step"
 // Canonical path: import "cad/constraint"
+// ⚠️ EXPERIMENTAL - Currently uses entity-based API, not node-based
+// Constraints are NOT integrated with the scene node system yet
+// Do NOT use in production - constraint solving is not connected to document commit path
+// To enable: Rewrite constraint functions to use scene nodes (nodeId instead of entityId)
+// and integrate solveConstraints into document commit workflow
 
 import "cad/geom"
 import "cad/host"
