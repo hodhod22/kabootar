@@ -264,3 +264,89 @@ pub fn importRcaideResults(framework, results) {
     framework["aeroModel"]["flow"] = results["flow"]
     return framework
 }
+
+// AeroSandbox Integration
+pub fn createAeroSandboxModel(name) {
+    return {
+        "kind": "AeroSandboxModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-aerosandbox"),
+        "airplane": {
+            "wings": [],
+            "fuselage": null,
+            "stabilizers": []
+        },
+        "analysis": {
+            "drag_polar": {},
+            "lift_coefficient": 0.0,
+            "drag_coefficient": 0.0
+        }
+    }
+}
+
+pub fn addAeroSandboxWing(model, chord, span, sweep, position) {
+    let wing = {
+        "kind": "Wing",
+        "chord": chord,
+        "span": span,
+        "sweep": sweep,
+        "position": position,
+        "airfoil": "naca0012"
+    }
+    model["airplane"]["wings"] = push(model["airplane"]["wings"], wing)
+    return model
+}
+
+pub fn addAeroSandboxFuselage(model, length, radius, position) {
+    let fuselage = {
+        "kind": "Fuselage",
+        "length": length,
+        "radius": radius,
+        "position": position
+    }
+    model["airplane"]["fuselage"] = fuselage
+    return model
+}
+
+pub fn addAeroSandboxStabilizer(model, chord, span, position, type) {
+    let stabilizer = {
+        "kind": "Stabilizer",
+        "chord": chord,
+        "span": span,
+        "position": position,
+        "type": type
+    }
+    model["airplane"]["stabilizers"] = push(model["airplane"]["stabilizers"], stabilizer)
+    return model
+}
+
+pub fn exportToAeroSandbox(model) {
+    let export = {
+        "format": "aerosandbox",
+        "airplane": model["airplane"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn importAeroSandboxResults(model, results) {
+    model["analysis"] = results["analysis"]
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
+
+pub fn runAeroSandboxAnalysis(model) {
+    let analysis = {
+        "drag_polar": {
+            "cd0": 0.02,
+            "k": 0.05
+        },
+        "lift_coefficient": 0.5,
+        "drag_coefficient": 0.03
+    }
+    
+    model["analysis"] = analysis
+    return model
+}
