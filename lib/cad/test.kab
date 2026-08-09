@@ -6,11 +6,15 @@
 
 import "cad/document"
 import "cad/layout"
-import "cad/entities"
 import "cad/style"
 import "cad/graph"
 import "cad/symbol"
 import "cad/serialize"
+import "cad/geom"
+import "cad/circuit"
+import "cad/arch"
+import "cad/power"
+import "cad/aero"
 
 pub fn testDesignFrameLayout() {
     let document = createDocument("Design Test", "px")
@@ -54,21 +58,26 @@ pub fn testDraftingLineDim() {
     let document = createDocument("Drafting Test", "mm")
     document = setDocumentProfile(document, "drafting")
     
-    let line = createLineEntity(vec2(0.0, 0.0), vec2(100.0, 50.0))
-    line["styleSet"] = createStyleSet()
-    line["styleSet"] = addStrokeToStyleSet(line["styleSet"], createStroke({ "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0, "butt", "miter", []))
-    
-    let dim = createDimensionEntity(vec2(0.0, 0.0), vec2(100.0, 50.0), 10.0)
-    dim["styleSet"] = createStyleSet()
-    dim["styleSet"] = addStrokeToStyleSet(dim["styleSet"], createStroke({ "r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0 }, 0.5, "butt", "miter", []))
-    
     let lineNode = createSceneNode("Vector", "Line")
-    lineNode["data"] = line["data"]
-    lineNode["styleSet"] = line["styleSet"]
+    lineNode["transform"]["position"] = vec2(0.0, 0.0)
+    lineNode["meta"] = {
+        "type": "line",
+        "start": vec2(0.0, 0.0),
+        "end": vec2(100.0, 50.0)
+    }
+    lineNode["styleSet"] = createStyleSet()
+    lineNode["styleSet"] = addStrokeToStyleSet(lineNode["styleSet"], createStroke({ "r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0 }, 1.0, "butt", "miter", []))
     
     let dimNode = createSceneNode("Dimension", "Dimension")
-    dimNode["data"] = dim["data"]
-    dimNode["styleSet"] = dim["styleSet"]
+    dimNode["transform"]["position"] = vec2(0.0, 0.0)
+    dimNode["meta"] = {
+        "type": "dimension",
+        "start": vec2(0.0, 0.0),
+        "end": vec2(100.0, 50.0),
+        "offset": 10.0
+    }
+    dimNode["styleSet"] = createStyleSet()
+    dimNode["styleSet"] = addStrokeToStyleSet(dimNode["styleSet"], createStroke({ "r": 0.5, "g": 0.5, "b": 0.5, "a": 1.0 }, 0.5, "butt", "miter", []))
     
     document = addNode(document, document["sceneRoot"]["id"], lineNode)
     document = addNode(document, document["sceneRoot"]["id"], dimNode)
@@ -98,18 +107,20 @@ pub fn testSchematicComponentGraph() {
     let document = createDocument("Schematic Test", "mm")
     document = setDocumentProfile(document, "schematic")
     
-    let symbolDef = createSymbolDefinition("Resistor")
-    symbolDef = addSymbolGeometry(symbolDef, createRectEntity(0.0, 0.0, 20.0, 10.0))
-    
-    let component = createComponentNode("R1", symbolDef["id"])
+    let component = createSceneNode("Component", "R1")
     component["transform"]["position"] = vec2(50.0, 50.0)
+    component["meta"] = {
+        "type": "resistor",
+        "symbolId": "Resistor",
+        "value": 1000.0
+    }
     
     document = addNode(document, document["sceneRoot"]["id"], component)
     
     let graph = createGraph()
-    graph = addNode(graph, "node1", { "kind": "Port", "position": vec2(50.0, 50.0) })
-    graph = addNode(graph, "node2", { "kind": "Port", "position": vec2(100.0, 50.0) })
-    graph = addEdge(graph, "edge1", "node1", "node2", { "kind": "Wire" })
+    graph = addNode(graph, createNode({ "kind": "Port", "position": vec2(50.0, 50.0) }))
+    graph = addNode(graph, createNode({ "kind": "Port", "position": vec2(100.0, 50.0) }))
+    graph = addEdge(graph, createEdge(graph["nodes"][0]["id"], graph["nodes"][1]["id"], { "kind": "Wire" }))
     
     document = documentCommit(document)
     
@@ -168,6 +179,10 @@ pub fn runAllSmokeTests() {
     results = push(results, testDraftingLineDim())
     results = push(results, testSchematicComponentGraph())
     results = push(results, testSerializeRoundTrip())
+    results = push(results, testCircuitSerializeRoundTrip())
+    results = push(results, testArchSerializeRoundTrip())
+    results = push(results, testPowerSerializeRoundTrip())
+    results = push(results, testAeroSerializeRoundTrip())
     
     let passedCount = 0
     let i = 0
@@ -183,5 +198,145 @@ pub fn runAllSmokeTests() {
         "passed": passedCount,
         "failed": len(results) - passedCount,
         "results": results
+    }
+}
+
+pub fn testCircuitSerializeRoundTrip() {
+    let board = createBoard("Test Board")
+    board = circuitAddPart(board, "R1", "R", 1000.0, vec2(10.0, 10.0))
+    board = circuitAddPart(board, "R2", "R", 2000.0, vec2(30.0, 10.0))
+    board = circuitAddNet(board, "net1", "R1", "R2")
+    
+    let originalPartCount = len(board["document"]["nodes"])
+    let originalGraphEdgeCount = board["netGraph"]["edgeCounter"]
+    
+    let serialized = circuitSerialize(board)
+    let deserialized = circuitDeserialize(serialized)
+    
+    let deserializedPartCount = len(deserialized["document"]["nodes"])
+    let deserializedGraphEdgeCount = deserialized["netGraph"]["edgeCounter"]
+    
+    let passed = originalPartCount == deserializedPartCount && originalGraphEdgeCount == deserializedGraphEdgeCount
+    
+    return {
+        "test": "Circuit Serialize Round Trip",
+        "passed": passed,
+        "originalPartCount": originalPartCount,
+        "deserializedPartCount": deserializedPartCount,
+        "originalGraphEdgeCount": originalGraphEdgeCount,
+        "deserializedGraphEdgeCount": deserializedGraphEdgeCount
+    }
+}
+
+pub fn testArchSerializeRoundTrip() {
+    let building = createBuilding("Test Building")
+    building = archAddRoom(building, "room1", 4.0, 3.0, vec2(0.0, 0.0))
+    building = archAddRoom(building, "room2", 5.0, 4.0, vec2(5.0, 0.0))
+    building = archAddWall(building, "wall1", 0.0, 0.0, 5.0, 0.0)
+    
+    let originalRoomCount = 0
+    for nodeId in building["document"]["nodes"] {
+        let node = building["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "room" {
+            originalRoomCount = originalRoomCount + 1
+        }
+    }
+    let originalGraphEdgeCount = building["wallGraph"]["edgeCounter"]
+    
+    let serialized = archSerialize(building)
+    let deserialized = archDeserialize(serialized)
+    
+    let deserializedRoomCount = 0
+    for nodeId in deserialized["document"]["nodes"] {
+        let node = deserialized["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "room" {
+            deserializedRoomCount = deserializedRoomCount + 1
+        }
+    }
+    let deserializedGraphEdgeCount = deserialized["wallGraph"]["edgeCounter"]
+    
+    let passed = originalRoomCount == deserializedRoomCount && originalGraphEdgeCount == deserializedGraphEdgeCount
+    
+    return {
+        "test": "Arch Serialize Round Trip",
+        "passed": passed,
+        "originalRoomCount": originalRoomCount,
+        "deserializedRoomCount": deserializedRoomCount,
+        "originalGraphEdgeCount": originalGraphEdgeCount,
+        "deserializedGraphEdgeCount": deserializedGraphEdgeCount
+    }
+}
+
+pub fn testPowerSerializeRoundTrip() {
+    let install = createInstall("Test Install")
+    install = powerAddCircuit(install, "circuit1", 16.0)
+    install = powerAddDevice(install, "device1", "circuit1", 100.0, vec2(10.0, 10.0))
+    install = powerAddDevice(install, "device2", "circuit1", 200.0, vec2(30.0, 10.0))
+    
+    let originalDeviceCount = 0
+    for nodeId in install["document"]["nodes"] {
+        let node = install["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "device" {
+            originalDeviceCount = originalDeviceCount + 1
+        }
+    }
+    
+    let serialized = powerSerialize(install)
+    let deserialized = powerDeserialize(serialized)
+    
+    let deserializedDeviceCount = 0
+    for nodeId in deserialized["document"]["nodes"] {
+        let node = deserialized["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "device" {
+            deserializedDeviceCount = deserializedDeviceCount + 1
+        }
+    }
+    
+    let passed = originalDeviceCount == deserializedDeviceCount
+    
+    return {
+        "test": "Power Serialize Round Trip",
+        "passed": passed,
+        "originalDeviceCount": originalDeviceCount,
+        "deserializedDeviceCount": deserializedDeviceCount
+    }
+}
+
+pub fn testAeroSerializeRoundTrip() {
+    let model = createAeroModel("Test Model")
+    model = aeroAddAirfoil(model, "airfoil1", 1.0, 1.0, vec2(0.0, 0.0))
+    model = aeroAddAirfoil(model, "airfoil2", 1.5, 1.5, vec2(2.0, 0.0))
+    model = aeroSetFlow(model, 50.0, 5.0, 1.225)
+    
+    let originalAirfoilCount = 0
+    for nodeId in model["document"]["nodes"] {
+        let node = model["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "airfoil" {
+            originalAirfoilCount = originalAirfoilCount + 1
+        }
+    }
+    let originalFlowV = model["flow"]["v"]
+    
+    let serialized = aeroSerialize(model)
+    let deserialized = aeroDeserialize(serialized)
+    
+    let deserializedAirfoilCount = 0
+    for nodeId in deserialized["document"]["nodes"] {
+        let node = deserialized["document"]["nodes"][nodeId]
+        if node != null && node["kind"] == "airfoil" {
+            deserializedAirfoilCount = deserializedAirfoilCount + 1
+        }
+    }
+    let deserializedFlowV = deserialized["flow"]["v"]
+    
+    let passed = originalAirfoilCount == deserializedAirfoilCount && originalFlowV == deserializedFlowV
+    
+    return {
+        "test": "Aero Serialize Round Trip",
+        "passed": passed,
+        "originalAirfoilCount": originalAirfoilCount,
+        "deserializedAirfoilCount": deserializedAirfoilCount,
+        "originalFlowV": originalFlowV,
+        "deserializedFlowV": deserializedFlowV
     }
 }
