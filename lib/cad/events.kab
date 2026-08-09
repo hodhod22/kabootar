@@ -1,0 +1,271 @@
+@version "1.0.0"
+
+// CAD Events - Event system for CAD motor
+// Features: event bus, event listeners, event propagation, undo/redo events
+// Canonical path: import "cad/events"
+// Target: Event system for reactive CAD applications
+
+import "cad/document"
+
+pub fn createEventBus() {
+    return {
+        "kind": "EventBus",
+        "listeners": {},
+        "eventQueue": [],
+        "processing": false
+    }
+}
+
+pub fn createEvent(kind, data) {
+    return {
+        "kind": kind,
+        "data": data,
+        "timestamp": systemTime(),
+        "id": generateEventId()
+    }
+}
+
+pub fn subscribe(eventBus, eventType, callback) {
+    if eventBus["listeners"][eventType] == null {
+        eventBus["listeners"][eventType] = []
+    }
+    eventBus["listeners"][eventType] = push(eventBus["listeners"][eventType], callback)
+    return eventBus
+}
+
+pub fn unsubscribe(eventBus, eventType, callback) {
+    let listeners = eventBus["listeners"][eventType]
+    if listeners == null {
+        return eventBus
+    }
+    
+    let newListeners = []
+    let i = 0
+    while i < len(listeners) {
+        if listeners[i] != callback {
+            newListeners = push(newListeners, listeners[i])
+        }
+        i = i + 1
+    }
+    eventBus["listeners"][eventType] = newListeners
+    return eventBus
+}
+
+pub fn publish(eventBus, event) {
+    eventBus["eventQueue"] = push(eventBus["eventQueue"], event)
+    if eventBus["processing"] == false {
+        eventBus = processEventQueue(eventBus)
+    }
+    return eventBus
+}
+
+pub fn processEventQueue(eventBus) {
+    eventBus["processing"] = true
+    
+    while len(eventBus["eventQueue"]) > 0 {
+        let event = eventBus["eventQueue"][0]
+        eventBus["eventQueue"] = removeFirst(eventBus["eventQueue"])
+        eventBus = dispatchEvent(eventBus, event)
+    }
+    
+    eventBus["processing"] = false
+    return eventBus
+}
+
+fn dispatchEvent(eventBus, event) {
+    let eventType = event["kind"]
+    let listeners = eventBus["listeners"][eventType]
+    
+    if listeners != null {
+        let i = 0
+        while i < len(listeners) {
+            let callback = listeners[i]
+            callback(event)
+            i = i + 1
+        }
+    }
+    
+    let wildcardListeners = eventBus["listeners"]["*"]
+    if wildcardListeners != null {
+        let j = 0
+        while j < len(wildcardListeners) {
+            let callback = wildcardListeners[j]
+            callback(event)
+            j = j + 1
+        }
+    }
+    
+    return eventBus
+}
+
+pub fn createNodeAddedEvent(nodeId, parentId) {
+    return createEvent("NodeAdded", {
+        "nodeId": nodeId,
+        "parentId": parentId
+    })
+}
+
+pub fn createNodeRemovedEvent(nodeId, parentId) {
+    return createEvent("NodeRemoved", {
+        "nodeId": nodeId,
+        "parentId": parentId
+    })
+}
+
+pub fn createNodeChangedEvent(nodeId, changes) {
+    return createEvent("NodeChanged", {
+        "nodeId": nodeId,
+        "changes": changes
+    })
+}
+
+pub fn createSelectionChangedEvent(nodeIds) {
+    return createEvent("SelectionChanged", {
+        "nodeIds": nodeIds
+    })
+}
+
+pub fn createTransformChangedEvent(nodeId, oldTransform, newTransform) {
+    return createEvent("TransformChanged", {
+        "nodeId": nodeId,
+        "oldTransform": oldTransform,
+        "newTransform": newTransform
+    })
+}
+
+pub fn createStyleChangedEvent(nodeId, oldStyle, newStyle) {
+    return createEvent("StyleChanged", {
+        "nodeId": nodeId,
+        "oldStyle": oldStyle,
+        "newStyle": newStyle
+    })
+}
+
+pub fn createDocumentLoadedEvent(documentId) {
+    return createEvent("DocumentLoaded", {
+        "documentId": documentId
+    })
+}
+
+pub fn createDocumentSavedEvent(documentId) {
+    return createEvent("DocumentSaved", {
+        "documentId": documentId
+    })
+}
+
+pub fn createUndoEvent(command) {
+    return createEvent("Undo", {
+        "command": command
+    })
+}
+
+pub fn createRedoEvent(command) {
+    return createEvent("Redo", {
+        "command": command
+    })
+}
+
+pub fn createViewportChangedEvent(oldViewport, newViewport) {
+    return createEvent("ViewportChanged", {
+        "oldViewport": oldViewport,
+        "newViewport": newViewport
+    })
+}
+
+pub fn createLayerChangedEvent(layerName, changes) {
+    return createEvent("LayerChanged", {
+        "layerName": layerName,
+        "changes": changes
+    })
+}
+
+pub fn createConstraintAddedEvent(constraintId) {
+    return createEvent("ConstraintAdded", {
+        "constraintId": constraintId
+    })
+}
+
+pub fn createConstraintRemovedEvent(constraintId) {
+    return createEvent("ConstraintRemoved", {
+        "constraintId": constraintId
+    })
+}
+
+pub fn createErrorEvent(error, context) {
+    return createEvent("Error", {
+        "error": error,
+        "context": context
+    })
+}
+
+pub fn createCommandEvent(command) {
+    return createEvent("Command", {
+        "command": command
+    })
+}
+
+pub fn createCommandEventStart(command) {
+    return createEvent("CommandStart", {
+        "command": command
+    })
+}
+
+pub fn createCommandEventEnd(command, result) {
+    return createEvent("CommandEnd", {
+        "command": command,
+        "result": result
+    })
+}
+
+pub fn clearEventQueue(eventBus) {
+    eventBus["eventQueue"] = []
+    return eventBus
+}
+
+pub fn clearListeners(eventBus) {
+    eventBus["listeners"] = {}
+    return eventBus
+}
+
+pub fn getListenerCount(eventBus, eventType) {
+    let listeners = eventBus["listeners"][eventType]
+    if listeners == null {
+        return 0
+    }
+    return len(listeners)
+}
+
+pub fn getTotalListenerCount(eventBus) {
+    let total = 0
+    for eventType in eventBus["listeners"] {
+        let listeners = eventBus["listeners"][eventType]
+        total = total + len(listeners)
+    }
+    return total
+}
+
+pub fn getQueueSize(eventBus) {
+    return len(eventBus["eventQueue"])
+}
+
+fn generateEventId() {
+    return "event-" + floor(systemTime() * 1000.0) + "-" + systemRandom()
+}
+
+fn removeFirst(arr) {
+    let result = []
+    let i = 1
+    while i < len(arr) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
