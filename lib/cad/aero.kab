@@ -480,3 +480,200 @@ pub fn importPythonOCCResults(model, results) {
     model["aeroModel"]["flow"] = results["flow"]
     return model
 }
+
+// TIGL/AeroCAPS/DA3DALUS/OpenVSP Integration
+pub fn createTIGLModel(name) {
+    return {
+        "kind": "TIGLModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-tigl"),
+        "wings": [],
+        "fuselages": [],
+        "cpacs": null
+    }
+}
+
+pub fn addTIGLWing(model, name, sectionCount, position) {
+    let wing = {
+        "kind": "Wing",
+        "name": name,
+        "sectionCount": sectionCount,
+        "position": position,
+        "sections": []
+    }
+    model["wings"] = push(model["wings"], wing)
+    return model
+}
+
+pub fn addTIGLWingSection(model, wingIndex, chord, twist, airfoil) {
+    if wingIndex < len(model["wings"]) {
+        let section = {
+            "chord": chord,
+            "twist": twist,
+            "airfoil": airfoil
+        }
+        model["wings"][wingIndex]["sections"] = push(model["wings"][wingIndex]["sections"], section)
+    }
+    return model
+}
+
+pub fn addTIGLFuselage(model, name, sectionCount, position) {
+    let fuselage = {
+        "kind": "Fuselage",
+        "name": name,
+        "sectionCount": sectionCount,
+        "position": position,
+        "sections": []
+    }
+    model["fuselages"] = push(model["fuselages"], fuselage)
+    return model
+}
+
+pub fn exportToTIGL(model) {
+    let export = {
+        "format": "tigl",
+        "wings": model["wings"],
+        "fuselages": model["fuselages"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn exportToCPACS(model) {
+    let cpacs = {
+        "format": "cpacs",
+        "wings": model["wings"],
+        "fuselages": model["fuselages"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    model["cpacs"] = cpacs
+    return model
+}
+
+pub fn createAeroCAPSModel(name) {
+    return {
+        "kind": "AeroCAPSModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-aerocaps"),
+        "geometry": {},
+        "analysis": {}
+    }
+}
+
+pub fn exportToAeroCAPS(model) {
+    let export = {
+        "format": "aerocaps",
+        "geometry": model["geometry"],
+        "analysis": model["analysis"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn createDA3DALUSModel(name) {
+    return {
+        "kind": "DA3DALUSModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-da3dalus"),
+        "surfaces": [],
+        "mesh": null
+    }
+}
+
+pub fn addDA3DALUSSurface(model, name, controlPoints) {
+    let surface = {
+        "kind": "Surface",
+        "name": name,
+        "controlPoints": controlPoints
+    }
+    model["surfaces"] = push(model["surfaces"], surface)
+    return model
+}
+
+pub fn exportToDA3DALUS(model) {
+    let export = {
+        "format": "da3dalus",
+        "surfaces": model["surfaces"],
+        "mesh": model["mesh"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn createOpenVSPModel(name) {
+    return {
+        "kind": "OpenVSPModel",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-openvsp"),
+        "components": [],
+        "settings": {
+            "units": "metric",
+            "analysis": true
+        }
+    }
+}
+
+pub fn addOpenVSPWing(model, name, chord, span, sweep, position) {
+    let wing = {
+        "kind": "Wing",
+        "name": name,
+        "chord": chord,
+        "span": span,
+        "sweep": sweep,
+        "position": position
+    }
+    model["components"] = push(model["components"], wing)
+    return model
+}
+
+pub fn addOpenVSPFuselage(model, name, length, radius, position) {
+    let fuselage = {
+        "kind": "Fuselage",
+        "name": name,
+        "length": length,
+        "radius": radius,
+        "position": position
+    }
+    model["components"] = push(model["components"], fuselage)
+    return model
+}
+
+pub fn exportToOpenVSP(model) {
+    let export = {
+        "format": "openvsp",
+        "components": model["components"],
+        "settings": model["settings"],
+        "aeroModel": aeroSerialize(model["aeroModel"]),
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn importTIGLResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
+
+pub fn importAeroCAPSResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
+
+pub fn importDA3DALUSResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
+
+pub fn importOpenVSPResults(model, results) {
+    model["aeroModel"]["flow"] = results["flow"]
+    return model
+}
