@@ -6,6 +6,7 @@
 // Target: Vector graphics engine comparable to Illustrator/Figma
 
 import "cad/geom"
+import "cad/host"
 
 pub fn createPath() {
     return {
@@ -261,4 +262,349 @@ fn getLastPoint(path) {
 
 fn generatePathId() {
     return "path-" + systemFloor(systemTime() * 1000.0) + "-" + systemRandom()
+}
+
+// Path Editing Functions
+pub fn addPathPoint(path, x, y, index) {
+    if index == null || index == undefined {
+        index = len(path["segments"])
+    }
+    
+    let segment = {
+        "kind": "LineTo",
+        "x": x,
+        "y": y
+    }
+    
+    let before = path["segments"][0:index]
+    let after = path["segments"][index:]
+    
+    path["segments"] = before
+    path["segments"] = push(path["segments"], segment)
+    let i = 0
+    while i < len(after) {
+        path["segments"] = push(path["segments"], after[i])
+        i = i + 1
+    }
+    
+    return path
+}
+
+pub fn removePathPoint(path, index) {
+    if index < 0 || index >= len(path["segments"]) {
+        return path
+    }
+    
+    let before = path["segments"][0:index]
+    let after = path["segments"][index + 1:]
+    
+    path["segments"] = before
+    let i = 0
+    while i < len(after) {
+        path["segments"] = push(path["segments"], after[i])
+        i = i + 1
+    }
+    
+    return path
+}
+
+pub fn movePathPoint(path, index, x, y) {
+    if index < 0 || index >= len(path["segments"]) {
+        return path
+    }
+    
+    path["segments"][index]["x"] = x
+    path["segments"][index]["y"] = y
+    
+    return path
+}
+
+pub fn addBezierHandle(path, segmentIndex, handleIndex, x, y) {
+    if segmentIndex < 0 || segmentIndex >= len(path["segments"]) {
+        return path
+    }
+    
+    let seg = path["segments"][segmentIndex]
+    
+    if seg["kind"] == "CubicBezierTo" {
+        if handleIndex == 0 {
+            seg["cp1x"] = x
+            seg["cp1y"] = y
+        } else if handleIndex == 1 {
+            seg["cp2x"] = x
+            seg["cp2y"] = y
+        }
+    } else if seg["kind"] == "QuadraticBezierTo" {
+        seg["cpx"] = x
+        seg["cpy"] = y
+    }
+    
+    path["segments"][segmentIndex] = seg
+    return path
+}
+
+pub fn convertToBezier(path, segmentIndex) {
+    if segmentIndex < 0 || segmentIndex >= len(path["segments"]) {
+        return path
+    }
+    
+    let seg = path["segments"][segmentIndex]
+    
+    if seg["kind"] == "LineTo" {
+        let prevSeg = null
+        if segmentIndex > 0 {
+            prevSeg = path["segments"][segmentIndex - 1]
+        }
+        
+        let prevX = 0.0
+        let prevY = 0.0
+        if prevSeg != null {
+            prevX = prevSeg["x"]
+            prevY = prevSeg["y"]
+        }
+        
+        let midX = (prevX + seg["x"]) / 2.0
+        let midY = (prevY + seg["y"]) / 2.0
+        
+        let newSeg = {
+            "kind": "CubicBezierTo",
+            "cp1x": prevX + (midX - prevX) / 3.0,
+            "cp1y": prevY + (midY - prevY) / 3.0,
+            "cp2x": seg["x"] - (seg["x"] - midX) / 3.0,
+            "cp2y": seg["y"] - (seg["y"] - midY) / 3.0,
+            "x": seg["x"],
+            "y": seg["y"]
+        }
+        
+        path["segments"][segmentIndex] = newSeg
+    }
+    
+    return path
+}
+
+pub fn convertToLine(path, segmentIndex) {
+    if segmentIndex < 0 || segmentIndex >= len(path["segments"]) {
+        return path
+    }
+    
+    let seg = path["segments"][segmentIndex]
+    
+    if seg["kind"] == "CubicBezierTo" || seg["kind"] == "QuadraticBezierTo" {
+        let newSeg = {
+            "kind": "LineTo",
+            "x": seg["x"],
+            "y": seg["y"]
+        }
+        
+        path["segments"][segmentIndex] = newSeg
+    }
+    
+    return path
+}
+
+pub fn splitPath(path, segmentIndex, t) {
+    if segmentIndex < 0 || segmentIndex >= len(path["segments"]) {
+        return { "pathA": path, "pathB": createPath() }
+    }
+    
+    let seg = path["segments"][segmentIndex]
+    let splitPoint = evaluateSegment(seg, t)
+    
+    let pathA = createPath()
+    let pathB = createPath()
+    
+    let i = 0
+    while i <= segmentIndex {
+        if i == segmentIndex {
+            pathA = moveTo(pathA, path["segments"][i]["x"], path["segments"][i]["y"])
+            pathA = lineTo(pathA, splitPoint["x"], splitPoint["y"])
+        } else {
+            pathA = push(pathA["segments"], path["segments"][i])
+        }
+        i = i + 1
+    }
+    
+    pathB = moveTo(pathB, splitPoint["x"], splitPoint["y"])
+    let j = segmentIndex + 1
+    while j < len(path["segments"]) {
+        pathB = push(pathB["segments"], path["segments"][j])
+        j = j + 1
+    }
+    
+    return { "pathA": pathA, "pathB": pathB }
+}
+
+pub fn joinPaths(pathA, pathB) {
+    let result = createPath()
+    result["closed"] = pathA["closed"]
+    
+    let i = 0
+    while i < len(pathA["segments"]) {
+        result = push(result["segments"], pathA["segments"][i])
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(pathB["segments"]) {
+        result = push(result["segments"], pathB["segments"][j])
+        j = j + 1
+    }
+    
+    return result
+}
+
+pub fn smoothPath(path, tension) {
+    if tension == null || tension == undefined {
+        tension = 0.5
+    }
+    
+    let smoothed = createPath()
+    smoothed["closed"] = path["closed"]
+    
+    if len(path["segments"]) < 3 {
+        return path
+    }
+    
+    smoothed = moveTo(smoothed, path["segments"][0]["x"], path["segments"][0]["y"])
+    
+    let i = 1
+    while i < len(path["segments"]) - 1 {
+        let prev = path["segments"][i - 1]
+        let curr = path["segments"][i]
+        let next = path["segments"][i + 1]
+        
+        let cp1x = curr["x"] - (curr["x"] - prev["x"]) * tension
+        let cp1y = curr["y"] - (curr["y"] - prev["y"]) * tension
+        let cp2x = curr["x"] + (next["x"] - curr["x"]) * tension
+        let cp2y = curr["y"] + (next["y"] - curr["y"]) * tension
+        
+        smoothed = cubicBezierTo(smoothed, cp1x, cp1y, cp2x, cp2y, curr["x"], curr["y"])
+        i = i + 1
+    }
+    
+    let last = path["segments"][len(path["segments"]) - 1]
+    smoothed = lineTo(smoothed, last["x"], last["y"])
+    
+    return smoothed
+}
+
+pub fn simplifyPath(path, tolerance) {
+    if tolerance == null || tolerance == undefined {
+        tolerance = 1.0
+    }
+    
+    if len(path["segments"]) < 3 {
+        return path
+    }
+    
+    let points = []
+    let i = 0
+    while i < len(path["segments"]) {
+        points = push(points, vec2(path["segments"][i]["x"], path["segments"][i]["y"]))
+        i = i + 1
+    }
+    
+    let simplifiedPoints = douglasPeucker(points, tolerance)
+    
+    let simplified = createPath()
+    simplified["closed"] = path["closed"]
+    
+    simplified = moveTo(simplified, simplifiedPoints[0]["x"], simplifiedPoints[0]["y"])
+    let j = 1
+    while j < len(simplifiedPoints) {
+        simplified = lineTo(simplified, simplifiedPoints[j]["x"], simplifiedPoints[j]["y"])
+        j = j + 1
+    }
+    
+    return simplified
+}
+
+fn evaluateSegment(seg, t) {
+    if seg["kind"] == "LineTo" {
+        return vec2(seg["x"], seg["y"])
+    } else if seg["kind"] == "CubicBezierTo" {
+        return evaluateCubicBezier(seg, t)
+    } else if seg["kind"] == "QuadraticBezierTo" {
+        return evaluateQuadraticBezier(seg, t)
+    }
+    return vec2(0.0, 0.0)
+}
+
+fn evaluateCubicBezier(seg, t) {
+    let mt = 1.0 - t
+    let mt2 = mt * mt
+    let mt3 = mt2 * mt
+    let t2 = t * t
+    let t3 = t2 * t
+    
+    let prevX = 0.0
+    let prevY = 0.0
+    
+    let x = mt3 * prevX + 3.0 * mt2 * t * seg["cp1x"] + 3.0 * mt * t2 * seg["cp2x"] + t3 * seg["x"]
+    let y = mt3 * prevY + 3.0 * mt2 * t * seg["cp1y"] + 3.0 * mt * t2 * seg["cp2y"] + t3 * seg["y"]
+    
+    return vec2(x, y)
+}
+
+fn evaluateQuadraticBezier(seg, t) {
+    let mt = 1.0 - t
+    let mt2 = mt * mt
+    let t2 = t * t
+    
+    let prevX = 0.0
+    let prevY = 0.0
+    
+    let x = mt2 * prevX + 2.0 * mt * t * seg["cpx"] + t2 * seg["x"]
+    let y = mt2 * prevY + 2.0 * mt * t * seg["cpy"] + t2 * seg["y"]
+    
+    return vec2(x, y)
+}
+
+fn douglasPeucker(points, tolerance) {
+    if len(points) < 3 {
+        return points
+    }
+    
+    let maxDist = 0.0
+    let index = 0
+    
+    let i = 1
+    while i < len(points) - 1 {
+        let dist = perpendicularDistance(points[i], points[0], points[len(points) - 1])
+        if dist > maxDist {
+            maxDist = dist
+            index = i
+        }
+        i = i + 1
+    }
+    
+    if maxDist > tolerance {
+        let left = douglasPeucker(points[0:index + 1], tolerance)
+        let right = douglasPeucker(points[index:], tolerance)
+        
+        let result = left
+        let j = 1
+        while j < len(right) {
+            result = push(result, right[j])
+            j = j + 1
+        }
+        
+        return result
+    } else {
+        return [points[0], points[len(points) - 1]]
+    }
+}
+
+fn perpendicularDistance(point, lineStart, lineEnd) {
+    let dx = lineEnd["x"] - lineStart["x"]
+    let dy = lineEnd["y"] - lineStart["y"]
+    
+    if dx == 0.0 && dy == 0.0 {
+        return vec2Distance(point, lineStart)
+    }
+    
+    let num = systemAbs(dy * point["x"] - dx * point["y"] + lineEnd["x"] * lineStart["y"] - lineEnd["y"] * lineStart["x"])
+    let den = systemSqrt(dx * dx + dy * dy)
+    
+    return num / den
 }
