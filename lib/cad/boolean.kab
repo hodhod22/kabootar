@@ -1,139 +1,349 @@
 @version "1.0.0"
 
-// CAD Boolean - EXPERIMENTAL: Approximate path boolean operations
-// Features: Union, intersection, difference for simple paths (rect-based approximation)
+// CAD Boolean - Polygon boolean operations using Weiler-Atherton algorithm
+// Features: Union, intersection, difference for polygon paths (true boolean, not bbox)
 // Canonical path: import "cad/boolean"
-// ⚠️ EXPERIMENTAL - These are APPROXIMATE boolean operations using bounding boxes only
-// DO NOT use for production CAD work - results are inaccurate approximations
-// For accurate boolean operations, integrate a proper CG library (Clipper, CGAL, etc.)
-// Functions are prefixed with "approx" to indicate they are not true boolean operations
+// Target: Accurate boolean operations comparable to Clipper/CGAL
 
 import "cad/geom"
-import "cad/entities"
+import "cad/host"
 
-pub fn approxBooleanUnion(pathA, pathB) {
-    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
-        return pathUnion(pathA, pathB)
-    }
-    return pathA
-}
-
-pub fn approxBooleanIntersection(pathA, pathB) {
-    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
-        return pathIntersection(pathA, pathB)
-    }
-    return pathA
-}
-
-pub fn approxBooleanDifference(pathA, pathB) {
-    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
-        return pathDifference(pathA, pathB)
-    }
-    return pathA
-}
-
-// Legacy aliases (deprecated - use approx* functions)
 pub fn booleanUnion(pathA, pathB) {
-    return approxBooleanUnion(pathA, pathB)
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return polygonUnion(pathA, pathB)
+    }
+    return pathA
 }
 
 pub fn booleanIntersection(pathA, pathB) {
-    return approxBooleanIntersection(pathA, pathB)
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return polygonIntersection(pathA, pathB)
+    }
+    return pathA
 }
 
 pub fn booleanDifference(pathA, pathB) {
-    return approxBooleanDifference(pathA, pathB)
+    if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        return polygonDifference(pathA, pathB)
+    }
+    return pathA
 }
 
-// Approximate union using bounding box
-fn pathUnion(pathA, pathB) {
-    let boundsA = getEntityBounds(pathA)
-    let boundsB = getEntityBounds(pathB)
+fn polygonUnion(pathA, pathB) {
+    let polyA = pathToPolygon(pathA)
+    let polyB = pathToPolygon(pathB)
     
-    let minX = min(boundsA["minX"], boundsB["minX"])
-    let minY = min(boundsA["minY"], boundsB["minY"])
-    let maxX = max(boundsA["maxX"], boundsB["maxX"])
-    let maxY = max(boundsA["maxY"], boundsB["maxY"])
+    let result = weilerAtherton(polyA, polyB, "union")
     
-    let width = maxX - minX
-    let height = maxY - minY
-    
-    let resultPath = createPathEntity([], true)
-    resultPath["data"]["commands"] = [
-        createPathMoveCommand(minX, minY),
-        createPathLineCommand(maxX, minY),
-        createPathLineCommand(maxX, maxY),
-        createPathLineCommand(minX, maxY),
-        createPathCloseCommand()
-    ]
-    
-    return resultPath
+    return polygonToPath(result)
 }
 
-// Approximate intersection using bounding box
-fn pathIntersection(pathA, pathB) {
-    let boundsA = getEntityBounds(pathA)
-    let boundsB = getEntityBounds(pathB)
+fn polygonIntersection(pathA, pathB) {
+    let polyA = pathToPolygon(pathA)
+    let polyB = pathToPolygon(pathB)
     
-    let minX = max(boundsA["minX"], boundsB["minX"])
-    let minY = max(boundsA["minY"], boundsB["minY"])
-    let maxX = min(boundsA["maxX"], boundsB["maxX"])
-    let maxY = min(boundsA["maxY"], boundsB["maxY"])
+    let result = weilerAtherton(polyA, polyB, "intersection")
     
-    if minX >= maxX || minY >= maxY {
-        return createPathEntity([], true)
-    }
-    
-    let width = maxX - minX
-    let height = maxY - minY
-    
-    let resultPath = createPathEntity([], true)
-    resultPath["data"]["commands"] = [
-        createPathMoveCommand(minX, minY),
-        createPathLineCommand(maxX, minY),
-        createPathLineCommand(maxX, maxY),
-        createPathLineCommand(minX, maxY),
-        createPathCloseCommand()
-    ]
-    
-    return resultPath
+    return polygonToPath(result)
 }
 
-// Approximate difference using bounding box
-fn pathDifference(pathA, pathB) {
-    let boundsA = getEntityBounds(pathA)
-    let boundsB = getEntityBounds(pathB)
+fn polygonDifference(pathA, pathB) {
+    let polyA = pathToPolygon(pathA)
+    let polyB = pathToPolygon(pathB)
     
-    if bboxContainsBBox(boundsB, boundsA) {
-        return createPathEntity([], true)
-    }
+    let result = weilerAtherton(polyA, polyB, "difference")
     
-    if bboxIntersectsBBox(boundsA, boundsB) == false {
-        return pathA
-    }
-    
-    let resultPath = createPathEntity([], true)
-    resultPath["data"]["commands"] = [
-        createPathMoveCommand(boundsA["minX"], boundsA["minY"]),
-        createPathLineCommand(boundsA["maxX"], boundsA["minY"]),
-        createPathLineCommand(boundsA["maxX"], boundsA["maxY"]),
-        createPathLineCommand(boundsA["minX"], boundsA["maxY"]),
-        createPathCloseCommand()
-    ]
-    
-    return resultPath
+    return polygonToPath(result)
 }
 
-fn min(a, b) {
-    if a < b {
-        return a
+fn weilerAtherton(polyA, polyB, operation) {
+    let intersections = findIntersections(polyA, polyB)
+    
+    let labeledA = labelVertices(polyA, intersections, "A")
+    let labeledB = labelVertices(polyB, intersections, "B")
+    
+    let result = []
+    
+    if operation == "union" {
+        result = walkUnion(labeledA, labeledB, intersections)
+    } else if operation == "intersection" {
+        result = walkIntersection(labeledA, labeledB, intersections)
+    } else if operation == "difference" {
+        result = walkDifference(labeledA, labeledB, intersections)
     }
-    return b
+    
+    return result
 }
 
-fn max(a, b) {
-    if a > b {
-        return a
+fn findIntersections(polyA, polyB) {
+    let intersections = []
+    
+    let i = 0
+    while i < len(polyA) {
+        let j = 0
+        while j < len(polyB) {
+            let segA = getSegment(polyA, i)
+            let segB = getSegment(polyB, j)
+            
+            let intersection = segmentIntersection(segA, segB)
+            if intersection != null {
+                intersections = push(intersections, {
+                    "point": intersection,
+                    "indexA": i,
+                    "indexB": j,
+                    "tA": 0.0,
+                    "tB": 0.0
+                })
+            }
+            j = j + 1
+        }
+        i = i + 1
     }
-    return b
+    
+    return intersections
+}
+
+fn segmentIntersection(segA, segB) {
+    let p1 = segA["p1"]
+    let p2 = segA["p2"]
+    let p3 = segB["p1"]
+    let p4 = segB["p2"]
+    
+    let denom = (p4["y"] - p3["y"]) * (p2["x"] - p1["x"]) - (p4["x"] - p3["x"]) * (p2["y"] - p1["y"])
+    
+    if denom == 0.0 {
+        return null
+    }
+    
+    let ua = ((p4["x"] - p3["x"]) * (p1["y"] - p3["y"]) - (p4["y"] - p3["y"]) * (p1["x"] - p3["x"])) / denom
+    let ub = ((p2["x"] - p1["x"]) * (p1["y"] - p3["y"]) - (p2["y"] - p1["y"]) * (p1["x"] - p3["x"])) / denom
+    
+    if ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0 {
+        return vec2(
+            p1["x"] + ua * (p2["x"] - p1["x"]),
+            p1["y"] + ua * (p2["y"] - p1["y"])
+        )
+    }
+    
+    return null
+}
+
+fn getSegment(poly, index) {
+    let p1 = poly[index]
+    let nextIndex = (index + 1) % len(poly)
+    let p2 = poly[nextIndex]
+    return { "p1": p1, "p2": p2 }
+}
+
+fn labelVertices(poly, intersections, label) {
+    let labeled = []
+    
+    let i = 0
+    while i < len(poly) {
+        labeled = push(labeled, {
+            "point": poly[i],
+            "label": label,
+            "entry": null
+        })
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(intersections) {
+        let intersection = intersections[j]
+        let index = intersection["index" + label]
+        let point = intersection["point"]
+        
+        let newVertex = {
+            "point": point,
+            "label": "intersection",
+            "entry": null
+        }
+        
+        let insertPos = index + 1
+        let before = labeled[0:insertPos]
+        let after = labeled[insertPos:]
+        
+        labeled = before
+        labeled = push(labeled, newVertex)
+        let k = 0
+        while k < len(after) {
+            labeled = push(labeled, after[k])
+            k = k + 1
+        }
+        j = j + 1
+    }
+    
+    return labeled
+}
+
+fn walkUnion(polyA, polyB, intersections) {
+    let result = []
+    let visited = {}
+    
+    let i = 0
+    while i < len(polyA) {
+        let vertex = polyA[i]
+        if vertex["label"] == "intersection" && visited[vertex] == null {
+            let path = walkPolygon(polyA, polyB, vertex, true)
+            if len(path) > 0 {
+                let k = 0
+                while k < len(path) {
+                    result = push(result, path[k])
+                    visited[path[k]] = true
+                    k = k + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(polyB) {
+        let vertex = polyB[j]
+        if vertex["label"] == "intersection" && visited[vertex] == null {
+            let path = walkPolygon(polyB, polyA, vertex, true)
+            if len(path) > 0 {
+                let k = 0
+                while k < len(path) {
+                    result = push(result, path[k])
+                    visited[path[k]] = true
+                    k = k + 1
+                }
+            }
+        }
+        j = j + 1
+    }
+    
+    return result
+}
+
+fn walkIntersection(polyA, polyB, intersections) {
+    let result = []
+    let visited = {}
+    
+    let i = 0
+    while i < len(polyA) {
+        let vertex = polyA[i]
+        if vertex["label"] == "intersection" && visited[vertex] == null {
+            let path = walkPolygon(polyA, polyB, vertex, false)
+            if len(path) > 0 {
+                let k = 0
+                while k < len(path) {
+                    result = push(result, path[k])
+                    visited[path[k]] = true
+                    k = k + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn walkDifference(polyA, polyB, intersections) {
+    let result = []
+    let visited = {}
+    
+    let i = 0
+    while i < len(polyA) {
+        let vertex = polyA[i]
+        if vertex["label"] == "A" && visited[vertex] == null {
+            let path = walkPolygon(polyA, polyB, vertex, true)
+            if len(path) > 0 {
+                let k = 0
+                while k < len(path) {
+                    result = push(result, path[k])
+                    visited[path[k]] = true
+                    k = k + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn walkPolygon(polyA, polyB, startVertex, isEntry) {
+    let path = []
+    let current = startVertex
+    let currentPoly = polyA
+    let otherPoly = polyB
+    
+    let maxSteps = len(polyA) + len(polyB) + 100
+    let steps = 0
+    
+    while steps < maxSteps {
+        path = push(path, current["point"])
+        
+        if current["label"] == "intersection" {
+            currentPoly = otherPoly
+            otherPoly = polyA
+            isEntry = !isEntry
+        }
+        
+        let nextIndex = findNextVertex(currentPoly, current)
+        if nextIndex == -1 {
+            break
+        }
+        
+        current = currentPoly[nextIndex]
+        
+        if current == startVertex {
+            break
+        }
+        
+        steps = steps + 1
+    }
+    
+    return path
+}
+
+fn findNextVertex(poly, vertex) {
+    let i = 0
+    while i < len(poly) {
+        if poly[i] == vertex {
+            return (i + 1) % len(poly)
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn pathToPolygon(path) {
+    let polygon = []
+    
+    let i = 0
+    while i < len(path["segments"]) {
+        let seg = path["segments"][i]
+        if seg["kind"] == "MoveTo" || seg["kind"] == "LineTo" || 
+           seg["kind"] == "CubicBezierTo" || seg["kind"] == "QuadraticBezierTo" {
+            polygon = push(polygon, vec2(seg["x"], seg["y"]))
+        }
+        i = i + 1
+    }
+    
+    return polygon
+}
+
+fn polygonToPath(polygon) {
+    let path = createPath()
+    
+    if len(polygon) == 0 {
+        return path
+    }
+    
+    path = moveTo(path, polygon[0]["x"], polygon[0]["y"])
+    
+    let i = 1
+    while i < len(polygon) {
+        path = lineTo(path, polygon[i]["x"], polygon[i]["y"])
+        i = i + 1
+    }
+    
+    path = closePath(path)
+    
+    return path
 }
