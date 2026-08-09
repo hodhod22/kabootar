@@ -95,6 +95,57 @@ pub fn sessionOpenTab(session, url) {
     return session
 }
 
+pub fn sessionCloseTab(session, tabIndex) {
+    let tabs = session["tabs"]
+    if tabIndex < 0 || tabIndex >= len(tabs) {
+        session["moved"] = false
+        return session
+    }
+    
+    let newTabs = []
+    let i = 0
+    while i < len(tabs) {
+        if i != tabIndex {
+            newTabs = push(newTabs, tabs[i])
+        }
+        i = i + 1
+    }
+    
+    if len(newTabs) == 0 {
+        newTabs = push(newTabs, { "id": 1, "url": "kabootar://home", "title": "Home" })
+        session["nextId"] = 2
+        session["active"] = 0
+        session["history"] = ["kabootar://home"]
+        session["pos"] = 0
+    } else {
+        if session["active"] >= len(newTabs) {
+            session["active"] = len(newTabs) - 1
+        }
+        let activeTab = newTabs[session["active"]]
+        session["history"] = [activeTab["url"]]
+        session["pos"] = 0
+    }
+    
+    session["tabs"] = newTabs
+    session["moved"] = true
+    return session
+}
+
+pub fn sessionSwitchTab(session, tabIndex) {
+    let tabs = session["tabs"]
+    if tabIndex < 0 || tabIndex >= len(tabs) {
+        session["moved"] = false
+        return session
+    }
+    
+    let tab = tabs[tabIndex]
+    session["active"] = tabIndex
+    session["history"] = [tab["url"]]
+    session["pos"] = 0
+    session["moved"] = true
+    return session
+}
+
 pub fn sessionTabCount(session) {
     return len(session["tabs"])
 }
