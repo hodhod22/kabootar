@@ -389,11 +389,3 @@ fn calculateDocumentBounds(document) {
     
     return createBBox(minX, minY, maxX, maxY)
 }
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}

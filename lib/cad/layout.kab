@@ -329,11 +329,3 @@ pub fn isLayoutDirty(layout) {
     }
     return layout["dirty"]
 }
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}

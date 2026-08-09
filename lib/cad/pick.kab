@@ -434,30 +434,9 @@ pub fn getNodeCount(index) {
 }
 
 fn min(a, b) {
-    if a < b {
-        return a
-    }
-    return b
+    return systemMin(a, b)
 }
 
 fn max(a, b) {
-    if a > b {
-        return a
-    }
-    return b
-}
-
-fn abs(value) {
-    if value < 0.0 {
-        return -value
-    }
-    return value
-}
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
+    return systemMax(a, b)
 }

@@ -276,11 +276,3 @@ fn currentTime() {
 fn random() {
     return systemRandom()
 }
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}

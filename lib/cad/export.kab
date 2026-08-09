@@ -363,11 +363,3 @@ fn charToDigit(char) {
     if char == "9" { return 9 }
     return -1
 }
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
-}

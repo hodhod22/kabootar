@@ -109,13 +109,5 @@ pub fn flattenLayerSystem(layerSystem) {
 }
 
 fn generateLayerId() {
-    return "layer-" + floor(systemTime() * 1000.0) + "-" + systemRandom()
-}
-
-fn floor(value) {
-    let int = value
-    if value < 0.0 && value != int {
-        return int - 1
-    }
-    return int
+    return "layer-" + systemFloor(systemTime() * 1000.0) + "-" + systemRandom()
 }

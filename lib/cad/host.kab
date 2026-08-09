@@ -1,9 +1,9 @@
 @version "1.0.0"
 
 // CAD Host - Host system bindings for time, RNG, and math functions
-// Features: system time, random number generation, math functions (sqrt, cos, sin, atan2)
+// Features: system time, random number generation, math functions (sqrt, cos, sin, atan2, abs, floor, ceil, round, min, max)
 // Canonical path: import "cad/host"
-// Uses Kabootar native math globals (sqrt, cos, sin, atan2, atan, pi) for accurate calculations
+// Uses Kabootar native math globals (sqrt, cos, sin, atan2, atan, pi, abs, floor, ceil, round, min, max) for accurate calculations
 
 pub fn systemTime() {
     return time()
@@ -35,4 +35,28 @@ pub fn systemAtan(value) {
 
 pub fn systemPi() {
     return pi()
+}
+
+pub fn systemAbs(value) {
+    return abs(value)
+}
+
+pub fn systemFloor(value) {
+    return floor(value)
+}
+
+pub fn systemCeil(value) {
+    return ceil(value)
+}
+
+pub fn systemRound(value) {
+    return round(value)
+}
+
+pub fn systemMin(a, b) {
+    return min(a, b)
+}
+
+pub fn systemMax(a, b) {
+    return max(a, b)
 }
