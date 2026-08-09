@@ -4,6 +4,7 @@
 // KEEP <=~7 top-level fn. Nav/tabs via Kab session; kb_navigate = load/paint only.
 
 import "kbrowser/nav"
+import "kbrowser/bookmarks"
 
 pub fn navigate(url) {
     return navGo(url)
@@ -29,6 +30,22 @@ pub fn back() {
     return navBack()
 }
 
+pub fn forward() {
+    return navForward()
+}
+
 pub fn openTab(url) {
     return navOpenTab(url)
+}
+
+pub fn addBookmark(url, title) {
+    return addBookmark(url, title)
+}
+
+pub fn removeBookmark(url) {
+    return removeBookmark(url)
+}
+
+pub fn listBookmarks() {
+    return listBookmarks()
 }
