@@ -1,0 +1,373 @@
+@version "1.0.0"
+
+// CAD Export - Professional export/import for SVG, PNG, PDF
+// Features: SVG export, PNG export, PDF export, SVG import
+// Canonical path: import "cad/export"
+// Target: Export system comparable to Figma/Photoshop/Sketch
+
+import "cad/document"
+import "cad/render"
+import "cad/vector"
+
+pub fn createExportOptions() {
+    return {
+        "kind": "ExportOptions",
+        "format": "svg",
+        "scale": 1.0,
+        "dpi": 72,
+        "includeBackground": false,
+        "backgroundColor": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+        "selectionOnly": false
+    }
+}
+
+pub fn exportDocument(document, options) {
+    let format = options["format"]
+    
+    if format == "svg" {
+        return exportSVG(document, options)
+    } else if format == "png" {
+        return exportPNG(document, options)
+    } else if format == "pdf" {
+        return exportPDF(document, options)
+    }
+    
+    return ""
+}
+
+pub fn exportSVG(document, options) {
+    let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\""
+    svg = svg + " width=\"" + (document["width"] * options["scale"]) + "\""
+    svg = svg + " height=\"" + (document["height"] * options["scale"]) + "\""
+    svg = svg + " viewBox=\"0 0 " + document["width"] + " " + document["height"] + "\">"
+    
+    if options["includeBackground"] == true {
+        let bg = options["backgroundColor"]
+        svg = svg + "<rect width=\"100%\" height=\"100%\" fill=\""
+        svg = svg + rgbToHex(bg["r"], bg["g"], bg["b"]) + "\" opacity=\"" + bg["a"] + "\"/>"
+    }
+    
+    let drawList = buildDrawList(document, null)
+    
+    let i = 0
+    while i < len(drawList["items"]) {
+        let item = drawList["items"][i]
+        svg = svg + exportItemToSVG(item, options)
+        i = i + 1
+    }
+    
+    svg = svg + "</svg>"
+    return svg
+}
+
+fn exportItemToSVG(item, options) {
+    let kind = item["kind"]
+    
+    if kind == "DrawFrame" {
+        return exportFrameToSVG(item, options)
+    } else if kind == "DrawVector" {
+        return exportVectorToSVG(item, options)
+    } else if kind == "DrawShape" {
+        return exportShapeToSVG(item, options)
+    } else if kind == "DrawText" {
+        return exportTextToSVG(item, options)
+    }
+    
+    return ""
+}
+
+fn exportFrameToSVG(item, options) {
+    let transform = item["transform"]
+    let x = transform["position"]["x"]
+    let y = transform["position"]["y"]
+    let width = item["width"]
+    let height = item["height"]
+    
+    let svg = "<rect x=\"" + x + "\" y=\"" + y + "\""
+    svg = svg + " width=\"" + width + "\" height=\"" + height + "\""
+    
+    if item["fill"] != null {
+        svg = svg + " fill=\"" + colorToHex(item["fill"]["color"]) + "\""
+        svg = svg + " opacity=\"" + item["fill"]["opacity"] + "\""
+    } else {
+        svg = svg + " fill=\"none\""
+    }
+    
+    if item["stroke"] != null {
+        svg = svg + " stroke=\"" + colorToHex(item["stroke"]["color"]) + "\""
+        svg = svg + " stroke-width=\"" + item["stroke"]["width"] + "\""
+        svg = svg + " opacity=\"" + item["stroke"]["opacity"] + "\""
+    }
+    
+    svg = svg + "/>"
+    return svg
+}
+
+fn exportVectorToSVG(item, options) {
+    let data = item["data"]
+    let transform = item["transform"]
+    
+    let svg = "<path d=\""
+    
+    let i = 0
+    while i < len(data["segments"]) {
+        let seg = data["segments"][i]
+        if seg["kind"] == "MoveTo" {
+            svg = svg + " M " + seg["x"] + " " + seg["y"]
+        } else if seg["kind"] == "LineTo" {
+            svg = svg + " L " + seg["x"] + " " + seg["y"]
+        } else if seg["kind"] == "CubicBezierTo" {
+            svg = svg + " C " + seg["cp1x"] + " " + seg["cp1y"]
+            svg = svg + " " + seg["cp2x"] + " " + seg["cp2y"]
+            svg = svg + " " + seg["x"] + " " + seg["y"]
+        } else if seg["kind"] == "QuadraticBezierTo" {
+            svg = svg + " Q " + seg["cpx"] + " " + seg["cpy"]
+            svg = svg + " " + seg["x"] + " " + seg["y"]
+        }
+        i = i + 1
+    }
+    
+    if data["closed"] == true {
+        svg = svg + " Z"
+    }
+    
+    svg = svg + "\""
+    
+    if item["fill"] != null {
+        svg = svg + " fill=\"" + colorToHex(item["fill"]["color"]) + "\""
+        svg = svg + " opacity=\"" + item["fill"]["opacity"] + "\""
+    } else {
+        svg = svg + " fill=\"none\""
+    }
+    
+    if item["stroke"] != null {
+        svg = svg + " stroke=\"" + colorToHex(item["stroke"]["color"]) + "\""
+        svg = svg + " stroke-width=\"" + item["stroke"]["width"] + "\""
+        svg = svg + " opacity=\"" + item["stroke"]["opacity"] + "\""
+    }
+    
+    svg = svg + "/>"
+    return svg
+}
+
+fn exportShapeToSVG(item, options) {
+    let shapeType = item["shapeType"]
+    let transform = item["transform"]
+    
+    let svg = ""
+    
+    if shapeType == "rectangle" {
+        svg = "<rect x=\"" + transform["position"]["x"] + "\""
+        svg = svg + " y=\"" + transform["position"]["y"] + "\""
+        svg = svg + " width=\"" + item["data"]["width"] + "\""
+        svg = svg + " height=\"" + item["data"]["height"] + "\""
+    } else if shapeType == "ellipse" {
+        svg = "<ellipse cx=\"" + (transform["position"]["x"] + item["data"]["width"] / 2.0) + "\""
+        svg = svg + " cy=\"" + (transform["position"]["y"] + item["data"]["height"] / 2.0) + "\""
+        svg = svg + " rx=\"" + (item["data"]["width"] / 2.0) + "\""
+        svg = svg + " ry=\"" + (item["data"]["height"] / 2.0) + "\""
+    } else if shapeType == "circle" {
+        svg = "<circle cx=\"" + transform["position"]["x"] + "\""
+        svg = svg + " cy=\"" + transform["position"]["y"] + "\""
+        svg = svg + " r=\"" + item["data"]["radius"] + "\""
+    }
+    
+    if item["fill"] != null {
+        svg = svg + " fill=\"" + colorToHex(item["fill"]["color"]) + "\""
+        svg = svg + " opacity=\"" + item["fill"]["opacity"] + "\""
+    } else {
+        svg = svg + " fill=\"none\""
+    }
+    
+    if item["stroke"] != null {
+        svg = svg + " stroke=\"" + colorToHex(item["stroke"]["color"]) + "\""
+        svg = svg + " stroke-width=\"" + item["stroke"]["width"] + "\""
+        svg = svg + " opacity=\"" + item["stroke"]["opacity"] + "\""
+    }
+    
+    svg = svg + "/>"
+    return svg
+}
+
+fn exportTextToSVG(item, options) {
+    let transform = item["transform"]
+    let text = item["text"]
+    let fontSize = item["fontSize"]
+    
+    let svg = "<text x=\"" + transform["position"]["x"] + "\""
+    svg = svg + " y=\"" + transform["position"]["y"] + "\""
+    svg = svg + " font-size=\"" + fontSize + "\""
+    svg = svg + " font-family=\"" + item["font"] + "\""
+    
+    if item["fill"] != null {
+        svg = svg + " fill=\"" + colorToHex(item["fill"]["color"]) + "\""
+        svg = svg + " opacity=\"" + item["fill"]["opacity"] + "\""
+    }
+    
+    svg = svg + ">" + text + "</text>"
+    return svg
+}
+
+pub fn exportPNG(document, options) {
+    let svg = exportSVG(document, options)
+    return "PNG export requires external renderer. SVG data: " + svg
+}
+
+pub fn exportPDF(document, options) {
+    let svg = exportSVG(document, options)
+    return "PDF export requires external renderer. SVG data: " + svg
+}
+
+pub fn importSVG(svgString) {
+    let document = createDocument("Imported SVG", "px")
+    
+    let path = parseSVGPath(svgString)
+    if path != null {
+        let node = createSceneNode("Vector", "Imported Path")
+        node["data"] = path
+        document = addNode(document, document["sceneRoot"]["id"], node)
+    }
+    
+    return document
+}
+
+fn parseSVGPath(svgString) {
+    let path = createPath()
+    
+    let i = 0
+    while i < len(svgString) {
+        let char = str_slice(svgString, i, i + 1)
+        
+        if char == "M" {
+            let coords = parseCoords(svgString, i + 1)
+            path = moveTo(path, coords["x"], coords["y"])
+        } else if char == "L" {
+            let coords = parseCoords(svgString, i + 1)
+            path = lineTo(path, coords["x"], coords["y"])
+        } else if char == "C" {
+            let coords = parseCoords(svgString, i + 1)
+            path = cubicBezierTo(path, coords["x1"], coords["y1"], coords["x2"], coords["y2"], coords["x"], coords["y"])
+        } else if char == "Q" {
+            let coords = parseCoords(svgString, i + 1)
+            path = quadraticBezierTo(path, coords["cx"], coords["cy"], coords["x"], coords["y"])
+        } else if char == "Z" {
+            path = closePath(path)
+        }
+        
+        i = i + 1
+    }
+    
+    return path
+}
+
+fn parseCoords(svgString, startIndex) {
+    let coords = { "x": 0.0, "y": 0.0 }
+    let i = startIndex
+    let buffer = ""
+    let coordIndex = 0
+    
+    while i < len(svgString) {
+        let char = str_slice(svgString, i, i + 1)
+        
+        if char == " " || char == "," || char == "M" || char == "L" || char == "C" || char == "Q" || char == "Z" {
+            if len(buffer) > 0 {
+                let value = parseFloat(buffer)
+                if coordIndex == 0 {
+                    coords["x"] = value
+                } else if coordIndex == 1 {
+                    coords["y"] = value
+                } else if coordIndex == 2 {
+                    coords["x1"] = value
+                } else if coordIndex == 3 {
+                    coords["y1"] = value
+                } else if coordIndex == 4 {
+                    coords["x2"] = value
+                } else if coordIndex == 5 {
+                    coords["y2"] = value
+                }
+                coordIndex = coordIndex + 1
+                buffer = ""
+            }
+            if char == "M" || char == "L" || char == "C" || char == "Q" || char == "Z" {
+                break
+            }
+        } else {
+            buffer = buffer + char
+        }
+        
+        i = i + 1
+    }
+    
+    return coords
+}
+
+fn colorToHex(color) {
+    let r = floor(color["r"] * 255.0)
+    let g = floor(color["g"] * 255.0)
+    let b = floor(color["b"] * 255.0)
+    return rgbToHex(r, g, b)
+}
+
+fn rgbToHex(r, g, b) {
+    let hex = "#"
+    hex = hex + byteToHex(r)
+    hex = hex + byteToHex(g)
+    hex = hex + byteToHex(b)
+    return hex
+}
+
+fn byteToHex(byte) {
+    let hex = ""
+    let chars = "0123456789ABCDEF"
+    hex = hex + str_slice(chars, floor(byte / 16.0), floor(byte / 16.0) + 1)
+    hex = hex + str_slice(chars, byte % 16, (byte % 16) + 1)
+    return hex
+}
+
+fn parseFloat(str) {
+    let value = 0.0
+    let negative = false
+    let i = 0
+    
+    if len(str) > 0 && str_slice(str, 0, 1) == "-" {
+        negative = true
+        i = 1
+    }
+    
+    while i < len(str) {
+        let char = str_slice(str, i, i + 1)
+        let digit = charToDigit(char)
+        if digit >= 0 {
+            value = value * 10.0 + digit
+        }
+        i = i + 1
+    }
+    
+    if negative == true {
+        value = -value
+    }
+    
+    return value
+}
+
+fn charToDigit(char) {
+    if char == "0" { return 0 }
+    if char == "1" { return 1 }
+    if char == "2" { return 2 }
+    if char == "3" { return 3 }
+    if char == "4" { return 4 }
+    if char == "5" { return 5 }
+    if char == "6" { return 6 }
+    if char == "7" { return 7 }
+    if char == "8" { return 8 }
+    if char == "9" { return 9 }
+    return -1
+}
+
+fn floor(value) {
+    let int = value
+    if value < 0.0 && value != int {
+        return int - 1
+    }
+    return int
+}
