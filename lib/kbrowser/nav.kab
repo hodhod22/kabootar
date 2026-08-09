@@ -56,6 +56,28 @@ pub fn navOpenTab(url) {
     return navSession
 }
 
+pub fn navCloseTab(tabIndex) {
+    if navSession == null {
+        return navSession
+    }
+    navSession = sessionCloseTab(navSession, tabIndex)
+    if navSession["moved"] == true {
+        kb_navigate(currentUrl(navSession))
+    }
+    return navSession
+}
+
+pub fn navSwitchTab(tabIndex) {
+    if navSession == null {
+        return navSession
+    }
+    navSession = sessionSwitchTab(navSession, tabIndex)
+    if navSession["moved"] == true {
+        kb_navigate(currentUrl(navSession))
+    }
+    return navSession
+}
+
 pub fn navListTabs() {
     if navSession == null {
         return []
