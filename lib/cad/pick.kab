@@ -1,8 +1,9 @@
 @version "1.0.0"
 
-// CAD Pick - Spatial index for picking entities on click
+// CAD Pick - Spatial index for picking scene nodes on click
 // Features: Linear pick for now, grid/R-tree later if needed
 // Canonical path: import "cad/pick"
+// Uses scene nodes (not entities) as single source of truth
 
 import "cad/geom"
 import "cad/document"
@@ -50,11 +51,11 @@ pub fn buildGridSpatialIndex(document, cellSize) {
     let bounds = calculateDocumentBounds(document)
     let index = createGridSpatialIndex(cellSize, bounds)
     
-    for entityId in document["entities"] {
-        let entity = document["entities"][entityId]
-        if entity != null && entity["visible"] == true {
-            let entityBounds = getEntityBounds(entity)
-            index = insertEntityIntoGrid(index, entityId, entityBounds, entity)
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            let nodeBounds = getNodeBounds(node)
+            index = insertNodeIntoGrid(index, nodeId, nodeBounds, node)
         }
     }
     
@@ -126,7 +127,7 @@ fn calculateGroupBounds(group) {
     return createBBox(pos["x"], pos["y"], pos["x"] + 50.0, pos["y"] + 50.0)
 }
 
-fn insertEntityIntoGrid(index, entityId, bounds, entity) {
+fn insertNodeIntoGrid(index, nodeId, bounds, node) {
     let cellSize = index["cellSize"]
     let minCellX = floor(bounds["minX"] / cellSize)
     let minCellY = floor(bounds["minY"] / cellSize)
@@ -142,9 +143,9 @@ fn insertEntityIntoGrid(index, entityId, bounds, entity) {
                 index["grid"][cellKey] = []
             }
             index["grid"][cellKey] = push(index["grid"][cellKey], {
-                "entityId": entityId,
+                "nodeId": nodeId,
                 "bounds": bounds,
-                "entity": entity
+                "node": node
             })
             y = y + 1
         }
@@ -152,9 +153,9 @@ fn insertEntityIntoGrid(index, entityId, bounds, entity) {
     }
     
     index["entities"] = push(index["entities"], {
-        "entityId": entityId,
+        "nodeId": nodeId,
         "bounds": bounds,
-        "entity": entity
+        "node": node
     })
     
     return index
@@ -178,7 +179,7 @@ fn pickPointLinear(index, x, y, tolerance) {
     while i < len(index["entities"]) {
         let item = index["entities"][i]
         if bboxIntersectsBBox(item["bounds"], pickBBox) {
-            let dist = distanceToEntity(item["entity"], x, y)
+            let dist = distanceToNode(item["node"], x, y)
             if dist < closestDist {
                 closest = item
                 closestDist = dist
@@ -188,7 +189,7 @@ fn pickPointLinear(index, x, y, tolerance) {
     }
     
     if closest != null {
-        return closest["entityId"]
+        return closest["nodeId"]
     }
     
     return null
@@ -214,7 +215,7 @@ fn pickPointGrid(index, x, y, tolerance) {
     while i < len(cellEntities) {
         let item = cellEntities[i]
         if bboxIntersectsBBox(item["bounds"], pickBBox) {
-            let dist = distanceToEntity(item["entity"], x, y)
+            let dist = distanceToNode(item["node"], x, y)
             if dist < closestDist {
                 closest = item
                 closestDist = dist
@@ -224,7 +225,7 @@ fn pickPointGrid(index, x, y, tolerance) {
     }
     
     if closest != null {
-        return closest["entityId"]
+        return closest["nodeId"]
     }
     
     return null
@@ -329,73 +330,50 @@ pub fn pickPoint(index, x, y, tolerance) {
     return picked
 }
 
-fn getEntityBounds(entity) {
-    let data = entity["data"]
+fn getNodeBoundsFromData(node) {
+    let kind = node["kind"]
+    let meta = node["meta"]
     
-    if entity["kind"] == "Line" {
-        return createBBox(
-            min(data["start"]["x"], data["end"]["x"]),
-            min(data["start"]["y"], data["end"]["y"]),
-            max(data["start"]["x"], data["end"]["x"]),
-            max(data["start"]["y"], data["end"]["y"])
-        )
-    } else if entity["kind"] == "Rectangle" {
-        return createBBox(
-            data["x"],
-            data["y"],
-            data["x"] + data["width"],
-            data["y"] + data["height"])
-    } else if entity["kind"] == "Circle" {
-        return createBBox(
-            data["center"]["x"] - data["radius"],
-            data["center"]["y"] - data["radius"],
-            data["center"]["x"] + data["radius"],
-            data["center"]["y"] + data["radius"])
-    } else if entity["kind"] == "Polyline" {
-        if len(data["points"]) == 0 {
-            return createBBox(0.0, 0.0, 0.0, 0.0)
+    if kind == "part" || kind == "device" || kind == "airfoil" {
+        let pos = node["transform"]["position"]
+        let worldPos = matrix2DTransformPoint(node["transform"]["worldMatrix"], pos)
+        return createBBox(worldPos["x"] - 10.0, worldPos["y"] - 10.0, worldPos["x"] + 10.0, worldPos["y"] + 10.0)
+    } else if kind == "room" {
+        let pos = node["transform"]["position"]
+        let worldPos = matrix2DTransformPoint(node["transform"]["worldMatrix"], pos)
+        if meta != null {
+            return createBBox(worldPos["x"], worldPos["y"], worldPos["x"] + meta["width"], worldPos["y"] + meta["depth"])
         }
-        let minX = data["points"][0]["x"]
-        let minY = data["points"][0]["y"]
-        let maxX = data["points"][0]["x"]
-        let maxY = data["points"][0]["y"]
-        let i = 1
-        while i < len(data["points"]) {
-            let p = data["points"][i]
-            if p["x"] < minX {
-                minX = p["x"]
-            }
-            if p["y"] < minY {
-                minY = p["y"]
-            }
-            if p["x"] > maxX {
-                maxX = p["x"]
-            }
-            if p["y"] > maxY {
-                maxY = p["y"]
-            }
-            i = i + 1
+        return createBBox(worldPos["x"], worldPos["y"], worldPos["x"] + 4.0, worldPos["y"] + 3.0)
+    } else if kind == "wall" {
+        if meta != null {
+            return createBBox(
+                min(meta["ax"], meta["bx"]),
+                min(meta["ay"], meta["by"]),
+                max(meta["ax"], meta["bx"]),
+                max(meta["ay"], meta["by"])
+            )
         }
-        return createBBox(minX, minY, maxX, maxY)
     }
     
     return createBBox(0.0, 0.0, 0.0, 0.0)
 }
 
-fn distanceToEntity(entity, x, y) {
-    let data = entity["data"]
+fn distanceToNode(node, x, y) {
+    let kind = node["kind"]
+    let meta = node["meta"]
     
-    if entity["kind"] == "Line" {
-        let seg = createSegment(data["start"], data["end"])
-        return segmentDistanceToPoint(seg, vec2(x, y))
-    } else if entity["kind"] == "Circle" {
-        let dist = vec2Distance(data["center"], vec2(x, y))
-        return abs(dist - data["radius"])
-    } else if entity["kind"] == "Rectangle" {
-        let closest = closestPointOnRect(data, x, y)
-        return vec2Distance(closest, vec2(x, y))
-    } else if entity["kind"] == "Point" {
-        return vec2Distance(data["position"], vec2(x, y))
+    if kind == "part" || kind == "device" || kind == "airfoil" {
+        let pos = node["transform"]["position"]
+        return vec2Distance(pos, vec2(x, y))
+    } else if kind == "room" {
+        let pos = node["transform"]["position"]
+        return vec2Distance(pos, vec2(x, y))
+    } else if kind == "wall" {
+        if meta != null {
+            let seg = createSegment(vec2(meta["ax"], meta["ay"]), vec2(meta["bx"], meta["by"]))
+            return segmentDistanceToPoint(seg, vec2(x, y))
+        }
     }
     
     return 0.0
