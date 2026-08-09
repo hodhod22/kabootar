@@ -2,12 +2,14 @@
 
 // CAD Aero - Aerodynamic models using scene nodes + graph topology
 // Features: aerodynamic model, airfoils as scene nodes, flow parameters, lift estimation
+// MDAO Integration: amadevs, anvil, ceasiompy, rcaide support
 // Canonical path: import "cad/aero"
 // Uses addNode + graph only (no separate entity model)
 
 import "cad/document"
 import "cad/graph"
 import "cad/geom"
+import "cad/host"
 
 pub fn createAeroModel(name) {
     if name == null || name == undefined { name = "aero" }
@@ -104,4 +106,161 @@ pub fn aeroDeserialize(data) {
     model["surfaceToNodeMap"] = data["surfaceToNodeMap"]
     model["flow"] = data["flow"]
     return model
+}
+
+// MDAO Integration Functions
+pub fn createMDAOFramework(name) {
+    return {
+        "kind": "MDAOFramework",
+        "name": name,
+        "aeroModel": createAeroModel(name + "-aero"),
+        "optimization": {
+            "objective": "minimize_drag",
+            "constraints": {},
+            "variables": {}
+        },
+        "solvers": {
+            "amadevs": false,
+            "anvil": false,
+            "ceasiompy": false,
+            "rcaide": false
+        }
+    }
+}
+
+pub fn enableAmadevsSolver(framework, enabled) {
+    framework["solvers"]["amadevs"] = enabled
+    return framework
+}
+
+pub fn enableAnvilSolver(framework, enabled) {
+    framework["solvers"]["anvil"] = enabled
+    return framework
+}
+
+pub fn enableCeasiompySolver(framework, enabled) {
+    framework["solvers"]["ceasiompy"] = enabled
+    return framework
+}
+
+pub fn enableRcaideSolver(framework, enabled) {
+    framework["solvers"]["rcaide"] = enabled
+    return framework
+}
+
+pub fn setMDAOObjective(framework, objective) {
+    framework["optimization"]["objective"] = objective
+    return framework
+}
+
+pub fn addMDAOConstraint(framework, name, minValue, maxValue) {
+    framework["optimization"]["constraints"][name] = {
+        "min": minValue,
+        "max": maxValue
+    }
+    return framework
+}
+
+pub fn addMDAOVariable(framework, name, initialValue, minBound, maxBound) {
+    framework["optimization"]["variables"][name] = {
+        "value": initialValue,
+        "min": minBound,
+        "max": maxBound
+    }
+    return framework
+}
+
+pub fn exportToAmadevs(framework) {
+    if framework["solvers"]["amadevs"] == false {
+        return null
+    }
+    
+    let export = {
+        "format": "amadevs",
+        "aeroModel": aeroSerialize(framework["aeroModel"]),
+        "optimization": framework["optimization"],
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn exportToAnvil(framework) {
+    if framework["solvers"]["anvil"] == false {
+        return null
+    }
+    
+    let export = {
+        "format": "anvil",
+        "aeroModel": aeroSerialize(framework["aeroModel"]),
+        "optimization": framework["optimization"],
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn exportToCeasiompy(framework) {
+    if framework["solvers"]["ceasiompy"] == false {
+        return null
+    }
+    
+    let export = {
+        "format": "ceasiompy",
+        "aeroModel": aeroSerialize(framework["aeroModel"]),
+        "optimization": framework["optimization"],
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn exportToRcaide(framework) {
+    if framework["solvers"]["rcaide"] == false {
+        return null
+    }
+    
+    let export = {
+        "format": "rcaide",
+        "aeroModel": aeroSerialize(framework["aeroModel"]),
+        "optimization": framework["optimization"],
+        "timestamp": systemTime()
+    }
+    
+    return export
+}
+
+pub fn runMDAOOptimization(framework) {
+    let results = {
+        "objectiveValue": 0.0,
+        "iterations": 0,
+        "converged": false,
+        "variables": {}
+    }
+    
+    for varName in framework["optimization"]["variables"] {
+        results["variables"][varName] = framework["optimization"]["variables"][varName]["value"]
+    }
+    
+    return results
+}
+
+pub fn importAmadevsResults(framework, results) {
+    framework["aeroModel"]["flow"] = results["flow"]
+    return framework
+}
+
+pub fn importAnvilResults(framework, results) {
+    framework["aeroModel"]["flow"] = results["flow"]
+    return framework
+}
+
+pub fn importCeasiompyResults(framework, results) {
+    framework["aeroModel"]["flow"] = results["flow"]
+    return framework
+}
+
+pub fn importRcaideResults(framework, results) {
+    framework["aeroModel"]["flow"] = results["flow"]
+    return framework
 }
