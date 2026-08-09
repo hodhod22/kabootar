@@ -5,6 +5,7 @@
 // Canonical path: import "cad/layout"
 
 import "cad/geom"
+import "cad/document"
 
 pub fn createLayout() {
     return {
@@ -195,7 +196,7 @@ fn applyGridLayout(layout, children, containerWidth, containerHeight) {
         let node = child["node"]
         
         let col = i % columns
-        let row = floor(i / columns)
+        let row = systemFloor(i / columns)
         
         let x = padding["left"] + col * (columnWidth + gap)
         let y = padding["top"] + row * (getChildHeight(child) + gap)
@@ -328,4 +329,103 @@ pub fn isLayoutDirty(layout) {
         return false
     }
     return layout["dirty"]
+}
+
+pub fn recomputeLayoutForNode(document, nodeId) {
+    let node = getNode(document, nodeId)
+    if node == null || node["layout"] == null {
+        return document
+    }
+    
+    let layout = node["layout"]
+    let children = getLayoutChildren(document, nodeId)
+    
+    let containerWidth = node["width"]
+    let containerHeight = node["height"]
+    
+    let laidOutChildren = recomputeLayout(layout, children, containerWidth, containerHeight)
+    
+    let i = 0
+    while i < len(laidOutChildren) {
+        let childNode = laidOutChildren[i]
+        document["nodes"][childNode["id"]] = childNode
+        i = i + 1
+    }
+    
+    layout["dirty"] = false
+    node["layout"] = layout
+    document["nodes"][nodeId] = node
+    
+    return document
+}
+
+pub fn recomputeLayoutForDocument(document) {
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["layout"] != null && node["layout"]["dirty"] == true {
+            document = recomputeLayoutForNode(document, nodeId)
+        }
+    }
+    return document
+}
+
+fn getLayoutChildren(document, parentId) {
+    let children = []
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["parentId"] == parentId {
+            let sizingMode = "auto"
+            if node["layoutConstraints"] != null {
+                sizingMode = node["layoutConstraints"]["sizingMode"]
+            }
+            children = push(children, createLayoutChild(node, sizingMode))
+        }
+    }
+    return children
+}
+
+pub fn markLayoutDirty(document, nodeId) {
+    let node = getNode(document, nodeId)
+    if node != null && node["layout"] != null {
+        node["layout"]["dirty"] = true
+        document["nodes"][nodeId] = node
+        
+        let parentId = node["parentId"]
+        while parentId != null {
+            let parentNode = getNode(document, parentId)
+            if parentNode != null && parentNode["layout"] != null {
+                parentNode["layout"]["dirty"] = true
+                document["nodes"][parentId] = parentNode
+                parentId = parentNode["parentId"]
+            } else {
+                break
+            }
+        }
+    }
+    return document
+}
+
+pub fn writeLayoutToNode(document, nodeId, layout, children) {
+    let node = getNode(document, nodeId)
+    if node == null {
+        return document
+    }
+    
+    let containerWidth = node["width"]
+    let containerHeight = node["height"]
+    
+    let laidOutChildren = applyLayout(layout, children, containerWidth, containerHeight)
+    
+    let i = 0
+    while i < len(laidOutChildren) {
+        let childNode = laidOutChildren[i]
+        document["nodes"][childNode["id"]] = childNode
+        i = i + 1
+    }
+    
+    layout["dirty"] = false
+    node["layout"] = layout
+    document["nodes"][nodeId] = node
+    
+    return document
 }
