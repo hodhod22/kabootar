@@ -78,6 +78,67 @@ pub fn archAddWall(building, id, ax, ay, bx, by) {
     return building
 }
 
+pub fn archRemoveWall(building, id) {
+    let document = building["document"]
+    let entityId = findEntityIdByProperty(document, "id", id)
+    if entityId != null {
+        document = removeEntity(document, entityId)
+        building["document"] = document
+    }
+    
+    let walls = []
+    let i = 0
+    while i < len(building["walls"]) {
+        if building["walls"][i]["id"] != id {
+            walls = push(walls, building["walls"][i])
+        }
+        i = i + 1
+    }
+    building["walls"] = walls
+    
+    let wallGraph = building["wallGraph"]
+    for nodeId in wallGraph["nodes"] {
+        let node = wallGraph["nodes"][nodeId]
+        if node != null && node["data"]["wallId"] == id {
+            wallGraph = removeNode(wallGraph, nodeId)
+        }
+    }
+    building["wallGraph"] = wallGraph
+    
+    return building
+}
+
+pub fn archRemoveRoom(building, id) {
+    let document = building["document"]
+    let entityId = findEntityIdByProperty(document, "id", id)
+    if entityId != null {
+        document = removeEntity(document, entityId)
+        building["document"] = document
+    }
+    
+    let rooms = []
+    let i = 0
+    while i < len(building["rooms"]) {
+        if building["rooms"][i]["id"] != id {
+            rooms = push(rooms, building["rooms"][i])
+        }
+        i = i + 1
+    }
+    building["rooms"] = rooms
+    
+    return building
+}
+
+fn findEntityIdByProperty(document, prop, value) {
+    for entityId in document["entities"] {
+        let entity = document["entities"][entityId]
+        if entity != null && entity[prop] == value {
+            return entityId
+        }
+    }
+    return null
+}
+
 pub fn archRoomArea(room) {
     return room["w"] * room["d"]
 }

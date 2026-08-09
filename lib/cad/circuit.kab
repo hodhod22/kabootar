@@ -17,7 +17,8 @@ pub fn createBoard(name) {
         "document": createDocument(name, "mm"),
         "netGraph": createGraph(),
         "parts": [],
-        "nets": []
+        "nets": [],
+        "partToNodeMap": {}
     }
 }
 
@@ -48,6 +49,54 @@ pub fn circuitAddPart(board, id, kind, value, position) {
     return board
 }
 
+pub fn circuitRemovePart(board, id) {
+    let document = board["document"]
+    let entityId = findEntityIdByProperty(document, "id", id)
+    if entityId != null {
+        document = removeEntity(document, entityId)
+        board["document"] = document
+    }
+    
+    let parts = []
+    let i = 0
+    while i < len(board["parts"]) {
+        if board["parts"][i]["id"] != id {
+            parts = push(parts, board["parts"][i])
+        }
+        i = i + 1
+    }
+    board["parts"] = parts
+    
+    let nodeId = board["partToNodeMap"][id]
+    if nodeId != null && nodeId != undefined {
+        board["netGraph"] = removeNode(board["netGraph"], nodeId)
+        board["partToNodeMap"][id] = null
+    }
+    
+    let nets = []
+    let j = 0
+    while j < len(board["nets"]) {
+        let net = board["nets"][j]
+        if net["a"] != id && net["b"] != id {
+            nets = push(nets, net)
+        }
+        j = j + 1
+    }
+    board["nets"] = nets
+    
+    return board
+}
+
+fn findEntityIdByProperty(document, prop, value) {
+    for entityId in document["entities"] {
+        let entity = document["entities"][entityId]
+        if entity != null && entity[prop] == value {
+            return entityId
+        }
+    }
+    return null
+}
+
 pub fn circuitAddNet(board, name, a, b) {
     let fromNode = findPartNode(board, a)
     let toNode = findPartNode(board, b)
@@ -55,11 +104,13 @@ pub fn circuitAddNet(board, name, a, b) {
     if fromNode == null {
         fromNode = createNode({ "partId": a })
         board["netGraph"] = addNode(board["netGraph"], fromNode)
+        board["partToNodeMap"][a] = fromNode["id"]
     }
     
     if toNode == null {
         toNode = createNode({ "partId": b })
         board["netGraph"] = addNode(board["netGraph"], toNode)
+        board["partToNodeMap"][b] = toNode["id"]
     }
     
     let edge = createEdge(fromNode["id"], toNode["id"], {
@@ -74,11 +125,9 @@ pub fn circuitAddNet(board, name, a, b) {
 }
 
 fn findPartNode(board, partId) {
-    for nodeId in board["netGraph"]["nodes"] {
-        let node = board["netGraph"]["nodes"][nodeId]
-        if node != null && node["data"]["partId"] == partId {
-            return node
-        }
+    let nodeId = board["partToNodeMap"][partId]
+    if nodeId != null && nodeId != undefined {
+        return board["netGraph"]["nodes"][nodeId]
     }
     return null
 }
