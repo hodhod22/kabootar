@@ -105,7 +105,7 @@ fn parseTypeArgs() {
     }
     // P6b: type-arg scan uses cached pToksLen (hot len() elimination).
     pAngleI = pPos + 1
-    if pAngleI >= len(pToks) {
+    if pAngleI >= pToksLen {
         return []
     }
     pAngleTok = pToks[pAngleI]
@@ -131,7 +131,7 @@ fn parseTypeArgs() {
             }
         }
     }
-    if pAngleI >= len(pToks) {
+    if pAngleI >= pToksLen {
         return []
     }
     if pToks[pAngleI].type != ">" {

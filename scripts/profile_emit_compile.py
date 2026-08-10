@@ -28,6 +28,19 @@ if len(MANIFEST) >= 2 and MANIFEST[1] == ":":
 
 
 def kabootar_bin() -> str:
+    env_bin = os.environ.get("KABOOTAR_BIN")
+    if env_bin and os.path.isfile(env_bin):
+        return env_bin
+    cargo_target = os.environ.get("CARGO_TARGET_DIR")
+    if cargo_target:
+        for name in ("kabootar.exe", "kabootar"):
+            path = os.path.join(cargo_target, "debug", name)
+            if os.path.isfile(path):
+                return path
+        for name in ("kabootar.exe", "kabootar"):
+            path = os.path.join(cargo_target, "release", name)
+            if os.path.isfile(path):
+                return path
     for sub in ("target-p6b4", "target-h6e5", "target-alt3", "target-alt2", "target"):
         for name in ("kabootar.exe", "kabootar"):
             path = os.path.join(ROOT, sub, "debug", name)

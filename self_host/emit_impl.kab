@@ -137,6 +137,7 @@ let eTypeParams = []
 let eTypeArgs = []
 let eSaveInFn = 0
 let eSaveFnOps = []
+let eSaveFnOpsN = 0
 let eSaveFnLocals = []
 let eSaveFnGlobals = []
 let eGenI = 0
@@ -508,6 +509,7 @@ fn emitExpr(node) {
         let aBody = eNode["body"]
         let saveIn = eInFn
         let saveOps = arrUtil("snap", eFnOps)
+        let saveFnOpsN = eFnOpsN
         let saveLocals = arrUtil("snap", eFnLocals)
         let saveGlobals = arrUtil("snap", eFnGlobals)
         let saveTry = arrUtil("snap", eFnTryRegions)
@@ -539,7 +541,7 @@ fn emitExpr(node) {
         })
         eInFn = saveIn
         eFnOps = saveOps
-        eFnOpsN = len(saveOps)
+        eFnOpsN = saveFnOpsN
         eFnLocals = saveLocals
         rebuildLocalMap()
         eFnGlobals = saveGlobals
@@ -766,6 +768,8 @@ fn emitExpr(node) {
     }
     if eNode.kind == AST_CALL {
         eArgs = eNode["args"]
+        // P6b: cache argc once (avoid repeated len(eArgs) LoadGlobal clones).
+        eArgN = len(eArgs)
         eCalleeStack = push(eCalleeStack, eNode["callee"])
         eCalleeDepth = eCalleeDepth + 1
         eCallee = eNode["callee"]
@@ -776,7 +780,7 @@ fn emitExpr(node) {
         }
         if eCallee.kind == AST_VAR {
             let ctorName = eCallee["sym"]
-            if len(eArgs) == 1 {
+            if eArgN == 1 {
                 if ctorName == "Ok" {
                     emitExpr(eArgs[0])
                     emitOp(OP_MAKE_OK, 0)
@@ -886,7 +890,6 @@ fn emitExpr(node) {
                         })
                         symIndex("global",eMangled)
                     }
-                    eArgN = len(eArgs)
                     eCallArgIStack = push(eCallArgIStack, 0)
                     eCallArgNStack = push(eCallArgNStack, eArgN)
                     eArgsStack = push(eArgsStack, eArgs)
@@ -999,6 +1002,7 @@ fn emitExpr(node) {
                     if eFoundMeth == 0 {
                         eSaveInFn = eInFn
                         eSaveFnOps = arrUtil("snap",eFnOps)
+                        eSaveFnOpsN = eFnOpsN
                         eSaveFnLocals = arrUtil("snap",eFnLocals)
                         eSaveFnGlobals = arrUtil("snap",eFnGlobals)
                         eInFn = 1
@@ -1039,7 +1043,7 @@ fn emitExpr(node) {
                         eClasses = eNewClasses
                         eInFn = eSaveInFn
                         eFnOps = eSaveFnOps
-                        eFnOpsN = len(eSaveFnOps)
+                        eFnOpsN = eSaveFnOpsN
                         eFnLocals = eSaveFnLocals
                         rebuildLocalMap()
                         eFnGlobals = eSaveFnGlobals
@@ -1047,7 +1051,6 @@ fn emitExpr(node) {
                 }
                 eClassIdx = eClassIdx + 1
             }
-            eArgN = len(eArgs)
             emitExpr(eMemObj)
             eIdx = symIndex("const",eMethodMangled)
             emitOp(OP_GET_MEMBER, eIdx)
@@ -1175,7 +1178,6 @@ fn emitExpr(node) {
                     eClasses = push(eClasses, { "sym": eMangled, "methods": eClassMethods })
                     symIndex("global",eMangled)
                 }
-                eArgN = len(eArgs)
                 eCallArgIStack = push(eCallArgIStack, 0)
                 eCallArgNStack = push(eCallArgNStack, eArgN)
                 eArgsStack = push(eArgsStack, eArgs)
@@ -1273,6 +1275,7 @@ fn emitExpr(node) {
                 if eFound == 0 {
                     eSaveInFn = eInFn
                     eSaveFnOps = arrUtil("snap",eFnOps)
+                    eSaveFnOpsN = eFnOpsN
                     eSaveFnLocals = arrUtil("snap",eFnLocals)
                     eSaveFnGlobals = arrUtil("snap",eFnGlobals)
                     eFnSave = eMangled
@@ -1302,7 +1305,7 @@ fn emitExpr(node) {
                     eSpecMangled = push(eSpecMangled, eMangled)
                     eInFn = eSaveInFn
                     eFnOps = eSaveFnOps
-                    eFnOpsN = len(eSaveFnOps)
+                    eFnOpsN = eSaveFnOpsN
                     eFnLocals = eSaveFnLocals
                     rebuildLocalMap()
                     eFnGlobals = eSaveFnGlobals
@@ -1311,7 +1314,6 @@ fn emitExpr(node) {
             }
             eClassIdx = symIndex("class",eGenSym)
             if eClassIdx >= 0 {
-                eArgN = len(eArgs)
                 eCallArgIStack = push(eCallArgIStack, 0)
                 eCallArgNStack = push(eCallArgNStack, eArgN)
                 eArgsStack = push(eArgsStack, eArgs)
@@ -1327,7 +1329,6 @@ fn emitExpr(node) {
                 return
             }
         }
-        eArgN = len(eArgs)
         if eArgN == 0 {
             emitCallCallee()
             emitOp(OP_CALL, 0)

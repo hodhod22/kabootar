@@ -417,7 +417,7 @@ fn_op 2 dup
 fn_op 2 store_global 8
 fn_op 2 pop
 fn_op 2 load_global 8
-fn_op 2 len_global 5
+fn_op 2 load_global 4
 fn_op 2 ge
 fn_op 2 jump_if_false 2
 fn_op 2 make_array 0
@@ -478,7 +478,7 @@ fn_op 2 make_array 0
 fn_op 2 return
 fn_op 2 jump -41
 fn_op 2 load_global 8
-fn_op 2 len_global 5
+fn_op 2 load_global 4
 fn_op 2 ge
 fn_op 2 jump_if_false 2
 fn_op 2 make_array 0
@@ -5480,4 +5480,4 @@ halt
 
 source=self_host/parser_impl.kab
 statements=90
-fingerprint=4566342bfebdf4a0
+fingerprint=3c2ddd128223c95e
