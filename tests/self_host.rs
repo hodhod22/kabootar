@@ -1997,7 +1997,7 @@ fn self_host_heavy_cores_still_skipped() {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_body.kab",
+        "serialize_defs.kab",
         "vm_run_body.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -2148,12 +2148,12 @@ fn h6e_skip_listed_kab_only_uses_seed() {
     };
 
     let path = format!(
-        "{}/self_host/serialize_body.kab",
+        "{}/self_host/serialize_defs.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(
         self_host_is_skip_listed(&path),
-        "serialize_body.kab must stay skip-listed"
+        "serialize_defs.kab must stay skip-listed"
     );
     kabootar_lib::compile::invalidate_file_cache(&path);
     if let Ok(base) = std::env::current_dir() {
@@ -2222,60 +2222,58 @@ fn p6_seed_fingerprint_all_leaves_load() {
     }
 }
 
-/// P6b progress: smallest skip-listed leaf stays tracked; empty-list flag off.
+/// P6b progress: serialize AccAdd body lives in skip-listed serialize_defs;
+/// serialize_body is a thin CI-fast facade.
 #[test]
 fn p6b_serialize_body_still_skip_listed_progress() {
     use kabootar_lib::compile::{
-        self_host_is_skip_listed, P6B_EMPTY_SKIP_LIST_READY, SELF_HOST_SKIP_LISTED_LEAVES,
+        self_host_is_attemptable, self_host_is_skip_listed, P6B_EMPTY_SKIP_LIST_READY,
+        SELF_HOST_SKIP_LISTED_LEAVES,
     };
     assert!(
         !P6B_EMPTY_SKIP_LIST_READY,
         "P6b: empty skip-list not ready until leaf self-host <10s"
     );
     assert!(
-        SELF_HOST_SKIP_LISTED_LEAVES.contains(&"self_host/serialize_body.kab"),
-        "serialize_body remains the first P6b speed target"
+        SELF_HOST_SKIP_LISTED_LEAVES.contains(&"self_host/serialize_defs.kab"),
+        "serialize_defs remains the P6b serialize speed target"
     );
     let root = env!("CARGO_MANIFEST_DIR");
-    let path = format!("{root}/self_host/serialize_body.kab");
-    let src = std::fs::read_to_string(&path).expect("read serialize_body");
-    let defs = std::fs::read_to_string(format!("{root}/self_host/serialize_defs.kab"))
-        .expect("read serialize_defs");
+    let body = format!("{root}/self_host/serialize_body.kab");
+    let defs = format!("{root}/self_host/serialize_defs.kab");
+    let body_src = std::fs::read_to_string(&body).expect("read serialize_body");
+    let defs_src = std::fs::read_to_string(&defs).expect("read serialize_defs");
     assert!(
-        src.len() < 20 * 1024,
-        "serialize_body should stay the smallest leaf (~13KB class)"
+        body_src.len() < 2 * 1024,
+        "serialize_body should stay a thin facade after defs move (~1KB)"
     );
     assert!(
-        defs.contains("pub let IR_WITH_ARG") && defs.contains("pub let IR_ZERO_ARG"),
-        "P6b: IR membership tables must live in serialize_defs (not leaf Const AST)"
+        defs_src.contains("pub let IR_WITH_ARG") && defs_src.contains("pub let IR_ZERO_ARG"),
+        "P6b: IR membership tables must live in serialize_defs"
     );
     assert!(
-        defs.contains("|len_global|") && defs.contains("|index_get_global|"),
+        defs_src.contains("|len_global|") && defs_src.contains("|index_get_global|"),
         "P6b: IR_WITH_ARG must list len_*/index_get_* for serialize"
     );
     assert!(
-        src.contains("serConstLine") && src.contains("serIrOpLine") && !src.contains("let IR_WITH_ARG"),
-        "P6b: leaf must call serConstLine/serIrOpLine from defs (no local IR tables)"
+        defs_src.contains("pub fn serSerializeBc(")
+            && defs_src.contains("fn serOutTag(")
+            && defs_src.contains("pub fn serConstLine("),
+        "P6b: AccAdd + serialize body must live in serialize_defs"
     );
     assert!(
-        defs.contains("pub fn serConstLine(")
-            && defs.contains("pub fn serIrOpLine(")
-            && defs.contains("pub fn serEscStr("),
-        "P6b: pure serialize helpers must live in serialize_defs (not leaf AST)"
+        body_src.contains("serSerializeBc") && body_src.contains("fn serializeBcImplCore("),
+        "P6b: leaf must thin-wrap serSerializeBc"
     );
     assert!(
-        !src.contains("fn constLine(") && !src.contains("fn irOpLine(") && !src.contains("fn escStr("),
-        "P6b: leaf must not redefine constLine/irOpLine/escStr"
+        !body_src.contains("fn outTag(") && !body_src.contains("fn appendFunctions("),
+        "P6b: leaf must not keep AccAdd/section helpers"
     );
+    assert!(self_host_is_skip_listed(&defs));
     assert!(
-        src.contains("fn outTag(") && src.contains("fn outSpNum(") && src.contains("fn outTagged("),
-        "P6b: shallow AccAdd outTag/outSpNum/outTagged helpers required"
+        self_host_is_attemptable(&body),
+        "thin serialize_body facade must be self-host attemptable"
     );
-    assert!(
-        src.contains("fn appendFunctions(") && src.contains("fn serializeBcImplCore("),
-        "P6b: serializeBcImplCore must stay thin via appendFunctions/appendArrows"
-    );
-    assert!(self_host_is_skip_listed(&path));
 }
 
 /// P6: skip-list stays until every leaf self-host-compiles under CI-fast gate.
@@ -2355,7 +2353,7 @@ fn h6e_skip_listed_kab_only_no_seed_fails() {
     // Path must look like a self_host skip-listed leaf.
     let sh = dir.join("self_host");
     let _ = std::fs::create_dir_all(&sh);
-    let path = sh.join("serialize_body.kab");
+    let path = sh.join("serialize_defs.kab");
     std::fs::write(&path, "// not a real leaf\nreturn 1\n").expect("write fake leaf");
     let path_s = path.to_string_lossy().to_string();
 
@@ -2872,9 +2870,8 @@ fn self_host_unescape_probe() {
 }
 
 
-/// P6b: time only serialize_body (ignored — may still be minutes until denser).
+/// P6b: thin serialize_body facade must self-host under CI-fast budget.
 #[test]
-#[ignore = "slow: serialize_body self-host compile timing probe"]
 fn p6b_serialize_body_compile_budget() {
     use kabootar_lib::compile::{compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS};
     use std::time::Instant;
@@ -2901,4 +2898,39 @@ fn p6b_serialize_body_compile_budget() {
         eprintln!("serialize_body compile error: {e}");
     }
     assert!(ok, "serialize_body must self-host-compile");
+    assert!(
+        ms <= P6_SELF_HOST_LEAF_CI_FAST_MS,
+        "thin serialize_body facade must be CI-fast, got {ms}ms"
+    );
+}
+
+/// P6b: time serialize_defs (ignored — AccAdd body still minutes until denser).
+#[test]
+#[ignore = "slow: serialize_defs self-host compile timing probe"]
+fn p6b_serialize_defs_compile_budget() {
+    use kabootar_lib::compile::{compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS};
+    use std::time::Instant;
+    let root = env!("CARGO_MANIFEST_DIR");
+    let path = format!("{root}/self_host/serialize_defs.kab");
+    let src = std::fs::read_to_string(&path).expect("read");
+    let (ok, ms, err) = std::thread::Builder::new()
+        .name("p6b-ser-defs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let t0 = Instant::now();
+            let r = compile_source_self_host(&src);
+            let err = r.as_ref().err().cloned();
+            (r.is_ok(), t0.elapsed().as_millis() as u64, err)
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    eprintln!(
+        "serialize_defs.kab: ok={ok} ms={ms} budget={}",
+        P6_SELF_HOST_LEAF_CI_FAST_MS
+    );
+    if let Some(e) = err.as_ref() {
+        eprintln!("serialize_defs compile error: {e}");
+    }
+    assert!(ok, "serialize_defs must self-host-compile");
 }

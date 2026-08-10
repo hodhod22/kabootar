@@ -5,10 +5,8 @@
 // extra host `call_value` frame, which breaks Kab VM reentrancy under
 // KABOOTAR_VM=kab-only — see self_host/vm.kab header for the full explanation.
 //
-// serialize_body.kab stays skip-listed (~13KB of `s*`-accumulator code whose
-// self-host compile takes minutes). This facade's own source is a two-line import
-// + alias, so `compile self_host/serialize_impl.kab --self-host` is CI-fast and the
-// file no longer needs to be on the skip list itself.
+// serialize_body is a CI-fast re-export of serSerializeBc; AccAdd AST lives in
+// skip-listed serialize_defs.kab (seed-loaded under kab-only).
 
 import "self_host/serialize_body"
 
