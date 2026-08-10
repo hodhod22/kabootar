@@ -2258,8 +2258,8 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: serialize_body must use imported IR_WITH_ARG (no local huge string Const)"
     );
     assert!(
-        src.contains("fn outTag(") && src.contains("fn outSpNum("),
-        "P6b: shallow AccAdd outTag/outSpNum helpers required"
+        src.contains("fn outTag(") && src.contains("fn outSpNum(") && src.contains("fn outTagged("),
+        "P6b: shallow AccAdd outTag/outSpNum/outTagged helpers required"
     );
     assert!(
         !src.contains("if sOp == OP_ADD"),
@@ -2688,6 +2688,15 @@ fn p6b_emit_call_block_depth_progress() {
     assert!(
         src.contains("P6b: use eCalleeDepth"),
         "emitCallCallee must use eCalleeDepth"
+    );
+    assert!(
+        src.contains("P6b: cache argc once"),
+        "Call path must cache eArgN once (not repeated len(eArgs))"
+    );
+    assert_eq!(
+        src.matches("eArgN = len(eArgs)").count(),
+        1,
+        "Call path must assign eArgN = len(eArgs) exactly once"
     );
     assert!(
         src.contains("fn dropCallCallee()"),

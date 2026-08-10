@@ -30,7 +30,8 @@ Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
 **Full leaf:** `p6b_serialize_body_compile_budget` after **`Rc` Array/Object** (+ Len/IndexGet).
 Measure with ignored budget test; skip-list stays until ≤10 s. Prior: ~697 s depth-only →
-~676 s Len/Index → **~144 s** with Rc (2026-08-07).
+~676 s Len/Index → **~144 s** with Rc (2026-08-07). outTagged densify + eArgN/eFnOpsN/pToksLen
+(2026-08-10) keep ~144 s wall (parse≈41% / emit≈29% / serialize≈30%) — still ≫ 10 s.
 
 **Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
 Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
@@ -51,7 +52,8 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
      (Rust + Kab emit peephole; regen seeds)
    - host-VM **`Value::Array`/`Object` as `Rc`** (O(1) LoadGlobal clone) with
      **COW `make_mut`** + **direct self-cycle reject** (see [OWNERSHIP.md](../../docs/OWNERSHIP.md))
-   - leaf densify: `outSp` helper; parser `pToksLen` in hot scans
+   - leaf densify: `outSp` / `outTagged` / `outTagEq` helpers; parser `pToksLen` in hot scans
+   - emit: **`eSaveFnOpsN` / arrow `saveFnOpsN`**; Call **`eArgN` cached once**
 3. **Measure** before flipping any flag:
    ```bash
    cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
@@ -64,7 +66,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | + `Rc` Array/Object (COW + cycle reject) + Len/IndexGet | **~144 s** debug (2026-08-07; was ~676 s) — still ≫ 10 s |
+| `serialize_body.kab` | + outTagged densify + toolchain len caches | **~144 s** debug (2026-08-10) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
