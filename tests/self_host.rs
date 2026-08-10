@@ -1997,14 +1997,11 @@ fn self_host_heavy_cores_still_skipped() {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_out_try.kab",
         "serialize_fns.kab",
         "serialize_arrows.kab",
         "serialize_class_methods.kab",
-        "serialize_classes.kab",
-        "serialize_acc.kab",
-        "serialize_const.kab",
-        "serialize_ir_line.kab",
+        "serialize_acc_tail.kab",
+        "serialize_ir_op.kab",
         "vm_run_body.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -2155,12 +2152,12 @@ fn h6e_skip_listed_kab_only_uses_seed() {
     };
 
     let path = format!(
-        "{}/self_host/serialize_acc.kab",
+        "{}/self_host/serialize_fns.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(
         self_host_is_skip_listed(&path),
-        "serialize_acc.kab must stay skip-listed"
+        "serialize_fns.kab must stay skip-listed"
     );
     kabootar_lib::compile::invalidate_file_cache(&path);
     if let Ok(base) = std::env::current_dir() {
@@ -2191,7 +2188,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 12);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2213,7 +2210,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
 fn p6_seed_fingerprint_all_leaves_load() {
     use kabootar_lib::compile::{read_seed_bytecode, SELF_HOST_SKIP_LISTED_LEAVES};
 
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 12);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2241,14 +2238,11 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: empty skip-list not ready until leaf self-host <10s"
     );
     for leaf in [
-        "self_host/serialize_out_try.kab",
         "self_host/serialize_fns.kab",
         "self_host/serialize_arrows.kab",
         "self_host/serialize_class_methods.kab",
-        "self_host/serialize_classes.kab",
-        "self_host/serialize_acc.kab",
-        "self_host/serialize_const.kab",
-        "self_host/serialize_ir_line.kab",
+        "self_host/serialize_acc_tail.kab",
+        "self_host/serialize_ir_op.kab",
     ] {
         assert!(
             SELF_HOST_SKIP_LISTED_LEAVES.contains(&leaf),
@@ -2262,10 +2256,21 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "self_host/serialize_out.kab",
         "self_host/serialize_out_base.kab",
         "self_host/serialize_out_tagged.kab",
+        "self_host/serialize_out_try.kab",
+        "self_host/serialize_out_try5.kab",
+        "self_host/serialize_out_try4.kab",
         "self_host/serialize_ops.kab",
         "self_host/serialize_lists.kab",
+        "self_host/serialize_fn_tries.kab",
+        "self_host/serialize_class_method_ops.kab",
+        "self_host/serialize_classes.kab",
         "self_host/serialize_sections.kab",
         "self_host/serialize_op.kab",
+        "self_host/serialize_ir_line.kab",
+        "self_host/serialize_acc.kab",
+        "self_host/serialize_acc_pool.kab",
+        "self_host/serialize_const.kab",
+        "self_host/serialize_join.kab",
     ] {
         assert!(
             !SELF_HOST_SKIP_LISTED_LEAVES.contains(&leaf),
@@ -2282,11 +2287,13 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let ops = format!("{root}/self_host/serialize_ops.kab");
     let fns = format!("{root}/self_host/serialize_fns.kab");
     let acc = format!("{root}/self_host/serialize_acc.kab");
+    let acc_pool = format!("{root}/self_host/serialize_acc_pool.kab");
     let esc = format!("{root}/self_host/serialize_esc.kab");
     let op = format!("{root}/self_host/serialize_op.kab");
     let out_base = format!("{root}/self_host/serialize_out_base.kab");
     let konst = format!("{root}/self_host/serialize_const.kab");
     let ir_line = format!("{root}/self_host/serialize_ir_line.kab");
+    let ir_op = format!("{root}/self_host/serialize_ir_op.kab");
     let body_src = std::fs::read_to_string(&body).expect("read serialize_body");
     let defs_src = std::fs::read_to_string(&defs).expect("read serialize_defs");
     let ir_src = std::fs::read_to_string(&ir).expect("read serialize_ir");
@@ -2296,11 +2303,13 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let ops_src = std::fs::read_to_string(&ops).expect("read serialize_ops");
     let fns_src = std::fs::read_to_string(&fns).expect("read serialize_fns");
     let acc_src = std::fs::read_to_string(&acc).expect("read serialize_acc");
+    let acc_pool_src = std::fs::read_to_string(&acc_pool).expect("read serialize_acc_pool");
     let esc_src = std::fs::read_to_string(&esc).expect("read serialize_esc");
     let op_src = std::fs::read_to_string(&op).expect("read serialize_op");
     let out_base_src = std::fs::read_to_string(&out_base).expect("read serialize_out_base");
     let const_src = std::fs::read_to_string(&konst).expect("read serialize_const");
     let ir_line_src = std::fs::read_to_string(&ir_line).expect("read serialize_ir_line");
+    let ir_op_src = std::fs::read_to_string(&ir_op).expect("read serialize_ir_op");
     assert!(
         body_src.len() < 2 * 1024,
         "serialize_body should stay a thin facade (~1KB)"
@@ -2310,7 +2319,8 @@ fn p6b_serialize_body_still_skip_listed_progress() {
             && pure_src.contains("pub import")
             && out_src.contains("pub import")
             && sections_src.contains("pub import")
-            && op_src.contains("pub import"),
+            && op_src.contains("pub import")
+            && ir_line_src.contains("pub import"),
         "aggregators should stay pub-import facades"
     );
     assert!(
@@ -2331,14 +2341,16 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: section appenders must live in leaf shards and thread out"
     );
     assert!(
-        acc_src.contains("pub fn serSerializeBc(") && acc_src.contains("let out = KBC_HEADER"),
-        "P6b: serSerializeBc orchestration must live in serialize_acc"
+        acc_src.contains("pub fn serSerializeBc(")
+            && acc_src.contains("serAppendConsts(")
+            && acc_pool_src.contains("pub fn serAppendConsts("),
+        "P6b: serSerializeBc must orchestrate pool/tail helpers"
     );
     assert!(
         esc_src.contains("pub fn serEscStr(")
             && const_src.contains("pub fn serConstLine(")
-            && ir_line_src.contains("pub fn serIrOpLine("),
-        "P6b: esc/const/ir_line helpers must live in their shards"
+            && ir_op_src.contains("pub fn serIrOpLine("),
+        "P6b: esc/const/ir_op helpers must live in their shards"
     );
     assert!(
         body_src.contains("serSerializeBc") && body_src.contains("fn serializeBcImplCore("),
@@ -2348,11 +2360,13 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         !body_src.contains("fn outTag(") && !body_src.contains("fn appendFunctions("),
         "P6b: leaf must not keep AccAdd/section helpers"
     );
-    for path in [&fns, &acc, &konst, &ir_line] {
+    let acc_tail = format!("{root}/self_host/serialize_acc_tail.kab");
+    for path in [&fns, &acc_tail, &ir_op] {
         assert!(self_host_is_skip_listed(path));
     }
     for path in [
-        &body, &defs, &ir, &pure, &out, &sections, &op, &esc, &out_base, &ops,
+        &body, &defs, &ir, &pure, &out, &sections, &op, &esc, &out_base, &ops, &ir_line, &acc,
+        &acc_pool, &konst,
     ] {
         assert!(
             self_host_is_attemptable(path),
@@ -2371,7 +2385,7 @@ fn p6_skip_list_stays_until_ci_fast_gate() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 12);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
     assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
     assert!(
         !P6B_EMPTY_SKIP_LIST_READY,
@@ -2439,7 +2453,7 @@ fn h6e_skip_listed_kab_only_no_seed_fails() {
     // Path must look like a self_host skip-listed leaf.
     let sh = dir.join("self_host");
     let _ = std::fs::create_dir_all(&sh);
-    let path = sh.join("serialize_acc.kab");
+    let path = sh.join("serialize_fns.kab");
     std::fs::write(&path, "// not a real leaf\nreturn 1\n").expect("write fake leaf");
     let path_s = path.to_string_lossy().to_string();
 
@@ -2998,14 +3012,11 @@ fn p6b_serialize_shards_compile_budget() {
     use std::time::Instant;
     let root = env!("CARGO_MANIFEST_DIR");
     for name in [
-        "serialize_out_try.kab",
         "serialize_fns.kab",
         "serialize_arrows.kab",
         "serialize_class_methods.kab",
-        "serialize_classes.kab",
-        "serialize_acc.kab",
-        "serialize_const.kab",
-        "serialize_ir_line.kab",
+        "serialize_acc_tail.kab",
+        "serialize_ir_op.kab",
     ] {
         let path = format!("{root}/self_host/{name}");
         let src = std::fs::read_to_string(&path).expect("read");

@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=13
+constants=11
 const 0 null
 const 1 string serialize:\snull\sop\sin\sIR
 const 2 string op
@@ -11,15 +11,12 @@ const 7 undefined
 const 8 number 0
 const 9 string |
 const 10 string Unsupported\sIR\sop:\s
-const 11 string ,
-const 12 number 1
 global 0 OP_NEW_INSTANCE
 global 1 IR_WITH_ARG
 global 2 str_index_of
 global 3 IR_ZERO_ARG
 global 4 serIrOpLine
-global 5 serJoinComma
-functions=2
+functions=1
 fn 0 serIrOpLine
 fn_params 0 op
 fn_locals 0 op,name,line,a2
@@ -106,54 +103,19 @@ fn_op 0 load_local 1
 fn_op 0 add
 fn_op 0 return
 fn_arrows 0 0
-fn 1 serJoinComma
-fn_params 1 arr
-fn_locals 1 arr,params,k,n
-fn_op 1 const 4
-fn_op 1 store_local 1
-fn_op 1 const 8
-fn_op 1 store_local 2
-fn_op 1 len_local 0
-fn_op 1 store_local 3
-fn_op 1 load_local 2
-fn_op 1 load_local 3
-fn_op 1 lt
-fn_op 1 jump_if_false 18
-fn_op 1 load_local 1
-fn_op 1 const 4
-fn_op 1 eq
-fn_op 1 jump_if_false 6
-fn_op 1 load_local 2
-fn_op 1 index_get_local 0
-fn_op 1 dup
-fn_op 1 store_local 1
-fn_op 1 pop
-fn_op 1 jump 5
-fn_op 1 const 11
-fn_op 1 acc_add_local 1
-fn_op 1 load_local 2
-fn_op 1 index_get_local 0
-fn_op 1 acc_add_local 1
-fn_op 1 const 12
-fn_op 1 acc_add_local 2
-fn_op 1 jump -22
-fn_op 1 load_local 1
-fn_op 1 return
-fn_arrows 1 0
 arrows=0
 imports=2
 import 0 self_host/emit_defs
 import 1 self_host/serialize_ir
 pub_imports=0
-exports=2
+exports=1
 export 0 serIrOpLine
-export 1 serJoinComma
 memory_mode=gc
 interfaces=0
 classes=0
 code
 halt
 
-source=self_host/serialize_ir_line.kab
-statements=4
-fingerprint=a430cb8ef8010452
+source=self_host/serialize_ir_op.kab
+statements=3
+fingerprint=2a7d9aa81b8db4ce

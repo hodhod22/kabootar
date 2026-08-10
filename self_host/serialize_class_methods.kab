@@ -1,6 +1,7 @@
 // P6b: class-method appender (skip-listed until ≤10s).
 import "self_host/serialize_pure"
 import "self_host/serialize_out"
+import "self_host/serialize_class_method_ops"
 
 pub fn serAppendClassMethods(out, ci, methods) {
     let j = 0
@@ -11,13 +12,7 @@ pub fn serAppendClassMethods(out, ci, methods) {
         out = serOutTagged2(out, "class_method_params", ci, j, serJoinComma(meth["params"]))
         out = serOutTagged2(out, "class_method_locals", ci, j, serJoinComma(meth["locals"]))
         out = serOutTagged2(out, "class_method_globals", ci, j, serJoinComma(meth["globals"]))
-        let k = 0
-        let arr = meth["ops"]
-        let nOps = len(arr)
-        while k < nOps {
-            out = serOutTagged2(out, "class_method_op", ci, j, serIrOpLine(arr[k]))
-            k = k + 1
-        }
+        out = serAppendClassMethodOps(out, ci, j, meth["ops"])
         j = j + 1
     }
     return out

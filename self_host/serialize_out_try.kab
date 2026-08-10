@@ -1,21 +1,3 @@
-// P6b: try-region out helpers (skip-listed until ≤10s).
-import "self_host/serialize_out_base"
-
-pub fn serOutTry5(out, tag, a, b, tr) {
-    let s = serOutTag(out, tag)
-    s = serOutSpNum(s, a)
-    s = serOutSpNum(s, b)
-    s = serOutSpNum(s, tr["bodyStart"])
-    s = serOutSpNum(s, tr["bodyEnd"])
-    s = serOutSpNum(s, tr["catchStart"])
-    return serOutSpNum(s, tr["errLocal"])
-}
-
-pub fn serOutTry4(out, tag, a, tr) {
-    let s = serOutTag(out, tag)
-    s = serOutSpNum(s, a)
-    s = serOutSpNum(s, tr["bodyStart"])
-    s = serOutSpNum(s, tr["bodyEnd"])
-    s = serOutSpNum(s, tr["catchStart"])
-    return serOutSpNum(s, tr["errLocal"])
-}
+// P6b: try out-helpers aggregator (attemptable).
+pub import "self_host/serialize_out_try5"
+pub import "self_host/serialize_out_try4"

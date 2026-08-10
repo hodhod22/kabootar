@@ -1,0 +1,12 @@
+// P6b: fn try-region appender (skip-listed until ≤10s).
+import "self_host/serialize_out"
+
+pub fn serAppendFnTries(out, i, regions) {
+    let j = 0
+    let nTr = len(regions)
+    while j < nTr {
+        out = serOutTry5(out, "fn_try_region", i, j, regions[j])
+        j = j + 1
+    }
+    return out
+}

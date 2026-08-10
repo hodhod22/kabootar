@@ -1,38 +1,16 @@
-// P6b: serSerializeBc orchestration — pure string threading (skip-listed until ≤10s).
+// P6b: serSerializeBc orchestration (skip-listed until ≤10s).
 import "self_host/serialize_ir"
-import "self_host/serialize_pure"
 import "self_host/serialize_out"
 import "self_host/serialize_sections"
+import "self_host/serialize_acc_pool"
+import "self_host/serialize_acc_tail"
 
 pub fn serSerializeBc(bc) {
     let out = KBC_HEADER
     out = serOutTagEq(out, "constants=", len(bc.constants))
-    let i = 0
-    let nConst = len(bc.constants)
-    while i < nConst {
-        out = serOutTag(out, serConstLine(i, bc.constants[i]))
-        i = i + 1
-    }
-    i = 0
-    let nGlob = len(bc.globals)
-    while i < nGlob {
-        out = serOutTagged(out, "global", i, bc.globals[i])
-        i = i + 1
-    }
+    out = serAppendConsts(out, bc.constants)
+    out = serAppendGlobals(out, bc.globals)
     out = serAppendFunctions(out, bc.functions)
     out = serAppendArrows(out, bc.arrows)
-    if bc.tryRegions != undefined {
-        i = 0
-        let nMtr = len(bc.tryRegions)
-        while i < nMtr {
-            out = serOutTry4(out, "main_try_region", i, bc.tryRegions[i])
-            i = i + 1
-        }
-    }
-    out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
-    out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
-    out = serAppendClasses(out, bc.classes)
-    out = serOutTag(out, "code")
-    out = serAppendOps(out, bc.ops)
-    return out
+    return serAppendBcTail(out, bc)
 }

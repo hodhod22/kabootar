@@ -1,7 +1,9 @@
 // P6b: section-appenders aggregator (attemptable).
 pub import "self_host/serialize_ops"
 pub import "self_host/serialize_lists"
+pub import "self_host/serialize_fn_tries"
 pub import "self_host/serialize_fns"
 pub import "self_host/serialize_arrows"
+pub import "self_host/serialize_class_method_ops"
 pub import "self_host/serialize_class_methods"
 pub import "self_host/serialize_classes"
