@@ -59,14 +59,17 @@ impl CompilePrefer {
 ///
 /// P6 policy: **seed-only** — leaves stay skip-listed; kab-only loads committed
 /// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
-/// of these shards is CI-fast. P6b: AccAdd serialize split into `serialize_pure` +
-/// `serialize_acc` (skip-listed); `serialize_body` / `serialize_defs` stay thin facades.
+/// of these shards is CI-fast. P6b: AccAdd+out helpers in `serialize_out`; section
+/// appenders in `serialize_sections`; orchestration in `serialize_acc`; pure split
+/// (`serialize_esc` / `serialize_op`). Thin facades stay attemptable.
 pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
     "self_host/emit_impl.kab",
     "self_host/parser_impl.kab",
     "self_host/lexer_impl.kab",
-    "self_host/serialize_pure.kab",
+    "self_host/serialize_out.kab",
+    "self_host/serialize_sections.kab",
     "self_host/serialize_acc.kab",
+    "self_host/serialize_op.kab",
     "self_host/vm_run_body.kab",
 ];
 
@@ -87,8 +90,10 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "emit_impl.kab"
             | "parser_impl.kab"
             | "lexer_impl.kab"
-            | "serialize_pure.kab"
+            | "serialize_out.kab"
+            | "serialize_sections.kab"
             | "serialize_acc.kab"
+            | "serialize_op.kab"
             | "vm_run_body.kab"
     ) && norm.contains("self_host")
     {
@@ -553,8 +558,10 @@ pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_pure.kab",
+        "serialize_out.kab",
+        "serialize_sections.kab",
         "serialize_acc.kab",
+        "serialize_op.kab",
         "vm_run_body.kab",
     ];
     let base_name = Path::new(&norm)
