@@ -1,0 +1,23 @@
+// P6b: class-section appender (skip-listed until ≤10s).
+import "self_host/serialize_out"
+import "self_host/serialize_class_methods"
+
+pub fn serAppendClasses(out, classes) {
+    if classes == undefined {
+        return serOutTag(out, "classes=0")
+    }
+    out = serOutTagEq(out, "classes=", len(classes))
+    let i = 0
+    let n = len(classes)
+    while i < n {
+        let cls = classes[i]
+        out = serOutTagged(out, "class", i, cls["sym"])
+        if cls["isStruct"] == 1 {
+            out = serOutTag(out, "class_is_struct")
+            out = serOutSpNum(out, i)
+        }
+        out = serAppendClassMethods(out, i, cls["methods"])
+        i = i + 1
+    }
+    return out
+}
