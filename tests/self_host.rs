@@ -2254,16 +2254,26 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: IR_WITH_ARG must list len_*/index_get_* for serialize"
     );
     assert!(
-        src.contains("IR_WITH_ARG") && !src.contains("let IR_WITH_ARG"),
-        "P6b: serialize_body must use imported IR_WITH_ARG (no local huge string Const)"
+        src.contains("serConstLine") && src.contains("serIrOpLine") && !src.contains("let IR_WITH_ARG"),
+        "P6b: leaf must call serConstLine/serIrOpLine from defs (no local IR tables)"
+    );
+    assert!(
+        defs.contains("pub fn serConstLine(")
+            && defs.contains("pub fn serIrOpLine(")
+            && defs.contains("pub fn serEscStr("),
+        "P6b: pure serialize helpers must live in serialize_defs (not leaf AST)"
+    );
+    assert!(
+        !src.contains("fn constLine(") && !src.contains("fn irOpLine(") && !src.contains("fn escStr("),
+        "P6b: leaf must not redefine constLine/irOpLine/escStr"
     );
     assert!(
         src.contains("fn outTag(") && src.contains("fn outSpNum(") && src.contains("fn outTagged("),
         "P6b: shallow AccAdd outTag/outSpNum/outTagged helpers required"
     );
     assert!(
-        !src.contains("if sOp == OP_ADD"),
-        "P6b: per-op If arms in irOpLine should stay collapsed"
+        src.contains("fn appendFunctions(") && src.contains("fn serializeBcImplCore("),
+        "P6b: serializeBcImplCore must stay thin via appendFunctions/appendArrows"
     );
     assert!(self_host_is_skip_listed(&path));
 }

@@ -3,55 +3,22 @@
 //
 // Self-host cost scales with AST size of this source. Keep skip-listed until
 // p6b_serialize_body_compile_budget is under P6_SELF_HOST_LEAF_CI_FAST_MS.
-// P6b: IR tables in serialize_defs; AccAdd out*/outTagged; local loop bounds
-// (never share module sN across nested helpers).
+// P6b: pure helpers (serEscStr/serConstLine/serIrOpLine/serJoinComma) live in
+// serialize_defs — bisect showed those fns dominate leaf compile; AccAdd out*
+// + section helpers stay here (need mutable sOut).
 import "self_host/lexer_defs"
 import "self_host/serialize_defs"
 import "self_host/emit_defs"
 
 let sOut = ""
 let sI = 0
-let sOp = null
-let sLine = ""
-let sFn = null
-let sParams = ""
 let sJ = 0
 let sK = 0
+let sFn = null
 let sMeth = null
 let sCls = null
-let sEscOut = ""
-let sEscI = 0
-let sEscCh = ""
 let sArr = null
 let sTr = null
-
-fn escStr(s) {
-    sEscOut = ""
-    sEscI = 0
-    let n = len(s)
-    while sEscI < n {
-        sEscCh = char_at(s, sEscI)
-        let piece = sEscCh
-        if sEscCh == "\\" {
-            piece = "\\\\"
-        }
-        if sEscCh == " " {
-            piece = "\\s"
-        }
-        if sEscCh == "\n" {
-            piece = "\\n"
-        }
-        if sEscCh == "\r" {
-            piece = "\\r"
-        }
-        if sEscCh == "\t" {
-            piece = "\\t"
-        }
-        sEscOut = sEscOut + piece
-        sEscI = sEscI + 1
-    }
-    return sEscOut
-}
 
 fn outTag(tag) {
     sOut = sOut + CHAR_NL
@@ -86,86 +53,53 @@ fn outTagged2(tag, a, b, rest) {
     outSp(rest)
 }
 
-fn constLine(idx, val) {
-    sLine = "const "
-    sLine = sLine + ("" + idx)
-    sLine = sLine + " "
-    if val == KAB_UNDEF_CONST {
-        sLine = sLine + "undefined"
-        return sLine
-    }
-    if val == null {
-        sLine = sLine + "null"
-        return sLine
-    }
-    if val == true {
-        sLine = sLine + "bool true"
-        return sLine
-    }
-    if val == false {
-        sLine = sLine + "bool false"
-        return sLine
-    }
-    if typeof(val) == "string" {
-        sLine = sLine + "string "
-        sLine = sLine + escStr(val)
-        return sLine
-    }
-    sLine = sLine + "number "
-    sLine = sLine + ("" + val)
-    return sLine
+fn outTry5(tag, a, b, tr) {
+    outTag(tag)
+    outSpNum(a)
+    outSpNum(b)
+    outSpNum(tr["bodyStart"])
+    outSpNum(tr["bodyEnd"])
+    outSpNum(tr["catchStart"])
+    outSpNum(tr["errLocal"])
 }
 
-fn irOpLine(op) {
-    if op == null {
-        throw "serialize: null op in IR"
-    }
-    sOp = op.op
-    if sOp == OP_NEW_INSTANCE {
-        sLine = OP_NEW_INSTANCE
-        sLine = sLine + " "
-        sLine = sLine + ("" + op.arg)
-        sLine = sLine + " "
-        if op.arg2 == undefined {
-            sLine = sLine + "0"
-        } else {
-            sLine = sLine + ("" + op.arg2)
-        }
-        return sLine
-    }
-    if str_index_of(IR_WITH_ARG, "|" + sOp + "|") >= 0 {
-        sLine = sOp
-        sLine = sLine + " "
-        sLine = sLine + ("" + op.arg)
-        return sLine
-    }
-    if str_index_of(IR_ZERO_ARG, "|" + sOp + "|") >= 0 {
-        return sOp
-    }
-    throw "Unsupported IR op: " + sOp
+fn outTry4(tag, a, tr) {
+    outTag(tag)
+    outSpNum(a)
+    outSpNum(tr["bodyStart"])
+    outSpNum(tr["bodyEnd"])
+    outSpNum(tr["catchStart"])
+    outSpNum(tr["errLocal"])
 }
 
-fn joinComma(arr) {
-    sParams = ""
-    sK = 0
-    let n = len(arr)
-    while sK < n {
-        if sParams == "" {
-            sParams = arr[sK]
-        } else {
-            sParams = sParams + ","
-            sParams = sParams + arr[sK]
-        }
-        sK = sK + 1
+fn appendTaggedOps(tag, i, ops) {
+    sJ = 0
+    let n = len(ops)
+    while sJ < n {
+        outTagged(tag, i, serIrOpLine(ops[sJ]))
+        sJ = sJ + 1
     }
-    return sParams
+}
+
+fn appendNamedList(zeroTag, eqTag, itemTag, items) {
+    if items == undefined {
+        outTag(zeroTag)
+        return
+    }
+    outTagEq(eqTag, len(items))
+    sI = 0
+    let n = len(items)
+    while sI < n {
+        outTagged(itemTag, sI, items[sI])
+        sI = sI + 1
+    }
 }
 
 fn appendOps(ops) {
     sI = 0
     let n = len(ops)
     while sI < n {
-        outTag(irOpLine(ops[sI]))
+        outTag(serIrOpLine(ops[sI]))
         sI = sI + 1
     }
 }
@@ -176,17 +110,78 @@ fn appendClassMethods(ci, methods) {
     while sJ < n {
         sMeth = methods[sJ]
         outTagged2("class_method", ci, sJ, sMeth["sym"])
-        outTagged2("class_method_params", ci, sJ, joinComma(sMeth["params"]))
-        outTagged2("class_method_locals", ci, sJ, joinComma(sMeth["locals"]))
-        outTagged2("class_method_globals", ci, sJ, joinComma(sMeth["globals"]))
+        outTagged2("class_method_params", ci, sJ, serJoinComma(sMeth["params"]))
+        outTagged2("class_method_locals", ci, sJ, serJoinComma(sMeth["locals"]))
+        outTagged2("class_method_globals", ci, sJ, serJoinComma(sMeth["globals"]))
         sK = 0
         sArr = sMeth["ops"]
         let nOps = len(sArr)
         while sK < nOps {
-            outTagged2("class_method_op", ci, sJ, irOpLine(sArr[sK]))
+            outTagged2("class_method_op", ci, sJ, serIrOpLine(sArr[sK]))
             sK = sK + 1
         }
         sJ = sJ + 1
+    }
+}
+
+fn appendFunctions(fns) {
+    outTagEq("functions=", len(fns))
+    sI = 0
+    let n = len(fns)
+    while sI < n {
+        sFn = fns[sI]
+        outTagged("fn", sI, sFn.sym)
+        outTagged("fn_params", sI, serJoinComma(sFn.params))
+        outTagged("fn_locals", sI, serJoinComma(sFn.locals))
+        if sFn["tryRegions"] != undefined {
+            sJ = 0
+            sArr = sFn["tryRegions"]
+            let nTr = len(sArr)
+            while sJ < nTr {
+                outTry5("fn_try_region", sI, sJ, sArr[sJ])
+                sJ = sJ + 1
+            }
+        }
+        appendTaggedOps("fn_op", sI, sFn.ops)
+        sI = sI + 1
+    }
+}
+
+fn appendArrows(arrows) {
+    if arrows == undefined {
+        outTag("arrows=0")
+        return
+    }
+    outTagEq("arrows=", len(arrows))
+    sI = 0
+    let n = len(arrows)
+    while sI < n {
+        sArr = arrows[sI]
+        outTagged("arrow", sI, sArr["sym"])
+        outTagged("arrow_params", sI, serJoinComma(sArr["params"]))
+        outTagged("arrow_locals", sI, serJoinComma(sArr["locals"]))
+        appendTaggedOps("arrow_op", sI, sArr["ops"])
+        sI = sI + 1
+    }
+}
+
+fn appendClasses(classes) {
+    if classes == undefined {
+        outTag("classes=0")
+        return
+    }
+    outTagEq("classes=", len(classes))
+    sI = 0
+    let n = len(classes)
+    while sI < n {
+        sCls = classes[sI]
+        outTagged("class", sI, sCls["sym"])
+        if sCls["isStruct"] == 1 {
+            outTag("class_is_struct")
+            outSpNum(sI)
+        }
+        appendClassMethods(sI, sCls["methods"])
+        sI = sI + 1
     }
 }
 
@@ -196,7 +191,7 @@ pub fn serializeBcImplCore(bc) {
     sI = 0
     let nConst = len(bc.constants)
     while sI < nConst {
-        outTag(constLine(sI, bc.constants[sI]))
+        outTag(serConstLine(sI, bc.constants[sI]))
         sI = sI + 1
     }
     sI = 0
@@ -205,112 +200,19 @@ pub fn serializeBcImplCore(bc) {
         outTagged("global", sI, bc.globals[sI])
         sI = sI + 1
     }
-    outTagEq("functions=", len(bc.functions))
-    sI = 0
-    let nFn = len(bc.functions)
-    while sI < nFn {
-        sFn = bc.functions[sI]
-        outTagged("fn", sI, sFn.sym)
-        outTagged("fn_params", sI, joinComma(sFn.params))
-        outTagged("fn_locals", sI, joinComma(sFn.locals))
-        if sFn["tryRegions"] != undefined {
-            sJ = 0
-            sArr = sFn["tryRegions"]
-            let nTr = len(sArr)
-            while sJ < nTr {
-                sTr = sArr[sJ]
-                outTag("fn_try_region")
-                outSpNum(sI)
-                outSpNum(sJ)
-                outSpNum(sTr["bodyStart"])
-                outSpNum(sTr["bodyEnd"])
-                outSpNum(sTr["catchStart"])
-                outSpNum(sTr["errLocal"])
-                sJ = sJ + 1
-            }
-        }
-        sJ = 0
-        sArr = sFn.ops
-        let nOps = len(sArr)
-        while sJ < nOps {
-            outTagged("fn_op", sI, irOpLine(sArr[sJ]))
-            sJ = sJ + 1
-        }
-        sI = sI + 1
-    }
-    if bc.arrows == undefined {
-        outTag("arrows=0")
-    } else {
-        outTagEq("arrows=", len(bc.arrows))
-        sI = 0
-        let nArr = len(bc.arrows)
-        while sI < nArr {
-            sArr = bc.arrows[sI]
-            outTagged("arrow", sI, sArr["sym"])
-            outTagged("arrow_params", sI, joinComma(sArr["params"]))
-            outTagged("arrow_locals", sI, joinComma(sArr["locals"]))
-            sJ = 0
-            let nAop = len(sArr["ops"])
-            while sJ < nAop {
-                outTagged("arrow_op", sI, irOpLine(sArr["ops"][sJ]))
-                sJ = sJ + 1
-            }
-            sI = sI + 1
-        }
-    }
+    appendFunctions(bc.functions)
+    appendArrows(bc.arrows)
     if bc.tryRegions != undefined {
         sI = 0
         let nMtr = len(bc.tryRegions)
         while sI < nMtr {
-            sTr = bc.tryRegions[sI]
-            outTag("main_try_region")
-            outSpNum(sI)
-            outSpNum(sTr["bodyStart"])
-            outSpNum(sTr["bodyEnd"])
-            outSpNum(sTr["catchStart"])
-            outSpNum(sTr["errLocal"])
+            outTry4("main_try_region", sI, bc.tryRegions[sI])
             sI = sI + 1
         }
     }
-    if bc.exports == undefined {
-        outTag("exports=0")
-    } else {
-        outTagEq("exports=", len(bc.exports))
-        sI = 0
-        let nEx = len(bc.exports)
-        while sI < nEx {
-            outTagged("export", sI, bc.exports[sI])
-            sI = sI + 1
-        }
-    }
-    if bc.imports == undefined {
-        outTag("imports=0")
-    } else {
-        outTagEq("imports=", len(bc.imports))
-        sI = 0
-        let nIm = len(bc.imports)
-        while sI < nIm {
-            outTagged("import", sI, bc.imports[sI])
-            sI = sI + 1
-        }
-    }
-    if bc.classes == undefined {
-        outTag("classes=0")
-    } else {
-        outTagEq("classes=", len(bc.classes))
-        sI = 0
-        let nCls = len(bc.classes)
-        while sI < nCls {
-            sCls = bc.classes[sI]
-            outTagged("class", sI, sCls["sym"])
-            if sCls["isStruct"] == 1 {
-                outTag("class_is_struct")
-                outSpNum(sI)
-            }
-            appendClassMethods(sI, sCls["methods"])
-            sI = sI + 1
-        }
-    }
+    appendNamedList("exports=0", "exports=", "export", bc.exports)
+    appendNamedList("imports=0", "imports=", "import", bc.imports)
+    appendClasses(bc.classes)
     outTag("code")
     appendOps(bc.ops)
     return sOut

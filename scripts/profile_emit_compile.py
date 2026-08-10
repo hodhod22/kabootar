@@ -7,6 +7,7 @@ Usage:
   python scripts/profile_emit_compile.py compile             # wall-time compile() only
   python scripts/profile_emit_compile.py bisect emit         # prefix timing (emit.kab)
   python scripts/profile_emit_compile.py bisect parser
+  python scripts/profile_emit_compile.py bisect serialize_body
   python scripts/profile_emit_compile.py compare             # lexer / parser / emit summary
 
 Output lines tagged PROFILE are parseable; wall-clock printed to stderr.
@@ -97,6 +98,7 @@ EMIT_STUB = (
 PARSER_STUB = (
     '\npub fn parseTokens(tokens) { return { "kind": "Program", "body": [], "imports": [] } }\n'
 )
+SERIALIZE_STUB = '\npub fn serializeBcImplCore(bc) { return "" }\n'
 
 
 def module_path(name: str) -> str:
@@ -108,24 +110,46 @@ def module_path(name: str) -> str:
     return path
 
 
-def wrap_emit_prefix(lines: list[str]) -> str:
+def wrap_generic_prefix(lines: list[str], stub: str = "") -> str:
     text = "\n".join(lines)
     need = text.count("{") - text.count("}")
     if need > 0:
         text += "\n" + ("}" * need)
-    if "pub fn emit" not in text:
-        text += EMIT_STUB
+    if stub:
+        m = re.search(r"pub fn (\w+)", stub)
+        if m and f"pub fn {m.group(1)}" not in text:
+            text += stub
     return text + "\n"
+
+
+def wrap_emit_prefix(lines: list[str]) -> str:
+    return wrap_generic_prefix(lines, EMIT_STUB)
 
 
 def wrap_parser_prefix(lines: list[str]) -> str:
-    text = "\n".join(lines)
-    need = text.count("{") - text.count("}")
-    if need > 0:
-        text += "\n" + ("}" * need)
-    if "pub fn parseTokens" not in text:
-        text += PARSER_STUB
-    return text + "\n"
+    return wrap_generic_prefix(lines, PARSER_STUB)
+
+
+def wrap_serialize_prefix(lines: list[str]) -> str:
+    return wrap_generic_prefix(lines, SERIALIZE_STUB)
+
+
+def fn_end_boundaries(lines: list[str]) -> list[int]:
+    """1-based inclusive line numbers at the end of each top-level fn/pub fn."""
+    ends: list[int] = []
+    depth = 0
+    in_fn = False
+    for i, line in enumerate(lines, start=1):
+        stripped = line.lstrip()
+        if depth == 0 and (
+            stripped.startswith("fn ") or stripped.startswith("pub fn ")
+        ):
+            in_fn = True
+        depth += line.count("{") - line.count("}")
+        if in_fn and depth == 0:
+            ends.append(i)
+            in_fn = False
+    return ends
 
 
 def parse_profile_lines(stdout: str) -> dict[str, float]:
@@ -226,37 +250,79 @@ def cmd_compile(module: str, timeout_s: int) -> int:
 
 
 def cmd_bisect(which: str, timeout_scale: float) -> int:
-    if which == "emit":
+    which = which.replace("\\", "/")
+    if which in ("emit", "emit.kab"):
         path = os.path.join(ROOT, "self_host", "emit.kab")
         wrap = wrap_emit_prefix
-    elif which == "parser":
+        label = "emit.kab"
+    elif which in ("parser", "parser.kab"):
         path = os.path.join(ROOT, "self_host", "parser.kab")
         wrap = wrap_parser_prefix
+        label = "parser.kab"
+    elif which in ("serialize_body", "serialize_body.kab") or which.endswith(
+        "serialize_body.kab"
+    ):
+        path = module_path(
+            which if which.endswith(".kab") else "serialize_body.kab"
+        )
+        wrap = wrap_serialize_prefix
+        label = "serialize_body.kab"
     else:
-        print(f"unknown bisect target: {which}", file=sys.stderr)
-        return 1
+        try:
+            path = module_path(which if which.endswith(".kab") else f"{which}.kab")
+        except FileNotFoundError:
+            print(f"unknown bisect target: {which}", file=sys.stderr)
+            return 1
+        wrap = lambda lines: wrap_generic_prefix(lines, "")
+        label = os.path.basename(path)
 
     lines = open(path, encoding="utf-8").read().splitlines()
     n = len(lines)
-    boundaries = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, n]
-    boundaries = sorted({b for b in boundaries if b <= n})
+    boundaries = fn_end_boundaries(lines)
+    if len(boundaries) < 3:
+        steps = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, n]
+        boundaries = sorted({b for b in steps if b <= n})
+    if n not in boundaries:
+        boundaries.append(n)
+    boundaries = sorted(set(boundaries))
 
-    print(f"\n=== bisect timing {which}.kab ({n} lines) ===")
-    print(f"{'lines':>6}  {'status':>6}  {'wall_s':>8}  {'emit_ms':>10}  {'total_ms':>10}  note")
+    print(f"\n=== bisect timing {label} ({n} lines, {len(boundaries)} prefixes) ===")
+    print(
+        f"{'lines':>6}  {'status':>6}  {'wall_s':>8}  "
+        f"{'parse_ms':>10}  {'emit_ms':>10}  {'ser_ms':>10}  {'total_ms':>10}  note"
+    )
+    prev_total = 0.0
     for b in boundaries:
         src = wrap(lines[:b])
         with open(PROFILE_SRC, "w", encoding="utf-8", newline="\n") as f:
             f.write(src)
-        timeout = max(120, int(b * timeout_scale))
+        timeout = max(180, int(b * timeout_scale))
         probe = PHASES_PROBE.format(manifest=f'"{MANIFEST}"')
         ok, prof, wall, err = run_probe(probe, timeout)
+        parse_ms = prof.get("phase.parse_ms", 0)
         emit_ms = prof.get("phase.emit_ms", 0)
+        ser_ms = prof.get("phase.serialize_ms", 0)
         total_ms = prof.get("phase.total_ms", 0)
         status = "OK" if ok else "FAIL"
-        note = "" if ok else err[:60]
+        note = ""
+        if ok and prev_total > 0:
+            note = f"+{total_ms - prev_total:.0f}ms"
+        elif not ok:
+            note = err[:50]
+        if ok:
+            prev_total = total_ms
+        fn_label = ""
+        for j in range(b - 1, -1, -1):
+            s = lines[j].lstrip()
+            if s.startswith("fn ") or s.startswith("pub fn "):
+                fn_label = s.split("(")[0].replace("pub ", "")
+                break
         print(
-            f"{b:>6}  {status:>6}  {wall:8.1f}  {emit_ms:10.0f}  {total_ms:10.0f}  {note}"
+            f"{b:>6}  {status:>6}  {wall:8.1f}  "
+            f"{parse_ms:10.0f}  {emit_ms:10.0f}  {ser_ms:10.0f}  {total_ms:10.0f}  "
+            f"{fn_label} {note}".rstrip()
         )
+        sys.stdout.flush()
     return 0
 
 
@@ -321,7 +387,7 @@ def main() -> int:
         timeout = args.timeout or max(600, int(copy_source(args.target) * 25))
         return cmd_compile(args.target, timeout)
     if args.command == "bisect":
-        return cmd_bisect(args.target.replace(".kab", ""), args.bisect_scale)
+        return cmd_bisect(args.target, args.bisect_scale)
     if args.command == "compare":
         timeout = args.timeout or 7200
         return cmd_compare(timeout)

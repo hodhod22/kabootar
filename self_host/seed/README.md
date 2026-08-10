@@ -28,10 +28,10 @@ python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --tim
 emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
 Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
 
-**Full leaf:** `p6b_serialize_body_compile_budget` after **`Rc` Array/Object** (+ Len/IndexGet).
-Measure with ignored budget test; skip-list stays until ≤10 s. Prior: ~697 s depth-only →
-~676 s Len/Index → **~144–150 s** with Rc + densify (2026-08-10). Latest: parse≈39% /
-emit≈29% / serialize≈32% after `poolPush` / `pBodyDepth` / `eClassesN` — still ≫ 10 s.
+**Full leaf:** `p6b_serialize_body_compile_budget`. Prior: ~697 s → ~676 s → ~144–150 s densify.
+**2026-08-10 bisect:** `serializeBcImplCore` +65 s; `constLine`/`irOpLine`/`appendClassMethods` ~+10 s each.
+Moved pure `serEscStr`/`serConstLine`/`serIrOpLine`/`serJoinComma` into **serialize_defs** → leaf
+**~112 s** (parse≈40% / emit≈30% / serialize≈30%) — still ≫ 10 s.
 
 **Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
 Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
@@ -52,9 +52,10 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
      (Rust + Kab emit peephole; regen seeds)
    - host-VM **`Value::Array`/`Object` as `Rc`** (O(1) LoadGlobal clone) with
      **COW `make_mut`** + **direct self-cycle reject** (see [OWNERSHIP.md](../../docs/OWNERSHIP.md))
-   - leaf densify: `outSp` / `outTagged` / `outTagEq` helpers; parser `pToksLen` in hot scans
+   - leaf densify: AccAdd `out*` + section helpers; **pure helpers in serialize_defs**
    - emit: **`eSaveFnOpsN` / arrow `saveFnOpsN`**; Call **`eArgN` cached once**; **`eClassesN`**
    - parser: **`poolPush`** + **`pBodyDepth`/`pCondDepth`** (no `len(stack)` peeks)
+   - profile: `bisect serialize_body` (fn-end prefixes)
 3. **Measure** before flipping any flag:
    ```bash
    cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
