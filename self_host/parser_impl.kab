@@ -38,6 +38,8 @@ let pIsPub = 0
 let pLetSym = ""
 let pSymPool = []
 let pSymN = 0
+let pBodyDepth = 0
+let pCondDepth = 0
 let pImports = []
 let pPopI = 0
 let pPopNew = []
@@ -99,6 +101,13 @@ fn bump() {
     return pTok
 }
 
+// P6b: poolPush avoids len(pSymPool) LoadGlobal clone after every push.
+fn poolPush(v) {
+    pSymPool = push(pSymPool, v)
+    pSymN = pSymN + 1
+    return v
+}
+
 fn parseTypeArgs() {
     if pCur.type != "<" {
         return []
@@ -145,8 +154,7 @@ fn parseTypeArgs() {
             throw "Expected type name"
         }
         bump()
-        pSymPool = push(pSymPool, pTok.value)
-        pAngleOut = push(pAngleOut, pSymPool[len(pSymPool) - 1])
+        pAngleOut = push(pAngleOut, poolPush(pTok.value))
         if pCur.type == "," {
             bump()
         }
@@ -236,8 +244,7 @@ fn parsePostfix() {
         pTok = pCur
         if pTok.type == TOKEN_IDENT {
             bump()
-            pSymPool = push(pSymPool, pTok.value)
-            pLeft = { "kind": AST_VAR, "sym": pSymPool[len(pSymPool) - 1] }
+            pLeft = { "kind": AST_VAR, "sym": poolPush(pTok.value) }
         }
     }
     if pLeft == null {
@@ -296,6 +303,7 @@ fn parsePostfix() {
                 if pCur.type == "{" {
                     bump()
                     pBodyStack = push(pBodyStack, pBody)
+                    pBodyDepth = pBodyDepth + 1
                     pBody = []
                     while pCur.type != "}" {
                         if pCur.type == "EOF" {
@@ -308,8 +316,9 @@ fn parsePostfix() {
                     }
                     bump()
                     let ab = pBody
-                    pBody = pBodyStack[len(pBodyStack) - 1]
+                    pBody = pBodyStack[pBodyDepth - 1]
                     pBodyStack = pop(pBodyStack)
+                    pBodyDepth = pBodyDepth - 1
                     arrowBody = { "kind": AST_BLOCK, "body": ab }
                 } else {
                     arrowBody = parseCompare()
@@ -341,13 +350,11 @@ fn parsePostfix() {
                 pTok = pCur
                 if pTok.type == TOKEN_IDENT {
                     bump()
-                    pSymPool = push(pSymPool, pTok.value)
-                    pSaveSym = pSymPool[len(pSymPool) - 1]
+                    pSaveSym = poolPush(pTok.value)
                 } else {
                     if pTok.type == TOKEN_STRING {
                         bump()
-                        pSymPool = push(pSymPool, pTok.value)
-                        pSaveSym = pSymPool[len(pSymPool) - 1]
+                        pSaveSym = poolPush(pTok.value)
                     } else {
                         throw "Expected object key"
                     }
@@ -392,6 +399,7 @@ fn parsePostfix() {
         if pCur.type == "{" {
             bump()
             pBodyStack = push(pBodyStack, pBody)
+            pBodyDepth = pBodyDepth + 1
             pBody = []
             while pCur.type != "}" {
                 if pCur.type == "EOF" {
@@ -404,8 +412,9 @@ fn parsePostfix() {
             }
             bump()
             let bb = pBody
-            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBody = pBodyStack[pBodyDepth - 1]
             pBodyStack = pop(pBodyStack)
+            pBodyDepth = pBodyDepth - 1
             bareBody = { "kind": AST_BLOCK, "body": bb }
         } else {
             bareBody = parseCompare()
@@ -488,11 +497,11 @@ fn parsePostfix() {
                             }
                         }
                     }
-                    pSymPool = push(pSymPool, pMemberName)
+                    pMemberName = poolPush(pMemberName)
                     pLeft = {
                         "kind": AST_MEMBER,
                         "object": pLeft,
-                        "field": pSymPool[len(pSymPool) - 1],
+                        "field": pMemberName,
                         "typeArgs": pTypeArgs
                     }
                     pTypeArgs = []
@@ -701,8 +710,7 @@ fn parseStmt() {
         }
         pLetSym = pTok.value
         bump()
-        pSymPool = push(pSymPool, pLetSym)
-        pBindSym = pSymPool[len(pSymPool) - 1]
+        pBindSym = poolPush(pLetSym)
         if pCur.type != "=" {
             throw "Expected ="
         }
@@ -719,8 +727,7 @@ fn parseStmt() {
         }
         if pNextTok.type == "=" {
             pTok = pCur
-            pSymPool = push(pSymPool, pTok.value)
-            pBindSym = pSymPool[len(pSymPool) - 1]
+            pBindSym = poolPush(pTok.value)
             bump()
             bump()
             pVal = parseCompare()
@@ -783,8 +790,7 @@ fn parseStmt() {
                         }
                     }
                 }
-                pSymPool = push(pSymPool, pVariantName)
-                pVariantSym = pSymPool[len(pSymPool) - 1]
+                pVariantSym = poolPush(pVariantName)
                 pVariantFields = []
                 if pCur.type == "(" {
                     bump()
@@ -794,8 +800,7 @@ fn parseStmt() {
                             throw "Expected variant field type"
                         }
                         bump()
-                        pSymPool = push(pSymPool, pTok.value)
-                        pVariantFields = push(pVariantFields, pSymPool[len(pSymPool) - 1])
+                        pVariantFields = push(pVariantFields, poolPush(pTok.value))
                         if pCur.type == "," {
                             bump()
                         }
@@ -857,16 +862,14 @@ fn parseStmt() {
                         pTok = pCur
                         if pTok.type == TOKEN_SELF {
                             bump()
-                            pSymPool = push(pSymPool, "self")
-                            pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                            pMethParams = push(pMethParams, poolPush("self"))
                             pMethParamTypes = push(pMethParamTypes, "")
                         } else {
                             if pTok.type != TOKEN_IDENT {
                                 throw "Expected parameter name"
                             }
                             bump()
-                            pSymPool = push(pSymPool, pTok.value)
-                            pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                            pMethParams = push(pMethParams, poolPush(pTok.value))
                             pParamType = ""
                             if pCur.type == ":" {
                                 bump()
@@ -895,6 +898,7 @@ fn parseStmt() {
                 }
                 bump()
                 pBodyStack = push(pBodyStack, pBody)
+                pBodyDepth = pBodyDepth + 1
                 pBody = []
                 while pCur.type != "}" {
                     if pCur.type == "EOF" {
@@ -907,8 +911,9 @@ fn parseStmt() {
                 }
                 bump()
                 let methBody = pBody
-                pBody = pBodyStack[len(pBodyStack) - 1]
+                pBody = pBodyStack[pBodyDepth - 1]
                 pBodyStack = pop(pBodyStack)
+                pBodyDepth = pBodyDepth - 1
                 pVal = {
                     "sym": pFnSym,
                     "typeParams": pMethTypeParams,
@@ -924,8 +929,7 @@ fn parseStmt() {
                     throw "Expected field name"
                 }
                 bump()
-                pSaveSym = pTok.value
-                pSymPool = push(pSymPool, pSaveSym)
+                pSaveSym = poolPush(pTok.value)
                 pFieldType = ""
                 if pCur.type == ":" {
                     bump()
@@ -944,7 +948,7 @@ fn parseStmt() {
                 if pCur.type == ";" {
                     bump()
                 }
-                pVal = { "name": pSymPool[len(pSymPool) - 1], "type": pFieldType, "default": pFieldDefault }
+                pVal = { "name": pSaveSym, "type": pFieldType, "default": pFieldDefault }
                 pClassFields = push(pClassFields, pVal)
             }
         }
@@ -1010,8 +1014,7 @@ fn parseStmt() {
                             throw "Expected parameter name"
                         }
                         bump()
-                        pSymPool = push(pSymPool, pTok.value)
-                        pMethParams = push(pMethParams, pSymPool[len(pSymPool) - 1])
+                        pMethParams = push(pMethParams, poolPush(pTok.value))
                         if pCur.type == "," {
                             bump()
                         } else {
@@ -1030,6 +1033,7 @@ fn parseStmt() {
                 if pCur.type == "{" {
                     bump()
                     pBodyStack = push(pBodyStack, pBody)
+                    pBodyDepth = pBodyDepth + 1
                     pBody = []
                     while pCur.type != "}" {
                         if pCur.type == "EOF" {
@@ -1042,8 +1046,9 @@ fn parseStmt() {
                     }
                     bump()
                     let defBody = pBody
-                    pBody = pBodyStack[len(pBodyStack) - 1]
+                    pBody = pBodyStack[pBodyDepth - 1]
                     pBodyStack = pop(pBodyStack)
+                    pBodyDepth = pBodyDepth - 1
                     pIfaceMethods = push(pIfaceMethods, {
                         "sym": ifaceMethSym,
                         "params": ifaceMethParams,
@@ -1090,8 +1095,7 @@ fn parseStmt() {
                     throw "Expected parameter name"
                 }
                 bump()
-                pSymPool = push(pSymPool, pTok.value)
-                pParams = push(pParams, pSymPool[len(pSymPool) - 1])
+                pParams = push(pParams, poolPush(pTok.value))
                 pParamType = ""
                 if pCur.type == ":" {
                     bump()
@@ -1160,6 +1164,7 @@ fn parseStmt() {
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
+        pBodyDepth = pBodyDepth + 1
         pBody = []
         while pCur.type != "}" {
             if pCur.type == "EOF" {
@@ -1172,8 +1177,9 @@ fn parseStmt() {
         }
         bump()
         let fnBody = pBody
-        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBody = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
+        pBodyDepth = pBodyDepth - 1
         return {
             "kind": AST_FN,
             "sym": pFnSym,
@@ -1199,6 +1205,7 @@ fn parseStmt() {
             }
             bump()
             pBodyStack = push(pBodyStack, pBody)
+            pBodyDepth = pBodyDepth + 1
             pBody = []
             while pCur.type != "}" {
                 pBody = push(pBody, parseStmt())
@@ -1208,8 +1215,9 @@ fn parseStmt() {
             }
             bump()
             let armThen = { "kind": AST_BLOCK, "body": pBody }
-            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBody = pBodyStack[pBodyDepth - 1]
             pBodyStack = pop(pBodyStack)
+            pBodyDepth = pBodyDepth - 1
             chainConds = push(chainConds, armCond)
             chainThens = push(chainThens, armThen)
             if pCur.type != TOKEN_ELSE {
@@ -1225,6 +1233,7 @@ fn parseStmt() {
             }
             bump()
             pBodyStack = push(pBodyStack, pBody)
+            pBodyDepth = pBodyDepth + 1
             pBody = []
             while pCur.type != "}" {
                 pBody = push(pBody, parseStmt())
@@ -1234,8 +1243,9 @@ fn parseStmt() {
             }
             bump()
             finalElse = { "kind": AST_BLOCK, "body": pBody }
-            pBody = pBodyStack[len(pBodyStack) - 1]
+            pBody = pBodyStack[pBodyDepth - 1]
             pBodyStack = pop(pBodyStack)
+            pBodyDepth = pBodyDepth - 1
             break
         }
         let i = len(chainConds) - 1
@@ -1254,6 +1264,7 @@ fn parseStmt() {
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
+        pBodyDepth = pBodyDepth + 1
         pBody = []
         while pCur.type != "}" {
             if pCur.type == "EOF" {
@@ -1266,8 +1277,9 @@ fn parseStmt() {
         }
         bump()
         let tryBody = pBody
-        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBody = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
+        pBodyDepth = pBodyDepth - 1
         if pCur.type != TOKEN_CATCH {
             throw "Expected catch"
         }
@@ -1291,6 +1303,7 @@ fn parseStmt() {
         }
         bump()
         pBodyStack = push(pBodyStack, pBody)
+        pBodyDepth = pBodyDepth + 1
         pBody = []
         while pCur.type != "}" {
             if pCur.type == "EOF" {
@@ -1303,8 +1316,9 @@ fn parseStmt() {
         }
         bump()
         let catchBody = pBody
-        pBody = pBodyStack[len(pBodyStack) - 1]
+        pBody = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
+        pBodyDepth = pBodyDepth - 1
         return {
             "kind": AST_TRY,
             "body": { "kind": AST_BLOCK, "body": tryBody },
@@ -1330,6 +1344,7 @@ fn parseStmt() {
         }
         bump()
         pBodyStack = push(pBodyStack, pLoopBody)
+        pBodyDepth = pBodyDepth + 1
         pLoopBody = []
         while pCur.type != "}" {
             pLoopBody = push(pLoopBody, parseStmt())
@@ -1339,8 +1354,9 @@ fn parseStmt() {
         }
         bump()
         let forBody = pLoopBody
-        pLoopBody = pBodyStack[len(pBodyStack) - 1]
+        pLoopBody = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
+        pBodyDepth = pBodyDepth - 1
         return {
             "kind": AST_FOR_OF,
             "sym": forSym,
@@ -1352,11 +1368,13 @@ fn parseStmt() {
         bump()
         pCond = parseCompare()
         pCondStack = push(pCondStack, pCond)
+        pCondDepth = pCondDepth + 1
         if pCur.type != "{" {
             throw "Expected {"
         }
         bump()
         pBodyStack = push(pBodyStack, pLoopBody)
+        pBodyDepth = pBodyDepth + 1
         pLoopBody = []
         while pCur.type != "}" {
             pLoopBody = push(pLoopBody, parseStmt())
@@ -1366,10 +1384,12 @@ fn parseStmt() {
         }
         bump()
         let whileBody = pLoopBody
-        pLoopBody = pBodyStack[len(pBodyStack) - 1]
+        pLoopBody = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
-        pSave = pCondStack[len(pCondStack) - 1]
+        pBodyDepth = pBodyDepth - 1
+        pSave = pCondStack[pCondDepth - 1]
         pCondStack = pop(pCondStack)
+        pCondDepth = pCondDepth - 1
         return { "kind": AST_WHILE, "cond": pSave, "body": { "kind": AST_BLOCK, "body": whileBody } }
     }
     if pCur.type == TOKEN_CONTINUE {
@@ -1402,6 +1422,7 @@ fn parseStmt() {
     if pCur.type == "{" {
         bump()
         pBodyStack = push(pBodyStack, pStmts)
+        pBodyDepth = pBodyDepth + 1
         pStmts = []
         while pCur.type != "}" {
             if pCur.type == "EOF" {
@@ -1414,8 +1435,9 @@ fn parseStmt() {
         }
         bump()
         let blockStmts = pStmts
-        pStmts = pBodyStack[len(pBodyStack) - 1]
+        pStmts = pBodyStack[pBodyDepth - 1]
         pBodyStack = pop(pBodyStack)
+        pBodyDepth = pBodyDepth - 1
         return { "kind": AST_BLOCK, "body": blockStmts }
     }
     if pCur.type == TOKEN_IDENT {
@@ -1426,8 +1448,7 @@ fn parseStmt() {
         }
         if pNextTok.type == "=" {
             pTok = pCur
-            pSymPool = push(pSymPool, pTok.value)
-            pBindSym = pSymPool[len(pSymPool) - 1]
+            pBindSym = poolPush(pTok.value)
             bump()
             bump()
             pVal = parseCompare()
@@ -1464,10 +1485,15 @@ pub fn parseTokensImpl(tokens) {
         pCur = pEofTok
     }
     pSymPool = []
+    pSymN = 0
     pImports = []
     pCondStack = []
+    pCondDepth = 0
     pAddLeftStack = []
+    pBodyStack = []
+    pBodyDepth = 0
     pBodyStack = push(pBodyStack, pBody)
+    pBodyDepth = 1
     pBody = []
     pDone = 0
     while pDone == 0 {
@@ -1503,7 +1529,8 @@ pub fn parseTokensImpl(tokens) {
         }
     }
     let programBody = pBody
-    pBody = pBodyStack[len(pBodyStack) - 1]
+    pBody = pBodyStack[pBodyDepth - 1]
     pBodyStack = pop(pBodyStack)
+    pBodyDepth = pBodyDepth - 1
     return { "kind": AST_PROGRAM, "body": programBody, "imports": pImports }
 }

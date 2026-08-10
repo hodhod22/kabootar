@@ -1,18 +1,10 @@
 // H6e: serialize IR body — heavy leaf shard (skip-listed for self-host).
 // Reached via self_host/serialize.kab → serialize_impl.kab (both thin facades).
 //
-// Self-host-compiling this file directly takes minutes even though it is well under
-// the 64KB self-host-attempt size threshold — self-hosting cost scales with AST size
-// of the source being compiled, not with import-time cost of its dependents. Keep it
-// skip-listed and only ever load it via the Rust module loader (fast, exact).
-// P6b: densify — IR membership in serialize_defs; shallow AccAdd (outTag/outSpNum/sLine);
-// outTagged/outTagEq helpers collapse repeated Call AST; measure with
-// p6b_serialize_body_compile_budget before emptying SELF_HOST_SKIP_LISTED_LEAVES.
-//
-// Everything here shares the module-level `s*` accumulators (sOut, sI, sJ, …) via
-// plain call/return. Kabootar modules do not share mutable globals across files —
-// each import gets its own copy of the exported bindings — so these functions and
-// their state must stay co-located in this one leaf.
+// Self-host cost scales with AST size of this source. Keep skip-listed until
+// p6b_serialize_body_compile_budget is under P6_SELF_HOST_LEAF_CI_FAST_MS.
+// P6b: IR tables in serialize_defs; AccAdd out*/outTagged; local loop bounds
+// (never share module sN across nested helpers).
 import "self_host/lexer_defs"
 import "self_host/serialize_defs"
 import "self_host/emit_defs"
@@ -33,9 +25,6 @@ let sEscCh = ""
 let sArr = null
 let sTr = null
 
-// ----- HELPER FUNCTIONS -----
-
-// P6b: sequential escapes (fewer nested If AST nodes for self-host leaf compile).
 fn escStr(s) {
     sEscOut = ""
     sEscI = 0
@@ -64,7 +53,6 @@ fn escStr(s) {
     return sEscOut
 }
 
-// P6b: AccAdd helpers — shallow emit vs Binary + trees.
 fn outTag(tag) {
     sOut = sOut + CHAR_NL
     sOut = sOut + tag
@@ -80,7 +68,6 @@ fn outSp(s) {
     sOut = sOut + s
 }
 
-// P6b: collapse tag=N / tag i rest Call triples into one Call at each site.
 fn outTagEq(tag, n) {
     outTag(tag)
     sOut = sOut + ("" + n)
@@ -97,16 +84,6 @@ fn outTagged2(tag, a, b, rest) {
     outSpNum(a)
     outSpNum(b)
     outSp(rest)
-}
-
-fn outTryRegion(tag, a, b, tr) {
-    outTag(tag)
-    outSpNum(a)
-    outSpNum(b)
-    outSpNum(tr["bodyStart"])
-    outSpNum(tr["bodyEnd"])
-    outSpNum(tr["catchStart"])
-    outSpNum(tr["errLocal"])
 }
 
 fn constLine(idx, val) {
@@ -193,15 +170,6 @@ fn appendOps(ops) {
     }
 }
 
-fn appendEmbeddedMethodOps(ci, mi, ops) {
-    sK = 0
-    let n = len(ops)
-    while sK < n {
-        outTagged2("class_method_op", ci, mi, irOpLine(ops[sK]))
-        sK = sK + 1
-    }
-}
-
 fn appendClassMethods(ci, methods) {
     sJ = 0
     let n = len(methods)
@@ -211,26 +179,16 @@ fn appendClassMethods(ci, methods) {
         outTagged2("class_method_params", ci, sJ, joinComma(sMeth["params"]))
         outTagged2("class_method_locals", ci, sJ, joinComma(sMeth["locals"]))
         outTagged2("class_method_globals", ci, sJ, joinComma(sMeth["globals"]))
-        appendEmbeddedMethodOps(ci, sJ, sMeth["ops"])
+        sK = 0
+        sArr = sMeth["ops"]
+        let nOps = len(sArr)
+        while sK < nOps {
+            outTagged2("class_method_op", ci, sJ, irOpLine(sArr[sK]))
+            sK = sK + 1
+        }
         sJ = sJ + 1
     }
 }
-
-fn appendNamedList(zeroTag, eqTag, itemTag, items) {
-    if items == undefined {
-        outTag(zeroTag)
-        return
-    }
-    outTagEq(eqTag, len(items))
-    sI = 0
-    let n = len(items)
-    while sI < n {
-        outTagged(itemTag, sI, items[sI])
-        sI = sI + 1
-    }
-}
-
-// ----- MAIN SERIALIZE FUNCTION -----
 
 pub fn serializeBcImplCore(bc) {
     sOut = KBC_HEADER
@@ -260,7 +218,14 @@ pub fn serializeBcImplCore(bc) {
             sArr = sFn["tryRegions"]
             let nTr = len(sArr)
             while sJ < nTr {
-                outTryRegion("fn_try_region", sI, sJ, sArr[sJ])
+                sTr = sArr[sJ]
+                outTag("fn_try_region")
+                outSpNum(sI)
+                outSpNum(sJ)
+                outSpNum(sTr["bodyStart"])
+                outSpNum(sTr["bodyEnd"])
+                outSpNum(sTr["catchStart"])
+                outSpNum(sTr["errLocal"])
                 sJ = sJ + 1
             }
         }
@@ -307,8 +272,28 @@ pub fn serializeBcImplCore(bc) {
             sI = sI + 1
         }
     }
-    appendNamedList("exports=0", "exports=", "export", bc.exports)
-    appendNamedList("imports=0", "imports=", "import", bc.imports)
+    if bc.exports == undefined {
+        outTag("exports=0")
+    } else {
+        outTagEq("exports=", len(bc.exports))
+        sI = 0
+        let nEx = len(bc.exports)
+        while sI < nEx {
+            outTagged("export", sI, bc.exports[sI])
+            sI = sI + 1
+        }
+    }
+    if bc.imports == undefined {
+        outTag("imports=0")
+    } else {
+        outTagEq("imports=", len(bc.imports))
+        sI = 0
+        let nIm = len(bc.imports)
+        while sI < nIm {
+            outTagged("import", sI, bc.imports[sI])
+            sI = sI + 1
+        }
+    }
     if bc.classes == undefined {
         outTag("classes=0")
     } else {
