@@ -1,0 +1,22 @@
+// P6b: base out helpers (skip-listed until ≤10s).
+import "self_host/lexer_defs"
+
+pub fn serOutTag(out, tag) {
+    let s = out + CHAR_NL
+    return s + tag
+}
+
+pub fn serOutSpNum(out, x) {
+    let s = out + " "
+    return s + ("" + x)
+}
+
+pub fn serOutSp(out, s) {
+    let t = out + " "
+    return t + s
+}
+
+pub fn serOutTagEq(out, tag, n) {
+    let s = serOutTag(out, tag)
+    return s + ("" + n)
+}

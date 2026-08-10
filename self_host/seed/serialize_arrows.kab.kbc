@@ -1,0 +1,121 @@
+kabootar-bytecode/1
+constants=14
+const 0 undefined
+const 1 string arrows=0
+const 2 null
+const 3 string arrows=
+const 4 number 0
+const 5 string arrow
+const 6 string sym
+const 7 string arrow_params
+const 8 string params
+const 9 string arrow_locals
+const 10 string locals
+const 11 string arrow_op
+const 12 string ops
+const 13 number 1
+global 0 serOutTag
+global 1 serOutTagEq
+global 2 serOutTagged
+global 3 serJoinComma
+global 4 serAppendTaggedOps
+global 5 serAppendArrows
+functions=1
+fn 0 serAppendArrows
+fn_params 0 out,arrows
+fn_locals 0 out,arrows,i,n,arr
+fn_op 0 load_local 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 5
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 3
+fn_op 0 len_local 1
+fn_op 0 load_global 1
+fn_op 0 call 3
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 4
+fn_op 0 store_local 2
+fn_op 0 len_local 1
+fn_op 0 store_local 3
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 lt
+fn_op 0 jump_if_false 50
+fn_op 0 load_local 2
+fn_op 0 index_get_local 1
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 2
+fn_op 0 const 6
+fn_op 0 index_get_local 4
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 2
+fn_op 0 const 8
+fn_op 0 index_get_local 4
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 2
+fn_op 0 const 10
+fn_op 0 index_get_local 4
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 11
+fn_op 0 load_local 2
+fn_op 0 const 12
+fn_op 0 index_get_local 4
+fn_op 0 load_global 4
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 13
+fn_op 0 acc_add_local 2
+fn_op 0 jump -54
+fn_op 0 load_local 0
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=3
+import 0 self_host/serialize_pure
+import 1 self_host/serialize_out
+import 2 self_host/serialize_ops
+pub_imports=0
+exports=1
+export 0 serAppendArrows
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_arrows.kab
+statements=4
+fingerprint=d2e14309561fb1e1

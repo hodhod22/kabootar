@@ -1,0 +1,23 @@
+// P6b: op/list append helpers (skip-listed until ≤10s).
+import "self_host/serialize_pure"
+import "self_host/serialize_out"
+
+pub fn serAppendTaggedOps(out, tag, i, ops) {
+    let j = 0
+    let n = len(ops)
+    while j < n {
+        out = serOutTagged(out, tag, i, serIrOpLine(ops[j]))
+        j = j + 1
+    }
+    return out
+}
+
+pub fn serAppendOps(out, ops) {
+    let i = 0
+    let n = len(ops)
+    while i < n {
+        out = serOutTag(out, serIrOpLine(ops[i]))
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,102 @@
+kabootar-bytecode/1
+constants=13
+const 0 string const\s
+const 1 null
+const 2 string 
+const 3 string \s
+const 4 string undefined
+const 5 string null
+const 6 bool true
+const 7 string bool\strue
+const 8 bool false
+const 9 string bool\sfalse
+const 10 string string
+const 11 string string\s
+const 12 string number\s
+global 0 KAB_UNDEF_CONST
+global 1 typeof
+global 2 serEscStr
+global 3 serConstLine
+functions=1
+fn 0 serConstLine
+fn_params 0 idx,val
+fn_locals 0 idx,val,line
+fn_op 0 const 0
+fn_op 0 store_local 2
+fn_op 0 const 2
+fn_op 0 load_local 0
+fn_op 0 add
+fn_op 0 acc_add_local 2
+fn_op 0 const 3
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 1
+fn_op 0 load_global 0
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 4
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 1
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 5
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 7
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 8
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 const 9
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 const 10
+fn_op 0 eq
+fn_op 0 jump_if_false 8
+fn_op 0 const 11
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 1
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_op 0 const 12
+fn_op 0 acc_add_local 2
+fn_op 0 const 2
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 acc_add_local 2
+fn_op 0 load_local 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=2
+import 0 self_host/emit_defs
+import 1 self_host/serialize_esc
+pub_imports=0
+exports=1
+export 0 serConstLine
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_const.kab
+statements=3
+fingerprint=4e3cc2a03fab205a
