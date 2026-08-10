@@ -1,0 +1,15 @@
+// P6b: IR membership lookup line (skip-listed until ≤10s).
+import "self_host/serialize_ir"
+
+pub fn serIrOpLookup(name, op) {
+    if str_index_of(IR_WITH_ARG, "|" + name + "|") >= 0 {
+        let line = name
+        line = line + " "
+        line = line + ("" + op.arg)
+        return line
+    }
+    if str_index_of(IR_ZERO_ARG, "|" + name + "|") >= 0 {
+        return name
+    }
+    throw "Unsupported IR op: " + name
+}

@@ -1,0 +1,11 @@
+// P6b: serializeBc tail after tries (skip-listed until ≤10s).
+import "self_host/serialize_out"
+import "self_host/serialize_sections"
+
+pub fn serAppendBcTailRest(out, bc) {
+    out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
+    out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
+    out = serAppendClasses(out, bc.classes)
+    out = serOutTag(out, "code")
+    return serAppendOps(out, bc.ops)
+}

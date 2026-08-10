@@ -1,22 +1,15 @@
 // P6b: function-section appender (skip-listed until ≤10s).
-import "self_host/serialize_pure"
 import "self_host/serialize_out"
 import "self_host/serialize_ops"
-import "self_host/serialize_fn_tries"
+import "self_host/serialize_fn_one"
 
 pub fn serAppendFunctions(out, fns) {
     out = serOutTagEq(out, "functions=", len(fns))
     let i = 0
     let n = len(fns)
     while i < n {
-        let f = fns[i]
-        out = serOutTagged(out, "fn", i, f.sym)
-        out = serOutTagged(out, "fn_params", i, serJoinComma(f.params))
-        out = serOutTagged(out, "fn_locals", i, serJoinComma(f.locals))
-        if f["tryRegions"] != undefined {
-            out = serAppendFnTries(out, i, f["tryRegions"])
-        }
-        out = serAppendTaggedOps(out, "fn_op", i, f.ops)
+        out = serAppendOneFn(out, i, fns[i])
+        out = serAppendTaggedOps(out, "fn_op", i, fns[i].ops)
         i = i + 1
     }
     return out

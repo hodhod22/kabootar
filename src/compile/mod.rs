@@ -61,18 +61,12 @@ impl CompilePrefer {
 /// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
 /// of these shards is CI-fast. P6b: serialize split into out_base/tagged/try,
 /// ops/lists/fns/arrows/class_methods/classes, const/ir_line, and acc.
-/// Thin aggregators (`serialize_out` / `serialize_sections` / `serialize_op` /
-/// `serialize_pure` / `serialize_defs` / `serialize_body` / `serialize_ir_line` /
-/// `serialize_out_try`) stay attemptable.
+/// Thin aggregators and densified serialize leaves stay attemptable. Remaining
+/// skip-listed cores are emit/parser/lexer/vm leaf bodies.
 pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
     "self_host/emit_impl.kab",
     "self_host/parser_impl.kab",
     "self_host/lexer_impl.kab",
-    "self_host/serialize_fns.kab",
-    "self_host/serialize_arrows.kab",
-    "self_host/serialize_class_methods.kab",
-    "self_host/serialize_acc_tail.kab",
-    "self_host/serialize_ir_op.kab",
     "self_host/vm_run_body.kab",
 ];
 
@@ -93,11 +87,6 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "emit_impl.kab"
             | "parser_impl.kab"
             | "lexer_impl.kab"
-            | "serialize_fns.kab"
-            | "serialize_arrows.kab"
-            | "serialize_class_methods.kab"
-            | "serialize_acc_tail.kab"
-            | "serialize_ir_op.kab"
             | "vm_run_body.kab"
     ) && norm.contains("self_host")
     {
@@ -562,11 +551,6 @@ pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_fns.kab",
-        "serialize_arrows.kab",
-        "serialize_class_methods.kab",
-        "serialize_acc_tail.kab",
-        "serialize_ir_op.kab",
         "vm_run_body.kab",
     ];
     let base_name = Path::new(&norm)

@@ -1997,11 +1997,6 @@ fn self_host_heavy_cores_still_skipped() {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_fns.kab",
-        "serialize_arrows.kab",
-        "serialize_class_methods.kab",
-        "serialize_acc_tail.kab",
-        "serialize_ir_op.kab",
         "vm_run_body.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -2152,12 +2147,12 @@ fn h6e_skip_listed_kab_only_uses_seed() {
     };
 
     let path = format!(
-        "{}/self_host/serialize_fns.kab",
+        "{}/self_host/emit_impl.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(
         self_host_is_skip_listed(&path),
-        "serialize_fns.kab must stay skip-listed"
+        "emit_impl.kab must stay skip-listed"
     );
     kabootar_lib::compile::invalidate_file_cache(&path);
     if let Ok(base) = std::env::current_dir() {
@@ -2188,7 +2183,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2210,7 +2205,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
 fn p6_seed_fingerprint_all_leaves_load() {
     use kabootar_lib::compile::{read_seed_bytecode, SELF_HOST_SKIP_LISTED_LEAVES};
 
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2226,7 +2221,8 @@ fn p6_seed_fingerprint_all_leaves_load() {
     }
 }
 
-/// P6b progress: serialize leaf shards skip-listed; thin aggregators attemptable.
+/// P6b progress: all serialize shards are CI-fast / attemptable; skip-list is
+/// emit/parser/lexer/vm only until those also clear the 10s gate.
 #[test]
 fn p6b_serialize_body_still_skip_listed_progress() {
     use kabootar_lib::compile::{
@@ -2235,46 +2231,13 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     };
     assert!(
         !P6B_EMPTY_SKIP_LIST_READY,
-        "P6b: empty skip-list not ready until leaf self-host <10s"
+        "P6b: empty skip-list not ready until emit/parser/lexer/vm also <10s"
     );
-    for leaf in [
-        "self_host/serialize_fns.kab",
-        "self_host/serialize_arrows.kab",
-        "self_host/serialize_class_methods.kab",
-        "self_host/serialize_acc_tail.kab",
-        "self_host/serialize_ir_op.kab",
-    ] {
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
+    for leaf in SELF_HOST_SKIP_LISTED_LEAVES {
         assert!(
-            SELF_HOST_SKIP_LISTED_LEAVES.contains(&leaf),
-            "{leaf} remains a P6b serialize speed target"
-        );
-    }
-    for leaf in [
-        "self_host/serialize_defs.kab",
-        "self_host/serialize_pure.kab",
-        "self_host/serialize_esc.kab",
-        "self_host/serialize_out.kab",
-        "self_host/serialize_out_base.kab",
-        "self_host/serialize_out_tagged.kab",
-        "self_host/serialize_out_try.kab",
-        "self_host/serialize_out_try5.kab",
-        "self_host/serialize_out_try4.kab",
-        "self_host/serialize_ops.kab",
-        "self_host/serialize_lists.kab",
-        "self_host/serialize_fn_tries.kab",
-        "self_host/serialize_class_method_ops.kab",
-        "self_host/serialize_classes.kab",
-        "self_host/serialize_sections.kab",
-        "self_host/serialize_op.kab",
-        "self_host/serialize_ir_line.kab",
-        "self_host/serialize_acc.kab",
-        "self_host/serialize_acc_pool.kab",
-        "self_host/serialize_const.kab",
-        "self_host/serialize_join.kab",
-    ] {
-        assert!(
-            !SELF_HOST_SKIP_LISTED_LEAVES.contains(&leaf),
-            "{leaf} must stay a thin aggregator / CI-fast leaf"
+            !leaf.contains("serialize_"),
+            "serialize leaves must not remain skip-listed: {leaf}"
         );
     }
     let root = env!("CARGO_MANIFEST_DIR");
@@ -2288,12 +2251,15 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let fns = format!("{root}/self_host/serialize_fns.kab");
     let acc = format!("{root}/self_host/serialize_acc.kab");
     let acc_pool = format!("{root}/self_host/serialize_acc_pool.kab");
+    let acc_tail = format!("{root}/self_host/serialize_acc_tail.kab");
     let esc = format!("{root}/self_host/serialize_esc.kab");
     let op = format!("{root}/self_host/serialize_op.kab");
     let out_base = format!("{root}/self_host/serialize_out_base.kab");
     let konst = format!("{root}/self_host/serialize_const.kab");
     let ir_line = format!("{root}/self_host/serialize_ir_line.kab");
     let ir_op = format!("{root}/self_host/serialize_ir_op.kab");
+    let ir_op_new = format!("{root}/self_host/serialize_ir_op_new.kab");
+    let ir_op_lookup = format!("{root}/self_host/serialize_ir_op_lookup.kab");
     let body_src = std::fs::read_to_string(&body).expect("read serialize_body");
     let defs_src = std::fs::read_to_string(&defs).expect("read serialize_defs");
     let ir_src = std::fs::read_to_string(&ir).expect("read serialize_ir");
@@ -2360,14 +2326,15 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         !body_src.contains("fn outTag(") && !body_src.contains("fn appendFunctions("),
         "P6b: leaf must not keep AccAdd/section helpers"
     );
-    let acc_tail = format!("{root}/self_host/serialize_acc_tail.kab");
-    for path in [&fns, &acc_tail, &ir_op] {
-        assert!(self_host_is_skip_listed(path));
-    }
     for path in [
         &body, &defs, &ir, &pure, &out, &sections, &op, &esc, &out_base, &ops, &ir_line, &acc,
-        &acc_pool, &konst,
+        &acc_pool, &acc_tail, &konst, &fns, &ir_op, &ir_op_new, &ir_op_lookup,
     ] {
+        assert!(
+            !self_host_is_skip_listed(path),
+            "{} must not be skip-listed",
+            path
+        );
         assert!(
             self_host_is_attemptable(path),
             "{} must be self-host attemptable",
@@ -2385,7 +2352,7 @@ fn p6_skip_list_stays_until_ci_fast_gate() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 9);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
     assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
     assert!(
         !P6B_EMPTY_SKIP_LIST_READY,
@@ -2453,7 +2420,7 @@ fn h6e_skip_listed_kab_only_no_seed_fails() {
     // Path must look like a self_host skip-listed leaf.
     let sh = dir.join("self_host");
     let _ = std::fs::create_dir_all(&sh);
-    let path = sh.join("serialize_fns.kab");
+    let path = sh.join("emit_impl.kab");
     std::fs::write(&path, "// not a real leaf\nreturn 1\n").expect("write fake leaf");
     let path_s = path.to_string_lossy().to_string();
 
@@ -3004,19 +2971,18 @@ fn p6b_serialize_body_compile_budget() {
     );
 }
 
-/// P6b: time serialize shards (ignored — still can be minutes until denser).
+/// P6b: former serialize hot shards must stay CI-fast (≤10s).
 #[test]
-#[ignore = "slow: serialize shard self-host compile timing probe"]
 fn p6b_serialize_shards_compile_budget() {
     use kabootar_lib::compile::{compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS};
     use std::time::Instant;
     let root = env!("CARGO_MANIFEST_DIR");
     for name in [
         "serialize_fns.kab",
-        "serialize_arrows.kab",
-        "serialize_class_methods.kab",
-        "serialize_acc_tail.kab",
         "serialize_ir_op.kab",
+        "serialize_arrows.kab",
+        "serialize_acc_tail.kab",
+        "serialize_class_methods.kab",
     ] {
         let path = format!("{root}/self_host/{name}");
         let src = std::fs::read_to_string(&path).expect("read");
@@ -3038,5 +3004,9 @@ fn p6b_serialize_shards_compile_budget() {
             eprintln!("{name2} compile error: {e}");
         }
         assert!(ok, "{name2} must self-host-compile");
+        assert!(
+            ms <= P6_SELF_HOST_LEAF_CI_FAST_MS,
+            "{name2} must stay CI-fast, got {ms}ms"
+        );
     }
 }
