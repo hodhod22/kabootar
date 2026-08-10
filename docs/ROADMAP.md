@@ -659,7 +659,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_defs`, `vm_run_body`. **Committed seeds:** `self_host/seed/*.kbc` (fingerprint) — kab-only laddar löv utan live-Rust (`backend=seed`); saknas/stale seed → delete-gate. Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** seed-only (empty skip-list deferred). Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`, `p6_seed_only_all_leaves_have_seeds`, `p6_seed_fingerprint_all_leaves_load`.
+**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `serialize_pure`, `serialize_acc`, `vm_run_body`. **Committed seeds:** `self_host/seed/*.kbc` (fingerprint) — kab-only laddar löv utan live-Rust (`backend=seed`); saknas/stale seed → delete-gate. Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** seed-only (empty skip-list deferred). Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`, `p6_seed_only_all_leaves_have_seeds`, `p6_seed_fingerprint_all_leaves_load`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
@@ -805,7 +805,7 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 
 **GP-ordning (rekommenderad):** GP0–GP5 ✅ → **GP7a–c (editor MVP)** parallellt med GP6e UI + GP6b/c som editor behöver → övriga GP6 → GP7d–g polish → GP6n XR sist.
 
-**Checkpoint GP (nästa):** P6b empty skip-list when all five leaves self-host ≤10 s (~144 s leaf after Rc).  
+**Checkpoint GP (nästa):** P6b empty skip-list when all six leaves self-host ≤10 s.  
 **Checkpoint GP (landad):** XR create/locate EXT; P6b depth + Len/IndexGet; host `Value` Array/Object `Rc` (COW `make_mut` + direct self-cycle reject).  
 **Slutmått:** producera och shippa 2D/3D-spel i Kabootar snabbare än motsvarande C#/C++-pipeline — med **inbyggd scen-editor** och GPU-prestanda i native script-klass.
 

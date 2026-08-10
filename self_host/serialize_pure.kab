@@ -1,0 +1,107 @@
+// P6b shard: pure string helpers (skip-listed until ≤10s).
+import "self_host/lexer_defs"
+import "self_host/emit_defs"
+import "self_host/serialize_ir"
+
+pub fn serEscStr(s) {
+    let out = ""
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let ch = char_at(s, i)
+        let piece = ch
+        if ch == "\\" {
+            piece = "\\\\"
+        }
+        if ch == " " {
+            piece = "\\s"
+        }
+        if ch == "\n" {
+            piece = "\\n"
+        }
+        if ch == "\r" {
+            piece = "\\r"
+        }
+        if ch == "\t" {
+            piece = "\\t"
+        }
+        out = out + piece
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serConstLine(idx, val) {
+    let line = "const "
+    line = line + ("" + idx)
+    line = line + " "
+    if val == KAB_UNDEF_CONST {
+        line = line + "undefined"
+        return line
+    }
+    if val == null {
+        line = line + "null"
+        return line
+    }
+    if val == true {
+        line = line + "bool true"
+        return line
+    }
+    if val == false {
+        line = line + "bool false"
+        return line
+    }
+    if typeof(val) == "string" {
+        line = line + "string "
+        line = line + serEscStr(val)
+        return line
+    }
+    line = line + "number "
+    line = line + ("" + val)
+    return line
+}
+
+pub fn serIrOpLine(op) {
+    if op == null {
+        throw "serialize: null op in IR"
+    }
+    let name = op.op
+    if name == OP_NEW_INSTANCE {
+        let line = OP_NEW_INSTANCE
+        line = line + " "
+        line = line + ("" + op.arg)
+        line = line + " "
+        let a2 = op.arg2
+        if a2 == undefined {
+            a2 = 0
+        }
+        line = line + ("" + a2)
+        return line
+    }
+    if str_index_of(IR_WITH_ARG, "|" + name + "|") >= 0 {
+        let line = name
+        line = line + " "
+        line = line + ("" + op.arg)
+        return line
+    }
+    if str_index_of(IR_ZERO_ARG, "|" + name + "|") >= 0 {
+        return name
+    }
+    throw "Unsupported IR op: " + name
+}
+
+pub fn serJoinComma(arr) {
+    let params = ""
+    let k = 0
+    let n = len(arr)
+    while k < n {
+        if params == "" {
+            params = arr[k]
+        } else {
+            params = params + ","
+            params = params + arr[k]
+        }
+        k = k + 1
+    }
+    return params
+}
