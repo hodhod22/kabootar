@@ -121,6 +121,7 @@ let eGenericClassTemplates = []
 let eGenericEnumTemplates = []
 let eGenericMethodTemplates = []
 let eClasses = []
+let eClassesN = 0
 let eEnums = []
 let eClassMethods = []
 let eClassMethodsSrc = []
@@ -239,7 +240,7 @@ fn symIndex(mode, arg) {
     }
     if mode == "class" {
         eClassIdx = 0
-        while eClassIdx < len(eClasses) {
+        while eClassIdx < eClassesN {
             if eClasses[eClassIdx]["sym"] == arg {
                 return eClassIdx
             }
@@ -918,7 +919,7 @@ fn emitExpr(node) {
                 if eCtorCallee.kind == AST_VAR {
                     eCtorName = eCtorCallee["sym"]
                     eGenI = 0
-                    while eGenI < len(eClasses) {
+                    while eGenI < eClassesN {
                         if eClasses[eGenI]["sym"] == eCtorName {
                             eRecvClass = eCtorName
                         }
@@ -990,7 +991,7 @@ fn emitExpr(node) {
             }
             eFoundMeth = 0
             eClassIdx = 0
-            while eClassIdx < len(eClasses) {
+            while eClassIdx < eClassesN {
                 if eClasses[eClassIdx]["sym"] == eRecvClass {
                     eMi = 0
                     while eMi < len(eClasses[eClassIdx]["methods"]) {
@@ -1029,7 +1030,7 @@ fn emitExpr(node) {
                         })
                         eNewClasses = []
                         eGenI = 0
-                        while eGenI < len(eClasses) {
+                        while eGenI < eClassesN {
                             if eGenI == eClassIdx {
                                 eNewClasses = push(eNewClasses, {
                                     "sym": eRecvClass,
@@ -1125,7 +1126,7 @@ fn emitExpr(node) {
                 }
                 eFound = 0
                 eGenI = 0
-                while eGenI < len(eClasses) {
+                while eGenI < eClassesN {
                     if eClasses[eGenI]["sym"] == eMangled {
                         eFound = 1
                         break
@@ -1176,6 +1177,7 @@ fn emitExpr(node) {
                         eMi = eMi + 1
                     }
                     eClasses = push(eClasses, { "sym": eMangled, "methods": eClassMethods })
+                    eClassesN = eClassesN + 1
                     symIndex("global",eMangled)
                 }
                 eCallArgIStack = push(eCallArgIStack, 0)
@@ -1501,7 +1503,7 @@ fn emitStmt(node) {
                 eCtorName = eCtorCallee["sym"]
                 eFound = 0
                 eGenI = 0
-                while eGenI < len(eClasses) {
+                while eGenI < eClassesN {
                     if eClasses[eGenI]["sym"] == eCtorName {
                         eBindingSyms = push(eBindingSyms, eAssignSym)
                         eBindingTypes = push(eBindingTypes, eCtorName)
@@ -1899,6 +1901,7 @@ fn emitStmt(node) {
             "methods": eClassMethods,
             "isStruct": eClassIsStruct
         })
+        eClassesN = eClassesN + 1
         return
     }
     if eNode.kind == AST_INTERFACE {
@@ -2012,6 +2015,7 @@ pub fn emitImpl(program) {
     eGenericEnumTemplates = []
     eGenericMethodTemplates = []
     eClasses = []
+    eClassesN = 0
     eEnums = []
     eArrows = []
     eTryRegions = []

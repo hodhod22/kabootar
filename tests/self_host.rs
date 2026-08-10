@@ -2597,6 +2597,15 @@ fn p6b_parser_iterative_add_progress() {
         "&& must not right-recurse through parseCompare"
     );
     assert!(
+        src.contains("fn poolPush(") && src.contains("let pBodyDepth = 0"),
+        "parser must use poolPush + pBodyDepth (no len(pSymPool)/len(pBodyStack) peeks)"
+    );
+    assert!(
+        !src.contains("pSymPool[len(pSymPool) - 1]")
+            && !src.contains("pBodyStack[len(pBodyStack) - 1]"),
+        "parser must not peek stacks via len() clones"
+    );
+    assert!(
         src.contains("P6b: early IDENT= assign"),
         "parseStmt must early-dispatch IDENT= before enum/class/fn"
     );
@@ -2697,6 +2706,10 @@ fn p6b_emit_call_block_depth_progress() {
         src.matches("eArgN = len(eArgs)").count(),
         1,
         "Call path must assign eArgN = len(eArgs) exactly once"
+    );
+    assert!(
+        src.contains("let eClassesN = 0") && src.contains("while eClassIdx < eClassesN"),
+        "emit must track eClassesN (avoid len(eClasses) loop clones)"
     );
     assert!(
         src.contains("fn dropCallCallee()"),
