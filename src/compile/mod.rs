@@ -51,20 +51,21 @@ impl CompilePrefer {
 /// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
 /// every public core is reached through thin `pub let X = Ximpl` facades
 /// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body`, `serialize` → `serialize_impl` →
-/// `serialize_body`, plus `lexer`/`parser`/`emit` → `*_impl`). Only the leaf shards
-/// below stay skip-listed (self-host AST density makes them CI-slow). Facades above
-/// them self-host-compile in CI-fast time. Product `import` prefers self-host via
-/// `load_program_for_file` → `compile_file_prefer_cached` (Rust only while
-/// `KAB_VM_EXEC_ACTIVE`, or for these leaves / oversize).
+/// `serialize_body` → `serialize_defs`). Only the leaf shards below stay skip-listed
+/// (self-host AST density makes them CI-slow). Facades above them self-host-compile
+/// in CI-fast time. Product `import` prefers self-host via `load_program_for_file` →
+/// `compile_file_prefer_cached` (Rust only while `KAB_VM_EXEC_ACTIVE`, or for these
+/// leaves / oversize).
 ///
 /// P6 policy: **seed-only** — leaves stay skip-listed; kab-only loads committed
 /// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
-/// of these shards is CI-fast.
+/// of these shards is CI-fast. P6b: AccAdd serialize body moved into
+/// `serialize_defs` (skip-listed); `serialize_body` is a thin CI-fast facade.
 pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
     "self_host/emit_impl.kab",
     "self_host/parser_impl.kab",
     "self_host/lexer_impl.kab",
-    "self_host/serialize_body.kab",
+    "self_host/serialize_defs.kab",
     "self_host/vm_run_body.kab",
 ];
 
@@ -85,7 +86,7 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "emit_impl.kab"
             | "parser_impl.kab"
             | "lexer_impl.kab"
-            | "serialize_body.kab"
+            | "serialize_defs.kab"
             | "vm_run_body.kab"
     ) && norm.contains("self_host")
     {
@@ -550,7 +551,7 @@ pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "serialize_body.kab",
+        "serialize_defs.kab",
         "vm_run_body.kab",
     ];
     let base_name = Path::new(&norm)

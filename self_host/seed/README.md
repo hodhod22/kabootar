@@ -17,48 +17,24 @@ import-time cost of dependents.
 ## Phase profiling (required before guessing)
 
 ```bash
-# Tiny / mid sources: use scripts/profile_emit_compile.py (Windows: c:/… mounts)
-python scripts/profile_emit_compile.py phases self_host/serialize_body.kab --timeout 1200
-
-# Or hand probe (same counters):
-# PROFILE phase parse_ms / emit_ms / serialize_ms / total_ms
+python scripts/profile_emit_compile.py phases self_host/serialize_defs.kab --timeout 1200
+python scripts/profile_emit_compile.py bisect serialize_body   # thin facade
+python scripts/profile_emit_compile.py bisect serialize_defs
 ```
 
-**Recorded ratio (AccAdd-dense mid smoke, debug host VM, after toolchain maps):**
-emit ≈ 47% | parse ≈ 36% | serialize ≈ 17% (40× `s = s + …`).
-Tiny if/+ smoke previously: parse ≈ emit ≫ serialize.
-
-**Full leaf:** `p6b_serialize_body_compile_budget`. Prior: ~697 s → ~676 s → ~144–150 s densify.
-**2026-08-10 bisect:** `serializeBcImplCore` +65 s; `constLine`/`irOpLine`/`appendClassMethods` ~+10 s each.
-Moved pure `serEscStr`/`serConstLine`/`serIrOpLine`/`serJoinComma` into **serialize_defs** → leaf
-**~112 s** (parse≈40% / emit≈30% / serialize≈30%) — still ≫ 10 s.
-
-**Mid AccAdd smoke (40× `s = s + …`):** parse ≈ 37% | emit ≈ 48% | serialize ≈ 15%.
-Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE phase *_ms`.
+**2026-08-10:** AccAdd serialize body moved into `serialize_defs` (skip-listed). Thin
+`serialize_body` facade self-hosts in **~2 s** (under budget). `serialize_defs` still
+**~152 s** — first remaining serialize speed target.
 
 ## P6b playbook
 
-1. **Densify leaf source** — fewer If/Binary trees:
-   - `IR_WITH_ARG` / `IR_ZERO_ARG` in **`serialize_defs`** (not leaf Const AST)
-   - **shallow AccAdd** (`outTag` / `outSpNum` / `sLine`) — avoid depth-16+ `+` trees
-2. **Speed toolchain:**
-   - `symIndex` const/global **maps** + **`eLocalMap` / map-only `emitSym`**
-   - AccAdd recurse; early `emitIfStmt`; **`eOpsN`/`eFnOpsN`** in jump patches
-   - **fully iterative** compare/`&&`/`||`/bit via `parseAddShift`/`parseRelExpr`
-   - **`eCalleeDepth` / `eBlockDepth` / `eCallArgDepth` / `eObjDepth` / `eArrDepth`**
-   - **`eIfDepth` / `eMemberDepth` / `eIndexDepth`**
-   - **early `IDENT=`** in `parser_impl`
-   - host-VM **`LenLocal`/`LenGlobal`** + **`IndexGetLocal`/`IndexGetGlobal`**
-     (Rust + Kab emit peephole; regen seeds)
-   - host-VM **`Value::Array`/`Object` as `Rc`** (O(1) LoadGlobal clone) with
-     **COW `make_mut`** + **direct self-cycle reject** (see [OWNERSHIP.md](../../docs/OWNERSHIP.md))
-   - leaf densify: AccAdd `out*` + section helpers; **pure helpers in serialize_defs**
-   - emit: **`eSaveFnOpsN` / arrow `saveFnOpsN`**; Call **`eArgN` cached once**; **`eClassesN`**
-   - parser: **`poolPush`** + **`pBodyDepth`/`pCondDepth`** (no `len(stack)` peeks)
-   - profile: `bisect serialize_body` (fn-end prefixes)
+1. **Densify skip-listed source** — fewer If/Binary trees; move pure helpers to
+   non-listed modules only when that module stays CI-fast or is itself skip-listed.
+2. **Speed toolchain** (parser/emit len caches, Rc Array/Object, …) — see prior notes.
 3. **Measure** before flipping any flag:
    ```bash
-   cargo test --test self_host p6b_serialize_body_compile_budget -- --ignored --nocapture
+   cargo test --test self_host p6b_serialize_body_compile_budget -- --nocapture
+   cargo test --test self_host p6b_serialize_defs_compile_budget -- --ignored --nocapture
    cargo test --test self_host p6_leaf_self_host_compile_budget -- --ignored --nocapture
    ```
 4. **Do not** empty the skip-list or set `P6B_EMPTY_SKIP_LIST_READY=true` until
@@ -68,7 +44,8 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | pure helpers moved to serialize_defs | **~112 s** debug (2026-08-10) — still ≫ 10 s |
+| `serialize_body.kab` | thin facade → `serSerializeBc` | **~2 s** (under budget; not skip-listed) |
+| `serialize_defs.kab` | AccAdd + sections (skip-listed) | **~152 s** debug (2026-08-10) — ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
@@ -78,17 +55,10 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 | `p6_seed_only_all_leaves_have_seeds` | Files exist; list length stays 5 |
 | `p6_seed_fingerprint_all_leaves_load` | Seed deserializes; fingerprint matches source |
 | `p6_skip_list_stays_until_ci_fast_gate` | Oversize emit stays skipped; flag off |
-| `p6b_serialize_body_still_skip_listed_progress` | First speed target still listed; IR tables in defs + `outTag`/`outSpNum` |
-| `p6b_emit_accadd_hotpath_progress` | AccAdd recurse hotpath |
-| `p6b_emit_if_hotpath_progress` | Early `emitIfStmt` + `patchRelJump` |
-| `p6b_emit_symindex_map_progress` | `eConstMap` + `eLocalMap` / map-only `emitSym` |
-| `p6b_emit_call_block_depth_progress` | Call/block/CallArg/obj/arr/If/member/index depth counters |
-| `p6b_len_index_cheap_path_progress` | `Len*` / `IndexGet*` peephole (Rust + emit_defs) |
-| `p6b_parser_iterative_add_progress` | Fully iterative compare/bit/`&&`/`||` + early `IDENT=` |
-| `p6b_serialize_body_compile_budget` (ignored) | Timing probe for serialize_body |
+| `p6b_serialize_body_still_skip_listed_progress` | defs skip-listed; body thin + attemptable |
+| `p6b_serialize_body_compile_budget` | Thin body must be ≤10 s (CI) |
+| `p6b_serialize_defs_compile_budget` (ignored) | Timing probe for serialize_defs |
 | `p6_leaf_self_host_compile_budget` (ignored) | Timing probe for all five leaves |
-
-Windows: `self_host_parser_suite` and `self_host_serialize_suite` use a 32 MiB thread stack.
 
 ## Seeds
 
@@ -97,7 +67,7 @@ Windows: `self_host_parser_suite` and `self_host_serialize_suite` use a 32 MiB
 | `emit_impl.kab.kbc` | `../emit_impl.kab` |
 | `parser_impl.kab.kbc` | `../parser_impl.kab` |
 | `lexer_impl.kab.kbc` | `../lexer_impl.kab` |
-| `serialize_body.kab.kbc` | `../serialize_body.kab` |
+| `serialize_defs.kab.kbc` | `../serialize_defs.kab` |
 | `vm_run_body.kab.kbc` | `../vm_run_body.kab` |
 
 ```bash

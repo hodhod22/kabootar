@@ -1,16 +1,23 @@
-// .kbc text format constants (mirrors src/bytecode/types.rs).
+// .kbc text format + serializer body helpers (mirrors src/bytecode/types.rs).
+// P6b: heavy AccAdd/section AST lives here (skip-listed). Thin serialize_body
+// re-exports serSerializeBc so the facade stays CI-fast.
 import "self_host/lexer_defs"
 import "self_host/emit_defs"
 
 pub let KBC_HEADER = "kabootar-bytecode/1"
 
-// P6b: OP_* wire membership lives here (CI-fast defs) so skip-listed serialize_body
-// does not carry ~600B string Const AST nodes through self-host leaf compile.
 pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|"
 pub let IR_ZERO_ARG = "|pop|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|"
 
-// P6b: pure helpers live in defs (not skip-listed leaf AST). Bisect showed
-// escStr/constLine/irOpLine each add ~10–16s to leaf self-host compile.
+// Mutable serialize session (module-local; not shared across imports).
+let serOut = ""
+let serI = 0
+let serJ = 0
+let serK = 0
+let serFn = null
+let serMeth = null
+let serCls = null
+let serArr = null
 
 pub fn serEscStr(s) {
     let out = ""
@@ -113,4 +120,203 @@ pub fn serJoinComma(arr) {
         k = k + 1
     }
     return params
+}
+
+fn serOutTag(tag) {
+    serOut = serOut + CHAR_NL
+    serOut = serOut + tag
+}
+
+fn serOutSpNum(x) {
+    serOut = serOut + " "
+    serOut = serOut + ("" + x)
+}
+
+fn serOutSp(s) {
+    serOut = serOut + " "
+    serOut = serOut + s
+}
+
+fn serOutTagEq(tag, n) {
+    serOutTag(tag)
+    serOut = serOut + ("" + n)
+}
+
+fn serOutTagged(tag, i, rest) {
+    serOutTag(tag)
+    serOutSpNum(i)
+    serOutSp(rest)
+}
+
+fn serOutTagged2(tag, a, b, rest) {
+    serOutTag(tag)
+    serOutSpNum(a)
+    serOutSpNum(b)
+    serOutSp(rest)
+}
+
+fn serOutTry5(tag, a, b, tr) {
+    serOutTag(tag)
+    serOutSpNum(a)
+    serOutSpNum(b)
+    serOutSpNum(tr["bodyStart"])
+    serOutSpNum(tr["bodyEnd"])
+    serOutSpNum(tr["catchStart"])
+    serOutSpNum(tr["errLocal"])
+}
+
+fn serOutTry4(tag, a, tr) {
+    serOutTag(tag)
+    serOutSpNum(a)
+    serOutSpNum(tr["bodyStart"])
+    serOutSpNum(tr["bodyEnd"])
+    serOutSpNum(tr["catchStart"])
+    serOutSpNum(tr["errLocal"])
+}
+
+fn serAppendTaggedOps(tag, i, ops) {
+    serJ = 0
+    let n = len(ops)
+    while serJ < n {
+        serOutTagged(tag, i, serIrOpLine(ops[serJ]))
+        serJ = serJ + 1
+    }
+}
+
+fn serAppendNamedList(zeroTag, eqTag, itemTag, items) {
+    if items == undefined {
+        serOutTag(zeroTag)
+        return
+    }
+    serOutTagEq(eqTag, len(items))
+    serI = 0
+    let n = len(items)
+    while serI < n {
+        serOutTagged(itemTag, serI, items[serI])
+        serI = serI + 1
+    }
+}
+
+fn serAppendOps(ops) {
+    serI = 0
+    let n = len(ops)
+    while serI < n {
+        serOutTag(serIrOpLine(ops[serI]))
+        serI = serI + 1
+    }
+}
+
+fn serAppendClassMethods(ci, methods) {
+    serJ = 0
+    let n = len(methods)
+    while serJ < n {
+        serMeth = methods[serJ]
+        serOutTagged2("class_method", ci, serJ, serMeth["sym"])
+        serOutTagged2("class_method_params", ci, serJ, serJoinComma(serMeth["params"]))
+        serOutTagged2("class_method_locals", ci, serJ, serJoinComma(serMeth["locals"]))
+        serOutTagged2("class_method_globals", ci, serJ, serJoinComma(serMeth["globals"]))
+        serK = 0
+        serArr = serMeth["ops"]
+        let nOps = len(serArr)
+        while serK < nOps {
+            serOutTagged2("class_method_op", ci, serJ, serIrOpLine(serArr[serK]))
+            serK = serK + 1
+        }
+        serJ = serJ + 1
+    }
+}
+
+fn serAppendFunctions(fns) {
+    serOutTagEq("functions=", len(fns))
+    serI = 0
+    let n = len(fns)
+    while serI < n {
+        serFn = fns[serI]
+        serOutTagged("fn", serI, serFn.sym)
+        serOutTagged("fn_params", serI, serJoinComma(serFn.params))
+        serOutTagged("fn_locals", serI, serJoinComma(serFn.locals))
+        if serFn["tryRegions"] != undefined {
+            serJ = 0
+            serArr = serFn["tryRegions"]
+            let nTr = len(serArr)
+            while serJ < nTr {
+                serOutTry5("fn_try_region", serI, serJ, serArr[serJ])
+                serJ = serJ + 1
+            }
+        }
+        serAppendTaggedOps("fn_op", serI, serFn.ops)
+        serI = serI + 1
+    }
+}
+
+fn serAppendArrows(arrows) {
+    if arrows == undefined {
+        serOutTag("arrows=0")
+        return
+    }
+    serOutTagEq("arrows=", len(arrows))
+    serI = 0
+    let n = len(arrows)
+    while serI < n {
+        serArr = arrows[serI]
+        serOutTagged("arrow", serI, serArr["sym"])
+        serOutTagged("arrow_params", serI, serJoinComma(serArr["params"]))
+        serOutTagged("arrow_locals", serI, serJoinComma(serArr["locals"]))
+        serAppendTaggedOps("arrow_op", serI, serArr["ops"])
+        serI = serI + 1
+    }
+}
+
+fn serAppendClasses(classes) {
+    if classes == undefined {
+        serOutTag("classes=0")
+        return
+    }
+    serOutTagEq("classes=", len(classes))
+    serI = 0
+    let n = len(classes)
+    while serI < n {
+        serCls = classes[serI]
+        serOutTagged("class", serI, serCls["sym"])
+        if serCls["isStruct"] == 1 {
+            serOutTag("class_is_struct")
+            serOutSpNum(serI)
+        }
+        serAppendClassMethods(serI, serCls["methods"])
+        serI = serI + 1
+    }
+}
+
+/// Full .kbc text for a bytecode IR object (used by serialize_body facade).
+pub fn serSerializeBc(bc) {
+    serOut = KBC_HEADER
+    serOutTagEq("constants=", len(bc.constants))
+    serI = 0
+    let nConst = len(bc.constants)
+    while serI < nConst {
+        serOutTag(serConstLine(serI, bc.constants[serI]))
+        serI = serI + 1
+    }
+    serI = 0
+    let nGlob = len(bc.globals)
+    while serI < nGlob {
+        serOutTagged("global", serI, bc.globals[serI])
+        serI = serI + 1
+    }
+    serAppendFunctions(bc.functions)
+    serAppendArrows(bc.arrows)
+    if bc.tryRegions != undefined {
+        serI = 0
+        let nMtr = len(bc.tryRegions)
+        while serI < nMtr {
+            serOutTry4("main_try_region", serI, bc.tryRegions[serI])
+            serI = serI + 1
+        }
+    }
+    serAppendNamedList("exports=0", "exports=", "export", bc.exports)
+    serAppendNamedList("imports=0", "imports=", "import", bc.imports)
+    serAppendClasses(bc.classes)
+    serOutTag("code")
+    serAppendOps(bc.ops)
+    return serOut
 }
