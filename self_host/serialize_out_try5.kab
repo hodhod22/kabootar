@@ -1,0 +1,12 @@
+// P6b: serOutTry5 (skip-listed until ≤10s).
+import "self_host/serialize_out_base"
+
+pub fn serOutTry5(out, tag, a, b, tr) {
+    let s = serOutTag(out, tag)
+    s = serOutSpNum(s, a)
+    s = serOutSpNum(s, b)
+    s = serOutSpNum(s, tr["bodyStart"])
+    s = serOutSpNum(s, tr["bodyEnd"])
+    s = serOutSpNum(s, tr["catchStart"])
+    return serOutSpNum(s, tr["errLocal"])
+}

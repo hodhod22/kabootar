@@ -1,0 +1,23 @@
+// P6b: const/globals pool appenders (skip-listed until ≤10s).
+import "self_host/serialize_pure"
+import "self_host/serialize_out"
+
+pub fn serAppendConsts(out, constants) {
+    let i = 0
+    let n = len(constants)
+    while i < n {
+        out = serOutTag(out, serConstLine(i, constants[i]))
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serAppendGlobals(out, globals) {
+    let i = 0
+    let n = len(globals)
+    while i < n {
+        out = serOutTagged(out, "global", i, globals[i])
+        i = i + 1
+    }
+    return out
+}

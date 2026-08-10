@@ -2,6 +2,7 @@
 import "self_host/serialize_pure"
 import "self_host/serialize_out"
 import "self_host/serialize_ops"
+import "self_host/serialize_fn_tries"
 
 pub fn serAppendFunctions(out, fns) {
     out = serOutTagEq(out, "functions=", len(fns))
@@ -13,13 +14,7 @@ pub fn serAppendFunctions(out, fns) {
         out = serOutTagged(out, "fn_params", i, serJoinComma(f.params))
         out = serOutTagged(out, "fn_locals", i, serJoinComma(f.locals))
         if f["tryRegions"] != undefined {
-            let j = 0
-            let arr = f["tryRegions"]
-            let nTr = len(arr)
-            while j < nTr {
-                out = serOutTry5(out, "fn_try_region", i, j, arr[j])
-                j = j + 1
-            }
+            out = serAppendFnTries(out, i, f["tryRegions"])
         }
         out = serAppendTaggedOps(out, "fn_op", i, f.ops)
         i = i + 1
