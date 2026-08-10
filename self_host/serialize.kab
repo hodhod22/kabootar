@@ -5,8 +5,8 @@
 // host `call_value` frame. Under KABOOTAR_VM=kab-only that breaks reentrancy the same
 // way a wrapped `runModule` does in self_host/vm.kab — see that file's header.
 //
-// Heavy AccAdd serialize lives in skip-listed serialize_defs.kab; serialize_body is
-// a thin CI-fast facade. Both serialize.kab and serialize_impl.kab stay attemptable.
+// Heavy AccAdd serialize lives in skip-listed serialize_pure/serialize_acc;
+// serialize_body is a thin CI-fast facade. serialize.kab / serialize_impl stay attemptable.
 
 import "self_host/serialize_impl"
 

@@ -1,11 +1,9 @@
 // H6e: serialize IR body — skip-listed leaf shard (thin facade).
 // Reached via self_host/serialize.kab → serialize_impl.kab → here.
 //
-// P6b: AccAdd/section AST lives in serialize_defs (serSerializeBc). This leaf
-// only re-exports; it is CI-fast and not skip-listed. Measure with
-// p6b_serialize_body_compile_budget; empty skip-list only when serialize_defs
-// (and the other four leaves) are also under P6_SELF_HOST_LEAF_CI_FAST_MS.
-import "self_host/serialize_defs"
+// AccAdd body: serialize_acc.kab + serialize_pure.kab (skip-listed).
+// IR tables: serialize_ir.kab (attemptable).
+import "self_host/serialize_acc"
 
 pub fn serializeBcImplCore(bc) {
     return serSerializeBc(bc)

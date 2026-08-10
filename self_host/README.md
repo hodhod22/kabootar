@@ -26,7 +26,10 @@ source text
 | `parser.kab` | klar | `parseTokens(tokens)` → AST (+ generics: `<T>`, enum/class, typed calls/members) |
 | `emit_defs.kab` | klar | Opcode-namn för IR |
 | `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
-| `serialize_defs.kab` | klar | `.kbc`-header |
+| `serialize_ir.kab` | klar | IR membership tables |
+| `serialize_pure.kab` | klar | esc/const/ir-line helpers (skip-listed) |
+| `serialize_acc.kab` | klar | AccAdd serialize body (skip-listed) |
+| `serialize_defs.kab` | klar | pub-import aggregator |
 | `serialize.kab` | klar | `serialize_bc(ir)` → text |
 | `parse.kab` | klar | `parse(source)` facade (lexer + parser) |
 | `compile.kab` | klar | `compile(source)` → `.kbc` text (full pipeline) |

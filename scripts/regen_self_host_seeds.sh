@@ -14,7 +14,7 @@ if [[ -z "${BIN}" || ! -x "$BIN" ]]; then
   exit 1
 fi
 mkdir -p self_host/seed
-LEAVES=(emit_impl.kab parser_impl.kab lexer_impl.kab serialize_defs.kab vm_run_body.kab)
+LEAVES=(emit_impl.kab parser_impl.kab lexer_impl.kab serialize_pure.kab serialize_acc.kab vm_run_body.kab)
 for name in "${LEAVES[@]}"; do
   echo "compile $name --rust"
   KABOOTAR_COMPILE=rust "$BIN" compile "self_host/$name" --rust
