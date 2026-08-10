@@ -1,7 +1,6 @@
 // P6b: arrow-section appender (skip-listed until ≤10s).
-import "self_host/serialize_pure"
 import "self_host/serialize_out"
-import "self_host/serialize_ops"
+import "self_host/serialize_arrow_one"
 
 pub fn serAppendArrows(out, arrows) {
     if arrows == undefined {
@@ -11,11 +10,7 @@ pub fn serAppendArrows(out, arrows) {
     let i = 0
     let n = len(arrows)
     while i < n {
-        let arr = arrows[i]
-        out = serOutTagged(out, "arrow", i, arr["sym"])
-        out = serOutTagged(out, "arrow_params", i, serJoinComma(arr["params"]))
-        out = serOutTagged(out, "arrow_locals", i, serJoinComma(arr["locals"]))
-        out = serAppendTaggedOps(out, "arrow_op", i, arr["ops"])
+        out = serAppendOneArrow(out, i, arrows[i])
         i = i + 1
     }
     return out

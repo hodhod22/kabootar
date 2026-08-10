@@ -1,0 +1,15 @@
+// P6b: new_instance IR line (skip-listed until ≤10s).
+import "self_host/emit_defs"
+
+pub fn serIrOpNewInstance(op) {
+    let line = OP_NEW_INSTANCE
+    line = line + " "
+    line = line + ("" + op.arg)
+    line = line + " "
+    let a2 = op.arg2
+    if a2 == undefined {
+        a2 = 0
+    }
+    line = line + ("" + a2)
+    return line
+}

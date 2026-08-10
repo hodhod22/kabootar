@@ -1,0 +1,11 @@
+// P6b: one arrow appender (skip-listed until ≤10s).
+import "self_host/serialize_pure"
+import "self_host/serialize_out"
+import "self_host/serialize_ops"
+
+pub fn serAppendOneArrow(out, i, arr) {
+    out = serOutTagged(out, "arrow", i, arr["sym"])
+    out = serOutTagged(out, "arrow_params", i, serJoinComma(arr["params"]))
+    out = serOutTagged(out, "arrow_locals", i, serJoinComma(arr["locals"]))
+    return serAppendTaggedOps(out, "arrow_op", i, arr["ops"])
+}
