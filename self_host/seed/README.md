@@ -68,7 +68,7 @@ Profile script: `KABOOTAR_COMPILE=rust` + `kabootar run` for reliable `PROFILE p
 
 | Leaf | Notes | Last recorded |
 |------|-------|---------------|
-| `serialize_body.kab` | + poolPush/pBodyDepth/eClassesN toolchain | **~150 s** debug (2026-08-10) — still ≫ 10 s |
+| `serialize_body.kab` | pure helpers moved to serialize_defs | **~112 s** debug (2026-08-10) — still ≫ 10 s |
 | others | Larger / denser | not under budget |
 
 ## Gates
