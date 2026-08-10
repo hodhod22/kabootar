@@ -27,8 +27,12 @@ source text
 | `emit_defs.kab` | klar | Opcode-namn för IR |
 | `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
 | `serialize_ir.kab` | klar | IR membership tables |
-| `serialize_pure.kab` | klar | esc/const/ir-line helpers (skip-listed) |
-| `serialize_acc.kab` | klar | AccAdd serialize body (skip-listed) |
+| `serialize_esc.kab` | klar | escape helper (CI-fast) |
+| `serialize_op.kab` | klar | const/op/join helpers (skip-listed) |
+| `serialize_out.kab` | klar | out-line helpers (skip-listed) |
+| `serialize_sections.kab` | klar | section appenders (skip-listed) |
+| `serialize_acc.kab` | klar | serSerializeBc (skip-listed) |
+| `serialize_pure.kab` | klar | pub-import aggregator |
 | `serialize_defs.kab` | klar | pub-import aggregator |
 | `serialize.kab` | klar | `serialize_bc(ir)` → text |
 | `parse.kab` | klar | `parse(source)` facade (lexer + parser) |
