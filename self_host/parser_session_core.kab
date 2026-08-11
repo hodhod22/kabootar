@@ -1,0 +1,24 @@
+// P6b: parser session core fields.
+pub fn pSessionInit_core(sess) {
+    sess["pPos"] = 0
+    sess["pToks"] = []
+    sess["pToksLen"] = 0
+    sess["pCur"] = null
+    sess["pEofTok"] = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+    sess["pTok"] = null
+    sess["pNextTok"] = null
+    sess["pDone"] = 0
+    sess["pSymPool"] = []
+    sess["pSymN"] = 0
+    sess["pSymOut"] = ""
+    sess["pSymSrc"] = ""
+    sess["pSymI"] = 0
+    sess["pPopI"] = 0
+    sess["pPopNew"] = []
+    sess["pImports"] = []
+    sess["pIsPub"] = 0
+    sess["pFnPub"] = 0
+    sess["pInAddSub"] = 0
+    sess["pNoBit"] = 0
+    return 0
+}

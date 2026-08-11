@@ -1,0 +1,24 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_lateAssign(sess) {
+    if !(sess["pCur"].type == TOKEN_IDENT) {
+        return null
+    }
+        if sess["pPos"] + 1 < sess["pToksLen"] {
+            sess["pNextTok"] = sess["pToks"][sess["pPos"] + 1]
+        } else {
+            sess["pNextTok"] = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+        }
+        if sess["pNextTok"].type == "=" {
+            sess["pTok"] = sess["pCur"]
+            sess["pBindSym"] = poolPush(sess, sess["pTok"].value)
+            bump(sess)
+            bump(sess)
+            sess["pVal"] = pCallCompare(sess)
+            return { "kind": AST_ASSIGN, "sym": sess["pBindSym"], "rhs": sess["pVal"] }
+        }
+}
+

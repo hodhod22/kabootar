@@ -1,0 +1,26 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_expr(sess) {
+    sess["pAssignLhs"] = pCallCompare(sess)
+    if sess["pCur"].type == "=" {
+        bump(sess)
+        // P6b: do not reuse sess["pSave"] — parseAddShift clobbers sess["pSave"] while parsing RHS
+        // (e.g. `E["a"] = { "x": 1 + 2 }` → false "invalid assign lhs").
+        sess["pInit"] = pCallCompare(sess)
+        if sess["pAssignLhs"].kind == AST_VAR {
+            return { "kind": AST_ASSIGN, "sym": sess["pAssignLhs"]["sym"], "rhs": sess["pInit"] }
+        }
+        if sess["pAssignLhs"].kind == AST_INDEX {
+            return { "kind": AST_INDEX_ASSIGN, "object": sess["pAssignLhs"]["object"], "index": sess["pAssignLhs"]["index"], "rhs": sess["pInit"] }
+        }
+        if sess["pAssignLhs"].kind == AST_MEMBER {
+            return { "kind": AST_MEMBER_ASSIGN, "object": sess["pAssignLhs"]["object"], "field": sess["pAssignLhs"]["field"], "rhs": sess["pInit"] }
+        }
+        throw "invalid assign lhs"
+    }
+    sess["pVal"] = sess["pAssignLhs"]
+    return { "kind": AST_EXPR, "expr": sess["pVal"] }
+}

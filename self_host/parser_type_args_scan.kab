@@ -1,0 +1,44 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseTypeArgs_scan(sess) {
+    if sess["pCur"].type != "<" {
+        return 0
+    }
+    sess["pAngleI"] = sess["pPos"] + 1
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return 0
+    }
+    sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+    if sess["pAngleTok"].type != TOKEN_IDENT {
+        return 0
+    }
+    sess["pAngleI"] = sess["pAngleI"] + 1
+    while sess["pAngleI"] < sess["pToksLen"] {
+        sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+        if sess["pAngleTok"].type == ">" {
+            break
+        }
+        if sess["pAngleTok"].type == "<" {
+            return 0
+        }
+        if sess["pAngleTok"].type == "," {
+            sess["pAngleI"] = sess["pAngleI"] + 1
+        } else {
+            if sess["pAngleTok"].type == TOKEN_IDENT {
+                sess["pAngleI"] = sess["pAngleI"] + 1
+            } else {
+                return 0
+            }
+        }
+    }
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return 0
+    }
+    if sess["pToks"][sess["pAngleI"]].type != ">" {
+        return 0
+    }
+    return 1
+}

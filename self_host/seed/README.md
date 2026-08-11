@@ -23,8 +23,11 @@ self-host-compile under 10 s (measured via `scripts/_emit_shard_times.py`).
 
 **Emit densify ✅ (shards):** session trampoline + kind handlers + shared helpers.
 **Parser densify (in progress):** `parser_session` + `parser_hooks`/`parser_tramp` + expr/stmt shards.
-Regenerators: `scripts/_densify_emit_main.py`, `scripts/_densify_parser_impl.py`.
-Measure: `scripts/_emit_shard_times.py`, `scripts/_parser_shard_times.py`, `scripts/_leaf_compile_times.py`.
+Phase 2: `parser_postfix_*`, `parser_compare_*`, `parser_add_shift_*`, `parser_stmt_*` (122/123 `test_parser.kab`).
+Phase 3: further densify — session field groups, class/fn/iface/enum/try/if/postfix_lit/tail/type_args/main helpers.
+Regenerators: `scripts/_densify_parser_impl.py`, `scripts/_split_parser_shards.py`, `scripts/_densify_parser_phase3.py`.
+Measure: `scripts/_parser_shard_times.py`, `scripts/_parser_all_shard_times.py`, `scripts/_leaf_compile_times.py`.
+Many shards still >10 s (`parser_stmt_class_method`, `parser_postfix_paren`, …) — continue densify before seed regen / skip-list clear.
 Do **not** empty skip-list until parser + lexer leaves also ≤10 s.
 
 **VM path is clear of the skip-list** — `vm_run_exec_core` densified (~6.7 s) via session trampoline + `vm_run_hook_*` / `vm_run_tramp_*` shards.

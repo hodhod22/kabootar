@@ -1,0 +1,22 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_iface_assoc(sess) {
+    if !(sess["pCur"].type == TOKEN_IDENT && sess["pCur"].value == "type") {
+        return 0
+    }
+    bump(sess)
+    sess["pTok"] = sess["pCur"]
+    if sess["pTok"].type != TOKEN_IDENT {
+        throw "Expected associated type name"
+    }
+    bump(sess)
+    sess["pAssocTypes"] = push(sess["pAssocTypes"], sess["pTok"].value)
+    if sess["pCur"].type != ";" {
+        throw "Expected ; after associated type"
+    }
+    bump(sess)
+    return 1
+}

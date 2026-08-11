@@ -1,0 +1,34 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseCompare_logic_or(sess) {
+    while sess["pCur"].type == "||" {
+        bump(sess)
+        sess["pExprLeft"] = sess["pLeft"]
+        sess["pRight"] = pCallRelExpr(sess)
+        if sess["pNoBit"] == 0 {
+            while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+                sess["pBinOp"] = sess["pCur"].type
+                bump(sess)
+                sess["pRight"] = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": sess["pRight"], "right": pCallRelExpr(sess) }
+            }
+        }
+        while sess["pCur"].type == "&&" {
+            bump(sess)
+            let andLeft = sess["pRight"]
+            let andRight = pCallRelExpr(sess)
+            if sess["pNoBit"] == 0 {
+                while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+                    sess["pBinOp"] = sess["pCur"].type
+                    bump(sess)
+                    andRight = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": andRight, "right": pCallRelExpr(sess) }
+                }
+            }
+            sess["pRight"] = { "kind": AST_BINARY, "op": "&&", "left": andLeft, "right": andRight }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": "||", "left": sess["pExprLeft"], "right": sess["pRight"] }
+    }
+    return 0
+}
