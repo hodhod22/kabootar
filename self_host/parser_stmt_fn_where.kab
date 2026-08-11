@@ -1,0 +1,40 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_fn_where(sess) {
+    sess["pWhereClause"] = []
+    if sess["pCur"].type != TOKEN_WHERE {
+        return 0
+    }
+    bump(sess)
+    while true {
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected type parameter in where"
+        }
+        bump(sess)
+        sess["pWhereParam"] = sess["pTok"].value
+        if sess["pCur"].type != ":" {
+            throw "Expected : in where"
+        }
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected trait name in where"
+        }
+        bump(sess)
+        sess["pWhereTrait"] = sess["pTok"].value
+        sess["pWhereClause"] = push(sess["pWhereClause"], {
+            "typeParam": sess["pWhereParam"],
+            "traitName": sess["pWhereTrait"]
+        })
+        if sess["pCur"].type == "," {
+            bump(sess)
+        } else {
+            break
+        }
+    }
+    return 0
+}

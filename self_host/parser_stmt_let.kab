@@ -1,0 +1,25 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_let(sess) {
+    if !(sess["pCur"].type == TOKEN_LET) {
+        return null
+    }
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected identifier after let"
+        }
+        sess["pLetSym"] = sess["pTok"].value
+        bump(sess)
+        sess["pBindSym"] = poolPush(sess, sess["pLetSym"])
+        if sess["pCur"].type != "=" {
+            throw "Expected ="
+        }
+        bump(sess)
+        sess["pInit"] = pCallCompare(sess)
+        return { "kind": AST_LET, "sym": sess["pBindSym"], "init": sess["pInit"], "isPub": sess["pIsPub"] }
+}
+

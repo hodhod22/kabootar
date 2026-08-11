@@ -1,0 +1,50 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+import "self_host/parser_stmt_class_method"
+import "self_host/parser_stmt_class_field"
+
+pub fn parseStmt_class(sess) {
+    if !(sess["pCur"].type == TOKEN_CLASS || sess["pCur"].type == TOKEN_STRUCT) {
+        return null
+    }
+    sess["pIsStruct"] = 0
+    if sess["pCur"].type == TOKEN_STRUCT {
+        sess["pIsStruct"] = 1
+    }
+    bump(sess)
+    sess["pTok"] = sess["pCur"]
+    if sess["pTok"].type != TOKEN_IDENT {
+        if sess["pIsStruct"] == 1 {
+            throw "Expected struct name"
+        }
+        throw "Expected class name"
+    }
+    bump(sess)
+    sess["pClassSym"] = sess["pTok"].value
+    sess["pTypeParams"] = pCallTypeArgs(sess)
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    sess["pClassFields"] = []
+    sess["pClassMethods"] = []
+    while sess["pCur"].type != "}" {
+        if sess["pCur"].type == TOKEN_FN {
+            parseStmt_class_method(sess)
+        } else {
+            parseStmt_class_field(sess)
+        }
+    }
+    bump(sess)
+    return {
+        "kind": AST_CLASS,
+        "sym": sess["pClassSym"],
+        "typeParams": sess["pTypeParams"],
+        "fields": sess["pClassFields"],
+        "methods": sess["pClassMethods"],
+        "isStruct": sess["pIsStruct"]
+    }
+}

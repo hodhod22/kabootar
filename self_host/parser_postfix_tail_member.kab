@@ -1,0 +1,48 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parsePostfix_tail_member(sess) {
+    if sess["pCur"].type != "." {
+        return 0
+    }
+    bump(sess)
+    sess["pTok"] = sess["pCur"]
+    sess["pMemberName"] = ""
+    if sess["pTok"].type == TOKEN_IDENT {
+        bump(sess)
+        sess["pMemberName"] = sess["pTok"].value
+    } else {
+        if sess["pTok"].type == TOKEN_NONE {
+            bump(sess)
+            sess["pMemberName"] = "None"
+        } else {
+            if sess["pTok"].type == TOKEN_SOME {
+                bump(sess)
+                sess["pMemberName"] = "Some"
+            } else {
+                if sess["pTok"].type == TOKEN_OK {
+                    bump(sess)
+                    sess["pMemberName"] = "Ok"
+                } else {
+                    if sess["pTok"].type == TOKEN_ERR {
+                        bump(sess)
+                        sess["pMemberName"] = "Err"
+                    } else {
+                        throw "Expected member name"
+                    }
+                }
+            }
+        }
+    }
+    sess["pMemberName"] = poolPush(sess, sess["pMemberName"])
+    sess["pLeft"] = {
+        "kind": AST_MEMBER,
+        "object": sess["pLeft"],
+        "field": sess["pMemberName"],
+        "typeArgs": sess["pTypeArgs"]
+    }
+    sess["pTypeArgs"] = []
+    return 1
+}

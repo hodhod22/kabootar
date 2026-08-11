@@ -1,0 +1,23 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt_return(sess) {
+    if !(sess["pCur"].type == TOKEN_RETURN) {
+        return null
+    }
+        bump(sess)
+        if sess["pCur"].type == ";" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if sess["pCur"].type == "}" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if sess["pCur"].type == "EOF" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        sess["pVal"] = pCallCompare(sess)
+        return { "kind": AST_RETURN, "value": sess["pVal"] }
+}
+
