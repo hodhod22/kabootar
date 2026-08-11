@@ -1,0 +1,23 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_expr_call_h5_do_install"
+
+pub fn emitExpr_call_h5_install(E) {
+    E["eFoundMeth"] = 0
+    E["eClassIdx"] = 0
+    while E["eClassIdx"] < E["eClassesN"] {
+        if E["eClasses"][E["eClassIdx"]]["sym"] == E["eRecvClass"] {
+            E["eMi"] = 0
+            while E["eMi"] < len(E["eClasses"][E["eClassIdx"]]["methods"]) {
+                if E["eClasses"][E["eClassIdx"]]["methods"][E["eMi"]]["sym"] == E["eMethodMangled"] {
+                    E["eFoundMeth"] = 1
+                }
+                E["eMi"] = E["eMi"] + 1
+            }
+            if E["eFoundMeth"] == 0 {
+                emitExpr_call_h5_do_install(E)
+            }
+        }
+        E["eClassIdx"] = E["eClassIdx"] + 1
+    }
+}

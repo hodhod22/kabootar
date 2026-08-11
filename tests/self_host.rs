@@ -1997,7 +1997,6 @@ fn self_host_heavy_cores_still_skipped() {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "vm_run_body.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         let err = compile_file_self_host(&path).unwrap_err();
@@ -2027,6 +2026,8 @@ fn self_host_vm_cores_not_in_skip_list() {
         "vm_impl.kab",
         "serialize_impl.kab",
         "vm_run.kab",
+        "vm_run_body.kab",
+        "vm_run_exec_core.kab",
     ] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
         assert!(
@@ -2183,7 +2184,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2205,7 +2206,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
 fn p6_seed_fingerprint_all_leaves_load() {
     use kabootar_lib::compile::{read_seed_bytecode, SELF_HOST_SKIP_LISTED_LEAVES};
 
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in SELF_HOST_SKIP_LISTED_LEAVES {
         let path = format!("{root}/{rel}");
@@ -2233,7 +2234,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         !P6B_EMPTY_SKIP_LIST_READY,
         "P6b: empty skip-list not ready until emit/parser/lexer/vm also <10s"
     );
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
     for leaf in SELF_HOST_SKIP_LISTED_LEAVES {
         assert!(
             !leaf.contains("serialize_"),
@@ -2352,7 +2353,7 @@ fn p6_skip_list_stays_until_ci_fast_gate() {
     };
 
     assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 4);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
     assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
     assert!(
         !P6B_EMPTY_SKIP_LIST_READY,

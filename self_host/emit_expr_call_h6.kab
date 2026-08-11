@@ -1,0 +1,42 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_sym_index"
+import "self_host/emit_arr_util"
+import "self_host/emit_op"
+import "self_host/emit_sym"
+import "self_host/emit_local_map"
+import "self_host/emit_call_callee"
+import "self_host/emit_drop_callee"
+import "self_host/emit_call_args"
+import "self_host/emit_try_len"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+import "self_host/emit_expr_call_h2"
+import "self_host/emit_expr_call_h3"
+import "self_host/emit_expr_call_h1"
+import "self_host/emit_expr_call_h5"
+import "self_host/emit_expr_call_h7"
+
+pub fn emitExpr_call_h6(E) {
+        E["eGenSym"] = E["eMemObj"]["sym"]
+        E["eFound"] = 0
+        E["eGenI"] = 0
+        while E["eGenI"] < len(E["eGenericEnumTemplates"]) {
+            if E["eGenericEnumTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                E["eGenTmpl"] = E["eGenericEnumTemplates"][E["eGenI"]]
+                E["eFound"] = 1
+                break
+            }
+            E["eGenI"] = E["eGenI"] + 1
+        }
+        if E["eFound"] == 1 {
+            emitExpr_call_h7(E)
+            if E["_callDone"] == 1 {
+                E["_callDone"] = 1
+                return 0
+            }
+        }
+}

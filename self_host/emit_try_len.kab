@@ -1,0 +1,31 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_op"
+import "self_host/emit_local_sym"
+import "self_host/emit_sym_index"
+
+pub fn tryEmitLenCall(E, callee, args) {
+    if callee.kind != AST_VAR {
+        return false
+    }
+    if callee["sym"] != "len" {
+        return false
+    }
+    if len(args) != 1 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    let sym = a0["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_LEN_LOCAL, li)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_LEN_GLOBAL, gi)
+    return true
+}
+

@@ -1,0 +1,10 @@
+pub fn emitOp(E, op, arg) {
+    if E["eInFn"] == 1 {
+        E["eFnOps"] = push(E["eFnOps"], { "op": op, "arg": arg })
+        E["eFnOpsN"] = E["eFnOpsN"] + 1
+    } else {
+        E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+        E["eOpsN"] = E["eOpsN"] + 1
+    }
+}
+

@@ -1,0 +1,2 @@
+// Legacy alias module — implementation in emit_stmt_let_ctor_bind.kab
+import "self_host/emit_stmt_let_ctor_bind"

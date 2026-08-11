@@ -1,0 +1,20 @@
+// P6b: module session + trampoline entry.
+import "self_host/parser_session"
+import "self_host/parser_tramp"
+import "self_host/parser_main"
+
+let sess = pMakeSession()
+
+fn tramp() {
+    return pTramp(sess)
+}
+
+sess["tramp"] = tramp
+sess["_hook"] = 0
+
+pub fn parseTokensExec(tokens) {
+    pResetSession(sess)
+    sess["tramp"] = tramp
+    sess["_hook"] = 0
+    return parseMain(sess, tokens)
+}

@@ -1,0 +1,58 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_const_key"
+
+pub fn symIndex(E, mode, arg) {
+    if mode == "local" {
+        let lHit = E["eLocalMap"][arg]
+        if lHit != undefined {
+            return lHit
+        }
+        E["eFnLocals"] = push(E["eFnLocals"], arg)
+        let lIdx = E["eLocalN"]
+        E["eLocalN"] = E["eLocalN"] + 1
+        E["eLocalMap"][arg] = lIdx
+        return lIdx
+    }
+    if mode == "global" {
+        let gHit = E["eGlobalMap"][arg]
+        if gHit != undefined {
+            return gHit
+        }
+        E["eGlobals"] = push(E["eGlobals"], arg)
+        let gIdx = E["eGlobalN"]
+        E["eGlobalN"] = E["eGlobalN"] + 1
+        E["eGlobalMap"][arg] = gIdx
+        return gIdx
+    }
+    if mode == "const" {
+        let cKey = constKey(E, arg)
+        let cHit = E["eConstMap"][cKey]
+        if cHit != undefined {
+            return cHit
+        }
+        E["eConsts"] = push(E["eConsts"], arg)
+        let cIdx = E["eConstN"]
+        E["eConstN"] = E["eConstN"] + 1
+        E["eConstMap"][cKey] = cIdx
+        return cIdx
+    }
+    if mode == "constLit" {
+        if arg["lit"] == LIT_UNDEF {
+            return symIndex(E, "const", KAB_UNDEF_CONST)
+        }
+        return symIndex(E, "const", arg["value"])
+    }
+    if mode == "class" {
+        E["eClassIdx"] = 0
+        while E["eClassIdx"] < E["eClassesN"] {
+            if E["eClasses"][E["eClassIdx"]]["sym"] == arg {
+                return E["eClassIdx"]
+            }
+            E["eClassIdx"] = E["eClassIdx"] + 1
+        }
+        return -1
+    }
+    throw "symIndex: bad mode"
+}
+

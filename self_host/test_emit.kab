@@ -238,7 +238,8 @@ fn assert_true(v, msg) {
     tHas = 0
     tI = 0
     while tI < len(bc.functions[0].ops) {
-        if bc.functions[0].ops[tI].op == OP_INDEX_GET {
+        let op = bc.functions[0].ops[tI].op
+        if op == OP_INDEX_GET || op == OP_INDEX_GET_LOCAL || op == OP_INDEX_GET_GLOBAL {
             tHas = 1
         }
         tI = tI + 1

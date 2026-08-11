@@ -1,0 +1,78 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_arr_util"
+import "self_host/emit_op"
+import "self_host/emit_patch_jump"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+
+pub fn emitStmt_while(E) {
+    if E["eNode"].kind != AST_WHILE {
+        return false
+    }
+        E["eCond"] = E["eNode"]["cond"]
+        E["eThen"] = E["eNode"]["body"]
+        E["eBreakFromStack"] = arrUtil(E, "pushLen",E["eBreakFromStack"], E["eBreakIdxs"])
+        if E["eInFn"] == 1 {
+            E["eWhileHead"] = E["eFnOpsN"]
+        } else {
+            E["eWhileHead"] = E["eOpsN"]
+        }
+        E["eWhileHeads"] = push(E["eWhileHeads"], E["eWhileHead"])
+        eCallExpr(E, E["eCond"])
+        eCallRet = pushJmpAtLen(E, E["eIfJmpStack"])
+        E["eIfJmpStack"] = eCallRet
+        emitOp(E, OP_JUMP_IF_FALSE, 0)
+        eCallStmt(E, E["eThen"])
+        if E["eInFn"] == 1 {
+            eCallRet = E["eWhileHead"] - E["eFnOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        } else {
+            eCallRet = E["eWhileHead"] - E["eOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        }
+        emitOp(E, OP_JUMP, E["eJumpOff"])
+        eCallRet = len(E["eIfJmpStack"]) - 1
+        E["eJmp"] = E["eIfJmpStack"][eCallRet]
+        patchRelJump(E, OP_JUMP_IF_FALSE, E["eJmp"])
+        E["eIfJmpStack"] = pop(E["eIfJmpStack"])
+        if E["eInFn"] == 1 {
+            E["eEnd"] = E["eFnOpsN"]
+        } else {
+            E["eEnd"] = E["eOpsN"]
+        }
+        eCallRet = len(E["eBreakFromStack"]) - 1
+        E["eBf"] = E["eBreakFromStack"][eCallRet]
+        E["eBi"] = E["eBf"]
+        while E["eBi"] < len(E["eBreakIdxs"]) {
+            eCallRet = E["eEnd"] - E["eBreakIdxs"][E["eBi"]]
+            E["eJumpOff"] = eCallRet - 1
+            if E["eInFn"] == 1 {
+                E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            } else {
+                E["eOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            }
+            E["eBi"] = E["eBi"] + 1
+        }
+        if E["eBf"] > 0 {
+            E["eBreakIdxs"] = slice(E["eBreakIdxs"], 0, E["eBf"])
+        } else {
+            E["eBreakIdxs"] = []
+        }
+        if len(E["eWhileHeads"]) > 0 {
+            E["eWhileHeads"] = pop(E["eWhileHeads"])
+        } else {
+            E["eWhileHeads"] = []
+        }
+        if len(E["eBreakFromStack"]) > 0 {
+            E["eBreakFromStack"] = pop(E["eBreakFromStack"])
+        } else {
+            E["eBreakFromStack"] = []
+        }
+        return true
+    return true
+}
+

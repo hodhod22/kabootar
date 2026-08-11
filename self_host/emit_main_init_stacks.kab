@@ -1,0 +1,21 @@
+import "self_host/emit_defs"
+
+pub fn emitMainInitStacks(E) {
+    E["eWhileHeads"] = []
+    E["eBreakIdxs"] = []
+    E["eBreakFromStack"] = []
+    E["eIfJmpStack"] = []
+    E["eIfSkipStack"] = []
+    E["eMemberFldStack"] = []
+    E["eBlockStmtsStack"] = []
+    E["eBlockNStack"] = []
+    E["eBlockIStack"] = []
+    E["eObjIStack"] = []
+    E["eObjNStack"] = []
+    E["eArrIStack"] = []
+    E["eArrNStack"] = []
+    E["eCallArgIStack"] = []
+    E["eCallArgNStack"] = []
+    E["eArgsStack"] = []
+    E["eCalleeStack"] = []
+}

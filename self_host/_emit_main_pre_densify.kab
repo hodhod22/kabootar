@@ -1,0 +1,1969 @@
+// P6b: emit body — session E threaded as first arg (AccAdd-safe across shards).
+// Host: never AccAdd E[k]=fn(E,...) for pool side effects (clone); use eCallRet.
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+fn constKey(E, arg) {
+    if arg == KAB_UNDEF_CONST {
+        return "U"
+    }
+    if arg == null {
+        return "N"
+    }
+    if arg == true {
+        return "T"
+    }
+    if arg == false {
+        return "F"
+    }
+    let t = typeof(arg)
+    if t == "string" {
+        return "S" + ("" + len(arg)) + ":" + arg
+    }
+    if t == "number" {
+        return "D" + ("" + arg)
+    }
+    return "X" + ("" + arg)
+}
+
+fn resetLocalMap(E) {
+    E["eLocalMap"] = {}
+    E["eLocalN"] = 0
+}
+
+fn rebuildLocalMap(E) {
+    E["eLocalMap"] = {}
+    E["eLocalN"] = 0
+    let i = 0
+    let n = len(E["eFnLocals"])
+    while i < n {
+        E["eLocalMap"][E["eFnLocals"][i]] = i
+        E["eLocalN"] = E["eLocalN"] + 1
+        i = i + 1
+    }
+}
+
+fn symIndex(E, mode, arg) {
+    if mode == "local" {
+        let lHit = E["eLocalMap"][arg]
+        if lHit != undefined {
+            return lHit
+        }
+        E["eFnLocals"] = push(E["eFnLocals"], arg)
+        let lIdx = E["eLocalN"]
+        E["eLocalN"] = E["eLocalN"] + 1
+        E["eLocalMap"][arg] = lIdx
+        return lIdx
+    }
+    if mode == "global" {
+        let gHit = E["eGlobalMap"][arg]
+        if gHit != undefined {
+            return gHit
+        }
+        E["eGlobals"] = push(E["eGlobals"], arg)
+        let gIdx = E["eGlobalN"]
+        E["eGlobalN"] = E["eGlobalN"] + 1
+        E["eGlobalMap"][arg] = gIdx
+        return gIdx
+    }
+    if mode == "const" {
+        let cKey = constKey(E, arg)
+        let cHit = E["eConstMap"][cKey]
+        if cHit != undefined {
+            return cHit
+        }
+        E["eConsts"] = push(E["eConsts"], arg)
+        let cIdx = E["eConstN"]
+        E["eConstN"] = E["eConstN"] + 1
+        E["eConstMap"][cKey] = cIdx
+        return cIdx
+    }
+    if mode == "constLit" {
+        if arg["lit"] == LIT_UNDEF {
+            return symIndex(E, "const", KAB_UNDEF_CONST)
+        }
+        return symIndex(E, "const", arg["value"])
+    }
+    if mode == "class" {
+        E["eClassIdx"] = 0
+        while E["eClassIdx"] < E["eClassesN"] {
+            if E["eClasses"][E["eClassIdx"]]["sym"] == arg {
+                return E["eClassIdx"]
+            }
+            E["eClassIdx"] = E["eClassIdx"] + 1
+        }
+        return -1
+    }
+    throw "symIndex: bad mode"
+}
+
+// mode "snap" -> copy array; mode "pushLen" -> push len(arr) onto stack
+fn arrUtil(E, mode, stack, arr) {
+    if mode == "snap" {
+        // Single O(n) clone via native slice (not O(n²) push loop).
+        return slice(stack, 0)
+    }
+    E["eLenScratch"] = len(arr)
+    return push(stack, E["eLenScratch"])
+}
+
+fn emitOp(E, op, arg) {
+    if E["eInFn"] == 1 {
+        E["eFnOps"] = push(E["eFnOps"], { "op": op, "arg": arg })
+        E["eFnOpsN"] = E["eFnOpsN"] + 1
+    } else {
+        E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+        E["eOpsN"] = E["eOpsN"] + 1
+    }
+}
+
+/// Nested calls: save callee before recursive emitExpr on args (module-global E["eCallee"]).
+fn emitCallCallee(E) {
+    // P6b: use E["eCalleeDepth"] (avoid len(E["eCalleeStack"]) LoadGlobal clone).
+    E["eCallee"] = E["eCalleeStack"][E["eCalleeDepth"] - 1]
+    E["eCalleeStack"] = pop(E["eCalleeStack"])
+    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+    emitExpr(E, E["eCallee"])
+}
+
+fn dropCallCallee(E) {
+    E["eCalleeStack"] = pop(E["eCalleeStack"])
+    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+}
+
+/// P6b: emit each Call arg via E["eCallArgDepth"] (no len(stack) clones / pop-push per arg).
+/// Caller must push E["eCallArgIStack"](0), E["eCallArgNStack"](n), E["eArgsStack"](args) first.
+fn emitCallArgExprs(E) {
+    E["eCallArgDepth"] = E["eCallArgDepth"] + 1
+    let cad = E["eCallArgDepth"]
+    while E["eCallArgIStack"][cad - 1] < E["eCallArgNStack"][cad - 1] {
+        E["eArgs"] = E["eArgsStack"][cad - 1]
+        emitExpr(E, E["eArgs"][E["eCallArgIStack"][cad - 1]])
+        E["eCallArgIStack"][cad - 1] = E["eCallArgIStack"][cad - 1] + 1
+    }
+    E["eArgsStack"] = pop(E["eArgsStack"])
+    E["eArgN"] = E["eCallArgNStack"][cad - 1]
+    E["eCallArgIStack"] = pop(E["eCallArgIStack"])
+    E["eCallArgNStack"] = pop(E["eCallArgNStack"])
+    E["eCallArgDepth"] = E["eCallArgDepth"] - 1
+}
+
+fn emitSym(E, store, sym) {
+    // P6b: map lookup only — no len(E["eFnLocals"])/E["eGlobals"] LoadGlobal clone scans.
+    if store == 0 {
+        if E["eInFn"] == 0 {
+            eCallRet = symIndex(E, "global", sym)
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_LOAD_GLOBAL, eCallRet)
+            return
+        }
+        let li = E["eLocalMap"][sym]
+        if li != undefined {
+            emitOp(E, OP_LOAD_LOCAL, li)
+            return
+        }
+        let gi = E["eGlobalMap"][sym]
+        if gi != undefined {
+            emitOp(E, OP_LOAD_GLOBAL, gi)
+            return
+        }
+        eCallRet = symIndex(E, "global", sym)
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_LOAD_GLOBAL, eCallRet)
+        return
+    }
+    if E["eInFn"] == 0 {
+        eCallRet = symIndex(E, "global", sym)
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_STORE_GLOBAL, eCallRet)
+        return
+    }
+    let sli = E["eLocalMap"][sym]
+    if sli != undefined {
+        emitOp(E, OP_STORE_LOCAL, sli)
+        return
+    }
+    let sgi = E["eGlobalMap"][sym]
+    if sgi != undefined {
+        emitOp(E, OP_STORE_GLOBAL, sgi)
+        return
+    }
+    eCallRet = symIndex(E, "local", sym)
+    E["eIdx"] = eCallRet
+    emitOp(E, OP_STORE_LOCAL, eCallRet)
+}
+
+/// Local index if `sym` is an fn-local, else -1.
+fn localSymIndex(E, sym) {
+    if E["eInFn"] != 1 {
+        return -1
+    }
+    let li = E["eLocalMap"][sym]
+    if li != undefined {
+        return li
+    }
+    return -1
+}
+
+/// `name = push(name, item)` → Take + ArrayPush* (classic eval order; O(1) in-place).
+fn tryEmitArrayPushAssign(E, sym, rhs) {
+    if rhs.kind != AST_CALL {
+        return false
+    }
+    let cal = rhs["callee"]
+    let args = rhs["args"]
+    if cal.kind != AST_VAR {
+        return false
+    }
+    if cal["sym"] != "push" {
+        return false
+    }
+    if len(args) != 2 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    if a0["sym"] != sym {
+        return false
+    }
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_TAKE_LOCAL, li)
+        emitExpr(E, args[1])
+        emitOp(E, OP_ARRAY_PUSH_LOCAL, li)
+        emitOp(E, OP_POP, 0)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_TAKE_GLOBAL, gi)
+    emitExpr(E, args[1])
+    emitOp(E, OP_ARRAY_PUSH_GLOBAL, gi)
+    emitOp(E, OP_POP, 0)
+    return true
+}
+
+/// P6b: `len(name)` → LenLocal/LenGlobal (no Load* clone of the container).
+fn tryEmitLenCall(E, callee, args) {
+    if callee.kind != AST_VAR {
+        return false
+    }
+    if callee["sym"] != "len" {
+        return false
+    }
+    if len(args) != 1 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    let sym = a0["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_LEN_LOCAL, li)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_LEN_GLOBAL, gi)
+    return true
+}
+
+/// `name = name + a + b + …` → AccAdd* (in-place).
+/// Statement path: AccAdd pops rhs only — no Const(null) junk on the stack
+/// (expr-assign value is unused for AST_ASSIGN stmts; ArrayPush uses POP similarly).
+/// P6b: early reject + recurse (no pieces[] push) so emit of dense `sOut = sOut + …`
+/// chains stays O(depth) instead of O(n²) array copies.
+fn tryEmitAccAddAssign(E, sym, rhs) {
+    if rhs.kind != AST_BINARY {
+        return false
+    }
+    if rhs["op"] != "+" {
+        return false
+    }
+    let left = rhs["left"]
+    let right = rhs["right"]
+    if left.kind == AST_VAR {
+        if left["sym"] != sym {
+            return false
+        }
+        let li = localSymIndex(E, sym)
+        if li >= 0 {
+            emitExpr(E, right)
+            emitOp(E, OP_ACC_ADD_LOCAL, li)
+            return true
+        }
+        let gi = symIndex(E, "global", sym)
+        emitExpr(E, right)
+        emitOp(E, OP_ACC_ADD_GLOBAL, gi)
+        return true
+    }
+    if left.kind == AST_BINARY {
+        if left["op"] == "+" {
+            if tryEmitAccAddAssign(E, sym, left) {
+                let li = localSymIndex(E, sym)
+                if li >= 0 {
+                    emitExpr(E, right)
+                    emitOp(E, OP_ACC_ADD_LOCAL, li)
+                    return true
+                }
+                let gi = symIndex(E, "global", sym)
+                emitExpr(E, right)
+                emitOp(E, OP_ACC_ADD_GLOBAL, gi)
+                return true
+            }
+        }
+    }
+    return false
+}
+
+fn emitExpr(E, node) {
+    E["eNode"] = node
+    if E["eNode"] == null {
+        throw "emitExpr: null node"
+    }
+    if E["eNode"].kind == AST_LITERAL {
+        eCallRet = symIndex(E, "constLit",E["eNode"])
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_CONST, eCallRet)
+        return
+    }
+    if E["eNode"].kind == AST_VAR {
+        E["eSym"] = E["eNode"]["sym"]
+        if E["eSym"] == "None" {
+            emitOp(E, OP_MAKE_NONE, 0)
+            return
+        }
+        emitSym(E, 0,E["eSym"])
+        return
+    }
+    if E["eNode"].kind == AST_UNARY {
+        let uOp = E["eNode"]["op"]
+        let uInner = E["eNode"]["expr"]
+        emitExpr(E, uInner)
+        if uOp == "!" {
+            emitOp(E, OP_NOT, 0)
+            return
+        }
+        if uOp == "-" {
+            emitOp(E, OP_NEG, 0)
+            return
+        }
+        if uOp == "~" {
+            emitOp(E, OP_BIT_NOT, 0)
+            return
+        }
+        throw "Unsupported unary op: " + uOp
+    }
+    if E["eNode"].kind == AST_ARROW {
+        let aParams = E["eNode"]["params"]
+        let aBody = E["eNode"]["body"]
+        let saveIn = E["eInFn"]
+        let saveOps = arrUtil(E, "snap", E["eFnOps"])
+        let saveFnOpsN = E["eFnOpsN"]
+        let saveLocals = arrUtil(E, "snap", E["eFnLocals"])
+        let saveGlobals = arrUtil(E, "snap", E["eFnGlobals"])
+        let saveTry = arrUtil(E, "snap", E["eFnTryRegions"])
+        E["eInFn"] = 1
+        E["eFnOps"] = []
+        E["eFnOpsN"] = 0
+        E["eFnLocals"] = []
+        resetLocalMap(E)
+        E["eFnGlobals"] = []
+        E["eFnTryRegions"] = []
+        let api = 0
+        while api < len(aParams) {
+            symIndex(E, "local", aParams[api])
+            api = api + 1
+        }
+        if aBody.kind == AST_BLOCK {
+            emitStmt(E, aBody)
+        } else {
+            emitExpr(E, aBody)
+            emitOp(E, OP_RETURN, 0)
+        }
+        let ai = len(E["eArrows"])
+        let arrowSym = "__arrow_" + ai
+        E["eArrows"] = push(E["eArrows"], {
+            "sym": arrowSym,
+            "params": arrUtil(E, "snap", aParams),
+            "locals": arrUtil(E, "snap", E["eFnLocals"]),
+            "ops": arrUtil(E, "snap", E["eFnOps"]),
+            "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"])
+        })
+        E["eInFn"] = saveIn
+        E["eFnOps"] = saveOps
+        E["eFnOpsN"] = saveFnOpsN
+        E["eFnLocals"] = saveLocals
+        rebuildLocalMap(E)
+        E["eFnGlobals"] = saveGlobals
+        E["eFnTryRegions"] = saveTry
+        emitOp(E, OP_MAKE_ARROW, ai)
+        return
+    }
+    if E["eNode"].kind == AST_BINARY {
+        let binOp = E["eNode"]["op"]
+        let binRight = E["eNode"]["right"]
+        emitExpr(E, E["eNode"]["left"])
+        emitExpr(E, binRight)
+        E["eBinOp"] = binOp
+        if E["eBinOp"] == "+" {
+            emitOp(E, OP_ADD, 0)
+            return
+        }
+        if E["eBinOp"] == "-" {
+            emitOp(E, OP_SUB, 0)
+            return
+        }
+        if E["eBinOp"] == "*" {
+            emitOp(E, OP_MUL, 0)
+            return
+        }
+        if E["eBinOp"] == "/" {
+            emitOp(E, OP_DIV, 0)
+            return
+        }
+        if E["eBinOp"] == "%" {
+            emitOp(E, OP_MOD, 0)
+            return
+        }
+        if E["eBinOp"] == "**" {
+            emitOp(E, OP_POW, 0)
+            return
+        }
+        if E["eBinOp"] == "==" {
+            emitOp(E, OP_EQ, 0)
+            return
+        }
+        if E["eBinOp"] == "!=" {
+            emitOp(E, OP_NE, 0)
+            return
+        }
+        if E["eBinOp"] == "<" {
+            emitOp(E, OP_LT, 0)
+            return
+        }
+        if E["eBinOp"] == ">" {
+            emitOp(E, OP_GT, 0)
+            return
+        }
+        if E["eBinOp"] == ">=" {
+            emitOp(E, OP_GE, 0)
+            return
+        }
+        if E["eBinOp"] == "<=" {
+            emitOp(E, OP_LE, 0)
+            return
+        }
+        if E["eBinOp"] == "&&" {
+            emitOp(E, OP_AND, 0)
+            return
+        }
+        if E["eBinOp"] == "||" {
+            emitOp(E, OP_OR, 0)
+            return
+        }
+        if E["eBinOp"] == "&" {
+            emitOp(E, OP_BIT_AND, 0)
+            return
+        }
+        if E["eBinOp"] == "|" {
+            emitOp(E, OP_BIT_OR, 0)
+            return
+        }
+        if E["eBinOp"] == "^" {
+            emitOp(E, OP_BIT_XOR, 0)
+            return
+        }
+        if E["eBinOp"] == "<<" {
+            emitOp(E, OP_SHL, 0)
+            return
+        }
+        if E["eBinOp"] == ">>" {
+            emitOp(E, OP_SHR, 0)
+            return
+        }
+        if E["eBinOp"] == ">>>" {
+            emitOp(E, OP_USHR, 0)
+            return
+        }
+        throw "Unsupported binary op: " + E["eBinOp"]
+    }
+    if E["eNode"].kind == AST_OBJECT {
+        // Use fn-local field list — nested array/object emit must not clobber a shared E["eList"].
+        // P6b: E["eObjDepth"] avoids len(E["eObjIStack"]) clones + pop/push per field.
+        let objFields = E["eNode"]["fields"]
+        E["eObjIStack"] = push(E["eObjIStack"], 0)
+        E["eObjNStack"] = arrUtil(E, "pushLen",E["eObjNStack"], objFields)
+        E["eObjDepth"] = E["eObjDepth"] + 1
+        let od = E["eObjDepth"]
+        while E["eObjIStack"][od - 1] < E["eObjNStack"][od - 1] {
+            E["eObjI"] = E["eObjIStack"][od - 1]
+            E["eFld"] = objFields[E["eObjI"]]
+            emitExpr(E, E["eFld"]["value"])
+            eCallRet = symIndex(E, "const",E["eFld"]["key"])
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_CONST, eCallRet)
+            E["eObjIStack"][od - 1] = E["eObjIStack"][od - 1] + 1
+        }
+        E["eObjIStack"] = pop(E["eObjIStack"])
+        E["eObjNStack"] = pop(E["eObjNStack"])
+        E["eObjDepth"] = E["eObjDepth"] - 1
+        emitOp(E, OP_MAKE_OBJECT, len(objFields))
+        return
+    }
+    if E["eNode"].kind == AST_ARRAY {
+        // P6b: E["eArrDepth"] avoids len(E["eArrIStack"]) clones + pop/push per elem.
+        let arrElems = E["eNode"]["elems"]
+        E["eArrIStack"] = push(E["eArrIStack"], 0)
+        E["eArrNStack"] = arrUtil(E, "pushLen",E["eArrNStack"], arrElems)
+        E["eArrDepth"] = E["eArrDepth"] + 1
+        let ad = E["eArrDepth"]
+        while E["eArrIStack"][ad - 1] < E["eArrNStack"][ad - 1] {
+            E["eObjI"] = E["eArrIStack"][ad - 1]
+            emitExpr(E, arrElems[E["eObjI"]])
+            E["eArrIStack"][ad - 1] = E["eArrIStack"][ad - 1] + 1
+        }
+        E["eArrIStack"] = pop(E["eArrIStack"])
+        E["eArrNStack"] = pop(E["eArrNStack"])
+        E["eArrDepth"] = E["eArrDepth"] - 1
+        emitOp(E, OP_MAKE_ARRAY, len(arrElems))
+        return
+    }
+    if E["eNode"].kind == AST_MEMBER {
+        // P6b: E["eMemberDepth"] avoids len(E["eMemberFldStack"]) LoadGlobal clone.
+        E["eBxL"] = E["eNode"]["object"]
+        E["eMemberFldStack"] = push(E["eMemberFldStack"], E["eNode"]["field"])
+        E["eMemberDepth"] = E["eMemberDepth"] + 1
+        eMemTypeArgs = E["eNode"]["typeArgs"]
+        if eMemTypeArgs == undefined {
+            eMemTypeArgs = []
+        }
+        if E["eBxL"].kind == AST_VAR {
+            E["eGenSym"] = E["eBxL"]["sym"]
+            E["eFound"] = 0
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericEnumTemplates"]) {
+                if E["eGenericEnumTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                    E["eGenTmpl"] = E["eGenericEnumTemplates"][E["eGenI"]]
+                    E["eFound"] = 1
+                    break
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+            if E["eFound"] == 1 {
+                if len(eMemTypeArgs) > 0 {
+                    E["eTypeArgs"] = arrUtil(E, "snap",eMemTypeArgs)
+                    E["eMangled"] = E["eGenSym"]
+                    if len(E["eTypeArgs"]) > 0 {
+                        eCallRet = E["eMangled"] + "$"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                        E["eResolveI"] = 1
+                        while E["eResolveI"] < len(E["eTypeArgs"]) {
+                            eCallRet = E["eMangled"] + "_"
+                            E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                            E["eResolveI"] = E["eResolveI"] + 1
+                        }
+                    }
+                    E["eFound"] = 0
+                    E["eGenI"] = 0
+                    while E["eGenI"] < len(E["eEnums"]) {
+                        if E["eEnums"][E["eGenI"]]["sym"] == E["eMangled"] {
+                            E["eFound"] = 1
+                            break
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                    if E["eFound"] == 0 {
+                        E["eEnums"] = push(E["eEnums"], {
+                            "sym": E["eMangled"],
+                            "variants": arrUtil(E, "snap",E["eGenTmpl"]["variants"])
+                        })
+                        symIndex(E, "global",E["eMangled"])
+                    }
+                }
+            }
+        }
+        emitExpr(E, E["eBxL"])
+        E["eMemberFld"] = E["eMemberFldStack"][E["eMemberDepth"] - 1]
+        E["eMemberFldStack"] = pop(E["eMemberFldStack"])
+        E["eMemberDepth"] = E["eMemberDepth"] - 1
+        eCallRet = symIndex(E, "const",E["eMemberFld"])
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_GET_MEMBER, eCallRet)
+        return
+    }
+    if E["eNode"].kind == AST_INDEX {
+        // P6b: name[i] → IndexGetLocal/Global (clone element only).
+        E["eBxL"] = E["eNode"]["object"]
+        if E["eBxL"].kind == AST_VAR {
+            E["eIndexStack"] = push(E["eIndexStack"], E["eNode"]["index"])
+            E["eIndexDepth"] = E["eIndexDepth"] + 1
+            emitExpr(E, E["eIndexStack"][E["eIndexDepth"] - 1])
+            E["eIndexStack"] = pop(E["eIndexStack"])
+            E["eIndexDepth"] = E["eIndexDepth"] - 1
+            E["eSym"] = E["eBxL"]["sym"]
+            let ili = localSymIndex(E, E["eSym"])
+            if ili >= 0 {
+                emitOp(E, OP_INDEX_GET_LOCAL, ili)
+                return
+            }
+            let igi = symIndex(E, "global", E["eSym"])
+            emitOp(E, OP_INDEX_GET_GLOBAL, igi)
+            return
+        }
+        // P6b: E["eIndexDepth"] avoids len(E["eIndexStack"]) LoadGlobal clone.
+        E["eIndexStack"] = push(E["eIndexStack"], E["eNode"]["index"])
+        E["eIndexDepth"] = E["eIndexDepth"] + 1
+        emitExpr(E, E["eNode"]["object"])
+        emitExpr(E, E["eIndexStack"][E["eIndexDepth"] - 1])
+        E["eIndexStack"] = pop(E["eIndexStack"])
+        E["eIndexDepth"] = E["eIndexDepth"] - 1
+        emitOp(E, OP_INDEX_GET, 0)
+        return
+    }
+    if E["eNode"].kind == AST_CALL {
+        E["eArgs"] = E["eNode"]["args"]
+        // P6b: cache argc once (avoid repeated len(E["eArgs"]) LoadGlobal clones).
+        E["eArgN"] = len(E["eArgs"])
+        E["eCalleeStack"] = push(E["eCalleeStack"], E["eNode"]["callee"])
+        E["eCalleeDepth"] = E["eCalleeDepth"] + 1
+        E["eCallee"] = E["eNode"]["callee"]
+        // P6b: len(name) → LenLocal/LenGlobal before Call path clones.
+        if tryEmitLenCall(E, E["eCallee"], E["eArgs"]) {
+            dropCallCallee(E)
+            return
+        }
+        if E["eCallee"].kind == AST_VAR {
+            let ctorName = E["eCallee"]["sym"]
+            if E["eArgN"] == 1 {
+                if ctorName == "Ok" {
+                    emitExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_OK, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return
+                }
+                if ctorName == "Err" {
+                    emitExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_ERR, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return
+                }
+                if ctorName == "Some" {
+                    emitExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_SOME, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return
+                }
+            }
+        }
+        if E["eCallee"].kind == AST_MEMBER {
+            eMemObj = E["eCallee"]["object"]
+            eMemFld = E["eCallee"]["field"]
+            eMemTypeArgs = E["eCallee"]["typeArgs"]
+            if eMemTypeArgs == undefined {
+                eMemTypeArgs = []
+            }
+            if eMemObj.kind == AST_VAR {
+                E["eGenSym"] = eMemObj["sym"]
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < len(E["eGenericEnumTemplates"]) {
+                    if E["eGenericEnumTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                        E["eGenTmpl"] = E["eGenericEnumTemplates"][E["eGenI"]]
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 1 {
+                    E["eExplicit"] = E["eNode"]["typeArgs"]
+                    if E["eExplicit"] == undefined {
+                        E["eExplicit"] = []
+                    }
+                    if len(E["eExplicit"]) > 0 {
+                        E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                    } else {
+                        if len(eMemTypeArgs) > 0 {
+                            E["eTypeArgs"] = arrUtil(E, "snap",eMemTypeArgs)
+                        } else {
+                            E["eTypeArgs"] = []
+                            E["eResolveI"] = 0
+                            while E["eResolveI"] < len(E["eArgs"]) {
+                                E["eInferType"] = ""
+                                if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                                    if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                        E["eInferType"] = "Number"
+                                    }
+                                    if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                        E["eInferType"] = "String"
+                                    }
+                                }
+                                if E["eInferType"] == "" {
+                                    if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                        E["eBi"] = 0
+                                        while E["eBi"] < len(E["eBindingSyms"]) {
+                                            if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                                E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                            }
+                                            E["eBi"] = E["eBi"] + 1
+                                        }
+                                    }
+                                }
+                                if E["eInferType"] == "" {
+                                    throw "Cannot infer type for " + E["eGenSym"]
+                                }
+                                E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                                E["eResolveI"] = E["eResolveI"] + 1
+                            }
+                        }
+                    }
+                    E["eMangled"] = E["eGenSym"]
+                    if len(E["eTypeArgs"]) > 0 {
+                        eCallRet = E["eMangled"] + "$"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                        E["eResolveI"] = 1
+                        while E["eResolveI"] < len(E["eTypeArgs"]) {
+                            eCallRet = E["eMangled"] + "_"
+                            E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                            E["eResolveI"] = E["eResolveI"] + 1
+                        }
+                    }
+                    E["eFound"] = 0
+                    E["eGenI"] = 0
+                    while E["eGenI"] < len(E["eEnums"]) {
+                        if E["eEnums"][E["eGenI"]]["sym"] == E["eMangled"] {
+                            E["eFound"] = 1
+                            break
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                    if E["eFound"] == 0 {
+                        E["eEnums"] = push(E["eEnums"], {
+                            "sym": E["eMangled"],
+                            "variants": arrUtil(E, "snap",E["eGenTmpl"]["variants"])
+                        })
+                        symIndex(E, "global",E["eMangled"])
+                    }
+                    E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                    E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                    E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                    emitCallArgExprs(E)
+                    while E["eArgN"] > 0 {
+                        emitOp(E, OP_POP, 0)
+                        E["eArgN"] = E["eArgN"] - 1
+                    }
+                    dropCallCallee(E)
+                    return
+                }
+            }
+        E["eRecvClass"] = ""
+        if eMemObj.kind == AST_VAR {
+            E["eBi"] = 0
+            while E["eBi"] < len(E["eBindingSyms"]) {
+                if E["eBindingSyms"][E["eBi"]] == eMemObj["sym"] {
+                    E["eRecvClass"] = E["eBindingTypes"][E["eBi"]]
+                }
+                E["eBi"] = E["eBi"] + 1
+            }
+        }
+        if E["eRecvClass"] == "" {
+            if eMemObj.kind == AST_CALL {
+                E["eCtorCallee"] = eMemObj["callee"]
+                if E["eCtorCallee"].kind == AST_VAR {
+                    E["eCtorName"] = E["eCtorCallee"]["sym"]
+                    E["eGenI"] = 0
+                    while E["eGenI"] < E["eClassesN"] {
+                        if E["eClasses"][E["eGenI"]]["sym"] == E["eCtorName"] {
+                            E["eRecvClass"] = E["eCtorName"]
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                }
+            }
+        }
+        E["eMethTmpl"] = null
+        E["eFound"] = 0
+        if E["eRecvClass"] != "" {
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericMethodTemplates"]) {
+                if E["eGenericMethodTemplates"][E["eGenI"]]["classSym"] == E["eRecvClass"] {
+                    if E["eGenericMethodTemplates"][E["eGenI"]]["methodSym"] == eMemFld {
+                        E["eMethTmpl"] = E["eGenericMethodTemplates"][E["eGenI"]]
+                        E["eFound"] = 1
+                    }
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+        }
+        if E["eFound"] == 1 {
+            E["eExplicit"] = E["eNode"]["typeArgs"]
+            if E["eExplicit"] == undefined {
+                E["eExplicit"] = []
+            }
+            if len(E["eExplicit"]) > 0 {
+                E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+            } else {
+                E["eTypeArgs"] = []
+                E["eResolveI"] = 0
+                while E["eResolveI"] < len(E["eArgs"]) {
+                    E["eInferType"] = ""
+                    if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                        if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                            E["eInferType"] = "Number"
+                        }
+                        if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                            E["eInferType"] = "String"
+                        }
+                    }
+                    if E["eInferType"] == "" {
+                        if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                            E["eBi"] = 0
+                            while E["eBi"] < len(E["eBindingSyms"]) {
+                                if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                    E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                }
+                                E["eBi"] = E["eBi"] + 1
+                            }
+                        }
+                    }
+                    if E["eInferType"] == "" {
+                        throw "Cannot infer type for " + eMemFld
+                    }
+                    E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                    E["eResolveI"] = E["eResolveI"] + 1
+                }
+            }
+            E["eMethodMangled"] = eMemFld
+            if len(E["eTypeArgs"]) > 0 {
+                eCallRet = E["eMethodMangled"] + "$"
+                E["eMethodMangled"] = eCallRet + E["eTypeArgs"][0]
+                E["eResolveI"] = 1
+                while E["eResolveI"] < len(E["eTypeArgs"]) {
+                    eCallRet = E["eMethodMangled"] + "_"
+                    E["eMethodMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                    E["eResolveI"] = E["eResolveI"] + 1
+                }
+            }
+            E["eFoundMeth"] = 0
+            E["eClassIdx"] = 0
+            while E["eClassIdx"] < E["eClassesN"] {
+                if E["eClasses"][E["eClassIdx"]]["sym"] == E["eRecvClass"] {
+                    eMi = 0
+                    while eMi < len(E["eClasses"][E["eClassIdx"]]["methods"]) {
+                        if E["eClasses"][E["eClassIdx"]]["methods"][eMi]["sym"] == E["eMethodMangled"] {
+                            E["eFoundMeth"] = 1
+                        }
+                        eMi = eMi + 1
+                    }
+                    if E["eFoundMeth"] == 0 {
+                        E["eSaveInFn"] = E["eInFn"]
+                        E["eSaveFnOps"] = arrUtil(E, "snap",E["eFnOps"])
+                        E["eSaveFnOpsN"] = E["eFnOpsN"]
+                        E["eSaveFnLocals"] = arrUtil(E, "snap",E["eFnLocals"])
+                        E["eSaveFnGlobals"] = arrUtil(E, "snap",E["eFnGlobals"])
+                        E["eInFn"] = 1
+                        E["eFnOps"] = []
+                        E["eFnOpsN"] = 0
+                        E["eFnGlobals"] = []
+                        E["eFnLocals"] = []
+                        resetLocalMap(E)
+                        E["eParams"] = E["eMethTmpl"]["params"]
+                        E["eParamI"] = 0
+                        while E["eParamI"] < len(E["eParams"]) {
+                            E["eLoopSave"] = E["eParamI"]
+                            symIndex(E, "local",E["eParams"][E["eParamI"]])
+                            E["eParamI"] = E["eLoopSave"] + 1
+                        }
+                        emitStmt(E, E["eMethTmpl"]["body"])
+                        E["eNewMethods"] = arrUtil(E, "snap",E["eClasses"][E["eClassIdx"]]["methods"])
+                        E["eNewMethods"] = push(E["eNewMethods"], {
+                            "sym": E["eMethodMangled"],
+                            "params": arrUtil(E, "snap",E["eParams"]),
+                            "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                            "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                            "ops": arrUtil(E, "snap",E["eFnOps"])
+                        })
+                        E["eNewClasses"] = []
+                        E["eGenI"] = 0
+                        while E["eGenI"] < E["eClassesN"] {
+                            if E["eGenI"] == E["eClassIdx"] {
+                                E["eNewClasses"] = push(E["eNewClasses"], {
+                                    "sym": E["eRecvClass"],
+                                    "methods": E["eNewMethods"]
+                                })
+                            } else {
+                                E["eNewClasses"] = push(E["eNewClasses"], E["eClasses"][E["eGenI"]])
+                            }
+                            E["eGenI"] = E["eGenI"] + 1
+                        }
+                        E["eClasses"] = E["eNewClasses"]
+                        E["eInFn"] = E["eSaveInFn"]
+                        E["eFnOps"] = E["eSaveFnOps"]
+                        E["eFnOpsN"] = E["eSaveFnOpsN"]
+                        E["eFnLocals"] = E["eSaveFnLocals"]
+                        rebuildLocalMap(E)
+                        E["eFnGlobals"] = E["eSaveFnGlobals"]
+                    }
+                }
+                E["eClassIdx"] = E["eClassIdx"] + 1
+            }
+            emitExpr(E, eMemObj)
+            eCallRet = symIndex(E, "const",E["eMethodMangled"])
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_GET_MEMBER, eCallRet)
+            E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+            E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+            E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+            emitCallArgExprs(E)
+            emitOp(E, OP_CALL, E["eArgN"])
+            dropCallCallee(E)
+            return
+        }
+        }
+        if E["eCallee"].kind == AST_VAR {
+            E["eGenSym"] = E["eCallee"]["sym"]
+            E["eGenTmpl"] = null
+            E["eFound"] = 0
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericClassTemplates"]) {
+                if E["eGenericClassTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                    E["eGenTmpl"] = E["eGenericClassTemplates"][E["eGenI"]]
+                    E["eFound"] = 1
+                    break
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+            if E["eFound"] == 1 {
+                E["eExplicit"] = E["eNode"]["typeArgs"]
+                if E["eExplicit"] == undefined {
+                    E["eExplicit"] = []
+                }
+                if len(E["eExplicit"]) > 0 {
+                    E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                } else {
+                    E["eTypeArgs"] = []
+                    E["eResolveI"] = 0
+                    while E["eResolveI"] < len(E["eArgs"]) {
+                        E["eInferType"] = ""
+                        if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                E["eInferType"] = "Number"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                E["eInferType"] = "String"
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                E["eBi"] = 0
+                                while E["eBi"] < len(E["eBindingSyms"]) {
+                                    if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                        E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                    }
+                                    E["eBi"] = E["eBi"] + 1
+                                }
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            throw "Cannot infer type for " + E["eGenSym"]
+                        }
+                        E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eMangled"] = E["eGenSym"]
+                if len(E["eTypeArgs"]) > 0 {
+                    eCallRet = E["eMangled"] + "$"
+                    E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                    E["eResolveI"] = 1
+                    while E["eResolveI"] < len(E["eTypeArgs"]) {
+                        eCallRet = E["eMangled"] + "_"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < E["eClassesN"] {
+                    if E["eClasses"][E["eGenI"]]["sym"] == E["eMangled"] {
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 0 {
+                    E["eClassMethods"] = []
+                    eMi = 0
+                    while eMi < len(E["eGenTmpl"]["methods"]) {
+                        eMeth = E["eGenTmpl"]["methods"][eMi]
+                        eMethTypeParams = eMeth["typeParams"]
+                        if eMethTypeParams == undefined {
+                            eMethTypeParams = []
+                        }
+                        if len(eMethTypeParams) == 0 {
+                            E["eInFn"] = 1
+                            E["eFnOps"] = []
+                            E["eFnOpsN"] = 0
+                            E["eFnGlobals"] = []
+                            E["eFnLocals"] = []
+                            resetLocalMap(E)
+                            E["eParams"] = eMeth["params"]
+                            E["eParamI"] = 0
+                            while E["eParamI"] < len(E["eParams"]) {
+                                E["eLoopSave"] = E["eParamI"]
+                                symIndex(E, "local",E["eParams"][E["eParamI"]])
+                                E["eParamI"] = E["eLoopSave"] + 1
+                            }
+                            emitStmt(E, eMeth["body"])
+                            E["eClassMethods"] = push(E["eClassMethods"], {
+                                "sym": eMeth["sym"],
+                                "params": arrUtil(E, "snap",E["eParams"]),
+                                "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                                "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                                "ops": arrUtil(E, "snap",E["eFnOps"])
+                            })
+                            E["eInFn"] = 0
+                        } else {
+                            E["eGenericMethodTemplates"] = push(E["eGenericMethodTemplates"], {
+                                "classSym": E["eMangled"],
+                                "methodSym": eMeth["sym"],
+                                "typeParams": arrUtil(E, "snap",eMethTypeParams),
+                                "params": arrUtil(E, "snap",eMeth["params"]),
+                                "body": eMeth["body"]
+                            })
+                        }
+                        eMi = eMi + 1
+                    }
+                    E["eClasses"] = push(E["eClasses"], { "sym": E["eMangled"], "methods": E["eClassMethods"] })
+                    E["eClassesN"] = E["eClassesN"] + 1
+                    symIndex(E, "global",E["eMangled"])
+                }
+                E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                emitCallArgExprs(E)
+                eCallRet = symIndex(E, "class",E["eMangled"])
+                E["eClassIdx"] = eCallRet
+                if E["eClassIdx"] < 0 {
+                    throw "Missing specialized class " + E["eMangled"]
+                }
+                if E["eInFn"] == 1 {
+                    E["eFnOps"] = push(E["eFnOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eFnOpsN"] = E["eFnOpsN"] + 1
+                } else {
+                    E["eOps"] = push(E["eOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eOpsN"] = E["eOpsN"] + 1
+                }
+                dropCallCallee(E)
+                return
+            }
+            E["eGenTmpl"] = null
+            E["eFound"] = 0
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericTemplates"]) {
+                if E["eGenericTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                    E["eGenTmpl"] = E["eGenericTemplates"][E["eGenI"]]
+                    E["eFound"] = 1
+                    break
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+            if E["eFound"] == 1 {
+                E["eExplicit"] = E["eNode"]["typeArgs"]
+                if E["eExplicit"] == undefined {
+                    E["eExplicit"] = []
+                }
+                if len(E["eExplicit"]) > 0 {
+                    E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                } else {
+                    E["eTypeArgs"] = []
+                    E["eResolveI"] = 0
+                    while E["eResolveI"] < len(E["eArgs"]) {
+                        E["eInferType"] = ""
+                        if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                E["eInferType"] = "Number"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                E["eInferType"] = "String"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_BOOL {
+                                E["eInferType"] = "Bool"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NULL {
+                                E["eInferType"] = "Null"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_UNDEF {
+                                E["eInferType"] = "Undefined"
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                E["eBi"] = 0
+                                while E["eBi"] < len(E["eBindingSyms"]) {
+                                    if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                        E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                    }
+                                    E["eBi"] = E["eBi"] + 1
+                                }
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            throw "Cannot infer type for " + E["eGenSym"]
+                        }
+                        E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eMangled"] = E["eGenSym"]
+                if len(E["eTypeArgs"]) > 0 {
+                    eCallRet = E["eMangled"] + "$"
+                    E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                    E["eResolveI"] = 1
+                    while E["eResolveI"] < len(E["eTypeArgs"]) {
+                        eCallRet = E["eMangled"] + "_"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < len(E["eSpecMangled"]) {
+                    if E["eSpecMangled"][E["eGenI"]] == E["eMangled"] {
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 0 {
+                    E["eSaveInFn"] = E["eInFn"]
+                    E["eSaveFnOps"] = arrUtil(E, "snap",E["eFnOps"])
+                    E["eSaveFnOpsN"] = E["eFnOpsN"]
+                    E["eSaveFnLocals"] = arrUtil(E, "snap",E["eFnLocals"])
+                    E["eSaveFnGlobals"] = arrUtil(E, "snap",E["eFnGlobals"])
+                    E["eFnSave"] = E["eMangled"]
+                    E["eParams"] = E["eGenTmpl"]["params"]
+                    E["eFnBody"] = E["eGenTmpl"]["body"]
+                    E["eInFn"] = 1
+                    E["eFnOps"] = []
+                    E["eFnOpsN"] = 0
+                    E["eFnGlobals"] = []
+                    E["eFnLocals"] = []
+                    resetLocalMap(E)
+                    E["eParamI"] = 0
+                    while E["eParamI"] < len(E["eParams"]) {
+                        E["eLoopSave"] = E["eParamI"]
+                        symIndex(E, "local",E["eParams"][E["eParamI"]])
+                        E["eParamI"] = E["eLoopSave"] + 1
+                    }
+                    emitStmt(E, E["eFnBody"])
+                    E["eFunctions"] = push(E["eFunctions"], {
+                        "sym": E["eFnSave"],
+                        "params": arrUtil(E, "snap",E["eParams"]),
+                        "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                        "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                        "ops": arrUtil(E, "snap",E["eFnOps"])
+                    })
+                    symIndex(E, "global",E["eFnSave"])
+                    E["eSpecMangled"] = push(E["eSpecMangled"], E["eMangled"])
+                    E["eInFn"] = E["eSaveInFn"]
+                    E["eFnOps"] = E["eSaveFnOps"]
+                    E["eFnOpsN"] = E["eSaveFnOpsN"]
+                    E["eFnLocals"] = E["eSaveFnLocals"]
+                    rebuildLocalMap(E)
+                    E["eFnGlobals"] = E["eSaveFnGlobals"]
+                }
+                E["eCallee"] = { "kind": AST_VAR, "sym": E["eMangled"] }
+            }
+            eCallRet = symIndex(E, "class",E["eGenSym"])
+            E["eClassIdx"] = eCallRet
+            if E["eClassIdx"] >= 0 {
+                E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                emitCallArgExprs(E)
+                if E["eInFn"] == 1 {
+                    E["eFnOps"] = push(E["eFnOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eFnOpsN"] = E["eFnOpsN"] + 1
+                } else {
+                    E["eOps"] = push(E["eOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eOpsN"] = E["eOpsN"] + 1
+                }
+                dropCallCallee(E)
+                return
+            }
+        }
+        if E["eArgN"] == 0 {
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 0)
+            return
+        }
+        if E["eArgN"] == 1 {
+            E["eBxL"] = E["eArgs"][0]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    emitExpr(E, E["eBxL"])
+                }
+            }
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 1)
+            return
+        }
+        if E["eArgN"] == 2 {
+            E["eBxL"] = E["eArgs"][0]
+            E["eBxR"] = E["eArgs"][1]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    emitExpr(E, E["eBxL"])
+                }
+            }
+            if E["eBxR"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxR"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxR"].kind == AST_VAR {
+                    E["eSym"] = E["eBxR"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    emitExpr(E, E["eBxR"])
+                }
+            }
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 2)
+            return
+        }
+        E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+        E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+        E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+        E["eCallArgDepth"] = E["eCallArgDepth"] + 1
+        let cad = E["eCallArgDepth"]
+        while E["eCallArgIStack"][cad - 1] < E["eCallArgNStack"][cad - 1] {
+            E["eArgs"] = E["eArgsStack"][cad - 1]
+            E["eCallI"] = E["eCallArgIStack"][cad - 1]
+            E["eBxL"] = E["eArgs"][E["eCallI"]]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    emitExpr(E, E["eBxL"])
+                }
+            }
+            E["eCallArgIStack"][cad - 1] = E["eCallArgIStack"][cad - 1] + 1
+        }
+        E["eArgsStack"] = pop(E["eArgsStack"])
+        E["eArgN"] = E["eCallArgNStack"][cad - 1]
+        E["eCallArgIStack"] = pop(E["eCallArgIStack"])
+        E["eCallArgNStack"] = pop(E["eCallArgNStack"])
+        E["eCallArgDepth"] = E["eCallArgDepth"] - 1
+        emitCallCallee(E)
+        emitOp(E, OP_CALL, E["eArgN"])
+        return
+    }
+    throw "Unsupported expr: " + E["eNode"].kind
+}
+
+// P6b: shared jump patch / len push — use op counters (avoid len(E["eOps"]) LoadGlobal clone).
+fn patchRelJump(E, opName, idx) {
+    if E["eInFn"] == 1 {
+        eCallRet = E["eFnOpsN"] - idx
+        E["eJumpOff"] = eCallRet - 1
+        E["eFnOps"][idx] = { "op": opName, "arg": E["eJumpOff"] }
+    } else {
+        eCallRet = E["eOpsN"] - idx
+        E["eJumpOff"] = eCallRet - 1
+        E["eOps"][idx] = { "op": opName, "arg": E["eJumpOff"] }
+    }
+}
+
+fn pushJmpAtLen(E, stack) {
+    if E["eInFn"] == 1 {
+        return push(stack, E["eFnOpsN"])
+    }
+    return push(stack, E["eOpsN"])
+}
+
+/// If stmt body (called early from emitStmt — dense leaves are If-heavy).
+/// P6b: E["eIfDepth"] indexes If stacks (avoid len(eIf*/E["eCond"]*) LoadGlobal clones).
+fn emitIfStmt(E) {
+    E["eCondStack"] = push(E["eCondStack"], E["eCond"])
+    E["eThenStack"] = push(E["eThenStack"], E["eThen"])
+    E["eElseStack"] = push(E["eElseStack"], E["eElse"])
+    E["eIfDepth"] = E["eIfDepth"] + 1
+    let id = E["eIfDepth"]
+    E["eCond"] = E["eNode"]["cond"]
+    E["eThen"] = E["eNode"]["then"]
+    E["eElse"] = E["eNode"]["elseBranch"]
+    emitExpr(E, E["eCond"])
+    eCallRet = pushJmpAtLen(E, E["eIfJmpStack"])
+    E["eIfJmpStack"] = eCallRet
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    emitStmt(E, E["eThen"])
+    if E["eElse"] != null {
+        eCallRet = pushJmpAtLen(E, E["eIfSkipStack"])
+        E["eIfSkipStack"] = eCallRet
+        emitOp(E, OP_JUMP, 0)
+        // Jmp/skip stacks: always top via len (jmp is popped before else; depth ≠ len).
+        // P6b: len_* / index_get_* make this cheap (no LoadGlobal clone).
+        eCallRet = len(E["eIfJmpStack"]) - 1
+        E["eJmp"] = E["eIfJmpStack"][eCallRet]
+        patchRelJump(E, OP_JUMP_IF_FALSE, E["eJmp"])
+        E["eIfJmpStack"] = pop(E["eIfJmpStack"])
+        emitStmt(E, E["eElse"])
+        eCallRet = len(E["eIfSkipStack"]) - 1
+        E["eIdx"] = E["eIfSkipStack"][eCallRet]
+        patchRelJump(E, OP_JUMP, E["eIdx"])
+        E["eIfSkipStack"] = pop(E["eIfSkipStack"])
+    } else {
+        eCallRet = len(E["eIfJmpStack"]) - 1
+        E["eJmp"] = E["eIfJmpStack"][eCallRet]
+        patchRelJump(E, OP_JUMP_IF_FALSE, E["eJmp"])
+        E["eIfJmpStack"] = pop(E["eIfJmpStack"])
+    }
+    E["eCond"] = E["eCondStack"][id - 1]
+    E["eThen"] = E["eThenStack"][id - 1]
+    E["eElse"] = E["eElseStack"][id - 1]
+    E["eCondStack"] = pop(E["eCondStack"])
+    E["eThenStack"] = pop(E["eThenStack"])
+    E["eElseStack"] = pop(E["eElseStack"])
+    E["eIfDepth"] = E["eIfDepth"] - 1
+}
+
+fn emitStmt(E, node) {
+    E["eStmtNode"] = node
+    E["eNode"] = node
+    E["eStmtKind"] = E["eStmtNode"].kind
+    // P6b: check If before the long Let/Assign/… chain (serialize_body is If-dense).
+    if E["eStmtKind"] == AST_IF {
+        emitIfStmt(E)
+        return
+    }
+    if E["eNode"].kind == AST_LET {
+        E["eAssignSym"] = E["eNode"]["sym"]
+        E["eLitNode"] = E["eNode"]["init"]
+        if E["eLitNode"]["kind"] == AST_LITERAL {
+            if E["eLitNode"]["lit"] == LIT_NUMBER {
+                E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+                E["eBindingTypes"] = push(E["eBindingTypes"], "Number")
+            }
+            if E["eLitNode"]["lit"] == LIT_STRING {
+                E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+                E["eBindingTypes"] = push(E["eBindingTypes"], "String")
+            }
+        }
+        if E["eLitNode"]["kind"] == AST_CALL {
+            E["eCtorCallee"] = E["eLitNode"]["callee"]
+            if E["eCtorCallee"].kind == AST_VAR {
+                E["eCtorName"] = E["eCtorCallee"]["sym"]
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < E["eClassesN"] {
+                    if E["eClasses"][E["eGenI"]]["sym"] == E["eCtorName"] {
+                        E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+                        E["eBindingTypes"] = push(E["eBindingTypes"], E["eCtorName"])
+                        E["eFound"] = 1
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 0 {
+                    E["eGenTmpl"] = null
+                    E["eGenI"] = 0
+                    while E["eGenI"] < len(E["eGenericClassTemplates"]) {
+                        if E["eGenericClassTemplates"][E["eGenI"]]["sym"] == E["eCtorName"] {
+                            E["eGenTmpl"] = E["eGenericClassTemplates"][E["eGenI"]]
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                    if E["eGenTmpl"] != null {
+                        E["eCtorArgs"] = E["eLitNode"]["args"]
+                        E["eTypeArgs"] = []
+                        E["eResolveI"] = 0
+                        while E["eResolveI"] < len(E["eCtorArgs"]) {
+                            E["eInferType"] = ""
+                            if E["eCtorArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                                if E["eCtorArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                    E["eInferType"] = "Number"
+                                }
+                                if E["eCtorArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                    E["eInferType"] = "String"
+                                }
+                            }
+                            if E["eInferType"] != "" {
+                                E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                            }
+                            E["eResolveI"] = E["eResolveI"] + 1
+                        }
+                        E["eMangled"] = E["eCtorName"]
+                        if len(E["eTypeArgs"]) > 0 {
+                            eCallRet = E["eMangled"] + "$"
+                            E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                            E["eResolveI"] = 1
+                            while E["eResolveI"] < len(E["eTypeArgs"]) {
+                                eCallRet = E["eMangled"] + "_"
+                                E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                                E["eResolveI"] = E["eResolveI"] + 1
+                            }
+                        }
+                        E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+                        E["eBindingTypes"] = push(E["eBindingTypes"], E["eMangled"])
+                    }
+                }
+            }
+        }
+        emitExpr(E, E["eNode"]["init"])
+        if E["eInFn"] == 1 {
+            eCallRet = symIndex(E, "local",E["eAssignSym"])
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_STORE_LOCAL, eCallRet)
+        } else {
+            eCallRet = symIndex(E, "global",E["eAssignSym"])
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_STORE_GLOBAL, eCallRet)
+        }
+        if E["eInFn"] != 1 {
+            // Read isPub from the let stmt before emitExpr clobbers E["eNode"].
+            eLetPub = E["eStmtNode"]["isPub"]
+            if eLetPub {
+                eCallRet = ("" + E["eAssignSym"]) + ""
+                E["eExports"] = push(E["eExports"], eCallRet)
+            }
+        }
+        return
+    }
+    if E["eNode"].kind == AST_ASSIGN {
+        E["eAssignSym"] = E["eNode"]["sym"]
+        if tryEmitArrayPushAssign(E, E["eAssignSym"], E["eNode"]["rhs"]) {
+            return
+        }
+        if tryEmitAccAddAssign(E, E["eAssignSym"], E["eNode"]["rhs"]) {
+            return
+        }
+        emitExpr(E, E["eNode"]["rhs"])
+        emitSym(E, 1,E["eAssignSym"])
+        return
+    }
+    if E["eNode"].kind == AST_INDEX_ASSIGN {
+        E["eBxL"] = E["eNode"]["object"]
+        E["eBxR"] = E["eNode"]["index"]
+        E["eBxRhs"] = E["eNode"]["rhs"]
+        emitExpr(E, E["eBxL"])
+        emitExpr(E, E["eBxR"])
+        emitExpr(E, E["eBxRhs"])
+        emitOp(E, OP_INDEX_SET, 0)
+        emitOp(E, OP_POP, 0)
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    if E["eNode"].kind == AST_MEMBER_ASSIGN {
+        E["eBxL"] = E["eNode"]["object"]
+        E["eMemberFld"] = E["eNode"]["field"]
+        E["eBxRhs"] = E["eNode"]["rhs"]
+        emitExpr(E, E["eBxL"])
+        emitExpr(E, E["eBxRhs"])
+        eCallRet = symIndex(E, "const", E["eMemberFld"])
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_SET_MEMBER, eCallRet)
+        emitOp(E, OP_POP, 0)
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    if E["eNode"].kind == AST_EXPR {
+        E["eExprStmt"] = E["eNode"]["expr"]
+        emitExpr(E, E["eExprStmt"])
+        if E["eExprStmt"].kind != AST_THROW {
+            emitOp(E, OP_POP, 0)
+        }
+        return
+    }
+    if E["eNode"].kind == AST_THROW {
+        emitExpr(E, E["eNode"]["expr"])
+        emitOp(E, OP_THROW, 0)
+        return
+    }
+    if E["eNode"].kind == AST_TRY {
+        if E["eInFn"] != 1 {
+            throw "try/catch only supported inside fn (self-host emit)"
+        }
+        let tryBody = E["eNode"]["body"]
+        let tryHandler = E["eNode"]["handler"]
+        let errName = E["eNode"]["errName"]
+        let bodyStart = E["eFnOpsN"]
+        emitStmt(E, tryBody)
+        let bodyEnd = E["eFnOpsN"]
+        // Statement try: jump over catch on success (throw uses tryRegions).
+        emitOp(E, OP_JUMP, 0)
+        let jmpEndIdx = bodyEnd
+        let catchStart = E["eFnOpsN"]
+        let errLocal = symIndex(E, "local", errName)
+        E["eFnTryRegions"] = push(E["eFnTryRegions"], {
+            "bodyStart": bodyStart,
+            "bodyEnd": bodyEnd,
+            "catchStart": catchStart,
+            "errLocal": errLocal
+        })
+        emitOp(E, OP_STORE_LOCAL, errLocal)
+        emitStmt(E, tryHandler)
+        let afterCatch = E["eFnOpsN"]
+        eCallRet = afterCatch - jmpEndIdx - 1
+        E["eFnOps"][jmpEndIdx] = { "op": OP_JUMP, "arg": eCallRet }
+        return
+    }
+    if E["eNode"].kind == AST_FOR_OF {
+        if E["eInFn"] != 1 {
+            throw "for-of only supported inside fn (self-host emit)"
+        }
+        let forSym = E["eNode"]["sym"]
+        let forIter = E["eNode"]["iterable"]
+        let forBody = E["eNode"]["body"]
+        let n = E["eForCounter"]
+        E["eForCounter"] = n + 1
+        let src = "__kab_f" + n + "_src"
+        let res = "__kab_f" + n + "_r"
+        let srcIdx = symIndex(E, "local", src)
+        let resIdx = symIndex(E, "local", res)
+        let varIdx = symIndex(E, "local", forSym)
+        emitExpr(E, forIter)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
+        emitOp(E, OP_CALL, 1)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        E["eBreakFromStack"] = arrUtil(E, "pushLen", E["eBreakFromStack"], E["eBreakIdxs"])
+        let loopStart = E["eFnOpsN"]
+        E["eWhileHeads"] = push(E["eWhileHeads"], loopStart)
+        emitOp(E, OP_LOAD_LOCAL, srcIdx)
+        emitOp(E, OP_ITER_STEP, 0)
+        emitOp(E, OP_STORE_LOCAL, resIdx)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_LOCAL, resIdx)
+        emitOp(E, OP_CONST, symIndex(E, "const", "done"))
+        emitOp(E, OP_INDEX_GET, 0)
+        let jmpDoneIdx = E["eFnOpsN"]
+        emitOp(E, OP_JUMP_IF_FALSE, 0)
+        let jmpExitIdx = E["eFnOpsN"]
+        emitOp(E, OP_JUMP, 0)
+        let bodyStart = E["eFnOpsN"]
+        eCallRet = bodyStart - jmpDoneIdx - 1
+        E["eFnOps"][jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": eCallRet }
+        emitOp(E, OP_LOAD_LOCAL, resIdx)
+        emitOp(E, OP_CONST, symIndex(E, "const", "value"))
+        emitOp(E, OP_INDEX_GET, 0)
+        emitOp(E, OP_STORE_LOCAL, varIdx)
+        emitStmt(E, forBody)
+        emitOp(E, OP_JUMP, loopStart - E["eFnOpsN"] - 1)
+        let loopEnd = E["eFnOpsN"]
+        eCallRet = loopEnd - jmpExitIdx - 1
+        E["eFnOps"][jmpExitIdx] = { "op": OP_JUMP, "arg": eCallRet }
+        eCallRet = len(E["eBreakFromStack"]) - 1
+        E["eBf"] = E["eBreakFromStack"][eCallRet]
+        E["eBi"] = E["eBf"]
+        while E["eBi"] < len(E["eBreakIdxs"]) {
+            eCallRet = loopEnd - E["eBreakIdxs"][E["eBi"]]
+            E["eJumpOff"] = eCallRet - 1
+            E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            E["eBi"] = E["eBi"] + 1
+        }
+        if E["eBf"] > 0 {
+            E["eBreakIdxs"] = slice(E["eBreakIdxs"], 0, E["eBf"])
+        } else {
+            E["eBreakIdxs"] = []
+        }
+        if len(E["eWhileHeads"]) > 0 {
+            E["eWhileHeads"] = pop(E["eWhileHeads"])
+        } else {
+            E["eWhileHeads"] = []
+        }
+        if len(E["eBreakFromStack"]) > 0 {
+            E["eBreakFromStack"] = pop(E["eBreakFromStack"])
+        } else {
+            E["eBreakFromStack"] = []
+        }
+        return
+    }
+    if E["eNode"].kind == AST_RETURN {
+        if E["eNode"]["value"] == null {
+            emitOp(E, OP_CONST, symIndex(E, "const",null))
+        } else {
+            emitExpr(E, E["eNode"]["value"])
+        }
+        emitOp(E, OP_RETURN, 0)
+        return
+    }
+    if E["eNode"].kind == AST_BLOCK {
+        E["eBlockStmtsStack"] = push(E["eBlockStmtsStack"], E["eNode"]["body"])
+        E["eBlockNStack"] = arrUtil(E, "pushLen",E["eBlockNStack"], E["eNode"]["body"])
+        E["eBlockIStack"] = push(E["eBlockIStack"], 0)
+        E["eBlockDepth"] = E["eBlockDepth"] + 1
+        let bd = E["eBlockDepth"]
+        while E["eBlockIStack"][bd - 1] < E["eBlockNStack"][bd - 1] {
+            E["eBlockStmts"] = E["eBlockStmtsStack"][bd - 1]
+            E["eBlockI"] = E["eBlockIStack"][bd - 1]
+            E["eStmtNode"] = E["eBlockStmts"][E["eBlockI"]]
+            if E["eStmtNode"] == null {
+                throw "emit block null stmt at " + ("" + E["eBlockI"])
+            }
+            emitStmt(E, E["eStmtNode"])
+            E["eBlockIStack"][bd - 1] = E["eBlockIStack"][bd - 1] + 1
+        }
+        E["eBlockStmtsStack"] = pop(E["eBlockStmtsStack"])
+        E["eBlockNStack"] = pop(E["eBlockNStack"])
+        E["eBlockIStack"] = pop(E["eBlockIStack"])
+        E["eBlockDepth"] = E["eBlockDepth"] - 1
+        return
+    }
+    if E["eNode"].kind == AST_CONTINUE {
+        if len(E["eWhileHeads"]) == 0 {
+            throw "continue outside loop"
+        }
+        eCallRet = len(E["eWhileHeads"]) - 1
+        E["eWh"] = E["eWhileHeads"][eCallRet]
+        if E["eInFn"] == 1 {
+            eCallRet = E["eWh"] - E["eFnOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        } else {
+            eCallRet = E["eWh"] - E["eOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        }
+        emitOp(E, OP_JUMP, E["eJumpOff"])
+        return
+    }
+    if E["eNode"].kind == AST_BREAK {
+        if len(E["eBreakFromStack"]) == 0 {
+            throw "break outside loop"
+        }
+        eCallRet = pushJmpAtLen(E, E["eBreakIdxs"])
+        E["eBreakIdxs"] = eCallRet
+        emitOp(E, OP_JUMP, 0)
+        return
+    }
+    if E["eNode"].kind == AST_WHILE {
+        E["eCond"] = E["eNode"]["cond"]
+        E["eThen"] = E["eNode"]["body"]
+        E["eBreakFromStack"] = arrUtil(E, "pushLen",E["eBreakFromStack"], E["eBreakIdxs"])
+        if E["eInFn"] == 1 {
+            E["eWhileHead"] = E["eFnOpsN"]
+        } else {
+            E["eWhileHead"] = E["eOpsN"]
+        }
+        E["eWhileHeads"] = push(E["eWhileHeads"], E["eWhileHead"])
+        emitExpr(E, E["eCond"])
+        eCallRet = pushJmpAtLen(E, E["eIfJmpStack"])
+        E["eIfJmpStack"] = eCallRet
+        emitOp(E, OP_JUMP_IF_FALSE, 0)
+        emitStmt(E, E["eThen"])
+        if E["eInFn"] == 1 {
+            eCallRet = E["eWhileHead"] - E["eFnOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        } else {
+            eCallRet = E["eWhileHead"] - E["eOpsN"]
+            E["eJumpOff"] = eCallRet - 1
+        }
+        emitOp(E, OP_JUMP, E["eJumpOff"])
+        eCallRet = len(E["eIfJmpStack"]) - 1
+        E["eJmp"] = E["eIfJmpStack"][eCallRet]
+        patchRelJump(E, OP_JUMP_IF_FALSE, E["eJmp"])
+        E["eIfJmpStack"] = pop(E["eIfJmpStack"])
+        if E["eInFn"] == 1 {
+            E["eEnd"] = E["eFnOpsN"]
+        } else {
+            E["eEnd"] = E["eOpsN"]
+        }
+        eCallRet = len(E["eBreakFromStack"]) - 1
+        E["eBf"] = E["eBreakFromStack"][eCallRet]
+        E["eBi"] = E["eBf"]
+        while E["eBi"] < len(E["eBreakIdxs"]) {
+            eCallRet = E["eEnd"] - E["eBreakIdxs"][E["eBi"]]
+            E["eJumpOff"] = eCallRet - 1
+            if E["eInFn"] == 1 {
+                E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            } else {
+                E["eOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            }
+            E["eBi"] = E["eBi"] + 1
+        }
+        if E["eBf"] > 0 {
+            E["eBreakIdxs"] = slice(E["eBreakIdxs"], 0, E["eBf"])
+        } else {
+            E["eBreakIdxs"] = []
+        }
+        if len(E["eWhileHeads"]) > 0 {
+            E["eWhileHeads"] = pop(E["eWhileHeads"])
+        } else {
+            E["eWhileHeads"] = []
+        }
+        if len(E["eBreakFromStack"]) > 0 {
+            E["eBreakFromStack"] = pop(E["eBreakFromStack"])
+        } else {
+            E["eBreakFromStack"] = []
+        }
+        return
+    }
+    if E["eNode"].kind == AST_ENUM {
+        E["eTypeParams"] = E["eNode"]["typeParams"]
+        if E["eTypeParams"] == undefined {
+            E["eTypeParams"] = []
+        }
+        if len(E["eTypeParams"]) > 0 {
+            E["eGenericEnumTemplates"] = push(E["eGenericEnumTemplates"], {
+                "sym": E["eNode"]["sym"],
+                "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
+                "variants": arrUtil(E, "snap",E["eNode"]["variants"])
+            })
+        }
+        return
+    }
+    if E["eNode"].kind == AST_CLASS {
+        E["eFnSave"] = "" + E["eNode"]["sym"]
+        E["eTypeParams"] = E["eNode"]["typeParams"]
+        if E["eTypeParams"] == undefined {
+            E["eTypeParams"] = []
+        }
+        if len(E["eTypeParams"]) > 0 {
+            E["eGenericClassTemplates"] = push(E["eGenericClassTemplates"], {
+                "sym": E["eFnSave"],
+                "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
+                "methods": arrUtil(E, "snap",E["eNode"]["methods"])
+            })
+            return
+        }
+        // Snap before emitStmt — emitStmt overwrites module-global E["eNode"].
+        E["eClassMethodsSrc"] = E["eNode"]["methods"]
+        E["eClassIsStruct"] = E["eNode"]["isStruct"]
+        E["eClassMethods"] = []
+        eMi = 0
+        while eMi < len(E["eClassMethodsSrc"]) {
+            eMeth = E["eClassMethodsSrc"][eMi]
+            eMethTypeParams = eMeth["typeParams"]
+            if eMethTypeParams == undefined {
+                eMethTypeParams = []
+            }
+            if len(eMethTypeParams) > 0 {
+                E["eGenericMethodTemplates"] = push(E["eGenericMethodTemplates"], {
+                    "classSym": E["eFnSave"],
+                    "methodSym": eMeth["sym"],
+                    "typeParams": arrUtil(E, "snap",eMethTypeParams),
+                    "params": arrUtil(E, "snap",eMeth["params"]),
+                    "body": eMeth["body"]
+                })
+            } else {
+                E["eInFn"] = 1
+                E["eFnOps"] = []
+                E["eFnOpsN"] = 0
+                E["eFnGlobals"] = []
+                E["eFnLocals"] = []
+                resetLocalMap(E)
+                E["eParams"] = eMeth["params"]
+                E["eParamI"] = 0
+                while E["eParamI"] < len(E["eParams"]) {
+                    E["eLoopSave"] = E["eParamI"]
+                    symIndex(E, "local",E["eParams"][E["eParamI"]])
+                    E["eParamI"] = E["eLoopSave"] + 1
+                }
+                emitStmt(E, eMeth["body"])
+                E["eClassMethods"] = push(E["eClassMethods"], {
+                    "sym": eMeth["sym"],
+                    "params": arrUtil(E, "snap",E["eParams"]),
+                    "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                    "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                    "ops": arrUtil(E, "snap",E["eFnOps"])
+                })
+                E["eInFn"] = 0
+            }
+            eMi = eMi + 1
+        }
+        E["eClasses"] = push(E["eClasses"], {
+            "sym": E["eFnSave"],
+            "methods": E["eClassMethods"],
+            "isStruct": E["eClassIsStruct"]
+        })
+        E["eClassesN"] = E["eClassesN"] + 1
+        return
+    }
+    if E["eNode"].kind == AST_INTERFACE {
+        return
+    }
+    if E["eNode"].kind == AST_FN {
+        E["eFnSave"] = "" + E["eNode"]["sym"]
+        E["eFnPub"] = E["eNode"]["isPub"]
+        E["eParams"] = E["eNode"]["params"]
+        E["eFnBody"] = E["eNode"]["body"]
+        E["eTypeParams"] = E["eNode"]["typeParams"]
+        if E["eTypeParams"] == undefined {
+            E["eTypeParams"] = []
+        }
+        if len(E["eTypeParams"]) > 0 {
+            E["eGenericTemplates"] = push(E["eGenericTemplates"], {
+                "sym": E["eFnSave"],
+                "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
+                "params": arrUtil(E, "snap",E["eParams"]),
+                "body": E["eFnBody"],
+                "isPub": E["eFnPub"]
+            })
+            if E["eFnPub"] == 1 {
+                eCallRet = ("" + E["eFnSave"]) + ""
+                E["eExports"] = push(E["eExports"], eCallRet)
+            }
+            return
+        }
+        E["eInFn"] = 1
+        E["eFnOps"] = []
+        E["eFnOpsN"] = 0
+        E["eFnGlobals"] = []
+        E["eFnLocals"] = []
+        resetLocalMap(E)
+        E["eFnTryRegions"] = []
+        E["eParamI"] = 0
+        while E["eParamI"] < len(E["eParams"]) {
+            E["eLoopSave"] = E["eParamI"]
+            symIndex(E, "local",E["eParams"][E["eParamI"]])
+            E["eParamI"] = E["eLoopSave"] + 1
+        }
+        emitStmt(E, E["eFnBody"])
+        E["eFunctions"] = push(E["eFunctions"], {
+            "sym": E["eFnSave"],
+            "params": arrUtil(E, "snap",E["eParams"]),
+            "locals": arrUtil(E, "snap",E["eFnLocals"]),
+            "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+            "ops": arrUtil(E, "snap",E["eFnOps"]),
+            "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"])
+        })
+        E["eInFn"] = 0
+        E["eFnTryRegions"] = []
+        symIndex(E, "global",E["eFnSave"])
+        if E["eFnPub"] == 1 {
+            eCallRet = ("" + E["eFnSave"]) + ""
+            E["eExports"] = push(E["eExports"], eCallRet)
+        }
+        return
+    }
+    if E["eNode"] == null {
+        throw "emitStmt: null node"
+    }
+    if E["eNode"].kind == undefined {
+        throw "emitStmt: missing kind"
+    }
+    throw "Unsupported stmt: " + E["eStmtKind"]
+}
+
+pub fn emitMain(E, program) {
+    E["eProgram"] = program
+    E["eConsts"] = []
+    E["eConstMap"] = {}
+    E["eConstN"] = 0
+    E["eOps"] = []
+    E["eOpsN"] = 0
+    E["eGlobals"] = []
+    E["eGlobalMap"] = {}
+    E["eGlobalN"] = 0
+    E["eFunctions"] = []
+    E["eFnOps"] = []
+    E["eFnOpsN"] = 0
+    E["eBlockDepth"] = 0
+    E["eCalleeDepth"] = 0
+    E["eCallArgDepth"] = 0
+    E["eObjDepth"] = 0
+    E["eArrDepth"] = 0
+    E["eIfDepth"] = 0
+    E["eMemberDepth"] = 0
+    E["eIndexDepth"] = 0
+    E["eFnGlobals"] = []
+    E["eFnLocals"] = []
+    resetLocalMap(E)
+    E["eInFn"] = 0
+    E["eWhileHeads"] = []
+    E["eBreakIdxs"] = []
+    E["eBreakFromStack"] = []
+    E["eIfJmpStack"] = []
+    E["eIfSkipStack"] = []
+    E["eMemberFldStack"] = []
+    E["eBlockStmtsStack"] = []
+    E["eBlockNStack"] = []
+    E["eBlockIStack"] = []
+    E["eObjIStack"] = []
+    E["eObjNStack"] = []
+    E["eArrIStack"] = []
+    E["eArrNStack"] = []
+    E["eCallArgIStack"] = []
+    E["eCallArgNStack"] = []
+    E["eArgsStack"] = []
+    E["eCalleeStack"] = []
+    E["eGenericTemplates"] = []
+    E["eGenericClassTemplates"] = []
+    E["eGenericEnumTemplates"] = []
+    E["eGenericMethodTemplates"] = []
+    E["eClasses"] = []
+    E["eClassesN"] = 0
+    E["eEnums"] = []
+    E["eArrows"] = []
+    E["eTryRegions"] = []
+    E["eFnTryRegions"] = []
+    E["eForCounter"] = 0
+    E["eSpecMangled"] = []
+    E["eBindingSyms"] = []
+    E["eBindingTypes"] = []
+    E["eExports"] = []
+    E["eImports"] = []
+    E["eProg"] = 0
+    if E["eProgram"]["imports"] != undefined {
+        E["eImports"] = E["eProgram"]["imports"]
+    }
+    E["eBlockStmtsStack"] = push(E["eBlockStmtsStack"], E["eProgram"]["body"])
+    E["eBlockNStack"] = arrUtil(E, "pushLen",E["eBlockNStack"], E["eProgram"]["body"])
+    E["eBlockIStack"] = push(E["eBlockIStack"], 0)
+    E["eBlockDepth"] = E["eBlockDepth"] + 1
+    let pd = E["eBlockDepth"]
+    while E["eBlockIStack"][pd - 1] < E["eBlockNStack"][pd - 1] {
+        E["eBlockStmts"] = E["eBlockStmtsStack"][pd - 1]
+        E["eBlockI"] = E["eBlockIStack"][pd - 1]
+        E["eStmtNode"] = E["eBlockStmts"][E["eBlockI"]]
+        if E["eStmtNode"] == null {
+            throw "emit program null stmt at " + ("" + E["eBlockI"])
+        }
+        emitStmt(E, E["eStmtNode"])
+        E["eBlockIStack"][pd - 1] = E["eBlockIStack"][pd - 1] + 1
+    }
+    E["eBlockDepth"] = E["eBlockDepth"] - 1
+    emitOp(E, OP_HALT, 0)
+    return {
+        "constants": E["eConsts"],
+        "globals": E["eGlobals"],
+        "ops": E["eOps"],
+        "functions": E["eFunctions"],
+        "classes": E["eClasses"],
+        "enums": E["eEnums"],
+        "arrows": E["eArrows"],
+        "tryRegions": E["eTryRegions"],
+        "locals": [],
+        "genericMethodTemplates": E["eGenericMethodTemplates"],
+        "exports": E["eExports"],
+        "imports": E["eImports"]
+    }
+}
+

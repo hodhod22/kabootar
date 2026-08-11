@@ -1,0 +1,11 @@
+pub fn localSymIndex(E, sym) {
+    if E["eInFn"] != 1 {
+        return -1
+    }
+    let li = E["eLocalMap"][sym]
+    if li != undefined {
+        return li
+    }
+    return -1
+}
+

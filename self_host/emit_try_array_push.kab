@@ -1,0 +1,45 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_op"
+import "self_host/emit_local_sym"
+import "self_host/emit_sym_index"
+import "self_host/emit_hooks"
+
+pub fn tryEmitArrayPushAssign(E, sym, rhs) {
+    if rhs.kind != AST_CALL {
+        return false
+    }
+    let cal = rhs["callee"]
+    let args = rhs["args"]
+    if cal.kind != AST_VAR {
+        return false
+    }
+    if cal["sym"] != "push" {
+        return false
+    }
+    if len(args) != 2 {
+        return false
+    }
+    let a0 = args[0]
+    if a0.kind != AST_VAR {
+        return false
+    }
+    if a0["sym"] != sym {
+        return false
+    }
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_TAKE_LOCAL, li)
+        eCallExpr(E, args[1])
+        emitOp(E, OP_ARRAY_PUSH_LOCAL, li)
+        emitOp(E, OP_POP, 0)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_TAKE_GLOBAL, gi)
+    eCallExpr(E, args[1])
+    emitOp(E, OP_ARRAY_PUSH_GLOBAL, gi)
+    emitOp(E, OP_POP, 0)
+    return true
+}
+

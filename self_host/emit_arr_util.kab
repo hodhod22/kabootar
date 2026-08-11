@@ -1,0 +1,9 @@
+pub fn arrUtil(E, mode, stack, arr) {
+    if mode == "snap" {
+        // Single O(n) clone via native slice (not O(n²) push loop).
+        return slice(stack, 0)
+    }
+    E["eLenScratch"] = len(arr)
+    return push(stack, E["eLenScratch"])
+}
+

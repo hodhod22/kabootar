@@ -1,0 +1,42 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_sym_index"
+import "self_host/emit_op"
+import "self_host/emit_local_sym"
+
+
+pub fn emitExpr_index(E) {
+    if E["eNode"].kind != AST_INDEX {
+        return false
+    }
+        // P6b: name[i] → IndexGetLocal/Global (clone element only).
+        E["eBxL"] = E["eNode"]["object"]
+        if E["eBxL"].kind == AST_VAR {
+            E["eIndexStack"] = push(E["eIndexStack"], E["eNode"]["index"])
+            E["eIndexDepth"] = E["eIndexDepth"] + 1
+            eCallExpr(E, E["eIndexStack"][E["eIndexDepth"] - 1])
+            E["eIndexStack"] = pop(E["eIndexStack"])
+            E["eIndexDepth"] = E["eIndexDepth"] - 1
+            E["eSym"] = E["eBxL"]["sym"]
+            let ili = localSymIndex(E, E["eSym"])
+            if ili >= 0 {
+                emitOp(E, OP_INDEX_GET_LOCAL, ili)
+                return true
+            }
+            let igi = symIndex(E, "global", E["eSym"])
+            emitOp(E, OP_INDEX_GET_GLOBAL, igi)
+            return true
+        }
+        // P6b: E["eIndexDepth"] avoids len(E["eIndexStack"]) LoadGlobal clone.
+        E["eIndexStack"] = push(E["eIndexStack"], E["eNode"]["index"])
+        E["eIndexDepth"] = E["eIndexDepth"] + 1
+        eCallExpr(E, E["eNode"]["object"])
+        eCallExpr(E, E["eIndexStack"][E["eIndexDepth"] - 1])
+        E["eIndexStack"] = pop(E["eIndexStack"])
+        E["eIndexDepth"] = E["eIndexDepth"] - 1
+        emitOp(E, OP_INDEX_GET, 0)
+        return true
+    return true
+}
+

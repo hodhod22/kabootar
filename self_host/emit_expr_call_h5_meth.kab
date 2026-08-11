@@ -1,0 +1,7 @@
+import "self_host/emit_expr_call_h5_install"
+import "self_host/emit_expr_call_h5_emit"
+
+pub fn emitExpr_call_h5_meth(E) {
+    emitExpr_call_h5_install(E)
+    emitExpr_call_h5_emit(E)
+}

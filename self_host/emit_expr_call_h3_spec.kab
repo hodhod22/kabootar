@@ -1,0 +1,7 @@
+import "self_host/emit_expr_call_h3_gen"
+import "self_host/emit_expr_call_h3_inst"
+
+pub fn emitExpr_call_h3_spec(E) {
+    emitExpr_call_h3_gen(E)
+    emitExpr_call_h3_inst(E)
+}

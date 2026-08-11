@@ -1,0 +1,5 @@
+pub fn dropCallCallee(E) {
+    E["eCalleeStack"] = pop(E["eCalleeStack"])
+    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+}
+

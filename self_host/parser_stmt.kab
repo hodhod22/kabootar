@@ -1,0 +1,789 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseStmt(sess) {
+    if sess["pCur"].type == "EOF" {
+        return null
+    }
+    sess["pIsPub"] = 0
+    if sess["pCur"].type == TOKEN_PUB {
+        bump(sess)
+        sess["pIsPub"] = 1
+    }
+    if sess["pCur"].type == TOKEN_LET {
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected identifier after let"
+        }
+        sess["pLetSym"] = sess["pTok"].value
+        bump(sess)
+        sess["pBindSym"] = poolPush(sess, sess["pLetSym"])
+        if sess["pCur"].type != "=" {
+            throw "Expected ="
+        }
+        bump(sess)
+        sess["pInit"] = pCallCompare(sess)
+        return { "kind": AST_LET, "sym": sess["pBindSym"], "init": sess["pInit"], "isPub": sess["pIsPub"] }
+    }
+    // P6b: early IDENT= assign (AccAdd-dense leaves) — before enum/class/fn dispatch.
+    if sess["pCur"].type == TOKEN_IDENT {
+        if sess["pPos"] + 1 < sess["pToksLen"] {
+            sess["pNextTok"] = sess["pToks"][sess["pPos"] + 1]
+        } else {
+            sess["pNextTok"] = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+        }
+        if sess["pNextTok"].type == "=" {
+            sess["pTok"] = sess["pCur"]
+            sess["pBindSym"] = poolPush(sess, sess["pTok"].value)
+            bump(sess)
+            bump(sess)
+            sess["pVal"] = pCallCompare(sess)
+            return { "kind": AST_ASSIGN, "sym": sess["pBindSym"], "rhs": sess["pVal"] }
+        }
+    }
+    if sess["pCur"].type == TOKEN_ENUM {
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected enum name"
+        }
+        bump(sess)
+        sess["pEnumSym"] = sess["pTok"].value
+        sess["pTypeParams"] = pCallTypeArgs(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pVariants"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "," {
+                bump(sess)
+            } else {
+                sess["pTok"] = sess["pCur"]
+                sess["pVariantName"] = ""
+                if sess["pTok"].type == TOKEN_IDENT {
+                    bump(sess)
+                    sess["pVariantName"] = sess["pTok"].value
+                } else {
+                    if sess["pTok"].type == TOKEN_NONE {
+                        bump(sess)
+                        sess["pVariantName"] = "None"
+                    } else {
+                        if sess["pTok"].type == TOKEN_SOME {
+                            bump(sess)
+                            sess["pVariantName"] = "Some"
+                        } else {
+                            if sess["pTok"].type == TOKEN_OK {
+                                bump(sess)
+                                sess["pVariantName"] = "Ok"
+                            } else {
+                                if sess["pTok"].type == TOKEN_ERR {
+                                    bump(sess)
+                                    sess["pVariantName"] = "Err"
+                                } else {
+                                    if sess["pTok"].type == TOKEN_TRUE {
+                                        bump(sess)
+                                        sess["pVariantName"] = "True"
+                                    } else {
+                                        if sess["pTok"].type == TOKEN_FALSE {
+                                            bump(sess)
+                                            sess["pVariantName"] = "False"
+                                        } else {
+                                            throw "Expected variant name"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                sess["pVariantSym"] = poolPush(sess, sess["pVariantName"])
+                sess["pVariantFields"] = []
+                if sess["pCur"].type == "(" {
+                    bump(sess)
+                    while sess["pCur"].type != ")" {
+                        sess["pTok"] = sess["pCur"]
+                        if sess["pTok"].type != TOKEN_IDENT {
+                            throw "Expected variant field type"
+                        }
+                        bump(sess)
+                        sess["pVariantFields"] = push(sess["pVariantFields"], poolPush(sess, sess["pTok"].value))
+                        if sess["pCur"].type == "," {
+                            bump(sess)
+                        }
+                    }
+                    bump(sess)
+                }
+                sess["pVariants"] = push(sess["pVariants"], {
+                    "name": sess["pVariantSym"],
+                    "fields": sess["pVariantFields"]
+                })
+                if sess["pCur"].type == "," {
+                    bump(sess)
+                }
+            }
+        }
+        bump(sess)
+        return { "kind": AST_ENUM, "sym": sess["pEnumSym"], "typeParams": sess["pTypeParams"], "variants": sess["pVariants"] }
+    }
+    if sess["pCur"].type == TOKEN_CLASS || sess["pCur"].type == TOKEN_STRUCT {
+        sess["pIsStruct"] = 0
+        if sess["pCur"].type == TOKEN_STRUCT {
+            sess["pIsStruct"] = 1
+        }
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            if sess["pIsStruct"] == 1 {
+                throw "Expected struct name"
+            }
+            throw "Expected class name"
+        }
+        bump(sess)
+        sess["pClassSym"] = sess["pTok"].value
+        sess["pTypeParams"] = pCallTypeArgs(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pClassFields"] = []
+        sess["pClassMethods"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == TOKEN_FN {
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected method name"
+                }
+                bump(sess)
+                sess["pFnSym"] = sess["pTok"].value
+                sess["pMethTypeParams"] = pCallTypeArgs(sess)
+                if sess["pCur"].type != "(" {
+                    throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
+                }
+                bump(sess)
+                sess["pMethParams"] = []
+                sess["pMethParamTypes"] = []
+                if sess["pCur"].type != ")" {
+                    while true {
+                        sess["pTok"] = sess["pCur"]
+                        if sess["pTok"].type == TOKEN_SELF {
+                            bump(sess)
+                            sess["pMethParams"] = push(sess["pMethParams"], poolPush(sess, "self"))
+                            sess["pMethParamTypes"] = push(sess["pMethParamTypes"], "")
+                        } else {
+                            if sess["pTok"].type != TOKEN_IDENT {
+                                throw "Expected parameter name"
+                            }
+                            bump(sess)
+                            sess["pMethParams"] = push(sess["pMethParams"], poolPush(sess, sess["pTok"].value))
+                            sess["pParamType"] = ""
+                            if sess["pCur"].type == ":" {
+                                bump(sess)
+                                sess["pTok"] = sess["pCur"]
+                                if sess["pTok"].type != TOKEN_IDENT {
+                                    throw "Expected parameter type"
+                                }
+                                bump(sess)
+                                sess["pParamType"] = sess["pTok"].value
+                            }
+                            sess["pMethParamTypes"] = push(sess["pMethParamTypes"], sess["pParamType"])
+                        }
+                        if sess["pCur"].type == "," {
+                            bump(sess)
+                        } else {
+                            break
+                        }
+                    }
+                }
+                if sess["pCur"].type != ")" {
+                    throw "Expected )"
+                }
+                bump(sess)
+                if sess["pCur"].type != "{" {
+                    throw "Expected {"
+                }
+                bump(sess)
+                sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+                sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+                sess["pBody"] = []
+                while sess["pCur"].type != "}" {
+                    if sess["pCur"].type == "EOF" {
+                        throw "Unclosed block"
+                    }
+                    sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+                    if sess["pCur"].type == ";" {
+                        bump(sess)
+                    }
+                }
+                bump(sess)
+                let methBody = sess["pBody"]
+                sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+                sess["pBodyStack"] = pop(sess["pBodyStack"])
+                sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+                sess["pVal"] = {
+                    "sym": sess["pFnSym"],
+                    "typeParams": sess["pMethTypeParams"],
+                    "params": sess["pMethParams"],
+                    "paramTypes": sess["pMethParamTypes"],
+                    "returnType": "",
+                    "body": { "kind": AST_BLOCK, "body": methBody }
+                }
+                sess["pClassMethods"] = push(sess["pClassMethods"], sess["pVal"])
+            } else {
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected field name"
+                }
+                bump(sess)
+                sess["pSaveSym"] = poolPush(sess, sess["pTok"].value)
+                sess["pFieldType"] = ""
+                if sess["pCur"].type == ":" {
+                    bump(sess)
+                    sess["pTok"] = sess["pCur"]
+                    if sess["pTok"].type != TOKEN_IDENT {
+                        throw "Expected field type"
+                    }
+                    bump(sess)
+                    sess["pFieldType"] = sess["pTok"].value
+                }
+                sess["pFieldDefault"] = null
+                if sess["pCur"].type == "=" {
+                    bump(sess)
+                    sess["pFieldDefault"] = pCallCompare(sess)
+                }
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+                sess["pVal"] = { "name": sess["pSaveSym"], "type": sess["pFieldType"], "default": sess["pFieldDefault"] }
+                sess["pClassFields"] = push(sess["pClassFields"], sess["pVal"])
+            }
+        }
+        bump(sess)
+        return {
+            "kind": AST_CLASS,
+            "sym": sess["pClassSym"],
+            "typeParams": sess["pTypeParams"],
+            "fields": sess["pClassFields"],
+            "methods": sess["pClassMethods"],
+            "isStruct": sess["pIsStruct"]
+        }
+    }
+    if sess["pCur"].type == TOKEN_INTERFACE || sess["pCur"].type == TOKEN_TRAIT {
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected interface/trait name"
+        }
+        bump(sess)
+        sess["pIfaceSym"] = sess["pTok"].value
+        sess["pTypeParams"] = pCallTypeArgs(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pIfaceMethods"] = []
+        sess["pAssocTypes"] = []
+        while sess["pCur"].type != "}" {
+            // T5 deepen: `type Item;` associated type
+            if sess["pCur"].type == TOKEN_IDENT && sess["pCur"].value == "type" {
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected associated type name"
+                }
+                bump(sess)
+                sess["pAssocTypes"] = push(sess["pAssocTypes"], sess["pTok"].value)
+                if sess["pCur"].type != ";" {
+                    throw "Expected ; after associated type"
+                }
+                bump(sess)
+            } else {
+                if sess["pCur"].type != TOKEN_FN {
+                    throw "Expected fn in interface"
+                }
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected method name"
+                }
+                bump(sess)
+                sess["pFnSym"] = sess["pTok"].value
+                if sess["pCur"].type != "(" {
+                    throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
+                }
+                bump(sess)
+                sess["pMethParams"] = []
+                if sess["pCur"].type != ")" {
+                    while true {
+                        sess["pTok"] = sess["pCur"]
+                        if sess["pTok"].type != TOKEN_IDENT {
+                            throw "Expected parameter name"
+                        }
+                        bump(sess)
+                        sess["pMethParams"] = push(sess["pMethParams"], poolPush(sess, sess["pTok"].value))
+                        if sess["pCur"].type == "," {
+                            bump(sess)
+                        } else {
+                            break
+                        }
+                    }
+                }
+                if sess["pCur"].type != ")" {
+                    throw "Expected )"
+                }
+                bump(sess)
+                // T5 deepen: default method body `{ ... }` or declaration `;`
+                // Snapshot params before body — parseStmt/call reuse module locals.
+                let ifaceMethParams = sess["pMethParams"]
+                let ifaceMethSym = sess["pFnSym"]
+                if sess["pCur"].type == "{" {
+                    bump(sess)
+                    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+                    sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+                    sess["pBody"] = []
+                    while sess["pCur"].type != "}" {
+                        if sess["pCur"].type == "EOF" {
+                            throw "Unclosed default method body"
+                        }
+                        sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+                        if sess["pCur"].type == ";" {
+                            bump(sess)
+                        }
+                    }
+                    bump(sess)
+                    let defBody = sess["pBody"]
+                    sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+                    sess["pBodyStack"] = pop(sess["pBodyStack"])
+                    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+                    sess["pIfaceMethods"] = push(sess["pIfaceMethods"], {
+                        "sym": ifaceMethSym,
+                        "params": ifaceMethParams,
+                        "body": { "kind": AST_BLOCK, "body": defBody }
+                    })
+                } else {
+                    if sess["pCur"].type != ";" {
+                        throw "Expected ; or default method body"
+                    }
+                    bump(sess)
+                    sess["pIfaceMethods"] = push(sess["pIfaceMethods"], { "sym": ifaceMethSym, "params": ifaceMethParams })
+                }
+            }
+        }
+        bump(sess)
+        return {
+            "kind": AST_INTERFACE,
+            "sym": sess["pIfaceSym"],
+            "typeParams": sess["pTypeParams"],
+            "methods": sess["pIfaceMethods"],
+            "associatedTypes": sess["pAssocTypes"]
+        }
+    }
+    if sess["pCur"].type == TOKEN_FN {
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected function name"
+        }
+        bump(sess)
+        sess["pFnSym"] = sess["pTok"].value
+        sess["pFnPub"] = sess["pIsPub"]
+        sess["pTypeParams"] = pCallTypeArgs(sess)
+        if sess["pCur"].type != "(" {
+            throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
+        }
+        bump(sess)
+        sess["pParams"] = []
+        sess["pParamTypes"] = []
+        if sess["pCur"].type != ")" {
+            while true {
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected parameter name"
+                }
+                bump(sess)
+                sess["pParams"] = push(sess["pParams"], poolPush(sess, sess["pTok"].value))
+                sess["pParamType"] = ""
+                if sess["pCur"].type == ":" {
+                    bump(sess)
+                    sess["pTok"] = sess["pCur"]
+                    if sess["pTok"].type != TOKEN_IDENT {
+                        throw "Expected parameter type"
+                    }
+                    bump(sess)
+                    sess["pParamType"] = sess["pTok"].value
+                }
+                sess["pParamTypes"] = push(sess["pParamTypes"], sess["pParamType"])
+                if sess["pCur"].type == "," {
+                    bump(sess)
+                } else {
+                    break
+                }
+            }
+        }
+        if sess["pCur"].type != ")" {
+            throw "Expected )"
+        }
+        bump(sess)
+        sess["pReturnType"] = ""
+        if sess["pCur"].type == "->" {
+            bump(sess)
+            sess["pTok"] = sess["pCur"]
+            if sess["pTok"].type != TOKEN_IDENT {
+                throw "Expected return type"
+            }
+            bump(sess)
+            sess["pReturnType"] = sess["pTok"].value
+        }
+        sess["pWhereClause"] = []
+        if sess["pCur"].type == TOKEN_WHERE {
+            bump(sess)
+            while true {
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected type parameter in where"
+                }
+                bump(sess)
+                sess["pWhereParam"] = sess["pTok"].value
+                if sess["pCur"].type != ":" {
+                    throw "Expected : in where"
+                }
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type != TOKEN_IDENT {
+                    throw "Expected trait name in where"
+                }
+                bump(sess)
+                sess["pWhereTrait"] = sess["pTok"].value
+                sess["pWhereClause"] = push(sess["pWhereClause"], {
+                    "typeParam": sess["pWhereParam"],
+                    "traitName": sess["pWhereTrait"]
+                })
+                if sess["pCur"].type == "," {
+                    bump(sess)
+                } else {
+                    break
+                }
+            }
+        }
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pBody"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "EOF" {
+                throw "Unclosed block"
+            }
+            sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let fnBody = sess["pBody"]
+        sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        return {
+            "kind": AST_FN,
+            "sym": sess["pFnSym"],
+            "isPub": sess["pFnPub"],
+            "typeParams": sess["pTypeParams"],
+            "params": sess["pParams"],
+            "paramTypes": sess["pParamTypes"],
+            "returnType": sess["pReturnType"],
+            "whereClause": sess["pWhereClause"],
+            "body": { "kind": AST_BLOCK, "body": fnBody }
+        }
+    }
+    if sess["pCur"].type == TOKEN_IF {
+        bump(sess)
+        // Iterative else-if: avoid deep parseStmt recursion (hangs on long chains).
+        let chainConds = []
+        let chainThens = []
+        let finalElse = null
+        while true {
+            let armCond = pCallCompare(sess)
+            if sess["pCur"].type != "{" {
+                throw "Expected {"
+            }
+            bump(sess)
+            sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+            sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+            sess["pBody"] = []
+            while sess["pCur"].type != "}" {
+                sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+            }
+            bump(sess)
+            let armThen = { "kind": AST_BLOCK, "body": sess["pBody"] }
+            sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+            sess["pBodyStack"] = pop(sess["pBodyStack"])
+            sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+            chainConds = push(chainConds, armCond)
+            chainThens = push(chainThens, armThen)
+            if sess["pCur"].type != TOKEN_ELSE {
+                break
+            }
+            bump(sess)
+            if sess["pCur"].type == TOKEN_IF {
+                bump(sess)
+                continue
+            }
+            if sess["pCur"].type != "{" {
+                throw "Expected {"
+            }
+            bump(sess)
+            sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+            sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+            sess["pBody"] = []
+            while sess["pCur"].type != "}" {
+                sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+            }
+            bump(sess)
+            finalElse = { "kind": AST_BLOCK, "body": sess["pBody"] }
+            sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+            sess["pBodyStack"] = pop(sess["pBodyStack"])
+            sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+            break
+        }
+        let i = len(chainConds) - 1
+        let ifNode = { "kind": AST_IF, "cond": chainConds[i], "then": chainThens[i], "elseBranch": finalElse }
+        i = i - 1
+        while i >= 0 {
+            ifNode = { "kind": AST_IF, "cond": chainConds[i], "then": chainThens[i], "elseBranch": ifNode }
+            i = i - 1
+        }
+        return ifNode
+    }
+    if sess["pCur"].type == TOKEN_TRY {
+        bump(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pBody"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "EOF" {
+                throw "Unclosed try"
+            }
+            sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let tryBody = sess["pBody"]
+        sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        if sess["pCur"].type != TOKEN_CATCH {
+            throw "Expected catch"
+        }
+        bump(sess)
+        if sess["pCur"].type != "(" {
+            throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
+        }
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected catch binding"
+        }
+        bump(sess)
+        let errSym = sess["pTok"].value
+        if sess["pCur"].type != ")" {
+            throw "Expected )"
+        }
+        bump(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pBody"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "EOF" {
+                throw "Unclosed catch"
+            }
+            sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let catchBody = sess["pBody"]
+        sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        return {
+            "kind": AST_TRY,
+            "body": { "kind": AST_BLOCK, "body": tryBody },
+            "errName": errSym,
+            "handler": { "kind": AST_BLOCK, "body": catchBody }
+        }
+    }
+    if sess["pCur"].type == TOKEN_FOR {
+        bump(sess)
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected for-of binding"
+        }
+        bump(sess)
+        let forSym = sess["pTok"].value
+        if sess["pCur"].type != TOKEN_OF {
+            throw "Expected of"
+        }
+        bump(sess)
+        let forIter = pCallCompare(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pLoopBody"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pLoopBody"] = []
+        while sess["pCur"].type != "}" {
+            sess["pLoopBody"] = push(sess["pLoopBody"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let forBody = sess["pLoopBody"]
+        sess["pLoopBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        return {
+            "kind": AST_FOR_OF,
+            "sym": forSym,
+            "iterable": forIter,
+            "body": { "kind": AST_BLOCK, "body": forBody }
+        }
+    }
+    if sess["pCur"].type == TOKEN_WHILE {
+        bump(sess)
+        sess["pCond"] = pCallCompare(sess)
+        sess["pCondStack"] = push(sess["pCondStack"], sess["pCond"])
+        sess["pCondDepth"] = sess["pCondDepth"] + 1
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pLoopBody"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pLoopBody"] = []
+        while sess["pCur"].type != "}" {
+            sess["pLoopBody"] = push(sess["pLoopBody"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let whileBody = sess["pLoopBody"]
+        sess["pLoopBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        sess["pSave"] = sess["pCondStack"][sess["pCondDepth"] - 1]
+        sess["pCondStack"] = pop(sess["pCondStack"])
+        sess["pCondDepth"] = sess["pCondDepth"] - 1
+        return { "kind": AST_WHILE, "cond": sess["pSave"], "body": { "kind": AST_BLOCK, "body": whileBody } }
+    }
+    if sess["pCur"].type == TOKEN_CONTINUE {
+        bump(sess)
+        return { "kind": AST_CONTINUE }
+    }
+    if sess["pCur"].type == TOKEN_BREAK {
+        bump(sess)
+        return { "kind": AST_BREAK }
+    }
+    if sess["pCur"].type == TOKEN_THROW {
+        bump(sess)
+        sess["pVal"] = pCallCompare(sess)
+        return { "kind": AST_THROW, "expr": sess["pVal"] }
+    }
+    if sess["pCur"].type == TOKEN_RETURN {
+        bump(sess)
+        if sess["pCur"].type == ";" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if sess["pCur"].type == "}" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        if sess["pCur"].type == "EOF" {
+            return { "kind": AST_RETURN, "value": null }
+        }
+        sess["pVal"] = pCallCompare(sess)
+        return { "kind": AST_RETURN, "value": sess["pVal"] }
+    }
+    if sess["pCur"].type == "{" {
+        bump(sess)
+        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pStmts"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+        sess["pStmts"] = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "EOF" {
+                throw "Unclosed block"
+            }
+            sess["pStmts"] = push(sess["pStmts"], pCallStmt(sess))
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+        bump(sess)
+        let blockStmts = sess["pStmts"]
+        sess["pStmts"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+        sess["pBodyStack"] = pop(sess["pBodyStack"])
+        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+        return { "kind": AST_BLOCK, "body": blockStmts }
+    }
+    if sess["pCur"].type == TOKEN_IDENT {
+        if sess["pPos"] + 1 < sess["pToksLen"] {
+            sess["pNextTok"] = sess["pToks"][sess["pPos"] + 1]
+        } else {
+            sess["pNextTok"] = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+        }
+        if sess["pNextTok"].type == "=" {
+            sess["pTok"] = sess["pCur"]
+            sess["pBindSym"] = poolPush(sess, sess["pTok"].value)
+            bump(sess)
+            bump(sess)
+            sess["pVal"] = pCallCompare(sess)
+            return { "kind": AST_ASSIGN, "sym": sess["pBindSym"], "rhs": sess["pVal"] }
+        }
+    }
+    sess["pAssignLhs"] = pCallCompare(sess)
+    if sess["pCur"].type == "=" {
+        bump(sess)
+        // P6b: do not reuse sess["pSave"] — parseAddShift clobbers sess["pSave"] while parsing RHS
+        // (e.g. `E["a"] = { "x": 1 + 2 }` → false "invalid assign lhs").
+        sess["pInit"] = pCallCompare(sess)
+        if sess["pAssignLhs"].kind == AST_VAR {
+            return { "kind": AST_ASSIGN, "sym": sess["pAssignLhs"]["sym"], "rhs": sess["pInit"] }
+        }
+        if sess["pAssignLhs"].kind == AST_INDEX {
+            return { "kind": AST_INDEX_ASSIGN, "object": sess["pAssignLhs"]["object"], "index": sess["pAssignLhs"]["index"], "rhs": sess["pInit"] }
+        }
+        if sess["pAssignLhs"].kind == AST_MEMBER {
+            return { "kind": AST_MEMBER_ASSIGN, "object": sess["pAssignLhs"]["object"], "field": sess["pAssignLhs"]["field"], "rhs": sess["pInit"] }
+        }
+        throw "invalid assign lhs"
+    }
+    sess["pVal"] = sess["pAssignLhs"]
+    return { "kind": AST_EXPR, "expr": sess["pVal"] }
+}
+
+

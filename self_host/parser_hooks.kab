@@ -1,0 +1,65 @@
+// P6b: parser trampoline hooks.
+
+pub fn pCallPostfix(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 0
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallTypeArgs(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 1
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallUnary(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 2
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallMul(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 3
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallAddShift(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 4
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallRelExpr(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 5
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallCompare(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 6
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallStmt(sess) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = 7
+    let r = sess["tramp"]()
+    sess["_hook"] = prevH
+    return r
+}

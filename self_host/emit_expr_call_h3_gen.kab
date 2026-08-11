@@ -1,0 +1,30 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_sym_index"
+import "self_host/emit_gen_class_meth"
+
+pub fn emitExpr_call_h3_gen(E) {
+    E["eFound"] = 0
+    E["eGenI"] = 0
+    while E["eGenI"] < E["eClassesN"] {
+        if E["eClasses"][E["eGenI"]]["sym"] == E["eMangled"] {
+            E["eFound"] = 1
+            break
+        }
+        E["eGenI"] = E["eGenI"] + 1
+    }
+    if E["eFound"] != 0 {
+        return 0
+    }
+    E["eClassMethods"] = []
+    E["eMi"] = 0
+    while E["eMi"] < len(E["eGenTmpl"]["methods"]) {
+        E["eMeth"] = E["eGenTmpl"]["methods"][E["eMi"]]
+        emitGenClassMeth(E)
+        E["eMi"] = E["eMi"] + 1
+    }
+    E["eClasses"] = push(E["eClasses"], { "sym": E["eMangled"], "methods": E["eClassMethods"] })
+    E["eClassesN"] = E["eClassesN"] + 1
+    symIndex(E, "global", E["eMangled"])
+    return 0
+}

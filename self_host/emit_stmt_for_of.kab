@@ -1,0 +1,88 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_sym_index"
+import "self_host/emit_arr_util"
+import "self_host/emit_op"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+
+pub fn emitStmt_for_of(E) {
+    if E["eNode"].kind != AST_FOR_OF {
+        return false
+    }
+        if E["eInFn"] != 1 {
+            throw "for-of only supported inside fn (self-host emit)"
+        }
+        let forSym = E["eNode"]["sym"]
+        let forIter = E["eNode"]["iterable"]
+        let forBody = E["eNode"]["body"]
+        let n = E["eForCounter"]
+        E["eForCounter"] = n + 1
+        let src = "__kab_f" + n + "_src"
+        let res = "__kab_f" + n + "_r"
+        let srcIdx = symIndex(E, "local", src)
+        let resIdx = symIndex(E, "local", res)
+        let varIdx = symIndex(E, "local", forSym)
+        eCallExpr(E, forIter)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
+        emitOp(E, OP_CALL, 1)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        E["eBreakFromStack"] = arrUtil(E, "pushLen", E["eBreakFromStack"], E["eBreakIdxs"])
+        let loopStart = E["eFnOpsN"]
+        E["eWhileHeads"] = push(E["eWhileHeads"], loopStart)
+        emitOp(E, OP_LOAD_LOCAL, srcIdx)
+        emitOp(E, OP_ITER_STEP, 0)
+        emitOp(E, OP_STORE_LOCAL, resIdx)
+        emitOp(E, OP_STORE_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_LOCAL, resIdx)
+        emitOp(E, OP_CONST, symIndex(E, "const", "done"))
+        emitOp(E, OP_INDEX_GET, 0)
+        let jmpDoneIdx = E["eFnOpsN"]
+        emitOp(E, OP_JUMP_IF_FALSE, 0)
+        let jmpExitIdx = E["eFnOpsN"]
+        emitOp(E, OP_JUMP, 0)
+        let bodyStart = E["eFnOpsN"]
+        eCallRet = bodyStart - jmpDoneIdx - 1
+        E["eFnOps"][jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": eCallRet }
+        emitOp(E, OP_LOAD_LOCAL, resIdx)
+        emitOp(E, OP_CONST, symIndex(E, "const", "value"))
+        emitOp(E, OP_INDEX_GET, 0)
+        emitOp(E, OP_STORE_LOCAL, varIdx)
+        eCallStmt(E, forBody)
+        emitOp(E, OP_JUMP, loopStart - E["eFnOpsN"] - 1)
+        let loopEnd = E["eFnOpsN"]
+        eCallRet = loopEnd - jmpExitIdx - 1
+        E["eFnOps"][jmpExitIdx] = { "op": OP_JUMP, "arg": eCallRet }
+        eCallRet = len(E["eBreakFromStack"]) - 1
+        E["eBf"] = E["eBreakFromStack"][eCallRet]
+        E["eBi"] = E["eBf"]
+        while E["eBi"] < len(E["eBreakIdxs"]) {
+            eCallRet = loopEnd - E["eBreakIdxs"][E["eBi"]]
+            E["eJumpOff"] = eCallRet - 1
+            E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+            E["eBi"] = E["eBi"] + 1
+        }
+        if E["eBf"] > 0 {
+            E["eBreakIdxs"] = slice(E["eBreakIdxs"], 0, E["eBf"])
+        } else {
+            E["eBreakIdxs"] = []
+        }
+        if len(E["eWhileHeads"]) > 0 {
+            E["eWhileHeads"] = pop(E["eWhileHeads"])
+        } else {
+            E["eWhileHeads"] = []
+        }
+        if len(E["eBreakFromStack"]) > 0 {
+            E["eBreakFromStack"] = pop(E["eBreakFromStack"])
+        } else {
+            E["eBreakFromStack"] = []
+        }
+        return true
+    return true
+}
+

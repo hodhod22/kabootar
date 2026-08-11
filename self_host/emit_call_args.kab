@@ -1,0 +1,17 @@
+import "self_host/emit_hooks"
+
+pub fn emitCallArgExprs(E) {
+    E["eCallArgDepth"] = E["eCallArgDepth"] + 1
+    let cad = E["eCallArgDepth"]
+    while E["eCallArgIStack"][cad - 1] < E["eCallArgNStack"][cad - 1] {
+        E["eArgs"] = E["eArgsStack"][cad - 1]
+        eCallExpr(E, E["eArgs"][E["eCallArgIStack"][cad - 1]])
+        E["eCallArgIStack"][cad - 1] = E["eCallArgIStack"][cad - 1] + 1
+    }
+    E["eArgsStack"] = pop(E["eArgsStack"])
+    E["eArgN"] = E["eCallArgNStack"][cad - 1]
+    E["eCallArgIStack"] = pop(E["eCallArgIStack"])
+    E["eCallArgNStack"] = pop(E["eCallArgNStack"])
+    E["eCallArgDepth"] = E["eCallArgDepth"] - 1
+}
+

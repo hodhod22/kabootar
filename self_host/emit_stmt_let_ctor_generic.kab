@@ -1,0 +1,25 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_type_infer_args"
+import "self_host/emit_type_infer_mangle"
+
+pub fn emitStmt_letCtorGeneric(E) {
+    E["eGenTmpl"] = null
+    E["eGenI"] = 0
+    while E["eGenI"] < len(E["eGenericClassTemplates"]) {
+        if E["eGenericClassTemplates"][E["eGenI"]]["sym"] == E["eCtorName"] {
+            E["eGenTmpl"] = E["eGenericClassTemplates"][E["eGenI"]]
+        }
+        E["eGenI"] = E["eGenI"] + 1
+    }
+    if E["eGenTmpl"] == null {
+        return 0
+    }
+    E["eCtorArgs"] = E["eLitNode"]["args"]
+    emitInferTypeArgsFrom(E, "eCtorArgs", "", 0)
+    E["eMangled"] = E["eCtorName"]
+    emitMangleWithTypeArgs(E, "eMangled")
+    E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+    E["eBindingTypes"] = push(E["eBindingTypes"], E["eMangled"])
+    return 0
+}

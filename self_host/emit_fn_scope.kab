@@ -1,0 +1,20 @@
+import "self_host/emit_defs"
+import "self_host/emit_arr_util"
+import "self_host/emit_local_map"
+
+pub fn emitFnScopeSave(E) {
+    E["eSaveInFn"] = E["eInFn"]
+    E["eSaveFnOps"] = arrUtil(E, "snap", E["eFnOps"])
+    E["eSaveFnOpsN"] = E["eFnOpsN"]
+    E["eSaveFnLocals"] = arrUtil(E, "snap", E["eFnLocals"])
+    E["eSaveFnGlobals"] = arrUtil(E, "snap", E["eFnGlobals"])
+}
+
+pub fn emitFnScopeRestore(E) {
+    E["eInFn"] = E["eSaveInFn"]
+    E["eFnOps"] = E["eSaveFnOps"]
+    E["eFnOpsN"] = E["eSaveFnOpsN"]
+    E["eFnLocals"] = E["eSaveFnLocals"]
+    rebuildLocalMap(E)
+    E["eFnGlobals"] = E["eSaveFnGlobals"]
+}

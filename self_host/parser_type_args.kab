@@ -1,0 +1,64 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseTypeArgs(sess) {
+    if sess["pCur"].type != "<" {
+        return []
+    }
+    // P6b: type-arg scan uses cached sess["pToksLen"] (hot len() elimination).
+    sess["pAngleI"] = sess["pPos"] + 1
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return []
+    }
+    sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+    if sess["pAngleTok"].type != TOKEN_IDENT {
+        return []
+    }
+    sess["pAngleI"] = sess["pAngleI"] + 1
+    while sess["pAngleI"] < sess["pToksLen"] {
+        sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+        if sess["pAngleTok"].type == ">" {
+            break
+        }
+        if sess["pAngleTok"].type == "<" {
+            return []
+        }
+        if sess["pAngleTok"].type == "," {
+            sess["pAngleI"] = sess["pAngleI"] + 1
+        } else {
+            if sess["pAngleTok"].type == TOKEN_IDENT {
+                sess["pAngleI"] = sess["pAngleI"] + 1
+            } else {
+                return []
+            }
+        }
+    }
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return []
+    }
+    if sess["pToks"][sess["pAngleI"]].type != ">" {
+        return []
+    }
+    bump(sess)
+    sess["pAngleOut"] = []
+    while sess["pCur"].type != ">" {
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected type name"
+        }
+        bump(sess)
+        sess["pAngleOut"] = push(sess["pAngleOut"], poolPush(sess, sess["pTok"].value))
+        if sess["pCur"].type == "," {
+            bump(sess)
+        }
+    }
+    if sess["pCur"].type != ">" {
+        throw "Expected >"
+    }
+    bump(sess)
+    return sess["pAngleOut"]
+}
+
+

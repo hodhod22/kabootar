@@ -4,20 +4,9 @@
 // Re-export by alias (not a wrapping fn) — see self_host/vm.kab header for why
 // wrapping fns break Kab VM reentrancy under KABOOTAR_VM=kab-only.
 //
-// emit_impl.kab stays skip-listed (~68KB, over the 64KB self-host-attempt threshold
-// in `should_attempt_self_host`, and self-hosting cost scales with the AST size of
-// the source anyway — self-host-compiling even the much smaller serialize_body.kab
-// (~13KB) already takes minutes). Splitting emit_impl.kab further to fit under 64KB
-// is NOT required for CI-speed: name-based skip-listing is checked before the size
-// check in `should_attempt_self_host`, so an oversized skip-listed impl file never
-// gets self-host-attempted regardless of its size — only this facade is ever fed
-// through the self-hosted compiler, and its own source is 2 statements.
-//
-// (A real split is also hard to do soundly: emitExpr/emitStmt/emit all share ~130
-// module-level `let eXxx` accumulators (eOps, eConsts, eFnOps, …). Kabootar modules
-// don't share mutable global state across files — each imported module gets its own
-// copy of exported bindings — so those functions and their shared state must stay
-// co-located in one file.)
+// emit_impl.kab stays skip-listed (P6 seed-only). Body densified into session-
+// threaded shards (emit_exec + emit_expr_* / emit_stmt_*); empty skip-list waits
+// until every shard self-host-compiles ≤10s (P6b).
 
 import "self_host/emit_impl"
 
