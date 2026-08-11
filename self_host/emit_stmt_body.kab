@@ -1,0 +1,88 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_if_stmt"
+import "self_host/emit_stmt_let"
+import "self_host/emit_stmt_assign"
+import "self_host/emit_stmt_index_assign"
+import "self_host/emit_stmt_member_assign"
+import "self_host/emit_stmt_expr"
+import "self_host/emit_stmt_throw"
+import "self_host/emit_stmt_try"
+import "self_host/emit_stmt_for_of"
+import "self_host/emit_stmt_return"
+import "self_host/emit_stmt_block"
+import "self_host/emit_stmt_continue"
+import "self_host/emit_stmt_break"
+import "self_host/emit_stmt_while"
+import "self_host/emit_stmt_enum"
+import "self_host/emit_stmt_class"
+import "self_host/emit_stmt_interface"
+import "self_host/emit_stmt_fn"
+
+pub fn emitStmtBody(E, node) {
+    E["eStmtNode"] = node
+    E["eNode"] = node
+    if E["eStmtNode"] == null {
+        throw "emitStmt: null node"
+    }
+    E["eStmtKind"] = E["eStmtNode"].kind
+    if E["eStmtKind"] == AST_IF {
+        emitIfStmt(E)
+        return
+    }
+    if emitStmt_let(E) {
+        return
+    }
+    if emitStmt_assign(E) {
+        return
+    }
+    if emitStmt_index_assign(E) {
+        return
+    }
+    if emitStmt_member_assign(E) {
+        return
+    }
+    if emitStmt_expr(E) {
+        return
+    }
+    if emitStmt_throw(E) {
+        return
+    }
+    if emitStmt_try(E) {
+        return
+    }
+    if emitStmt_for_of(E) {
+        return
+    }
+    if emitStmt_return(E) {
+        return
+    }
+    if emitStmt_block(E) {
+        return
+    }
+    if emitStmt_continue(E) {
+        return
+    }
+    if emitStmt_break(E) {
+        return
+    }
+    if emitStmt_while(E) {
+        return
+    }
+    if emitStmt_enum(E) {
+        return
+    }
+    if emitStmt_class(E) {
+        return
+    }
+    if emitStmt_interface(E) {
+        return
+    }
+    if emitStmt_fn(E) {
+        return
+    }
+    if E["eNode"].kind == undefined {
+        throw "emitStmt: missing kind"
+    }
+    throw "Unsupported stmt: " + E["eStmtKind"]
+}

@@ -1,0 +1,9 @@
+// H6e: self-hosted bytecode emitter body — thin session driver (skip-listed).
+// Heavy logic in emit_main.kab; E is a parameter there (not a module let).
+import "self_host/emit_session"
+import "self_host/emit_main"
+
+pub fn emitImpl(program) {
+    let E = eMakeSession()
+    return emitMain(E, program)
+}

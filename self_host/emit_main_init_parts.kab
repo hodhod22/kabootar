@@ -1,0 +1,72 @@
+import "self_host/emit_defs"
+import "self_host/emit_local_map"
+
+pub fn emitMainInitCore(E, program) {
+    E["eProgram"] = program
+    E["eConsts"] = []
+    E["eConstMap"] = {}
+    E["eConstN"] = 0
+    E["eOps"] = []
+    E["eOpsN"] = 0
+    E["eGlobals"] = []
+    E["eGlobalMap"] = {}
+    E["eGlobalN"] = 0
+    E["eFunctions"] = []
+    E["eFnOps"] = []
+    E["eFnOpsN"] = 0
+    E["eBlockDepth"] = 0
+    E["eCalleeDepth"] = 0
+    E["eCallArgDepth"] = 0
+    E["eObjDepth"] = 0
+    E["eArrDepth"] = 0
+    E["eIfDepth"] = 0
+    E["eMemberDepth"] = 0
+    E["eIndexDepth"] = 0
+    E["eFnGlobals"] = []
+    E["eFnLocals"] = []
+    resetLocalMap(E)
+    E["eInFn"] = 0
+}
+
+pub fn emitMainInitStacks(E) {
+    E["eWhileHeads"] = []
+    E["eBreakIdxs"] = []
+    E["eBreakFromStack"] = []
+    E["eIfJmpStack"] = []
+    E["eIfSkipStack"] = []
+    E["eMemberFldStack"] = []
+    E["eBlockStmtsStack"] = []
+    E["eBlockNStack"] = []
+    E["eBlockIStack"] = []
+    E["eObjIStack"] = []
+    E["eObjNStack"] = []
+    E["eArrIStack"] = []
+    E["eArrNStack"] = []
+    E["eCallArgIStack"] = []
+    E["eCallArgNStack"] = []
+    E["eArgsStack"] = []
+    E["eCalleeStack"] = []
+}
+
+pub fn emitMainInitMeta(E) {
+    E["eGenericTemplates"] = []
+    E["eGenericClassTemplates"] = []
+    E["eGenericEnumTemplates"] = []
+    E["eGenericMethodTemplates"] = []
+    E["eClasses"] = []
+    E["eClassesN"] = 0
+    E["eEnums"] = []
+    E["eArrows"] = []
+    E["eTryRegions"] = []
+    E["eFnTryRegions"] = []
+    E["eForCounter"] = 0
+    E["eSpecMangled"] = []
+    E["eBindingSyms"] = []
+    E["eBindingTypes"] = []
+    E["eExports"] = []
+    E["eImports"] = []
+    E["eProg"] = 0
+    if E["eProgram"]["imports"] != undefined {
+        E["eImports"] = E["eProgram"]["imports"]
+    }
+}

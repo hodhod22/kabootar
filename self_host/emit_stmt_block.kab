@@ -1,0 +1,33 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_arr_util"
+
+
+pub fn emitStmt_block(E) {
+    if E["eNode"].kind != AST_BLOCK {
+        return false
+    }
+        E["eBlockStmtsStack"] = push(E["eBlockStmtsStack"], E["eNode"]["body"])
+        E["eBlockNStack"] = arrUtil(E, "pushLen",E["eBlockNStack"], E["eNode"]["body"])
+        E["eBlockIStack"] = push(E["eBlockIStack"], 0)
+        E["eBlockDepth"] = E["eBlockDepth"] + 1
+        let bd = E["eBlockDepth"]
+        while E["eBlockIStack"][bd - 1] < E["eBlockNStack"][bd - 1] {
+            E["eBlockStmts"] = E["eBlockStmtsStack"][bd - 1]
+            E["eBlockI"] = E["eBlockIStack"][bd - 1]
+            E["eStmtNode"] = E["eBlockStmts"][E["eBlockI"]]
+            if E["eStmtNode"] == null {
+                throw "emit block null stmt at " + ("" + E["eBlockI"])
+            }
+            eCallStmt(E, E["eStmtNode"])
+            E["eBlockIStack"][bd - 1] = E["eBlockIStack"][bd - 1] + 1
+        }
+        E["eBlockStmtsStack"] = pop(E["eBlockStmtsStack"])
+        E["eBlockNStack"] = pop(E["eBlockNStack"])
+        E["eBlockIStack"] = pop(E["eBlockIStack"])
+        E["eBlockDepth"] = E["eBlockDepth"] - 1
+        return true
+    return true
+}
+

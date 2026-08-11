@@ -1,0 +1,31 @@
+// P6b: infer E["eTypeArgs"] from call/ctor argument nodes.
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_type_infer_lit"
+import "self_host/emit_type_infer_bind"
+
+// errSym "" = soft fail; litFull 1 = all literal kinds.
+pub fn emitInferTypeArgsFrom(E, argsKey, errSym, litFull) {
+    E["eTypeArgs"] = []
+    E["eResolveI"] = 0
+    while E["eResolveI"] < len(E[argsKey]) {
+        E["eInferArg"] = E[argsKey][E["eResolveI"]]
+        E["eInferType"] = ""
+        if litFull == 1 {
+            emitInferLitFull(E, E["eInferArg"])
+        } else {
+            emitInferLitBasic(E, E["eInferArg"])
+        }
+        if E["eInferType"] == "" {
+            emitInferVarBinding(E, E["eInferArg"])
+        }
+        if E["eInferType"] == "" {
+            if errSym != "" {
+                throw "Cannot infer type for " + errSym
+            }
+        } else {
+            E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+        }
+        E["eResolveI"] = E["eResolveI"] + 1
+    }
+}

@@ -1,0 +1,37 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_arr_util"
+import "self_host/emit_fn_body"
+import "self_host/emit_fn_scope"
+
+// Compile + attach one specialized method to E["eRecvClass"] at E["eClassIdx"].
+pub fn emitExpr_call_h5_do_install(E) {
+    emitFnScopeSave(E)
+    E["eParams"] = E["eMethTmpl"]["params"]
+    E["eFnBody"] = E["eMethTmpl"]["body"]
+    emitFnCompileBody(E)
+    E["eNewMethods"] = arrUtil(E, "snap", E["eClasses"][E["eClassIdx"]]["methods"])
+    E["eNewMethods"] = push(E["eNewMethods"], {
+        "sym": E["eMethodMangled"],
+        "params": arrUtil(E, "snap", E["eParams"]),
+        "locals": arrUtil(E, "snap", E["eFnLocals"]),
+        "globals": arrUtil(E, "snap", E["eFnGlobals"]),
+        "ops": arrUtil(E, "snap", E["eFnOps"])
+    })
+    E["eNewClasses"] = []
+    E["eGenI"] = 0
+    while E["eGenI"] < E["eClassesN"] {
+        if E["eGenI"] == E["eClassIdx"] {
+            E["eNewClasses"] = push(E["eNewClasses"], {
+                "sym": E["eRecvClass"],
+                "methods": E["eNewMethods"]
+            })
+        } else {
+            E["eNewClasses"] = push(E["eNewClasses"], E["eClasses"][E["eGenI"]])
+        }
+        E["eGenI"] = E["eGenI"] + 1
+    }
+    E["eClasses"] = E["eNewClasses"]
+    emitFnScopeRestore(E)
+    return 0
+}

@@ -1,0 +1,41 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_arr_util"
+import "self_host/emit_op"
+import "self_host/emit_hooks"
+import "self_host/emit_main_init"
+
+pub fn emitMain(E, program) {
+    emitMainInit(E, program)
+    E["eBlockStmtsStack"] = push(E["eBlockStmtsStack"], E["eProgram"]["body"])
+    E["eBlockNStack"] = arrUtil(E, "pushLen", E["eBlockNStack"], E["eProgram"]["body"])
+    E["eBlockIStack"] = push(E["eBlockIStack"], 0)
+    E["eBlockDepth"] = E["eBlockDepth"] + 1
+    let pd = E["eBlockDepth"]
+    while E["eBlockIStack"][pd - 1] < E["eBlockNStack"][pd - 1] {
+        E["eBlockStmts"] = E["eBlockStmtsStack"][pd - 1]
+        E["eBlockI"] = E["eBlockIStack"][pd - 1]
+        E["eStmtNode"] = E["eBlockStmts"][E["eBlockI"]]
+        if E["eStmtNode"] == null {
+            throw "emit program null stmt at " + ("" + E["eBlockI"])
+        }
+        eCallStmt(E, E["eStmtNode"])
+        E["eBlockIStack"][pd - 1] = E["eBlockIStack"][pd - 1] + 1
+    }
+    E["eBlockDepth"] = E["eBlockDepth"] - 1
+    emitOp(E, OP_HALT, 0)
+    return {
+        "constants": E["eConsts"],
+        "globals": E["eGlobals"],
+        "ops": E["eOps"],
+        "functions": E["eFunctions"],
+        "classes": E["eClasses"],
+        "enums": E["eEnums"],
+        "arrows": E["eArrows"],
+        "tryRegions": E["eTryRegions"],
+        "locals": [],
+        "genericMethodTemplates": E["eGenericMethodTemplates"],
+        "exports": E["eExports"],
+        "imports": E["eImports"]
+    }
+}

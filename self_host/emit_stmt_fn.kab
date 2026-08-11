@@ -1,0 +1,70 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_sym_index"
+import "self_host/emit_arr_util"
+import "self_host/emit_local_map"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+
+pub fn emitStmt_fn(E) {
+    if E["eNode"].kind != AST_FN {
+        return false
+    }
+        E["eFnSave"] = "" + E["eNode"]["sym"]
+        E["eFnPub"] = E["eNode"]["isPub"]
+        E["eParams"] = E["eNode"]["params"]
+        E["eFnBody"] = E["eNode"]["body"]
+        E["eTypeParams"] = E["eNode"]["typeParams"]
+        if E["eTypeParams"] == undefined {
+            E["eTypeParams"] = []
+        }
+        if len(E["eTypeParams"]) > 0 {
+            E["eGenericTemplates"] = push(E["eGenericTemplates"], {
+                "sym": E["eFnSave"],
+                "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
+                "params": arrUtil(E, "snap",E["eParams"]),
+                "body": E["eFnBody"],
+                "isPub": E["eFnPub"]
+            })
+            if E["eFnPub"] == 1 {
+                eCallRet = ("" + E["eFnSave"]) + ""
+                E["eExports"] = push(E["eExports"], eCallRet)
+            }
+            return true
+        }
+        E["eInFn"] = 1
+        E["eFnOps"] = []
+        E["eFnOpsN"] = 0
+        E["eFnGlobals"] = []
+        E["eFnLocals"] = []
+        resetLocalMap(E)
+        E["eFnTryRegions"] = []
+        E["eParamI"] = 0
+        while E["eParamI"] < len(E["eParams"]) {
+            E["eLoopSave"] = E["eParamI"]
+            symIndex(E, "local",E["eParams"][E["eParamI"]])
+            E["eParamI"] = E["eLoopSave"] + 1
+        }
+        eCallStmt(E, E["eFnBody"])
+        E["eFunctions"] = push(E["eFunctions"], {
+            "sym": E["eFnSave"],
+            "params": arrUtil(E, "snap",E["eParams"]),
+            "locals": arrUtil(E, "snap",E["eFnLocals"]),
+            "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+            "ops": arrUtil(E, "snap",E["eFnOps"]),
+            "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"])
+        })
+        E["eInFn"] = 0
+        E["eFnTryRegions"] = []
+        symIndex(E, "global",E["eFnSave"])
+        if E["eFnPub"] == 1 {
+            eCallRet = ("" + E["eFnSave"]) + ""
+            E["eExports"] = push(E["eExports"], eCallRet)
+        }
+        return true
+    return true
+}
+

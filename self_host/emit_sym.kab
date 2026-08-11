@@ -1,0 +1,52 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_sym_index"
+import "self_host/emit_op"
+
+let eCallRet = 0
+
+pub fn emitSym(E, store, sym) {
+    // P6b: map lookup only — no len(E["eFnLocals"])/E["eGlobals"] LoadGlobal clone scans.
+    if store == 0 {
+        if E["eInFn"] == 0 {
+            eCallRet = symIndex(E, "global", sym)
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_LOAD_GLOBAL, eCallRet)
+            return
+        }
+        let li = E["eLocalMap"][sym]
+        if li != undefined {
+            emitOp(E, OP_LOAD_LOCAL, li)
+            return
+        }
+        let gi = E["eGlobalMap"][sym]
+        if gi != undefined {
+            emitOp(E, OP_LOAD_GLOBAL, gi)
+            return
+        }
+        eCallRet = symIndex(E, "global", sym)
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_LOAD_GLOBAL, eCallRet)
+        return
+    }
+    if E["eInFn"] == 0 {
+        eCallRet = symIndex(E, "global", sym)
+        E["eIdx"] = eCallRet
+        emitOp(E, OP_STORE_GLOBAL, eCallRet)
+        return
+    }
+    let sli = E["eLocalMap"][sym]
+    if sli != undefined {
+        emitOp(E, OP_STORE_LOCAL, sli)
+        return
+    }
+    let sgi = E["eGlobalMap"][sym]
+    if sgi != undefined {
+        emitOp(E, OP_STORE_GLOBAL, sgi)
+        return
+    }
+    eCallRet = symIndex(E, "local", sym)
+    E["eIdx"] = eCallRet
+    emitOp(E, OP_STORE_LOCAL, eCallRet)
+}
+

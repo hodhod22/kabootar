@@ -1,0 +1,52 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_drop_callee"
+import "self_host/emit_try_len"
+import "self_host/emit_expr_call_ctor"
+import "self_host/emit_expr_call_argv"
+import "self_host/emit_expr_call_h2"
+import "self_host/emit_expr_call_h3"
+import "self_host/emit_expr_call_h1"
+import "self_host/emit_expr_call_h5"
+import "self_host/emit_expr_call_h7"
+import "self_host/emit_expr_call_h6"
+import "self_host/emit_expr_call_h4"
+
+let eCallRet = 0
+let eCallRet2 = 0
+
+pub fn emitExpr_call(E) {
+    if E["eNode"].kind != AST_CALL {
+        return false
+    }
+    E["_callDone"] = 0
+        E["eArgs"] = E["eNode"]["args"]
+        E["eArgN"] = len(E["eArgs"])
+        E["eCalleeStack"] = push(E["eCalleeStack"], E["eNode"]["callee"])
+        E["eCalleeDepth"] = E["eCalleeDepth"] + 1
+        E["eCallee"] = E["eNode"]["callee"]
+        if tryEmitLenCall(E, E["eCallee"], E["eArgs"]) {
+            dropCallCallee(E)
+            E["_callDone"] = 1
+            return true
+        }
+        if emitExpr_callCtors(E) == 1 {
+            return true
+        }
+        if E["eCallee"].kind == AST_MEMBER {
+            emitExpr_call_h4(E)
+            if E["_callDone"] == 1 {
+                return true
+            }
+        }
+        if E["eCallee"].kind == AST_VAR {
+            emitExpr_call_h1(E)
+            if E["_callDone"] == 1 {
+                return true
+            }
+        }
+        emitExpr_callArgv(E)
+        return true
+    return true
+}

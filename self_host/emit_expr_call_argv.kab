@@ -1,0 +1,10 @@
+import "self_host/emit_expr_call_argv_small"
+import "self_host/emit_expr_call_argv_n"
+
+pub fn emitExpr_callArgv(E) {
+    if emitExpr_callArgvSmall(E) == 0 {
+        return 0
+    }
+    emitExpr_callArgvN(E)
+    return 0
+}

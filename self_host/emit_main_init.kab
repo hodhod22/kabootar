@@ -1,0 +1,9 @@
+import "self_host/emit_main_init_core"
+import "self_host/emit_main_init_stacks"
+import "self_host/emit_main_init_meta"
+
+pub fn emitMainInit(E, program) {
+    emitMainInitCore(E, program)
+    emitMainInitStacks(E)
+    emitMainInitMeta(E)
+}

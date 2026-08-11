@@ -1,0 +1,9 @@
+import "self_host/emit_expr_body"
+import "self_host/emit_stmt_body"
+
+pub fn eTramp(E) {
+    if E["_hook"] == 0 {
+        return emitExprBody(E, E["_node"])
+    }
+    return emitStmtBody(E, E["_node"])
+}

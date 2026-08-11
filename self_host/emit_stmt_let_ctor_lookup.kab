@@ -1,0 +1,21 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+
+pub fn emitStmt_letCtorLookup(E) {
+    E["eCtorCallee"] = E["eLitNode"]["callee"]
+    if E["eCtorCallee"].kind != AST_VAR {
+        return 0
+    }
+    E["eCtorName"] = E["eCtorCallee"]["sym"]
+    E["eFound"] = 0
+    E["eGenI"] = 0
+    while E["eGenI"] < E["eClassesN"] {
+        if E["eClasses"][E["eGenI"]]["sym"] == E["eCtorName"] {
+            E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+            E["eBindingTypes"] = push(E["eBindingTypes"], E["eCtorName"])
+            E["eFound"] = 1
+        }
+        E["eGenI"] = E["eGenI"] + 1
+    }
+    return E["eFound"]
+}

@@ -50,24 +50,23 @@ impl CompilePrefer {
 
 /// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
 /// every public core is reached through thin `pub let X = Ximpl` facades
-/// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body`, `serialize` → `serialize_impl` →
-/// `serialize_body` → `serialize_acc` / `serialize_pure`). Only the leaf shards below stay skip-listed
-/// (self-host AST density makes them CI-slow). Facades above them self-host-compile
-/// in CI-fast time. Product `import` prefers self-host via `load_program_for_file` →
-/// `compile_file_prefer_cached` (Rust only while `KAB_VM_EXEC_ACTIVE`, or for these
-/// leaves / oversize).
+/// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body` → `vm_run_exec_core`, `serialize` →
+/// `serialize_impl` → `serialize_body` → `serialize_acc` / `serialize_pure`). Only the
+/// leaf shards below stay skip-listed (self-host AST density makes them CI-slow).
+/// Facades above them self-host-compile in CI-fast time. Product `import` prefers
+/// self-host via `load_program_for_file` → `compile_file_prefer_cached` (Rust only
+/// while `KAB_VM_EXEC_ACTIVE`, or for these leaves / oversize).
 ///
 /// P6 policy: **seed-only** — leaves stay skip-listed; kab-only loads committed
 /// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
 /// of these shards is CI-fast. P6b: serialize split into out_base/tagged/try,
 /// ops/lists/fns/arrows/class_methods/classes, const/ir_line, and acc.
-/// Thin aggregators and densified serialize leaves stay attemptable. Remaining
-/// skip-listed cores are emit/parser/lexer/vm leaf bodies.
+/// Thin aggregators and densified serialize/vm-exec leaves stay attemptable. Remaining
+/// skip-listed cores are emit/parser/lexer bodies.
 pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
     "self_host/emit_impl.kab",
     "self_host/parser_impl.kab",
     "self_host/lexer_impl.kab",
-    "self_host/vm_run_body.kab",
 ];
 
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
@@ -87,7 +86,6 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
         "emit_impl.kab"
             | "parser_impl.kab"
             | "lexer_impl.kab"
-            | "vm_run_body.kab"
     ) && norm.contains("self_host")
     {
         return false;
@@ -551,7 +549,6 @@ pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
         "emit_impl.kab",
         "parser_impl.kab",
         "lexer_impl.kab",
-        "vm_run_body.kab",
     ];
     let base_name = Path::new(&norm)
         .file_name()

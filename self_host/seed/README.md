@@ -10,17 +10,24 @@ Committed `.kbc` for skip-listed cores so `KABOOTAR_VM=kab-only` can load them
 | **P6 ✅** | Seed-only is the **product path** for skip-listed leaves. |
 | **P6b 📋** | Empty `SELF_HOST_SKIP_LISTED_LEAVES` **only** when every leaf self-host-compiles under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10 000 ms). |
 
-## Status (2026-08-10)
+## Status (2026-08-11)
 
 **Serialize path is clear of the skip-list** — densified pure-threaded shards all
-self-host-compile under 10 s (measured). Remaining skip-listed leaves:
+self-host-compile under 10 s (measured via `scripts/_emit_shard_times.py`).
 
-| Leaf | Role |
-|------|------|
-| `emit_impl.kab` | emit body |
-| `parser_impl.kab` | parser body |
-| `lexer_impl.kab` | lexer body |
-| `vm_run_body.kab` | VM run body |
+| Leaf | Role | Notes |
+|------|------|-------|
+| `emit_impl.kab` | emit driver | thin driver; all `emit_*` shards ≤10 s — seed regen’d |
+| `parser_impl.kab` | parser body | densified into `parser_*` shards + session trampoline; split `parser_stmt`/`parser_postfix` until all ≤10 s |
+| `lexer_impl.kab` | lexer body | still monolithic (~82 s); do **not** multi-module-shard |
+
+**Emit densify ✅ (shards):** session trampoline + kind handlers + shared helpers.
+**Parser densify (in progress):** `parser_session` + `parser_hooks`/`parser_tramp` + expr/stmt shards.
+Regenerators: `scripts/_densify_emit_main.py`, `scripts/_densify_parser_impl.py`.
+Measure: `scripts/_emit_shard_times.py`, `scripts/_parser_shard_times.py`, `scripts/_leaf_compile_times.py`.
+Do **not** empty skip-list until parser + lexer leaves also ≤10 s.
+
+**VM path is clear of the skip-list** — `vm_run_exec_core` densified (~6.7 s) via session trampoline + `vm_run_hook_*` / `vm_run_tramp_*` shards.
 
 ```bash
 ./scripts/regen_self_host_seeds.sh

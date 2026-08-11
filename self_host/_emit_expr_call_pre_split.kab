@@ -1,0 +1,689 @@
+import "self_host/ast_defs"
+import "self_host/emit_defs"
+import "self_host/emit_hooks"
+import "self_host/emit_sym_index"
+import "self_host/emit_arr_util"
+import "self_host/emit_op"
+import "self_host/emit_sym"
+import "self_host/emit_local_map"
+import "self_host/emit_call_callee"
+import "self_host/emit_drop_callee"
+import "self_host/emit_call_args"
+import "self_host/emit_try_len"
+
+let eCallRet = 0
+let eCallRet2 = 0
+let eMemObj = null
+let eMemFld = null
+let eMemTypeArgs = null
+let eMi = 0
+let eMeth = null
+let eMethTypeParams = null
+
+
+pub fn emitExpr_call(E) {
+    if E["eNode"].kind != AST_CALL {
+        return false
+    }
+        E["eArgs"] = E["eNode"]["args"]
+        // P6b: cache argc once (avoid repeated len(E["eArgs"]) LoadGlobal clones).
+        E["eArgN"] = len(E["eArgs"])
+        E["eCalleeStack"] = push(E["eCalleeStack"], E["eNode"]["callee"])
+        E["eCalleeDepth"] = E["eCalleeDepth"] + 1
+        E["eCallee"] = E["eNode"]["callee"]
+        // P6b: len(name) → LenLocal/LenGlobal before Call path clones.
+        if tryEmitLenCall(E, E["eCallee"], E["eArgs"]) {
+            dropCallCallee(E)
+            return true
+        }
+        if E["eCallee"].kind == AST_VAR {
+            let ctorName = E["eCallee"]["sym"]
+            if E["eArgN"] == 1 {
+                if ctorName == "Ok" {
+                    eCallExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_OK, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return true
+                }
+                if ctorName == "Err" {
+                    eCallExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_ERR, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return true
+                }
+                if ctorName == "Some" {
+                    eCallExpr(E, E["eArgs"][0])
+                    emitOp(E, OP_MAKE_SOME, 0)
+                    E["eCalleeStack"] = pop(E["eCalleeStack"])
+                    E["eCalleeDepth"] = E["eCalleeDepth"] - 1
+                    return true
+                }
+            }
+        }
+        if E["eCallee"].kind == AST_MEMBER {
+            eMemObj = E["eCallee"]["object"]
+            eMemFld = E["eCallee"]["field"]
+            eMemTypeArgs = E["eCallee"]["typeArgs"]
+            if eMemTypeArgs == undefined {
+                eMemTypeArgs = []
+            }
+            if eMemObj.kind == AST_VAR {
+                E["eGenSym"] = eMemObj["sym"]
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < len(E["eGenericEnumTemplates"]) {
+                    if E["eGenericEnumTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                        E["eGenTmpl"] = E["eGenericEnumTemplates"][E["eGenI"]]
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 1 {
+                    E["eExplicit"] = E["eNode"]["typeArgs"]
+                    if E["eExplicit"] == undefined {
+                        E["eExplicit"] = []
+                    }
+                    if len(E["eExplicit"]) > 0 {
+                        E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                    } else {
+                        if len(eMemTypeArgs) > 0 {
+                            E["eTypeArgs"] = arrUtil(E, "snap",eMemTypeArgs)
+                        } else {
+                            E["eTypeArgs"] = []
+                            E["eResolveI"] = 0
+                            while E["eResolveI"] < len(E["eArgs"]) {
+                                E["eInferType"] = ""
+                                if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                                    if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                        E["eInferType"] = "Number"
+                                    }
+                                    if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                        E["eInferType"] = "String"
+                                    }
+                                }
+                                if E["eInferType"] == "" {
+                                    if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                        E["eBi"] = 0
+                                        while E["eBi"] < len(E["eBindingSyms"]) {
+                                            if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                                E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                            }
+                                            E["eBi"] = E["eBi"] + 1
+                                        }
+                                    }
+                                }
+                                if E["eInferType"] == "" {
+                                    throw "Cannot infer type for " + E["eGenSym"]
+                                }
+                                E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                                E["eResolveI"] = E["eResolveI"] + 1
+                            }
+                        }
+                    }
+                    E["eMangled"] = E["eGenSym"]
+                    if len(E["eTypeArgs"]) > 0 {
+                        eCallRet = E["eMangled"] + "$"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                        E["eResolveI"] = 1
+                        while E["eResolveI"] < len(E["eTypeArgs"]) {
+                            eCallRet = E["eMangled"] + "_"
+                            E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                            E["eResolveI"] = E["eResolveI"] + 1
+                        }
+                    }
+                    E["eFound"] = 0
+                    E["eGenI"] = 0
+                    while E["eGenI"] < len(E["eEnums"]) {
+                        if E["eEnums"][E["eGenI"]]["sym"] == E["eMangled"] {
+                            E["eFound"] = 1
+                            break
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                    if E["eFound"] == 0 {
+                        E["eEnums"] = push(E["eEnums"], {
+                            "sym": E["eMangled"],
+                            "variants": arrUtil(E, "snap",E["eGenTmpl"]["variants"])
+                        })
+                        symIndex(E, "global",E["eMangled"])
+                    }
+                    E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                    E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                    E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                    emitCallArgExprs(E)
+                    while E["eArgN"] > 0 {
+                        emitOp(E, OP_POP, 0)
+                        E["eArgN"] = E["eArgN"] - 1
+                    }
+                    dropCallCallee(E)
+                    return true
+                }
+            }
+        E["eRecvClass"] = ""
+        if eMemObj.kind == AST_VAR {
+            E["eBi"] = 0
+            while E["eBi"] < len(E["eBindingSyms"]) {
+                if E["eBindingSyms"][E["eBi"]] == eMemObj["sym"] {
+                    E["eRecvClass"] = E["eBindingTypes"][E["eBi"]]
+                }
+                E["eBi"] = E["eBi"] + 1
+            }
+        }
+        if E["eRecvClass"] == "" {
+            if eMemObj.kind == AST_CALL {
+                E["eCtorCallee"] = eMemObj["callee"]
+                if E["eCtorCallee"].kind == AST_VAR {
+                    E["eCtorName"] = E["eCtorCallee"]["sym"]
+                    E["eGenI"] = 0
+                    while E["eGenI"] < E["eClassesN"] {
+                        if E["eClasses"][E["eGenI"]]["sym"] == E["eCtorName"] {
+                            E["eRecvClass"] = E["eCtorName"]
+                        }
+                        E["eGenI"] = E["eGenI"] + 1
+                    }
+                }
+            }
+        }
+        E["eMethTmpl"] = null
+        E["eFound"] = 0
+        if E["eRecvClass"] != "" {
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericMethodTemplates"]) {
+                if E["eGenericMethodTemplates"][E["eGenI"]]["classSym"] == E["eRecvClass"] {
+                    if E["eGenericMethodTemplates"][E["eGenI"]]["methodSym"] == eMemFld {
+                        E["eMethTmpl"] = E["eGenericMethodTemplates"][E["eGenI"]]
+                        E["eFound"] = 1
+                    }
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+        }
+        if E["eFound"] == 1 {
+            E["eExplicit"] = E["eNode"]["typeArgs"]
+            if E["eExplicit"] == undefined {
+                E["eExplicit"] = []
+            }
+            if len(E["eExplicit"]) > 0 {
+                E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+            } else {
+                E["eTypeArgs"] = []
+                E["eResolveI"] = 0
+                while E["eResolveI"] < len(E["eArgs"]) {
+                    E["eInferType"] = ""
+                    if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                        if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                            E["eInferType"] = "Number"
+                        }
+                        if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                            E["eInferType"] = "String"
+                        }
+                    }
+                    if E["eInferType"] == "" {
+                        if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                            E["eBi"] = 0
+                            while E["eBi"] < len(E["eBindingSyms"]) {
+                                if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                    E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                }
+                                E["eBi"] = E["eBi"] + 1
+                            }
+                        }
+                    }
+                    if E["eInferType"] == "" {
+                        throw "Cannot infer type for " + eMemFld
+                    }
+                    E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                    E["eResolveI"] = E["eResolveI"] + 1
+                }
+            }
+            E["eMethodMangled"] = eMemFld
+            if len(E["eTypeArgs"]) > 0 {
+                eCallRet = E["eMethodMangled"] + "$"
+                E["eMethodMangled"] = eCallRet + E["eTypeArgs"][0]
+                E["eResolveI"] = 1
+                while E["eResolveI"] < len(E["eTypeArgs"]) {
+                    eCallRet = E["eMethodMangled"] + "_"
+                    E["eMethodMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                    E["eResolveI"] = E["eResolveI"] + 1
+                }
+            }
+            E["eFoundMeth"] = 0
+            E["eClassIdx"] = 0
+            while E["eClassIdx"] < E["eClassesN"] {
+                if E["eClasses"][E["eClassIdx"]]["sym"] == E["eRecvClass"] {
+                    eMi = 0
+                    while eMi < len(E["eClasses"][E["eClassIdx"]]["methods"]) {
+                        if E["eClasses"][E["eClassIdx"]]["methods"][eMi]["sym"] == E["eMethodMangled"] {
+                            E["eFoundMeth"] = 1
+                        }
+                        eMi = eMi + 1
+                    }
+                    if E["eFoundMeth"] == 0 {
+                        E["eSaveInFn"] = E["eInFn"]
+                        E["eSaveFnOps"] = arrUtil(E, "snap",E["eFnOps"])
+                        E["eSaveFnOpsN"] = E["eFnOpsN"]
+                        E["eSaveFnLocals"] = arrUtil(E, "snap",E["eFnLocals"])
+                        E["eSaveFnGlobals"] = arrUtil(E, "snap",E["eFnGlobals"])
+                        E["eInFn"] = 1
+                        E["eFnOps"] = []
+                        E["eFnOpsN"] = 0
+                        E["eFnGlobals"] = []
+                        E["eFnLocals"] = []
+                        resetLocalMap(E)
+                        E["eParams"] = E["eMethTmpl"]["params"]
+                        E["eParamI"] = 0
+                        while E["eParamI"] < len(E["eParams"]) {
+                            E["eLoopSave"] = E["eParamI"]
+                            symIndex(E, "local",E["eParams"][E["eParamI"]])
+                            E["eParamI"] = E["eLoopSave"] + 1
+                        }
+                        eCallStmt(E, E["eMethTmpl"]["body"])
+                        E["eNewMethods"] = arrUtil(E, "snap",E["eClasses"][E["eClassIdx"]]["methods"])
+                        E["eNewMethods"] = push(E["eNewMethods"], {
+                            "sym": E["eMethodMangled"],
+                            "params": arrUtil(E, "snap",E["eParams"]),
+                            "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                            "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                            "ops": arrUtil(E, "snap",E["eFnOps"])
+                        })
+                        E["eNewClasses"] = []
+                        E["eGenI"] = 0
+                        while E["eGenI"] < E["eClassesN"] {
+                            if E["eGenI"] == E["eClassIdx"] {
+                                E["eNewClasses"] = push(E["eNewClasses"], {
+                                    "sym": E["eRecvClass"],
+                                    "methods": E["eNewMethods"]
+                                })
+                            } else {
+                                E["eNewClasses"] = push(E["eNewClasses"], E["eClasses"][E["eGenI"]])
+                            }
+                            E["eGenI"] = E["eGenI"] + 1
+                        }
+                        E["eClasses"] = E["eNewClasses"]
+                        E["eInFn"] = E["eSaveInFn"]
+                        E["eFnOps"] = E["eSaveFnOps"]
+                        E["eFnOpsN"] = E["eSaveFnOpsN"]
+                        E["eFnLocals"] = E["eSaveFnLocals"]
+                        rebuildLocalMap(E)
+                        E["eFnGlobals"] = E["eSaveFnGlobals"]
+                    }
+                }
+                E["eClassIdx"] = E["eClassIdx"] + 1
+            }
+            eCallExpr(E, eMemObj)
+            eCallRet = symIndex(E, "const",E["eMethodMangled"])
+            E["eIdx"] = eCallRet
+            emitOp(E, OP_GET_MEMBER, eCallRet)
+            E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+            E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+            E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+            emitCallArgExprs(E)
+            emitOp(E, OP_CALL, E["eArgN"])
+            dropCallCallee(E)
+            return true
+        }
+        }
+        if E["eCallee"].kind == AST_VAR {
+            E["eGenSym"] = E["eCallee"]["sym"]
+            E["eGenTmpl"] = null
+            E["eFound"] = 0
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericClassTemplates"]) {
+                if E["eGenericClassTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                    E["eGenTmpl"] = E["eGenericClassTemplates"][E["eGenI"]]
+                    E["eFound"] = 1
+                    break
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+            if E["eFound"] == 1 {
+                E["eExplicit"] = E["eNode"]["typeArgs"]
+                if E["eExplicit"] == undefined {
+                    E["eExplicit"] = []
+                }
+                if len(E["eExplicit"]) > 0 {
+                    E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                } else {
+                    E["eTypeArgs"] = []
+                    E["eResolveI"] = 0
+                    while E["eResolveI"] < len(E["eArgs"]) {
+                        E["eInferType"] = ""
+                        if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                E["eInferType"] = "Number"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                E["eInferType"] = "String"
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                E["eBi"] = 0
+                                while E["eBi"] < len(E["eBindingSyms"]) {
+                                    if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                        E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                    }
+                                    E["eBi"] = E["eBi"] + 1
+                                }
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            throw "Cannot infer type for " + E["eGenSym"]
+                        }
+                        E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eMangled"] = E["eGenSym"]
+                if len(E["eTypeArgs"]) > 0 {
+                    eCallRet = E["eMangled"] + "$"
+                    E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                    E["eResolveI"] = 1
+                    while E["eResolveI"] < len(E["eTypeArgs"]) {
+                        eCallRet = E["eMangled"] + "_"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < E["eClassesN"] {
+                    if E["eClasses"][E["eGenI"]]["sym"] == E["eMangled"] {
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 0 {
+                    E["eClassMethods"] = []
+                    eMi = 0
+                    while eMi < len(E["eGenTmpl"]["methods"]) {
+                        eMeth = E["eGenTmpl"]["methods"][eMi]
+                        eMethTypeParams = eMeth["typeParams"]
+                        if eMethTypeParams == undefined {
+                            eMethTypeParams = []
+                        }
+                        if len(eMethTypeParams) == 0 {
+                            E["eInFn"] = 1
+                            E["eFnOps"] = []
+                            E["eFnOpsN"] = 0
+                            E["eFnGlobals"] = []
+                            E["eFnLocals"] = []
+                            resetLocalMap(E)
+                            E["eParams"] = eMeth["params"]
+                            E["eParamI"] = 0
+                            while E["eParamI"] < len(E["eParams"]) {
+                                E["eLoopSave"] = E["eParamI"]
+                                symIndex(E, "local",E["eParams"][E["eParamI"]])
+                                E["eParamI"] = E["eLoopSave"] + 1
+                            }
+                            eCallStmt(E, eMeth["body"])
+                            E["eClassMethods"] = push(E["eClassMethods"], {
+                                "sym": eMeth["sym"],
+                                "params": arrUtil(E, "snap",E["eParams"]),
+                                "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                                "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                                "ops": arrUtil(E, "snap",E["eFnOps"])
+                            })
+                            E["eInFn"] = 0
+                        } else {
+                            E["eGenericMethodTemplates"] = push(E["eGenericMethodTemplates"], {
+                                "classSym": E["eMangled"],
+                                "methodSym": eMeth["sym"],
+                                "typeParams": arrUtil(E, "snap",eMethTypeParams),
+                                "params": arrUtil(E, "snap",eMeth["params"]),
+                                "body": eMeth["body"]
+                            })
+                        }
+                        eMi = eMi + 1
+                    }
+                    E["eClasses"] = push(E["eClasses"], { "sym": E["eMangled"], "methods": E["eClassMethods"] })
+                    E["eClassesN"] = E["eClassesN"] + 1
+                    symIndex(E, "global",E["eMangled"])
+                }
+                E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                emitCallArgExprs(E)
+                eCallRet = symIndex(E, "class",E["eMangled"])
+                E["eClassIdx"] = eCallRet
+                if E["eClassIdx"] < 0 {
+                    throw "Missing specialized class " + E["eMangled"]
+                }
+                if E["eInFn"] == 1 {
+                    E["eFnOps"] = push(E["eFnOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eFnOpsN"] = E["eFnOpsN"] + 1
+                } else {
+                    E["eOps"] = push(E["eOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eOpsN"] = E["eOpsN"] + 1
+                }
+                dropCallCallee(E)
+                return true
+            }
+            E["eGenTmpl"] = null
+            E["eFound"] = 0
+            E["eGenI"] = 0
+            while E["eGenI"] < len(E["eGenericTemplates"]) {
+                if E["eGenericTemplates"][E["eGenI"]]["sym"] == E["eGenSym"] {
+                    E["eGenTmpl"] = E["eGenericTemplates"][E["eGenI"]]
+                    E["eFound"] = 1
+                    break
+                }
+                E["eGenI"] = E["eGenI"] + 1
+            }
+            if E["eFound"] == 1 {
+                E["eExplicit"] = E["eNode"]["typeArgs"]
+                if E["eExplicit"] == undefined {
+                    E["eExplicit"] = []
+                }
+                if len(E["eExplicit"]) > 0 {
+                    E["eTypeArgs"] = arrUtil(E, "snap",E["eExplicit"])
+                } else {
+                    E["eTypeArgs"] = []
+                    E["eResolveI"] = 0
+                    while E["eResolveI"] < len(E["eArgs"]) {
+                        E["eInferType"] = ""
+                        if E["eArgs"][E["eResolveI"]].kind == AST_LITERAL {
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NUMBER {
+                                E["eInferType"] = "Number"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_STRING {
+                                E["eInferType"] = "String"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_BOOL {
+                                E["eInferType"] = "Bool"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_NULL {
+                                E["eInferType"] = "Null"
+                            }
+                            if E["eArgs"][E["eResolveI"]].lit == LIT_UNDEF {
+                                E["eInferType"] = "Undefined"
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            if E["eArgs"][E["eResolveI"]].kind == AST_VAR {
+                                E["eBi"] = 0
+                                while E["eBi"] < len(E["eBindingSyms"]) {
+                                    if E["eBindingSyms"][E["eBi"]] == E["eArgs"][E["eResolveI"]]["sym"] {
+                                        E["eInferType"] = E["eBindingTypes"][E["eBi"]]
+                                    }
+                                    E["eBi"] = E["eBi"] + 1
+                                }
+                            }
+                        }
+                        if E["eInferType"] == "" {
+                            throw "Cannot infer type for " + E["eGenSym"]
+                        }
+                        E["eTypeArgs"] = push(E["eTypeArgs"], E["eInferType"])
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eMangled"] = E["eGenSym"]
+                if len(E["eTypeArgs"]) > 0 {
+                    eCallRet = E["eMangled"] + "$"
+                    E["eMangled"] = eCallRet + E["eTypeArgs"][0]
+                    E["eResolveI"] = 1
+                    while E["eResolveI"] < len(E["eTypeArgs"]) {
+                        eCallRet = E["eMangled"] + "_"
+                        E["eMangled"] = eCallRet + E["eTypeArgs"][E["eResolveI"]]
+                        E["eResolveI"] = E["eResolveI"] + 1
+                    }
+                }
+                E["eFound"] = 0
+                E["eGenI"] = 0
+                while E["eGenI"] < len(E["eSpecMangled"]) {
+                    if E["eSpecMangled"][E["eGenI"]] == E["eMangled"] {
+                        E["eFound"] = 1
+                        break
+                    }
+                    E["eGenI"] = E["eGenI"] + 1
+                }
+                if E["eFound"] == 0 {
+                    E["eSaveInFn"] = E["eInFn"]
+                    E["eSaveFnOps"] = arrUtil(E, "snap",E["eFnOps"])
+                    E["eSaveFnOpsN"] = E["eFnOpsN"]
+                    E["eSaveFnLocals"] = arrUtil(E, "snap",E["eFnLocals"])
+                    E["eSaveFnGlobals"] = arrUtil(E, "snap",E["eFnGlobals"])
+                    E["eFnSave"] = E["eMangled"]
+                    E["eParams"] = E["eGenTmpl"]["params"]
+                    E["eFnBody"] = E["eGenTmpl"]["body"]
+                    E["eInFn"] = 1
+                    E["eFnOps"] = []
+                    E["eFnOpsN"] = 0
+                    E["eFnGlobals"] = []
+                    E["eFnLocals"] = []
+                    resetLocalMap(E)
+                    E["eParamI"] = 0
+                    while E["eParamI"] < len(E["eParams"]) {
+                        E["eLoopSave"] = E["eParamI"]
+                        symIndex(E, "local",E["eParams"][E["eParamI"]])
+                        E["eParamI"] = E["eLoopSave"] + 1
+                    }
+                    eCallStmt(E, E["eFnBody"])
+                    E["eFunctions"] = push(E["eFunctions"], {
+                        "sym": E["eFnSave"],
+                        "params": arrUtil(E, "snap",E["eParams"]),
+                        "locals": arrUtil(E, "snap",E["eFnLocals"]),
+                        "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                        "ops": arrUtil(E, "snap",E["eFnOps"])
+                    })
+                    symIndex(E, "global",E["eFnSave"])
+                    E["eSpecMangled"] = push(E["eSpecMangled"], E["eMangled"])
+                    E["eInFn"] = E["eSaveInFn"]
+                    E["eFnOps"] = E["eSaveFnOps"]
+                    E["eFnOpsN"] = E["eSaveFnOpsN"]
+                    E["eFnLocals"] = E["eSaveFnLocals"]
+                    rebuildLocalMap(E)
+                    E["eFnGlobals"] = E["eSaveFnGlobals"]
+                }
+                E["eCallee"] = { "kind": AST_VAR, "sym": E["eMangled"] }
+            }
+            eCallRet = symIndex(E, "class",E["eGenSym"])
+            E["eClassIdx"] = eCallRet
+            if E["eClassIdx"] >= 0 {
+                E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+                E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+                E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+                emitCallArgExprs(E)
+                if E["eInFn"] == 1 {
+                    E["eFnOps"] = push(E["eFnOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eFnOpsN"] = E["eFnOpsN"] + 1
+                } else {
+                    E["eOps"] = push(E["eOps"], { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
+                    E["eOpsN"] = E["eOpsN"] + 1
+                }
+                dropCallCallee(E)
+                return true
+            }
+        }
+        if E["eArgN"] == 0 {
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 0)
+            return true
+        }
+        if E["eArgN"] == 1 {
+            E["eBxL"] = E["eArgs"][0]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    eCallExpr(E, E["eBxL"])
+                }
+            }
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 1)
+            return true
+        }
+        if E["eArgN"] == 2 {
+            E["eBxL"] = E["eArgs"][0]
+            E["eBxR"] = E["eArgs"][1]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    eCallExpr(E, E["eBxL"])
+                }
+            }
+            if E["eBxR"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxR"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxR"].kind == AST_VAR {
+                    E["eSym"] = E["eBxR"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    eCallExpr(E, E["eBxR"])
+                }
+            }
+            emitCallCallee(E)
+            emitOp(E, OP_CALL, 2)
+            return true
+        }
+        E["eCallArgIStack"] = push(E["eCallArgIStack"], 0)
+        E["eCallArgNStack"] = push(E["eCallArgNStack"], E["eArgN"])
+        E["eArgsStack"] = push(E["eArgsStack"], E["eArgs"])
+        E["eCallArgDepth"] = E["eCallArgDepth"] + 1
+        let cad = E["eCallArgDepth"]
+        while E["eCallArgIStack"][cad - 1] < E["eCallArgNStack"][cad - 1] {
+            E["eArgs"] = E["eArgsStack"][cad - 1]
+            E["eCallI"] = E["eCallArgIStack"][cad - 1]
+            E["eBxL"] = E["eArgs"][E["eCallI"]]
+            if E["eBxL"].kind == AST_LITERAL {
+                eCallRet = symIndex(E, "constLit",E["eBxL"])
+                E["eIdx"] = eCallRet
+                emitOp(E, OP_CONST, eCallRet)
+            } else {
+                if E["eBxL"].kind == AST_VAR {
+                    E["eSym"] = E["eBxL"]["sym"]
+                    emitSym(E, 0,E["eSym"])
+                } else {
+                    eCallExpr(E, E["eBxL"])
+                }
+            }
+            E["eCallArgIStack"][cad - 1] = E["eCallArgIStack"][cad - 1] + 1
+        }
+        E["eArgsStack"] = pop(E["eArgsStack"])
+        E["eArgN"] = E["eCallArgNStack"][cad - 1]
+        E["eCallArgIStack"] = pop(E["eCallArgIStack"])
+        E["eCallArgNStack"] = pop(E["eCallArgNStack"])
+        E["eCallArgDepth"] = E["eCallArgDepth"] - 1
+        emitCallCallee(E)
+        emitOp(E, OP_CALL, E["eArgN"])
+        return true
+    return true
+}
+

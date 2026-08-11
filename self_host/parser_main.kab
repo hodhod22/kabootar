@@ -1,0 +1,66 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parseMain(sess, tokens) {
+    // P6b progress: cache token length once per parse (sess["pToksLen"] hot path).
+    sess["pToks"] = tokens
+    sess["pToksLen"] = len(tokens)
+    sess["pPos"] = 0
+    if sess["pToksLen"] > 0 {
+        sess["pCur"] = sess["pToks"][0]
+    } else {
+        sess["pCur"] = sess["pEofTok"]
+    }
+    sess["pSymPool"] = []
+    sess["pSymN"] = 0
+    sess["pImports"] = []
+    sess["pCondStack"] = []
+    sess["pCondDepth"] = 0
+    sess["pAddLeftStack"] = []
+    sess["pBodyStack"] = []
+    sess["pBodyDepth"] = 0
+    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+    sess["pBodyDepth"] = 1
+    sess["pBody"] = []
+    sess["pDone"] = 0
+    while sess["pDone"] == 0 {
+        if sess["pPos"] >= sess["pToksLen"] {
+            sess["pDone"] = 1
+        }
+        if sess["pDone"] == 0 {
+            sess["pTok"] = sess["pCur"]
+            if sess["pTok"].type == "EOF" {
+                sess["pDone"] = 1
+            }
+        }
+        if sess["pDone"] == 0 {
+            if sess["pTok"].type == TOKEN_IMPORT {
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type == TOKEN_STRING {
+                    bump(sess)
+                    sess["pImports"] = push(sess["pImports"], sess["pTok"].value)
+                }
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+            } else {
+                sess["pVal"] = pCallStmt(sess)
+                if sess["pVal"] != null {
+                    sess["pBody"] = push(sess["pBody"], sess["pVal"])
+                }
+            }
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+    }
+    let programBody = sess["pBody"]
+    sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
+    sess["pBodyStack"] = pop(sess["pBodyStack"])
+    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+    return { "kind": AST_PROGRAM, "body": programBody, "imports": sess["pImports"] }
+}
+

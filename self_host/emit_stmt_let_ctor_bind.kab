@@ -1,0 +1,10 @@
+import "self_host/emit_stmt_let_ctor_lookup"
+import "self_host/emit_stmt_let_ctor_generic"
+
+pub fn emitStmt_letCtorBind(E) {
+    if emitStmt_letCtorLookup(E) != 0 {
+        return 0
+    }
+    emitStmt_letCtorGeneric(E)
+    return 0
+}

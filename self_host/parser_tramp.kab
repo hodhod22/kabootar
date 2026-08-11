@@ -1,0 +1,36 @@
+import "self_host/parser_type_args"
+import "self_host/parser_postfix"
+import "self_host/parser_unary"
+import "self_host/parser_mul"
+import "self_host/parser_add_shift"
+import "self_host/parser_rel_expr"
+import "self_host/parser_compare"
+import "self_host/parser_stmt"
+
+pub fn pTramp(sess) {
+    if sess["_hook"] == 1 {
+        return parseTypeArgs(sess)
+    }
+    if sess["_hook"] == 0 {
+        return parsePostfix(sess)
+    }
+    if sess["_hook"] == 2 {
+        return parseUnary(sess)
+    }
+    if sess["_hook"] == 3 {
+        return parseMul(sess)
+    }
+    if sess["_hook"] == 4 {
+        return parseAddShift(sess)
+    }
+    if sess["_hook"] == 5 {
+        return parseRelExpr(sess)
+    }
+    if sess["_hook"] == 6 {
+        return parseCompare(sess)
+    }
+    if sess["_hook"] == 7 {
+        return parseStmt(sess)
+    }
+    throw "parser tramp: bad hook " + ("" + sess["_hook"])
+}

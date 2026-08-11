@@ -2258,17 +2258,26 @@ impl Compiler {
                 Ok(())
             }
             AssignTarget::Index(obj, idx) => {
+                // RHS first: keeping `obj` on the stack across `value` pins an extra Rc
+                // so IndexSet/MemberSet inside `value` can COW-clone and lose mutations
+                // when the result is written back over a stale container (session E pattern).
+                self.compile_expr(value)?;
+                let val_tmp = self.fresh_assign_tmp();
+                let val_idx = self.local_index(&val_tmp);
+                self.emit(Opcode::StoreLocal(val_idx));
                 self.emit_load_object(obj)?;
                 self.compile_expr(idx)?;
-                self.compile_expr(value)?;
+                self.emit(Opcode::LoadLocal(val_idx));
                 self.emit(Opcode::IndexSet);
                 self.emit(Opcode::Swap);
                 self.emit_store_object(obj)?;
                 Ok(())
             }
             AssignTarget::Member(obj, field) => {
-                self.emit_load_object(obj)?;
+                // Same as Index: evaluate RHS before loading the container.
                 self.compile_expr(value)?;
+                self.emit_load_object(obj)?;
+                self.emit(Opcode::Swap);
                 let field_idx = self.const_index(Constant::String(field.clone()));
                 self.emit(Opcode::MemberSet(field_idx));
                 self.emit(Opcode::Swap);
