@@ -1,0 +1,704 @@
+@version "1.0.0"
+
+// CAD AI - AI-driven design assistance
+// Features: design suggestions, pattern recognition, automated optimization, ML models
+// Canonical path: import "cad/ai"
+// Target: AI assistance comparable to Autodesk Fusion 360 AI/Generative Design
+
+import "cad/document"
+import "cad/geom"
+import "cad/fem"
+import "cad/host"
+
+pub fn createAISystem() {
+    return {
+        "kind": "AISystem",
+        "models": {},
+        "suggestions": [],
+        "learningData": [],
+        "enabled": true
+    }
+}
+
+pub fn createMLModel(name, type, architecture) {
+    return {
+        "kind": "MLModel",
+        "name": name,
+        "type": type,
+        "architecture": architecture,
+        "parameters": {},
+        "trained": false
+    }
+}
+
+pub fn addMLModel(system, model) {
+    system["models"][model["name"]] = model
+    return system
+}
+
+pub fn trainModel(system, modelName, trainingData) {
+    let model = system["models"][modelName]
+    if model == null {
+        return system
+    }
+    
+    let trainedParameters = trainNeuralNetwork(model["architecture"], trainingData)
+    model["parameters"] = trainedParameters
+    model["trained"] = true
+    system["models"][modelName] = model
+    
+    return system
+}
+
+fn trainNeuralNetwork(architecture, data) {
+    let layers = architecture["layers"]
+    let weights = []
+    
+    let i = 0
+    while i < len(layers) - 1 {
+        let inputSize = layers[i]
+        let outputSize = layers[i + 1]
+        let layerWeights = []
+        
+        let j = 0
+        while j < inputSize {
+            let row = []
+            let k = 0
+            while k < outputSize {
+                row = push(row, randomWeight())
+                k = k + 1
+            }
+            layerWeights = push(layerWeights, row)
+            j = j + 1
+        }
+        
+        weights = push(weights, layerWeights)
+        i = i + 1
+    }
+    
+    let epochs = 100
+    let epoch = 0
+    while epoch < epochs {
+        let i = 0
+        while i < len(data) {
+            let sample = data[i]
+            let input = sample["input"]
+            let target = sample["output"]
+            
+            let output = forwardPass(input, weights)
+            let gradients = backwardPass(output, target, weights)
+            
+            let j = 0
+            while j < len(weights) {
+                let k = 0
+                while k < len(weights[j]) {
+                    let l = 0
+                    while l < len(weights[j][k]) {
+                        weights[j][k][l] = weights[j][k][l] - 0.01 * gradients[j][k][l]
+                        l = l + 1
+                    }
+                    k = k + 1
+                }
+                j = j + 1
+            }
+            
+            i = i + 1
+        }
+        epoch = epoch + 1
+    }
+    
+    return weights
+}
+
+fn forwardPass(input, weights) {
+    let activations = [input]
+    
+    let i = 0
+    while i < len(weights) {
+        let prevActivation = activations[i]
+        let weight = weights[i]
+        let newActivation = []
+        
+        let j = 0
+        while j < len(weight[0]) {
+            let sum = 0.0
+            let k = 0
+            while k < len(prevActivation) {
+                sum = sum + prevActivation[k] * weight[k][j]
+                k = k + 1
+            }
+            newActivation = push(newActivation, activate(sum))
+            j = j + 1
+        }
+        
+        activations = push(activations, newActivation)
+        i = i + 1
+    }
+    
+    return activations
+}
+
+fn backwardPass(activations, target, weights) {
+    let gradients = []
+    
+    let outputError = []
+    let outputActivation = activations[len(activations) - 1]
+    
+    let i = 0
+    while i < len(outputActivation) {
+        let error = target[i] - outputActivation[i]
+        outputError = push(outputError, error * activateDerivative(outputActivation[i]))
+        i = i + 1
+    }
+    
+    let i = len(weights) - 1
+    while i >= 0 {
+        let layerGradients = []
+        let weight = weights[i]
+        
+        let j = 0
+        while j < len(weight) {
+            let rowGradients = []
+            let k = 0
+            while k < len(weight[j]) {
+                let gradient = 0.0
+                if i == len(weights) - 1 {
+                    gradient = activations[i][j] * outputError[k]
+                } else {
+                    gradient = 0.0
+                }
+                rowGradients = push(rowGradients, gradient)
+                k = k + 1
+            }
+            layerGradients = push(layerGradients, rowGradients)
+            j = j + 1
+        }
+        
+        gradients = push(gradients, layerGradients)
+        i = i - 1
+    }
+    
+    let reversedGradients = []
+    let i = len(gradients) - 1
+    while i >= 0 {
+        reversedGradients = push(reversedGradients, gradients[i])
+        i = i - 1
+    }
+    
+    return reversedGradients
+}
+
+fn activate(x) {
+    return 1.0 / (1.0 + exp(-x))
+}
+
+fn activateDerivative(x) {
+    return x * (1.0 - x)
+}
+
+fn randomWeight() {
+    return (random() - 0.5) * 2.0
+}
+
+pub fn predictDesignSuggestion(system, modelName, input) {
+    let model = system["models"][modelName]
+    if model == null || model["trained"] == false {
+        return []
+    }
+    
+    let activations = forwardPass(input, model["parameters"])
+    let output = activations[len(activations) - 1]
+    
+    return output
+}
+
+pub fn analyzeDesignPatterns(document) {
+    let patterns = {
+        "symmetry": detectSymmetry(document),
+        "repetition": detectRepetition(document),
+        "similarComponents": detectSimilarComponents(document),
+        "designIntent": inferDesignIntent(document)
+    }
+    
+    return patterns
+}
+
+fn detectSymmetry(document) {
+    let symmetries = []
+    let nodes = document["nodes"]
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        let j = i + 1
+        while j < len(nodes) {
+            let otherNode = nodes[j]
+            
+            let pos1 = node["transform"]["position"]
+            let pos2 = otherNode["transform"]["position"]
+            
+            if abs(pos1["x"] + pos2["x"]) < 0.01 && abs(pos1["y"] - pos2["y"]) < 0.01 {
+                symmetries = push(symmetries, {
+                    "type": "vertical",
+                    "nodes": [node["id"], otherNode["id"]]
+                })
+            }
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return symmetries
+}
+
+fn detectRepetition(document) {
+    let repetitions = []
+    let nodes = document["nodes"]
+    
+    let componentGroups = {}
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        let kind = node["kind"]
+        
+        if componentGroups[kind] == null {
+            componentGroups[kind] = []
+        }
+        componentGroups[kind] = push(componentGroups[kind], node["id"])
+        
+        i = i + 1
+    }
+    
+    for kind in componentGroups {
+        if len(componentGroups[kind]) > 2 {
+            repetitions = push(repetitions, {
+                "kind": kind,
+                "count": len(componentGroups[kind]),
+                "nodes": componentGroups[kind]
+            })
+        }
+    }
+    
+    return repetitions
+}
+
+fn detectSimilarComponents(document) {
+    let similarities = []
+    let nodes = document["nodes"]
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        let j = i + 1
+        while j < len(nodes) {
+            let otherNode = nodes[j]
+            
+            let similarity = calculateComponentSimilarity(node, otherNode)
+            
+            if similarity > 0.8 {
+                similarities = push(similarities, {
+                    "node1": node["id"],
+                    "node2": otherNode["id"],
+                    "similarity": similarity
+                })
+            }
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return similarities
+}
+
+fn calculateComponentSimilarity(node1, node2) {
+    if node1["kind"] != node2["kind"] {
+        return 0.0
+    }
+    
+    let transform1 = node1["transform"]
+    let transform2 = node2["transform"]
+    
+    let scaleSimilarity = 1.0 - abs(transform1["scale"]["x"] - transform2["scale"]["x"])
+    let rotationSimilarity = 1.0 - abs(transform1["rotation"] - transform2["rotation"]) / 6.28318
+    
+    return (scaleSimilarity + rotationSimilarity) / 2.0
+}
+
+fn inferDesignIntent(document) {
+    let intent = {
+        "primaryFunction": "unknown",
+        "manufacturingMethod": "unknown",
+        "materialSuggestion": "unknown"
+    }
+    
+    let nodes = document["nodes"]
+    let hasCylinders = false
+    let hasComplexCurves = false
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        if node["kind"] == "Cylinder" || node["kind"] == "Sphere" {
+            hasCylinders = true
+        }
+        if node["kind"] == "NURBSCurve" || node["kind"] == "NURBSSurface" {
+            hasComplexCurves = true
+        }
+        i = i + 1
+    }
+    
+    if hasCylinders {
+        intent["manufacturingMethod"] = "turning"
+        intent["primaryFunction"] = "rotational"
+    }
+    
+    if hasComplexCurves {
+        intent["manufacturingMethod"] = "CNC milling"
+    }
+    
+    return intent
+}
+
+pub fn generateDesignOptimization(document, constraints) {
+    let optimization = {
+        "kind": "DesignOptimization",
+        "originalDocument": document,
+        "optimizedDocument": document,
+        "improvements": [],
+        "confidence": 0.0
+    }
+    
+    let weightReduction = optimizeForWeight(document, constraints)
+    let strengthImprovement = optimizeForStrength(document, constraints)
+    let manufacturability = optimizeForManufacturability(document, constraints)
+    
+    optimization["improvements"] = push(optimization["improvements"], weightReduction)
+    optimization["improvements"] = push(optimization["improvements"], strengthImprovement)
+    optimization["improvements"] = push(optimization["improvements"], manufacturability)
+    
+    optimization["confidence"] = (weightReduction["confidence"] + strengthImprovement["confidence"] + manufacturability["confidence"]) / 3.0
+    
+    return optimization
+}
+
+fn optimizeForWeight(document, constraints) {
+    let suggestion = {
+        "type": "weightReduction",
+        "description": "Reduce material usage while maintaining strength",
+        "confidence": 0.7,
+        "actions": []
+    }
+    
+    let nodes = document["nodes"]
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        if node["kind"] == "Solid" && node["solidKind"] == "Box" {
+            suggestion["actions"] = push(suggestion["actions"], {
+                "action": "addFillets",
+                "target": node["id"],
+                "radius": 0.1
+            })
+        }
+        i = i + 1
+    }
+    
+    return suggestion
+}
+
+fn optimizeForStrength(document, constraints) {
+    let suggestion = {
+        "type": "strengthImprovement",
+        "description": "Increase structural integrity",
+        "confidence": 0.8,
+        "actions": []
+    }
+    
+    let nodes = document["nodes"]
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        if node["kind"] == "Solid" {
+            suggestion["actions"] = push(suggestion["actions"], {
+                "action": "addRibs",
+                "target": node["id"],
+                "count": 3
+            })
+        }
+        i = i + 1
+    }
+    
+    return suggestion
+}
+
+fn optimizeForManufacturability(document, constraints) {
+    let suggestion = {
+        "type": "manufacturability",
+        "description": "Improve ease of manufacturing",
+        "confidence": 0.75,
+        "actions": []
+    }
+    
+    let nodes = document["nodes"]
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        if node["kind"] == "Solid" && node["solidKind"] == "Extrusion" {
+            suggestion["actions"] = push(suggestion["actions"], {
+                "action": "addDraftAngles",
+                "target": node["id"],
+                "angle": 3.0
+            })
+        }
+        i = i + 1
+    }
+    
+    return suggestion
+}
+
+pub fn applyAISuggestion(document, suggestion) {
+    let actions = suggestion["actions"]
+    
+    let i = 0
+    while i < len(actions) {
+        let action = actions[i]
+        document = applyAIAction(document, action)
+        i = i + 1
+    }
+    
+    return document
+}
+
+fn applyAIAction(document, action) {
+    let actionType = action["action"]
+    let target = action["target"]
+    
+    if actionType == "addFillets" {
+        let node = document["nodes"][target]
+        if node != null {
+            node["hasFillets"] = true
+            node["filletRadius"] = action["radius"]
+            document["nodes"][target] = node
+        }
+    } else if actionType == "addRibs" {
+        let node = document["nodes"][target]
+        if node != null {
+            node["hasRibs"] = true
+            node["ribCount"] = action["count"]
+            document["nodes"][target] = node
+        }
+    } else if actionType == "addDraftAngles" {
+        let node = document["nodes"][target]
+        if node != null {
+            node["hasDraftAngles"] = true
+            node["draftAngle"] = action["angle"]
+            document["nodes"][target] = node
+        }
+    }
+    
+    return document
+}
+
+pub fn createDesignRecommendation(type, description, priority, confidence) {
+    return {
+        "kind": "DesignRecommendation",
+        "type": type,
+        "description": description,
+        "priority": priority,
+        "confidence": confidence,
+        "applied": false
+    }
+}
+
+pub fn generateRecommendations(document) {
+    let recommendations = []
+    
+    let patterns = analyzeDesignPatterns(document)
+    
+    if len(patterns["symmetry"]) > 0 {
+        recommendations = push(recommendations, createDesignRecommendation(
+            "symmetry",
+            "Consider using symmetry constraints to maintain design intent",
+            "medium",
+            0.85
+        ))
+    }
+    
+    if len(patterns["repetition"]) > 0 {
+        recommendations = push(recommendations, createDesignRecommendation(
+            "pattern",
+            "Consider using pattern features for repeated components",
+            "high",
+            0.9
+        ))
+    }
+    
+    let intent = inferDesignIntent(document)
+    if intent["manufacturingMethod"] == "turning" {
+        recommendations = push(recommendations, createDesignRecommendation(
+            "manufacturing",
+            "Design is suitable for turning operations",
+            "low",
+            0.8
+        ))
+    }
+    
+    return recommendations
+}
+
+pub fn createAutoCompleteContext(document, cursorPosition) {
+    return {
+        "kind": "AutoCompleteContext",
+        "document": document,
+        "cursorPosition": cursorPosition,
+        "suggestions": []
+    }
+}
+
+pub fn generateAutoCompleteSuggestions(context) {
+    let suggestions = []
+    let document = context["document"]
+    let cursor = context["cursorPosition"]
+    
+    let nearbyNodes = findNearbyNodes(document, cursor, 10.0)
+    
+    let i = 0
+    while i < len(nearbyNodes) {
+        let node = nearbyNodes[i]
+        suggestions = push(suggestions, {
+            "type": "connect",
+            "description": "Connect to " + node["name"],
+            "target": node["id"]
+        })
+        i = i + 1
+    }
+    
+    suggestions = push(suggestions, {
+        "type": "create",
+        "description": "Create new component",
+        "target": null
+    })
+    
+    context["suggestions"] = suggestions
+    return context
+}
+
+fn findNearbyNodes(document, position, radius) {
+    let nearby = []
+    let nodes = document["nodes"]
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        let nodePos = node["transform"]["position"]
+        let distance = vec2Distance(position, nodePos)
+        
+        if distance < radius {
+            nearby = push(nearby, node)
+        }
+        
+        i = i + 1
+    }
+    
+    return nearby
+}
+
+pub fn createLearningDataPoint(input, output, metadata) {
+    return {
+        "kind": "LearningDataPoint",
+        "input": input,
+        "output": output,
+        "metadata": metadata,
+        "timestamp": currentTime()
+    }
+}
+
+pub fn addLearningData(system, dataPoint) {
+    system["learningData"] = push(system["learningData"], dataPoint)
+    return system
+}
+
+pub fn exportLearningData(system) {
+    return system["learningData"]
+}
+
+pub fn importLearningData(system, data) {
+    let i = 0
+    while i < len(data) {
+        system["learningData"] = push(system["learningData"], data[i])
+        i = i + 1
+    }
+    return system
+}
+
+pub fn createNeuralNetworkArchitecture(layers, activation) {
+    return {
+        "kind": "NeuralNetworkArchitecture",
+        "layers": layers,
+        "activation": activation
+    }
+}
+
+pub fn createConvolutionalArchitecture(filters, kernelSize, pooling) {
+    return {
+        "kind": "ConvolutionalArchitecture",
+        "filters": filters,
+        "kernelSize": kernelSize,
+        "pooling": pooling
+    }
+}
+
+pub fn createRecurrentArchitecture(hiddenSize, numLayers, dropout) {
+    return {
+        "kind": "RecurrentArchitecture",
+        "hiddenSize": hiddenSize,
+        "numLayers": numLayers,
+        "dropout": dropout
+    }
+}
+
+pub fn enableAI(system) {
+    system["enabled"] = true
+    return system
+}
+
+pub fn disableAI(system) {
+    system["enabled"] = false
+    return system
+}
+
+fn exp(x) {
+    return systemExp(x)
+}
+
+fn abs(x) {
+    if x < 0.0 {
+        return -x
+    }
+    return x
+}
+
+fn random() {
+    return systemRandom()
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn vec2(x, y) {
+    return { "x": x, "y": y }
+}
+
+fn vec2Distance(a, b) {
+    let dx = a["x"] - b["x"]
+    let dy = a["y"] - b["y"]
+    return sqrt(dx * dx + dy * dy)
+}
+
+fn sqrt(x) {
+    return systemSqrt(x)
+}
