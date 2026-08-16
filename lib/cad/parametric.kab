@@ -1,0 +1,537 @@
+@version "1.0.0"
+
+// CAD Parametric - Parametric design with variables and equations
+// Features: variables, expressions, equations, parametric constraints, design tables
+// Canonical path: import "cad/parametric"
+// Target: Parametric design comparable to SolidWorks/Fusion 360
+
+import "cad/document"
+import "cad/geom"
+import "cad/host"
+
+pub fn createParametricSystem() {
+    return {
+        "kind": "ParametricSystem",
+        "variables": {},
+        "expressions": {},
+        "equations": [],
+        "designTables": []
+    }
+}
+
+pub fn addVariable(system, name, value, description) {
+    system["variables"][name] = {
+        "name": name,
+        "value": value,
+        "description": description,
+        "type": "number"
+    }
+    return system
+}
+
+pub fn setVariable(system, name, value) {
+    if system["variables"][name] != null {
+        system["variables"][name]["value"] = value
+    }
+    return system
+}
+
+pub fn getVariable(system, name) {
+    if system["variables"][name] != null {
+        return system["variables"][name]["value"]
+    }
+    return null
+}
+
+pub fn addExpression(system, name, expression, description) {
+    system["expressions"][name] = {
+        "name": name,
+        "expression": expression,
+        "description": description,
+        "value": 0.0
+    }
+    return system
+}
+
+pub fn evaluateExpression(system, name) {
+    let expr = system["expressions"][name]
+    if expr == null {
+        return 0.0
+    }
+    
+    let value = parseAndEvaluate(expr["expression"], system["variables"])
+    expr["value"] = value
+    system["expressions"][name] = expr
+    
+    return value
+}
+
+pub fn addEquation(system, leftSide, rightSide, description) {
+    system["equations"] = push(system["equations"], {
+        "leftSide": leftSide,
+        "rightSide": rightSide,
+        "description": description
+    })
+    return system
+}
+
+pub fn solveEquations(system) {
+    let i = 0
+    while i < len(system["equations"]) {
+        let equation = system["equations"][i]
+        
+        let leftValue = parseAndEvaluate(equation["leftSide"], system["variables"])
+        let rightValue = parseAndEvaluate(equation["rightSide"], system["variables"])
+        
+        let diff = rightValue - leftValue
+        
+        if abs(diff) > 0.001 {
+            let adjustment = diff / 2.0
+            let varName = extractVariableName(equation["leftSide"])
+            if varName != null && system["variables"][varName] != null {
+                system["variables"][varName]["value"] = system["variables"][varName]["value"] + adjustment
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return system
+}
+
+pub fn createDesignTable(name, configurations) {
+    return {
+        "name": name,
+        "configurations": configurations
+    }
+}
+
+pub fn addDesignTable(system, designTable) {
+    system["designTables"] = push(system["designTables"], designTable)
+    return system
+}
+
+pub fn applyConfiguration(system, tableName, configName) {
+    let i = 0
+    while i < len(system["designTables"]) {
+        let table = system["designTables"][i]
+        
+        if table["name"] == tableName {
+            let j = 0
+            while j < len(table["configurations"]) {
+                let config = table["configurations"][j]
+                
+                if config["name"] == configName {
+                    let k = 0
+                    while k < len(config["values"]) {
+                        let value = config["values"][k]
+                        let varName = value["variable"]
+                        let varValue = value["value"]
+                        
+                        if system["variables"][varName] != null {
+                            system["variables"][varName]["value"] = varValue
+                        }
+                        
+                        k = k + 1
+                    }
+                    break
+                }
+                j = j + 1
+            }
+            break
+        }
+        i = i + 1
+    }
+    
+    return system
+}
+
+pub fn createParametricDimension(name, value, min, max) {
+    return {
+        "kind": "ParametricDimension",
+        "name": name,
+        "value": value,
+        "min": min,
+        "max": max
+    }
+}
+
+pub fn updateParametricDimension(dimension, newValue) {
+    if newValue >= dimension["min"] && newValue <= dimension["max"] {
+        dimension["value"] = newValue
+    }
+    return dimension
+}
+
+pub fn createParametricRelationship(type, source, target, parameters) {
+    return {
+        "kind": "ParametricRelationship",
+        "type": type,
+        "source": source,
+        "target": target,
+        "parameters": parameters
+    }
+}
+
+pub fn evaluateParametricRelationship(relationship, system) {
+    let type = relationship["type"]
+    
+    if type == "linear" {
+        let slope = relationship["parameters"]["slope"]
+        let intercept = relationship["parameters"]["intercept"]
+        let sourceValue = getVariable(system, relationship["source"])
+        
+        if sourceValue != null {
+            let targetValue = slope * sourceValue + intercept
+            setVariable(system, relationship["target"], targetValue)
+        }
+    } else if type == "proportional" {
+        let ratio = relationship["parameters"]["ratio"]
+        let sourceValue = getVariable(system, relationship["source"])
+        
+        if sourceValue != null {
+            let targetValue = sourceValue * ratio
+            setVariable(system, relationship["target"], targetValue)
+        }
+    } else if type == "offset" {
+        let offset = relationship["parameters"]["offset"]
+        let sourceValue = getVariable(system, relationship["source"])
+        
+        if sourceValue != null {
+            let targetValue = sourceValue + offset
+            setVariable(system, relationship["target"], targetValue)
+        }
+    }
+    
+    return system
+}
+
+pub fn createParametricSketch(name, entities, constraints) {
+    return {
+        "kind": "ParametricSketch",
+        "name": name,
+        "entities": entities,
+        "constraints": constraints
+    }
+}
+
+pub fn addParametricConstraint(sketch, constraint) {
+    sketch["constraints"] = push(sketch["constraints"], constraint)
+    return sketch
+}
+
+pub fn solveParametricSketch(sketch, system) {
+    let i = 0
+    while i < len(sketch["constraints"]) {
+        let constraint = sketch["constraints"][i]
+        
+        let type = constraint["type"]
+        
+        if type == "distance" {
+            let entity1 = sketch["entities"][constraint["entity1"]]
+            let entity2 = sketch["entities"][constraint["entity2"]]
+            let targetDistance = constraint["value"]
+            
+            let currentDistance = calculateDistance(entity1, entity2)
+            let adjustment = (targetDistance - currentDistance) / 2.0
+            
+            applyDistanceAdjustment(entity1, entity2, adjustment)
+        } else if type == "angle" {
+            let entity1 = sketch["entities"][constraint["entity1"]]
+            let entity2 = sketch["entities"][constraint["entity2"]]
+            let targetAngle = constraint["value"]
+            
+            let currentAngle = calculateAngle(entity1, entity2)
+            let adjustment = (targetAngle - currentAngle) / 2.0
+            
+            applyAngleAdjustment(entity2, adjustment)
+        } else if type == "horizontal" {
+            let entity = sketch["entities"][constraint["entity"]]
+            applyHorizontalConstraint(entity)
+        } else if type == "vertical" {
+            let entity = sketch["entities"][constraint["entity"]]
+            applyVerticalConstraint(entity)
+        }
+        
+        i = i + 1
+    }
+    
+    return sketch
+}
+
+fn parseAndEvaluate(expression, variables) {
+    let tokens = tokenize(expression)
+    let rpn = shuntingYard(tokens)
+    return evaluateRPN(rpn, variables)
+}
+
+fn tokenize(expression) {
+    let tokens = []
+    let i = 0
+    while i < len(expression) {
+        let char = expression[i]
+        
+        if char == " " {
+            i = i + 1
+            continue
+        }
+        
+        if char == "+" || char == "-" || char == "*" || char == "/" || char == "(" || char == ")" || char == "^" {
+            tokens = push(tokens, { "type": "operator", "value": char })
+        } else if (char >= "0" && char <= "9") || char == "." {
+            let numStr = ""
+            while i < len(expression) && ((expression[i] >= "0" && expression[i] <= "9") || expression[i] == ".") {
+                numStr = numStr + expression[i]
+                i = i + 1
+            }
+            i = i - 1
+            tokens = push(tokens, { "type": "number", "value": toNumber(numStr) })
+        } else {
+            let varStr = ""
+            while i < len(expression) && expression[i] != " " && expression[i] != "+" && expression[i] != "-" && expression[i] != "*" && expression[i] != "/" && expression[i] != "(" && expression[i] != ")" && expression[i] != "^" {
+                varStr = varStr + expression[i]
+                i = i + 1
+            }
+            i = i - 1
+            tokens = push(tokens, { "type": "variable", "value": varStr })
+        }
+        
+        i = i + 1
+    }
+    
+    return tokens
+}
+
+fn shuntingYard(tokens) {
+    let output = []
+    let operators = []
+    
+    let precedence = {
+        "+": 1,
+        "-": 1,
+        "*": 2,
+        "/": 2,
+        "^": 3
+    }
+    
+    let i = 0
+    while i < len(tokens) {
+        let token = tokens[i]
+        
+        if token["type"] == "number" || token["type"] == "variable" {
+            output = push(output, token)
+        } else if token["type"] == "operator" {
+            while len(operators) > 0 && operators[len(operators) - 1]["type"] == "operator" && precedence[operators[len(operators) - 1]["value"]] >= precedence[token["value"]] && token["value"] != "^" {
+                output = push(output, operators[len(operators) - 1])
+                operators = removeLast(operators)
+            }
+            operators = push(operators, token)
+        } else if token["value"] == "(" {
+            operators = push(operators, token)
+        } else if token["value"] == ")" {
+            while len(operators) > 0 && operators[len(operators) - 1]["value"] != "(" {
+                output = push(output, operators[len(operators) - 1])
+                operators = removeLast(operators)
+            }
+            if len(operators) > 0 {
+                operators = removeLast(operators)
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    while len(operators) > 0 {
+        output = push(output, operators[len(operators) - 1])
+        operators = removeLast(operators)
+    }
+    
+    return output
+}
+
+fn evaluateRPN(rpn, variables) {
+    let stack = []
+    
+    let i = 0
+    while i < len(rpn) {
+        let token = rpn[i]
+        
+        if token["type"] == "number" {
+            stack = push(stack, token["value"])
+        } else if token["type"] == "variable" {
+            let varValue = variables[token["value"]]
+            if varValue != null {
+                stack = push(stack, varValue["value"])
+            } else {
+                stack = push(stack, 0.0)
+            }
+        } else if token["type"] == "operator" {
+            let b = stack[len(stack) - 1]
+            let a = stack[len(stack) - 2]
+            stack = removeLast(stack)
+            stack = removeLast(stack)
+            
+            let result = 0.0
+            if token["value"] == "+" {
+                result = a + b
+            } else if token["value"] == "-" {
+                result = a - b
+            } else if token["value"] == "*" {
+                result = a * b
+            } else if token["value"] == "/" {
+                if b != 0.0 {
+                    result = a / b
+                }
+            } else if token["value"] == "^" {
+                result = pow(a, b)
+            }
+            
+            stack = push(stack, result)
+        }
+        
+        i = i + 1
+    }
+    
+    if len(stack) > 0 {
+        return stack[len(stack) - 1]
+    }
+    
+    return 0.0
+}
+
+fn extractVariableName(expression) {
+    let tokens = tokenize(expression)
+    if len(tokens) > 0 && tokens[0]["type"] == "variable" {
+        return tokens[0]["value"]
+    }
+    return null
+}
+
+fn calculateDistance(entity1, entity2) {
+    if entity1["kind"]  == "Point" && entity2["kind"] == "Point" {
+        return vec2Distance(entity1["position"], entity2["position"])
+    }
+    return 0.0
+}
+
+fn calculateAngle(entity1, entity2) {
+    if entity1["kind"] == "Line" && entity2["kind"] == "Line" {
+        let dir1 = vec2Normalize(vec2Sub(entity1["end"], entity1["start"]))
+        let dir2 = vec2Normalize(vec2Sub(entity2["end"], entity2["start"]))
+        let dot = vec2Dot(dir1, dir2)
+        return acos(dot)
+    }
+    return 0.0
+}
+
+fn applyDistanceAdjustment(entity1, entity2, adjustment) {
+    if entity1["kind"] == "Point" && entity2["kind"] == "Point" {
+        let dir = vec2Normalize(vec2Sub(entity2["position"], entity1["position"]))
+        entity1["position"] = vec2Sub(entity1["position"], vec3Mul(dir, adjustment))
+        entity2["position"] = vec2Add(entity2["position"], vec3Mul(dir, adjustment))
+    }
+}
+
+fn applyAngleAdjustment(entity, adjustment) {
+    if entity["kind"] == "Line" {
+        let center = vec2Lerp(entity["start"], entity["end"], 0.5)
+        entity["start"] = rotatePointAround(entity["start"], center, adjustment)
+        entity["end"] = rotatePointAround(entity["end"], center, adjustment)
+    }
+}
+
+fn applyHorizontalConstraint(entity) {
+    if entity["kind"] == "Line" {
+        entity["end"]["y"] = entity["start"]["y"]
+    }
+}
+
+fn applyVerticalConstraint(entity) {
+    if entity["kind"] == "Line" {
+        entity["end"]["x"] = entity["start"]["x"]
+    }
+}
+
+fn rotatePointAround(point, center, angle) {
+    let cosA = cos(angle)
+    let sinA = sin(angle)
+    let dx = point["x"] - center["x"]
+    let dy = point["y"] - center["y"]
+    return vec2(
+        center["x"] + dx * cosA - dy * sinA,
+        center["y"] + dx * sinA + dy * cosA
+    )
+}
+
+fn removeLast(arr) {
+    let result = []
+    let i = 0
+    while i < len(arr) - 1 {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+fn toNumber(str) {
+    let result = 0.0
+    let decimal = false
+    let factor = 1.0
+    
+    let i = 0
+    while i < len(str) {
+        let char = str[i]
+        if char == "." {
+            decimal = true
+            factor = 0.1
+        } else {
+            let digit = toDigit(char)
+            if decimal == false {
+                result = result * 10.0 + digit
+            } else {
+                result = result + digit * factor
+                factor = factor * 0.1
+            }
+        }
+        i = i + 1
+    }
+    
+    return result
+}
+
+fn toDigit(char) {
+    if char == "0" { return 0.0 }
+    if char == "1" { return 1.0 }
+    if char == "2" { return 2.0 }
+    if char == "3" { return 3.0 }
+    if char == "4" { return 4.0 }
+    if char == "5" { return 5.0 }
+    if char == "6" { return 6.0 }
+    if char == "7" { return 7.0 }
+    if char == "8" { return 8.0 }
+    if char == "9" { return 9.0 }
+    return 0.0
+}
+
+fn abs(value) {
+    if value < 0.0 {
+        return -value
+    }
+    return value
+}
+
+fn acos(value) {
+    return systemAcos(value)
+}
+
+fn cos(value) {
+    return systemCos(value)
+}
+
+fn sin(value) {
+    return systemSin(value)
+}
+
+fn pow(base, exp) {
+    return systemPow(base, exp)
+}
