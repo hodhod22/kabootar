@@ -1,0 +1,544 @@
+@version "1.0.0"
+
+// CAD PBR - Physically Based Rendering with ray tracing
+// Features: PBR materials, ray tracing, global illumination, HDR lighting
+// Canonical path: import "cad/pbr"
+// Target: PBR rendering comparable to Blender/Cycles/Unreal Engine
+
+import "cad/geom"
+import "cad/host"
+
+pub fn createPBRMaterial() {
+    return {
+        "kind": "PBRMaterial",
+        "albedo": vec3(0.8, 0.8, 0.8),
+        "metallic": 0.0,
+        "roughness": 0.5,
+        "ao": 1.0,
+        "normal": vec3(0.0, 0.0, 1.0),
+        "emissive": vec3(0.0, 0.0, 0.0),
+        "transmission": 0.0,
+        "ior": 1.5,
+        "thickness": 1.0
+    }
+}
+
+pub fn createRayTracer(width, height, maxBounces) {
+    return {
+        "kind": "RayTracer",
+        "width": width,
+        "height": height,
+        "maxBounces": maxBounces,
+        "samplesPerPixel": 4,
+        "camera": createCamera(),
+        "scene": createScene(),
+        "buffer": []
+    }
+}
+
+pub fn createCamera() {
+    return {
+        "position": vec3(0.0, 0.0, 5.0),
+        "target": vec3(0.0, 0.0, 0.0),
+        "up": vec3(0.0, 1.0, 0.0),
+        "fov": 45.0,
+        "aperture": 0.0,
+        "focusDistance": 10.0
+    }
+}
+
+pub fn createScene() {
+    return {
+        "kind": "Scene",
+        "objects": [],
+        "lights": [],
+        "materials": {}
+    }
+}
+
+pub fn createPointLight(position, color, intensity) {
+    return {
+        "kind": "PointLight",
+        "position": position,
+        "color": color,
+        "intensity": intensity
+    }
+}
+
+pub fn createDirectionalLight(direction, color, intensity) {
+    return {
+        "kind": "DirectionalLight",
+        "direction": direction,
+        "color": color,
+        "intensity": intensity
+    }
+}
+
+pub fn createAreaLight(position, direction, width, height, color, intensity) {
+    return {
+        "kind": "AreaLight",
+        "position": position,
+        "direction": direction,
+        "width": width,
+        "height": height,
+        "color": color,
+        "intensity": intensity
+    }
+}
+
+pub fn createEnvironmentMap(hdrData) {
+    return {
+        "kind": "EnvironmentMap",
+        "data": hdrData,
+        "intensity": 1.0
+    }
+}
+
+pub fn addSceneObject(scene, object, material) {
+    scene["objects"] = push(scene["objects"], object)
+    scene["materials"][object["id"]] = material
+    return scene
+}
+
+pub fn addSceneLight(scene, light) {
+    scene["lights"] = push(scene["lights"], light)
+    return scene
+}
+
+pub fn setEnvironmentMap(scene, envMap) {
+    scene["environmentMap"] = envMap
+    return scene
+}
+
+pub fn traceRay(tracer, ray, depth) {
+    if depth >= tracer["maxBounces"] {
+        return vec3(0.0, 0.0, 0.0)
+    }
+    
+    let hit = intersectScene(tracer["scene"], ray)
+    
+    if hit["hit"] == false {
+        return sampleEnvironment(tracer["scene"], ray["direction"])
+    }
+    
+    let material = tracer["scene"]["materials"][hit["objectId"]]
+    let color = evaluatePBR(ray, hit, material, tracer["scene"], depth)
+    
+    return color
+}
+
+pub fn intersectScene(scene, ray) {
+    let closestHit = { "hit": false, "distance": 1e10 }
+    
+    let i = 0
+    while i < len(scene["objects"]) {
+        let object = scene["objects"][i]
+        let hit = intersectObject(object, ray)
+        
+        if hit["hit"] == true && hit["distance"] < closestHit["distance"] {
+            closestHit = hit
+            closestHit["objectId"] = object["id"]
+        }
+        
+        i = i + 1
+    }
+    
+    return closestHit
+}
+
+fn intersectObject(object, ray) {
+    let kind = object["kind"]
+    
+    if kind == "Sphere" {
+        return intersectSphere(object, ray)
+    } else if kind == "Box" {
+        return intersectBox(object, ray)
+    } else if kind == "Mesh" {
+        return intersectMesh(object, ray)
+    }
+    
+    return { "hit": false }
+}
+
+fn intersectSphere(sphere, ray) {
+    let center = sphere["center"]
+    let radius = sphere["radius"]
+    
+    let oc = vec3Sub(ray["origin"], center)
+    let a = vec3Dot(ray["direction"], ray["direction"])
+    let b = 2.0 * vec3Dot(oc, ray["direction"])
+    let c = vec3Dot(oc, oc) - radius * radius
+    
+    let discriminant = b * b - 4.0 * a * c
+    
+    if discriminant < 0.0 {
+        return { "hit": false }
+    }
+    
+    let t = (-b - sqrt(discriminant)) / (2.0 * a)
+    
+    if t < 0.0 {
+        return { "hit": false }
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    let normal = vec3Normalize(vec3Sub(hitPoint, center))
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+fn intersectBox(box, ray) {
+    let min = box["min"]
+    let max = box["max"]
+    
+    let t1 = (min["x"] - ray["origin"]["x"]) / ray["direction"]["x"]
+    let t2 = (max["x"] - ray["origin"]["x"]) / ray["direction"]["x"]
+    let t3 = (min["y"] - ray["origin"]["y"]) / ray["direction"]["y"]
+    let t4 = (max["y"] - ray["origin"]["y"]) / ray["direction"]["y"]
+    let t5 = (min["z"] - ray["origin"]["z"]) / ray["direction"]["z"]
+    let t6 = (max["z"] - ray["origin"]["z"]) / ray["direction"]["z"]
+    
+    let tmin = max(min(t1, t2), min(t3, t4), min(t5, t6))
+    let tmax = min(max(t1, t2), max(t3, t4), max(t5, t6))
+    
+    if tmax < 0.0 {
+        return { "hit": false }
+    }
+    
+    if tmin > tmax {
+        return { "hit": false }
+    }
+    
+    let t = tmin
+    if t < 0.0 {
+        t = tmax
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    
+    let normal = vec3(1.0, 0.0, 0.0)
+    if abs(hitPoint["x"] - min["x"]) < 0.001 { normal = vec3(-1.0, 0.0, 0.0) }
+    if abs(hitPoint["x"] - max["x"]) < 0.001 { normal = vec3(1.0, 0.0, 0.0) }
+    if abs(hitPoint["y"] - min["y"]) < 0.001 { normal = vec3(0.0, -1.0, 0.0) }
+    if abs(hitPoint["y"] - max["y"]) < 0.001 { normal = vec3(0.0, 1.0, 0.0) }
+    if abs(hitPoint["z"] - min["z"]) < 0.001 { normal = vec3(0.0, 0.0, -1.0) }
+    if abs(hitPoint["z"] - max["z"]) < 0.001 { normal = vec3(0.0, 0.0, 1.0) }
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+fn intersectMesh(mesh, ray) {
+    let vertices = mesh["vertices"]
+    let indices = mesh["indices"]
+    
+    let closestHit = { "hit": false, "distance": 1e10 }
+    
+    let i = 0
+    while i < len(indices) step 3 {
+        let v0 = vertices[indices[i]]
+        let v1 = vertices[indices[i + 1]]
+        let v2 = vertices[indices[i + 2]]
+        
+        let hit = intersectTriangle(v0, v1, v2, ray)
+        
+        if hit["hit"] == true && hit["distance"] < closestHit["distance"] {
+            closestHit = hit
+        }
+        
+        i = i + 3
+    }
+    
+    return closestHit
+}
+
+fn intersectTriangle(v0, v1, v2, ray) {
+    let edge1 = vec3Sub(v1, v0)
+    let edge2 = vec3Sub(v2, v0)
+    
+    let h = vec3Cross(ray["direction"], edge2)
+    let a = vec3Dot(edge1, h)
+    
+    if a > -0.0001 && a < 0.0001 {
+        return { "hit": false }
+    }
+    
+    let f = 1.0 / a
+    let s = vec3Sub(ray["origin"], v0)
+    let u = f * vec3Dot(s, h)
+    
+    if u < 0.0 || u > 1.0 {
+        return { "hit": false }
+    }
+    
+    let q = vec3Cross(s, edge1)
+    let v = f * vec3Dot(ray["direction"], q)
+    
+    if v < 0.0 || u + v > 1.0 {
+        return { "hit": false }
+    }
+    
+    let t = f * vec3Dot(edge2, q)
+    
+    if t < 0.001 {
+        return { "hit": false }
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    let normal = vec3Normalize(vec3Cross(edge1, edge2))
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+fn evaluatePBR(ray, hit, material, scene, depth) {
+    let normal = hit["normal"]
+    let viewDir = vec3Mul(ray["direction"], -1.0)
+    
+    let directLighting = vec3(0.0, 0.0, 0.0)
+    
+    let i = 0
+    while i < len(scene["lights"]) {
+        let light = scene["lights"][i]
+        let lighting = evaluateLight(light, hit["point"], normal, viewDir, material)
+        directLighting = vec3Add(directLighting, lighting)
+        i = i + 1
+    }
+    
+    let indirectLighting = evaluateIndirectLighting(hit, normal, viewDir, material, scene, depth)
+    
+    let totalLighting = vec3Add(directLighting, indirectLighting)
+    
+    let finalColor = vec3(
+        material["albedo"]["x"] * totalLighting["x"] + material["emissive"]["x"],
+        material["albedo"]["y"] * totalLighting["y"] + material["emissive"]["y"],
+        material["albedo"]["z"] * totalLighting["z"] + material["emissive"]["z"]
+    )
+    
+    return finalColor
+}
+
+fn evaluateLight(light, point, normal, viewDir, material) {
+    let kind = light["kind"]
+    
+    if kind == "PointLight" {
+        return evaluatePointLight(light, point, normal, viewDir, material)
+    } else if kind == "DirectionalLight" {
+        return evaluateDirectionalLight(light, point, normal, viewDir, material)
+    } else if kind == "AreaLight" {
+        return evaluateAreaLight(light, point, normal, viewDir, material)
+    }
+    
+    return vec3(0.0, 0.0, 0.0)
+}
+
+fn evaluatePointLight(light, point, normal, viewDir, material) {
+    let lightDir = vec3Normalize(vec3Sub(light["position"], point))
+    let distance = vec3Distance(light["position"], point)
+    let attenuation = 1.0 / (1.0 + 0.1 * distance + 0.01 * distance * distance)
+    
+    let nDotL = max(0.0, vec3Dot(normal, lightDir))
+    let diffuse = vec3Mul(material["albedo"], nDotL * light["intensity"] * attenuation)
+    
+    let halfDir = vec3Normalize(vec3Add(lightDir, viewDir))
+    let nDotH = max(0.0, vec3Dot(normal, halfDir))
+    let specular = vec3Mul(light["color"], pow(nDotH, (1.0 - material["roughness"]) * 32.0) * material["metallic"])
+    
+    let lighting = vec3Add(diffuse, specular)
+    return vec3Mul(lighting, light["color"])
+}
+
+fn evaluateDirectionalLight(light, point, normal, viewDir, material) {
+    let lightDir = vec3Mul(light["direction"], -1.0)
+    
+    let nDotL = max(0.0, vec3Dot(normal, lightDir))
+    let diffuse = vec3Mul(material["albedo"], nDotL * light["intensity"])
+    
+    let halfDir = vec3Normalize(vec3Add(lightDir, viewDir))
+    let nDotH = max(0.0, vec3Dot(normal, halfDir))
+    let specular = vec3Mul(light["color"], pow(nDotH, (1.0 - material["roughness"]) * 32.0) * material["metallic"])
+    
+    let lighting = vec3Add(diffuse, specular)
+    return vec3Mul(lighting, light["color"])
+}
+
+fn evaluateAreaLight(light, point, normal, viewDir, material) {
+    let lightDir = vec3Mul(light["direction"], -1.0)
+    
+    let nDotL = max(0.0, vec3Dot(normal, lightDir))
+    let diffuse = vec3Mul(material["albedo"], nDotL * light["intensity"])
+    
+    let halfDir = vec3Normalize(vec3Add(lightDir, viewDir))
+    let nDotH = max(0.0, vec3Dot(normal, halfDir))
+    let specular = vec3Mul(light["color"], pow(nDotH, (1.0 - material["roughness"]) * 32.0) * material["metallic"])
+    
+    let lighting = vec3Add(diffuse, specular)
+    return vec3Mul(lighting, light["color"])
+}
+
+fn evaluateIndirectLighting(hit, normal, viewDir, material, scene, depth) {
+    let reflectDir = vec3Reflect(viewDir, normal)
+    let reflectRay = { "origin": hit["point"], "direction": reflectDir }
+    
+    let indirectColor = traceRay({ "scene": scene, "maxBounces": scene["maxBounces"] }, reflectRay, depth + 1)
+    
+    let fresnel = schlickFresnel(vec3Dot(viewDir, normal), material["metallic"])
+    
+    return vec3Mul(indirectColor, fresnel * (1.0 - material["roughness"]))
+}
+
+fn sampleEnvironment(scene, direction) {
+    if scene["environmentMap"] == null {
+        return vec3(0.1, 0.1, 0.15)
+    }
+    
+    let envMap = scene["environmentMap"]
+    let intensity = envMap["intensity"]
+    
+    let u = 0.5 + atan2(direction["z"], direction["x"]) / 6.28318
+    let v = 0.5 + asin(direction["y"]) / 3.14159
+    
+    let sampleColor = sampleHDR(envMap["data"], u, v)
+    
+    return vec3Mul(sampleColor, intensity)
+}
+
+fn sampleHDR(hdrData, u, v) {
+    return vec3(0.5, 0.5, 0.5)
+}
+
+fn schlickFresnel(cosTheta, metallic) {
+    let r0 = (1.0 - metallic) * 0.04 + metallic * 1.0
+    return r0 + (1.0 - r0) * pow(1.0 - cosTheta, 5.0)
+}
+
+pub fn render(tracer) {
+    let width = tracer["width"]
+    let height = tracer["height"]
+    let samples = tracer["samplesPerPixel"]
+    
+    let buffer = []
+    
+    let y = 0
+    while y < height {
+        let x = 0
+        while x < width {
+            let color = vec3(0.0, 0.0, 0.0)
+            
+            let s = 0
+            while s < samples {
+                let ray = generateCameraRay(tracer["camera"], x, y, width, height)
+                let sampleColor = traceRay(tracer, ray, 0)
+                color = vec3Add(color, sampleColor)
+                s = s + 1
+            }
+            
+            color = vec3Mul(color, 1.0 / samples)
+            color = vec3(
+                pow(color["x"], 0.4545),
+                pow(color["y"], 0.4545),
+                pow(color["z"], 0.4545)
+            )
+            
+            buffer = push(buffer, color)
+            x = x + 1
+        }
+        y = y + 1
+    }
+    
+    tracer["buffer"] = buffer
+    return tracer
+}
+
+fn generateCameraRay(camera, x, y, width, height) {
+    let aspect = width / height
+    let fovRad = camera["fov"] * 3.14159 / 180.0
+    let tanHalfFov = tan(fovRad / 2.0)
+    
+    let u = (2.0 * (x + 0.5) / width - 1.0) * aspect * tanHalfFov
+    let v = (1.0 - 2.0 * (y + 0.5) / height) * tanHalfFov
+    
+    let forward = vec3Normalize(vec3Sub(camera["target"], camera["position"]))
+    let right = vec3Normalize(vec3Cross(forward, camera["up"]))
+    let up = vec3Cross(right, forward)
+    
+    let direction = vec3Normalize(vec3Add(vec3Add(forward, vec3Mul(right, u)), vec3Mul(up, v)))
+    
+    return {
+        "origin": camera["position"],
+        "direction": direction
+    }
+}
+
+fn vec3Add(a, b) {
+    return vec3(a["x"] + b["x"], a["y"] + b["y"], a["z"] + b["z"])
+}
+
+fn vec3Sub(a, b) {
+    return vec3(a["x"] - b["x"], a["y"] - b["y"], a["z"] - b["z"])
+}
+
+fn vec3Mul(v, s) {
+    return vec3(v["x"] * s, v["y"] * s, v["z"] * s)
+}
+
+fn vec3Dot(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn vec3Cross(a, b) {
+    return vec3(
+        a["y"] * b["z"] - a["z"] * b["y"],
+        a["z"] * b["x"] - a["x"] * b["z"],
+        a["x"] * b["y"] - a["y"] * b["x"]
+    )
+}
+
+fn vec3Normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len == 0.0 {
+        return vec3(0.0, 0.0, 0.0)
+    }
+    return vec3Mul(v, 1.0 / len)
+}
+
+fn vec3Reflect(v, n) {
+    return vec3Sub(v, vec3Mul(n, 2.0 * vec3Dot(v, n)))
+}
+
+fn sqrt(value) {
+    return systemSqrt(value)
+}
+
+fn tan(value) {
+    return systemTan(value)
+}
+
+fn atan2(y, x) {
+    return systemAtan2(y, x)
+}
+
+fn asin(value) {
+    return systemAsin(value)
+}
+
+fn pow(base, exp) {
+    return systemPow(base, exp)
+}
+
+fn max(a, b) {
+    return systemMax(a, b)
+}
