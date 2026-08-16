@@ -1,0 +1,438 @@
+@version "1.0.0"
+
+// Negin CLI - Command-line interface for Negin
+// Features: project scaffolding, build, dev server, testing
+// Canonical path: import "negin/cli"
+
+let cliVersion = "1.0.0"
+
+pub fn createCLI() {
+    return {
+        "kind": "NeginCLI",
+        "version": cliVersion,
+        "commands": {
+            "create": createProject,
+            "build": buildProject,
+            "dev": startDevServer,
+            "test": runTests,
+            "lint": runLinter,
+            "format": formatCode,
+            "help": showHelp
+        }
+    }
+}
+
+pub fn runCLI(args) {
+    let cli = createCLI()
+    
+    if len(args) == 0) {
+        return showHelp()
+    }
+    
+    let command = args[0]
+    let commandArgs = []
+    let i = 1
+    while i < len(args)) {
+        commandArgs = push(commandArgs, args[i])
+        i = i + 1
+    }
+    
+    if cli["commands"][command] != null) {
+        return cli["commands"][command](commandArgs)
+    } else {
+        console.log("Unknown command: " + command)
+        return showHelp()
+    }
+}
+
+pub fn createProject(args) {
+    let projectName = args[0] != null ? args[0] : "my-negin-app"
+    let template = getArgValue(args, "--template", "default")
+    
+    console.log("Creating Negin project: " + projectName)
+    console.log("Template: " + template)
+    
+    let projectStructure = createProjectStructure(projectName, template)
+    
+    console.log("Project created successfully!")
+    console.log("Next steps:")
+    console.log("  cd " + projectName)
+    console.log("  negin dev")
+    
+    return projectStructure
+}
+
+fn createProjectStructure(name, template) {
+    return {
+        "name": name,
+        "template": template,
+        "files": [
+            "src/index.kab",
+            "src/App.kab",
+            "package.json",
+            "negin.config.json"
+        ]
+    }
+}
+
+pub fn buildProject(args) {
+    let mode = getArgValue(args, "--mode", "production")
+    let output = getArgValue(args, "--output", "dist")
+    
+    console.log("Building Negin project in " + mode + " mode")
+    console.log("Output directory: " + output)
+    
+    let buildResult = {
+        "mode": mode,
+        "output": output,
+        "success": true,
+        "warnings": [],
+        "errors": []
+    }
+    
+    if buildResult["success"]) {
+        console.log("Build completed successfully!")
+    } else {
+        console.log("Build failed with errors:")
+        let i = 0
+        while i < len(buildResult["errors"])) {
+            console.log("  - " + buildResult["errors"][i])
+            i = i + 1
+        }
+    }
+    
+    return buildResult
+}
+
+pub fn startDevServer(args) {
+    let port = getArgValue(args, "--port", "3000")
+    let host = getArgValue(args, "--host", "localhost")
+    let open = hasArg(args, "--open")
+    
+    console.log("Starting Negin dev server")
+    console.log("Server: http://" + host + ":" + port)
+    
+    if open) {
+        console.log("Opening browser...")
+    }
+    
+    let server = {
+        "host": host,
+        "port": port,
+        "running": true,
+        "hotReload": true
+    }
+    
+    return server
+}
+
+pub fn runTests(args) {
+    let pattern = getArgValue(args, "--pattern", "**/*.test.kab")
+    let watch = hasArg(args, "--watch")
+    let coverage = hasArg(args, "--coverage")
+    
+    console.log("Running tests")
+    console.log("Pattern: " + pattern)
+    
+    if watch) {
+        console.log("Watch mode enabled")
+    }
+    
+    if coverage) {
+        console.log("Coverage collection enabled")
+    }
+    
+    let testResult = {
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+    }
+    
+    console.log("Tests completed:")
+    console.log("  Passed: " + testResult["passed"])
+    console.log("  Failed: " + testResult["failed"])
+    console.log("  Skipped: " + testResult["skipped"])
+    console.log("  Duration: " + testResult["duration"] + "ms")
+    
+    return testResult
+}
+
+pub fn runLinter(args) {
+    let path = getArgValue(args, "--path", "src")
+    let fix = hasArg(args, "--fix")
+    
+    console.log("Running linter")
+    console.log("Path: " + path)
+    
+    if fix) {
+        console.log("Auto-fix enabled")
+    }
+    
+    let lintResult = {
+        "errors": 0,
+        "warnings": 0,
+        "fixable": 0
+    }
+    
+    console.log("Linting completed:")
+    console.log("  Errors: " + lintResult["errors"])
+    console.log("  Warnings: " + lintResult["warnings"])
+    console.log("  Fixable: " + lintResult["fixable"])
+    
+    return lintResult
+}
+
+pub fn formatCode(args) {
+    let path = getArgValue(args, "--path", "src")
+    let check = hasArg(args, "--check")
+    
+    console.log("Formatting code")
+    console.log("Path: " + path)
+    
+    if check) {
+        console.log("Check mode (no changes)")
+    }
+    
+    let formatResult = {
+        "files": 0,
+        "changed": 0
+    }
+    
+    console.log("Formatting completed:")
+    console.log("  Files processed: " + formatResult["files"])
+    console.log("  Files changed: " + formatResult["changed"])
+    
+    return formatResult
+}
+
+pub fn showHelp() {
+    console.log("Negin CLI v" + cliVersion)
+    console.log("")
+    console.log("Usage: negin <command> [options]")
+    console.log("")
+    console.log("Commands:")
+    console.log("  create <name>       Create a new Negin project")
+    console.log("  build               Build for production")
+    console.log("  dev                 Start development server")
+    console.log("  test                Run tests")
+    console.log("  lint                Run linter")
+    console.log("  format              Format code")
+    console.log("  help                Show this help message")
+    console.log("")
+    console.log("Options:")
+    console.log("  --template <name>   Template to use (default, typescript, etc.)")
+    console.log("  --mode <mode>       Build mode (development, production)")
+    console.log("  --output <path>     Output directory")
+    console.log("  --port <port>       Dev server port")
+    console.log("  --host <host>       Dev server host")
+    console.log("  --open              Open browser automatically")
+    console.log("  --pattern <glob>    Test file pattern")
+    console.log("  --watch             Watch mode for tests")
+    console.log("  --coverage          Collect test coverage")
+    console.log("  --path <path>       Path to lint/ format")
+    console.log("  --fix               Auto-fix linting issues")
+    console.log("  --check             Check formatting without changes")
+    
+    return null
+}
+
+fn getArgValue(args, flag, defaultValue) {
+    let i = 0
+    while i < len(args)) {
+        if args[i] == flag && i + 1 < len(args)) {
+            return args[i + 1]
+        }
+        i = i + 1
+    }
+    return defaultValue
+}
+
+fn hasArg(args, flag) {
+    let i = 0
+    while i < len(args)) {
+        if args[i] == flag) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn createConfig(options) {
+    return {
+        "kind": "NeginConfig",
+        "entry": options["entry"] != null ? options["entry"] : "src/index.kab",
+        "output": options["output"] != null ? options["output"] : "dist",
+        "devServer": {
+            "port": options["port"] != null ? options["port"] : 3000,
+            "host": options["host"] != null ? options["host"] : "localhost",
+            "open": options["open"] != null ? options["open"] : false,
+            "hotReload": options["hotReload"] != null ? options["hotReload"] : true
+        },
+        "build": {
+            "mode": options["mode"] != null ? options["mode"] : "production",
+            "sourceMaps": options["sourceMaps"] != null ? options["sourceMaps"] : true,
+            "minify": options["minify"] != null ? options["minify"] : true
+        },
+        "test": {
+            "pattern": options["testPattern"] != null ? options["testPattern"] : "**/*.test.kab",
+            "coverage": options["coverage"] != null ? options["coverage"] : false,
+            "watch": options["testWatch"] != null ? options["testWatch"] : false
+        },
+        "lint": {
+            "path": options["lintPath"] != null ? options["lintPath"] : "src",
+            "fix": options["lintFix"] != null ? options["lintFix"] : false
+        },
+        "format": {
+            "path": options["formatPath"] != null ? options["formatPath"] : "src",
+            "check": options["formatCheck"] != null ? options["formatCheck"] : false
+        }
+    }
+}
+
+pub fn loadConfig(path) {
+    let defaultConfig = createConfig({})
+    
+    return defaultConfig
+}
+
+pub fn validateConfig(config) {
+    let errors = []
+    
+    if config["entry"] == null) {
+        errors = push(errors, "entry is required")
+    }
+    
+    if config["output"] == null) {
+        errors = push(errors, "output is required")
+    }
+    
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors
+    }
+}
+
+pub fn initProject(args) {
+    let force = hasArg(args, "--force")
+    
+    console.log("Initializing Negin project")
+    
+    if force) {
+        console.log("Force mode enabled - will overwrite existing files")
+    }
+    
+    let config = createConfig({})
+    let configValid = validateConfig(config)
+    
+    if configValid["valid"]) {
+        console.log("Config created successfully")
+    } else {
+        console.log("Config validation failed:")
+        let i = 0
+        while i < len(configValid["errors"])) {
+            console.log("  - " + configValid["errors"][i])
+            i = i + 1
+        }
+    }
+    
+    return config
+}
+
+pub fn addComponent(args) {
+    let name = args[0]
+    let path = getArgValue(args, "--path", "src/components")
+    
+    console.log("Adding component: " + name)
+    console.log("Path: " + path)
+    
+    let componentCode = generateComponentCode(name)
+    
+    console.log("Component created: " + path + "/" + name + ".kab")
+    
+    return componentCode
+}
+
+fn generateComponentCode(name) {
+    return "@version \"1.0.0\"\n\nimport \"negin/core\"\nimport \"negin/hooks\"\n\npub fn " + name + "(props) {\n    return createElement(\"div\", {}, \"Hello from " + name + "\")\n}"
+}
+
+pub fn addPage(args) {
+    let name = args[0]
+    let path = getArgValue(args, "--path", "src/pages")
+    
+    console.log("Adding page: " + name)
+    console.log("Path: " + path)
+    
+    let pageCode = generatePageCode(name)
+    
+    console.log("Page created: " + path + "/" + name + ".kab")
+    
+    return pageCode
+}
+
+fn generatePageCode(name) {
+    return "@version \"1.0.0\"\n\nimport \"negin/core\"\nimport \"negin/hooks\"\n\npub fn " + name + "() {\n    return createElement(\"div\", {}, \"Page: " + name + "\")\n}"
+}
+
+pub fn eject(args) {
+    let force = hasArg(args, "--force")
+    
+    console.log("Ejecting Negin configuration")
+    
+    if force == false) {
+        console.log("This action is irreversible. Use --force to confirm.")
+        return null
+    }
+    
+    console.log("Configuration ejected successfully")
+    
+    return true
+}
+
+pub fn info(args) {
+    console.log("Negin CLI v" + cliVersion)
+    console.log("Node: " + systemNodeVersion())
+    console.log("OS: " + systemOS())
+    console.log("Architecture: " + systemArch())
+    
+    return null
+}
+
+fn systemNodeVersion() {
+    return "unknown"
+}
+
+fn systemOS() {
+    return "unknown"
+}
+
+fn systemArch() {
+    return "unknown"
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

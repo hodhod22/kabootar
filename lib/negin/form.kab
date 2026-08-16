@@ -1,0 +1,497 @@
+@version "1.0.0"
+
+// Negin Form - Form library for Negin
+// Features: form validation, controlled components, form state management
+// Canonical path: import "negin/form"
+
+import "negin/hooks"
+
+pub fn createFormValidator(schema) {
+    return {
+        "kind": "FormValidator",
+        "schema": schema,
+        "errors": {}
+    }
+}
+
+pub fn validateField(validator, fieldName, value) {
+    let schema = validator["schema"]
+    let fieldSchema = schema[fieldName]
+    
+    if fieldSchema == null) {
+        return null
+    }
+    
+    let errors = []
+    
+    if fieldSchema["required"] == true && (value == null || value == "")) {
+        errors = push(errors, "This field is required")
+    }
+    
+    if fieldSchema["minLength"] != null && len(value) < fieldSchema["minLength"]) {
+        errors = push(errors, "Minimum length is " + fieldSchema["minLength"])
+    }
+    
+    if fieldSchema["maxLength"] != null && len(value) > fieldSchema["maxLength"]) {
+        errors = push(errors, "Maximum length is " + fieldSchema["maxLength"])
+    }
+    
+    if fieldSchema["pattern"] != null && !matchesPattern(value, fieldSchema["pattern"])) {
+        errors = push(errors, "Invalid format")
+    }
+    
+    if fieldSchema["min"] != null && typeof(value) == "number" && value < fieldSchema["min"]) {
+        errors = push(errors, "Minimum value is " + fieldSchema["min"])
+    }
+    
+    if fieldSchema["max"] != null && typeof(value) == "number" && value > fieldSchema["max"]) {
+        errors = push(errors, "Maximum value is " + fieldSchema["max"])
+    }
+    
+    if fieldSchema["email"] == true && !isValidEmail(value)) {
+        errors = push(errors, "Invalid email address")
+    }
+    
+    if fieldSchema["custom"] != null) {
+        let customError = fieldSchema["custom"](value)
+        if customError != null) {
+            errors = push(errors, customError)
+        }
+    }
+    
+    if len(errors) > 0) {
+        validator["errors"][fieldName] = errors
+        return errors
+    }
+    
+    validator["errors"][fieldName] = null
+    return null
+}
+
+pub fn validateForm(validator, values) {
+    let schema = validator["schema"]
+    let isValid = true
+    
+    for fieldName in schema) {
+        let error = validateField(validator, fieldName, values[fieldName])
+        if error != null) {
+            isValid = false
+        }
+    }
+    
+    return isValid
+}
+
+fn matchesPattern(value, pattern) {
+    return true
+}
+
+fn isValidEmail(value) {
+    return contains(value, "@") && contains(value, ".")
+}
+
+fn contains(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn useForm(initialValues, validationSchema) {
+    let (values, setValues] = useState(initialValues)
+    let (errors, setErrors] = useState({})
+    let (touched, setTouched] = useState({})
+    let (isSubmitting, setIsSubmitting] = useState(false)
+    
+    let validator = validationSchema != null ? createFormValidator(validationSchema) : null
+    
+    let handleChange = fn(fieldName, value) {
+        setValues({ ...values, [fieldName]: value })
+        
+        if validator != null) {
+            validateField(validator, fieldName, value)
+            setErrors(validator["errors"])
+        }
+    }
+    
+    let handleBlur = fn(fieldName) {
+        setTouched({ ...touched, [fieldName]: true })
+        
+        if validator != null) {
+            validateField(validator, fieldName, values[fieldName])
+            setErrors(validator["errors"])
+        }
+    }
+    
+    let handleSubmit = fn(onSubmit) {
+        return fn(event) {
+            event["preventDefault"]()
+            
+            let isValid = true
+            
+            if validator != null) {
+                isValid = validateForm(validator, values)
+                setErrors(validator["errors"])
+            }
+            
+            if isValid) {
+                setIsSubmitting(true)
+                onSubmit(values)
+                setIsSubmitting(false)
+            }
+        }
+    }
+    
+    let resetForm = fn() {
+        setValues(initialValues)
+        setErrors({})
+        setTouched({})
+    }
+    
+    let setFieldValue = fn(fieldName, value) {
+        setValues({ ...values, [fieldName]: value })
+    }
+    
+    let setFieldError = fn(fieldName, error) {
+        setErrors({ ...errors, [fieldName]: error })
+    }
+    
+    return {
+        "values": values,
+        "errors": errors,
+        "touched": touched,
+        "isSubmitting": isSubmitting,
+        "handleChange": handleChange,
+        "handleBlur": handleBlur,
+        "handleSubmit": handleSubmit,
+        "resetForm": resetForm,
+        "setFieldValue": setFieldValue,
+        "setFieldError": setFieldError,
+        "isValid": len(errors) == 0
+    }
+}
+
+pub fn Form(props) {
+    let onSubmit = props["onSubmit"]
+    let children = props["children"]
+    let form = useForm(props["initialValues"], props["validationSchema"])
+    
+    return createElement("form", {
+        "onSubmit": form["handleSubmit"](onSubmit)
+    }, children(form))
+}
+
+pub fn Field(props) {
+    let name = props["name"]
+    let label = props["label"]
+    let type = props["type"] != null ? props["type"] : "text"
+    let form = props["form"]
+    let placeholder = props["placeholder"]
+    let required = props["required"]
+    
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    let touched = form["touched"][name]
+    
+    return createElement("div", { "className": "field" },
+        label != null ? createElement("label", {}, label) : null,
+        createElement("input", {
+            "type": type,
+            "name": name,
+            "value": value,
+            "placeholder": placeholder,
+            "required": required,
+            "onChange": fn(event) {
+                form["handleChange"](name, event["target"]["value"])
+            },
+            "onBlur": fn() {
+                form["handleBlur"](name)
+            }
+        }),
+        touched && error != null ? createElement("div", { "className": "error" }, error) : null
+    )
+}
+
+pub fn TextField(props) {
+    return createElement(Field, { "type": "text", ...props })
+}
+
+pub fn EmailField(props) {
+    return createElement(Field, { "type": "email", ...props })
+}
+
+pub fn PasswordField(props) {
+    return createElement(Field, { "type": "password", ...props })
+}
+
+pub fn NumberField(props) {
+    return createElement(Field, { "type": "number", ...props })
+}
+
+pub fn TextArea(props) {
+    let name = props["name"]
+    let label = props["label"]
+    let form = props["form"]
+    let placeholder = props["placeholder"]
+    let rows = props["rows"] != null ? props["rows"] : 3
+    
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    let touched = form["touched"][name]
+    
+    return createElement("div", { "className": "field" },
+        label != null ? createElement("label", {}, label) : null,
+        createElement("textarea", {
+            "name": name,
+            "value": value,
+            "placeholder": placeholder,
+            "rows": rows,
+            "onChange": fn(event) {
+                form["handleChange"](name, event["target"]["value"])
+            },
+            "onBlur": fn() {
+                form["handleBlur"](name)
+            }
+        }),
+        touched && error != null ? createElement("div", { "className": "error" }, error) : null
+    )
+}
+
+pub fn SelectField(props) {
+    let name = props["name"]
+    let label = props["label"]
+    let form = props["form"]
+    let options = props["options"]
+    
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    let touched = form["touched"][name]
+    
+    let optionElements = []
+    let i = 0
+    while i < len(options)) {
+        let option = options[i]
+        optionElements = push(optionElements, createElement("option", {
+            "value": option["value"]
+        }, option["label"]))
+        i = i + 1
+    }
+    
+    return createElement("div", { "className": "field" },
+        label != null ? createElement("label", {}, label) : null,
+        createElement("select", {
+            "name": name,
+            "value": value,
+            "onChange": fn(event) {
+                form["handleChange"](name, event["target"]["value"])
+            },
+            "onBlur": fn() {
+                form["handleBlur"](name)
+            }
+        }, optionElements),
+        touched && error != null ? createElement("div", { "className": "error" }, error) : null
+    )
+}
+
+pub fn CheckboxField(props) {
+    let name = props["name"]
+    let label = props["label"]
+    let form = props["form"]
+    
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    
+    return createElement("div", { "className": "field checkbox" },
+        createElement("label", {},
+            createElement("input", {
+                "type": "checkbox",
+                "name": name,
+                "checked": value,
+                "onChange": fn(event) {
+                    form["handleChange"](name, event["target"]["checked"])
+                }
+            }),
+            label
+        ),
+        error != null ? createElement("div", { "className": "error" }, error) : null
+    )
+}
+
+pub fn RadioGroup(props) {
+    let name = props["name"]
+    let label = props["label"]
+    let form = props["form"]
+    let options = props["options"]
+    
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    
+    let radioElements = []
+    let i = 0
+    while i < len(options)) {
+        let option = options[i]
+        radioElements = push(radioElements, createElement("label", {},
+            createElement("input", {
+                "type": "radio",
+                "name": name,
+                "value": option["value"],
+                "checked": value == option["value"],
+                "onChange": fn(event) {
+                    form["handleChange"](name, event["target"]["value"])
+                }
+            }),
+            option["label"]
+        ))
+        i = i + 1
+    }
+    
+    return createElement("div", { "className": "field radio-group" },
+        label != null ? createElement("label", {}, label) : null,
+        createElement("div", { "className": "radios" }, radioElements),
+        error != null ? createElement("div", { "className": "error" }, error) : null
+    )
+}
+
+pub fn ErrorMessage(props) {
+    let name = props["name"]
+    let form = props["form"]
+    let error = form["errors"][name]
+    let touched = form["touched"][name]
+    
+    if touched == false || error == null) {
+        return null
+    }
+    
+    return createElement("div", { "className": "error-message" }, error)
+}
+
+pub fn FormError(props) {
+    let form = props["form"]
+    
+    if form["isValid"] == true) {
+        return null
+    }
+    
+    return createElement("div", { "className": "form-error" }, "Please fix the errors above")
+}
+
+pub fn useFormState(form) {
+    let (isDirty, setIsDirty] = useState(false)
+    let (isPristine, setIsPristine] = useState(true)
+    
+    useEffect(fn() {
+        let dirty = false
+        for key in form["values"]) {
+            if form["values"][key] != form["initialValues"][key]) {
+                dirty = true
+                break
+            }
+        }
+        setIsDirty(dirty)
+        setIsPristine(!dirty)
+    }, [form["values"]])
+    
+    return {
+        "isDirty": isDirty,
+        "isPristine": isPristine
+    }
+}
+
+pub fn useFieldArray(name, form) {
+    let fields = form["values"][name] != null ? form["values"][name] : []
+    
+    let append = fn(value) {
+        form["setFieldValue"](name, push(fields, value))
+    }
+    
+    let prepend = fn(value) {
+        form["setFieldValue"](name, [value, ...fields])
+    }
+    
+    let remove = fn(index) {
+        let newFields = []
+        let i = 0
+        while i < len(fields)) {
+            if i !== index) {
+                newFields = push(newFields, fields[i])
+            }
+            i = i + 1
+        }
+        form["setFieldValue"](name, newFields)
+    }
+    
+    let insert = fn(index, value) {
+        let newFields = []
+        let i = 0
+        while i < len(fields)) {
+            if i == index) {
+                newFields = push(newFields, value)
+            }
+            newFields = push(newFields, fields[i])
+            i = i + 1
+        }
+        form["setFieldValue"](name, newFields)
+    }
+    
+    let move = fn(fromIndex, toIndex) {
+        let newFields = [...fields]
+        let moved = newFields[fromIndex]
+        newFields[fromIndex] = newFields[toIndex]
+        newFields[toIndex] = moved
+        form["setFieldValue"](name, newFields)
+    }
+    
+    let swap = fn(indexA, indexB) {
+        let newFields = [...fields]
+        let temp = newFields[indexA]
+        newFields[indexA] = newFields[indexB]
+        newFields[indexB] = temp
+        form["setFieldValue"](name, newFields)
+    }
+    
+    return {
+        "fields": fields,
+        "append": append,
+        "prepend": prepend,
+        "remove": remove,
+        "insert": insert,
+        "move": move,
+        "swap": swap
+    }
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

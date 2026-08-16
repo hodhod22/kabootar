@@ -1,0 +1,100 @@
+@version "1.0.0"
+
+// Negin Animation App Example
+// Demonstrates animations with Negin
+
+import "negin/core"
+import "negin/animation"
+import "negin/hooks"
+
+pub fn AnimationDemo() {
+    let (isAnimating, setIsAnimating] = useState(false)
+    let (scale, setScale] = useState(1.0)
+    
+    let handleClick = fn() {
+        setIsAnimating(true)
+        
+        animate(
+            { "scale": scale },
+            { "scale": scale == 1.0 ? 1.5 : 1.0 },
+            300,
+            easeInOut
+        )
+        
+        setScale(scale == 1.0 ? 1.5 : 1.0)
+        
+        setTimeout(fn() {
+            setIsAnimating(false)
+        }, 300)
+    }
+    
+    return createElement("div", { "className": "animation-demo" },
+        createElement("h2", {}, "Animation Demo"),
+        createElement("div", { 
+            "className": "box",
+            "style": { "transform": "scale(" + scale + ")" }
+        }),
+        createElement("button", { 
+            "onClick": handleClick,
+            "disabled": isAnimating
+        }, isAnimating ? "Animating..." : "Animate")
+    )
+}
+
+pub fn SpringDemo() {
+    let (value, setValue] = useState(0.0)
+    
+    let handleClick = fn() {
+        let target = value == 0.0 ? 100.0 : 0.0
+        animateSpring(
+            { "value": value },
+            { "value": target },
+            100,
+            10
+        )
+        setValue(target)
+    }
+    
+    return createElement("div", { "className": "spring-demo" },
+        createElement("h2", {}, "Spring Animation Demo"),
+        createElement("div", { 
+            "className": "spring-box",
+            "style": { "left": value + "px" }
+        }),
+        createElement("button", { "onClick": handleClick }, "Spring Animate")
+    )
+}
+
+pub fn TransitionDemo() {
+    let (visible, setVisible] = useState(true)
+    
+    return createElement("div", { "className": "transition-demo" },
+        createElement("h2", {}, "Transition Demo"),
+        createElement("button", { 
+            "onClick": fn() { setVisible(!visible) }
+        }, visible ? "Hide" : "Show"),
+        createElement(Transition, { 
+            "in": visible,
+            "timeout": 300
+        },
+            createElement("div", { "className": "fade-box" }, "I fade in and out")
+        )
+    )
+}
+
+pub fn AnimationApp() {
+    return createElement("div", { "className": "app" },
+        createElement("h1", {}, "Negin Animation Examples"),
+        createElement(AnimationDemo, {}),
+        createElement(SpringDemo, {}),
+        createElement(TransitionDemo, {})
+    )
+}
+
+// Render the animation app
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(AnimationApp, {}), container)
