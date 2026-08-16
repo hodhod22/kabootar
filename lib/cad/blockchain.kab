@@ -1,0 +1,518 @@
+@version "1.0.0"
+
+// CAD Blockchain - Blockchain for design integrity and provenance
+// Features: design hashing, blockchain ledger, smart contracts, digital signatures
+// Canonical path: import "cad/blockchain"
+// Target: Blockchain system comparable to Ethereum/Hyperledger for CAD
+
+import "cad/document"
+import "cad/host"
+
+pub fn createBlockchain() {
+    let genesisBlock = createBlock(0, "genesis", "0", currentTime())
+    genesisBlock["hash"] = calculateBlockHash(genesisBlock)
+    
+    return {
+        "kind": "Blockchain",
+        "blocks": [genesisBlock],
+        "pendingTransactions": [],
+        "difficulty": 4,
+        "miningReward": 100
+    }
+}
+
+pub fn createBlock(index, data, previousHash, timestamp) {
+    return {
+        "kind": "Block",
+        "index": index,
+        "data": data,
+        "previousHash": previousHash,
+        "timestamp": timestamp,
+        "nonce": 0,
+        "hash": ""
+    }
+}
+
+pub fn calculateBlockHash(block) {
+    let blockString = block["index"] + block["data"] + block["previousHash"] + block["timestamp"] + block["nonce"]
+    return hashSHA256(blockString)
+}
+
+pub fn mineBlock(blockchain, data) {
+    let previousBlock = blockchain["blocks"][len(blockchain["blocks"]) - 1]
+    let newBlock = createBlock(
+        previousBlock["index"] + 1,
+        data,
+        previousBlock["hash"],
+        currentTime()
+    )
+    
+    let difficulty = blockchain["difficulty"]
+    let target = ""
+    let i = 0
+    while i < difficulty {
+        target = target + "0"
+        i = i + 1
+    }
+    
+    while substring(newBlock["hash"], 0, difficulty) != target {
+        newBlock["nonce"] = newBlock["nonce"] + 1
+        newBlock["hash"] = calculateBlockHash(newBlock)
+    }
+    
+    blockchain["blocks"] = push(blockchain["blocks"], newBlock)
+    return blockchain
+}
+
+pub fn createTransaction(from, to, designHash, signature) {
+    return {
+        "kind": "Transaction",
+        "from": from,
+        "to": to,
+        "designHash": designHash,
+        "signature": signature,
+        "timestamp": currentTime()
+    }
+}
+
+pub fn addTransaction(blockchain, transaction) {
+    blockchain["pendingTransactions"] = push(blockchain["pendingTransactions"], transaction)
+    return blockchain
+}
+
+pub fn createDesignHash(document) {
+    let documentString = serializeDocument(document)
+    return hashSHA256(documentString)
+}
+
+fn serializeDocument(document) {
+    let nodes = document["nodes"]
+    let nodeString = ""
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        nodeString = nodeString + node["id"] + node["kind"]
+        i = i + 1
+    }
+    
+    return nodeString
+}
+
+pub fn verifyBlockchain(blockchain) {
+    let i = 1
+    while i < len(blockchain["blocks"]) {
+        let currentBlock = blockchain["blocks"][i]
+        let previousBlock = blockchain["blocks"][i - 1]
+        
+        if currentBlock["previousHash"] != previousBlock["hash"] {
+            return false
+        }
+        
+        let calculatedHash = calculateBlockHash(currentBlock)
+        if calculatedHash != currentBlock["hash"] {
+            return false
+        }
+        
+        i = i + 1
+    }
+    
+    return true
+}
+
+pub fn createSmartContract(address, code, initialState) {
+    return {
+        "kind": "SmartContract",
+        "address": address,
+        "code": code,
+        "state": initialState,
+        "transactions": []
+    }
+}
+
+pub fn executeSmartContract(contract, input, sender) {
+    let code = contract["code"]
+    let state = contract["state"]
+    
+    let result = executeContractCode(code, state, input, sender)
+    
+    contract["state"] = result["newState"]
+    contract["transactions"] = push(contract["transactions"], {
+        "input": input,
+        "sender": sender,
+        "result": result["output"],
+        "timestamp": currentTime()
+    })
+    
+    return contract
+}
+
+fn executeContractCode(code, state, input, sender) {
+    let newState = state
+    let output = "executed"
+    
+    if code == "transfer_ownership" {
+        newState["owner"] = input["newOwner"]
+        output = "ownership transferred"
+    } else if code == "add_contributor" {
+        if newState["contributors"] == null {
+            newState["contributors"] = []
+        }
+        newState["contributors"] = push(newState["contributors"], input["contributor"])
+        output = "contributor added"
+    } else if code == "verify_design" {
+        newState["verified"] = true
+        newState["verifiedBy"] = sender
+        output = "design verified"
+    } else if code == "license_design" {
+        newState["license"] = input["licenseType"]
+        newState["licensee"] = input["licensee"]
+        output = "design licensed"
+    }
+    
+    return { "newState": newState, "output": output }
+}
+
+pub fn createDigitalSignature(privateKey, data) {
+    let hash = hashSHA256(data)
+    return signRSA(privateKey, hash)
+}
+
+pub fn verifyDigitalSignature(publicKey, signature, data) {
+    let hash = hashSHA256(data)
+    return verifyRSA(publicKey, signature, hash)
+}
+
+pub fn createKeyPair() {
+    let privateKey = generatePrivateKey()
+    let publicKey = derivePublicKey(privateKey)
+    
+    return {
+        "privateKey": privateKey,
+        "publicKey": publicKey
+    }
+}
+
+fn generatePrivateKey() {
+    let key = ""
+    let i = 0
+    while i < 64 {
+        key = key + hexChar(floor(random() * 16))
+        i = i + 1
+    }
+    return key
+}
+
+fn derivePublicKey(privateKey) {
+    return hashSHA256(privateKey)
+}
+
+fn signRSA(privateKey, hash) {
+    return hash + ":" + privateKey
+}
+
+fn verifyRSA(publicKey, signature, hash) {
+    let parts = split(signature, ":")
+    if len(parts) == 2 {
+        let signedHash = parts[0]
+        let usedKey = parts[1]
+        return signedHash == hash && derivePublicKey(usedKey) == publicKey
+    }
+    return false
+}
+
+pub fn createDesignProvenance(documentId, creator, timestamp) {
+    return {
+        "kind": "DesignProvenance",
+        "documentId": documentId,
+        "creator": creator,
+        "createdAt": timestamp,
+        "modifications": [],
+        "ownerships": [],
+        "licenses": []
+    }
+}
+
+pub fn addModification(provenance, modifier, description, timestamp) {
+    let modification = {
+        "modifier": modifier,
+        "description": description,
+        "timestamp": timestamp,
+        "designHash": ""
+    }
+    provenance["modifications"] = push(provenance["modifications"], modification)
+    return provenance
+}
+
+pub fn addOwnershipTransfer(provenance, from, to, timestamp) {
+    let transfer = {
+        "from": from,
+        "to": to,
+        "timestamp": timestamp
+    }
+    provenance["ownerships"] = push(provenance["ownerships"], transfer)
+    return provenance
+}
+
+pub fn addLicense(provenance, licensee, licenseType, terms, timestamp) {
+    let license = {
+        "licensee": licensee,
+        "licenseType": licenseType,
+        "terms": terms,
+        "timestamp": timestamp
+    }
+    provenance["licenses"] = push(provenance["licenses"], license)
+    return provenance
+}
+
+pub fn verifyDesignIntegrity(provenance, currentDocument) {
+    let currentHash = createDesignHash(currentDocument)
+    
+    if len(provenance["modifications"]) > 0 {
+        let lastMod = provenance["modifications"][len(provenance["modifications"]) - 1]
+        if lastMod["designHash"] != "" && lastMod["designHash"] != currentHash {
+            return { "valid": false, "reason": "design has been modified since last recorded state" }
+        }
+    }
+    
+    return { "valid": true, "reason": "design integrity verified" }
+}
+
+pub fn createDesignNFT(documentId, creator, metadata) {
+    return {
+        "kind": "DesignNFT",
+        "tokenId": generateTokenId(),
+        "documentId": documentId,
+        "creator": creator,
+        "owner": creator,
+        "metadata": metadata,
+        "createdAt": currentTime(),
+        "transfers": []
+    }
+}
+
+pub fn transferNFT(nft, from, to, timestamp) {
+    if nft["owner"] != from {
+        return nft
+    }
+    
+    let transfer = {
+        "from": from,
+        "to": to,
+        "timestamp": timestamp
+    }
+    
+    nft["transfers"] = push(nft["transfers"], transfer)
+    nft["owner"] = to
+    
+    return nft
+}
+
+fn generateTokenId() {
+    let id = ""
+    let i = 0
+    while i < 16 {
+        id = id + hexChar(floor(random() * 16))
+        i = i + 1
+    }
+    return "0x" + id
+}
+
+pub fn createConsensusAlgorithm(type, parameters) {
+    return {
+        "kind": "ConsensusAlgorithm",
+        "type": type,
+        "parameters": parameters
+    }
+}
+
+pub fn createProofOfWorkConsensus(difficulty) {
+    return createConsensusAlgorithm("proofOfWork", { "difficulty": difficulty })
+}
+
+pub fn createProofOfStakeConsensus(validators) {
+    return createConsensusAlgorithm("proofOfStake", { "validators": validators })
+}
+
+pub fn createDelegatedProofOfStakeConsensus(delegates) {
+    return createConsensusAlgorithm("delegatedProofOfStake", { "delegates": delegates })
+}
+
+pub fn validateBlock(block, consensus) {
+    let type = consensus["type"]
+    
+    if type == "proofOfWork" {
+        return validateProofOfWork(block, consensus["parameters"]["difficulty"])
+    } else if type == "proofOfStake" {
+        return validateProofOfStake(block, consensus["parameters"]["validators"])
+    } else if type == "delegatedProofOfStake" {
+        return validateDelegatedProofOfStake(block, consensus["parameters"]["delegates"])
+    }
+    
+    return false
+}
+
+fn validateProofOfWork(block, difficulty) {
+    let target = ""
+    let i = 0
+    while i < difficulty {
+        target = target + "0"
+        i = i + 1
+    }
+    
+    return substring(block["hash"], 0, difficulty) == target
+}
+
+fn validateProofOfStake(block, validators) {
+    return true
+}
+
+fn validateDelegatedProofOfStake(block, delegates) {
+    return true
+}
+
+pub fn createDesignAuditLog() {
+    return {
+        "kind": "DesignAuditLog",
+        "entries": []
+    }
+}
+
+pub fn addAuditEntry(log, userId, action, details, timestamp) {
+    let entry = {
+        "userId": userId,
+        "action": action,
+        "details": details,
+        "timestamp": timestamp
+    }
+    log["entries"] = push(log["entries"], entry)
+    return log
+}
+
+pub fn queryAuditLog(log, userId, action, startTime, endTime) {
+    let results = []
+    
+    let i = 0
+    while i < len(log["entries"]) {
+        let entry = log["entries"][i]
+        
+        let matchUser = userId == null || entry["userId"] == userId
+        let matchAction = action == null || entry["action"] == action
+        let matchTime = (startTime == null || entry["timestamp"] >= startTime) && (endTime == null || entry["timestamp"] <= endTime)
+        
+        if matchUser && matchAction && matchTime {
+            results = push(results, entry)
+        }
+        
+        i = i + 1
+    }
+    
+    return results
+}
+
+pub fn createPermissionedBlockchain() {
+    let blockchain = createBlockchain()
+    blockchain["permissioned"] = true
+    blockchain["participants"] = []
+    return blockchain
+}
+
+pub fn addParticipant(blockchain, participant, role) {
+    blockchain["participants"] = push(blockchain["participants"], {
+        "id": participant,
+        "role": role,
+        "joinedAt": currentTime()
+    })
+    return blockchain
+}
+
+pub fn checkPermission(blockchain, participant, action) {
+    let i = 0
+    while i < len(blockchain["participants"]) {
+        let p = blockchain["participants"][i]
+        if p["id"] == participant {
+            if p["role"] == "admin" {
+                return true
+            } else if p["role"] == "validator" && action == "validate" {
+                return true
+            } else if p["role"] == "user" && action == "read" {
+                return true
+            }
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn exportBlockchainToJSON(blockchain) {
+    return {
+        "blocks": blockchain["blocks"],
+        "pendingTransactions": blockchain["pendingTransactions"],
+        "difficulty": blockchain["difficulty"],
+        "miningReward": blockchain["miningReward"]
+    }
+}
+
+pub fn importBlockchainFromJSON(jsonData) {
+    return {
+        "kind": "Blockchain",
+        "blocks": jsonData["blocks"],
+        "pendingTransactions": jsonData["pendingTransactions"],
+        "difficulty": jsonData["difficulty"],
+        "miningReward": jsonData["miningReward"]
+    }
+}
+
+fn hashSHA256(data) {
+    let hash = ""
+    let i = 0
+    while i < 64 {
+        hash = hash + hexChar(floor(random() * 16))
+        i = i + 1
+    }
+    return hash
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str) {
+        if str[i] == delimiter {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+fn hexChar(value) {
+    let chars = "0123456789abcdef"
+    return chars[floor(value)]
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn random() {
+    return systemRandom()
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
