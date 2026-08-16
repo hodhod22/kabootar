@@ -1,0 +1,361 @@
+@version "1.0.0"
+
+// CAD Batch - Batch operations for mass editing
+// Features: batch move, batch delete, batch transform, batch property changes
+// Canonical path: import "cad/batch"
+// Target: Efficient batch operations for large-scale editing
+
+import "cad/document"
+import "cad/geom"
+import "cad/history"
+import "cad/host"
+
+pub fn createBatchOperation() {
+    return {
+        "kind": "BatchOperation",
+        "operations": [],
+        "nodeIds": []
+    }
+}
+
+pub fn batchMoveNodes(document, nodeIds, offset) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldPosition = node["transform"]["position"]
+            let newPosition = vec2(oldPosition["x"] + offset["x"], oldPosition["y"] + offset["y"])
+            
+            let command = createMoveNodeCommand(nodeId, oldPosition, newPosition)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchDeleteNodes(document, nodeIds) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let command = createRemoveNodeCommand(nodeId)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchScaleNodes(document, nodeIds, scale, origin) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldTransform = node["transform"]
+            let pos = oldTransform["position"]
+            
+            let dx = pos["x"] - origin["x"]
+            let dy = pos["y"] - origin["y"]
+            
+            let newTransform = createTransform()
+            newTransform["position"]["x"] = origin["x"] + dx * scale
+            newTransform["position"]["y"] = origin["y"] + dy * scale
+            newTransform["scale"]["x"] = oldTransform["scale"]["x"] * scale
+            newTransform["scale"]["y"] = oldTransform["scale"]["y"] * scale
+            
+            let command = createSetTransformCommand(nodeId, oldTransform, newTransform)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchRotateNodes(document, nodeIds, angle, origin) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldTransform = node["transform"]
+            let pos = oldTransform["position"]
+            
+            let dx = pos["x"] - origin["x"]
+            let dy = pos["y"] - origin["y"]
+            
+            let cosA = cos(angle)
+            let sinA = sin(angle)
+            
+            let newTransform = createTransform()
+            newTransform["position"]["x"] = origin["x"] + dx * cosA - dy * sinA
+            newTransform["position"]["y"] = origin["y"] + dx * sinA + dy * cosA
+            newTransform["rotation"] = oldTransform["rotation"] + angle
+            
+            let command = createSetTransformCommand(nodeId, oldTransform, newTransform)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchSetProperty(document, nodeIds, key, value) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldValue = null
+            if node["properties"] != null {
+                oldValue = node["properties"][key]
+            }
+            
+            let command = createSetPropertyCommand(nodeId, key, oldValue, value)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchSetLayer(document, nodeIds, layerName) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldLayer = node["layer"]
+            node["layer"] = layerName
+            document["nodes"][nodeId] = node
+            
+            let command = createSetPropertyCommand(nodeId, "layer", oldLayer, layerName)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchSetVisibility(document, nodeIds, visible) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldVisible = node["visible"]
+            node["visible"] = visible
+            document["nodes"][nodeId] = node
+            
+            let command = createSetPropertyCommand(nodeId, "visible", oldVisible, visible)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchSetLocked(document, nodeIds, locked) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldLocked = node["locked"]
+            node["locked"] = locked
+            document["nodes"][nodeId] = node
+            
+            let command = createSetPropertyCommand(nodeId, "locked", oldLocked, locked)
+            batch["operations"] = push(batch["operations"], command)
+            batch["nodeIds"] = push(batch["nodeIds"], nodeId)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchDuplicateNodes(document, nodeIds) {
+    let batch = createBatchOperation()
+    let newIds = []
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let newNode = {}
+            for key in node {
+                newNode[key] = node[key]
+            }
+            newNode["id"] = generateNodeId()
+            newNode["name"] = node["name"] + " copy"
+            
+            let offset = vec2(10.0, 10.0)
+            let oldPos = newNode["transform"]["position"]
+            newNode["transform"]["position"]["x"] = oldPos["x"] + offset["x"]
+            newNode["transform"]["position"]["y"] = oldPos["y"] + offset["y"]
+            
+            let command = createAddNodeCommand(node["parent"], newNode)
+            batch["operations"] = push(batch["operations"], command)
+            newIds = push(newIds, newNode["id"])
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return { "document": result["document"], "newIds": newIds }
+}
+
+pub fn batchGroupNodes(document, nodeIds, groupName) {
+    let groupNode = createSceneNode("Group", groupName)
+    groupNode["id"] = generateNodeId()
+    
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(nodeIds) {
+        let nodeId = nodeIds[i]
+        let node = document["nodes"][nodeId]
+        if node != null {
+            let oldParentId = node["parent"]
+            
+            let command = createSetParentCommand(nodeId, oldParentId, groupNode["id"])
+            batch["operations"] = push(batch["operations"], command)
+        }
+        i = i + 1
+    }
+    
+    let addGroupCommand = createAddNodeCommand("root", groupNode)
+    batch["operations"] = push(batch["operations"], addGroupCommand)
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn batchUngroupNodes(document, groupIds) {
+    let batch = createBatchOperation()
+    
+    let i = 0
+    while i < len(groupIds) {
+        let groupId = groupIds[i]
+        let groupNode = document["nodes"][groupId]
+        if groupNode != null && groupNode["kind"] == "Group" {
+            let children = groupNode["children"]
+            let parentId = groupNode["parent"]
+            
+            let j = 0
+            while j < len(children) {
+                let childId = children[j]
+                let command = createSetParentCommand(childId, groupId, parentId)
+                batch["operations"] = push(batch["operations"], command)
+                j = j + 1
+            }
+            
+            let removeCommand = createRemoveNodeCommand(groupId)
+            batch["operations"] = push(batch["operations"], removeCommand)
+        }
+        i = i + 1
+    }
+    
+    let result = executeBatchOperation(document, batch)
+    return result["document"]
+}
+
+pub fn executeBatchOperation(document, batch) {
+    let i = 0
+    while i < len(batch["operations"]) {
+        let command = batch["operations"][i]
+        document = executeCommand(document, command)
+        i = i + 1
+    }
+    
+    return { "document": document, "batch": batch }
+}
+
+pub fn undoBatchOperation(document, batch) {
+    let i = len(batch["operations"]) - 1
+    while i >= 0 {
+        let command = batch["operations"][i]
+        let result = applyCommand(document, command)
+        document = result["document"]
+        document = executeCommand(document, result["inverse"])
+        i = i - 1
+    }
+    
+    return document
+}
+
+fn generateNodeId() {
+    return "node-" + floor(systemTime() * 1000.0) + "-" + systemRandom()
+}
+
+fn createTransform() {
+    return {
+        "position": vec2(0.0, 0.0),
+        "rotation": 0.0,
+        "scale": vec2(1.0, 1.0)
+    }
+}
+
+fn createSceneNode(kind, name) {
+    return {
+        "kind": kind,
+        "id": null,
+        "name": name,
+        "parent": null,
+        "children": [],
+        "transform": createTransform(),
+        "visible": true,
+        "locked": false
+    }
+}
+
+fn cos(value) {
+    return systemCos(value)
+}
+
+fn sin(value) {
+    return systemSin(value)
+}
