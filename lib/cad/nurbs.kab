@@ -1,0 +1,472 @@
+@version "1.0.0"
+
+// CAD NURBS - Non-Uniform Rational B-Splines for advanced 3D modeling
+// Features: NURBS curves, NURBS surfaces, degree elevation, knot insertion, trimming
+// Canonical path: import "cad/nurbs"
+// Target: NURBS system comparable to Rhino/SolidWorks/Alias
+
+import "cad/geom"
+import "cad/host"
+
+pub fn createNURBSCurve(degree, controlPoints, weights, knots) {
+    return {
+        "kind": "NURBSCurve",
+        "degree": degree,
+        "controlPoints": controlPoints,
+        "weights": weights,
+        "knots": knots
+    }
+}
+
+pub fn createNURBSSurface(uDegree, vDegree, controlPoints, weights, uKnots, vKnots) {
+    return {
+        "kind": "NURBSSurface",
+        "uDegree": uDegree,
+        "vDegree": vDegree,
+        "controlPoints": controlPoints,
+        "weights": weights,
+        "uKnots": uKnots,
+        "vKnots": vKnots
+    }
+}
+
+pub fn evaluateNURBSCurve(curve, t) {
+    let degree = curve["degree"]
+    let controlPoints = curve["controlPoints"]
+    let weights = curve["weights"]
+    let knots = curve["knots"]
+    
+    let n = len(controlPoints) - 1
+    let p = degree
+    
+    let result = vec3(0.0, 0.0, 0.0)
+    let weightSum = 0.0
+    
+    let i = 0
+    while i <= n {
+        let basis = basisFunction(i, p, t, knots)
+        let weight = weights[i]
+        let cp = controlPoints[i]
+        
+        let weightedBasis = basis * weight
+        result = vec3(
+            result["x"] + weightedBasis * cp["x"],
+            result["y"] + weightedBasis * cp["y"],
+            result["z"] + weightedBasis * cp["z"]
+        )
+        weightSum = weightSum + weightedBasis
+        
+        i = i + 1
+    }
+    
+    if weightSum > 0.0 {
+        result = vec3(
+            result["x"] / weightSum,
+            result["y"] / weightSum,
+            result["z"] / weightSum
+        )
+    }
+    
+    return result
+}
+
+pub fn evaluateNURBSSurface(surface, u, v) {
+    let uDegree = surface["uDegree"]
+    let vDegree = surface["vDegree"]
+    let controlPoints = surface["controlPoints"]
+    let weights = surface["weights"]
+    let uKnots = surface["uKnots"]
+    let vKnots = surface["vKnots"]
+    
+    let n = len(controlPoints) - 1
+    let m = len(controlPoints[0]) - 1
+    
+    let result = vec3(0.0, 0.0, 0.0)
+    let weightSum = 0.0
+    
+    let i = 0
+    while i <= n {
+        let uBasis = basisFunction(i, uDegree, u, uKnots)
+        
+        let j = 0
+        while j <= m {
+            let vBasis = basisFunction(j, vDegree, v, vKnots)
+            let weight = weights[i][j]
+            let cp = controlPoints[i][j]
+            
+            let weightedBasis = uBasis * vBasis * weight
+            result = vec3(
+                result["x"] + weightedBasis * cp["x"],
+                result["y"] + weightedBasis * cp["y"],
+                result["z"] + weightedBasis * cp["z"]
+            )
+            weightSum = weightSum + weightedBasis
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    if weightSum > 0.0 {
+        result = vec3(
+            result["x"] / weightSum,
+            result["y"] / weightSum,
+            result["z"] / weightSum
+        )
+    }
+    
+    return result
+}
+
+fn basisFunction(i, p, t, knots) {
+    if p == 0 {
+        if t >= knots[i] && t < knots[i + 1] {
+            return 1.0
+        }
+        return 0.0
+    }
+    
+    let denom1 = knots[i + p] - knots[i]
+    let term1 = 0.0
+    if denom1 > 0.0 {
+        term1 = ((t - knots[i]) / denom1) * basisFunction(i, p - 1, t, knots)
+    }
+    
+    let denom2 = knots[i + p + 1] - knots[i + 1]
+    let term2 = 0.0
+    if denom2 > 0.0 {
+        term2 = ((knots[i + p + 1] - t) / denom2) * basisFunction(i + 1, p - 1, t, knots)
+    }
+    
+    return term1 + term2
+}
+
+pub fn createUniformKnots(degree, numControlPoints) {
+    let knots = []
+    let m = numControlPoints + degree + 1
+    
+    let i = 0
+    while i < m {
+        if i <= degree {
+            knots = push(knots, 0.0)
+        } else if i >= m - degree - 1 {
+            knots = push(knots, 1.0)
+        } else {
+            knots = push(knots, (i - degree) / (m - 2.0 * degree - 1.0))
+        }
+        i = i + 1
+    }
+    
+    return knots
+}
+
+pub fn createClampedKnots(degree, numControlPoints) {
+    let knots = []
+    let m = numControlPoints + degree + 1
+    
+    let i = 0
+    while i < m {
+        if i <= degree {
+            knots = push(knots, 0.0)
+        } else if i >= m - degree - 1 {
+            knots = push(knots, 1.0)
+        } else {
+            knots = push(knots, (i - degree) / (numControlPoints - degree))
+        }
+        i = i + 1
+    }
+    
+    return knots
+}
+
+pub fn elevateNURBSCurveDegree(curve, newDegree) {
+    let oldDegree = curve["degree"]
+    let controlPoints = curve["controlPoints"]
+    let weights = curve["weights"]
+    let knots = curve["knots"]
+    
+    if newDegree <= oldDegree {
+        return curve
+    }
+    
+    let n = len(controlPoints) - 1
+    let p = oldDegree
+    let t = newDegree - p
+    
+    let newControlPoints = []
+    let newWeights = []
+    
+    let i = 0
+    while i <= n {
+        let alpha = (i + 1.0) / (t + 1.0)
+        
+        let cp1 = controlPoints[i]
+        let cp2 = controlPoints[max(0, i - 1)]
+        
+        let newCP = vec3(
+            alpha * cp1["x"] + (1.0 - alpha) * cp2["x"],
+            alpha * cp1["y"] + (1.0 - alpha) * cp2["y"],
+            alpha * cp1["z"] + (1.0 - alpha) * cp2["z"]
+        )
+        
+        let w1 = weights[i]
+        let w2 = weights[max(0, i - 1)]
+        let newWeight = alpha * w1 + (1.0 - alpha) * w2
+        
+        newControlPoints = push(newControlPoints, newCP)
+        newWeights = push(newWeights, newWeight)
+        
+        i = i + 1
+    }
+    
+    let newKnots = []
+    let i = 0
+    while i < len(knots) {
+        newKnots = push(newKnots, knots[i])
+        if i > 0 && i < len(knots) - 1 && knots[i] != knots[i - 1] {
+            let j = 0
+            while j < t {
+                newKnots = push(newKnots, knots[i])
+                j = j + 1
+            }
+        }
+        i = i + 1
+    }
+    
+    return createNURBSCurve(newDegree, newControlPoints, newWeights, newKnots)
+}
+
+pub fn insertKnotNURBSCurve(curve, u) {
+    let degree = curve["degree"]
+    let controlPoints = curve["controlPoints"]
+    let weights = curve["weights"]
+    let knots = curve["knots"]
+    
+    let k = findKnotSpan(u, knots)
+    let s = countKnotMultiplicity(u, k, knots)
+    
+    if s >= degree {
+        return curve
+    }
+    
+    let newControlPoints = []
+    let newWeights = []
+    let newKnots = []
+    
+    let i = 0
+    while i <= k - degree {
+        newControlPoints = push(newControlPoints, controlPoints[i])
+        newWeights = push(newWeights, weights[i])
+        i = i + 1
+    }
+    
+    let i = k - degree + 1
+    while i <= k {
+        let alpha = (u - knots[i]) / (knots[i + degree] - knots[i])
+        
+        let cp1 = controlPoints[i]
+        let cp2 = controlPoints[i - 1]
+        
+        let newCP = vec3(
+            alpha * cp1["x"] + (1.0 - alpha) * cp2["x"],
+            alpha * cp1["y"] + (1.0 - alpha) * cp2["y"],
+            alpha * cp1["z"] + (1.0 - alpha) * cp2["z"]
+        )
+        
+        let w1 = weights[i]
+        let w2 = weights[i - 1]
+        let newWeight = alpha * w1 + (1.0 - alpha) * w2
+        
+        newControlPoints = push(newControlPoints, newCP)
+        newWeights = push(newWeights, newWeight)
+        
+        i = i + 1
+    }
+    
+    let i = k + 1
+    while i < len(controlPoints) {
+        newControlPoints = push(newControlPoints, controlPoints[i])
+        newWeights = push(newWeights, weights[i])
+        i = i + 1
+    }
+    
+    let i = 0
+    while i <= k {
+        newKnots = push(newKnots, knots[i])
+        i = i + 1
+    }
+    newKnots = push(newKnots, u)
+    
+    let i = k + 1
+    while i < len(knots) {
+        newKnots = push(newKnots, knots[i])
+        i = i + 1
+    }
+    
+    return createNURBSCurve(degree, newControlPoints, newWeights, newKnots)
+}
+
+fn findKnotSpan(u, knots) {
+    let n = len(knots) - 1
+    if u >= knots[n] {
+        return n - 1
+    }
+    if u <= knots[0] {
+        return 0
+    }
+    
+    let low = 0
+    let high = n
+    let mid = floor((low + high) / 2.0)
+    
+    while u < knots[mid] || u >= knots[mid + 1] {
+        if u < knots[mid] {
+            high = mid
+        } else {
+            low = mid
+        }
+        mid = floor((low + high) / 2.0)
+    }
+    
+    return mid
+}
+
+fn countKnotMultiplicity(u, k, knots) {
+    let count = 0
+    let i = k
+    while i >= 0 && knots[i] == u {
+        count = count + 1
+        i = i - 1
+    }
+    return count
+}
+
+pub fn trimNURBSSurface(surface, uMin, uMax, vMin, vMax) {
+    let uKnots = surface["uKnots"]
+    let vKnots = surface["vKnots"]
+    
+    let newUKnots = []
+    let i = 0
+    while i < len(uKnots) {
+        if uKnots[i] >= uMin && uKnots[i] <= uMax {
+            newUKnots = push(newUKnots, uKnots[i])
+        }
+        i = i + 1
+    }
+    
+    let newVKnots = []
+    let i = 0
+    while i < len(vKnots) {
+        if vKnots[i] >= vMin && vKnots[i] <= vMax {
+            newVKnots = push(newVKnots, vKnots[i])
+        }
+        i = i + 1
+    }
+    
+    let newControlPoints = []
+    let newWeights = []
+    
+    let i = 0
+    while i < len(surface["controlPoints"]) {
+        let row = []
+        let weightRow = []
+        
+        let j = 0
+        while j < len(surface["controlPoints"][i]) {
+            let u = newUKnots[min(i, len(newUKnots) - 1)]
+            let v = newVKnots[min(j, len(newVKnots) - 1)]
+            
+            if u >= uMin && u <= uMax && v >= vMin && v <= vMax {
+                row = push(row, surface["controlPoints"][i][j])
+                weightRow = push(weightRow, surface["weights"][i][j])
+            }
+            
+            j = j + 1
+        }
+        
+        if len(row) > 0 {
+            newControlPoints = push(newControlPoints, row)
+            newWeights = push(newWeights, weightRow)
+        }
+        
+        i = i + 1
+    }
+    
+    return createNURBSSurface(surface["uDegree"], surface["vDegree"], newControlPoints, newWeights, newUKnots, newVKnots)
+}
+
+pub fn createNURBSCircle(radius, center) {
+    let degree = 2
+    let controlPoints = [
+        vec3(center["x"] + radius, center["y"], center["z"]),
+        vec3(center["x"] + radius, center["y"] + radius, center["z"]),
+        vec3(center["x"], center["y"] + radius, center["z"]),
+        vec3(center["x"] - radius, center["y"] + radius, center["z"]),
+        vec3(center["x"] - radius, center["y"], center["z"]),
+        vec3(center["x"] - radius, center["y"] - radius, center["z"]),
+        vec3(center["x"], center["y"] - radius, center["z"]),
+        vec3(center["x"] + radius, center["y"] - radius, center["z"]),
+        vec3(center["x"] + radius, center["y"], center["z"])
+    ]
+    
+    let weights = [1.0, 0.7071, 1.0, 0.7071, 1.0, 0.7071, 1.0, 0.7071, 1.0]
+    let knots = [0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 1.0]
+    
+    return createNURBSCurve(degree, controlPoints, weights, knots)
+}
+
+pub fn createNURBSLine(start, end) {
+    let degree = 1
+    let controlPoints = [start, end]
+    let weights = [1.0, 1.0]
+    let knots = [0.0, 0.0, 1.0, 1.0]
+    
+    return createNURBSCurve(degree, controlPoints, weights, knots)
+}
+
+pub fn tessellateNURBSCurve(curve, steps) {
+    let points = []
+    
+    let i = 0
+    while i <= steps {
+        let t = i / steps
+        let point = evaluateNURBSCurve(curve, t)
+        points = push(points, point)
+        i = i + 1
+    }
+    
+    return points
+}
+
+pub fn tessellateNURBSSurface(surface, uSteps, vSteps) {
+    let points = []
+    
+    let i = 0
+    while i <= uSteps {
+        let u = i / uSteps
+        
+        let j = 0
+        while j <= vSteps {
+            let v = j / vSteps
+            let point = evaluateNURBSSurface(surface, u, v)
+            points = push(points, point)
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    return points
+}
+
+fn max(a, b) {
+    return systemMax(a, b)
+}
+
+fn min(a, b) {
+    return systemMin(a, b)
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
