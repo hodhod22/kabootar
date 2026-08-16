@@ -1,0 +1,66 @@
+@version "1.0.0"
+
+// Negin Router App Example
+// Demonstrates routing with Negin
+
+import "negin/core"
+import "negin/router"
+import "negin/hooks"
+
+pub fn Home() {
+    return createElement("div", { "className": "page" },
+        createElement("h1", {}, "Welcome to Negin Router"),
+        createElement("p", {}, "This is the home page")
+    )
+}
+
+pub fn About() {
+    return createElement("div", { "className": "page" },
+        createElement("h1", {}, "About"),
+        createElement("p", {}, "This is the about page")
+    )
+}
+
+pub fn Contact() {
+    return createElement("div", { "className": "page" },
+        createElement("h1", {}, "Contact"),
+        createElement("p", {}, "This is the contact page")
+    )
+}
+
+pub fn NotFound() {
+    return createElement("div", { "className": "page" },
+        createElement("h1", {}, "404 - Page Not Found"),
+        createElement("p", {}, "The page you're looking for doesn't exist")
+    )
+}
+
+pub fn Navigation() {
+    return createElement("nav", { "className": "navigation" },
+        createElement(NavLink, { "to": "/", "className": "nav-link" }, "Home"),
+        createElement(NavLink, { "to": "/about", "className": "nav-link" }, "About"),
+        createElement(NavLink, { "to": "/contact", "className": "nav-link" }, "Contact")
+    )
+}
+
+pub fn RouterApp() {
+    let routes = [
+        { "path": "/", "component": Home },
+        { "path": "/about", "component": About },
+        { "path": "/contact", "component": Contact },
+        { "path": "*", "component": NotFound }
+    ]
+    
+    return createElement("div", { "className": "app" },
+        createElement(Navigation, {}),
+        createElement(Router, { "routes": routes, "fallback": createElement(NotFound, {}) })
+    )
+}
+
+// Render the router app
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(RouterApp, {}), container)

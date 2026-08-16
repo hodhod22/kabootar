@@ -1,0 +1,476 @@
+@version "1.0.0"
+
+// Negin Animation - Animation library for Negin
+// Features: transitions, keyframes, spring animations, gesture animations
+// Canonical path: import "negin/animation"
+
+import "negin/hooks"
+
+let animations = []
+let animationFrameId = null
+
+pub fn createAnimation(target, properties, duration, easing) {
+    return {
+        "kind": "Animation",
+        "target": target,
+        "properties": properties,
+        "duration": duration,
+        "easing": easing != null ? easing : easeInOut,
+        "startTime": null,
+        "completed": false,
+        "onComplete": null
+    }
+}
+
+pub fn animate(target, properties, duration, easing) {
+    let animation = createAnimation(target, properties, duration, easing)
+    animation["startTime"] = currentTime()
+    animations = push(animations, animation)
+    
+    if animationFrameId == null) {
+        animationFrameId = requestAnimationFrame(tickAnimations)
+    }
+    
+    return animation
+}
+
+pub fn tickAnimations() {
+    let now = currentTime()
+    let activeAnimations = []
+    
+    let i = 0
+    while i < len(animations)) {
+        let animation = animations[i]
+        
+        if animation["startTime"] == null) {
+            animation["startTime"] = now
+        }
+        
+        let elapsed = now - animation["startTime"]
+        let progress = elapsed / animation["duration"]
+        
+        if progress >= 1.0) {
+            applyProperties(animation["target"], animation["properties"])
+            animation["completed"] = true
+            
+            if animation["onComplete"] != null) {
+                animation["onComplete"]()
+            }
+        } else {
+            let easedProgress = animation["easing"](progress)
+            applyInterpolatedProperties(animation["target"], animation["properties"], easedProgress)
+            activeAnimations = push(activeAnimations, animation)
+        }
+        
+        i = i + 1
+    }
+    
+    animations = activeAnimations
+    
+    if len(animations) == 0) {
+        animationFrameId = null
+    } else {
+        animationFrameId = requestAnimationFrame(tickAnimations)
+    }
+}
+
+fn applyProperties(target, properties) {
+    for prop in properties) {
+        target[prop] = properties[prop]
+    }
+}
+
+fn applyInterpolatedProperties(target, properties, progress) {
+    for prop in properties) {
+        let value = properties[prop]
+        
+        if typeof(value) == "object" && value["from"] != null && value["to"] != null) {
+            target[prop] = interpolate(value["from"], value["to"], progress)
+        } else {
+            target[prop] = value
+        }
+    }
+}
+
+fn interpolate(from, to, progress) {
+    if typeof(from) == "number" && typeof(to) == "number") {
+        return from + (to - from) * progress
+    }
+    
+    if typeof(from) == "string" && typeof(to) == "string") {
+        return interpolateColor(from, to, progress)
+    }
+    
+    return to
+}
+
+fn interpolateColor(from, to, progress) {
+    return from
+}
+
+pub fn easeLinear(t) {
+    return t
+}
+
+pub fn easeInQuad(t) {
+    return t * t
+}
+
+pub fn easeOutQuad(t) {
+    return t * (2 - t)
+}
+
+pub fn easeInOutQuad(t) {
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+}
+
+pub fn easeInCubic(t) {
+    return t * t * t
+}
+
+pub fn easeOutCubic(t) {
+    return (--t) * t * t + 1
+}
+
+pub fn easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
+}
+
+pub fn easeInElastic(t) {
+    let c4 = (2 * 3.14159) / 3
+    return t == 0 ? 0 : t == 1 ? 1 : -pow(2, 10 * t - 10) * sin((t * 10 - 10.75) * c4)
+}
+
+pub fn easeOutElastic(t) {
+    let c4 = (2 * 3.14159) / 3
+    return t == 0 ? 0 : t == 1 ? 1 : pow(2, -10 * t) * sin((t * 10 - 0.75) * c4) + 1
+}
+
+pub fn easeInOutElastic(t) {
+    let c5 = (2 * 3.14159) / 4.5
+    return t == 0 ? 0 : t == 1 ? 1 : t < 0.5
+        ? -(pow(2, 20 * t - 10) * sin((20 * t - 11.125) * c5)) / 2
+        : (pow(2, -20 * t + 10) * sin((20 * t - 11.125) * c5)) / 2 + 1
+}
+
+pub fn easeInBounce(t) {
+    return 1 - easeOutBounce(1 - t)
+}
+
+pub fn easeOutBounce(t) {
+    let n1 = 7.5625
+    let d1 = 2.75
+    
+    if t < 1 / d1) {
+        return n1 * t * t
+    } else if t < 2 / d1) {
+        return n1 * (t -= 1.5 / d1) * t + 0.75
+    } else if t < 2.5 / d1) {
+        return n1 * (t -= 2.25 / d1) * t + 0.9375
+    } else {
+        return n1 * (t -= 2.625 / d1) * t + 0.984375
+    }
+}
+
+pub fn easeInOutBounce(t) {
+    return t < 0.5
+        ? (1 - easeOutBounce(1 - 2 * t)) / 2
+        : (1 + easeOutBounce(2 * t - 1)) / 2
+}
+
+pub fn createSpringAnimation(target, properties, stiffness, damping) {
+    return {
+        "kind": "SpringAnimation",
+        "target": target,
+        "properties": properties,
+        "stiffness": stiffness != null ? stiffness : 100,
+        "damping": damping != null ? damping : 10,
+        "velocity": {},
+        "completed": false
+    }
+}
+
+pub fn animateSpring(target, properties, stiffness, damping) {
+    let animation = createSpringAnimation(target, properties, stiffness, damping)
+    
+    for prop in properties) {
+        animation["velocity"][prop] = 0
+    }
+    
+    animations = push(animations, animation)
+    
+    if animationFrameId == null) {
+        animationFrameId = requestAnimationFrame(tickSpringAnimations)
+    }
+    
+    return animation
+}
+
+pub fn tickSpringAnimations() {
+    let activeAnimations = []
+    
+    let i = 0
+    while i < len(animations)) {
+        let animation = animations[i]
+        
+        if animation["kind"] == "SpringAnimation") {
+            let allSettled = true
+            
+            for prop in animation["properties"]) {
+                let targetValue = animation["properties"][prop]
+                let currentValue = animation["target"][prop]
+                let velocity = animation["velocity"][prop]
+                
+                let force = (targetValue - currentValue) * animation["stiffness"]
+                let dampingForce = -velocity * animation["damping"]
+                let acceleration = force + dampingForce
+                
+                animation["velocity"][prop] = velocity + acceleration * 0.016
+                animation["target"][prop] = currentValue + animation["velocity"][prop] * 0.016
+                
+                if abs(animation["velocity"][prop]) > 0.01 || abs(targetValue - animation["target"][prop]) > 0.01) {
+                    allSettled = false
+                }
+            }
+            
+            if allSettled) {
+                animation["completed"] = true
+                if animation["onComplete"] != null) {
+                    animation["onComplete"]()
+                }
+            } else {
+                activeAnimations = push(activeAnimations, animation)
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    animations = activeAnimations
+    
+    if len(animations) == 0) {
+        animationFrameId = null
+    } else {
+        animationFrameId = requestAnimationFrame(tickSpringAnimations)
+    }
+}
+
+pub fn createKeyframeAnimation(target, keyframes, duration) {
+    return {
+        "kind": "KeyframeAnimation",
+        "target": target,
+        "keyframes": keyframes,
+        "duration": duration,
+        "startTime": null,
+        "completed": false
+    }
+}
+
+pub fn animateKeyframes(target, keyframes, duration) {
+    let animation = createKeyframeAnimation(target, keyframes, duration)
+    animation["startTime"] = currentTime()
+    animations = push(animations, animation)
+    
+    if animationFrameId == null) {
+        animationFrameId = requestAnimationFrame(tickAnimations)
+    }
+    
+    return animation
+}
+
+pub fn useAnimation() {
+    let (animations, setAnimations] = useState([])
+    
+    let animate = fn(target, properties, duration, easing) {
+        let animation = createAnimation(target, properties, duration, easing)
+        setAnimations(push(animations, animation))
+        return animation
+    }
+    
+    let animateSpring = fn(target, properties, stiffness, damping) {
+        let animation = createSpringAnimation(target, properties, stiffness, damping)
+        setAnimations(push(animations, animation))
+        return animation
+    }
+    
+    return {
+        "animate": animate,
+        "animateSpring": animateSpring,
+        "animations": animations
+    }
+}
+
+pub fn useTransition(value, config) {
+    let (currentValue, setCurrentValue] = useState(value)
+    let (isAnimating, setIsAnimating] = useState(false)
+    
+    useEffect(fn() {
+        if value !== currentValue) {
+            setIsAnimating(true)
+            
+            let duration = config != null && config["duration"] != null ? config["duration"] : 300
+            let easing = config != null && config["easing"] != null ? config["easing"] : easeInOut
+            
+            setTimeout(fn() {
+                setCurrentValue(value)
+                setIsAnimating(false)
+            }, duration)
+        }
+    }, [value, config])
+    
+    return {
+        "value": currentValue,
+        "isAnimating": isAnimating
+    }
+}
+
+pub fn useSpring(value, config) {
+    let (currentValue, setCurrentValue] = useState(value)
+    let (velocity, setVelocity] = useState(0)
+    
+    let stiffness = config != null && config["stiffness"] != null ? config["stiffness"] : 100
+    let damping = config != null && config["damping"] != null ? config["damping"] : 10
+    
+    useEffect(fn() {
+        if value !== currentValue) {
+            let animation = animateSpring(
+                { "value": currentValue },
+                { "value": value },
+                stiffness,
+                damping
+            )
+            
+            animation["onComplete"] = fn() {
+                setCurrentValue(value)
+            }
+        }
+    }, [value, config])
+    
+    return currentValue
+}
+
+pub fn createTransitionGroup() {
+    return {
+        "kind": "TransitionGroup",
+        "children": [],
+        "enterAnimation": null,
+        "exitAnimation": null
+    }
+}
+
+pub fn Transition(props) {
+    let children = props["children"]
+    let inProp = props["in"]
+    let timeout = props["timeout"] != null ? props["timeout"] : 300
+    
+    let (mounted, setMounted] = useState(inProp)
+    
+    useEffect(fn() {
+        if inProp) {
+            setMounted(true)
+        } else {
+            setTimeout(fn() {
+                setMounted(false)
+            }, timeout)
+        }
+    }, [inProp, timeout])
+    
+    if mounted == false) {
+        return null
+    }
+    
+    return children
+}
+
+pub fn cancelAnimation(animation) {
+    let newAnimations = []
+    let i = 0
+    while i < len(animations)) {
+        if animations[i] !== animation) {
+            newAnimations = push(newAnimations, animations[i])
+        }
+        i = i + 1
+    }
+    animations = newAnimations
+}
+
+pub fn cancelAllAnimations() {
+    animations = []
+    if animationFrameId != null) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+    }
+}
+
+pub fn getActiveAnimations() {
+    return animations
+}
+
+pub fn isAnimating() {
+    return len(animations) > 0
+}
+
+fn requestAnimationFrame(callback) {
+    return setTimeout(callback, 16)
+}
+
+fn cancelAnimationFrame(id) {
+    clearTimeout(id)
+}
+
+fn setTimeout(callback, delay) {
+    return null
+}
+
+fn clearTimeout(id) {
+}
+
+fn pow(base, exponent) {
+    let result = 1.0
+    let i = 0
+    while i < exponent) {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}
+
+fn sin(x) {
+    return systemSin(x)
+}
+
+fn abs(x) {
+    if x < 0.0) {
+        return -x
+    }
+    return x
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

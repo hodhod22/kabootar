@@ -1,0 +1,152 @@
+@version "1.0.0"
+
+// Negin Form App Example
+// Demonstrates form handling with Negin
+
+import "negin/core"
+import "negin/form"
+import "negin/hooks"
+
+pub fn ContactForm() {
+    let validationSchema = {
+        "name": { "required": true, "minLength": 2 },
+        "email": { "required": true, "email": true },
+        "message": { "required": true, "minLength": 10 }
+    }
+    
+    let form = useForm({
+        "name": "",
+        "email": "",
+        "message": ""
+    }, validationSchema)
+    
+    let handleSubmit = fn(values) {
+        console.log("Form submitted:", values)
+        alert("Form submitted successfully!")
+        form["resetForm"]()
+    }
+    
+    return createElement("div", { "className": "contact-form" },
+        createElement("h2", {}, "Contact Form"),
+        createElement("form", { "onSubmit": form["handleSubmit"](handleSubmit) },
+            createElement(TextField, {
+                "name": "name",
+                "label": "Name",
+                "placeholder": "Your name",
+                "form": form,
+                "required": true
+            }),
+            createElement(EmailField, {
+                "name": "email",
+                "label": "Email",
+                "placeholder": "your@email.com",
+                "form": form,
+                "required": true
+            }),
+            createElement(TextArea, {
+                "name": "message",
+                "label": "Message",
+                "placeholder": "Your message...",
+                "form": form,
+                "required": true,
+                "rows": 5
+            }),
+            createElement("button", { 
+                "type": "submit",
+                "disabled": form["isSubmitting"]
+            }, form["isSubmitting"] ? "Submitting..." : "Submit")
+        )
+    )
+}
+
+pub fn RegistrationForm() {
+    let validationSchema = {
+        "username": { "required": true, "minLength": 3, "maxLength": 20 },
+        "email": { "required": true, "email": true },
+        "password": { "required": true, "minLength": 8 },
+        "confirmPassword": { 
+            "required": true,
+            "custom": fn(value, values) {
+                if value != values["password"]) {
+                    return "Passwords do not match"
+                }
+                return null
+            }
+        },
+        "terms": { "required": true }
+    }
+    
+    let form = useForm({
+        "username": "",
+        "email": "",
+        "password": "",
+        "confirmPassword": "",
+        "terms": false
+    }, validationSchema)
+    
+    let handleSubmit = fn(values) {
+        console.log("Registration submitted:", values)
+        alert("Registration successful!")
+        form["resetForm"]()
+    }
+    
+    return createElement("div", { "className": "registration-form" },
+        createElement("h2", {}, "Registration"),
+        createElement("form", { "onSubmit": form["handleSubmit"](handleSubmit) },
+            createElement(TextField, {
+                "name": "username",
+                "label": "Username",
+                "placeholder": "Choose a username",
+                "form": form,
+                "required": true
+            }),
+            createElement(EmailField, {
+                "name": "email",
+                "label": "Email",
+                "placeholder": "your@email.com",
+                "form": form,
+                "required": true
+            }),
+            createElement(PasswordField, {
+                "name": "password",
+                "label": "Password",
+                "placeholder": "Choose a password",
+                "form": form,
+                "required": true
+            }),
+            createElement(PasswordField, {
+                "name": "confirmPassword",
+                "label": "Confirm Password",
+                "placeholder": "Confirm your password",
+                "form": form,
+                "required": true
+            }),
+            createElement(CheckboxField, {
+                "name": "terms",
+                "label": "I agree to the terms and conditions",
+                "form": form,
+                "required": true
+            }),
+            createElement("button", { 
+                "type": "submit",
+                "disabled": form["isSubmitting"]
+            }, form["isSubmitting"] ? "Registering..." : "Register")
+        )
+    )
+}
+
+pub fn FormApp() {
+    return createElement("div", { "className": "app" },
+        createElement("h1", {}, "Negin Form Examples"),
+        createElement(ContactForm, {}),
+        createElement(RegistrationForm, {})
+    )
+}
+
+// Render the form app
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(FormApp, {}), container)

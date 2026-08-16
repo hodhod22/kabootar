@@ -1,0 +1,513 @@
+@version "1.0.0"
+
+// Negin Router - Routing library for Negin
+// Features: client-side routing, nested routes, route parameters, navigation
+// Canonical path: import "negin/router"
+
+import "negin/hooks"
+
+let currentPath = "/"
+let routeHistory = ["/"]
+let historyIndex = 0
+let routes = []
+let routeListeners = []
+
+pub fn createRouter(routesConfig) {
+    let router = {
+        "kind": "Router",
+        "routes": routesConfig,
+        "currentPath": "/",
+        "history": ["/"],
+        "historyIndex": 0
+    }
+    
+    routes = routesConfig
+    
+    return router
+}
+
+pub fn Router(props) {
+    let routes = props["routes"]
+    let (currentPath, setCurrentPath] = useState(getCurrentPath())
+    
+    useEffect(fn() {
+        let listener = fn(path) {
+            setCurrentPath(path)
+        }
+        
+        addRouteListener(listener)
+        
+        return fn() {
+            removeRouteListener(listener)
+        }
+    }, [])
+    
+    let matchedRoute = matchRoute(routes, currentPath)
+    
+    if matchedRoute == null) {
+        return props["fallback"] != null ? props["fallback"] : createElement("div", {}, "404 Not Found")
+    }
+    
+    return createElement(matchedRoute["component"], matchedRoute["params"])
+}
+
+pub fn Route(props) {
+    return props["children"]
+}
+
+pub fn Link(props) {
+    let to = props["to"]
+    let children = props["children"]
+    let onClick = props["onClick"]
+    
+    let handleClick = fn(event) {
+        event["preventDefault"]()
+        
+        if onClick != null) {
+            onClick(event)
+        }
+        
+        navigate(to)
+    }
+    
+    return createElement("a", {
+        "href": to,
+        "onClick": handleClick,
+        ...props
+    }, children)
+}
+
+pub fn NavLink(props) {
+    let to = props["to"]
+    let children = props["children"]
+    let activeClassName = props["activeClassName"] != null ? props["activeClassName"] : "active"
+    let (currentPath, setCurrentPath] = useState(getCurrentPath())
+    
+    useEffect(fn() {
+        let listener = fn(path) {
+            setCurrentPath(path)
+        }
+        
+        addRouteListener(listener)
+        
+        return fn() {
+            removeRouteListener(listener)
+        }
+    }, [])
+    
+    let isActive = currentPath == to || (to != "/" && currentPath.startsWith(to))
+    
+    let className = props["className"] != null ? props["className"] : ""
+    if isActive) {
+        className = className + " " + activeClassName
+    }
+    
+    return createElement(Link, {
+        "to": to,
+        "onClick": props["onClick"],
+        "className": className
+    }, children)
+}
+
+pub fn navigate(to) {
+    let currentPath = getCurrentPath()
+    
+    if to != currentPath) {
+        setCurrentPath(to)
+        routeHistory = push(routeHistory, to)
+        historyIndex = len(routeHistory) - 1
+        
+        notifyRouteListeners(to)
+    }
+}
+
+pub fn push(to) {
+    navigate(to)
+}
+
+pub fn replace(to) {
+    let currentPath = getCurrentPath()
+    
+    if to != currentPath) {
+        routeHistory[historyIndex] = to
+        setCurrentPath(to)
+        
+        notifyRouteListeners(to)
+    }
+}
+
+pub fn go(delta) {
+    let newIndex = historyIndex + delta
+    
+    if newIndex >= 0 && newIndex < len(routeHistory)) {
+        historyIndex = newIndex
+        let path = routeHistory[historyIndex]
+        setCurrentPath(path)
+        
+        notifyRouteListeners(path)
+    }
+}
+
+pub fn goBack() {
+    go(-1)
+}
+
+pub fn forward() {
+    go(1)
+}
+
+pub fn getCurrentPath() {
+    return currentPath
+}
+
+pub fn setCurrentPath(path) {
+    currentPath = path
+}
+
+pub fn addRouteListener(listener) {
+    routeListeners = push(routeListeners, listener)
+}
+
+pub fn removeRouteListener(listener) {
+    let newListeners = []
+    let i = 0
+    while i < len(routeListeners)) {
+        if routeListeners[i] !== listener) {
+            newListeners = push(newListeners, routeListeners[i])
+        }
+        i = i + 1
+    }
+    routeListeners = newListeners
+}
+
+fn notifyRouteListeners(path) {
+    let i = 0
+    while i < len(routeListeners)) {
+        routeListeners[i](path)
+        i = i + 1
+    }
+}
+
+pub fn matchRoute(routes, path) {
+    let i = 0
+    while i < len(routes)) {
+        let route = routes[i]
+        let match = matchPath(route["path"], path)
+        
+        if match != null) {
+            return {
+                "component": route["component"],
+                "params": match["params"]
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return null
+}
+
+fn matchPath(routePath, currentPath) {
+    if routePath == currentPath) {
+        return { "params": {} }
+    }
+    
+    if routePath == "*") {
+        return { "params": {} }
+    }
+    
+    let routeSegments = splitPath(routePath)
+    let currentSegments = splitPath(currentPath)
+    
+    if len(routeSegments) != len(currentSegments)) {
+        return null
+    }
+    
+    let params = {}
+    let i = 0
+    while i < len(routeSegments)) {
+        let routeSegment = routeSegments[i]
+        let currentSegment = currentSegments[i]
+        
+        if startsWith(routeSegment, ":")) {
+            let paramName = substring(routeSegment, 1, len(routeSegment))
+            params[paramName] = currentSegment
+        } else if routeSegment != currentSegment) {
+            return null
+        }
+        
+        i = i + 1
+    }
+    
+    return { "params": params }
+}
+
+fn splitPath(path) {
+    let segments = []
+    let parts = split(path, "/")
+    
+    let i = 0
+    while i < len(parts)) {
+        if parts[i] != "") {
+            segments = push(segments, parts[i])
+        }
+        i = i + 1
+    }
+    
+    return segments
+}
+
+fn startsWith(str, prefix) {
+    if len(str) < len(prefix)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prefix)) {
+        if str[i] != prefix[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str)) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+pub fn useParams() {
+    let (params, setParams] = useState({})
+    
+    useEffect(fn() {
+        let listener = fn(path) {
+            let matched = matchRoute(routes, path)
+            if matched != null) {
+                setParams(matched["params"])
+            }
+        }
+        
+        addRouteListener(listener)
+        
+        return fn() {
+            removeRouteListener(listener)
+        }
+    }, [])
+    
+    return params
+}
+
+pub fn useLocation() {
+    let (location, setLocation] = useState({
+        "pathname": getCurrentPath(),
+        "search": "",
+        "hash": ""
+    })
+    
+    useEffect(fn() {
+        let listener = fn(path) {
+            setLocation({
+                "pathname": path,
+                "search": "",
+                "hash": ""
+            })
+        }
+        
+        addRouteListener(listener)
+        
+        return fn() {
+            removeRouteListener(listener)
+        }
+    }, [])
+    
+    return location
+}
+
+pub fn useHistory() {
+    return {
+        "push": push,
+        "replace": replace,
+        "go": go,
+        "goBack": goBack,
+        "forward": forward,
+        "length": len(routeHistory),
+        "index": historyIndex,
+        "entries": routeHistory
+    }
+}
+
+pub fn useRouteMatch(path) {
+    let location = useLocation()
+    let match = matchPath(path, location["pathname"])
+    
+    return match
+}
+
+pub fn Redirect(props) {
+    let to = props["to"]
+    
+    useEffect(fn() {
+        navigate(to)
+    }, [to])
+    
+    return null
+}
+
+pub fn Switch(props) {
+    let children = props["children"]
+    let location = props["location"] != null ? props["location"] : useLocation()
+    
+    let i = 0
+    while i < len(children)) {
+        let child = children[i]
+        
+        if child["type"] == "Route") {
+            let match = matchPath(child["props"]["path"], location["pathname"])
+            
+            if match != null) {
+                return createElement(child["props"]["component"], match["params"])
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return props["default"] != null ? props["default"] : null
+}
+
+pub fn Prompt(props) {
+    let when = props["when"] != null ? props["when"] : true
+    let message = props["message"]
+    
+    useEffect(fn() {
+        let listener = fn(path) {
+            if when) {
+                let confirmed = confirm(message)
+                if confirmed == false) {
+                    go(0)
+                }
+            }
+        }
+        
+        addRouteListener(listener)
+        
+        return fn() {
+            removeRouteListener(listener)
+        }
+    }, [when, message])
+    
+    return null
+}
+
+pub fn createMemoryRouter(initialEntries) {
+    let entries = initialEntries != null ? initialEntries : ["/"]
+    
+    return {
+        "kind": "MemoryRouter",
+        "entries": entries,
+        "index": 0,
+        "push": fn(to) {
+            entries = push(entries, to)
+            this["index"] = len(entries) - 1
+        },
+        "replace": fn(to) {
+            entries[this["index"]] = to
+        },
+        "go": fn(delta) {
+            let newIndex = this["index"] + delta
+            if newIndex >= 0 && newIndex < len(entries)) {
+                this["index"] = newIndex
+            }
+        },
+        "location": {
+            "pathname": entries[0],
+            "search": "",
+            "hash": ""
+        }
+    }
+}
+
+pub fn createBrowserRouter(history) {
+    return {
+        "kind": "BrowserRouter",
+        "history": history,
+        "location": {
+            "pathname": getCurrentPath(),
+            "search": "",
+            "hash": ""
+        }
+    }
+}
+
+pub fn createHashRouter() {
+    return {
+        "kind": "HashRouter",
+        "location": {
+            "pathname": getCurrentPath(),
+            "search": "",
+            "hash": ""
+        }
+    }
+}
+
+pub fn StaticRouter(props) {
+    let location = props["location"]
+    let context = props["context"]
+    
+    return createElement(Switch, { "location": location },
+        props["children"]
+    )
+}
+
+fn confirm(message) {
+    return true
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

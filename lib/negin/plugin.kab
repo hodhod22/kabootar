@@ -1,0 +1,500 @@
+@version "1.0.0"
+
+// Negin Plugin - Plugin system for Negin
+// Features: plugin registration, lifecycle hooks, plugin API
+// Canonical path: import "negin/plugin"
+
+let plugins = []
+let pluginHooks = {}
+
+pub fn createPlugin(name, config) {
+    return {
+        "kind": "Plugin",
+        "name": name,
+        "version": config["version"] != null ? config["version"] : "1.0.0",
+        "description": config["description"],
+        "onLoad": config["onLoad"],
+        "onUnload": config["onUnload"],
+        "hooks": config["hooks"] != null ? config["hooks"] : {},
+        "api": config["api"] != null ? config["api"] : {},
+        "enabled": true
+    }
+}
+
+pub fn registerPlugin(plugin) {
+    plugins = push(plugins, plugin)
+    
+    if plugin["onLoad"] != null) {
+        plugin["onLoad"]()
+    }
+    
+    registerPluginHooks(plugin)
+    
+    return plugin
+}
+
+pub fn unregisterPlugin(name) {
+    let newPlugins = []
+    let i = 0
+    while i < len(plugins)) {
+        if plugins[i]["name"] != name) {
+            newPlugins = push(newPlugins, plugins[i])
+        } else {
+            if plugins[i]["onUnload"] != null) {
+                plugins[i]["onUnload"]()
+            }
+            unregisterPluginHooks(plugins[i])
+        }
+        i = i + 1
+    }
+    plugins = newPlugins
+}
+
+fn registerPluginHooks(plugin) {
+    let hooks = plugin["hooks"]
+    
+    for hookName in hooks) {
+        if pluginHooks[hookName] == null) {
+            pluginHooks[hookName] = []
+        }
+        pluginHooks[hookName] = push(pluginHooks[hookName], {
+            "plugin": plugin["name"],
+            "handler": hooks[hookName]
+        })
+    }
+}
+
+fn unregisterPluginHooks(plugin) {
+    let hooks = plugin["hooks"]
+    
+    for hookName in hooks) {
+        if pluginHooks[hookName] != null) {
+            let newHandlers = []
+            let i = 0
+            while i < len(pluginHooks[hookName])) {
+                if pluginHooks[hookName][i]["plugin"] != plugin["name"]) {
+                    newHandlers = push(newHandlers, pluginHooks[hookName][i])
+                }
+                i = i + 1
+            }
+            pluginHooks[hookName] = newHandlers
+        }
+    }
+}
+
+pub fn getPlugin(name) {
+    let i = 0
+    while i < len(plugins)) {
+        if plugins[i]["name"] == name) {
+            return plugins[i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn getPlugins() {
+    return plugins
+}
+
+pub fn enablePlugin(name) {
+    let plugin = getPlugin(name)
+    if plugin != null) {
+        plugin["enabled"] = true
+        if plugin["onLoad"] != null) {
+            plugin["onLoad"]()
+        }
+    }
+}
+
+pub fn disablePlugin(name) {
+    let plugin = getPlugin(name)
+    if plugin != null) {
+        plugin["enabled"] = false
+        if plugin["onUnload"] != null) {
+            plugin["onUnload"]()
+        }
+    }
+}
+
+pub fn isPluginEnabled(name) {
+    let plugin = getPlugin(name)
+    if plugin != null) {
+        return plugin["enabled"]
+    }
+    return false
+}
+
+pub fn usePlugin(name) {
+    let plugin = getPlugin(name)
+    return plugin != null ? plugin["api"] : null
+}
+
+pub fn applyHook(hookName, data) {
+    let handlers = pluginHooks[hookName]
+    
+    if handlers == null) {
+        return data
+    }
+    
+    let result = data
+    
+    let i = 0
+    while i < len(handlers)) {
+        let handler = handlers[i]
+        if isPluginEnabled(handler["plugin"])) {
+            result = handler["handler"](result)
+        }
+        i = i + 1
+    }
+    
+    return result
+}
+
+pub fn createHook(hookName) {
+    return {
+        "kind": "Hook",
+        "name": hookName,
+        "handlers": []
+    }
+}
+
+pub fn addHook(hookName, handler) {
+    if pluginHooks[hookName] == null) {
+        pluginHooks[hookName] = []
+    }
+    pluginHooks[hookName] = push(pluginHooks[hookName], {
+        "plugin": "custom",
+        "handler": handler
+    })
+}
+
+pub fn removeHook(hookName, handler) {
+    if pluginHooks[hookName] != null) {
+        let newHandlers = []
+        let i = 0
+        while i < len(pluginHooks[hookName])) {
+            if pluginHooks[hookName][i]["handler"] !== handler) {
+                newHandlers = push(newHandlers, pluginHooks[hookName][i])
+            }
+            i = i + 1
+        }
+        pluginHooks[hookName] = newHandlers
+    }
+}
+
+pub fn createPluginAPI(pluginName, api) {
+    return {
+        "kind": "PluginAPI",
+        "plugin": pluginName,
+        "api": api
+    }
+}
+
+pub fn extendPluginAPI(pluginName, extension) {
+    let plugin = getPlugin(pluginName)
+    if plugin != null) {
+        for key in extension) {
+            plugin["api"][key] = extension[key]
+        }
+    }
+}
+
+pub fn createPluginManager() {
+    return {
+        "kind": "PluginManager",
+        "plugins": [],
+        "hooks": {},
+        "register": registerPlugin,
+        "unregister": unregisterPlugin,
+        "get": getPlugin,
+        "getAll": getPlugins,
+        "enable": enablePlugin,
+        "disable": disablePlugin,
+        "isEnabled": isPluginEnabled,
+        "use": usePlugin,
+        "applyHook": applyHook,
+        "addHook": addHook,
+        "removeHook": removeHook
+    }
+}
+
+pub fn createDevToolsPlugin() {
+    return createPlugin("devtools", {
+        "version": "1.0.0",
+        "description": "Developer tools for Negin",
+        "onLoad": fn() {
+            console.log("DevTools plugin loaded")
+        },
+        "onUnload": fn() {
+            console.log("DevTools plugin unloaded")
+        },
+        "hooks": {
+            "render": fn(data) {
+                console.log("Render hook called")
+                return data
+            }
+        },
+        "api": {
+            "inspect": fn(component) {
+                console.log("Inspecting component:", component)
+            },
+            "profile": fn(component) {
+                console.log("Profiling component:", component)
+            }
+        }
+    })
+}
+
+pub fn createRouterPlugin() {
+    return createPlugin("router", {
+        "version": "1.0.0",
+        "description": "Routing plugin for Negin",
+        "onLoad": fn() {
+            console.log("Router plugin loaded")
+        },
+        "hooks": {
+            "navigate": fn(data) {
+                console.log("Navigate hook:", data)
+                return data
+            }
+        },
+        "api": {
+            "navigate": fn(path) {
+                console.log("Navigating to:", path)
+            },
+            "back": fn() {
+                console.log("Going back")
+            }
+        }
+    })
+}
+
+pub fn createAnalyticsPlugin(trackingId) {
+    return createPlugin("analytics", {
+        "version": "1.0.0",
+        "description": "Analytics plugin for Negin",
+        "onLoad": fn() {
+            console.log("Analytics plugin loaded with ID:", trackingId)
+        },
+        "hooks": {
+            "render": fn(data) {
+                console.log("Tracking render")
+                return data
+            },
+            "navigate": fn(data) {
+                console.log("Tracking navigation:", data)
+                return data
+            }
+        },
+        "api": {
+            "trackEvent": fn(name, properties) {
+                console.log("Tracking event:", name, properties)
+            },
+            "trackPageView": fn(path) {
+                console.log("Tracking page view:", path)
+            }
+        }
+    })
+}
+
+pub fn createLoggerPlugin(level) {
+    return createPlugin("logger", {
+        "version": "1.0.0",
+        "description": "Logger plugin for Negin",
+        "onLoad": fn() {
+            console.log("Logger plugin loaded with level:", level)
+        },
+        "hooks": {
+            "error": fn(data) {
+                console.error("Error:", data)
+                return data
+            },
+            "warn": fn(data) {
+                console.warn("Warning:", data)
+                return data
+            }
+        },
+        "api": {
+            "log": fn(message, level) {
+                console.log("[" + level + "]", message)
+            },
+            "error": fn(message) {
+                console.error("[ERROR]", message)
+            },
+            "warn": fn(message) {
+                console.warn("[WARN]", message)
+            },
+            "info": fn(message) {
+                console.info("[INFO]", message)
+            }
+        }
+    })
+}
+
+pub fn createI18nPlugin(defaultLocale, translations) {
+    return createPlugin("i18n", {
+        "version": "1.0.0",
+        "description": "Internationalization plugin for Negin",
+        "onLoad": fn() {
+            console.log("I18n plugin loaded with locale:", defaultLocale)
+        },
+        "api": {
+            "locale": defaultLocale,
+            "translations": translations,
+            "t": fn(key, params) {
+                let locale = defaultLocale
+                let translation = translations[locale]
+                if translation != null && translation[key] != null) {
+                    return translation[key]
+                }
+                return key
+            },
+            "setLocale": fn(locale) {
+                defaultLocale = locale
+            },
+            "addTranslations": fn(locale, newTranslations) {
+                if translations[locale] == null) {
+                    translations[locale] = {}
+                }
+                for key in newTranslations) {
+                    translations[locale][key] = newTranslations[key]
+                }
+            }
+        }
+    })
+}
+
+pub fn createStoragePlugin(prefix) {
+    return createPlugin("storage", {
+        "version": "1.0.0",
+        "description": "Storage plugin for Negin",
+        "onLoad": fn() {
+            console.log("Storage plugin loaded with prefix:", prefix)
+        },
+        "api": {
+            "get": fn(key) {
+                return null
+            },
+            "set": fn(key, value) {
+                console.log("Storing:", prefix + key, value)
+            },
+            "remove": fn(key) {
+                console.log("Removing:", prefix + key)
+            },
+            "clear": fn() {
+                console.log("Clearing storage with prefix:", prefix)
+            }
+        }
+    })
+}
+
+pub fn createThemePlugin(defaultTheme) {
+    return createPlugin("theme", {
+        "version": "1.0.0",
+        "description": "Theme plugin for Negin",
+        "onLoad": fn() {
+            console.log("Theme plugin loaded with default:", defaultTheme)
+        },
+        "api": {
+            "currentTheme": defaultTheme,
+            "themes": {
+                "light": {},
+                "dark": {}
+            },
+            "setTheme": fn(theme) {
+                console.log("Setting theme:", theme)
+            },
+            "getTheme": fn() {
+                return defaultTheme
+            },
+            "addTheme": fn(name, theme) {
+                console.log("Adding theme:", name)
+            }
+        }
+    })
+}
+
+pub fn createAuthPlugin(config) {
+    return createPlugin("auth", {
+        "version": "1.0.0",
+        "description": "Authentication plugin for Negin",
+        "onLoad": fn() {
+            console.log("Auth plugin loaded")
+        },
+        "api": {
+            "login": fn(credentials) {
+                console.log("Logging in with:", credentials)
+                return { "success": true, "user": null }
+            },
+            "logout": fn() {
+                console.log("Logging out")
+            },
+            "register": fn(userData) {
+                console.log("Registering:", userData)
+                return { "success": true }
+            },
+            "getUser": fn() {
+                return null
+            },
+            "isAuthenticated": fn() {
+                return false
+            }
+        }
+    })
+}
+
+pub fn getPluginStats() {
+    let stats = {
+        "total": len(plugins),
+        "enabled": 0,
+        "disabled": 0,
+        "hooks": {}
+    }
+    
+    let i = 0
+    while i < len(plugins)) {
+        if plugins[i]["enabled"]) {
+            stats["enabled"] = stats["enabled"] + 1
+        } else {
+            stats["disabled"] = stats["disabled"] + 1
+        }
+        i = i + 1
+    }
+    
+    for hookName in pluginHooks) {
+        stats["hooks"][hookName] = len(pluginHooks[hookName])
+    }
+    
+    return stats
+}
+
+pub fn resetPlugins() {
+    plugins = []
+    pluginHooks = {}
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
