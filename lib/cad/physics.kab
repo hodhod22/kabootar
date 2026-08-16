@@ -1,0 +1,737 @@
+@version "1.0.0"
+
+// CAD Physics - Real-time physics simulation
+// Features: rigid body dynamics, soft body physics, collision detection, constraints
+// Canonical path: import "cad/physics"
+// Target: Physics simulation comparable to NVIDIA PhysX/Bullet Physics
+
+import "cad/geom"
+import "cad/solid"
+import "cad/host"
+
+pub fn createPhysicsWorld(gravity) {
+    return {
+        "kind": "PhysicsWorld",
+        "gravity": gravity,
+        "bodies": [],
+        "constraints": [],
+        "timeStep": 0.016,
+        "substeps": 8
+    }
+}
+
+pub fn createRigidBody(position, mass, shape) {
+    return {
+        "kind": "RigidBody",
+        "position": position,
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "velocity": vec3(0.0, 0.0, 0.0),
+        "angularVelocity": vec3(0.0, 0.0, 0.0),
+        "mass": mass,
+        "inverseMass": 1.0 / mass,
+        "shape": shape,
+        "restitution": 0.5,
+        "friction": 0.3,
+        "static": mass == 0.0
+    }
+}
+
+pub fn createBoxShape(halfExtents) {
+    return {
+        "kind": "BoxShape",
+        "halfExtents": halfExtents
+    }
+}
+
+pub fn createSphereShape(radius) {
+    return {
+        "kind": "SphereShape",
+        "radius": radius
+    }
+}
+
+pub fn createCapsuleShape(radius, height) {
+    return {
+        "kind": "CapsuleShape",
+        "radius": radius,
+        "height": height
+    }
+}
+
+pub fn addBody(world, body) {
+    world["bodies"] = push(world["bodies"], body)
+    return world
+}
+
+pub fn removeBody(world, bodyId) {
+    let bodies = []
+    let i = 0
+    while i < len(world["bodies"]) {
+        if world["bodies"][i]["id"] != bodyId {
+            bodies = push(bodies, world["bodies"][i])
+        }
+        i = i + 1
+    }
+    world["bodies"] = bodies
+    return world
+}
+
+pub fn createConstraint(bodyA, bodyB, type, parameters) {
+    return {
+        "kind": "Constraint",
+        "bodyA": bodyA,
+        "bodyB": bodyB,
+        "type": type,
+        "parameters": parameters
+    }
+}
+
+pub fn createHingeConstraint(bodyA, bodyB, pivot, axis) {
+    return createConstraint(bodyA, bodyB, "hinge", { "pivot": pivot, "axis": axis })
+}
+
+pub fn createSliderConstraint(bodyA, bodyB, axis) {
+    return createConstraint(bodyA, bodyB, "slider", { "axis": axis })
+}
+
+pub fn createFixedConstraint(bodyA, bodyB) {
+    return createConstraint(bodyA, bodyB, "fixed", {})
+}
+
+pub fn addConstraint(world, constraint) {
+    world["constraints"] = push(world["constraints"], constraint)
+    return world
+}
+
+pub fn stepPhysics(world, deltaTime) {
+    let dt = deltaTime / world["substeps"]
+    
+    let substep = 0
+    while substep < world["substeps"] {
+        world = integrateForces(world, dt)
+        world = solveConstraints(world, dt)
+        world = detectCollisions(world)
+        world = resolveCollisions(world, dt)
+        world = integrateVelocities(world, dt)
+        substep = substep + 1
+    }
+    
+    return world
+}
+
+fn integrateForces(world, dt) {
+    let gravity = world["gravity"]
+    
+    let i = 0
+    while i < len(world["bodies"]) {
+        let body = world["bodies"][i]
+        
+        if body["static"] == false {
+            body["velocity"] = vec3Add(body["velocity"], vec3Mul(gravity, dt))
+        }
+        
+        world["bodies"][i] = body
+        i = i + 1
+    }
+    
+    return world
+}
+
+fn solveConstraints(world, dt) {
+    let i = 0
+    while i < len(world["constraints"]) {
+        let constraint = world["constraints"][i]
+        
+        if constraint["type"] == "hinge" {
+            world = solveHingeConstraint(world, constraint, dt)
+        } else if constraint["type"] == "slider" {
+            world = solveSliderConstraint(world, constraint, dt)
+        } else if constraint["type"] == "fixed" {
+            world = solveFixedConstraint(world, constraint, dt)
+        }
+        
+        i = i + 1
+    }
+    
+    return world
+}
+
+fn solveHingeConstraint(world, constraint, dt) {
+    let bodyA = constraint["bodyA"]
+    let bodyB = constraint["bodyB"]
+    
+    let pivot = constraint["parameters"]["pivot"]
+    let axis = constraint["parameters"]["axis"]
+    
+    let rA = vec3Sub(pivot, bodyA["position"])
+    let rB = vec3Sub(pivot, bodyB["position"])
+    
+    let relVel = vec3Sub(
+        vec3Add(bodyB["velocity"], vec3Cross(bodyB["angularVelocity"], rB)),
+        vec3Add(bodyA["velocity"], vec3Cross(bodyA["angularVelocity"], rA))
+    )
+    
+    let normal = vec3Normalize(axis)
+    let vn = vec3Dot(relVel, normal)
+    
+    if abs(vn) > 0.001 {
+        let impulse = -vn / (bodyA["inverseMass"] + bodyB["inverseMass"])
+        
+        let impulseVec = vec3Mul(normal, impulse)
+        
+        if bodyA["static"] == false {
+            bodyA["velocity"] = vec3Sub(bodyA["velocity"], vec3Mul(impulseVec, bodyA["inverseMass"]))
+        }
+        if bodyB["static"] == false {
+            bodyB["velocity"] = vec3Add(bodyB["velocity"], vec3Mul(impulseVec, bodyB["inverseMass"]))
+        }
+    }
+    
+    return world
+}
+
+fn solveSliderConstraint(world, constraint, dt) {
+    let bodyA = constraint["bodyA"]
+    let bodyB = constraint["bodyB"]
+    
+    let axis = vec3Normalize(constraint["parameters"]["axis"])
+    
+    let relVel = vec3Sub(bodyB["velocity"], bodyA["velocity"])
+    let vn = vec3Dot(relVel, axis)
+    
+    if abs(vn) > 0.001 {
+        let impulse = -vn / (bodyA["inverseMass"] + bodyB["inverseMass"])
+        let impulseVec = vec3Mul(axis, impulse)
+        
+        if bodyA["static"] == false {
+            bodyA["velocity"] = vec3Sub(bodyA["velocity"], vec3Mul(impulseVec, bodyA["inverseMass"]))
+        }
+        if bodyB["static"] == false {
+            bodyB["velocity"] = vec3Add(bodyB["velocity"], vec3Mul(impulseVec, bodyB["inverseMass"]))
+        }
+    }
+    
+    return world
+}
+
+fn solveFixedConstraint(world, constraint, dt) {
+    let bodyA = constraint["bodyA"]
+    let bodyB = constraint["bodyB"]
+    
+    let relVel = vec3Sub(bodyB["velocity"], bodyA["velocity"])
+    let impulse = vec3Mul(relVel, -0.5)
+    
+    if bodyA["static"] == false {
+        bodyA["velocity"] = vec3Add(bodyA["velocity"], vec3Mul(impulse, bodyA["inverseMass"]))
+    }
+    if bodyB["static"] == false {
+        bodyB["velocity"] = vec3Sub(bodyB["velocity"], vec3Mul(impulse, bodyB["inverseMass"]))
+    }
+    
+    return world
+}
+
+fn detectCollisions(world) {
+    let collisions = []
+    
+    let i = 0
+    while i < len(world["bodies"]) {
+        let bodyA = world["bodies"][i]
+        
+        let j = i + 1
+        while j < len(world["bodies"]) {
+            let bodyB = world["bodies"][j]
+            
+            let collision = checkCollision(bodyA, bodyB)
+            
+            if collision["colliding"] == true {
+                collisions = push(collisions, collision)
+            }
+            
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    world["collisions"] = collisions
+    return world
+}
+
+fn checkCollision(bodyA, bodyB) {
+    let shapeA = bodyA["shape"]
+    let shapeB = bodyB["shape"]
+    
+    let kindA = shapeA["kind"]
+    let kindB = shapeB["kind"]
+    
+    if kindA == "BoxShape" && kindB == "BoxShape" {
+        return checkBoxBoxCollision(bodyA, bodyB)
+    } else if kindA == "SphereShape" && kindB == "SphereShape" {
+        return checkSphereSphereCollision(bodyA, bodyB)
+    } else if kindA == "SphereShape" && kindB == "BoxShape" {
+        return checkSphereBoxCollision(bodyA, bodyB)
+    } else if kindA == "BoxShape" && kindB == "SphereShape" {
+        return checkSphereBoxCollision(bodyB, bodyA)
+    }
+    
+    return { "colliding": false }
+}
+
+fn checkBoxBoxCollision(bodyA, bodyB) {
+    let posA = bodyA["position"]
+    let posB = bodyB["position"]
+    let extA = bodyA["shape"]["halfExtents"]
+    let extB = bodyB["shape"]["halfExtents"]
+    
+    let diff = vec3Sub(posB, posA)
+    
+    let overlapX = extA["x"] + extB["x"] - abs(diff["x"])
+    let overlapY = extA["y"] + extB["y"] - abs(diff["y"])
+    let overlapZ = extA["z"] + extB["z"] - abs(diff["z"])
+    
+    if overlapX > 0.0 && overlapY > 0.0 && overlapZ > 0.0 {
+        let normal = vec3(1.0, 0.0, 0.0)
+	let penetration = overlapX
+        
+        if overlapY < penetration {
+            penetration = overlapY
+            normal = vec3(0.0, 1.0, 0.0)
+        }
+        if overlapZ < penetration {
+            penetration = overlapZ
+            normal = vec3(0.0, 0.0, 1.0)
+        }
+        
+        if diff["x"] < 0.0 { normal = vec3Mul(normal, -1.0) }
+        
+        return {
+            "colliding": true,
+            "normal": normal,
+            "penetration": penetration,
+            "bodyA": bodyA,
+            "bodyB": bodyB
+        }
+    }
+    
+    return { "colliding": false }
+}
+
+fn checkSphereSphereCollision(bodyA, bodyB) {
+    let posA = bodyA["position"]
+    let posB = bodyB["position"]
+    let radiusA = bodyA["shape"]["radius"]
+    let radiusB = bodyB["shape"]["radius"]
+    
+    let diff = vec3Sub(posB, posA)
+    let distance = vec3Length(diff)
+    let combinedRadius = radiusA + radiusB
+    
+    if distance < combinedRadius {
+        let normal = vec3Normalize(diff)
+        let penetration = combinedRadius - distance
+        
+        return {
+            "colliding": true,
+            "normal": normal,
+            "penetration": penetration,
+            "bodyA": bodyA,
+            "bodyB": bodyB
+        }
+    }
+    
+    return { "colliding": false }
+}
+
+fn checkSphereBoxCollision(sphereBody, boxBody) {
+    let spherePos = sphereBody["position"]
+    let sphereRadius = sphereBody["shape"]["radius"]
+    let boxPos = boxBody["position"]
+    let boxExt = boxBody["shape"]["halfExtents"]
+    
+    let closest = vec3(
+        max(boxPos["x"] - boxExt["x"], min(spherePos["x"], boxPos["x"] + boxExt["x"])),
+        max(boxPos["y"] - boxExt["y"], min(spherePos["y"], boxPos["y"] + boxExt["y"])),
+        max(boxPos["z"] - boxExt["z"], min(spherePos["z"], boxPos["z"] + boxExt["z"]))
+    )
+    
+    let diff = vec3Sub(spherePos, closest)
+    let distance = vec3Length(diff)
+    
+    if distance < sphereRadius {
+        let normal = vec3Normalize(diff)
+        let penetration = sphereRadius - distance
+        
+        return {
+            "colliding": true,
+            "normal": normal,
+            "penetration": penetration,
+            "bodyA": sphereBody,
+            "bodyB": boxBody
+        }
+    }
+    
+    return { "colliding": false }
+}
+
+fn resolveCollisions(world, dt) {
+    let collisions = world["collisions"]
+    
+    let i = 0
+    while i < len(collisions) {
+        let collision = collisions[i]
+        let bodyA = collision["bodyA"]
+        let bodyB = collision["bodyB"]
+        
+        let normal = collision["normal"]
+        let penetration = collision["penetration"]
+        
+        let restitution = min(bodyA["restitution"], bodyB["restitution"])
+        let friction = (bodyA["friction"] + bodyB["friction"]) / 2.0
+        
+        let relVel = vec3Sub(bodyB["velocity"], bodyA["velocity"])
+        let vn = vec3Dot(relVel, normal)
+        
+        if vn < 0.0 {
+            let j = -(1.0 + restitution) * vn
+            j = j / (bodyA["inverseMass"] + bodyB["inverseMass"])
+            
+            let impulse = vec3Mul(normal, j)
+            
+            if bodyA["static"] == false {
+                bodyA["velocity"] = vec3Sub(bodyA["velocity"], vec3Mul(impulse, bodyA["inverseMass"]))
+            }
+            if bodyB["static"] == false {
+                bodyB["velocity"] = vec3Add(bodyB["velocity"], vec3Mul(impulse, bodyB["inverseMass"]))
+            }
+        }
+        
+        let totalInvMass = bodyA["inverseMass"] + bodyB["inverseMass"]
+        if totalInvMass > 0.0 {
+            let correction = vec3Mul(normal, penetration / totalInvMass * 0.8)
+            
+            if bodyA["static"] == false {
+                bodyA["position"] = vec3Sub(bodyA["position"], vec3Mul(correction, bodyA["inverseMass"]))
+            }
+            if bodyB["static"] == false {
+                bodyB["position"] = vec3Add(bodyB["position"], vec3Mul(correction, bodyB["inverseMass"]))
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return world
+}
+
+fn integrateVelocities(world, dt) {
+    let i = 0
+    while i < len(world["bodies"]) {
+        let body = world["bodies"][i]
+        
+        if body["static"] == false {
+            body["position"] = vec3Add(body["position"], vec3Mul(body["velocity"], dt))
+            body["rotation"] = vec3Add(body["rotation"], vec3Mul(body["angularVelocity"], dt))
+        }
+        
+        world["bodies"][i] = body
+        i = i + 1
+    }
+    
+    return world
+}
+
+pub fn createSoftBody(position, mass, nodeCount) {
+    let nodes = []
+    
+    let i = 0
+    while i < nodeCount {
+        let node = {
+            "position": vec3Add(position, vec3(random() - 0.5, random() - 0.5, random() - 0.5)),
+            "velocity": vec3(0.0, 0.0, 0.0),
+            "mass": mass / nodeCount,
+            "inverseMass": nodeCount / mass
+        }
+        nodes = push(nodes, node)
+        i = i + 1
+    }
+    
+    let springs = []
+    let i = 0
+    while i < nodeCount {
+        let j = i + 1
+        while j < nodeCount {
+            let dist = vec3Distance(nodes[i]["position"], nodes[j]["position"])
+            if dist < 2.0 {
+                springs = push(springs, {
+                    "nodeA": i,
+                    "nodeB": j,
+                    "restLength": dist,
+                    "stiffness": 100.0,
+                    "damping": 5.0
+                })
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "kind": "SoftBody",
+        "nodes": nodes,
+        "springs": springs
+    }
+}
+
+pub fn simulateSoftBody(softBody, gravity, dt) {
+    let nodes = softBody["nodes"]
+    let springs = softBody["springs"]
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        
+        node["velocity"] = vec3Add(node["velocity"], vec3Mul(gravity, dt))
+        nodes[i] = node
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(springs) {
+        let spring = springs[i]
+        let nodeA = nodes[spring["nodeA"]]
+        let nodeB = nodes[spring["nodeB"]]
+        
+        let diff = vec3Sub(nodeB["position"], nodeA["position"])
+        let distance = vec3Length(diff)
+        let direction = vec3Normalize(diff)
+        
+        let displacement = distance - spring["restLength"]
+        let springForce = vec3Mul(direction, -spring["stiffness"] * displacement)
+        
+        let relVel = vec3Sub(nodeB["velocity"], nodeA["velocity"])
+        let dampingForce = vec3Mul(direction, -spring["damping"] * vec3Dot(relVel, direction))
+        
+        let totalForce = vec3Add(springForce, dampingForce)
+        
+        if nodeA["inverseMass"] > 0.0 {
+            nodeA["velocity"] = vec3Add(nodeA["velocity"], vec3Mul(totalForce, nodeA["inverseMass"] * dt))
+        }
+        if nodeB["inverseMass"] > 0.0 {
+            nodeB["velocity"] = vec3Sub(nodeB["velocity"], vec3Mul(totalForce, nodeB["inverseMass"] * dt))
+        }
+        
+        nodes[spring["nodeA"]] = nodeA
+        nodes[spring["nodeB"]] = nodeB
+        
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(nodes) {
+        let node = nodes[i]
+        node["position"] = vec3Add(node["position"], vec3Mul(node["velocity"], dt))
+        nodes[i] = node
+        i = i + 1
+    }
+    
+    softBody["nodes"] = nodes
+    return softBody
+}
+
+pub fn createFluidSimulation(bounds, particleCount) {
+    let particles = []
+    
+    let i = 0
+    while i < particleCount {
+        let particle = {
+            "position": vec3(
+                bounds["minX"] + random() * (bounds["maxX"] - bounds["minX"]),
+                bounds["minY"] + random() * (bounds["maxY"] - bounds["minY"]),
+                bounds["minZ"] + random() * (bounds["maxZ"] - bounds["minZ"])
+            ),
+            "velocity": vec3(0.0, 0.0, 0.0),
+            "density": 0.0,
+            "pressure": 0.0
+        }
+        particles = push(particles, particle)
+        i = i + 1
+    }
+    
+    return {
+        "kind": "FluidSimulation",
+        "bounds": bounds,
+        "particles": particles,
+        "smoothingRadius": 1.0,
+        "restDensity": 1000.0,
+        "stiffness": 2000.0,
+        "viscosity": 0.1
+    }
+}
+
+pub fn simulateFluid(fluid, gravity, dt) {
+    let particles = fluid["particles"]
+    let h = fluid["smoothingRadius"]
+    let h2 = h * h
+    let h3 = h2 * h
+    let h6 = h3 * h3
+    
+    let i = 0
+    while i < len(particles) {
+        let particle = particles[i]
+        particle["density"] = 0.0
+        particles[i] = particle
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(particles) {
+        let particle = particles[i]
+        
+        let j = 0
+        while j < len(particles) {
+            let neighbor = particles[j]
+            let diff = vec3Sub(neighbor["position"], particle["position"])
+            let r2 = vec3Dot(diff, diff)
+            
+            if r2 < h2 {
+                let r = sqrt(r2)
+                let w = (h - r) * (h - r)
+                particle["density"] = particle["density"] + w
+            }
+            
+            j = j + 1
+        }
+        
+        particle["density"] = particle["density"] * 315.0 / (64.0 * 3.14159 * h6)
+        particle["pressure"] = fluid["stiffness"] * (particle["density"] - fluid["restDensity"])
+        particles[i] = particle
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(particles) {
+        let particle = particles[i]
+        let force = vec3(0.0, 0.0, 0.0)
+        
+        let j = 0
+        while j < len(particles) {
+            let neighbor = particles[j]
+            let diff = vec3Sub(neighbor["position"], particle["position"])
+            let r2 = vec3Dot(diff, diff)
+            
+            if r2 < h2 && r2 > 0.0 {
+                let r = sqrt(r2)
+                let direction = vec3Mul(diff, 1.0 / r)
+                
+                let pressureForce = vec3Mul(direction, -(particle["pressure"] + neighbor["pressure"]) / 2.0)
+                let viscosityForce = vec3Mul(vec3Sub(neighbor["velocity"], particle["velocity"]), fluid["viscosity"])
+                
+                force = vec3Add(force, vec3Add(pressureForce, viscosityForce))
+            }
+            
+            j = j + 1
+        }
+        
+        particle["velocity"] = vec3Add(particle["velocity"], vec3Mul(vec3Add(force, gravity), dt))
+        particle["position"] = vec3Add(particle["position"], vec3Mul(particle["velocity"], dt))
+        
+        if particle["position"]["x"] < fluid["bounds"]["minX"] {
+            particle["position"]["x"] = fluid["bounds"]["minX"]
+            particle["velocity"]["x"] = particle["velocity"]["x"] * -0.5
+        }
+        if particle["position"]["x"] > fluid["bounds"]["maxX"] {
+            particle["position"]["x"] = fluid["bounds"]["maxX"]
+            particle["velocity"]["x"] = particle["velocity"]["x"] * -0.5
+        }
+        if particle["position"]["y"] < fluid["bounds"]["minY"] {
+            particle["position"]["y"] = fluid["bounds"]["minY"]
+            particle["velocity"]["y"] = particle["velocity"]["y"] * -0.5
+        }
+        if particle["position"]["y"] > fluid["bounds"]["maxY"] {
+            particle["position"]["y"] = fluid["bounds"]["maxY"]
+            particle["velocity"]["y"] = particle["velocity"]["y"] * -0.5
+        }
+        if particle["position"]["z"] < fluid["bounds"]["minZ"] {
+            particle["position"]["z"] = fluid["bounds"]["minZ"]
+            particle["velocity"]["z"] = particle["velocity"]["z"] * -0.5
+        }
+        if particle["position"]["z"] > fluid["bounds"]["maxZ"] {
+            particle["position"]["z"] = fluid["bounds"]["maxZ"]
+            particle["velocity"]["z"] = particle["velocity"]["z"] * -0.5
+        }
+        
+        particles[i] = particle
+        i = i + 1
+    }
+    
+    fluid["particles"] = particles
+    return fluid
+}
+
+fn vec3(x, y, z) {
+    return { "x": x, "y": y, "z": z }
+}
+
+fn vec3Add(a, b) {
+    return vec3(a["x"] + b["x"], a["y"] + b["y"], a["z"] + b["z"])
+}
+
+fn vec3Sub(a, b) {
+    return vec3(a["x"] - b["x"], a["y"] - b["y"], a["z"] - b["z"])
+}
+
+fn vec3Mul(v, s) {
+    return vec3(v["x"] * s, v["y"] * s, v["z"] * s)
+}
+
+fn vec3Dot(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn vec3Cross(a, b) {
+    return vec3(
+        a["y"] * b["z"] - a["z"] * b["y"],
+        a["z"] * b["x"] - a["x"] * b["z"],
+        a["x"] * b["y"] - a["y"] * b["x"]
+    )
+}
+
+fn vec3Normalize(v) {
+    let len = vec3Length(v)
+    if len == 0.0 {
+        return vec3(0.0, 0.0, 0.0)
+    }
+    return vec3(v["x"] / len, v["y"] / len, v["z"] / len)
+}
+
+fn vec3Length(v) {
+    return sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+}
+
+fn vec3Distance(a, b) {
+    return vec3Length(vec3Sub(b, a))
+}
+
+fn abs(x) {
+    if x < 0.0 { return -x }
+    return x
+}
+
+fn min(a, b) {
+    if a < b { return a }
+    return b
+}
+
+fn max(a, b) {
+    if a > b { return a }
+    return b
+}
+
+fn sqrt(x) {
+    return systemSqrt(x)
+}
+
+fn random() {
+    return systemRandom()
+}
