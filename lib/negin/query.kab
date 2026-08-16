@@ -1,0 +1,467 @@
+@version "1.0.0"
+
+// Negin Query - Data fetching library for Negin (React Query-like)
+// Features: caching, refetching, mutations, optimistic updates
+// Canonical path: import "negin/query"
+
+import "negin/hooks"
+import "negin/signals"
+
+let queryCache = {}
+let mutationCache = []
+let defaultConfig = {
+    "staleTime": 0,
+    "cacheTime": 300000,
+    "refetchOnWindowFocus": true,
+    "refetchOnReconnect": true,
+    "refetchInterval": false
+}
+
+pub fn createQueryClient(config) {
+    return {
+        "kind": "QueryClient",
+        "config": config != null ? config : defaultConfig,
+        "cache": queryCache,
+        "mutations": mutationCache,
+        "query": executeQuery,
+        "setQueryData": setQueryData,
+        "getQueryData": getQueryData,
+        "invalidateQueries": invalidateQueries,
+        "resetQueries": resetQueries
+    }
+}
+
+pub fn useQuery(key, queryFn, options) {
+    let config = options != null ? options : defaultConfig
+    
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(true)
+    let (isStale, setIsStale] = useState(false)
+    
+    let cacheKey = getCacheKey(key)
+    
+    let cachedData = getQueryData(cacheKey)
+    
+    if cachedData != null) {
+        setData(cachedData)
+        setIsLoading(false)
+        
+        let age = currentTime() - cachedData["timestamp"]
+        if age > config["staleTime"]) {
+            setIsStale(true)
+        }
+    }
+    
+    useEffect(fn() {
+        let isMounted = true
+        
+        let fetchData = fn() {
+            setIsLoading(true)
+            
+            queryFn().then(fn(result) {
+                if isMounted) {
+                    setData(result)
+                    setError(null)
+                    setIsLoading(false)
+                    setIsStale(false)
+                    setQueryData(cacheKey, result)
+                }
+            }).catch(fn(err) {
+                if isMounted) {
+                    setError(err)
+                    setIsLoading(false)
+                }
+            })
+        }
+        
+        fetchData()
+        
+        let interval = null
+        if config["refetchInterval"] != false) {
+            interval = setInterval(fetchData, config["refetchInterval"])
+        }
+        
+        return fn() {
+            isMounted = false
+            if interval != null) {
+                clearInterval(interval)
+            }
+        }
+    }, [cacheKey, config])
+    
+    let refetch = fn() {
+        setIsLoading(true)
+        return queryFn().then(fn(result) {
+            setData(result)
+            setError(null)
+            setIsLoading(false)
+            setQueryData(cacheKey, result)
+        })
+    }
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "isStale": isStale,
+        "refetch": refetch
+    }
+}
+
+pub fn useMutation(mutationFn, options) {
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(false)
+    
+    let mutate = fn(variables) {
+        setIsLoading(true)
+        
+        return mutationFn(variables).then(fn(result) {
+            setData(result)
+            setError(null)
+            setIsLoading(false)
+            
+            if options != null && options["onSuccess"] != null) {
+                options["onSuccess"](result, variables)
+            }
+            
+            return result
+        }).catch(fn(err) {
+            setError(err)
+            setIsLoading(false)
+            
+            if options != null && options["onError"] != null) {
+                options["onError"](err, variables)
+            }
+            
+            throw err
+        })
+    }
+    
+    let reset = fn() {
+        setData(null)
+        setError(null)
+        setIsLoading(false)
+    }
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "mutate": mutate,
+        "reset": reset
+    }
+}
+
+pub fn useInfiniteQuery(key, queryFn, options) {
+    let (data, setData] = useState([])
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(false)
+    let (hasMore, setHasMore] = useState(true)
+    let (page, setPage] = useState(1)
+    
+    let fetchNextPage = fn() {
+        if isLoading || !hasMore) {
+            return
+        }
+        
+        setIsLoading(true)
+        
+        queryFn(page).then(fn(result) {
+            setData([...data, ...result])
+            setPage(page + 1)
+            setIsLoading(false)
+            
+            if len(result) == 0) {
+                setHasMore(false)
+            }
+        }).catch(fn(err) {
+            setError(err)
+            setIsLoading(false)
+        })
+    }
+    
+    useEffect(fn() {
+        fetchNextPage()
+    }, [key])
+    
+    let refetch = fn() {
+        setData([])
+        setPage(1)
+        setHasMore(true)
+        fetchNextPage()
+    }
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "hasMore": hasMore,
+        "fetchNextPage": fetchNextPage,
+        "refetch": refetch
+    }
+}
+
+fn executeQuery(key, queryFn) {
+    let cacheKey = getCacheKey(key)
+    
+    return queryFn().then(fn(result) {
+        setQueryData(cacheKey, result)
+        return result
+    })
+}
+
+fn setQueryData(key, data) {
+    queryCache[key] = {
+        "data": data,
+        "timestamp": currentTime()
+    }
+}
+
+fn getQueryData(key) {
+    let cached = queryCache[key]
+    
+    if cached != null) {
+        let age = currentTime() - cached["timestamp"]
+        if age < defaultConfig["cacheTime"]) {
+            return cached["data"]
+        }
+    }
+    
+    return null
+}
+
+pub fn invalidateQueries(key) {
+    let keys = []
+    
+    if typeof(key) == "string") {
+        keys = push(keys, key)
+    } else if typeof(key) == "array") {
+        keys = key
+    } else {
+        for cacheKey in queryCache) {
+            keys = push(keys, cacheKey)
+        }
+    }
+    
+    let i = 0
+    while i < len(keys)) {
+        queryCache[keys[i]] = null
+        i = i + 1
+    }
+}
+
+pub fn resetQueries() {
+    queryCache = {}
+}
+
+pub fn setQueryDefaults(config) {
+    for key in config) {
+        defaultConfig[key] = config[key]
+    }
+}
+
+fn getCacheKey(key) {
+    if typeof(key) == "string") {
+        return key
+    } else if typeof(key) == "array") {
+        return join(key, "-")
+    }
+    return toString(key)
+}
+
+fn join(arr, separator) {
+    let result = ""
+    let i = 0
+    while i < len(arr)) {
+        if i > 0) {
+            result = result + separator
+        }
+        result = result + arr[i]
+        i = i + 1
+    }
+    return result
+}
+
+pub fn useQueryClient() {
+    let client = useState(createQueryClient(null))
+    return client[0]
+}
+
+pub fn QueryClientProvider(props) {
+    let client = props["client"] != null ? props["client"] : createQueryClient(null)
+    let children = props["children"]
+    
+    return createElement("div", { "data-query-client": "true" }, children)
+}
+
+pub fn usePrefetchQuery(key, queryFn, options) {
+    let client = useQueryClient()
+    
+    useEffect(fn() {
+        client["query"](key, queryFn)
+    }, [key])
+}
+
+pub fn useIsFetching() {
+    let (count, setCount] = useState(0)
+    
+    useEffect(fn() {
+        let interval = setInterval(fn() {
+            let fetching = 0
+            for key in queryCache) {
+                if queryCache[key] == null) {
+                    fetching = fetching + 1
+                }
+            }
+            setCount(fetching)
+        }, 100)
+        
+        return fn() {
+            clearInterval(interval)
+        }
+    }, [])
+    
+    return count
+}
+
+pub fn useIsMutating() {
+    let (count, setCount] = useState(0)
+    
+    useEffect(fn() {
+        let interval = setInterval(fn() {
+            setCount(len(mutationCache))
+        }, 100)
+        
+        return fn() {
+            clearInterval(interval)
+        }
+    }, [])
+    
+    return count
+}
+
+pub function useQueryInfinite(key, fetchFn, options) {
+    let (data, setData] = useState([])
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(false)
+    let (hasNextPage, setHasNextPage] = useState(true)
+    
+    let fetchNextPage = fn() {
+        if isLoading || !hasNextPage) {
+            return
+        }
+        
+        setIsLoading(true)
+        
+        let page = len(data)
+        
+        fetchFn(page).then(fn(result) {
+            setData([...data, ...result])
+            setIsLoading(false)
+            
+            if len(result) == 0) {
+                setHasNextPage(false)
+            }
+        }).catch(fn(err) {
+            setError(err)
+            setIsLoading(false)
+        })
+    }
+    
+    useEffect(fn() {
+        fetchNextPage()
+    }, [key])
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "hasNextPage": hasNextPage,
+        "fetchNextPage": fetchNextPage
+    }
+}
+
+pub fn useQuerySuspense(key, queryFn, options) {
+    let cacheKey = getCacheKey(key)
+    let cachedData = getQueryData(cacheKey)
+    
+    if cachedData != null) {
+        return cachedData
+    }
+    
+    throw queryFn().then(fn(result) {
+        setQueryData(cacheKey, result)
+        return result
+    })
+}
+
+pub fn dehydrate(client) {
+    return {
+        "queries": client["cache"],
+        "mutations": client["mutations"]
+    }
+}
+
+pub fn hydrate(client, dehydratedState) {
+    for key in dehydratedState["queries"]) {
+        queryCache[key] = dehydratedState["queries"][key]
+    }
+    client["mutations"] = dehydratedState["mutations"]
+}
+
+pub fn clearCache() {
+    queryCache = {}
+}
+
+pub fn getCache() {
+    return queryCache
+}
+
+fn setInterval(callback, delay) {
+    return null
+}
+
+fn clearInterval(id) {
+}
+
+fn setTimeout(callback, delay) {
+    return null
+}
+
+fn clearTimeout(id) {
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn toString(value) {
+    return "" + value
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

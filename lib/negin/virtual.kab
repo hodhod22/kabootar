@@ -1,0 +1,403 @@
+@version "1.0.0"
+
+// Negin Virtual - Virtual list for large datasets
+// Features: virtual scrolling, windowing, dynamic sizing
+// Canonical path: import "negin/virtual"
+
+import "negin/core"
+import "negin/hooks"
+
+pub fn createVirtualList(items, itemHeight) {
+    return {
+        "kind": "VirtualList",
+        "items": items,
+        "itemHeight": itemHeight,
+        "scrollTop": 0,
+        "viewportHeight": 600
+    }
+}
+
+pub fn VirtualList(props) {
+    let items = props["items"]
+    let itemHeight = props["itemHeight"] != null ? props["itemHeight"] : 50
+    let height = props["height"] != null ? props["height"] : 600
+    let overscan = props["overscan"] != null ? props["overscan"] : 3
+    let renderItem = props["renderItem"]
+    
+    let (scrollTop, setScrollTop] = useState(0)
+    let (containerRef, setContainerRef] = useState(null)
+    
+    let visibleCount = ceil(height / itemHeight)
+    let startIndex = max(0, floor(scrollTop / itemHeight) - overscan)
+    let endIndex = min(len(items), startIndex + visibleCount + overscan * 2)
+    
+    let offsetY = startIndex * itemHeight
+    let totalHeight = len(items) * itemHeight
+    
+    let visibleItems = []
+    let i = startIndex
+    while i < endIndex) {
+        let item = items[i]
+        visibleItems = push(visibleItems, renderItem(item, i))
+        i = i + 1
+    }
+    
+    let handleScroll = fn(event) {
+        setScrollTop(event["target"]["scrollTop"])
+    }
+    
+    return createElement("div", {
+        "className": "virtual-list-container",
+        "style": { "height": height + "px", "overflow": "auto" },
+        "onScroll": handleScroll,
+        "ref": setContainerRef
+    },
+        createElement("div", {
+            "className": "virtual-list-content",
+            "style": { "height": totalHeight + "px", "position": "relative" }
+        },
+            createElement("div", {
+                "style": { "transform": "translateY(" + offsetY + "px)" }
+            }, visibleItems)
+        )
+    )
+}
+
+pub fn VirtualGrid(props) {
+    let items = props["items"]
+    let columnCount = props["columnCount"] != null ? props["columnCount"] : 3
+    let itemHeight = props["itemHeight"] != null ? props["itemHeight"] : 100
+    let itemWidth = props["itemWidth"] != null ? props["itemWidth"] : 100
+    let height = props["height"] != null ? props["height"] : 600
+    let renderItem = props["renderItem"]
+    
+    let (scrollTop, setScrollTop] = useState(0)
+    
+    let itemsPerRow = columnCount
+    let rowCount = ceil(len(items) / itemsPerRow)
+    let rowHeight = itemHeight
+    let totalHeight = rowCount * rowHeight
+    
+    let visibleRows = ceil(height / rowHeight)
+    let startRow = max(0, floor(scrollTop / rowHeight))
+    let endRow = min(rowCount, startRow + visibleRows + 2)
+    
+    let offsetY = startRow * rowHeight
+    
+    let visibleItems = []
+    let i = startRow
+    while i < endRow) {
+        let j = 0
+        while j < itemsPerRow) {
+            let index = i * itemsPerRow + j
+            if index < len(items)) {
+                visibleItems = push(visibleItems, renderItem(items[index], index))
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    let handleScroll = fn(event) {
+        setScrollTop(event["target"]["scrollTop"])
+    }
+    
+    return createElement("div", {
+        "className": "virtual-grid-container",
+        "style": { "height": height + "px", "overflow": "auto" },
+        "onScroll": handleScroll
+    },
+        createElement("div", {
+            "className": "virtual-grid-content",
+            "style": { "height": totalHeight + "px", "position": "relative" }
+        },
+            createElement("div", {
+                "className": "virtual-grid-items",
+                "style": {
+                    "transform": "translateY(" + offsetY + "px)",
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(" + columnCount + ", " + itemWidth + "px)"
+                }
+            }, visibleItems)
+        )
+    )
+}
+
+pub fn DynamicSizeList(props) {
+    let items = props["items"]
+    let height = props["height"] != null ? props["height"] : 600
+    let renderItem = props["renderItem"]
+    let estimateHeight = props["estimateHeight"] != null ? props["estimateHeight"] : fn() { return 50 }
+    
+    let (scrollTop, setScrollTop] = useState(0)
+    let (itemSizes, setItemSizes] = useState({})
+    
+    let totalHeight = 0
+    let itemOffsets = []
+    let currentOffset = 0
+    
+    let i = 0
+    while i < len(items)) {
+        let itemHeight = itemSizes[i] != null ? itemSizes[i] : estimateHeight(i)
+        itemOffsets = push(itemOffsets, currentOffset)
+        currentOffset = currentOffset + itemHeight
+        totalHeight = currentOffset
+        i = i + 1
+    }
+    
+    let visibleItems = []
+    let i = 0
+    while i < len(items)) {
+        if itemOffsets[i] + itemSizes[i] > scrollTop && itemOffsets[i] < scrollTop + height) {
+            visibleItems = push(visibleItems, {
+                "item": items[i],
+                "index": i,
+                "offset": itemOffsets[i]
+            })
+        }
+        i = i + 1
+    }
+    
+    let handleScroll = fn(event) {
+        setScrollTop(event["target"]["scrollTop"])
+    }
+    
+    let measureItem = fn(index, height) {
+        setItemSizes({ ...itemSizes, [index]: height })
+    }
+    
+    return createElement("div", {
+        "className": "dynamic-list-container",
+        "style": { "height": height + "px", "overflow": "auto" },
+        "onScroll": handleScroll
+    },
+        createElement("div", {
+            "className": "dynamic-list-content",
+            "style": { "height": totalHeight + "px", "position": "relative" }
+        },
+            visibleItems.map(fn(item) {
+                return createElement("div", {
+                    "key": item["index"],
+                    "style": { "position": "absolute", "top": item["offset"] + "px" }
+                }, renderItem(item["item"], item["index"], measureItem))
+            })
+        )
+    )
+}
+
+pub fn Masonry(props) {
+    let items = props["items"]
+    let columnCount = props["columnCount"] != null ? props["columnCount"] : 3
+    let columnWidth = props["columnWidth"] != null ? props["columnWidth"] : 300
+    let renderItem = props["renderItem"]
+    
+    let (columnHeights, setColumnHeights] = useState([])
+    let (itemPositions, setItemPositions] = useState([])
+    
+    useEffect(fn() {
+        let heights = []
+        let i = 0
+        while i < columnCount) {
+            heights = push(heights, 0)
+            i = i + 1
+        }
+        setColumnHeights(heights)
+    }, [columnCount])
+    
+    useEffect(fn() {
+        let positions = []
+        let i = 0
+        while i < len(items)) {
+            let shortestColumn = 0
+            let minHeight = columnHeights[0]
+            
+            let j = 1
+            while j < columnCount) {
+                if columnHeights[j] < minHeight) {
+                    minHeight = columnHeights[j]
+                    shortestColumn = j
+                }
+                j = j + 1
+            }
+            
+            positions = push(positions, {
+                "column": shortestColumn,
+                "top": columnHeights[shortestColumn]
+            })
+            
+            columnHeights[shortestColumn] = columnHeights[shortestColumn] + items[i]["height"]
+            
+            i = i + 1
+        }
+        
+        setItemPositions(positions)
+    }, [items, columnCount])
+    
+    let columns = []
+    let i = 0
+    while i < columnCount) {
+        let columnItems = []
+        let j = 0
+        while j < len(itemPositions)) {
+            if itemPositions[j]["column"] == i) {
+                columnItems = push(columnItems, {
+                    "item": items[j],
+                    "index": j,
+                    "top": itemPositions[j]["top"]
+                })
+            }
+            j = j + 1
+        }
+        columns = push(columns, columnItems)
+        i = i + 1
+    }
+    
+    return createElement("div", { "className": "masonry" },
+        columns.map(fn(columnItems, columnIndex) {
+            return createElement("div", {
+                "key": columnIndex,
+                "className": "masonry-column",
+                "style": { "width": columnWidth + "px" }
+            },
+                columnItems.map(fn(item) {
+                    return createElement("div", {
+                        "key": item["index"],
+                        "style": { "position": "absolute", "top": item["top"] + "px", "width": "100%" }
+                    }, renderItem(item["item"], item["index"]))
+                })
+            )
+        })
+    )
+}
+
+pub fn useVirtualList(items, options) {
+    let itemHeight = options != null && options["itemHeight"] != null ? options["itemHeight"] : 50
+    let overscan = options != null && options["overscan"] != null ? options["overscan"] : 3
+    let height = options != null && options["height"] != null ? options["height"] : 600
+    
+    let (scrollTop, setScrollTop] = useState(0)
+    
+    let visibleCount = ceil(height / itemHeight)
+    let startIndex = max(0, floor(scrollTop / itemHeight) - overscan)
+    let endIndex = min(len(items), startIndex + visibleCount + overscan * 2)
+    
+    let offsetY = startIndex * itemHeight
+    let totalHeight = len(items) * itemHeight
+    
+    let visibleItems = []
+    let i = startIndex
+    while i < endIndex) {
+        visibleItems = push(visibleItems, items[i])
+        i = i + 1
+    }
+    
+    let scrollIntoView = fn(index) {
+        setScrollTop(index * itemHeight)
+    }
+    
+    return {
+        "visibleItems": visibleItems,
+        "startIndex": startIndex,
+        "endIndex": endIndex,
+        "offsetY": offsetY,
+        "totalHeight": totalHeight,
+        "scrollTop": scrollTop,
+        "setScrollTop": setScrollTop,
+        "scrollIntoView": scrollIntoView
+    }
+}
+
+pub fn useVirtualGrid(items, options) {
+    let columnCount = options != null && options["columnCount"] != null ? options["columnCount"] : 3
+    let itemHeight = options != null && options["itemHeight"] != null ? options["itemHeight"] : 100
+    let itemWidth = options != null && options["itemWidth"] != null ? options["itemWidth"] : 100
+    let height = options != null && options["height"] != null ? options["height"] : 600
+    
+    let (scrollTop, setScrollTop] = useState(0)
+    
+    let itemsPerRow = columnCount
+    let rowCount = ceil(len(items) / itemsPerRow)
+    let rowHeight = itemHeight
+    let totalHeight = rowCount * rowHeight
+    
+    let visibleRows = ceil(height / rowHeight)
+    let startRow = max(0, floor(scrollTop / rowHeight))
+    let endRow = min(rowCount, startRow + visibleRows + 2)
+    
+    let offsetY = startRow * rowHeight
+    
+    let visibleItems = []
+    let i = startRow
+    while i < endRow) {
+        let j = 0
+        while j < itemsPerRow) {
+            let index = i * itemsPerRow + j
+            if index < len(items)) {
+                visibleItems = push(visibleItems, { "item": items[index], "index": index })
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return {
+        "visibleItems": visibleItems,
+        "startRow": startRow,
+        "endRow": endRow,
+        "offsetY": offsetY,
+        "totalHeight": totalHeight,
+        "scrollTop": scrollTop,
+        "setScrollTop": setScrollTop
+    }
+}
+
+fn ceil(value) {
+    let result = floor(value)
+    if result < value) {
+        result = result + 1
+    }
+    return result
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn max(a, b) {
+    if a > b) {
+        return a
+    }
+    return b
+}
+
+fn min(a, b) {
+    if a < b) {
+        return a
+    }
+    return b
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

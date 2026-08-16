@@ -1,0 +1,432 @@
+@version "1.0.0"
+
+// Negin Table - Table component for Negin
+// Features: sorting, filtering, pagination, selection
+// Canonical path: import "negin/table"
+
+import "negin/core"
+import "negin/hooks"
+
+pub fn Table(props) {
+    let columns = props["columns"]
+    let data = props["data"]
+    let sortable = props["sortable"] != null ? props["sortable"] : true
+    let selectable = props["selectable"] != null ? props["selectable"] : false
+    
+    let (sortColumn, setSortColumn] = useState(null)
+    let (sortDirection, setSortDirection] = useState("asc")
+    let (selectedRows, setSelectedRows] = useState([])
+    let (allSelected, setAllSelected] = useState(false)
+    
+    let handleSort = fn(columnKey) {
+        if sortable == false) {
+            return
+        }
+        
+        if sortColumn == columnKey) {
+            setSortDirection(sortDirection == "asc" ? "desc" : "asc")
+        } else {
+            setSortColumn(columnKey)
+            setSortDirection("asc")
+        }
+    }
+    
+    let sortedData = data
+    if sortColumn != null) {
+        sortedData = sortData(data, sortColumn, sortDirection)
+    }
+    
+    let handleSelectAll = fn(checked) {
+        setAllSelected(checked)
+        if checked) {
+            let indices = []
+            let i = 0
+            while i < len(sortedData)) {
+                indices = push(indices, i)
+                i = i + 1
+            }
+            setSelectedRows(indices)
+        } else {
+            setSelectedRows([])
+        }
+    }
+    
+    let handleSelectRow = fn(index, checked) {
+        if checked) {
+            setSelectedRows([...selectedRows, index])
+        } else {
+            let newSelected = []
+            let i = 0
+            while i < len(selectedRows)) {
+                if selectedRows[i] !== index) {
+                    newSelected = push(newSelected, selectedRows[i])
+                }
+                i = i + 1
+            }
+            setSelectedRows(newSelected)
+        }
+    }
+    
+    return createElement("div", { "className": "table-container" },
+        createElement("table", { "className": "table" },
+            createElement("thead", {},
+                createElement("tr", {},
+                    selectable ? createElement("th", {},
+                        createElement("input", {
+                            "type": "checkbox",
+                            "checked": allSelected,
+                            "onChange": fn(event) { handleSelectAll(event["target"]["checked"]) }
+                        })
+                    ) : null,
+                    columns.map(fn(column) {
+                        return createElement("th", {
+                            "key": column["key"],
+                            "className": sortable ? "sortable" : "",
+                            "onClick": fn() { handleSort(column["key"]) }
+                        },
+                            column["label"],
+                            sortColumn == column["key"] ? createElement("span", { "className": "sort-icon" }, sortDirection == "asc" ? "↑" : "↓") : null
+                        )
+                    })
+                )
+            ),
+            createElement("tbody", {},
+                sortedData.map(fn(row, rowIndex) {
+                    return createElement("tr", { "key": rowIndex },
+                        selectable ? createElement("td", {},
+                            createElement("input", {
+                                "type": "checkbox",
+                                "checked": contains(selectedRows, rowIndex),
+                                "onChange": fn(event) { handleSelectRow(rowIndex, event["target"]["checked"]) }
+                            })
+                        ) : null,
+                        columns.map(fn(column) {
+                            return createElement("td", { "key": column["key"] },
+                                column["render"] != null
+                                    ? column["render"](row[column["key"]], row)
+                                    : row[column["key"]]
+                            )
+                        })
+                    )
+                })
+            )
+        )
+    )
+}
+
+fn sortData(data, columnKey, direction) {
+    let sorted = [...data]
+    
+    sorted.sort(fn(a, b) {
+        let aVal = a[columnKey]
+        let bVal = b[columnKey]
+        
+        if typeof(aVal) == "string" && typeof(bVal) == "string") {
+            if direction == "asc") {
+                return aVal < bVal ? -1 : 1
+            } else {
+                return aVal > bVal ? -1 : 1
+            }
+        } else if typeof(aVal) == "number" && typeof(bVal) == "number") {
+            if direction == "asc") {
+                return aVal - bVal
+            } else {
+                return bVal - aVal
+            }
+        }
+        
+        return 0
+    })
+    
+    return sorted
+}
+
+fn contains(arr, value) {
+    let i = 0
+    while i < len(arr)) {
+        if arr[i] == value) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn DataTable(props) {
+    let columns = props["columns"]
+    let data = props["data"]
+    let pagination = props["pagination"] != null ? props["pagination"] : {}
+    let filterable = props["filterable"] != null ? props["filterable"] : true
+    
+    let (currentPage, setCurrentPage] = useState(1)
+    let (pageSize, setPageSize] = useState(pagination["pageSize"] != null ? pagination["pageSize"] : 10)
+    let (filters, setFilters] = useState({})
+    
+    let filteredData = data
+    if filterable) {
+        filteredData = filterData(data, filters)
+    }
+    
+    let totalPages = ceil(len(filteredData) / pageSize)
+    let startIndex = (currentPage - 1) * pageSize
+    let endIndex = startIndex + pageSize
+    let paginatedData = filteredData.slice(startIndex, endIndex)
+    
+    let handleFilter = fn(columnKey, value) {
+        setFilters({ ...filters, [columnKey]: value })
+        setCurrentPage(1)
+    }
+    
+    let handlePageChange = fn(page) {
+        setCurrentPage(page)
+    }
+    
+    let handlePageSizeChange = fn(size) {
+        setPageSize(size)
+        setCurrentPage(1)
+    }
+    
+    return createElement("div", { "className": "data-table" },
+        filterable ? createElement("div", { "className": "table-filters" },
+            columns.map(fn(column) {
+                if column["filterable"] == false) {
+                    return null
+                }
+                return createElement("input", {
+                    "key": column["key"],
+                    "type": "text",
+                    "placeholder": "Filter " + column["label"],
+                    "value": filters[column["key"]] != null ? filters[column["key"]] : "",
+                    "onChange": fn(event) { handleFilter(column["key"], event["target"]["value"]) }
+                })
+            })
+        ) : null,
+        createElement(Table, {
+            "columns": columns,
+            "data": paginatedData,
+            "sortable": props["sortable"],
+            "selectable": props["selectable"]
+        }),
+        pagination["enabled"] != false ? createElement("div", { "className": "table-pagination" },
+            createElement("div", { "className": "pagination-info" },
+                "Showing " + (startIndex + 1) + " to " + min(endIndex, len(filteredData)) + " of " + len(filteredData) + " entries"
+            ),
+            createElement("div", { "className": "pagination-controls" },
+                createElement("button", {
+                    "disabled": currentPage == 1,
+                    "onClick": fn() { handlePageChange(currentPage - 1) }
+                }, "Previous"),
+                createElement("span", {}, currentPage + " / " + totalPages),
+                createElement("button", {
+                    "disabled": currentPage == totalPages,
+                    "onClick": fn() { handlePageChange(currentPage + 1) }
+                }, "Next")
+            ),
+            createElement("select", {
+                "value": pageSize,
+                "onChange": fn(event) { handlePageSizeChange(parseInt(event["target"]["value"])) }
+            },
+                createElement("option", { "value": 5 }, "5 per page"),
+                createElement("option", { "value": 10 }, "10 per page"),
+                createElement("option", { "value": 25 }, "25 per page"),
+                createElement("option", { "value": 50 }, "50 per page")
+            )
+        ) : null
+    )
+}
+
+fn filterData(data, filters) {
+    let filtered = data
+    
+    for key in filters) {
+        if filters[key] != null && filters[key] != "") {
+            filtered = filtered.filter(fn(row) {
+                let value = row[key]
+                if typeof(value) == "string") {
+                    return contains(value, filters[key])
+                }
+                return value == filters[key]
+            })
+        }
+    }
+    
+    return filtered
+}
+
+pub fn useTable(data, options) {
+    let (sortColumn, setSortColumn] = useState(null)
+    let (sortDirection, setSortDirection] = useState("asc")
+    let (selectedRows, setSelectedRows] = useState([])
+    let (currentPage, setCurrentPage] = useState(1)
+    let (pageSize, setPageSize] = useState(10)
+    
+    let sortedData = data
+    if sortColumn != null) {
+        sortedData = sortData(data, sortColumn, sortDirection)
+    }
+    
+    let totalPages = ceil(len(sortedData) / pageSize)
+    let startIndex = (currentPage - 1) * pageSize
+    let endIndex = startIndex + pageSize
+    let paginatedData = sortedData.slice(startIndex, endIndex)
+    
+    let sort = fn(column, direction) {
+        setSortColumn(column)
+        setSortDirection(direction)
+    }
+    
+    let selectRow = fn(index) {
+        if contains(selectedRows, index)) {
+            setSelectedRows(selectedRows.filter(fn(i) { return i !== index }))
+        } else {
+            setSelectedRows([...selectedRows, index])
+        }
+    }
+    
+    let selectAll = fn() {
+        if len(selectedRows) == len(paginatedData)) {
+            setSelectedRows([])
+        } else {
+            let indices = []
+            let i = 0
+            while i < len(paginatedData)) {
+                indices = push(indices, i)
+                i = i + 1
+            }
+            setSelectedRows(indices)
+        }
+    }
+    
+    let nextPage = fn() {
+        if currentPage < totalPages) {
+            setCurrentPage(currentPage + 1)
+        }
+    }
+    
+    let prevPage = fn() {
+        if currentPage > 1) {
+            setCurrentPage(currentPage - 1)
+        }
+    }
+    
+    let goToPage = fn(page) {
+        if page >= 1 && page <= totalPages) {
+            setCurrentPage(page)
+        }
+    }
+    
+    return {
+        "data": paginatedData,
+        "sortedData": sortedData,
+        "sortColumn": sortColumn,
+        "sortDirection": sortDirection,
+        "selectedRows": selectedRows,
+        "currentPage": currentPage,
+        "totalPages": totalPages,
+        "pageSize": pageSize,
+        "sort": sort,
+        "selectRow": selectRow,
+        "selectAll": selectAll,
+        "nextPage": nextPage,
+        "prevPage": prevPage,
+        "goToPage": goToPage,
+        "setPageSize": setPageSize
+    }
+}
+
+pub fn TableRow(props) {
+    let children = props["children"]
+    let selected = props["selected"]
+    let onClick = props["onClick"]
+    
+    return createElement("tr", {
+        "className": "table-row" + (selected ? " selected" : ""),
+        "onClick": onClick
+    }, children)
+}
+
+pub fn TableCell(props) {
+    let children = props["children"]
+    let align = props["align"] != null ? props["align"] : "left"
+    
+    return createElement("td", { "className": "table-cell", "style": { "textAlign": align } }, children)
+}
+
+pub fn TableHeader(props) {
+    let children = props["children"]
+    let sortable = props["sortable"]
+    let onSort = props["onSort"]
+    
+    return createElement("th", {
+        "className": "table-header" + (sortable ? " sortable" : ""),
+        "onClick": sortable ? onSort : null
+    }, children)
+}
+
+pub fn TableBody(props) {
+    let children = props["children"]
+    
+    return createElement("tbody", { "className": "table-body" }, children)
+}
+
+pub fn TableHead(props) {
+    let children = props["children"]
+    
+    return createElement("thead", { "className": "table-head" }, children)
+}
+
+pub fn TableFooter(props) {
+    let children = props["children"]
+    
+    return createElement("tfoot", { "className": "table-footer" }, children)
+}
+
+pub fn TableCaption(props) {
+    let children = props["children"]
+    
+    return createElement("caption", { "className": "table-caption" }, children)
+}
+
+fn ceil(value) {
+    let result = floor(value)
+    if result < value) {
+        result = result + 1
+    }
+    return result
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn min(a, b) {
+    if a < b) {
+        return a
+    }
+    return b
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

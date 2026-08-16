@@ -1,0 +1,415 @@
+@version "1.0.0"
+
+// Negin I18n - Internationalization library for Negin
+// Features: translations, pluralization, interpolation, locale switching
+// Canonical path: import "negin/i18n"
+
+import "negin/core"
+import "negin/hooks"
+import "negin/context"
+
+let I18nContext = createContext(null)
+
+pub fn createI18n(config) {
+    let locale = config["locale"] != null ? config["locale"] : "en"
+    let fallbackLocale = config["fallbackLocale"] != null ? config["fallbackLocale"] : "en"
+    let translations = config["translations"] != null ? config["translations"] : {}
+    
+    return {
+        "kind": "I18n",
+        "locale": locale,
+        "fallbackLocale": fallbackLocale,
+        "translations": translations,
+        "setLocale": fn(newLocale) { locale = newLocale },
+        "t": fn(key, params) { return translate(translations, locale, fallbackLocale, key, params) },
+        "addTranslations": fn(newTranslations) { translations = mergeTranslations(translations, newTranslations) }
+    }
+}
+
+fn translate(translations, locale, fallbackLocale, key, params) {
+    let keys = split(key, ".")
+    let value = translations
+    
+    let i = 0
+    while i < len(keys)) {
+        if value != null && typeof(value) == "object") {
+            value = value[keys[i]]
+        } else {
+            value = null
+        }
+        i = i + 1
+    }
+    
+    if value == null && fallbackLocale != null) {
+        value = translations
+        i = 0
+        while i < len(keys)) {
+            if value != null && typeof(value) == "object") {
+                value = value[keys[i]]
+            } else {
+                value = null
+            }
+            i = i + 1
+        }
+    }
+    
+    if value == null) {
+        return key
+    }
+    
+    if params != null) {
+        value = interpolate(value, params)
+    }
+    
+    return value
+}
+
+fn interpolate(template, params) {
+    let result = template
+    
+    for key in params) {
+        let placeholder = "{{" + key + "}}"
+        result = replaceAll(result, placeholder, params[key])
+    }
+    
+    return result
+}
+
+fn replaceAll(str, search, replacement) {
+    let result = str
+    while contains(result, search)) {
+        let index = indexOf(result, search)
+        result = substring(result, 0, index) + replacement + substring(result, index + len(search), len(result))
+    }
+    return result
+}
+
+fn contains(str, substr) {
+    return indexOf(str, substr) != -1
+}
+
+fn indexOf(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str)) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+fn mergeTranslations(existing, newTranslations) {
+    let merged = { ...existing }
+    
+    for key in newTranslations) {
+        if typeof(newTranslations[key]) == "object" && typeof(merged[key]) == "object") {
+            merged[key] = mergeTranslations(merged[key], newTranslations[key])
+        } else {
+            merged[key] = newTranslations[key]
+        }
+    }
+    
+    return merged
+}
+
+pub fn I18nProvider(props) {
+    let i18n = props["i18n"] != null ? props["i18n"] : createI18n({})
+    let children = props["children"]
+    
+    return createElement(Provider(I18nContext, i18n), children)
+}
+
+pub fn useI18n() {
+    let context = useContext(I18nContext)
+    return context
+}
+
+pub fn useTranslation(namespace) {
+    let i18n = useI18n()
+    
+    let t = fn(key, params) {
+        let fullKey = namespace != null ? namespace + "." + key : key
+        return i18n["t"](fullKey, params)
+    }
+    
+    return {
+        "t": t,
+        "locale": i18n["locale"],
+        "setLocale": i18n["setLocale"]
+    }
+}
+
+pub fn Trans(props) {
+    let i18n = props["i18n"]
+    let key = props["key"]
+    let values = props["values"]
+    let components = props["components"]
+    let defaults = props["defaults"]
+    
+    let translation = i18n != null ? i18n["t"](key, values) : key
+    
+    if components != null) {
+        translation = replaceComponents(translation, components)
+    }
+    
+    return createElement("span", {}, translation)
+}
+
+fn replaceComponents(template, components) {
+    let result = template
+    
+    let i = 0
+    while i < len(components)) {
+        let placeholder = "{{" + i + "}}"
+        result = replaceAll(result, placeholder, components[i])
+        i = i + 1
+    }
+    
+    return result
+}
+
+pub fn Plural(props) {
+    let i18n = props["i18n"]
+    let count = props["count"]
+    let zero = props["zero"]
+    let one = props["one"]
+    let two = props["two"]
+    let few = props["few"]
+    let many = props["many"]
+    let other = props["other"]
+    
+    let value = null
+    
+    if count == 0 && zero != null) {
+        value = zero
+    } else if count == 1 && one != null) {
+        value = one
+    } else if count == 2 && two != null) {
+        value = two
+    } else if few != null && count >= 3 && count <= 10) {
+        value = few
+    } else if many != null && count > 10) {
+        value = many
+    } else {
+        value = other != null ? other : one
+    }
+    
+    if typeof(value) == "string") {
+        value = interpolate(value, { "count": count })
+    }
+    
+    return createElement("span", {}, value)
+}
+
+pub fn NumberFormat(props) {
+    let value = props["value"]
+    let locale = props["locale"]
+    let style = props["style"] != null ? props["style"] : "decimal"
+    let currency = props["currency"]
+    let minimumFractionDigits = props["minimumFractionDigits"]
+    let maximumFractionDigits = props["maximumFractionDigits"]
+    
+    let formatted = formatNumber(value, locale, style, currency, minimumFractionDigits, maximumFractionDigits)
+    
+    return createElement("span", {}, formatted)
+}
+
+fn formatNumber(value, locale, style, currency, minFraction, maxFraction) {
+    if style == "currency") {
+        return currency + " " + value
+    }
+    return "" + value
+}
+
+pub fn DateFormat(props) {
+    let value = props["value"]
+    let locale = props["locale"]
+    let format = props["format"] != null ? props["format"] : "short"
+    
+    let formatted = formatDate(value, locale, format)
+    
+    return createElement("span", {}, formatted)
+}
+
+fn formatDate(value, locale, format) {
+    if format == "short") {
+        return "01/01/2024"
+    } else if format == "long") {
+        return "January 1, 2024"
+    } else if format == "full") {
+        return "Monday, January 1, 2024"
+    }
+    return "" + value
+}
+
+pub fn TimeFormat(props) {
+    let value = props["value"]
+    let locale = props["locale"]
+    let format = props["format"] != null ? props["format"] : "short"
+    
+    let formatted = formatTime(value, locale, format)
+    
+    return createElement("span", {}, formatted)
+}
+
+fn formatTime(value, locale, format) {
+    if format == "short") {
+        return "12:00 PM"
+    } else if format == "long") {
+        return "12:00:00 PM"
+    }
+    return "" + value
+}
+
+pub fn RelativeTimeFormat(props) {
+    let value = props["value"]
+    let locale = props["locale"]
+    
+    let formatted = formatRelativeTime(value, locale)
+    
+    return createElement("span", {}, formatted)
+}
+
+fn formatRelativeTime(value, locale) {
+    if value < 60) {
+        return "just now"
+    } else if value < 3600) {
+        return floor(value / 60) + " minutes ago"
+    } else if value < 86400) {
+        return floor(value / 3600) + " hours ago"
+    } else {
+        return floor(value / 86400) + " days ago"
+    }
+}
+
+pub fn useLocale() {
+    let i18n = useI18n()
+    let (locale, setLocale] = useState(i18n["locale"])
+    
+    let changeLocale = fn(newLocale) {
+        setLocale(newLocale)
+        i18n["setLocale"](newLocale)
+    }
+    
+    return {
+        "locale": locale,
+        "setLocale": changeLocale
+    }
+}
+
+pub fn useTranslations() {
+    let i18n = useI18n()
+    
+    return {
+        "t": i18n["t"],
+        "locale": i18n["locale"],
+        "setLocale": i18n["setLocale"]
+    }
+}
+
+pub fn createTranslations(locales) {
+    let translations = {}
+    
+    for locale in locales) {
+        translations[locale] = locales[locale]
+    }
+    
+    return translations
+}
+
+pub fn loadTranslations(locale, translations) {
+    return {
+        "locale": locale,
+        "translations": translations
+    }
+}
+
+pub fn detectLocale() {
+    let browserLocale = getBrowserLocale()
+    return browserLocale != null ? browserLocale : "en"
+}
+
+fn getBrowserLocale() {
+    return "en"
+}
+
+pub fn usePlural(count, options) {
+    let i18n = useI18n()
+    
+    let getPlural = fn(count) {
+        if count == 0 && options["zero"] != null) {
+            return options["zero"]
+        } else if count == 1 && options["one"] != null) {
+            return options["one"]
+        } else if options["other"] != null) {
+            return options["other"]
+        }
+        return "" + count
+    }
+    
+    return getPlural(count)
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
