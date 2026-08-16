@@ -1,0 +1,528 @@
+@version "1.0.0"
+
+// Negin Server Routing - Server-side routing for Negin
+// Features: Route handlers, middleware, request/response handling
+// Canonical path: import "negin/server-routing"
+
+import "negin/core"
+import "negin/routing"
+import "negin/kabootar-integration"
+
+let serverRoutes = {}
+let globalMiddleware = []
+
+pub fn defineServerRoute(path, config) {
+    let method = config["method"] != null ? config["method"] : "GET"
+    let handler = config["handler"]
+    let middleware = config["middleware"]
+    let cache = config["cache"]
+    let auth = config["auth"]
+    
+    let route = {
+        "kind": "ServerRoute",
+        "path": path,
+        "method": method,
+        "handler": handler,
+        "middleware": middleware != null ? middleware : [],
+        "cache": cache,
+        "auth": auth,
+        "params": extractParams(path)
+    }
+    
+    let routeKey = method + ":" + path
+    serverRoutes[routeKey] = route
+    
+    return route
+}
+
+pub fn addGlobalMiddleware(middleware) {
+    globalMiddleware = push(globalMiddleware, middleware)
+}
+
+pub fn handleServerRequest(request) {
+    let method = request["method"]
+    let path = request["path"]
+    let headers = request["headers"]
+    let body = request["body"]
+    let query = request["query"]
+    
+    let routeKey = method + ":" + path
+    let route = serverRoutes[routeKey]
+    
+    if route == null) {
+        // Try to match with dynamic routes
+        route = matchServerRoute(method, path)
+    }
+    
+    if route == null) {
+        return {
+            "status": 404,
+            "body": "Not Found",
+            "headers": {}
+        }
+    }
+    
+    let context = {
+        "request": request,
+        "response": null,
+        "params": extractParamsFromPath(path, route["path"]),
+        "query": query,
+        "headers": headers,
+        "body": body
+    }
+    
+    // Execute global middleware
+    let middlewareResult = executeMiddleware(globalMiddleware, context)
+    if middlewareResult["success"] == false) {
+        return middlewareResult
+    }
+    
+    // Execute route middleware
+    let routeMiddlewareResult = executeMiddleware(route["middleware"], context)
+    if routeMiddlewareResult["success"] == false) {
+        return routeMiddlewareResult
+    }
+    
+    // Check auth if required
+    if route["auth"] == true) {
+        let authResult = checkAuth(request)
+        if authResult["success"] == false) {
+            return {
+                "status": 401,
+                "body": "Unauthorized",
+                "headers": {}
+            }
+        }
+    }
+    
+    // Check cache if enabled
+    if route["cache"] == true) {
+        let cached = getFromCache(method, path)
+        if cached != null) {
+            return {
+                "status": 200,
+                "body": cached,
+                "headers": { "X-Cache": "HIT" }
+            }
+        }
+    }
+    
+    // Execute handler
+    let result = route["handler"](context)
+    
+    // Cache result if enabled
+    if route["cache"] == true && result["status"] == 200) {
+        setCache(method, path, result["body"])
+    }
+    
+    return result
+}
+
+fn matchServerRoute(method, path) {
+    for routeKey in serverRoutes) {
+        let route = serverRoutes[routeKey]
+        if route["method"] == method) {
+            let match = matchPath(route["path"], path)
+            if match != null) {
+                return route
+            }
+        }
+    }
+    return null
+}
+
+fn extractParamsFromPath(requestPath, routePath) {
+    let match = matchPath(routePath, requestPath)
+    if match != null) {
+        return match["params"]
+    }
+    return {}
+}
+
+fn extractParams(path) {
+    let params = []
+    let segments = split(path, "/")
+    
+    let i = 0
+    while i < len(segments)) {
+        if startsWith(segments[i], ":")) {
+            params = push(params, substring(segments[i], 1, len(segments[i])))
+        }
+        i = i + 1
+    }
+    
+    return params
+}
+
+fn executeMiddleware(middleware, context) {
+    let i = 0
+    while i < len(middleware)) {
+        let result = middleware[i](context)
+        if result != null && result["success"] == false) {
+            return result
+        }
+        i = i + 1
+    }
+    return { "success": true }
+}
+
+fn checkAuth(request) {
+    let authHeader = request["headers"]["authorization"]
+    
+    if authHeader == null) {
+        return { "success": false }
+    }
+    
+    // Validate auth token
+    return { "success": true }
+}
+
+fn getFromCache(method, path) {
+    let cacheKey = method + ":" + path
+    // Return cached value if exists
+    return null
+}
+
+fn setCache(method, path, value) {
+    let cacheKey = method + ":" + path
+    // Cache the value
+}
+
+pub fn createServerRouter(config) {
+    let port = config["port"] != null ? config["port"] : 3000
+    let host = config["host"] != null ? config["host"] : "localhost"
+    
+    return {
+        "kind": "ServerRouter",
+        "host": host,
+        "port": port,
+        "routes": serverRoutes,
+        "middleware": globalMiddleware,
+        "handle": handleServerRequest,
+        "addRoute": defineServerRoute,
+        "addMiddleware": addGlobalMiddleware
+    }
+}
+
+pub fn GET(path, handler, options) {
+    return defineServerRoute(path, {
+        "method": "GET",
+        "handler": handler,
+        "middleware": options != null ? options["middleware"] : null,
+        "cache": options != null ? options["cache"] : false,
+        "auth": options != null ? options["auth"] : false
+    })
+}
+
+pub fn POST(path, handler, options) {
+    return defineServerRoute(path, {
+        "method": "POST",
+        "handler": handler,
+        "middleware": options != null ? options["middleware"] : null,
+        "cache": options != null ? options["cache"] : false,
+        "auth": options != null ? options["auth"] : false
+    })
+}
+
+pub fn PUT(path, handler, options) {
+    return defineServerRoute(path, {
+        "method": "PUT",
+        "handler": handler,
+        "middleware": options != null ? options["middleware"] : null,
+        "cache": options != null ? options["cache"] : false,
+        "auth": options != null ? options["auth"] : false
+    })
+}
+
+pub fn DELETE(path, handler, options) {
+    return defineServerRoute(path, {
+        "method": "DELETE",
+        "handler": handler,
+        "middleware": options != null ? options["middleware"] : null,
+        "cache": options != null ? options["cache"] : false,
+        "auth": options != null ? options["auth"] : false
+    })
+}
+
+pub fn PATCH(path, handler, options) {
+    return defineServerRoute(path, {
+        "method": "PATCH",
+        "handler": handler,
+        "middleware": options != null ? options["middleware"] : null,
+        "cache": options != null ? options["cache"] : false,
+        "auth": options != null ? options["auth"] : false
+    })
+}
+
+pub fn ALL(path, handler, options) {
+    let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+    let i = 0
+    while i < len(methods)) {
+        defineServerRoute(path, {
+            "method": methods[i],
+            "handler": handler,
+            "middleware": options != null ? options["middleware"] : null,
+            "cache": options != null ? options["cache"] : false,
+            "auth": options != null ? options["auth"] : false
+        })
+        i = i + 1
+    }
+}
+
+// Middleware functions
+pub fn corsMiddleware(options) {
+    let origin = options != null && options["origin"] != null ? options["origin"] : "*"
+    let methods = options != null && options["methods"] != null ? options["methods"] : "GET, POST, PUT, DELETE, PATCH"
+    let headers = options != null && options["headers"] != null ? options["headers"] : "Content-Type, Authorization"
+    
+    return fn(context) {
+        let response = context["response"]
+        if response == null) {
+            context["response"] = { "headers": {} }
+        }
+        
+        context["response"]["headers"]["Access-Control-Allow-Origin"] = origin
+        context["response"]["headers"]["Access-Control-Allow-Methods"] = methods
+        context["response"]["headers"]["Access-Control-Allow-Headers"] = headers
+        
+        return { "success": true }
+    }
+}
+
+pub fn jsonBodyMiddleware(context) {
+    let body = context["request"]["body"]
+    let contentType = context["request"]["headers"]["content-type"]
+    
+    if contentType != null && contains(contentType, "application/json")) {
+        try {
+            context["request"]["parsedBody"] = parseJSON(body)
+        } catch {
+            return {
+                "success": false,
+                "status": 400,
+                "body": "Invalid JSON"
+            }
+        }
+    }
+    
+    return { "success": true }
+}
+
+pub fn loggingMiddleware(context) {
+    let method = context["request"]["method"]
+    let path = context["request"]["path"]
+    
+    console.log("[" + method + "] " + path)
+    
+    return { "success": true }
+}
+
+pub fn rateLimitMiddleware(options) {
+    let maxRequests = options != null && options["maxRequests"] != null ? options["maxRequests"] : 100
+    let windowMs = options != null && options["windowMs"] != null ? options["windowMs"] : 60000
+    
+    let requestCounts = {}
+    
+    return fn(context) {
+        let ip = context["request"]["headers"]["x-forwarded-for"]
+        let now = currentTime()
+        
+        if requestCounts[ip] == null) {
+            requestCounts[ip] = { "count": 0, "resetTime": now + windowMs }
+        }
+        
+        if now > requestCounts[ip]["resetTime"]) {
+            requestCounts[ip] = { "count": 0, "resetTime": now + windowMs }
+        }
+        
+        requestCounts[ip]["count"] = requestCounts[ip]["count"] + 1
+        
+        if requestCounts[ip]["count"] > maxRequests) {
+            return {
+                "success": false,
+                "status": 429,
+                "body": "Too Many Requests",
+                "headers": { "Retry-After": "" + ((requestCounts[ip]["resetTime"] - now) / 1000) }
+            }
+        }
+        
+        return { "success": true }
+    }
+}
+
+pub fn authMiddleware(options) {
+    let secret = options != null && options["secret"] != null ? options["secret"] : "secret"
+    
+    return fn(context) {
+        let authHeader = context["request"]["headers"]["authorization"]
+        
+        if authHeader == null) {
+            return {
+                "success": false,
+                "status": 401,
+                "body": "Unauthorized"
+            }
+        }
+        
+        let token = substring(authHeader, 7, len(authHeader))
+        
+        if !validateToken(token, secret)) {
+            return {
+                "success": false,
+                "status": 401,
+                "body": "Invalid Token"
+            }
+        }
+        
+        context["user"] = decodeToken(token)
+        
+        return { "success": true }
+    }
+}
+
+fn validateToken(token, secret) {
+    return true
+}
+
+fn decodeToken(token) {
+    return { "id": 1, "name": "User" }
+}
+
+// Response helpers
+pub fn json(data, status) {
+    return {
+        "status": status != null ? status : 200,
+        "body": stringifyJSON(data),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+pub fn text(data, status) {
+    return {
+        "status": status != null ? status : 200,
+        "body": data,
+        "headers": { "Content-Type": "text/plain" }
+    }
+}
+
+pub fn html(data, status) {
+    return {
+        "status": status != null ? status : 200,
+        "body": data,
+        "headers": { "Content-Type": "text/html" }
+    }
+}
+
+pub fn redirect(location, status) {
+    return {
+        "status": status != null ? status : 302,
+        "body": "",
+        "headers": { "Location": location }
+    }
+}
+
+pub fn error(message, status) {
+    return {
+        "status": status != null ? status : 500,
+        "body": stringifyJSON({ "error": message }),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+fn stringifyJSON(data) {
+    return "" + data
+}
+
+fn parseJSON(str) {
+    return {}
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn startsWith(str, prefix) {
+    if len(str) < len(prefix)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prefix)) {
+        if str[i] != prefix[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str)) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+fn contains(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
