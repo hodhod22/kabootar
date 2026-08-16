@@ -1,0 +1,424 @@
+@version "1.0.0"
+
+// Negin SSR Optimized - Server-side rendering optimized for Kabootar
+// Features: Backend integration, database queries, streaming, caching
+// Canonical path: import "negin/ssr-optimized"
+
+import "negin/core"
+import "negin/routing"
+
+let ssrCache = {}
+let databasePool = null
+
+pub fn createSSROptimized(config) {
+    let backend = config["backend"] != null ? config["backend"] : "kabootar"
+    let database = config["database"]
+    let cacheEnabled = config["cache"] != null ? config["cache"] : true
+    let streaming = config["streaming"] != null ? config["streaming"] : true
+    
+    return {
+        "kind": "SSROptimized",
+        "backend": backend,
+        "database": database,
+        "cache": cacheEnabled,
+        "streaming": streaming,
+        "render": renderToBackend,
+        "renderWithDatabase": renderWithDatabase
+    }
+}
+
+pub fn renderToBackend(element, options) {
+    let path = options != null ? options["path"] : "/"
+    let useCache = options != null && options["cache"] == true
+    
+    if useCache && ssrCache[path] != null) {
+        return ssrCache[path]
+    }
+    
+    let rendered = renderToStringOptimized(element)
+    
+    if useCache) {
+        ssrCache[path] = rendered
+    }
+    
+    return rendered
+}
+
+pub fn renderToStringOptimized(element) {
+    let stream = createRenderStream()
+    renderToStreamOptimized(element, stream)
+    return streamToString(stream)
+}
+
+pub fn renderToStreamOptimized(element, stream) {
+    renderVNodeToStreamOptimized(element, stream)
+}
+
+fn renderVNodeToStreamOptimized(vnode, stream) {
+    if vnode == null) {
+        return
+    }
+    
+    let type = vnode["type"]
+    let props = vnode["props"]
+    let children = vnode["children"]
+    
+    if type == "TEXT") {
+        writeStream(stream, escapeText(children[0]))
+        return
+    }
+    
+    if typeof(type) == "function") {
+        let rendered = type(props)
+        renderVNodeToStreamOptimized(rendered, stream)
+        return
+    }
+    
+    writeStream(stream, "<" + type)
+    
+    if props != null) {
+        for propName in props) {
+            if propName != "children") {
+                writeStream(stream, " " + propName + "=\"" + escapeHTML(props[propName]) + "\"")
+            }
+        }
+    }
+    
+    writeStream(stream, ">")
+    
+    let i = 0
+    while i < len(children)) {
+        renderVNodeToStreamOptimized(children[i], stream)
+        i = i + 1
+    }
+    
+    writeStream(stream, "</" + type + ">")
+}
+
+pub fn renderWithDatabase(element, databaseConfig, options) {
+    let query = databaseConfig["query"]
+    let table = databaseConfig["table"]
+    
+    let data = executeDatabaseQueryOptimized(table, query)
+    
+    let elementWithData = injectData(element, data)
+    
+    return renderToStringOptimized(elementWithData)
+}
+
+pub fn executeDatabaseQueryOptimized(table, query) {
+    // This would use Kabootar's built-in database
+    return {
+        "table": table,
+        "query": query,
+        "data": []
+    }
+}
+
+fn injectData(element, data) {
+    // Inject database data into the element
+    return element
+}
+
+pub fn createRenderStream() {
+    return {
+        "kind": "RenderStream",
+        "chunks": []
+    }
+}
+
+fn writeStream(stream, chunk) {
+    stream["chunks"] = push(stream["chunks"], chunk)
+}
+
+fn streamToString(stream) {
+    let result = ""
+    let i = 0
+    while i < len(stream["chunks"])) {
+        result = result + stream["chunks"][i]
+        i = i + 1
+    }
+    return result
+}
+
+fn escapeText(text) {
+    if text == null) {
+        return ""
+    }
+    
+    let escaped = ""
+    let i = 0
+    while i < len(text)) {
+        let char = text[i]
+        if char == "&") {
+            escaped = escaped + "&amp;"
+        } else if char == "<") {
+            escaped = escaped + "&lt;"
+        } else if char == ">") {
+            escaped = escaped + "&gt;"
+        } else {
+            escaped = escaped + char
+        }
+        i = i + 1
+    }
+    
+    return escaped
+}
+
+fn escapeHTML(value) {
+    if value == null) {
+        return ""
+    }
+    
+    let str = toString(value)
+    return escapeText(str)
+}
+
+pub fn createHydrationDataOptimized(element, databaseData) {
+    return {
+        "kind": "HydrationData",
+        "vnode": element,
+        "databaseData": databaseData,
+        "checksum": calculateChecksum(element)
+    }
+}
+
+fn calculateChecksum(vnode) {
+    let str = vnodeToString(vnode)
+    let hash = 0
+    let i = 0
+    while i < len(str)) {
+        let char = str[i]
+        hash = ((hash << 5) - hash) + charCode(char)
+        i = i + 1
+    }
+    return hash
+}
+
+fn vnodeToString(vnode) {
+    if vnode == null) {
+        return ""
+    }
+    
+    let type = vnode["type"]
+    let props = vnode["props"]
+    let children = vnode["children"]
+    
+    if type == "TEXT") {
+        return children[0]
+    }
+    
+    if typeof(type) == "function") {
+        return vnodeToString(type(props))
+    }
+    
+    let str = "<" + type
+    
+    if props != null) {
+        for key in props) {
+            if key != "children") {
+                str = str + " " + key + "=\"" + props[key] + "\""
+            }
+        }
+    }
+    
+    str = str + ">"
+    
+    let i = 0
+    while i < len(children)) {
+        str = str + vnodeToString(children[i])
+        i = i + 1
+    }
+    
+    str = str + "</" + type + ">"
+    
+    return str
+}
+
+pub fn hydrateOptimized(element, container, databaseData) {
+    let hydrationData = createHydrationDataOptimized(element, databaseData)
+    
+    let root = createRoot(container)
+    root["hydrationData"] = hydrationData
+    root["databaseData"] = databaseData
+    
+    return root
+}
+
+pub fn renderToPipeableStreamOptimized(element, options) {
+    let stream = createRenderStream()
+    
+    return {
+        "kind": "PipeableStream",
+        "pipe": fn(destination) {
+            renderVNodeToStreamOptimized(element, stream)
+            destination.write(streamToString(stream))
+        }
+    }
+}
+
+pub fn createServerRendererOptimized(options) {
+    return {
+        "kind": "ServerRenderer",
+        "options": options,
+        "renderToString": fn(element) {
+            return renderToStringOptimized(element)
+        },
+        "renderToStaticMarkup": fn(element) {
+            return renderToStringOptimized(element)
+        },
+        "renderToPipeableStream": fn(element) {
+            return renderToPipeableStreamOptimized(element, options)
+        },
+        "renderWithDatabase": fn(element, databaseConfig) {
+            return renderWithDatabase(element, databaseConfig, options)
+        }
+    }
+}
+
+pub fn clearSSRCache() {
+    ssrCache = {}
+}
+
+pub fn getSSRCache() {
+    return ssrCache
+}
+
+pub fn setSSRCache(path, html) {
+    ssrCache[path] = html
+}
+
+pub fn invalidateSSRCache(path) {
+    if path != null) {
+        ssrCache[path] = null
+    } else {
+        ssrCache = {}
+    }
+}
+
+pub fn createDatabasePool(config) {
+    return {
+        "kind": "DatabasePool",
+        "connectionString": config["connectionString"],
+        "maxConnections": config["maxConnections"] != null ? config["maxConnections"] : 10,
+        "connections": []
+    }
+}
+
+pub fn getDatabaseConnection(pool) {
+    if pool["connections"] == null) {
+        pool["connections"] = []
+    }
+    
+    if len(pool["connections"]) < pool["maxConnections"]) {
+        let conn = createDatabaseConnection(pool["connectionString"])
+        pool["connections"] = push(pool["connections"], conn)
+        return conn
+    }
+    
+    return pool["connections"][0]
+}
+
+fn createDatabaseConnection(connectionString) {
+    return {
+        "kind": "DatabaseConnection",
+        "connectionString": connectionString,
+        "connected": true
+    }
+}
+
+pub fn releaseDatabaseConnection(pool, connection) {
+    // Release connection back to pool
+}
+
+pub fn executeQuery(connection, query, params) {
+    // Execute query using Kabootar's database
+    return {
+        "success": true,
+        "data": [],
+        "rows": 0
+    }
+}
+
+pub fn executeTransaction(pool, queries) {
+    let results = []
+    
+    let i = 0
+    while i < len(queries)) {
+        let conn = getDatabaseConnection(pool)
+        let result = executeQuery(conn, queries[i]["query"], queries[i]["params"])
+        results = push(results, result)
+        releaseDatabaseConnection(pool, conn)
+        i = i + 1
+    }
+    
+    return results
+}
+
+pub fn createBackendServer(config) {
+    let port = config["port"] != null ? config["port"] : 3000
+    let host = config["host"] != null ? config["host"] : "localhost"
+    
+    return {
+        "kind": "BackendServer",
+        "host": host,
+        "port": port,
+        "running": false,
+        "routes": {},
+        "start": fn() {
+            this["running"] = true
+            console.log("Backend server started on " + host + ":" + port)
+        },
+        "stop": fn() {
+            this["running"] = false
+            console.log("Backend server stopped")
+        }
+    }
+}
+
+pub fn addBackendRoute(server, path, handler) {
+    server["routes"][path] = handler
+}
+
+pub fn handleBackendRequest(server, path, method) {
+    let route = server["routes"][path]
+    
+    if route == null) {
+        return { "status": 404, "body": "Not Found" }
+    }
+    
+    return route(method)
+}
+
+fn charCode(code) {
+    return code
+}
+
+fn toString(value) {
+    return "" + value
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

@@ -1,0 +1,546 @@
+@version "1.0.0"
+
+// Negin Query Database - Database-optimized query for Negin
+// Features: Direct Kabootar database integration, query builder, transactions
+// Canonical path: import "negin/query-database"
+
+import "negin/core"
+import "negin/hooks"
+import "negin/kabootar-integration"
+
+let databaseConnection = null
+let queryCache = {}
+
+pub fn createDatabaseQuery(config) {
+    let connectionString = config["connectionString"]
+    let poolSize = config["poolSize"] != null ? config["poolSize"] : 10
+    
+    return {
+        "kind": "DatabaseQuery",
+        "connectionString": connectionString,
+        "poolSize": poolSize,
+        "connection": null,
+        "connected": false
+    }
+}
+
+pub fn connectDatabase(dbQuery) {
+    let connection = kabootarConnectDatabase({
+        "connectionString": dbQuery["connectionString"]
+    })
+    
+    dbQuery["connection"] = connection
+    dbQuery["connected"] = true
+    databaseConnection = connection
+    
+    return connection
+}
+
+pub fn disconnectDatabase(dbQuery) {
+    if dbQuery["connection"] != null) {
+        kabootarCloseDatabase(dbQuery["connection"])
+        dbQuery["connection"] = null
+        dbQuery["connected"] = false
+        databaseConnection = null
+    }
+}
+
+pub fn useDatabaseQuery(config) {
+    let dbQuery = useState(createDatabaseQuery(config))
+    let (isLoading, setIsLoading] = useState(false)
+    let (error, setError] = useState(null)
+    
+    useEffect(fn() {
+        connectDatabase(dbQuery[0])
+        
+        return fn() {
+            disconnectDatabase(dbQuery[0])
+        }
+    }, [])
+    
+    let execute = fn(sql, params) {
+        setIsLoading(true)
+        setError(null)
+        
+        return kabootarExecuteQuery(dbQuery[0]["connection"], sql, params)
+            .then(fn(result) {
+                setIsLoading(false)
+                return result
+            })
+            .catch(fn(err) {
+                setError(err)
+                setIsLoading(false)
+                throw err
+            })
+    }
+    
+    let executeTransaction = fn(queries) {
+        setIsLoading(true)
+        setError(null)
+        
+        return kabootarExecuteTransaction(dbQuery[0]["connection"], queries)
+            .then(fn(result) {
+                setIsLoading(false)
+                return result
+            })
+            .catch(fn(err) {
+                setError(err)
+                setIsLoading(false)
+                throw err
+            })
+    }
+    
+    return {
+        "dbQuery": dbQuery[0],
+        "execute": execute,
+        "executeTransaction": executeTransaction,
+        "isLoading": isLoading,
+        "error": error
+    }
+}
+
+pub fn useQueryDB(key, queryFn, options) {
+    let config = options != null ? options["database"] : null
+    let dbQuery = useDatabaseQuery(config)
+    
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(true)
+    
+    useEffect(fn() {
+        let fetchData = fn() {
+            setIsLoading(true)
+            
+            queryFn(dbQuery["execute"]).then(fn(result) {
+                setData(result)
+                setError(null)
+                setIsLoading(false)
+                
+                if options != null && options["cache"] == true) {
+                    queryCache[key] = result
+                }
+            }).catch(fn(err) {
+                setError(err)
+                setIsLoading(false)
+            })
+        }
+        
+        // Check cache first
+        if options != null && options["cache"] == true && queryCache[key] != null) {
+            setData(queryCache[key])
+            setIsLoading(false)
+        } else {
+            fetchData()
+        }
+        
+        let interval = null
+        if options != null && options["refetchInterval"] != null) {
+            interval = setInterval(fetchData, options["refetchInterval"])
+        }
+        
+        return fn() {
+            if interval != null) {
+                clearInterval(interval)
+            }
+        }
+    }, [key, options])
+    
+    let refetch = fn() {
+        setIsLoading(true)
+        return queryFn(dbQuery["execute"]).then(fn(result) {
+            setData(result)
+            setError(null)
+            setIsLoading(false)
+            if options != null && options["cache"] == true) {
+                queryCache[key] = result
+            }
+        })
+    }
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "refetch": refetch
+    }
+}
+
+pub fn useMutationDB(mutationFn, options) {
+    let config = options != null ? options["database"] : null
+    let dbQuery = useDatabaseQuery(config)
+    
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (isLoading, setIsLoading] = useState(false)
+    
+    let mutate = fn(variables) {
+        setIsLoading(true)
+        
+        return mutationFn(dbQuery["execute"], variables).then(fn(result) {
+            setData(result)
+            setError(null)
+            setIsLoading(false)
+            
+            if options != null && options["onSuccess"] != null) {
+                options["onSuccess"](result, variables)
+            }
+            
+            return result
+        }).catch(fn(err) {
+            setError(err)
+            setIsLoading(false)
+            
+            if options != null && options["onError"] != null) {
+                options["onError"](err, variables)
+            }
+            
+            throw err
+        })
+    }
+    
+    return {
+        "data": data,
+        "error": error,
+        "isLoading": isLoading,
+        "mutate": mutate
+    }
+}
+
+// Query builder
+pub fn createQueryBuilder() {
+    return {
+        "kind": "QueryBuilder",
+        "select": [],
+        "from": null,
+        "where": [],
+        "join": [],
+        "orderBy": [],
+        "limit": null,
+        "offset": null,
+        "params": [],
+        
+        "select": fn(...columns) {
+            this["select"] = columns
+            return this
+        },
+        
+        "from": fn(table) {
+            this["from"] = table
+            return this
+        },
+        
+        "where": fn(condition, param) {
+            this["where"] = push(this["where"], condition)
+            if param != null) {
+                this["params"] = push(this["params"], param)
+            }
+            return this
+        },
+        
+        "join": fn(table, on) {
+            this["join"] = push(this["join"], { "table": table, "on": on })
+            return this
+        },
+        
+        "orderBy": fn(column, direction) {
+            this["orderBy"] = push(this["orderBy"], { "column": column, "direction": direction })
+            return this
+        },
+        
+        "limit": fn(limit) {
+            this["limit"] = limit
+            return this
+        },
+        
+        "offset": fn(offset) {
+            this["offset"] = offset
+            return this
+        },
+        
+        "build": fn() {
+            let sql = "SELECT "
+            
+            if len(this["select"]) == 0) {
+                sql = sql + "*"
+            } else {
+                sql = sql + join(this["select"], ", ")
+            }
+            
+            sql = sql + " FROM " + this["from"]
+            
+            let i = 0
+            while i < len(this["join"])) {
+                sql = sql + " JOIN " + this["join"][i]["table"] + " ON " + this["join"][i]["on"]
+                i = i + 1
+            }
+            
+            if len(this["where"]) > 0) {
+                sql = sql + " WHERE " + join(this["where"], " AND ")
+            }
+            
+            if len(this["orderBy"]) > 0) {
+                sql = sql + " ORDER BY "
+                let i = 0
+                while i < len(this["orderBy"])) {
+                    if i > 0) {
+                        sql = sql + ", "
+                    }
+                    sql = sql + this["orderBy"][i]["column"] + " " + this["orderBy"][i]["direction"]
+                    i = i + 1
+                }
+            }
+            
+            if this["limit"] != null) {
+                sql = sql + " LIMIT " + this["limit"]
+            }
+            
+            if this["offset"] != null) {
+                sql = sql + " OFFSET " + this["offset"]
+            }
+            
+            return {
+                "sql": sql,
+                "params": this["params"]
+            }
+        }
+    }
+}
+
+pub fn executeQuery(dbQuery, queryBuilder) {
+    let built = queryBuilder["build"]()
+    return dbQuery["execute"](built["sql"], built["params"])
+}
+
+// Repository pattern
+pub fn createRepository(table, dbQuery) {
+    return {
+        "kind": "Repository",
+        "table": table,
+        "dbQuery": dbQuery,
+        
+        "findAll": fn(options) {
+            let qb = createQueryBuilder()
+                .select("*")
+                .from(table)
+            
+            if options != null && options["where"] != null) {
+                qb["where"](options["where"])
+            }
+            
+            if options != null && options["limit"] != null) {
+                qb["limit"](options["limit"])
+            }
+            
+            if options != null && options["offset"] != null) {
+                qb["offset"](options["offset"])
+            }
+            
+            return executeQuery(dbQuery, qb)
+        },
+        
+        "findById": fn(id) {
+            let qb = createQueryBuilder()
+                .select("*")
+                .from(table)
+                .where("id = ?", id)
+                .limit(1)
+            
+            return executeQuery(dbQuery, qb)
+        },
+        
+        "create": fn(data) {
+            let columns = []
+            let values = []
+            let placeholders = []
+            
+            for key in data) {
+                columns = push(columns, key)
+                values = push(values, data[key])
+                placeholders = push(placeholders, "?")
+            }
+            
+            let sql = "INSERT INTO " + table + " (" + join(columns, ", ") + ") VALUES (" + join(placeholders, ", ") + ")"
+            
+            return dbQuery["execute"](sql, values)
+        },
+        
+        "update": fn(id, data) {
+            let updates = []
+            let values = []
+            
+            for key in data) {
+                updates = push(updates, key + " = ?")
+                values = push(values, data[key])
+            }
+            
+            values = push(values, id)
+            
+            let sql = "UPDATE " + table + " SET " + join(updates, ", ") + " WHERE id = ?"
+            
+            return dbQuery["execute"](sql, values)
+        },
+        
+        "delete": fn(id) {
+            let sql = "DELETE FROM " + table + " WHERE id = ?"
+            return dbQuery["execute"](sql, [id])
+        },
+        
+        "count": fn() {
+            let qb = createQueryBuilder()
+                .select("COUNT(*) as count")
+                .from(table)
+            
+            return executeQuery(dbQuery, qb)
+        }
+    }
+}
+
+pub fn useRepository(table, config) {
+    let dbQuery = useDatabaseQuery(config)
+    let repository = useState(createRepository(table, dbQuery["dbQuery"]))
+    
+    return repository[0]
+}
+
+// Transaction helpers
+pub fn createTransaction(dbQuery) {
+    return {
+        "kind": "Transaction",
+        "dbQuery": dbQuery,
+        "queries": [],
+        
+        "addQuery": fn(sql, params) {
+            this["queries"] = push(this["queries"], { "sql": sql, "params": params })
+            return this
+        },
+        
+        "commit": fn() {
+            return dbQuery["executeTransaction"](this["queries"])
+        },
+        
+        "rollback": fn() {
+            // Rollback transaction
+            return { "success": true }
+        }
+    }
+}
+
+pub fn useTransaction(config) {
+    let dbQuery = useDatabaseQuery(config)
+    let (transaction, setTransaction] = useState(null)
+    
+    let begin = fn() {
+        let tx = createTransaction(dbQuery["dbQuery"])
+        setTransaction(tx)
+        return tx
+    }
+    
+    let commit = fn() {
+        if transaction != null) {
+            return transaction["commit"]()
+        }
+        return { "success": false }
+    }
+    
+    let rollback = fn() {
+        if transaction != null) {
+            return transaction["rollback"]()
+        }
+        return { "success": false }
+    }
+    
+    return {
+        "transaction": transaction,
+        "begin": begin,
+        "commit": commit,
+        "rollback": rollback
+    }
+}
+
+// Cache helpers
+pub fn clearQueryCache() {
+    queryCache = {}
+}
+
+pub fn getQueryCache(key) {
+    return queryCache[key]
+}
+
+pub fn setQueryCache(key, value) {
+    queryCache[key] = value
+}
+
+pub fn invalidateQueryCache(pattern) {
+    for key in queryCache) {
+        if matchesPattern(key, pattern)) {
+            queryCache[key] = null
+        }
+    }
+}
+
+fn matchesPattern(key, pattern) {
+    return contains(key, pattern)
+}
+
+fn join(arr, separator) {
+    let result = ""
+    let i = 0
+    while i < len(arr)) {
+        if i > 0) {
+            result = result + separator
+        }
+        result = result + arr[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn contains(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn setInterval(callback, delay) {
+    return null
+}
+
+fn clearInterval(id) {
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

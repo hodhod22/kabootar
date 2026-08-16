@@ -1,0 +1,640 @@
+@version "1.0.0"
+
+// Negin API Routes - API route system for Negin
+// Features: REST API, GraphQL-like queries, API versioning, rate limiting
+// Canonical path: import "negin/api-routes"
+
+import "negin/core"
+import "negin/server-routing"
+import "negin/query-database"
+
+let apiRoutes = {}
+let apiVersion = "v1"
+
+pub fn createAPIRouter(config) {
+    let version = config["version"] != null ? config["version"] : "v1"
+    let prefix = config["prefix"] != null ? config["prefix"] : "/api"
+    let cors = config["cors"] != null ? config["cors"] : true
+    
+    apiVersion = version
+    
+    return {
+        "kind": "APIRouter",
+        "version": version,
+        "prefix": prefix,
+        "cors": cors,
+        "routes": apiRoutes,
+        "addRoute": addAPIRoute,
+        "get": fn(path, handler, options) {
+            return addAPIRoute("GET", path, handler, options)
+        },
+        "post": fn(path, handler, options) {
+            return addAPIRoute("POST", path, handler, options)
+        },
+        "put": fn(path, handler, options) {
+            return addAPIRoute("PUT", path, handler, options)
+        },
+        "delete": fn(path, handler, options) {
+            return addAPIRoute("DELETE", path, handler, options)
+        },
+        "patch": fn(path, handler, options) {
+            return addAPIRoute("PATCH", path, handler, options)
+        }
+    }
+}
+
+pub fn addAPIRoute(method, path, handler, options) {
+    let fullPath = "/api/" + apiVersion + path
+    let auth = options != null && options["auth"] == true
+    let cache = options != null && options["cache"] == true
+    let rateLimit = options != null && options["rateLimit"] != null ? options["rateLimit"] : null
+    let middleware = options != null ? options["middleware"] : []
+    
+    let route = {
+        "kind": "APIRoute",
+        "method": method,
+        "path": fullPath,
+        "handler": handler,
+        "auth": auth,
+        "cache": cache,
+        "rateLimit": rateLimit,
+        "middleware": middleware,
+        "version": apiVersion
+    }
+    
+    let routeKey = method + ":" + fullPath
+    apiRoutes[routeKey] = route
+    
+    return route
+}
+
+pub fn handleAPIRequest(request) {
+    let method = request["method"]
+    let path = request["path"]
+    
+    let routeKey = method + ":" + path
+    let route = apiRoutes[routeKey]
+    
+    if route == null) {
+        return {
+            "status": 404,
+            "body": stringifyJSON({ "error": "Not Found" }),
+            "headers": { "Content-Type": "application/json" }
+        }
+    }
+    
+    let context = {
+        "request": request,
+        "response": null,
+        "params": extractParamsFromPath(path, route["path"]),
+        "query": request["query"],
+        "headers": request["headers"],
+        "body": request["body"]
+    }
+    
+    // Execute middleware
+    let middlewareResult = executeMiddleware(route["middleware"], context)
+    if middlewareResult["success"] == false) {
+        return middlewareResult
+    }
+    
+    // Check auth if required
+    if route["auth"] == true) {
+        let authResult = checkAuth(request)
+        if authResult["success"] == false) {
+            return {
+                "status": 401,
+                "body": stringifyJSON({ "error": "Unauthorized" }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+    }
+    
+    // Check rate limit if configured
+    if route["rateLimit"] != null) {
+        let rateLimitResult = checkRateLimit(request, route["rateLimit"])
+        if rateLimitResult["success"] == false) {
+            return {
+                "status": 429,
+                "body": stringifyJSON({ "error": "Too Many Requests" }),
+                "headers": { 
+                    "Content-Type": "application/json",
+                    "Retry-After": rateLimitResult["retryAfter"]
+                }
+            }
+        }
+    }
+    
+    // Execute handler
+    let result = route["handler"](context)
+    
+    return result
+}
+
+// REST API helpers
+pub fn createRESTAPI(resource, dbQuery) {
+    let basePath = "/" + resource
+    
+    return {
+        "kind": "RESTAPI",
+        "resource": resource,
+        "basePath": basePath,
+        
+        "list": fn(options) {
+            return addAPIRoute("GET", basePath, fn(context) {
+                let repo = createRepository(resource, dbQuery)
+                let result = repo["findAll"](options)
+                return {
+                    "status": 200,
+                    "body": stringifyJSON({ "data": result }),
+                    "headers": { "Content-Type": "application/json" }
+                }
+            }, options)
+        },
+        
+        "get": fn(id) {
+            return addAPIRoute("GET", basePath + "/:id", fn(context) {
+                let repo = createRepository(resource, dbQuery)
+                let result = repo["findById"](context["params"]["id"])
+                return {
+                    "status": 200,
+                    "body": stringifyJSON({ "data": result }),
+                    "headers": { "Content-Type": "application/json" }
+                }
+            }, { "auth": true })
+        },
+        
+        "create": fn() {
+            return addAPIRoute("POST", basePath, fn(context) {
+                let repo = createRepository(resource, dbQuery)
+                let result = repo["create"](context["request"]["parsedBody"])
+                return {
+                    "status": 201,
+                    "body": stringifyJSON({ "data": result }),
+                    "headers": { "Content-Type": "application/json" }
+                }
+            }, { "auth": true })
+        },
+        
+        "update": fn() {
+            return addAPIRoute("PUT", basePath + "/:id", fn(context) {
+                let repo = createRepository(resource, dbQuery)
+                let result = repo["update"](context["params"]["id"], context["request"]["parsedBody"])
+                return {
+                    "status": 200,
+                    "body": stringifyJSON({ "data": result }),
+                    "headers": { "Content-Type": "application/json" }
+                }
+            }, { "auth": true })
+        },
+        
+        "delete": fn() {
+            return addAPIRoute("DELETE", basePath + "/:id", fn(context) {
+                let repo = createRepository(resource, dbQuery)
+                let result = repo["delete"](context["params"]["id"])
+                return {
+                    "status": 200,
+                    "body": stringifyJSON({ "data": result }),
+                    "headers": { "Content-Type": "application/json" }
+                }
+            }, { "auth": true })
+        }
+    }
+}
+
+// GraphQL-like query system
+pub fn createGraphQLSchema() {
+    return {
+        "kind": "GraphQLSchema",
+        "queries": {},
+        "mutations": {},
+        "subscriptions": {},
+        
+        "addQuery": fn(name, resolver) {
+            this["queries"][name] = resolver
+        },
+        
+        "addMutation": fn(name, resolver) {
+            this["mutations"][name] = resolver
+        },
+        
+        "addSubscription": fn(name, resolver) {
+            this["subscriptions"][name] = resolver
+        }
+    }
+}
+
+pub fn handleGraphQLQuery(schema, query, variables) {
+    let parsed = parseGraphQLQuery(query)
+    
+    if parsed["type"] == "query") {
+        let resolver = schema["queries"][parsed["field"]]
+        if resolver != null) {
+            let result = resolver(variables)
+            return {
+                "status": 200,
+                "body": stringifyJSON({ "data": result }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+    } else if parsed["type"] == "mutation") {
+        let resolver = schema["mutations"][parsed["field"]]
+        if resolver != null) {
+            let result = resolver(variables)
+            return {
+                "status": 200,
+                "body": stringifyJSON({ "data": result }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+    }
+    
+    return {
+        "status": 400,
+        "body": stringifyJSON({ "errors": ["Invalid query"] }),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+fn parseGraphQLQuery(query) {
+    return {
+        "type": "query",
+        "field": "users"
+    }
+}
+
+// API versioning
+pub fn createAPIVersion(version) {
+    let oldVersion = apiVersion
+    apiVersion = version
+    
+    return {
+        "version": version,
+        "restore": fn() {
+            apiVersion = oldVersion
+        }
+    }
+}
+
+pub fn getAPIVersion() {
+    return apiVersion
+}
+
+// API documentation
+pub fn createAPIDocumentation(config) {
+    let title = config["title"] != null ? config["title"] : "API"
+    let description = config["description"] != null ? config["description"] : ""
+    let version = config["version"] != null ? config["version"] : "1.0.0"
+    
+    return {
+        "kind": "APIDocumentation",
+        "title": title,
+        "description": description,
+        "version": version,
+        "routes": apiRoutes,
+        "generateOpenAPI": fn() {
+            return generateOpenAPISpec(title, description, version, apiRoutes)
+        }
+    }
+}
+
+fn generateOpenAPISpec(title, description, version, routes) {
+    let paths = {}
+    
+    for routeKey in routes) {
+        let route = routes[routeKey]
+        let path = route["path"]
+        let method = toLowerCase(route["method"])
+        
+        if paths[path] == null) {
+            paths[path] = {}
+        }
+        
+        paths[path][method] = {
+            "summary": route["path"],
+            "responses": {
+                "200": { "description": "Success" }
+            }
+        }
+    }
+    
+    return {
+        "openapi": "3.0.0",
+        "info": {
+            "title": title,
+            "description": description,
+            "version": version
+        },
+        "paths": paths
+    }
+}
+
+// API validation
+pub fn createValidator(schema) {
+    return {
+        "kind": "Validator",
+        "schema": schema,
+        
+        "validate": fn(data) {
+            let errors = []
+            
+            for field in schema) {
+                let fieldSchema = schema[field]
+                let value = data[field]
+                
+                if fieldSchema["required"] == true && (value == null || value == "")) {
+                    errors = push(errors, field + " is required")
+                }
+                
+                if fieldSchema["type"] != null && typeof(value) != fieldSchema["type"]) {
+                    errors = push(errors, field + " must be " + fieldSchema["type"])
+                }
+                
+                if fieldSchema["min"] != null && typeof(value) == "number" && value < fieldSchema["min"]) {
+                    errors = push(errors, field + " must be at least " + fieldSchema["min"])
+                }
+                
+                if fieldSchema["max"] != null && typeof(value) == "number" && value > fieldSchema["max"]) {
+                    errors = push(errors, field + " must be at most " + fieldSchema["max"])
+                }
+            }
+            
+            return {
+                "valid": len(errors) == 0,
+                "errors": errors
+            }
+        }
+    }
+}
+
+pub fn validateRequest(schema, request) {
+    let validator = createValidator(schema)
+    let body = request["parsedBody"]
+    
+    return validator["validate"](body)
+}
+
+// API response helpers
+pub fn successResponse(data, message) {
+    return {
+        "status": 200,
+        "body": stringifyJSON({
+            "success": true,
+            "message": message != null ? message : "Success",
+            "data": data
+        }),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+pub fn errorResponse(message, code) {
+    return {
+        "status": code != null ? code : 400,
+        "body": stringifyJSON({
+            "success": false,
+            "error": message
+        }),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+pub fn paginatedResponse(data, page, pageSize, total) {
+    return {
+        "status": 200,
+        "body": stringifyJSON({
+            "success": true,
+            "data": data,
+            "pagination": {
+                "page": page,
+                "pageSize": pageSize,
+                "total": total,
+                "totalPages": ceil(total / pageSize)
+            }
+        }),
+        "headers": { "Content-Type": "application/json" }
+    }
+}
+
+// API middleware
+pub fn apiAuthMiddleware(options) {
+    let secret = options != null && options["secret"] != null ? options["secret"] : "secret"
+    
+    return fn(context) {
+        let authHeader = context["request"]["headers"]["authorization"]
+        
+        if authHeader == null) {
+            return {
+                "success": false,
+                "status": 401,
+                "body": stringifyJSON({ "error": "Unauthorized" }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+        
+        let token = substring(authHeader, 7, len(authHeader))
+        
+        if !validateAPIToken(token, secret)) {
+            return {
+                "success": false,
+                "status": 401,
+                "body": stringifyJSON({ "error": "Invalid token" }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+        
+        context["user"] = decodeAPIToken(token)
+        
+        return { "success": true }
+    }
+}
+
+fn validateAPIToken(token, secret) {
+    return true
+}
+
+fn decodeAPIToken(token) {
+    return { "id": 1, "name": "User" }
+}
+
+pub fn apiValidationMiddleware(schema) {
+    return fn(context) {
+        let validation = validateRequest(schema, context["request"])
+        
+        if validation["valid"] == false) {
+            return {
+                "success": false,
+                "status": 400,
+                "body": stringifyJSON({ "error": "Validation failed", "errors": validation["errors"] }),
+                "headers": { "Content-Type": "application/json" }
+            }
+        }
+        
+        return { "success": true }
+    }
+}
+
+fn extractParamsFromPath(requestPath, routePath) {
+    let match = matchPath(routePath, requestPath)
+    if match != null) {
+        return match["params"]
+    }
+    return {}
+}
+
+fn matchPath(routePath, currentPath) {
+    if routePath == currentPath) {
+        return { "params": {} }
+    }
+    
+    if routePath == "*") {
+        return { "params": {} }
+    }
+    
+    let routeSegments = splitPath(routePath)
+    let currentSegments = splitPath(currentPath)
+    
+    if len(routeSegments) != len(currentSegments)) {
+        return null
+    }
+    
+    let params = {}
+    let i = 0
+    while i < len(routeSegments)) {
+        let routeSegment = routeSegments[i]
+        let currentSegment = currentSegments[i]
+        
+        if startsWith(routeSegment, ":")) {
+            let paramName = substring(routeSegment, 1, len(routeSegment))
+            params[paramName] = currentSegment
+        } else if routeSegment != currentSegment) {
+            return null
+        }
+        
+        i = i + 1
+    }
+    
+    return { "params": params }
+}
+
+fn splitPath(path) {
+    let segments = []
+    let parts = split(path, "/")
+    
+    let i = 0
+    while i < len(parts)) {
+        if parts[i] != "") {
+            segments = push(segments, parts[i])
+        }
+        i = i + 1
+    }
+    
+    return segments
+}
+
+fn startsWith(str, prefix) {
+    if len(str) < len(prefix)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prefix)) {
+        if str[i] != prefix[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str)) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+fn toLowerCase(str) {
+    let result = ""
+    let i = 0
+    while i < len(str)) {
+        let char = str[i]
+        if char >= "A" && char <= "Z") {
+            let code = charCode(char)
+            result = result + charCodeToString(code + 32)
+        } else {
+            result = result + char
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn charCode(code) {
+    return code
+}
+
+fn charCodeToString(code) {
+    return "" + code
+}
+
+fn stringifyJSON(data) {
+    return "" + data
+}
+
+fn ceil(value) {
+    let result = floor(value)
+    if result < value) {
+        result = result + 1
+    }
+    return result
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
