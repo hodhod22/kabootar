@@ -33,6 +33,8 @@ pub fn exportDocument(document, options) {
         return exportPDF(document, options)
     } else if format == "dxf" {
         return exportDXF(document, options)
+    } else if format == "step" {
+        return exportSTEP(document, options)
     }
     
     return ""
@@ -623,4 +625,120 @@ fn flattenBezierSegment(seg, steps) {
     }
     
     return points
+}
+
+// STEP Export for 3D CAD Paritet
+pub fn exportSTEP(document, options) {
+    let step = ""
+    
+    step = step + "ISO-10303-21;\n"
+    step = step + "HEADER;\n"
+    step = step + "FILE_DESCRIPTION(('CAD Document'),'2;1');\n"
+    step = step + "FILE_NAME('" + document["name"] + ".step','" + systemTime() + "'),('CAD System'),('Kabootar CAD');\n"
+    step = step + "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\n"
+    step = step + "ENDSEC;\n"
+    step = step + "DATA;\n"
+    
+    let drawList = buildDrawList(document, null)
+    let entityId = 1
+    
+    let i = 0
+    while i < len(drawList["items"]) {
+        let item = drawList["items"][i]
+        let stepData = exportItemToSTEP(item, entityId)
+        step = step + stepData["step"]
+        entityId = stepData["nextId"]
+        i = i + 1
+    }
+    
+    step = step + "ENDSEC;\n"
+    step = step + "END-ISO-10303-21;\n"
+    
+    return step
+}
+
+fn exportItemToSTEP(item, startId) {
+    let kind = item["kind"]
+    
+    if kind == "DrawFrame" {
+        return exportFrameToSTEP(item, startId)
+    } else if kind == "DrawVector" {
+        return exportVectorToSTEP(item, startId)
+    } else if kind == "DrawShape" {
+        return exportShapeToSTEP(item, startId)
+    }
+    
+    return { "step": "", "nextId": startId }
+}
+
+fn exportFrameToSTEP(item, startId) {
+    let transform = item["transform"]
+    let x = transform["position"]["x"]
+    let y = transform["position"]["y"]
+    let width = item["width"]
+    let height = item["height"]
+    
+    let step = ""
+    let id = startId
+    
+    step = step + "#" + id + " = CARTESIAN_POINT('', (" + x + ", " + y + ", 0.0));\n"
+    id = id + 1
+    step = step + "#" + id + " = DIRECTION('', (0.0, 0.0, 1.0));\n"
+    id = id + 1
+    step = step + "#" + id + " = VECTOR('', #" + (id - 1) + ", " + height + ");\n"
+    id = id + 1
+    step = step + "#" + id + " = CARTESIAN_POINT('', (" + (x + width) + ", " + y + ", 0.0));\n"
+    id = id + 1
+    step = step + "#" + id + " = LINE('', #" + (id - 4) + ", #" + (id - 2));\n"
+    
+    return { "step": step, "nextId": id + 1 }
+}
+
+fn exportVectorToSTEP(item, startId) {
+    let data = item["data"]
+    let step = ""
+    let id = startId
+    
+    let i = 0
+    while i < len(data["segments"]) {
+        let seg = data["segments"][i]
+        if seg["kind"] == "LineTo" {
+            step = step + "#" + id + " = CARTESIAN_POINT('', (" + seg["x"] + ", " + seg["y"] + ", 0.0));\n"
+            id = id + 1
+        } else if seg["kind"] == "CubicBezierTo" || seg["kind"] == "QuadraticBezierTo" {
+            let flattened = flattenBezierSegment(seg, 10)
+            let j = 0
+            while j < len(flattened) {
+                step = step + "#" + id + " = CARTESIAN_POINT('', (" + flattened[j]["x"] + ", " + flattened[j]["y"] + ", 0.0));\n"
+                id = id + 1
+                j = j + 1
+            }
+        }
+        i = i + 1
+    }
+    
+    return { "step": step, "nextId": id }
+}
+
+fn exportShapeToSTEP(item, startId) {
+    let shapeType = item["shapeType"]
+    let transform = item["transform"]
+    
+    let step = ""
+    let id = startId
+    
+    if shapeType == "circle" {
+        let x = transform["position"]["x"]
+        let y = transform["position"]["y"]
+        let radius = item["data"]["radius"]
+        
+        step = step + "#" + id + " = CARTESIAN_POINT('', (" + x + ", " + y + ", 0.0));\n"
+        id = id + 1
+        step = step + "#" + id + " = AXIS2_PLACEMENT_3D('', #" + (id - 1) + ", $, $);\n"
+        id = id + 1
+        step = step + "#" + id + " = CIRCLE('', #" + (id - 1) + ", " + radius + ");\n"
+        id = id + 1
+    }
+    
+    return { "step": step, "nextId": id }
 }
