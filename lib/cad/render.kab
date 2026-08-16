@@ -7,6 +7,7 @@
 
 import "cad/geom"
 import "cad/document"
+import "cad/host"
 
 pub fn createDrawList() {
     return {
@@ -53,6 +54,80 @@ pub fn createGlowEffect(radius, color, opacity) {
         "color": color,
         "opacity": opacity
     })
+}
+
+pub fn createInnerShadowEffect(offsetX, offsetY, blur, color, opacity) {
+    return createEffect("inner-shadow", {
+        "offsetX": offsetX,
+        "offsetY": offsetY,
+        "blur": blur,
+        "color": color,
+        "opacity": opacity
+    })
+}
+
+pub fn createDropShadowEffect(offsetX, offsetY, blur, spread, color, opacity) {
+    return createEffect("drop-shadow", {
+        "offsetX": offsetX,
+        "offsetY": offsetY,
+        "blur": blur,
+        "spread": spread,
+        "color": color,
+        "opacity": opacity
+    })
+}
+
+pub fn createNoiseEffect(intensity) {
+    return createEffect("noise", {
+        "intensity": intensity
+    })
+}
+
+pub fn createDistortionEffect(amount) {
+    return createEffect("distortion", {
+        "amount": amount
+    })
+}
+
+pub fn createGradientStop(offset, color, opacity) {
+    return {
+        "offset": offset,
+        "color": color,
+        "opacity": opacity
+    }
+}
+
+pub fn createLinearGradient(x1, y1, x2, y2, stops) {
+    return {
+        "kind": "LinearGradient",
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "stops": stops
+    }
+}
+
+pub fn createRadialGradient(cx, cy, r, fx, fy, stops) {
+    return {
+        "kind": "RadialGradient",
+        "cx": cx,
+        "cy": cy,
+        "r": r,
+        "fx": fx,
+        "fy": fy,
+        "stops": stops
+    }
+}
+
+pub fn createConicGradient(cx, cy, angle, stops) {
+    return {
+        "kind": "ConicGradient",
+        "cx": cx,
+        "cy": cy,
+        "angle": angle,
+        "stops": stops
+    }
 }
 
 // Standard blend modes (compatible with GPU rendering)
@@ -123,6 +198,30 @@ pub fn blendModeLuminosity() {
 pub fn setNodeBlendMode(node, mode) {
     node["blendMode"] = mode
     return node
+}
+
+pub fn setNodeGradient(node, gradient) {
+    if node["styleSet"] == null {
+        node["styleSet"] = createStyleSet()
+    }
+    let fill = createFill(gradient, 1.0)
+    node["styleSet"] = addFillToStyleSet(node["styleSet"], fill)
+    return node
+}
+
+pub fn setNodeLinearGradient(node, x1, y1, x2, y2, stops) {
+    let gradient = createLinearGradient(x1, y1, x2, y2, stops)
+    return setNodeGradient(node, gradient)
+}
+
+pub fn setNodeRadialGradient(node, cx, cy, r, fx, fy, stops) {
+    let gradient = createRadialGradient(cx, cy, r, fx, fy, stops)
+    return setNodeGradient(node, gradient)
+}
+
+pub fn setNodeConicGradient(node, cx, cy, angle, stops) {
+    let gradient = createConicGradient(cx, cy, angle, stops)
+    return setNodeGradient(node, gradient)
 }
 
 pub fn addNodeEffect(node, effect) {
