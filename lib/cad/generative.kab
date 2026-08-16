@@ -1,0 +1,664 @@
+@version "1.0.0"
+
+// CAD Generative - Generative design with topology optimization
+// Features: topology optimization, lattice structures, organic shapes, biomimicry
+// Canonical path: import "cad/generative"
+// Target: Generative design comparable to Autodesk Generative Design/nTopology
+
+import "cad/geom"
+import "cad/solid"
+import "cad/fem"
+import "cad/host"
+
+pub fn createGenerativeDesignSystem() {
+    return {
+        "kind": "GenerativeDesignSystem",
+        "designSpace": null,
+        "constraints": [],
+        "objectives": [],
+        "solutions": []
+    }
+}
+
+pub fn createDesignSpace(bounds, resolution) {
+    return {
+        "kind": "DesignSpace",
+        "bounds": bounds,
+        "resolution": resolution,
+        "voxels": [],
+        "material": "default"
+    }
+}
+
+pub fn setDesignSpace(system, designSpace) {
+    system["designSpace"] = designSpace
+    return system
+}
+
+pub fn createTopologyConstraint(type, parameters) {
+    return {
+        "kind": "TopologyConstraint",
+        "type": type,
+        "parameters": parameters
+    }
+}
+
+pub fn addConstraint(system, constraint) {
+    system["constraints"] = push(system["constraints"], constraint)
+    return system
+}
+
+pub fn createVolumeConstraint(targetVolume) {
+    return createTopologyConstraint("volume", { "targetVolume": targetVolume })
+}
+
+pub fn createLoadConstraint(loadCase, maxStress) {
+    return createTopologyConstraint("load", { "loadCase": loadCase, "maxStress": maxStress })
+}
+
+pub fn createManufacturingConstraint(method, parameters) {
+    return createTopologyConstraint("manufacturing", { "method": method, "parameters": parameters })
+}
+
+pub fn createDesignObjective(type, weight) {
+    return {
+        "kind": "DesignObjective",
+        "type": type,
+        "weight": weight
+    }
+}
+
+pub fn addObjective(system, objective) {
+    system["objectives"] = push(system["objectives"], objective)
+    return system
+}
+
+pub fn createMinimizeWeightObjective() {
+    return createDesignObjective("minimizeWeight", 1.0)
+}
+
+pub fn createMaximizeStiffnessObjective() {
+    return createDesignObjective("maximizeStiffness", 1.0)
+}
+
+pub fn createMinimizeStressObjective() {
+    return createDesignObjective("minimizeStress", 1.0)
+}
+
+pub fn initializeVoxelGrid(designSpace) {
+    let bounds = designSpace["bounds"]
+    let resolution = designSpace["resolution"]
+    
+    let width = bounds["maxX"] - bounds["minX"]
+    let height = bounds["maxY"] - bounds["minY"]
+    let depth = bounds["maxZ"] - bounds["minZ"]
+    
+    let nx = floor(width / resolution)
+    let ny = floor(height / resolution)
+    let nz = floor(depth / resolution)
+    
+    let voxels = []
+    let x = 0
+    while x < nx {
+        let y = 0
+        while y < ny {
+            let z = 0
+            while z < nz {
+                let voxel = {
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "density": 1.0,
+                    "stress": 0.0,
+                    "sensitivity": 0.0
+                }
+                voxels = push(voxels, voxel)
+                z = z + 1
+            }
+            y = y + 1
+        }
+        x = x + 1
+    }
+    
+    designSpace["voxels"] = voxels
+    designSpace["gridSize"] = { "nx": nx, "ny": ny, "nz": nz }
+    
+    return designSpace
+}
+
+pub fn runTopologyOptimization(system, iterations) {
+    let designSpace = system["designSpace"]
+    if designSpace["voxels"] == null {
+        designSpace = initializeVoxelGrid(designSpace)
+        system["designSpace"] = designSpace
+    }
+    
+    let iteration = 0
+    while iteration < iterations {
+        designSpace = computeSensitivity(designSpace, system["constraints"])
+        designSpace = updateDensities(designSpace, system["constraints"], system["objectives"])
+        designSpace = applyFilter(designSpace)
+        
+        system["designSpace"] = designSpace
+        iteration = iteration + 1
+    }
+    
+    return system
+}
+
+fn computeSensitivity(designSpace, constraints) {
+    let voxels = designSpace["voxels"]
+    
+    let i = 0
+    while i < len(voxels) {
+        let voxel = voxels[i]
+        let density = voxel["density"]
+        
+        let sensitivity = 0.0
+        
+        let j = 0
+        while j < len(constraints) {
+            let constraint = constraints[j]
+            
+            if constraint["type"] == "load" {
+                let stress = computeVoxelStress(voxel, constraint["parameters"])
+                voxel["stress"] = stress
+                sensitivity = sensitivity + stress * (1.0 - density)
+            }
+            
+            j = j + 1
+        }
+        
+        voxel["sensitivity"] = sensitivity
+        voxels[i] = voxel
+        i = i + 1
+    }
+    
+    designSpace["voxels"] = voxels
+    return designSpace
+}
+
+fn computeVoxelStress(voxel, loadCase) {
+    let x = voxel["x"]
+    let y = voxel["y"]
+    let z = voxel["z"]
+    
+    let distance = sqrt(x * x + y * y + z * z)
+    let stress = loadCase["maxStress"] * (1.0 - distance / 10.0)
+    
+    if stress < 0.0 {
+        stress = 0.0
+    }
+    
+    return stress
+}
+
+fn updateDensities(designSpace, constraints, objectives) {
+    let voxels = designSpace["voxels"]
+    let moveLimit = 0.2
+    
+    let i = 0
+    while i < len(voxels) {
+        let voxel = voxels[i]
+        let sensitivity = voxel["sensitivity"]
+        let density = voxel["density"]
+        
+        let newDensity = density
+        
+        let j = 0
+        while j < len(objectives) {
+            let objective = objectives[j]
+            
+            if objective["type"] == "minimizeWeight" {
+                newDensity = newDensity - 0.1 * sensitivity * objective["weight"]
+            } else if objective["type"] == "maximizeStiffness" {
+                newDensity = newDensity + 0.1 * sensitivity * objective["weight"]
+            } else if objective["type"] == "minimizeStress" {
+                newDensity = newDensity - 0.15 * sensitivity * objective["weight"]
+            }
+            
+            j = j + 1
+        }
+        
+        let change = newDensity - density
+        if change > moveLimit {
+            newDensity = density + moveLimit
+        } else if change < -moveLimit {
+            newDensity = density - moveLimit
+        }
+        
+        if newDensity < 0.001 {
+            newDensity = 0.001
+        } else if newDensity > 1.0 {
+            newDensity = 1.0
+        }
+        
+        voxel["density"] = newDensity
+        voxels[i] = voxel
+        i = i + 1
+    }
+    
+    designSpace["voxels"] = voxels
+    return designSpace
+}
+
+fn applyFilter(designSpace) {
+    let voxels = designSpace["voxels"]
+    let gridSize = designSpace["gridSize"]
+    let filterRadius = 1
+    
+    let filteredVoxels = []
+    
+    let i = 0
+    while i < len(voxels) {
+        let voxel = voxels[i]
+        let x = voxel["x"]
+        let y = voxel["y"]
+        let z = voxel["z"]
+        
+        let weightedSum = 0.0
+        let weightSum = 0.0
+        
+        let dx = -filterRadius
+        while dx <= filterRadius {
+            let dy = -filterRadius
+            while dy <= filterRadius {
+                let dz = -filterRadius
+                while dz <= filterRadius {
+                    let nx = x + dx
+                    let ny = y + dy
+                    let nz = z + dz
+                    
+                    if nx >= 0 && nx < gridSize["nx"] && ny >= 0 && ny < gridSize["ny"] && nz >= 0 && nz < gridSize["nz"] {
+                        let index = nx * gridSize["ny"] * gridSize["nz"] + ny * gridSize["nz"] + nz
+                        if index < len(voxels) {
+                            let neighbor = voxels[index]
+                            let distance = sqrt(dx * dx + dy * dy + dz * dz)
+                            let weight = 1.0 / (distance + 0.001)
+                            weightedSum = weightedSum + weight * neighbor["density"]
+                            weightSum = weightSum + weight
+                        }
+                    }
+                    
+                    dz = dz + 1
+                }
+                dy = dy + 1
+            }
+            dx = dx + 1
+        }
+        
+        let filteredDensity = weightedSum / weightSum
+        voxel["density"] = filteredDensity
+        filteredVoxels = push(filteredVoxels, voxel)
+        
+        i = i + 1
+    }
+    
+    designSpace["voxels"] = filteredVoxels
+    return designSpace
+}
+
+pub fn generateLatticeStructure(designSpace, latticeType, cellSize) {
+    let lattice = {
+        "kind": "LatticeStructure",
+        "type": latticeType,
+        "cellSize": cellSize,
+        "struts": []
+    }
+    
+    let voxels = designSpace["voxels"]
+    let gridSize = designSpace["gridSize"]
+    
+    let i = 0
+    while i < len(voxels) {
+        let voxel = voxels[i]
+        
+        if voxel["density"] > 0.3 {
+            let x = voxel["x"]
+            let y = voxel["y"]
+            let z = voxel["z"]
+            
+            let struts = generateLatticeCell(x, y, z, latticeType, cellSize)
+            let j = 0
+            while j < len(struts) {
+                lattice["struts"] = push(lattice["struts"], struts[j])
+                j = j + 1
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    return lattice
+}
+
+fn generateLatticeCell(x, y, z, latticeType, cellSize) {
+    let struts = []
+    
+    if latticeType == "cubic" {
+        let p0 = vec3(x * cellSize, y * cellSize, z * cellSize)
+        let p1 = vec3((x + 1) * cellSize, y * cellSize, z * cellSize)
+        let p2 = vec3(x * cellSize, (y + 1) * cellSize, z * cellSize)
+        let p3 = vec3(x * cellSize, y * cellSize, (z + 1) * cellSize)
+        
+        struts = push(struts, { "start": p0, "end": p1, "radius": cellSize * 0.1 })
+        struts = push(struts, { "start": p0, "end": p2, "radius": cellSize * 0.1 })
+        struts = push(struts, { "start": p0, "end": p3, "radius": cellSize * 0.1 })
+    } else if latticeType == "octet" {
+        let p0 = vec3(x * cellSize, y * cellSize, z * cellSize)
+        let p1 = vec3((x + 1) * cellSize, (y + 1) * cellSize, z * cellSize)
+        let p2 = vec3((x + 1) * cellSize, y * cellSize, (z + 1) * cellSize)
+        let p3 = vec3(x * cellSize, (y + 1) * cellSize, (z + 1) * cellSize)
+        
+        struts = push(struts, { "start": p0, "end": p1, "radius": cellSize * 0.08 })
+        struts = push(struts, { "start": p0, "end": p2, "radius": cellSize * 0.08 })
+        struts = push(struts, { "start": p0, "end": p3, "radius": cellSize * 0.08 })
+        struts = push(struts, { "start": p1, "end": p2, "radius": cellSize * 0.08 })
+        struts = push(struts, { "start": p1, "end": p3, "radius": cellSize * 0.08 })
+        struts = push(struts, { "start": p2, "end": p3, "radius": cellSize * 0.08 })
+    } else if latticeType == "gyroid" {
+        let p0 = vec3(x * cellSize, y * cellSize, z * cellSize)
+        let p1 = vec3((x + 1) * cellSize, y * cellSize, z * cellSize)
+        let p2 = vec3(x * cellSize, (y + 1) * cellSize, z * cellSize)
+        let p3 = vec3(x * cellSize, y * cellSize, (z + 1) * cellSize)
+        
+        struts = push(struts, { "start": p0, "end": p1, "radius": cellSize * 0.12 })
+        struts = push(struts, { "start": p0, "end": p2, "radius": cellSize * 0.12 })
+        struts = push(struts, { "start": p0, "end": p3, "radius": cellSize * 0.12 })
+    }
+    
+    return struts
+}
+
+pub fn convertVoxelToMesh(designSpace, densityThreshold) {
+    let voxels = designSpace["voxels"]
+    let gridSize = designSpace["gridSize"]
+    let resolution = designSpace["resolution"]
+    
+    let vertices = []
+    let indices = []
+    
+    let i = 0
+    while i < len(voxels) {
+        let voxel = voxels[i]
+        
+        if voxel["density"] >= densityThreshold {
+            let x = voxel["x"]
+            let y = voxel["y"]
+            let z = voxel["z"]
+            
+            let baseIndex = len(vertices)
+            
+            let v0 = vec3(x * resolution, y * resolution, z * resolution)
+            let v1 = vec3((x + 1) * resolution, y * resolution, z * resolution)
+            let v2 = vec3((x + 1) * resolution, (y + 1) * resolution, z * resolution)
+            let v3 = vec3(x * resolution, (y + 1) * resolution, z * resolution)
+            let v4 = vec3(x * resolution, y * resolution, (z + 1) * resolution)
+            let v5 = vec3((x + 1) * resolution, y * resolution, (z + 1) * resolution)
+            let v6 = vec3((x + 1) * resolution, (y + 1) * resolution, (z + 1) * resolution)
+            let v7 = vec3(x * resolution, (y + 1) * resolution, (z + 1) * resolution)
+            
+            vertices = push(vertices, v0)
+            vertices = push(vertices, v1)
+            vertices = push(vertices, v2)
+            vertices = push(vertices, v3)
+            vertices = push(vertices, v4)
+            vertices = push(vertices, v5)
+            vertices = push(vertices, v6)
+            vertices = push(vertices, v7)
+            
+            indices = push(indices, baseIndex + 0)
+            indices = push(indices, baseIndex + 1)
+            indices = push(indices, baseIndex + 2)
+            
+            indices = push(indices, baseIndex + 0)
+            indices = push(indices, baseIndex + 2)
+            indices = push(indices, baseIndex + 3)
+            
+            indices = push(indices, baseIndex + 4)
+            indices = push(indices, baseIndex + 5)
+            indices = push(indices, baseIndex + 6)
+            
+            indices = push(indices, baseIndex + 4)
+            indices = push(indices, baseIndex + 6)
+            indices = push(indices, baseIndex + 7)
+        }
+        
+        i = i + 1
+    }
+    
+    return {
+        "kind": "Mesh",
+        "vertices": vertices,
+        "indices": indices
+    }
+}
+
+pub fn createOrganicShape(controlPoints, tension) {
+    return {
+        "kind": "OrganicShape",
+        "controlPoints": controlPoints,
+        "tension": tension,
+        "subdivisions": 3
+    }
+}
+
+pub fn subdivideOrganicShape(shape) {
+    let newControlPoints = []
+    let oldPoints = shape["controlPoints"]
+    let tension = shape["tension"]
+    
+    let i = 0
+    while i < len(oldPoints) {
+        let p0 = oldPoints[i]
+        let p1 = oldPoints[(i + 1) % len(oldPoints)]
+        
+        let mid = vec3Lerp(p0, p1, 0.5)
+        
+        let offset = vec3(
+            (random() - 0.5) * tension,
+            (random() - 0.5) * tension,
+            (random() - 0.5) * tension
+        )
+        
+        let newPoint = vec3Add(mid, offset)
+        
+        newControlPoints = push(newControlPoints, p0)
+        newControlPoints = push(newControlPoints, newPoint)
+        
+        i = i + 1
+    }
+    
+    shape["controlPoints"] = newControlPoints
+    shape["subdivisions"] = shape["subdivisions"] - 1
+    
+    return shape
+}
+
+pub fn createBiomimeticDesign(biomimicryType, parameters) {
+    return {
+        "kind": "BiomimeticDesign",
+        "type": biomimicryType,
+        "parameters": parameters
+    }
+}
+
+pub fn generateHoneycombStructure(bounds, cellSize, wallThickness) {
+    let honeycomb = {
+        "kind": "HoneycombStructure",
+        "bounds": bounds,
+        "cellSize": cellSize,
+        "wallThickness": wallThickness,
+        "cells": []
+    }
+    
+    let width = bounds["maxX"] - bounds["minX"]
+    let height = bounds["maxY"] - bounds["minY"]
+    
+    let cols = floor(width / cellSize)
+    let rows = floor(height / (cellSize * 0.866))
+    
+    let i = 0
+    while i < cols {
+        let j = 0
+        while j < rows {
+            let xOffset = i * cellSize
+            let yOffset = j * cellSize * 0.866
+            
+            if j % 2 == 1 {
+                xOffset = xOffset + cellSize * 0.5
+            }
+            
+            let cell = {
+                "center": vec2(bounds["minX"] + xOffset, bounds["minY"] + yOffset),
+                "size": cellSize,
+                "wallThickness": wallThickness
+            }
+            
+            honeycomb["cells"] = push(honeycomb["cells"], cell)
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return honeycomb
+}
+
+pub fn createMultiObjectiveOptimization(objectives) {
+    return {
+        "kind": "MultiObjectiveOptimization",
+        "objectives": objectives,
+        "paretoFront": []
+    }
+}
+
+pub fn computeParetoFront(solutions) {
+    let paretoFront = []
+    
+    let i = 0
+    while i < len(solutions) {
+        let solution = solutions[i]
+        let dominated = false
+        
+        let j = 0
+        while j < len(solutions) {
+            if i != j {
+                let other = solutions[j]
+                if dominates(other, solution) {
+                    dominated = true
+                    break
+                }
+            }
+            j = j + 1
+        }
+        
+        if dominated == false {
+            paretoFront = push(paretoFront, solution)
+        }
+        
+        i = i + 1
+    }
+    
+    return paretoFront
+}
+
+fn dominates(a, b) {
+    let aBetter = false
+    let i = 0
+    while i < len(a["objectives"]) {
+        if a["objectives"][i] > b["objectives"][i] {
+            aBetter = true
+        } else if a["objectives"][i] < b["objectives"][i] {
+            return false
+        }
+        i = i + 1
+    }
+    return aBetter
+}
+
+pub fn exportGenerativeDesignToSTL(designSpace, densityThreshold, filename) {
+    let mesh = convertVoxelToMesh(designSpace, densityThreshold)
+    
+    let stl = "solid design\n"
+    
+    let i = 0
+    while i < len(mesh["indices"]) step 3 {
+        let v0 = mesh["vertices"][mesh["indices"][i]]
+        let v1 = mesh["vertices"][mesh["indices"][i + 1]]
+        let v2 = mesh["vertices"][mesh["indices"][i + 2]]
+        
+        let normal = computeTriangleNormal(v0, v1, v2)
+        
+        stl = stl + "facet normal " + normal["x"] + " " + normal["y"] + " " + normal["z"] + "\n"
+        stl = stl + "  outer loop\n"
+        stl = stl + "    vertex " + v0["x"] + " " + v0["y"] + " " + v0["z"] + "\n"
+        stl = stl + "    vertex " + v1["x"] + " " + v1["y"] + " " + v1["z"] + "\n"
+        stl = stl + "    vertex " + v2["x"] + " " + v2["y"] + " " + v2["z"] + "\n"
+        stl = stl + "  endloop\n"
+        stl = stl + "endfacet\n"
+    }
+    
+    stl = stl + "endsolid design"
+    
+    return stl
+}
+
+fn computeTriangleNormal(v0, v1, v2) {
+    let edge1 = vec3Sub(v1, v0)
+    let edge2 = vec3Sub(v2, v0)
+    let normal = vec3Normalize(vec3Cross(edge1, edge2))
+    return normal
+}
+
+fn vec3(x, y, z) {
+    return { "x": x, "y": y, "z": z }
+}
+
+fn vec2(x, y) {
+    return { "x": x, "y": y }
+}
+
+fn vec3Add(a, b) {
+    return vec3(a["x"] + b["x"], a["y"] + b["y"], a["z"] + b["z"])
+}
+
+fn vec3Sub(a, b) {
+    return vec3(a["x"] - b["x"], a["y"] - b["y"], a["z"] - b["z"])
+}
+
+fn vec3Cross(a, b) {
+    return vec3(
+        a["y"] * b["z"] - a["z"] * b["y"],
+        a["z"] * b["x"] - a["x"] * b["z"],
+        a["x"] * b["y"] - a["y"] * b["x"]
+    )
+}
+
+fn vec3Normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len == 0.0 {
+        return vec3(0.0, 0.0, 0.0)
+    }
+    return vec3(v["x"] / len, v["y"] / len, v["z"] / len)
+}
+
+fn vec3Lerp(a, b, t) {
+    return vec3(
+        a["x"] + (b["x"] - a["x"]) * t,
+        a["y"] + (b["y"] - a["y"]) * t,
+        a["z"] + (b["z"] - a["z"]) * t
+    )
+}
+
+fn sqrt(value) {
+    return systemSqrt(value)
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn random() {
+    return systemRandom()
+}
