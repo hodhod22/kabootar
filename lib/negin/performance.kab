@@ -1,0 +1,351 @@
+@version "1.0.0"
+
+// Negin Performance - Performance optimizations for Negin
+// Features: memoization, lazy components, render optimization, profiling
+// Canonical path: import "negin/performance"
+
+import "negin/component"
+import "negin/hooks"
+
+let profilerEnabled = false
+let profilerData = []
+
+pub fn enableProfiler() {
+    profilerEnabled = true
+}
+
+pub fn disableProfiler() {
+    profilerEnabled = false
+}
+
+pub fn getProfilerData() {
+    return profilerData
+}
+
+pub fn clearProfilerData() {
+    profilerData = []
+}
+
+pub fn profileComponent(componentName, renderFn) {
+    if profilerEnabled == false) {
+        return renderFn()
+    }
+    
+    let startTime = currentTime()
+    let result = renderFn()
+    let endTime = currentTime()
+    
+    profilerData = push(profilerData, {
+        "component": componentName,
+        "renderTime": endTime - startTime,
+        "timestamp": startTime
+    })
+    
+    return result
+}
+
+pub fn memo(Component, areEqual) {
+    let memoized = {
+        "kind": "MemoComponent",
+        "Component": Component,
+        "areEqual": areEqual != null ? areEqual : shallowEqual
+    }
+    
+    return memoized
+}
+
+fn shallowEqual(objA, objB) {
+    if objA === objB) {
+        return true
+    }
+    
+    if typeof(objA) != typeof(objB)) {
+        return false
+    }
+    
+    if objA == null || objB == null) {
+        return false
+    }
+    
+    let keysA = getKeys(objA)
+    let keysB = getKeys(objB)
+    
+    if len(keysA) != len(keysB)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(keysA)) {
+        if objA[keysA[i]] !== objB[keysA[i]]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+pub fn unstable_batchedUpdates(callback) {
+    callback()
+}
+
+pub fn flushSync(callback) {
+    callback()
+}
+
+pub fn createProfiler(id, onRender) {
+    return {
+        "kind": "Profiler",
+        "id": id,
+        "onRender": onRender
+    }
+}
+
+pub fn Profiler(props) {
+    let id = props["id"]
+    let onRender = props["onRender"]
+    let children = props["children"]
+    
+    let startTime = currentTime()
+    
+    let result = children
+    
+    let endTime = currentTime()
+    
+    if onRender != null) {
+        onRender({
+            "id": id,
+            "phase": "mount",
+            "actualDuration": endTime - startTime,
+            "baseDuration": endTime - startTime,
+            "startTime": startTime,
+            "commitTime": endTime
+        })
+    }
+    
+    return result
+}
+
+pub fn useProfiler(componentName) {
+    let renderCount = useState(0)
+    let renderTime = useState(0)
+    
+    let startTime = currentTime()
+    
+    useEffect(fn() {
+        renderCount[1](renderCount[0] + 1)
+        renderTime[1](currentTime() - startTime)
+    })
+    
+    return {
+        "renderCount": renderCount[0],
+        "renderTime": renderTime[0]
+    }
+}
+
+pub fn useTransition() {
+    let isPending = useState(false)
+    let startTransition = fn(callback) {
+        isPending[1](true)
+        unstable_batchedUpdates(callback)
+        isPending[1](false)
+    }
+    return [isPending[0], startTransition]
+}
+
+pub fn useDeferredValue(value) {
+    let deferred = useState(value)
+    
+    let isPending = useTransition()[0]
+    
+    if isPending == false) {
+        deferred[1](value)
+    }
+    
+    return deferred[0]
+}
+
+pub fn useOptimistic(state, update) {
+    let optimistic = useState(state)
+    
+    let addOptimistic = fn(pendingValue) {
+        optimistic[1](pendingValue)
+    }
+    
+    return [optimistic[0], addOptimistic]
+}
+
+pub fn createRootWithOptimizations(container, options) {
+    let root = createRoot(container)
+    
+    if options != null) {
+        if options["concurrentFeatures"] == true) {
+            root["concurrentMode"] = true
+        }
+        if options["profiler"] == true) {
+            enableProfiler()
+        }
+    }
+    
+    return root
+}
+
+pub fn optimizeRender(renderFn) {
+    let memoized = null
+    let lastDeps = null
+    
+    return fn(...deps) {
+        if memoized == null || !areDepsEqual(lastDeps, deps)) {
+            memoized = renderFn(...deps)
+            lastDeps = deps
+        }
+        return memoized
+    }
+}
+
+fn areDepsEqual(prevDeps, nextDeps) {
+    if prevDeps == null || nextDeps == null) {
+        return false
+    }
+    
+    if len(prevDeps) != len(nextDeps)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prevDeps)) {
+        if prevDeps[i] !== nextDeps[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+pub fn createLazyBoundary(fallback) {
+    return {
+        "kind": "LazyBoundary",
+        "fallback": fallback
+    }
+}
+
+pub fn useLazyComponent(loader) {
+    let (component, setComponent) = useState(null)
+    let (loading, setLoading) = useState(false)
+    let (error, setError) = useState(null)
+    
+    useEffect(fn() {
+        setLoading(true)
+        
+        loader().then(fn(loaded) {
+            setComponent(loaded)
+            setLoading(false)
+        }).catch(fn(err) {
+            setError(err)
+            setLoading(false)
+        })
+    }, [])
+    
+    if loading) {
+        return { "loading": true, "component": null, "error": null }
+    }
+    
+    if error != null) {
+        return { "loading": false, "component": null, "error": error }
+    }
+    
+    return { "loading": false, "component": component, "error": null }
+}
+
+pub fn useRenderThrottle(callback, delay) {
+    let lastRender = useState(0)
+    let lastArgs = useState(null)
+    
+    let throttled = fn(...args) {
+        let now = currentTime()
+        
+        if now - lastRender[0] >= delay) {
+            lastRender[1](now)
+            callback(...args)
+        } else {
+            lastArgs[1](args)
+        }
+    }
+    
+    return throttled
+}
+
+pub fn useRenderDebounce(callback, delay) {
+    let timeout = useState(null)
+    
+    let debounced = fn(...args) {
+        if timeout[0] != null) {
+            clearTimeout(timeout[0])
+        }
+        
+        timeout[1](setTimeout(fn() {
+            callback(...args)
+        }, delay))
+    }
+    
+    return debounced
+}
+
+pub fn measureRender(componentName, renderFn) {
+    let start = performanceNow()
+    let result = renderFn()
+    let end = performanceNow()
+    
+    console.log(componentName + " render time: " + (end - start) + "ms")
+    
+    return result
+}
+
+pub fn performanceNow() {
+    return currentTime()
+}
+
+fn getKeys(obj) {
+    let keys = []
+    for key in obj) {
+        keys = push(keys, key)
+    }
+    return keys
+}
+
+fn setTimeout(callback, delay) {
+    return null
+}
+
+fn clearTimeout(timeoutId) {
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
