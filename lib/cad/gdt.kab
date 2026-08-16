@@ -1,0 +1,452 @@
+@version "1.0.0"
+
+// CAD GD&T - Geometric Dimensioning and Tolerancing
+// Features: geometric tolerances, datums, tolerance stacks, tolerance analysis
+// Canonical path: import "cad/gdt"
+// Target: GD&T system comparable to SolidWorks/AutoCAD GD&T
+
+import "cad/geom"
+import "cad/document"
+import "cad/host"
+
+pub fn createGD&TSystem() {
+    return {
+        "kind": "GD&TSystem",
+        "tolerances": [],
+        "datums": [],
+        "toleranceStacks": []
+    }
+}
+
+pub fn createGeometricTolerance(type, value, datumReferences) {
+    return {
+        "kind": "GeometricTolerance",
+        "type": type,
+        "value": value,
+        "datumReferences": datumReferences,
+        "materialCondition": "none",
+        "projectedTolerance": null
+    }
+}
+
+pub fn createDatum(identifier, type, target) {
+    return {
+        "kind": "Datum",
+        "identifier": identifier,
+        "type": type,
+        "target": target
+    }
+}
+
+pub fn addTolerance(system, tolerance) {
+    system["tolerances"] = push(system["tolerances"], tolerance)
+    return system
+}
+
+pub fn addDatum(system, datum) {
+    system["datums"] = push(system["datums"], datum)
+    return system
+}
+
+pub fn setMaterialCondition(tolerance, condition) {
+    tolerance["materialCondition"] = condition
+    return tolerance
+}
+
+pub fn setProjectedTolerance(tolerance, height) {
+    tolerance["projectedTolerance"] = height
+    return tolerance
+}
+
+pub fn createFlatnessTolerance(value) {
+    return createGeometricTolerance("flatness", value, [])
+}
+
+pub fn createStraightnessTolerance(value) {
+    return createGeometricTolerance("straightness", value, [])
+}
+
+pub fn createCircularityTolerance(value) {
+    return createGeometricTolerance("circularity", value, [])
+}
+
+pub fn createCylindricityTolerance(value) {
+    return createGeometricTolerance("cylindricity", value, [])
+}
+
+pub fn createLineProfileTolerance(value, datumReferences) {
+    return createGeometricTolerance("lineProfile", value, datumReferences)
+}
+
+pub fn createSurfaceProfileTolerance(value, datumReferences) {
+    return createGeometricTolerance("surfaceProfile", value, datumReferences)
+}
+
+pub fn createAngularityTolerance(value, datumReferences) {
+    return createGeometricTolerance("angularity", value, datumReferences)
+}
+
+pub fn createPerpendicularityTolerance(value, datumReferences) {
+    return createGeometricTolerance("perpendicularity", value, datumReferences)
+}
+
+pub fn createParallelismTolerance(value, datumReferences) {
+    return createGeometricTolerance("parallelism", value, datumReferences)
+}
+
+pub fn createPositionTolerance(value, datumReferences) {
+    return createGeometricTolerance("position", value, datumReferences)
+}
+
+pub fn createConcentricityTolerance(value, datumReferences) {
+    return createGeometricTolerance("concentricity", value, datumReferences)
+}
+
+pub fn createSymmetryTolerance(value, datumReferences) {
+    return createGeometricTolerance("symmetry", value, datumReferences)
+}
+
+pub fn createCircularRunoutTolerance(value, datumReferences) {
+    return createGeometricTolerance("circularRunout", value, datumReferences)
+}
+
+pub fn createTotalRunoutTolerance(value, datumReferences) {
+    return createGeometricTolerance("totalRunout", value, datumReferences)
+}
+
+pub fn createToleranceStack(name, dimensions) {
+    return {
+        "kind": "ToleranceStack",
+        "name": name,
+        "dimensions": dimensions,
+        "min": 0.0,
+        "max": 0.0
+    }
+}
+
+pub fn calculateToleranceStack(stack) {
+    let min = 0.0
+    let max = 0.0
+    
+    let i = 0
+    while i < len(stack["dimensions"]) {
+        let dim = stack["dimensions"][i]
+        let nominal = dim["nominal"]
+        let tolerance = dim["tolerance"]
+        let direction = dim["direction"]
+        
+        if direction == "positive" {
+            min = min + nominal
+            max = max + nominal + tolerance
+        } else if direction == "negative" {
+            min = min + nominal - tolerance
+            max = max + nominal
+        } else if direction == "bilateral" {
+            min = min + nominal - tolerance
+            max = max + nominal + tolerance
+        }
+        
+        i = i + 1
+    }
+    
+    stack["min"] = min
+    stack["max"] = max
+    return stack
+}
+
+pub fn addToleranceStack(system, stack) {
+    system["toleranceStacks"] = push(system["toleranceStacks"], stack)
+    return system
+}
+
+pub fn analyzeTolerance(system, toleranceId) {
+    let i = 0
+    while i < len(system["tolerances"]) {
+        let tolerance = system["tolerances"][i]
+        if tolerance["id"] == toleranceId {
+            return analyzeGeometricTolerance(tolerance, system["datums"])
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn analyzeGeometricTolerance(tolerance, datums) {
+    let type = tolerance["type"]
+    let value = tolerance["value"]
+    let datumRefs = tolerance["datumReferences"]
+    
+    let analysis = {
+        "type": type,
+        "value": value,
+        "valid": true,
+        "warnings": [],
+        "violations": []
+    }
+    
+    if len(datumRefs) > 0 {
+        let i = 0
+        while i < len(datumRefs) {
+            let datumId = datumRefs[i]
+            let datumExists = false
+            
+            let j = 0
+            while j < len(datums) {
+                if datums[j]["identifier"] == datumId {
+                    datumExists = true
+                    break
+                }
+                j = j + 1
+            }
+            
+            if datumExists == false {
+                analysis["warnings"] = push(analysis["warnings"], "Datum " + datumId + " not found")
+                analysis["valid"] = false
+            }
+            
+            i = i + 1
+        }
+    }
+    
+    if type == "flatness" && value < 0.0 {
+        analysis["violations"] = push(analysis["violations"], "Flatness tolerance cannot be negative")
+        analysis["valid"] = false
+    }
+    
+    if type == "cylindricity" && value < 0.0 {
+        analysis["violations"] = push(analysis["violations"], "Cylindricity tolerance cannot be negative")
+        analysis["valid"] = false
+    }
+    
+    if type == "position" && len(datumRefs) == 0 {
+        analysis["warnings"] = push(analysis["warnings"], "Position tolerance should have datum references")
+    }
+    
+    return analysis
+}
+
+pub fn createFeatureControlFrame(tolerances) {
+    return {
+        "kind": "FeatureControlFrame",
+        "tolerances": tolerances
+    }
+}
+
+pub fn addToleranceToFrame(frame, tolerance) {
+    frame["tolerances"] = push(frame["tolerances"], tolerance)
+    return frame
+}
+
+pub fn validateGD&T(document, system) {
+    let validation = {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+    }
+    
+    let i = 0
+    while i < len(system["tolerances"]) {
+        let tolerance = system["tolerances"][i]
+        let analysis = analyzeGeometricTolerance(tolerance, system["datums"])
+        
+        if analysis["valid"] == false {
+            validation["valid"] = false
+            let j = 0
+            while j < len(analysis["violations"]) {
+                validation["errors"] = push(validation["errors"], analysis["violations"][j])
+                j = j + 1
+            }
+        }
+        
+        let j = 0
+        while j < len(analysis["warnings"]) {
+            validation["warnings"] = push(validation["warnings"], analysis["warnings"][j])
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    return validation
+}
+
+pub fn exportGD&TToASMEY14_5(system) {
+    let export = {
+        "standard": "ASME Y14.5",
+        "version": "2018",
+        "datums": [],
+        "tolerances": []
+    }
+    
+    let i = 0
+    while i < len(system["datums"]) {
+        let datum = system["datums"][i]
+        export["datums"] = push(export["datums"], {
+            "identifier": datum["identifier"],
+            "type": datum["type"]
+        })
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(system["tolerances"]) {
+        let tolerance = system["tolerances"][i]
+        export["tolerances"] = push(export["tolerances"], {
+            "type": tolerance["type"],
+            "value": tolerance["value"],
+            "datum.references": tolerance["datumReferences"],
+            "materialCondition": tolerance["materialCondition"]
+        })
+        i = i + 1
+    }
+    
+    return export
+}
+
+pub fn exportGD&TToISO1101(system) {
+    let export = {
+        "standard": "ISO 1101",
+        "version": "2017",
+        "datums": [],
+        "tolerances": []
+    }
+    
+    let i = 0
+    while i < len(system["datums"]) {
+        let datum = system["datums"][i]
+        export["datums"] = push(export["datums"], {
+            "identifier": datum["identifier"],
+            "type": datum["type"]
+        })
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(system["tolerances"]) {
+        let tolerance = system["tolerances"][i]
+        let isoType = convertToISOToleranceType(tolerance["type"])
+        export["tolerances"] = push(export["tolerances"], {
+            "type": isoType,
+            "value": tolerance["value"],
+            "datumReferences": tolerance["datumReferences"]
+        })
+        i = i + 1
+    }
+    
+    return export
+}
+
+fn convertToISOToleranceType(asmeType) {
+    let mapping = {
+        "flatness": "flatness",
+        "straightness": "straightness",
+        "circularity": "roundness",
+        "cylindricity": "cylindricity",
+        "lineProfile": "profile of a line",
+        "surfaceProfile": "profile of a surface",
+        "angularity": "angularity",
+        "perpendicularity": "perpendicularity",
+        "parallelism": "parallelism",
+        "position": "position",
+        "concentricity": "concentricity",
+        "symmetry": "symmetry",
+        "circularRunout": "circular run-out",
+        "totalRunout": "total run-out"
+    }
+    
+    if mapping[asmeType] != null {
+        return mapping[asmeType]
+    }
+    return asmeType
+}
+
+pub fn createDimensionTolerance(nominal, upperTolerance, lowerTolerance) {
+    return {
+        "kind": "DimensionTolerance",
+        "nominal": nominal,
+        "upperTolerance": upperTolerance,
+        "lowerTolerance": lowerTolerance,
+        "max": nominal + upperTolerance,
+        "min": nominal + lowerTolerance
+    }
+}
+
+pub fn checkDimensionTolerance(tolerance, measured) {
+    if measured >= tolerance["min"] && measured <= tolerance["max"] {
+        return { "withinTolerance": true, "deviation": measured - tolerance["nominal"] }
+    }
+    return { "withinTolerance": false, "deviation": measured - tolerance["nominal"] }
+}
+
+pub fn createFitClass(type, holeBasis, shaftBasis) {
+    return {
+        "kind": "FitClass",
+        "type": type,
+        "holeBasis": holeBasis,
+        "shaftBasis": shaftBasis
+    }
+}
+
+pub fn calculateFit(fitClass, nominalSize) {
+    let type = fitClass["type"]
+    
+    if type == "clearance" {
+        let holeMax = nominalSize + fitClass["holeBasis"]["upper"]
+        let holeMin = nominalSize + fitClass["holeBasis"]["lower"]
+        let shaftMax = nominalSize + fitClass["shaftBasis"]["upper"]
+        let shaftMin = nominalSize + fitClass["shaftBasis"]["lower"]
+        
+        let maxClearance = holeMax - shaftMin
+        let minClearance = holeMin - shaftMax
+        
+        return {
+            "type": "clearance",
+            "maxClearance": maxClearance,
+            "minClearance": minClearance
+        }
+    } else if type == "interference" {
+        let holeMax = nominalSize + fitClass["holeBasis"]["upper"]
+        let holeMin = nominalSize + fitClass["holeBasis"]["lower"]
+        let shaftMax = nominalSize + fitClass["shaftBasis"]["upper"]
+        let shaftMin = nominalSize + fitClass["shaftBasis"]["lower"]
+        
+        let maxInterference = shaftMax - holeMin
+        let minInterference = shaftMin - holeMax
+        
+        return {
+            "type": "interference",
+            "maxInterference": maxInterference,
+            "minInterference": minInterference
+        }
+    } else if type == "transition" {
+        let holeMax = nominalSize + fitClass["holeBasis"]["upper"]
+        let holeMin = nominalSize + fitClass["holeBasis"]["lower"]
+        let shaftMax = nominalSize + fitClass["shaftBasis"]["upper"]
+        let shaftMin = nominalSize + fitClass["shaftBasis"]["lower"]
+        
+        let maxClearance = holeMax - shaftMin
+        let maxInterference = shaftMax - holeMin
+        
+        return {
+            "type": "transition",
+            "maxClearance": maxClearance,
+            "maxInterference": maxInterference
+        }
+    }
+    
+    return null
+}
+
+pub fn createSurfaceFinish(ra, rz, rq) {
+    return {
+        "kind": "SurfaceFinish",
+        "ra": ra,
+        "rz": rz,
+        "rq": rq
+    }
+}
+
+pub fn addSurfaceFinishToTolerance(tolerance, surfaceFinish) {
+    tolerance["surfaceFinish"] = surfaceFinish
+    return tolerance
+}
