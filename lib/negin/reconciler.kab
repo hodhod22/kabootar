@@ -1,0 +1,226 @@
+@version "1.0.0"
+
+// Negin Reconciler - Virtual DOM diffing and patching
+// Features: diffing algorithm, patch generation, DOM updates
+// Canonical path: import "negin/reconciler"
+
+import "negin/element"
+
+pub fn reconcile(currentVNode, newVNode) {
+    if currentVNode == null) {
+        return mountVNode(newVNode)
+    }
+    
+    if newVNode == null) {
+        return unmountVNode(currentVNode)
+    }
+    
+    if currentVNode["type"] !== newVNode["type"]) {
+        unmountVNode(currentVNode)
+        return mountVNode(newVNode)
+    }
+    
+    return updateVNode(currentVNode, newVNode)
+}
+
+fn mountVNode(vnode) {
+    let type = vnode["type"]
+    let props = vnode["props"]
+    let children = vnode["children"]
+    
+    if type == "TEXT" {
+        return createTextNode(children[0])
+    }
+    
+    let element = createDOMElement(type)
+    
+    applyProps(element, props)
+    
+    let i = 0
+    while i < len(children) {
+        let child = children[i]
+        let childNode = mountVNode(child)
+        appendChild(element, childNode)
+        i = i + 1
+    }
+    
+    vnode["domNode"] = element
+    return element
+}
+
+fn unmountVNode(vnode) {
+    let domNode = vnode["domNode"]
+    
+    if domNode != null) {
+        removeNode(domNode)
+    }
+    
+    let children = vnode["children"]
+    let i = 0
+    while i < len(children) {
+        unmountVNode(children[i])
+        i = i + 1
+    }
+}
+
+fn updateVNode(currentVNode, newVNode) {
+    let domNode = currentVNode["domNode"]
+    let currentProps = currentVNode["props"]
+    let newProps = newVNode["props"]
+    
+    patchProps(domNode, currentProps, newProps)
+    
+    let currentChildren = currentVNode["children"]
+    let newChildren = newVNode["children"]
+    
+    reconcileChildren(domNode, currentChildren, newChildren)
+    
+    newVNode["domNode"] = domNode
+    return domNode
+}
+
+fn patchProps(domNode, oldProps, newProps) {
+    for propName in oldProps {
+        if propName != "children" && newProps[propName] == null) {
+            removeProp(domNode, propName)
+        }
+    }
+    
+    for propName in newProps {
+        if propName != "children" && oldProps[propName] !== newProps[propName]) {
+            setProp(domNode, propName, newProps[propName])
+        }
+    }
+}
+
+fn applyProps(element, props) {
+    if props == null) {
+        return
+    }
+    
+    for propName in props {
+        if propName != "children") {
+            setProp(element, propName, props[propName])
+        }
+    }
+}
+
+fn setProp(element, propName, value) {
+    if propName == "className") {
+        element["class"] = value
+    } else if propName == "style") {
+        element["style"] = value
+    } else if propName == "onClick" || propName == "onMouseDown" || propName == "onMouseUp") {
+        element[propName] = value
+    } else {
+        element[propName] = value
+    }
+}
+
+fn removeProp(element, propName) {
+    element[propName] = null
+}
+
+fn reconcileChildren(parentNode, currentChildren, newChildren) {
+    let currentLength = len(currentChildren)
+    let newLength = len(newChildren)
+    
+    let i = 0
+    while i < min(currentLength, newLength) {
+        let currentChild = currentChildren[i]
+        let newChild = newChildren[i]
+        
+        let childNode = reconcile(currentChild, newChild)
+        
+        if childNode !== parentNode["children"][i]) {
+            replaceChild(parentNode, childNode, i)
+        }
+        
+        i = i + 1
+    }
+    
+    while i < currentLength) {
+        let childNode = currentChildren[i]["domNode"]
+        removeChild(parentNode, childNode)
+        i = i + 1
+    }
+    
+    while i < newLength) {
+        let childNode = mountVNode(newChildren[i])
+        appendChild(parentNode, childNode)
+        i = i + 1
+    }
+}
+
+fn createDOMElement(type) {
+    return {
+        "kind": "DOMElement",
+        "type": type,
+        "props": {},
+        "children": [],
+        "class": null,
+        "style": null
+    }
+}
+
+fn createTextNode(text) {
+    return {
+        "kind": "TextNode",
+        "text": text
+    }
+}
+
+fn appendChild(parent, child) {
+    parent["children"] = push(parent["children"], child)
+}
+
+fn removeChild(parent, child) {
+    let newChildren = []
+    let i = 0
+    while i < len(parent["children"])) {
+        if parent["children"][i] !== child) {
+            newChildren = push(newChildren, parent["children"][i])
+        }
+        i = i + 1
+    }
+    parent["children"] = newChildren
+}
+
+fn replaceChild(parent, newChild, index) {
+    parent["children"][index] = newChild
+}
+
+fn removeNode(node) {
+}
+
+fn min(a, b) {
+    if a < b) {
+        return a
+    }
+    return b
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

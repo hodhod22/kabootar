@@ -1,0 +1,122 @@
+@version "1.0.0"
+
+// Negin Element - Virtual Node (VNode) structure
+// Features: VNode creation, props handling, children management
+// Canonical path: import "negin/element"
+
+pub fn createVNode(type, props, children) {
+    let vnode = {
+        "kind": "VNode",
+        "type": type,
+        "key": props != null ? props["key"] : null,
+        "ref": props != null ? props["ref"] : null,
+        "props": normalizeProps(props),
+        "children": normalizeChildren(children)
+    }
+    
+    return vnode
+}
+
+fn normalizeProps(props) {
+    if props == null {
+        return {}
+    }
+    
+    let normalized = {}
+    for key in props {
+        if key != "key" && key != "ref" && key != "children") {
+            normalized[key] = props[key]
+        }
+    }
+    
+    return normalized
+}
+
+fn normalizeChildren(children) {
+    if children == null {
+        return []
+    }
+    
+    if typeof(children) == "array" {
+        return children
+    }
+    
+    return [children]
+}
+
+pub fn cloneElement(element, props) {
+    let newProps = {}
+    
+    if element["props"] != null {
+        for key in element["props"] {
+            newProps[key] = element["props"][key]
+        }
+    }
+    
+    if props != null {
+        for key in props {
+            newProps[key] = props[key]
+        }
+    }
+    
+    return createVNode(element["type"], newProps, element["children"])
+}
+
+pub fn isValidElement(object) {
+    return isObject(object) && object["kind"] == "VNode"
+}
+
+pub fn isFragment(type) {
+    return type == "Fragment"
+}
+
+pub fn isSuspense(type) {
+    return type == "Suspense"
+}
+
+pub fn isMemo(type) {
+    return type == "Memo"
+}
+
+pub fn isLazy(type) {
+    return type == "Lazy"
+}
+
+fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+fn typeof(value) {
+    if value == null {
+        return "null"
+    }
+    if typeof(value) == "boolean" {
+        return "boolean"
+    }
+    if typeof(value) == "number" {
+        return "number"
+    }
+    if typeof(value) == "string" {
+        return "string"
+    }
+    if typeof(value) == "array" {
+        return "array"
+    }
+    if isObject(value) {
+        return "object"
+    }
+    return "unknown"
+}
+
+pub fn createFragment(children) {
+    return createVNode("Fragment", {}, children)
+}
+
+pub fn createText(text) {
+    return {
+        "kind": "VNode",
+        "type": "TEXT",
+        "props": {},
+        "children": [text]
+    }
+}

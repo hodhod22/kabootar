@@ -1,0 +1,272 @@
+@version "1.0.0"
+
+// Negin Hooks - React-like hooks for functional components
+// Features: useState, useEffect, useMemo, useCallback, useRef, useContext
+// Canonical path: import "negin/hooks"
+
+import "negin/component"
+
+pub fn useState(initialState) {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "StateHook",
+            "state": initialState,
+            "setState": fn(newState) {
+                let hook = getHook(hookIndex)
+                if typeof(newState) == "function") {
+                    hook["state"] = newState(hook["state"])
+                } else {
+                    hook["state"] = newState
+                }
+                updateHook(hookIndex, hook)
+                scheduleUpdate()
+            }
+        }
+        registerHook(hook)
+        return [hook["state"], hook["setState"]]
+    }
+    
+    return [existingHook["state"], existingHook["setState"]]
+}
+
+pub fn useEffect(effect, deps) {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "EffectHook",
+            "effect": effect,
+            "deps": deps,
+            "cleanup": null
+        }
+        registerHook(hook)
+        
+        let cleanup = effect()
+        if typeof(cleanup) == "function") {
+            hook["cleanup"] = cleanup
+        }
+    } else {
+        if deps == null || !areDepsEqual(existingHook["deps"], deps)) {
+            if existingHook["cleanup"] != null {
+                existingHook["cleanup"]()
+            }
+            
+            let cleanup = effect()
+            if typeof(cleanup) == "function") {
+                existingHook["cleanup"] = cleanup
+            }
+            
+            existingHook["deps"] = deps
+            updateHook(hookIndex, existingHook)
+        }
+    }
+}
+
+pub fn useMemo(factory, deps) {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "MemoHook",
+            "value": factory(),
+            "deps": deps
+        }
+        registerHook(hook)
+        return hook["value"]
+    }
+    
+    if deps == null || !areDepsEqual(existingHook["deps"], deps)) {
+        existingHook["value"] = factory()
+        existingHook["deps"] = deps
+        updateHook(hookIndex, existingHook)
+    }
+    
+    return existingHook["value"]
+}
+
+pub fn useCallback(callback, deps) {
+    return useMemo(fn() { return callback }, deps)
+}
+
+pub fn useRef(initialValue) {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "RefHook",
+            "current": initialValue
+        }
+        registerHook(hook)
+        return hook
+    }
+    
+    return existingHook
+}
+
+pub fn useContext(context) {
+    let component = getCurrentComponent()
+    return context["currentValue"]
+}
+
+pub fn useReducer(reducer, initialState) {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "ReducerHook",
+            "state": initialState,
+            "dispatch": fn(action) {
+                let hook = getHook(hookIndex)
+                hook["state"] = reducer(hook["state"], action)
+                updateHook(hookIndex, hook)
+                scheduleUpdate()
+            }
+        }
+        registerHook(hook)
+        return [hook["state"], hook["dispatch"]]
+    }
+    
+    return [existingHook["state"], existingHook["dispatch"]]
+}
+
+pub fn useLayoutEffect(effect, deps) {
+    return useEffect(effect, deps)
+}
+
+pub fn useImperativeHandle(ref, createHandle, deps) {
+    return useEffect(fn() {
+        ref["current"] = createHandle()
+        return fn() {
+            ref["current"] = null
+        }
+    }, deps)
+}
+
+pub fn useDebugValue(value, formatter) {
+}
+
+pub fn useTransition() {
+    let isPending = useState(false)
+    let startTransition = fn(callback) {
+        isPending[1](true)
+        callback()
+        isPending[1](false)
+    }
+    return [isPending[0], startTransition]
+}
+
+pub fn useDeferredValue(value) {
+    return useMemo(fn() { return value }, [value])
+}
+
+pub fn useId() {
+    let component = getCurrentComponent()
+    let hookIndex = getHookIndex()
+    
+    let existingHook = getHook(hookIndex)
+    
+    if existingHook == null {
+        let hook = {
+            "kind": "IdHook",
+            "id": "negin-" + generateId()
+        }
+        registerHook(hook)
+        return hook["id"]
+    }
+    
+    return existingHook["id"]
+}
+
+fn areDepsEqual(prevDeps, nextDeps) {
+    if prevDeps == null || nextDeps == null) {
+        return false
+    }
+    
+    if len(prevDeps) != len(nextDeps)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prevDeps) {
+        if prevDeps[i] !== nextDeps[i]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+fn getHookIndex() {
+    let index = hookIndex
+    hookIndex = hookIndex + 1
+    return index
+}
+
+fn scheduleUpdate() {
+}
+
+fn generateId() {
+    let id = ""
+    let i = 0
+    while i < 8 {
+        id = id + hexChar(floor(random() * 16))
+        i = i + 1
+    }
+    return id
+}
+
+fn hexChar(value) {
+    let chars = "0123456789abcdef"
+    return chars[floor(value)]
+}
+
+fn random() {
+    return systemRandom()
+}
+
+fn floor(value) {
+    return systemFloor(value)
+}
+
+fn typeof(value) {
+    if value == null {
+        return "null"
+    }
+    if typeof(value) == "boolean" {
+        return "boolean"
+    }
+    if typeof(value) == "number" {
+        return "number"
+    }
+    if typeof(value) == "string" {
+        return "string"
+    }
+    if typeof(value) == "function" {
+        return "function"
+    }
+    if typeof(value) == "array" {
+        return "array"
+    }
+    if typeof(value) == "object" {
+        return "object"
+    }
+    return "unknown"
+}

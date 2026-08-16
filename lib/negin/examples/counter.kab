@@ -1,0 +1,35 @@
+@version "1.0.0"
+
+// Negin Counter Example
+// Demonstrates basic useState and event handling
+
+import "negin/core"
+import "negin/hooks"
+
+pub fn Counter() {
+    let (count, setCount) = useState(0)
+    
+    return createElement("div", { "className": "counter" },
+        createElement("h2", {}, "Counter"),
+        createElement("div", { "className": "counter-display" },
+            createElement("button", { 
+                "onClick": fn() { setCount(count - 1) },
+                "className": "counter-button"
+            }, "-"),
+            createElement("span", { "className": "counter-value" }, count),
+            createElement("button", { 
+                "onClick": fn() { setCount(count + 1) },
+                "className": "counter-button"
+            }, "+")
+        ),
+        createElement("p", {}, "Count: " + count)
+    )
+}
+
+// Render the counter
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(Counter, {}), container)

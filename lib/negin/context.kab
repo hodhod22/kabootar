@@ -1,0 +1,148 @@
+@version "1.0.0"
+
+// Negin Context - Context API for Negin
+// Features: context creation, providers, consumers, context propagation
+// Canonical path: import "negin/context"
+
+import "negin/component"
+
+let contextStack = []
+
+pub fn createContext(defaultValue) {
+    let context = {
+        "kind": "Context",
+        "defaultValue": defaultValue,
+        "currentValue": defaultValue,
+        "providers": []
+    }
+    
+    return context
+}
+
+pub fn createContextWithDisplayName(displayName, defaultValue) {
+    let context = createContext(defaultValue)
+    context["displayName"] = displayName
+    return context
+}
+
+pub fn Provider(context, value) {
+    return {
+        "kind": "ContextProvider",
+        "context": context,
+        "value": value
+    }
+}
+
+pub fn Consumer(context, renderFn) {
+    return {
+        "kind": "ContextConsumer",
+        "context": context,
+        "render": renderFn
+    }
+}
+
+pub fn useContext(context) {
+    let component = getCurrentComponent()
+    
+    if component == null) {
+        return context["defaultValue"]
+    }
+    
+    let value = findContextValue(context)
+    
+    if value != null) {
+        return value
+    }
+    
+    return context["defaultValue"]
+}
+
+fn findContextValue(context) {
+    let i = len(contextStack) - 1
+    while i >= 0) {
+        let stackItem = contextStack[i]
+        if stackItem["context"] === context) {
+            return stackItem["value"]
+        }
+        i = i - 1
+    }
+    return null
+}
+
+pub fn pushContext(context, value) {
+    contextStack = push(contextStack, {
+        "context": context,
+        "value": value
+    })
+}
+
+pub fn popContext() {
+    if len(contextStack) > 0) {
+        contextStack = removeLast(contextStack)
+    }
+}
+
+pub fn getCurrentContext() {
+    if len(contextStack) > 0) {
+        return contextStack[len(contextStack) - 1]
+    }
+    return null
+}
+
+pub fn createContextConsumer(context) {
+    return {
+        "kind": "ContextConsumer",
+        "context": context
+    }
+}
+
+pub fn createContextProvider(context, value) {
+    return {
+        "kind": "ContextProvider",
+        "context": context,
+        "value": value
+    }
+}
+
+pub fn isValidContext(value) {
+    return isObject(value) && value["kind"] == "Context"
+}
+
+fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
+
+fn removeLast(arr) {
+    let result = []
+    let i = 0
+    while i < len(arr) - 1) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}

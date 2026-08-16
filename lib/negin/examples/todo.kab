@@ -1,0 +1,101 @@
+@version "1.0.0"
+
+// Negin Todo Example
+// Demonstrates useState, useEffect, and list rendering
+
+import "negin/core"
+import "negin/hooks"
+
+pub fn TodoApp() {
+    let (todos, setTodos) = useState([
+        { "id": 1, "text": "Learn Negin", "completed": false },
+        { "id": 2, "text": "Build something cool", "completed": false }
+    ])
+    let (inputValue, setInputValue) = useState("")
+    
+    let addTodo = fn() {
+        if inputValue != "") {
+            let newTodo = {
+                "id": len(todos) + 1,
+                "text": inputValue,
+                "completed": false
+            }
+            setTodos(push(todos, newTodo))
+            setInputValue("")
+        }
+    }
+    
+    let toggleTodo = fn(id) {
+        let newTodos = []
+        let i = 0
+        while i < len(todos) {
+            let todo = todos[i]
+            if todo["id"] == id {
+                todo["completed"] = !todo["completed"]
+            }
+            newTodos = push(newTodos, todo)
+            i = i + 1
+        }
+        setTodos(newTodos)
+    }
+    
+    let deleteTodo = fn(id) {
+        let newTodos = []
+        let i = 0
+        while i < len(todos) {
+            if todos[i]["id"] != id {
+                newTodos = push(newTodos, todos[i])
+            }
+            i = i + 1
+        }
+        setTodos(newTodos)
+    }
+    
+    return createElement("div", { "className": "todo-app" },
+        createElement("h1", {}, "Todo App"),
+        createElement("div", { "className": "todo-input" },
+            createElement("input", {
+                "type": "text",
+                "value": inputValue,
+                "onChange": fn(e) { setInputValue(e["target"]["value"]) }
+            }),
+            createElement("button", { "onClick": addTodo }, "Add")
+        ),
+        createElement("ul", { "className": "todo-list" },
+            renderTodos(todos, toggleTodo, deleteTodo)
+        )
+    )
+}
+
+fn renderTodos(todos, toggleTodo, deleteTodo) {
+    let elements = []
+    let i = 0
+    while i < len(todos) {
+        let todo = todos[i]
+        elements = push(elements, createElement("li", { 
+            "key": todo["id"],
+            "className": todo["completed"] ? "completed" : ""
+        },
+            createElement("input", {
+                "type": "checkbox",
+                "checked": todo["completed"],
+                "onChange": fn() { toggleTodo(todo["id"]) }
+            }),
+            createElement("span", {}, todo["text"]),
+            createElement("button", { 
+                "onClick": fn() { deleteTodo(todo["id"]) },
+                "className": "delete-button"
+            }, "Delete")
+        ))
+        i = i + 1
+    }
+    return elements
+}
+
+// Render the todo app
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(TodoApp, {}), container)

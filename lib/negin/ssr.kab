@@ -1,0 +1,261 @@
+@version "1.0.0"
+
+// Negin SSR - Server-side rendering for Negin
+// Features: renderToString, renderToStaticMarkup, hydration support
+// Canonical path: import "negin/ssr"
+
+import "negin/core"
+import "negin/element"
+
+pub fn renderToString(element) {
+    let stream = createRenderStream()
+    renderToStream(element, stream)
+    return streamToString(stream)
+}
+
+pub fn renderToStaticMarkup(element) {
+    let stream = createRenderStream()
+    renderToStream(element, stream)
+    return streamToString(stream)
+}
+
+pub fn renderToStream(element, stream) {
+    renderVNodeToStream(element, stream)
+}
+
+fn renderVNodeToStream(vnode, stream) {
+    if vnode == null) {
+        return
+    }
+    
+    let type = vnode["type"]
+    let props = vnode["props"]
+    let children = vnode["children"]
+    
+    if type == "TEXT") {
+        writeStream(stream, escapeText(children[0]))
+        return
+    }
+    
+    if typeof(type) == "function") {
+        let rendered = type(props)
+        renderVNodeToStream(rendered, stream)
+        return
+    }
+    
+    writeStream(stream, "<" + type)
+    
+    if props != null) {
+        for propName in props) {
+            if propName != "children") {
+                writeStream(stream, " " + propName + "=\"" + escapeHTML(props[propName]) + "\"")
+            }
+        }
+    }
+    
+    writeStream(stream, ">")
+    
+    let i = 0
+    while i < len(children)) {
+        renderVNodeToStream(children[i], stream)
+        i = i + 1
+    }
+    
+    writeStream(stream, "</" + type + ">")
+}
+
+pub fn createRenderStream() {
+    return {
+        "kind": "RenderStream",
+        "chunks": []
+    }
+}
+
+fn writeStream(stream, chunk) {
+    stream["chunks"] = push(stream["chunks"], chunk)
+}
+
+fn streamToString(stream) {
+    let result = ""
+    let i = 0
+    while i < len(stream["chunks"])) {
+        result = result + stream["chunks"][i]
+        i = i + 1
+    }
+    return result
+}
+
+fn escapeText(text) {
+    if text == null) {
+        return ""
+    }
+    
+    let escaped = ""
+    let i = 0
+    while i < len(text)) {
+        let char = text[i]
+        if char == "&") {
+            escaped = escaped + "&amp;"
+        } else if char == "<") {
+            escaped = escaped + "&lt;"
+        } else if char == ">") {
+            escaped = escaped + "&gt;"
+        } else {
+            escaped = escaped + char
+        }
+        i = i + 1
+    }
+    
+    return escaped
+}
+
+fn escapeHTML(value) {
+    if value == null) {
+        return ""
+    }
+    
+    let str = toString(value)
+    return escapeText(str)
+}
+
+pub fn createHydrationData(element) {
+    return {
+        "kind": "HydrationData",
+        "vnode": element,
+        "checksum": calculateChecksum(element)
+    }
+}
+
+fn calculateChecksum(vnode) {
+    let str = vnodeToString(vnode)
+    let hash = 0
+    let i = 0
+    while i < len(str)) {
+        let char = str[i]
+        hash = ((hash << 5) - hash) + charCode(char)
+        i = i + 1
+    }
+    return hash
+}
+
+fn vnodeToString(vnode) {
+    if vnode == null) {
+        return ""
+    }
+    
+    let type = vnode["type"]
+    let props = vnode["props"]
+    let children = vnode["children"]
+    
+    if type == "TEXT") {
+        return children[0]
+    }
+    
+    if typeof(type) == "function") {
+        return vnodeToString(type(props))
+    }
+    
+    let str = "<" + type
+    
+    if props != null) {
+        for propName in props) {
+            if propName != "children") {
+                str = str + " " + propName + "=\"" + props[propName] + "\""
+            }
+        }
+    }
+    
+    str = str + ">"
+    
+    let i = 0
+    while i < len(children)) {
+        str = str + vnodeToString(children[i])
+        i = i + 1
+    }
+    
+    str = str + "</" + type + ">"
+    
+    return str
+}
+
+pub fn hydrate(element, container) {
+    let hydrationData = createHydrationData(element)
+    
+    let root = createRoot(container)
+    root["hydrationData"] = hydrationData
+    
+    return root
+}
+
+pub fn renderToPipeableStream(element, options) {
+    let stream = createRenderStream()
+    
+    return {
+        "kind": "PipeableStream",
+        "pipe": fn(destination) {
+            renderVNodeToStream(element, stream)
+            destination.write(streamToString(stream))
+        }
+    }
+}
+
+pub fn renderToNodeStream(element, options) {
+    let stream = createRenderStream()
+    
+    return {
+        "kind": "NodeStream",
+        "read": fn() {
+            renderVNodeToStream(element, stream)
+            return streamToString(stream)
+        }
+    }
+}
+
+pub fn createServerRenderer(options) {
+    return {
+        "kind": "ServerRenderer",
+        "options": options,
+        "renderToString": fn(element) {
+            return renderToString(element)
+        },
+        "renderToStaticMarkup": fn(element) {
+            return renderToStaticMarkup(element)
+        },
+        "renderToPipeableStream": fn(element) {
+            return renderToPipeableStream(element, options)
+        }
+    }
+}
+
+fn charCode(char) {
+    return char
+}
+
+fn toString(value) {
+    return "" + value
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
