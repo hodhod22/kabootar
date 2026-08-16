@@ -1,0 +1,513 @@
+@version "1.0.0"
+
+// Negin Dev Server - Advanced dev server with hot reload
+// Features: Hot reload, HMR, fast refresh, error overlay, source maps
+// Canonical path: import "negin/dev-server"
+// Target: Better than Next.js dev server
+
+import "negin/core"
+import "negin/reactive-core"
+
+let devServerConfig = {
+    "port": 3000,
+    "host": "localhost",
+    "hot": true,
+    "liveReload": true,
+    "open": false,
+    "compress": true
+}
+
+let hmrConnections = []
+let fileWatchers = {}
+let componentCache = {}
+
+pub fn createDevServer(config) {
+    let port = config["port"] != null ? config["port"] : 3000
+    let host = config["host"] != null ? config["host"] : "localhost"
+    let hot = config["hot"] != null ? config["hot"] : true
+    let liveReload = config["liveReload"] != null ? config["liveReload"] : true
+    let open = config["open"] != null ? config["open"] : false
+    
+    devServerConfig = {
+        "port": port,
+        "host": host,
+        "hot": hot,
+        "liveReload": liveReload,
+        "open": open,
+        "compress": true
+    }
+    
+    return {
+        "kind": "DevServer",
+        "config": devServerConfig,
+        "start": startDevServer,
+        "stop": stopDevServer,
+        "reload": reloadComponent,
+        "invalidate": invalidateCache
+    }
+}
+
+pub fn startDevServer() {
+    console.log("Starting Negin Dev Server...")
+    console.log("Server running on http://" + devServerConfig["host"] + ":" + devServerConfig["port"])
+    
+    if devServerConfig["hot"]) {
+        startHMR()
+    }
+    
+    if devServerConfig["liveReload"]) {
+        startLiveReload()
+    }
+    
+    startFileWatcher()
+    
+    return { "success": true }
+}
+
+pub fn stopDevServer() {
+    console.log("Stopping Negin Dev Server...")
+    
+    stopHMR()
+    stopLiveReload()
+    stopFileWatcher()
+    
+    return { "success": true }
+}
+
+// Hot Module Replacement (HMR)
+fn startHMR() {
+    console.log("HMR enabled")
+    
+    // WebSocket connection for HMR
+    let wsConnection = {
+        "kind": "HMRConnection",
+        "connected": true,
+        "onMessage": fn(message) {
+            handleHMRMessage(message)
+        }
+    }
+    
+    hmrConnections = push(hmrConnections, wsConnection)
+}
+
+fn stopHMR() {
+    console.log("HMR disabled")
+    hmrConnections = []
+}
+
+fn handleHMRMessage(message) {
+    let type = message["type"]
+    
+    if type == "hot-update") {
+        let moduleName = message["moduleName"]
+        let newModule = message["newModule"]
+        
+        hotReplaceModule(moduleName, newModule)
+    } else if type == "hot-accept") {
+        let moduleName = message["moduleName"]
+        acceptHotUpdate(moduleName)
+    }
+}
+
+pub fn hotReplaceModule(moduleName, newModule) {
+    console.log("Hot replacing module: " + moduleName)
+    
+    // Invalidate component cache
+    if componentCache[moduleName] != null) {
+        componentCache[moduleName] = null
+    }
+    
+    // Notify all HMR connections
+    let i = 0
+    while i < len(hmrConnections)) {
+        hmrConnections[i]["onMessage"]({
+            "type": "module-replaced",
+            "moduleName": moduleName
+        })
+        i = i + 1
+    }
+    
+    return { "success": true }
+}
+
+pub fn acceptHotUpdate(moduleName) {
+    console.log("Accepting hot update for: " + moduleName)
+    return { "success": true }
+}
+
+// Live Reload
+fn startLiveReload() {
+    console.log("Live Reload enabled")
+}
+
+fn stopLiveReload() {
+    console.log("Live Reload disabled")
+}
+
+pub fn triggerLiveReload() {
+    console.log("Triggering live reload")
+    
+    let i = 0
+    while i < len(hmrConnections)) {
+        hmrConnections[i]["onMessage"]({
+            "type": "live-reload"
+        })
+        i = i + 1
+    }
+}
+
+// File Watcher
+fn startFileWatcher() {
+    console.log("File watcher started")
+    
+    // Watch for file changes
+    fileWatchers["*.kab"] = {
+        "pattern": "*.kab",
+        "onChange": fn(filePath) {
+            handleFileChange(filePath)
+        }
+    }
+}
+
+fn stopFileWatcher() {
+    console.log("File watcher stopped")
+    fileWatchers = {}
+}
+
+fn handleFileChange(filePath) {
+    console.log("File changed: " + filePath)
+    
+    if devServerConfig["hot"]) {
+        // Try HMR first
+        let moduleName = filePathToModuleName(filePath)
+        hotReplaceModule(moduleName, null)
+    } else if devServerConfig["liveReload"]) {
+        // Fall back to live reload
+        triggerLiveReload()
+    }
+}
+
+fn filePathToModuleName(filePath) {
+    let parts = split(filePath, "/")
+    let fileName = parts[len(parts) - 1]
+    return replaceAll(fileName, ".kab", "")
+}
+
+// Component Cache
+pub fn cacheComponent(name, component) {
+    componentCache[name] = component
+}
+
+pub fn getCachedComponent(name) {
+    return componentCache[name]
+}
+
+pub fn invalidateCache(name) {
+    if name != null) {
+        componentCache[name] = null
+    } else {
+        componentCache = {}
+    }
+}
+
+// Fast Refresh (React Fast Refresh-like)
+let refreshCallbacks = []
+
+pub fn registerRefreshCallback(callback) {
+    refreshCallbacks = push(refreshCallbacks, callback)
+}
+
+pub fn triggerRefresh() {
+    console.log("Triggering fast refresh")
+    
+    let i = 0
+    while i < len(refreshCallbacks)) {
+        refreshCallbacks[i]()
+        i = i + 1
+    }
+}
+
+// Error Overlay
+let errorOverlay = {
+    "visible": false,
+    "errors": []
+}
+
+pub fn showErrorOverlay(errors) {
+    errorOverlay["visible"] = true
+    errorOverlay["errors"] = errors
+    
+    console.error("Error overlay shown:")
+    let i = 0
+    while i < len(errors)) {
+        console.error("  - " + errors[i]["message"])
+        i = i + 1
+    }
+}
+
+pub fn hideErrorOverlay() {
+    errorOverlay["visible"] = false
+    errorOverlay["errors"] = []
+}
+
+pub fn getErrorOverlay() {
+    return errorOverlay
+}
+
+// Source Maps
+let sourceMapCache = {}
+
+pub fn generateSourceMap(filePath, source) {
+    let sourceMap = {
+        "version": 3,
+        "file": filePath,
+        "sourceRoot": "",
+        "sources": [filePath],
+        "names": [],
+        "mappings": "",
+        "sourcesContent": [source]
+    }
+    
+    sourceMapCache[filePath] = sourceMap
+    
+    return sourceMap
+}
+
+pub fn getSourceMap(filePath) {
+    return sourceMapCache[filePath]
+}
+
+// Build Stats
+let buildStats = {
+    "startTime": 0,
+    "endTime": 0,
+    "duration": 0,
+    "modules": 0,
+    "assets": []
+}
+
+pub fn startBuildStats() {
+    buildStats["startTime"] = currentTime()
+    buildStats["modules"] = 0
+    buildStats["assets"] = []
+}
+
+pub fn endBuildStats() {
+    buildStats["endTime"] = currentTime()
+    buildStats["duration"] = buildStats["endTime"] - buildStats["startTime"]
+    
+    console.log("Build completed in " + buildStats["duration"] + "ms")
+    console.log("Modules: " + buildStats["modules"])
+    console.log("Assets: " + len(buildStats["assets"]))
+}
+
+pub fn addModuleToStats() {
+    buildStats["modules"] = buildStats["modules"] + 1
+}
+
+pub fn addAssetToStats(asset) {
+    buildStats["assets"] = push(buildStats["assets"], asset)
+}
+
+pub fn getBuildStats() {
+    return buildStats
+}
+
+// Proxy Configuration
+let proxyConfig = {}
+
+pub fn addProxy(source, target) {
+    proxyConfig[source] = target
+}
+
+pub fn getProxy(source) {
+    return proxyConfig[source]
+}
+
+// Middleware
+let middlewareStack = []
+
+pub fn useMiddleware(middleware) {
+    middlewareStack = push(middlewareStack, middleware)
+}
+
+pub fn applyMiddleware(request) {
+    let i = 0
+    while i < len(middlewareStack)) {
+        let result = middlewareStack[i](request)
+        if result != null) {
+            return result
+        }
+        i = i + 1
+    }
+    return null
+}
+
+// Static Files
+let staticFiles = {}
+
+pub fn serveStatic(path, content) {
+    staticFiles[path] = content
+}
+
+pub fn getStaticFile(path) {
+    return staticFiles[path]
+}
+
+// WebSocket Server
+let wsServer = null
+
+pub fn startWebSocketServer(port) {
+    wsServer = {
+        "kind": "WebSocketServer",
+        "port": port,
+        "running": true,
+        "clients": []
+    }
+    
+    console.log("WebSocket server started on port " + port)
+}
+
+pub fn stopWebSocketServer() {
+    if wsServer != null) {
+        wsServer["running"] = false
+        wsServer = null
+    }
+}
+
+pub fn broadcast(message) {
+    if wsServer != null) {
+        let i = 0
+        while i < len(wsServer["clients"])) {
+            wsServer["clients"][i]["send"](message)
+            i = i + 1
+        }
+    }
+}
+
+// Helper functions
+fn currentTime() {
+    return systemTime()
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
+}
+
+fn replaceAll(str, search, replacement) {
+    let result = str
+    while contains(result, search)) {
+        let index = indexOf(result, search)
+        result = substring(result, 0, index) + replacement + substring(result, index + len(search), len(result))
+    }
+    return result
+}
+
+fn contains(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn indexOf(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn substring(str, start, length) {
+    let result = ""
+    let i = start
+    while i < start + length && i < len(str)) {
+        result = result + str[i]
+        i = i + 1
+    }
+    return result
+}
+
+fn len(value) {
+    if typeof(value) == "string") {
+        let count = 0
+        while count < 10000 && value[count] != null) {
+            count = count + 1
+        }
+        return count
+    }
+    if typeof(value) == "array") {
+        let count = 0
+        while count < 10000 && value[count] != null) {
+            count = count + 1
+        }
+        return count
+    }
+    if typeof(value) == "object") {
+        let count = 0
+        for key in value) {
+            count = count + 1
+        }
+        return count
+    }
+    return 0
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

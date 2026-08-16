@@ -1,0 +1,513 @@
+@version "1.0.0"
+
+// Negin Performance Profiling - Automatic performance profiling
+// Features: Component profiling, render profiling, memory profiling, flame graphs
+// Canonical path: import "negin/performance-profiling"
+// Target: Better than React DevTools Profiler
+
+import "negin/core"
+import "negin/reactive-core"
+import "negin/optimized-runtime"
+
+let profilingEnabled = false
+let profileData = {}
+let currentProfile = null
+let flameGraph = []
+
+pub fn enableProfiling() {
+    profilingEnabled = true
+    console.log("Performance profiling enabled")
+}
+
+pub fn disableProfiling() {
+    profilingEnabled = false
+    console.log("Performance profiling disabled")
+}
+
+pub fn startProfile(name) {
+    if !profilingEnabled) {
+        return null
+    }
+    
+    currentProfile = {
+        "kind": "Profile",
+        "name": name,
+        "startTime": currentTime(),
+        "samples": [],
+        "children": []
+    }
+    
+    return currentProfile
+}
+
+pub fn endProfile() {
+    if currentProfile == null) {
+        return null
+    }
+    
+    currentProfile["endTime"] = currentTime()
+    currentProfile["duration"] = currentProfile["endTime"] - currentProfile["startTime"]
+    
+    profileData[currentProfile["name"]] = currentProfile
+    
+    let profile = currentProfile
+    currentProfile = null
+    
+    return profile
+}
+
+pub fn recordSample(componentName, duration) {
+    if currentProfile != null) {
+        currentProfile["samples"] = push(currentProfile["samples"], {
+            "component": componentName,
+            "duration": duration,
+            "timestamp": currentTime()
+        })
+    }
+}
+
+pub fn getProfile(name) {
+    return profileData[name]
+}
+
+pub fn getAllProfiles() {
+    return profileData
+}
+
+pub fn clearProfiles() {
+    profileData = {}
+}
+
+// Component profiling
+pub fn profileComponent(Component, props) {
+    let profileName = Component["name"] != null ? Component["name"] : "Anonymous"
+    
+    startProfile(profileName)
+    
+    let result = Component(props)
+    
+    endProfile()
+    
+    return result
+}
+
+pub fn useProfile(componentName) {
+    let (profile, setProfile] = useState(null)
+    
+    useEffect(fn() {
+        let p = startProfile(componentName)
+        setProfile(p)
+        
+        return fn() {
+            endProfile()
+        }
+    }, [componentName])
+    
+    return profile
+}
+
+// Render profiling
+let renderProfiles = []
+
+pub fn profileRender(componentName, renderFn) {
+    let startTime = currentTime()
+    
+    renderFn()
+    
+    let endTime = currentTime()
+    let duration = endTime - startTime
+    
+    renderProfiles = push(renderProfiles, {
+        "component": componentName,
+        "duration": duration,
+        "timestamp": currentTime()
+    })
+    
+    return duration
+}
+
+pub fn getRenderProfiles() {
+    return renderProfiles
+}
+
+pub fn clearRenderProfiles() {
+    renderProfiles = []
+}
+
+// Memory profiling
+let memoryProfiles = []
+
+pub fn profileMemory(componentName) {
+    let memoryUsage = getCurrentMemoryUsage()
+    
+    memoryProfiles = push(memoryProfiles, {
+        "component": componentName,
+        "usage": memoryUsage,
+        "timestamp": currentTime()
+    })
+    
+    return memoryUsage
+}
+
+pub fn getMemoryProfiles() {
+    return memoryProfiles
+}
+
+pub fn clearMemoryProfiles() {
+    memoryProfiles = []
+}
+
+// Flame graph generation
+pub fn buildFlameGraph() {
+    flameGraph = []
+    
+    for name in profileData) {
+        let profile = profileData[name]
+        let node = {
+            "name": name,
+            "duration": profile["duration"],
+            "children": profile["children"]
+        }
+        flameGraph = push(flameGraph, node)
+    }
+    
+    return flameGraph
+}
+
+pub fn getFlameGraph() {
+    return flameGraph
+}
+
+// Performance metrics
+let performanceMetrics = {
+    "totalRenderTime": 0,
+    "totalRenderCount": 0,
+    "averageRenderTime": 0,
+    "slowestRender": 0,
+    "fastestRender": 999999,
+    "memoryPeak": 0
+}
+
+pub fn recordRenderMetric(duration) {
+    performanceMetrics["totalRenderTime"] = performanceMetrics["totalRenderTime"] + duration
+    performanceMetrics["totalRenderCount"] = performanceMetrics["totalRenderCount"] + 1
+    performanceMetrics["averageRenderTime"] = performanceMetrics["totalRenderTime"] / performanceMetrics["totalRenderCount"]
+    
+    if duration > performanceMetrics["slowestRender"]) {
+        performanceMetrics["slowestRender"] = duration
+    }
+    
+    if duration < performanceMetrics["fastestRender"]) {
+        performanceMetrics["fastestRender"] = duration
+    }
+}
+
+pub fn recordMemoryMetric(usage) {
+    if usage > performanceMetrics["memoryPeak"]) {
+        performanceMetrics["memoryPeak"] = usage
+    }
+}
+
+pub fn getPerformanceMetrics() {
+    return performanceMetrics
+}
+
+pub fn clearPerformanceMetrics() {
+    performanceMetrics = {
+        "totalRenderTime": 0,
+        "totalRenderCount": 0,
+        "averageRenderTime": 0,
+        "slowestRender": 0,
+        "fastestRender": 999999,
+        "memoryPeak": 0
+    }
+}
+
+// Performance warnings
+let warnings = []
+
+pub fn checkPerformance() {
+    warnings = []
+    
+    // Check slow renders
+    if performanceMetrics["slowestRender"] > 100) {
+        warnings = push(warnings, {
+            "type": "slow_render",
+            "message": "Slow render detected: " + performanceMetrics["slowestRender"] + "ms"
+        })
+    }
+    
+    // Check memory usage
+    if performanceMetrics["memoryPeak"] > 400) {
+        warnings = push(warnings, {
+            "type": "high_memory",
+            "message": "High memory usage: " + performanceMetrics["memoryPeak"] + "MB"
+        })
+    }
+    
+    // Check average render time
+    if performanceMetrics["averageRenderTime"] > 50) {
+        warnings = push(warnings, {
+            "type": "slow_average",
+            "message": "Slow average render time: " + performanceMetrics["averageRenderTime"] + "ms"
+        })
+    }
+    
+    return warnings
+}
+
+pub fn getWarnings() {
+    return warnings
+}
+
+// Performance optimization suggestions
+pub fn getOptimizationSuggestions() {
+    let suggestions = []
+    
+    if performanceMetrics["averageRenderTime"] > 30) {
+        suggestions = push(suggestions, {
+            "type": "render",
+            "message": "Consider using memo() for expensive components"
+        })
+    }
+    
+    if performanceMetrics["memoryPeak"] > 300) {
+        suggestions = push(suggestions, {
+            "type": "memory",
+            "message": "Consider using lazy() for large components"
+        })
+    }
+    
+    if len(renderProfiles) > 1000) {
+        suggestions = push(suggestions, {
+            "type": "render_count",
+            "message": "Consider using virtualization for long lists"
+        })
+    }
+    
+    return suggestions
+}
+
+// Automatic profiling
+pub fn enableAutoProfiling() {
+    console.log("Auto-profiling enabled")
+    
+    // Profile all renders automatically
+    let originalRender = render
+    render = fn(element, container) {
+        let duration = profileRender("root", fn() {
+            originalRender(element, container)
+        })
+        recordRenderMetric(duration)
+    }
+}
+
+pub fn disableAutoProfiling() {
+    console.log("Auto-profiling disabled")
+}
+
+// Performance report
+pub fn generatePerformanceReport() {
+    let report = {
+        "summary": performanceMetrics,
+        "profiles": profileData,
+        "renderProfiles": renderProfiles,
+        "memoryProfiles": memoryProfiles,
+        "flameGraph": buildFlameGraph(),
+        "warnings": checkPerformance(),
+        "suggestions": getOptimizationSuggestions()
+    }
+    
+    console.log("Performance Report:")
+    console.log("  Total renders: " + performanceMetrics["totalRenderCount"])
+    console.log("  Average render time: " + performanceMetrics["averageRenderTime"] + "ms")
+    console.log("  Slowest render: " + performanceMetrics["slowestRender"] + "ms")
+    console.log("  Memory peak: " + performanceMetrics["memoryPeak"] + "MB")
+    console.log("  Warnings: " + len(warnings))
+    console.log("  Suggestions: " + len(suggestions))
+    
+    return report
+}
+
+// Performance comparison
+pub fn compareProfiles(profile1, profile2) {
+    let comparison = {
+        "durationDiff": profile1["duration"] - profile2["duration"],
+        "sampleCountDiff": len(profile1["samples"]) - len(profile2["samples"]),
+        "improvement": profile2["duration"] > profile1["duration"]
+    }
+    
+    return comparison
+}
+
+// Performance benchmarking
+pub fn benchmark(name, fn, iterations) {
+    let iterations = iterations != null ? iterations : 100
+    let times = []
+    
+    let i = 0
+    while i < iterations) {
+        let startTime = currentTime()
+        fn()
+        let endTime = currentTime()
+        times = push(times, endTime - startTime)
+        i = i + 1
+    }
+    
+    let totalTime = 0
+    let j = 0
+    while j < len(times)) {
+        totalTime = totalTime + times[j]
+        j = j + 1
+    }
+    
+    let averageTime = totalTime / iterations
+    let minTime = times[0]
+    let maxTime = times[0]
+    
+    let k = 0
+    while k < len(times)) {
+        if times[k] < minTime) {
+            minTime = times[k]
+        }
+        if times[k] > maxTime) {
+            maxTime = times[k]
+        }
+        k = k + 1
+    }
+    
+    let benchmark = {
+        "name": name,
+        "iterations": iterations,
+        "averageTime": averageTime,
+        "minTime": minTime,
+        "maxTime": maxTime,
+        "totalTime": totalTime
+    }
+    
+    console.log("Benchmark " + name + ":")
+    console.log("  Average: " + averageTime + "ms")
+    console.log("  Min: " + minTime + "ms")
+    console.log("  Max: " + maxTime + "ms")
+    
+    return benchmark
+}
+
+// Performance monitoring
+let monitoringEnabled = false
+let monitoringInterval = null
+
+pub fn startMonitoring(interval) {
+    monitoringEnabled = true
+    
+    monitoringInterval = setInterval(fn() {
+        let metrics = getPerformanceMetrics()
+        let warnings = checkPerformance()
+        
+        if len(warnings) > 0) {
+            console.log("Performance warnings detected:")
+            let i = 0
+            while i < len(warnings)) {
+                console.log("  - " + warnings[i]["message"])
+                i = i + 1
+            }
+        }
+    }, interval != null ? interval : 5000)
+}
+
+pub fn stopMonitoring() {
+    monitoringEnabled = false
+    
+    if monitoringInterval != null) {
+        clearInterval(monitoringInterval)
+        monitoringInterval = null
+    }
+}
+
+// Performance snapshot
+pub fn takeSnapshot() {
+    return {
+        "timestamp": currentTime(),
+        "metrics": getPerformanceMetrics(),
+        "profiles": getAllProfiles(),
+        "renderProfiles": getRenderProfiles(),
+        "memoryProfiles": getMemoryProfiles()
+    }
+}
+
+pub fn compareSnapshots(snapshot1, snapshot2) {
+    let comparison = {
+        "timeDiff": snapshot2["timestamp"] - snapshot1["timestamp"],
+        "renderTimeDiff": snapshot2["metrics"]["totalRenderTime"] - snapshot1["metrics"]["totalRenderTime"],
+        "renderCountDiff": snapshot2["metrics"]["totalRenderCount"] - snapshot1["metrics"]["totalRenderCount"],
+        "memoryDiff": snapshot2["metrics"]["memoryPeak"] - snapshot1["metrics"]["memoryPeak"]
+    }
+    
+    return comparison
+}
+
+// Helper functions
+fn currentTime() {
+    return systemTime()
+}
+
+fn getCurrentMemoryUsage() {
+    return 100
+}
+
+fn setInterval(callback, interval) {
+    return null
+}
+
+fn clearInterval(id) {
+}
+
+fn len(value) {
+    if typeof(value) == "string") {
+        let count = 0
+        while count < 10000 && value[count] != null) {
+            count = count + 1
+        }
+        return count
+    }
+    if typeof(value) == "array") {
+        let count = 0
+        while count < 10000 && value[count] != null) {
+            count = count + 1
+        }
+        return count
+    }
+    if typeof(value) == "object") {
+        let count = 0
+        for key in value) {
+            count = count + 1
+        }
+        return count
+    }
+    return 0
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

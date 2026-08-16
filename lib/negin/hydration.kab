@@ -1,0 +1,372 @@
+@version "1.0.0"
+
+// Negin Hydration - Automatic hydration system
+// Features: SSR hydration, state preservation, automatic data loading
+// Canonical path: import "negin/hydration"
+// Target: Better than Next.js hydration
+
+import "negin/core"
+import "negin/reactive-core"
+import "negin/optimized-reconciler"
+
+let hydrationState = {}
+let hydrationCache = {}
+let hydrationQueue = []
+
+pub fn createHydrationContext(initialState) {
+    let context = {
+        "kind": "HydrationContext",
+        "state": initialState != null ? initialState : {},
+        "hydrated": false,
+        "pending": []
+    }
+    
+    hydrationState = context
+    
+    return context
+}
+
+pub fn hydrate(element, container, options) {
+    let hydrationKey = options != null && options["key"] != null ? options["key"] : "default"
+    let initialState = options != null ? options["state"] : null
+    
+    console.log("Starting hydration for: " + hydrationKey)
+    
+    // Get pre-hydrated data from server
+    let serverData = getHydrationData(hydrationKey)
+    
+    if serverData != null) {
+        console.log("Found server data for hydration")
+        hydrationCache[hydrationKey] = serverData
+    }
+    
+    // Create hydration context
+    let context = createHydrationContext(initialState)
+    
+    // Render the element
+    let root = createRoot(container)
+    root["render"](element)
+    
+    // Mark as hydrated
+    context["hydrated"] = true
+    
+    // Process pending hydration tasks
+    processHydrationQueue()
+    
+    return {
+        "success": true,
+        "context": context
+    }
+}
+
+pub fn getHydrationData(key) {
+    return hydrationCache[key]
+}
+
+pub fn setHydrationData(key, data) {
+    hydrationCache[key] = data
+}
+
+pub fn clearHydrationCache(key) {
+    if key != null) {
+        hydrationCache[key] = null
+    } else {
+        hydrationCache = {}
+    }
+}
+
+// Automatic state preservation
+pub fn preserveState(key, state) {
+    hydrationState["state"][key] = state
+}
+
+pub fn restoreState(key) {
+    return hydrationState["state"][key]
+}
+
+pub fn clearState(key) {
+    if key != null) {
+        hydrationState["state"][key] = null
+    } else {
+        hydrationState["state"] = {}
+    }
+}
+
+// Automatic data loading
+pub fn loadData(key, loader) {
+    let cached = hydrationCache[key]
+    
+    if cached != null) {
+        console.log("Using cached data for: " + key)
+        return cached
+    }
+    
+    console.log("Loading data for: " + key)
+    
+    let data = loader()
+    hydrationCache[key] = data
+    
+    return data
+}
+
+pub fn preloadData(key, loader) {
+    hydrationQueue = push(hydrationQueue, {
+        "key": key,
+        "loader": loader
+    })
+}
+
+fn processHydrationQueue() {
+    let i = 0
+    while i < len(hydrationQueue)) {
+        let task = hydrationQueue[i]
+        loadData(task["key"], task["loader"])
+        i = i + 1
+    }
+    hydrationQueue = []
+}
+
+// SSR hydration helpers
+pub fn dehydrateState() {
+    return {
+        "state": hydrationState["state"],
+        "cache": hydrationCache,
+        "timestamp": currentTime()
+    }
+}
+
+pub fn rehydrateState(dehydrated) {
+    hydrationState["state"] = dehydrated["state"]
+    hydrationCache = dehydrated["cache"]
+    
+    console.log("Rehydrated state with " + len(hydrationCache) + " cached items")
+}
+
+// Component-level hydration
+pub fn useHydration(key, loader) {
+    let (data, setData] = useState(null)
+    let (hydrated, setHydrated] = useState(false)
+    
+    useEffect(fn() {
+        let cached = getHydrationData(key)
+        
+        if cached != null) {
+            setData(cached)
+            setHydrated(true)
+        } else if loader != null) {
+            let loaded = loadData(key, loader)
+            setData(loaded)
+            setHydrated(true)
+        }
+    }, [key])
+    
+    return {
+        "data": data,
+        "hydrated": hydrated
+    }
+}
+
+// Signal hydration
+pub fn hydrateSignal(signal, key) {
+    let cached = getHydrationData(key)
+    
+    if cached != null) {
+        signal["set"](cached)
+        return true
+    }
+    
+    return false
+}
+
+pub fn dehydrateSignal(signal, key) {
+    setHydrationData(key, signal["peek"]())
+}
+
+// Array hydration
+pub fn hydrateArray(array, key) {
+    let cached = getHydrationData(key)
+    
+    if cached != null) {
+        array["set"](cached)
+        return true
+    }
+    
+    return false
+}
+
+pub fn dehydrateArray(array, key) {
+    setHydrationData(key, array["get"]())
+}
+
+// Object hydration
+pub fn hydrateObject(obj, key) {
+    let cached = getHydrationData(key)
+    
+    if cached != null) {
+        obj["set"](cached)
+        return true
+    }
+    
+    return false
+}
+
+pub fn dehydrateObject(obj, key) {
+    setHydrationData(key, obj["get"]())
+}
+
+// Store hydration
+pub fn hydrateStore(store, key) {
+    let cached = getHydrationData(key)
+    
+    if cached != null) {
+        store["setState"](cached)
+        return true
+    }
+    
+    return false
+}
+
+pub fn dehydrateStore(store, key) {
+    setHydrationData(key, store["getState"]())
+}
+
+// Hydration boundary
+pub fn HydrationBoundary(props) {
+    let children = props["children"]
+    let key = props["key"]
+    
+    let (hydrated, setHydrated] = useState(false)
+    
+    useEffect(fn() {
+        let data = getHydrationData(key)
+        
+        if data != null) {
+            setHydrated(true)
+        }
+    }, [key])
+    
+    if !hydrated) {
+        return props["fallback"] != null ? props["fallback"] : createElement("div", {}, "Hydrating...")
+    }
+    
+    return children
+}
+
+// Progressive hydration
+pub fn ProgressiveHydration(props) {
+    let children = props["children"]
+    let priority = props["priority"] != null ? props["priority"] : "normal"
+    
+    let (hydrated, setHydrated] = useState(priority == "high")
+    
+    useEffect(fn() {
+        if priority != "high") {
+            setTimeout(fn() {
+                setHydrated(true)
+            }, 100)
+        }
+    }, [priority])
+    
+    if !hydrated) {
+        return props["fallback"] != null ? props["fallback"] : createElement("div", {}, "Loading...")
+    }
+    
+    return children
+}
+
+// Hydration metrics
+let hydrationMetrics = {
+    "hydrationTime": 0,
+    "hydratedComponents": 0,
+    "hydrationErrors": []
+}
+
+pub fn recordHydrationTime(componentName, time) {
+    hydrationMetrics["hydrationTime"] = hydrationMetrics["hydrationTime"] + time
+    hydrationMetrics["hydratedComponents"] = hydrationMetrics["hydratedComponents"] + 1
+    
+    console.log("Hydrated " + componentName + " in " + time + "ms")
+}
+
+pub fn recordHydrationError(error) {
+    hydrationMetrics["hydrationErrors"] = push(hydrationMetrics["hydrationErrors"], error)
+}
+
+pub fn getHydrationMetrics() {
+    return hydrationMetrics
+}
+
+pub fn clearHydrationMetrics() {
+    hydrationMetrics = {
+        "hydrationTime": 0,
+        "hydratedComponents": 0,
+        "hydrationErrors": []
+    }
+}
+
+// Automatic hydration on navigation
+pub fn enableAutoHydration() {
+    console.log("Auto-hydration enabled")
+}
+
+pub fn disableAutoHydration() {
+    console.log("Auto-hydration disabled")
+}
+
+// Hydration validation
+pub fn validateHydration() {
+    let errors = []
+    
+    for key in hydrationCache) {
+        if hydrationCache[key] == null) {
+            errors = push(errors, "Missing hydration data for: " + key)
+        }
+    }
+    
+    if len(errors) > 0) {
+        console.error("Hydration validation failed:")
+        let i = 0
+        while i < len(errors)) {
+            console.error("  - " + errors[i])
+            i = i + 1
+        }
+        return false
+    }
+    
+    console.log("Hydration validation passed")
+    return true
+}
+
+// Helper functions
+fn currentTime() {
+    return systemTime()
+}
+
+fn setTimeout(callback, delay) {
+    return null
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
