@@ -1,0 +1,489 @@
+@version "1.0.0"
+
+// Negin UI - UI components for Negin
+// Features: Modal, Dialog, Tooltip, Portal, Overlay
+// Canonical path: import "negin/ui"
+
+import "negin/core"
+import "negin/hooks"
+import "negin/animation"
+
+pub fn Modal(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let children = props["children"]
+    let title = props["title"]
+    let size = props["size"] != null ? props["size"] : "medium"
+    
+    let (isAnimating, setIsAnimating] = useState(false)
+    
+    useEffect(fn() {
+        if isOpen) {
+            setIsAnimating(true)
+        }
+    }, [isOpen])
+    
+    if isOpen == false) {
+        return null
+    }
+    
+    return createElement("div", { "className": "modal-overlay" },
+        createElement("div", { "className": "modal modal-" + size },
+            createElement("div", { "className": "modal-header" },
+                createElement("h3", { "className": "modal-title" }, title),
+                createElement("button", {
+                    "className": "modal-close",
+                    "onClick": onClose
+                }, "×")
+            ),
+            createElement("div", { "className": "modal-body" }, children),
+            props["footer"] != null ? createElement("div", { "className": "modal-footer" }, props["footer"]) : null
+        )
+    )
+}
+
+pub fn Dialog(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let children = props["children"]
+    
+    if isOpen == false) {
+        return null
+    }
+    
+    return createElement("div", { "className": "dialog-overlay" },
+        createElement("div", { "className": "dialog" },
+            children,
+            createElement("button", {
+                "className": "dialog-close",
+                "onClick": onClose
+            }, "Close")
+        )
+    )
+}
+
+pub fn AlertDialog(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let onConfirm = props["onConfirm"]
+    let title = props["title"]
+    let message = props["message"]
+    let confirmText = props["confirmText"] != null ? props["confirmText"] : "Confirm"
+    let cancelText = props["cancelText"] != null ? props["cancelText"] : "Cancel"
+    
+    if isOpen == false) {
+        return null
+    }
+    
+    return createElement(Dialog, { "isOpen": isOpen, "onClose": onClose },
+        createElement("div", { "className": "alert-dialog" },
+            createElement("h3", {}, title),
+            createElement("p", {}, message),
+            createElement("div", { "className": "alert-dialog-actions" },
+                createElement("button", { "onClick": onClose }, cancelText),
+                createElement("button", {
+                    "onClick": fn() {
+                        onConfirm()
+                        onClose()
+                    }
+                }, confirmText)
+            )
+        )
+    )
+}
+
+pub fn Tooltip(props) {
+    let children = props["children"]
+    let content = props["content"]
+    let placement = props["placement"] != null ? props["placement"] : "top"
+    
+    let (visible, setVisible] = useState(false)
+    
+    return createElement("div", { "className": "tooltip-container" },
+        createElement("div", {
+            "className": "tooltip-trigger",
+            "onMouseEnter": fn() { setVisible(true) },
+            "onMouseLeave": fn() { setVisible(false) }
+        }, children),
+        visible ? createElement("div", { "className": "tooltip tooltip-" + placement }, content) : null
+    )
+}
+
+pub fn Popover(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let children = props["children"]
+    let content = props["content"]
+    let placement = props["placement"] != null ? props["placement"] : "bottom"
+    
+    return createElement("div", { "className": "popover-container" },
+        createElement("div", { "className": "popover-trigger" }, children),
+        isOpen ? createElement("div", { "className": "popover popover-" + placement },
+            content
+        ) : null
+    )
+}
+
+pub fn Dropdown(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let trigger = props["trigger"]
+    let items = props["items"]
+    
+    return createElement("div", { "className": "dropdown" },
+        createElement("div", { "className": "dropdown-trigger" }, trigger),
+        isOpen ? createElement("div", { "className": "dropdown-menu" },
+            renderDropdownItems(items, onClose)
+        ) : null
+    )
+}
+
+fn renderDropdownItems(items, onClose) {
+    let elements = []
+    let i = 0
+    while i < len(items)) {
+        let item = items[i]
+        elements = push(elements, createElement("button", {
+            "className": "dropdown-item",
+            "onClick": fn() {
+                if item["onClick"] != null) {
+                    item["onClick"]()
+                }
+                onClose()
+            }
+        }, item["label"]))
+        i = i + 1
+    }
+    return elements
+}
+
+pub fn Menu(props) {
+    let items = props["items"]
+    
+    return createElement("div", { "className": "menu" },
+        renderMenuItems(items)
+    )
+}
+
+fn renderMenuItems(items) {
+    let elements = []
+    let i = 0
+    while i < len(items)) {
+        let item = items[i]
+        
+        if item["divider"] == true) {
+            elements = push(elements, createElement("div", { "className": "menu-divider" }))
+        } else if item["header"] == true) {
+            elements = push(elements, createElement("div", { "className": "menu-header" }, item["label"]))
+        } else {
+            elements = push(elements, createElement("button", {
+                "className": "menu-item" + (item["disabled"] ? " disabled" : ""),
+                "disabled": item["disabled"],
+                "onClick": item["onClick"]
+            }, item["label"]))
+        }
+        
+        i = i + 1
+    }
+    return elements
+}
+
+pub fn Portal(props) {
+    let children = props["children"]
+    let container = props["container"]
+    
+    return createElement("div", { "className": "portal" }, children)
+}
+
+pub fn Overlay(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let children = props["children"]
+    
+    if isOpen == false) {
+        return null
+    }
+    
+    return createElement("div", { "className": "overlay" },
+        createElement("div", { "className": "overlay-backdrop", "onClick": onClose }),
+        createElement("div", { "className": "overlay-content" }, children)
+    )
+}
+
+pub fn Drawer(props) {
+    let isOpen = props["isOpen"]
+    let onClose = props["onClose"]
+    let children = props["children"]
+    let position = props["position"] != null ? props["position"] : "right"
+    
+    if isOpen == false) {
+        return null
+    }
+    
+    return createElement("div", { "className": "drawer-overlay" },
+        createElement("div", { "className": "drawer drawer-" + position },
+            createElement("button", {
+                "className": "drawer-close",
+                "onClick": onClose
+            }, "×"),
+            children
+        )
+    )
+}
+
+pub fn Collapse(props) {
+    let isOpen = props["isOpen"]
+    let children = props["children"]
+    
+    return createElement("div", { "className": "collapse" },
+        createElement("div", {
+            "className": "collapse-content" + (isOpen ? " open" : "")
+        }, children)
+    )
+}
+
+pub fn Accordion(props) {
+    let items = props["items"]
+    let (openIndex, setOpenIndex] = useState(0)
+    
+    return createElement("div", { "className": "accordion" },
+        renderAccordionItems(items, openIndex, setOpenIndex)
+    )
+}
+
+fn renderAccordionItems(items, openIndex, setOpenIndex) {
+    let elements = []
+    let i = 0
+    while i < len(items)) {
+        let item = items[i]
+        let isOpen = i == openIndex
+        
+        elements = push(elements, createElement("div", { "className": "accordion-item" },
+            createElement("button", {
+                "className": "accordion-header",
+                "onClick": fn() {
+                    setOpenIndex(isOpen ? -1 : i)
+                }
+            },
+                item["title"],
+                createElement("span", { "className": "accordion-icon" }, isOpen ? "−" : "+")
+            ),
+            createElement(Collapse, { "isOpen": isOpen },
+                createElement("div", { "className": "accordion-body" }, item["content"])
+            )
+        ))
+        i = i + 1
+    }
+    return elements
+}
+
+pub fn Tabs(props) {
+    let items = props["items"]
+    let (activeIndex, setActiveIndex] = useState(0)
+    
+    return createElement("div", { "className": "tabs" },
+        createElement("div", { "className": "tab-list" },
+            renderTabHeaders(items, activeIndex, setActiveIndex)
+        ),
+        createElement("div", { "className": "tab-content" },
+            items[activeIndex]["content"]
+        )
+    )
+}
+
+fn renderTabHeaders(items, activeIndex, setActiveIndex) {
+    let elements = []
+    let i = 0
+    while i < len(items)) {
+        let item = items[i]
+        let isActive = i == activeIndex
+        
+        elements = push(elements, createElement("button", {
+            "className": "tab-header" + (isActive ? " active" : ""),
+            "onClick": fn() { setActiveIndex(i) }
+        }, item["label"]))
+        i = i + 1
+    }
+    return elements
+}
+
+pub fn Breadcrumb(props) {
+    let items = props["items"]
+    
+    return createElement("nav", { "className": "breadcrumb" },
+        renderBreadcrumbItems(items)
+    )
+}
+
+fn renderBreadcrumbItems(items) {
+    let elements = []
+    let i = 0
+    while i < len(items)) {
+        let item = items[i]
+        
+        elements = push(elements, createElement("span", { "className": "breadcrumb-item" },
+            item["href"] != null
+                ? createElement("a", { "href": item["href"] }, item["label"])
+                : createElement("span", {}, item["label"])
+        ))
+        
+        if i < len(items) - 1) {
+            elements = push(elements, createElement("span", { "className": "breadcrumb-separator" }, "/"))
+        }
+        
+        i = i + 1
+    }
+    return elements
+}
+
+pub fn Badge(props) {
+    let children = props["children"]
+    let count = props["count"]
+    let variant = props["variant"] != null ? props["variant"] : "default"
+    
+    return createElement("span", { "className": "badge badge-" + variant },
+        children,
+        count != null && count > 0
+            ? createElement("span", { "className": "badge-count" }, count)
+            : null
+    )
+}
+
+pub fn Avatar(props) {
+    let src = props["src"]
+    let alt = props["alt"]
+    let size = props["size"] != null ? props["size"] : "medium"
+    let fallback = props["fallback"]
+    
+    return createElement("div", { "className": "avatar avatar-" + size },
+        src != null
+            ? createElement("img", { "src": src, "alt": alt })
+            : createElement("span", { "className": "avatar-fallback" }, fallback)
+    )
+}
+
+pub fn Progress(props) {
+    let value = props["value"]
+    let max = props["max"] != null ? props["max"] : 100
+    let showLabel = props["showLabel"] != null ? props["showLabel"] : false
+    
+    let percentage = (value / max) * 100
+    
+    return createElement("div", { "className": "progress" },
+        createElement("div", { "className": "progress-bar", "style": { "width": percentage + "%" } }),
+        showLabel ? createElement("span", { "className": "progress-label" }, percentage + "%") : null
+    )
+}
+
+pub fn Spinner(props) {
+    let size = props["size"] != null ? props["size"] : "medium"
+    
+    return createElement("div", { "className": "spinner spinner-" + size })
+}
+
+pub fn Skeleton(props) {
+    let variant = props["variant"] != null ? props["variant"] : "text"
+    let width = props["width"]
+    let height = props["height"]
+    
+    let style = {}
+    if width != null) {
+        style["width"] = width
+    }
+    if height != null) {
+        style["height"] = height
+    }
+    
+    return createElement("div", {
+        "className": "skeleton skeleton-" + variant,
+        "style": style
+    })
+}
+
+pub fn Card(props) {
+    let children = props["children"]
+    let title = props["title"]
+    let footer = props["footer"]
+    
+    return createElement("div", { "className": "card" },
+        title != null ? createElement("div", { "className": "card-header" }, title) : null,
+        createElement("div", { "className": "card-body" }, children),
+        footer != null ? createElement("div", { "className": "card-footer" }, footer) : null
+    )
+}
+
+pub fn Divider(props) {
+    let orientation = props["orientation"] != null ? props["orientation"] : "horizontal"
+    
+    return createElement("div", { "className": "divider divider-" + orientation })
+}
+
+pub fn useModal() {
+    let (isOpen, setIsOpen] = useState(false)
+    
+    let open = fn() { setIsOpen(true) }
+    let close = fn() { setIsOpen(false) }
+    let toggle = fn() { setIsOpen(!isOpen) }
+    
+    return {
+        "isOpen": isOpen,
+        "open": open,
+        "close": close,
+        "toggle": toggle
+    }
+}
+
+pub fn usePopover() {
+    let (isOpen, setIsOpen] = useState(false)
+    
+    let open = fn() { setIsOpen(true) }
+    let close = fn() { setIsOpen(false) }
+    let toggle = fn() { setIsOpen(!isOpen) }
+    
+    return {
+        "isOpen": isOpen,
+        "open": open,
+        "close": close,
+        "toggle": toggle
+    }
+}
+
+pub fn useDropdown() {
+    let (isOpen, setIsOpen] = useState(false)
+    
+    let open = fn() { setIsOpen(true) }
+    let close = fn() { setIsOpen(false) }
+    let toggle = fn() { setIsOpen(!isOpen) }
+    
+    return {
+        "isOpen": isOpen,
+        "open": open,
+        "close": close,
+        "toggle": toggle
+    }
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

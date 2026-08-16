@@ -1,0 +1,405 @@
+@version "1.0.0"
+
+// Negin Theme - Theme system for Negin
+// Features: theme provider, theme switching, CSS variables, dark mode
+// Canonical path: import "negin/theme"
+
+import "negin/core"
+import "negin/hooks"
+import "negin/context"
+
+let ThemeContext = createContext("light")
+
+pub fn createTheme(baseTheme) {
+    return {
+        "kind": "Theme",
+        "colors": baseTheme["colors"] != null ? baseTheme["colors"] : defaultColors(),
+        "spacing": baseTheme["spacing"] != null ? baseTheme["spacing"] : defaultSpacing(),
+        "typography": baseTheme["typography"] != null ? baseTheme["typography"] : defaultTypography(),
+        "breakpoints": baseTheme["breakpoints"] != null ? baseTheme["breakpoints"] : defaultBreakpoints(),
+        "shadows": baseTheme["shadows"] != null ? baseTheme["shadows"] : defaultShadows(),
+        "borderRadius": baseTheme["borderRadius"] != null ? baseTheme["borderRadius"] : defaultBorderRadius(),
+        "transitions": baseTheme["transitions"] != null ? baseTheme["transitions"] : defaultTransitions(),
+        "zIndex": baseTheme["zIndex"] != null ? baseTheme["zIndex"] : defaultZIndex()
+    }
+}
+
+fn defaultColors() {
+    return {
+        "primary": "#3b82f6",
+        "secondary": "#8b5cf6",
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "error": "#ef4444",
+        "info": "#06b6d4",
+        "background": "#ffffff",
+        "surface": "#f3f4f6",
+        "text": "#111827",
+        "textSecondary": "#6b7280",
+        "border": "#e5e7eb",
+        "divider": "#d1d5db"
+    }
+}
+
+fn defaultSpacing() {
+    return {
+        "xs": "4px",
+        "sm": "8px",
+        "md": "16px",
+        "lg": "24px",
+        "xl": "32px",
+        "2xl": "48px",
+        "3xl": "64px"
+    }
+}
+
+fn defaultTypography() {
+    return {
+        "fontFamily": "system-ui, -apple-system, sans-serif",
+        "fontSize": {
+            "xs": "12px",
+            "sm": "14px",
+            "md": "16px",
+            "lg": "18px",
+            "xl": "20px",
+            "2xl": "24px",
+            "3xl": "30px",
+            "4xl": "36px"
+        },
+        "fontWeight": {
+            "light": "300",
+            "normal": "400",
+            "medium": "500",
+            "semibold": "600",
+            "bold": "700"
+        },
+        "lineHeight": {
+            "tight": "1.25",
+            "normal": "1.5",
+            "relaxed": "1.75"
+        }
+    }
+}
+
+fn defaultBreakpoints() {
+    return {
+        "xs": "0px",
+        "sm": "640px",
+        "md": "768px",
+        "lg": "1024px",
+        "xl": "1280px",
+        "2xl": "1536px"
+    }
+}
+
+fn defaultShadows() {
+    return {
+        "sm": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        "md": "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        "lg": "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+        "xl": "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
+    }
+}
+
+fn defaultBorderRadius() {
+    return {
+        "none": "0",
+        "sm": "2px",
+        "md": "4px",
+        "lg": "8px",
+        "xl": "12px",
+        "full": "9999px"
+    }
+}
+
+fn defaultTransitions() {
+    return {
+        "fast": "150ms",
+        "normal": "300ms",
+        "slow": "500ms"
+    }
+}
+
+fn defaultZIndex() {
+    return {
+        "dropdown": 1000,
+        "sticky": 1020,
+        "fixed": 1030,
+        "modalBackdrop": 1040,
+        "modal": 1050,
+        "popover": 1060,
+        "tooltip": 1070
+    }
+}
+
+pub fn createDarkTheme() {
+    return createTheme({
+        "colors": {
+            "primary": "#60a5fa",
+            "secondary": "#a78bfa",
+            "success": "#34d399",
+            "warning": "#fbbf24",
+            "error": "#f87171",
+            "info": "#22d3ee",
+            "background": "#111827",
+            "surface": "#1f2937",
+            "text": "#f9fafb",
+            "textSecondary": "#9ca3af",
+            "border": "#374151",
+            "divider": "#4b5563"
+        }
+    })
+}
+
+pub fn ThemeProvider(props) {
+    let theme = props["theme"] != null ? props["theme"] : createTheme({})
+    let defaultTheme = props["defaultTheme"] != null ? props["defaultTheme"] : "light"
+    
+    let (currentTheme, setCurrentTheme] = useState(defaultTheme)
+    let (themes, setThemes] = useState({
+        "light": theme,
+        "dark": createDarkTheme()
+    })
+    
+    let toggleTheme = fn() {
+        setCurrentTheme(currentTheme == "light" ? "dark" : "light")
+    }
+    
+    let setTheme = fn(themeName) {
+        setCurrentTheme(themeName)
+    }
+    
+    let themeValue = {
+        "currentTheme": currentTheme,
+        "theme": themes[currentTheme],
+        "themes": themes,
+        "setTheme": setTheme,
+        "toggleTheme": toggleTheme,
+        "addTheme": fn(name, theme) {
+            setThemes({ ...themes, [name]: theme })
+        }
+    }
+    
+    return createElement(Provider(ThemeContext, themeValue),
+        createElement("div", { "data-theme": currentTheme }, props["children"])
+    )
+}
+
+pub fn useTheme() {
+    let context = useContext(ThemeContext)
+    return context
+}
+
+pub fn useColor(colorName) {
+    let theme = useTheme()
+    return theme["theme"]["colors"][colorName]
+}
+
+pub fn useSpacing(spacingName) {
+    let theme = useTheme()
+    return theme["theme"]["spacing"][spacingName]
+}
+
+pub fn useTypography(typographyName) {
+    let theme = useTheme()
+    return theme["theme"]["typography"][typographyName]
+}
+
+pub fn useBreakpoint(breakpointName) {
+    let theme = useTheme()
+    return theme["theme"]["breakpoints"][breakpointName]
+}
+
+pub fn useShadow(shadowName) {
+    let theme = useTheme()
+    return theme["theme"]["shadows"][shadowName]
+}
+
+pub fn useBorderRadius(radiusName) {
+    let theme = useTheme()
+    return theme["theme"]["borderRadius"][radiusName]
+}
+
+pub fn useMediaQuery(query) {
+    let (matches, setMatches] = useState(false)
+    
+    useEffect(fn() {
+        let mediaQuery = windowMatchMedia(query)
+        setMatches(mediaQuery["matches"])
+        
+        let handler = fn(event) {
+            setMatches(event["matches"])
+        }
+        
+        mediaQuery["addListener"](handler)
+        
+        return fn() {
+            mediaQuery["removeListener"](handler)
+        }
+    }, [query])
+    
+    return matches
+}
+
+pub fn useBreakpointValue(values) {
+    let theme = useTheme()
+    let breakpoints = theme["theme"]["breakpoints"]
+    
+    let isXs = useMediaQuery("(min-width: " + breakpoints["xs"] + ")")
+    let isSm = useMediaQuery("(min-width: " + breakpoints["sm"] + ")")
+    let isMd = useMediaQuery("(min-width: " + breakpoints["md"] + ")")
+    let isLg = useMediaQuery("(min-width: " + breakpoints["lg"] + ")")
+    let isXl = useMediaQuery("(min-width: " + breakpoints["xl"] + ")")
+    
+    if isXl && values["xl"] != null) {
+        return values["xl"]
+    }
+    if isLg && values["lg"] != null) {
+        return values["lg"]
+    }
+    if isMd && values["md"] != null) {
+        return values["md"]
+    }
+    if isSm && values["sm"] != null) {
+        return values["sm"]
+    }
+    return values["xs"]
+}
+
+pub fn usePrefersColorScheme() {
+    let (prefersDark, setPrefersDark] = useState(false)
+    
+    useEffect(fn() {
+        let mediaQuery = windowMatchMedia("(prefers-color-scheme: dark)")
+        setPrefersDark(mediaQuery["matches"])
+        
+        let handler = fn(event) {
+            setPrefersDark(event["matches"])
+        }
+        
+        mediaQuery["addListener"](handler)
+        
+        return fn() {
+            mediaQuery["removeListener"](handler)
+        }
+    }, [])
+    
+    return prefersDark ? "dark" : "light"
+}
+
+pub fn useSystemTheme() {
+    let systemTheme = usePrefersColorScheme()
+    let theme = useTheme()
+    
+    useEffect(fn() {
+        if theme["currentTheme"] == "system") {
+            theme["setTheme"](systemTheme)
+        }
+    }, [systemTheme])
+    
+    return systemTheme
+}
+
+pub fn withTheme(Component) {
+    return fn(props) {
+        let theme = useTheme()
+        return createElement(Component, { ...props, "theme": theme })
+    }
+}
+
+pub fn ThemedComponent(props) {
+    let theme = useTheme()
+    let children = props["children"]
+    
+    return createElement("div", {
+        "className": "themed-component",
+        "style": applyThemeStyles(theme["theme"])
+    }, children)
+}
+
+fn applyThemeStyles(theme) {
+    return {
+        "--color-primary": theme["colors"]["primary"],
+        "--color-secondary": theme["colors"]["secondary"],
+        "--color-background": theme["colors"]["background"],
+        "--color-surface": theme["colors"]["surface"],
+        "--color-text": theme["colors"]["text"],
+        "--spacing-md": theme["spacing"]["md"],
+        "--font-family": theme["typography"]["fontFamily"],
+        "--font-size-md": theme["typography"]["fontSize"]["md"]
+    }
+}
+
+pub fn createCustomTheme(customConfig) {
+    let baseTheme = createTheme({})
+    
+    let mergedTheme = {
+        "colors": { ...baseTheme["colors"], ...customConfig["colors"] },
+        "spacing": { ...baseTheme["spacing"], ...customConfig["spacing"] },
+        "typography": {
+            ...baseTheme["typography"],
+            "fontSize": { ...baseTheme["typography"]["fontSize"], ...customConfig["typography"]["fontSize"] },
+            "fontWeight": { ...baseTheme["typography"]["fontWeight"], ...customConfig["typography"]["fontWeight"] }
+        },
+        "breakpoints": { ...baseTheme["breakpoints"], ...customConfig["breakpoints"] },
+        "shadows": { ...baseTheme["shadows"], ...customConfig["shadows"] },
+        "borderRadius": { ...baseTheme["borderRadius"], ...customConfig["borderRadius"] },
+        "transitions": { ...baseTheme["transitions"], ...customConfig["transitions"] },
+        "zIndex": { ...baseTheme["zIndex"], ...customConfig["zIndex"] }
+    }
+    
+    return createTheme(mergedTheme)
+}
+
+pub fn mergeThemes(...themes) {
+    let merged = createTheme({})
+    
+    let i = 0
+    while i < len(themes)) {
+        let theme = themes[i]
+        merged["colors"] = { ...merged["colors"], ...theme["colors"] }
+        merged["spacing"] = { ...merged["spacing"], ...theme["spacing"] }
+        merged["typography"] = { ...merged["typography"], ...theme["typography"] }
+        merged["breakpoints"] = { ...merged["breakpoints"], ...theme["breakpoints"] }
+        merged["shadows"] = { ...merged["shadows"], ...theme["shadows"] }
+        merged["borderRadius"] = { ...merged["borderRadius"], ...theme["borderRadius"] }
+        merged["transitions"] = { ...merged["transitions"], ...theme["transitions"] }
+        merged["zIndex"] = { ...merged["zIndex"], ...theme["zIndex"] }
+        i = i + 1
+    }
+    
+    return merged
+}
+
+fn windowMatchMedia(query) {
+    return {
+        "matches": false,
+        "addListener": fn(handler) {},
+        "removeListener": fn(handler) {}
+    }
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

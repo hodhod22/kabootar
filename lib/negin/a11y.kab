@@ -1,0 +1,537 @@
+@version "1.0.0"
+
+// Negin A11y - Accessibility utilities for Negin
+// Features: ARIA attributes, focus management, keyboard navigation
+// Canonical path: import "negin/a11y"
+
+import "negin/core"
+import "negin/hooks"
+
+pub fn VisuallyHidden(props) {
+    let children = props["children"]
+    
+    return createElement("span", {
+        "style": {
+            "position": "absolute",
+            "width": "1px",
+            "height": "1px",
+            "padding": "0",
+            "margin": "-1px",
+            "overflow": "hidden",
+            "clip": "rect(0, 0, 0, 0)",
+            "whiteSpace": "nowrap",
+            "borderWidth": "0"
+        }
+    }, children)
+}
+
+pub fn FocusTrap(props) {
+    let children = props["children"]
+    let active = props["active"] != null ? props["active"] : true
+    
+    let (trapRef, setTrapRef] = useState(null)
+    
+    useEffect(fn() {
+        if active == false || trapRef == null) {
+            return null
+        }
+        
+        let focusableElements = getFocusableElements(trapRef)
+        let firstElement = focusableElements[0]
+        let lastElement = focusableElements[len(focusableElements) - 1]
+        
+        let handleTab = fn(event) {
+            if event["key"] != "Tab") {
+                return
+            }
+            
+            if event["shiftKey"] == false) {
+                if documentActiveElement() == lastElement) {
+                    event["preventDefault"]()
+                    firstElement["focus"]()
+                }
+            } else {
+                if documentActiveElement() == firstElement) {
+                    event["preventDefault"]()
+                    lastElement["focus"]()
+                }
+            }
+        }
+        
+        trapRef["addEventListener"]("keydown", handleTab)
+        
+        if firstElement != null) {
+            firstElement["focus"]()
+        }
+        
+        return fn() {
+            trapRef["removeEventListener"]("keydown", handleTab)
+        }
+    }, [active, trapRef])
+    
+    return createElement("div", { "ref": setTrapRef }, children)
+}
+
+pub fn useFocusManager() {
+    let (focusedElement, setFocusedElement] = useState(null)
+    
+    let focus = fn(element) {
+        if element != null) {
+            element["focus"]()
+            setFocusedElement(element)
+        }
+    }
+    
+    let blur = fn() {
+        if focusedElement != null) {
+            focusedElement["blur"]()
+            setFocusedElement(null)
+        }
+    }
+    
+    let restoreFocus = fn() {
+        if focusedElement != null) {
+            focusedElement["focus"]()
+        }
+    }
+    
+    return {
+        "focusedElement": focusedElement,
+        "focus": focus,
+        "blur": blur,
+        "restoreFocus": restoreFocus
+    }
+}
+
+pub fn useFocusRing() {
+    let (isKeyboardFocus, setIsKeyboardFocus] = useState(false)
+    
+    let handleKeyDown = fn() {
+        setIsKeyboardFocus(true)
+    }
+    
+    let handleMouseDown = fn() {
+        setIsKeyboardFocus(false)
+    }
+    
+    return {
+        "isKeyboardFocus": isKeyboardFocus,
+        "focusRingProps": {
+            "onKeyDown": handleKeyDown,
+            "onMouseDown": handleMouseDown,
+            "className": isKeyboardFocus ? "focus-ring" : "focus-ring-hidden"
+        }
+    }
+}
+
+pub fn useKeyboardNavigation(items, onSelect) {
+    let (selectedIndex, setSelectedIndex] = useState(0)
+    
+    let handleKeyDown = fn(event) {
+        if event["key"] == "ArrowDown") {
+            event["preventDefault"]()
+            setSelectedIndex((selectedIndex + 1) % len(items))
+        } else if event["key"] == "ArrowUp") {
+            event["preventDefault"]()
+            setSelectedIndex((selectedIndex - 1 + len(items)) % len(items))
+        } else if event["key"] == "Enter" || event["key"] == " ") {
+            event["preventDefault"]()
+            if onSelect != null) {
+                onSelect(items[selectedIndex])
+            }
+        } else if event["key"] == "Escape") {
+            setSelectedIndex(-1)
+        }
+    }
+    
+    return {
+        "selectedIndex": selectedIndex,
+        "handleKeyDown": handleKeyDown,
+        "resetSelection": fn() { setSelectedIndex(0) }
+    }
+}
+
+pub fn useARIA(props) {
+    let role = props["role"]
+    let label = props["label"]
+    let labelledBy = props["labelledBy"]
+    let describedBy = props["describedBy"]
+    let expanded = props["expanded"]
+    let pressed = props["pressed"]
+    let selected = props["selected"]
+    let checked = props["checked"]
+    let disabled = props["disabled"]
+    let required = props["required"]
+    let invalid = props["invalid"]
+    let live = props["live"]
+    let atomic = props["atomic"]
+    let relevant = props["relevant"]
+    let busy = props["busy"]
+    
+    let ariaProps = {}
+    
+    if role != null) {
+        ariaProps["role"] = role
+    }
+    if label != null) {
+        ariaProps["aria-label"] = label
+    }
+    if labelledBy != null) {
+        ariaProps["aria-labelledby"] = labelledBy
+    }
+    if describedBy != null) {
+        ariaProps["aria-describedby"] = describedBy
+    }
+    if expanded != null) {
+        ariaProps["aria-expanded"] = expanded
+    }
+    if pressed != null) {
+        ariaProps["aria-pressed"] = pressed
+    }
+    if selected != null) {
+        ariaProps["aria-selected"] = selected
+    }
+    if checked != null) {
+        ariaProps["aria-checked"] = checked
+    }
+    if disabled != null) {
+        ariaProps["aria-disabled"] = disabled
+    }
+    if required != null) {
+        ariaProps["aria-required"] = required
+    }
+    if invalid != null) {
+        ariaProps["aria-invalid"] = invalid
+    }
+    if live != null) {
+        ariaProps["aria-live"] = live
+    }
+    if atomic != null) {
+        ariaProps["aria-atomic"] = atomic
+    }
+    if relevant != null) {
+        ariaProps["aria-relevant"] = relevant
+    }
+    if busy != null) {
+        ariaProps["aria-busy"] = busy
+    }
+    
+    return ariaProps
+}
+
+pub fn LiveRegion(props) {
+    let message = props["message"]
+    let polite = props["polite"] != null ? props["polite"] : true
+    let assertive = props["assertive"] != null ? props["assertive"] : false
+    
+    return createElement("div", {
+        "role": "status",
+        "aria-live": polite ? "polite" : "assertive",
+        "aria-atomic": "true"
+    }, message)
+}
+
+pub fn SkipLink(props) {
+    let href = props["href"]
+    let children = props["children"]
+    
+    return createElement("a", {
+        "href": href,
+        "className": "skip-link"
+    }, children)
+}
+
+pub fn Announce(props) {
+    let message = props["message"]
+    let assertive = props["assertive"] != null ? props["assertive"] : false
+    
+    return createElement("div", {
+        "role": "alert",
+        "aria-live": assertive ? "assertive" : "polite",
+        "aria-atomic": "true",
+        "style": {
+            "position": "absolute",
+            "left": "-10000px",
+            "width": "1px",
+            "height": "1px",
+            "overflow": "hidden"
+        }
+    }, message)
+}
+
+pub fn useAnnounce() {
+    let (message, setMessage] = useState(null)
+    
+    let announce = fn(msg, assertive) {
+        setMessage(msg)
+        setTimeout(fn() {
+            setMessage(null)
+        }, 1000)
+    }
+    
+    return {
+        "message": message,
+        "announce": announce
+    }
+}
+
+pub fn useScreenReader() {
+    let (isScreenReaderActive, setIsScreenReaderActive] = useState(false)
+    
+    useEffect(fn() {
+        let mediaQuery = windowMatchMedia("(prefers-reduced-motion: reduce)")
+        setIsScreenReaderActive(mediaQuery["matches"])
+        
+        let handler = fn(event) {
+            setIsScreenReaderActive(event["matches"])
+        }
+        
+        mediaQuery["addListener"](handler)
+        
+        return fn() {
+            mediaQuery["removeListener"](handler)
+        }
+    }, [])
+    
+    return isScreenReaderActive
+}
+
+pub fn useReducedMotion() {
+    let (prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+    
+    useEffect(fn() {
+        let mediaQuery = windowMatchMedia("(prefers-reduced-motion: reduce)")
+        setPrefersReducedMotion(mediaQuery["matches"])
+        
+        let handler = fn(event) {
+            setPrefersReducedMotion(event["matches"])
+        }
+        
+        mediaQuery["addListener"](handler)
+        
+        return fn() {
+            mediaQuery["removeListener"](handler)
+        }
+    }, [])
+    
+    return prefersReducedMotion
+}
+
+pub fn useAutoFocus(ref, condition) {
+    useEffect(fn() {
+        if condition && ref != null && ref["current"] != null) {
+            ref["current"]["focus"]()
+        }
+    }, [condition, ref])
+}
+
+pub fn useFocusVisible() {
+    let (isFocusVisible, setIsFocusVisible] = useState(false)
+    
+    let handleKeyDown = fn() {
+        setIsFocusVisible(true)
+    }
+    
+    let handleMouseDown = fn() {
+        setIsFocusVisible(false)
+    }
+    
+    let handleBlur = fn() {
+        setIsFocusVisible(false)
+    }
+    
+    return {
+        "isFocusVisible": isFocusVisible,
+        "focusVisibleProps": {
+            "onKeyDown": handleKeyDown,
+            "onMouseDown": handleMouseDown,
+            "onBlur": handleBlur,
+            "data-focus-visible": isFocusVisible
+        }
+    }
+}
+
+pub fn AccessibleButton(props) {
+    let children = props["children"]
+    let onClick = props["onClick"]
+    let disabled = props["disabled"]
+    
+    let ariaProps = useARIA({
+        "role": "button",
+        "disabled": disabled
+    })
+    
+    return createElement("button", {
+        "onClick": onClick,
+        "disabled": disabled,
+        ...ariaProps
+    }, children)
+}
+
+pub fn AccessibleLink(props) {
+    let children = props["children"]
+    let href = props["href"]
+    
+    let ariaProps = useARIA({
+        "role": "link"
+    })
+    
+    return createElement("a", {
+        "href": href,
+        ...ariaProps
+    }, children)
+}
+
+pub fn AccessibleCheckbox(props) {
+    let checked = props["checked"]
+    let onChange = props["onChange"]
+    let label = props["label"]
+    
+    let ariaProps = useARIA({
+        "role": "checkbox",
+        "checked": checked
+    })
+    
+    return createElement("label", {},
+        createElement("input", {
+            "type": "checkbox",
+            "checked": checked,
+            "onChange": onChange,
+            ...ariaProps
+        }),
+        label
+    )
+}
+
+pub fn AccessibleRadio(props) {
+    let checked = props["checked"]
+    let onChange = props["onChange"]
+    let name = props["name"]
+    let value = props["value"]
+    let label = props["label"]
+    
+    let ariaProps = useARIA({
+        "role": "radio",
+        "checked": checked
+    })
+    
+    return createElement("label", {},
+        createElement("input", {
+            "type": "radio",
+            "name": name,
+            "value": value,
+            "checked": checked,
+            "onChange": onChange,
+            ...ariaProps
+        }),
+        label
+    )
+}
+
+pub fn AccessibleMenu(props) {
+    let items = props["items"]
+    let onSelect = props["onSelect"]
+    
+    let keyboardNav = useKeyboardNavigation(items, onSelect)
+    
+    return createElement("ul", {
+        "role": "menu",
+        "onKeyDown": keyboardNav["handleKeyDown"]
+    },
+        items.map(fn(item, index) {
+            return createElement("li", {
+                "key": index,
+                "role": "menuitem",
+                "tabIndex": index == keyboardNav["selectedIndex"] ? 0 : -1,
+                "aria-selected": index == keyboardNav["selectedIndex"]
+            }, item["label"])
+        })
+    )
+}
+
+pub fn AccessibleTabs(props) {
+    let tabs = props["tabs"]
+    let (activeTab, setActiveTab] = useState(0)
+    
+    let keyboardNav = useKeyboardNavigation(tabs, fn(tab) {
+        setActiveTab(tabs["index"])
+    })
+    
+    return createElement("div", { "role": "tablist" },
+        tabs.map(fn(tab, index) {
+            return createElement("button", {
+                "key": index,
+                "role": "tab",
+                "aria-selected": index == activeTab,
+                "aria-controls": "panel-" + index,
+                "tabIndex": index == activeTab ? 0 : -1,
+                "onClick": fn() { setActiveTab(index) }
+            }, tab["label"])
+        }),
+        tabs.map(fn(tab, index) {
+            return createElement("div", {
+                "key": index,
+                "id": "panel-" + index,
+                "role": "tabpanel",
+                "aria-labelledby": "tab-" + index,
+                "hidden": index != activeTab
+            }, tab["content"])
+        })
+    )
+}
+
+fn getFocusableElements(container) {
+    let focusable = []
+    let elements = container["querySelectorAll"]("button, [href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])")
+    
+    let i = 0
+    while i < len(elements)) {
+        if elements[i]["disabled"] == false && elements[i]["offsetParent"] != null) {
+            focusable = push(focusable, elements[i])
+        }
+        i = i + 1
+    }
+    
+    return focusable
+}
+
+fn documentActiveElement() {
+    return { "focus": fn() {} }
+}
+
+fn windowMatchMedia(query) {
+    return {
+        "matches": false,
+        "addListener": fn(handler) {},
+        "removeListener": fn(handler) {}
+    }
+}
+
+fn setTimeout(callback, delay) {
+    return null
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
