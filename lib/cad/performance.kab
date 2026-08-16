@@ -7,6 +7,7 @@
 
 import "cad/document"
 import "cad/geom"
+import "cad/host"
 
 pub fn createPerformanceMonitor() {
     return {
@@ -110,6 +111,185 @@ pub fn createRenderCache() {
         "maxCacheSize": 1000,
         "cacheHits": 0,
         "cacheMisses": 0
+    }
+}
+
+pub fn createLazyLoadSystem() {
+    return {
+        "kind": "LazyLoadSystem",
+        "loadedNodes": {},
+        "pendingNodes": {},
+        "priorityQueue": [],
+        "maxConcurrentLoads": 5,
+        "currentLoads": 0
+    }
+}
+
+pub fn markNodeForLazyLoad(system, nodeId, priority) {
+    if system["loadedNodes"][nodeId] == null && system["pendingNodes"][nodeId] == null {
+        system["pendingNodes"][nodeId] = true
+        system["priorityQueue"] = push(system["priorityQueue"], { "nodeId": nodeId, "priority": priority })
+        system["priorityQueue"] = sortPriorityQueue(system["priorityQueue"])
+    }
+    return system
+}
+
+fn sortPriorityQueue(queue) {
+    let sorted = []
+    let i = 0
+    while i < len(queue) {
+        let item = queue[i]
+        let j = 0
+        while j < len(sorted) {
+            if item["priority"] > sorted[j]["priority"] {
+                let temp = sorted[j]
+                sorted[j] = item
+                item = temp
+            }
+            j = j + 1
+        }
+        sorted = push(sorted, item)
+        i = i + 1
+    }
+    return sorted
+}
+
+pub fn processLazyLoadQueue(system) {
+    if system["currentLoads"] >= system["maxConcurrentLoads"] {
+        return system
+    }
+    
+    while len(system["priorityQueue"]) > 0 && system["currentLoads"] < system["maxConcurrentLoads"] {
+        let item = system["priorityQueue"][0]
+        let before = system["priorityQueue"][0:0]
+        let after = system["priorityQueue"][1:]
+        system["priorityQueue"] = before
+        let k = 0
+        while k < len(after) {
+            system["priorityQueue"] = push(system["priorityQueue"], after[k])
+            k = k + 1
+        }
+        
+        system["currentLoads"] = system["currentLoads"] + 1
+        system["loadedNodes"][item["nodeId"]] = true
+        system["pendingNodes"][item["nodeId"]] = null
+    }
+    
+    return system
+}
+
+pub fn isNodeLoaded(system, nodeId) {
+    return system["loadedNodes"][nodeId] == true
+}
+
+pub fn clearLazyLoadSystem(system) {
+    system["loadedNodes"] = {}
+    system["pendingNodes"] = {}
+    system["priorityQueue"] = []
+    system["currentLoads"] = 0
+    return system
+}
+
+pub fn createMultiLevelCache() {
+    return {
+        "kind": "MultiLevelCache",
+        "l1Cache": {},
+        "l1Size": 100,
+        "l2Cache": {},
+        "l2Size": 1000,
+        "l3Cache": {},
+        "l3Size": 10000,
+        "l1Hits": 0,
+        "l2Hits": 0,
+        "l3Hits": 0,
+        "misses": 0
+    }
+}
+
+pub fn getMultiLevelCache(cache, key) {
+    let data = cache["l1Cache"][key]
+    if data != null {
+        cache["l1Hits"] = cache["l1Hits"] + 1
+        return data
+    }
+    
+    data = cache["l2Cache"][key]
+    if data != null {
+        cache["l2Hits"] = cache["l2Hits"] + 1
+        cache["l1Cache"][key] = data
+        return data
+    }
+    
+    data = cache["l3Cache"][key]
+    if data != null {
+        cache["l3Hits"] = cache["l3Hits"] + 1
+        cache["l2Cache"][key] = data
+        return data
+    }
+    
+    cache["misses"] = cache["misses"] + 1
+    return null
+}
+
+pub fn setMultiLevelCache(cache, key, data) {
+    cache["l3Cache"][key] = data
+    if len(cache["l3Cache"]) > cache["l3Size"] {
+        cache = evictL3Cache(cache)
+    }
+    cache["l2Cache"][key] = data
+    if len(cache["l2Cache"]) > cache["l2Size"] {
+        cache = evictL2Cache(cache)
+    }
+    cache["l1Cache"][key] = data
+    if len(cache["l1Cache"]) > cache["l1Size"] {
+        cache = evictL1Cache(cache)
+    }
+    return cache
+}
+
+fn evictL1Cache(cache) {
+    let keys = []
+    for key in cache["l1Cache"] {
+        keys = push(keys, key)
+    }
+    if len(keys) > 0 {
+        cache["l1Cache"][keys[0]] = null
+    }
+    return cache
+}
+
+fn evictL2Cache(cache) {
+    let keys = []
+    for key in cache["l2Cache"] {
+        keys = push(keys, key)
+    }
+    if len(keys) > 0 {
+        cache["l2Cache"][keys[0]] = null
+    }
+    return cache
+}
+
+fn evictL3Cache(cache) {
+    let keys = []
+    for key in cache["l3Cache"] {
+        keys = push(keys, key)
+    }
+    if len(keys) > 0 {
+        cache["l3Cache"][keys[0]] = null
+    }
+    return cache
+}
+
+pub fn getMultiLevelCacheStats(cache) {
+    let total = cache["l1Hits"] + cache["l2Hits"] + cache["l3Hits"] + cache["misses"]
+    if total == 0 {
+        return { "hitRate": 0.0, "l1Rate": 0.0, "l2Rate": 0.0, "l3Rate": 0.0 }
+    }
+    return {
+        "hitRate": (cache["l1Hits"] + cache["l2Hits"] + cache["l3Hits"]) / total,
+        "l1Rate": cache["l1Hits"] / total,
+        "l2Rate": cache["l2Hits"] / total,
+        "l3Rate": cache["l3Hits"] / total
     }
 }
 
