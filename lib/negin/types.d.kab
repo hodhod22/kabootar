@@ -1,0 +1,452 @@
+@version "1.0.0"
+
+// Negin TypeScript Definitions - Type definitions for Negin
+// Features: component types, hook types, utility types
+// Canonical path: import "negin/types"
+
+// Core types
+pub type VNode = {
+    "kind": "VNode",
+    "type": string | fn(props) -> VNode,
+    "key": string | null,
+    "ref": Ref | null,
+    "props": Props,
+    "children": Children
+}
+
+pub type Props = { string: any }
+
+pub type Children = VNode | string | number | null | [Children]
+
+pub type Ref = { "current": any }
+
+pub type Element = VNode
+
+// Component types
+pub type Component = fn(props) -> VNode
+
+pub type ComponentType = Component | string
+
+pub type FunctionalComponent = fn(props) -> VNode
+
+pub type ClassComponent = {
+    "render": fn() -> VNode,
+    "state": any,
+    "props": Props
+}
+
+// Hook types
+pub type StateHook<T> = [T, fn(T) -> void]
+
+pub type EffectCallback = fn() -> fn() | void
+
+pub type EffectHook = EffectCallback | null
+
+pub type MemoCallback<T> = fn() -> T
+
+pub type RefObject<T> = { "current": T | null }
+
+// Context types
+pub type Context<T> = {
+    "kind": "Context",
+    "defaultValue": T,
+    "currentValue": T,
+    "providers": [any]
+}
+
+pub type ContextProvider<T> = {
+    "kind": "ContextProvider",
+    "context": Context<T>,
+    "value": T
+}
+
+pub type ContextConsumer<T> = {
+    "kind": "ContextConsumer",
+    "context": Context<T>,
+    "render": fn(value: T) -> VNode
+}
+
+// Signal types
+pub type Signal<T> = {
+    "kind": "Signal",
+    "get": fn() -> T,
+    "set": fn(T) -> void,
+    "value": T,
+    "subscribers": [any]
+}
+
+pub type Computed<T> = {
+    "kind": "Computed",
+    "get": fn() -> T,
+    "value": T,
+    "dependencies": [Signal<any>],
+    "dirty": bool
+}
+
+pub type Effect = {
+    "kind": "Effect",
+    "run": fn() -> void,
+    "cleanup": fn() -> void,
+    "dependencies": [Signal<any>]
+}
+
+// Store types
+pub type Store<T> = {
+    "kind": "Store",
+    "state": Signal<T>,
+    "getState": fn() -> T,
+    "setState": fn(T) -> void,
+    "subscribe": fn(listener: fn(T)) -> any
+}
+
+pub type StoreWithActions<T, A> = Store<T> & {
+    "actions": A
+}
+
+// Event types
+pub type Event = {
+    "kind": "Event",
+    "type": string,
+    "bubbles": bool,
+    "cancelable": bool,
+    "target": any,
+    "currentTarget": any,
+    "defaultPrevented": bool,
+    "propagationStopped": bool
+}
+
+pub type MouseEvent = Event & {
+    "kind": "MouseEvent",
+    "clientX": number,
+    "clientY": number,
+    "screenX": number,
+    "screenY": number,
+    "button": number,
+    "buttons": number
+}
+
+pub type KeyboardEvent = Event & {
+    "kind": "KeyboardEvent",
+    "key": string,
+    "code": string,
+    "location": number,
+    "ctrlKey": bool,
+    "shiftKey": bool,
+    "altKey": bool,
+    "metaKey": bool
+}
+
+// Suspense types
+pub type SuspenseComponent = {
+    "kind": "SuspenseComponent",
+    "fallback": VNode,
+    "children": VNode
+}
+
+pub type LazyComponent<T> = {
+    "kind": "LazyComponent",
+    "loader": fn() -> Promise<T>,
+    "loaded": T | null,
+    "loading": bool,
+    "error": any | null
+}
+
+// Fiber types
+pub type Fiber = {
+    "kind": "Fiber",
+    "tag": string,
+    "key": string | null,
+    "elementType": any,
+    "type": any,
+    "stateNode": any,
+    "return": Fiber | null,
+    "child": Fiber | null,
+    "sibling": Fiber | null,
+    "index": number,
+    "ref": Ref | null,
+    "pendingProps": Props,
+    "memoizedProps": Props | null,
+    "updateQueue": any,
+    "memoizedState": any,
+    "dependencies": any,
+    "mode": number,
+    "effectTag": number,
+    "nextEffect": Fiber | null,
+    "firstEffect": Fiber | null,
+    "lastEffect": Fiber | null,
+    "expirationTime": number,
+    "alternate": Fiber | null
+}
+
+pub type FiberRoot = {
+    "kind": "FiberRoot",
+    "current": Fiber,
+    "container": any,
+    "finishedWork": Fiber | null
+}
+
+// Root types
+pub type NeginRoot = {
+    "kind": "NeginRoot",
+    "root": FiberRoot,
+    "render": fn(element) -> FiberRoot
+}
+
+// DevTools types
+pub type DevToolsBackend = {
+    "kind": "DevToolsBackend",
+    "version": string,
+    "connected": bool,
+    "listeners": [fn(any) -> void],
+    "sendMessage": fn(any) -> void
+}
+
+pub type ComponentInspector = {
+    "kind": "ComponentInspector",
+    "selectedComponent": string | null,
+    "inspectedProps": Props | null,
+    "inspectedState": any | null
+}
+
+// Profiler types
+pub type ProfilerSession = {
+    "kind": "ProfilerSession",
+    "name": string,
+    "startTime": number,
+    "endTime": number | null,
+    "measurements": [ProfilerMeasurement]
+}
+
+pub type ProfilerMeasurement = {
+    "component": string,
+    "duration": number,
+    "timestamp": number
+}
+
+// Testing types
+pub type Screen = {
+    "getByText": fn(string) -> any,
+    "getByRole": fn(string) -> any,
+    "getByPlaceholderText": fn(string) -> any,
+    "getByLabelText": fn(string) -> any,
+    "getByAltText": fn(string) -> any,
+    "getByTestId": fn(string) -> any,
+    "queryByText": fn(string) -> any | null,
+    "queryByRole": fn(string) -> any | null,
+    "queryByPlaceholderText": fn(string) -> any | null,
+    "queryByLabelText": fn(string) -> any | null,
+    "queryByAltText": fn(string) -> any | null,
+    "queryByTestId": fn(string) -> any | null,
+    "findAllByText": fn(string) -> [any],
+    "findAllByRole": fn(string) -> [any],
+    "findAllByTestId": fn(string) -> [any]
+}
+
+// Hot reload types
+pub type HotReloadListener = fn(event: HotReloadEvent) -> void
+
+pub type HotReloadEvent = {
+    "type": "hot-reload",
+    "name": string,
+    "oldComponent": Component,
+    "newComponent": Component,
+    "timestamp": number
+}
+
+// Performance types
+pub type PerformanceMonitor = {
+    "kind": "PerformanceMonitor",
+    "metrics": [Metric],
+    "enabled": bool
+}
+
+pub type Metric = {
+    "name": string,
+    "value": number,
+    "timestamp": number
+}
+
+// Utility types
+pub type Partial<T> = {
+    [K in keyof T]?: T[K]
+}
+
+pub type Required<T> = {
+    [K in keyof T]-?: T[K]
+}
+
+pub type Readonly<T> = {
+    readonly [K in keyof T]: T[K]
+}
+
+pub type Pick<T, K extends keyof T> = {
+    [P in K]: T[P]
+}
+
+pub type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+
+pub type Record<K extends string, T> = {
+    [P in K]: T
+}
+
+// Type guards
+pub fn isVNode(value: any): bool {
+    return typeof(value) == "object" && value["kind"] == "VNode"
+}
+
+pub fn isComponent(value: any): bool {
+    return typeof(value) == "function"
+}
+
+pub fn isSignal(value: any): bool {
+    return typeof(value) == "object" && value["kind"] == "Signal"
+}
+
+pub fn isComputed(value: any): bool {
+    return typeof(value) == "object" && value["kind"] == "Computed"
+}
+
+pub fn isContext(value: any): bool {
+    return typeof(value) == "object" && value["kind"] == "Context"
+}
+
+// Type assertions
+pub fn assertVNode(value: any): VNode {
+    if !isVNode(value)) {
+        throw { "kind": "TypeError", "message": "Expected VNode" }
+    }
+    return value
+}
+
+pub fn assertComponent(value: any): Component {
+    if !isComponent(value)) {
+        throw { "kind": "TypeError", "message": "Expected Component" }
+    }
+    return value
+}
+
+pub fn assertSignal(value: any): Signal<any> {
+    if !isSignal(value)) {
+        throw { "kind": "TypeError", "message": "Expected Signal" }
+    }
+    return value
+}
+
+// Type inference helpers
+pub fn inferComponentProps<T>(component: fn(props: T) -> VNode): T {
+    return null as T
+}
+
+pub fn inferSignalValue<T>(signal: Signal<T>): T {
+    return null as T
+}
+
+// Generic type utilities
+pub fn cast<T>(value: any): T {
+    return value as T
+}
+
+pub fn as<T>(value: any): T {
+    return value as T
+}
+
+// Type checking utilities
+pub fn isType<T>(value: any, type: string): bool {
+    return typeof(value) == type
+}
+
+pub fn isNullable<T>(value: T | null): bool {
+    return value == null
+}
+
+pub fn isDefined<T>(value: T | null | undefined): bool {
+    return value != null && value != undefined
+}
+
+// Type-safe event handlers
+pub type EventHandler<T extends Event> = fn(event: T) -> void
+
+pub type MouseEventHandler = EventHandler<MouseEvent>
+
+pub type KeyboardEventHandler = EventHandler<KeyboardEvent>
+
+pub type ChangeEventHandler = EventHandler<Event>
+
+pub type SubmitEventHandler = EventHandler<Event>
+
+// Type-safe refs
+pub fn createRef<T>(): RefObject<T> {
+    return { "current": null }
+}
+
+pub fn useRef<T>(initialValue: T): RefObject<T> {
+    return { "current": initialValue }
+}
+
+// Type-safe context
+pub fn createContext<T>(defaultValue: T): Context<T> {
+    return {
+        "kind": "Context",
+        "defaultValue": defaultValue,
+        "currentValue": defaultValue,
+        "providers": []
+    }
+}
+
+// Type-safe signals
+pub fn createSignal<T>(initialValue: T): Signal<T> {
+    return {
+        "kind": "Signal",
+        "get": fn() { return initialValue },
+        "set": fn(value: T) { initialValue = value },
+        "value": initialValue,
+        "subscribers": []
+    }
+}
+
+pub fn createComputed<T>(computation: fn() -> T): Computed<T> {
+    return {
+        "kind": "Computed",
+        "get": fn() { return computation() },
+        "value": computation(),
+        "dependencies": [],
+        "dirty": true
+    }
+}
+
+// Type-safe store
+pub fn createStore<T>(initialState: T): Store<T> {
+    let signal = createSignal(initialState)
+    return {
+        "kind": "Store",
+        "state": signal,
+        "getState": fn() { return signal.get() },
+        "setState": fn(state: T) { signal.set(state) },
+        "subscribe": fn(listener: fn(T)) { return null }
+    }
+}
+
+fn typeof(value: any): string {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

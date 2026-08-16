@@ -1,0 +1,514 @@
+@version "1.0.0"
+
+// Negin DevTools - Developer tools integration for Negin
+// Features: component inspector, state viewer, profiler, timeline
+// Canonical path: import "negin/devtools"
+
+import "negin/core"
+import "negin/component"
+import "negin/hooks"
+
+let devToolsEnabled = false
+let devToolsBackend = null
+let componentTree = {}
+let hooksData = {}
+let profilerData = []
+
+pub fn enableDevTools() {
+    devToolsEnabled = true
+    devToolsBackend = createDevToolsBackend()
+}
+
+pub fn disableDevTools() {
+    devToolsEnabled = false
+    devToolsBackend = null
+}
+
+pub fn isDevToolsEnabled() {
+    return devToolsEnabled
+}
+
+pub fn createDevToolsBackend() {
+    return {
+        "kind": "DevToolsBackend",
+        "version": "1.0.0",
+        "connected": false,
+        "listeners": [],
+        "sendMessage": fn(message) {
+            console.log("DevTools message:", message)
+        }
+    }
+}
+
+pub fn connectDevTools() {
+    if devToolsBackend != null) {
+        devToolsBackend["connected"] = true
+        devToolsBackend["sendMessage"]({
+            "type": "connect",
+            "version": "1.0.0"
+        })
+    }
+}
+
+pub fn disconnectDevTools() {
+    if devToolsBackend != null) {
+        devToolsBackend["connected"] = false
+        devToolsBackend["sendMessage"]({
+            "type": "disconnect"
+        })
+    }
+}
+
+pub fn registerComponent(id, component, props, state) {
+    if devToolsEnabled == false) {
+        return
+    }
+    
+    componentTree[id] = {
+        "id": id,
+        "component": component,
+        "props": props,
+        "state": state,
+        "children": [],
+        "parent": null,
+        "timestamp": currentTime()
+    }
+    
+    notifyDevTools({
+        "type": "component-register",
+        "id": id,
+        "component": component,
+        "props": props,
+        "state": state
+    })
+}
+
+pub fn unregisterComponent(id) {
+    if devToolsEnabled == false) {
+        return
+    }
+    
+    componentTree[id] = null
+    
+    notifyDevTools({
+        "type": "component-unregister",
+        "id": id
+    })
+}
+
+pub fn updateComponent(id, props, state) {
+    if devToolsEnabled == false) {
+        return
+    }
+    
+    if componentTree[id] != null) {
+        componentTree[id]["props"] = props
+        componentTree[id]["state"] = state
+        componentTree[id]["timestamp"] = currentTime()
+    }
+    
+    notifyDevTools({
+        "type": "component-update",
+        "id": id,
+        "props": props,
+        "state": state
+    })
+}
+
+pub fn registerHook(componentId, hookIndex, hookType, value) {
+    if devToolsEnabled == false) {
+        return
+    }
+    
+    let key = componentId + "-" + hookIndex
+    hooksData[key] = {
+        "componentId": componentId,
+        "hookIndex": hookIndex,
+        "hookType": hookType,
+        "value": value,
+        "timestamp": currentTime()
+    }
+    
+    notifyDevTools({
+        "type": "hook-register",
+        "componentId": componentId,
+        "hookIndex": hookIndex,
+        "hookType": hookType,
+        "value": value
+    })
+}
+
+pub fn updateHook(componentId, hookIndex, value) {
+    if devToolsEnabled == false) {
+        return
+    }
+    
+    let key = componentId + "-" + hookIndex
+    if hooksData[key] != null) {
+        hooksData[key]["value"] = value
+        hooksData[key]["timestamp"] = currentTime()
+    }
+    
+    notifyDevTools({
+        "type": "hook-update",
+        "componentId": componentId,
+        "hookIndex": hookIndex,
+        "value": value
+    })
+}
+
+pub fn getComponentTree() {
+    return componentTree
+}
+
+pub fn getComponent(id) {
+    return componentTree[id]
+}
+
+pub fn getHooksData(componentId) {
+    let hooks = []
+    
+    for key in hooksData) {
+        if hooksData[key]["componentId"] == componentId) {
+            hooks = push(hooks, hooksData[key])
+        }
+    }
+    
+    return hooks
+}
+
+pub fn notifyDevTools(message) {
+    if devToolsBackend != null && devToolsBackend["connected"] == true) {
+        devToolsBackend["sendMessage"](message)
+    }
+}
+
+pub fn createDevToolsHook(componentName) {
+    let (renderCount, setRenderCount] = useState(0)
+    let (renderTime, setRenderTime] = useState(0)
+    
+    useEffect(fn() {
+        let startTime = currentTime()
+        
+        return fn() {
+            let endTime = currentTime()
+            setRenderCount(renderCount + 1)
+            setRenderTime(endTime - startTime)
+            
+            if devToolsEnabled == true) {
+                profilerData = push(profilerData, {
+                    "component": componentName,
+                    "renderCount": renderCount + 1,
+                    "renderTime": endTime - startTime,
+                    "timestamp": startTime
+                })
+            }
+        }
+    })
+    
+    return {
+        "renderCount": renderCount,
+        "renderTime": renderTime
+    }
+}
+
+pub fn useDevToolsInspector(componentName) {
+    let (inspected, setInspected] = useState(false)
+    
+    useEffect(fn() {
+        if devToolsEnabled == true) {
+            registerComponent(componentName, componentName, {}, {})
+        }
+        
+        return fn() {
+            if devToolsEnabled == true) {
+                unregisterComponent(componentName)
+            }
+        }
+    }, [componentName])
+    
+    return {
+        "inspected": inspected,
+        "setInspected": setInspected
+    }
+}
+
+pub fn createProfilerSession(name) {
+    return {
+        "kind": "ProfilerSession",
+        "name": name,
+        "startTime": currentTime(),
+        "endTime": null,
+        "measurements": []
+    }
+}
+
+pub fn startProfilerSession(session) {
+    session["startTime"] = currentTime()
+    return session
+}
+
+pub fn stopProfilerSession(session) {
+    session["endTime"] = currentTime()
+    return session
+}
+
+pub fn addProfilerMeasurement(session, component, duration) {
+    session["measurements"] = push(session["measurements"], {
+        "component": component,
+        "duration": duration,
+        "timestamp": currentTime()
+    })
+    return session
+}
+
+pub fn getProfilerData() {
+    return profilerData
+}
+
+pub fn clearProfilerData() {
+    profilerData = []
+}
+
+pub fn createTimeline() {
+    return {
+        "kind": "Timeline",
+        "events": [],
+        "startTime": currentTime()
+    }
+}
+
+pub fn addTimelineEvent(timeline, event) {
+    timeline["events"] = push(timeline["events"], {
+        ...event,
+        "timestamp": currentTime()
+    })
+    return timeline
+}
+
+pub fn getTimelineEvents(timeline) {
+    return timeline["events"]
+}
+
+pub fn createComponentInspector() {
+    return {
+        "kind": "ComponentInspector",
+        "selectedComponent": null,
+        "inspectedProps": null,
+        "inspectedState": null
+    }
+}
+
+pub fn selectComponent(inspector, componentId) {
+    let component = getComponent(componentId)
+    
+    if component != null) {
+        inspector["selectedComponent"] = componentId
+        inspector["inspectedProps"] = component["props"]
+        inspector["inspectedState"] = component["state"]
+    }
+    
+    return inspector
+}
+
+pub fn updateComponentProp(inspector, prop, value) {
+    if inspector["selectedComponent"] != null) {
+        let component = componentTree[inspector["selectedComponent"]]
+        if component != null) {
+            component["props"][prop] = value
+            updateComponent(inspector["selectedComponent"], component["props"], component["state"])
+        }
+    }
+    
+    return inspector
+}
+
+pub fn updateComponentState(inspector, state) {
+    if inspector["selectedComponent"] != null) {
+        let component = componentTree[inspector["selectedComponent"]]
+        if component != null) {
+            component["state"] = state
+            updateComponent(inspector["selectedComponent"], component["props"], component["state"])
+        }
+    }
+    
+    return inspector
+}
+
+pub fn createReduxDevToolsIntegration() {
+    return {
+        "kind": "ReduxDevToolsIntegration",
+        "enabled": true,
+        "store": null,
+        "connection": null
+    }
+}
+
+pub fn connectReduxDevTools(integration, store) {
+    integration["store"] = store
+    integration["connection"] = {
+        "send": fn(action, state) {
+            console.log("Redux DevTools:", action, state)
+        }
+    }
+    return integration
+}
+
+pub fn sendActionToDevTools(integration, action) {
+    if integration["connection"] != null) {
+        integration["connection"]["send"](action, integration["store"]["getState"]())
+    }
+    return integration
+}
+
+pub fn createPerformanceMonitor() {
+    return {
+        "kind": "PerformanceMonitor",
+        "metrics": [],
+        "enabled": true
+    }
+}
+
+pub fn recordMetric(monitor, name, value) {
+    if monitor["enabled"] == true) {
+        monitor["metrics"] = push(monitor["metrics"], {
+            "name": name,
+            "value": value,
+            "timestamp": currentTime()
+        })
+    }
+    return monitor
+}
+
+pub fn getMetrics(monitor) {
+    return monitor["metrics"]
+}
+
+pub fn clearMetrics(monitor) {
+    monitor["metrics"] = []
+    return monitor
+}
+
+pub fn createSourceMapSupport() {
+    return {
+        "kind": "SourceMapSupport",
+        "enabled": true,
+        "sourceMaps": {}
+    }
+}
+
+pub fn addSourceMap(support, url, sourceMap) {
+    support["sourceMaps"][url] = sourceMap
+    return support
+}
+
+pub fn getOriginalPosition(support, generatedPosition) {
+    return generatedPosition
+}
+
+pub fn createErrorBoundary(name, onError) {
+    return {
+        "kind": "ErrorBoundary",
+        "name": name,
+        "onError": onError,
+        "errors": []
+    }
+}
+
+pub fn captureError(boundary, error) {
+    boundary["errors"] = push(boundary["errors"], {
+        "error": error,
+        "timestamp": currentTime(),
+        "componentStack": getComponentStack()
+    })
+    
+    if boundary["onError"] != null) {
+        boundary["onError"](error, boundary["errors"])
+    }
+    
+    if devToolsEnabled == true) {
+        notifyDevTools({
+            "type": "error",
+            "boundary": boundary["name"],
+            "error": error
+        })
+    }
+    
+    return boundary
+}
+
+fn getComponentStack() {
+    let stack = []
+    for id in componentTree) {
+        stack = push(stack, componentTree[id]["component"])
+    }
+    return stack
+}
+
+pub fn getDevToolsStats() {
+    return {
+        "enabled": devToolsEnabled,
+        "connected": devToolsBackend != null ? devToolsBackend["connected"] : false,
+        "componentCount": getComponentCount(),
+        "hooksCount": getHooksCount(),
+        "profilerDataCount": len(profilerData)
+    }
+}
+
+fn getComponentCount() {
+    let count = 0
+    for id in componentTree) {
+        if componentTree[id] != null) {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+fn getHooksCount() {
+    let count = 0
+    for key in hooksData) {
+        if hooksData[key] != null) {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+pub fn resetDevTools() {
+    componentTree = {}
+    hooksData = {}
+    profilerData = []
+    if devToolsBackend != null) {
+        devToolsBackend["connected"] = false
+    }
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

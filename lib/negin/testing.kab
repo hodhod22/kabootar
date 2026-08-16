@@ -1,0 +1,474 @@
+@version "1.0.0"
+
+// Negin Testing - Testing utilities for Negin components
+// Features: render, fireEvent, waitFor, screen queries, act
+// Canonical path: import "negin/testing"
+
+import "negin/core"
+import "negin/hooks"
+import "negin/events"
+
+let testContainer = null
+let testRoot = null
+
+pub fn render(element) {
+    testContainer = { "kind": "TestContainer", "children": [] }
+    testRoot = createRoot(testContainer)
+    testRoot["render"](element)
+    return testContainer
+}
+
+pub fn cleanup() {
+    testContainer = null
+    testRoot = null
+}
+
+pub fn act(callback) {
+    callback()
+}
+
+pub fn fireEvent(element, event) {
+    dispatchEvent(element, event)
+}
+
+pub fn click(element) {
+    let event = createMouseEvent("click", {
+        "clientX": 0,
+        "clientY": 0,
+        "button": 0,
+        "buttons": 1
+    })
+    fireEvent(element, event)
+}
+
+pub fn change(element, value) {
+    let event = createEvent("change", {
+        "target": { "value": value }
+    })
+    fireEvent(element, event)
+}
+
+pub fn submit(element) {
+    let event = createEvent("submit", {})
+    fireEvent(element, event)
+}
+
+pub fn type(element, text) {
+    let i = 0
+    while i < len(text)) {
+        let char = text[i]
+        let event = createKeyboardEvent("keydown", {
+            "key": char,
+            "code": "Key" + toUpperCase(char)
+        })
+        fireEvent(element, event)
+        i = i + 1
+    }
+    
+    let event = createEvent("change", {
+        "target": { "value": text }
+    })
+    fireEvent(element, event)
+}
+
+pub fn waitFor(callback, timeout) {
+    let startTime = currentTime()
+    let timeoutMs = timeout != null ? timeout : 5000
+    
+    while currentTime() - startTime < timeoutMs) {
+        let result = callback()
+        if result != null) {
+            return result
+        }
+    }
+    
+    throw { "kind": "TimeoutError", "message": "waitFor timed out" }
+}
+
+pub fn waitForElementToBeRemoved(callback, timeout) {
+    let startTime = currentTime()
+    let timeoutMs = timeout != null ? timeout : 5000
+    
+    while currentTime() - startTime < timeoutMs) {
+        let element = callback()
+        if element == null) {
+            return null
+        }
+    }
+    
+    throw { "kind": "TimeoutError", "message": "waitForElementToBeRemoved timed out" }
+}
+
+pub fn screen() {
+    return {
+        "getByText": getByText,
+        "getByRole": getByRole,
+        "getByPlaceholderText": getByPlaceholderText,
+        "getByLabelText": getByLabelText,
+        "getByAltText": getByAltText,
+        "getByTestId": getByTestId,
+        "queryByText": queryByText,
+        "queryByRole": queryByRole,
+        "queryByPlaceholderText": queryByPlaceholderText,
+        "queryByLabelText": queryByLabelText,
+        "queryByAltText": queryByAltText,
+        "queryByTestId": queryByTestId,
+        "findAllByText": findAllByText,
+        "findAllByRole": findAllByRole,
+        "findAllByTestId": findAllByTestId
+    }
+}
+
+fn getByText(text) {
+    let element = queryByText(text)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with text: " + text }
+    }
+    return element
+}
+
+fn getByRole(role) {
+    let element = queryByRole(role)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with role: " + role }
+    }
+    return element
+}
+
+fn getByPlaceholderText(text) {
+    let element = queryByPlaceholderText(text)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with placeholder: " + text }
+    }
+    return element
+}
+
+fn getByLabelText(text) {
+    let element = queryByLabelText(text)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with label: " + text }
+    }
+    return element
+}
+
+fn getByAltText(text) {
+    let element = queryByAltText(text)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with alt text: " + text }
+    }
+    return element
+}
+
+fn getByTestId(testId) {
+    let element = queryByTestId(testId)
+    if element == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with test id: " + testId }
+    }
+    return element
+}
+
+fn queryByText(text) {
+    return findInContainer(testContainer, fn(element) {
+        return element["text"] == text || element["children"] != null && hasText(element["children"], text)
+    })
+}
+
+fn queryByRole(role) {
+    return findInContainer(testContainer, fn(element) {
+        return element["role"] == role
+    })
+}
+
+fn queryByPlaceholderText(text) {
+    return findInContainer(testContainer, fn(element) {
+        return element["placeholder"] == text
+    })
+}
+
+fn queryByLabelText(text) {
+    return findInContainer(testContainer, fn(element) {
+        return element["label"] == text
+    })
+}
+
+fn queryByAltText(text) {
+    return findInContainer(testContainer, fn(element) {
+        return element["alt"] == text
+    })
+}
+
+fn queryByTestId(testId) {
+    return findInContainer(testContainer, fn(element) {
+        return element["data-testid"] == testId
+    })
+}
+
+fn findAllByText(text) {
+    return findAllInContainer(testContainer, fn(element) {
+        return element["text"] == text || element["children"] != null && hasText(element["children"], text)
+    })
+}
+
+fn findAllByRole(role) {
+    return findAllInContainer(testContainer, fn(element) {
+        return element["role"] == role
+    })
+}
+
+fn findAllByTestId(testId) {
+    return findAllInContainer(testContainer, fn(element) {
+        return element["data-testid"] == testId
+    })
+}
+
+fn findInContainer(container, predicate) {
+    if container == null) {
+        return null
+    }
+    
+    if predicate(container)) {
+        return container
+    }
+    
+    if container["children"] != null) {
+        let i = 0
+        while i < len(container["children"])) {
+            let found = findInContainer(container["children"][i], predicate)
+            if found != null) {
+                return found
+            }
+            i = i + 1
+        }
+    }
+    
+    return null
+}
+
+fn findAllInContainer(container, predicate) {
+    let results = []
+    
+    if container == null) {
+        return results
+    }
+    
+    if predicate(container)) {
+        results = push(results, container)
+    }
+    
+    if container["children"] != null) {
+        let i = 0
+        while i < len(container["children"])) {
+            let found = findAllInContainer(container["children"][i], predicate)
+            let j = 0
+            while j < len(found)) {
+                results = push(results, found[j])
+                j = j + 1
+            }
+            i = i + 1
+        }
+    }
+    
+    return results
+}
+
+fn hasText(children, text) {
+    let i = 0
+    while i < len(children)) {
+        if typeof(children[i]) == "string" && children[i] == text) {
+            return true
+        }
+        if children[i]["text"] == text) {
+            return true
+        }
+        if children[i]["children"] != null && hasText(children[i]["children"], text)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn within(element) {
+    return {
+        "getByText": fn(text) { return getByTextInElement(element, text) },
+        "getByRole": fn(role) { return getByRoleInElement(element, role) },
+        "getByTestId": fn(testId) { return getByTestIdInElement(element, testId) },
+        "queryByText": fn(text) { return queryByTextInElement(element, text) },
+        "queryByRole": fn(role) { return queryByRoleInElement(element, role) },
+        "queryByTestId": fn(testId) { return queryByTestIdInElement(element, testId) }
+    }
+}
+
+fn getByTextInElement(element, text) {
+    let found = queryByTextInElement(element, text)
+    if found == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with text: " + text }
+    }
+    return found
+}
+
+fn getByRoleInElement(element, role) {
+    let found = queryByRoleInElement(element, role)
+    if found == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with role: " + role }
+    }
+    return found
+}
+
+fn getByTestIdInElement(element, testId) {
+    let found = queryByTestIdInElement(element, testId)
+    if found == null) {
+        throw { "kind": "NotFoundError", "message": "Unable to find element with test id: " + testId }
+    }
+    return found
+}
+
+fn queryByTextInElement(element, text) {
+    return findInContainer(element, fn(el) {
+        return el["text"] == text || el["children"] != null && hasText(el["children"], text)
+    })
+}
+
+fn queryByRoleInElement(element, role) {
+    return findInContainer(element, fn(el) {
+        return el["role"] == role
+    })
+}
+
+fn queryByTestIdInElement(element, testId) {
+    return findInContainer(element, fn(el) {
+        return el["data-testid"] == testId
+    })
+}
+
+pub fn debug(element) {
+    if element == null) {
+        element = testContainer
+    }
+    console.log(prettyPrint(element))
+}
+
+fn prettyPrint(element, indent) {
+    if indent == null) {
+        indent = 0
+    }
+    
+    let spaces = ""
+    let i = 0
+    while i < indent) {
+        spaces = spaces + "  "
+        i = i + 1
+    }
+    
+    let str = spaces + element["type"]
+    
+    if element["props"] != null) {
+        for key in element["props"]) {
+            str = str + " " + key + "=\"" + element["props"][key] + "\""
+        }
+    }
+    
+    str = str + "\n"
+    
+    if element["children"] != null) {
+        let i = 0
+        while i < len(element["children"])) {
+            if typeof(element["children"][i]) == "string") {
+                str = str + spaces + "  \"" + element["children"][i] + "\"\n"
+            } else {
+                str = str + prettyPrint(element["children"][i], indent + 1)
+            }
+            i = i + 1
+        }
+    }
+    
+    return str
+}
+
+pub fn logTestingPlaygroundURL() {
+    console.log("Testing playground URL not available in Kabootar")
+}
+
+pub fn toBeInTheDocument(element) {
+    return element != null
+}
+
+pub fn toBeVisible(element) {
+    return element != null && element["style"] != null && element["style"]["display"] != "none"
+}
+
+pub fn toBeDisabled(element) {
+    return element != null && element["disabled"] == true
+}
+
+pub fn toBeEnabled(element) {
+    return element != null && element["disabled"] != true
+}
+
+pub fn toBeChecked(element) {
+    return element != null && element["checked"] == true
+}
+
+pub fn toHaveTextContent(element, text) {
+    return element != null && element["text"] == text
+}
+
+pub fn toHaveValue(element, value) {
+    return element != null && element["value"] == value
+}
+
+pub fn toHaveAttribute(element, name, value) {
+    return element != null && element[name] == value
+}
+
+pub fn toHaveClass(element, className) {
+    return element != null && element["className"] == className
+}
+
+fn toUpperCase(str) {
+    let result = ""
+    let i = 0
+    while i < len(str)) {
+        let char = str[i]
+        if char >= "a" && char <= "z") {
+            result = result + charCode(char - 32)
+        } else {
+            result = result + char
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn charCode(code) {
+    return code
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

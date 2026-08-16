@@ -1,0 +1,318 @@
+@version "1.0.0"
+
+// Negin Hot Reload - Hot module replacement for Negin
+// Features: component hot reload, state preservation, error recovery
+// Canonical path: import "negin/hotreload"
+
+import "negin/core"
+import "negin/component"
+
+let hotReloadEnabled = false
+let hotReloadListeners = []
+let componentRegistry = {}
+let statePreservation = {}
+
+pub fn enableHotReload() {
+    hotReloadEnabled = true
+}
+
+pub fn disableHotReload() {
+    hotReloadEnabled = false
+}
+
+pub fn isHotReloadEnabled() {
+    return hotReloadEnabled
+}
+
+pub fn registerComponent(name, component) {
+    componentRegistry[name] = {
+        "component": component,
+        "version": 0,
+        "timestamp": currentTime()
+    }
+}
+
+pub fn unregisterComponent(name) {
+    componentRegistry[name] = null
+}
+
+pub fn getComponent(name) {
+    if componentRegistry[name] != null) {
+        return componentRegistry[name]["component"]
+    }
+    return null
+}
+
+pub fn hotReloadComponent(name, newComponent) {
+    if hotReloadEnabled == false) {
+        return false
+    }
+    
+    if componentRegistry[name] == null) {
+        registerComponent(name, newComponent)
+        return true
+    }
+    
+    let oldComponent = componentRegistry[name]["component"]
+    
+    preserveState(name, oldComponent)
+    
+    componentRegistry[name]["component"] = newComponent
+    componentRegistry[name]["version"] = componentRegistry[name]["version"] + 1
+    componentRegistry[name]["timestamp"] = currentTime()
+    
+    notifyHotReloadListeners(name, oldComponent, newComponent)
+    
+    restoreState(name, newComponent)
+    
+    return true
+}
+
+fn preserveState(name, component) {
+    if component["state"] != null) {
+        statePreservation[name] = {
+            "state": component["state"],
+            "props": component["props"],
+            "timestamp": currentTime()
+        }
+    }
+}
+
+fn restoreState(name, component) {
+    if statePreservation[name] != null) {
+        component["state"] = statePreservation[name]["state"]
+        component["props"] = statePreservation[name]["props"]
+    }
+}
+
+pub fn addHotReloadListener(listener) {
+    hotReloadListeners = push(hotReloadListeners, listener)
+}
+
+pub fn removeHotReloadListener(listener) {
+    let newListeners = []
+    let i = 0
+    while i < len(hotReloadListeners)) {
+        if hotReloadListeners[i] !== listener) {
+            newListeners = push(newListeners, hotReloadListeners[i])
+        }
+        i = i + 1
+    }
+    hotReloadListeners = newListeners
+}
+
+fn notifyHotReloadListeners(name, oldComponent, newComponent) {
+    let i = 0
+    while i < len(hotReloadListeners)) {
+        hotReloadListeners[i]({
+            "type": "hot-reload",
+            "name": name,
+            "oldComponent": oldComponent,
+            "newComponent": newComponent,
+            "timestamp": currentTime()
+        })
+        i = i + 1
+    }
+}
+
+pub fn createHotReloadBoundary(fallback) {
+    return {
+        "kind": "HotReloadBoundary",
+        "fallback": fallback,
+        "error": null,
+        "retryCount": 0
+    }
+}
+
+pub fn useHotReload(componentName) {
+    let (version, setVersion] = useState(0)
+    let (error, setError] = useState(null)
+    
+    useEffect(fn() {
+        let listener = fn(event) {
+            if event["name"] == componentName) {
+                setVersion(event["version"])
+                setError(null)
+            }
+        }
+        
+        addHotReloadListener(listener)
+        
+        return fn() {
+            removeHotReloadListener(listener)
+        }
+    }, [componentName])
+    
+    return { "version": version, "error": error, "reload": fn() { setVersion(version + 1) } }
+}
+
+pub fn useHotReloadErrorBoundary(componentName, fallback) {
+    let (error, setError] = useState(null)
+    
+    useEffect(fn() {
+        let listener = fn(event) {
+            if event["name"] == componentName && event["error"] != null) {
+                setError(event["error"])
+            }
+        }
+        
+        addHotReloadListener(listener)
+        
+        return fn() {
+            removeHotReloadListener(listener)
+        }
+    }, [componentName])
+    
+    if error != null) {
+        return fallback(error)
+    }
+    
+    return null
+}
+
+pub fn fastRefresh(componentName, component) {
+    if hotReloadEnabled == false) {
+        return component
+    }
+    
+    let registered = componentRegistry[componentName]
+    
+    if registered != null && registered["component"] !== component) {
+        return registered["component"]
+    }
+    
+    return component
+}
+
+pub fn createFastRefreshWrapper(componentName, component) {
+    return fn(props) {
+        let refreshed = fastRefresh(componentName, component)
+        return refreshed(props)
+    }
+}
+
+pub fn getHotReloadStats() {
+    let stats = {
+        "enabled": hotReloadEnabled,
+        "registeredComponents": 0,
+        "totalReloads": 0,
+        "lastReloadTime": null
+    }
+    
+    for name in componentRegistry) {
+        stats["registeredComponents"] = stats["registeredComponents"] + 1
+        stats["totalReloads"] = stats["totalReloads"] + componentRegistry[name]["version"]
+        
+        if componentRegistry[name]["timestamp"] > (stats["lastReloadTime"] != null ? stats["lastReloadTime"] : 0)) {
+            stats["lastReloadTime"] = componentRegistry[name]["timestamp"]
+        }
+    }
+    
+    return stats
+}
+
+pub fn resetHotReload() {
+    componentRegistry = {}
+    statePreservation = {}
+    hotReloadListeners = []
+}
+
+pub fn createHotReloadDevServer(options) {
+    return {
+        "kind": "HotReloadDevServer",
+        "enabled": true,
+        "port": options != null && options["port"] != null ? options["port"] : 3000,
+        "host": options != null && options["host"] != null ? options["host"] : "localhost",
+        "hmr": true,
+        "overlay": true
+    }
+}
+
+pub fn startHotReloadDevServer(server) {
+    console.log("Starting hot reload dev server on " + server["host"] + ":" + server["port"])
+    return server
+}
+
+pub fn stopHotReloadDevServer(server) {
+    console.log("Stopping hot reload dev server")
+    server["enabled"] = false
+    return server
+}
+
+pub fn createReactRefreshIntegration() {
+    return {
+        "kind": "ReactRefreshIntegration",
+        "enabled": true,
+        "fastRefresh": true,
+        "errorOverlay": true
+    }
+}
+
+pub fn injectReactRefreshRuntime() {
+    console.log("React Refresh runtime injected")
+}
+
+pub fn setupHotReload(root) {
+    enableHotReload()
+    injectReactRefreshRuntime()
+    
+    root["hotReload"] = {
+        "enabled": true,
+        "stats": getHotReloadStats
+    }
+    
+    return root
+}
+
+pub fn createHotReloadOverlay(error) {
+    return {
+        "kind": "HotReloadOverlay",
+        "error": error,
+        "visible": true,
+        "dismiss": fn() { this["visible"] = false }
+    }
+}
+
+pub fn showHotReloadError(error) {
+    console.error("Hot reload error:", error)
+}
+
+pub fn clearHotReloadErrors() {
+}
+
+pub fn getHotReloadStatus() {
+    return {
+        "enabled": hotReloadEnabled,
+        "components": componentRegistry,
+        "state": statePreservation
+    }
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
