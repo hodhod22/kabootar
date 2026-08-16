@@ -30,6 +30,201 @@ pub fn createSpatialIndex(cellSize, bounds) {
     }
 }
 
+pub fn createQuadTree(bounds, maxItems, maxDepth) {
+    return {
+        "kind": "QuadTree",
+        "bounds": bounds,
+        "maxItems": maxItems,
+        "maxDepth": maxDepth,
+        "depth": 0,
+        "items": [],
+        "children": []
+    }
+}
+
+pub fn buildQuadTree(document, maxItems, maxDepth) {
+    let bounds = calculateDocumentBounds(document)
+    let quadTree = createQuadTree(bounds, maxItems, maxDepth)
+    
+    for nodeId in document["nodes"] {
+        let node = document["nodes"][nodeId]
+        if node != null && node["visible"] == true {
+            let nodeBounds = getNodeBounds(node)
+            quadTree = insertNodeIntoQuadTree(quadTree, nodeId, nodeBounds)
+        }
+    }
+    
+    return quadTree
+}
+
+fn insertNodeIntoQuadTree(tree, nodeId, bounds) {
+    if tree["depth"] >= tree["maxDepth"] || len(tree["children"]) == 0 {
+        tree["items"] = push(tree["items"], { "nodeId": nodeId, "bounds": bounds })
+        
+        if len(tree["items"]) > tree["maxItems"] && tree["depth"] < tree["maxDepth"] {
+            tree = subdivideQuadTree(tree)
+        }
+        
+        return tree
+    }
+    
+    let i = 0
+    while i < len(tree["children"]) {
+        let child = tree["children"][i]
+        if bboxIntersectsBBox(bounds, child["bounds"]) == true {
+            tree["children"][i] = insertNodeIntoQuadTree(child, nodeId, bounds)
+        }
+        i = i + 1
+    }
+    
+    return tree
+}
+
+fn subdivideQuadTree(tree) {
+    let bounds = tree["bounds"]
+    let midX = (bounds["minX"] + bounds["maxX"]) / 2.0
+    let midY = (bounds["minY"] + bounds["maxY"]) / 2.0
+    
+    let halfWidth = (bounds["maxX"] - bounds["minX"]) / 2.0
+    let halfHeight = (bounds["maxY"] - bounds["minY"]) / 2.0
+    
+    let nwBounds = createBBox(bounds["minX"], bounds["minY"], midX, midY)
+    let neBounds = createBBox(midX, bounds["minY"], bounds["maxX"], midY)
+    let swBounds = createBBox(bounds["minX"], midY, midX, bounds["maxY"])
+    let seBounds = createBBox(midX, midY, bounds["maxX"], bounds["maxY"])
+    
+    let nw = createQuadTree(nwBounds, tree["maxItems"], tree["maxDepth"])
+    let ne = createQuadTree(neBounds, tree["maxItems"], tree["maxDepth"])
+    let sw = createQuadTree(swBounds, tree["maxItems"], tree["maxDepth"])
+    let se = createQuadTree(seBounds, tree["maxItems"], tree["maxDepth"])
+    
+    nw["depth"] = tree["depth"] + 1
+    ne["depth"] = tree["depth"] + 1
+    sw["depth"] = tree["depth"] + 1
+    se["depth"] = tree["depth"] + 1
+    
+    tree["children"] = [nw, ne, sw, se]
+    
+    let i = 0
+    while i < len(tree["items"]) {
+        let item = tree["items"][i]
+        let j = 0
+        while j < len(tree["children"]) {
+            if bboxIntersectsBBox(item["bounds"], tree["children"][j]["bounds"]) == true {
+                tree["children"][j] = insertNodeIntoQuadTree(tree["children"][j], item["nodeId"], item["bounds"])
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    tree["items"] = []
+    
+    return tree
+}
+
+pub fn queryQuadTree(tree, bounds) {
+    let nodeIds = []
+    let seen = {}
+    
+    if bboxIntersectsBBox(bounds, tree["bounds"]) == false {
+        return nodeIds
+    }
+    
+    let i = 0
+    while i < len(tree["items"]) {
+        let item = tree["items"][i]
+        if bboxIntersectsBBox(bounds, item["bounds"]) == true {
+            if seen[item["nodeId"]] == null {
+                nodeIds = push(nodeIds, item["nodeId"])
+                seen[item["nodeId"]] = true
+            }
+        }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(tree["children"]) {
+        let childNodeIds = queryQuadTree(tree["children"][j], bounds)
+        let k = 0
+        while k < len(childNodeIds) {
+            if seen[childNodeIds[k]] == null {
+                nodeIds = push(nodeIds, childNodeIds[k])
+                seen[childNodeIds[k]] = true
+            }
+            k = k + 1
+        }
+        j = j + 1
+    }
+    
+    return nodeIds
+}
+
+pub fn removeNodeFromQuadTree(tree, nodeId) {
+    let i = 0
+    while i < len(tree["items"]) {
+        if tree["items"][i]["nodeId"] == nodeId {
+            let before = tree["items"][0:i]
+            let after = tree["items"][i + 1:]
+            tree["items"] = before
+            let k = 0
+            while k < len(after) {
+                tree["items"] = push(tree["items"], after[k])
+                k = k + 1
+            }
+            break
+        }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(tree["children"]) {
+        tree["children"][j] = removeNodeFromQuadTree(tree["children"][j], nodeId)
+        j = j + 1
+    }
+    
+    return tree
+}
+
+pub fn clearQuadTree(tree) {
+    tree["items"] = []
+    tree["children"] = []
+    return tree
+}
+
+pub fn getQuadTreeStats(tree) {
+    let totalNodes = 0
+    let totalItems = 0
+    let maxDepth = 0
+    
+    let i = 0
+    while i < len(tree["items"]) {
+        totalItems = totalItems + 1
+        i = i + 1
+    }
+    
+    if tree["depth"] > maxDepth {
+        maxDepth = tree["depth"]
+    }
+    
+    let j = 0
+    while j < len(tree["children"]) {
+        let childStats = getQuadTreeStats(tree["children"][j])
+        totalNodes = totalNodes + childStats["totalNodes"] + 1
+        totalItems = totalItems + childStats["totalItems"]
+        if childStats["maxDepth"] > maxDepth {
+            maxDepth = childStats["maxDepth"]
+        }
+        j = j + 1
+    }
+    
+    return {
+        "totalNodes": totalNodes + 1,
+        "totalItems": totalItems,
+        "maxDepth": maxDepth
+    }
+}
+
 pub fn buildSpatialIndex(document, cellSize) {
     let bounds = calculateDocumentBounds(document)
     let index = createSpatialIndex(cellSize, bounds)
