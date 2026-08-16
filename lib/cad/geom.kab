@@ -632,3 +632,233 @@ fn min(a, b) {
 fn max(a, b) {
     return systemMax(a, b)
 }
+
+// Mesh Generation for 3D Rendering
+pub fn createMesh() {
+    return {
+        "kind": "Mesh",
+        "vertices": [],
+        "indices": [],
+        "normals": [],
+        "uvs": []
+    }
+}
+
+pub fn createVertex(x, y, z) {
+    return vec3(x, y, z)
+}
+
+pub fn createTriangle(v1, v2, v3) {
+    return { "v1": v1, "v2": v2, "v3": v3 }
+}
+
+pub fn addVertex(mesh, vertex) {
+    mesh["vertices"] = push(mesh["vertices"], vertex)
+    return mesh
+}
+
+pub fn addIndex(mesh, index) {
+    mesh["indices"] = push(mesh["indices"], index)
+    return mesh
+}
+
+pub fn addTriangle(mesh, v1, v2, v3) {
+    let baseIndex = len(mesh["vertices"])
+    mesh = addVertex(mesh, v1)
+    mesh = addVertex(mesh, v2)
+    mesh = addVertex(mesh, v3)
+    mesh = addIndex(mesh, baseIndex)
+    mesh = addIndex(mesh, baseIndex + 1)
+    mesh = addIndex(mesh, baseIndex + 2)
+    return mesh
+}
+
+pub fn triangulateRect(rect, subdivisions) {
+    let mesh = createMesh()
+    let x = rect["x"]
+    let y = rect["y"]
+    let width = rect["width"]
+    let height = rect["height"]
+    
+    let i = 0
+    while i < subdivisions {
+        let j = 0
+        while j < subdivisions {
+            let x0 = x + (i * width) / subdivisions
+            let y0 = y + (j * height) / subdivisions
+            let x1 = x + ((i + 1) * width) / subdivisions
+            let y1 = y + ((j + 1) * height) / subdivisions
+            
+            let v1 = createVertex(x0, y0, 0.0)
+            let v2 = createVertex(x1, y0, 0.0)
+            let v3 = createVertex(x0, y1, 0.0)
+            let v4 = createVertex(x1, y1, 0.0)
+            
+            mesh = addTriangle(mesh, v1, v2, v3)
+            mesh = addTriangle(mesh, v2, v4, v3)
+            
+            j = j + 1
+        }
+        i = i + 1
+    }
+    
+    return mesh
+}
+
+pub fn triangulateCircle(circle, segments) {
+    let mesh = createMesh()
+    let cx = circle["center"]["x"]
+    let cy = circle["center"]["y"]
+    let r = circle["radius"]
+    
+    let center = createVertex(cx, cy, 0.0)
+    
+    let i = 0
+    while i < segments {
+        let angle1 = (i * 6.28318) / segments
+        let angle2 = ((i + 1) * 6.28318) / segments
+        
+        let v1 = createVertex(cx + r * cos(angle1), cy + r * sin(angle1), 0.0)
+        let v2 = createVertex(cx + r * cos(angle2), cy + r * sin(angle2), 0.0)
+        
+        mesh = addTriangle(mesh, center, v1, v2)
+        
+        i = i + 1
+    }
+    
+    return mesh
+}
+
+pub fn triangulatePolyline(poly, z) {
+    let mesh = createMesh()
+    let points = poly["points"]
+    
+    if len(points) < 3 {
+        return mesh
+    }
+    
+    let i = 1
+    while i < len(points) - 1 {
+        let v1 = createVertex(points[0]["x"], points[0]["y"], z)
+        let v2 = createVertex(points[i]["x"], points[i]["y"], z)
+        let v3 = createVertex(points[i + 1]["x"], points[i + 1]["y"], z)
+        
+        mesh = addTriangle(mesh, v1, v2, v3)
+        
+        i = i + 1
+    }
+    
+    return mesh
+}
+
+pub fn extrudeMesh(mesh, depth) {
+    let extruded = createMesh()
+    let vertices = mesh["vertices"]
+    let indices = mesh["indices"]
+    
+    let i = 0
+    while i < len(vertices) {
+        let v = vertices[i]
+        extruded = addVertex(extruded, v)
+        extruded = addVertex(extruded, createVertex(v["x"], v["y"], v["z"] + depth))
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(indices) {
+        let idx = indices[i]
+        extruded = addIndex(extruded, idx)
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(indices) {
+        let idx = indices[i]
+        extruded = addIndex(extruded, idx + len(vertices))
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(indices) step 3 {
+        let i0 = indices[i]
+        let i1 = indices[i + 1]
+        let i2 = indices[i + 2]
+        
+        extruded = addIndex(extruded, i0)
+        extruded = addIndex(extruded, i0 + len(vertices))
+        extruded = addIndex(extruded, i1)
+        
+        extruded = addIndex(extruded, i1)
+        extruded = addIndex(extruded, i1 + len(vertices))
+        extruded = addIndex(extruded, i2)
+        
+        extruded = addIndex(extruded, i2)
+        extruded = addIndex(extruded, i2 + len(vertices))
+        extruded = addIndex(extruded, i0)
+        
+        i = i + 3
+    }
+    
+    return extruded
+}
+
+pub fn computeMeshNormals(mesh) {
+    let normals = []
+    let i = 0
+    while i < len(mesh["vertices"]) {
+        normals = push(normals, vec3(0.0, 0.0, 0.0))
+        i = i + 1
+    }
+    
+    let i = 0
+    while i < len(mesh["indices"]) step 3 {
+        let i0 = mesh["indices"][i]
+        let i1 = mesh["indices"][i + 1]
+        let i2 = mesh["indices"][i + 2]
+        
+        let v0 = mesh["vertices"][i0]
+        let v1 = mesh["vertices"][i1]
+        let v2 = mesh["vertices"][i2]
+        
+        let edge1 = vec3(v1["x"] - v0["x"], v1["y"] - v0["y"], v1["z"] - v0["z"])
+        let edge2 = vec3(v2["x"] - v0["x"], v2["y"] - v0["y"], v2["z"] - v0["z"])
+        
+        let normal = vec3(
+            edge1["y"] * edge2["z"] - edge1["z"] * edge2["y"],
+            edge1["z"] * edge2["x"] - edge1["x"] * edge2["z"],
+            edge1["x"] * edge2["y"] - edge1["y"] * edge2["x"]
+        )
+        
+        normals[i0] = vec3(normals[i0]["x"] + normal["x"], normals[i0]["y"] + normal["y"], normals[i0]["z"] + normal["z"])
+        normals[i1] = vec3(normals[i1]["x"] + normal["x"], normals[i1]["y"] + normal["y"], normals[i1]["z"] + normal["z"])
+        normals[i2] = vec3(normals[i2]["x"] + normal["x"], normals[i2]["y"] + normal["y"], normals[i2]["z"] + normal["z"])
+        
+        i = i + 3
+    }
+    
+    let i = 0
+    while i < len(normals) {
+        let len = systemSqrt(normals[i]["x"] * normals[i]["x"] + normals[i]["y"] * normals[i]["y"] + normals[i]["z"] * normals[i]["z"])
+        if len > 0.0 {
+            normals[i] = vec3(normals[i]["x"] / len, normals[i]["y"] / len, normals[i]["z"] / len)
+        }
+        i = i + 1
+    }
+    
+    mesh["normals"] = normals
+    return mesh
+}
+
+pub fn computeMeshUVs(mesh) {
+    let uvs = []
+    let i = 0
+    while i < len(mesh["vertices"]) {
+        let v = mesh["vertices"][i]
+        let u = (v["x"] + 1.0) / 2.0
+        let uv = (v["y"] + 1.0) / 2.0
+        uvs = push(uvs, { "u": u, "v": uv })
+        i = i + 1
+    }
+    mesh["uvs"] = uvs
+    return mesh
+}
