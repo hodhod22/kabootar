@@ -7,6 +7,7 @@
 
 import "cad/geom"
 import "cad/document"
+import "cad/host"
 
 pub fn createDimensionSystem() {
     return {
@@ -68,6 +69,44 @@ pub fn createDiameterDimension(center, point, radius) {
         "center": center,
         "point": point,
         "radius": radius,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createOrdinateDimension(origin, point, axis) {
+    return {
+        "kind": "OrdinateDimension",
+        "origin": origin,
+        "point": point,
+        "axis": axis,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createArcLengthDimension(center, start, end, radius) {
+    return {
+        "kind": "ArcLengthDimension",
+        "center": center,
+        "start": start,
+        "end": end,
+        "radius": radius,
+        "text": "",
+        "units": "mm",
+        "precision": 2
+    }
+}
+
+pub fn createChamferDimension(start, end, angle, distance) {
+    return {
+        "kind": "ChamferDimension",
+        "start": start,
+        "end": end,
+        "angle": angle,
+        "distance": distance,
         "text": "",
         "units": "mm",
         "precision": 2
@@ -179,6 +218,55 @@ pub fn updateDiameterDimensionText(dimension) {
     return dimension
 }
 
+pub fn updateOrdinateDimensionText(dimension) {
+    let origin = dimension["origin"]
+    let point = dimension["point"]
+    let axis = dimension["axis"]
+    
+    let value = 0.0
+    if axis == "x" {
+        value = point["x"] - origin["x"]
+    } else if axis == "y" {
+        value = point["y"] - origin["y"]
+    }
+    
+    let precision = dimension["precision"]
+    let roundedValue = roundToPrecision(value, precision)
+    dimension["text"] = "" + roundedValue + " " + dimension["units"]
+    return dimension
+}
+
+pub fn updateArcLengthDimensionText(dimension) {
+    let center = dimension["center"]
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let radius = dimension["radius"]
+    
+    let v1 = vec2(start["x"] - center["x"], start["y"] - center["y"])
+    let v2 = vec2(end["x"] - center["x"], end["y"] - center["y"])
+    
+    let angle1 = atan2(v1["y"], v1["x"])
+    let angle2 = atan2(v2["y"], v2["x"])
+    let angle = abs(angle2 - angle1)
+    
+    let arcLength = angle * radius
+    let precision = dimension["precision"]
+    let value = roundToPrecision(arcLength, precision)
+    dimension["text"] = "" + value + " " + dimension["units"]
+    return dimension
+}
+
+pub fn updateChamferDimensionText(dimension) {
+    let distance = dimension["distance"]
+    let angle = dimension["angle"]
+    let precision = dimension["precision"]
+    let value = roundToPrecision(distance, precision)
+    let angleDeg = angle * 180.0 / 3.14159
+    let angleValue = roundToPrecision(angleDeg, 1)
+    dimension["text"] = "" + value + "x" + angleValue + "°"
+    return dimension
+}
+
 pub fn generateDimensionGeometry(dimension, style) {
     let kind = dimension["kind"]
     
@@ -190,6 +278,12 @@ pub fn generateDimensionGeometry(dimension, style) {
         return generateRadialDimensionGeometry(dimension, style)
     } else if kind == "DiameterDimension" {
         return generateDiameterDimensionGeometry(dimension, style)
+    } else if kind == "OrdinateDimension" {
+        return generateOrdinateDimensionGeometry(dimension, style)
+    } else if kind == "ArcLengthDimension" {
+        return generateArcLengthDimensionGeometry(dimension, style)
+    } else if kind == "ChamferDimension" {
+        return generateChamferDimensionGeometry(dimension, style)
     }
     
     return { "lines": [], "arcs": [], "text": "" }
@@ -310,6 +404,108 @@ fn generateDiameterDimensionGeometry(dimension, style) {
     ]
     
     let textPos = vec2(center["x"] + cos(angle) * (radius + 15.0), center["y"] + sin(angle) * (radius + 15.0))
+    
+    return {
+        "lines": lines,
+        "arcs": [],
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": angle
+    }
+}
+
+fn generateOrdinateDimensionGeometry(dimension, style) {
+    let origin = dimension["origin"]
+    let point = dimension["point"]
+    let axis = dimension["axis"]
+    
+    let offset = style["offset"]
+    let lines = []
+    
+    if axis == "x" {
+        let value = point["x"] - origin["x"]
+        let dimX = origin["x"] + value
+        lines = push(lines, { "start": origin, "end": vec2(dimX, origin["y"]) })
+        lines = push(lines, { "start": vec2(dimX, origin["y"]), "end": vec2(dimX, point["y"]) })
+        lines = push(lines, { "start": vec2(dimX, point["y"]), "end": vec2(dimX + offset, point["y"]) })
+    } else if axis == "y" {
+        let value = point["y"] - origin["y"]
+        let dimY = origin["y"] + value
+        lines = push(lines, { "start": origin, "end": vec2(origin["x"], dimY) })
+        lines = push(lines, { "start": vec2(origin["x"], dimY), "end": vec2(point["x"], dimY) })
+        lines = push(lines, { "start": vec2(point["x"], dimY), "end": vec2(point["x"], dimY + offset) })
+    }
+    
+    let textPos = vec2(0.0, 0.0)
+    if axis == "x" {
+        textPos = vec2(point["x"] + offset + 5.0, point["y"])
+    } else {
+        textPos = vec2(point["x"], point["y"] + offset + 5.0)
+    }
+    
+    return {
+        "lines": lines,
+        "arcs": [],
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": 0.0
+    }
+}
+
+fn generateArcLengthDimensionGeometry(dimension, style) {
+    let center = dimension["center"]
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let radius = dimension["radius"]
+    
+    let v1 = vec2(start["x"] - center["x"], start["y"] - center["y"])
+    let v2 = vec2(end["x"] - center["x"], end["y"] - center["y"])
+    
+    let angle1 = atan2(v1["y"], v1["x"])
+    let angle2 = atan2(v2["y"], v2["x"])
+    
+    let arcStart = vec2(center["x"] + cos(angle1) * radius, center["y"] + sin(angle1) * radius)
+    let arcEnd = vec2(center["x"] + cos(angle2) * radius, center["y"] + sin(angle2) * radius)
+    
+    let lines = [
+        { "start": center, "end": arcStart },
+        { "start": center, "end": arcEnd }
+    ]
+    
+    let arcs = [{
+        "center": center,
+        "radius": radius,
+        "startAngle": angle1,
+        "endAngle": angle2
+    }]
+    
+    let midAngle = (angle1 + angle2) / 2.0
+    let textPos = vec2(center["x"] + cos(midAngle) * (radius + 10.0), center["y"] + sin(midAngle) * (radius + 10.0))
+    
+    return {
+        "lines": lines,
+        "arcs": arcs,
+        "text": dimension["text"],
+        "textPosition": textPos,
+        "textAngle": midAngle
+    }
+}
+
+fn generateChamferDimensionGeometry(dimension, style) {
+    let start = dimension["start"]
+    let end = dimension["end"]
+    let angle = dimension["angle"]
+    let distance = dimension["distance"]
+    
+    let midX = (start["x"] + end["x"]) / 2.0
+    let midY = (start["y"] + end["y"]) / 2.0
+    
+    let lines = [
+        { "start": start, "end": end }
+    ]
+    
+    let perpAngle = angle + 1.5708
+    let textPos = vec2(midX + cos(perpAngle) * 15.0, midY + sin(perpAngle) * 15.0)
     
     return {
         "lines": lines,
