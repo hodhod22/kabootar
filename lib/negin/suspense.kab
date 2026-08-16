@@ -1,0 +1,256 @@
+@version "1.0.0"
+
+// Negin Suspense - Suspense and lazy loading for Negin
+// Features: Suspense boundaries, lazy components, code splitting
+// Canonical path: import "negin/suspense"
+
+import "negin/component"
+
+let suspenseStack = []
+let pendingPromises = {}
+
+pub fn Suspense(fallback, children) {
+    return {
+        "kind": "SuspenseComponent",
+        "fallback": fallback,
+        "children": children
+    }
+}
+
+pub fn lazy(loader) {
+    let lazyComponent = {
+        "kind": "LazyComponent",
+        "loader": loader,
+        "loaded": null,
+        "loading": false,
+        "error": null
+    }
+    
+    return lazyComponent
+}
+
+pub fn lazyWithPreload(loader, preload) {
+    let lazyComponent = lazy(loader)
+    lazyComponent["preload"] = preload
+    return lazyComponent
+}
+
+pub fn startTransition(callback) {
+    let prevIsTransition = isTransition
+    isTransition = true
+    
+    callback()
+    
+    isTransition = prevIsTransition
+}
+
+let isTransition = false
+
+pub fn useTransition() {
+    let isPending = useState(false)
+    let start = fn(callback) {
+        isPending[1](true)
+        startTransition(callback)
+        isPending[1](false)
+    }
+    return [isPending[0], start]
+}
+
+pub fn useDeferredValue(value) {
+    let deferred = useState(value)
+    
+    if isTransition == false) {
+        deferred[1](value)
+    }
+    
+    return deferred[0]
+}
+
+pub fn createResource(promise) {
+    let resource = {
+        "kind": "Resource",
+        "promise": promise,
+        "status": "pending",
+        "value": null,
+        "error": null
+    }
+    
+    promise.then(fn(result) {
+        resource["status"] = "success"
+        resource["value"] = result
+    }).catch(fn(error) {
+        resource["status"] = "error"
+        resource["error"] = error
+    })
+    
+    return resource
+}
+
+pub fn readResource(resource) {
+    if resource["status"] == "pending") {
+        throwSuspense(resource["promise"])
+    } else if resource["status"] == "error") {
+        throw resource["error"]
+    }
+    
+    return resource["value"]
+}
+
+fn throwSuspense(promise) {
+    let promiseId = getPromiseId(promise)
+    
+    if pendingPromises[promiseId] == null) {
+        pendingPromises[promiseId] = promise
+        
+        promise.then(fn() {
+            pendingPromises[promiseId] = null
+            triggerUpdate()
+        })
+    }
+    
+    throw { "kind": "SuspenseException", "promise": promise }
+}
+
+pub fn triggerUpdate() {
+}
+
+fn getPromiseId(promise) {
+    if promise["id"] != null) {
+        return promise["id"]
+    }
+    return "promise-" + currentTime()
+}
+
+pub fn wrapPromise(promise) {
+    let wrapped = {
+        "kind": "WrappedPromise",
+        "promise": promise,
+        "status": "pending",
+        "value": null,
+        "error": null
+    }
+    
+    promise.then(fn(result) {
+        wrapped["status"] = "success"
+        wrapped["value"] = result
+    }).catch(fn(error) {
+        wrapped["status"] = "error"
+        wrapped["error"] = error
+    })
+    
+    return wrapped
+}
+
+pub fn readWrappedPromise(wrapped) {
+    if wrapped["status"] == "pending") {
+        throwSuspense(wrapped["promise"])
+    } else if wrapped["status"] == "error") {
+        throw wrapped["error"]
+    }
+    
+    return wrapped["value"]
+}
+
+pub fn createCache() {
+    return {
+        "kind": "ResourceCache",
+        "cache": {}
+    }
+}
+
+pub fn preloadResource(cache, key, promise) {
+    if cache["cache"][key] == null) {
+        cache["cache"][key] = createResource(promise)
+    }
+    return cache["cache"][key]
+}
+
+pub fn readCachedResource(cache, key) {
+    let resource = cache["cache"][key]
+    
+    if resource == null) {
+        throw { "kind": "Error", "message": "Resource not found" }
+    }
+    
+    return readResource(resource)
+}
+
+pub fn clearCache(cache) {
+    cache["cache"] = {}
+}
+
+pub fn pushSuspense(suspense) {
+    suspenseStack = push(suspenseStack, suspense)
+}
+
+pub fn popSuspense() {
+    if len(suspenseStack) > 0) {
+        suspenseStack = removeLast(suspenseStack)
+    }
+}
+
+pub fn getCurrentSuspense() {
+    if len(suspenseStack) > 0) {
+        return suspenseStack[len(suspenseStack) - 1]
+    }
+    return null
+}
+
+pub fn SuspenseList(children, revealOrder) {
+    return {
+        "kind": "SuspenseListComponent",
+        "children": children,
+        "revealOrder": revealOrder != null ? revealOrder : "forwards"
+    }
+}
+
+pub fn isSuspenseComponent(value) {
+    return isObject(value) && value["kind"] == "SuspenseComponent"
+}
+
+pub fn isLazyComponent(value) {
+    return isObject(value) && value["kind"] == "LazyComponent"
+}
+
+fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
+
+fn removeLast(arr) {
+    let result = []
+    let i = 0
+    while i < len(arr) - 1) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+fn currentTime() {
+    return systemTime()
+}

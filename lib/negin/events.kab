@@ -1,0 +1,321 @@
+@version "1.0.0"
+
+// Negin Events - Event system for Negin
+// Features: event delegation, synthetic events, event pooling
+// Canonical path: import "negin/events"
+
+let eventQueue = []
+let eventListeners = {}
+
+pub fn addEventListener(target, eventType, listener, options) {
+    let targetKey = getTargetKey(target)
+    
+    if eventListeners[targetKey] == null) {
+        eventListeners[targetKey] = {}
+    }
+    
+    if eventListeners[targetKey][eventType] == null) {
+        eventListeners[targetKey][eventType] = []
+    }
+    
+    eventListeners[targetKey][eventType] = push(eventListeners[targetKey][eventType], {
+        "listener": listener,
+        "options": options,
+        "captured": false
+    })
+}
+
+pub fn removeEventListener(target, eventType, listener) {
+    let targetKey = getTargetKey(target)
+    
+    if eventListeners[targetKey] == null || eventListeners[targetKey][eventType] == null) {
+        return
+    }
+    
+    let listeners = eventListeners[targetKey][eventType]
+    let newListeners = []
+    
+    let i = 0
+    while i < len(listeners)) {
+        if listeners[i]["listener"] !== listener) {
+            newListeners = push(newListeners, listeners[i])
+        }
+        i = i + 1
+    }
+    
+    eventListeners[targetKey][eventType] = newListeners
+}
+
+pub fn dispatchEvent(target, event) {
+    let eventCopy = cloneEvent(event)
+    eventCopy["target"] = target
+    eventCopy["currentTarget"] = target
+    eventCopy["eventPhase"] = 0
+    eventCopy["bubbles"] = event["bubbles"] != null ? event["bubbles"] : true
+    eventCopy["cancelable"] = event["cancelable"] != null ? event["cancelable"] : true
+    eventCopy["defaultPrevented"] = false
+    eventCopy["propagationStopped"] = false
+    eventCopy["immediatePropagationStopped"] = false
+    
+    eventQueue = push(eventQueue, eventCopy)
+    
+    processEventQueue()
+    
+    return !eventCopy["defaultPrevented"]
+}
+
+fn processEventQueue() {
+    while len(eventQueue) > 0) {
+        let event = eventQueue[0]
+        eventQueue = removeFirst(eventQueue)
+        
+        let target = event["target"]
+        let path = getEventPath(target)
+        
+        event["eventPhase"] = 1
+        let i = len(path) - 1
+        while i >= 0) {
+            event["currentTarget"] = path[i]
+            executeCapturers(path[i], event)
+            if event["propagationStopped"]) {
+                break
+            }
+            i = i - 1
+        }
+        
+        event["eventPhase"] = 2
+        event["currentTarget"] = target
+        executeListeners(target, event)
+        
+        if event["bubbles"] && !event["propagationStopped"]) {
+            event["eventPhase"] = 3
+            let i = 0
+            while i < len(path)) {
+                if path[i] !== target) {
+                    event["currentTarget"] = path[i]
+                    executeBubblers(path[i], event)
+                    if event["propagationStopped"]) {
+                        break
+                    }
+                }
+                i = i + 1
+            }
+        }
+    }
+}
+
+fn executeCapturers(target, event) {
+    let targetKey = getTargetKey(target)
+    
+    if eventListeners[targetKey] == null) {
+        return
+    }
+    
+    let eventType = event["type"]
+    if eventListeners[targetKey][eventType] == null) {
+        return
+    }
+    
+    let listeners = eventListeners[targetKey][eventType]
+    
+    let i = 0
+    while i < len(listeners)) {
+        let listener = listeners[i]
+        if listener["options"] != null && listener["options"]["capture"] == true) {
+            listener["listener"](event)
+            if event["immediatePropagationStopped"]) {
+                break
+            }
+        }
+        i = i + 1
+    }
+}
+
+fn executeListeners(target, event) {
+    let targetKey = getTargetKey(target)
+    
+    if eventListeners[targetKey] == null) {
+        return
+    }
+    
+    let eventType = event["type"]
+    if eventListeners[targetKey][eventType] == null) {
+        return
+    }
+    
+    let listeners = eventListeners[targetKey][eventType]
+    
+    let i = 0
+    while i < len(listeners)) {
+        let listener = listeners[i]
+        if listener["options"] == null || listener["options"]["capture"] != true) {
+            listener["listener"](event)
+            if event["immediatePropagationStopped"]) {
+                break
+            }
+        }
+        i = i + 1
+    }
+}
+
+fn executeBubblers(target, event) {
+    let targetKey = getTargetKey(target)
+    
+    if eventListeners[targetKey] == null) {
+        return
+    }
+    
+    let eventType = event["type"]
+    if eventListeners[targetKey][eventType] == null) {
+        return
+    }
+    
+    let listeners = eventListeners[targetKey][eventType]
+    
+    let i = 0
+    while i < len(listeners)) {
+        let listener = listeners[i]
+        if listener["options"] == null || listener["options"]["capture"] != true) {
+            listener["listener"](event)
+            if event["propagationStopped"]) {
+                break
+            }
+        }
+        i = i + 1
+    }
+}
+
+fn getEventPath(target) {
+    let path = [target]
+    let current = target
+    
+    while current["parent"] != null) {
+        path = push(path, current["parent"])
+        current = current["parent"]
+    }
+    
+    return path
+}
+
+fn getTargetKey(target) {
+    if target["id"] != null) {
+        return target["id"]
+    }
+    return "target-" + toString(target)
+}
+
+pub fn createEvent(type, props) {
+    let event = {
+        "kind": "Event",
+        "type": type,
+        "bubbles": true,
+        "cancelable": true
+    }
+    
+    if props != null) {
+        for propName in props) {
+            event[propName] = props[propName]
+        }
+    }
+    
+    return event
+}
+
+pub fn createMouseEvent(type, props) {
+    let event = createEvent(type, props)
+    event["kind"] = "MouseEvent"
+    event["clientX"] = props != null ? props["clientX"] : 0
+    event["clientY"] = props != null ? props["clientY"] : 0
+    event["screenX"] = props != null ? props["screenX"] : 0
+    event["screenY"] = props != null ? props["screenY"] : 0
+    event["button"] = props != null ? props["button"] : 0
+    event["buttons"] = props != null ? props["buttons"] : 0
+    event["relatedTarget"] = props != null ? props["relatedTarget"] : null
+    
+    return event
+}
+
+pub fn createKeyboardEvent(type, props) {
+    let event = createEvent(type, props)
+    event["kind"] = "KeyboardEvent"
+    event["key"] = props != null ? props["key"] : ""
+    event["code"] = props != null ? props["code"] : ""
+    event["location"] = props != null ? props["location"] : 0
+    event["ctrlKey"] = props != null ? props["ctrlKey"] : false
+    event["shiftKey"] = props != null ? props["shiftKey"] : false
+    event["altKey"] = props != null ? props["altKey"] : false
+    event["metaKey"] = props != null ? props["metaKey"] : false
+    event["repeat"] = props != null ? props["repeat"] : false
+    
+    return event
+}
+
+pub fn createFocusEvent(type, props) {
+    let event = createEvent(type, props)
+    event["kind"] = "FocusEvent"
+    event["relatedTarget"] = props != null ? props["relatedTarget"] : null
+    
+    return event
+}
+
+pub fn preventDefault(event) {
+    if event["cancelable"]) {
+        event["defaultPrevented"] = true
+    }
+}
+
+pub fn stopPropagation(event) {
+    event["propagationStopped"] = true
+}
+
+pub fn stopImmediatePropagation(event) {
+    event["immediatePropagationStopped"] = true
+    event["propagationStopped"] = true
+}
+
+fn cloneEvent(event) {
+    let cloned = {}
+    for key in event) {
+        cloned[key] = event[key]
+    }
+    return cloned
+}
+
+fn removeFirst(arr) {
+    let result = []
+    let i = 1
+    while i < len(arr)) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+fn toString(value) {
+    return "" + value
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

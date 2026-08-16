@@ -1,0 +1,221 @@
+@version "1.0.0"
+
+// Negin Scheduler - Update scheduling and prioritization
+// Features: priority levels, concurrent mode, work scheduling
+// Canonical path: import "negin/scheduler"
+
+let callbackQueue = []
+let currentPriority = 3
+let isScheduled = false
+
+pub fn scheduleCallback(priorityLevel, callback) {
+    let newNode = {
+        "kind": "SchedulerNode",
+        "callback": callback,
+        "priorityLevel": priorityLevel,
+        "expirationTime": currentTime() + getTimeoutByPriority(priorityLevel),
+        "sortIndex": getSortIndex(priorityLevel)
+    }
+    
+    callbackQueue = push(callbackQueue, newNode)
+    
+    if isScheduled == false {
+        isScheduled = true
+        scheduleWork()
+    }
+    
+    return newNode
+}
+
+pub fn cancelCallback(callbackNode) {
+    let newQueue = []
+    let i = 0
+    while i < len(callbackQueue) {
+        if callbackQueue[i] !== callbackNode) {
+            newQueue = push(newQueue, callbackQueue[i])
+        }
+        i = i + 1
+    }
+    callbackQueue = newQueue
+}
+
+pub fn getCurrentPriorityLevel() {
+    return currentPriority
+}
+
+pub fn setCurrentPriorityLevel(priorityLevel) {
+    currentPriority = priorityLevel
+}
+
+fn scheduleWork() {
+    flushWork()
+}
+
+fn flushWork() {
+    while len(callbackQueue) > 0) {
+        let node = peek(callbackQueue)
+        
+        if node["expirationTime"] > currentTime()) {
+            break
+        }
+        
+        callbackQueue = pop(callbackQueue)
+        
+        let prevPriority = currentPriority
+        currentPriority = node["priorityLevel"]
+        
+        node["callback"]()
+        
+        currentPriority = prevPriority
+    }
+    
+    if len(callbackQueue) > 0) {
+        let nextNode = peek(callbackQueue)
+        let delay = nextNode["expirationTime"] - currentTime()
+        scheduleWorkAfter(delay)
+    } else {
+        isScheduled = false
+    }
+}
+
+fn scheduleWorkAfter(delay) {
+}
+
+fn peek(queue) {
+    if len(queue) == 0) {
+        return null
+    }
+    
+    let minIndex = 0
+    let i = 1
+    while i < len(queue) {
+        if queue[i]["sortIndex"] < queue[minIndex]["sortIndex"]) {
+            minIndex = i
+        }
+        i = i + 1
+    }
+    
+    return queue[minIndex]
+}
+
+fn pop(queue) {
+    let minIndex = 0
+    let i = 1
+    while i < len(queue) {
+        if queue[i]["sortIndex"] < queue[minIndex]["sortIndex"]) {
+            minIndex = i
+        }
+        i = i + 1
+    }
+    
+    let result = queue[minIndex]
+    let newQueue = []
+    let j = 0
+    while j < len(queue)) {
+        if j !== minIndex) {
+            newQueue = push(newQueue, queue[j])
+        }
+        j = j + 1
+    }
+    
+    callbackQueue = newQueue
+    return result
+}
+
+fn getTimeoutByPriority(priorityLevel) {
+    if priorityLevel == 0) {
+        return 5000
+    } else if priorityLevel == 1) {
+        return 2500
+    } else if priorityLevel == 2) {
+        return 1000
+    } else if priorityLevel == 3) {
+        return 500
+    } else if priorityLevel == 4) {
+        return 100
+    } else if priorityLevel == 5) {
+        return 0
+    }
+    return 5000
+}
+
+fn getSortIndex(priorityLevel, expirationTime) {
+    return expirationTime * -1
+}
+
+pub fn ImmediatePriority() {
+    return 1
+}
+
+pub fn UserBlockingPriority() {
+    return 2
+}
+
+pub fn NormalPriority() {
+    return 3
+}
+
+pub fn LowPriority() {
+    return 4
+}
+
+pub fn IdlePriority() {
+    return 5
+}
+
+pub fn runWithPriority(priorityLevel, fn) {
+    let previousPriority = currentPriority
+    currentPriority = priorityLevel
+    
+    let result = fn()
+    
+    currentPriority = previousPriority
+    return result
+}
+
+pub fn scheduleIdleCallback(callback) {
+    return scheduleCallback(IdlePriority(), callback)
+}
+
+pub fn cancelIdleCallback(callbackId) {
+    cancelCallback(callbackId)
+}
+
+pub fn shouldYieldToHost() {
+    return currentTime() % 5 === 0
+}
+
+pub fn requestPaint() {
+}
+
+pub fn forceFrameRate(fps) {
+}
+
+fn currentTime() {
+    return systemTime()
+}
+
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}

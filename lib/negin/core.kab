@@ -1,0 +1,419 @@
+@version "1.0.0"
+
+// Negin Core - Core functions for Negin UI library
+// Features: createElement, render, virtual DOM creation
+// Canonical path: import "negin/core"
+// Target: React-like core with improvements
+
+import "negin/element"
+import "negin/component"
+import "negin/reconciler"
+
+// Global render state
+let currentRoot = null
+let currentContainer = null
+
+pub fn createElement(type, props, children) {
+    return createVNode(type, props, children)
+}
+
+pub fn render(element, container) {
+    let root = createFiberRoot(element, container)
+    currentRoot = root
+    currentContainer = container
+    
+    let workInProgress = createWorkInProgress(root.current)
+    workInProgress = renderRoot(workInProgress)
+    
+    commitRoot(workInProgress)
+    
+    return root
+}
+
+pub fn createRoot(container) {
+    let root = createFiberRoot(null, container)
+    return {
+        "kind": "NeginRoot",
+        "root": root,
+        "render": fn(element) {
+            root.container = container
+            let workInProgress = createWorkInProgress(root.current)
+            workInProgress = renderRoot(workInProgress)
+            commitRoot(workInProgress)
+            return root
+        }
+    }
+}
+
+fn createFiberRoot(element, container) {
+    let uninitializedFiber = createFiber(
+        "HostRoot",
+        null,
+        null,
+        null
+    )
+    
+    uninitializedFiber["stateNode"] = container
+    
+    return {
+        "kind": "FiberRoot",
+        "current": uninitializedFiber,
+        "container": container,
+        "finishedWork": null
+    }
+}
+
+fn createFiber(tag, pendingProps, key, mode) {
+    return {
+        "kind": "Fiber",
+        "tag": tag,
+        "key": key,
+        "elementType": tag,
+        "type": tag,
+        "stateNode": null,
+        "return": null,
+        "child": null,
+        "sibling": null,
+        "index": 0,
+        "ref": null,
+        "pendingProps": pendingProps,
+        "memoizedProps": null,
+        "updateQueue": null,
+        "memoizedState": null,
+        "dependencies": null,
+        "mode": mode,
+        "effectTag": 0,
+        "nextEffect": null,
+        "firstEffect": null,
+        "lastEffect": null,
+        "expirationTime": 0,
+        "alternate": null
+    }
+}
+
+fn createWorkInProgress(current) {
+    let alternate = current["alternate"]
+    
+    if alternate == null {
+        let workInProgress = createFiber(
+            current["tag"],
+            current["pendingProps"],
+            current["key"],
+            current["mode"]
+        )
+        
+        workInProgress["elementType"] = current["elementType"]
+        workInProgress["type"] = current["type"]
+        workInProgress["stateNode"] = current["stateNode"]
+        workInProgress["return"] = current["return"]
+        
+        current["alternate"] = workInProgress
+        workInProgress["alternate"] = current
+        
+        return workInProgress
+    }
+    
+    let workInProgress = alternate
+    workInProgress["pendingProps"] = current["pendingProps"]
+    workInProgress["effectTag"] = 0
+    workInProgress["nextEffect"] = null
+    workInProgress["firstEffect"] = null
+    workInProgress["lastEffect"] = null
+    workInProgress["expirationTime"] = 0
+    
+    return workInProgress
+}
+
+fn renderRoot(workInProgress) {
+    while workInProgress != null {
+        workInProgress = performUnitOfWork(workInProgress)
+    }
+    
+    return workInProgress
+}
+
+fn performUnitOfWork(workInProgress) {
+    let next = beginWork(workInProgress)
+    
+    if next == null {
+        next = completeUnitOfWork(workInProgress)
+    }
+    
+    return next
+}
+
+fn beginWork(workInProgress) {
+    let tag = workInProgress["tag"]
+    
+    if tag == "HostRoot" {
+        return updateHostRoot(workInProgress)
+    } else if tag == "HostComponent" {
+        return updateHostComponent(workInProgress)
+    } else if tag == "ClassComponent" {
+        return updateClassComponent(workInProgress)
+    } else if tag == "FunctionComponent" {
+        return updateFunctionComponent(workInProgress)
+    }
+    
+    return null
+}
+
+fn updateHostRoot(workInProgress) {
+    let children = workInProgress["pendingProps"]["children"]
+    reconcileChildren(workInProgress, children)
+    return workInProgress["child"]
+}
+
+fn updateHostComponent(workInProgress) {
+    let type = workInProgress["type"]
+    let props = workInProgress["pendingProps"]
+    let children = props["children"]
+    
+    reconcileChildren(workInProgress, children)
+    return workInProgress["child"]
+}
+
+fn updateClassComponent(workInProgress) {
+    let Component = workInProgress["type"]
+    let props = workInProgress["pendingProps"]
+    
+    let instance = createComponentInstance(Component, props)
+    workInProgress["stateNode"] = instance
+    
+    let children = instance.render()
+    reconcileChildren(workInProgress, children)
+    
+    return workInProgress["child"]
+}
+
+fn updateFunctionComponent(workInProgress) {
+    let Component = workInProgress["type"]
+    let props = workInProgress["pendingProps"]
+    
+    let children = Component(props)
+    reconcileChildren(workInProgress, children)
+    
+    return workInProgress["child"]
+}
+
+fn reconcileChildren(workInProgress, children) {
+    if children == null {
+        workInProgress["child"] = null
+        return
+    }
+    
+    let previousSibling = null
+    let i = 0
+    
+    if isObject(children) {
+        let child = reconcileChildFibers(workInProgress, null, children, i)
+        workInProgress["child"] = child
+        previousSibling = child
+        i = i + 1
+    } else if isArray(children) {
+        let j = 0
+        while j < len(children) {
+            let child = reconcileChildFibers(workInProgress, previousSibling, children[j], i)
+            if previousSibling == null {
+                workInProgress["child"] = child
+            } else {
+                previousSibling["sibling"] = child
+            }
+            previousSibling = child
+            j = j + 1
+            i = i + 1
+        }
+    }
+    
+    if previousSibling != null {
+        previousSibling["sibling"] = null
+    }
+}
+
+fn reconcileChildFibers(returnFiber, currentFirstChild, newChild, expirationTime) {
+    if newChild == null || typeof(newChild) == "boolean" {
+        return null
+    }
+    
+    if typeof(newChild) == "string" || typeof(newChild) == "number" {
+        return createFiberFromText(newChild, returnFiber, expirationTime)
+    }
+    
+    if isObject(newChild) {
+        if isVNode(newChild)) {
+            return createFiberFromElement(newChild, returnFiber, expirationTime)
+        }
+    }
+    
+    if isArray(newChild)) {
+        return reconcileChildrenArray(returnFiber, currentFirstChild, newChild, expirationTime)
+    }
+    
+    return null
+}
+
+fn createFiberFromText(content, returnFiber, expirationTime) {
+    let fiber = createFiber("HostText", null, null, expirationTime)
+    fiber["pendingProps"] = content
+    fiber["return"] = returnFiber
+    return fiber
+}
+
+fn createFiberFromElement(element, returnFiber, expirationTime) {
+    let fiber = createFiber(
+        element["type"],
+        element["props"],
+        element["key"],
+        expirationTime
+    )
+    
+    fiber["elementType"] = element["type"]
+    fiber["type"] = element["type"]
+    fiber["return"] = returnFiber
+    
+    return fiber
+}
+
+fn reconcileChildrenArray(returnFiber, currentFirstChild, newChildren, expirationTime) {
+    let resultingFirstChild = null
+    let previousNewFiber = null
+    
+    let oldFiber = currentFirstChild
+    let lastPlacedIndex = 0
+    let newIdx = 0
+    
+    while newIdx < len(newChildren) {
+        let newChild = newChildren[newIdx]
+        
+        let newFiber = reconcileChildFibers(returnFiber, oldFiber, newChild, expirationTime)
+        
+        if newFiber == null {
+            if oldFiber == null {
+                oldFiber = oldFiber["sibling"]
+            }
+            newIdx = newIdx + 1
+            continue
+        }
+        
+        if resultingFirstChild == null {
+            resultingFirstChild = newFiber
+        } else {
+            previousNewFiber["sibling"] = newFiber
+        }
+        
+        previousNewFiber = newFiber
+        oldFiber = oldFiber["sibling"]
+        newIdx = newIdx + 1
+    }
+    
+    return resultingFirstChild
+}
+
+fn completeUnitOfWork(workInProgress) {
+    while workInProgress != null {
+        workInProgress = completeWork(workInProgress)
+        
+        if workInProgress["sibling"] != null {
+            return workInProgress["sibling"]
+        }
+        
+        workInProgress = workInProgress["return"]
+    }
+    
+    return null
+}
+
+fn completeWork(workInProgress) {
+    let tag = workInProgress["tag"]
+    
+    if tag == "HostRoot" {
+        let fiberRoot = workInProgress["stateNode"]
+        fiberRoot["finishedWork"] = workInProgress
+    } else if tag == "HostComponent" {
+        let instance = createInstance(workInProgress["type"], workInProgress["pendingProps"])
+        workInProgress["stateNode"] = instance
+        appendAllChildren(instance, workInProgress)
+    } else if tag == "HostText" {
+        let textNode = createTextNode(workInProgress["pendingProps"])
+        workInProgress["stateNode"] = textNode
+    }
+    
+    return workInProgress["sibling"]
+}
+
+fn createInstance(type, props) {
+    return {
+        "kind": "DOMInstance",
+        "type": type,
+        "props": props,
+        "children": []
+    }
+}
+
+fn createTextNode(text) {
+    return {
+        "kind": "TextNode",
+        "text": text
+    }
+}
+
+fn appendAllChildren(parent, workInProgress) {
+    let node = workInProgress["child"]
+    
+    while node != null {
+        let child = node["stateNode"]
+        parent["children"] = push(parent["children"], child)
+        node = node["sibling"]
+    }
+}
+
+fn commitRoot(finishedWork) {
+    if finishedWork == null {
+        return
+    }
+    
+    let root = currentRoot
+    let container = currentContainer
+    
+    let instance = finishedWork["stateNode"]
+    
+    if instance != null && instance["kind"] == "DOMInstance" {
+        container["children"] = [instance]
+    }
+    
+    root["finishedWork"] = null
+}
+
+fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+fn isArray(value) {
+    return typeof(value) == "array"
+}
+
+fn isVNode(value) {
+    return isObject(value) && value["kind"] == "VNode"
+}
+
+fn typeof(value) {
+    if value == null {
+        return "null"
+    }
+    if typeof(value) == "boolean" {
+        return "boolean"
+    }
+    if typeof(value) == "number" {
+        return "number"
+    }
+    if typeof(value) == "string" {
+        return "string"
+    }
+    if isArray(value) {
+        return "array"
+    }
+    if isObject(value) {
+        return "object"
+    }
+    return "unknown"
+}

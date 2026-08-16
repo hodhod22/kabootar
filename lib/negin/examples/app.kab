@@ -1,0 +1,103 @@
+@version "1.0.0"
+
+// Negin App Example
+// Demonstrates full app with signals, context, and multiple components
+
+import "negin/core"
+import "negin/hooks"
+import "negin/signals"
+import "negin/context"
+
+// Create a theme context
+let ThemeContext = createContext("light")
+
+// Theme provider component
+pub fn ThemeProvider(props) {
+    let (theme, setTheme) = useState("light")
+    
+    let toggleTheme = fn() {
+        if theme == "light") {
+            setTheme("dark")
+        } else {
+            setTheme("light")
+        }
+    }
+    
+    return createElement(Provider(ThemeContext, { "theme": theme, "toggleTheme": toggleTheme }),
+        props["children"]
+    )
+}
+
+// Header component using context
+pub fn Header() {
+    let context = useContext(ThemeContext)
+    let theme = context["theme"]
+    let toggleTheme = context["toggleTheme"]
+    
+    return createElement("header", { "className": "header " + theme },
+        createElement("h1", {}, "Negin App"),
+        createElement("button", { 
+            "onClick": toggleTheme,
+            "className": "theme-toggle"
+        }, "Toggle Theme")
+    )
+}
+
+// Counter component using signals
+pub fn SignalCounter() {
+    let count = createSignal(0)
+    
+    return createElement("div", { "className": "counter-section" },
+        createElement("h2", {}, "Signal Counter"),
+        createElement("div", { "className": "counter-display" },
+            createElement("button", { 
+                "onClick": fn() { count.set(count.get() - 1) }
+            }, "-"),
+            createElement("span", {}, count.get()),
+            createElement("button", { 
+                "onClick": fn() { count.set(count.get() + 1) }
+            }, "+")
+        ),
+        createElement("p", {}, "Count: " + count.get())
+    )
+}
+
+// Main app component
+pub fn App() {
+    let (mounted, setMounted) = useState(false)
+    
+    useEffect(fn() {
+        setMounted(true)
+    }, [])
+    
+    return createElement("div", { "className": "app" },
+        createElement(ThemeProvider, {},
+            createElement(Header, {}),
+            createElement("main", { "className": "main" },
+                createElement("div", { "className": "welcome" },
+                    createElement("h2", {}, "Welcome to Negin!"),
+                    createElement("p", {}, "A React-like UI library for Kabootar")
+                ),
+                createElement(SignalCounter, {}),
+                createElement("div", { "className": "features" },
+                    createElement("h3", {}, "Features"),
+                    createElement("ul", {},
+                        createElement("li", {}, "React-like API"),
+                        createElement("li", {}, "Signals for reactive data"),
+                        createElement("li", {}, "Built-in state management"),
+                        createElement("li", {}, "Context API"),
+                        createElement("li", {}, "Server-side rendering")
+                    )
+                )
+            )
+        )
+    )
+}
+
+// Render the app
+let container = { 
+    "kind": "Container", 
+    "children": [] 
+}
+
+render(createElement(App, {}), container)

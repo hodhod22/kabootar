@@ -1,0 +1,215 @@
+@version "1.0.0"
+
+// Negin Component - Component system with hooks
+// Features: component creation, lifecycle, hooks support
+// Canonical path: import "negin/component"
+
+import "negin/hooks"
+
+let currentComponent = null
+let hookIndex = 0
+let hookQueue = []
+
+pub fn createComponent(renderFn, displayName) {
+    return {
+        "kind": "Component",
+        "render": renderFn,
+        "displayName": displayName,
+        "defaultProps": {}
+    }
+}
+
+pub fn createComponentInstance(Component, props) {
+    let instance = {
+        "kind": "ComponentInstance",
+        "Component": Component,
+        "props": props,
+        "state": Component["initialState"] != null ? Component["initialState"] : {},
+        "context": {},
+        "refs": {},
+        "hooks": [],
+        "mounted": false,
+        "updated": false
+    }
+    
+    return instance
+}
+
+pub fn mountComponent(instance) {
+    currentComponent = instance
+    hookIndex = 0
+    hookQueue = []
+    
+    let rendered = instance["Component"]["render"](instance["props"])
+    
+    instance["mounted"] = true
+    instance["rendered"] = rendered
+    instance["hooks"] = hookQueue
+    
+    currentComponent = null
+    
+    return rendered
+}
+
+pub fn updateComponent(instance, newProps) {
+    currentComponent = instance
+    hookIndex = 0
+    
+    let oldProps = instance["props"]
+    instance["props"] = newProps
+    
+    let rendered = instance["Component"]["render"](newProps)
+    
+    instance["updated"] = true
+    instance["rendered"] = rendered
+    instance["oldProps"] = oldProps
+    
+    currentComponent = null
+    
+    return rendered
+}
+
+pub fn unmountComponent(instance) {
+    instance["mounted"] = false
+    
+    let i = 0
+    while i < len(instance["hooks"]) {
+        let hook = instance["hooks"][i]
+        if hook["cleanup"] != null {
+            hook["cleanup"]()
+        }
+        i = i + 1
+    }
+}
+
+pub fn getCurrentComponent() {
+    return currentComponent
+}
+
+pub fn setCurrentComponent(component) {
+    currentComponent = component
+}
+
+pub fn registerHook(hook) {
+    hookQueue = push(hookQueue, hook)
+    let index = len(hookQueue) - 1
+    hookIndex = hookIndex + 1
+    return index
+}
+
+pub fn getHook(index) {
+    if currentComponent != null && index < len(currentComponent["hooks"]) {
+        return currentComponent["hooks"][index]
+    }
+    return null
+}
+
+pub fn updateHook(index, hook) {
+    if currentComponent != null && index < len(currentComponent["hooks"]) {
+        currentComponent["hooks"][index] = hook
+    }
+}
+
+pub fn createClassComponent(renderFn, initialState) {
+    return {
+        "kind": "ClassComponent",
+        "render": renderFn,
+        "initialState": initialState,
+        "componentDidMount": null,
+        "componentDidUpdate": null,
+        "componentWillUnmount": null
+    }
+}
+
+pub fn createFunctionalComponent(renderFn) {
+    return {
+        "kind": "FunctionalComponent",
+        "render": renderFn
+    }
+}
+
+pub fn memo(Component, areEqual) {
+    return {
+        "kind": "MemoComponent",
+        "Component": Component,
+        "areEqual": areEqual != null ? areEqual : defaultMemoCompare
+    }
+}
+
+fn defaultMemoCompare(prevProps, nextProps) {
+    if prevProps == nextProps {
+        return true
+    }
+    
+    for key in prevProps {
+        if prevProps[key] != nextProps[key]) {
+            return false
+        }
+    }
+    
+    return true
+}
+
+pub fn forwardRef(renderFn) {
+    return {
+        "kind": "ForwardRefComponent",
+        "render": renderFn
+    }
+}
+
+pub fn lazy(loader) {
+    return {
+        "kind": "LazyComponent",
+        "loader": loader,
+        "loaded": null,
+        "loading": false
+    }
+}
+
+pub fn createRef(initialValue) {
+    return {
+        "current": initialValue
+    }
+}
+
+pub fn forwardRefRender(props, ref) {
+    return props["render"](props, ref)
+}
+
+pub fn isComponent(value) {
+    return isObject(value) && (value["kind"] == "Component" || value["kind"] == "FunctionalComponent" || value["kind"] == "ClassComponent")
+}
+
+pub fn isMemoComponent(value) {
+    return isObject(value) && value["kind"] == "MemoComponent"
+}
+
+pub fn isLazyComponent(value) {
+    return isObject(value) && value["kind"] == "LazyComponent"
+}
+
+fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+fn typeof(value) {
+    if value == null {
+        return "null"
+    }
+    if typeof(value) == "boolean" {
+        return "boolean"
+    }
+    if typeof(value) == "number" {
+        return "number"
+    }
+    if typeof(value) == "string" {
+        return "string"
+    }
+    if typeof(value) == "array" {
+        return "array"
+    }
+    if isObject(value) {
+        return "object"
+    }
+    return "unknown"
+}
