@@ -1,86 +1,97 @@
 @version "1.0.0"
 
-// Negin Routing - Advanced routing system optimized for Kabootar
-// Features: Server-side routing, API routes, database integration, route selection
+// Negin Routing - TanStack Start-like routing system optimized for Kabootar
+// Features: File-based routing, loaders, actions, SSR, preloading, code splitting
 // Canonical path: import "negin/routing"
 
 import "negin/core"
 import "negin/hooks"
+import "negin/ssr-optimized"
+import "negin/query-database"
 
-// Route types
-let ROUTE_TYPES = {
-    "CLIENT": "client",
-    "SERVER": "server",
-    "API": "api",
-    "DATABASE": "database",
-    "HYBRID": "hybrid"
-}
+// File-based routing structure
+let fileRoutes = {}
+let routeTree = {}
+let routeLoaders = {}
+let routeActions = {}
+let routeMeta = {}
+let preloadedData = {}
 
-let routes = {}
-let routeGroups = {}
-let activeRouteType = ROUTE_TYPES["HYBRID"]
-
-pub fn defineRoute(path, config) {
-    let routeType = config["type"] != null ? config["type"] : ROUTE_TYPES["CLIENT"]
+// TanStack Start-like route configuration
+pub fn createFileRoute(path, config) {
     let component = config["component"]
-    let handler = config["handler"]
-    let database = config["database"]
-    let middleware = config["middleware"]
-    let cache = config["cache"]
+    let loader = config["loader"]
+    let action = config["action"]
+    let meta = config["meta"]
+    let preload = config["preload"] != null ? config["preload"] : true
     let ssr = config["ssr"] != null ? config["ssr"] : true
+    let staleTime = config["staleTime"]
+    let gcTime = config["gcTime"]
     
     let route = {
-        "kind": "Route",
+        "kind": "FileRoute",
         "path": path,
-        "type": routeType,
         "component": component,
-        "handler": handler,
-        "database": database,
-        "middleware": middleware != null ? middleware : [],
-        "cache": cache,
+        "loader": loader,
+        "action": action,
+        "meta": meta != null ? meta : {},
+        "preload": preload,
         "ssr": ssr,
+        "staleTime": staleTime,
+        "gcTime": gcTime,
         "params": extractParams(path),
-        "meta": config["meta"] != null ? config["meta"] : {}
+        "id": pathToId(path)
     }
     
-    routes[path] = route
+    fileRoutes[path] = route
+    routeLoaders[path] = loader
+    routeActions[path] = action
+    routeMeta[path] = meta
     
     return route
 }
 
-pub fn defineRouteGroup(name, config) {
-    let prefix = config["prefix"]
-    let routesConfig = config["routes"]
-    let middleware = config["middleware"]
-    let type = config["type"] != null ? config["type"] : ROUTE_TYPES["CLIENT"]
+pub fn createRouteTree(routes) {
+    let tree = { "kind": "RouteTree", "children": {} }
     
-    let group = {
-        "kind": "RouteGroup",
-        "name": name,
-        "prefix": prefix,
-        "type": type,
-        "middleware": middleware != null ? middleware : [],
-        "routes": []
+    for path in routes) {
+        let route = routes[path]
+        let segments = splitPath(path)
+        let currentNode = tree
+        
+        let i = 0
+        while i < len(segments)) {
+            let segment = segments[i]
+            
+            if currentNode["children"][segment] == null) {
+                currentNode["children"][segment] = {
+                    "kind": "RouteNode",
+                    "segment": segment,
+                    "children": {},
+                    "route": i == len(segments) - 1 ? route : null
+                }
+            }
+            
+            currentNode = currentNode["children"][segment]
+            i = i + 1
+        }
     }
     
-    let i = 0
-    while i < len(routesConfig)) {
-        let routeConfig = routesConfig[i]
-        let fullPath = prefix + routeConfig["path"]
-        
-        let route = defineRoute(fullPath, {
-            ...routeConfig,
-            "type": type,
-            "middleware": [...middleware, ...(routeConfig["middleware"] != null ? routeConfig["middleware"] : [])]
-        })
-        
-        group["routes"] = push(group["routes"], route)
-        i = i + 1
+    routeTree = tree
+    return tree
+}
+
+fn pathToId(path) {
+    return replaceAll(path, "/", "_")
+}
+
+fn replaceAll(str, search, replacement) {
+    let result = str
+    while contains(result, search)) {
+        let index = indexOf(result, search)
+        result = substring(result, 0, index) + replacement + substring(result, index + len(search), len(result))
     }
-    
-    routeGroups[name] = group
-    
-    return group
+    return result
 }
 
 fn extractParams(path) {
@@ -98,43 +109,69 @@ fn extractParams(path) {
     return params
 }
 
-pub fn setRouteType(routeType) {
-    activeRouteType = routeType
-}
-
-pub fn getRouteType() {
-    return activeRouteType
-}
-
-pub fn getRoute(path) {
-    return routes[path]
-}
-
-pub fn getAllRoutes() {
-    return routes
-}
-
-pub fn getRoutesByType(routeType) {
-    let filtered = {}
+// TanStack Start-like loader execution
+pub fn executeLoader(path, params, context) {
+    let loader = routeLoaders[path]
     
-    for path in routes) {
-        if routes[path]["type"] == routeType) {
-            filtered[path] = routes[path]
-        }
+    if loader == null) {
+        return { "success": true, "data": null }
     }
     
-    return filtered
+    return loader(params, context)
 }
 
-pub fn matchRoute(path, routeType) {
-    let targetRoutes = routeType != null ? getRoutesByType(routeType) : routes
+// TanStack Start-like action execution
+pub fn executeAction(path, params, context) {
+    let action = routeActions[path]
     
-    for routePath in targetRoutes) {
+    if action == null) {
+        return { "success": false, "error": "No action defined" }
+    }
+    
+    return action(params, context)
+}
+
+// Preload route data
+pub fn preloadRoute(path, params) {
+    let route = fileRoutes[path]
+    
+    if route == null || route["preload"] == false) {
+        return null
+    }
+    
+    let loader = routeLoaders[path]
+    if loader != null) {
+        let data = executeLoader(path, params, {})
+        preloadedData[path] = data
+        return data
+    }
+    
+    return null
+}
+
+// Get preloaded data
+pub fn getPreloadedData(path) {
+    return preloadedData[path]
+}
+
+// Clear preloaded data
+pub fn clearPreloadedData(path) {
+    if path != null) {
+        preloadedData[path] = null
+    } else {
+        preloadedData = {}
+    }
+}
+
+// Match route with TanStack Start-like matching
+pub fn matchRoute(path) {
+    for routePath in fileRoutes) {
         let match = matchPath(routePath, path)
         if match != null) {
             return {
-                "route": targetRoutes[routePath],
-                "params": match["params"]
+                "route": fileRoutes[routePath],
+                "params": match["params"],
+                "id": fileRoutes[routePath]["id"]
             }
         }
     }
@@ -177,160 +214,29 @@ fn matchPath(routePath, currentPath) {
     return { "params": params }
 }
 
-pub fn createRouter(config) {
-    let defaultRouteType = config["defaultType"] != null ? config["defaultType"] : ROUTE_TYPES["HYBRID"]
-    let fallback = config["fallback"]
-    
-    return {
-        "kind": "Router",
-        "defaultType": defaultRouteType,
-        "fallback": fallback,
-        "currentPath": "/",
-        "match": fn(path, routeType) {
-            return matchRoute(path, routeType != null ? routeType : defaultRouteType)
-        },
-        "navigate": fn(path, options) {
-            return navigate(path, options)
-        }
-    }
-}
-
-pub fn navigate(path, options) {
-    let routeType = options != null && options["type"] != null ? options["type"] : activeRouteType
-    let replace = options != null && options["replace"] == true
-    let state = options != null ? options["state"] : null
-    
-    let matched = matchRoute(path, routeType)
-    
-    if matched == null) {
-        return { "success": false, "error": "Route not found" }
-    }
-    
-    let route = matched["route"]
-    let params = matched["params"]
-    
-    if route["type"] == ROUTE_TYPES["SERVER"] || route["type"] == ROUTE_TYPES["API"]) {
-        return executeServerRoute(route, params, state)
-    }
-    
-    if route["type"] == ROUTE_TYPES["DATABASE"]) {
-        return executeDatabaseRoute(route, params, state)
-    }
-    
-    return {
-        "success": true,
-        "route": route,
-        "params": params,
-        "type": route["type"]
-    }
-}
-
-pub fn executeServerRoute(route, params, state) {
-    if route["handler"] == null) {
-        return { "success": false, "error": "No handler defined" }
-    }
-    
-    let middlewareResult = executeMiddleware(route["middleware"], params, state)
-    if middlewareResult["success"] == false) {
-        return middlewareResult
-    }
-    
-    return route["handler"](params, state)
-}
-
-pub fn executeDatabaseRoute(route, params, state) {
-    if route["database"] == null) {
-        return { "success": false, "error": "No database defined" }
-    }
-    
-    let middlewareResult = executeMiddleware(route["middleware"], params, state)
-    if middlewareResult["success"] == false) {
-        return middlewareResult
-    }
-    
-    return executeDatabaseQuery(route["database"], params)
-}
-
-fn executeMiddleware(middleware, params, state) {
-    let i = 0
-    while i < len(middleware)) {
-        let result = middleware[i](params, state)
-        if result != null && result["success"] == false) {
-            return result
-        }
-        i = i + 1
-    }
-    return { "success": true }
-}
-
-pub fn executeDatabaseQuery(databaseConfig, params) {
-    let table = databaseConfig["table"]
-    let operation = databaseConfig["operation"]
-    let query = databaseConfig["query"]
-    
-    return {
-        "success": true,
-        "table": table,
-        "operation": operation,
-        "query": query,
-        "params": params
-    }
-}
-
-pub fn createAPIRoute(path, handler, options) {
-    let method = options != null && options["method"] != null ? options["method"] : "GET"
-    let middleware = options != null ? options["middleware"] : null
-    
-    return defineRoute(path, {
-        "type": ROUTE_TYPES["API"],
-        "handler": handler,
-        "middleware": middleware != null ? middleware : [],
-        "meta": { "method": method }
-    })
-}
-
-pub fn createServerRoute(path, handler, options) {
-    let ssr = options != null && options["ssr"] == true
-    
-    return defineRoute(path, {
-        "type": ROUTE_TYPES["SERVER"],
-        "handler": handler,
-        "ssr": ssr
-    })
-}
-
-pub fn createDatabaseRoute(path, databaseConfig, options) {
-    return defineRoute(path, {
-        "type": ROUTE_TYPES["DATABASE"],
-        "database": databaseConfig
-    })
-}
-
-pub fn createClientRoute(path, component, options) {
-    let ssr = options != null && options["ssr"] == true
-    
-    return defineRoute(path, {
-        "type": ROUTE_TYPES["CLIENT"],
-        "component": component,
-        "ssr": ssr
-    })
-}
-
-pub fn createHybridRoute(path, config) {
-    return defineRoute(path, {
-        "type": ROUTE_TYPES["HYBRID"],
-        ...config
-    })
-}
-
+// TanStack Start-like Router component
 pub fn Router(props) {
     let routes = props["routes"]
     let fallback = props["fallback"]
-    let routeType = props["routeType"] != null ? props["routeType"] : activeRouteType
     
     let (currentPath, setCurrentPath] = useState(getCurrentPath())
+    let (loaderData, setLoaderData] = useState(null)
+    let (isLoading, setIsLoading] = useState(false)
     
-    let matched = matchRoute(currentPath, routeType)
+    let matched = matchRoute(currentPath)
+    
+    useEffect(fn() {
+        if matched != null) {
+            let route = matched["route"]
+            
+            if route["loader"] != null) {
+                setIsLoading(true)
+                let data = executeLoader(matched["id"], matched["params"], {})
+                setLoaderData(data)
+                setIsLoading(false)
+            }
+        }
+    }, [currentPath])
     
     if matched == null) {
         return fallback != null ? fallback : createElement("div", {}, "404 Not Found")
@@ -339,25 +245,74 @@ pub fn Router(props) {
     let route = matched["route"]
     let params = matched["params"]
     
-    if route["type"] == ROUTE_TYPES["CLIENT"] || route["type"] == ROUTE_TYPES["HYBRID"]) {
-        if route["component"] != null) {
-            return createElement(route["component"], { "params": params })
+    if isLoading) {
+        return createElement("div", {}, "Loading...")
+    }
+    
+    if route["component"] != null) {
+        return createElement(route["component"], { 
+            "params": params,
+            "loaderData": loaderData
+        })
+    }
+    
+    return createElement("div", {}, "No component")
+}
+
+// TanStack Start-like hooks
+pub fn useLoaderData() {
+    let (data, setData] = useState(null)
+    
+    useEffect(fn() {
+        let matched = matchRoute(getCurrentPath())
+        if matched != null) {
+            let route = matched["route"]
+            if route["loader"] != null) {
+                let result = executeLoader(matched["id"], matched["params"], {})
+                setData(result)
+            }
+        }
+    }, [])
+    
+    return data
+}
+
+pub fn useRouteMatches() {
+    let (matches, setMatches] = useState([])
+    
+    useEffect(fn() {
+        let currentPath = getCurrentPath()
+        let matched = matchRoute(currentPath)
+        if matched != null) {
+            setMatches([matched])
+        }
+    }, [])
+    
+    return matches
+}
+
+pub fn useNavigate() {
+    let (currentPath, setCurrentPath] = useState(getCurrentPath())
+    
+    let navigate = fn(path, options) {
+        let matched = matchRoute(path)
+        if matched != null) {
+            setCurrentPath(path)
+            
+            if options != null && options["preload"] == true) {
+                preloadRoute(path, matched["params"])
+            }
         }
     }
     
-    return createElement("div", {}, "Route type: " + route["type"])
-}
-
-pub fn useRoute(path) {
-    let matched = matchRoute(path, activeRouteType)
-    return matched
+    return navigate
 }
 
 pub fn useParams() {
     let (params, setParams] = useState({})
     
     useEffect(fn() {
-        let matched = matchRoute(getCurrentPath(), activeRouteType)
+        let matched = matchRoute(getCurrentPath())
         if matched != null) {
             setParams(matched["params"])
         }
@@ -366,19 +321,220 @@ pub fn useParams() {
     return params
 }
 
-pub fn useRouteType() {
-    return activeRouteType
+pub fn useSearch() {
+    let (search, setSearch] = useState({})
+    return [search, setSearch]
 }
 
-pub fn useNavigate() {
-    return navigate
+pub fn useLinkProps(to, options) {
+    let navigate = useNavigate()
+    
+    return {
+        "href": to,
+        "onClick": fn(event) {
+            event["preventDefault"]()
+            navigate(to, options)
+        }
+    }
 }
 
-pub fn getCurrentPath() {
-    return "/"
+// TanStack Start-like Link component
+pub fn Link(props) {
+    let to = props["to"]
+    let children = props["children"]
+    let preload = props["preload"] != null ? props["preload"] : false
+    let options = { "preload": preload }
+    
+    let linkProps = useLinkProps(to, options)
+    
+    let handleMouseEnter = fn() {
+        if preload) {
+            let matched = matchRoute(to)
+            if matched != null) {
+                preloadRoute(to, matched["params"])
+            }
+        }
+    }
+    
+    return createElement("a", {
+        "href": to,
+        "onClick": linkProps["onClick"],
+        "onMouseEnter": handleMouseEnter
+    }, children)
 }
 
-pub function splitPath(path) {
+// TanStack Start-like Navigate component
+pub fn Navigate(props) {
+    let to = props["to"]
+    let navigate = useNavigate()
+    
+    useEffect(fn() {
+        navigate(to)
+    }, [to])
+    
+    return null
+}
+
+// SSR rendering with TanStack Start-like approach
+pub fn renderRouteSSR(path, context) {
+    let matched = matchRoute(path)
+    
+    if matched == null) {
+        return { "html": "404 Not Found", "data": null }
+    }
+    
+    let route = matched["route"]
+    let params = matched["params"]
+    
+    let loaderData = null
+    if route["loader"] != null) {
+        loaderData = executeLoader(matched["id"], params, context)
+    }
+    
+    let html = null
+    if route["component"] != null) {
+        let element = createElement(route["component"], {
+            "params": params,
+            "loaderData": loaderData
+        })
+        html = renderToStringOptimized(element)
+    }
+    
+    return {
+        "html": html,
+        "data": loaderData,
+        "route": route,
+        "params": params
+    }
+}
+
+// TanStack Start-like createRouter
+pub fn createRouter(config) {
+    let routes = config["routes"] != null ? config["routes"] : fileRoutes
+    
+    return {
+        "kind": "TanStackRouter",
+        "routes": routes,
+        "match": fn(path) {
+            return matchRoute(path)
+        },
+        "navigate": fn(path, options) {
+            return navigate(path, options)
+        },
+        "preload": fn(path, params) {
+            return preloadRoute(path, params)
+        }
+    }
+}
+
+// TanStack Start-like createRouteConfig
+pub fn createRouteConfig(path, config) {
+    return createFileRoute(path, config)
+}
+
+// TanStack Start-like createRootRoute
+pub fn createRootRoute(config) {
+    return createFileRoute("/", config)
+}
+
+// TanStack Start-like createRoute
+pub fn createRoute(path, config) {
+    return createFileRoute(path, config)
+}
+
+// TanStack Start-like lazy route loading
+pub fn lazyRoute(importFn) {
+    let (component, setComponent] = useState(null)
+    let (loading, setLoading] = useState(true)
+    
+    useEffect(fn() {
+        importFn().then(fn(module) {
+            setComponent(module["default"])
+            setLoading(false)
+        })
+    }, [])
+    
+    return {
+        "component": component,
+        "loading": loading
+    }
+}
+
+// TanStack Start-like route meta
+pub fn useRouteMeta() {
+    let (meta, setMeta] = useState({})
+    
+    useEffect(fn() {
+        let matched = matchRoute(getCurrentPath())
+        if matched != null) {
+            setMeta(matched["route"]["meta"])
+        }
+    }, [])
+    
+    return meta
+}
+
+// TanStack Start-like redirect
+pub fn redirect(to) {
+    return {
+        "kind": "Redirect",
+        "to": to
+    }
+}
+
+// TanStack Start-like notFound
+pub fn notFound() {
+    return {
+        "kind": "NotFound"
+    }
+}
+
+// TanStack Start-like defer
+pub fn defer(promise) {
+    return {
+        "kind": "Deferred",
+        "promise": promise
+    }
+}
+
+// Helper functions
+fn contains(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn indexOf(str, substr) {
+    let i = 0
+    while i < len(str) - len(substr) + 1) {
+        let j = 0
+        while j < len(substr)) {
+            if str[i + j] != substr[j]) {
+                break
+            }
+            j = j + 1
+        }
+        if j == len(substr)) {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn splitPath(path) {
     let segments = []
     let parts = split(path, "/")
     
@@ -434,6 +590,14 @@ fn split(str, delimiter) {
     }
     parts = push(parts, current)
     return parts
+}
+
+fn getCurrentPath() {
+    return "/"
+}
+
+fn renderToStringOptimized(element) {
+    return "<div>Rendered</div>"
 }
 
 fn typeof(value) {
