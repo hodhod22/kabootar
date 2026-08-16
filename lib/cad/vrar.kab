@@ -1,0 +1,587 @@
+@version "1.0.0"
+
+// CAD VR/AR - VR/AR support for visualization
+// Features: VR headset support, AR overlay, 3D interaction, spatial audio
+// Canonical path: import "cad/vrar"
+// Target: VR/AR support comparable to Unity/Unreal Engine VR
+
+import "cad/geom"
+import "cad/render"
+import "cad/host"
+
+pub fn createVRSystem() {
+    return {
+        "kind": "VRSystem",
+        "headset": null,
+        "controllers": [],
+        "trackingSpace": "standing",
+        "renderTarget": null,
+        "enabled": false
+    }
+}
+
+pub fn createARSystem() {
+    return {
+        "kind": "ARSystem",
+        "camera": null,
+        "tracking": "world",
+        "planeDetection": true,
+        "lightEstimation": true,
+        "enabled": false
+    }
+}
+
+pub fn createVRHeadset(name, fov, refreshRate) {
+    return {
+        "kind": "VRHeadset",
+        "name": name,
+        "fov": fov,
+        "refreshRate": refreshRate,
+        "resolution": { "width": 2160, "height": 1200 },
+        "ipd": 0.064,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0)
+    }
+}
+
+pub fn createVRController(hand, tracking) {
+    return {
+        "kind": "VRController",
+        "hand": hand,
+        "tracking": tracking,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0),
+        "buttons": {},
+        "trigger": 0.0,
+        "grip": 0.0,
+        "thumbstick": vec2(0.0, 0.0)
+    }
+}
+
+pub fn setVRHeadset(system, headset) {
+    system["headset"] = headset
+    return system
+}
+
+pub fn addVRController(system, controller) {
+    system["controllers"] = push(system["controllers"], controller)
+    return system
+}
+
+pub fn enableVR(system) {
+    system["enabled"] = true
+    return system
+}
+
+pub fn disableVR(system) {
+    system["enabled"] = false
+    return system
+}
+
+pub fn enableAR(system) {
+    system["enabled"] = true
+    return system
+}
+
+pub fn disableAR(system) {
+    system["enabled"] = false
+    return system
+}
+
+pub fn createVRRenderTarget(width, height, eyeCount) {
+    return {
+        "kind": "VRRenderTarget",
+        "width": width,
+        "height": height,
+        "eyeCount": eyeCount,
+        "textures": []
+    }
+}
+
+pub fn setVRRenderTarget(system, renderTarget) {
+    system["renderTarget"] = renderTarget
+    return system
+}
+
+pub fn updateVRTracking(system, headsetPosition, headsetRotation, controllerData) {
+    if system["headset"] != null {
+        system["headset"]["position"] = headsetPosition
+        system["headset"]["rotation"] = headsetRotation
+    }
+    
+    let i = 0
+    while i < len(system["controllers"]) {
+        if i < len(controllerData) {
+            system["controllers"][i]["position"] = controllerData[i]["position"]
+            system["controllers"][i]["rotation"] = controllerData[i]["rotation"]
+            system["controllers"][i]["trigger"] = controllerData[i]["trigger"]
+            system["controllers"][i]["grip"] = controllerData[i]["grip"]
+            system["controllers"][i]["thumbstick"] = controllerData[i]["thumbstick"]
+        }
+        i = i + 1
+    }
+    
+    return system
+}
+
+pub fn createVRInteractionTool(type) {
+    return {
+        "kind": "VRInteractionTool",
+        "type": type,
+        "active": false,
+        "selectedObject": null
+    }
+}
+
+pub fn createVRGrabTool() {
+    return createVRInteractionTool("grab")
+}
+
+pub fn createVRScaleTool() {
+    return createVRInteractionTool("scale")
+}
+
+pub fn createVRRotateTool() {
+    return createVRInteractionTool("rotate")
+}
+
+pub fn createVRDrawTool() {
+    return createVRInteractionTool("draw")
+}
+
+pub fn createVRMeasureTool() {
+    return createVRInteractionTool("measure")
+}
+
+pub fn activateVRTool(tool) {
+    tool["active"] = true
+    return tool
+}
+
+pub fn deactivateVRTool(tool) {
+    tool["active"] = false
+    tool["selectedObject"] = null
+    return tool
+}
+
+pub fn processVRInteraction(tool, controller, scene) {
+    if tool["active"] == false {
+        return { "scene": scene, "result": null }
+    }
+    
+    let type = tool["type"]
+    
+    if type == "grab" && controller["trigger"] > 0.5 {
+        let ray = createRayFromController(controller)
+        let hit = raycastScene(scene, ray)
+        
+        if hit["hit"] == true {
+            tool["selectedObject"] = hit["objectId"]
+            return { "scene": scene, "result": { "action": "grabbed", "objectId": hit["objectId"] } }
+        }
+    } else if type == "draw" && controller["trigger"] > 0.5 {
+        let ray = createRayFromController(controller)
+        let hit = raycastScene(scene, ray)
+        
+        if hit["hit"] == true {
+            return { "scene": scene, "result": { "action": "drawn", "point": hit["point"] } }
+        }
+    } else if type == "measure" && controller["trigger"] > 0.5 {
+        let ray = createRayFromController(controller)
+        let hit = raycastScene(scene, ray)
+        
+        if hit["hit"] == true {
+            return { "scene": scene, "result": { "action": "measured", "point": hit["point"] } }
+        }
+    }
+    
+    return { "scene": scene, "result": null }
+}
+
+fn createRayFromController(controller) {
+    let position = controller["position"]
+    let rotation = controller["rotation"]
+    
+    let forward = vec3(0.0, 0.0, -1.0)
+    let rotatedForward = rotateVector(forward, rotation)
+    
+    return {
+        "origin": position,
+        "direction": vec3Normalize(rotatedForward)
+    }
+}
+
+fn raycastScene(scene, ray) {
+    let closestHit = { "hit": false, "distance": 1e10 }
+    
+    let i = 0
+    while i < len(scene["objects"]) {
+        let object = scene["objects"][i]
+        let hit = intersectObject(object, ray)
+        
+        if hit["hit"] == true && hit["distance"] < closestHit["distance"] {
+            closestHit = hit
+            closestHit["objectId"] = object["id"]
+        }
+        
+        i = i + 1
+    }
+    
+    return closestHit
+}
+
+fn intersectObject(object, ray) {
+    let kind = object["kind"]
+    
+    if kind == "Sphere" {
+        return intersectSphere(object, ray)
+    } else if kind == "Box" {
+        return intersectBox(object, ray)
+    } else if kind == "Mesh" {
+        return intersectMesh(object, ray)
+    }
+    
+    return { "hit": false }
+}
+
+fn intersectSphere(sphere, ray) {
+    let center = sphere["center"]
+    let radius = sphere["radius"]
+    
+    let oc = vec3Sub(ray["origin"], center)
+    let a = vec3Dot(ray["direction"], ray["direction"])
+    let b = 2.0 * vec3Dot(oc, ray["direction"])
+    let c = vec3Dot(oc, oc) - radius * radius
+    
+    let discriminant = b * b - 4.0 * a * c
+    
+    if discriminant < 0.0 {
+        return { "hit": false }
+    }
+    
+    let t = (-b - sqrt(discriminant)) / (2.0 * a)
+    
+    if t < 0.0 {
+        return { "hit": false }
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    let normal = vec3Normalize(vec3Sub(hitPoint, center))
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+fn intersectBox(box, ray) {
+    let min = box["min"]
+    let max = box["max"]
+    
+    let t1 = (min["x"] - ray["origin"]["x"]) / ray["direction"]["x"]
+    let t2 = (max["x"] - ray["origin"]["x"]) / ray["direction"]["x"]
+    let t3 = (min["y"] - ray["origin"]["y"]) / ray["direction"]["y"]
+    let t4 = (max["y"] - ray["origin"]["y"]) / ray["direction"]["y"]
+    let t5 = (min["z"] - ray["origin"]["z"]) / ray["direction"]["z"]
+    let t6 = (max["z"] - ray["origin"]["z"]) / ray["direction"]["z"]
+    
+    let tmin = max(min(t1, t2), min(t3, t4), min(t5, t6))
+    let tmax = min(max(t1, t2), max(t3, t4), max(t5, t6))
+    
+    if tmax < 0.0 {
+        return { "hit": false }
+    }
+    
+    if tmin > tmax {
+        return { "hit": false }
+    }
+    
+    let t = tmin
+    if t < 0.0 {
+        t = tmax
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    
+    let normal = vec3(1.0, 0.0, 0.0)
+    if abs(hitPoint["x"] - min["x"]) < 0.001 { normal = vec3(-1.0, 0.0, 0.0) }
+    if abs(hitPoint["x"] - max["x"]) < 0.001 { normal = vec3(1.0, 0.0, 0.0) }
+    if abs(hitPoint["y"] - min["y"]) < 0.001 { normal = vec3(0.0, -1.0, 0.0) }
+    if abs(hitPoint["y"] - max["y"]) < 0.001 { normal = vec3(0.0, 1.0, 0.0) }
+    if abs(hitPoint["z"] - min["z"]) < 0.001 { normal = vec3(0.0, 0.0, -1.0) }
+    if abs(hitPoint["z"] - max["z"]) < 0.001 { normal = vec3(0.0, 0.0, 1.0) }
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+fn intersectMesh(mesh, ray) {
+    let vertices = mesh["vertices"]
+    let indices = mesh["indices"]
+    
+    let closestHit = { "hit": false, "distance": 1e10 }
+    
+    let i = 0
+    while i < len(indices) step 3 {
+        let v0 = vertices[indices[i]]
+        let v1 = vertices[indices[i + 1]]
+        let v2 = vertices[indices[i + 2]]
+        
+        let hit = intersectTriangle(v0, v1, v2, ray)
+        
+        if hit["hit"] == true && hit["distance"] < closestHit["distance"] {
+            closestHit = hit
+        }
+        
+        i = i + 3
+    }
+    
+    return closestHit
+}
+
+fn intersectTriangle(v0, v1, v2, ray) {
+    let edge1 = vec3Sub(v1, v0)
+    let edge2 = vec3Sub(v2, v0)
+    
+    let h = vec3Cross(ray["direction"], edge2)
+    let a = vec3Dot(edge1, h)
+    
+    if a > -0.0001 && a < 0.0001 {
+        return { "hit": false }
+    }
+    
+    let f = 1.0 / a
+    let s = vec3Sub(ray["origin"], v0)
+    let u = f * vec3Dot(s, h)
+    
+    if u < 0.0 || u > 1.0 {
+        return { "hit": false }
+    }
+    
+    let q = vec3Cross(s, edge1)
+    let v = f * vec3Dot(ray["direction"], q)
+    
+    if v < 0.0 || u + v > 1.0 {
+        return { "hit": false }
+    }
+    
+    let t = f * vec3Dot(edge2, q)
+    
+    if t < 0.001 {
+        return { "hit": false }
+    }
+    
+    let hitPoint = vec3Add(ray["origin"], vec3Mul(ray["direction"], t))
+    let normal = vec3Normalize(vec3Cross(edge1, edge2))
+    
+    return {
+        "hit": true,
+        "distance": t,
+        "point": hitPoint,
+        "normal": normal
+    }
+}
+
+pub fn createVRScene(document) {
+    return {
+        "kind": "VRScene",
+        "document": document,
+        "objects": [],
+        "environment": createVREnvironment()
+    }
+}
+
+pub fn createVREnvironment() {
+    return {
+        "kind": "VREnvironment",
+        "skybox": null,
+        "lighting": {
+            "ambient": vec3(0.2, 0.2, 0.2),
+            "directional": vec3(0.8, 0.8, 0.8),
+            "direction": vec3(0.5, -1.0, 0.5)
+        },
+        "fog": {
+            "enabled": false,
+            "density": 0.01,
+            "color": vec3(0.5, 0.5, 0.5)
+        }
+    }
+}
+
+pub fn createAROverlay(document, anchorType) {
+    return {
+        "kind": "AROverlay",
+        "document": document,
+        "anchorType": anchorType,
+        "scale": 1.0,
+        "position": vec3(0.0, 0.0, 0.0),
+        "rotation": vec3(0.0, 0.0, 0.0)
+    }
+}
+
+pub fn setAROverlayPosition(overlay, position) {
+    overlay["position"] = position
+    return overlay
+}
+
+pub fn setAROverlayRotation(overlay, rotation) {
+    overlay["rotation"] = rotation
+    return overlay
+}
+
+pub fn setAROverlayScale(overlay, scale) {
+    overlay["scale"] = scale
+    return overlay
+}
+
+pub fn createSpatialAudioSource(position, sound) {
+    return {
+        "kind": "SpatialAudioSource",
+        "position": position,
+        "sound": sound,
+        "volume": 1.0,
+        "radius": 10.0,
+        "loop": false
+    }
+}
+
+pub fn updateSpatialAudio(source, listenerPosition) {
+    let distance = vec3Distance(source["position"], listenerPosition)
+    let attenuation = 1.0 / (1.0 + distance / source["radius"])
+    source["currentVolume"] = source["volume"] * attenuation
+    return source
+}
+
+pub fn createHapticFeedback(pattern, intensity, duration) {
+    return {
+        "kind": "HapticFeedback",
+        "pattern": pattern,
+        "intensity": intensity,
+        "duration": duration
+    }
+}
+
+pub fn triggerHapticFeedback(controller, haptic) {
+    controller["haptic"] = haptic
+    return controller
+}
+
+pub fn createVRGesture(type, parameters) {
+    return {
+        "kind": "VRGesture",
+        "type": type,
+        "parameters": parameters,
+        "confidence": 0.0
+    }
+}
+
+pub fn recognizeVRGesture(controller, previousState) {
+    let position = controller["position"]
+    let prevPosition = previousState["position"]
+    
+    let velocity = vec3Distance(position, prevPosition)
+    
+    if velocity > 0.5 {
+        return createVRGesture("swipe", { "direction": vec3Sub(position, prevPosition), "speed": velocity })
+    } else if controller["trigger"] > 0.8 {
+        return createVRGesture("pinch", { "strength": controller["trigger"] })
+    }
+    
+    return null
+}
+
+fn vec3Add(a, b) {
+    return vec3(a["x"] + b["x"], a["y"] + b["y"], a["z"] + b["z"])
+}
+
+fn vec3Sub(a, b) {
+    return vec3(a["x"] - b["x"], a["y"] - b["y"], a["z"] - b["z"])
+}
+
+fn vec3Mul(v, s) {
+    return vec3(v["x"] * s, v["y"] * s, v["z"] * s)
+}
+
+fn vec3Dot(a, b) {
+    return a["x"] * b["x"] + a["y"] * b["y"] + a["z"] * b["z"]
+}
+
+fn vec3Cross(a, b) {
+    return vec3(
+        a["y"] * b["z"] - a["z"] * b["y"],
+        a["z"] * b["x"] - a["x"] * b["z"],
+        a["x"] * b["y"] - a["y"] * b["x"]
+    )
+}
+
+fn vec3Normalize(v) {
+    let len = sqrt(v["x"] * v["x"] + v["y"] * v["y"] + v["z"] * v["z"])
+    if len == 0.0 {
+        return vec3(0.0, 0.0, 0.0)
+    }
+    return vec3Mul(v, 1.0 / len)
+}
+
+fn vec3Distance(a, b) {
+    return sqrt(vec3Dot(vec3Sub(b, a), vec3Sub(b, a)))
+}
+
+fn rotateVector(v, rotation) {
+    let pitch = rotation["x"]
+    let yaw = rotation["y"]
+    let roll = rotation["z"]
+    
+    let cosP = cos(pitch)
+    let sinP = sin(pitch)
+    let cosY = cos(yaw)
+    let sinY = sin(yaw)
+    let cosR = cos(roll)
+    let sinR = sin(roll)
+    
+    let x = v["x"]
+    let y = v["y"]
+    let z = v["z"]
+    
+    let x1 = x * cosY + z * sinY
+    let z1 = -x * sinY + z * cosY
+    
+    let y2 = y * cosP - z1 * sinP
+    let z2 = y * sinP + z1 * cosP
+    
+    let x3 = x1 * cosR - y2 * sinR
+    let y3 = x1 * sinR + y2 * cosR
+    
+    return vec3(x3, y3, z2)
+}
+
+fn sqrt(value) {
+    return systemSqrt(value)
+}
+
+fn cos(value) {
+    return systemCos(value)
+}
+
+fn sin(value) {
+    return systemSin(value)
+}
+
+fn max(a, b, c) {
+    let result = a
+    if b > result { result = b }
+    if c > result { result = c }
+    return result
+}
+
+fn min(a, b, c) {
+    let result = a
+    if b < result { result = b }
+    if c < result { result = c }
+    return result
+}
