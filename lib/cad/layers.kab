@@ -6,6 +6,7 @@
 // Target: Layer system comparable to Figma/Photoshop/Sketch
 
 import "cad/document"
+import "cad/host"
 
 pub fn createLayer(name) {
     return {
@@ -25,27 +26,148 @@ pub fn createLayerSystem() {
     return {
         "kind": "LayerSystem",
         "root": createLayer("Root"),
+        "layers": {},
         "layerCounter": 1
     }
 }
 
-pub fn addLayer(parentId, layer) {
-    let parent = getLayerById(parentId)
+pub fn addLayerToSystem(system, parentId, layer) {
+    let parent = system["layers"][parentId]
     if parent == null {
-        return layer
+        parent = system["root"]
     }
-    parent["children"] = push(parent["children"], layer)
+    parent["children"] = push(parent["children"], layer["id"])
+    system["layers"][layer["id"]] = layer
+    system["layerCounter"] = system["layerCounter"] + 1
+    return system
+}
+
+pub fn removeLayerFromSystem(system, layerId) {
+    system["layers"][layerId] = null
+    let i = 0
+    while i < len(system["root"]["children"]) {
+        if system["root"]["children"][i] == layerId {
+            let before = system["root"]["children"][0:i]
+            let after = system["root"]["children"][i + 1:]
+            system["root"]["children"] = before
+            let j = 0
+            while j < len(after) {
+                system["root"]["children"] = push(system["root"]["children"], after[j])
+                j = j + 1
+            }
+            break
+        }
+        i = i + 1
+    }
+    return system
+}
+
+pub fn getLayerById(system, layerId) {
+    if layerId == system["root"]["id"] {
+        return system["root"]
+    }
+    return system["layers"][layerId]
+}
+
+pub fn createLayerGroup(name) {
+    let layer = createLayer(name)
+    layer["isGroup"] = true
     return layer
 }
 
-pub fn removeLayer(layerId) {
-    // Implementation would traverse and remove
-    return null
+pub fn groupLayers(system, layerIds, groupName) {
+    let group = createLayerGroup(groupName)
+    system["layers"][group["id"]] = group
+    
+    let i = 0
+    while i < len(layerIds) {
+        let layerId = layerIds[i]
+        let layer = system["layers"][layerId]
+        if layer != null {
+            layer["parentId"] = group["id"]
+            group["children"] = push(group["children"], layerId)
+            system["layers"][layerId] = layer
+        }
+        i = i + 1
+    }
+    
+    system["layers"][group["id"]] = group
+    return system
 }
 
-pub fn getLayerById(layerId) {
-    // Implementation would traverse layer tree
-    return null
+pub fn ungroupLayer(system, groupId) {
+    let group = system["layers"][groupId]
+    if group == null || group["isGroup"] != true {
+        return system
+    }
+    
+    let i = 0
+    while i < len(group["children"]) {
+        let childId = group["children"][i]
+        let child = system["layers"][childId]
+        if child != null {
+            child["parentId"] = system["root"]["id"]
+            system["layers"][childId] = child
+        }
+        i = i + 1
+    }
+    
+    system["layers"][groupId] = null
+    return system
+}
+
+pub fn lockLayer(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["locked"] = true
+        system["layers"][layerId] = layer
+    }
+    return system
+}
+
+pub fn unlockLayer(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["locked"] = false
+        system["layers"][layerId] = layer
+    }
+    return system
+}
+
+pub fn hideLayer(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["visible"] = false
+        system["layers"][layerId] = layer
+    }
+    return system
+}
+
+pub fn showLayer(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["visible"] = true
+        system["layers"][layerId] = layer
+    }
+    return system
+}
+
+pub fn toggleLayerVisibility(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["visible"] = !layer["visible"]
+        system["layers"][layerId] = layer
+    }
+    return system
+}
+
+pub fn toggleLayerLock(system, layerId) {
+    let layer = getLayerById(system, layerId)
+    if layer != null {
+        layer["locked"] = !layer["locked"]
+        system["layers"][layerId] = layer
+    }
+    return system
 }
 
 pub fn setLayerVisible(layer, visible) {
