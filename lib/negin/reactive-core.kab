@@ -1,0 +1,661 @@
+@version "1.0.0"
+
+// Negin Reactive Core - Reactive core with signals as default
+// Features: Signals, computed signals, auto-tracking, fine-grained reactivity
+// Canonical path: import "negin/reactive-core"
+// Target: Better than React with fine-grained reactivity
+
+import "negin/core"
+
+// Signal implementation (better than React's useState)
+let signalIdCounter = 0
+let activeComputation = null
+let signalDependencies = {}
+let computationDependencies = {}
+
+pub fn signal(initialValue) {
+    let id = signalIdCounter
+    signalIdCounter = signalIdCounter + 1
+    
+    let value = initialValue
+    let subscribers = []
+    
+    let signal = {
+        "kind": "Signal",
+        "id": id,
+        "get": fn() {
+            if activeComputation != null) {
+                trackDependency(activeComputation, id)
+            }
+            return value
+        },
+        "set": fn(newValue) {
+            if value !== newValue) {
+                value = newValue
+                notifySubscribers(subscribers)
+            }
+        },
+        "update": fn(updater) {
+            let newValue = updater(value)
+            if value !== newValue) {
+                value = newValue
+                notifySubscribers(subscribers)
+            }
+        },
+        "peek": fn() {
+            return value
+        }
+    }
+    
+    return signal
+}
+
+fn trackDependency(computation, signalId) {
+    if computationDependencies[computation] == null) {
+        computationDependencies[computation] = []
+    }
+    
+    let deps = computationDependencies[computation]
+    let i = 0
+    let found = false
+    while i < len(deps)) {
+        if deps[i] == signalId) {
+            found = true
+            break
+        }
+        i = i + 1
+    }
+    
+    if !found) {
+        deps = push(deps, signalId)
+        computationDependencies[computation] = deps
+        
+        if signalDependencies[signalId] == null) {
+            signalDependencies[signalId] = []
+        }
+        signalDependencies[signalId] = push(signalDependencies[signalId], computation)
+    }
+}
+
+fn notifySubscribers(subscribers) {
+    let i = 0
+    while i < len(subscribers)) {
+        subscribers[i]()
+        i = i + 1
+    }
+}
+
+// Computed signals (derived state)
+pub fn computed(getter) {
+    let value = null
+    let dirty = true
+    let subscribers = []
+    
+    let computation = {
+        "kind": "Computed",
+        "id": signalIdCounter,
+        signalIdCounter = signalIdCounter + 1,
+        "run": fn() {
+            let prevComputation = activeComputation
+            activeComputation = this
+            value = getter()
+            activeComputation = prevComputation
+            dirty = false
+        }
+    }
+    
+    let computed = {
+        "kind": "Computed",
+        "get": fn() {
+            if activeComputation != null) {
+                trackDependency(activeComputation, computation["id"])
+            }
+            if dirty) {
+                computation["run"]()
+            }
+            return value
+        },
+        "peek": fn() {
+            if dirty) {
+                computation["run"]()
+            }
+            return value
+        }
+    }
+    
+    return computed
+}
+
+// Effect (side effects)
+pub fn effect(fn) {
+    let computation = {
+        "kind": "Effect",
+        "id": signalIdCounter,
+        signalIdCounter = signalIdCounter + 1,
+        "run": fn() {
+            let prevComputation = activeComputation
+            activeComputation = this
+            
+            // Clear old dependencies
+            if computationDependencies[this] != null) {
+                let i = 0
+                while i < len(computationDependencies[this])) {
+                    let signalId = computationDependencies[this][i]
+                    if signalDependencies[signalId] != null) {
+                        let newSubs = []
+                        let j = 0
+                        while j < len(signalDependencies[signalId])) {
+                            if signalDependencies[signalId][j] !== this) {
+                                newSubs = push(newSubs, signalDependencies[signalId][j])
+                            }
+                            j = j + 1
+                        }
+                        signalDependencies[signalId] = newSubs
+                    }
+                    i = i + 1
+                }
+            }
+            
+            computationDependencies[this] = []
+            
+            fn()
+            
+            activeComputation = prevComputation
+        }
+    }
+    
+    computation["run"]()
+}
+
+// Batch updates (auto-batching)
+let batchQueue = []
+let isBatching = false
+
+pub fn batch(fn) {
+    let prevBatching = isBatching
+    isBatching = true
+    
+    fn()
+    
+    isBatching = prevBatching
+    
+    if !isBatching) {
+        flushBatch()
+    }
+}
+
+fn flushBatch() {
+    let i = 0
+    while i < len(batchQueue)) {
+        batchQueue[i]()
+        i = i + 1
+    }
+    batchQueue = []
+}
+
+// Reactive component wrapper
+pub fn reactive(Component) {
+    return fn(props) {
+        let (signalState, setSignalState] = useState(createSignalState(props))
+        
+        let reactiveProps = createReactiveProps(props)
+        
+        return Component({
+            ...reactiveProps,
+            ...signalState
+        })
+    }
+}
+
+fn createSignalState(props) {
+    let state = {}
+    
+    for key in props) {
+        state[key] = signal(props[key])
+    }
+    
+    return state
+}
+
+fn createReactiveProps(props) {
+    let reactive = {}
+    
+    for key in props) {
+        reactive[key] = signal(props[key])
+    }
+    
+    return reactive
+}
+
+// useSignal hook (better than useState)
+pub fn useSignal(initialValue) {
+    let (signal, setSignal] = useState(signal(initialValue))
+    return signal
+}
+
+// useComputed hook
+pub fn useComputed(getter) {
+    let (computed, setComputed] = useState(computed(getter))
+    return computed
+}
+
+// useSignalValue hook (convenience)
+pub fn useSignalValue(signal) {
+    let (value, setValue] = useState(signal["get"]())
+    
+    effect(fn() {
+        setValue(signal["get"]())
+    })
+    
+    return value
+}
+
+// useSignalSet hook (convenience)
+pub fn useSignalSet(signal) {
+    return fn(newValue) {
+        batch(fn() {
+            signal["set"](newValue)
+        })
+    }
+}
+
+// Reactive array (better than React's array handling)
+pub fn reactiveArray(initialArray) {
+    let array = initialArray != null ? initialArray : []
+    let subscribers = []
+    
+    let reactive = {
+        "kind": "ReactiveArray",
+        "get": fn() {
+            if activeComputation != null) {
+                trackDependency(activeComputation, "array_" + arrayIdCounter)
+            }
+            return array
+        },
+        "set": fn(newArray) {
+            array = newArray
+            notifySubscribers(subscribers)
+        },
+        "push": fn(item) {
+            array = push(array, item)
+            notifySubscribers(subscribers)
+        },
+        "pop": fn() {
+            array = slice(array, 0, len(array) - 1)
+            notifySubscribers(subscribers)
+        },
+        "splice": fn(start, deleteCount, ...items) {
+            array = spliceArray(array, start, deleteCount, items)
+            notifySubscribers(subscribers)
+        },
+        "filter": fn(predicate) {
+            array = filterArray(array, predicate)
+            notifySubscribers(subscribers)
+        },
+        "map": fn(mapper) {
+            return mapArray(array, mapper)
+        },
+        "length": fn() {
+            return len(array)
+        }
+    }
+    
+    return reactive
+}
+
+fn spliceArray(arr, start, deleteCount, items) {
+    let result = []
+    let i = 0
+    while i < len(arr)) {
+        if i < start || i >= start + deleteCount) {
+            result = push(result, arr[i])
+        }
+        i = i + 1
+    }
+    
+    let j = 0
+    while j < len(items)) {
+        result = push(result, items[j])
+        j = j + 1
+    }
+    
+    return result
+}
+
+fn filterArray(arr, predicate) {
+    let result = []
+    let i = 0
+    while i < len(arr)) {
+        if predicate(arr[i])) {
+            result = push(result, arr[i])
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn mapArray(arr, mapper) {
+    let result = []
+    let i = 0
+    while i < len(arr)) {
+        result = push(result, mapper(arr[i]))
+        i = i + 1
+    }
+    return result
+}
+
+fn slice(arr, start, end) {
+    let result = []
+    let i = start
+    while i < end && i < len(arr)) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}
+
+// Reactive object (deep reactivity)
+pub fn reactiveObject(initialObject) {
+    let obj = initialObject != null ? initialObject : {}
+    let subscribers = []
+    
+    let reactive = {
+        "kind": "ReactiveObject",
+        "get": fn(key) {
+            if activeComputation != null) {
+                trackDependency(activeComputation, "obj_" + key)
+            }
+            return obj[key]
+        },
+        "set": fn(key, value) {
+            obj[key] = value
+            notifySubscribers(subscribers)
+        },
+        "get": fn() {
+            return obj
+        },
+        "set": fn(newObj) {
+            obj = newObj
+            notifySubscribers(subscribers)
+        }
+    }
+    
+    return reactive
+}
+
+// Memoization (better than React.memo)
+pub fn memo(Component, areEqual) {
+    let memoized = {
+        "kind": "Memoized",
+        "component": Component,
+        "lastProps": null,
+        "lastResult": null,
+        "areEqual": areEqual != null ? areEqual : shallowEqual
+    }
+    
+    return fn(props) {
+        if memoized["lastProps"] != null && memoized["areEqual"](memoized["lastProps"], props)) {
+            return memoized["lastResult"]
+        }
+        
+        memoized["lastProps"] = props
+        memoized["lastResult"] = Component(props)
+        
+        return memoized["lastResult"]
+    }
+}
+
+fn shallowEqual(a, b) {
+    if a === b) {
+        return true
+    }
+    
+    if typeof(a) != typeof(b)) {
+        return false
+    }
+    
+    if typeof(a) == "object" && a != null && b != null) {
+        let keysA = []
+        let keysB = []
+        
+        for key in a) {
+            keysA = push(keysA, key)
+        }
+        
+        for key in b) {
+            keysB = push(keysB, key)
+        }
+        
+        if len(keysA) != len(keysB)) {
+            return false
+        }
+        
+        let i = 0
+        while i < len(keysA)) {
+            if a[keysA[i]] !== b[keysA[i]]) {
+                return false
+            }
+            i = i + 1
+        }
+        
+        return true
+    }
+    
+    return false
+}
+
+// Reactive store (global state management)
+let stores = {}
+
+pub fn createStore(initialState) {
+    let storeId = "store_" + signalIdCounter
+    signalIdCounter = signalIdCounter + 1
+    
+    let state = signal(initialState)
+    
+    let store = {
+        "kind": "Store",
+        "id": storeId,
+        "state": state,
+        "getState": fn() {
+            return state["get"]()
+        },
+        "setState": fn(newState) {
+            state["set"](newState)
+        },
+        "updateState": fn(updater) {
+            state["update"](updater)
+        },
+        "subscribe": fn(listener) {
+            effect(fn() {
+                listener(state["get"]())
+            })
+        }
+    }
+    
+    stores[storeId] = store
+    
+    return store
+}
+
+pub fn useStore(storeId) {
+    let store = stores[storeId]
+    
+    if store == null) {
+        return null
+    }
+    
+    let (state, setState] = useState(store["getState"]())
+    
+    effect(fn() {
+        store["subscribe"](fn(newState) {
+            setState(newState)
+        })
+    })
+    
+    return {
+        "state": state,
+        "setState": store["setState"],
+        "updateState": store["updateState"]
+    }
+}
+
+// Concurrent rendering support
+let concurrentMode = false
+let workQueue = []
+let isWorking = false
+
+pub fn enableConcurrentMode() {
+    concurrentMode = true
+}
+
+pub fn disableConcurrentMode() {
+    concurrentMode = false
+}
+
+pub fn scheduleWork(work) {
+    if concurrentMode) {
+        workQueue = push(workQueue, work)
+        
+        if !isWorking) {
+            isWorking = true
+            processWorkQueue()
+        }
+    } else {
+        work()
+    }
+}
+
+fn processWorkQueue() {
+    while len(workQueue) > 0) {
+        let work = workQueue[0]
+        workQueue = slice(workQueue, 1, len(workQueue))
+        work()
+    }
+    
+    isWorking = false
+}
+
+// Automatic code splitting
+let codeSplitCache = {}
+
+pub fn lazy(importFn) {
+    let cacheKey = "lazy_" + signalIdCounter
+    signalIdCounter = signalIdCounter + 1
+    
+    let (loading, setLoading] = useState(true)
+    let (component, setComponent] = useState(null)
+    let (error, setError] = useState(null)
+    
+    effect(fn() {
+        if codeSplitCache[cacheKey] != null) {
+            setComponent(codeSplitCache[cacheKey])
+            setLoading(false)
+            return
+        }
+        
+        importFn().then(fn(module) {
+            codeSplitCache[cacheKey] = module["default"]
+            setComponent(module["default"])
+            setLoading(false)
+        }).catch(fn(err) {
+            setError(err)
+            setLoading(false)
+        })
+    })
+    
+    if loading) {
+        return createElement("div", {}, "Loading...")
+    }
+    
+    if error != null) {
+        return createElement("div", {}, "Error loading component")
+    }
+    
+    return component
+}
+
+// Suspense for data fetching
+let suspenseContext = null
+
+pub fn Suspense(props) {
+    let fallback = props["fallback"]
+    let children = props["children"]
+    
+    let (isSuspended, setIsSuspended] = useState(false)
+    
+    return createElement("div", {},
+        isSuspended ? fallback : children
+    )
+}
+
+pub fn useSuspense(promise) {
+    let (data, setData] = useState(null)
+    let (isPending, setIsPending] = useState(true)
+    
+    effect(fn() {
+        promise.then(fn(result) {
+            setData(result)
+            setIsPending(false)
+        })
+    })
+    
+    if isPending) {
+        throw promise
+    }
+    
+    return data
+}
+
+// Performance optimizations
+pub fn useTransition() {
+    let (isPending, setIsPending] = useState(false)
+    
+    let startTransition = fn(callback) {
+        setIsPending(true)
+        scheduleWork(fn() {
+            callback()
+            setIsPending(false)
+        })
+    }
+    
+    return [isPending, startTransition]
+}
+
+pub fn useDeferredValue(value) {
+    let (deferredValue, setDeferredValue] = useState(value)
+    
+    effect(fn() {
+        scheduleWork(fn() {
+            setDeferredValue(value)
+        })
+    }, [value])
+    
+    return deferredValue
+}
+
+// Helper functions
+fn typeof(value) {
+    if value == null) {
+        return "null"
+    }
+    if typeof(value) == "boolean") {
+        return "boolean"
+    }
+    if typeof(value) == "number") {
+        return "number"
+    }
+    if typeof(value) == "string") {
+        return "string"
+    }
+    if typeof(value) == "function") {
+        return "function"
+    }
+    if typeof(value) == "array") {
+        return "array"
+    }
+    if typeof(value) == "object") {
+        return "object"
+    }
+    return "unknown"
+}
