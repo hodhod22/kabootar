@@ -15,6 +15,11 @@ import "cad/circuit"
 import "cad/arch"
 import "cad/power"
 import "cad/aero"
+import "cad/boolean"
+import "cad/snapping"
+import "cad/vector"
+import "cad/image"
+import "cad/export"
 
 fn assert(condition, message) {
     if condition == false {
@@ -239,6 +244,11 @@ pub fn runAllSmokeTests() {
     results = push(results, testArchSerializeRoundTrip())
     results = push(results, testPowerSerializeRoundTrip())
     results = push(results, testAeroSerializeRoundTrip())
+    results = push(results, testBooleanOperations())
+    results = push(results, testSnappingSystem())
+    results = push(results, testPathEditing())
+    results = push(results, testImageNode())
+    results = push(results, testDXFExport())
     
     let passedCount = 0
     let i = 0
@@ -457,5 +467,142 @@ pub fn testAeroSerializeRoundTrip() {
         "deserializedAirfoilCount": deserializedAirfoilCount,
         "originalFlowV": originalFlowV,
         "deserializedFlowV": deserializedFlowV
+    }
+}
+
+pub fn testBooleanOperations() {
+    let path1 = createPath()
+    path1 = moveTo(path1, 0.0, 0.0)
+    path1 = lineTo(path1, 100.0, 0.0)
+    path1 = lineTo(path1, 100.0, 100.0)
+    path1 = lineTo(path1, 0.0, 100.0)
+    path1 = closePath(path1)
+    
+    let path2 = createPath()
+    path2 = moveTo(path2, 50.0, 50.0)
+    path2 = lineTo(path2, 150.0, 50.0)
+    path2 = lineTo(path2, 150.0, 150.0)
+    path2 = lineTo(path2, 50.0, 150.0)
+    path2 = closePath(path2)
+    
+    let unionResult = pathUnion(path1, path2)
+    let intersectResult = pathIntersection(path1, path2)
+    let differenceResult = pathDifference(path1, path2)
+    
+    assert(unionResult != null, "Expected unionResult != null")
+    assert(intersectResult != null, "Expected intersectResult != null")
+    assert(differenceResult != null, "Expected differenceResult != null")
+    
+    return {
+        "test": "Boolean Operations",
+        "passed": true,
+        "unionResult": unionResult != null,
+        "intersectResult": intersectResult != null,
+        "differenceResult": differenceResult != null
+    }
+}
+
+pub fn testSnappingSystem() {
+    let snapSystem = createSnapSystem()
+    
+    assert(snapSystem != null, "Expected snapSystem != null")
+    assert(snapSystem["gridEnabled"] == true, "Expected gridEnabled == true")
+    assert(snapSystem["endpointSnappingEnabled"] == true, "Expected endpointSnappingEnabled == true")
+    assert(snapSystem["midpointSnappingEnabled"] == true, "Expected midpointSnappingEnabled == true")
+    assert(snapSystem["centerSnappingEnabled"] == true, "Expected centerSnappingEnabled == true")
+    assert(snapSystem["orthoSnappingEnabled"] == true, "Expected orthoSnappingEnabled == true")
+    
+    let point = { "x": 15.3, "y": 25.7, "sourceId": null }
+    let snapped = snapToPoint(snapSystem, point, 5.0)
+    
+    assert(snapped != null, "Expected snapped != null")
+    
+    return {
+        "test": "Snapping System",
+        "passed": true,
+        "gridEnabled": snapSystem["gridEnabled"],
+        "endpointSnappingEnabled": snapSystem["endpointSnappingEnabled"],
+        "snapped": snapped != null
+    }
+}
+
+pub fn testPathEditing() {
+    let path = createPath()
+    path = moveTo(path, 0.0, 0.0)
+    path = lineTo(path, 100.0, 0.0)
+    path = lineTo(path, 100.0, 100.0)
+    
+    let originalSegmentCount = len(path["segments"])
+    
+    path = addPathPoint(path, 50.0, 50.0, 1)
+    let afterAddCount = len(path["segments"])
+    
+    path = removePathPoint(path, 1)
+    let afterRemoveCount = len(path["segments"])
+    
+    path = movePathPoint(path, 0, 10.0, 10.0)
+    
+    assert(originalSegmentCount == 3, "Expected originalSegmentCount == 3, got " + originalSegmentCount)
+    assert(afterAddCount == 4, "Expected afterAddCount == 4, got " + afterAddCount)
+    assert(afterRemoveCount == 3, "Expected afterRemoveCount == 3, got " + afterRemoveCount)
+    
+    return {
+        "test": "Path Editing",
+        "passed": true,
+        "originalSegmentCount": originalSegmentCount,
+        "afterAddCount": afterAddCount,
+        "afterRemoveCount": afterRemoveCount
+    }
+}
+
+pub fn testImageNode() {
+    let imageNode = createImageNode("test-image", "http://example.com/image.png", vec2(100.0, 100.0))
+    
+    assert(imageNode != null, "Expected imageNode != null")
+    assert(imageNode["kind"] == "Image", "Expected kind == 'Image', got " + imageNode["kind"])
+    assert(imageNode["sourceUrl"] == "http://example.com/image.png", "Expected sourceUrl match")
+    
+    imageNode = setImagePosition(imageNode, vec2(200.0, 200.0))
+    imageNode = setImageRotation(imageNode, 45.0)
+    imageNode = setImageScale(imageNode, vec2(1.5, 1.5))
+    imageNode = setImageCrop(imageNode, 0.0, 0.0, 0.5, 0.5)
+    
+    assert(imageNode["transform"]["position"]["x"] == 200.0, "Expected position x == 200.0")
+    assert(imageNode["transform"]["rotation"] == 45.0, "Expected rotation == 45.0")
+    assert(imageNode["crop"]["enabled"] == true, "Expected crop enabled == true")
+    
+    return {
+        "test": "Image Node",
+        "passed": true,
+        "kind": imageNode["kind"],
+        "cropEnabled": imageNode["crop"]["enabled"]
+    }
+}
+
+pub fn testDXFExport() {
+    let document = createDocument("DXF Test", "mm")
+    document = setDocumentProfile(document, "drafting")
+    
+    let frame = createFrameNode("Test Frame", 0.0, 0.0, 100.0, 100.0)
+    document = addNode(document, document["sceneRoot"]["id"], frame)
+    
+    let options = createExportOptions()
+    options["format"] = "dxf"
+    
+    let dxf = exportDXF(document, options)
+    
+    assert(dxf != null, "Expected dxf != null")
+    assert(len(dxf) > 0, "Expected dxf to have content")
+    assert(str_contains(dxf, "SECTION"), "Expected DXF to contain SECTION")
+    assert(str_contains(dxf, "ENTITIES"), "Expected DXF to contain ENTITIES")
+    assert(str_contains(dxf, "EOF"), "Expected DXF to contain EOF")
+    
+    return {
+        "test": "DXF Export",
+        "passed": true,
+        "dxfLength": len(dxf),
+        "hasSection": str_contains(dxf, "SECTION"),
+        "hasEntities": str_contains(dxf, "ENTITIES"),
+        "hasEOF": str_contains(dxf, "EOF")
     }
 }
