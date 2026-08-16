@@ -7,9 +7,17 @@
 
 import "cad/geom"
 import "cad/host"
+import "cad/performance"
 
 pub fn booleanUnion(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        let bboxA = getPathBBox(pathA)
+        let bboxB = getPathBBox(pathB)
+        
+        if bboxIntersectsBBox(bboxA, bboxB) == false {
+            return pathA
+        }
+        
         return polygonUnion(pathA, pathB)
     }
     return pathA
@@ -17,6 +25,13 @@ pub fn booleanUnion(pathA, pathB) {
 
 pub fn booleanIntersection(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        let bboxA = getPathBBox(pathA)
+        let bboxB = getPathBBox(pathB)
+        
+        if bboxIntersectsBBox(bboxA, bboxB) == false {
+            return createPath()
+        }
+        
         return polygonIntersection(pathA, pathB)
     }
     return pathA
@@ -24,9 +39,69 @@ pub fn booleanIntersection(pathA, pathB) {
 
 pub fn booleanDifference(pathA, pathB) {
     if pathA["kind"] == "Path" && pathB["kind"] == "Path" {
+        let bboxA = getPathBBox(pathA)
+        let bboxB = getPathBBox(pathB)
+        
+        if bboxIntersectsBBox(bboxA, bboxB) == false {
+            return pathA
+        }
+        
         return polygonDifference(pathA, pathB)
     }
     return pathA
+}
+
+pub fn simplifyPolygon(polygon, tolerance) {
+    if len(polygon) < 3 {
+        return polygon
+    }
+    
+    let simplified = []
+    simplified = push(simplified, polygon[0])
+    
+    let i = 1
+    while i < len(polygon) - 1 {
+        let prev = polygon[i - 1]
+        let curr = polygon[i]
+        let next = polygon[i + 1]
+        
+        let area = abs((prev["x"] * (curr["y"] - next["y"]) + 
+                        curr["x"] * (next["y"] - prev["y"]) + 
+                        next["x"] * (prev["y"] - curr["y"])) / 2.0)
+        
+        if area > tolerance {
+            simplified = push(simplified, curr)
+        }
+        
+        i = i + 1
+    }
+    
+    simplified = push(simplified, polygon[len(polygon) - 1])
+    
+    return simplified
+}
+
+pub fn getPathBBox(path) {
+    let minX = 1e10
+    let minY = 1e10
+    let maxX = -1e10
+    let maxY = -1e10
+    
+    let i = 0
+    while i < len(path["segments"]) {
+        let seg = path["segments"][i]
+        let x = seg["x"]
+        let y = seg["y"]
+        
+        if x < minX { minX = x }
+        if y < minY { minY = y }
+        if x > maxX { maxX = x }
+        if y > maxY { maxY = y }
+        
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
 }
 
 fn polygonUnion(pathA, pathB) {
@@ -77,13 +152,28 @@ fn weilerAtherton(polyA, polyB, operation) {
 
 fn findIntersections(polyA, polyB) {
     let intersections = []
+    let bboxA = getPolygonBBox(polyA)
+    let bboxB = getPolygonBBox(polyB)
     
     let i = 0
     while i < len(polyA) {
+        let segA = getSegment(polyA, i)
+        let segBBoxA = getSegmentBBox(segA)
+        
+        if bboxIntersectsBBox(segBBoxA, bboxB) == false {
+            i = i + 1
+            continue
+        }
+        
         let j = 0
         while j < len(polyB) {
-            let segA = getSegment(polyA, i)
             let segB = getSegment(polyB, j)
+            let segBBoxB = getSegmentBBox(segB)
+            
+            if bboxIntersectsBBox(segBBoxA, segBBoxB) == false {
+                j = j + 1
+                continue
+            }
             
             let intersection = segmentIntersection(segA, segB)
             if intersection != null {
@@ -101,6 +191,37 @@ fn findIntersections(polyA, polyB) {
     }
     
     return intersections
+}
+
+fn getPolygonBBox(polygon) {
+    if len(polygon) == 0 {
+        return createBBox(0.0, 0.0, 0.0, 0.0)
+    }
+    
+    let minX = polygon[0]["x"]
+    let minY = polygon[0]["y"]
+    let maxX = polygon[0]["x"]
+    let maxY = polygon[0]["y"]
+    
+    let i = 1
+    while i < len(polygon) {
+        let p = polygon[i]
+        if p["x"] < minX { minX = p["x"] }
+        if p["y"] < minY { minY = p["y"] }
+        if p["x"] > maxX { maxX = p["x"] }
+        if p["y"] > maxY { maxY = p["y"] }
+        i = i + 1
+    }
+    
+    return createBBox(minX, minY, maxX, maxY)
+}
+
+fn getSegmentBBox(seg) {
+    let minX = min(seg["p1"]["x"], seg["p2"]["x"])
+    let minY = min(seg["p1"]["y"], seg["p2"]["y"])
+    let maxX = max(seg["p1"]["x"], seg["p2"]["x"])
+    let maxY = max(seg["p1"]["y"], seg["p2"]["y"])
+    return createBBox(minX, minY, maxX, maxY)
 }
 
 fn segmentIntersection(segA, segB) {
