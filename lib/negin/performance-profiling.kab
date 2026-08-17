@@ -8,6 +8,7 @@
 import "negin/core"
 import "negin/reactive-core"
 import "negin/optimized-runtime"
+import "negin/helpers"
 
 let profilingEnabled = false
 let profileData = {}
@@ -460,54 +461,4 @@ fn setInterval(callback, interval) {
 }
 
 fn clearInterval(id) {
-}
-
-fn len(value) {
-    if typeof(value) == "string") {
-        let count = 0
-        while count < 10000 && value[count] != null) {
-            count = count + 1
-        }
-        return count
-    }
-    if typeof(value) == "array") {
-        let count = 0
-        while count < 10000 && value[count] != null) {
-            count = count + 1
-        }
-        return count
-    }
-    if typeof(value) == "object") {
-        let count = 0
-        for key in value) {
-            count = count + 1
-        }
-        return count
-    }
-    return 0
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }

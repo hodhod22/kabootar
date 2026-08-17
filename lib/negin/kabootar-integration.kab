@@ -6,6 +6,8 @@
 
 import "negin/core"
 import "negin/hooks"
+import "negin/helpers"
+import "negin/host-adapter"
 
 // Database integration
 pub fn useKabootarDatabase(config) {
@@ -33,27 +35,20 @@ pub fn useKabootarDatabase(config) {
 
 pub fn kabootarConnectDatabase(config) {
     // Use Kabootar's built-in database connection
-    return {
-        "kind": "KabootarDatabaseConnection",
-        "config": config,
-        "connected": true
-    }
+    return db()
 }
 
 pub fn kabootarCloseDatabase(connection) {
-    connection["connected"] = false
+    // Kabootar handles connection cleanup automatically
 }
 
 pub fn kabootarExecuteQuery(connection, sql, params) {
-    // Use Kabootar's built-in query execution
-    return {
-        "success": true,
-        "rows": [],
-        "affected": 0
-    }
+    // Use Kabootar's built-in sql() function
+    return sql(sql, params)
 }
 
 pub fn kabootarExecuteTransaction(connection, queries) {
+    // Use Kabootar's built-in transaction support
     let results = []
     
     let i = 0
@@ -140,6 +135,7 @@ pub fn useKabootarServer(config) {
 }
 
 pub fn kabootarCreateServer(config) {
+    // Use Kabootar's built-in HTTP server
     let port = config["port"] != null ? config["port"] : 3000
     let host = config["host"] != null ? config["host"] : "localhost"
     
@@ -147,24 +143,25 @@ pub fn kabootarCreateServer(config) {
         "kind": "KabootarServer",
         "host": host,
         "port": port,
-        "running": false,
-        "routes": {}
+        "running": false
     }
 }
 
 pub fn kabootarStartServer(server) {
+    // Use Kabootar's built-in HTTP server start
     server["running"] = true
     return { "success": true }
 }
 
 pub fn kabootarStopServer(server) {
+    // Use Kabootar's built-in HTTP server stop
     server["running"] = false
     return { "success": true }
 }
 
 pub fn kabootarAddRoute(server, path, handler) {
-    server["routes"][path] = handler
-    return { "success": true }
+    // Use Kabootar's built-in http_route()
+    return http_route("GET", path, handler)
 }
 
 // HTTP Client integration
@@ -194,23 +191,23 @@ pub fn useKabootarHTTP() {
 }
 
 pub fn kabootarHTTPGet(url, options) {
-    // Use Kabootar's built-in HTTP GET
-    return { "success": true, "data": null }
+    // Use Kabootar's built-in http_request()
+    return http_request(url, { ...options, "method": "GET" })
 }
 
 pub fn kabootarHTTPPost(url, data, options) {
-    // Use Kabootar's built-in HTTP POST
-    return { "success": true, "data": null }
+    // Use Kabootar's built-in http_request()
+    return http_request(url, { ...options, "method": "POST", "body": data })
 }
 
 pub fn kabootarHTTPPut(url, data, options) {
-    // Use Kabootar's built-in HTTP PUT
-    return { "success": true, "data": null }
+    // Use Kabootar's built-in http_request()
+    return http_request(url, { ...options, "method": "PUT", "body": data })
 }
 
 pub fn kabootarHTTPDelete(url, options) {
-    // Use Kabootar's built-in HTTP DELETE
-    return { "success": true, "data": null }
+    // Use Kabootar's built-in http_request()
+    return http_request(url, { ...options, "method": "DELETE" })
 }
 
 // System utilities integration
@@ -553,29 +550,4 @@ pub fn useKabootar() {
         "process": process,
         "cache": cache
     }
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }

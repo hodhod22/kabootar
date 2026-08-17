@@ -8,16 +8,22 @@
 import "negin/element"
 import "negin/component"
 import "negin/reconciler"
+import "negin/helpers"
+import "negin/host-adapter"
 
 // Global render state
 let currentRoot = null
 let currentContainer = null
+let currentAdapter = null
 
 pub fn createElement(type, props, children) {
     return createVNode(type, props, children)
 }
 
 pub fn render(element, container) {
+    // Create host adapter based on container type
+    currentAdapter = createHostAdapter(container)
+    
     let root = createFiberRoot(element, container)
     currentRoot = root
     currentContainer = container
@@ -342,6 +348,10 @@ fn completeWork(workInProgress) {
 }
 
 fn createInstance(type, props) {
+    if currentAdapter != null) {
+        return currentAdapter["createElement"](type, props)
+    }
+    
     return {
         "kind": "DOMInstance",
         "type": type,
@@ -351,6 +361,10 @@ fn createInstance(type, props) {
 }
 
 fn createTextNode(text) {
+    if currentAdapter != null) {
+        return currentAdapter["createTextNode"](text)
+    }
+    
     return {
         "kind": "TextNode",
         "text": text
@@ -362,7 +376,13 @@ fn appendAllChildren(parent, workInProgress) {
     
     while node != null {
         let child = node["stateNode"]
-        parent["children"] = push(parent["children"], child)
+        
+        if currentAdapter != null) {
+            currentAdapter["appendChild"](parent, child)
+        } else {
+            parent["children"] = push(parent["children"], child)
+        }
+        
         node = node["sibling"]
     }
 }
@@ -384,36 +404,6 @@ fn commitRoot(finishedWork) {
     root["finishedWork"] = null
 }
 
-fn isObject(value) {
-    return typeof(value) == "object" && value != null
-}
-
-fn isArray(value) {
-    return typeof(value) == "array"
-}
-
 fn isVNode(value) {
     return isObject(value) && value["kind"] == "VNode"
-}
-
-fn typeof(value) {
-    if value == null {
-        return "null"
-    }
-    if typeof(value) == "boolean" {
-        return "boolean"
-    }
-    if typeof(value) == "number" {
-        return "number"
-    }
-    if typeof(value) == "string" {
-        return "string"
-    }
-    if isArray(value) {
-        return "array"
-    }
-    if isObject(value) {
-        return "object"
-    }
-    return "unknown"
 }

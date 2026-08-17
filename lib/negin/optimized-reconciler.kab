@@ -7,6 +7,7 @@
 
 import "negin/core"
 import "negin/reactive-core"
+import "negin/helpers"
 
 // Auto-batching system
 let batchDepth = 0
@@ -486,29 +487,4 @@ fn slice(arr, start, end) {
         i = i + 1
     }
     return result
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }

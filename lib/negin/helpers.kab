@@ -1,0 +1,84 @@
+@version "1.0.0"
+
+// Negin Helpers - Common helper functions
+// Canonical path: import "negin/helpers"
+
+// Safe typeof that uses native typeof
+pub fn typeof(value) {
+    if value == null {
+        return "null"
+    }
+    let nativeType = system_typeof(value)
+    if nativeType == "boolean" {
+        return "boolean"
+    }
+    if nativeType == "number" {
+        return "number"
+    }
+    if nativeType == "string" {
+        return "string"
+    }
+    if nativeType == "function" {
+        return "function"
+    }
+    if isArray(value) {
+        return "array"
+    }
+    if isObject(value) {
+        return "object"
+    }
+    return "unknown"
+}
+
+pub fn isObject(value) {
+    return typeof(value) == "object" && value != null
+}
+
+pub fn isArray(value) {
+    return typeof(value) == "array"
+}
+
+pub fn isFunction(value) {
+    return typeof(value) == "function"
+}
+
+pub fn isString(value) {
+    return typeof(value) == "string"
+}
+
+pub fn isNumber(value) {
+    return typeof(value) == "number"
+}
+
+pub fn isBoolean(value) {
+    return typeof(value) == "boolean"
+}
+
+pub fn len(value) {
+    if isString(value)) {
+        let count = 0
+        while count < 10000 && value[count] != null {
+            count = count + 1
+        }
+        return count
+    }
+    if isArray(value)) {
+        let count = 0
+        while count < 10000 && value[count] != null {
+            count = count + 1
+        }
+        return count
+    }
+    if isObject(value)) {
+        let count = 0
+        for key in value {
+            count = count + 1
+        }
+        return count
+    }
+    return 0
+}
+
+pub fn currentTime() {
+    return systemTime()
+}

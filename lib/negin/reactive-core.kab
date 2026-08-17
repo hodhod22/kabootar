@@ -6,6 +6,8 @@
 // Target: Better than React with fine-grained reactivity
 
 import "negin/core"
+import "negin/helpers"
+import "negin/hooks"
 
 // Signal implementation (better than React's useState)
 let signalIdCounter = 0
@@ -33,6 +35,8 @@ pub fn signal(initialValue) {
             if value !== newValue) {
                 value = newValue
                 notifySubscribers(subscribers)
+                // Trigger re-render by scheduling update
+                scheduleUpdate()
             }
         },
         "update": fn(updater) {
@@ -40,6 +44,8 @@ pub fn signal(initialValue) {
             if value !== newValue) {
                 value = newValue
                 notifySubscribers(subscribers)
+                // Trigger re-render by scheduling update
+                scheduleUpdate()
             }
         },
         "peek": fn() {
@@ -632,30 +638,4 @@ pub fn useDeferredValue(value) {
     }, [value])
     
     return deferredValue
-}
-
-// Helper functions
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }
