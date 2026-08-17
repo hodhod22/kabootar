@@ -1,0 +1,155 @@
+@version "1.0.0"
+
+// Negin Host Adapter - Host-agnostic rendering for host-DOM and kdom
+// Features: Host-agnostic render, host-DOM adapter, kdom adapter
+// Canonical path: import "negin/host-adapter"
+// Target: Support both browser DOM and Kabootar kdom
+
+import "negin/helpers"
+
+let currentHost = null
+
+pub fn setHost(hostType) {
+    currentHost = hostType
+}
+
+pub fn getHost() {
+    return currentHost
+}
+
+pub fn createHostAdapter(container) {
+    let hostType = detectHostType(container)
+    currentHost = hostType
+    
+    if hostType == "kdom") {
+        return createKdomAdapter(container)
+    } else {
+        return createDomAdapter(container)
+    }
+}
+
+fn detectHostType(container) {
+    if container != null && container["kind"] == "KdomContainer") {
+        return "kdom"
+    }
+    return "dom"
+}
+
+pub fn createDomAdapter(container) {
+    return {
+        "kind": "DomAdapter",
+        "type": "dom",
+        "container": container,
+        "createElement": fn(type, props) {
+            return document.createElement(type)
+        },
+        "createTextNode": fn(text) {
+            return document.createTextNode(text)
+        },
+        "appendChild": fn(parent, child) {
+            parent.appendChild(child)
+        },
+        "removeChild": fn(parent, child) {
+            parent.removeChild(child)
+        },
+        "insertBefore": fn(parent, child, before) {
+            parent.insertBefore(child, before)
+        },
+        "setProperty": fn(element, key, value) {
+            element[key] = value
+        },
+        "setProperty": fn(element, key, value) {
+            element.setAttribute(key, value)
+        },
+        "removeProperty": fn(element, key) {
+            element.removeAttribute(key)
+        },
+        "setTextContent": fn(element, text) {
+            element.textContent = text
+        }
+    }
+}
+
+pub fn createKdomAdapter(container) {
+    return {
+        "kind": "KdomAdapter",
+        "type": "kdom",
+        "container": container,
+        "createElement": fn(type, props) {
+            return kml(type, props)
+        },
+        "createTextNode": fn(text) {
+            return kml("text", { "content": text })
+        },
+        "appendChild": fn(parent, child) {
+            kdom_append_child(parent, child)
+        },
+        "removeChild": fn(parent, child) {
+            kdom_remove_child(parent, child)
+        },
+        "insertBefore": fn(parent, child, before) {
+            kdom_insert_before(parent, child, before)
+        },
+        "setProperty": fn(element, key, value) {
+            element[key] = value
+        },
+        "setAttribute": fn(element, key, value) {
+            element[key] = value
+        },
+        "removeProperty": fn(element, key) {
+            element[key] = null
+        },
+        "setTextContent": fn(element, text) {
+            element["content"] = text
+        }
+    }
+}
+
+pub fn getAdapter() {
+    if currentHost == "kdom") {
+        return createKdomAdapter(null)
+    } else {
+        return createDomAdapter(null)
+    }
+}
+
+// Kabootar primitives integration
+pub fn sql(query, params) {
+    return system_sql(query, params)
+}
+
+pub fn db() {
+    return system_db()
+}
+
+pub fn http_route(method, path, handler) {
+    return system_http_route(method, path, handler)
+}
+
+pub fn http_request(url, options) {
+    return system_http_request(url, options)
+}
+
+pub fn http_fetch_async(url, options) {
+    return system_http_fetch_async(url, options)
+}
+
+pub fn kml(type, props) {
+    return system_kml(type, props)
+}
+
+pub fn kdom_render(element, container) {
+    return system_kdom_render(element, container)
+}
+
+pub fn kdom_append_child(parent, child) {
+    return system_kdom_append_child(parent, child)
+}
+
+pub fn kdom_remove_child(parent, child) {
+    return system_kdom_remove_child(parent, child)
+}
+
+pub fn kdom_insert_before(parent, child, before) {
+    return system_kdom_insert_before(parent, child, before)
+}

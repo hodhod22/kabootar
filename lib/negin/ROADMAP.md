@@ -54,12 +54,17 @@ Negin är ett modernt UI-bibliotek för Kabootar som bygger på Reacts styrkor m
 - [x] Implementera komponentsystem med hooks
 - [x] Implementera state management (bättre än React)
 - [x] Implementera virtual DOM och diffing
+- [x] Fixa syntaxfel (typeof rekursion)
+- [x] Skapa helpers-modul för gemensamma funktioner
 
 ### Fas 2: Advanced Features (Medium Priority)
 - [x] Implementera reconciliation och scheduling
 - [x] Implementera event system
 - [x] Implementera context API
 - [x] Implementera Suspense och lazy loading
+- [x] Implementera per-komponent hook-list
+- [x] Implementera riktig uppdateringskö
+- [x] Koppla signals till render-loopen
 
 ### Fas 3: Production Ready (Low Priority)
 - [x] Implementera server-side rendering
@@ -69,6 +74,41 @@ Negin är ett modernt UI-bibliotek för Kabootar som bygger på Reacts styrkor m
 - [x] Hot reload support
 - [x] DevTools integration
 - [x] TypeScript definitions
+
+### Fas 4: Kabootar Integration (High Priority - Ny)
+- [x] Skapa host-adapter för host-DOM och kdom
+- [x] Gör render host-agnostisk
+- [x] Ersätt stubs med riktiga Kabootar primitives (sql/http/kdom)
+- [x] Integrera med Kabootars inbyggda database (sql/db)
+- [x] Integrera med Kabootars HTTP (http_route/http_request)
+- [x] Integrera med Kabootars kdom (kml/kdom_render)
+
+### Fas 5: Advanced Improvements (High Priority - Ny)
+- [x] Skapa reaktivt core med signals som default
+- [x] Implementera auto-batching för alla state updates
+- [x] Skapa concurrent rendering för bättre prestanda
+- [x] Implementera automatic code splitting
+- [x] Skapa server components för zero-JS
+- [x] Implementera smart diffing med heuristik
+- [x] Skapa inbyggd state management utan external libs
+- [x] Implementera suspense för data fetching
+- [x] Skapa optimerad bundle med tree-shaking
+- [x] Implementera automatic error recovery
+- [x] Skapa inbyggd dev-server med hot reload
+- [x] Implementera automatic hydration
+- [x] Skapa optimerad build pipeline
+- [x] Implementera automatic testing
+- [x] Skapa advanced CLI för projekt management
+- [x] Implementera automatic deployment
+- [x] Skapa optimerad runtime
+- [x] Implementera automatic performance profiling
+
+### Fas 6: Refinement (Medium Priority - Pågående)
+- [ ] Förbättra fiber-reconciler för bättre prestanda
+- [ ] Optimera signal tracking för mindre overhead
+- [ ] Förbättra error handling
+- [ ] Lägg till fler Kabootar-specifika funktioner
+- [ ] Skapa fullständiga exempel och dokumentation
 
 ## Filstruktur
 ```

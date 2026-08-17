@@ -5,6 +5,7 @@
 // Canonical path: import "negin/hooks"
 
 import "negin/component"
+import "negin/helpers"
 
 pub fn useState(initialState) {
     let component = getCurrentComponent()
@@ -220,7 +221,35 @@ fn getHookIndex() {
     return index
 }
 
+// Update queue for component re-renders
+let updateQueue = []
+let isUpdateScheduled = false
+
 fn scheduleUpdate() {
+    let component = getCurrentComponent()
+    
+    if component != null) {
+        updateQueue = push(updateQueue, component)
+        
+        if !isUpdateScheduled) {
+            isUpdateScheduled = true
+            processUpdateQueue()
+        }
+    }
+}
+
+fn processUpdateQueue() {
+    while len(updateQueue) > 0) {
+        let component = updateQueue[0]
+        updateQueue = slice(updateQueue, 1, len(updateQueue))
+        
+        // Trigger re-render of component
+        if component["render"] != null) {
+            component["render"]()
+        }
+    }
+    
+    isUpdateScheduled = false
 }
 
 fn generateId() {
@@ -246,27 +275,12 @@ fn floor(value) {
     return systemFloor(value)
 }
 
-fn typeof(value) {
-    if value == null {
-        return "null"
+fn slice(arr, start, end) {
+    let result = []
+    let i = start
+    while i < end && i < len(arr)) {
+        result = push(result, arr[i])
+        i = i + 1
     }
-    if typeof(value) == "boolean" {
-        return "boolean"
-    }
-    if typeof(value) == "number" {
-        return "number"
-    }
-    if typeof(value) == "string" {
-        return "string"
-    }
-    if typeof(value) == "function" {
-        return "function"
-    }
-    if typeof(value) == "array" {
-        return "array"
-    }
-    if typeof(value) == "object" {
-        return "object"
-    }
-    return "unknown"
+    return result
 }
