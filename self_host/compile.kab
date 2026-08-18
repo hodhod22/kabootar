@@ -21,7 +21,21 @@ pub fn compile(source) {
             throw err
         }
     }
-    return serialize_bc(emit(parse(source)))
+    let t0 = date_now_ms()
+    let ast = parse(source)
+    let t1 = date_now_ms()
+    let ir = emit(ast)
+    let t2 = date_now_ms()
+    let kbc = serialize_bc(ir)
+    let t3 = date_now_ms()
+    if env_get("KABOOTAR_P10_PROFILE") == "1" {
+        println("PROFILE self_host parse_ms " + ("" + (t1 - t0)))
+        println("PROFILE self_host emit_ms " + ("" + (t2 - t1)))
+        println("PROFILE self_host serialize_ms " + ("" + (t3 - t2)))
+        println("PROFILE self_host total_ms " + ("" + (t3 - t0)))
+        println("PROFILE self_host kbc_len " + ("" + len(kbc)))
+    }
+    return kbc
 }
 
 /// IR module for Kab VM (`runModule` in self_host/vm).
