@@ -1,0 +1,15 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+
+pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
+    if name == "iterator_step_in_place" {
+        let it = vPopS(S)
+        let pair = bytecode_iterator_step_in_place(it)
+        vPushS(S, pair[0])
+        vPushS(S, pair[1])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

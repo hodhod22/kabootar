@@ -1,0 +1,11 @@
+import "self_host/vm_run_callee_fn"
+import "self_host/vm_run_callee_meth"
+
+/// Classify callee for call ops. kind: fn|arrow|method|host|bad
+pub fn vClassifyCallee(callee) {
+    let c = vClassifyFnArrow(callee)
+    if c["kind"] != null {
+        return c
+    }
+    return vClassifyMethHost(c["callee"])
+}

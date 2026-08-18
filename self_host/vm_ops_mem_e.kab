@@ -1,0 +1,11 @@
+// P6b: VM mem half-facade e (index get + len).
+import "self_host/vm_ops_mem_index_get"
+import "self_host/vm_ops_mem_len"
+
+pub fn runOpMemE(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemIndexGet(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemLen(S, name, arg, op, pool, globals, functions)
+}

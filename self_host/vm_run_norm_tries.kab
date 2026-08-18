@@ -1,0 +1,7 @@
+pub fn vNormTries(bc) {
+    let tryRegions = bc["tryRegions"]
+    if tryRegions == null || tryRegions == undefined {
+        return []
+    }
+    return tryRegions
+}

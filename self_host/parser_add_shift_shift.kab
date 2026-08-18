@@ -5,17 +5,17 @@ import "self_host/parser_util"
 
 pub fn parseAddShift_shift(sess) {
     while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
-        sess["pBinOp"] = sess["pCur"].type
+        let op = sess["pCur"].type
         bump(sess)
-        sess["pSave"] = sess["pLeft"]
+        let left = sess["pLeft"]
         // JS: + binds tighter than << — allow +/- on shift RHS.
-        sess["pRight"] = pCallMul(sess)
+        let right = pCallMul(sess)
         while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
             let addOp = sess["pCur"].type
             bump(sess)
-            sess["pRight"] = { "kind": AST_BINARY, "op": addOp, "left": sess["pRight"], "right": pCallMul(sess) }
+            right = { "kind": AST_BINARY, "op": addOp, "left": right, "right": pCallMul(sess) }
         }
-        sess["pLeft"] = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": sess["pSave"], "right": sess["pRight"] }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
     }
     return 0
 }

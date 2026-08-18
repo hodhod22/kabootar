@@ -1,0 +1,25 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+import "self_host/parser_block"
+
+pub fn parseStmt_class_method_body(sess) {
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterBody(sess)
+    pParseBodyUntilRBrace(sess, "Unclosed block")
+    let methBody = pLeaveBody(sess)
+    sess["pVal"] = {
+        "sym": sess["pFnSym"],
+        "typeParams": sess["pMethTypeParams"],
+        "params": sess["pMethParams"],
+        "paramTypes": sess["pMethParamTypes"],
+        "returnType": "",
+        "body": { "kind": AST_BLOCK, "body": methBody }
+    }
+    sess["pClassMethods"] = push(sess["pClassMethods"], sess["pVal"])
+    return 0
+}

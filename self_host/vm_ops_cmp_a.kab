@@ -1,0 +1,10 @@
+import "self_host/vm_ops_cmp_eq"
+import "self_host/vm_ops_cmp_ord"
+
+pub fn runOpCmpA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpEq(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpOrd(S, name, arg, op, pool, globals, functions)
+}

@@ -1,0 +1,9 @@
+import "self_host/vm_run_mod_enter"
+import "self_host/vm_run_mod_leave"
+import "self_host/vm_run_hook_ops"
+
+pub fn vModRun(S, bc) {
+    let ctx = vModEnter(S, bc)
+    vCallRunOps(S, ctx["ops"], ctx["pool"], ctx["globals"], ctx["functions"])
+    return vModLeave(S, ctx["old"])
+}

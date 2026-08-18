@@ -1,0 +1,14 @@
+import "self_host/vm_s_pop"
+import "self_host/vm_s_pool_key"
+import "self_host/vm_s_member_set_push"
+
+pub fn runOpDataSetMember(S, name, arg, op, pool, globals, functions) {
+    if name == "set_member" {
+        let key = poolKey(pool, arg)
+        let val = vPopS(S)
+        let obj = vPopS(S)
+        vMemberSetPush(S, obj, key, val)
+        return 1
+    }
+    return 0
+}

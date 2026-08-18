@@ -1,0 +1,12 @@
+import "self_host/vm_run_new_run_init_present"
+
+/// Run init on shell if present; update lastThis. Returns inst.
+pub fn vRunNewInitS(S, info, argc, pool, globals, functions) {
+    if info["init"] != null {
+        return vRunNewInitPresentS(S, info, pool, globals, functions)
+    }
+    if argc > 0 {
+        throw "vm class has no init: " + info["sym"]
+    }
+    return info["inst"]
+}

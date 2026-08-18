@@ -1,0 +1,13 @@
+// P6b: poolVal helper.
+import "self_host/emit_defs"
+
+pub fn poolVal(pool, idx) {
+    if idx < 0 || idx >= len(pool) {
+        throw "vm bad const index"
+    }
+    let v = pool[idx]
+    if v == KAB_UNDEF_CONST {
+        return undefined
+    }
+    return v
+}

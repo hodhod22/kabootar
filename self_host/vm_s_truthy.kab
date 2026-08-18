@@ -1,0 +1,7 @@
+// P6b: truthy helper (pure).
+pub fn vTruthy(v) {
+    if v == false || v == null || v == undefined {
+        return false
+    }
+    return true
+}

@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b `Value` Array/Object `Rc` (COW + cycle reject) + Len/IndexGet; skip-list 5 until leaf ≤10 s. **L/O/T/J/S** ✅ subset; **P/GP0–GP5** + **GP6a–n** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** P6b skip-list tom; `parser_mul`/`parser_rel_expr`/`parser_postfix` ≤10 s. **L/O/T/J/S** ✅ subset; **P/GP0–GP5** + **GP6a–n** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -659,7 +659,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
 
-**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE` / skip-listade löv). Tunna facader self-hostar CI-snabbt. **Skip-list (löv kvar):** `emit_impl`, `parser_impl`, `lexer_impl`, `vm_run_body`. **Serialize-shards:** CI-fast (ej skip-listade). **Committed seeds:** `self_host/seed/*.kbc`. Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** seed-only (empty skip-list deferred until emit/parser/lexer/vm ≤10 s). Smokes: `h6e_kab_*`, `h6e_skip_listed_kab_only_uses_seed`, `p6_seed_only_all_leaves_have_seeds`, `p6_seed_fingerprint_all_leaves_load`.
+**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE`). Tunna facader self-hostar CI-snabbt. **Skip-list tom (P6b).** **Committed seeds:** `self_host/seed/*.kbc` (kab-only cache). Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** `attempt-all`. Smokes: `h6e_kab_*`, `p6_leaf_self_host_compile_budget`.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
@@ -674,12 +674,12 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Fas | Innehåll | Status |
 |-----|----------|--------|
 | **P0** | **Baslinje & profiler** — frame-tid, alloc/frame, bytecode op-histogram; `kabootar bench` / spel-smoke med budget (t.ex. 16.6 ms @ 60 FPS idle) | ✅ subset (`tests/perf_p0_smoke.rs`: `performance.now` + `game_tick`/`delta_ms` < 100 ms CI-smoke; full profiler/histogram kvar) |
-| **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | ✅ subset (`member_name` → `&str`; GetMember monomorphic IC; CALL skip arg-clone utan Object; MakeArray O(n); IndexGet array-fastpath; `tests/perf_p1_smoke.rs`) |
+| **P1** | **VM hot path** — färre allocs i CALL/INDEX; inline cache för globals/members; snabbare ` AccAdd`/arith redan påbörjad i H6e | ✅ subset (`member_name` → `&str`; GetMember + LoadGlobal monomorphic IC; CALL skip arg-clone utan Object; MakeArray O(n); IndexGet array-fastpath; `tests/perf_p1_smoke.rs`) |
 | **P2** | **Typed arrays / bulk buffers** — `Float32Array`/`Uint8Array` zero-copy till GPU/audio; ingen per-vertex Kab-objekt-loop | ✅ subset (Float32→`createBuffer`; Uint8→PCM LE i16 + `texImage2D` staging; Array-path kvar) |
 | **P3** | **GC-budget** — incremental/generational eller frame-aware GC så spikes inte dödar 60 FPS; `@manual` för ring buffers | ✅ subset (`gc_frame_stats` / `gc_set_frame_budget`; alloc-räknare + soft sweep i `game_tick`; `tests/perf_p3_gc_frame.rs`) |
 | **P4** | **AOT / native code** — `.kbc` → maskinkod eller LLVM/Cranelift-subset för hot fn; cache per fingerprint | ✅ subset (bytecode/`.kbc` fingerprint = AOT-lite; `tests/perf_p4578_smoke.rs` `p4_aot_lite_bytecode_present`; maskinkod kvar) |
 | **P5** | **SIMD & math** — vec3/mat4 natives eller `@manual` SIMD för transform (Kab-API, FFI under huven tills self-host) | ✅ subset (`sci_vadd`/`sci_vmul`/`sci_dot` bulk loops; auto-vectorizable; mat4 GPU kvar) |
-| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **seed-only**. **P6b** 📋 <10s — depth counters + `Len*`/`IndexGet*` (list stays 5; see `self_host/seed/README.md`) |
+| **P6** | **Self-host compile-tid** — tömma H6e skip-list; snabbare parse/emit; incremental `.kbc`; committed `self_host/seed/*.kbc` | ✅ **P6b** skip-list tom; emit/parser/lexer impls ≤10 s (thin drivers + densified shards) |
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |

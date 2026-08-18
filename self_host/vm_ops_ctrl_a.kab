@@ -1,0 +1,10 @@
+import "self_host/vm_ops_ctrl_throw"
+import "self_host/vm_ops_ctrl_return"
+
+pub fn runOpCtrlA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCtrlThrow(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCtrlReturn(S, name, arg, op, pool, globals, functions)
+}

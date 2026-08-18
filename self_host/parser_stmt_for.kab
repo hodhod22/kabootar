@@ -2,46 +2,35 @@ import "self_host/lexer_defs"
 import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
+import "self_host/parser_block"
 
 pub fn parseStmt_for(sess) {
     if !(sess["pCur"].type == TOKEN_FOR) {
         return null
     }
-        bump(sess)
-        sess["pTok"] = sess["pCur"]
-        if sess["pTok"].type != TOKEN_IDENT {
-            throw "Expected for-of binding"
-        }
-        bump(sess)
-        let forSym = sess["pTok"].value
-        if sess["pCur"].type != TOKEN_OF {
-            throw "Expected of"
-        }
-        bump(sess)
-        let forIter = pCallCompare(sess)
-        if sess["pCur"].type != "{" {
-            throw "Expected {"
-        }
-        bump(sess)
-        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pLoopBody"])
-        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
-        sess["pLoopBody"] = []
-        while sess["pCur"].type != "}" {
-            sess["pLoopBody"] = push(sess["pLoopBody"], pCallStmt(sess))
-            if sess["pCur"].type == ";" {
-                bump(sess)
-            }
-        }
-        bump(sess)
-        let forBody = sess["pLoopBody"]
-        sess["pLoopBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-        sess["pBodyStack"] = pop(sess["pBodyStack"])
-        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
-        return {
-            "kind": AST_FOR_OF,
-            "sym": forSym,
-            "iterable": forIter,
-            "body": { "kind": AST_BLOCK, "body": forBody }
-        }
+    bump(sess)
+    sess["pTok"] = sess["pCur"]
+    if sess["pTok"].type != TOKEN_IDENT {
+        throw "Expected for-of binding"
+    }
+    bump(sess)
+    let forSym = sess["pTok"].value
+    if sess["pCur"].type != TOKEN_OF {
+        throw "Expected of"
+    }
+    bump(sess)
+    let forIter = pCallCompare(sess)
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterLoopBody(sess)
+    pParseLoopUntilRBrace(sess)
+    let forBody = pLeaveLoopBody(sess)
+    return {
+        "kind": AST_FOR_OF,
+        "sym": forSym,
+        "iterable": forIter,
+        "body": { "kind": AST_BLOCK, "body": forBody }
+    }
 }
-

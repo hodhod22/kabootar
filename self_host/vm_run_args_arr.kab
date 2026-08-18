@@ -1,0 +1,9 @@
+pub fn vArrayToOrdered(argsArr) {
+    let ordered = []
+    let ai = 0
+    while ai < len(argsArr) {
+        ordered = push(ordered, argsArr[ai])
+        ai = ai + 1
+    }
+    return ordered
+}

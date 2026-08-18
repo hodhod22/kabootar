@@ -1,0 +1,11 @@
+// P6b: VM mem half-facade a.
+import "self_host/vm_ops_mem_const_pop"
+import "self_host/vm_ops_mem_local"
+
+pub fn runOpMemA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemConstPop(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemLocal(S, name, arg, op, pool, globals, functions)
+}

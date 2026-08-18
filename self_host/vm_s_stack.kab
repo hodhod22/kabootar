@@ -1,0 +1,4 @@
+// P6b: stack/ip facade — re-exports via import side effects for dependents that only import this.
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"

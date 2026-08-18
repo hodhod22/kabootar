@@ -1,0 +1,111 @@
+import "self_host/lexer_defs"
+import "self_host/lexer_util"
+import "self_host/lexer_scan"
+
+pub fn lxSkipSpace(sess) {
+    while sess["pos"] < sess["srcLen"] {
+        let cd = char_code_at(sess["src"], sess["pos"])
+        if cd == 32 || cd == 9 || cd == 13 {
+            sess["col"] = sess["col"] + 1
+            sess["pos"] = sess["pos"] + 1
+            continue
+        }
+        if cd == 10 {
+            sess["line"] = sess["line"] + 1
+            sess["col"] = 1
+            sess["pos"] = sess["pos"] + 1
+            continue
+        }
+        break
+    }
+    return 0
+}
+
+pub fn lxSkipLineComment(sess) {
+    if sess["pos"] >= sess["srcLen"] {
+        return 0
+    }
+    if char_at(sess["src"], sess["pos"]) != "/" {
+        return 0
+    }
+    if sess["pos"] + 1 >= sess["srcLen"] {
+        return 0
+    }
+    if char_at(sess["src"], sess["pos"] + 1) != "/" {
+        return 0
+    }
+    sess["pos"] = sess["pos"] + 2
+    while sess["pos"] < sess["srcLen"] {
+        let ch = char_at(sess["src"], sess["pos"])
+        if ch == "\n" {
+            sess["line"] = sess["line"] + 1
+            sess["col"] = 1
+            sess["pos"] = sess["pos"] + 1
+            break
+        }
+        sess["col"] = sess["col"] + 1
+        sess["pos"] = sess["pos"] + 1
+    }
+    return 1
+}
+
+pub fn lxSkipBlockComment(sess) {
+    if sess["pos"] >= sess["srcLen"] {
+        return 0
+    }
+    if char_at(sess["src"], sess["pos"]) != "/" {
+        return 0
+    }
+    if sess["pos"] + 1 >= sess["srcLen"] {
+        return 0
+    }
+    if char_at(sess["src"], sess["pos"] + 1) != "*" {
+        return 0
+    }
+    sess["pos"] = sess["pos"] + 2
+    while sess["pos"] < sess["srcLen"] {
+        let ch = char_at(sess["src"], sess["pos"])
+        sess["pos"] = sess["pos"] + 1
+        sess["col"] = sess["col"] + 1
+        if ch == "\n" {
+            sess["line"] = sess["line"] + 1
+            sess["col"] = 1
+        }
+        if ch == "*" && sess["pos"] < sess["srcLen"] && char_at(sess["src"], sess["pos"]) == "/" {
+            sess["pos"] = sess["pos"] + 1
+            sess["col"] = sess["col"] + 1
+            break
+        }
+    }
+    return 1
+}
+
+pub fn tokenizeExec(source) {
+    let sess = {
+        "pos": 0,
+        "src": source,
+        "srcLen": len(source),
+        "line": 1,
+        "col": 1
+    }
+    let tokens = []
+    while true {
+        lxSkipSpace(sess)
+        if sess["pos"] >= sess["srcLen"] {
+            break
+        }
+        if lxSkipLineComment(sess) == 1 {
+            continue
+        }
+        if lxSkipBlockComment(sess) == 1 {
+            continue
+        }
+        let tok = lxScan(sess)
+        if tok.type == TOKEN_EOF {
+            break
+        }
+        tokens = push(tokens, tok)
+    }
+    tokens = push(tokens, lxTok(TOKEN_EOF, null, sess["line"], sess["col"]))
+    return tokens
+}

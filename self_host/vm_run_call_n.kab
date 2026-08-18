@@ -1,0 +1,17 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_ip"
+import "self_host/vm_run_call_n_prep"
+import "self_host/vm_run_call_apply"
+
+pub fn runOpCallNS(S, name, arg, pool, globals, functions) {
+    if name != "call" {
+        return 0
+    }
+    let p = vCallNPrepS(S, arg)
+    if p["st"] == 2 {
+        return 2
+    }
+    vPushS(S, vApplyCalleeS(S, p["c"], p["ordered"], pool, globals, functions))
+    vBumpIpS(S)
+    return 1
+}

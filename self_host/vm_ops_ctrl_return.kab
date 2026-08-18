@@ -1,0 +1,10 @@
+import "self_host/vm_ops_ctrl_return_ret"
+import "self_host/vm_ops_ctrl_return_halt"
+
+pub fn runOpCtrlReturn(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCtrlReturnRet(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCtrlReturnHalt(S, name, arg, op, pool, globals, functions)
+}

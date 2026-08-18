@@ -1,0 +1,8 @@
+// P6b: host call / map get (pure).
+pub fn vCallHost(callee, ordered) {
+    return bytecode_host_call(callee, ordered)
+}
+
+pub fn vObjGet(obj, key) {
+    return bytecode_host_map_get(obj, key)
+}

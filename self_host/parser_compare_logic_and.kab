@@ -6,16 +6,16 @@ import "self_host/parser_util"
 pub fn parseCompare_logic_and(sess) {
     while sess["pCur"].type == "&&" {
         bump(sess)
-        sess["pExprLeft"] = sess["pLeft"]
-        sess["pRight"] = pCallRelExpr(sess)
+        let left = sess["pLeft"]
+        let right = pCallRelExpr(sess)
         if sess["pNoBit"] == 0 {
             while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
-                sess["pBinOp"] = sess["pCur"].type
+                let op = sess["pCur"].type
                 bump(sess)
-                sess["pRight"] = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": sess["pRight"], "right": pCallRelExpr(sess) }
+                right = { "kind": AST_BINARY, "op": op, "left": right, "right": pCallRelExpr(sess) }
             }
         }
-        sess["pLeft"] = { "kind": AST_BINARY, "op": "&&", "left": sess["pExprLeft"], "right": sess["pRight"] }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": "&&", "left": left, "right": right }
     }
     return 0
 }

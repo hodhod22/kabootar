@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_ops_mem_a"
+import "self_host/vm_ops_mem_b"
+
+pub fn runOpMemAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemB(S, name, arg, op, pool, globals, functions)
+}

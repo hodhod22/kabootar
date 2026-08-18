@@ -1,0 +1,7 @@
+import "self_host/vm_run_new_inst"
+import "self_host/vm_run_new_run_init"
+
+pub fn vNewInstanceS(S, classIdx, argc, pool, globals, functions) {
+    let info = vAllocInstance(S, classIdx, argc)
+    return vRunNewInitS(S, info, argc, pool, globals, functions)
+}

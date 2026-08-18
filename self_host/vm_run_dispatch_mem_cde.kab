@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_run_dispatch_mem_cd"
+import "self_host/vm_run_dispatch_mem_e"
+
+pub fn runOpMemCde(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemCd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemEwrap(S, name, arg, op, pool, globals, functions)
+}

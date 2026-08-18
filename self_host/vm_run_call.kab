@@ -1,0 +1,10 @@
+import "self_host/vm_run_call_cfa"
+import "self_host/vm_run_call_n"
+
+pub fn runOpCallS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCallFromArrayS(S, name, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCallNS(S, name, arg, pool, globals, functions)
+}

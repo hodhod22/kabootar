@@ -1,0 +1,11 @@
+import "self_host/vm_s_host"
+import "self_host/vm_run_hook_meth"
+
+/// Apply method|host|bad via hooks / host call.
+pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
+    let kind = c["kind"]
+    if kind == "method" {
+        return vCallRunMeth(S, c["meth"], pool, globals, functions, c["recv"], ordered)
+    }
+    return vCallHost(c["callee"], ordered)
+}

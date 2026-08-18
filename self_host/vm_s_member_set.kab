@@ -1,0 +1,7 @@
+pub fn vMemberSet(obj, key, val) {
+    if obj == null || obj == undefined {
+        throw "vm cannot set member on nullish"
+    }
+    obj[key] = val
+    return obj
+}

@@ -7,21 +7,21 @@ pub fn parseCompare_bit(sess) {
     if sess["pNoBit"] == 0 {
         while sess["pCur"].type == "&" {
             bump(sess)
-            sess["pSave"] = sess["pLeft"]
-            sess["pRight"] = pCallRelExpr(sess)
-            sess["pLeft"] = { "kind": AST_BINARY, "op": "&", "left": sess["pSave"], "right": sess["pRight"] }
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "&", "left": left, "right": right }
         }
         while sess["pCur"].type == "^" {
             bump(sess)
-            sess["pSave"] = sess["pLeft"]
-            sess["pRight"] = pCallRelExpr(sess)
-            sess["pLeft"] = { "kind": AST_BINARY, "op": "^", "left": sess["pSave"], "right": sess["pRight"] }
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "^", "left": left, "right": right }
         }
         while sess["pCur"].type == "|" {
             bump(sess)
-            sess["pSave"] = sess["pLeft"]
-            sess["pRight"] = pCallRelExpr(sess)
-            sess["pLeft"] = { "kind": AST_BINARY, "op": "|", "left": sess["pSave"], "right": sess["pRight"] }
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "|", "left": left, "right": right }
         }
     }
     return 0

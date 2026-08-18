@@ -2,24 +2,17 @@ import "self_host/lexer_defs"
 import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
+import "self_host/parser_unary_ops"
 
 pub fn parseUnary(sess) {
-    if sess["pCur"].type == "!" {
-        bump(sess)
-        let uInner = pCallUnary(sess)
-        return { "kind": AST_UNARY, "op": "!", "expr": uInner }
+    if parseUnary_bang(sess) == 1 {
+        return sess["pLeft"]
     }
-    if sess["pCur"].type == "-" {
-        bump(sess)
-        let uInner = pCallUnary(sess)
-        return { "kind": AST_UNARY, "op": "-", "expr": uInner }
+    if parseUnary_neg(sess) == 1 {
+        return sess["pLeft"]
     }
-    if sess["pCur"].type == "~" {
-        bump(sess)
-        let uInner = pCallUnary(sess)
-        return { "kind": AST_UNARY, "op": "~", "expr": uInner }
+    if parseUnary_bitnot(sess) == 1 {
+        return sess["pLeft"]
     }
     return pCallPostfix(sess)
 }
-
-

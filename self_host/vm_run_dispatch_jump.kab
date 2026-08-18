@@ -1,0 +1,10 @@
+import "self_host/vm_ops_jump_a"
+import "self_host/vm_ops_jump_b"
+
+pub fn runOpJumpS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpB(S, name, arg, op, pool, globals, functions)
+}

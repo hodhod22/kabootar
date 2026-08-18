@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_run_dispatch_cmp_ab"
+import "self_host/vm_ops_cmp_c"
+
+pub fn runOpCmpS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpAb(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpC(S, name, arg, op, pool, globals, functions)
+}

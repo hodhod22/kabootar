@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_take_local"
+import "self_host/vm_ops_mem_take_global"
+
+pub fn runOpMemTake(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemTakeLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemTakeGlobal(S, name, arg, op, pool, globals, functions)
+}

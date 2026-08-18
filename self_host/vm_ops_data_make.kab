@@ -1,0 +1,10 @@
+import "self_host/vm_ops_data_make_object"
+import "self_host/vm_ops_data_make_array"
+
+pub fn runOpDataMake(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataMakeObject(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataMakeArray(S, name, arg, op, pool, globals, functions)
+}

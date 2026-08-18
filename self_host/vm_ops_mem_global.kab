@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_load_global"
+import "self_host/vm_ops_mem_store_global"
+
+pub fn runOpMemGlobal(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemLoadGlobal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemStoreGlobal(S, name, arg, op, pool, globals, functions)
+}

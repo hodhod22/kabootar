@@ -1,0 +1,13 @@
+// P6b: fill remaining undefined globals from host registry.
+pub fn vFillHostGlobals(S, globals) {
+    let fillI = 0
+    while fillI < len(globals) {
+        if S["globals"][fillI] == undefined {
+            let fillH = bytecode_host_get("" + globals[fillI])
+            if fillH != undefined {
+                S["globals"][fillI] = fillH
+            }
+        }
+        fillI = fillI + 1
+    }
+}

@@ -3,23 +3,8 @@ import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
 
-import "self_host/parser_stmt_let"
-import "self_host/parser_stmt_earlyAssign"
-import "self_host/parser_stmt_enum"
-import "self_host/parser_stmt_class"
-import "self_host/parser_stmt_iface"
-import "self_host/parser_stmt_fn"
-import "self_host/parser_stmt_if"
-import "self_host/parser_stmt_try"
-import "self_host/parser_stmt_for"
-import "self_host/parser_stmt_while"
-import "self_host/parser_stmt_continue"
-import "self_host/parser_stmt_break"
-import "self_host/parser_stmt_throw"
-import "self_host/parser_stmt_return"
-import "self_host/parser_stmt_block"
-import "self_host/parser_stmt_lateAssign"
-import "self_host/parser_stmt_expr"
+import "self_host/parser_stmt_dispatch_decl"
+import "self_host/parser_stmt_dispatch_ctrl"
 
 pub fn parseStmt(sess) {
     if sess["pCur"].type == "EOF" {
@@ -30,37 +15,9 @@ pub fn parseStmt(sess) {
         bump(sess)
         sess["pIsPub"] = 1
     }
-    let r = parseStmt_let(sess)
-    if r != null { return r }
-    let r = parseStmt_earlyAssign(sess)
-    if r != null { return r }
-    let r = parseStmt_enum(sess)
-    if r != null { return r }
-    let r = parseStmt_class(sess)
-    if r != null { return r }
-    let r = parseStmt_iface(sess)
-    if r != null { return r }
-    let r = parseStmt_fn(sess)
-    if r != null { return r }
-    let r = parseStmt_if(sess)
-    if r != null { return r }
-    let r = parseStmt_try(sess)
-    if r != null { return r }
-    let r = parseStmt_for(sess)
-    if r != null { return r }
-    let r = parseStmt_while(sess)
-    if r != null { return r }
-    let r = parseStmt_continue(sess)
-    if r != null { return r }
-    let r = parseStmt_break(sess)
-    if r != null { return r }
-    let r = parseStmt_throw(sess)
-    if r != null { return r }
-    let r = parseStmt_return(sess)
-    if r != null { return r }
-    let r = parseStmt_block(sess)
-    if r != null { return r }
-    let r = parseStmt_lateAssign(sess)
-    if r != null { return r }
-    return parseStmt_expr(sess)
+    let r = parseStmt_dispatch_decl(sess)
+    if r != null {
+        return r
+    }
+    return parseStmt_dispatch_ctrl(sess)
 }

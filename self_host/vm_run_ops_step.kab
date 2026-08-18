@@ -1,0 +1,13 @@
+import "self_host/vm_run_ops_step_raw"
+
+pub fn runOpsStepS(S, ops, pool, globals, functions) {
+    let r = runOpsStepRawS(S, ops, pool, globals, functions)
+    let st = r["st"]
+    if st == 2 {
+        return 2
+    }
+    if st == 0 {
+        throw "vm unsupported opcode: " + r["name"]
+    }
+    return 1
+}

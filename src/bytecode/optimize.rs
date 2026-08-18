@@ -51,7 +51,7 @@ fn optimize_chunk(
 ) -> OptStats {
     let mut stats = OptStats::default();
     fold_constants(code, constants, regions, &mut stats);
-    peephole(code, regions, &mut stats);
+    peephole(code, constants, regions, &mut stats);
     trim_dead_after_halt(code, regions, &mut stats);
     stats
 }
@@ -157,10 +157,10 @@ fn fold_binop(a: &Constant, b: &Constant, op: &Opcode) -> Option<Constant> {
     }
 }
 
-fn peephole(code: &mut Vec<Opcode>, regions: &mut [GeneratorTryRegion], stats: &mut OptStats) {
+fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [GeneratorTryRegion], stats: &mut OptStats) {
     let mut i = 0;
     while i < code.len() {
-        let removed = match peephole_step(code, i) {
+        let removed = match peephole_step(code, constants, i) {
             Some(n) => n,
             None => {
                 i += 1;
@@ -173,20 +173,42 @@ fn peephole(code: &mut Vec<Opcode>, regions: &mut [GeneratorTryRegion], stats: &
     }
 }
 
-fn peephole_step(code: &mut Vec<Opcode>, i: usize) -> Option<usize> {
+fn peephole_step(code: &mut Vec<Opcode>, constants: &[Constant], i: usize) -> Option<usize> {
     match &code[i] {
         Opcode::Jump(0) | Opcode::JumpIfFalse(0) | Opcode::JumpIfResultErr(0) => {
             code.remove(i);
             Some(1)
         }
-        Opcode::Const(_) if i + 1 < code.len() && matches!(code[i + 1], Opcode::Pop) => {
-            code.remove(i);
+        Opcode::Const(ci) if i + 1 < code.len() => match code[i + 1].clone() {
+            Opcode::Pop => {
+                code.remove(i);
+                code.remove(i);
+                Some(2)
+            }
+            Opcode::JumpIfFalse(off) => match constants.get(*ci as usize) {
+                Some(Constant::Bool(false)) => {
+                    code.remove(i);
+                    code[i] = Opcode::Jump(off);
+                    Some(1)
+                }
+                Some(Constant::Bool(true)) => {
+                    code.remove(i + 1);
+                    code.remove(i);
+                    Some(2)
+                }
+                _ => None,
+            },
+            _ => None,
+        },
+        Opcode::LoadLocal(a) if i + 1 < code.len() && matches!(code[i + 1], Opcode::StoreLocal(b) if *a == b) => {
+            code.remove(i + 1);
             code.remove(i);
             Some(2)
         }
         Opcode::Not if i > 0 && matches!(code[i - 1], Opcode::Not) => {
             code.remove(i);
-            Some(1)
+            code.remove(i - 1);
+            Some(2)
         }
         _ => None,
     }
@@ -305,6 +327,43 @@ mod tests {
         let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
         assert!(stats.folds >= 1);
         assert!(matches!(code.first(), Some(Opcode::Const(2))));
+    }
+
+    #[test]
+    fn folds_const_false_jump_if_false_to_jump() {
+        let mut constants = vec![Constant::Bool(false), Constant::Bool(true)];
+        let mut code = vec![
+            Opcode::Const(0),
+            Opcode::JumpIfFalse(1),
+            Opcode::Const(1),
+            Opcode::Halt,
+        ];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.peepholes >= 1);
+        assert!(matches!(code.first(), Some(Opcode::Jump(1))));
+    }
+
+    #[test]
+    fn removes_double_not() {
+        let mut code = vec![Opcode::Not, Opcode::Not, Opcode::Halt];
+        let mut constants = vec![];
+        let mut regions = vec![];
+        optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert_eq!(code, vec![Opcode::Halt]);
+    }
+
+    #[test]
+    fn removes_load_store_same_local() {
+        let mut code = vec![
+            Opcode::LoadLocal(2),
+            Opcode::StoreLocal(2),
+            Opcode::Halt,
+        ];
+        let mut constants = vec![];
+        let mut regions = vec![];
+        optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert_eq!(code, vec![Opcode::Halt]);
     }
 
     #[test]

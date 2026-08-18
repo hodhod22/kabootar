@@ -1,0 +1,16 @@
+import "self_host/vm_run_tramp_ops"
+import "self_host/vm_run_tramp_fn"
+import "self_host/vm_run_tramp_meth"
+
+pub fn vTramp(S) {
+    let k = S["_hook"]
+    if k == 0 {
+        vTrampOps(S)
+    } else {
+        if k == 1 {
+            return vTrampFn(S)
+        } else {
+            return vTrampMeth(S)
+        }
+    }
+}

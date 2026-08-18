@@ -1,0 +1,10 @@
+import "self_host/vm_ops_arith_bit_and"
+import "self_host/vm_ops_arith_bit_or"
+
+pub fn runOpArithBitAndOr(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithBitAnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithBitOr(S, name, arg, op, pool, globals, functions)
+}

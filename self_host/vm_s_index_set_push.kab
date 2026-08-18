@@ -1,0 +1,15 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_ip"
+import "self_host/vm_s_index_set"
+import "self_host/vm_s_this_is"
+import "self_host/vm_s_this_write"
+
+pub fn vIndexSetPush(S, container, idx, val) {
+    let updated = vIndexSet(container, idx, val)
+    if vIsCurrentThisS(S, container) {
+        vWriteThisS(S, updated)
+    }
+    vPushS(S, updated)
+    vPushS(S, val)
+    vBumpIpS(S)
+}

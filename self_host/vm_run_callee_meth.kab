@@ -1,0 +1,10 @@
+import "self_host/vm_s_host"
+
+/// Classify method|host given non-null callee that is not fn/arrow.
+pub fn vClassifyMethHost(callee) {
+    let vmM = vObjGet(callee, "vmM")
+    if vmM != undefined {
+        return { "kind": "method", "meth": vmM, "recv": vObjGet(callee, "vmR") }
+    }
+    return { "kind": "host", "callee": callee }
+}

@@ -2,25 +2,14 @@ import "self_host/lexer_defs"
 import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
+import "self_host/parser_block"
 
 pub fn parseStmt_if_else_block(sess) {
     if sess["pCur"].type != "{" {
         throw "Expected {"
     }
     bump(sess)
-    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
-    sess["pBodyDepth"] = sess["pBodyDepth"] + 1
-    sess["pBody"] = []
-    while sess["pCur"].type != "}" {
-        sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
-        if sess["pCur"].type == ";" {
-            bump(sess)
-        }
-    }
-    bump(sess)
-    let finalElse = { "kind": AST_BLOCK, "body": sess["pBody"] }
-    sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-    sess["pBodyStack"] = pop(sess["pBodyStack"])
-    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
-    return finalElse
+    pEnterBody(sess)
+    pParseBodyUntilRBrace(sess, "Unclosed else block")
+    return { "kind": AST_BLOCK, "body": pLeaveBody(sess) }
 }

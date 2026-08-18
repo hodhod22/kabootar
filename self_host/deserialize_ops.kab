@@ -87,6 +87,9 @@ pub fn parseConstLine(line) {
     if kind == "bool false" {
         return false
     }
+    if kind == "string" {
+        return ""
+    }
     if starts_with(kind, "string ") {
         return unescapeKbc(str_slice(kind, 7, len(kind)))
     }

@@ -3,6 +3,9 @@ import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
 
+import "self_host/parser_stmt_class_method_params"
+import "self_host/parser_stmt_class_method_body"
+
 pub fn parseStmt_class_method(sess) {
     if sess["pCur"].type != TOKEN_FN {
         return 0
@@ -19,73 +22,10 @@ pub fn parseStmt_class_method(sess) {
         throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
     }
     bump(sess)
-    sess["pMethParams"] = []
-    sess["pMethParamTypes"] = []
-    if sess["pCur"].type != ")" {
-        while true {
-            sess["pTok"] = sess["pCur"]
-            if sess["pTok"].type == TOKEN_SELF {
-                bump(sess)
-                sess["pMethParams"] = push(sess["pMethParams"], poolPush(sess, "self"))
-                sess["pMethParamTypes"] = push(sess["pMethParamTypes"], "")
-            } else {
-                if sess["pTok"].type != TOKEN_IDENT {
-                    throw "Expected parameter name"
-                }
-                bump(sess)
-                sess["pMethParams"] = push(sess["pMethParams"], poolPush(sess, sess["pTok"].value))
-                sess["pParamType"] = ""
-                if sess["pCur"].type == ":" {
-                    bump(sess)
-                    sess["pTok"] = sess["pCur"]
-                    if sess["pTok"].type != TOKEN_IDENT {
-                        throw "Expected parameter type"
-                    }
-                    bump(sess)
-                    sess["pParamType"] = sess["pTok"].value
-                }
-                sess["pMethParamTypes"] = push(sess["pMethParamTypes"], sess["pParamType"])
-            }
-            if sess["pCur"].type == "," {
-                bump(sess)
-            } else {
-                break
-            }
-        }
-    }
+    parseStmt_class_method_params(sess)
     if sess["pCur"].type != ")" {
         throw "Expected )"
     }
     bump(sess)
-    if sess["pCur"].type != "{" {
-        throw "Expected {"
-    }
-    bump(sess)
-    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
-    sess["pBodyDepth"] = sess["pBodyDepth"] + 1
-    sess["pBody"] = []
-    while sess["pCur"].type != "}" {
-        if sess["pCur"].type == "EOF" {
-            throw "Unclosed block"
-        }
-        sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
-        if sess["pCur"].type == ";" {
-            bump(sess)
-        }
-    }
-    bump(sess)
-    let methBody = sess["pBody"]
-    sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-    sess["pBodyStack"] = pop(sess["pBodyStack"])
-    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
-    sess["pVal"] = {
-        "sym": sess["pFnSym"],
-        "typeParams": sess["pMethTypeParams"],
-        "params": sess["pMethParams"],
-        "paramTypes": sess["pMethParamTypes"],
-        "returnType": "",
-        "body": { "kind": AST_BLOCK, "body": methBody }
-    }
-    sess["pClassMethods"] = push(sess["pClassMethods"], sess["pVal"])
-    return 0
+    return parseStmt_class_method_body(sess)
 }

@@ -1,0 +1,10 @@
+import "self_host/vm_ops_jump_if_true"
+import "self_host/vm_ops_jump_nullish"
+
+pub fn runOpJumpTrue(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpIfTrue(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpNullish(S, name, arg, op, pool, globals, functions)
+}

@@ -1,0 +1,42 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+pub fn parsePostfix_obj(sess) {
+    if sess["pLeft"] != null {
+        return 0
+    }
+    sess["pTok"] = sess["pCur"]
+    if sess["pTok"].type != "{" {
+        return 0
+    }
+    bump(sess)
+    sess["pObjFields"] = []
+    while sess["pCur"].type != "}" {
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type == TOKEN_IDENT {
+            bump(sess)
+            sess["pSaveSym"] = poolPush(sess, sess["pTok"].value)
+        } else {
+            if sess["pTok"].type == TOKEN_STRING {
+                bump(sess)
+                sess["pSaveSym"] = poolPush(sess, sess["pTok"].value)
+            } else {
+                throw "Expected object key"
+            }
+        }
+        if sess["pCur"].type != ":" {
+            throw "Expected :"
+        }
+        bump(sess)
+        sess["pVal"] = pCallCompare(sess)
+        sess["pObjFields"] = push(sess["pObjFields"], { "key": sess["pSaveSym"], "value": sess["pVal"] })
+        if sess["pCur"].type == "," {
+            bump(sess)
+        }
+    }
+    bump(sess)
+    sess["pLeft"] = { "kind": AST_OBJECT, "fields": sess["pObjFields"] }
+    return 0
+}

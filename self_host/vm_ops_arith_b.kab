@@ -1,0 +1,11 @@
+// P6b: VM arith half-facade b.
+import "self_host/vm_ops_arith_mod_pow"
+import "self_host/vm_ops_arith_neg"
+
+pub fn runOpArithB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithModPow(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithNeg(S, name, arg, op, pool, globals, functions)
+}

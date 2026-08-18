@@ -6,16 +6,16 @@ import "self_host/parser_util"
 pub fn parseAddShift_plus(sess) {
     // P6b: one loop for +/- so `a - b + c` does not leave `+ c` unparsed.
     while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
-        sess["pBinOp"] = sess["pCur"].type
+        let op = sess["pCur"].type
         bump(sess)
-        sess["pSave"] = sess["pLeft"]
-        sess["pRight"] = pCallMul(sess)
+        let left = sess["pLeft"]
+        let right = pCallMul(sess)
         while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
             let shOp = sess["pCur"].type
             bump(sess)
-            sess["pRight"] = { "kind": AST_BINARY, "op": shOp, "left": sess["pRight"], "right": pCallMul(sess) }
+            right = { "kind": AST_BINARY, "op": shOp, "left": right, "right": pCallMul(sess) }
         }
-        sess["pLeft"] = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": sess["pSave"], "right": sess["pRight"] }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
     }
     return 0
 }

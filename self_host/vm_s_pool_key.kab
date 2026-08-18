@@ -1,0 +1,10 @@
+// P6b: poolKey helper.
+import "self_host/vm_s_pool_val"
+
+pub fn poolKey(pool, idx) {
+    let k = poolVal(pool, idx)
+    if k == null || k == undefined {
+        return ""
+    }
+    return "" + k
+}

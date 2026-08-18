@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_run_dispatch_plain_ma"
+import "self_host/vm_run_dispatch_plain_cd"
+
+pub fn runOpPlainMacd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpPlainMa(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpPlainCd(S, name, arg, op, pool, globals, functions)
+}

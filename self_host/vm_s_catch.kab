@@ -1,0 +1,16 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_try"
+import "self_host/vm_s_pad_locals"
+
+pub fn vCatchThrow(S, reason) {
+    let region = vFindTry(S["tryRegions"], S["ip"])
+    if region == null {
+        return 0
+    }
+    let el = region["errLocal"]
+    vPadLocalsTo(S, el)
+    S["locals"][el] = reason
+    vPushS(S, reason)
+    S["ip"] = region["catchStart"]
+    return 1
+}

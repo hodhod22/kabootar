@@ -1,0 +1,7 @@
+pub fn vNormClasses(bc) {
+    let classes = bc["classes"]
+    if classes == null || classes == undefined {
+        return []
+    }
+    return classes
+}

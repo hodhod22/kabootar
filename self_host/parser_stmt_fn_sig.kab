@@ -3,6 +3,9 @@ import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
 
+import "self_host/parser_stmt_fn_params"
+import "self_host/parser_stmt_fn_ret"
+
 pub fn parseStmt_fn_sig(sess) {
     bump(sess)
     sess["pTok"] = sess["pCur"]
@@ -17,47 +20,10 @@ pub fn parseStmt_fn_sig(sess) {
         throw "Expected ( at " + ("" + sess["pCur"].line) + ":" + ("" + sess["pCur"].column) + " tok=" + sess["pCur"].type
     }
     bump(sess)
-    sess["pParams"] = []
-    sess["pParamTypes"] = []
-    if sess["pCur"].type != ")" {
-        while true {
-            sess["pTok"] = sess["pCur"]
-            if sess["pTok"].type != TOKEN_IDENT {
-                throw "Expected parameter name"
-            }
-            bump(sess)
-            sess["pParams"] = push(sess["pParams"], poolPush(sess, sess["pTok"].value))
-            sess["pParamType"] = ""
-            if sess["pCur"].type == ":" {
-                bump(sess)
-                sess["pTok"] = sess["pCur"]
-                if sess["pTok"].type != TOKEN_IDENT {
-                    throw "Expected parameter type"
-                }
-                bump(sess)
-                sess["pParamType"] = sess["pTok"].value
-            }
-            sess["pParamTypes"] = push(sess["pParamTypes"], sess["pParamType"])
-            if sess["pCur"].type == "," {
-                bump(sess)
-            } else {
-                break
-            }
-        }
-    }
+    parseStmt_fn_params(sess)
     if sess["pCur"].type != ")" {
         throw "Expected )"
     }
     bump(sess)
-    sess["pReturnType"] = ""
-    if sess["pCur"].type == "->" {
-        bump(sess)
-        sess["pTok"] = sess["pCur"]
-        if sess["pTok"].type != TOKEN_IDENT {
-            throw "Expected return type"
-        }
-        bump(sess)
-        sess["pReturnType"] = sess["pTok"].value
-    }
-    return 0
+    return parseStmt_fn_ret(sess)
 }

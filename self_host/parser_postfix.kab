@@ -2,10 +2,7 @@ import "self_host/lexer_defs"
 import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
-
-import "self_host/parser_postfix_lit"
-import "self_host/parser_postfix_paren"
-import "self_host/parser_postfix_obj_arr"
+import "self_host/parser_postfix_primary"
 import "self_host/parser_postfix_bare_arrow"
 import "self_host/parser_postfix_tail"
 
@@ -13,18 +10,7 @@ pub fn parsePostfix(sess) {
     if sess["pCur"].type == "EOF" {
         throw "parsePostfix EOF"
     }
-    sess["pLeft"] = null
-    sess["pTypeArgs"] = []
-    parsePostfix_lit(sess)
-    if sess["pLeft"] == null {
-        parsePostfix_paren(sess)
-    }
-    if sess["pLeft"] == null {
-        parsePostfix_obj_arr(sess)
-    }
-    if sess["pLeft"] == null {
-        throw json_stringify(sess["pCur"])
-    }
+    parsePostfix_primary(sess)
     parsePostfix_bareArrow(sess)
     return parsePostfix_tail(sess)
 }

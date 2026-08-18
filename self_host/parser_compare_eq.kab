@@ -5,11 +5,11 @@ import "self_host/parser_util"
 
 pub fn parseCompare_eq(sess) {
     while sess["pCur"].type == "==" || sess["pCur"].type == "!=" || sess["pCur"].type == "<" || sess["pCur"].type == ">" || sess["pCur"].type == ">=" || sess["pCur"].type == "<=" {
-        sess["pBinOp"] = sess["pCur"].type
+        let op = sess["pCur"].type
         bump(sess)
-        sess["pSave"] = sess["pLeft"]
-        sess["pRight"] = pCallAddShift(sess)
-        sess["pLeft"] = { "kind": AST_BINARY, "op": sess["pBinOp"], "left": sess["pSave"], "right": sess["pRight"] }
+        let left = sess["pLeft"]
+        let right = pCallAddShift(sess)
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
     }
     return 0
 }

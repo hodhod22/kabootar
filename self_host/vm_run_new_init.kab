@@ -1,0 +1,10 @@
+import "self_host/vm_s_find_method"
+
+/// Resolve init/constructor on classDef.
+pub fn vResolveInit(classDef) {
+    let init = vFindMethod(classDef, "init")
+    if init == null {
+        init = vFindMethod(classDef, "constructor")
+    }
+    return init
+}

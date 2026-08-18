@@ -57,17 +57,10 @@ impl CompilePrefer {
 /// self-host via `load_program_for_file` → `compile_file_prefer_cached` (Rust only
 /// while `KAB_VM_EXEC_ACTIVE`, or for these leaves / oversize).
 ///
-/// P6 policy: **seed-only** — leaves stay skip-listed; kab-only loads committed
-/// `self_host/seed/*.kbc`. Emptying the list is deferred until self-host compile
-/// of these shards is CI-fast. P6b: serialize split into out_base/tagged/try,
-/// ops/lists/fns/arrows/class_methods/classes, const/ir_line, and acc.
-/// Thin aggregators and densified serialize/vm-exec leaves stay attemptable. Remaining
-/// skip-listed cores are emit/parser/lexer bodies.
-pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[
-    "self_host/emit_impl.kab",
-    "self_host/parser_impl.kab",
-    "self_host/lexer_impl.kab",
-];
+/// P6b: skip-list empty — emit/parser/lexer impls are thin drivers that
+/// self-host-compile under `P6_SELF_HOST_LEAF_CI_FAST_MS`. Heavy bodies live in
+/// densified shards. Committed `self_host/seed/*.kbc` remain a kab-only cache.
+pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[];
 
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
@@ -76,38 +69,22 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
             return false;
         }
     }
-    // Legacy basename match when cwd is self_host/
-    let base = Path::new(&norm)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    if matches!(
-        base,
-        "emit_impl.kab"
-            | "parser_impl.kab"
-            | "lexer_impl.kab"
-    ) && norm.contains("self_host")
-    {
-        return false;
-    }
     if source.len() > 64 * 1024 {
         return false;
     }
     true
 }
 
-/// P6: documented policy string for skip-listed leaves (`seed-only`).
-/// Emptying the list is **P6b** — blocked until self-host leaf compile is CI-fast
-/// (`p6_leaf_self_host_compile_budget`). Product path is committed seeds.
+/// P6b: skip-list empty; seeds remain as kab-only cache for historical leaves.
 pub fn self_host_skip_policy() -> &'static str {
-    "seed-only"
+    "attempt-all"
 }
 
 /// P6 gate: max self-host compile time (ms) per leaf before emptying skip-list (P6b).
 pub const P6_SELF_HOST_LEAF_CI_FAST_MS: u64 = 10_000;
 
 /// P6b: flip to `true` only after `p6_leaf_self_host_compile_budget` shows all leaves < budget.
-pub const P6B_EMPTY_SKIP_LIST_READY: bool = false;
+pub const P6B_EMPTY_SKIP_LIST_READY: bool = true;
 
 /// True when `path` is a skip-listed self-host leaf (needs Rust compile or `.kbc` cache).
 pub fn self_host_is_skip_listed(path: &str) -> bool {

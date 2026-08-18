@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_run_dispatch_jump"
+import "self_host/vm_run_dispatch_ctrl"
+
+pub fn runOpPlainJc(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpS(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCtrlS(S, name, arg, op, pool, globals, functions)
+}

@@ -1,0 +1,12 @@
+import "self_host/vm_run_hook_meth"
+
+/// Run class init via hook when present.
+pub fn vRunNewInitPresentS(S, info, pool, globals, functions) {
+    let inst = info["inst"]
+    S["lastThis"] = inst
+    vCallRunMeth(S, info["init"], pool, globals, functions, inst, info["ordered"])
+    if S["lastThis"] != null {
+        inst = S["lastThis"]
+    }
+    return inst
+}

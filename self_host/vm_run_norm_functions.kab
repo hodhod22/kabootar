@@ -1,0 +1,7 @@
+pub fn vNormFunctions(bc) {
+    let functions = bc["functions"]
+    if functions == null || functions == undefined {
+        return []
+    }
+    return functions
+}

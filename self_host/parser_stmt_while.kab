@@ -2,36 +2,20 @@ import "self_host/lexer_defs"
 import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
+import "self_host/parser_block"
 
 pub fn parseStmt_while(sess) {
     if !(sess["pCur"].type == TOKEN_WHILE) {
         return null
     }
-        bump(sess)
-        sess["pCond"] = pCallCompare(sess)
-        sess["pCondStack"] = push(sess["pCondStack"], sess["pCond"])
-        sess["pCondDepth"] = sess["pCondDepth"] + 1
-        if sess["pCur"].type != "{" {
-            throw "Expected {"
-        }
-        bump(sess)
-        sess["pBodyStack"] = push(sess["pBodyStack"], sess["pLoopBody"])
-        sess["pBodyDepth"] = sess["pBodyDepth"] + 1
-        sess["pLoopBody"] = []
-        while sess["pCur"].type != "}" {
-            sess["pLoopBody"] = push(sess["pLoopBody"], pCallStmt(sess))
-            if sess["pCur"].type == ";" {
-                bump(sess)
-            }
-        }
-        bump(sess)
-        let whileBody = sess["pLoopBody"]
-        sess["pLoopBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-        sess["pBodyStack"] = pop(sess["pBodyStack"])
-        sess["pBodyDepth"] = sess["pBodyDepth"] - 1
-        sess["pSave"] = sess["pCondStack"][sess["pCondDepth"] - 1]
-        sess["pCondStack"] = pop(sess["pCondStack"])
-        sess["pCondDepth"] = sess["pCondDepth"] - 1
-        return { "kind": AST_WHILE, "cond": sess["pSave"], "body": { "kind": AST_BLOCK, "body": whileBody } }
+    bump(sess)
+    let whileCond = pCallCompare(sess)
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterLoopBody(sess)
+    pParseLoopUntilRBrace(sess)
+    let whileBody = pLeaveLoopBody(sess)
+    return { "kind": AST_WHILE, "cond": whileCond, "body": { "kind": AST_BLOCK, "body": whileBody } }
 }
-

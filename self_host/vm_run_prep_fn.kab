@@ -1,0 +1,15 @@
+import "self_host/vm_run_prep_fn_names"
+import "self_host/vm_run_prep_fn_slots"
+import "self_host/vm_run_prep_fn_params"
+import "self_host/vm_run_prep_fn_caps"
+
+pub fn vPrepareFnLocals(S, fnDef, callArgs, caps) {
+    vPrepFnNames(S, fnDef)
+    vPrepFnSlots(S, fnDef)
+    vPrepFnParams(S, fnDef, callArgs)
+    vPrepFnCaps(S, fnDef, caps)
+    S["ip"] = 0
+    S["done"] = false
+    S["result"] = null
+    S["unsupported"] = false
+}

@@ -1,0 +1,12 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+
+pub fn runOpDataErr(S, name, arg, op, pool, globals, functions) {
+    if name == "make_err" {
+        vPushS(S, { "vmResult": "err", "v": vPopS(S) })
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

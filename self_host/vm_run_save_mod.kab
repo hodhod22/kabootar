@@ -1,0 +1,17 @@
+pub fn vSaveModuleFrame(S) {
+    return {
+        "stack": S["stack"],
+        "locals": S["locals"],
+        "globals": S["globals"],
+        "classes": S["classes"],
+        "arrows": S["arrows"],
+        "tryRegions": S["tryRegions"],
+        "localNames": S["localNames"],
+        "thisStack": S["thisStack"],
+        "lastThis": S["lastThis"],
+        "ip": S["ip"],
+        "done": S["done"],
+        "result": S["result"],
+        "unsupported": S["unsupported"]
+    }
+}
