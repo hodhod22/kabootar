@@ -557,6 +557,53 @@ pub fn invalidate_file_cache(path: &str) {
     }
 }
 
+/// Drop the in-process compile cache without deleting `.kbc` / `.kbcb` on disk.
+pub fn invalidate_memory_cache_for_tests(path: &str) {
+    if let Ok(mut map) = cache().lock() {
+        map.remove(path);
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SelfHostWarmStats {
+    pub compiled: usize,
+    pub cached: usize,
+    pub skipped: usize,
+    pub failed: usize,
+}
+
+/// Rust-compile `self_host/*.kab` (skip `_` / `test_` probes) so the next process
+/// loads `.kbc` / `.kbcb` instead of re-emitting every shard.
+pub fn warm_self_host_disk_cache(root: &Path) -> Result<SelfHostWarmStats, String> {
+    let _guard = PackageRootGuard::enter();
+    let dir = root.join("self_host");
+    let mut stats = SelfHostWarmStats::default();
+    let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
+        .map_err(|e| format!("read {}: {e}", dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("kab"))
+        .collect();
+    paths.sort();
+    for path in paths {
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        if name.starts_with('_') || name.starts_with("test_") {
+            stats.skipped += 1;
+            continue;
+        }
+        let path_s = path.to_string_lossy().replace('\\', "/");
+        match compile_file_prefer_cached(&path_s, CompilePrefer::Rust) {
+            Ok((_, "disk-cache" | "cache" | "seed")) => stats.cached += 1,
+            Ok(_) => stats.compiled += 1,
+            Err(_) => stats.failed += 1,
+        }
+    }
+    Ok(stats)
+}
+
 pub fn cache_dir() -> PathBuf {
     PathBuf::from(".kabootar").join("cache")
 }
