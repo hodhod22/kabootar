@@ -1,0 +1,91 @@
+@version "1.0.0"
+
+// Negin Fullstack Example with Kabootar Integration
+// Demonstrates Negin as Kabootar's UI layer with GC + signals + sql/http/kdom
+
+import "negin/core"
+import "negin/reactive-core"
+import "negin/host-adapter"
+
+// Example: Fullstack app with database, HTTP, and UI
+pub fn TodoApp() {
+    let todos = signal([])
+    let newTodo = signal("")
+    
+    // Load todos from database
+    useEffect(fn() {
+        let result = sql("SELECT * FROM todos", [])
+        todos["set"](result["rows"])
+    }, [])
+    
+    let addTodo = fn() {
+        if newTodo["get"]() != "") {
+            let todo = newTodo["get"]()
+            sql("INSERT INTO todos (text) VALUES (?)", [todo])
+            
+            let currentTodos = todos["get"]()
+            todos["set"](push(currentTodos, { "id": len(currentTodos) + 1, "text": todo }))
+            newTodo["set"]("")
+        }
+    }
+    
+    let removeTodo = fn(id) {
+        sql("DELETE FROM todos WHERE id = ?", [id])
+        
+        let currentTodos = todos["get"]()
+        let filtered = []
+        let i = 0
+        while i < len(currentTodos)) {
+            if currentTodos[i]["id"] != id) {
+                filtered = push(filtered, currentTodos[i])
+            }
+            i = i + 1
+        }
+        todos["set"](filtered)
+    }
+    
+    return createElement("div", { "className": "todo-app" },
+        createElement("h1", {}, "Todo App with Kabootar"),
+        createElement("div", { "className": "todo-input" },
+            createElement("input", {
+                "type": "text",
+                "value": newTodo["get"](),
+                "onChange": fn(e) { newTodo["set"](e["target"]["value"]) }
+            }),
+            createElement("button", { "onClick": addTodo }, "Add")
+        ),
+        createElement("ul", { "className": "todo-list" },
+            createElement("div", {}, todos["get"]())
+        )
+    )
+}
+
+// HTTP route example
+pub fn setupRoutes() {
+    http_route("GET", "/api/todos", fn(req) {
+        let todos = sql("SELECT * FROM todos", [])
+        return {
+            "status": 200,
+            "body": todos["rows"]
+        }
+    })
+    
+    http_route("POST", "/api/todos", fn(req) {
+        let text = req["body"]["text"]
+        sql("INSERT INTO todos (text) VALUES (?)", [text])
+        return {
+            "status": 201,
+            "body": { "success": true }
+        }
+    })
+}
+
+// Render to kdom (Kabootar's DOM)
+let kdomContainer = {
+    "kind": "KdomContainer"
+}
+
+render(createElement(TodoApp, {}), kdomContainer)
+
+// Setup HTTP routes
+setupRoutes()

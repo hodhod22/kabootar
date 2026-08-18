@@ -1,28 +1,28 @@
 @version "1.0.0"
 
-// Negin Counter Example
-// Demonstrates basic useState and event handling
+// Negin Counter Example with Signals
+// Demonstrates signal-based reactivity (better than useState)
 
 import "negin/core"
-import "negin/hooks"
+import "negin/reactive-core"
 
 pub fn Counter() {
-    let (count, setCount) = useState(0)
+    let count = signal(0)
     
     return createElement("div", { "className": "counter" },
-        createElement("h2", {}, "Counter"),
+        createElement("h2", {}, "Counter with Signals"),
         createElement("div", { "className": "counter-display" },
             createElement("button", { 
-                "onClick": fn() { setCount(count - 1) },
+                "onClick": fn() { count["set"](count["get"]() - 1) },
                 "className": "counter-button"
             }, "-"),
-            createElement("span", { "className": "counter-value" }, count),
+            createElement("span", { "className": "counter-value" }, count["get"]()),
             createElement("button", { 
-                "onClick": fn() { setCount(count + 1) },
+                "onClick": fn() { count["set"](count["get"]() + 1) },
                 "className": "counter-button"
             }, "+")
         ),
-        createElement("p", {}, "Count: " + count)
+        createElement("p", {}, "Count: " + count["get"]())
     )
 }
 

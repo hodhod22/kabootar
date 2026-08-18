@@ -1,13 +1,140 @@
-# Negin - React-like UI Library for Kabootar
+# Negin - Kabootar UI Layer
 
-Negin är ett modernt UI-bibliotek för Kabootar som bygger på Reacts styrkor men löser dess svagheter.
+Negin är Kabootars UI-lager med GC + signals + sql/http/kdom integration. Negin är inte en isolerad React-klon - det är ett UI-lager som är djupt integrerat med Kabootars fullstack-ekosystem.
+
+## Arkitektur
+
+Negin är designat för Kabootar:
+- **GC-läge (default)** för UI/signals/hooks/reconciler
+- **Ingen @manual i kärnan** (endast för kOS/netstack/buffertar)
+- **Språkets inbyggda yor** (sql, db, http, kdom)
+- **Dubbel DOM-stöd** (host-DOM för WASM, kdom för Kabootar)
+- **Signals + GC** för reaktivitet
 
 ## Installation
 
 ```kab
 import "negin/core"
-import "negin/hooks"
-import "negin/signals"
+import "negin/reactive-core"
+import "negin/host-adapter"
+```
+
+## Kabootar Integration
+
+### Database
+
+```kab
+import "negin/host-adapter"
+
+// Använd Kabootars sql() direkt
+let result = sql("SELECT * FROM users WHERE id = ?", [1])
+let rows = result["rows"]
+
+// Använd Kabootars db() för connection
+let db = db()
+```
+
+### HTTP
+
+```kab
+import "negin/host-adapter"
+
+// HTTP routes
+http_route("GET", "/api/users", fn(req) {
+    let users = sql("SELECT * FROM users", [])
+    return { "status": 200, "body": users["rows"] }
+})
+
+// HTTP requests
+let response = http_request("https://api.example.com/data", { "method": "GET" })
+```
+
+### kdom (Kabootar DOM)
+
+```kab
+import "negin/host-adapter"
+
+// Render till kdom
+let kdomContainer = { "kind": "KdomContainer" }
+render(createElement(App, {}), kdomContainer)
+
+// Skapa kdom-element
+let element = kml(" div ", { "className": "container" }, "Content")
+kdom_render(element, container)
+```
+
+### Host-Agnostisk Rendering
+
+Negin stöder både host-DOM (WASM) och kdom (Kabootar):
+
+```kab
+import "negin/host-adapter"
+
+// Render till host-DOM (WASM)
+let domContainer = document.getElementById("app")
+render(createElement(App, {}), domContainer)
+
+// Render till kdom (Kabootar)
+let kdomContainer = { "kind": "KdomContainer" }
+render(createElement(App, {}), kdomContainer)
+```
+
+## Fullstack Exempel med Kabootar
+
+### Todo App med Database + HTTP + UI
+
+```kab
+import "negin/core"
+import "negin/reactive-core"
+import "negin/host-adapter"
+
+pub fn TodoApp() {
+    let todos = signal([])
+    let newTodo = signal("")
+    
+    // Load todos from database
+    useEffect(fn() {
+        let result = sql("SELECT * FROM todos", [])
+        todos["set"](result["rows"])
+    }, [])
+    
+    let addTodo = fn() {
+        if newTodo["get"]() != "") {
+            let todo = newTodo["get"]()
+            sql("INSERT INTO todos (text) VALUES (?)", [todo])
+            
+            let currentTodos = todos["get"]()
+            todos["set"](push(currentTodos, { "id": len(currentTodos) + 1, "text": todo }))
+            newTodo["set"]("")
+        }
+    }
+    
+    return createElement("div", { "className": "todo-app" },
+        createElement("h1", {}, "Todo App"),
+        createElement("input", {
+            "value": newTodo["get"](),
+            "onChange": fn(e) { newTodo["set"](e["target"]["value"]) }
+        }),
+        createElement("button", { "onClick": addTodo }, "Add"),
+        createElement("ul", {}, todos["get"]())
+    )
+}
+
+// HTTP routes
+http_route("GET", "/api/todos", fn(req) {
+    let todos = sql("SELECT * FROM todos", [])
+    return { "status": 200, "body": todos["rows"] }
+})
+
+http_route("POST", "/api/todos", fn(req) {
+    let text = req["body"]["text"]
+    sql("INSERT INTO todos (text) VALUES (?)", [text])
+    return { "status": 201, "body": { "success": true } }
+})
+
+// Render to kdom
+let kdomContainer = { "kind": "KdomContainer" }
+render(createElement(TodoApp, {}), kdomContainer)
 ```
 
 ## Grundläggande Användning

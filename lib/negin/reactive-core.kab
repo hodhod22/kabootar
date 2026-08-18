@@ -57,30 +57,45 @@ pub fn signal(initialValue) {
 }
 
 fn trackDependency(computation, signalId) {
+    // Optimized dependency tracking with direct array access
     if computationDependencies[computation] == null) {
         computationDependencies[computation] = []
     }
     
     let deps = computationDependencies[computation]
+    let depsLen = len(deps)
+    
+    // Fast path: check if already tracked
     let i = 0
-    let found = false
-    while i < len(deps)) {
+    while i < depsLen) {
         if deps[i] == signalId) {
-            found = true
-            break
+            return
         }
         i = i + 1
     }
     
-    if !found) {
-        deps = push(deps, signalId)
-        computationDependencies[computation] = deps
-        
-        if signalDependencies[signalId] == null) {
-            signalDependencies[signalId] = []
-        }
-        signalDependencies[signalId] = push(signalDependencies[signalId], computation)
+    // Add new dependency
+    deps = push(deps, signalId)
+    computationDependencies[computation] = deps
+    
+    // Track reverse dependency for cleanup
+    if signalDependencies[signalId] == null) {
+        signalDependencies[signalId] = []
     }
+    
+    let signalDeps = signalDependencies[signalId]
+    let signalDepsLen = len(signalDeps)
+    
+    // Fast path: check if computation already tracked
+    let j = 0
+    while j < signalDepsLen) {
+        if signalDeps[j] === computation) {
+            return
+        }
+        j = j + 1
+    }
+    
+    signalDependencies[signalId] = push(signalDeps, computation)
 }
 
 fn notifySubscribers(subscribers) {

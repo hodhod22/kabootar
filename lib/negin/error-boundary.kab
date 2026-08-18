@@ -1,0 +1,80 @@
+@version "1.0.0"
+
+// Negin Error Boundary - Error boundary component for Negin
+// Features: Error catching, error recovery, error fallback UI
+// Canonical path: import "negin/error-boundary"
+
+import "negin/core"
+import "negin/helpers"
+
+let errorBoundaryStack = []
+
+pub fn ErrorBoundary(fallback, children) {
+    return {
+        "kind": "ErrorBoundaryComponent",
+        "fallback": fallback,
+        "children": children,
+        "error": null,
+        "errorInfo": null
+    }
+}
+
+pub fn componentDidCatch(error, errorInfo) {
+    console.error("Error caught by error boundary:", error)
+    console.error("Error info:", errorInfo)
+}
+
+pub fn resetErrorBoundary() {
+    let currentBoundary = getCurrentErrorBoundary()
+    if currentBoundary != null) {
+        currentBoundary["error"] = null
+        currentBoundary["errorInfo"] = null
+    }
+}
+
+pub fn getCurrentErrorBoundary() {
+    if len(errorBoundaryStack) > 0) {
+        return errorBoundaryStack[len(errorBoundaryStack) - 1]
+    }
+    return null
+}
+
+pub fn pushErrorBoundary(boundary) {
+    errorBoundaryStack = push(errorBoundaryStack, boundary)
+}
+
+pub fn popErrorBoundary() {
+    if len(errorBoundaryStack) > 0) {
+        errorBoundaryStack = removeLast(errorBoundaryStack)
+    }
+}
+
+pub fn withErrorBoundary(Component, ErrorFallback) {
+    return fn(props) {
+        return createElement(ErrorBoundary(ErrorFallback),
+            createElement(Component, props)
+        )
+    }
+}
+
+pub fn createErrorFallback(error, errorInfo) {
+    return createElement("div", { "className": "error-fallback" },
+        createElement("h2", {}, "Something went wrong"),
+        createElement("p", {}, error["message"]),
+        createElement("pre", {}, errorInfo["componentStack"])
+    )
+}
+
+pub fn isErrorBoundary(value) {
+    return isObject(value) && value["kind"] == "ErrorBoundaryComponent"
+}
+
+fn removeLast(arr) {
+    let result = []
+    let i = 0
+    while i < len(arr) - 1) {
+        result = push(result, arr[i])
+        i = i + 1
+    }
+    return result
+}

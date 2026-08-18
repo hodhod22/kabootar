@@ -28,12 +28,31 @@ pub fn render(element, container) {
     currentRoot = root
     currentContainer = container
     
-    let workInProgress = createWorkInProgress(root.current)
-    workInProgress = renderRoot(workInProgress)
+    try {
+        let workInProgress = createWorkInProgress(root.current)
+        workInProgress = renderRoot(workInProgress)
+        
+        commitRoot(workInProgress)
+        
+        return root
+    } catch error {
+        console.error("Render error:", error)
+        // Try to render error fallback
+        renderErrorFallback(container, error)
+        return null
+    }
+}
+
+fn renderErrorFallback(container, error) {
+    let errorElement = createElement("div", { "style": { "color": "red" } },
+        "Error: " + error["message"]
+    )
     
-    commitRoot(workInProgress)
-    
-    return root
+    if currentAdapter != null) {
+        let errorNode = currentAdapter["createElement"]("div", {})
+        currentAdapter["setTextContent"](errorNode, "Error: " + error["message"])
+        currentAdapter["appendChild"](container, errorNode)
+    }
 }
 
 pub fn createRoot(container) {
@@ -131,7 +150,15 @@ fn createWorkInProgress(current) {
 }
 
 fn renderRoot(workInProgress) {
-    while workInProgress != null {
+    // Optimized work loop with early exit for completed work
+    while workInProgress != null) {
+        // Check if work is already complete
+        if workInProgress["effectTag"] == 0 && workInProgress["alternate"] != null) {
+            // Reuse existing work
+            workInProgress = workInProgress["sibling"]
+            continue
+        }
+        
         workInProgress = performUnitOfWork(workInProgress)
     }
     
@@ -203,7 +230,7 @@ fn updateFunctionComponent(workInProgress) {
 }
 
 fn reconcileChildren(workInProgress, children) {
-    if children == null {
+    if children == null) {
         workInProgress["child"] = null
         return
     }
@@ -211,16 +238,17 @@ fn reconcileChildren(workInProgress, children) {
     let previousSibling = null
     let i = 0
     
-    if isObject(children) {
+    if isObject(children)) {
         let child = reconcileChildFibers(workInProgress, null, children, i)
         workInProgress["child"] = child
         previousSibling = child
         i = i + 1
-    } else if isArray(children) {
+    } else if isArray(children)) {
+        let childCount = len(children)
         let j = 0
-        while j < len(children) {
+        while j < childCount) {
             let child = reconcileChildFibers(workInProgress, previousSibling, children[j], i)
-            if previousSibling == null {
+            if previousSibling == null) {
                 workInProgress["child"] = child
             } else {
                 previousSibling["sibling"] = child
@@ -231,7 +259,7 @@ fn reconcileChildren(workInProgress, children) {
         }
     }
     
-    if previousSibling != null {
+    if previousSibling != null) {
         previousSibling["sibling"] = null
     }
 }

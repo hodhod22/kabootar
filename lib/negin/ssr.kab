@@ -6,6 +6,7 @@
 
 import "negin/core"
 import "negin/element"
+import "negin/helpers"
 
 pub fn renderToString(element) {
     let stream = createRenderStream()
@@ -233,29 +234,4 @@ fn charCode(char) {
 
 fn toString(value) {
     return "" + value
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }

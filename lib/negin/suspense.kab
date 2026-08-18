@@ -5,6 +5,7 @@
 // Canonical path: import "negin/suspense"
 
 import "negin/component"
+import "negin/helpers"
 
 let suspenseStack = []
 let pendingPromises = {}
@@ -112,6 +113,8 @@ fn throwSuspense(promise) {
 }
 
 pub fn triggerUpdate() {
+    // Trigger re-render for components waiting on suspense
+    scheduleUpdate()
 }
 
 fn getPromiseId(promise) {
@@ -210,35 +213,6 @@ pub fn isSuspenseComponent(value) {
 
 pub fn isLazyComponent(value) {
     return isObject(value) && value["kind"] == "LazyComponent"
-}
-
-fn isObject(value) {
-    return typeof(value) == "object" && value != null
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }
 
 fn removeLast(arr) {
