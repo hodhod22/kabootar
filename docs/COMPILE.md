@@ -20,6 +20,7 @@ KABOOTAR_COMPILE=rust kabootar compile main.kab
 ```
 
 Cache: `.kabootar/cache/<path-with-__>.kbc` (cwd-relative, mtime + fingerprint + `source=`).
+Sibling `.kbcb` is written on compile. Warm the tree: `warm_self_host_disk_cache` (Rust API) so the next process rust-loads shards from disk.
 Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gamla platta `lexer.kab.kbc`.
 `.kbc`-strängkonstanter escapar `\n`/`\r`/`\t`/`\s` så whitespace inte bryter radformatet.
 

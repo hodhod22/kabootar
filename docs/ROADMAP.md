@@ -711,7 +711,9 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P10h** | **Inline små heta fn** — `LoadGlobal`+`Call(1)` → `GetMember`; `obj["ident"]` → GetMember (IC) | ✅ subset |
 | **P10i** | **parsePostfix tight loop** | 📋 bara om parse ≫ resten i totalen (`KABOOTAR_P10_PROFILE=1`) |
 
-**Nästa:** hela self-host compile mot 7 s/5 s/3 s (toolchain-env återanvänds per tråd; `import_ms` i `KABOOTAR_P10_PROFILE=1`). P10i bara om parse ≫ emit+serialize.
+**Release-profil (P10, `perf_p10_pipeline`):** host-snippet total ~12 ms; rust `parser_session_core` ~10 ms; disk-`.kbc` hit på `parser_util_bump` ~33 ms (liten fil — rust-emit kan vara billigare än deserialize). Self-host `import "self_host/compile"` är fortfarande **minuter** (import_ms); P10i postfix är inte nästa.
+
+**Nästa:** kapa toolchain-import (färre evals / mer export-cache över processer), inte parsePostfix.
 
 **Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
 

@@ -159,7 +159,41 @@ fn p10_seed_kbc_load_vs_kbcb() {
 }
 
 #[test]
-#[ignore = "debug self-host toolchain import is minutes; release: KABOOTAR_P10_PROFILE=1"]
+fn p10_warm_self_host_subset_disk_cache() {
+    use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
+    use std::sync::Once;
+
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        std::env::set_var("KABOOTAR_COMPILE", "rust");
+        std::env::set_var("KABOOTAR_VM", "host");
+    });
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let path = root
+        .join("self_host")
+        .join("parser_util_bump.kab")
+        .to_string_lossy()
+        .replace('\\', "/");
+    kabootar_lib::compile::invalidate_file_cache(&path);
+    let t0 = Instant::now();
+    let (_p1, b1) = compile_file_prefer_cached(&path, CompilePrefer::Rust).expect("warm compile");
+    let first_ms = ms(t0);
+    kabootar_lib::compile::invalidate_memory_cache_for_tests(&path);
+    let t0 = Instant::now();
+    let (_p2, b2) = compile_file_prefer_cached(&path, CompilePrefer::Rust).expect("disk hit");
+    let second_ms = ms(t0);
+    eprintln!(
+        "P10 self_host disk cache parser_util_bump: first={first_ms:.1}ms backend={b1} second={second_ms:.1}ms backend={b2}"
+    );
+    assert!(
+        b2 == "disk-cache" || b2 == "cache" || b2 == "seed",
+        "expected disk/memory cache on second rust compile, got {b2}"
+    );
+}
+
+#[test]
+#[ignore = "self-host toolchain import is minutes even in release; KABOOTAR_P10_PROFILE=1"]
 fn p10_self_host_tiny_source_profile() {
     use kabootar_lib::compile::compile_source_self_host;
     use std::sync::Once;
@@ -172,14 +206,21 @@ fn p10_self_host_tiny_source_profile() {
 
     let t0 = Instant::now();
     let prog = compile_source_self_host("return 1\n").expect("self-host tiny");
-    let total_ms = ms(t0);
-    eprintln!("P10 self-host tiny compile total_ms={total_ms:.1}");
+    let first_ms = ms(t0);
+    let t0 = Instant::now();
+    let prog2 = compile_source_self_host("return 2\n").expect("self-host tiny 2");
+    let second_ms = ms(t0);
+    eprintln!("P10 self-host tiny first_ms={first_ms:.1} second_ms={second_ms:.1}");
     assert!(
-        prog.bytecode.is_some(),
+        prog.bytecode.is_some() && prog2.bytecode.is_some(),
         "self-host tiny should emit bytecode"
     );
     assert!(
-        total_ms < 180_000.0,
-        "self-host tiny (includes toolchain import) should stay under 180s CI, got {total_ms:.1} ms"
+        first_ms < 180_000.0,
+        "self-host tiny (includes toolchain import) should stay under 180s CI, got {first_ms:.1} ms"
+    );
+    assert!(
+        second_ms < first_ms || second_ms < 30_000.0,
+        "second self-host compile should reuse toolchain env, first={first_ms:.1} second={second_ms:.1}"
     );
 }
