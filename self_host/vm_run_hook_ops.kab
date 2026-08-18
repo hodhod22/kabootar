@@ -1,0 +1,9 @@
+pub fn vCallRunOps(S, ops, pool, globals, functions) {
+    let prevA = S["_args"]
+    let prevK = S["_hook"]
+    S["_hook"] = 0
+    S["_args"] = [ops, pool, globals, functions]
+    S["runOps"]()
+    S["_args"] = prevA
+    S["_hook"] = prevK
+}

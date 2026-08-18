@@ -1,0 +1,14 @@
+pub fn vResolveGlobalCached(S, globals, idx, name) {
+    let cur = S["globals"][idx]
+    if cur != undefined {
+        return cur
+    }
+    if name == null || name == undefined {
+        return undefined
+    }
+    let host = bytecode_host_get("" + name)
+    if host != undefined {
+        S["globals"][idx] = host
+    }
+    return host
+}

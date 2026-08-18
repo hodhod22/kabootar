@@ -1,0 +1,13 @@
+import "self_host/vm_s_pop"
+import "self_host/vm_s_index_set_push"
+
+pub fn runOpDataIndexSet(S, name, arg, op, pool, globals, functions) {
+    if name == "index_set" {
+        let val = vPopS(S)
+        let idx = vPopS(S)
+        let container = vPopS(S)
+        vIndexSetPush(S, container, idx, val)
+        return 1
+    }
+    return 0
+}

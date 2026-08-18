@@ -1,0 +1,6 @@
+import "self_host/vm_run_fn_body"
+
+pub fn vTrampFn(S) {
+    let a = S["_args"]
+    return runFnBodyS(S, a[0], a[1], a[2], a[3], a[4], a[5])
+}

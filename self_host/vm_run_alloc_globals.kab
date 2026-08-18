@@ -1,0 +1,8 @@
+pub fn vAllocGlobals(S, n) {
+    S["globals"] = []
+    let gi = 0
+    while gi < n {
+        S["globals"] = push(S["globals"], undefined)
+        gi = gi + 1
+    }
+}

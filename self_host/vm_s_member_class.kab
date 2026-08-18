@@ -1,0 +1,13 @@
+import "self_host/vm_s_find_method"
+
+pub fn vMemberGetClass(S, obj, key) {
+    if object_has_own(obj, key) {
+        return obj[key]
+    }
+    let ci = obj["vmC"]
+    let meth = vFindMethod(S["classes"][ci], key)
+    if meth != null {
+        return { "vmM": meth, "vmR": obj }
+    }
+    return undefined
+}

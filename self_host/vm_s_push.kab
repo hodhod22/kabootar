@@ -1,0 +1,4 @@
+// P6b: push onto session stack.
+pub fn vPushS(S, v) {
+    S["stack"] = push(S["stack"], v)
+}

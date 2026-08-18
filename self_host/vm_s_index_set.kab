@@ -1,0 +1,7 @@
+pub fn vIndexSet(container, idx, val) {
+    if container == null || container == undefined {
+        throw "vm cannot index nullish"
+    }
+    container[idx] = val
+    return container
+}

@@ -1,0 +1,11 @@
+// P6b: VM arith half-facade a.
+import "self_host/vm_ops_arith_add_sub"
+import "self_host/vm_ops_arith_mul_div"
+
+pub fn runOpArithA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithAddSub(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithMulDiv(S, name, arg, op, pool, globals, functions)
+}

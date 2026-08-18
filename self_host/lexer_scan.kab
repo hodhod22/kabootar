@@ -1,0 +1,42 @@
+import "self_host/lexer_defs"
+import "self_host/lexer_util"
+import "self_host/lexer_scan_punct"
+import "self_host/lexer_scan_arith"
+import "self_host/lexer_scan_eq"
+import "self_host/lexer_scan_cmp"
+import "self_host/lexer_scan_string"
+import "self_host/lexer_scan_word"
+
+pub fn lxScan(sess) {
+    if sess["pos"] >= sess["srcLen"] {
+        return lxTok(TOKEN_EOF, null, sess["line"], sess["col"])
+    }
+    let c = char_at(sess["src"], sess["pos"])
+    let line = sess["line"]
+    let col = sess["col"]
+    let tok = lxScanPunct(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanPlusMinus(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanMulDiv(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanEqBang(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanLogic(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanCmp(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanHash(sess, c, line, col)
+    if tok != null { return tok }
+    tok = lxScanString(sess, c, line, col)
+    if tok != null { return tok }
+    if c == BACKTICK {
+        throw "Template literal not supported at line " + ("" + line) + " col " + ("" + col)
+    }
+    let code0 = char_code_at(c, 0)
+    tok = lxScanNumber(sess, code0, line, col)
+    if tok != null { return tok }
+    tok = lxScanIdent(sess, c, code0, line, col)
+    if tok != null { return tok }
+    throw "Unknown character: " + c + " at line " + ("" + line) + " col " + ("" + col)
+}

@@ -413,6 +413,11 @@ impl Clone for Environment {
 }
 
 impl Environment {
+    /// Identity of this lexical frame (for VM inline caches).
+    pub(crate) fn frame_id(&self) -> usize {
+        Rc::as_ptr(&self.inner) as usize
+    }
+
     /// Snapshot bindings for closure refresh without embedding other module functions.
     pub fn clone_excluding(&self, names: &[&str]) -> Self {
         let skip: HashSet<&str> = names.iter().copied().collect();

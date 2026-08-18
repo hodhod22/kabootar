@@ -1,0 +1,12 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_ip"
+import "self_host/vm_s_pool_val"
+
+pub fn runOpMemConst(S, name, arg, op, pool, globals, functions) {
+    if name == "const" {
+        vPushS(S, poolVal(pool, arg))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

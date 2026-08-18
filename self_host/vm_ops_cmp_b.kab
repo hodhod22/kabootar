@@ -1,0 +1,10 @@
+import "self_host/vm_ops_cmp_ord2"
+import "self_host/vm_ops_cmp_logic"
+
+pub fn runOpCmpB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpOrd2(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpLogic(S, name, arg, op, pool, globals, functions)
+}

@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_ops_arith_a"
+import "self_host/vm_ops_arith_b"
+
+pub fn runOpArithAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithB(S, name, arg, op, pool, globals, functions)
+}

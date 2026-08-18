@@ -1,0 +1,16 @@
+pub fn vBindImportPairs(S, globals, pairs) {
+    let pi = 0
+    while pi < len(pairs) {
+        let pair = pairs[pi]
+        let en = pair[0]
+        let host = pair[1]
+        let gi3 = 0
+        while gi3 < len(globals) {
+            if globals[gi3] == en {
+                S["globals"][gi3] = host
+            }
+            gi3 = gi3 + 1
+        }
+        pi = pi + 1
+    }
+}

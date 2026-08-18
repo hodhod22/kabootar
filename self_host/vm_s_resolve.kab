@@ -1,0 +1,10 @@
+import "self_host/vm_s_this_get"
+import "self_host/vm_s_resolve_host"
+
+pub fn vResolveGlobalS(S, globals, idx) {
+    let name = globals[idx]
+    if name == "this" || name == "self" {
+        return vThisS(S)
+    }
+    return vResolveGlobalCached(S, globals, idx, name)
+}

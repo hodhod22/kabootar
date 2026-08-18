@@ -1,0 +1,10 @@
+// P6b: ip helpers on session S.
+pub fn vBumpIpS(S) {
+    S["ip"] = S["ip"] + 1
+}
+
+/// Add delta to S.ip (avoid `S["ip"] = S["ip"] + 1 + arg` — self-host emit rejects that).
+pub fn vAddIpS(S, delta) {
+    let n = S["ip"] + delta
+    S["ip"] = n
+}

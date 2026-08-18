@@ -1,0 +1,5 @@
+import "self_host/vm_ops_jump_result"
+
+pub fn runOpJumpB(S, name, arg, op, pool, globals, functions) {
+    return runOpJumpResult(S, name, arg, op, pool, globals, functions)
+}

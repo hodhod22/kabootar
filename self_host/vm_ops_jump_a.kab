@@ -1,0 +1,10 @@
+import "self_host/vm_ops_jump_basic"
+import "self_host/vm_ops_jump_true"
+
+pub fn runOpJumpA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpBasic(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpTrue(S, name, arg, op, pool, globals, functions)
+}

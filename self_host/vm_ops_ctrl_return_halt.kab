@@ -1,0 +1,11 @@
+pub fn runOpCtrlReturnHalt(S, name, arg, op, pool, globals, functions) {
+    if name == "halt" {
+        if len(S["stack"]) > 0 {
+            let top = S["stack"][len(S["stack"]) - 1]
+            S["result"] = top
+        }
+        S["done"] = true
+        return 2
+    }
+    return 0
+}

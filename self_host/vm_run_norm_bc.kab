@@ -1,0 +1,23 @@
+import "self_host/vm_run_norm_pool"
+import "self_host/vm_run_norm_globals"
+import "self_host/vm_run_norm_functions"
+import "self_host/vm_run_norm_classes"
+import "self_host/vm_run_norm_imports"
+import "self_host/vm_run_norm_arrows"
+import "self_host/vm_run_norm_tries"
+import "self_host/vm_run_norm_locals"
+import "self_host/vm_run_norm_ops"
+
+pub fn vNormBc(bc) {
+    return {
+        "pool": vNormPool(bc),
+        "globals": vNormGlobals(bc),
+        "functions": vNormFunctions(bc),
+        "classes": vNormClasses(bc),
+        "imports": vNormImports(bc),
+        "arrows": vNormArrows(bc),
+        "tryRegions": vNormTries(bc),
+        "localNames": vNormLocals(bc),
+        "ops": vNormOps(bc)
+    }
+}

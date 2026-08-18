@@ -1,0 +1,11 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_ip"
+
+pub fn vJumpResultUnwrap(S, v) {
+    if typeof(v) == "object" && v != null && v["vmResult"] == "ok" {
+        vPushS(S, v["v"])
+    } else {
+        vPushS(S, v)
+    }
+    vBumpIpS(S)
+}

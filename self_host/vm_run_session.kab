@@ -1,0 +1,18 @@
+pub fn vMakeSession() {
+    return {
+        "stack": [],
+        "locals": [],
+        "globals": [],
+        "classes": [],
+        "arrows": [],
+        "tryRegions": [],
+        "localNames": [],
+        "thisStack": [],
+        "lastThis": null,
+        "nextInstId": 1,
+        "ip": 0,
+        "done": false,
+        "result": null,
+        "unsupported": false
+    }
+}

@@ -1,0 +1,11 @@
+import "self_host/vm_s_pop"
+
+pub fn vPopNRaw(S, n) {
+    let raw = []
+    let ai = 0
+    while ai < n {
+        raw = push(raw, vPopS(S))
+        ai = ai + 1
+    }
+    return raw
+}

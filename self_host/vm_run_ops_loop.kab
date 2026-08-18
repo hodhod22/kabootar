@@ -1,0 +1,10 @@
+import "self_host/vm_run_ops_step"
+
+pub fn runOpsS(S, ops, pool, globals, functions) {
+    while S["ip"] < len(ops) && S["done"] == false && S["unsupported"] == false {
+        let st = runOpsStepS(S, ops, pool, globals, functions)
+        if st == 2 {
+            break
+        }
+    }
+}

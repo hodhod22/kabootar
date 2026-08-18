@@ -1,0 +1,13 @@
+import "self_host/vm_run_hook_fn"
+
+/// Apply fn|arrow via S["runFnBody"]. Returns null if not fn/arrow.
+pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
+    let kind = c["kind"]
+    if kind == "fn" {
+        return vCallRunFn(S, functions[c["idx"]], pool, globals, functions, ordered, null)
+    }
+    if kind == "arrow" {
+        return vCallRunFn(S, S["arrows"][c["idx"]], pool, globals, functions, ordered, c["caps"])
+    }
+    return undefined
+}

@@ -1,0 +1,8 @@
+pub fn vRestoreModCtrl(S, fr) {
+    S["thisStack"] = fr["thisStack"]
+    S["lastThis"] = fr["lastThis"]
+    S["ip"] = fr["ip"]
+    S["done"] = fr["done"]
+    S["result"] = fr["result"]
+    S["unsupported"] = fr["unsupported"]
+}

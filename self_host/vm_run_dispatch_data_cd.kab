@@ -1,0 +1,11 @@
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+import "self_host/vm_ops_data_c"
+import "self_host/vm_ops_data_d"
+
+pub fn runOpDataCd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataC(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataD(S, name, arg, op, pool, globals, functions)
+}

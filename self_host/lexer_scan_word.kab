@@ -1,0 +1,78 @@
+import "self_host/lexer_defs"
+import "self_host/lexer_util"
+
+pub fn lxScanNumber(sess, code0, line, col) {
+    if !(code0 >= 48 && code0 <= 57) {
+        return null
+    }
+    let start = sess["pos"]
+    lxEat(sess)
+    while sess["pos"] < sess["srcLen"] {
+        let cd = char_code_at(sess["src"], sess["pos"])
+        if cd < 48 || cd > 57 {
+            break
+        }
+        lxEat(sess)
+    }
+    let digits = str_slice(sess["src"], start, sess["pos"])
+    if lxStarts(sess, "n") == 1 {
+        lxEat(sess)
+        return lxTok(TOKEN_BIGINT, digits, line, col)
+    }
+    if lxStarts(sess, ".") == 1 {
+        lxEat(sess)
+        let fracStart = sess["pos"]
+        while sess["pos"] < sess["srcLen"] {
+            let cd = char_code_at(sess["src"], sess["pos"])
+            if cd < 48 || cd > 57 {
+                break
+            }
+            lxEat(sess)
+        }
+        let frac = str_slice(sess["src"], fracStart, sess["pos"])
+        return lxTok(TOKEN_FLOAT, parse_float(digits + "." + frac), line, col)
+    }
+    return lxTok(TOKEN_NUMBER, parse_int(digits), line, col)
+}
+
+pub fn lxScanIdent(sess, c, code0, line, col) {
+    if c == "_" {
+        let start = sess["pos"]
+        lxEat(sess)
+        while sess["pos"] < sess["srcLen"] {
+            let cd = char_code_at(sess["src"], sess["pos"])
+            let ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if cd == 95 { ok = 1 }
+            if ok == 0 { break }
+            lxEat(sess)
+        }
+        return lxTok(TOKEN_IDENT, str_slice(sess["src"], start, sess["pos"]), line, col)
+    }
+    let isAlpha = 0
+    if code0 >= 97 && code0 <= 122 { isAlpha = 1 }
+    if isAlpha == 0 && code0 >= 65 && code0 <= 90 { isAlpha = 1 }
+    if isAlpha == 0 {
+        return null
+    }
+    let start = sess["pos"]
+    lxEat(sess)
+    while sess["pos"] < sess["srcLen"] {
+        let cd = char_code_at(sess["src"], sess["pos"])
+        let ok = 0
+        if cd >= 65 && cd <= 90 { ok = 1 }
+        if cd >= 97 && cd <= 122 { ok = 1 }
+        if cd >= 48 && cd <= 57 { ok = 1 }
+        if cd == 95 { ok = 1 }
+        if ok == 0 { break }
+        lxEat(sess)
+    }
+    let id = str_slice(sess["src"], start, sess["pos"])
+    let kw = KEYWORDS[id]
+    if kw == undefined {
+        return lxTok(TOKEN_IDENT, id, line, col)
+    }
+    return lxTok(kw, null, line, col)
+}

@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_acc_add_local"
+import "self_host/vm_ops_mem_acc_add_global"
+
+pub fn runOpMemAccAdd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemAccAddLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemAccAddGlobal(S, name, arg, op, pool, globals, functions)
+}

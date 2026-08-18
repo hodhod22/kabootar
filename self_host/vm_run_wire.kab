@@ -1,0 +1,5 @@
+pub fn vWireExec(S, runOps, runFnBody, runMethodBody) {
+    S["runOps"] = runOps
+    S["runFnBody"] = runFnBody
+    S["runMethodBody"] = runMethodBody
+}

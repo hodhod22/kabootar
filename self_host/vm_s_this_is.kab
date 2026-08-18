@@ -1,0 +1,15 @@
+import "self_host/vm_s_this_is_obj"
+
+pub fn vIsCurrentThisS(S, obj) {
+    if obj == null || obj == undefined {
+        return false
+    }
+    if len(S["thisStack"]) == 0 {
+        return false
+    }
+    let cur = S["thisStack"][len(S["thisStack"]) - 1]
+    if cur == null || cur == undefined {
+        return false
+    }
+    return vIsCurrentThisObj(obj, cur)
+}

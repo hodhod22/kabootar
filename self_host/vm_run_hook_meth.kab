@@ -1,0 +1,10 @@
+pub fn vCallRunMeth(S, meth, pool, globals, functions, recv, callArgs) {
+    let prevA = S["_args"]
+    let prevK = S["_hook"]
+    S["_hook"] = 2
+    S["_args"] = [meth, pool, globals, functions, recv, callArgs]
+    let out = S["runMethodBody"]()
+    S["_args"] = prevA
+    S["_hook"] = prevK
+    return out
+}

@@ -1,0 +1,40 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+import "self_host/parser_hooks"
+import "self_host/parser_util"
+
+import "self_host/parser_stmt_if"
+import "self_host/parser_stmt_try"
+import "self_host/parser_stmt_for"
+import "self_host/parser_stmt_while"
+import "self_host/parser_stmt_continue"
+import "self_host/parser_stmt_break"
+import "self_host/parser_stmt_throw"
+import "self_host/parser_stmt_return"
+import "self_host/parser_stmt_block"
+import "self_host/parser_stmt_lateAssign"
+import "self_host/parser_stmt_expr"
+
+pub fn parseStmt_dispatch_ctrl(sess) {
+    let r = parseStmt_if(sess)
+    if r != null { return r }
+    r = parseStmt_try(sess)
+    if r != null { return r }
+    r = parseStmt_for(sess)
+    if r != null { return r }
+    r = parseStmt_while(sess)
+    if r != null { return r }
+    r = parseStmt_continue(sess)
+    if r != null { return r }
+    r = parseStmt_break(sess)
+    if r != null { return r }
+    r = parseStmt_throw(sess)
+    if r != null { return r }
+    r = parseStmt_return(sess)
+    if r != null { return r }
+    r = parseStmt_block(sess)
+    if r != null { return r }
+    r = parseStmt_lateAssign(sess)
+    if r != null { return r }
+    return parseStmt_expr(sess)
+}

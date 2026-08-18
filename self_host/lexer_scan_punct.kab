@@ -1,0 +1,50 @@
+import "self_host/lexer_defs"
+import "self_host/lexer_util"
+
+pub fn lxScanPunct(sess, c, line, col) {
+    if c == "(" {
+        lxEat(sess)
+        return lxTok("(", null, line, col)
+    }
+    if c == ")" {
+        lxEat(sess)
+        return lxTok(")", null, line, col)
+    }
+    if c == "{" {
+        lxEat(sess)
+        return lxTok("{", null, line, col)
+    }
+    if c == "}" {
+        lxEat(sess)
+        return lxTok("}", null, line, col)
+    }
+    if c == "[" {
+        lxEat(sess)
+        return lxTok("[", null, line, col)
+    }
+    if c == "]" {
+        lxEat(sess)
+        return lxTok("]", null, line, col)
+    }
+    if c == ";" {
+        lxEat(sess)
+        return lxTok(";", null, line, col)
+    }
+    if c == "," {
+        lxEat(sess)
+        return lxTok(",", null, line, col)
+    }
+    if c == ":" {
+        lxEat(sess)
+        return lxTok(":", null, line, col)
+    }
+    if c == "^" {
+        lxEat(sess)
+        return lxTok("^", null, line, col)
+    }
+    if c == "~" {
+        lxEat(sess)
+        return lxTok("~", null, line, col)
+    }
+    return null
+}

@@ -6,10 +6,7 @@
 // module `vGlobals` when the outer probe is self-host-compiled (lets → globals) and a
 // nested guest has imports — see self_host/vm.kab header for the full explanation.
 //
-// vm_run_body.kab stays skip-listed (~27KB of shared-state interpreter code that is
-// far too slow to self-host-compile in CI). This facade's own source is a two-line
-// import + alias, so `compile self_host/vm_run.kab --self-host` is CI-fast and the
-// file no longer needs to be on the skip list itself.
+// VM exec path is densified: vm_run_exec_core + tramp/hook shards self-host ≤10s.
 
 import "self_host/vm_run_body"
 

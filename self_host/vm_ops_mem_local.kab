@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_load_local"
+import "self_host/vm_ops_mem_store_local"
+
+pub fn runOpMemLocal(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemLoadLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemStoreLocal(S, name, arg, op, pool, globals, functions)
+}

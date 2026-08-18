@@ -1,0 +1,6 @@
+pub fn vIndexGet(container, idx) {
+    if container == null || container == undefined {
+        return undefined
+    }
+    return container[idx]
+}

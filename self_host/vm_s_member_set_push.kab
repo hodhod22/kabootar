@@ -1,0 +1,15 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_ip"
+import "self_host/vm_s_member_set"
+import "self_host/vm_s_this_is"
+import "self_host/vm_s_this_write"
+
+pub fn vMemberSetPush(S, obj, key, val) {
+    let updated = vMemberSet(obj, key, val)
+    if vIsCurrentThisS(S, obj) {
+        vWriteThisS(S, updated)
+    }
+    vPushS(S, updated)
+    vPushS(S, val)
+    vBumpIpS(S)
+}

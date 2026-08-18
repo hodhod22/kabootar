@@ -1,0 +1,12 @@
+import "self_host/vm_run_bind_pairs"
+
+pub fn vBindImports(S, globals, imports) {
+    let ii = 0
+    while ii < len(imports) {
+        let pairs = bytecode_host_import("" + imports[ii])
+        if pairs != null && pairs != undefined {
+            vBindImportPairs(S, globals, pairs)
+        }
+        ii = ii + 1
+    }
+}

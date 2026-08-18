@@ -1,0 +1,13 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+
+pub fn runOpArithBitNot(S, name, arg, op, pool, globals, functions) {
+    if name == "bit_not" {
+        let v = vPopS(S)
+        vPushS(S, ~v)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

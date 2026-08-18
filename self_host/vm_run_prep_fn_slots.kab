@@ -1,0 +1,7 @@
+pub fn vPrepFnSlots(S, fnDef) {
+    let li = 0
+    while li < len(fnDef["locals"]) {
+        S["locals"] = push(S["locals"], undefined)
+        li = li + 1
+    }
+}

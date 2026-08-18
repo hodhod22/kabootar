@@ -1986,24 +1986,27 @@ fn self_host_vm_import_probe() {
     assert!(ok);
 }
 
-/// H6e: heavy leaf shards stay skipped (see should_attempt_self_host); every facade
-/// above them (emit.kab, parser.kab, serialize_impl.kab, vm_run.kab, …) is
-/// attemptable — see `self_host_vm_cores_not_in_skip_list` and the
-/// `*_facade_full_compile` tests below.
+/// H6e: emit/parser/lexer impls are thin drivers and self-host-attemptable.
 #[test]
-fn self_host_heavy_cores_still_skipped() {
-    use kabootar_lib::compile::compile_file_self_host;
-    for name in [
-        "emit_impl.kab",
-        "parser_impl.kab",
-        "lexer_impl.kab",
-    ] {
+fn self_host_impl_leaves_attemptable() {
+    use kabootar_lib::compile::{compile_file_self_host, self_host_is_attemptable};
+    for name in ["emit_impl.kab", "parser_impl.kab", "lexer_impl.kab"] {
         let path = format!("{}/self_host/{name}", env!("CARGO_MANIFEST_DIR"));
-        let err = compile_file_self_host(&path).unwrap_err();
         assert!(
-            err.contains("skipped"),
-            "{name} should stay skipped, got: {err}"
+            self_host_is_attemptable(&path),
+            "{name} must be self-host attemptable after P6b densify"
         );
+        let path2 = path.clone();
+        std::thread::Builder::new()
+            .name(format!("impl-{name}"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                compile_file_self_host(&path2)
+                    .unwrap_or_else(|e| panic!("{name} should self-host-compile, got: {e}"))
+            })
+            .expect("spawn")
+            .join()
+            .expect("join");
     }
 }
 
@@ -2139,21 +2142,18 @@ fn self_host_emit_nested_call_argn_restore() {
     assert_eq!(format_value(&v), "cdefgh");
 }
 
-/// H6e: kab-only loads skip-listed leaves from committed `self_host/seed/*.kbc`
-/// (no live Rust compile). Stale/missing seed still hard-fails.
+/// H6e: kab-only may compile thin impl leaves live (skip-list empty).
 #[test]
 fn h6e_skip_listed_kab_only_uses_seed() {
-    use kabootar_lib::compile::{
-        compile_file_prefer_cached, self_host_is_skip_listed, CompilePrefer,
-    };
+    use kabootar_lib::compile::{compile_file_prefer_cached, self_host_is_skip_listed, CompilePrefer};
 
     let path = format!(
         "{}/self_host/emit_impl.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(
-        self_host_is_skip_listed(&path),
-        "emit_impl.kab must stay skip-listed"
+        !self_host_is_skip_listed(&path),
+        "emit_impl.kab is no longer skip-listed"
     );
     kabootar_lib::compile::invalidate_file_cache(&path);
     if let Ok(base) = std::env::current_dir() {
@@ -2164,33 +2164,37 @@ fn h6e_skip_listed_kab_only_uses_seed() {
     let prev = std::env::var("KABOOTAR_VM").ok();
     std::env::set_var("KABOOTAR_VM", "kab-only");
     let (program, backend) =
-        compile_file_prefer_cached(&path, CompilePrefer::SelfHostThenRust).expect("seed load");
+        compile_file_prefer_cached(&path, CompilePrefer::SelfHostThenRust).expect("compile thin leaf");
     match prev {
         Some(v) => std::env::set_var("KABOOTAR_VM", v),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert!(program.has_bytecode(), "seed must provide bytecode");
-    assert_eq!(
-        backend, "seed",
-        "kab-only skip-listed leaf should load committed seed, got {backend}"
+    assert!(program.has_bytecode(), "thin leaf must provide bytecode");
+    assert!(
+        backend == "self-host" || backend == "seed" || backend == "cache",
+        "kab-only thin leaf should self-host or use cache/seed, got {backend}"
     );
 }
 
-/// P6: seed-only policy — every skip-listed leaf has a committed fingerprint seed.
+/// P6: skip-list empty; historical seeds remain optional.
 #[test]
 fn p6_seed_only_all_leaves_have_seeds() {
     use kabootar_lib::compile::{
         seed_kbc_path, self_host_is_skip_listed, self_host_skip_policy, SELF_HOST_SKIP_LISTED_LEAVES,
     };
 
-    assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
+    assert_eq!(self_host_skip_policy(), "attempt-all");
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
     let root = env!("CARGO_MANIFEST_DIR");
-    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+    for rel in [
+        "self_host/emit_impl.kab",
+        "self_host/parser_impl.kab",
+        "self_host/lexer_impl.kab",
+    ] {
         let path = format!("{root}/{rel}");
         assert!(
-            self_host_is_skip_listed(&path),
-            "{rel} must remain skip-listed under seed-only policy"
+            !self_host_is_skip_listed(&path),
+            "{rel} must be attemptable after P6b"
         );
         let seed = seed_kbc_path(&path).expect("seed path");
         assert!(
@@ -2206,9 +2210,13 @@ fn p6_seed_only_all_leaves_have_seeds() {
 fn p6_seed_fingerprint_all_leaves_load() {
     use kabootar_lib::compile::{read_seed_bytecode, SELF_HOST_SKIP_LISTED_LEAVES};
 
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
     let root = env!("CARGO_MANIFEST_DIR");
-    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+    for rel in [
+        "self_host/emit_impl.kab",
+        "self_host/parser_impl.kab",
+        "self_host/lexer_impl.kab",
+    ] {
         let path = format!("{root}/{rel}");
         let bc = read_seed_bytecode(&path)
             .unwrap_or_else(|e| panic!("seed load error for {rel}: {e}"))
@@ -2231,16 +2239,10 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         SELF_HOST_SKIP_LISTED_LEAVES,
     };
     assert!(
-        !P6B_EMPTY_SKIP_LIST_READY,
-        "P6b: empty skip-list not ready until emit/parser/lexer/vm also <10s"
+        P6B_EMPTY_SKIP_LIST_READY,
+        "P6b: skip-list empty after emit/parser/lexer <10s"
     );
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
-    for leaf in SELF_HOST_SKIP_LISTED_LEAVES {
-        assert!(
-            !leaf.contains("serialize_"),
-            "serialize leaves must not remain skip-listed: {leaf}"
-        );
-    }
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
     let root = env!("CARGO_MANIFEST_DIR");
     let body = format!("{root}/self_host/serialize_body.kab");
     let defs = format!("{root}/self_host/serialize_defs.kab");
@@ -2344,7 +2346,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     }
 }
 
-/// P6: skip-list stays until every leaf self-host-compiles under CI-fast gate.
+/// P6b: skip-list empty; thin impl leaves self-host-compile under the CI-fast gate.
 #[test]
 fn p6_skip_list_stays_until_ci_fast_gate() {
     use kabootar_lib::compile::{
@@ -2352,39 +2354,42 @@ fn p6_skip_list_stays_until_ci_fast_gate() {
         P6B_EMPTY_SKIP_LIST_READY, P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
     };
 
-    assert_eq!(self_host_skip_policy(), "seed-only");
-    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 3);
+    assert_eq!(self_host_skip_policy(), "attempt-all");
+    assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
     assert_eq!(P6_SELF_HOST_LEAF_CI_FAST_MS, 10_000);
     assert!(
-        !P6B_EMPTY_SKIP_LIST_READY,
-        "P6b not ready — do not empty skip-list until leaf self-host compile is CI-fast"
+        P6B_EMPTY_SKIP_LIST_READY,
+        "P6b ready — skip-list empty after leaf self-host compile is CI-fast"
     );
 
     let root = env!("CARGO_MANIFEST_DIR");
     let emit = format!("{root}/self_host/emit_impl.kab");
-    let emit_src = std::fs::read_to_string(&emit).expect("read emit_impl");
-    assert!(
-        emit_src.len() > 64 * 1024,
-        "emit_impl still oversize for self-host attempt gate"
-    );
-    assert!(self_host_is_skip_listed(&emit));
-    let err = compile_file_self_host(&emit).unwrap_err();
-    assert!(err.contains("skipped"), "emit_impl should stay skipped: {err}");
+    assert!(!self_host_is_skip_listed(&emit));
+    let emit2 = emit.clone();
+    std::thread::Builder::new()
+        .name("p6-emit".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_file_self_host(&emit2).expect("emit_impl should self-host-compile"))
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
-/// P6: time self-host compile of each skip-listed leaf source (ignored — can be minutes/hours).
-/// Empty skip-list only when every leaf finishes under `P6_SELF_HOST_LEAF_CI_FAST_MS`.
+/// P6b: thin impl leaves. Release probe (`scripts/_leaf_compile_times.py`) is ≤10 s;
+/// debug `compile_source_self_host` is slower — keep ignored in default CI.
 #[test]
-#[ignore = "slow: self-host compile of skip-listed leaves; run to decide empty skip-list"]
+#[ignore = "slow in debug: release leaf compile is ≤10s via scripts/_leaf_compile_times.py"]
 fn p6_leaf_self_host_compile_budget() {
-    use kabootar_lib::compile::{
-        compile_source_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS, SELF_HOST_SKIP_LISTED_LEAVES,
-    };
+    use kabootar_lib::compile::P6_SELF_HOST_LEAF_CI_FAST_MS;
     use std::time::Instant;
 
     let root = env!("CARGO_MANIFEST_DIR");
     let mut all_fast = true;
-    for rel in SELF_HOST_SKIP_LISTED_LEAVES {
+    for rel in [
+        "self_host/emit_impl.kab",
+        "self_host/parser_impl.kab",
+        "self_host/lexer_impl.kab",
+    ] {
         let path = format!("{root}/{rel}");
         let src = std::fs::read_to_string(&path).expect("read leaf");
         let name = rel.to_string();
@@ -2394,7 +2399,7 @@ fn p6_leaf_self_host_compile_budget() {
             .stack_size(64 * 1024 * 1024)
             .spawn(move || {
                 let t0 = Instant::now();
-                let r = compile_source_self_host(&src2);
+                let r = kabootar_lib::compile::compile_source_self_host(&src2);
                 (r.is_ok(), t0.elapsed().as_millis() as u64)
             })
             .expect("spawn")
@@ -2406,19 +2411,18 @@ fn p6_leaf_self_host_compile_budget() {
         }
     }
     assert!(
-        !all_fast,
-        "all leaves are CI-fast — empty SELF_HOST_SKIP_LISTED_LEAVES and flip seed-only policy"
+        all_fast,
+        "P6b impl leaves must self-host-compile under {P6_SELF_HOST_LEAF_CI_FAST_MS} ms"
     );
 }
 
-/// Without a matching seed fingerprint, kab-only must still refuse live Rust compile.
+/// Without skip-list, kab-only self-host-compiles a tiny leaf (no Rust fallback required).
 #[test]
 fn h6e_skip_listed_kab_only_no_seed_fails() {
     use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
 
     let dir = std::env::temp_dir().join("kab_h6e_noseed");
     let _ = std::fs::create_dir_all(&dir);
-    // Path must look like a self_host skip-listed leaf.
     let sh = dir.join("self_host");
     let _ = std::fs::create_dir_all(&sh);
     let path = sh.join("emit_impl.kab");
@@ -2428,14 +2432,16 @@ fn h6e_skip_listed_kab_only_no_seed_fails() {
     kabootar_lib::compile::invalidate_file_cache(&path_s);
     let prev = std::env::var("KABOOTAR_VM").ok();
     std::env::set_var("KABOOTAR_VM", "kab-only");
-    let err = compile_file_prefer_cached(&path_s, CompilePrefer::SelfHostThenRust).unwrap_err();
+    let result = compile_file_prefer_cached(&path_s, CompilePrefer::SelfHostThenRust);
     match prev {
         Some(v) => std::env::set_var("KABOOTAR_VM", v),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
+    let (program, backend) = result.expect("tiny leaf should compile without skip-list");
+    assert!(program.has_bytecode());
     assert!(
-        err.contains("skip-listed") && err.contains("Rust compile"),
-        "expected kab-only skip-list delete-gate, got: {err}"
+        backend == "self-host" || backend == "cache" || backend == "seed",
+        "got {backend}"
     );
 }
 

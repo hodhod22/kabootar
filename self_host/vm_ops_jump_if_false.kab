@@ -1,0 +1,16 @@
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+import "self_host/vm_s_truthy"
+
+pub fn runOpJumpIfFalse(S, name, arg, op, pool, globals, functions) {
+    if name == "jump_if_false" {
+        let v = vPopS(S)
+        if !vTruthy(v) {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

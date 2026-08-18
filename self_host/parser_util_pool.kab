@@ -1,0 +1,10 @@
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+
+// P6b: poolPush — AccAdd-safe (temp newPool; see emit eCallRet pattern).
+pub fn poolPush(sess, v) {
+    let newPool = push(sess["pSymPool"], v)
+    sess["pSymPool"] = newPool
+    sess["pSymN"] = sess["pSymN"] + 1
+    return v
+}

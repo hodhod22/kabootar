@@ -1,0 +1,18 @@
+import "self_host/vm_run_args_pop"
+
+/// Pop ctor args and allocate instance shell.
+pub fn vAllocInstShell(S, classIdx, argc) {
+    if classIdx < 0 || classIdx >= len(S["classes"]) {
+        throw "vm bad class index"
+    }
+    let classDef = S["classes"][classIdx]
+    let ordered = vPopOrderedArgs(S, argc)
+    let id = S["nextInstId"]
+    S["nextInstId"] = S["nextInstId"] + 1
+    let inst = { "vmC": classIdx, "vmI": id }
+    return {
+        "inst": inst,
+        "ordered": ordered,
+        "classDef": classDef
+    }
+}

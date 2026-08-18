@@ -1,0 +1,10 @@
+import "self_host/vm_ops_cmp_and"
+import "self_host/vm_ops_cmp_or"
+
+pub fn runOpCmpLogic(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpAnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpOr(S, name, arg, op, pool, globals, functions)
+}

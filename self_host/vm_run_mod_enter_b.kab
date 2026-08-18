@@ -1,0 +1,15 @@
+import "self_host/vm_run_bind_fns"
+import "self_host/vm_run_alloc_locals"
+import "self_host/vm_run_reset"
+import "self_host/vm_run_fill_hosts"
+
+pub fn vModEnterB(S, n) {
+    S["classes"] = n["classes"]
+    S["arrows"] = n["arrows"]
+    S["tryRegions"] = n["tryRegions"]
+    S["localNames"] = n["localNames"]
+    vBindFns(S, n["globals"], n["functions"])
+    vAllocLocals(S, len(n["localNames"]))
+    vResetExec(S)
+    vFillHostGlobals(S, n["globals"])
+}

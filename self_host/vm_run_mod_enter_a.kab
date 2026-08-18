@@ -1,0 +1,15 @@
+import "self_host/vm_run_norm_bc"
+import "self_host/vm_run_save_mod"
+import "self_host/vm_run_alloc_globals"
+import "self_host/vm_run_bind_imports"
+
+pub fn vModEnterA(S, bc) {
+    if bc == null || bc == undefined {
+        throw "vm: null module"
+    }
+    let n = vNormBc(bc)
+    let old = vSaveModuleFrame(S)
+    vAllocGlobals(S, len(n["globals"]))
+    vBindImports(S, n["globals"], n["imports"])
+    return { "n": n, "old": old }
+}

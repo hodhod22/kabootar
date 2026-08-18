@@ -1,0 +1,19 @@
+// H6e/P6b: session + thin local trampoline (CI-fast self-host ≤10s).
+// Heavy tramp body lives in vm_run_tramp_*; hooks pack S["_args"]/_hook.
+import "self_host/vm_run_session"
+import "self_host/vm_run_tramp"
+import "self_host/vm_run_mod_run"
+
+let S = vMakeSession()
+
+fn tramp() {
+    return vTramp(S)
+}
+
+S["runOps"] = tramp
+S["runFnBody"] = tramp
+S["runMethodBody"] = tramp
+
+pub fn runModuleImplBodyCore(bc) {
+    return vModRun(S, bc)
+}

@@ -1,0 +1,10 @@
+import "self_host/vm_ops_data_make"
+import "self_host/vm_ops_data_index"
+
+pub fn runOpDataA(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataMake(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataIndex(S, name, arg, op, pool, globals, functions)
+}

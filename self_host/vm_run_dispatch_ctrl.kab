@@ -1,0 +1,5 @@
+import "self_host/vm_ops_ctrl_a"
+
+pub fn runOpCtrlS(S, name, arg, op, pool, globals, functions) {
+    return runOpCtrlA(S, name, arg, op, pool, globals, functions)
+}

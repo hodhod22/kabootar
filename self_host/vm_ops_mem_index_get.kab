@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_index_get_local"
+import "self_host/vm_ops_mem_index_get_global"
+
+pub fn runOpMemIndexGet(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemIndexGetLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemIndexGetGlobal(S, name, arg, op, pool, globals, functions)
+}

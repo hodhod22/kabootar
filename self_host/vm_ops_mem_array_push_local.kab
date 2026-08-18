@@ -1,0 +1,16 @@
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+
+pub fn runOpMemArrayPushLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "array_push_local" {
+        let item = vPopS(S)
+        let arr = vPopS(S)
+        let next = bytecode_array_push(arr, item)
+        S["locals"][arg] = next
+        vPushS(S, len(next))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

@@ -34,8 +34,70 @@ thread_local! {
     static MEMBER_IC: RefCell<MemberIc> = RefCell::new(MemberIc::default());
 }
 
+/// P1: monomorphic LoadGlobal inline cache (global idx + env frame).
+struct GlobalIc {
+    idx: Option<u16>,
+    env_id: usize,
+    value: Value,
+}
+
+impl Default for GlobalIc {
+    fn default() -> Self {
+        Self {
+            idx: None,
+            env_id: 0,
+            value: Value::Undefined,
+        }
+    }
+}
+
+thread_local! {
+    static GLOBAL_IC: RefCell<GlobalIc> = RefCell::new(GlobalIc::default());
+}
+
 static MEMBER_IC_HITS: AtomicU64 = AtomicU64::new(0);
 static MEMBER_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+static GLOBAL_IC_HITS: AtomicU64 = AtomicU64::new(0);
+static GLOBAL_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+
+fn env_frame_id(env: &Environment) -> usize {
+    env.frame_id()
+}
+
+fn global_ic_invalidate(idx: u16) {
+    GLOBAL_IC.with(|ic| {
+        let mut ic = ic.borrow_mut();
+        if ic.idx == Some(idx) {
+            ic.idx = None;
+        }
+    });
+}
+
+fn global_ic_load(idx: u16, env: &Environment, name: &str) -> Result<Value, String> {
+    let frame = env_frame_id(env);
+    if let Some(v) = GLOBAL_IC.with(|ic| {
+        let ic = ic.borrow();
+        if ic.idx == Some(idx) && ic.env_id == frame {
+            GLOBAL_IC_HITS.fetch_add(1, Ordering::Relaxed);
+            Some(ic.value.clone())
+        } else {
+            None
+        }
+    }) {
+        return Ok(v);
+    }
+    GLOBAL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+    let v = env
+        .get(name)
+        .ok_or_else(|| crate::evaluator::undefined_var_message(name, env))?;
+    GLOBAL_IC.with(|ic| {
+        let mut ic = ic.borrow_mut();
+        ic.idx = Some(idx);
+        ic.env_id = frame;
+        ic.value = v.clone();
+    });
+    Ok(v)
+}
 
 /// Diagnostic counters for GetMember IC (tests / `gc_frame_stats`-style probes).
 pub fn member_ic_stats() -> (u64, u64) {
@@ -49,6 +111,20 @@ pub fn member_ic_reset_for_tests() {
     MEMBER_IC_HITS.store(0, Ordering::Relaxed);
     MEMBER_IC_MISSES.store(0, Ordering::Relaxed);
     MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
+}
+
+/// Diagnostic counters for LoadGlobal IC (P1).
+pub fn global_ic_stats() -> (u64, u64) {
+    (
+        GLOBAL_IC_HITS.load(Ordering::Relaxed),
+        GLOBAL_IC_MISSES.load(Ordering::Relaxed),
+    )
+}
+
+pub fn global_ic_reset_for_tests() {
+    GLOBAL_IC_HITS.store(0, Ordering::Relaxed);
+    GLOBAL_IC_MISSES.store(0, Ordering::Relaxed);
+    GLOBAL_IC.with(|ic| *ic.borrow_mut() = GlobalIc::default());
 }
 
 fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
@@ -578,12 +654,11 @@ fn run_chunk(
                 let name = globals
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?;
-                let v = env
-                    .get(name)
-                    .ok_or_else(|| crate::evaluator::undefined_var_message(name, env))?;
+                let v = global_ic_load(*idx, env, name)?;
                 push_stack(stack, v)?;
             }
             Opcode::StoreGlobal(idx) => {
+                global_ic_invalidate(*idx);
                 let name = globals
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?
@@ -906,6 +981,7 @@ fn run_chunk(
                 push_stack(stack, Value::Number(len))?;
             }
             Opcode::ArrayPushGlobal(idx) => {
+                global_ic_invalidate(*idx);
                 let item = stack.pop().ok_or("Bytecode stack underflow")?;
                 let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let name = globals
@@ -968,6 +1044,7 @@ fn run_chunk(
                 push_stack(stack, Value::Null)?;
             }
             Opcode::ArrayPopGlobal(idx) => {
+                global_ic_invalidate(*idx);
                 let name = globals
                     .get(*idx as usize)
                     .ok_or_else(|| format!("Invalid global index {idx}"))?;
@@ -1011,6 +1088,7 @@ fn run_chunk(
                 }
             }
             Opcode::AccAddGlobal(idx) => {
+                global_ic_invalidate(*idx);
                 let rhs = stack.pop().ok_or("Bytecode stack underflow")?;
                 let name = globals
                     .get(*idx as usize)

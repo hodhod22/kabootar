@@ -1,0 +1,10 @@
+import "self_host/vm_ops_mem_array_pop_local"
+import "self_host/vm_ops_mem_array_pop_global"
+
+pub fn runOpMemArrayPopBind(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemArrayPopLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemArrayPopGlobal(S, name, arg, op, pool, globals, functions)
+}

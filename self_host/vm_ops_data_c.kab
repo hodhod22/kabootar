@@ -1,0 +1,10 @@
+import "self_host/vm_ops_data_len_concat"
+import "self_host/vm_ops_data_merge"
+
+pub fn runOpDataC(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataLenConcat(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataMerge(S, name, arg, op, pool, globals, functions)
+}

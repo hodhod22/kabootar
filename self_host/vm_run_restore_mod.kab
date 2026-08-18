@@ -1,0 +1,7 @@
+import "self_host/vm_run_restore_mod_data"
+import "self_host/vm_run_restore_mod_ctrl"
+
+pub fn vRestoreModuleFrame(S, fr) {
+    vRestoreModData(S, fr)
+    vRestoreModCtrl(S, fr)
+}

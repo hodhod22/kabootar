@@ -1,0 +1,13 @@
+pub fn runOpCtrlReturnRet(S, name, arg, op, pool, globals, functions) {
+    if name == "return" {
+        if len(S["stack"]) > 0 {
+            let top = S["stack"][len(S["stack"]) - 1]
+            S["result"] = top
+        } else {
+            S["result"] = null
+        }
+        S["done"] = true
+        return 2
+    }
+    return 0
+}

@@ -1,0 +1,6 @@
+pub fn vRestoreFnData(S, fr) {
+    S["stack"] = fr["stack"]
+    S["locals"] = fr["locals"]
+    S["localNames"] = fr["localNames"]
+    S["tryRegions"] = fr["tryRegions"]
+}

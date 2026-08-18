@@ -1,0 +1,19 @@
+// P6b: VM mem len shards.
+import "self_host/vm_s_push"
+import "self_host/vm_s_pop"
+import "self_host/vm_s_ip"
+import "self_host/vm_s_resolve"
+
+pub fn runOpMemLen(S, name, arg, op, pool, globals, functions) {
+    if name == "len_local" {
+        vPushS(S, len(S["locals"][arg]))
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "len_global" {
+        vPushS(S, len(vResolveGlobalS(S, globals, arg)))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}

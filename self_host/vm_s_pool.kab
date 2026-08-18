@@ -1,0 +1,6 @@
+// P6b: thin pool facade.
+import "self_host/vm_s_pool_val"
+import "self_host/vm_s_pool_key"
+
+pub let poolVal = poolVal
+pub let poolKey = poolKey

@@ -1,0 +1,10 @@
+import "self_host/vm_ops_data_result"
+import "self_host/vm_ops_data_option"
+
+pub fn runOpDataD(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataResult(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataOption(S, name, arg, op, pool, globals, functions)
+}

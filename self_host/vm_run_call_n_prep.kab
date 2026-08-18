@@ -1,0 +1,14 @@
+import "self_host/vm_s_pop"
+import "self_host/vm_run_args_pop"
+import "self_host/vm_run_callee"
+
+pub fn vCallNPrepS(S, arg) {
+    let callee = vPopS(S)
+    let ordered = vPopOrderedArgs(S, arg)
+    let c = vClassifyCallee(callee)
+    if c["kind"] == "bad" {
+        S["unsupported"] = true
+        return { "st": 2 }
+    }
+    return { "st": 0, "c": c, "ordered": ordered }
+}
