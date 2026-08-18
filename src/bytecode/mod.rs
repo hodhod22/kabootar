@@ -4,12 +4,14 @@ mod classes;
 mod compiler;
 mod kbcb;
 mod optimize;
+mod typed;
 mod types;
 mod vm;
 
 pub use compiler::{can_compile, take_hard_compile_error, try_compile};
 pub use optimize::{optimize_module, OptStats};
 pub use kbcb::{deserialize_kbcb, looks_like_kbcb, serialize_kbcb, KBCB_MAGIC};
+pub use typed::{fn_is_typed_i64, typed_i64_reset_for_tests, typed_i64_stats};
 pub use types::{
     deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, Opcode, FORMAT_HEADER,
 };

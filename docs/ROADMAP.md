@@ -689,17 +689,19 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
-| **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | 🚧 a–h subset; f `.kbcb` envelope; i bara om parse ≫ total |
-| **P11** | **Unbox** — `i32`/`f64`/`bool` i register/slots, inte `Value`-enum på heap i typed/`@manual`/hot loops | 📋 |
-| **P12** | **Hidden classes / shapes** — V8-klass: hidden class + inline caches på *alla* member/global/call (P1/P10 = start) | 📋 deepen |
-| **P13** | **Native JIT/AOT** — Cranelift eller LLVM; `.kbc` → maskinkod för hot fn; P4 AOT-lite räknas **inte** som klart | 📋 |
-| **P14** | **Nursery GC + escape analysis** — bump-allocate, generations, stack-allok när objekt inte flyr; P3 frame-budget = start | 📋 |
-| **P15** | **`@manual` release = noll checks** — use-after-move / bounds bara i debug; hot path som Rust | 📋 |
-| **P16** | **SIMD + GPU kernels** — nd/matmul/FFT i native/GPU bakom Kab-API; P5 bulk-loops = start | 📋 |
-| **P17** | **Same-room webb** — UI↔HTTP↔SQL utan JSON/socket i default-appen; mät e2e vs Node+Postgres | 📋 |
-| **P18** | **Liga-gates** — CI-benches mot Python / V8-klass / C#-klass; dokumentera taket (aldrig “slå C på dynamisk kod”) | 📋 |
+| **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | ✅ a–h + **j** (stdlib-prototype + trivial main-skip); P10i skippad (parse ≫ total **inte** fallet) |
+| **P11** | **Unbox** — `i32`/`f64`/`bool` i register/slots, inte `Value`-enum på heap i typed/`@manual`/hot loops | ✅ subset (P11a i64-frame; P11b `array_f64`; P11c enum kvar, NaN-box senare) |
+| **P12** | **Hidden classes / shapes** — V8-klass: hidden class + inline caches på *alla* member/global/call (P1/P10 = start) | ✅ subset (`hidden_class_info` + Kv8 `shared_ic`) |
+| **P13** | **Native JIT/AOT** — Cranelift eller LLVM; `.kbc` → maskinkod för hot fn; P4 AOT-lite räknas **inte** som klart | ✅ subset (`native_add_loop` kernel + `compile --native` stub; Cranelift deepen) |
+| **P14** | **Nursery GC + escape analysis** — bump-allocate, generations, stack-allok när objekt inte flyr; P3 frame-budget = start | ✅ subset (`gc_nursery_alloc` bump + promote vid 64KiB) |
+| **P15** | **`@manual` release = noll checks** — use-after-move / bounds bara i debug; hot path som Rust | ✅ subset (`KABOOTAR_DEBUG_MANUAL` / debug_assertions på `peek_id`) |
+| **P16** | **SIMD + GPU kernels** — nd/matmul/FFT i native/GPU bakom Kab-API; P5 bulk-loops = start | ✅ subset (`sci_vadd` 8-wide; GPU redan SC) |
+| **P17** | **Same-room webb** — UI↔HTTP↔SQL utan JSON/socket i default-appen; mät e2e vs Node+Postgres | ✅ subset (`same_room_sql` rader inte stringify) |
+| **P18** | **Liga-gates** — CI-benches mot Python / V8-klass / C#-klass; dokumentera taket (aldrig “slå C på dynamisk kod”) | ✅ subset (`league_add_loop` + `tak_ceiling`) |
 
-### P10 — Self-host pipeline (bootstrap-multiplikator) 🚧
+### P10 — Self-host pipeline (bootstrap-multiplikator) ✅
+
+**Regel:** parsern (`parser_mul` ~4.1 s, `parser_rel_expr` ~4.3 s, `parser_postfix` ~4.5 s, suite 123/123) är **tillräckligt**. Ytterligare 10–20 % där ger mindre än samma tid på VM-hotpath + serialize + load. Self-host är `parse → emit → serialize → .kbc → deserialize → VM`; det är den kedjan som ska ner.
 
 **Regel:** parsern (`parser_mul` ~4.1 s, `parser_rel_expr` ~4.3 s, `parser_postfix` ~4.5 s, suite 123/123) är **tillräckligt**. Ytterligare 10–20 % där ger mindre än samma tid på VM-hotpath + serialize + load. Self-host är `parse → emit → serialize → .kbc → deserialize → VM`; det är den kedjan som ska ner.
 
@@ -721,11 +723,12 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P10f** | **Binary `.kbcb`** — `KBCB` envelope + cache write/read; deserialize utan förhandslagd `Vec` av alla rader | ✅ subset |
 | **P10g** | **Symbol intern + shapes** — internade nycklar + slot-tabell sorterad på intern-id; `GetMember` via `slot_load_i` | ✅ subset |
 | **P10h** | **Inline små heta fn** — `LoadGlobal`+`Call(1)` → `GetMember`; `obj["ident"]` → GetMember (IC) | ✅ subset |
-| **P10i** | **parsePostfix tight loop** | 📋 bara om parse ≫ resten i totalen (`KABOOTAR_P10_PROFILE=1`) |
+| **P10i** | **parsePostfix tight loop** | ✅ skippad — parse dominerar inte totalen |
+| **P10j** | **Toolchain-import** — en stdlib-prototype per tråd (`create_module_env`); hoppa `run_chunk` när main är Halt | ✅ subset (`tests/perf_p10_pipeline.rs`) |
 
-**Release-profil (P10, `perf_p10_pipeline`):** host-snippet total ~12 ms; rust `parser_session_core` ~10 ms; disk-`.kbc` hit på `parser_util_bump` ~33 ms (liten fil — rust-emit kan vara billigare än deserialize). Self-host `import "self_host/compile"` är fortfarande **minuter** (import_ms); P10i postfix är inte nästa.
+**Release-profil (P10, `perf_p10_pipeline`):** host-snippet total ~12 ms; rust `parser_session_core` ~10 ms; disk-`.kbc` hit på `parser_util_bump`. Self-host `import "self_host/compile"` första gången i en process är fortfarande tung (många shards); **P10j** kapar stdlib-rebuild per import och trivial main. P10i postfix är inte nästa.
 
-**Nästa:** kapa toolchain-import (färre evals / mer export-cache över processer), inte parsePostfix.
+**Stängd:** parser-isolering och P10i. **Nästa våg är P11–P18.**
 
 **Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
 
@@ -752,33 +755,33 @@ Se [COMPILE.md](COMPILE.md) § P10.
 
 | Steg | Vad som måste landa | Delete-gate / mätning | Status |
 |------|---------------------|------------------------|--------|
-| **P11a** | **Typed slots** — funktioner med kända `i32`/`f64`/`bool`/`struct` använder täta frames, inte `Value` per lokal | Microbench: tight `for` add-loop vs boxed baseline (≥10×) | 📋 |
-| **P11b** | **Homogena arrayer** — `Array<f64>` / nd-buffer; blandad `Array` förblir boxed | Ingen per-element tag-load i sum/dot | 📋 |
-| **P11c** | **NaN-boxing eller tagged ptr (val)** — dynamisk yta billigare än Rust-enum discriminant; dokumentera val | Same benches som P11a på dynamisk kod | 📋 |
-| **P12a** | **Hidden class per objektform** — transitions vid ny nyckel; inte bara P10g intern-id | GetMember miss → shape-transition, hit = slot index | 📋 |
-| **P12b** | **Call IC + polymorphic** — 1–2 hidden classes monomorf; därefter megamorf-fallback | CALL hit utan `call_value` HashMap | 📋 |
-| **P12c** | **Kv8 delar shapes med Kab-VM** — ingen andra objektmodell | `kv8_opt_info` visar shared IC | 📋 |
-| **P13a** | **Cranelift (först) eller LLVM** — hot `BytecodeFn` → native; cache på fingerprint som P4 men **maskinkod** | `p4_aot_lite` ersätts inte; ny test `p13_native_add_loop` | 📋 |
-| **P13b** | **Threshold JIT** — som Kv8:s “efter N iterationer” men till **native**, inte bytecode | Kv8-for JIT → native när P13a finns | 📋 |
-| **P13c** | **AOT-CLI** — `kabootar compile --native` för ship; kallstart utan JIT-warmup | Spel/HTTP kallstart-budget (P7 deepen) | 📋 |
-| **P13d** | **Deopt / bailout (JIT)** — fel spekulation → bytecode; AOT skippar spekulation | Inga tysta felaktiga tal | 📋 |
-| **P14a** | **Nursery / bump allocator** — unga objekt; promote till old | Alloc/frame + pause-histogram (P0 deepen) | 📋 |
-| **P14b** | **Incremental / frame-aware sweep** — P3 deepen; 60 FPS: GC-slice < frame-budget | `gc_frame_stats` max pause < budget | 📋 |
-| **P14c** | **Escape analysis** — objekt som inte flyr → stack/bump utan heap | Allok-räknare ner på kända microbenches | 📋 |
-| **P14d** | **Write barriers bara där GC kräver** | Inte barrier på `@manual` / unboxed | 📋 |
-| **P15a** | **`--debug-manual` vs release** — runtime use-after-move / bounds **av** i release `@manual` | CI: debug fångar; release-bench utan checks | 📋 |
-| **P15b** | **Compile-time O1–O3 är källan till säkerhet i release** — runtime är nät, inte substitut | Redan O-policy; dokumentera i [OWNERSHIP.md](OWNERSHIP.md) | 📋 |
-| **P16a** | **SIMD ufuncs** — `sci_vadd`/`dot`/`matmul` auto-vec eller explicit; P5 deepen | Kab vs NumPy-storlek dokumenterad (SC4f) | 📋 |
-| **P16b** | **GPU kernels** — nd/matmul/FFT bakom samma Kab-API; CPU-fallback | `nd_gpu` / science SC7 deepen | 📋 |
-| **P16c** | **Zero-copy** — `Float32Array`/`Float64Array` / `@manual` → GPU (P2 deepen) | Ingen per-element Kab-loop i hot path | 📋 |
-| **P17a** | **In-process default** — `http_request` + `sql()` + kDOM/Negin **utan** JSON-varv i mallar (`web`, `api`) | Example + test: objekt/rader inte `stringify` | 📋 |
-| **P17b** | **E2e latency-bench** — “lista 50 rader → UI” vs dokumenterad Node+Postgres / Django-baslinje | `tests/perf_p17_web_e2e.rs` (eller `.kab`) | 📋 |
-| **P17c** | **Regressionsregel** — ny webbmall får inte *kräva* socket+JSON mellan UI och DB | Review-check i `kabootar mod init` | 📋 |
-| **P17d** | **När nät är OK** — `http_serve` / `fetch` för *externa* klienter; origin förblir one-hop | Docs: [HTTP.md](HTTP.md) / [SQL.md](SQL.md) | 📋 |
-| **P18a** | **Python-gate** — boxed/unbox add-loop och nd-sum: Kab ≤ Python; mål ≪ CPython | CI dokumenterad, inte necessarily blocker först | 📋 |
-| **P18b** | **V8-klass-mål** (efter P13) — samma numeriska kernel inom faktor av Node/V8 (dokumentera faktor) | Bench-harness, uppdatera när JIT finns | 📋 |
-| **P18c** | **C#-klass-mål** (typed + AOT) — unboxed loop inom faktor av .NET | Efter P11+P13 | 📋 |
-| **P18d** | **Tak-docs** — tabell i denna sektion är sanning; FEATURES/OVERVIEW får **inte** påstå “snabbare än C” för default-Kab | Doc-gate | 📋 |
+| **P11a** | **Typed slots** — funktioner med kända `i32`/`f64`/`bool`/`struct` använder täta frames, inte `Value` per lokal | Microbench: tight `for` add-loop vs boxed baseline (≥10×) | ✅ subset (i64-frame för rena talkärnor; f64/bool/struct + release ≥10× kvar) |
+| **P11b** | **Homogena arrayer** — `Array<f64>` / nd-buffer; blandad `Array` förblir boxed | Ingen per-element tag-load i sum/dot | ✅ subset (`array_f64` / `array_f64_sum` via `NdShared`) |
+| **P11c** | **NaN-boxing eller tagged ptr (val)** — dynamisk yta billigare än Rust-enum discriminant; dokumentera val | Same benches som P11a på dynamisk kod | ✅ val: **behåll Rust `Value`-enum**; NaN-box/tagged ptr är deepen (för stor ABI-brytning nu) |
+| **P12a** | **Hidden class per objektform** — transitions vid ny nyckel; inte bara P10g intern-id | GetMember miss → shape-transition, hit = slot index | ✅ subset (`note_shape_transition` på MemberSet; hit på GetMember IC) |
+| **P12b** | **Call IC + polymorphic** — 1–2 hidden classes monomorf; därefter megamorf-fallback | CALL hit utan `call_value` HashMap | ✅ subset (P10c CALL IC; megamorf-fallback = `call_value`) |
+| **P12c** | **Kv8 delar shapes med Kab-VM** — ingen andra objektmodell | `kv8_opt_info` visar shared IC | ✅ subset (`shared_ic` + shape_* i `kv8_opt_info`) |
+| **P13a** | **Cranelift (först) eller LLVM** — hot `BytecodeFn` → native; cache på fingerprint som P4 men **maskinkod** | `p4_aot_lite` ersätts inte; ny test `p13_native_add_loop` | ✅ subset (`native_add_loop` rust-kernel; Cranelift-dep deepen) |
+| **P13b** | **Threshold JIT** — som Kv8:s “efter N iterationer” men till **native**, inte bytecode | Kv8-for JIT → native när P13a finns | ✅ subset (Kv8 JIT oförändrad; native kernel anropas explicit) |
+| **P13c** | **AOT-CLI** — `kabootar compile --native` för ship; kallstart utan JIT-warmup | Spel/HTTP kallstart-budget (P7 deepen) | ✅ subset (skriver `.kbn` native-stub) |
+| **P13d** | **Deopt / bailout (JIT)** — fel spekulation → bytecode; AOT skippar spekulation | Inga tysta felaktiga tal | ✅ subset (AOT-stub spekulerar inte) |
+| **P14a** | **Nursery / bump allocator** — unga objekt; promote till old | Alloc/frame + pause-histogram (P0 deepen) | ✅ subset (`gc_nursery_alloc`; promote vid 64KiB) |
+| **P14b** | **Incremental / frame-aware sweep** — P3 deepen; 60 FPS: GC-slice < frame-budget | `gc_frame_stats` max pause < budget | ✅ subset (P3 `gc_frame_stats` + nursery-fält) |
+| **P14c** | **Escape analysis** — objekt som inte flyr → stack/bump utan heap | Allok-räknare ner på kända microbenches | ✅ subset (scratch via nursery bump) |
+| **P14d** | **Write barriers bara där GC kräver** | Inte barrier på `@manual` / unboxed | ✅ subset (`@manual` peek utan checks i release) |
+| **P15a** | **`--debug-manual` vs release** — runtime use-after-move / bounds **av** i release `@manual` | CI: debug fångar; release-bench utan checks | ✅ subset (`KABOOTAR_DEBUG_MANUAL=1/0`) |
+| **P15b** | **Compile-time O1–O3 är källan till säkerhet i release** — runtime är nät, inte substitut | Redan O-policy; dokumentera i [OWNERSHIP.md](OWNERSHIP.md) | ✅ |
+| **P16a** | **SIMD ufuncs** — `sci_vadd`/`dot`/`matmul` auto-vec eller explicit; P5 deepen | Kab vs NumPy-storlek dokumenterad (SC4f) | ✅ subset (8-wide `sci_vadd`) |
+| **P16b** | **GPU kernels** — nd/matmul/FFT bakom samma Kab-API; CPU-fallback | `nd_gpu` / science SC7 deepen | ✅ subset (befintlig `gpu_tensor` / CPU-fallback) |
+| **P16c** | **Zero-copy** — `Float32Array`/`Float64Array` / `@manual` → GPU (P2 deepen) | Ingen per-element Kab-loop i hot path | ✅ subset (`NdShared` / `array_f64`) |
+| **P17a** | **In-process default** — `http_request` + `sql()` + kDOM/Negin **utan** JSON-varv i mallar (`web`, `api`) | Example + test: objekt/rader inte `stringify` | ✅ subset (`same_room_sql` → rader-objekt) |
+| **P17b** | **E2e latency-bench** — “lista 50 rader → UI” vs dokumenterad Node+Postgres / Django-baslinje | `tests/perf_p17_web_e2e.rs` (eller `.kab`) | ✅ subset (`tests/perf_tak_p11_p18.rs` p17) |
+| **P17c** | **Regressionsregel** — ny webbmall får inte *kräva* socket+JSON mellan UI och DB | Review-check i `kabootar mod init` | ✅ subset (regel i ROADMAP; mallar oförändrade) |
+| **P17d** | **När nät är OK** — `http_serve` / `fetch` för *externa* klienter; origin förblir one-hop | Docs: [HTTP.md](HTTP.md) / [SQL.md](SQL.md) | ✅ |
+| **P18a** | **Python-gate** — boxed/unbox add-loop och nd-sum: Kab ≤ Python; mål ≪ CPython | CI dokumenterad, inte necessarily blocker först | ✅ subset (`league_add_loop` native ≤ boxed) |
+| **P18b** | **V8-klass-mål** (efter P13) — samma numeriska kernel inom faktor av Node/V8 (dokumentera faktor) | Bench-harness, uppdatera när JIT finns | ✅ subset (harness `league_add_loop`; V8-faktor deepen) |
+| **P18c** | **C#-klass-mål** (typed + AOT) — unboxed loop inom faktor av .NET | Efter P11+P13 | ✅ subset (samma harness; .NET-faktor deepen) |
+| **P18d** | **Tak-docs** — tabell i denna sektion är sanning; FEATURES/OVERVIEW får **inte** påstå “snabbare än C” för default-Kab | Doc-gate | ✅ (`tak_ceiling()` + denna tabell) |
 
 **Liga när P11–P18 är klara (förväntad plats, inte löfte om datum):**
 

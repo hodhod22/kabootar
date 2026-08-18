@@ -1,6 +1,6 @@
 //! Built-in Kabootar modules (`import "name"`).
 
-use crate::evaluator::{create_global_env, eval_source};
+use crate::evaluator::{create_module_env, eval_source};
 use crate::runtime::{codai_register, docai_register, http_module, kv8_register, science_register};
 use crate::value::{Environment, PromiseValue, Value};
 use std::cell::RefCell;
@@ -131,7 +131,7 @@ pub fn import_meta_object() -> Value {
 }
 
 pub fn load_module_namespace(spec: &str, _env: &Environment) -> Result<Value, String> {
-    let mut module_env = create_global_env();
+    let mut module_env = create_module_env();
     let mut loaded = HashSet::new();
     let (module_name, requested_version) = crate::project::version::split_import_spec(spec);
     let exported = import_module_inner(
@@ -241,7 +241,7 @@ fn eval_file_module(source: &str, path: &std::path::Path, importer: &mut Environ
         }
     }
 
-    let mut module_env = create_global_env();
+    let mut module_env = create_module_env();
     let program = crate::compile::load_program_for_file(&cache_key, source)?;
     let path_str = path.to_string_lossy().replace('\\', "/");
     let url = format!("file://{path_str}");
@@ -429,7 +429,7 @@ fn import_module_inner(
         if source.is_empty() {
             return Ok(Vec::new());
         }
-        let mut module_env = create_global_env();
+        let mut module_env = create_module_env();
         with_import_meta(
             ImportMeta {
                 url: format!("kabootar:///{name}"),

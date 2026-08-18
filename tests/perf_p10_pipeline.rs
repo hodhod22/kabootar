@@ -193,6 +193,55 @@ fn p10_warm_self_host_subset_disk_cache() {
 }
 
 #[test]
+fn p10j_fn_only_module_main_and_stdlib_reuse() {
+    use kabootar_lib::bytecode::{run_module, try_compile};
+    use kabootar_lib::evaluator::{create_module_env, stdlib_prototype_builds};
+    use kabootar_lib::lexer::tokenize;
+    use kabootar_lib::parser::Parser;
+
+    let src = "pub fn add1(x) {\n    return x + 1\n}\n";
+    let tokens = tokenize(src).expect("lex");
+    let stmts = Parser::with_eof(tokens).parse_program().expect("parse");
+    let module = try_compile(&stmts).expect("emit");
+    assert!(
+        module.main_code.len() <= 2,
+        "fn-only module should have trivial main, ops={:?}",
+        module.main_code
+    );
+
+    let builds_before = stdlib_prototype_builds();
+    let mut a = create_module_env();
+    let mut b = create_module_env();
+    let builds_after = stdlib_prototype_builds();
+    assert!(
+        builds_after == builds_before || builds_after == builds_before + 1,
+        "stdlib prototype should be built at most once more, before={builds_before} after={builds_after}"
+    );
+    let v = run_module(&module, &mut a).expect("run a");
+    let v2 = run_module(&module, &mut b).expect("run b");
+    let _ = (v, v2);
+    assert!(a.get("add1").is_some(), "exports bound without heavy main");
+}
+
+#[test]
+fn p10j_export_cache_second_import() {
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+
+    let mut env = create_module_env();
+    import_module("self_host/parser_util_bump", &mut env).expect("first import");
+    let t0 = Instant::now();
+    let mut env2 = create_module_env();
+    import_module("self_host/parser_util_bump", &mut env2).expect("cached import");
+    let second_ms = ms(t0);
+    eprintln!("P10j second import parser_util_bump {second_ms:.2} ms");
+    assert!(
+        second_ms < 5_000.0,
+        "in-process export cache should keep second import under 5s, got {second_ms:.1}"
+    );
+}
+
+#[test]
 #[ignore = "self-host toolchain import is minutes even in release; KABOOTAR_P10_PROFILE=1"]
 fn p10_self_host_tiny_source_profile() {
     use kabootar_lib::compile::compile_source_self_host;

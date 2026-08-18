@@ -10,6 +10,7 @@ use crate::value::{format_value, unix_ms_now, AsyncBody, Environment, Microtask,
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub fn bind_call_params(
     params: &[String],
@@ -176,6 +177,7 @@ pub fn create_global_env() -> Environment {
     crate::runtime::registry::registry_globals(&mut env);
     security_globals(&mut env);
     lang_features_globals(&mut env);
+    crate::runtime::ptak::ptak_globals(&mut env);
     stdlib_globals(&mut env);
     reality_globals(&mut env);
     ecosystem_globals(&mut env);
@@ -183,6 +185,27 @@ pub fn create_global_env() -> Environment {
     crate::runtime::ownership::ownership_globals(&mut env);
     modules::register_import_builtins(&mut env);
     env
+}
+
+static STDLIB_BUILDS: AtomicU64 = AtomicU64::new(0);
+
+thread_local! {
+    static STDLIB_PROTOTYPE: RefCell<Option<Environment>> = const { RefCell::new(None) };
+}
+
+/// Fresh module frame with natives via parent (P10: one stdlib build per thread).
+pub fn create_module_env() -> Environment {
+    STDLIB_PROTOTYPE.with(|slot| {
+        if slot.borrow().is_none() {
+            STDLIB_BUILDS.fetch_add(1, Ordering::Relaxed);
+            *slot.borrow_mut() = Some(create_global_env());
+        }
+        Environment::child_from(slot.borrow().as_ref().expect("stdlib prototype"))
+    })
+}
+
+pub fn stdlib_prototype_builds() -> u64 {
+    STDLIB_BUILDS.load(Ordering::Relaxed)
 }
 
 /// Evaluate Kabootar source into an existing environment.

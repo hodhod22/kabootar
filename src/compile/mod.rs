@@ -117,7 +117,7 @@ fn rough_stmt_count(source: &str) -> usize {
 /// Compile source text via `import "self_host/compile"` → `.kbc` text → deserialize.
 pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String> {
     use crate::bytecode::call_value;
-    use crate::evaluator::create_global_env;
+    use crate::evaluator::create_module_env;
     use crate::value::Value;
 
     // Module resolution is cwd-relative; prefer the package root when available.
@@ -130,7 +130,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         let mut env = SELF_HOST_TOOLCHAIN.with(|slot| slot.borrow_mut().take());
         let cache_hit = env.is_some();
         if env.is_none() {
-            let mut fresh = create_global_env();
+            let mut fresh = create_module_env();
             crate::modules::import_module("self_host/compile", &mut fresh).map_err(|e| {
                 crate::runtime::stdlib::error::format_runtime_error(&e)
             })?;

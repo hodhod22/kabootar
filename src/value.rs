@@ -281,9 +281,13 @@ impl OwnedBuf {
     }
 
     pub fn peek_id(&self) -> Result<u64, String> {
-        self.slot
-            .borrow()
-            .ok_or_else(|| "use after move".to_string())
+        if crate::runtime::ptak::manual_runtime_checks() {
+            self.slot
+                .borrow()
+                .ok_or_else(|| "use after move".to_string())
+        } else {
+            Ok(self.id)
+        }
     }
 
     /// Move: invalidate this handle and return a fresh live handle to the same region.
