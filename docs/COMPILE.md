@@ -36,7 +36,7 @@ Parser-shards (~4–4.5 s, 123/123 tester) är **tillräckliga**. Nästa milst
 2. **LoadMember shape IC** (ptr + key-hash + cached value) + **CALL_0 / direct bytecode IC**
 3. **Text `.kbc`** med `with_capacity`; **`.kbcb`** cache-envelope (`KBCB` + v1 payload) bredvid `.kbc`
 
-Mål: self-host compile **10 → 7 → 5 → 3 s**, inte postfix 4.5 → 3.5 s.
+Mål: self-host compile **10 → 7 → 5 → 3 s**, inte postfix 4.5 → 3.5 s. **P10 stängd** (a–h + j; i skippad). Unbox/JIT är **P11+**.
 
 ---
 

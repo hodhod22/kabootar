@@ -13,6 +13,7 @@ pub mod kstyle;
 pub mod kstyle_lang;
 pub mod os;
 pub mod ownership;
+pub mod ptak;
 pub mod platform;
 pub mod render;
 pub mod tls_trust;

@@ -439,6 +439,9 @@ pub fn gc_frame_stats_value() -> Value {
     m.insert("allocs".into(), Value::Number(allocs as i64));
     m.insert("budget".into(), Value::Number(budget as i64));
     m.insert("sweeps".into(), Value::Number(sweeps as i64));
+    for (k, v) in crate::runtime::ptak::nursery_stats_map() {
+        m.insert(k, v);
+    }
     m.insert(
         "over_budget".into(),
         Value::Bool(budget > 0 && allocs >= budget),

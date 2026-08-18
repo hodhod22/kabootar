@@ -121,6 +121,10 @@ fn kv8_opt_info_native(args: &[Value], _env: &mut Environment) -> Result<Value, 
         let (compiled, hits) = inner.jit.as_ref().map(|j| j.stats()).unwrap_or((0, 0));
         o.insert("compiled_loops".into(), Value::Number(compiled as i64));
         o.insert("loop_hits".into(), Value::Number(hits as i64));
+        o.insert("shared_ic".into(), Value::Bool(true));
+        let (shape_hits, trans) = crate::runtime::ptak::shape_stats();
+        o.insert("shape_hits".into(), Value::Number(shape_hits as i64));
+        o.insert("shape_transitions".into(), Value::Number(trans as i64));
         Ok(Value::from_object(o))
     })
 }

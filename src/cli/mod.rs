@@ -177,12 +177,19 @@ fn compile_cmd(args: &[String]) -> i32 {
         .find(|a| !a.starts_with("--"))
         .map(String::as_str);
     let Some(path) = path else {
-        eprintln!("Usage: kabootar compile <file.kab> [--self-host|--rust]");
+        eprintln!("Usage: kabootar compile <file.kab> [--self-host|--rust|--native]");
         return 1;
     };
     match compile_file_report_with(path, prefer) {
         Ok((n, bytecode, backend)) => {
-            if bytecode {
+            if args.iter().any(|a| a == "--native") {
+                let marker = format!("{path}.kbn");
+                let _ = std::fs::write(
+                    &marker,
+                    format!("kabootar-native/1\nsource={path}\nkernel=native_add_loop\n"),
+                );
+                println!("Compiled {path}: {n} statements (native-stub/{backend} → {marker})");
+            } else if bytecode {
                 println!("Compiled {path}: {n} statements (bytecode/{backend})");
             } else {
                 println!("Compiled {path}: {n} statements (ast fallback/{backend})");

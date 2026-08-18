@@ -477,6 +477,14 @@ fn const_to_value(c: &Constant) -> Value {
     }
 }
 
+fn module_main_is_trivial(code: &[Opcode]) -> bool {
+    match code {
+        [] | [Opcode::Halt] | [Opcode::Return] => true,
+        [Opcode::Const(_), Opcode::Halt] | [Opcode::Const(_), Opcode::Return] => true,
+        _ => false,
+    }
+}
+
 pub fn run_module(module: &BytecodeModule, env: &mut Environment) -> Result<Value, String> {
     crate::runtime::ownership::set_memory_mode(env, module.memory_mode);
     for name in &module.imports {
@@ -491,32 +499,37 @@ pub fn run_module(module: &BytecodeModule, env: &mut Environment) -> Result<Valu
     register_module_enums(module, env);
     register_module_classes(module, env)?;
     register_functions(module, env)?;
-    let mut cursor = ChunkCursor {
-        ip: 0,
-        stack: Vec::new(),
-        delegate: None,
-        generator_async: false,
+    let result = if module_main_is_trivial(&module.main_code) {
+        Value::Null
+    } else {
+        let mut cursor = ChunkCursor {
+            ip: 0,
+            stack: Vec::new(),
+            delegate: None,
+            generator_async: false,
+        };
+        let (exit, local_vals) = run_chunk(
+            &module.main_code,
+            &module.constants,
+            &module.globals,
+            &module.main_locals,
+            &module.main_immutable_locals,
+            &module.arrow_functions,
+            &module.classes,
+            None,
+            Some(module),
+            None,
+            &mut cursor,
+            false,
+            env,
+        )?;
+        let result = match exit {
+            ChunkExit::Done(v) => v,
+            ChunkExit::Yield(_) => return Err("yield outside generator".into()),
+        };
+        sync_main_locals(module, &local_vals, env)?;
+        result
     };
-    let (exit, local_vals) = run_chunk(
-        &module.main_code,
-        &module.constants,
-        &module.globals,
-        &module.main_locals,
-        &module.main_immutable_locals,
-        &module.arrow_functions,
-        &module.classes,
-        None,
-        Some(module),
-        None,
-        &mut cursor,
-        false,
-        env,
-    )?;
-    let result = match exit {
-        ChunkExit::Done(v) => v,
-        ChunkExit::Yield(_) => return Err("yield outside generator".into()),
-    };
-    sync_main_locals(module, &local_vals, env)?;
     refresh_function_closures(module, env);
     for name in &module.exports {
         env.mark_exported(name);
@@ -1568,6 +1581,7 @@ fn run_chunk(
                     });
                     if let Some(v) = cached {
                         MEMBER_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                        crate::runtime::ptak::note_shape_hit();
                         v
                     } else {
                         MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
@@ -1617,6 +1631,7 @@ fn run_chunk(
                 }
                 // Invalidate IC for this object on write.
                 invalidate_member_ic();
+                crate::runtime::ptak::note_shape_transition();
                 write_member(&mut container, key, val.clone(), env)?;
                 push_stack(stack, container)?;
                 push_stack(stack, val)?;
@@ -2125,6 +2140,11 @@ pub fn run_bytecode_fn_with_locals(
     args: Vec<Value>,
     env: &mut Environment,
 ) -> Result<(Value, Vec<Value>), String> {
+    if let Some(typed) = super::typed::try_run_typed_i64(func, &args) {
+        let (v, local_vals) = typed?;
+        sync_fn_locals_to_env(func, &local_vals, env);
+        return Ok((v, local_vals));
+    }
     bind_bytecode_params(func, &args, env);
     let mut cursor = ChunkCursor {
         ip: 0,
