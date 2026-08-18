@@ -2,7 +2,7 @@
 @manual
 
 // kOS manual memory — MemBox over owned_* / os_mem_*.
-// Consumers must also use @manual. import "os/mem"
+// Consumers must also use @manual. import "kos/mem"
 // Prefer these wrappers over raw os_mem_* in @manual modules (L5).
 
 pub fn alloc(size, label) {

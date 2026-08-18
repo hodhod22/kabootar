@@ -1,5 +1,7 @@
 # Kabootar — roadmap
 
+Produktplaner och docs: **[kOS](../lib/kos/README.md)** ([plan](../lib/kos/ROADMAP.md)) · **[kbrowser](../lib/kbrowser/README.md)** ([plan](../lib/kbrowser/ROADMAP.md)). Bygg kOS först. Implementeras i Kabootar; kör appar via Kv8 + kDOM + kstyle. Rust tunnas bort.
+
 ## v0.2 (nu) — Kabootar-foundation
 
 - [x] Byt namn Nova → Kabootar
@@ -461,7 +463,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 
 0. **Komplettera Kabootar-språket** (L + O + **T** traits + **J** JS-stdlib + **R** struct) — optimera, paritet, ownership  
 1. **Self-host som produktionskompilator** (S) — pausad tills J/T/R landat tillräckligt  
-2. **Bygg om allt i Kabootar** (K): kv8, dom, css, os, kbrowser  
+2. **Bygg om allt i Kabootar** (K): kv8, dom, css, kOS, kbrowser  
 3. **Tunna bort Rust** (H) tills hosten är trivial  
 4. **Prestanda + spelproduktion** (P + GP) — snabb VM/AOT, GPU-3D, asset-pipeline; se nedan  
 5. **Science / AI** (SC) — ta över Pythons roll för forskning/AI; Kab-first (inte Rust); fri från NumPy/SciPy/PyTorch-beroenden
@@ -495,8 +497,8 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L1** | **Reentranta bytecode-lokaler** — `StoreLocal`/`MakeArrowFn` får inte `assign` upp i parent/modul-env; closures fångar aktiveringsram (`share_bindings`); seed av capture-slots vid fn-entry; `sync_closure_writes` synkar bara riktiga captures | ✅ |
 | **L2** | **Modulskala** — `register_functions` + `BytecodeFunction::Clone` använder `share_bindings` (inte djupklon); ≥40 top-level fn/modul utan OOM | ✅ |
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
-| **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/os/async` använder riktig `await` | ✅ |
-| **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `os/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
+| **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/kos/async` använder riktig `await` | ✅ |
+| **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `kos/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
 
 **Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`
 
@@ -623,9 +625,9 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **K2** | **DOM + CSS/KSS** — ✅ **subset**: `querySelector` + KSS object→CSS i `.kab` (`kdom_query_kss_smoke`); layout/paint fortfarande Rust |
 | **K2 deepen** | **applyCss + matches** — ✅ **subset**: `kdom_applycss_matches_smoke` (kdom + kss + selectors + theme `applyCss`) |
 | **K2-layout** | **flex/box orchestration** — ✅ **subset**: `lib/kstyle/layout` `flexColumn`/`flexRow`/`gap`/`pad`/`applyFlex` (stil-helpers; native layout engine kvar) (`k2_layout_smoke`) |
-| **K3** | **OS** — ✅ **subset**: VFS + mem + `lib/os/sched` + policy (`runRoundRobin`, `canWrite` /apps sandbox). Gate: `cargo test --test os_lib` |
-| **K4** | **Webläsare** — ✅ **subset**: `lib/kbrowser` tabs + VFS navigate + paint (`k4_kbrowser_tabs_smoke`) |
-| **K5** | **kOS desktop** — ✅ **subset** (G12.1–G12.5 + launch + Start click + event drain + app body): `launchApp` / `clickStartApp` / `drainKosEvents` → `openWindow` med VFS-body (`kos_launch_app_smoke`, `kos_start_click_smoke`, `kos_event_drain_smoke`, `kos_app_body_smoke`) |
+| **K3** | **kOS kärna** — ✅ **subset**: VFS + mem + sched + policy. **Plan:** [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md). Gate: `cargo test --test os_lib` |
+| **K4** | **kbrowser** — ✅ **subset**: tabs + VFS navigate + paint. **Plan:** [lib/kbrowser/ROADMAP.md](../lib/kbrowser/ROADMAP.md) |
+| **K5** | **kOS skrivbord** — ✅ **subset** (shell/Start/fönster/Explorer). **Plan:** [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md) |
 
 ### Våg H — Rust → noll 📋
 
@@ -657,7 +659,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6c** ✅ — chrome/core via `kbrowser/nav`; Rust `BrowserTab.history` bort; **`kb_back`/`kb_forward`/`kb_tab_open`/`kb_tabs` natives bort**; load/paint via `kb_navigate`.
 
-**H6d** ✅ **subset** — OS-policy i `.kab`: `os/vfs_policy` (ensureDir/writeFile/apps), `os/sched_policy` (runFairTick), `os/process_policy` (spawnSandbox/caps); `kos/boot` seed via policy (`h6d_os_policy_smoke`). Rust kvar som disk/net/GPU/hw + thin `os_*` syscalls.
+**H6d** ✅ **subset** — OS-policy i `.kab`: `kos/vfs_policy`, `kos/sched_policy`, `kos/process_policy`; `kos/boot` seed (`h6d_os_policy_smoke`). Rust = disk/net/GPU/hw + thin `os_*`. Plan: [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md).
 
 **H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE`). Tunna facader self-hostar CI-snabbt. **Skip-list tom (P6b).** **Committed seeds:** `self_host/seed/*.kbc` (kab-only cache). Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** `attempt-all`. Smokes: `h6e_kab_*`, `p6_leaf_self_host_compile_budget`.
 
@@ -1228,7 +1230,7 @@ D1–D5 finns som **tillfällig Rust-host**. Vidare OS-logik → **Våg K2** i K
 | **D6** ⏸ | `os_compat_run` — senare som Kabootar+thin host, inte ny Rust-monolit |
 | **D7** ⏸ | Boot: BIOS/UEFI / bare-metal — efter thin host (H) |
 | **D8** ⏸ | Sauce-strategier — hardware-bindningar only i Rust |
-| **D9** ⏸ | **kOS desktop shell** — [G12](ROADMAP.md) / **K3** i `.kab` |
+| **D9** ⏸ | **kOS desktop shell** — [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md) |
 
 **Våg D totalt:** host-subset klart; resten via K/H
 
@@ -1237,7 +1239,7 @@ D1–D5 finns som **tillfällig Rust-host**. Vidare OS-logik → **Våg K2** i K
 ```
 Våg L (språk)  ████████░░░░░░░░  nu — L1 först
 Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
-Våg K (libs)   ░░░░░░██████████  kv8/os/kos i .kab
+Våg K (libs)   ░░░░░░██████████  kv8/kos/kbrowser i .kab
 Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
 Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
 Våg GP (spel)  ██████████████░░  GP0–GP5 ✅; GP7a–g + GP6a/b/c/e/f/g/i; terrain/audio/XR kvar
@@ -1287,85 +1289,15 @@ Kompletterar JS/DOM-paritet och gör Kabootar produktionsklart som språk.
 | **G4** | Math rest (`f16round`, `sumPrecise`) | ✅ |
 | **G5** | **Traits** — `trait Show { fn show() }` alias till interface + `implements` | ✅ subset (`trait` ≈ `interface`; `where`-bounds senare) |
 | **G6** | **kss** (styles) + Next-lik filrouting (`pages/*.kab`) | ✅ (`import "kss"` toCss/apply; `import "pages"` renderRoute; `pages/_app`+`index`) |
-| **G7** | **kbrowser mobil** — viewport/touch/safe area + mobil shell-UI (`lib/kbrowser/mobile_chrome`) | ✅ subset |
+| **G7** | **kbrowser mobil** — [lib/kbrowser/ROADMAP.md](../lib/kbrowser/ROADMAP.md) | ✅ subset |
 | **G8** | **Compile-opt** — incremental self-host, [COMPILE.md](COMPILE.md) | ✅ subset (`.kbc` fingerprint + import mtimes) |
 | **G9** | **Kv8 i Kabootar** — lexer/parser/eval Kv8-subset self-host | ✅ subset (`?.`/templates `${expr}`/ternary/`switch`/array/unary/`for*`/try/fn) |
 | **G10** | **React/Next-lik** — Kv8 fiber + kDOM SSR (`import "kv8/react"`) | ✅ subset (`ntag`/`cnid*` multi nested + parent live sync/`onById`/`dispatchById`) |
-| **G10b** | **Runtime MemBox** — opt-in `@manual` + `owned_*` / `import "os/mem"` (GC default orörd). Compile-time = **Våg O** | ✅ runtime; O1–O3 ✅ |
-| **G11** | **kbrowser cross-platform** — `lib/kbrowser/` + `kb_sync_platform` object + native/kos/wasm smokes | ✅ subset |
+| **G10b** | **Runtime MemBox** — opt-in `@manual` + `owned_*` / `import "kos/mem"` (GC default orörd). Compile-time = **Våg O** | ✅ runtime; O1–O3 ✅ |
+| **G11** | **kbrowser cross-platform** — [lib/kbrowser/ROADMAP.md](../lib/kbrowser/ROADMAP.md) | ✅ subset |
+| **G12** | **kOS skrivbord** — [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md) | ✅ subset |
 
-**G7 — kbrowser mobil (planering):**
-
-Kabootar Browser ska fungera på **mobiltelefoner** — Android och iPhone — med samma `kb_*`-API som desktop.
-
-| Mål | Väg | Smoke |
-|-----|-----|-------|
-| **Android (web)** | Chrome / WebView + WASM + touch | `kb_viewport` + touch hit-test |
-| **Android (app)** | Kabootar Shell (WebView) + PWA manifest | install + offline VFS |
-| **iPhone (web)** | Mobile Safari + WASM | safe area + viewport |
-| **iPhone (app)** | WKWebView Shell + PWA | App Store-ready wrapper |
-
-Krav:
-
-- [x] **Touch-input** — `kb_touch_at` + hit-test (`kb_poll_events`, fallback till `click`)
-- [x] **Responsiv viewport** — `kb_viewport(w, h, dpr?, orientation?)` returnerar `{width,height,dpr,orientation}`
-- [x] **iOS safe area** — `kb_safe_area(top?, right?, bottom?, left?)` stub
-- [x] **Mobil shell-UI** — `lib/kbrowser/mobile_chrome.kab` (adressfält, tillbaka, flikar)
-- [x] **PWA** — service worker + fetch events + manifest ([BROWSER_V2.md](BROWSER_V2.md)); “Lägg till hemskärm”
-- [x] **Smokes** — `examples/kbrowser_mobile_smoke.kab`, `kbrowser_mobile_shell_smoke.kab`; device CI senare
-
-Beror på: **G11** (kbrowser core), **Våg C** (layout, touch targets), **BROWSER_V2 PWA**.
-
-**G11 — kbrowser på desktop-mål (planering):**
-
-Kabootar Browser (`kbrowser`) ska inte bara köras i Chrome/WASM — den ska vara **första-klassens** på Kabootar OS (kOS) *och* på varje host där motorn byggs:
-
-| Mål | Renderingsväg | Smoke |
-|-----|---------------|-------|
-| **kOS** | VFS (`kabootar://`), compositor, OS-fönster | `kb_navigate("kabootar://vfs/…")` + `kb_paint()` |
-| **Windows** | Native shell / pixel-compositor | `file:///…`, `kb_host_sync()` |
-| **Linux** | Native shell (X11/Wayland bridge) | samma API som Windows |
-| **macOS** | Native shell (AppKit bridge) | samma API som Windows |
-| **WASM** | `kabootar-shell.html` + host canvas | `wasm-pack` + `kb_run_ui()` |
-
-Krav:
-
-- [x] **`lib/kbrowser/`** — `core.kab` + `mobile_chrome.kab` + aggregator; Rust som host-bindning
-- [x] **`kb_sync_platform()`** — returnerar `{mode,layer,host_os,schemes}`
-- [x] **Enhetlig compositor-yta** — `kb_mount` → `kb_render` → `kb_paint` (kOS/native/wasm-klass)
-- [x] **CI-smokes** — `kbrowser_native_smoke` / `kbrowser_kos_smoke` / `kbrowser_wasm_smoke` + host-tester
-- [x] **Dokumentation** — matris i [BROWSER.md](BROWSER.md); native AppKit/X11-bridge senare
-
-Mobil (Android, iPhone): se **G7** — samma `lib/kbrowser/`, touch + viewport + PWA/Shell.
-
-Beror på: **G6–G10** (kDOM/Kv8/kss), **Våg C** (layout/canvas), **`lib/os/*`** (VFS, async, fönster).
-
-| **G12** | **kOS desktop shell** — Windows-lik UX (taskbar, Start, fönster, Explorer) med modern stack (kDOM/KSS, GPU compositor, blur, animationer); se [OS.md#desktop--utseende](OS.md#desktop--utseende) | ✅ **subset** (G12.1–G12.5) |
-
-**G12 — kOS utseende (planering):**
-
-Målbild: användaren ska känna igen sig från Windows, men systemet ska **se och kännas 2020+-modernt** — inte Win32.
-
-| Komponent | Innehåll | Teknik |
-|-----------|----------|--------|
-| **Shell** | Taskbar, Start/meny, systemfält, klocka | `lib/kos/shell.kab` |
-| **Fönsterhanterare** | Titelfält, min/max/stäng, snap-zoner, Alt+Tab | `os_window_*` + compositor |
-| **Explorer** | `kabootar://vfs`, mount, sökvägsfält | kbrowser + VFS |
-| **Settings** | Kategorier (system, nät, skärm, integritet) | Kv8-app i VFS |
-| **Tema** | Mörk/ljust, accentfärg, skal-transparens | KSS tokens + `kb_theme()` |
-| **Rörelse** | Öppna/stäng, snap, hover | spring physics (`os_haptic_*`), vsync |
-
-Milstolpar:
-
-- [x] **G12.1** — Minimal shell: skrivbord + taskbar + ett fönster — ✅ **subset** via `lib/kos/shell` (`buildShell` / `listApps`)
-- [x] **G12.2** — Start + app-lista från VFS (`/apps`) — ✅ **subset**: `openStart` / `isStartOpen` / `clickStart`; **Start → openWindow** via `lib/kos/launch` `launchApp` / `launchStartApp` / `drainKosEvents`; **Start click** via `wireStartApps` + `clickStartApp` (dispatch → drain) (`kos_launch_app_smoke`, `kos_start_click_smoke`, `kos_event_drain_smoke`); app-body från `os_read(/apps/…)` (`kos_app_body_smoke`)
-- [x] **G12.3** — Explorer + filoperationer (`os_read`/`write`/`list`) — ✅ **subset**: `lib/kos/explorer` (`kos_g12_3_explorer_smoke`)
-- [x] **G12.4** — Snap + multi-fönster + Alt+Tab-overlay — ✅ **subset**: `lib/kos/windows` (`openWindow` / `snapWindow` / `openAltTab`; `kos_g12_4_windows_smoke`)
-- [x] **G12.5** — Visuell polish: blur-lager, rundning, animationer, ljust tema — ✅ **subset** (CSS polish via `lib/kos/theme` `applyKosTheme`; inte full GPU blur) (`kos_g12_5_theme_smoke`)
-
-**Shell-integrering:** `bootKosDesktop()` i `lib/kos/shell` (build + theme + `kb_mount`/`kb_paint`). `kabootar shell` monterar Start + `/apps`, mappar vänsterklick → `kb_click` → `drainKosEvents` → remount/paint. CI: `kos_lib` gate i `self-host.yml`. ✅ **shell mount + input subset**. Exempel: `examples/kos_shell_mount_smoke.kab`, `examples/kos_host_click_smoke.kab`.
-
-Beror på: **G11** (kbrowser), **Våg D5** (GPU compositor), **Våg C4** (layout).
+Produkt (docs + plan, inte duplicerade här): **kOS** = [README](../lib/kos/README.md) / [plan](../lib/kos/ROADMAP.md); **kbrowser** = [README](../lib/kbrowser/README.md) / [plan](../lib/kbrowser/ROADMAP.md). Bygg **kOS först**.
 
 **Tester:** `cargo test stdlib_wave`, `cargo test --test kabootar_js_parity`, [VSCODE_TESTS.md](VSCODE_TESTS.md).
 

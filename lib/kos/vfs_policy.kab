@@ -1,9 +1,9 @@
 @version "1.0.0"
 
-// H6d: VFS product policy over os/vfs syscalls. import "os/vfs_policy"
+// H6d: VFS product policy over kos/vfs syscalls. import "kos/vfs_policy"
 // KEEP <=~7 top-level fn. Host disk I/O stays in Rust natives.
 
-import "os/vfs"
+import "kos/vfs"
 
 fn parentPath(path) {
     let s = "" + path

@@ -187,7 +187,9 @@ Kör `registry_seed()` för att publicera `lib/*.kab` till lokalt registry.
 | `data` | [DATA.md](DATA.md) | Data pillar |
 | `cad` | [FRAMEWORK_PILLARS.md](FRAMEWORK_PILLARS.md) | CAD |
 | `web` / `kdom` / `kstyle` / `kv8` | [RUNTIME.md](RUNTIME.md), [KV8.md](KV8.md) | DOM, CSS, Kv8 |
-| `doc` / `dx` / `os` | [DOCAI.md](DOCAI.md), [DX_TOOLING.md](DX_TOOLING.md), [OS.md](OS.md) | DocAI, exploration DX, kOS |
+| `kos` | [lib/kos/README.md](../lib/kos/README.md) | kOS — kernel + skrivbord |
+| `kbrowser` | [lib/kbrowser/README.md](../lib/kbrowser/README.md) | kbrowser |
+| `doc` / `dx` | [DOCAI.md](DOCAI.md), [DX_TOOLING.md](DX_TOOLING.md) | DocAI, exploration DX |
 
 Sökordning: projekt-`lib/`, installerade paket, `KABOOTAR_PATH`.
 

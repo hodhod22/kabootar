@@ -1,11 +1,11 @@
 // H6d: OS product policy (VFS / sched / process) in .kab over syscalls
 // cargo run --bin kabootar -- examples/h6d_os_policy_smoke.kab
 
-import "os/vfs_policy"
-import "os/sched_policy"
-import "os/process_policy"
-import "os/vfs"
-import "os/process"
+import "kos/vfs_policy"
+import "kos/sched_policy"
+import "kos/process_policy"
+import "kos/vfs"
+import "kos/process"
 
 ensureAppsRoot()
 let body = writeFile("/apps/h6d.txt", "h6d-ok")

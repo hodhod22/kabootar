@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar OS VFS wrappers (natives os_* are syscalls). import "os/vfs"
+// kOS VFS wrappers (natives os_* are syscalls). import "kos/vfs"
 // KEEP <=~7 top-level fn.
 
 pub fn read(path) {

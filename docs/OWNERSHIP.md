@@ -58,7 +58,7 @@ I `@manual` flyttas `Owned` vid:
 
 Efter move: **compile error** vid användning (O1), runtime `use after move` som backup.
 
-**Peek-API** (flyttar inte): `owned_read`, `owned_write`, och `os/mem` `read`/`write`.
+**Peek-API** (flyttar inte): `owned_read`, `owned_write`, och `kos/mem` `read`/`write`.
 
 ## Borrow (O3)
 

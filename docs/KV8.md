@@ -99,7 +99,7 @@ Also available via `import "kv8";` (re-registers natives).
 
 ## Optimizations (Kv8 vs V8)
 
-Kv8 is **not** a drop-in V8. The **Rust host** Kv8 runtime avoids a tracing GC (values live in Rust). Self-hosted Kv8 under `lib/kv8` runs as ordinary Kabootar and uses the **default GC** heap. Systems ownership (`@manual`, `owned_*`, `os/mem`) is for kOS / low-level Kabootar — not for web/Kv8 app code.
+Kv8 is **not** a drop-in V8. The **Rust host** Kv8 runtime avoids a tracing GC (values live in Rust). Self-hosted Kv8 under `lib/kv8` runs as ordinary Kabootar and uses the **default GC** heap. Systems ownership (`@manual`, `owned_*`, `kos/mem`) is for kOS / low-level Kabootar — not for web/Kv8 app code.
 
 Safe wins implemented in `opt.rs`:
 
@@ -119,7 +119,7 @@ Safe wins implemented in `opt.rs`:
 ### Kabootar advantages (by design)
 
 - **Web/default = GC** — no ownership noise for app and Kv8-in-Kabootar code
-- **Systems = `@manual`** — MemBox / move+drop for kOS buffers (`import "os/mem"`)
+- **Systems = `@manual`** — MemBox / move+drop for kOS buffers (`import "kos/mem"`)
 - **Browser = OS** — `kabootar://vfs`, compositor, kernel capabilities
 - **Host Kv8** — no tracing GC pauses in the Rust Kv8 engine
 - **Predictive JIT** — hot `for` loops compile after 8 iterations with scope bridge

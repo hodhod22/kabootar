@@ -6,7 +6,7 @@
 import "kos/shell"
 import "kos/theme"
 import "kos/launch"
-import "os/vfs_policy"
+import "kos/vfs_policy"
 
 pub fn seedDefaultApps() {
     ensureAppsRoot()

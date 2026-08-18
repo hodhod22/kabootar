@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar OS process table wrappers. import "os/process"
+// kOS process table wrappers. import "kos/process"
 
 pub fn spawn(name) {
     return os_spawn(name)

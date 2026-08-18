@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Async OS VFS. import "os/async"
+// Async kOS VFS. import "kos/async"
 
 fn readOne(path) {
     return await os_read_async(path)

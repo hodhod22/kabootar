@@ -1,4 +1,4 @@
-//! lib/os — Kabootar-language OS wrappers (VFS, mount, process, kernel).
+//! lib/kos kernel — VFS, mount, process, sched (formerly lib/os).
 
 use kabootar_lib::cli;
 use kabootar_lib::value::Value;
@@ -21,7 +21,7 @@ fn run_file_host(path: &str) -> Value {
 #[test]
 fn os_vfs_read_write_roundtrip() {
     let code = r#"
-import "os/vfs"
+import "kos/vfs"
 mkdir("/data")
 write("/data/ping.txt", "pong")
 read("/data/ping.txt") == "pong" && exists("/data/ping.txt")
@@ -34,7 +34,7 @@ read("/data/ping.txt") == "pong" && exists("/data/ping.txt")
 #[test]
 fn os_vfs_stat_and_list() {
     let code = r#"
-import "os/vfs"
+import "kos/vfs"
 mkdir("/box")
 write("/box/a.txt", "A")
 write("/box/b.txt", "B")
@@ -49,7 +49,7 @@ st.kind == "file" && st.size == 1 && len(list("/box")) >= 2
 #[test]
 fn os_process_spawn_and_list() {
     let code = r#"
-import "os/process"
+import "kos/process"
 let pid = spawn("worker")
 let procs = list()
 pid > 0 && len(procs) >= 1
@@ -62,7 +62,7 @@ pid > 0 && len(procs) >= 1
 #[test]
 fn os_kernel_info_and_caps() {
     let code = r#"
-import "os/kernel"
+import "kos/kernel"
 let k = info()
 let c = caps()
 len(k) > 3 && len(c) > 0
@@ -82,8 +82,8 @@ fn os_smoke_example_runs() {
 #[test]
 fn os_async_read_roundtrip() {
     let code = r#"
-import "os/vfs"
-import "os/async"
+import "kos/vfs"
+import "kos/async"
 mkdir("/adata")
 write("/adata/x.txt", "hello")
 async fn load() {
@@ -99,8 +99,8 @@ await load() == "hello"
 #[test]
 fn os_async_parallel_reads() {
     let code = r#"
-import "os/vfs"
-import "os/async"
+import "kos/vfs"
+import "kos/async"
 mkdir("/p")
 write("/p/a.txt", "A")
 write("/p/b.txt", "B")
@@ -122,7 +122,7 @@ fn os_async_smoke_example_runs() {
 #[test]
 fn os_sched_enqueue_and_tick() {
     let code = r#"
-import "os/sched"
+import "kos/sched"
 enqueue("paint")
 enqueue("net")
 let t = tick()

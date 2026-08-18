@@ -52,8 +52,8 @@ b
 fn os_display_buf_smoke() {
     let code = r#"
 @manual
-import "os/mem"
-import "os/display_buf"
+import "kos/mem"
+import "kos/display_buf"
 let fb = create(2, 1, "t")
 fill(fb, 9, 8, 7, 6)
 let px = read(fb["buf"], 0, 4)
@@ -106,7 +106,7 @@ return got[0]
 fn os_mem_move_wrapper() {
     let code = r#"
 @manual
-import "os/mem"
+import "kos/mem"
 let b = alloc(4, "m")
 let c = move(b)
 owned_read(b, 0, 1)

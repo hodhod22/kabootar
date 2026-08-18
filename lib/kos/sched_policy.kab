@@ -1,9 +1,9 @@
 @version "1.0.0"
 
-// H6d: scheduler product policy over os/sched. import "os/sched_policy"
+// H6d: scheduler product policy over kos/sched. import "kos/sched_policy"
 // KEEP <=~7 top-level fn. CFS heap stays native; Kab decides what to enqueue.
 
-import "os/sched"
+import "kos/sched"
 
 /// Enqueue each task name, then one fair tick (+ optional yield).
 pub fn runFairTick(names) {

@@ -1,10 +1,10 @@
 @version "1.0.0"
 @manual
 
-// kOS display/framebuffer backing via os/mem.
-// import "os/display_buf" (requires @manual in the consumer).
+// kOS display/framebuffer backing via kos/mem.
+// import "kos/display_buf" (requires @manual in the consumer).
 
-import "os/mem"
+import "kos/mem"
 
 pub fn create(width, height, label) {
     let w = width

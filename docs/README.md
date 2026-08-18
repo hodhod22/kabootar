@@ -47,7 +47,8 @@ wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir p
 | [OWNERSHIP.md](OWNERSHIP.md) | `@manual` Owned / borrow (Våg O ✅ subset) |
 | [CLASSES.md](CLASSES.md) | C#-inspirerade klasser |
 | [KML.md](KML.md) | Kabootar Markup Language |
-| [OS.md](OS.md) | Kabootar OS (kernel + VFS) |
+| [OS.md](OS.md) | Kernel/host `os_*` — **kOS-produkt:** [lib/kos/README.md](../lib/kos/README.md) |
+| [BROWSER.md](BROWSER.md) | Pekare — **kbrowser-produkt:** [lib/kbrowser/README.md](../lib/kbrowser/README.md) |
 | [MODULES.md](MODULES.md) | `import` — builtins + `lib/` pillars |
 | [STDLIB.md](STDLIB.md) | Natives + `lib/std` + kDOM/Kv8 |
 | [HTTP.md](HTTP.md) | Backend HTTP-routing |
