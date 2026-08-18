@@ -1,240 +1,19 @@
 @version "1.0.0"
 
-// Negin Error - Error boundary and error handling for Negin
-// Features: ErrorBoundary, error recovery, error logging
+// Negin Error — error values, logging, and boundary helpers (valid Kabootar).
 // Canonical path: import "negin/error"
-
-import "negin/core"
-import "negin/hooks"
 
 let errorLog = []
 
-pub fn ErrorBoundary(props) {
-    let children = props["children"]
-    let fallback = props["fallback"]
-    let onError = props["onError"]
-    let onReset = props["onReset"]
-    
-    let (error, setError] = useState(null)
-    let (errorInfo, setErrorInfo] = useState(null)
-    
-    let handleReset = fn() {
-        setError(null)
-        setErrorInfo(null)
-        if onReset != null) {
-            onReset()
-        }
-    }
-    
-    let componentDidCatch = fn(error, errorInfo) {
-        setError(error)
-        setErrorInfo(errorInfo)
-        
-        logError(error, errorInfo)
-        
-        if onError != null) {
-            onError(error, errorInfo)
-        }
-    }
-    
-    if error != null) {
-        if fallback != null) {
-            return fallback(error, errorInfo, handleReset)
-        }
-        
-        return createElement("div", { "className": "error-boundary" },
-            createElement("h2", {}, "Something went wrong"),
-            createElement("p", {}, error["message"]),
-            createElement("pre", {}, errorInfo != null ? errorInfo["componentStack"] : ""),
-            createElement("button", { "onClick": handleReset }, "Try again")
-        )
-    }
-    
-    return children
-}
-
-pub fn useErrorHandler() {
-    let (error, setError] = useState(null)
-    
-    let handleError = fn(error) {
-        setError(error)
-        logError(error, null)
-    }
-    
-    let resetError = fn() {
-        setError(null)
-    }
-    
-    return {
-        "error": error,
-        "handleError": handleError,
-        "resetError": resetError
-    }
-}
-
-pub fn useErrorBoundary() {
-    let (error, setError] = useState(null)
-    let (errorInfo, setErrorInfo] = useState(null)
-    
-    let componentDidCatch = fn(error, errorInfo) {
-        setError(error)
-        setErrorInfo(errorInfo)
-        logError(error, errorInfo)
-    }
-    
-    let reset = fn() {
-        setError(null)
-        setErrorInfo(null)
-    }
-    
-    return {
-        "error": error,
-        "errorInfo": errorInfo,
-        "componentDidCatch": componentDidCatch,
-        "reset": reset
-    }
-}
-
-pub fn withErrorBoundary(Component, fallback) {
-    return fn(props) {
-        return createElement(ErrorBoundary, { "fallback": fallback },
-            createElement(Component, props)
-        )
-    }
-}
-
-pub fn logError(error, errorInfo) {
-    let errorEntry = {
-        "error": error,
-        "errorInfo": errorInfo,
-        "timestamp": currentTime(),
-        "stack": error["stack"]
-    }
-    
-    errorLog = push(errorLog, errorEntry)
-    
-    console.error("Error logged:", error)
-}
-
-pub fn getErrorLog() {
-    return errorLog
-}
-
-pub fn clearErrorLog() {
-    errorLog = []
-}
-
-pub fn ErrorFallback(props) {
-    let error = props["error"]
-    let errorInfo = props["errorInfo"]
-    let reset = props["reset"]
-    
-    return createElement("div", { "className": "error-fallback" },
-        createElement("div", { "className": "error-icon" }, "⚠️"),
-        createElement("h2", {}, "Oops, something went wrong"),
-        createElement("p", { "className": "error-message" }, error["message"]),
-        errorInfo != null ? createElement("details", { "className": "error-details" },
-            createElement("summary", {}, "Technical details"),
-            createElement("pre", { "className": "error-stack" }, errorInfo["componentStack"])
-        ) : null,
-        createElement("button", { "className": "error-reset", "onClick": reset }, "Try again")
-    )
-}
-
-pub fn ErrorPage(props) {
-    let statusCode = props["statusCode"] != null ? props["statusCode"] : 500
-    let title = props["title"] != null ? props["title"] : "Internal Server Error"
-    let message = props["message"] != null ? props["message"] : "Something went wrong on our end"
-    
-    return createElement("div", { "className": "error-page" },
-        createElement("h1", { "className": "error-status" }, statusCode),
-        createElement("h2", { "className": "error-title" }, title),
-        createElement("p", { "className": "error-message" }, message),
-        createElement("a", { "href": "/", "className": "error-home" }, "Go home")
-    )
-}
-
-pub fn NotFound(props) {
-    return createElement(ErrorPage, {
-        "statusCode": 404,
-        "title": "Page Not Found",
-        "message": "The page you're looking for doesn't exist"
-    })
-}
-
-pub fn ServerError(props) {
-    return createElement(ErrorPage, {
-        "statusCode": 500,
-        "title": "Server Error",
-        "message": "Something went wrong on our end"
-    })
-}
-
-pub fn Unauthorized(props) {
-    return createElement(ErrorPage, {
-        "statusCode": 401,
-        "title": "Unauthorized",
-        "message": "You need to log in to access this page"
-    })
-}
-
-pub fn Forbidden(props) {
-    return createElement(ErrorPage, {
-        "statusCode": 403,
-        "title": "Forbidden",
-        "message": "You don't have permission to access this page"
-    })
-}
-
-pub fn useAsyncError() {
-    let (error, setError] = useState(null)
-    
-    let runAsync = fn(asyncFn) {
-        setError(null)
-        return asyncFn().catch(fn(err) {
-            setError(err)
-            logError(err, null)
-            throw err
-        })
-    }
-    
-    return {
-        "error": error,
-        "runAsync": runAsync,
-        "resetError": fn() { setError(null) }
-    }
-}
-
-pub fn SuspenseError(props) {
-    let error = props["error"]
-    let retry = props["retry"]
-    
-    return createElement("div", { "className": "suspense-error" },
-        createElement("p", {}, "Failed to load"),
-        createElement("p", {}, error["message"]),
-        createElement("button", { "onClick": retry }, "Retry")
-    )
-}
-
-pub function useThrowError() {
-    let (error, setError] = useState(null)
-    
-    let throwError = fn(error) {
-        setError(error)
-        throw error
-    }
-    
-    return {
-        "error": error,
-        "throwError": throwError
-    }
-}
-
 pub fn createError(message, code) {
+    let c = code
+    if c == null {
+        c = "UNKNOWN_ERROR"
+    }
     return {
         "kind": "Error",
         "message": message,
-        "code": code != null ? code : "UNKNOWN_ERROR",
+        "code": c,
         "stack": null
     }
 }
@@ -261,78 +40,66 @@ pub fn createNotFoundError(message) {
 }
 
 pub fn isError(value) {
-    return typeof(value) == "object" && value["kind"] == "Error"
+    if value == null {
+        return false
+    }
+    return value["kind"] == "Error"
 }
 
 pub fn isValidationError(value) {
-    return typeof(value) == "object" && value["kind"] == "ValidationError"
+    if value == null {
+        return false
+    }
+    return value["kind"] == "ValidationError"
 }
 
 pub fn getErrorCode(error) {
-    if error != null && error["code"] != null) {
+    if error != null && error["code"] != null {
         return error["code"]
     }
     return "UNKNOWN_ERROR"
 }
 
 pub fn getErrorMessage(error) {
-    if error != null && error["message"] != null) {
+    if error != null && error["message"] != null {
         return error["message"]
     }
     return "An unknown error occurred"
 }
 
-pub fn reportError(error, context) {
-    let report = {
+pub fn logError(error, errorInfo) {
+    errorLog = push(errorLog, {
         "error": error,
-        "context": context,
-        "timestamp": currentTime(),
-        "userAgent": getUserAgent(),
-        "url": getCurrentURL()
-    }
-    
-    errorLog = push(errorLog, report)
-    
-    console.error("Error reported:", report)
+        "errorInfo": errorInfo
+    })
+    return true
 }
 
-fn getUserAgent() {
-    return "Unknown"
+pub fn getErrorLog() {
+    return errorLog
 }
 
-fn getCurrentURL() {
-    return windowLocation()
+pub fn clearErrorLog() {
+    errorLog = []
 }
 
-fn windowLocation() {
-    return "/"
+pub fn reportError(error, context) {
+    errorLog = push(errorLog, {
+        "error": error,
+        "context": context
+    })
+    return true
 }
 
-fn currentTime() {
-    return systemTime()
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
+/// Catch helper: run `fn`, return its value or a tagged error object.
+pub fn tryRecover(work, fallback) {
+    let v = work()
+    if isError(v) {
+        logError(v, null)
+        if fallback != null {
+            return fallback(v)
+        }
+        return v
     }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
+    return v
 }

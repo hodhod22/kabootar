@@ -59,6 +59,20 @@ static MEMBER_IC_HITS: AtomicU64 = AtomicU64::new(0);
 static MEMBER_IC_MISSES: AtomicU64 = AtomicU64::new(0);
 static GLOBAL_IC_HITS: AtomicU64 = AtomicU64::new(0);
 static GLOBAL_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+static CALL_IC_HITS: AtomicU64 = AtomicU64::new(0);
+static CALL_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+
+thread_local! {
+    static CALL_ARGS_BUF: RefCell<Vec<Value>> = RefCell::new(Vec::new());
+}
+
+struct CallIc {
+    native: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
+}
+
+thread_local! {
+    static CALL_IC: RefCell<CallIc> = RefCell::new(CallIc { native: None });
+}
 
 fn env_frame_id(env: &Environment) -> usize {
     env.frame_id()
@@ -125,6 +139,36 @@ pub fn global_ic_reset_for_tests() {
     GLOBAL_IC_HITS.store(0, Ordering::Relaxed);
     GLOBAL_IC_MISSES.store(0, Ordering::Relaxed);
     GLOBAL_IC.with(|ic| *ic.borrow_mut() = GlobalIc::default());
+}
+
+/// Diagnostic counters for Call native IC (P1).
+pub fn call_ic_stats() -> (u64, u64) {
+    (
+        CALL_IC_HITS.load(Ordering::Relaxed),
+        CALL_IC_MISSES.load(Ordering::Relaxed),
+    )
+}
+
+pub fn call_ic_reset_for_tests() {
+    CALL_IC_HITS.store(0, Ordering::Relaxed);
+    CALL_IC_MISSES.store(0, Ordering::Relaxed);
+    CALL_IC.with(|ic| ic.borrow_mut().native = None);
+}
+
+fn take_call_args(stack: &mut Vec<Value>, n: usize) -> Result<Vec<Value>, String> {
+    let mut args = CALL_ARGS_BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+    args.clear();
+    args.reserve(n);
+    for _ in 0..n {
+        args.push(stack.pop().ok_or("Bytecode stack underflow")?);
+    }
+    args.reverse();
+    Ok(args)
+}
+
+fn recycle_call_args(mut args: Vec<Value>) {
+    args.clear();
+    CALL_ARGS_BUF.with(|b| *b.borrow_mut() = args);
 }
 
 fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
@@ -742,55 +786,81 @@ fn run_chunk(
                     return Err("Bytecode stack underflow on call".into());
                 }
                 let callee = stack.pop().ok_or("Bytecode stack underflow")?;
-                // Pop args in reverse order into a pre-sized vec (no insert(0)).
-                let mut call_args = Vec::with_capacity(n);
-                for _ in 0..n {
-                    call_args.push(stack.pop().ok_or("Bytecode stack underflow")?);
-                }
-                call_args.reverse();
-                let result = match call_value(
-                    callee,
-                    call_args,
-                    constants,
-                    globals,
-                    arrow_functions,
-                    classes,
-                    env,
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        if try_catch_propagated_throw(
-                            &e,
-                            args.as_ref().map(|(f, _)| *f),
-                            module,
+                let call_args = take_call_args(stack, n)?;
+                // P1: monomorphic native Call IC — skip call_value match chain.
+                if let Value::NativeFunction(f) = callee {
+                    let hit = CALL_IC.with(|ic| {
+                        ic.borrow()
+                            .native
+                            .map(|p| std::ptr::fn_addr_eq(p, f))
+                            .unwrap_or(false)
+                    });
+                    if hit {
+                        CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+                        CALL_IC.with(|ic| ic.borrow_mut().native = Some(f));
+                    }
+                    let result = f(&call_args, env);
+                    recycle_call_args(call_args);
+                    let result = result?;
+                    if args.is_none() {
+                        pull_env_into_local_vals(locals, &mut local_vals, env);
+                    } else {
+                        pull_captured_locals_from_env(
                             locals,
-                            immutable_locals,
                             local_captures,
                             &mut local_vals,
                             env,
-                            ip,
-                            stack,
-                        )? {
-                            continue;
-                        }
-                        return Err(e);
+                        );
+                        pull_object_locals_from_env(locals, &mut local_vals, env);
                     }
-                };
-                if args.is_none() {
-                    pull_env_into_local_vals(locals, &mut local_vals, env);
+                    push_stack(stack, result)?;
                 } else {
-                    // Nested bytecode fn: refresh captures mutated via shared env, and
-                    // object params written back by oid. Do not pull ordinary fn-locals
-                    // (would wipe in-place ArrayPushLocal / similar).
-                    pull_captured_locals_from_env(
-                        locals,
-                        local_captures,
-                        &mut local_vals,
+                    let result = match call_value(
+                        callee,
+                        call_args,
+                        constants,
+                        globals,
+                        arrow_functions,
+                        classes,
                         env,
-                    );
-                    pull_object_locals_from_env(locals, &mut local_vals, env);
+                    ) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            if try_catch_propagated_throw(
+                                &e,
+                                args.as_ref().map(|(f, _)| *f),
+                                module,
+                                locals,
+                                immutable_locals,
+                                local_captures,
+                                &mut local_vals,
+                                env,
+                                ip,
+                                stack,
+                            )? {
+                                continue;
+                            }
+                            return Err(e);
+                        }
+                    };
+                    if args.is_none() {
+                        pull_env_into_local_vals(locals, &mut local_vals, env);
+                    } else {
+                        // Nested bytecode fn: refresh captures mutated via shared env, and
+                        // object params written back by oid. Do not pull ordinary fn-locals
+                        // (would wipe in-place ArrayPushLocal / similar).
+                        pull_captured_locals_from_env(
+                            locals,
+                            local_captures,
+                            &mut local_vals,
+                            env,
+                        );
+                        pull_object_locals_from_env(locals, &mut local_vals, env);
+                    }
+                    push_stack(stack, result)?;
                 }
-                push_stack(stack, result)?;
             }
             Opcode::Dup => {
                 let v = stack
@@ -1069,6 +1139,25 @@ fn run_chunk(
                         .get(i)
                         .ok_or_else(|| format!("Invalid local index {i}"))?;
                     env.acc_add_inplace(name, rhs)?;
+                } else if matches!(
+                    (local_vals.get(i), &rhs),
+                    (Some(Value::Number(_)), Value::Number(_))
+                ) {
+                    if let (Some(Value::Number(n)), Value::Number(m)) =
+                        (local_vals.get_mut(i), rhs)
+                    {
+                        *n += m;
+                    }
+                    if local_captures.get(i).copied() == Some(true) {
+                        store_local_to_env(
+                            locals,
+                            immutable_locals,
+                            local_captures,
+                            i,
+                            &local_vals[i],
+                            env,
+                        )?;
+                    }
                 } else {
                     crate::value::acc_add_value(
                         local_vals.get_mut(i).ok_or("Invalid local index")?,

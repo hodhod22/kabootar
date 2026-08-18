@@ -1,277 +1,68 @@
 @version "1.0.0"
 
-// Negin Signals - Reactive data handling (better than React state)
-// Features: signals, computed values, effects, automatic dependency tracking
+// Negin Signals — O(1) subscriber tracking via seen[eid] (Fas 6).
 // Canonical path: import "negin/signals"
-// Target: Reactive data similar to SolidJS/Svelte, better than React's useState
 
 let currentEffect = null
-let effectStack = []
+let nextSid = 1
+let nextEid = 1
 
 pub fn createSignal(initialValue) {
-    let value = initialValue
-    let subscribers = []
-    
-    let signal = {
+    let box = {
         "kind": "Signal",
-        "get": fn() {
-            if currentEffect != null {
-                trackDependency(signal, currentEffect)
-            }
-            return value
-        },
-        "set": fn(newValue) {
-            if value !== newValue) {
-                value = newValue
-                notifySubscribers(signal)
-            }
-        },
-        "value": initialValue,
-        "subscribers": subscribers
+        "sid": nextSid,
+        "seen": { "ok": true },
+        "subscribers": [],
+        "value": initialValue
     }
-    
-    return signal
+    nextSid = nextSid + 1
+    return box
 }
 
-pub fn createComputed(computation) {
-    let dependencies = []
-    let value = null
-    let dirty = true
-    
-    let computed = {
-        "kind": "Computed",
-        "get": fn() {
-            if currentEffect != null {
-                trackDependency(computed, currentEffect)
-            }
-            
-            if dirty {
-                let prevEffect = currentEffect
-                currentEffect = computed
-                dependencies = []
-                
-                value = computation()
-                
-                currentEffect = prevEffect
-                dirty = false
-            }
-            
-            return value
-        },
-        "value": value,
-        "dependencies": dependencies,
-        "dirty": dirty
+pub fn signalGet(box) {
+    if currentEffect != null {
+        trackDependency(box, currentEffect)
     }
-    
-    return computed
+    return box["value"]
+}
+
+pub fn signalSet(box, newValue) {
+    if box["value"] != newValue {
+        box["value"] = newValue
+        notifySubscribers(box)
+    }
 }
 
 pub fn createEffect(effectFn) {
-    let dependencies = []
-    let cleanup = null
-    
-    let runEffect = fn() {
-        if cleanup != null {
-            cleanup()
-        }
-        
-        let prevEffect = currentEffect
-        currentEffect = { "fn": effectFn, "dependencies": dependencies }
-        effectStack = push(effectStack, currentEffect)
-        
-        dependencies = []
-        cleanup = effectFn()
-        
-        effectStack = removeLast(effectStack)
-        currentEffect = len(effectStack) > 0 ? effectStack[len(effectStack) - 1] : null
-    }
-    
-    runEffect()
-    
-    return {
-        "kind": "Effect",
-        "run": runEffect,
-        "cleanup": cleanup,
-        "dependencies": dependencies
-    }
+    let eid = nextEid
+    nextEid = nextEid + 1
+    let fx = { "kind": "Effect", "eid": eid, "fn": effectFn }
+    currentEffect = fx
+    effectFn()
+    currentEffect = null
+    return fx
 }
 
 fn trackDependency(signal, effect) {
-    let subscribers = signal["subscribers"]
-    let found = false
-    
-    let i = 0
-    while i < len(subscribers) {
-        if subscribers[i] === effect) {
-            found = true
-            break
-        }
-        i = i + 1
+    let eid = effect["eid"]
+    let seen = signal["seen"]
+    let sk = "e" + eid
+    if seen[sk] == true {
+        return
     }
-    
-    if found == false {
-        subscribers = push(subscribers, effect)
-        signal["subscribers"] = subscribers
-    }
+    seen[sk] = true
+    signal["subscribers"] = push(signal["subscribers"], effect)
 }
 
 fn notifySubscribers(signal) {
     let subscribers = signal["subscribers"]
-    
     let i = 0
     while i < len(subscribers) {
         let subscriber = subscribers[i]
-        
-        if subscriber["kind"] == "Computed") {
-            subscriber["dirty"] = true
-        } else if subscriber["kind"] == "Effect") {
-            subscriber["run"]()
+        let f = subscriber["fn"]
+        if f != null {
+            f()
         }
-        
         i = i + 1
     }
-}
-
-pub fn createBatch(fn) {
-    let prevEffect = currentEffect
-    currentEffect = null
-    
-    fn()
-    
-    currentEffect = prevEffect
-}
-
-pub fn untrack(fn) {
-    let prevEffect = currentEffect
-    currentEffect = null
-    
-    let result = fn()
-    
-    currentEffect = prevEffect
-    return result
-}
-
-pub fn createMemo(computation, deps) {
-    return createComputed(computation)
-}
-
-pub fn createSelector(selectors, combiner) {
-    let memoizedSelectors = []
-    
-    let i = 0
-    while i < len(selectors) {
-        memoizedSelectors = push(memoizedSelectors, createComputed(selectors[i]))
-        i = i + 1
-    }
-    
-    return createComputed(fn() {
-        let values = []
-        let i = 0
-        while i < len(memoizedSelectors) {
-            values = push(values, memoizedSelectors[i]["get"]())
-            i = i + 1
-        }
-        return combiner(values)
-    })
-}
-
-pub fn createStore(initialState) {
-    let state = createSignal(initialState)
-    
-    let store = {
-        "kind": "Store",
-        "state": state,
-        "getState": fn() {
-            return state["get"]()
-        },
-        "setState": fn(newState) {
-            if typeof(newState) == "function") {
-                state["set"](newState(state["get"]()))
-            } else {
-                state["set"](newState)
-            }
-        },
-        "subscribe": fn(listener) {
-            let effect = {
-                "kind": "Effect",
-                "fn": fn() {
-                    listener(state["get"]())
-                },
-                "dependencies": []
-            }
-            
-            trackDependency(state, effect)
-            return effect
-        }
-    }
-    
-    return store
-}
-
-pub fn createStoreWithActions(initialState, actions) {
-    let store = createStore(initialState)
-    
-    let actionCreators = {}
-    
-    for actionName in actions {
-        let actionFn = actions[actionName]
-        actionCreators[actionName] = fn(...args) {
-            let currentState = store["getState"]()
-            let newState = actionFn(currentState, ...args)
-            store["setState"](newState)
-        }
-    }
-    
-    store["actions"] = actionCreators
-    return store
-}
-
-pub fn useSignal(initialValue) {
-    let signal = createSignal(initialValue)
-    return signal
-}
-
-pub fn useComputed(computation) {
-    let computed = createComputed(computation)
-    return computed
-}
-
-pub fn useStore(initialState) {
-    let store = createStore(initialState)
-    return store
-}
-
-fn removeLast(arr) {
-    let result = []
-    let i = 0
-    while i < len(arr) - 1 {
-        result = push(result, arr[i])
-        i = i + 1
-    }
-    return result
-}
-
-fn typeof(value) {
-    if value == null {
-        return "null"
-    }
-    if typeof(value) == "boolean" {
-        return "boolean"
-    }
-    if typeof(value) == "number" {
-        return "number"
-    }
-    if typeof(value) == "string" {
-        return "string"
-    }
-    if typeof(value) == "function" {
-        return "function"
-    }
-    if typeof(value) == "array" {
-        return "array"
-    }
-    if typeof(value) == "object" {
-        return "object"
-    }
-    return "unknown"
 }

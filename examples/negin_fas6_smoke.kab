@@ -1,0 +1,36 @@
+import "negin/fiber"
+import "negin/signals"
+import "negin/error"
+
+let oldList = [
+    { "key": "a", "type": "li", "domNode": 1 },
+    { "key": "b", "type": "li", "domNode": 2 }
+]
+let newList = [
+    { "key": "b", "type": "li" },
+    { "key": "c", "type": "li" }
+]
+let keyed = reconcileKeyed(oldList, newList)
+let fiberOk = len(keyed) == 2 && keyed[0]["domNode"] == 2
+
+let hits = 0
+let sig = createSignal(0)
+fn onSig() {
+    hits = hits + 1
+    signalGet(sig)
+}
+createEffect(onSig)
+let trackOk = hits == 1
+signalGet(sig)
+signalGet(sig)
+let noDupOk = hits == 1
+signalSet(sig, 1)
+let notifyOk = hits == 2
+
+let err = createError("boom", "TEST")
+let errOk = isError(err) && getErrorCode(err) == "TEST"
+logError(err, null)
+let logOk = len(getErrorLog()) == 1
+
+println("negin fas6 fiber=" + fiberOk + " track=" + trackOk + " nodup=" + noDupOk + " notify=" + notifyOk + " err=" + errOk)
+return fiberOk && trackOk && noDupOk && notifyOk && errOk && logOk

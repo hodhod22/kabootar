@@ -4,7 +4,7 @@ Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**.
 
 ## H6e — boot-policy i Kab
 
-Produktpolicy för bootstrap: `import "kab/boot"` (`bootTokenize` / `bootCompile` / `bootPipelineOk`). Gate: `examples/h6e_boot_policy_smoke.kab`. Rust förblir processladdare + VM.
+Produktpolicy för bootstrap: `import "kab/boot"` (`bootTokenize` / `bootCompile` / `bootCompileAndCheck` / `bootPipelineOk`). Gate: `examples/h6e_boot_policy_smoke.kab`, `examples/h6e_compile_prefer_smoke.kab`. Rust förblir processladdare + VM.
 
 **`kabootar run` / `run_file`:** samma preferens som compile — self-host först (cache `.kbc`), `KABOOTAR_COMPILE=rust` tvingar host-kompilator.
 

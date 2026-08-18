@@ -48,6 +48,12 @@ pub fn isBytecode(kbc) {
     return true
 }
 
+/// Compile source and check that the result looks like committed .kbc.
+pub fn bootCompileAndCheck(source) {
+    let kbc = bootCompile(source)
+    return isBytecode(kbc) && len("" + kbc) > 20
+}
+
 /// Canonical bootstrap probe: tokenize + compile sample → valid .kbc.
 pub fn bootPipelineOk() {
     let src = "let n = 10" + CHAR_NL + "return n + 32"

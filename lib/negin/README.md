@@ -10,6 +10,7 @@ Negin är designat för Kabootar:
 - **Språkets inbyggda yor** (sql, db, http, kdom)
 - **Dubbel DOM-stöd** (host-DOM för WASM, kdom för Kabootar)
 - **Signals + GC** för reaktivitet
+- **Fas 6:** keyed fiber-walk (`negin/fiber`), O(1) signal-tracking, giltig error-modul. Smoke: `examples/negin_fas6_smoke.kab`.
 
 ## Installation
 

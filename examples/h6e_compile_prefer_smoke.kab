@@ -1,0 +1,11 @@
+// H6 deepen: compile-prefer policy stays in Kab (`bootCompileAndCheck`).
+// cargo run --bin kabootar -- examples/h6e_compile_prefer_smoke.kab
+
+import "kab/boot"
+
+preferSelfHostCompile()
+let checkOk = bootCompileAndCheck("return 42")
+let pipeOk = bootPipelineOk()
+
+println("h6 compile-prefer check=" + checkOk + " pipe=" + pipeOk)
+return checkOk && pipeOk && selfHostPreferred()
