@@ -1,7 +1,8 @@
 //! P1 — VM hot path smoke (GetMember IC + member access + LoadGlobal IC).
 
 use kabootar_lib::bytecode::{
-    global_ic_reset_for_tests, global_ic_stats, member_ic_reset_for_tests, member_ic_stats,
+    call_ic_reset_for_tests, call_ic_stats, global_ic_reset_for_tests, global_ic_stats,
+    member_ic_reset_for_tests, member_ic_stats,
 };
 use kabootar_lib::evaluator::{create_global_env, eval_source};
 use kabootar_lib::value::Value;
@@ -74,6 +75,31 @@ fn global_ic_invalidates_on_store() {
     )
     .expect("global ic store invalidate");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn call_ic_hits_on_repeated_native() {
+    call_ic_reset_for_tests();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        let s = 0
+        let i = 0
+        while i < 32 {
+            s = s + len([1])
+            i = i + 1
+        }
+        s == 32
+        "#,
+        &mut env,
+    )
+    .expect("call ic smoke");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    let (hits, misses) = call_ic_stats();
+    assert!(
+        hits > 0,
+        "expected Call IC hits on repeated native `len`, hits={hits} misses={misses}"
+    );
 }
 
 #[test]

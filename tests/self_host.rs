@@ -1756,6 +1756,48 @@ fn h6e_boot_policy_smoke() {
 }
 
 #[test]
+fn h6e_compile_prefer_smoke() {
+    let path = format!(
+        "{}/examples/h6e_compile_prefer_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("h6e-compile-pref".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("h6e compile prefer smoke should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn h6e compile prefer thread")
+        .join()
+        .expect("h6e compile prefer thread join");
+    assert!(ok);
+}
+
+#[test]
+fn negin_fas6_smoke() {
+    let path = format!(
+        "{}/examples/negin_fas6_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("negin-fas6".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("negin fas6 smoke should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn negin fas6 thread")
+        .join()
+        .expect("negin fas6 thread join");
+    assert!(ok);
+}
+
+#[test]
 fn h6e_run_selfhost_probe() {
     let path = format!(
         "{}/examples/h6e_run_selfhost_probe.kab",

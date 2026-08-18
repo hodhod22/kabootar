@@ -12,8 +12,9 @@ pub use types::{
     deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, Opcode, FORMAT_HEADER,
 };
 pub use vm::{
-    bind_bytecode_params, call_value, find_try_region_for_ip, global_ic_reset_for_tests,
-    global_ic_stats, member_ic_reset_for_tests, member_ic_stats, prepare_exported_bytecode_fn,
+    bind_bytecode_params, call_ic_reset_for_tests, call_ic_stats, call_value,
+    find_try_region_for_ip, global_ic_reset_for_tests, global_ic_stats,
+    member_ic_reset_for_tests, member_ic_stats, prepare_exported_bytecode_fn,
     run_bytecode_fn, run_bytecode_fn_with_locals, run_expr_snippet, run_generator_step,
     run_module, ChunkCursor, GeneratorResume,
 };

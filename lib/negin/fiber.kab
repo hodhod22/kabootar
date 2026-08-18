@@ -1,0 +1,33 @@
+pub fn fiberWalk(vnodes) {
+    if vnodes == null {
+        return []
+    }
+    return vnodes
+}
+
+pub fn reconcileKeyed(oldList, newList) {
+    let oldNodes = oldList
+    if oldNodes == null {
+        oldNodes = []
+    }
+    let newNodes = newList
+    if newNodes == null {
+        newNodes = []
+    }
+    let out = []
+    let i = 0
+    while i < len(newNodes) {
+        let n = newNodes[i]
+        let j = 0
+        while j < len(oldNodes) {
+            let prev = oldNodes[j]
+            if n["key"] == prev["key"] {
+                n["domNode"] = prev["domNode"]
+            }
+            j = j + 1
+        }
+        out = push(out, n)
+        i = i + 1
+    }
+    return out
+}
