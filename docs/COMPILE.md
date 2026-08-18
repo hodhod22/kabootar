@@ -33,7 +33,7 @@ Parser-shards (~4–4.5 s, 123/123 tester) är **tillräckliga**. Nästa milst
 
 1. **Mät** lexer / parse / emit / serialize / deserialize / VM / total — `cargo test --test perf_p10_pipeline`
 2. **LoadMember shape IC** (ptr + key-hash + cached value) + **CALL_0 / direct bytecode IC**
-3. **Text `.kbc`** med `with_capacity`; **`.kbcb`** när self-host-profilen visar load-kostnad
+3. **Text `.kbc`** med `with_capacity`; **`.kbcb`** cache-envelope (`KBCB` + v1 payload) bredvid `.kbc`
 
 Mål: self-host compile **10 → 7 → 5 → 3 s**, inte postfix 4.5 → 3.5 s.
 

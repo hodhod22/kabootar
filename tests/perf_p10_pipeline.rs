@@ -3,7 +3,9 @@
 
 use std::time::Instant;
 
-use kabootar_lib::bytecode::{deserialize, run_module, serialize, try_compile};
+use kabootar_lib::bytecode::{
+    deserialize, deserialize_kbcb, run_module, serialize, serialize_kbcb, try_compile,
+};
 use kabootar_lib::evaluator::create_global_env;
 use kabootar_lib::lexer::tokenize;
 use kabootar_lib::parser::Parser;
@@ -99,5 +101,85 @@ fn p10_rust_compile_parser_session_core_leaf() {
     assert!(
         leaf_ms < 60_000.0,
         "parser_session_core rust compile should stay under 60s CI, got {leaf_ms:.1} ms"
+    );
+}
+
+#[test]
+fn p10_kbcb_roundtrip_and_load_times() {
+    let tokens = tokenize(SRC).expect("lex");
+    let stmts = Parser::with_eof(tokens)
+        .parse_program()
+        .expect("parse");
+    let module = try_compile(&stmts).expect("emit");
+    let text = serialize(&module);
+    let bin = serialize_kbcb(&module);
+
+    let t0 = Instant::now();
+    let from_text = deserialize(&text).expect("text");
+    let text_ms = ms(t0);
+
+    let t0 = Instant::now();
+    let from_bin = deserialize_kbcb(&bin).expect("kbcb");
+    let bin_ms = ms(t0);
+
+    eprintln!(
+        "P10 kbcb vs text: text_bytes={} kbcb_bytes={} deserialize_text_ms={text_ms:.3} deserialize_kbcb_ms={bin_ms:.3}",
+        text.len(),
+        bin.len()
+    );
+    assert_eq!(from_text, from_bin, "kbcb payload must round-trip to the same module");
+    assert!(bin.starts_with(b"KBCB"), "kbcb magic");
+}
+
+#[test]
+fn p10_seed_kbc_load_vs_kbcb() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("self_host")
+        .join("seed")
+        .join("emit_impl.kab.kbc");
+    let text = std::fs::read_to_string(&path).expect("read seed");
+    let t0 = Instant::now();
+    let module = deserialize(&text).expect("deserialize seed");
+    let text_ms = ms(t0);
+    let bin = serialize_kbcb(&module);
+    let t0 = Instant::now();
+    let loaded = deserialize_kbcb(&bin).expect("kbcb seed");
+    let bin_ms = ms(t0);
+    eprintln!(
+        "P10 seed emit_impl.kab.kbc: text_bytes={} kbcb_bytes={} deser_text_ms={text_ms:.1} deser_kbcb_ms={bin_ms:.1} ops={}",
+        text.len(),
+        bin.len(),
+        loaded.main_code.len()
+    );
+    assert_eq!(module.main_code.len(), loaded.main_code.len());
+    assert!(
+        text_ms < 30_000.0,
+        "seed text deserialize should stay under 30s, got {text_ms:.1} ms"
+    );
+}
+
+#[test]
+#[ignore = "debug self-host toolchain import is minutes; release: KABOOTAR_P10_PROFILE=1"]
+fn p10_self_host_tiny_source_profile() {
+    use kabootar_lib::compile::compile_source_self_host;
+    use std::sync::Once;
+
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        std::env::set_var("KABOOTAR_P10_PROFILE", "1");
+        std::env::set_var("KABOOTAR_VM", "host");
+    });
+
+    let t0 = Instant::now();
+    let prog = compile_source_self_host("return 1\n").expect("self-host tiny");
+    let total_ms = ms(t0);
+    eprintln!("P10 self-host tiny compile total_ms={total_ms:.1}");
+    assert!(
+        prog.bytecode.is_some(),
+        "self-host tiny should emit bytecode"
+    );
+    assert!(
+        total_ms < 180_000.0,
+        "self-host tiny (includes toolchain import) should stay under 180s CI, got {total_ms:.1} ms"
     );
 }

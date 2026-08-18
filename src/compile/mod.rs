@@ -1,7 +1,8 @@
 //! Parse cache and on-disk `.kbc` bytecode artifacts.
 
 use crate::bytecode::{
-    call_value, deserialize, run_module, serialize, BytecodeModule, FORMAT_HEADER,
+    call_value, deserialize, deserialize_kbcb, looks_like_kbcb, run_module, serialize,
+    serialize_kbcb, BytecodeModule, FORMAT_HEADER,
 };
 use crate::evaluator::{drain_all_microtasks, eval_stmt};
 use crate::modules;
@@ -132,6 +133,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         let compile_fn = env
             .get("compile")
             .ok_or_else(|| "self_host/compile: missing export `compile`".to_string())?;
+        let t_pipe = std::time::Instant::now();
         let result = call_value(
             compile_fn,
             vec![Value::String(source.to_string())],
@@ -142,6 +144,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
             &mut env,
         )
         .map_err(|e| crate::runtime::stdlib::error::format_runtime_error(&e))?;
+        let pipe_ms = t_pipe.elapsed().as_secs_f64() * 1000.0;
         let Value::String(kbc) = result else {
             return Err(format!(
                 "self_host compile must return .kbc text, got {}",
@@ -151,7 +154,15 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         if !kbc.starts_with(FORMAT_HEADER) {
             return Err("self_host compile did not emit kabootar-bytecode header".into());
         }
+        let t_deser = std::time::Instant::now();
         let module = deserialize(&kbc)?;
+        let deser_ms = t_deser.elapsed().as_secs_f64() * 1000.0;
+        if std::env::var("KABOOTAR_P10_PROFILE").as_deref() == Ok("1") {
+            eprintln!(
+                "PROFILE self_host_host pipe_ms={pipe_ms:.1} deserialize_ms={deser_ms:.1} kbc_bytes={}",
+                kbc.len()
+            );
+        }
         Ok(CompiledProgram {
             stmts: Vec::new(),
             bytecode: Some(module.clone()),
@@ -596,6 +607,10 @@ pub fn cache_path_for(base: &Path, path: &str) -> PathBuf {
     base.join(".kabootar").join("cache").join(format!("{file_name}.kbc"))
 }
 
+fn cache_path_kbcb(base: &Path, path: &str) -> PathBuf {
+    cache_path_for(base, path).with_extension("kbcb")
+}
+
 pub fn write_compile_marker(path: &str, program: &CompiledProgram) -> Result<(), String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
     write_compile_marker_at(&base, path, program)
@@ -619,6 +634,9 @@ pub fn write_compile_marker_at(
             "\nsource={path}\nstatements={}\nfingerprint={fp}\n",
             program.stmt_count
         ));
+        let kbcb = serialize_kbcb(program.bytecode.as_ref().unwrap());
+        let kbcb_path = cache_path_kbcb(base, path);
+        let _ = fs::write(&kbcb_path, kbcb);
         text
     } else {
         let source = fs::read_to_string(path).unwrap_or_default();
@@ -634,6 +652,38 @@ pub fn write_compile_marker_at(
 pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
     let marker = cache_path_for(&base, path);
+    let kbcb_path = cache_path_kbcb(&base, path);
+    if let Ok(bytes) = fs::read(&kbcb_path) {
+        if looks_like_kbcb(&bytes) {
+            let cache_mtime = fs::metadata(&kbcb_path)
+                .ok()
+                .and_then(|m| m.modified().ok());
+            if let Some(cache_mtime) = cache_mtime {
+                if source_mtime > cache_mtime {
+                    return Ok(None);
+                }
+            }
+            if let Ok(source) = fs::read_to_string(path) {
+                let expected = source_fingerprint(path, &source);
+                if let Ok(text) = fs::read_to_string(&marker) {
+                    if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
+                        let got = line.trim_start_matches("fingerprint=");
+                        if got != expected {
+                            return Ok(None);
+                        }
+                    }
+                    let norm = |p: &str| p.replace('\\', "/");
+                    if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
+                        let cached_src = line.trim_start_matches("source=");
+                        if norm(cached_src) != norm(path) {
+                            return Ok(None);
+                        }
+                    }
+                }
+            }
+            return Ok(Some(deserialize_kbcb(&bytes)?));
+        }
+    }
     let text = match fs::read_to_string(&marker) {
         Ok(t) => t,
         Err(_) => return Ok(None),

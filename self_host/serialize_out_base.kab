@@ -2,21 +2,25 @@
 import "self_host/lexer_defs"
 
 pub fn serOutTag(out, tag) {
-    let s = out + CHAR_NL
-    return s + tag
+    out = out + CHAR_NL
+    out = out + tag
+    return out
 }
 
 pub fn serOutSpNum(out, x) {
-    let s = out + " "
-    return s + ("" + x)
+    out = out + " "
+    out = out + ("" + x)
+    return out
 }
 
 pub fn serOutSp(out, s) {
-    let t = out + " "
-    return t + s
+    out = out + " "
+    out = out + s
+    return out
 }
 
 pub fn serOutTagEq(out, tag, n) {
-    let s = serOutTag(out, tag)
-    return s + ("" + n)
+    out = serOutTag(out, tag)
+    out = out + ("" + n)
+    return out
 }

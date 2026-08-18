@@ -482,9 +482,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
 }
 
 pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
-    let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-    let header = lines.first().ok_or("Empty bytecode file")?;
-    if *header != FORMAT_HEADER {
+    let mut lines = text.lines().map(str::trim).filter(|l| !l.is_empty());
+    let header = lines.next().ok_or("Empty bytecode file")?;
+    if header != FORMAT_HEADER {
         return Err(format!("Unsupported bytecode format: {header}"));
     }
 
@@ -504,8 +504,8 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
     let mut memory_mode = crate::lang_preprocess::MemoryMode::Gc;
     let mut in_code = false;
 
-    for line in lines.iter().skip(1) {
-        if *line == "code" {
+    for line in lines {
+        if line == "code" {
             in_code = true;
             continue;
         }
