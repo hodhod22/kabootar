@@ -27,6 +27,16 @@ Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gam
 
 Self-host full compile av heavy leaves kan ta **minuter–timmar** — undvik i varje edit-loop; facader + seeds är CI-vägen.
 
+## P10 — self-host pipeline (inte mer parser-isolering)
+
+Parser-shards (~4–4.5 s, 123/123 tester) är **tillräckliga**. Nästa milstolpe är hela kedjan och VM-hotpath (se ROADMAP **P10**).
+
+1. **Mät** lexer / parse / emit / serialize / deserialize / VM / total — `cargo test --test perf_p10_pipeline`
+2. **LoadMember shape IC** (ptr + key-hash + cached value) + **CALL_0 / direct bytecode IC**
+3. **Text `.kbc`** med `with_capacity`; **`.kbcb`** när self-host-profilen visar load-kostnad
+
+Mål: self-host compile **10 → 7 → 5 → 3 s**, inte postfix 4.5 → 3.5 s.
+
 ---
 
 ## Rekommenderat arbetsflöde

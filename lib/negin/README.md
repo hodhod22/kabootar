@@ -1,6 +1,6 @@
 # Negin - Kabootar UI Layer
 
-Negin är Kabootars UI-lager med GC + signals + sql/http/kdom integration. Negin är inte en isolerad React-klon - det är ett UI-lager som är djupt integrerat med Kabootars fullstack-ekosystem.
+Negin är Kabootars UI-lager: deklarativa, återanvändbara komponenter (det som är värt att behålla från React) i samma runtime som sql/http/kdom. Det är inte en React-klon mot JavaScript. Vad som behålls vs vad som ska göras bättre: [ROADMAP.md](ROADMAP.md).
 
 ## Arkitektur
 

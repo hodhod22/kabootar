@@ -244,7 +244,14 @@ impl BytecodeModule {
 }
 
 pub fn serialize(module: &BytecodeModule) -> String {
-    let mut out = String::new();
+    let cap = 128
+        + module.constants.len() * 32
+        + module.globals.len() * 24
+        + module.main_locals.len() * 24
+        + module.main_code.len() * 20
+        + module.functions.iter().map(|f| 64 + f.code.len() * 20).sum::<usize>()
+        + module.arrow_functions.iter().map(|f| 48 + f.code.len() * 20).sum::<usize>();
+    let mut out = String::with_capacity(cap.max(256));
     writeln!(out, "{FORMAT_HEADER}").unwrap();
     writeln!(out, "constants={}", module.constants.len()).unwrap();
     for (i, c) in module.constants.iter().enumerate() {
