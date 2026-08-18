@@ -5,6 +5,7 @@
 // Canonical path: import "negin/component"
 
 import "negin/hooks"
+import "negin/helpers"
 
 let currentComponent = null
 let hookIndex = 0
@@ -40,18 +41,25 @@ pub fn mountComponent(instance) {
     hookIndex = 0
     hookQueue = []
     
-    let rendered = instance["Component"]["render"](instance["props"])
-    
-    instance["mounted"] = true
-    instance["rendered"] = rendered
-    instance["hooks"] = hookQueue
+    // Optimized: Only render if component is not already mounted
+    if !instance["mounted"]) {
+        let rendered = instance["Component"]["render"](instance["props"])
+        instance["mounted"] = true
+        instance["rendered"] = rendered
+        instance["hooks"] = hookQueue
+    }
     
     currentComponent = null
     
-    return rendered
+    return instance["rendered"]
 }
 
 pub fn updateComponent(instance, newProps) {
+    // Optimized: Skip update if props haven't changed
+    if propsEqual(instance["props"], newProps)) {
+        return instance["rendered"]
+    }
+    
     currentComponent = instance
     hookIndex = 0
     
@@ -67,6 +75,42 @@ pub fn updateComponent(instance, newProps) {
     currentComponent = null
     
     return rendered
+}
+
+fn propsEqual(prevProps, nextProps) {
+    if prevProps == nextProps) {
+        return true
+    }
+    
+    if prevProps == null || nextProps == null) {
+        return false
+    }
+    
+    let prevKeys = keys(prevProps)
+    let nextKeys = keys(nextProps)
+    
+    if len(prevKeys) != len(nextKeys)) {
+        return false
+    }
+    
+    let i = 0
+    while i < len(prevKeys)) {
+        let key = prevKeys[i]
+        if prevProps[key] != nextProps[key]) {
+            return false
+        }
+        i = i + 1
+    }
+    
+    return true
+}
+
+fn keys(obj) {
+    let result = []
+    for key in obj) {
+        result = push(result, key)
+    }
+    return result
 }
 
 pub fn unmountComponent(instance) {
@@ -186,30 +230,4 @@ pub fn isMemoComponent(value) {
 
 pub fn isLazyComponent(value) {
     return isObject(value) && value["kind"] == "LazyComponent"
-}
-
-fn isObject(value) {
-    return typeof(value) == "object" && value != null
-}
-
-fn typeof(value) {
-    if value == null {
-        return "null"
-    }
-    if typeof(value) == "boolean" {
-        return "boolean"
-    }
-    if typeof(value) == "number" {
-        return "number"
-    }
-    if typeof(value) == "string" {
-        return "string"
-    }
-    if typeof(value) == "array" {
-        return "array"
-    }
-    if isObject(value) {
-        return "object"
-    }
-    return "unknown"
 }

@@ -164,17 +164,42 @@ pub fn useDebugValue(value, formatter) {
 }
 
 pub fn useTransition() {
-    let isPending = useState(false)
+    let (isPending, setIsPending) = useState(false)
     let startTransition = fn(callback) {
-        isPending[1](true)
-        callback()
-        isPending[1](false)
+        setIsPending(true)
+        
+        // Schedule callback with lower priority
+        scheduleWork(fn() {
+            try {
+                callback()
+            } finally {
+                setIsPending(false)
+            }
+        })
     }
-    return [isPending[0], startTransition]
+    
+    return [isPending, startTransition]
 }
 
 pub fn useDeferredValue(value) {
-    return useMemo(fn() { return value }, [value])
+    let (deferredValue, setDeferredValue) = useState(value)
+    let (isDeferred, setIsDeferred] = useState(false)
+    
+    useEffect(fn() {
+        // Defer update to next frame
+        scheduleWork(fn() {
+            setDeferredValue(value)
+            setIsDeferred(false)
+        })
+        setIsDeferred(true)
+    }, [value])
+    
+    return deferredValue
+}
+
+fn scheduleWork(callback) {
+    // Schedule work with timeout to allow UI to update first
+    setTimeout(callback, 0)
 }
 
 pub fn useId() {

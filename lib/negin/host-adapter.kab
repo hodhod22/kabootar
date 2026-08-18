@@ -153,3 +153,52 @@ pub fn kdom_remove_child(parent, child) {
 pub fn kdom_insert_before(parent, child, before) {
     return system_kdom_insert_before(parent, child, before)
 }
+
+// Additional Kabootar primitives
+pub fn os_read_file(path) {
+    return system_os_read_file(path)
+}
+
+pub fn os_write_file(path, content) {
+    return system_os_write_file(path, content)
+}
+
+pub fn os_delete_file(path) {
+    return system_os_delete_file(path)
+}
+
+pub fn os_list_dir(path) {
+    return system_os_list_dir(path)
+}
+
+pub fn os_env_get(key) {
+    return system_os_env_get(key)
+}
+
+pub fn os_env_set(key, value) {
+    return system_os_env_set(key, value)
+}
+
+pub fn os_spawn(command, args) {
+    return system_os_spawn(command, args)
+}
+
+pub fn os_exec(command) {
+    return system_os_exec(command)
+}
+
+pub fn crypto_hash(data, algorithm) {
+    return system_crypto_hash(data, algorithm)
+}
+
+pub fn crypto_encrypt(data, key) {
+    return system_crypto_encrypt(data, key)
+}
+
+pub fn crypto_decrypt(data, key) {
+    return system_crypto_decrypt(data, key)
+}
+
+pub fn crypto_random(length) {
+    return system_crypto_random(length)
+}

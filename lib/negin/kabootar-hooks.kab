@@ -1,0 +1,175 @@
+@version "1.0.0"
+
+// Negin Kabootar Hooks - Kabootar-specific hooks for Negin
+// Features: useKabootarSQL, useKabootarHTTP, useKabootarKDOM, useKabootarOS
+// Canonical path: import "negin/kabootar-hooks"
+
+import "negin/hooks"
+import "negin/host-adapter"
+import "negin/helpers"
+
+// Database hooks
+pub fn useKabootarSQL(query, params) {
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (loading, setLoading] = useState(true)
+    
+    useEffect(fn() {
+        setLoading(true)
+        try {
+            let result = sql(query, params)
+            setData(result["rows"])
+            setError(null)
+        } catch e {
+            setError(e)
+        } finally {
+            setLoading(false)
+        }
+    }, [query, params])
+    
+    return { "data": data, "error": error, "loading": loading }
+}
+
+pub fn useKabootarDB() {
+    let (connection, setConnection] = useState(null)
+    
+    useEffect(fn() {
+        setConnection(db())
+    }, [])
+    
+    return connection
+}
+
+// HTTP hooks
+pub fn useKabootarHTTP(url, options) {
+    let (data, setData] = useState(null)
+    let (error, setError] = useState(null)
+    let (loading, setLoading] = useState(true)
+    
+    useEffect(fn() {
+        setLoading(true)
+        try {
+            let result = http_request(url, options)
+            setData(result)
+            setError(null)
+        } catch e {
+            setError(e)
+        } finally {
+            setLoading(false)
+        }
+    }, [url, options])
+    
+    return { "data": data, "error": error, "loading": loading }
+}
+
+pub fn useKabootarHTTPRoute(method, path, handler) {
+    useEffect(fn() {
+        http_route(method, path, handler)
+    }, [method, path, handler])
+}
+
+// kdom hooks
+pub fn useKabootarKDOM() {
+    let (container, setContainer] = useState(null)
+    
+    useEffect(fn() {
+        setContainer({ "kind": "KdomContainer" })
+    }, [])
+    
+    return container
+}
+
+pub fn useKabootarKML(type, props) {
+    return kml(type, props)
+}
+
+// OS hooks
+pub fn useKabootarOS() {
+    let readFile = fn(path) {
+        return os_read_file(path)
+    }
+    
+    let writeFile = fn(path, content) {
+        return os_write_file(path, content)
+    }
+    
+    let deleteFile = fn(path) {
+        return os_delete_file(path)
+    }
+    
+    let listDir = fn(path) {
+        return os_list_dir(path)
+    }
+    
+    let envGet = fn(key) {
+        return os_env_get(key)
+    }
+    
+    let envSet = fn(key, value) {
+        return os_env_set(key, value)
+    }
+    
+    let spawn = fn(command, args) {
+        return os_spawn(command, args)
+    }
+    
+    let exec = fn(command) {
+        return os_exec(command)
+    }
+    
+    return {
+        "readFile": readFile,
+        "writeFile": writeFile,
+        "deleteFile": deleteFile,
+        "listDir": listDir,
+        "envGet": envGet,
+        "envSet": envSet,
+        "spawn": spawn,
+        "exec": exec
+    }
+}
+
+// Crypto hooks
+pub fn useKabootarCrypto() {
+    let hash = fn(data, algorithm) {
+        return crypto_hash(data, algorithm)
+    }
+    
+    let encrypt = fn(data, key) {
+        return crypto_encrypt(data, key)
+    }
+    
+    let decrypt = fn(data, key) {
+        return crypto_decrypt(data, key)
+    }
+    
+    let random = fn(length) {
+        return crypto_random(length)
+    }
+    
+    return {
+        "hash": hash,
+        "encrypt": encrypt,
+        "decrypt": decrypt,
+        "random": random
+    }
+}
+
+// Combined Kabootar hook
+pub fn useKabootar() {
+    let sqlHook = useKabootarSQL("", [])
+    let dbHook = useKabootarDB()
+    let httpHook = useKabootarHTTP("", {})
+    let kdomHook = useKabootarKDOM()
+    let osHook = useKabootarOS()
+    let cryptoHook = useKabootarCrypto()
+    
+    return {
+        "sql": sqlHook,
+        "db": dbHook,
+        "http": httpHook,
+        "kdom": kdomHook,
+        "os": osHook,
+        "crypto": cryptoHook
+    }
+}
