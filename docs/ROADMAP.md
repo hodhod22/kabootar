@@ -708,10 +708,10 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P10e** | **Serializer writer** — `String::with_capacity` efter modulstorlek; self-host `out = out +` AccAdd i serOut/ops/consts | ✅ subset |
 | **P10f** | **Binary `.kbcb`** — `KBCB` envelope + cache write/read; deserialize utan förhandslagd `Vec` av alla rader | ✅ subset |
 | **P10g** | **Symbol intern + shapes** — internade nycklar + slot-tabell sorterad på intern-id; `GetMember` via `slot_load_i` | ✅ subset |
-| **P10h** | **Inline små heta fn** — `LoadGlobal`+`Call(1)` → `GetMember` för `fn peek(n) { n.kind }` | ✅ subset |
+| **P10h** | **Inline små heta fn** — `LoadGlobal`+`Call(1)` → `GetMember`; `obj["ident"]` → GetMember (IC) | ✅ subset |
 | **P10i** | **parsePostfix tight loop** | 📋 bara om parse ≫ resten i totalen (`KABOOTAR_P10_PROFILE=1`) |
 
-**Nästa:** hela self-host compile mot 7 s/5 s/3 s; P10i bara om profilen visar parse ≫ emit+serialize.
+**Nästa:** hela self-host compile mot 7 s/5 s/3 s (toolchain-env återanvänds per tråd; `import_ms` i `KABOOTAR_P10_PROFILE=1`). P10i bara om parse ≫ emit+serialize.
 
 **Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
 

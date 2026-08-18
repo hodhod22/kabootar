@@ -126,10 +126,19 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
     // Force host VM while running the self-host toolchain (avoid Kab meta-eval).
     let prev_exec = KAB_VM_EXEC_ACTIVE.swap(true, Ordering::AcqRel);
     let compiled = (|| {
-        let mut env = create_global_env();
-        crate::modules::import_module("self_host/compile", &mut env).map_err(|e| {
-            crate::runtime::stdlib::error::format_runtime_error(&e)
-        })?;
+        let t_import = std::time::Instant::now();
+        let mut env = SELF_HOST_TOOLCHAIN.with(|slot| slot.borrow_mut().take());
+        let cache_hit = env.is_some();
+        if env.is_none() {
+            let mut fresh = create_global_env();
+            crate::modules::import_module("self_host/compile", &mut fresh).map_err(|e| {
+                crate::runtime::stdlib::error::format_runtime_error(&e)
+            })?;
+            env = Some(fresh);
+        }
+        let import_ms = t_import.elapsed().as_secs_f64() * 1000.0;
+        let mut guard = SelfHostToolchainGuard { env };
+        let env = guard.env.as_mut().expect("self-host toolchain env");
         let compile_fn = env
             .get("compile")
             .ok_or_else(|| "self_host/compile: missing export `compile`".to_string())?;
@@ -141,7 +150,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
             &[],
             &[],
             &[],
-            &mut env,
+            env,
         )
         .map_err(|e| crate::runtime::stdlib::error::format_runtime_error(&e))?;
         let pipe_ms = t_pipe.elapsed().as_secs_f64() * 1000.0;
@@ -159,7 +168,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         let deser_ms = t_deser.elapsed().as_secs_f64() * 1000.0;
         if std::env::var("KABOOTAR_P10_PROFILE").as_deref() == Ok("1") {
             eprintln!(
-                "PROFILE self_host_host pipe_ms={pipe_ms:.1} deserialize_ms={deser_ms:.1} kbc_bytes={}",
+                "PROFILE self_host_host import_ms={import_ms:.1} cache_hit={cache_hit} pipe_ms={pipe_ms:.1} deserialize_ms={deser_ms:.1} kbc_bytes={}",
                 kbc.len()
             );
         }
@@ -267,6 +276,28 @@ static PARSE_CACHE: OnceLock<Mutex<HashMap<String, CachedProgram>>> = OnceLock::
 static KAB_VM_RUN_ENABLED: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
 static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
 static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+thread_local! {
+    static SELF_HOST_TOOLCHAIN: std::cell::RefCell<Option<crate::value::Environment>> =
+        std::cell::RefCell::new(None);
+}
+
+struct SelfHostToolchainGuard {
+    env: Option<crate::value::Environment>,
+}
+
+impl Drop for SelfHostToolchainGuard {
+    fn drop(&mut self) {
+        if let Some(env) = self.env.take() {
+            SELF_HOST_TOOLCHAIN.with(|s| *s.borrow_mut() = Some(env));
+        }
+    }
+}
+
+/// Drop the cached `self_host/compile` env (tests / after editing toolchain sources).
+pub fn reset_self_host_toolchain_cache() {
+    SELF_HOST_TOOLCHAIN.with(|s| *s.borrow_mut() = None);
+}
 
 fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
     // Prefer Kab VM for small .kbc when policy is healthy; evalKbc falls back to host VM
@@ -521,7 +552,8 @@ pub fn invalidate_file_cache(path: &str) {
     }
     if let Ok(base) = std::env::current_dir() {
         let marker = cache_path_for(&base, path);
-        let _ = fs::remove_file(marker);
+        let _ = fs::remove_file(&marker);
+        let _ = fs::remove_file(cache_path_kbcb(&base, path));
     }
 }
 
