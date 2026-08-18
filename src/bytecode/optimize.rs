@@ -164,6 +164,11 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
     let mut i = 0;
     while i < code.len() {
         let removed = match peephole_step(code, constants, i) {
+            Some(0) => {
+                stats.peepholes += 1;
+                i += 1;
+                continue;
+            }
             Some(n) => n,
             None => {
                 i += 1;
@@ -182,13 +187,39 @@ fn peephole_step(code: &mut Vec<Opcode>, constants: &[Constant], i: usize) -> Op
             code.remove(i);
             Some(1)
         }
-        Opcode::Const(ci) if i + 1 < code.len() => match code[i + 1].clone() {
+        Opcode::Const(ci) if i + 1 < code.len() => {
+            let ci = *ci;
+            match code[i + 1].clone() {
+            Opcode::IndexGet => match constants.get(ci as usize) {
+                Some(Constant::String(s)) if ident_member_key(s) => {
+                    code[i] = Opcode::GetMember(ci);
+                    code.remove(i + 1);
+                    Some(1)
+                }
+                _ => None,
+            },
+            Opcode::IndexGetLocal(li) => match constants.get(ci as usize) {
+                Some(Constant::String(s)) if ident_member_key(s) => {
+                    code[i] = Opcode::LoadLocal(li);
+                    code[i + 1] = Opcode::GetMember(ci);
+                    Some(0)
+                }
+                _ => None,
+            },
+            Opcode::IndexGetGlobal(gi) => match constants.get(ci as usize) {
+                Some(Constant::String(s)) if ident_member_key(s) => {
+                    code[i] = Opcode::LoadGlobal(gi);
+                    code[i + 1] = Opcode::GetMember(ci);
+                    Some(0)
+                }
+                _ => None,
+            },
             Opcode::Pop => {
                 code.remove(i);
                 code.remove(i);
                 Some(2)
             }
-            Opcode::JumpIfFalse(off) => match constants.get(*ci as usize) {
+            Opcode::JumpIfFalse(off) => match constants.get(ci as usize) {
                 Some(Constant::Bool(false)) => {
                     code.remove(i);
                     code[i] = Opcode::Jump(off);
@@ -202,7 +233,8 @@ fn peephole_step(code: &mut Vec<Opcode>, constants: &[Constant], i: usize) -> Op
                 _ => None,
             },
             _ => None,
-        },
+            }
+        }
         Opcode::LoadLocal(a) if i + 1 < code.len() && matches!(code[i + 1], Opcode::StoreLocal(b) if *a == b) => {
             code.remove(i + 1);
             code.remove(i);
@@ -286,6 +318,16 @@ fn trim_dead_after_halt(
     }
 }
 
+fn ident_member_key(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c == '_' || c.is_ascii_alphabetic() => {
+            chars.all(|c| c == '_' || c.is_ascii_alphanumeric())
+        }
+        _ => false,
+    }
+}
+
 fn accessor_member_key(f: &BytecodeFnDef) -> Option<String> {
     if f.params.len() != 1 || f.async_fn || f.generator_fn {
         return None;
@@ -300,6 +342,12 @@ fn accessor_member_key(f: &BytecodeFnDef) -> Option<String> {
             Some(Constant::String(s)) => Some(s.clone()),
             _ => None,
         },
+        [Opcode::LoadLocal(0), Opcode::Const(k), Opcode::IndexGetLocal(0)] => {
+            match f.constants.get(*k as usize) {
+                Some(Constant::String(s)) if ident_member_key(s) => Some(s.clone()),
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -523,5 +571,62 @@ peek(x)
             "LoadGlobal+Call(1) peek should be inlined, code={:?}",
             m.main_code
         );
+    }
+
+    #[test]
+    fn const_ident_indexget_becomes_getmember() {
+        let mut constants = vec![Constant::String("pCur".into())];
+        let mut code = vec![
+            Opcode::LoadLocal(0),
+            Opcode::Const(0),
+            Opcode::IndexGet,
+            Opcode::Halt,
+        ];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.peepholes >= 1);
+        assert!(
+            matches!(code.as_slice(), [Opcode::LoadLocal(0), Opcode::GetMember(0), Opcode::Halt]),
+            "got {code:?}"
+        );
+    }
+
+    #[test]
+    fn const_ident_indexget_local_becomes_getmember() {
+        let mut constants = vec![Constant::String("pCur".into())];
+        let mut code = vec![
+            Opcode::Const(0),
+            Opcode::IndexGetLocal(0),
+            Opcode::Halt,
+        ];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.peepholes >= 1);
+        assert!(
+            matches!(code.as_slice(), [Opcode::LoadLocal(0), Opcode::GetMember(0), Opcode::Halt]),
+            "got {code:?}"
+        );
+    }
+
+    #[test]
+    fn inlines_index_peek_accessor() {
+        let src = r#"
+fn peek(n) { return n["pCur"] }
+let x = { "pCur": 9 }
+peek(x)
+"#;
+        let prog = crate::bytecode::compile_source(src).expect("compile");
+        let m = prog.bytecode.expect("bc");
+        let has_get = m
+            .main_code
+            .iter()
+            .any(|op| matches!(op, Opcode::GetMember(_)));
+        let call1 = m
+            .main_code
+            .iter()
+            .filter(|op| matches!(op, Opcode::Call(1)))
+            .count();
+        assert!(has_get, "expected GetMember after sess[\"pCur\"] inline: {:?}", m.main_code);
+        assert_eq!(call1, 0, "peek(n[\"pCur\"]) should inline, code={:?}", m.main_code);
     }
 }
