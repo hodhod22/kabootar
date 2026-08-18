@@ -482,7 +482,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** P6b skip-list tom; `parser_mul`/`parser_rel_expr`/`parser_postfix` ≤10 s. **L/O/T/J/S** ✅ subset; **P/GP0–GP5** + **GP6a–n** + **SC0–SC7** + **DX0–DX7** + SIM/DATA/IOT/APP MVP subset landad.
+**Aktivt fokus (2026-08):** **P10** self-host pipeline (mät hela kedjan; member/shapes + CALL_n; *inte* mer isolerad parser). P6b skip-list tom; parser shards ≤10 s = klart nog. **L/O/T/J/S** ✅ subset; **P0–P9** + **GP/SC/DX** MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -683,8 +683,40 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
+| **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | 🚧 P10a–c+e subset; d/f/g nästa |
 
 **Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
+
+### P10 — Self-host pipeline (bootstrap-multiplikator) 🚧
+
+**Regel:** parsern (`parser_mul` ~4.1 s, `parser_rel_expr` ~4.3 s, `parser_postfix` ~4.5 s, suite 123/123) är **tillräckligt**. Ytterligare 10–20 % där ger mindre än samma tid på VM-hotpath + serialize + load. Self-host är `parse → emit → serialize → .kbc → deserialize → VM`; det är den kedjan som ska ner.
+
+**Måltal (hela self-host compile, inte en shard):** ~10 s → **7 s → 5 s**, därefter **5 s → 3 s** via IC+shapes+CALL+binary. Parser-postfix iterativ state machine bara om pipeline-profilen visar att parse fortfarande dominerar *totalen*.
+
+**Varför det är en multiplikator:** snabbare runtime → snabbare self-host compiler → snabbare `.kab`→`.kbc` för KV8/Negin/libs → hela loopen accelererar.
+
+**Redan landat (räknas inte om):** LoadGlobal IC, AccAddLocal number, IndexGet array, P6b tom skip-list, thin parser/lexer/emit-drivers.
+
+**Ordning (det som ger bäst resultat — inte parser-first):**
+
+| Steg | Vad | Status |
+|------|-----|--------|
+| **P10a** | **Pipeline-profil** — lexer/parse/emit/serialize/deserialize/VM/total | ✅ subset (`tests/perf_p10_pipeline.rs`) |
+| **P10b** | **LoadMember shape IC** — `Rc` ptr + key-set hash + cached data-slot (skip `HashMap` på hit) | ✅ subset; hidden-class *slot index* / internade SYM kvar (P10g) |
+| **P10c** | **CALL_0 + direct bytecode IC** — argc 0 utan arg-buf; sync `BytecodeFn` hoppar `call_value`-kedjan; native Call IC kvar | ✅ subset; CALL_1/2/3 egna opcodes + method/dynamic split kvar |
+| **P10d** | **Hot state i frame locals** | 📋 nästa (parser `pPos` ur modul-env) |
+| **P10e** | **Serializer writer** — `String::with_capacity` efter modulstorlek | ✅ subset; byte-buffer/`sOut` i self-host kvar |
+| **P10f** | **Binary `.kbcb`** | 📋 efter P10a på *self-host* leaf visar serialize/load |
+| **P10g** | **Symbol intern + shapes** | 📋 |
+| **P10h** | **Inline små heta fn** | 📋 efter P10c |
+| **P10i** | **parsePostfix tight loop** | 📋 bara om parse ≫ resten i totalen |
+
+**Nästa efter den här leveransen:** P10d locals, sedan P10g slot-index, sedan `.kbcb` om profilen kräver det.
+
+**Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
+
+Se [COMPILE.md](COMPILE.md) § P10.
+
 
 ### Våg GP — Game production (3D, motor, pipeline) 📋
 

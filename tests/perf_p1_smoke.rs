@@ -103,6 +103,34 @@ fn call_ic_hits_on_repeated_native() {
 }
 
 #[test]
+fn bytecode_call_ic_hits_on_repeated_direct() {
+    call_ic_reset_for_tests();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn add2(a, b) {
+            return a + b
+        }
+        let s = 0
+        let i = 0
+        while i < 32 {
+            s = s + add2(1, 1)
+            i = i + 1
+        }
+        s == 64
+        "#,
+        &mut env,
+    )
+    .expect("bytecode call ic");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    let (hits, misses) = call_ic_stats();
+    assert!(
+        hits > 0,
+        "expected Call IC hits on repeated bytecode add2, hits={hits} misses={misses}"
+    );
+}
+
+#[test]
 fn index_get_array_smoke() {
     let mut env = create_global_env();
     let v = eval_source(

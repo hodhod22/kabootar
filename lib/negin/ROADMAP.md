@@ -1,165 +1,150 @@
-# Negin - React-like UI Library for Kabootar
+# Negin — UI-lager för Kabootar
 
 ## Vision
-Negin är ett modernt UI-bibliotek för Kabootar som bygger på Reacts styrkor men löser dess svagheter.
+Negin är Kabootars UI-lager. Det tar Reacts styrkor som är värda att behålla, men det är inte en React-klon i JavaScript. Eftersom Negin och Kabootar är samma ekosystem kan Negin angripa problem React måste leva med på grund av sin historik och JS-miljön.
 
-## Reacts Styrkor (att behålla)
-- **Komponentbaserad arkitektur** - Återanvändbara, isolerade komponenter
-- **Virtual DOM** - Effektiv uppdatering av UI
-- **Unidirectional data flow** - Förutsägbar datahantering
-- **Declarative syntax** - Beskriv vad, inte hur
-- **Rich ecosystem** - Hooks, Context, Suspense
-- **Strong community** - Många resurser och lösningar
+## Reacts styrkor som är värda att behålla
+- **Komponentbaserad arkitektur** — UI byggs av isolerade enheter med tydliga gränser
+- **Deklarativ UI** — beskriv vad som ska synas, inte hur DOM:en muteras steg för steg
+- **Composability** — små ytor sätts ihop till större utan att läcka implementationsdetaljer
+- **Återanvändbara komponenter** — samma byggsten i flera skärmar och appar
+- **Tydlig data → UI-modell** — given state ska UI:t vara en funktion av den datan
+- **Ekosystemtänk** — hooks, context, suspense, routing, forms som samspelande lager, inte ett enda monster-API
+- **Server/client-modeller** — möjlighet att rendera på server och hydrera/köra på klient, samma komponentmodell
 
-## Reacts Svagheter (att lösa)
-- **Learning curve** - Hooks kan vara förvirrande för nybörjare
-- **Boilerplate** - Mycket kod för enkla saker
-- **Performance overhead** - Virtual DOM kan vara långsamt för stora appar
-- **State management complexity** - Redux/Context kan vara komplexa
-- **Bundle size** - React är relativt stort
-- **Re-renders** - Ofta onödiga omrenderingar
-- **Prop drilling** - Svårt att dela data djupt i komponentträdet
+Virtual DOM och “React-community” är *medel*, inte mål. Negin behåller den deklarativa komponentmodellen; diffing kan vara fiber, signals eller kdom-patch så länge data → UI håller.
 
-## Negins Förbättringar
-- **Simpler API** - Mindre boilerplate, mer intuitiv syntax
-- **Optimerad rendering** - Smartare diffing, färre onödiga renders
-- **Inbyggt state management** - Inget behov för externa bibliotek
-- **Reaktiv data** - Automatisk uppdatering utan explicit setState
-- **Signals** - Modern reaktivitet liknande SolidJS/Svelte
-- **Smaller bundle** - Bättre tree-shaking, modulär design
-- **Better TypeScript support** - Fullständig typsäkerhet
-- **Faster development** - Snabbare iteration med hot reload
+## Sådant Negin kan försöka göra bättre
+React bär JS-historik: mutable DOM, closures, dependency arrays, separat bundler, separat SSR-runtime. Negin kör i Kabootar (GC default, sql/http/kdom, self-host bytecode) och kan därför sikta på:
+
+- **Onödig rendering** — signal-tracking och keyed fiber så bara beroende noder uppdateras; ingen “render hela trädet för att en räknare ändrades”
+- **Komplex state management** — inbyggd store/signals i språket, inte Redux-lager ovanpå hooks
+- **Dependency-array-problematik** — effekter spårar beroenden automatiskt (`seen[eid]`), inga `[count, fn]`-fällor
+- **Hydration/SSR-komplexitet** — samma runtime och kdom/host-adapter; mindre “två världar” (Node vs browser)
+- **Bundle/runtime-overhead** — `.kab` → `.kbc`, modulär import, ingen React-reconciler som separat JS-payload
+- **Async state** — suspense/sql/http i samma språk; loading/error som vanliga värden, inte ett extra React-ekosystem
+- **Memory lifetime** — GC default för UI; `@manual` bara där Kabootar redan har det (kOS/net/buffers), inte i komponentkärnan
+- **GC-relaterade kostnader** — färre temporära VNode-allocs per tick; O(1) subscriber-index; frame-budget via runtime när det behövs
+- **Gränsen UI-state vs applikationsstate** — UI-signaler för view; sql/db/http som källor för app-state; ingen “allt är useState”
+
+## Hur det landar i koden (Fas 6+)
+- Fiber: `negin/fiber` keyed walk så barn återanvänds på `key`, inte index
+- Signals: `negin/signals` med `seen["e"+eid]` istället för linjär subscriber-scan
+- Error: `negin/error` som giltig Kabootar (inga JS-`useState`-destructures)
+- Gate: `examples/negin_fas6_smoke.kab`
 
 ## Arkitektur
 
-### Core Moduler
-1. **Core** - createElement, render, virtual DOM
-2. **Components** - Komponentsystem, lifecycle
-3. **Hooks** - useState, useEffect, useMemo, useCallback
-4. **Signals** - Reaktiv datahantering (nytt!)
-5. **State** - Global state management (nytt!)
-6. **Reconciler** - Diffing och patching
-7. **Scheduler** - Prioriterad uppdatering
-8. **Events** - Event system
-9. **Context** - Context API
-10. **Suspense** - Lazy loading och code splitting
+Lager, inte en React-kopia. UI är deklarativa komponenter; app-data kommer från Kabootar.
+
+| Lager | Roll | Behållen React-idé | Negin-skillnad |
+|-------|------|--------------------|----------------|
+| **element / core** | `createElement`, render | deklarativt träd | host-agnostisk (kdom + host-DOM) |
+| **component** | komposition, återanvändning | komponenter | GC-livstid, ingen class-component-historik |
+| **fiber / reconciler** | keyed patch | composable träd | keyed walk, inte index-only diff |
+| **signals** | data → UI | unikällsflöde | auto-track, inga dependency arrays |
+| **hooks** | lokal UI-state | bekant yta | sekundär; signals är default |
+| **state** | app-store | ekosystem | inte “allt i useState”; sql/http är källor |
+| **host-adapter** | sql / http / kdom | server+client | samma språk, ingen separat Node-runtime |
+| **ssr / hydration** | server/client-modell | samma komponenter | samma VM/bytecode |
+| **error** | felgränser | composability | giltig Kab-syntax, log + recover |
+
+**UI-state** = signaler och lokal view (öppen panel, hover, input-caret).  
+**Applikationsstate** = rader från `sql`/`db`, svar från `http_*`, kOS-session. Negin ska inte tvinga app-state genom hook-listan.
 
 ## Implementeringsplan
 
-### Fas 1: Core Foundation (High Priority)
-- [x] Skapa roadmap
-- [x] Analysera Reacts styrkor/svagheter
-- [x] Designa Negin arkitektur och API
-- [x] Skapa core modul (createElement, render)
-- [x] Implementera komponentsystem med hooks
-- [x] Implementera state management (bättre än React)
-- [x] Implementera virtual DOM och diffing
-- [x] Fixa syntaxfel (typeof rekursion)
-- [x] Skapa helpers-modul för gemensamma funktioner
+Fas 1–5 är historiska leveranser (core → Kabootar-integration → signals/SSR-yta). De är **subset**: många filer finns, men JS-syntax och “automatic everything” är inte produktgaranti. Fas 6 är den första som styrs av listan ovan med en körbar smoke.
 
-### Fas 2: Advanced Features (Medium Priority)
-- [x] Implementera reconciliation och scheduling
-- [x] Implementera event system
-- [x] Implementera context API
-- [x] Implementera Suspense och lazy loading
-- [x] Implementera per-komponent hook-list
-- [x] Implementera riktig uppdateringskö
-- [x] Koppla signals till render-loopen
+### Fas 1–3 — Foundation (subset)
+- [x] Core: createElement, render, komponenter, helpers
+- [x] Reconciler, scheduler, events, context, suspense (API-yta)
+- [x] SSR/docs/testing/hotreload/devtools-moduler (finns; parity varierar)
 
-### Fas 3: Production Ready (Low Priority)
-- [x] Implementera server-side rendering
-- [x] Skapa dokumentation och exempel
-- [x] Performance optimeringar
-- [x] Testing support
-- [x] Hot reload support
-- [x] DevTools integration
-- [x] TypeScript definitions
+### Fas 4 — Kabootar-integration (subset)
+- [x] Host-adapter: host-DOM + kdom
+- [x] Render host-agnostisk
+- [x] sql / db / http_route / http_request / kml / kdom_render i samma UI-lager
 
-### Fas 4: Kabootar Integration (High Priority - Ny)
-- [x] Skapa host-adapter för host-DOM och kdom
-- [x] Gör render host-agnostisk
-- [x] Ersätt stubs med riktiga Kabootar primitives (sql/http/kdom)
-- [x] Integrera med Kabootars inbyggda database (sql/db)
-- [x] Integrera med Kabootars HTTP (http_route/http_request)
-- [x] Integrera med Kabootars kdom (kml/kdom_render)
+### Fas 5 — Signals och runtime-yta (subset)
+- [x] Signals som reaktiv default (`negin/signals`, `negin/reactive-core`)
+- [x] Auto-batch / scheduler-kö (yta)
+- [x] Inbyggd state-modul utan externt Redux
+- [x] SSR/hydration/dev-server/CLI/profiler som Kab-moduler
 
-### Fas 5: Advanced Improvements (High Priority - Ny)
-- [x] Skapa reaktivt core med signals som default
-- [x] Implementera auto-batching för alla state updates
-- [x] Skapa concurrent rendering för bättre prestanda
-- [x] Implementera automatic code splitting
-- [x] Skapa server components för zero-JS
-- [x] Implementera smart diffing med heuristik
-- [x] Skapa inbyggd state management utan external libs
-- [x] Implementera suspense för data fetching
-- [x] Skapa optimerad bundle med tree-shaking
-- [x] Implementera automatic error recovery
-- [x] Skapa inbyggd dev-server med hot reload
-- [x] Implementera automatic hydration
-- [x] Skapa optimerad build pipeline
-- [x] Implementera automatic testing
-- [x] Skapa advanced CLI för projekt management
-- [x] Implementera automatic deployment
-- [x] Skapa optimerad runtime
-- [x] Implementera automatic performance profiling
+### Fas 6 — Refinement mot Reacts kostnader (subset, smoke)
+- [x] Keyed fiber-walk (`negin/fiber`) — mindre onödig child-remount
+- [x] O(1) signal-tracking (`seen["e"+eid]`) — inte linjär subscriber-scan
+- [x] Giltig error-modul (ingen JS-destructure / `!==` / rekursiv `typeof`)
+- [x] Gate: `examples/negin_fas6_smoke.kab`
+- [x] Roadmap: behållvärda React-styrkor vs Kabootar-vinster
 
-### Fas 6: Refinement (Medium Priority - Pågående)
-- [x] Förbättra fiber-reconciler för bättre prestanda
-- [x] Optimera signal tracking för mindre overhead
-- [x] Förbättra error handling
-- [x] Lägg till fler Kabootar-specifika funktioner
-- [x] Skapa fullständiga exempel och dokumentation
+### Fas 7 — Göra “bättre än React” mätbart (nästa)
+Arbete styrs av listan *Sådant Negin kan försöka göra bättre*. En punkt i taget, med smoke.
+
+- [ ] **Onödig rendering** — mät: signal-set uppdaterar bara beroende fiber-noder; ingen fullträds-reconcile i smoke
+- [ ] **State-gräns** — dokumenterad + API: `signal*` = UI; `sql`/`http_*` = app; förbjud “store i varje komponent”
+- [ ] **Inga dependency arrays** — `useEffect(fn, deps)` antingen auto-track eller avvecklas till `createEffect`
+- [ ] **Async state** — en `Result`/`loading`/`error`-yta driven av sql/http, inte separat Promise-reconciler
+- [ ] **Hydration/SSR** — en host-path: samma `render` mot kdom och host-DOM; smoke som roundtrippar markup
+- [ ] **Bundle/runtime** — Negin-core self-host-kompilerar; ingen dold JS-runtime i UI-hotpath
+- [ ] **Memory / GC** — inga extra VNode-allocs per identisk keyed child; valfri `gc_frame_stats` i UI-tick-smoke
+- [ ] **Giltig Kab överallt** — `reconciler`/`hooks` utan `if cond) {`, `fn()`-i-objekt och `let (a, b)`
 
 ## Filstruktur
 ```
 lib/negin/
 ├── ROADMAP.md
-├── core.kab          # Core funktioner
-├── element.kab       # Element och VNode
-├── component.kab     # Komponentsystem
-├── hooks.kab         # React-like hooks
-├── signals.kab       # Reaktiv data (nytt!)
-├── state.kab         # Global state (nytt!)
-├── reconciler.kab    # Diffing och patching
-├── scheduler.kab     # Uppdateringsscheduling
-├── events.kab        # Event system
-├── context.kab       # Context API
-├── suspense.kab      # Suspense och lazy loading
-├── ssr.kab           # Server-side rendering
-└── examples/
-    ├── counter.kab
-    ├── todo.kab
-    └── app.kab
+├── README.md
+├── core.kab / element.kab / component.kab
+├── fiber.kab            # keyed walk (Fas 6)
+├── reconciler.kab       # patch mot fiber
+├── signals.kab          # createSignal / signalGet / signalSet / createEffect
+├── hooks.kab            # UI-lokal state (sekundär)
+├── state.kab            # app-store (inte UI-default)
+├── host-adapter.kab     # sql, http, kdom
+├── error.kab
+├── scheduler.kab / events.kab / context.kab / suspense.kab / ssr.kab
+└── examples/            # counter, todo, app, …
+examples/negin_fas6_smoke.kab
 ```
 
-## API Design (förslag)
+## API (Kabootar, inte JS)
+
+Signals + keyed fiber är den yta Fas 6 faktiskt kör. Inga tuple-destructures, inga anonyma `fn()` i objektliteral.
 
 ```kab
-// Enkel komponent
-pub fn Counter() {
-    let (count, setCount) = useState(0)
-    
-    return createElement("div", {},
-        createElement("button", { "onClick": fn() { setCount(count - 1) } }, "-"),
-        createElement("span", {}, count),
-        createElement("button", { "onClick": fn() { setCount(count + 1) } }, "+")
-    )
+import "negin/fiber"
+import "negin/signals"
+import "negin/error"
+
+let count = createSignal(0)
+
+fn onCount() {
+    signalGet(count)
 }
 
-// Med signals (nytt!)
-pub fn CounterWithSignal() {
-    let count = createSignal(0)
-    
-    return createElement("div", {},
-        createElement("button", { "onClick": fn() { count.value = count.value - 1 } }, "-"),
-        createElement("span", {}, count.value),
-        createElement("button", { "onClick": fn() { count.value = count.value + 1 } }, "+")
-    )
+fn bump() {
+    signalSet(count, signalGet(count) + 1)
 }
 
-// Global state (nytt!)
-pub fn createStore(initialState) {
-    let store = createSignal(initialState)
-    return { store, getState: fn() { store.value }, setState: fn(s) { store.value = s } }
+createEffect(onCount)
+
+let prev = [{ "key": "a", "domNode": 1 }, { "key": "b", "domNode": 2 }]
+let next = [{ "key": "b" }, { "key": "c" }]
+let tree = reconcileKeyed(prev, next)
+
+let err = createError("fail", "UI")
+if isError(err) {
+    logError(err, null)
 }
+```
+
+App-state stannar utanför signalen:
+
+```kab
+import "negin/host-adapter"
+
+let result = sql("SELECT id, name FROM users", [])
+let rows = result["rows"]
 ```

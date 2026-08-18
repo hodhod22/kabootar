@@ -7,25 +7,30 @@ use super::types::{BytecodeClassDef, BytecodeFnDef, BytecodeModule, Constant, Ge
 use crate::lang_preprocess::MemoryMode;
 use crate::ops::{eval_binary_op, get_length, read_index, read_member, write_index, write_member};
 use crate::runtime::ownership;
-use crate::runtime::stdlib::object::object_oid_of;
 use crate::value::{AsyncBody, BytecodeFunction, Environment, Microtask, PromiseValue, Value};
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const MAX_BYTECODE_STACK: usize = 8192;
 
-/// P1: monomorphic GetMember inline cache (oid + const key index).
+/// P10: monomorphic GetMember IC — object identity + shape hash + cached slot value.
 struct MemberIc {
-    oid: Option<u64>,
+    ptr: u64,
+    shape: u64,
     key_idx: u16,
+    value: Value,
 }
 
 impl Default for MemberIc {
     fn default() -> Self {
         Self {
-            oid: None,
+            ptr: 0,
+            shape: 0,
             key_idx: 0,
+            value: Value::Undefined,
         }
     }
 }
@@ -68,10 +73,14 @@ thread_local! {
 
 struct CallIc {
     native: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
+    bc_ptr: usize,
 }
 
 thread_local! {
-    static CALL_IC: RefCell<CallIc> = RefCell::new(CallIc { native: None });
+    static CALL_IC: RefCell<CallIc> = RefCell::new(CallIc {
+        native: None,
+        bc_ptr: 0,
+    });
 }
 
 fn env_frame_id(env: &Environment) -> usize {
@@ -152,7 +161,11 @@ pub fn call_ic_stats() -> (u64, u64) {
 pub fn call_ic_reset_for_tests() {
     CALL_IC_HITS.store(0, Ordering::Relaxed);
     CALL_IC_MISSES.store(0, Ordering::Relaxed);
-    CALL_IC.with(|ic| ic.borrow_mut().native = None);
+    CALL_IC.with(|ic| {
+        let mut ic = ic.borrow_mut();
+        ic.native = None;
+        ic.bc_ptr = 0;
+    });
 }
 
 fn take_call_args(stack: &mut Vec<Value>, n: usize) -> Result<Vec<Value>, String> {
@@ -169,6 +182,39 @@ fn take_call_args(stack: &mut Vec<Value>, n: usize) -> Result<Vec<Value>, String
 fn recycle_call_args(mut args: Vec<Value>) {
     args.clear();
     CALL_ARGS_BUF.with(|b| *b.borrow_mut() = args);
+}
+
+fn object_shape_hash(map: &HashMap<String, Value>) -> u64 {
+    let mut acc = 0u64;
+    let mut n = 0u64;
+    for k in map.keys() {
+        if k.starts_with("__kab_") {
+            continue;
+        }
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        k.hash(&mut h);
+        acc ^= h.finish();
+        n += 1;
+    }
+    acc ^ n.wrapping_mul(0x9E3779B97F4A7C15)
+}
+
+fn object_ic_ptr(map: &Rc<HashMap<String, Value>>) -> u64 {
+    Rc::as_ptr(map) as u64
+}
+
+fn member_is_callable(v: &Value) -> bool {
+    matches!(
+        v,
+        Value::NativeFunction(_)
+            | Value::BytecodeFn(_)
+            | Value::Function { .. }
+            | Value::BoundNative(_, _)
+    )
+}
+
+fn invalidate_member_ic() {
+    MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
 }
 
 fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
@@ -786,8 +832,13 @@ fn run_chunk(
                     return Err("Bytecode stack underflow on call".into());
                 }
                 let callee = stack.pop().ok_or("Bytecode stack underflow")?;
-                let call_args = take_call_args(stack, n)?;
-                // P1: monomorphic native Call IC — skip call_value match chain.
+                // P10c: CALL_0 skips arg-buf; CALL_1/2/3/N share the recycled buf.
+                let used_buf = n > 0;
+                let call_args = if n == 0 {
+                    Vec::new()
+                } else {
+                    take_call_args(stack, n)?
+                };
                 if let Value::NativeFunction(f) = callee {
                     let hit = CALL_IC.with(|ic| {
                         ic.borrow()
@@ -799,10 +850,16 @@ fn run_chunk(
                         CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
                     } else {
                         CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                        CALL_IC.with(|ic| ic.borrow_mut().native = Some(f));
+                        CALL_IC.with(|ic| {
+                            let mut ic = ic.borrow_mut();
+                            ic.native = Some(f);
+                            ic.bc_ptr = 0;
+                        });
                     }
                     let result = f(&call_args, env);
-                    recycle_call_args(call_args);
+                    if used_buf {
+                        recycle_call_args(call_args);
+                    }
                     let result = result?;
                     if args.is_none() {
                         pull_env_into_local_vals(locals, &mut local_vals, env);
@@ -816,6 +873,94 @@ fn run_chunk(
                         pull_object_locals_from_env(locals, &mut local_vals, env);
                     }
                     push_stack(stack, result)?;
+                } else if let Value::BytecodeFn(func) = callee {
+                    if !func.def.generator_fn && !func.def.async_fn {
+                        let p = Rc::as_ptr(&func.def) as usize;
+                        let hit = CALL_IC.with(|ic| ic.borrow().bc_ptr == p);
+                        if hit {
+                            CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+                            CALL_IC.with(|ic| {
+                                let mut ic = ic.borrow_mut();
+                                ic.bc_ptr = p;
+                                ic.native = None;
+                            });
+                        }
+                        let result = match call_bytecode_sync(func, call_args, env) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                if try_catch_propagated_throw(
+                                    &e,
+                                    args.as_ref().map(|(f, _)| *f),
+                                    module,
+                                    locals,
+                                    immutable_locals,
+                                    local_captures,
+                                    &mut local_vals,
+                                    env,
+                                    ip,
+                                    stack,
+                                )? {
+                                    continue;
+                                }
+                                return Err(e);
+                            }
+                        };
+                        if args.is_none() {
+                            pull_env_into_local_vals(locals, &mut local_vals, env);
+                        } else {
+                            pull_captured_locals_from_env(
+                                locals,
+                                local_captures,
+                                &mut local_vals,
+                                env,
+                            );
+                            pull_object_locals_from_env(locals, &mut local_vals, env);
+                        }
+                        push_stack(stack, result)?;
+                    } else {
+                        let result = match call_value(
+                            Value::BytecodeFn(func),
+                            call_args,
+                            constants,
+                            globals,
+                            arrow_functions,
+                            classes,
+                            env,
+                        ) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                if try_catch_propagated_throw(
+                                    &e,
+                                    args.as_ref().map(|(f, _)| *f),
+                                    module,
+                                    locals,
+                                    immutable_locals,
+                                    local_captures,
+                                    &mut local_vals,
+                                    env,
+                                    ip,
+                                    stack,
+                                )? {
+                                    continue;
+                                }
+                                return Err(e);
+                            }
+                        };
+                        if args.is_none() {
+                            pull_env_into_local_vals(locals, &mut local_vals, env);
+                        } else {
+                            pull_captured_locals_from_env(
+                                locals,
+                                local_captures,
+                                &mut local_vals,
+                                env,
+                            );
+                            pull_object_locals_from_env(locals, &mut local_vals, env);
+                        }
+                        push_stack(stack, result)?;
+                    }
                 } else {
                     let result = match call_value(
                         callee,
@@ -1239,32 +1384,38 @@ fn run_chunk(
                 let val = if let Value::EnumNamespace(type_name) = &container {
                     crate::class::resolve_enum_member(type_name, key, env)?
                 } else if let Value::Object(map) = &container {
-                    // P1: monomorphic IC — own-map data property hit skips full read_member.
-                    let oid = object_oid_of(map);
-                    let ic_hit = oid
-                        .map(|oid| {
-                            MEMBER_IC.with(|ic| {
-                                let mut ic = ic.borrow_mut();
-                                if ic.oid == Some(oid) && ic.key_idx == *key_idx {
-                                    MEMBER_IC_HITS.fetch_add(1, Ordering::Relaxed);
-                                    true
-                                } else {
-                                    MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                                    ic.oid = Some(oid);
-                                    ic.key_idx = *key_idx;
-                                    false
-                                }
-                            })
-                        })
-                        .unwrap_or(false);
-                    if ic_hit {
-                        if let Some(v) = map.get(key) {
+                    // P10: shape + ptr IC caches the data-property Value (AST `kind`/`value`).
+                    let ptr = object_ic_ptr(map);
+                    let shape = object_shape_hash(map);
+                    let cached = MEMBER_IC.with(|ic| {
+                        let ic = ic.borrow();
+                        if ic.ptr == ptr && ic.shape == shape && ic.key_idx == *key_idx {
+                            Some(ic.value.clone())
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(v) = cached {
+                        MEMBER_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                        v
+                    } else {
+                        MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+                        let val = if let Some(v) = map.get(key) {
                             v.clone()
                         } else {
                             read_member(&container, key, env)?
+                        };
+                        if !member_is_callable(&val) {
+                            MEMBER_IC.with(|ic| {
+                                *ic.borrow_mut() = MemberIc {
+                                    ptr,
+                                    shape,
+                                    key_idx: *key_idx,
+                                    value: val.clone(),
+                                };
+                            });
                         }
-                    } else {
-                        read_member(&container, key, env)?
+                        val
                     }
                 } else {
                     read_member(&container, key, env)?
@@ -1290,16 +1441,7 @@ fn run_chunk(
                     )?;
                 }
                 // Invalidate IC for this object on write.
-                if let Value::Object(map) = &container {
-                    if let Some(oid) = object_oid_of(map) {
-                        MEMBER_IC.with(|ic| {
-                            let mut ic = ic.borrow_mut();
-                            if ic.oid == Some(oid) {
-                                ic.oid = None;
-                            }
-                        });
-                    }
-                }
+                invalidate_member_ic();
                 write_member(&mut container, key, val.clone(), env)?;
                 push_stack(stack, container)?;
                 push_stack(stack, val)?;
@@ -1334,6 +1476,7 @@ fn run_chunk(
                 for (k, v) in b.iter() {
                     Rc::make_mut(a).insert(k.clone(), v.clone());
                 }
+                invalidate_member_ic();
                 push_stack(stack, left)?;
             }
             Opcode::CallFromArray => {
@@ -2125,6 +2268,48 @@ pub fn schedule_bytecode_async(
     Ok(Value::Promise(promise))
 }
 
+fn call_bytecode_sync(
+    mut func: BytecodeFunction,
+    args: Vec<Value>,
+    env: &mut Environment,
+) -> Result<Value, String> {
+    crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
+    crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
+    let mut call_env = Environment::child_from(&func.closure);
+    let needs_obj_writeback = args.iter().any(|a| matches!(a, Value::Object(_)));
+    let orig_args = if needs_obj_writeback {
+        args.clone()
+    } else {
+        Vec::new()
+    };
+    let (result, local_vals) =
+        run_bytecode_fn_with_locals(func.def.as_ref(), args, &mut call_env)?;
+    let capture_names: Vec<String> = func
+        .def
+        .locals
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| func.def.local_captures.get(*i).copied().unwrap_or(false))
+        .map(|(_, n)| n.clone())
+        .collect();
+    crate::runtime::closure_sync::sync_closure_writes_filtered(
+        &func.closure,
+        &call_env,
+        env,
+        Some(&capture_names),
+    );
+    crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
+    if needs_obj_writeback {
+        crate::runtime::closure_sync::writeback_object_args(
+            func.def.as_ref(),
+            &orig_args,
+            &local_vals,
+            env,
+        );
+    }
+    Ok(result)
+}
+
 pub fn call_value(
     callee: Value,
     args: Vec<Value>,
@@ -2135,16 +2320,14 @@ pub fn call_value(
     env: &mut Environment,
 ) -> Result<Value, String> {
     match callee {
-        Value::BytecodeFn(mut func) => {
+        Value::BytecodeFn(func) => {
             if func.def.generator_fn {
                 return crate::runtime::stdlib::generator::create_generator(func, args, env);
             }
-            crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
-            crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
             if func.def.async_fn {
-                // Keep `func.closure` as the async parent (module data frame) so recursive
-                // async calls do not child_from(caller locals) and clobber same-named slots.
-                // Globals are pulled from the call-site above so module lets are visible.
+                let mut func = func;
+                crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
+                crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
                 return schedule_bytecode_async(
                     func.def.clone(),
                     args,
@@ -2152,43 +2335,7 @@ pub fn call_value(
                     env,
                 );
             }
-            let mut call_env = Environment::child_from(&func.closure);
-            // P1: skip cloning call args unless an Object may need oid writeback.
-            let needs_obj_writeback = args.iter().any(|a| matches!(a, Value::Object(_)));
-            let orig_args = if needs_obj_writeback {
-                args.clone()
-            } else {
-                Vec::new()
-            };
-            let (result, local_vals) = run_bytecode_fn_with_locals(
-                func.def.as_ref(),
-                args,
-                &mut call_env,
-            )?;
-            let capture_names: Vec<String> = func
-                .def
-                .locals
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| func.def.local_captures.get(*i).copied().unwrap_or(false))
-                .map(|(_, n)| n.clone())
-                .collect();
-            crate::runtime::closure_sync::sync_closure_writes_filtered(
-                &func.closure,
-                &call_env,
-                env,
-                Some(&capture_names),
-            );
-            crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
-            if needs_obj_writeback {
-                crate::runtime::closure_sync::writeback_object_args(
-                    func.def.as_ref(),
-                    &orig_args,
-                    &local_vals,
-                    env,
-                );
-            }
-            Ok(result)
+            call_bytecode_sync(func, args, env)
         }
         Value::NativeFunction(f) => f(&args, env),
         callee if crate::runtime::stdlib::symbol::is_symbol_ctor_object(&callee) => {
