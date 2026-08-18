@@ -1,8 +1,8 @@
 // Kabootar OS lib smoke - cargo run --bin kabootar -- examples/os_smoke.kab
 
-import "os/vfs"
-import "os/process"
-import "os/kernel"
+import "kos/vfs"
+import "kos/process"
+import "kos/kernel"
 
 mkdir("/tmp")
 write("/tmp/hello.txt", "Kabootar OS lib")

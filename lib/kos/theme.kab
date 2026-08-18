@@ -11,21 +11,34 @@ pub fn applyKosTheme(shell) {
     let css = toCss({
         ".kos-desktop": {
             "border-radius": "0",
-            "background": "#f0f2f5",
-            "color": "#202124"
+            "background": "#202124",
+            "color": "#e8eaed"
         },
         ".kos-taskbar": {
             "border-radius": "12px",
-            "box-shadow": "0 2px 8px rgba(0,0,0,0.12)",
-            "background": "#ffffff"
+            "box-shadow": "0 2px 8px rgba(0,0,0,0.35)",
+            "background": "#35363a"
         },
         ".kos-window": {
             "border-radius": "12px",
-            "box-shadow": "0 8px 24px rgba(0,0,0,0.18)",
-            "background": "#ffffff"
+            "box-shadow": "0 8px 24px rgba(0,0,0,0.45)",
+            "background": "#303134",
+            "color": "#e8eaed"
         },
         ".kos-window-active": {
-            "box-shadow": "0 12px 32px rgba(0,0,0,0.22)"
+            "box-shadow": "0 12px 32px rgba(0,0,0,0.55)"
+        },
+        ".kos-start": {
+            "background": "#292a2d",
+            "color": "#e8eaed",
+            "border": "1px solid #5f6368"
+        },
+        ".kos-start-app": {
+            "color": "#e8eaed"
+        },
+        ".kos-start-app:hover": {
+            "background": "#394457",
+            "color": "#8ab4f8"
         }
     })
     kss(css)

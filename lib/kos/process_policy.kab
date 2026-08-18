@@ -1,9 +1,9 @@
 @version "1.0.0"
 
-// H6d: process sandbox policy over os/process + os_perm_*. import "os/process_policy"
+// H6d: process sandbox policy over kos/process + os_perm_*. import "kos/process_policy"
 // KEEP <=~7 top-level fn. Pid table stays native; Kab sets caps.
 
-import "os/process"
+import "kos/process"
 
 /// Spawn then clear inherited caps (empty sandbox).
 pub fn spawnSandbox(name) {

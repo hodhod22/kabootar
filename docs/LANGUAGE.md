@@ -192,10 +192,10 @@ take(other)
 |-------|-----------|
 | **GC default** | Ingen ownership-check; `owned_*` förbjudet utan `@manual` |
 | **Affine Owned** | `let y = x`, call-arg, `owned_move`/`move`/`drop` flyttar; use-after-move = compile error |
-| **Peek-API** | `owned_read` / `owned_write` (och `os/mem` read/write) flyttar inte |
+| **Peek-API** | `owned_read` / `owned_write` (och `kos/mem` read/write) flyttar inte |
 | **`&` / `&mut`** | Shared vs exclusive borrow; borrow lever under call-uttrycket |
 | **Runtime** | `Value::Owned` + use-after-move som säkerhetsnät |
 
 Se [OWNERSHIP.md](OWNERSHIP.md). **Inte** Rust-lifetimes.
 
-- kOS helper: `import "os/display_buf"` — `@manual` framebuffer over `os/mem`.
+- kOS helper: `import "kos/display_buf"` — `@manual` framebuffer over `kos/mem`.

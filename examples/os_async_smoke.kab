@@ -1,7 +1,7 @@
 // Kabootar OS async smoke - cargo run --bin kabootar -- examples/os_async_smoke.kab
 
-import "os/vfs"
-import "os/async"
+import "kos/vfs"
+import "kos/async"
 
 mkdir("/async")
 write("/async/one.txt", "A")

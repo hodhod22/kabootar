@@ -4,8 +4,8 @@
 @version "1.0.0"
 @manual
 
-import "os/mem"
-import "os/display_buf"
+import "kos/mem"
+import "kos/display_buf"
 
 let raw = alloc(8, "smoke")
 write(raw, 0, [10, 20, 30])

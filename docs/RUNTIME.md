@@ -2,14 +2,14 @@
 
 ## Dubbel plattform
 
-Kabootar har **två lager** — host (befintlig OS/DOM/Chrome) och Kabootar-native (`os`, `kdom`, `kbrowser`). Standardläge är `hybrid` (båda registrerade).
+Kabootar har **två lager** — host (befintlig OS/DOM/Chrome) och native (`kos`, `kdom`, `kbrowser`). Standardläge är `hybrid`.
 
 ```kabootar
 platform_info();
 platform_use("kabootar");   // eller "host" / "hybrid"
 ```
 
-Full dokumentation: [PLATFORM.md](PLATFORM.md), [BROWSER.md](BROWSER.md).
+Full dokumentation: [PLATFORM.md](PLATFORM.md), [kOS](../lib/kos/README.md), [kbrowser](../lib/kbrowser/README.md).
 
 ## Dubbel DOM
 
@@ -49,7 +49,7 @@ kb_composite();       // frame + OS-fönster + flikinfo
 kb_navigate("kabootar://vfs/apps/page.kml");
 ```
 
-Se [BROWSER.md](BROWSER.md) och [RENDERING.md](RENDERING.md).
+Se [lib/kbrowser/README.md](../lib/kbrowser/README.md) och [RENDERING.md](RENDERING.md).
 
 Implementering: `src/runtime/kabootar_dom.rs`
 
@@ -75,7 +75,7 @@ os_write("/apps/note.txt", "Hi");
 os_stat("/apps/note.txt");      // [file, 2]
 ```
 
-Se [OS.md](OS.md) för kernel-arkitektur och roadmap.
+Se [lib/kos/README.md](../lib/kos/README.md) (kOS) och [OS.md](OS.md) (host `os_*`).
 
 ## HTTP (`http_*`)
 

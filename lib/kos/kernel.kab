@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Kabootar kernel info wrappers. import "os/kernel"
+// kOS kernel info wrappers. import "kos/kernel"
 
 pub fn info() {
     return os_info()

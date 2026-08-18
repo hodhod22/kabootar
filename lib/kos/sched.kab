@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// kOS scheduler wrappers over os_sched_* natives. import "os/sched"
+// kOS scheduler wrappers over os_sched_* natives. import "kos/sched"
 // KEEP <=~7 top-level fn.
 
 pub fn enqueue(name) {

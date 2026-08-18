@@ -99,25 +99,18 @@ paint(root, 1280, 720, "")
 
 Tester: `cargo test --test kdom_lib`
 
-### kOS (`lib/os/`)
+### kOS (`lib/kos/`)
 
-Kabootar-språkliga wrappers over sandboxed `os_*` natives.
+Kabootar-språkliga wrappers over sandboxed `os_*` natives. **Ett OS:** kernel + skrivbord i `lib/kos/` ([docs](../lib/kos/README.md), [plan](../lib/kos/ROADMAP.md)). `lib/os/` finns inte.
 
 ```
-lib/os/
-  vfs.kab     — read, write, exists, list, mkdir, remove, stat
-  mount.kab   — mount, unmount, mounts
-  process.kab — spawn, list
-  kernel.kab  — info, caps
-  async.kab   — readAsync, writeAsync, readPromise, writePromise, awaitAll
-  mem.kab          — @manual MemBox: alloc/read/write/free (owned_*)
-  display_buf.kab  — @manual framebuffer helper over os/mem
-examples/
-  os_smoke.kab — cargo run --bin kabootar -- examples/os_smoke.kab
-  os_async_smoke.kab — cargo run --bin kabootar -- examples/os_async_smoke.kab
+lib/kos/
+  vfs.kab, mount.kab, process.kab, kernel.kab, async.kab, sched.kab
+  mem.kab, display_buf.kab, *_policy.kab
+  shell.kab, boot.kab, windows.kab, explorer.kab, theme.kab, launch.kab
 ```
 
-Tester: `cargo test --test os_lib`; ownership: `cargo test --test ownership_manual`
+Tester: `cargo test --test os_lib` + `cargo test --test kos_lib`; ownership: `cargo test --test ownership_manual`
 
 ---
 
@@ -152,14 +145,14 @@ Mål: **Kv8 skrivet i Kabootar** när self-host bootstrap når lexer/parser/emit
 
 | Mål | Väg |
 |-----|-----|
-| **kOS** | `lib/os/*`, `kbrowser`, `kabootar://` VFS (referensstack); Windows-lik shell, modern compositor ([OS.md](OS.md#desktop--utseende)) |
-| **Windows / Linux / macOS** | Native binary + `kbrowser` desktop shell (G11) |
+| **kOS** | `lib/kos/*`, `kbrowser`, `kabootar://` VFS; [kOS-docs](../lib/kos/README.md), [OS.md](OS.md) |
+| **Windows / Linux / macOS** | Native binary + `kbrowser` desktop shell |
 | **WASM** | `wasm-pack` + `kabootar-shell.html`, `kb_host_sync()` |
-| **Android** | WASM WebView/PWA + touch ([G7](ROADMAP.md)); Kabootar Shell-app |
-| **iPhone / iOS** | WASM WKWebView/PWA + safe area ([G7](ROADMAP.md)); Shell-app |
+| **Android** | WASM WebView/PWA + touch ([kbrowser roadmap](../lib/kbrowser/ROADMAP.md)); Kabootar Shell-app |
+| **iPhone / iOS** | WASM WKWebView/PWA + safe area ([kbrowser roadmap](../lib/kbrowser/ROADMAP.md)); Shell-app |
 | Server | `kabootar serve`, bytecode `.kbc` |
 
-**kbrowser cross-platform (G11 + G7):** samma `kb_*`-API på kOS, desktop-värd-OS **och mobil (Android, iPhone)**. Detaljer: [BROWSER.md#plattformsmål](BROWSER.md#plattformsmål), [ROADMAP.md](ROADMAP.md).
+**kbrowser:** samma `kb_*` på kOS, host-OS och mobil. [kbrowser-docs](../lib/kbrowser/README.md).
 
 ---
 

@@ -1,10 +1,17 @@
-# Kabootar OS
+# Kabootar OS (kernel / host)
 
-Kabootar OS är en **sandboxad kernel** inbyggd i språket — Lager 2 i dual-layer-arkitekturen. Målet är ett fullständigt eget operativsystem med egen display server, minneshanterare och schemaläggare.
+**Produktdokumentation för kOS:** [lib/kos/README.md](../lib/kos/README.md)  
+**Plan:** [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md)  
+**Läsare:** [lib/kbrowser/README.md](../lib/kbrowser/README.md)
+
+Resten av den här filen är **host/kernel-syscalls** (`os_*`), kapabiliteter och sauce-modeller. Produkt-UI och `import "kos/…"` beskrivs i kOS-README.
+
+**kOS** (`lib/kos/`) är det enda produkt-OS:et. Det **implementeras** i Kabootar och är en **allmän värd** för appar mot **Kv8 + kDOM + kstyle**.
 
 ## Filosofi
 
 - **Enkelt nu** — virtuellt filsystem, processer, fönster, display
+- **Språkagnostiska appar** — samma fönster/VFS/compositor för alla gäster mot Kv8/kDOM/kstyle
 - **Utbyggbart** — syscall-tabell, VFS-snapshot, cooperative scheduler
 - **Konkurrenskraftigt mål** — samma API från REPL, WASM och native desktop shell
 - **Ärlig scope** — använd `kabootar_reality()` och `os_sauce_honesty()` för att se sandbox vs native vs stub
@@ -26,10 +33,10 @@ kOS ska **kännas igen** för Windows-användare — samma mentala modell (skriv
 **Designprinciper:**
 
 1. **Bekant, inte kopia** — layout och flöden som Windows 10/11, men eget Kabootar-branding; inga Microsoft-tillgångar eller varumärken.
-2. **All UI i språket** — shell, Start, Explorer och Settings som `.kab` + KML/KSS/Kv8; Rust endast display server, input och drivrutiner.
+2. **All UI mot samma tre lager** — shell och gästappar: kDOM + kstyle + Kv8. OS-koden är `.kab`; gästen behöver inte vara Kabootar. Rust = display, input, drivrutiner.
 3. **Compositor-first** — acrylic/Mica-liknande lager (blur + transparens via GPU), rundade hörn, 60–120 Hz, spring-animationer ([sauce/haptic](OS.md#hemliga-såsen--9-konkurrensstrategier)).
-4. **En pipeline** — samma `kdom` → layout → paint som appar och `kbrowser`; inget separat legacy-widget-set.
-5. **Progressiv polish** — fungerande shell först (fönster + taskbar + VFS), visuell finish i [ROADMAP G12](ROADMAP.md).
+4. **En pipeline** — samma `kdom` → kstyle → paint som appar och `kbrowser`; inget separat widget-set per språk.
+5. **Progressiv polish** — fungerande shell först (fönster + taskbar + VFS), visuell finish i [kOS-roadmap](../lib/kos/ROADMAP.md).
 
 ```
 Användare (bekant Windows-UX)
@@ -42,9 +49,9 @@ kbrowser + kDOM/KSS/Kv8  — appar, Explorer, Settings
 os_window_* / GPU compositor  — presentation (winit + wgpu)
 ```
 
-`kabootar shell` monterar kOS-skrivbordet via `bootKosDesktop()` → `kb_mount`/`kb_paint` (se [ROADMAP G12](ROADMAP.md) shell mount ✅ subset); tunn HTML-fallback om mount misslyckas.
+`kabootar shell` monterar kOS-skrivbordet via `bootKosDesktop()` → `kb_mount`/`kb_paint` (se [kOS-roadmap](../lib/kos/ROADMAP.md)); tunn HTML-fallback om mount misslyckas.
 
-Se [RENDERING.md](RENDERING.md), [BROWSER.md](BROWSER.md) och [ROADMAP.md — G12](ROADMAP.md).
+Se [RENDERING.md](RENDERING.md), [kOS-docs](../lib/kos/README.md) och [kbrowser-docs](../lib/kbrowser/README.md).
 
 ### Kapabilitetstier
 
@@ -80,7 +87,7 @@ os_syscalls(); // info, read, write, spawn, paint, present, sleep
 | `process-table` | ✅ | `os_spawn`, processlista |
 | `window-manager` | ✅ | `os_window_create`, `os_window_bind` |
 | `display-server` | ✅ | `os_display_register` |
-| `memory-manager` | ✅ | `os_mem_*`; systems: `@manual` + `import "os/mem"` / `os/display_buf` |
+| `memory-manager` | ✅ | `os_mem_*`; systems: `@manual` + `import "kos/mem"` / `kos/display_buf` |
 | `scheduler` | ✅ | `os_sched_enqueue` |
 | `syscalls` | ✅ | `os_syscall("read", path)` m.fl. |
 | `vfs-persist` | ✅ | `os_vfs_save`, `os_vfs_load` (KVF1-format) |

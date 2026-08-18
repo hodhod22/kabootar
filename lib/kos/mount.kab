@@ -1,6 +1,6 @@
 @version "1.0.0"
 
-// Host mount helpers for Kabootar OS VFS. import "os/mount"
+// Host mount helpers for kOS VFS. import "kos/mount"
 
 pub fn mount(vfsPath, hostRoot) {
     return os_mount(vfsPath, hostRoot)

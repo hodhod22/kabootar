@@ -157,5 +157,5 @@ cargo test --test kabootar_kv8_extended --features docai,codai,hw
 ## Se även
 
 - [KV8.md](KV8.md) — JS/DOM/CSS-motor
-- [BROWSER.md](BROWSER.md) — kbrowser API
+- [lib/kbrowser/README.md](../lib/kbrowser/README.md) — kbrowser API
 - [RENDERING.md](RENDERING.md) — compositor + GPU

@@ -1,9 +1,9 @@
 // K3 subset: VFS mount/write/read (+ sched stub available via os/sched)
 // cargo run --bin kabootar -- examples/os_k3_vfs_smoke.kab
 
-import "os/vfs"
-import "os/mount"
-import "os/sched"
+import "kos/vfs"
+import "kos/mount"
+import "kos/sched"
 
 mkdir("/k3")
 write("/k3/hello.txt", "k3-ok")

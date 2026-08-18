@@ -1,0 +1,6 @@
+@version "1.0.0"
+
+// Aggregator — import "kos" (enda OS-ytan). Kernel: kos/vfs, kos/sched, kos/process.
+// Desktop: import "kos/shell" | "kos/boot" | "kos/windows". Plan: lib/kos/ROADMAP.md
+
+import "kos/vfs"
