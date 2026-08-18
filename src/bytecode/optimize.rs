@@ -1,13 +1,14 @@
 //! Bytecode optimizer — constant folding, peephole, dead-code trimming.
 //! Try-region absolute IPs are remapped when ops are removed (not skipped).
 
-use super::types::{BytecodeModule, Constant, GeneratorTryRegion, Opcode};
+use super::types::{BytecodeFnDef, BytecodeModule, Constant, GeneratorTryRegion, Opcode};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OptStats {
     pub folds: usize,
     pub peepholes: usize,
     pub dead_removed: usize,
+    pub inlines: usize,
 }
 
 pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
@@ -41,6 +42,8 @@ pub fn optimize_module(module: &mut BytecodeModule) -> OptStats {
             stats.dead_removed += s.dead_removed;
         }
     }
+    let n = inline_small_accessors(module);
+    stats.inlines += n;
     stats
 }
 
@@ -283,6 +286,103 @@ fn trim_dead_after_halt(
     }
 }
 
+fn accessor_member_key(f: &BytecodeFnDef) -> Option<String> {
+    if f.params.len() != 1 || f.async_fn || f.generator_fn {
+        return None;
+    }
+    let ops: Vec<&Opcode> = f
+        .code
+        .iter()
+        .filter(|o| !matches!(o, Opcode::Halt | Opcode::Return))
+        .collect();
+    match ops.as_slice() {
+        [Opcode::LoadLocal(0), Opcode::GetMember(k)] => match f.constants.get(*k as usize) {
+            Some(Constant::String(s)) => Some(s.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn intern_const_string(constants: &mut Vec<Constant>, s: &str) -> u16 {
+    if let Some(i) = constants
+        .iter()
+        .position(|c| matches!(c, Constant::String(t) if t == s))
+    {
+        return i as u16;
+    }
+    let i = constants.len();
+    constants.push(Constant::String(s.to_string()));
+    i as u16
+}
+
+fn inline_in_chunk(
+    code: &mut Vec<Opcode>,
+    constants: &mut Vec<Constant>,
+    regions: &mut [GeneratorTryRegion],
+    globals: &[String],
+    accessors: &[(String, String)],
+) -> usize {
+    let mut i = 0;
+    let mut n = 0;
+    while i + 1 < code.len() {
+        if let (Opcode::LoadGlobal(g), Opcode::Call(1)) = (&code[i], &code[i + 1]) {
+            if let Some(gname) = globals.get(*g as usize) {
+                if let Some((_, key)) = accessors.iter().find(|(name, _)| name == gname) {
+                    let ki = intern_const_string(constants, key);
+                    code[i] = Opcode::GetMember(ki);
+                    code.remove(i + 1);
+                    remap_try_regions(regions, i + 1, 1);
+                    adjust_jump_targets(code, i + 1, 1);
+                    n += 1;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    n
+}
+
+fn inline_small_accessors(module: &mut BytecodeModule) -> usize {
+    let accessors: Vec<(String, String)> = module
+        .functions
+        .iter()
+        .filter_map(|f| Some((f.name.clone(), accessor_member_key(f)?)))
+        .collect();
+    if accessors.is_empty() {
+        return 0;
+    }
+    let mut n = 0;
+    n += inline_in_chunk(
+        &mut module.main_code,
+        &mut module.constants,
+        &mut module.main_try_regions,
+        &module.globals,
+        &accessors,
+    );
+    let globals = module.globals.clone();
+    for f in &mut module.functions {
+        n += inline_in_chunk(
+            &mut f.code,
+            &mut f.constants,
+            &mut f.try_regions,
+            &globals,
+            &accessors,
+        );
+    }
+    for f in &mut module.arrow_functions {
+        n += inline_in_chunk(
+            &mut f.code,
+            &mut f.constants,
+            &mut f.try_regions,
+            &globals,
+            &accessors,
+        );
+    }
+    n
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,5 +493,35 @@ mod tests {
         assert_eq!(regions[0].body_start, 0);
         assert!(regions[0].body_end <= regions[0].catch_start);
         assert!(regions[0].catch_start < code.len());
+    }
+
+    #[test]
+    fn inlines_small_member_accessor() {
+        let src = r#"
+fn peek(n) { return n.kind }
+let x = { "kind": 7 }
+peek(x)
+"#;
+        let prog = crate::bytecode::compile_source(src).expect("compile");
+        let m = prog.bytecode.expect("bc");
+        let has_get = m
+            .main_code
+            .iter()
+            .any(|op| matches!(op, Opcode::GetMember(_)));
+        let call1 = m
+            .main_code
+            .iter()
+            .filter(|op| matches!(op, Opcode::Call(1)))
+            .count();
+        assert!(
+            has_get,
+            "expected GetMember in main after inline: {:?}",
+            m.main_code
+        );
+        assert_eq!(
+            call1, 0,
+            "LoadGlobal+Call(1) peek should be inlined, code={:?}",
+            m.main_code
+        );
     }
 }

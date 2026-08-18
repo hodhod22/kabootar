@@ -73,3 +73,31 @@ fn p10_host_pipeline_phases_complete() {
         "host snippet pipeline should stay under 2s CI, got {total_ms:.1} ms"
     );
 }
+
+#[test]
+fn p10_rust_compile_parser_session_core_leaf() {
+    use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
+    use std::sync::Once;
+
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        std::env::set_var("KABOOTAR_COMPILE", "rust");
+        std::env::set_var("KABOOTAR_VM", "host");
+    });
+
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("self_host")
+        .join("parser_session_core.kab");
+    let path_s = path.to_string_lossy().to_string();
+    kabootar_lib::compile::invalidate_file_cache(&path_s);
+
+    let t0 = Instant::now();
+    let (_prog, backend) =
+        compile_file_prefer_cached(&path_s, CompilePrefer::Rust).expect("compile leaf");
+    let leaf_ms = ms(t0);
+    eprintln!("P10 rust compile parser_session_core.kab: {leaf_ms:.1} ms backend={backend}");
+    assert!(
+        leaf_ms < 60_000.0,
+        "parser_session_core rust compile should stay under 60s CI, got {leaf_ms:.1} ms"
+    );
+}

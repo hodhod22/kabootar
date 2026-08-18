@@ -683,7 +683,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P7** | **Modul/import-latens** — disk-`.kbc` + export-cache; kallstart < 100 ms för typiskt spelprojekt | ✅ subset (`compile_file_prefer_cached` second hit → `cache`; `p7_compile_cache_second_hit`) |
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
-| **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | 🚧 P10a–c+e subset; d/f/g nästa |
+| **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | 🚧 P10a–e subset; f/g/h nästa |
 
 **Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
 
@@ -702,16 +702,16 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | Steg | Vad | Status |
 |------|-----|--------|
 | **P10a** | **Pipeline-profil** — lexer/parse/emit/serialize/deserialize/VM/total | ✅ subset (`tests/perf_p10_pipeline.rs`) |
-| **P10b** | **LoadMember shape IC** — `Rc` ptr + key-set hash + cached data-slot (skip `HashMap` på hit) | ✅ subset; hidden-class *slot index* / internade SYM kvar (P10g) |
-| **P10c** | **CALL_0 + direct bytecode IC** — argc 0 utan arg-buf; sync `BytecodeFn` hoppar `call_value`-kedjan; native Call IC kvar | ✅ subset; CALL_1/2/3 egna opcodes + method/dynamic split kvar |
-| **P10d** | **Hot state i frame locals** | 📋 nästa (parser `pPos` ur modul-env) |
+| **P10b** | **LoadMember shape IC** — `Rc` ptr + key-set hash + cached data-slot (skip `HashMap` på hit) | ✅ subset |
+| **P10c** | **CALL_0 + CALL_1/2/3 + direct bytecode IC** — argc 0 utan buf; 1/2/3 utan reverse; sync `BytecodeFn` hoppar `call_value`; BoundNative-method IC | ✅ subset |
+| **P10d** | **Hot state i frame locals** — fn `StoreLocal` utan env om inte capture; modul-`LoadLocal` från slot; `AccAddLocal` synkar slot | ✅ subset |
 | **P10e** | **Serializer writer** — `String::with_capacity` efter modulstorlek | ✅ subset; byte-buffer/`sOut` i self-host kvar |
 | **P10f** | **Binary `.kbcb`** | 📋 efter P10a på *self-host* leaf visar serialize/load |
-| **P10g** | **Symbol intern + shapes** | 📋 |
-| **P10h** | **Inline små heta fn** | 📋 efter P10c |
+| **P10g** | **Symbol intern + shapes** — internade nycklar + slot-tabell sorterad på intern-id; `GetMember` via `slot_load_i` | ✅ subset |
+| **P10h** | **Inline små heta fn** — `LoadGlobal`+`Call(1)` → `GetMember` för `fn peek(n) { n.kind }` | ✅ subset |
 | **P10i** | **parsePostfix tight loop** | 📋 bara om parse ≫ resten i totalen |
 
-**Nästa efter den här leveransen:** P10d locals, sedan P10g slot-index, sedan `.kbcb` om profilen kräver det.
+**Nästa efter den här leveransen:** P10f `.kbcb` om serialize/load syns i self-host-leaf; P10i parsePostfix bara om parse ≫ resten.
 
 **Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
 

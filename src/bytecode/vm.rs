@@ -21,6 +21,7 @@ struct MemberIc {
     ptr: u64,
     shape: u64,
     key_idx: u16,
+    slot: u16,
     value: Value,
 }
 
@@ -30,6 +31,7 @@ impl Default for MemberIc {
             ptr: 0,
             shape: 0,
             key_idx: 0,
+            slot: 0,
             value: Value::Undefined,
         }
     }
@@ -74,13 +76,35 @@ thread_local! {
 struct CallIc {
     native: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
     bc_ptr: usize,
+    method: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
 }
 
 thread_local! {
     static CALL_IC: RefCell<CallIc> = RefCell::new(CallIc {
         native: None,
         bc_ptr: 0,
+        method: None,
     });
+}
+
+struct Intern {
+    ids: HashMap<String, u32>,
+}
+
+thread_local! {
+    static KEY_INTERN: RefCell<Intern> = RefCell::new(Intern {
+        ids: HashMap::new(),
+    });
+}
+
+struct ObjSlots {
+    shape: u64,
+    ids: Vec<u32>,
+    slots: Vec<Value>,
+}
+
+thread_local! {
+    static OBJ_SLOTS: RefCell<HashMap<u64, ObjSlots>> = RefCell::new(HashMap::new());
 }
 
 fn env_frame_id(env: &Environment) -> usize {
@@ -134,6 +158,7 @@ pub fn member_ic_reset_for_tests() {
     MEMBER_IC_HITS.store(0, Ordering::Relaxed);
     MEMBER_IC_MISSES.store(0, Ordering::Relaxed);
     MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
+    OBJ_SLOTS.with(|t| t.borrow_mut().clear());
 }
 
 /// Diagnostic counters for LoadGlobal IC (P1).
@@ -165,23 +190,51 @@ pub fn call_ic_reset_for_tests() {
         let mut ic = ic.borrow_mut();
         ic.native = None;
         ic.bc_ptr = 0;
+        ic.method = None;
     });
 }
 
 fn take_call_args(stack: &mut Vec<Value>, n: usize) -> Result<Vec<Value>, String> {
+    if n == 0 {
+        return Ok(Vec::new());
+    }
     let mut args = CALL_ARGS_BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
     args.clear();
     args.reserve(n);
-    for _ in 0..n {
-        args.push(stack.pop().ok_or("Bytecode stack underflow")?);
+    match n {
+        1 => args.push(stack.pop().ok_or("Bytecode stack underflow")?),
+        2 => {
+            let b = stack.pop().ok_or("Bytecode stack underflow")?;
+            let a = stack.pop().ok_or("Bytecode stack underflow")?;
+            args.push(a);
+            args.push(b);
+        }
+        3 => {
+            let c = stack.pop().ok_or("Bytecode stack underflow")?;
+            let b = stack.pop().ok_or("Bytecode stack underflow")?;
+            let a = stack.pop().ok_or("Bytecode stack underflow")?;
+            args.push(a);
+            args.push(b);
+            args.push(c);
+        }
+        _ => {
+            for _ in 0..n {
+                args.push(stack.pop().ok_or("Bytecode stack underflow")?);
+            }
+            args.reverse();
+        }
     }
-    args.reverse();
     Ok(args)
 }
 
 fn recycle_call_args(mut args: Vec<Value>) {
     args.clear();
     CALL_ARGS_BUF.with(|b| *b.borrow_mut() = args);
+}
+
+fn invalidate_member_ic() {
+    MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
+    OBJ_SLOTS.with(|t| t.borrow_mut().clear());
 }
 
 fn object_shape_hash(map: &HashMap<String, Value>) -> u64 {
@@ -213,8 +266,59 @@ fn member_is_callable(v: &Value) -> bool {
     )
 }
 
-fn invalidate_member_ic() {
-    MEMBER_IC.with(|ic| *ic.borrow_mut() = MemberIc::default());
+fn intern_key(s: &str) -> u32 {
+    KEY_INTERN.with(|t| {
+        let mut t = t.borrow_mut();
+        if let Some(id) = t.ids.get(s) {
+            return *id;
+        }
+        let id = t.ids.len() as u32;
+        t.ids.insert(s.to_string(), id);
+        id
+    })
+}
+
+fn ensure_obj_slots(ptr: u64, shape: u64, map: &HashMap<String, Value>) {
+    OBJ_SLOTS.with(|t| {
+        let mut t = t.borrow_mut();
+        let rebuild = t.get(&ptr).map(|o| o.shape != shape).unwrap_or(true);
+        if rebuild {
+            let mut pairs: Vec<(u32, Value)> = map
+                .iter()
+                .filter(|(k, _)| !k.starts_with("__kab_"))
+                .map(|(k, v)| (intern_key(k), v.clone()))
+                .collect();
+            pairs.sort_by_key(|(id, _)| *id);
+            let ids: Vec<u32> = pairs.iter().map(|(id, _)| *id).collect();
+            let slots: Vec<Value> = pairs.into_iter().map(|(_, v)| v).collect();
+            t.insert(ptr, ObjSlots { shape, ids, slots });
+        }
+    });
+}
+
+fn slot_load(ptr: u64, intern: u32) -> Option<Value> {
+    OBJ_SLOTS.with(|t| {
+        let t = t.borrow();
+        let o = t.get(&ptr)?;
+        let i = o.ids.iter().position(|id| *id == intern)?;
+        o.slots.get(i).cloned()
+    })
+}
+
+fn slot_index(ptr: u64, intern: u32) -> Option<u16> {
+    OBJ_SLOTS.with(|t| {
+        let t = t.borrow();
+        let o = t.get(&ptr)?;
+        o.ids.iter().position(|id| *id == intern).map(|i| i as u16)
+    })
+}
+
+fn slot_load_i(ptr: u64, slot: u16) -> Option<Value> {
+    OBJ_SLOTS.with(|t| {
+        t.borrow()
+            .get(&ptr)
+            .and_then(|o| o.slots.get(slot as usize).cloned())
+    })
 }
 
 fn chunk_is_manual(module: Option<&BytecodeModule>, env: &Environment) -> bool {
@@ -236,6 +340,12 @@ fn load_local_value(
     // (Auto-move on every LoadLocal breaks `owned_write(b, …); owned_read(b, …)`.)
     if args.is_some() {
         return Ok(local_vals.get(i).cloned().unwrap_or(Value::Undefined));
+    }
+    // P10d: after StoreLocal/AccAddLocal the slot is live — skip env HashMap.
+    if let Some(v) = local_vals.get(i) {
+        if !matches!(v, Value::Undefined) {
+            return Ok(v.clone());
+        }
     }
     let v = if let Some(name) = locals.get(i) {
         if name.starts_with("__kab_") {
@@ -738,7 +848,19 @@ fn run_chunk(
                     }
                 }
                 local_vals[i] = v.clone();
-                store_local_to_env(locals, immutable_locals, local_captures, i, &v, env)?;
+                let must_mirror = args.is_none()
+                    || immutable_locals.get(i) == Some(&true)
+                    || local_captures.get(i).copied() == Some(true);
+                if must_mirror {
+                    store_local_to_env(
+                        locals,
+                        immutable_locals,
+                        local_captures,
+                        i,
+                        &v,
+                        env,
+                    )?;
+                }
             }
             Opcode::LoadGlobal(idx) => {
                 let name = globals
@@ -854,6 +976,7 @@ fn run_chunk(
                             let mut ic = ic.borrow_mut();
                             ic.native = Some(f);
                             ic.bc_ptr = 0;
+                            ic.method = None;
                         });
                     }
                     let result = f(&call_args, env);
@@ -885,6 +1008,7 @@ fn run_chunk(
                                 let mut ic = ic.borrow_mut();
                                 ic.bc_ptr = p;
                                 ic.native = None;
+                                ic.method = None;
                             });
                         }
                         let result = match call_bytecode_sync(func, call_args, env) {
@@ -961,6 +1085,46 @@ fn run_chunk(
                         }
                         push_stack(stack, result)?;
                     }
+                } else if let Value::BoundNative(receiver, f) = callee {
+                    let hit = CALL_IC.with(|ic| {
+                        ic.borrow()
+                            .method
+                            .map(|p| std::ptr::fn_addr_eq(p, f))
+                            .unwrap_or(false)
+                    });
+                    if hit {
+                        CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+                        CALL_IC.with(|ic| {
+                            let mut ic = ic.borrow_mut();
+                            ic.method = Some(f);
+                            ic.native = None;
+                            ic.bc_ptr = 0;
+                        });
+                    }
+                    let mut recv = (*receiver).clone();
+                    crate::runtime::stdlib::object::refresh_value_from_env_by_oid(&mut recv, env);
+                    let mut method_args = Vec::with_capacity(call_args.len() + 1);
+                    method_args.push(recv);
+                    method_args.extend(call_args.iter().cloned());
+                    let result = f(&method_args, env);
+                    if used_buf {
+                        recycle_call_args(call_args);
+                    }
+                    let result = result?;
+                    if args.is_none() {
+                        pull_env_into_local_vals(locals, &mut local_vals, env);
+                    } else {
+                        pull_captured_locals_from_env(
+                            locals,
+                            local_captures,
+                            &mut local_vals,
+                            env,
+                        );
+                        pull_object_locals_from_env(locals, &mut local_vals, env);
+                    }
+                    push_stack(stack, result)?;
                 } else {
                     let result = match call_value(
                         callee,
@@ -1048,7 +1212,7 @@ fn run_chunk(
             Opcode::IndexGet => {
                 let idx = stack.pop().ok_or("Bytecode stack underflow")?;
                 let container = stack.pop().ok_or("Bytecode stack underflow")?;
-                // P1: fast path for array[number] without symbol/proxy checks.
+                // P1/P10: array[number] and object[string] without full read_index.
                 let fast = match (&container, &idx) {
                     (Value::Array(items), Value::Number(n)) if *n >= 0 => {
                         let i = *n as usize;
@@ -1068,6 +1232,7 @@ fn run_chunk(
                             None
                         }
                     }
+                    (Value::Object(map), Value::String(k)) => map.get(k).cloned(),
                     _ => None,
                 };
                 if let Some(v) = fast {
@@ -1080,6 +1245,7 @@ fn run_chunk(
                 let val = stack.pop().ok_or("Bytecode stack underflow")?;
                 let idx = stack.pop().ok_or("Bytecode stack underflow")?;
                 let mut container = stack.pop().ok_or("Bytecode stack underflow")?;
+                invalidate_member_ic();
                 write_index(&mut container, &idx, val.clone(), env)?;
                 push_stack(stack, container)?;
                 push_stack(stack, val)?;
@@ -1284,6 +1450,9 @@ fn run_chunk(
                         .get(i)
                         .ok_or_else(|| format!("Invalid local index {i}"))?;
                     env.acc_add_inplace(name, rhs)?;
+                    if let Some(v) = env.get(name) {
+                        local_vals[i] = v;
+                    }
                 } else if matches!(
                     (local_vals.get(i), &rhs),
                     (Some(Value::Number(_)), Value::Number(_))
@@ -1384,13 +1553,15 @@ fn run_chunk(
                 let val = if let Value::EnumNamespace(type_name) = &container {
                     crate::class::resolve_enum_member(type_name, key, env)?
                 } else if let Value::Object(map) = &container {
-                    // P10: shape + ptr IC caches the data-property Value (AST `kind`/`value`).
+                    // P10g: interned key + shape slot table (AST node.kind → slots[i]).
                     let ptr = object_ic_ptr(map);
                     let shape = object_shape_hash(map);
+                    ensure_obj_slots(ptr, shape, map);
+                    let intern = intern_key(key);
                     let cached = MEMBER_IC.with(|ic| {
                         let ic = ic.borrow();
                         if ic.ptr == ptr && ic.shape == shape && ic.key_idx == *key_idx {
-                            Some(ic.value.clone())
+                            slot_load_i(ptr, ic.slot).or_else(|| Some(ic.value.clone()))
                         } else {
                             None
                         }
@@ -1400,17 +1571,21 @@ fn run_chunk(
                         v
                     } else {
                         MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                        let val = if let Some(v) = map.get(key) {
+                        let val = if let Some(v) = slot_load(ptr, intern) {
+                            v
+                        } else if let Some(v) = map.get(key) {
                             v.clone()
                         } else {
                             read_member(&container, key, env)?
                         };
                         if !member_is_callable(&val) {
+                            let slot = slot_index(ptr, intern).unwrap_or(0);
                             MEMBER_IC.with(|ic| {
                                 *ic.borrow_mut() = MemberIc {
                                     ptr,
                                     shape,
                                     key_idx: *key_idx,
+                                    slot,
                                     value: val.clone(),
                                 };
                             });
