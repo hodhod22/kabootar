@@ -143,3 +143,45 @@ fn index_get_array_smoke() {
     .expect("index get");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");
 }
+
+#[test]
+fn index_get_object_string_smoke() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        let n = { "kind": "lit", "value": 3 }
+        let s = 0
+        let i = 0
+        while i < 16 {
+            s = s + n["value"]
+            i = i + 1
+        }
+        s == 48 && n["kind"] == "lit"
+        "#,
+        &mut env,
+    )
+    .expect("object index");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
+fn load_local_loop_smoke() {
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn sumN(n) {
+            let s = 0
+            let i = 0
+            while i < n {
+                s = s + i
+                i = i + 1
+            }
+            return s
+        }
+        sumN(10) == 45
+        "#,
+        &mut env,
+    )
+    .expect("local loop");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
