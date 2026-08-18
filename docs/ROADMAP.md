@@ -449,7 +449,7 @@ Se [BROWSER_V2.md](BROWSER_V2.md).
 
 ## Strategi (2026-07) — Kabootar-only (Rust fasas ut)
 
-**Slutmål:** hela plattformen i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell, **spelmotor**, **science/AI**. Rust försvinner **småningom** tills bara (möjligen) en minimal bootstrap/GPU-FFI finns kvar; ny produktlogik skrivs **aldrig** i Rust. Kabootar ska bli **helt självständig och fri** — forskning och AI utan Python/NumPy/SciPy/PyTorch som runtime-beroende.
+**Slutmål:** hela *produktplattformen* i Kabootar — Kv8, DOM, CSS/KSS, OS, webläsare, shell, **spelmotor**, **science/AI**. Native runtime **krymper till JIT/AOT/GC/SIMD/GPU/bootstrap** (P-tak). Ny produktlogik skrivs **aldrig** i Rust. Kabootar ska bli **helt självständig** för appar och forskning — utan Python/NumPy/SciPy/PyTorch som runtime-beroende — **utan** att offra native-taket genom att skriva JIT:en i dynamisk Kab.
 
 **Produktambition (spel):** Kabootar ska bli **bättre än C# och C++ för spelproduktion** — inte genom att vinna rå pointer-aritmetik, utan genom att vinna **hela produktionskedjan**: ett språk från OS→UI→gameplay, snabbare iteration (hot reload / self-host), säkrare än C++ (O + GC-val), mer integrerat än C#/Unity (browser + kOS + 3D i samma runtime), och **GPU-först** så frame-budgeten matchar native motorer.
 
@@ -465,7 +465,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 1. **Self-host som produktionskompilator** (S) — pausad tills J/T/R landat tillräckligt  
 2. **Bygg om allt i Kabootar** (K): kv8, dom, css, kOS, kbrowser  
 3. **Tunna bort Rust** (H) tills hosten är trivial  
-4. **Prestanda + spelproduktion** (P + GP) — snabb VM/AOT, GPU-3D, asset-pipeline; se nedan  
+4. **Prestanda + spelproduktion** (P + GP) — P0–P10 bytecode/pipeline; **P11–P18 tak** (unbox, hidden classes, native JIT/AOT, nursery GC, `@manual` release, SIMD/GPU, same-room webb, liga-gates); se Våg P  
 5. **Science / AI** (SC) — ta över Pythons roll för forskning/AI; Kab-first (inte Rust); fri från NumPy/SciPy/PyTorch-beroenden
 
 | Våg | Namn | Mål |
@@ -477,14 +477,14 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **J** | JS-språkparitet | Array/Object/String/Math + övriga ES-luckor |
 | **S** | Self-host | `self_host/` bygger produkten |
 | **K** | Kabootar libs | kv8 + DOM + CSS + OS + webläsare i `.kab` |
-| **H** | Host → noll | Rust krymper till bootstrap; därefter bort |
-| **P** | Performance | VM/AOT/GC/SIMD — Kab snabb nog för gameplay + verktyg |
+| **H** | Host → tunn native | Produktlogik i Kab; **tunn native runtime (JIT/AOT/GC/SIMD/GPU) är permanent** — se P-tak. Inte “all native kod bort”. |
+| **P** | Performance | VM → unbox/JIT/AOT/GC/SIMD — tak = V8/.NET (dynamisk) och Rust−ε (`@manual`); **P11–P18** |
 | **GP** | Game production | GPU-3D, scen/motor, assets + **GP6 system** + **GP7 scene editor** (killer) |
 | **SIM** | Simulation / robotics | Digital twin, joints/ODE, robot arm — `import "sim"` (killer cross-cut GP∩SC) |
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **P10** self-host pipeline (mät hela kedjan; member/shapes + CALL_n; *inte* mer isolerad parser). P6b skip-list tom; parser shards ≤10 s = klart nog. **L/O/T/J/S** ✅ subset; **P0–P9** + **GP/SC/DX** MVP subset landad.
+**Aktivt fokus (2026-08):** **P10** self-host pipeline (mät hela kedjan; member/shapes + CALL_n; *inte* mer isolerad parser). Därefter **P11–P18 (prestandatak)** — annars stannar vi i bytecode-klass. P6b skip-list tom; parser shards ≤10 s = klart nog. **L/O/T/J/S** ✅ subset; **P0–P9** + **GP/SC/DX** MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -629,11 +629,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **K4** | **kbrowser** — ✅ **subset**: tabs + VFS navigate + paint. **Plan:** [lib/kbrowser/ROADMAP.md](../lib/kbrowser/ROADMAP.md) |
 | **K5** | **kOS skrivbord** — ✅ **subset** (shell/Start/fönster/Explorer). **Plan:** [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md) |
 
-### Våg H — Rust → noll 📋
+### Våg H — Rust → tunn native (produktlogik bort) 📋
 
-- Inga nya features i Rust  
-- Flytta kvarvarande logik till `.kab` under K  
-- Slutmått: produktkod = Kabootar; Rust borta (eller minimal bootstrap som sedan också skrivs om)
+- Inga nya *produktfeatures* i Rust (UI, Kv8-policy, OS-policy, DOM)
+- Flytta kvarvarande produktlogik till `.kab` under K
+- Slutmått: appar = Kabootar; **native kvar för P11–P16** (JIT/AOT/GC/SIMD/GPU) + syscall/bootstrap
 - **H0** ✅ — stylesheet apply + document `paint` CSS-path prefererar `.kab` (`parseAndApply` via `kstyle/parse`) istället för enbart native `kstyle_parse`
 - **H1** ✅ **subset** — desktop shell boot CSS via `import "kstyle/parse"` + `parseAndApply` (inte native `kstyle_parse`); gate `h1_shell_boot_css_kab`
 - **H2** ✅ **subset** — `queryKab` i `lib/kdom/query` (#id / .class / tag via `kstyle/selectors` + walk); `document.query` provar Kab först, fallback `kdom_query_selector` (`h2_query_kab_smoke`)
@@ -641,7 +641,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 - **H4** ✅ **subset** — Thin Rust Kv8: produktväg = `evalSource`/`evalSourceKab` → `evalSourceWith`; `evalSourceRust` endast för luckor; `preferKabEval()` sätter flagga (`h4_prefer_kab_eval`)
 - **H5** ✅ **subset** — paint/layout-orchestration i `.kab`: `lib/kdom/paint` `paintNode` / `paintWithCss` / `layoutPaint` (flexColumn via `kstyle/layout` + `paint`) (`h5_layout_paint_smoke`)
 - **H5b** ✅ **subset** — event drain: `pollEvents` + `drainKosEvents` (Start `launchStartApp`); host shell musklick → `kb_click` → drain → remount/paint (`kos_event_drain_smoke`, `kos_host_click_smoke`)
-- **H6** 🚧 **Zero Rust (produkt → bootstrap)** — aktiv huvudlinje. **Regel: inga nya features i Rust.** All produktlogik (Kv8, CSS, DOM, OS, webläsare) → `.kab`; Rust krymper till syscall och sist bootstrap som också skrivs om.
+- **H6** 🚧 **Zero Rust *produktlogik*** — aktiv huvudlinje. **Regel: inga nya produktfeatures i Rust.** All produktlogik (Kv8, CSS, DOM, OS, webläsare) → `.kab`; Rust = syscall + **P-tak-runtime** (JIT/GC/GPU). Att skriva om JIT:en i Kab är **icke-mål**.
 
 **H6-ordning (mot noll Rust):**
 
@@ -661,7 +661,9 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 **H6d** ✅ **subset** — OS-policy i `.kab`: `kos/vfs_policy`, `kos/sched_policy`, `kos/process_policy`; `kos/boot` seed (`h6d_os_policy_smoke`). Rust = disk/net/GPU/hw + thin `os_*`. Plan: [lib/kos/ROADMAP.md](../lib/kos/ROADMAP.md).
 
-**H6e** ✅ **subset → delete-mål** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE`). Tunna facader self-hostar CI-snabbt. **Skip-list tom (P6b).** **Committed seeds:** `self_host/seed/*.kbc` (kab-only cache). Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** `attempt-all`. Smokes: `h6e_kab_*`, `p6_leaf_self_host_compile_budget`.
+**H6e** ✅ **subset → delete-mål (produktlogik)** — Kab VM + self-host facades. **Produkt-`import`** prefererar self-host (`load_program_for_file` → `compile_file_prefer_cached`; Rust under `KAB_VM_EXEC_ACTIVE`). Tunna facader self-hostar CI-snabbt. **Skip-list tom (P6b).** **Committed seeds:** `self_host/seed/*.kbc` (kab-only cache). Regenerera: `scripts/regen_self_host_seeds.sh`. **P6 policy:** `attempt-all`. Smokes: `h6e_kab_*`, `p6_leaf_self_host_compile_budget`.
+
+**H vs P-tak (låst policy):** “Rust bort” gäller **produktlogik** (Kv8/DOM/OS-policy i `.kab`), **inte** JIT, register-allocator, nursery-GC, SIMD/GPU-kernels eller AOT-backend. En self-host-VM skriven i dynamisk Kab **sänker** taket. Maximal fart = **tunn native runtime för alltid** (samma modell som JVM/CLR/V8). Delete-gates får inte ta bort P11–P16-ytor.
 
 **H6 deepen** ✅ **subset** — `run_file` prefererar self-host compile (`compile_file_prefer_cached`, `KABOOTAR_COMPILE=rust` tvingar host); compile-policy i `.kab` (`bootCompileAndCheck`, `h6e_compile_prefer_smoke`); tab/history-session i `.kab` (`kbrowser/history`, `h6_delete_gate_smoke` / `h6e_run_selfhost_probe`).
 
@@ -669,9 +671,11 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 
 ### Våg P — Performance (snabbare, mer självständig runtime) 📋
 
-**Mål:** Kabootar ska kännas snabbare än typiska scriptmotorer i spel/verktyg, och **inte** behöva C#/C++ för hot paths i produktkoden. Gameplay + editor i `.kab`; tunga loops → bytecode/AOT/`@manual`; ritning → GPU.
+**Mål:** Kabootar ska kännas snabbare än typiska scriptmotorer i spel/verktyg, och **inte** behöva C#/C++ för hot paths i produktkoden. Gameplay + editor i `.kab`; tunga loops → bytecode → **native AOT/JIT** / `@manual`; ritning → GPU.
 
-**Princip:** mät först (`Deno.bench` / `performance.now` / frame-timing), optimera flaskhalsar, behåll delete-gates (ingen ny produktlogik i Rust utöver tunn GPU/FFI).
+**Princip:** mät först (`Deno.bench` / `performance.now` / frame-timing), optimera flaskhalsar, behåll delete-gates (ingen ny *produktlogik* i Rust utöver tunn native: GPU/JIT/GC/SIMD/FFI).
+
+**Tak (låst — glöm inte):** dynamisk GC-kod kan som mest nå **V8 / HotSpot / .NET**, inte C. `@manual` + unbox + AOT kan nå **Rust minus en liten skatt**. Same-room webb (UI+HTTP+SQL i en process) är en **egen liga** mot Node/Django/Spring+Postgres. Se **P11–P18**.
 
 | Fas | Innehåll | Status |
 |-----|----------|--------|
@@ -686,8 +690,14 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P8** | **Parallellism** — workers / job-system för asset bake, pathfinding, without blocking render-thread | ✅ subset (`job_map` + `job_map_parallel` f64 OS-threads; Kab-closure workers kvar) |
 | **P9** | **Delete-gate prestanda** — CI-budgetar: VM-smoke, self-host facade < N s, 3D demo ≥ 60 FPS headless/timing | ✅ subset (`perf_p0` delta < 100 ms; `perf_gp5c` avg < 25 ms idle; playable `examples/game_playable_2d.kab`) |
 | **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | 🚧 a–h subset; f `.kbcb` envelope; i bara om parse ≫ total |
-
-**Checkpoint P:** `cargo test` + spel-bench-smoke + dokumenterade budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md).
+| **P11** | **Unbox** — `i32`/`f64`/`bool` i register/slots, inte `Value`-enum på heap i typed/`@manual`/hot loops | 📋 |
+| **P12** | **Hidden classes / shapes** — V8-klass: hidden class + inline caches på *alla* member/global/call (P1/P10 = start) | 📋 deepen |
+| **P13** | **Native JIT/AOT** — Cranelift eller LLVM; `.kbc` → maskinkod för hot fn; P4 AOT-lite räknas **inte** som klart | 📋 |
+| **P14** | **Nursery GC + escape analysis** — bump-allocate, generations, stack-allok när objekt inte flyr; P3 frame-budget = start | 📋 |
+| **P15** | **`@manual` release = noll checks** — use-after-move / bounds bara i debug; hot path som Rust | 📋 |
+| **P16** | **SIMD + GPU kernels** — nd/matmul/FFT i native/GPU bakom Kab-API; P5 bulk-loops = start | 📋 |
+| **P17** | **Same-room webb** — UI↔HTTP↔SQL utan JSON/socket i default-appen; mät e2e vs Node+Postgres | 📋 |
+| **P18** | **Liga-gates** — CI-benches mot Python / V8-klass / C#-klass; dokumentera taket (aldrig “slå C på dynamisk kod”) | 📋 |
 
 ### P10 — Self-host pipeline (bootstrap-multiplikator) 🚧
 
@@ -720,6 +730,72 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 **Inte P10:** fler parser-splits, skip-list-tweak, jaga 4.5 s → 3.5 s postfix isolerat.
 
 Se [COMPILE.md](COMPILE.md) § P10.
+
+**Checkpoint P0–P10:** `cargo test` + spel-bench-smoke + budgets i [GAME.md](GAME.md) / [FEATURES.md](FEATURES.md). **P11–P18 är nästa våg** — bytecode-trim räcker inte till ligataket.
+
+### P11–P18 — Prestandatak (glöm-inte-vågen) 📋
+
+**Varför den här vågen finns:** P0–P10 gör bytecode-VM:en *bra*. Utan P11–P18 stannar Kabootar i **Python/tidig-JS-klass** på CPU och vi “optimerar parsern” istället för taket. Rekommendationerna är **produktkrav**, inte önskelista.
+
+**Två tak (fysik, inte slogan):**
+
+| Yta | Semantik | Tak när allt är implementerat | Inte taket |
+|-----|----------|-------------------------------|------------|
+| Default `.kab` + GC | Dynamiska värden, blandade arrayer | **V8 / HotSpot / .NET** (managed JIT/AOT) | C / C++ / Rust |
+| `@manual` + unbox + AOT | Ägda buffertar, kända layouter | **Rust minus skatt** (bounds/move i debug) | `unsafe` C med `restrict` |
+| GPU / nd-kernels | Samma hårdvara som CUDA/C++ | **C++/CUDA-klass** för *den* workloadden | CPU-VM:en |
+| Webb e2e | UI + HTTP + SQL **samma process** | **#1 mot** React+Node+Postgres / Django / Spring *som de byggs idag* | Distribuerad Postgres-skala |
+
+**Icke-mål (låst):** slå C på godtycklig dynamisk kod. Den sista biten är språkbyte (statiskt, unboxed, inget GC), inte mer pessning av `Value`.
+
+**Ordning (beroenden):** P12 kan deepen parallellt med P10. **P11 före P13** (native kod på boxed `Value` ger lite). P14 efter att unbox/IC finns att mata. P15 kräver O1–O3 (redan subset). P16 oberoende för science. P17 är arkitektur + mätning (får inte regressas av “mikroservicifiering”). P18 är gates när P11–P16 gett något att mäta.
+
+| Steg | Vad som måste landa | Delete-gate / mätning | Status |
+|------|---------------------|------------------------|--------|
+| **P11a** | **Typed slots** — funktioner med kända `i32`/`f64`/`bool`/`struct` använder täta frames, inte `Value` per lokal | Microbench: tight `for` add-loop vs boxed baseline (≥10×) | 📋 |
+| **P11b** | **Homogena arrayer** — `Array<f64>` / nd-buffer; blandad `Array` förblir boxed | Ingen per-element tag-load i sum/dot | 📋 |
+| **P11c** | **NaN-boxing eller tagged ptr (val)** — dynamisk yta billigare än Rust-enum discriminant; dokumentera val | Same benches som P11a på dynamisk kod | 📋 |
+| **P12a** | **Hidden class per objektform** — transitions vid ny nyckel; inte bara P10g intern-id | GetMember miss → shape-transition, hit = slot index | 📋 |
+| **P12b** | **Call IC + polymorphic** — 1–2 hidden classes monomorf; därefter megamorf-fallback | CALL hit utan `call_value` HashMap | 📋 |
+| **P12c** | **Kv8 delar shapes med Kab-VM** — ingen andra objektmodell | `kv8_opt_info` visar shared IC | 📋 |
+| **P13a** | **Cranelift (först) eller LLVM** — hot `BytecodeFn` → native; cache på fingerprint som P4 men **maskinkod** | `p4_aot_lite` ersätts inte; ny test `p13_native_add_loop` | 📋 |
+| **P13b** | **Threshold JIT** — som Kv8:s “efter N iterationer” men till **native**, inte bytecode | Kv8-for JIT → native när P13a finns | 📋 |
+| **P13c** | **AOT-CLI** — `kabootar compile --native` för ship; kallstart utan JIT-warmup | Spel/HTTP kallstart-budget (P7 deepen) | 📋 |
+| **P13d** | **Deopt / bailout (JIT)** — fel spekulation → bytecode; AOT skippar spekulation | Inga tysta felaktiga tal | 📋 |
+| **P14a** | **Nursery / bump allocator** — unga objekt; promote till old | Alloc/frame + pause-histogram (P0 deepen) | 📋 |
+| **P14b** | **Incremental / frame-aware sweep** — P3 deepen; 60 FPS: GC-slice < frame-budget | `gc_frame_stats` max pause < budget | 📋 |
+| **P14c** | **Escape analysis** — objekt som inte flyr → stack/bump utan heap | Allok-räknare ner på kända microbenches | 📋 |
+| **P14d** | **Write barriers bara där GC kräver** | Inte barrier på `@manual` / unboxed | 📋 |
+| **P15a** | **`--debug-manual` vs release** — runtime use-after-move / bounds **av** i release `@manual` | CI: debug fångar; release-bench utan checks | 📋 |
+| **P15b** | **Compile-time O1–O3 är källan till säkerhet i release** — runtime är nät, inte substitut | Redan O-policy; dokumentera i [OWNERSHIP.md](OWNERSHIP.md) | 📋 |
+| **P16a** | **SIMD ufuncs** — `sci_vadd`/`dot`/`matmul` auto-vec eller explicit; P5 deepen | Kab vs NumPy-storlek dokumenterad (SC4f) | 📋 |
+| **P16b** | **GPU kernels** — nd/matmul/FFT bakom samma Kab-API; CPU-fallback | `nd_gpu` / science SC7 deepen | 📋 |
+| **P16c** | **Zero-copy** — `Float32Array`/`Float64Array` / `@manual` → GPU (P2 deepen) | Ingen per-element Kab-loop i hot path | 📋 |
+| **P17a** | **In-process default** — `http_request` + `sql()` + kDOM/Negin **utan** JSON-varv i mallar (`web`, `api`) | Example + test: objekt/rader inte `stringify` | 📋 |
+| **P17b** | **E2e latency-bench** — “lista 50 rader → UI” vs dokumenterad Node+Postgres / Django-baslinje | `tests/perf_p17_web_e2e.rs` (eller `.kab`) | 📋 |
+| **P17c** | **Regressionsregel** — ny webbmall får inte *kräva* socket+JSON mellan UI och DB | Review-check i `kabootar mod init` | 📋 |
+| **P17d** | **När nät är OK** — `http_serve` / `fetch` för *externa* klienter; origin förblir one-hop | Docs: [HTTP.md](HTTP.md) / [SQL.md](SQL.md) | 📋 |
+| **P18a** | **Python-gate** — boxed/unbox add-loop och nd-sum: Kab ≤ Python; mål ≪ CPython | CI dokumenterad, inte necessarily blocker först | 📋 |
+| **P18b** | **V8-klass-mål** (efter P13) — samma numeriska kernel inom faktor av Node/V8 (dokumentera faktor) | Bench-harness, uppdatera när JIT finns | 📋 |
+| **P18c** | **C#-klass-mål** (typed + AOT) — unboxed loop inom faktor av .NET | Efter P11+P13 | 📋 |
+| **P18d** | **Tak-docs** — tabell i denna sektion är sanning; FEATURES/OVERVIEW får **inte** påstå “snabbare än C” för default-Kab | Doc-gate | 📋 |
+
+**Liga när P11–P18 är klara (förväntad plats, inte löfte om datum):**
+
+| Liga | Plats | Mot |
+|------|-------|-----|
+| CPU, dynamisk kod | Mittemellan **JS (V8)** och **C#** | Python under; C/C++/Rust över |
+| CPU, `@manual` + AOT + SIMD | Strax under **Rust/C++** | Tillräckligt systems |
+| Webb (UI+API+DB same-room) | **1 mot typiska tre-process-stackar** | Förlorar mot in-process Rust/C# *om någon bygger så* |
+| Distribuerad DB / extrem QPS | Inte Postgres/.NET-skala | Medvetet |
+
+**Får inte ätas av H/SC:**
+
+- Self-host får skriva lexer/parser/eval-*policy* i Kab; **register-allocator, JIT, nursery, SIMD-kernels** stannar native.
+- Science: Kab-API först; **hotpath får vara native/GPU** (redan SC-undantag) — P16 är det undantaget, inte en tillfällig skuldpunkt som ska “portas bort” om det sänker taket.
+- Ny produktlogik fortfarande inte i Rust.
+
+**Checkpoint P-tak:** P11a microbench landad + P13a native add-loop *eller* dokumenterat blocker (Cranelift-dep); P17b e2e-siffra; P18d docs. Full V8-paritet är **år**, inte en sprint — men faserna ska inte försvinna från listan.
 
 
 ### Våg GP — Game production (3D, motor, pipeline) 📋
@@ -931,8 +1007,8 @@ Kab-first: nya ytor under `lib/game/`. Rust bara för GPU/audio/XR hotpath (samm
 | Regel | Innebörd |
 |-------|----------|
 | **Kab-first** | Ny API (`lib/science/*.kab`) + examples/tester i Kab **före** eller **istället för** ny Rust-yta |
-| **Inga nya Rust-features** | Undantag: tillfällig hotpath (matmul/FFT/GPU) bakom stabil Kab-API — samma H6-regel som övrig plattform |
-| **Port-plan** | Befintliga Rust-natives (`src/runtime/science/*`) → `lib/science/` när språk/VM räcker (SC5) |
+| **Inga nya Rust-features** | Undantag: tillfällig *och* **permanent** hotpath (matmul/FFT/GPU/SIMD) bakom stabil Kab-API — se **P16**; portas inte bort om det sänker taket |
+| **Port-plan** | Befintliga Rust-natives (`src/runtime/science/*`) → `lib/science/` när språk/VM räcker (SC5) **utom** P16-kernels |
 | **Delete-gate** | CI-smoke för typisk research/AI-loop **utan** Python/NumPy/PyTorch |
 | **Frihet** | Ingen runtime-beroende på CPython, pip-wheels eller proprietär AI-runtime |
 
@@ -1240,8 +1316,8 @@ D1–D5 finns som **tillfällig Rust-host**. Vidare OS-logik → **Våg K2** i K
 Våg L (språk)  ████████░░░░░░░░  nu — L1 först
 Våg S (host)   ░░░░████░░░░░░░░  efter L1–L3
 Våg K (libs)   ░░░░░░██████████  kv8/kos/kbrowser i .kab
-Våg H (thin)   ░░░░░░░░░░██████  frys Rust-yta
-Våg P (perf)   ████████████████  P0–P9 subset (AOT-maskinkod / parallel workers kvar)
+Våg H (thin)   ░░░░░░░░░░██████  produktlogik bort; JIT/GC/GPU native (P-tak)
+Våg P (perf)   ████████░░░░░░░░  P0–P10 subset; **P11–P18 tak kvar** (unbox/JIT/nursery/same-room)
 Våg GP (spel)  ██████████████░░  GP0–GP5 ✅; GP7a–g + GP6a/b/c/e/f/g/i; terrain/audio/XR kvar
 Våg SC (STEM)  ████████████████  SC0–SC7 ✅; system BLAS-FFI + full MHA BP + KPQT1
 Våg DX (explore)████████████████  REPL + .knb + WASM + readline + rich display; DX7 kvar
