@@ -1,12 +1,7 @@
-// H6e: Kabootar bytecode VM — thin facade (impl in vm_impl.kab).
+// SH5: Kab VM facade — exec in vm_run_exec_core (no vm_run/vm_run_body hops).
 // import "self_host/vm"
-//
-// Re-export by alias (not a wrapping fn): a wrapping `fn runModule` adds an extra
-// host `call_value` frame. Under KABOOTAR_VM=kab-only that breaks reentrancy of
-// module `vGlobals` when the outer probe is self-host-compiled (lets → globals)
-// and a nested guest has imports — leaving a 1-slot guest array and
-// "Array index out of bounds" on the outer store_global.
+// Re-export by alias (not a wrapping fn) — extra call_value breaks kab-only reentrancy.
 
-import "self_host/vm_impl"
+import "self_host/vm_run_exec_core"
 
-pub let runModule = runModuleImpl
+pub let runModule = runModuleImplBodyCore

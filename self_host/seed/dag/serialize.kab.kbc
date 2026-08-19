@@ -1,11 +1,11 @@
 kabootar-bytecode/1
 constants=0
-global 0 serializeBcImpl
+global 0 serSerializeBc
 local 0 serialize_bc
 functions=0
 arrows=0
 imports=1
-import 0 self_host/serialize_impl
+import 0 self_host/serialize_acc
 pub_imports=0
 exports=1
 export 0 serialize_bc
@@ -20,4 +20,4 @@ halt
 
 source=self_host/serialize.kab
 statements=2
-fingerprint=87cf8165f97003e7
+fingerprint=d6d0a8a54f95f669

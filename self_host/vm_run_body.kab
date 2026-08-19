@@ -1,4 +1,0 @@
-// H6e/P6b: thin re-export of exec core (CI-fast self-host).
-import "self_host/vm_run_exec_core"
-
-pub let runModuleImplBody = runModuleImplBodyCore

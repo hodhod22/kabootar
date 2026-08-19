@@ -1,7 +1,7 @@
 // Full self-hosted pipeline: source text -> kabootar-bytecode/1 text.
 import "self_host/parse"
-import "self_host/emit"
-import "self_host/serialize"
+import "self_host/emit_exec"
+import "self_host/serialize_acc"
 import "self_host/ownership"
 
 /// True when source opts into affine ownership (@manual).
@@ -24,7 +24,15 @@ fn preprocess(source) {
     return s
 }
 
+/// SH16/H6e: same ceiling as `kab/boot` `bootPolicy("maxBytes")`.
+fn sourceTooBig(source) {
+    return len("" + source) > 65536
+}
+
 pub fn compile(source) {
+    if sourceTooBig(source) {
+        throw "SH16: source exceeds bootPolicy maxBytes; split the module"
+    }
     // O5 product wire: Kab ownership checker on @manual modules only.
     if sourceIsManual(source) {
         let err = checkOwnership(source)
@@ -35,9 +43,9 @@ pub fn compile(source) {
     let t0 = date_now_ms()
     let ast = parse(preprocess(source))
     let t1 = date_now_ms()
-    let ir = emit(ast)
+    let ir = emitMainExec(ast)
     let t2 = date_now_ms()
-    let kbc = serialize_bc(ir)
+    let kbc = serSerializeBc(ir)
     let t3 = date_now_ms()
     if env_get("KABOOTAR_P10_PROFILE") == "1" {
         println("PROFILE self_host parse_ms " + ("" + (t1 - t0)))
@@ -51,11 +59,14 @@ pub fn compile(source) {
 
 /// IR module for Kab VM (`runModule` in self_host/vm).
 pub fn compileIr(source) {
+    if sourceTooBig(source) {
+        throw "SH16: source exceeds bootPolicy maxBytes; split the module"
+    }
     if sourceIsManual(source) {
         let err = checkOwnership(source)
         if err != null {
             throw err
         }
     }
-    return emit(parse(preprocess(source)))
+    return emitMainExec(parse(preprocess(source)))
 }

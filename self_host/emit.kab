@@ -1,13 +1,7 @@
-// H6e: self-hosted bytecode emitter — thin facade (impl in emit_impl.kab).
+// SH5: emit facade — session exec in emit_exec (no emit_impl hop).
 // import "self_host/emit"
-//
-// Re-export by alias (not a wrapping fn) — see self_host/vm.kab header for why
-// wrapping fns break Kab VM reentrancy under KABOOTAR_VM=kab-only.
-//
-// emit_impl.kab stays skip-listed (P6 seed-only). Body densified into session-
-// threaded shards (emit_exec + emit_expr_* / emit_stmt_*); empty skip-list waits
-// until every shard self-host-compiles ≤10s (P6b).
+// Re-export by alias (not a wrapping fn).
 
-import "self_host/emit_impl"
+import "self_host/emit_exec"
 
-pub let emit = emitImpl
+pub let emit = emitMainExec

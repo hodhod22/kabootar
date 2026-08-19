@@ -1,6 +1,0 @@
-// H6e: self-hosted bytecode emitter body — thin driver (skip-listed).
-import "self_host/emit_exec"
-
-pub fn emitImpl(program) {
-    return emitMainExec(program)
-}

@@ -1,17 +1,15 @@
-// H6e: self-hosted Kabootar lexer — thin facade (impl in lexer_impl.kab).
+// SH5: lexer facade — tokenizeExec in lexer_tokenize (no lexer_impl hop).
 // import "self_host/lexer"
-//
-// Re-export by alias (not a wrapping fn) — see self_host/vm.kab header for why
-// wrapping fns break Kab VM reentrancy under KABOOTAR_VM=kab-only.
-//
-// lexer_impl.kab stays skip-listed: self-host-compiling its ~18KB body is far too
-// slow for CI (self-hosting cost scales with AST size of the source being compiled,
-// independent of file size relative to the 64KB self-host-attempt threshold). This
-// facade's own source is tiny, so `compile self_host/lexer.kab --self-host` is
-// CI-fast regardless of how heavy lexer_impl.kab is.
+// tokenize is an alias; type/value helpers are tiny field reads.
 
-import "self_host/lexer_impl"
+import "self_host/lexer_tokenize"
 
-pub let tokenize = tokenizeImpl
-pub let token_type_name = tokenTypeNameImpl
-pub let token_value = tokenValueImpl
+pub let tokenize = tokenizeExec
+
+pub fn token_type_name(tok) {
+    return tok.type
+}
+
+pub fn token_value(tok) {
+    return tok.value
+}

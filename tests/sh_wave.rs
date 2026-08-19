@@ -53,6 +53,66 @@ fn sh0_self_host_compile_dag_snapshot() {
     );
 }
 
+/// SH16 subset: Kab compile policy refuses oversize source; prefer is self-host-only.
+#[test]
+fn sh16_boot_policy_self_host_only_and_max_bytes() {
+    let boot = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lib/kab/boot.kab"),
+    )
+    .expect("boot.kab");
+    assert!(
+        boot.contains("return \"self-host-only\""),
+        "bootPolicy prefer must be self-host-only"
+    );
+    assert!(
+        boot.contains("appRustFallback"),
+        "bootPolicy must expose appRustFallback=false"
+    );
+    let compile = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/compile.kab"),
+    )
+    .expect("compile.kab");
+    assert!(
+        compile.contains("sourceTooBig") && compile.contains("65536"),
+        "compile() must enforce bootPolicy maxBytes in Kab"
+    );
+}
+
+/// SH16: app `.kab` must not rust-fallback; oversize apps fail (split the module).
+#[test]
+fn sh16_app_no_rust_fallback() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    ensure_compiler_image();
+    let dir = std::env::temp_dir().join(format!("kab_sh16_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let tiny = dir.join("app.kab");
+    std::fs::write(&tiny, "let x = 1\nreturn x + 2\n").expect("write tiny app");
+    let tiny_s = tiny.to_string_lossy().replace('\\', "/");
+    let tiny2 = tiny_s.clone();
+    let (p, backend) = std::thread::Builder::new()
+        .name("sh16-tiny".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || compile_file_prefer(&tiny2, CompilePrefer::SelfHostThenRust))
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("tiny app must self-host");
+    assert!(p.has_bytecode());
+    assert_eq!(backend, "self-host");
+    let big = dir.join("huge.kab");
+    let src = "return 1\n".to_string() + &"x".repeat(70_000);
+    std::fs::write(&big, src).expect("write huge app");
+    let big_s = big.to_string_lossy().replace('\\', "/");
+    let err = compile_file_prefer(&big_s, CompilePrefer::SelfHostThenRust)
+        .expect_err("oversize app must not rust-fallback");
+    assert!(
+        err.contains("SH16"),
+        "expected SH16 error, got {err}"
+    );
+    let _ = std::fs::remove_file(&tiny);
+    let _ = std::fs::remove_file(&big);
+}
+
 fn ensure_compiler_image() {
     let missing = missing_compiler_dag_seeds().expect("scan dag seeds");
     if missing.is_empty() {
@@ -441,9 +501,11 @@ fn sh2_parser_emit_exec_are_per_call_session() {
 fn sh3b_facades_are_aliases_not_wrap_fn() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host");
     for (name, needle) in [
-        ("parser.kab", "pub let parseTokens = parseTokensImpl"),
-        ("emit.kab", "pub let emit = emitImpl"),
-        ("lexer.kab", "pub let tokenize = tokenizeImpl"),
+        ("parser.kab", "pub let parseTokens = parseTokensExec"),
+        ("emit.kab", "pub let emit = emitMainExec"),
+        ("lexer.kab", "pub let tokenize = tokenizeExec"),
+        ("serialize.kab", "pub let serialize_bc = serSerializeBc"),
+        ("vm.kab", "pub let runModule = runModuleImplBodyCore"),
     ] {
         let src = std::fs::read_to_string(root.join(name)).expect(name);
         assert!(

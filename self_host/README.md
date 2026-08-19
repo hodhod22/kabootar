@@ -16,7 +16,7 @@ source text
     → seed/compiler.kbcb           SH1 packed image (fingerprint)
 ```
 
-Default CLI: `kabootar compile` → self-host först, Rust fallback. `KABOOTAR_COMPILE=rust` tvingar host. Compiler-DAG och `vm_*` rust-kompileras till committed seeds (inte live self-host av 80+ shards).
+Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** Rust-fallback (SH16); `self_host/` DAG får rust-seeds. `KABOOTAR_COMPILE=rust` är skuld. `bootPolicy("prefer")` = `self-host-only`.
 
 ## Nuläge (inte den gamla shard-listan)
 
@@ -44,7 +44,7 @@ Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_
 | `lexer.kab` / `parser.kab` / `emit.kab` / `serialize.kab` | tunna `pub let`-facader |
 | `parser_exec.kab` / `emit_exec.kab` | per-call session + tramp |
 | `ownership.kab` | O5 `@manual` |
-| `vm.kab` | kab-only VM (bootstrap; host-VM kör produkten) |
+| `vm.kab` | kab-only VM (alias till `vm_run_exec_core`) |
 | `seed/compiler.kbcb` | packed compile-DAG |
 
 ## Tester
@@ -123,10 +123,10 @@ Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte n�
 Kort ordning:
 
 1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
-2. ~~SH3–SH7b~~ ✅ · **SH5 deepen** expr-parser/`parseMain`/`parser_session`/`parser_util` inlined
-3. **SH8** tiny `compile()` via image
+2. ~~SH3–SH7b~~ ✅ · **SH5 deepen** facader → exec/acc (inga `*_impl`)
+3. **SH16** stäng Rust-emit för appar (`bootPolicy` self-host-only + maxBytes i `compile.kab`)
 4. **SH5** fler `emit_*`/`serialize_*` sammanslagningar (färre DAG-blad)
-5. ~~SH10/SH11/SH12–SH15 subset~~ ✅ · JIT/GC stannar native
+5. **SH17/SH18** JIT/GC i `.kab`
 
 ## Historisk bootstrap-logg
 
