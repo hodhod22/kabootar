@@ -88,7 +88,7 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
             return false;
         }
     }
-    if source.len() > SELF_HOST_MAX_SOURCE_BYTES {
+    if source.is_empty() || source.len() > SELF_HOST_MAX_SOURCE_BYTES {
         return false;
     }
     true

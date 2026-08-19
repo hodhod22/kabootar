@@ -29,7 +29,14 @@ fn sourceTooBig(source) {
     return len("" + source) > 65536
 }
 
+fn sourceEmpty(source) {
+    return len("" + source) == 0
+}
+
 pub fn compile(source) {
+    if sourceEmpty(source) {
+        throw "SH16: empty source"
+    }
     if sourceTooBig(source) {
         throw "SH16: source exceeds bootPolicy maxBytes; split the module"
     }
@@ -59,6 +66,9 @@ pub fn compile(source) {
 
 /// IR module for Kab VM (`runModule` in self_host/vm).
 pub fn compileIr(source) {
+    if sourceEmpty(source) {
+        throw "SH16: empty source"
+    }
     if sourceTooBig(source) {
         throw "SH16: source exceeds bootPolicy maxBytes; split the module"
     }

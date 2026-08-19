@@ -2249,6 +2249,7 @@ fn p6_seed_only_all_leaves_have_seeds() {
     assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
     assert_eq!(SELF_HOST_MAX_SOURCE_BYTES, 65536);
     assert!(self_host_would_attempt("app.kab", &"x".repeat(100)));
+    assert!(!self_host_would_attempt("app.kab", ""));
     assert!(!self_host_would_attempt("app.kab", &"x".repeat(70000)));
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in [
