@@ -88,6 +88,10 @@ fn sh16_boot_policy_self_host_only_and_max_bytes() {
         perf.contains("pub fn perfTick") && perf.contains("pub fn perfCount"),
         "FT F0 kab/perf counters"
     );
+    assert!(
+        compile.contains("pub fn lastCompileMs") && compile.contains("gMsTotal"),
+        "FT F0 compile() must store phase ms"
+    );
 }
 
 /// SH16: app `.kab` must not rust-fallback; oversize apps fail (split the module).
