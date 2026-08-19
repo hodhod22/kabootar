@@ -100,7 +100,7 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 
 | Steg | Vad | Delete-gate / mätning | Status |
 |------|-----|------------------------|--------|
-| **F0** | **Profiler i Kab** — compile-fas-ms, op-histogram, alloc/frame, IC hit-rate | Samma siffra i release varje PR; ingen gissning | ✅ subset: `kab/perf` + `lastCompileMs` på `compile()` (parse/emit/serialize); deepen = PGO/histogram |
+| **F0** | **Profiler i Kab** — compile-fas-ms, op-histogram, alloc/frame, IC hit-rate | Samma siffra i release varje PR; ingen gissning | ✅ subset: `lastCompileMs` / `bootLastCompileMs`; `compileIr` sätter parse/emit; deepen = PGO |
 | **F1** | **Dispatch** — threaded interpreter / copy-and-patch i Kab-VM | tight add-loop ≫ boxed interp | 📋 |
 | **F2** | **IC + shapes** — GetMember/LoadGlobal/CALL monomorf → poly (≤4) | hit-rate > 90 % på typisk app | 📋 (P12 Rust = skuld) |
 | **F3** | **Unbox slots** — i64/f64/bool/`array_f64` i frames | ≥10× vs boxed add-loop (Kab-VM) | 📋 (P11 Rust = skuld) |
@@ -980,7 +980,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH13** | **Compile-session bump (arena-lite)** — reset *in-place* (längd=0, behåll capacity); host-bump för rust-AST valfritt. **Inte** arena skriven i dynamisk Kab. Kräver SH2 per-call sess | Andra `compile()` i processen allokerar ≪ första; ingen use-after-reset | ✅ subset (`object_array_clear`/`truncate` on emit init + break idxs; parser/emit hot arrays) |
 | **SH14** | **Compiler throughput + regressionsgate** — cold / warm / incremental; tokens/s eller MB/s mot *Kab-baseline* (inte rustc som vinstkrav). Large-project: **10k → 100k LOC** först; 500k/1M deepen när 100k är CI-stabilt | `tests/perf_sh14_compiler.rs`; PR får inte regressa warm/incr över tröskel (samma anda som P9/P18) | ✅ 100k ~0.42s; 500k ~2.3s; 1M release CI ~5.1s; self-host warm |
 | **SH15** | **Content-addressed + mmap KBCB** — nyckel = source-hash + import-fingerprint + **compiler-image-version**; `mmap` av `kbcb` v2 utan text-deserialize på hit. Determinism: samma källor+deps → samma fingerprint | Hit = ingen text-`.kbc`-parse; image-version-mismatch ogiltigförklarar | ✅ `read_bytecode_cache_at` CA mmap; `sh15_ca_*` skips text `.kbc` |
-| **SH16** | **Stäng Rust-compile för appar** | CI `KABOOTAR_COMPILE=self-host`; rust-fallback **failar** för app-`.kab` | ✅ subset: `rustFallbackPrefix`; CLI `compile` följer env; toolchain-oversize får rust, appar inte |
+| **SH16** | **Stäng Rust-compile för appar** | CI `KABOOTAR_COMPILE=self-host`; rust-fallback **failar** för app-`.kab` | ✅ subset: `refuseKbcPath` (`.kbc`/`.kbcb` inte källa); `bootLastCompileMs`; toolchain-oversize får rust |
 | **SH17** | **JIT i Kabootar** — register-alloc + native-emit som `.kab` (ersätt Cranelift i `src/`). Får börja som subset (i64-loopar). Bred teknik: [Våg FT](#våg-ft--fart-alla-tekniker-i-kab) F7–F10 | Hot loop kompilerad av Kab-JIT; `src/` JIT-moduler raderas när smoke är grön | 📋 |
 | **SH18** | **GC i Kabootar** — nursery/sweep som `.kab` (ersätt Rust-GC) | Frame-budget smoke utan `src/` GC; sedan radera | 📋 |
 | **SH19** | **Laddare i Kab** — ingen `main.rs` som produkt. `.kab` startar runtime | `kabootar`-binär = Kab-bootstrap eller Kab-AOT | 📋 |

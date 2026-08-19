@@ -108,5 +108,15 @@ pub fn compile(source) {
 
 /// IR module for Kab VM (`runModule` in self_host/vm).
 pub fn compileIr(source) {
-    return emitMainExec(parseSource(guardAndPreprocess(source)))
+    let src = guardAndPreprocess(source)
+    let t0 = date_now_ms()
+    let ast = parseSource(src)
+    let t1 = date_now_ms()
+    let ir = emitMainExec(ast)
+    let t2 = date_now_ms()
+    gMsParse = t1 - t0
+    gMsEmit = t2 - t1
+    gMsSer = 0
+    gMsTotal = t2 - t0
+    return ir
 }
