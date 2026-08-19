@@ -4,6 +4,17 @@ Committed `.kbc` for historical cores so `KABOOTAR_VM=kab-only` can load them
 as a cache. **Skip-list is empty** — emit/parser/lexer impls are thin drivers
 that self-host-compile under `P6_SELF_HOST_LEAF_CI_FAST_MS` (10 000 ms).
 
+**SH1:** `seed/dag/*.kbc` — rust-compiled bytecode for `compile`/`parse`/`emit`/`serialize`/`ownership`
+facades (fingerprint-validerad). Regenerera:
+
+```bash
+# facader (CI via tests/sh_wave.rs sh1_compiler_facade_seeds)
+# hela compile-DAG:en:
+KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1 -- --ignored
+```
+
+`write_compiler_dag_seeds()` skriver ett `.kbc` per DAG-fil under `seed/dag/`.
+
 ## Policy
 
 | Track | Meaning |

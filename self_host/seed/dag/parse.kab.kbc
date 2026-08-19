@@ -1,0 +1,33 @@
+kabootar-bytecode/1
+constants=0
+global 0 tokenize
+global 1 parseTokens
+global 2 parse
+functions=1
+fn 0 parse
+fn_params 0 source
+fn_locals 0 source
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=3
+import 0 self_host/lexer_defs
+import 1 self_host/lexer
+import 2 self_host/parser
+pub_imports=0
+exports=1
+export 0 parse
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parse.kab
+statements=4
+fingerprint=616eb02018de227c

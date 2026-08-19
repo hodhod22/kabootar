@@ -4,11 +4,34 @@ use crate::evaluator::{create_module_env, eval_source};
 use crate::runtime::{codai_register, docai_register, http_module, kv8_register, science_register};
 use crate::value::{Environment, PromiseValue, Value};
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::SystemTime;
+
+static IMPORT_SHARD_EVALS: AtomicU64 = AtomicU64::new(0);
+static IMPORT_SHARD_UNIQUE: Mutex<Option<HashSet<String>>> = Mutex::new(None);
+
+/// SH0: how many file modules were compiled/eval'd vs unique paths (process-wide).
+pub fn import_shard_stats() -> (u64, usize) {
+    let evals = IMPORT_SHARD_EVALS.load(Ordering::Relaxed);
+    let unique = IMPORT_SHARD_UNIQUE
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| s.len()))
+        .unwrap_or(0);
+    (evals, unique)
+}
+
+pub fn import_shard_reset_for_tests() {
+    IMPORT_SHARD_EVALS.store(0, Ordering::Relaxed);
+    if let Ok(mut s) = IMPORT_SHARD_UNIQUE.lock() {
+        *s = None;
+    }
+}
 
 #[derive(Clone)]
 struct CachedModuleExports {
@@ -239,6 +262,11 @@ fn eval_file_module(source: &str, path: &std::path::Path, importer: &mut Environ
         if let Some(imported) = try_restore_cached_module(&cache_key, mtime, importer) {
             return Ok(imported);
         }
+    }
+
+    IMPORT_SHARD_EVALS.fetch_add(1, Ordering::Relaxed);
+    if let Ok(mut slot) = IMPORT_SHARD_UNIQUE.lock() {
+        slot.get_or_insert_with(HashSet::new).insert(cache_key.clone());
     }
 
     let mut module_env = create_module_env();
