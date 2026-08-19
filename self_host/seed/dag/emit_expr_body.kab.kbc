@@ -1,0 +1,183 @@
+kabootar-bytecode/1
+constants=5
+const 0 string eNode
+const 1 null
+const 2 string emitExpr:\snull\snode
+const 3 string kind
+const 4 string Unsupported\sexpr:\s
+global 0 AST_LITERAL
+global 1 emitExpr_literal
+global 2 AST_VAR
+global 3 emitExpr_var
+global 4 AST_UNARY
+global 5 emitExpr_unary
+global 6 AST_ARROW
+global 7 emitExpr_arrow
+global 8 AST_BINARY
+global 9 emitExpr_binary
+global 10 AST_OBJECT
+global 11 emitExpr_object
+global 12 AST_ARRAY
+global 13 emitExpr_array
+global 14 AST_MEMBER
+global 15 emitExpr_member
+global 16 AST_INDEX
+global 17 emitExpr_index
+global 18 AST_CALL
+global 19 emitExpr_call
+global 20 emitExprBody
+functions=1
+fn 0 emitExprBody
+fn_params 0 E,node
+fn_locals 0 E,node,__kab_a0,kind
+fn_op 0 load_local 1
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 const 1
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 const 2
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 get_member 3
+fn_op 0 store_local 3
+fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 4
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 5
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 6
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 8
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 9
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 10
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 11
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 12
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 13
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 14
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 15
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 16
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 17
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 load_global 18
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 19
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 const 4
+fn_op 0 throw
+fn_op 0 load_local 3
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=12
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_expr_literal
+import 3 self_host/emit_expr_var
+import 4 self_host/emit_expr_unary
+import 5 self_host/emit_expr_arrow
+import 6 self_host/emit_expr_binary
+import 7 self_host/emit_expr_object
+import 8 self_host/emit_expr_array
+import 9 self_host/emit_expr_member
+import 10 self_host/emit_expr_index
+import 11 self_host/emit_expr_call
+pub_imports=0
+exports=1
+export 0 emitExprBody
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_expr_body.kab
+statements=13
+fingerprint=6bedfb78e853ccd6

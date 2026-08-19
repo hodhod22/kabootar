@@ -1,0 +1,186 @@
+kabootar-bytecode/1
+constants=14
+const 0 string pCur
+const 1 string type
+const 2 string {
+const 3 null
+const 4 string pBodyStack
+const 5 string pStmts
+const 6 string pBodyDepth
+const 7 number 1
+const 8 string }
+const 9 string EOF
+const 10 string Unclosed\sblock
+const 11 string ;
+const 12 string kind
+const 13 string body
+global 0 bump
+global 1 push
+global 2 pCallStmt
+global 3 pop
+global 4 AST_BLOCK
+global 5 parseStmt_block
+functions=1
+fn 0 parseStmt_block
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,blockStmts,__kab_a4,__kab_a5,__kab_a6
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 not
+fn_op 0 jump_if_false 2
+fn_op 0 const 3
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 const 7
+fn_op 0 add
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 8
+fn_op 0 ne
+fn_op 0 jump_if_false 35
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 9
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 const 10
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 11
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 jump -41
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 const 7
+fn_op 0 sub
+fn_op 0 index_get
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 const 7
+fn_op 0 sub
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_global 4
+fn_op 0 const 12
+fn_op 0 load_local 5
+fn_op 0 const 13
+fn_op 0 make_object 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=4
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+pub_imports=0
+exports=1
+export 0 parseStmt_block
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_stmt_block.kab
+statements=5
+fingerprint=f1c34e9467ae3fce

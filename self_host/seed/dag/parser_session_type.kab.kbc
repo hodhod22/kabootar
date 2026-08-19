@@ -1,0 +1,267 @@
+kabootar-bytecode/1
+constants=27
+const 0 string pTypeParams
+const 1 string pParamTypes
+const 2 string 
+const 3 string pReturnType
+const 4 string pVariants
+const 5 string pClassFields
+const 6 string pClassMethods
+const 7 string pFieldType
+const 8 null
+const 9 string pFieldDefault
+const 10 string pVariantFields
+const 11 string pMethTypeParams
+const 12 string pMethParams
+const 13 string pMethParamTypes
+const 14 string pVariantName
+const 15 string pVariantSym
+const 16 string pEnumSym
+const 17 string pClassSym
+const 18 number 0
+const 19 string pIsStruct
+const 20 string pIfaceSym
+const 21 string pIfaceMethods
+const 22 string pAssocTypes
+const 23 string pWhereClause
+const 24 string pWhereParam
+const 25 string pWhereTrait
+const 26 string pParamType
+global 0 pSessionInit_type
+functions=1
+fn 0 pSessionInit_type
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,__kab_a13,__kab_a14,__kab_a15,__kab_a16,__kab_a17,__kab_a18,__kab_a19,__kab_a20,__kab_a21,__kab_a22,__kab_a23
+fn_op 0 make_array 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 3
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 8
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 9
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 9
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 10
+fn_op 0 load_local 0
+fn_op 0 const 11
+fn_op 0 load_local 10
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 11
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 11
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 12
+fn_op 0 load_local 0
+fn_op 0 const 13
+fn_op 0 load_local 12
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 13
+fn_op 0 load_local 0
+fn_op 0 const 14
+fn_op 0 load_local 13
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 14
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 14
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 15
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 15
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 16
+fn_op 0 load_local 0
+fn_op 0 const 17
+fn_op 0 load_local 16
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 18
+fn_op 0 store_local 17
+fn_op 0 load_local 0
+fn_op 0 const 19
+fn_op 0 load_local 17
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 18
+fn_op 0 load_local 0
+fn_op 0 const 20
+fn_op 0 load_local 18
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 19
+fn_op 0 load_local 0
+fn_op 0 const 21
+fn_op 0 load_local 19
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 20
+fn_op 0 load_local 0
+fn_op 0 const 22
+fn_op 0 load_local 20
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 21
+fn_op 0 load_local 0
+fn_op 0 const 23
+fn_op 0 load_local 21
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 22
+fn_op 0 load_local 0
+fn_op 0 const 24
+fn_op 0 load_local 22
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 23
+fn_op 0 load_local 0
+fn_op 0 const 25
+fn_op 0 load_local 23
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 store_local 24
+fn_op 0 load_local 0
+fn_op 0 const 26
+fn_op 0 load_local 24
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 18
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=0
+pub_imports=0
+exports=1
+export 0 pSessionInit_type
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_session_type.kab
+statements=1
+fingerprint=cc0bf7c41e83e154

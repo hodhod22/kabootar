@@ -1,0 +1,148 @@
+kabootar-bytecode/1
+constants=13
+const 0 number 1
+const 1 string eInFn
+const 2 string eFnOps
+const 3 number 0
+const 4 string eFnOpsN
+const 5 string eFnGlobals
+const 6 string eFnLocals
+const 7 string eParamI
+const 8 string eParams
+const 9 string eLoopSave
+const 10 string local
+const 11 null
+const 12 string eFnBody
+global 0 resetLocalMap
+global 1 len
+global 2 symIndex
+global 3 eCallStmt
+global 4 emitFnCompileBody
+functions=1
+fn 0 emitFnCompileBody
+fn_params 0 E
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7
+fn_op 0 const 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_local 0
+fn_op 0 get_member 8
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 33
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 0
+fn_op 0 get_member 8
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 index_get
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 9
+fn_op 0 const 0
+fn_op 0 add
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -41
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 12
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=4
+import 0 self_host/emit_defs
+import 1 self_host/emit_hooks
+import 2 self_host/emit_sym_index
+import 3 self_host/emit_local_map
+pub_imports=0
+exports=1
+export 0 emitFnCompileBody
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_fn_body.kab
+statements=5
+fingerprint=d256ba3f327fa93e

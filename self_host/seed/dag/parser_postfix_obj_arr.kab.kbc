@@ -1,0 +1,50 @@
+kabootar-bytecode/1
+constants=3
+const 0 string pLeft
+const 1 null
+const 2 number 0
+global 0 parsePostfix_obj
+global 1 parsePostfix_arr
+global 2 parsePostfix_obj_arr
+functions=1
+fn 0 parsePostfix_obj_arr
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 1
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_postfix_obj
+import 5 self_host/parser_postfix_arr
+pub_imports=0
+exports=1
+export 0 parsePostfix_obj_arr
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_postfix_obj_arr.kab
+statements=7
+fingerprint=c69f703be1a96476

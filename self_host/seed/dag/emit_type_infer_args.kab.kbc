@@ -1,0 +1,160 @@
+kabootar-bytecode/1
+constants=9
+const 0 string eTypeArgs
+const 1 number 0
+const 2 string eResolveI
+const 3 string eInferArg
+const 4 string 
+const 5 string eInferType
+const 6 number 1
+const 7 null
+const 8 string Cannot\sinfer\stype\sfor\s
+global 0 len
+global 1 emitInferLitFull
+global 2 emitInferLitBasic
+global 3 emitInferVarBinding
+global 4 push
+global 5 emitInferTypeArgsFrom
+functions=1
+fn 0 emitInferTypeArgsFrom
+fn_params 0 E,argsKey,errSym,litFull
+fn_locals 0 E,argsKey,errSym,litFull,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5
+fn_op 0 make_array 0
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 1
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_local 1
+fn_op 0 index_get_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 92
+fn_op 0 load_local 1
+fn_op 0 index_get_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 index_get
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 3
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 4
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 3
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 jump_if_false 7
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 jump 6
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 jump_if_false 10
+fn_op 0 load_local 2
+fn_op 0 const 4
+fn_op 0 ne
+fn_op 0 jump_if_false 5
+fn_op 0 const 8
+fn_op 0 throw
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 jump 14
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_global 4
+fn_op 0 call 2
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 const 6
+fn_op 0 add
+fn_op 0 store_local 9
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 9
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -100
+fn_op 0 const 7
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=4
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_type_infer_lit
+import 3 self_host/emit_type_infer_bind
+pub_imports=0
+exports=1
+export 0 emitInferTypeArgsFrom
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_type_infer_args.kab
+statements=5
+fingerprint=328324f1fbcee4d1

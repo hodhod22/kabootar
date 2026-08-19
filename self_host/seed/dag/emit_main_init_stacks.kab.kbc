@@ -1,0 +1,193 @@
+kabootar-bytecode/1
+constants=17
+const 0 string eWhileHeads
+const 1 string eBreakIdxs
+const 2 string eBreakFromStack
+const 3 string eIfJmpStack
+const 4 string eIfSkipStack
+const 5 string eMemberFldStack
+const 6 string eBlockStmtsStack
+const 7 string eBlockNStack
+const 8 string eBlockIStack
+const 9 string eObjIStack
+const 10 string eObjNStack
+const 11 string eArrIStack
+const 12 string eArrNStack
+const 13 string eCallArgIStack
+const 14 string eCallArgNStack
+const 15 string eArgsStack
+const 16 string eCalleeStack
+global 0 emitMainInitStacks
+functions=1
+fn 0 emitMainInitStacks
+fn_params 0 E
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,__kab_a13,__kab_a14,__kab_a15,__kab_a16
+fn_op 0 make_array 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 3
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 9
+fn_op 0 load_local 0
+fn_op 0 const 8
+fn_op 0 load_local 9
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 10
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 10
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 11
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 11
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 12
+fn_op 0 load_local 0
+fn_op 0 const 11
+fn_op 0 load_local 12
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 13
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 13
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 14
+fn_op 0 load_local 0
+fn_op 0 const 13
+fn_op 0 load_local 14
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 15
+fn_op 0 load_local 0
+fn_op 0 const 14
+fn_op 0 load_local 15
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 16
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 16
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 17
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 17
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=1
+import 0 self_host/emit_defs
+pub_imports=0
+exports=1
+export 0 emitMainInitStacks
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_main_init_stacks.kab
+statements=2
+fingerprint=ea32aa3129a98ba2

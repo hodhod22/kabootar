@@ -1,0 +1,91 @@
+kabootar-bytecode/1
+constants=5
+const 0 null
+const 1 string pLeft
+const 2 string pTypeArgs
+const 3 string pCur
+const 4 number 0
+global 0 parsePostfix_lit
+global 1 parsePostfix_paren
+global 2 parsePostfix_obj_arr
+global 3 json_stringify
+global 4 parsePostfix_primary
+functions=1
+fn 0 parsePostfix_primary
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1
+fn_op 0 const 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 const 4
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=7
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_postfix_lit
+import 5 self_host/parser_postfix_paren
+import 6 self_host/parser_postfix_obj_arr
+pub_imports=0
+exports=1
+export 0 parsePostfix_primary
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_postfix_primary.kab
+statements=8
+fingerprint=802eafdcfc747261

@@ -1,0 +1,42 @@
+kabootar-bytecode/1
+constants=2
+const 0 number 0
+const 1 null
+global 0 emitStmt_letCtorLookup
+global 1 emitStmt_letCtorGeneric
+global 2 emitStmt_letCtorBind
+functions=1
+fn 0 emitStmt_letCtorBind
+fn_params 0 E
+fn_locals 0 E
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 0
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 0
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=2
+import 0 self_host/emit_stmt_let_ctor_lookup
+import 1 self_host/emit_stmt_let_ctor_generic
+pub_imports=0
+exports=1
+export 0 emitStmt_letCtorBind
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_stmt_let_ctor_bind.kab
+statements=3
+fingerprint=a2291d209a29a9c

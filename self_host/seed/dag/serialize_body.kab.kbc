@@ -1,0 +1,28 @@
+kabootar-bytecode/1
+constants=0
+global 0 serSerializeBc
+global 1 serializeBcImplCore
+functions=1
+fn 0 serializeBcImplCore
+fn_params 0 bc
+fn_locals 0 bc
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=1
+import 0 self_host/serialize_acc
+pub_imports=0
+exports=1
+export 0 serializeBcImplCore
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_body.kab
+statements=2
+fingerprint=ea556c1c24cc8877

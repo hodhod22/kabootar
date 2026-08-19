@@ -1,0 +1,150 @@
+kabootar-bytecode/1
+constants=11
+const 0 string &&
+const 1 number 0
+const 2 number 1
+const 3 null
+const 4 string ||
+const 5 string &
+const 6 string |
+const 7 string ^
+const 8 string <<
+const 9 string >>
+const 10 string >>>
+global 0 OP_AND
+global 1 emitOp
+global 2 OP_OR
+global 3 emitExpr_binaryLogic
+global 4 OP_BIT_AND
+global 5 OP_BIT_OR
+global 6 OP_BIT_XOR
+global 7 OP_SHL
+global 8 OP_SHR
+global 9 OP_USHR
+global 10 emitExpr_binaryBit
+functions=2
+fn 0 emitExpr_binaryLogic
+fn_params 0 E,binOp
+fn_locals 0 E,binOp
+fn_op 0 load_local 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 8
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 const 1
+fn_op 0 load_global 1
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 jump_if_false 8
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 const 1
+fn_op 0 load_global 1
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 const 1
+fn_op 0 return
+fn_arrows 0 0
+fn 1 emitExpr_binaryBit
+fn_params 1 E,binOp
+fn_locals 1 E,binOp
+fn_op 1 load_local 1
+fn_op 1 const 5
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 4
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 const 6
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 5
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 const 7
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 6
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 const 8
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 7
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 const 9
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 8
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 const 10
+fn_op 1 eq
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
+fn_op 1 load_global 9
+fn_op 1 const 1
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 return
+fn_op 1 const 1
+fn_op 1 return
+fn_arrows 1 0
+arrows=0
+imports=2
+import 0 self_host/emit_defs
+import 1 self_host/emit_op
+pub_imports=0
+exports=2
+export 0 emitExpr_binaryLogic
+export 1 emitExpr_binaryBit
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_expr_binary_lb.kab
+statements=4
+fingerprint=40724d335e68ba56

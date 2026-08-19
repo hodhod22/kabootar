@@ -1,0 +1,210 @@
+kabootar-bytecode/1
+constants=24
+const 0 string eMeth
+const 1 string typeParams
+const 2 string eMethTypeParams
+const 3 undefined
+const 4 null
+const 5 number 0
+const 6 string params
+const 7 string eParams
+const 8 string body
+const 9 string eFnBody
+const 10 string eClassMethods
+const 11 string sym
+const 12 string snap
+const 13 string eFnLocals
+const 14 string locals
+const 15 string eFnGlobals
+const 16 string globals
+const 17 string eFnOps
+const 18 string ops
+const 19 string eInFn
+const 20 string eGenericMethodTemplates
+const 21 string eMangled
+const 22 string classSym
+const 23 string methodSym
+global 0 len
+global 1 emitFnCompileBody
+global 2 arrUtil
+global 3 push
+global 4 emitGenClassMeth
+functions=1
+fn 0 emitGenClassMeth
+fn_params 0 E
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 9
+fn_op 0 make_array 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 const 5
+fn_op 0 eq
+fn_op 0 jump_if_false 82
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 6
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 8
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 10
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 11
+fn_op 0 const 11
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 6
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 13
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 14
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 15
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 16
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 17
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 18
+fn_op 0 make_object 5
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 5
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 19
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 5
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 const 22
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 11
+fn_op 0 const 23
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 1
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 6
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 const 6
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 8
+fn_op 0 const 8
+fn_op 0 make_object 5
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 20
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 5
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_hooks
+import 3 self_host/emit_arr_util
+import 4 self_host/emit_fn_body
+pub_imports=0
+exports=1
+export 0 emitGenClassMeth
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_gen_class_meth.kab
+statements=6
+fingerprint=d245abffd96f1827

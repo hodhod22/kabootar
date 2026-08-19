@@ -1,0 +1,118 @@
+kabootar-bytecode/1
+constants=7
+const 0 number 0
+const 1 string eTypeArgs
+const 2 null
+const 3 string $
+const 4 number 1
+const 5 string eResolveI
+const 6 string _
+global 0 len
+global 1 eCallRet
+global 2 emitMangleWithTypeArgs
+local 0 eCallRet
+functions=1
+fn 0 emitMangleWithTypeArgs
+fn_params 0 E,nameKey
+fn_locals 0 E,nameKey,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 2
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 index_get_local 0
+fn_op 0 const 3
+fn_op 0 add
+fn_op 0 dup
+fn_op 0 store_global 1
+fn_op 0 pop
+fn_op 0 load_global 1
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 const 0
+fn_op 0 index_get
+fn_op 0 add
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 4
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 35
+fn_op 0 load_local 1
+fn_op 0 index_get_local 0
+fn_op 0 const 6
+fn_op 0 add
+fn_op 0 dup
+fn_op 0 store_global 1
+fn_op 0 pop
+fn_op 0 load_global 1
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 index_get
+fn_op 0 add
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 const 4
+fn_op 0 add
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -43
+fn_op 0 const 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=0
+pub_imports=0
+exports=1
+export 0 emitMangleWithTypeArgs
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+halt
+
+source=self_host/emit_type_infer_mangle.kab
+statements=2
+fingerprint=e1aac724def2b858

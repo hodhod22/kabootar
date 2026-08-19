@@ -1,0 +1,75 @@
+kabootar-bytecode/1
+constants=1
+const 0 number 0
+global 0 pSessionInit_core
+global 1 pSessionInit_expr
+global 2 pSessionInit_stmt
+global 3 pSessionInit_type
+global 4 pMakeSession
+global 5 pResetSession
+functions=2
+fn 0 pMakeSession
+fn_params 0 
+fn_locals 0 sess
+fn_op 0 make_object 0
+fn_op 0 store_local 0
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 return
+fn_arrows 0 0
+fn 1 pResetSession
+fn_params 1 sess
+fn_locals 1 sess
+fn_op 1 load_local 0
+fn_op 1 load_global 0
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_global 1
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_global 2
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_global 3
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 const 0
+fn_op 1 return
+fn_arrows 1 0
+arrows=0
+imports=4
+import 0 self_host/parser_session_core
+import 1 self_host/parser_session_expr
+import 2 self_host/parser_session_stmt
+import 3 self_host/parser_session_type
+pub_imports=0
+exports=2
+export 0 pMakeSession
+export 1 pResetSession
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_session.kab
+statements=6
+fingerprint=e0c0af9abd1db112

@@ -1,0 +1,52 @@
+kabootar-bytecode/1
+constants=4
+const 0 string pCur
+const 1 string type
+const 2 string Expected\sfn\sin\sinterface
+const 3 null
+global 0 TOKEN_FN
+global 1 parseStmt_iface_meth_sig
+global 2 parseStmt_iface_meth_tail
+global 3 parseStmt_iface_meth
+functions=1
+fn 0 parseStmt_iface_meth
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 3
+fn_op 0 const 2
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_stmt_iface_meth_sig
+import 5 self_host/parser_stmt_iface_meth_tail
+pub_imports=0
+exports=1
+export 0 parseStmt_iface_meth
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_stmt_iface_meth.kab
+statements=7
+fingerprint=82bc84995b7fddcc

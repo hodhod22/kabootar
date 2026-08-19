@@ -1,0 +1,83 @@
+kabootar-bytecode/1
+constants=5
+const 0 bool true
+const 1 number 1
+const 2 null
+const 3 number 0
+const 4 string pLeft
+global 0 parsePostfix_tail_generic
+global 1 parsePostfix_tail_call
+global 2 parsePostfix_tail_member
+global 3 parsePostfix_tail_index
+global 4 parsePostfix_tail
+functions=1
+fn 0 parsePostfix_tail
+fn_params 0 sess
+fn_locals 0 sess,g,c,m,ix
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 store_local 1
+fn_op 0 load_local 1
+fn_op 0 const 1
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 31
+fn_op 0 load_local 1
+fn_op 0 const 1
+fn_op 0 neg
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 26
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 store_local 2
+fn_op 0 load_local 2
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 17
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 store_local 3
+fn_op 0 load_local 3
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 9
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 store_local 4
+fn_op 0 load_local 4
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 1
+fn_op 0 jump 1
+fn_op 0 jump -41
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=8
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_postfix_tail_generic
+import 5 self_host/parser_postfix_tail_call
+import 6 self_host/parser_postfix_tail_member
+import 7 self_host/parser_postfix_tail_index
+pub_imports=0
+exports=1
+export 0 parsePostfix_tail
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_postfix_tail.kab
+statements=9
+fingerprint=7ff7172d7ee29ba3

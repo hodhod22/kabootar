@@ -1,0 +1,47 @@
+kabootar-bytecode/1
+constants=4
+const 0 string _hook
+const 1 number 0
+const 2 string _node
+const 3 null
+global 0 emitExprBody
+global 1 emitStmtBody
+global 2 eTramp
+functions=1
+fn 0 eTramp
+fn_params 0 E
+fn_locals 0 E
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 1
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=2
+import 0 self_host/emit_expr_body
+import 1 self_host/emit_stmt_body
+pub_imports=0
+exports=1
+export 0 eTramp
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_tramp.kab
+statements=3
+fingerprint=5f1a9416b95e7803

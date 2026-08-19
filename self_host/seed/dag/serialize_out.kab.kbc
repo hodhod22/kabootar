@@ -1,0 +1,22 @@
+kabootar-bytecode/1
+constants=0
+functions=0
+arrows=0
+imports=3
+import 0 self_host/serialize_out_base
+import 1 self_host/serialize_out_tagged
+import 2 self_host/serialize_out_try
+pub_imports=3
+pub_import 0 self_host/serialize_out_base
+pub_import 1 self_host/serialize_out_tagged
+pub_import 2 self_host/serialize_out_try
+exports=0
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_out.kab
+statements=3
+fingerprint=5c04391e3ab1ab85

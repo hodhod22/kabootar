@@ -4,7 +4,8 @@ use std::time::Instant;
 
 use kabootar_lib::bytecode::run_module;
 use kabootar_lib::compile::{
-    collect_self_host_inventory, compile_source, read_seed_bytecode, write_compiler_facade_seeds,
+    collect_self_host_inventory, compile_source, missing_compiler_dag_seeds, read_seed_bytecode,
+    write_compiler_facade_seeds,
 };
 use kabootar_lib::evaluator::create_global_env;
 use kabootar_lib::modules::import_shard_stats;
@@ -67,6 +68,56 @@ fn sh1_compiler_facade_seeds() {
             "{name} seed empty"
         );
     }
+}
+
+#[test]
+fn sh1_compiler_dag_image_complete() {
+    let missing = missing_compiler_dag_seeds().expect("scan dag seeds");
+    assert!(
+        missing.is_empty(),
+        "SH1 compiler image stale/missing for {} files (run KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored). first: {:?}",
+        missing.len(),
+        missing.iter().take(8).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn sh1_import_compile_image_budget() {
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+
+    std::env::set_var("KABOOTAR_VM", "host");
+    std::env::set_var("KABOOTAR_COMPILE", "rust");
+    let missing = missing_compiler_dag_seeds().expect("scan");
+    assert!(
+        missing.is_empty(),
+        "SH1 image required for 2s gate; missing {}: {:?}",
+        missing.len(),
+        missing.iter().take(8).collect::<Vec<_>>()
+    );
+    let t0 = Instant::now();
+    std::thread::Builder::new()
+        .name("sh1-import".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            let mut env = create_module_env();
+            import_module("self_host/compile", &mut env).expect("import compile image");
+            assert!(env.get("compile").is_some(), "compile export missing");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let ms = t0.elapsed().as_secs_f64() * 1000.0;
+    eprintln!("SH1 import self_host/compile {ms:.1} ms");
+    let budget = if cfg!(debug_assertions) {
+        15_000.0
+    } else {
+        2_000.0
+    };
+    assert!(
+        ms < budget,
+        "SH1 first import with compiler-image should be < {budget} ms (2s release / 15s debug), got {ms:.1}"
+    );
 }
 
 #[test]

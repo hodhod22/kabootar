@@ -1,0 +1,28 @@
+kabootar-bytecode/1
+constants=0
+global 0 emitMainExec
+global 1 emitImpl
+functions=1
+fn 0 emitImpl
+fn_params 0 program
+fn_locals 0 program
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=1
+import 0 self_host/emit_exec
+pub_imports=0
+exports=1
+export 0 emitImpl
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_impl.kab
+statements=2
+fingerprint=6579722cbf2ae314

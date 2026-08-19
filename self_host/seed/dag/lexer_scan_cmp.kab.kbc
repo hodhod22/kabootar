@@ -1,0 +1,221 @@
+kabootar-bytecode/1
+constants=15
+const 0 string <
+const 1 string =
+const 2 number 1
+const 3 string <=
+const 4 null
+const 5 string <<
+const 6 string >
+const 7 string >=
+const 8 string >>>
+const 9 string >>
+const 10 string .
+const 11 string ...
+const 12 string Expected\s...\sat\sline\s
+const 13 string 
+const 14 string \scol\s
+global 0 lxEat
+global 1 lxStarts
+global 2 lxTok
+global 3 lxScanCmp
+functions=1
+fn 0 lxScanCmp
+fn_params 0 sess,c,line,col
+fn_locals 0 sess,c,line,col
+fn_op 0 load_local 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 47
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 5
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 const 0
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 jump_if_false 65
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 29
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 8
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 const 9
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 const 6
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 const 10
+fn_op 0 eq
+fn_op 0 jump_if_false 53
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 35
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 11
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 const 12
+fn_op 0 throw
+fn_op 0 const 13
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 14
+fn_op 0 add
+fn_op 0 const 13
+fn_op 0 load_local 3
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 const 10
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 const 4
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=2
+import 0 self_host/lexer_defs
+import 1 self_host/lexer_util
+pub_imports=0
+exports=1
+export 0 lxScanCmp
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/lexer_scan_cmp.kab
+statements=3
+fingerprint=47309bde87024cf3

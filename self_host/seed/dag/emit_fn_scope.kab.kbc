@@ -1,0 +1,160 @@
+kabootar-bytecode/1
+constants=11
+const 0 string eInFn
+const 1 string eSaveInFn
+const 2 string snap
+const 3 string eFnOps
+const 4 string eSaveFnOps
+const 5 string eFnOpsN
+const 6 string eSaveFnOpsN
+const 7 string eFnLocals
+const 8 string eSaveFnLocals
+const 9 string eFnGlobals
+const 10 string eSaveFnGlobals
+global 0 arrUtil
+global 1 emitFnScopeSave
+global 2 rebuildLocalMap
+global 3 emitFnScopeRestore
+functions=2
+fn 0 emitFnScopeSave
+fn_params 0 E
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 0
+fn_op 0 call 3
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_global 0
+fn_op 0 call 3
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 8
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 0
+fn_op 0 get_member 9
+fn_op 0 load_global 0
+fn_op 0 call 3
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 return
+fn_arrows 0 0
+fn 1 emitFnScopeRestore
+fn_params 1 E
+fn_locals 1 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4
+fn_op 1 load_local 0
+fn_op 1 get_member 1
+fn_op 1 store_local 1
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 load_local 1
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 4
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 const 3
+fn_op 1 load_local 2
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 6
+fn_op 1 store_local 3
+fn_op 1 load_local 0
+fn_op 1 const 5
+fn_op 1 load_local 3
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 8
+fn_op 1 store_local 4
+fn_op 1 load_local 0
+fn_op 1 const 7
+fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_global 2
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 10
+fn_op 1 store_local 5
+fn_op 1 load_local 0
+fn_op 1 const 9
+fn_op 1 load_local 5
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 return
+fn_arrows 1 0
+arrows=0
+imports=3
+import 0 self_host/emit_defs
+import 1 self_host/emit_arr_util
+import 2 self_host/emit_local_map
+pub_imports=0
+exports=2
+export 0 emitFnScopeSave
+export 1 emitFnScopeRestore
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_fn_scope.kab
+statements=5
+fingerprint=32798787bb6ebdc

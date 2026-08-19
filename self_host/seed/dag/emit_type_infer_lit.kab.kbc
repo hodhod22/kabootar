@@ -1,0 +1,165 @@
+kabootar-bytecode/1
+constants=10
+const 0 string 
+const 1 string eInferType
+const 2 string kind
+const 3 null
+const 4 string lit
+const 5 string Number
+const 6 string String
+const 7 string Bool
+const 8 string Null
+const 9 string Undefined
+global 0 AST_LITERAL
+global 1 LIT_NUMBER
+global 2 LIT_STRING
+global 3 emitInferLitBasic
+global 4 LIT_BOOL
+global 5 LIT_NULL
+global 6 LIT_UNDEF
+global 7 emitInferLitFull
+functions=2
+fn 0 emitInferLitBasic
+fn_params 0 E,litNode
+fn_locals 0 E,litNode,__kab_a0,__kab_a1,__kab_a2
+fn_op 0 const 0
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 get_member 2
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 3
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 get_member 4
+fn_op 0 load_global 1
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 const 5
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 get_member 4
+fn_op 0 load_global 2
+fn_op 0 eq
+fn_op 0 jump_if_false 11
+fn_op 0 const 6
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 return
+fn_op 0 const 3
+fn_op 0 return
+fn_arrows 0 0
+fn 1 emitInferLitFull
+fn_params 1 E,litNode
+fn_locals 1 E,litNode,__kab_a0,__kab_a1,__kab_a2
+fn_op 1 load_local 0
+fn_op 1 load_local 1
+fn_op 1 load_global 3
+fn_op 1 call 2
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 1
+fn_op 1 const 0
+fn_op 1 ne
+fn_op 1 jump_if_false 2
+fn_op 1 const 3
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 get_member 2
+fn_op 1 load_global 0
+fn_op 1 ne
+fn_op 1 jump_if_false 2
+fn_op 1 const 3
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 get_member 4
+fn_op 1 load_global 4
+fn_op 1 eq
+fn_op 1 jump_if_false 11
+fn_op 1 const 7
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 const 1
+fn_op 1 load_local 2
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 const 3
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 get_member 4
+fn_op 1 load_global 5
+fn_op 1 eq
+fn_op 1 jump_if_false 11
+fn_op 1 const 8
+fn_op 1 store_local 3
+fn_op 1 load_local 0
+fn_op 1 const 1
+fn_op 1 load_local 3
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 const 3
+fn_op 1 return
+fn_op 1 load_local 1
+fn_op 1 get_member 4
+fn_op 1 load_global 6
+fn_op 1 eq
+fn_op 1 jump_if_false 11
+fn_op 1 const 9
+fn_op 1 store_local 4
+fn_op 1 load_local 0
+fn_op 1 const 1
+fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 const 3
+fn_op 1 return
+fn_op 1 const 3
+fn_op 1 return
+fn_arrows 1 0
+arrows=0
+imports=2
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+pub_imports=0
+exports=2
+export 0 emitInferLitBasic
+export 1 emitInferLitFull
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_type_infer_lit.kab
+statements=4
+fingerprint=986e581b8e9e460
