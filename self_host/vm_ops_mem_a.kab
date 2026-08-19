@@ -1,6 +1,332 @@
+import "self_host/vm_s_stack"
+
+// --- vm_ops_mem_acc_add_global ---
+pub fn runOpMemAccAddGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "acc_add_global" {
+        let rhs = vPopS(S)
+        let cur = vResolveGlobalS(S, globals, arg)
+        S["globals"][arg] = cur + rhs
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_acc_add_local ---
+pub fn runOpMemAccAddLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "acc_add_local" {
+        let rhs = vPopS(S)
+        S["locals"][arg] = S["locals"][arg] + rhs
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_array_pop_global ---
+pub fn runOpMemArrayPopGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "array_pop_global" {
+        let arr = S["globals"][arg]
+        S["globals"][arg] = pop(arr)
+        vPushS(S, null)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_array_pop_local ---
+pub fn runOpMemArrayPopLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "array_pop_local" {
+        let arr = S["locals"][arg]
+        S["locals"][arg] = pop(arr)
+        vPushS(S, null)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_array_push ---
+// P6b: VM mem shard (array_push).
+
+pub fn runOpMemArrayPush(S, name, arg, op, pool, globals, functions) {
+    if name == "array_push" {
+        let item = vPopS(S)
+        let arr = vPopS(S)
+        let next = push(arr, item)
+        vPushS(S, next)
+        vPushS(S, len(next))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_array_push_global ---
+pub fn runOpMemArrayPushGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "array_push_global" {
+        let item = vPopS(S)
+        let arr = vPopS(S)
+        let next = bytecode_array_push(arr, item)
+        S["globals"][arg] = next
+        vPushS(S, len(next))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_array_push_local ---
+pub fn runOpMemArrayPushLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "array_push_local" {
+        let item = vPopS(S)
+        let arr = vPopS(S)
+        let next = bytecode_array_push(arr, item)
+        S["locals"][arg] = next
+        vPushS(S, len(next))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_const ---
+pub fn runOpMemConst(S, name, arg, op, pool, globals, functions) {
+    if name == "const" {
+        vPushS(S, poolVal(pool, arg))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_index_get_global ---
+pub fn runOpMemIndexGetGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "index_get_global" {
+        let idx = vPopS(S)
+        vPushS(S, vResolveGlobalS(S, globals, arg)[idx])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_index_get_local ---
+pub fn runOpMemIndexGetLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "index_get_local" {
+        let idx = vPopS(S)
+        vPushS(S, S["locals"][arg][idx])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_len ---
+// P6b: VM mem len shards.
+
+pub fn runOpMemLen(S, name, arg, op, pool, globals, functions) {
+    if name == "len_local" {
+        vPushS(S, len(S["locals"][arg]))
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "len_global" {
+        vPushS(S, len(vResolveGlobalS(S, globals, arg)))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_load_global ---
+pub fn runOpMemLoadGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "load_global" {
+        vPushS(S, vResolveGlobalS(S, globals, arg))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_load_local ---
+pub fn runOpMemLoadLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "load_local" {
+        vPushS(S, S["locals"][arg])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_pop ---
+pub fn runOpMemPop(S, name, arg, op, pool, globals, functions) {
+    if name == "pop" {
+        vPopS(S)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_store_global ---
+pub fn runOpMemStoreGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "store_global" {
+        let gname = globals[arg]
+        let gv = vPopS(S)
+        if gname == "this" || gname == "self" {
+        } else {
+            S["globals"][arg] = gv
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_store_local ---
+pub fn runOpMemStoreLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "store_local" {
+        let v = vPopS(S)
+        S["locals"][arg] = v
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_take_global ---
+pub fn runOpMemTakeGlobal(S, name, arg, op, pool, globals, functions) {
+    if name == "take_global" {
+        let arr = vResolveGlobalS(S, globals, arg)
+        S["globals"][arg] = undefined
+        vPushS(S, arr)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_take_local ---
+pub fn runOpMemTakeLocal(S, name, arg, op, pool, globals, functions) {
+    if name == "take_local" {
+        let arr = S["locals"][arg]
+        S["locals"][arg] = undefined
+        vPushS(S, arr)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_mem_acc_add ---
+pub fn runOpMemAccAdd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemAccAddLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemAccAddGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_array_pop_bind ---
+pub fn runOpMemArrayPopBind(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemArrayPopLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemArrayPopGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_array_push_bind ---
+pub fn runOpMemArrayPushBind(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemArrayPushLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemArrayPushGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_index_get ---
+pub fn runOpMemIndexGet(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemIndexGetLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemIndexGetGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_const_pop ---
+pub fn runOpMemConstPop(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemConst(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemPop(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_global ---
+pub fn runOpMemGlobal(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemLoadGlobal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemStoreGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_local ---
+pub fn runOpMemLocal(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemLoadLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemStoreLocal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_take ---
+pub fn runOpMemTake(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemTakeLocal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemTakeGlobal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_d ---
+// P6b: VM mem half-facade d (pop bind + acc add).
+
+pub fn runOpMemD(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemArrayPopBind(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemAccAdd(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_e ---
+// P6b: VM mem half-facade e (index get + len).
+
+pub fn runOpMemE(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemIndexGet(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemLen(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_b ---
+// P6b: VM mem half-facade b.
+
+pub fn runOpMemB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemGlobal(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemArrayPush(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_a ---
 // P6b: VM mem half-facade a.
-import "self_host/vm_ops_mem_const_pop"
-import "self_host/vm_ops_mem_local"
 
 pub fn runOpMemA(S, name, arg, op, pool, globals, functions) {
     let st = runOpMemConstPop(S, name, arg, op, pool, globals, functions)
@@ -8,4 +334,15 @@ pub fn runOpMemA(S, name, arg, op, pool, globals, functions) {
         return st
     }
     return runOpMemLocal(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_mem_c ---
+// P6b: VM mem half-facade c.
+
+pub fn runOpMemC(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemTake(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemArrayPushBind(S, name, arg, op, pool, globals, functions)
 }

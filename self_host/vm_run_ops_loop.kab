@@ -1,5 +1,60 @@
-import "self_host/vm_run_ops_step"
+import "self_host/vm_s_stack"
+import "self_host/vm_run_new_run"
+import "self_host/vm_run_dispatch_plain"
+import "self_host/vm_run_call"
 
+// --- vm_run_ops_new ---
+/// Handle new_instance only. 0=miss, 1=ok.
+pub fn runOpsNewInstS(S, name, arg, op, pool, globals, functions) {
+    if name != "new_instance" {
+        return 0
+    }
+    let argc = 0
+    if op["arg2"] != undefined {
+        argc = op["arg2"]
+    }
+    vPushS(S, vNewInstanceS(S, arg, argc, pool, globals, functions))
+    vBumpIpS(S)
+    return 1
+}
+
+// --- vm_run_ops_plain_new ---
+/// Try plain ops then new_instance. 0=miss, 1=ok.
+pub fn runOpsPlainNewS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpPlainS(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpsNewInstS(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_ops_step_raw ---
+/// Dispatch plain/new then call. Returns raw st (0/1/2).
+pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
+    let op = ops[S["ip"]]
+    let name = op["op"]
+    let arg = op["arg"]
+    let st = runOpsPlainNewS(S, name, arg, op, pool, globals, functions)
+    if st == 0 {
+        st = runOpCallS(S, name, arg, op, pool, globals, functions)
+    }
+    return { "st": st, "name": name }
+}
+
+// --- vm_run_ops_step ---
+pub fn runOpsStepS(S, ops, pool, globals, functions) {
+    let r = runOpsStepRawS(S, ops, pool, globals, functions)
+    let st = r["st"]
+    if st == 2 {
+        return 2
+    }
+    if st == 0 {
+        throw "vm unsupported opcode: " + r["name"]
+    }
+    return 1
+}
+
+// --- vm_run_ops_loop ---
 pub fn runOpsS(S, ops, pool, globals, functions) {
     while S["ip"] < len(ops) && S["done"] == false && S["unsupported"] == false {
         let st = runOpsStepS(S, ops, pool, globals, functions)

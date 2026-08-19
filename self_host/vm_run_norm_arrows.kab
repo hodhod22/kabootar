@@ -1,7 +1,0 @@
-pub fn vNormArrows(bc) {
-    let arrows = bc["arrows"]
-    if arrows == null || arrows == undefined {
-        return []
-    }
-    return arrows
-}

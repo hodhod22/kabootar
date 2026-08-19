@@ -1,6 +1,73 @@
-import "self_host/vm_run_new_inst"
-import "self_host/vm_run_new_run_init"
+import "self_host/vm_s_stack"
+import "self_host/vm_run_session"
+import "self_host/vm_run_call"
 
+// --- vm_run_new_init ---
+/// Resolve init/constructor on classDef.
+pub fn vResolveInit(classDef) {
+    let init = vFindMethod(classDef, "init")
+    if init == null {
+        init = vFindMethod(classDef, "constructor")
+    }
+    return init
+}
+
+// --- vm_run_new_run_init_present ---
+/// Run class init via hook when present.
+pub fn vRunNewInitPresentS(S, info, pool, globals, functions) {
+    let inst = info["inst"]
+    S["lastThis"] = inst
+    vCallRunMeth(S, info["init"], pool, globals, functions, inst, info["ordered"])
+    if S["lastThis"] != null {
+        inst = S["lastThis"]
+    }
+    return inst
+}
+
+// --- vm_run_new_shell ---
+/// Pop ctor args and allocate instance shell.
+pub fn vAllocInstShell(S, classIdx, argc) {
+    if classIdx < 0 || classIdx >= len(S["classes"]) {
+        throw "vm bad class index"
+    }
+    let classDef = S["classes"][classIdx]
+    let ordered = vPopOrderedArgs(S, argc)
+    let id = S["nextInstId"]
+    S["nextInstId"] = S["nextInstId"] + 1
+    let inst = { "vmC": classIdx, "vmI": id }
+    return {
+        "inst": inst,
+        "ordered": ordered,
+        "classDef": classDef
+    }
+}
+
+// --- vm_run_new_run_init ---
+/// Run init on shell if present; update lastThis. Returns inst.
+pub fn vRunNewInitS(S, info, argc, pool, globals, functions) {
+    if info["init"] != null {
+        return vRunNewInitPresentS(S, info, pool, globals, functions)
+    }
+    if argc > 0 {
+        throw "vm class has no init: " + info["sym"]
+    }
+    return info["inst"]
+}
+
+// --- vm_run_new_inst ---
+/// Allocate instance shell + resolve init method (no runMethodBody).
+pub fn vAllocInstance(S, classIdx, argc) {
+    let sh = vAllocInstShell(S, classIdx, argc)
+    let init = vResolveInit(sh["classDef"])
+    return {
+        "inst": sh["inst"],
+        "init": init,
+        "ordered": sh["ordered"],
+        "sym": sh["classDef"]["sym"]
+    }
+}
+
+// --- vm_run_new_run ---
 pub fn vNewInstanceS(S, classIdx, argc, pool, globals, functions) {
     let info = vAllocInstance(S, classIdx, argc)
     return vRunNewInitS(S, info, argc, pool, globals, functions)

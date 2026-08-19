@@ -1,6 +1,80 @@
-import "self_host/vm_run_restore_mod_data"
-import "self_host/vm_run_restore_mod_ctrl"
+// --- vm_run_restore_fn_ctrl ---
+pub fn vRestoreFnCtrl(S, fr) {
+    S["ip"] = fr["ip"]
+    S["done"] = fr["done"]
+    S["result"] = fr["result"]
+    S["unsupported"] = fr["unsupported"]
+}
 
+// --- vm_run_restore_fn_data ---
+pub fn vRestoreFnData(S, fr) {
+    S["stack"] = fr["stack"]
+    S["locals"] = fr["locals"]
+    S["localNames"] = fr["localNames"]
+    S["tryRegions"] = fr["tryRegions"]
+}
+
+// --- vm_run_restore_mod_ctrl ---
+pub fn vRestoreModCtrl(S, fr) {
+    S["thisStack"] = fr["thisStack"]
+    S["lastThis"] = fr["lastThis"]
+    S["ip"] = fr["ip"]
+    S["done"] = fr["done"]
+    S["result"] = fr["result"]
+    S["unsupported"] = fr["unsupported"]
+}
+
+// --- vm_run_restore_mod_data ---
+pub fn vRestoreModData(S, fr) {
+    S["stack"] = fr["stack"]
+    S["locals"] = fr["locals"]
+    S["globals"] = fr["globals"]
+    S["classes"] = fr["classes"]
+    S["arrows"] = fr["arrows"]
+    S["tryRegions"] = fr["tryRegions"]
+    S["localNames"] = fr["localNames"]
+}
+
+// --- vm_run_save_fn ---
+pub fn vSaveFnFrame(S) {
+    return {
+        "stack": S["stack"],
+        "locals": S["locals"],
+        "localNames": S["localNames"],
+        "tryRegions": S["tryRegions"],
+        "ip": S["ip"],
+        "done": S["done"],
+        "result": S["result"],
+        "unsupported": S["unsupported"]
+    }
+}
+
+// --- vm_run_save_mod ---
+pub fn vSaveModuleFrame(S) {
+    return {
+        "stack": S["stack"],
+        "locals": S["locals"],
+        "globals": S["globals"],
+        "classes": S["classes"],
+        "arrows": S["arrows"],
+        "tryRegions": S["tryRegions"],
+        "localNames": S["localNames"],
+        "thisStack": S["thisStack"],
+        "lastThis": S["lastThis"],
+        "ip": S["ip"],
+        "done": S["done"],
+        "result": S["result"],
+        "unsupported": S["unsupported"]
+    }
+}
+
+// --- vm_run_restore_fn ---
+pub fn vRestoreFnFrame(S, fr) {
+    vRestoreFnData(S, fr)
+    vRestoreFnCtrl(S, fr)
+}
+
+// --- vm_run_restore_mod ---
 pub fn vRestoreModuleFrame(S, fr) {
     vRestoreModData(S, fr)
     vRestoreModCtrl(S, fr)

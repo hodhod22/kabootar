@@ -1,9 +1,0 @@
-pub fn vIsCurrentThisObj(obj, cur) {
-    if typeof(obj) != "object" || typeof(cur) != "object" {
-        return false
-    }
-    if obj["vmI"] == undefined || cur["vmI"] == undefined {
-        return false
-    }
-    return obj["vmI"] == cur["vmI"]
-}

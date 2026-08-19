@@ -1,7 +1,0 @@
-pub fn vNormPool(bc) {
-    let pool = bc["constants"]
-    if pool == null || pool == undefined {
-        return []
-    }
-    return pool
-}

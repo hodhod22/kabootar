@@ -1,6 +1,0 @@
-pub fn vThisS(S) {
-    if len(S["thisStack"]) == 0 {
-        return undefined
-    }
-    return S["thisStack"][len(S["thisStack"]) - 1]
-}

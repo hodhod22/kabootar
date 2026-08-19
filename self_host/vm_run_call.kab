@@ -1,6 +1,145 @@
-import "self_host/vm_run_call_cfa"
-import "self_host/vm_run_call_n"
+import "self_host/vm_s_stack"
+import "self_host/vm_run_session"
 
+// --- vm_run_args_arr ---
+pub fn vArrayToOrdered(argsArr) {
+    let ordered = []
+    let ai = 0
+    while ai < len(argsArr) {
+        ordered = push(ordered, argsArr[ai])
+        ai = ai + 1
+    }
+    return ordered
+}
+
+// --- vm_run_args_pop ---
+pub fn vPopOrderedArgs(S, argc) {
+    let rawArgs = []
+    let ai = 0
+    while ai < argc {
+        rawArgs = push(rawArgs, vPopS(S))
+        ai = ai + 1
+    }
+    let ordered = []
+    let oi = argc - 1
+    while oi >= 0 {
+        ordered = push(ordered, rawArgs[oi])
+        oi = oi - 1
+    }
+    return ordered
+}
+
+// --- vm_run_call_apply_fn ---
+/// Apply fn|arrow via S["runFnBody"]. Returns null if not fn/arrow.
+pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
+    let kind = c["kind"]
+    if kind == "fn" {
+        return vCallRunFn(S, functions[c["idx"]], pool, globals, functions, ordered, null)
+    }
+    if kind == "arrow" {
+        return vCallRunFn(S, S["arrows"][c["idx"]], pool, globals, functions, ordered, c["caps"])
+    }
+    return undefined
+}
+
+// --- vm_run_call_apply_mh ---
+/// Apply method|host|bad via hooks / host call.
+pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
+    let kind = c["kind"]
+    if kind == "method" {
+        return vCallRunMeth(S, c["meth"], pool, globals, functions, c["recv"], ordered)
+    }
+    return vCallHost(c["callee"], ordered)
+}
+
+// --- vm_run_callee_fn ---
+/// Classify fn|arrow|miss. miss => kind null for next stage.
+pub fn vClassifyFnArrow(callee) {
+    if callee == null || callee == undefined {
+        return { "kind": "bad", "callee": callee }
+    }
+    let vmFn = vObjGet(callee, "vmFn")
+    if vmFn != undefined {
+        return { "kind": "fn", "idx": vmFn }
+    }
+    let vmArrow = vObjGet(callee, "vmArrow")
+    if vmArrow != undefined {
+        return { "kind": "arrow", "idx": vmArrow, "caps": vObjGet(callee, "caps") }
+    }
+    return { "kind": null, "callee": callee }
+}
+
+// --- vm_run_callee_meth ---
+/// Classify method|host given non-null callee that is not fn/arrow.
+pub fn vClassifyMethHost(callee) {
+    let vmM = vObjGet(callee, "vmM")
+    if vmM != undefined {
+        return { "kind": "method", "meth": vmM, "recv": vObjGet(callee, "vmR") }
+    }
+    return { "kind": "host", "callee": callee }
+}
+
+// --- vm_run_call_apply ---
+pub fn vApplyCalleeS(S, c, ordered, pool, globals, functions) {
+    let kind = c["kind"]
+    if kind == "fn" || kind == "arrow" {
+        return vApplyFnArrowS(S, c, ordered, pool, globals, functions)
+    }
+    return vApplyMethHostS(S, c, ordered, pool, globals, functions)
+}
+
+// --- vm_run_callee ---
+/// Classify callee for call ops. kind: fn|arrow|method|host|bad
+pub fn vClassifyCallee(callee) {
+    let c = vClassifyFnArrow(callee)
+    if c["kind"] != null {
+        return c
+    }
+    return vClassifyMethHost(c["callee"])
+}
+
+// --- vm_run_call_cfa ---
+/// Handle call_from_array. Returns 0=miss, 1=ok.
+pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
+    if name != "call_from_array" {
+        return 0
+    }
+    let argsArr = vPopS(S)
+    let callee = vPopS(S)
+    let ordered = vArrayToOrdered(argsArr)
+    let c = vClassifyCallee(callee)
+    vPushS(S, vApplyCalleeS(S, c, ordered, pool, globals, functions))
+    vBumpIpS(S)
+    return 1
+}
+
+// --- vm_run_call_n_prep ---
+pub fn vCallNPrepS(S, arg) {
+    let callee = vPopS(S)
+    let ordered = vPopOrderedArgs(S, arg)
+    let c = vClassifyCallee(callee)
+    if c["kind"] == "bad" {
+        S["unsupported"] = true
+        return { "st": 2 }
+    }
+    return { "st": 0, "c": c, "ordered": ordered }
+}
+
+// --- vm_run_call_n ---
+pub fn runOpCallNS(S, name, arg, pool, globals, functions) {
+    if name != "call" {
+        return 0
+    }
+    let p = vCallNPrepS(S, arg)
+    if p["st"] == 2 {
+        return 2
+    }
+    vPushS(S, vApplyCalleeS(S, p["c"], p["ordered"], pool, globals, functions))
+    vBumpIpS(S)
+    return 1
+}
+
+// --- vm_run_call ---
 pub fn runOpCallS(S, name, arg, op, pool, globals, functions) {
     let st = runOpCallFromArrayS(S, name, pool, globals, functions)
     if st != 0 {

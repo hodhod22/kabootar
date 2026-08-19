@@ -1,6 +1,207 @@
+import "self_host/vm_ops_arith_a"
+import "self_host/vm_ops_cmp_a"
+import "self_host/vm_ops_ctrl_a"
+import "self_host/vm_ops_data_a"
+import "self_host/vm_ops_jump_a"
+import "self_host/vm_ops_mem_a"
+
+// --- vm_run_dispatch_arith_ab ---
 // P6b: 2-way dispatch chain (≤10s self-host compile).
-import "self_host/vm_run_dispatch_plain_macd"
-import "self_host/vm_run_dispatch_plain_jc"
+
+pub fn runOpArithAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithB(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_arith_cd ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpArithCd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithC(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithD(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_cmp_ab ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpCmpAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpB(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_ctrl ---
+pub fn runOpCtrlS(S, name, arg, op, pool, globals, functions) {
+    return runOpCtrlA(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_data_ab ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpDataAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataB(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_data_cd ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpDataCd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataC(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataD(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_jump ---
+pub fn runOpJumpS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpB(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_mem_ab ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpMemAb(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemA(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemB(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_mem_cd ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpMemCd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemC(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemD(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_mem_e ---
+pub fn runOpMemEwrap(S, name, arg, op, pool, globals, functions) {
+    return runOpMemE(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_arith ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpArithS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithAb(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithCd(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_cmp ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpCmpS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpAb(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpC(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_data ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpDataS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataAb(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataCd(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_plain_jc ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpPlainJc(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpS(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCtrlS(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_mem_cde ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpMemCde(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemCd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemEwrap(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_plain_cd ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpPlainCd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpS(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataS(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_mem ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpMemS(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemAb(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpMemCde(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_plain_ma ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpPlainMa(S, name, arg, op, pool, globals, functions) {
+    let st = runOpMemS(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithS(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_plain_macd ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
+
+pub fn runOpPlainMacd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpPlainMa(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpPlainCd(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_run_dispatch_plain ---
+// P6b: 2-way dispatch chain (≤10s self-host compile).
 
 pub fn runOpPlainS(S, name, arg, op, pool, globals, functions) {
     let st = runOpPlainMacd(S, name, arg, op, pool, globals, functions)

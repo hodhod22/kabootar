@@ -1,10 +1,295 @@
-import "self_host/vm_ops_data_make"
-import "self_host/vm_ops_data_index"
+import "self_host/vm_s_stack"
 
+// --- vm_ops_data_concat ---
+pub fn runOpDataConcat(S, name, arg, op, pool, globals, functions) {
+    if name == "concat_array" {
+        let right = vPopS(S)
+        let left = vPopS(S)
+        let out = left
+        let i = 0
+        while i < len(right) {
+            out = push(out, right[i])
+            i = i + 1
+        }
+        vPushS(S, out)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_dup ---
+pub fn runOpDataDup(S, name, arg, op, pool, globals, functions) {
+    if name == "dup" {
+        if len(S["stack"]) == 0 {
+            throw "vm stack underflow"
+        }
+        vPushS(S, S["stack"][len(S["stack"]) - 1])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_err ---
+pub fn runOpDataErr(S, name, arg, op, pool, globals, functions) {
+    if name == "make_err" {
+        vPushS(S, { "vmResult": "err", "v": vPopS(S) })
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_index_get ---
+pub fn runOpDataIndexGet(S, name, arg, op, pool, globals, functions) {
+    if name == "index_get" {
+        let idx = vPopS(S)
+        let container = vPopS(S)
+        vPushS(S, vIndexGet(container, idx))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_index_set ---
+pub fn runOpDataIndexSet(S, name, arg, op, pool, globals, functions) {
+    if name == "index_set" {
+        let val = vPopS(S)
+        let idx = vPopS(S)
+        let container = vPopS(S)
+        vIndexSetPush(S, container, idx, val)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_len ---
+pub fn runOpDataLen(S, name, arg, op, pool, globals, functions) {
+    if name == "get_length" {
+        let v = vPopS(S)
+        vPushS(S, len(v))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_make_array ---
+pub fn runOpDataMakeArray(S, name, arg, op, pool, globals, functions) {
+    if name == "make_array" {
+        let n = arg
+        let raw = vPopNRaw(S, n)
+        let arr = vReverseArr(raw, n)
+        vPushS(S, arr)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_make_object ---
+pub fn runOpDataMakeObject(S, name, arg, op, pool, globals, functions) {
+    if name == "make_object" {
+        let n = arg
+        let map = {}
+        let ci = 0
+        while ci < n {
+            let key = vPopS(S)
+            let val = vPopS(S)
+            map["" + key] = val
+            ci = ci + 1
+        }
+        vPushS(S, map)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_merge ---
+pub fn runOpDataMerge(S, name, arg, op, pool, globals, functions) {
+    if name == "merge_object" {
+        let right = vPopS(S)
+        let left = vPopS(S)
+        let keys = object_keys(right)
+        let ki = 0
+        while ki < len(keys) {
+            let k = keys[ki]
+            left[k] = right[k]
+            ki = ki + 1
+        }
+        vPushS(S, left)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_ok ---
+pub fn runOpDataOk(S, name, arg, op, pool, globals, functions) {
+    if name == "make_ok" {
+        vPushS(S, { "vmResult": "ok", "v": vPopS(S) })
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_option_arrow ---
+pub fn runOpDataOptionArrow(S, name, arg, op, pool, globals, functions) {
+    if name == "make_arrow_fn" {
+        vPushS(S, { "vmArrow": arg, "caps": vSnapCapsS(S) })
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_option_iter ---
+pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
+    if name == "iterator_step_in_place" {
+        let it = vPopS(S)
+        let pair = bytecode_iterator_step_in_place(it)
+        vPushS(S, pair[0])
+        vPushS(S, pair[1])
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_option_some ---
+pub fn runOpDataOptionSome(S, name, arg, op, pool, globals, functions) {
+    if name == "make_some" {
+        vPushS(S, { "vmOption": "some", "v": vPopS(S) })
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "make_none" {
+        vPushS(S, { "vmOption": "none" })
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_set_member ---
+pub fn runOpDataSetMember(S, name, arg, op, pool, globals, functions) {
+    if name == "set_member" {
+        let key = poolKey(pool, arg)
+        let val = vPopS(S)
+        let obj = vPopS(S)
+        vMemberSetPush(S, obj, key, val)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_swap ---
+pub fn runOpDataSwap(S, name, arg, op, pool, globals, functions) {
+    if name == "swap" {
+        let a = vPopS(S)
+        let b = vPopS(S)
+        vPushS(S, a)
+        vPushS(S, b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_data_index ---
+pub fn runOpDataIndex(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataIndexGet(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataIndexSet(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_len_concat ---
+pub fn runOpDataLenConcat(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataLen(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataConcat(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_make ---
+pub fn runOpDataMake(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataMakeObject(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataMakeArray(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_result ---
+pub fn runOpDataResult(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataOk(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataErr(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_option ---
+pub fn runOpDataOption(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataOptionSome(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpDataOptionArrow(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataOptionIter(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_stack ---
+pub fn runOpDataStack(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataDup(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataSwap(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_c ---
+pub fn runOpDataC(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataLenConcat(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataMerge(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_a ---
 pub fn runOpDataA(S, name, arg, op, pool, globals, functions) {
     let st = runOpDataMake(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }
     return runOpDataIndex(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_d ---
+pub fn runOpDataD(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataResult(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataOption(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_data_b ---
+pub fn runOpDataB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpDataSetMember(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataStack(S, name, arg, op, pool, globals, functions)
 }

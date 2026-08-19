@@ -1,7 +1,0 @@
-pub fn vNormLocals(bc) {
-    let localNames = bc["locals"]
-    if localNames == null || localNames == undefined {
-        return []
-    }
-    return localNames
-}

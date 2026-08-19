@@ -1,13 +1,85 @@
-import "self_host/vm_run_norm_pool"
-import "self_host/vm_run_norm_globals"
-import "self_host/vm_run_norm_functions"
-import "self_host/vm_run_norm_classes"
-import "self_host/vm_run_norm_imports"
-import "self_host/vm_run_norm_arrows"
-import "self_host/vm_run_norm_tries"
-import "self_host/vm_run_norm_locals"
-import "self_host/vm_run_norm_ops"
+// --- vm_run_norm_arrows ---
+pub fn vNormArrows(bc) {
+    let arrows = bc["arrows"]
+    if arrows == null || arrows == undefined {
+        return []
+    }
+    return arrows
+}
 
+// --- vm_run_norm_classes ---
+pub fn vNormClasses(bc) {
+    let classes = bc["classes"]
+    if classes == null || classes == undefined {
+        return []
+    }
+    return classes
+}
+
+// --- vm_run_norm_functions ---
+pub fn vNormFunctions(bc) {
+    let functions = bc["functions"]
+    if functions == null || functions == undefined {
+        return []
+    }
+    return functions
+}
+
+// --- vm_run_norm_globals ---
+pub fn vNormGlobals(bc) {
+    let globals = bc["globals"]
+    if globals == null || globals == undefined {
+        return []
+    }
+    return globals
+}
+
+// --- vm_run_norm_imports ---
+pub fn vNormImports(bc) {
+    let imports = bc["imports"]
+    if imports == null || imports == undefined {
+        return []
+    }
+    return imports
+}
+
+// --- vm_run_norm_locals ---
+pub fn vNormLocals(bc) {
+    let localNames = bc["locals"]
+    if localNames == null || localNames == undefined {
+        return []
+    }
+    return localNames
+}
+
+// --- vm_run_norm_ops ---
+pub fn vNormOps(bc) {
+    let ops = bc["ops"]
+    if ops == null || ops == undefined {
+        return []
+    }
+    return ops
+}
+
+// --- vm_run_norm_pool ---
+pub fn vNormPool(bc) {
+    let pool = bc["constants"]
+    if pool == null || pool == undefined {
+        return []
+    }
+    return pool
+}
+
+// --- vm_run_norm_tries ---
+pub fn vNormTries(bc) {
+    let tryRegions = bc["tryRegions"]
+    if tryRegions == null || tryRegions == undefined {
+        return []
+    }
+    return tryRegions
+}
+
+// --- vm_run_norm_bc ---
 pub fn vNormBc(bc) {
     return {
         "pool": vNormPool(bc),

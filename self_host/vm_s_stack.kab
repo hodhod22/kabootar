@@ -1,4 +1,329 @@
+import "self_host/emit_defs"
+
+// --- vm_s_caps ---
+// P6b: snap local caps from session S.
+pub fn vSnapCapsS(S) {
+    let caps = {}
+    let i = 0
+    let names = S["localNames"]
+    let locals = S["locals"]
+    while i < len(names) {
+        if i < len(locals) {
+            caps[names[i]] = locals[i]
+        }
+        i = i + 1
+    }
+    return caps
+}
+
+// --- vm_s_find_method ---
+// P6b: find method on class def (pure).
+pub fn vFindMethod(classDef, name) {
+    let methods = classDef["methods"]
+    let i = 0
+    while i < len(methods) {
+        if methods[i]["sym"] == name {
+            return methods[i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+// --- vm_s_host ---
+// P6b: host call / map get (pure).
+pub fn vCallHost(callee, ordered) {
+    return bytecode_host_call(callee, ordered)
+}
+
+pub fn vObjGet(obj, key) {
+    return bytecode_host_map_get(obj, key)
+}
+
+// --- vm_s_index_get ---
+pub fn vIndexGet(container, idx) {
+    if container == null || container == undefined {
+        return undefined
+    }
+    return container[idx]
+}
+
+// --- vm_s_index_set ---
+pub fn vIndexSet(container, idx, val) {
+    if container == null || container == undefined {
+        throw "vm cannot index nullish"
+    }
+    container[idx] = val
+    return container
+}
+
+// --- vm_s_ip ---
+// P6b: ip helpers on session S.
+pub fn vBumpIpS(S) {
+    S["ip"] = S["ip"] + 1
+}
+
+/// Add delta to S.ip (avoid `S["ip"] = S["ip"] + 1 + arg` — self-host emit rejects that).
+pub fn vAddIpS(S, delta) {
+    let n = S["ip"] + delta
+    S["ip"] = n
+}
+
+// --- vm_s_member_set ---
+pub fn vMemberSet(obj, key, val) {
+    if obj == null || obj == undefined {
+        throw "vm cannot set member on nullish"
+    }
+    obj[key] = val
+    return obj
+}
+
+// --- vm_s_pool_val ---
+// P6b: poolVal helper.
+
+pub fn poolVal(pool, idx) {
+    if idx < 0 || idx >= len(pool) {
+        throw "vm bad const index"
+    }
+    let v = pool[idx]
+    if v == KAB_UNDEF_CONST {
+        return undefined
+    }
+    return v
+}
+
+// --- vm_s_pop ---
+// P6b: pop from session stack.
+pub fn vPopS(S) {
+    let st = S["stack"]
+    if len(st) == 0 {
+        throw "vm stack underflow"
+    }
+    let top = st[len(st) - 1]
+    S["stack"] = pop(st)
+    return top
+}
+
+// --- vm_s_push ---
+// P6b: push onto session stack.
+pub fn vPushS(S, v) {
+    S["stack"] = push(S["stack"], v)
+}
+
+// --- vm_s_resolve_host ---
+pub fn vResolveGlobalCached(S, globals, idx, name) {
+    let cur = S["globals"][idx]
+    if cur != undefined {
+        return cur
+    }
+    if name == null || name == undefined {
+        return undefined
+    }
+    let host = bytecode_host_get("" + name)
+    if host != undefined {
+        S["globals"][idx] = host
+    }
+    return host
+}
+
+// --- vm_s_rev_arr ---
+pub fn vReverseArr(raw, n) {
+    let arr = []
+    let oi = n - 1
+    while oi >= 0 {
+        arr = push(arr, raw[oi])
+        oi = oi - 1
+    }
+    return arr
+}
+
+// --- vm_s_this_get ---
+pub fn vThisS(S) {
+    if len(S["thisStack"]) == 0 {
+        return undefined
+    }
+    return S["thisStack"][len(S["thisStack"]) - 1]
+}
+
+// --- vm_s_this_is_obj ---
+pub fn vIsCurrentThisObj(obj, cur) {
+    if typeof(obj) != "object" || typeof(cur) != "object" {
+        return false
+    }
+    if obj["vmI"] == undefined || cur["vmI"] == undefined {
+        return false
+    }
+    return obj["vmI"] == cur["vmI"]
+}
+
+// --- vm_s_this_write ---
+pub fn vWriteThisS(S, updated) {
+    if len(S["thisStack"]) == 0 {
+        return
+    }
+    S["thisStack"] = pop(S["thisStack"])
+    S["thisStack"] = push(S["thisStack"], updated)
+}
+
+// --- vm_s_truthy ---
+// P6b: truthy helper (pure).
+pub fn vTruthy(v) {
+    if v == false || v == null || v == undefined {
+        return false
+    }
+    return true
+}
+
+// --- vm_s_try ---
+// P6b: find try region (pure).
+pub fn vFindTry(regions, ip) {
+    if regions == null || regions == undefined {
+        return null
+    }
+    let best = null
+    let bi = 0
+    while bi < len(regions) {
+        let r = regions[bi]
+        if ip >= r["bodyStart"] && ip <= r["bodyEnd"] {
+            if best == null || r["bodyStart"] >= best["bodyStart"] {
+                best = r
+            }
+        }
+        bi = bi + 1
+    }
+    return best
+}
+
+// --- vm_s_member_class ---
+pub fn vMemberGetClass(S, obj, key) {
+    if object_has_own(obj, key) {
+        return obj[key]
+    }
+    let ci = obj["vmC"]
+    let meth = vFindMethod(S["classes"][ci], key)
+    if meth != null {
+        return { "vmM": meth, "vmR": obj }
+    }
+    return undefined
+}
+
+// --- vm_s_pool_key ---
+// P6b: poolKey helper.
+
+pub fn poolKey(pool, idx) {
+    let k = poolVal(pool, idx)
+    if k == null || k == undefined {
+        return ""
+    }
+    return "" + k
+}
+
+// --- vm_s_pop_n ---
+pub fn vPopNRaw(S, n) {
+    let raw = []
+    let ai = 0
+    while ai < n {
+        raw = push(raw, vPopS(S))
+        ai = ai + 1
+    }
+    return raw
+}
+
+// --- vm_s_stack ---
 // P6b: stack/ip facade — re-exports via import side effects for dependents that only import this.
-import "self_host/vm_s_push"
-import "self_host/vm_s_pop"
-import "self_host/vm_s_ip"
+
+// --- vm_s_jump_result_ok ---
+pub fn vJumpResultUnwrap(S, v) {
+    if typeof(v) == "object" && v != null && v["vmResult"] == "ok" {
+        vPushS(S, v["v"])
+    } else {
+        vPushS(S, v)
+    }
+    vBumpIpS(S)
+}
+
+// --- vm_s_resolve ---
+pub fn vResolveGlobalS(S, globals, idx) {
+    let name = globals[idx]
+    if name == "this" || name == "self" {
+        return vThisS(S)
+    }
+    return vResolveGlobalCached(S, globals, idx, name)
+}
+
+// --- vm_s_this_is ---
+pub fn vIsCurrentThisS(S, obj) {
+    if obj == null || obj == undefined {
+        return false
+    }
+    if len(S["thisStack"]) == 0 {
+        return false
+    }
+    let cur = S["thisStack"][len(S["thisStack"]) - 1]
+    if cur == null || cur == undefined {
+        return false
+    }
+    return vIsCurrentThisObj(obj, cur)
+}
+
+// --- vm_s_pad_locals ---
+pub fn vPadLocalsTo(S, el) {
+    while len(S["locals"]) <= el {
+        S["locals"] = push(S["locals"], undefined)
+    }
+}
+
+// --- vm_s_member_get ---
+pub fn vMemberGetS(S, obj, key) {
+    if obj == null || obj == undefined {
+        return undefined
+    }
+    if typeof(obj) == "object" {
+        if obj["vmC"] != undefined {
+            return vMemberGetClass(S, obj, key)
+        }
+    }
+    return obj[key]
+}
+
+// --- vm_s_pool ---
+// P6b: thin pool facade.
+
+pub let poolVal = poolVal
+pub let poolKey = poolKey
+
+// --- vm_s_member_set_push ---
+pub fn vMemberSetPush(S, obj, key, val) {
+    let updated = vMemberSet(obj, key, val)
+    if vIsCurrentThisS(S, obj) {
+        vWriteThisS(S, updated)
+    }
+    vPushS(S, updated)
+    vPushS(S, val)
+    vBumpIpS(S)
+}
+
+// --- vm_s_index_set_push ---
+pub fn vIndexSetPush(S, container, idx, val) {
+    let updated = vIndexSet(container, idx, val)
+    if vIsCurrentThisS(S, container) {
+        vWriteThisS(S, updated)
+    }
+    vPushS(S, updated)
+    vPushS(S, val)
+    vBumpIpS(S)
+}
+
+// --- vm_s_catch ---
+pub fn vCatchThrow(S, reason) {
+    let region = vFindTry(S["tryRegions"], S["ip"])
+    if region == null {
+        return 0
+    }
+    let el = region["errLocal"]
+    vPadLocalsTo(S, el)
+    S["locals"][el] = reason
+    vPushS(S, reason)
+    S["ip"] = region["catchStart"]
+    return 1
+}

@@ -22,13 +22,13 @@ fn sh0_self_host_compile_dag_snapshot() {
         import_shard_stats()
     );
     assert!(
-        inv.kab_files >= 200,
+        inv.kab_files >= 80,
         "self_host product .kab count, got {}",
         inv.kab_files
     );
     assert!(
-        inv.vm_files >= 50,
-        "vm_* shards still dominate until SH5/SH6, got {}",
+        inv.vm_files < 40,
+        "SH6: vm_* shards must stay under 40 files, got {}",
         inv.vm_files
     );
     assert!(
@@ -214,4 +214,44 @@ fn sh4_kbcb_v2_faster_than_text() {
         v2_ms < text_ms,
         "kbcb v2 should deserialize faster than text .kbc ({v2_ms:.2} vs {text_ms:.2})"
     );
+}
+
+#[test]
+fn sh6_vm_shard_count_under_40() {
+    let inv = collect_self_host_inventory().expect("inventory");
+    assert!(
+        inv.vm_files < 40,
+        "SH6 densify: vm_* must be < 40, got {}",
+        inv.vm_files
+    );
+    assert!(
+        inv.vm_files >= 8,
+        "keep a real kab VM (ops/session/run), got {}",
+        inv.vm_files
+    );
+}
+
+#[test]
+fn sh6_vm_facade_evals() {
+    let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));
+    let ok = std::thread::Builder::new()
+        .name("sh6-vm".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let t0 = Instant::now();
+            let mut env = create_global_env();
+            let r = kabootar_lib::compile::eval_file_cached(&path, &mut env);
+            eprintln!("SH6 eval vm.kab {} ms", t0.elapsed().as_millis());
+            match r {
+                Ok(_) => true,
+                Err(e) => {
+                    eprintln!("SH6 eval vm.kab err: {e}");
+                    false
+                }
+            }
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(ok, "eval self_host/vm");
 }

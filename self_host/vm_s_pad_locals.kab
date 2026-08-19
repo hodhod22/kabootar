@@ -1,7 +1,0 @@
-import "self_host/vm_s_try"
-
-pub fn vPadLocalsTo(S, el) {
-    while len(S["locals"]) <= el {
-        S["locals"] = push(S["locals"], undefined)
-    }
-}
