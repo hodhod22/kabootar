@@ -43,6 +43,39 @@ fn p13a_native_add_loop() {
 }
 
 #[test]
+fn p13a_cranelift_jit_add_loop() {
+    kabootar_lib::bytecode::jit_reset_for_tests();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn add_loop(n) {
+            let s = 0
+            let i = 0
+            while i < n {
+                s = s + 1
+                i = i + 1
+            }
+            return s
+        }
+        add_loop(5000) == 5000
+        "#,
+        &mut env,
+    )
+    .expect("jit add_loop");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    let (hits, compiled, fails) = kabootar_lib::bytecode::jit_stats();
+    assert!(
+        hits + compiled > 0 || fails == 0,
+        "expected cranelift JIT path hits={hits} compiled={compiled} fails={fails}"
+    );
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        compiled > 0 || hits > 0,
+        "Cranelift should compile or run typed add_loop, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+#[test]
 fn p14_nursery_bump() {
     nursery_reset_for_tests();
     let mut env = create_global_env();

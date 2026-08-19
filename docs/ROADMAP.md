@@ -692,7 +692,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **P10** | **Self-host pipeline** — sluta jaga parsern isolerat; IC/shapes/CALL/locals + mät hela kedjan | ✅ a–h + **j** (stdlib-prototype + trivial main-skip); P10i skippad (parse ≫ total **inte** fallet) |
 | **P11** | **Unbox** — `i32`/`f64`/`bool` i register/slots, inte `Value`-enum på heap i typed/`@manual`/hot loops | ✅ subset (P11a i64-frame; P11b `array_f64`; P11c enum kvar, NaN-box senare) |
 | **P12** | **Hidden classes / shapes** — V8-klass: hidden class + inline caches på *alla* member/global/call (P1/P10 = start) | ✅ subset (`hidden_class_info` + Kv8 `shared_ic`) |
-| **P13** | **Native JIT/AOT** — Cranelift eller LLVM; `.kbc` → maskinkod för hot fn; P4 AOT-lite räknas **inte** som klart | ✅ subset (`native_add_loop` kernel + `compile --native` stub; Cranelift deepen) |
+| **P13** | **Native JIT/AOT** — Cranelift eller LLVM; `.kbc` → maskinkod för hot fn; P4 AOT-lite räknas **inte** som klart | ✅ subset (**Cranelift JIT** för typed i64-bytecode + `native_add_loop` kernel) |
 | **P14** | **Nursery GC + escape analysis** — bump-allocate, generations, stack-allok när objekt inte flyr; P3 frame-budget = start | ✅ subset (`gc_nursery_alloc` bump + promote vid 64KiB) |
 | **P15** | **`@manual` release = noll checks** — use-after-move / bounds bara i debug; hot path som Rust | ✅ subset (`KABOOTAR_DEBUG_MANUAL` / debug_assertions på `peek_id`) |
 | **P16** | **SIMD + GPU kernels** — nd/matmul/FFT i native/GPU bakom Kab-API; P5 bulk-loops = start | ✅ subset (`sci_vadd` 8-wide; GPU redan SC) |
@@ -761,7 +761,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **P12a** | **Hidden class per objektform** — transitions vid ny nyckel; inte bara P10g intern-id | GetMember miss → shape-transition, hit = slot index | ✅ subset (`note_shape_transition` på MemberSet; hit på GetMember IC) |
 | **P12b** | **Call IC + polymorphic** — 1–2 hidden classes monomorf; därefter megamorf-fallback | CALL hit utan `call_value` HashMap | ✅ subset (P10c CALL IC; megamorf-fallback = `call_value`) |
 | **P12c** | **Kv8 delar shapes med Kab-VM** — ingen andra objektmodell | `kv8_opt_info` visar shared IC | ✅ subset (`shared_ic` + shape_* i `kv8_opt_info`) |
-| **P13a** | **Cranelift (först) eller LLVM** — hot `BytecodeFn` → native; cache på fingerprint som P4 men **maskinkod** | `p4_aot_lite` ersätts inte; ny test `p13_native_add_loop` | ✅ subset (`native_add_loop` rust-kernel; Cranelift-dep deepen) |
+| **P13a** | **Cranelift (först) eller LLVM** — hot `BytecodeFn` → native; cache på fingerprint som P4 men **maskinkod** | `p4_aot_lite` ersätts inte; ny test `p13_native_add_loop` | ✅ subset (`src/bytecode/jit.rs` Cranelift; typed i64 fn; `p13a_cranelift_jit_add_loop`) |
 | **P13b** | **Threshold JIT** — som Kv8:s “efter N iterationer” men till **native**, inte bytecode | Kv8-for JIT → native när P13a finns | ✅ subset (Kv8 JIT oförändrad; native kernel anropas explicit) |
 | **P13c** | **AOT-CLI** — `kabootar compile --native` för ship; kallstart utan JIT-warmup | Spel/HTTP kallstart-budget (P7 deepen) | ✅ subset (skriver `.kbn` native-stub) |
 | **P13d** | **Deopt / bailout (JIT)** — fel spekulation → bytecode; AOT skippar spekulation | Inga tysta felaktiga tal | ✅ subset (AOT-stub spekulerar inte) |
