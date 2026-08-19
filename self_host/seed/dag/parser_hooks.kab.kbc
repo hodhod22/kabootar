@@ -36,8 +36,9 @@ fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
+fn_op 0 load_local 0
 fn_op 0 get_member 1
-fn_op 0 call 0
+fn_op 0 call 1
 fn_op 0 store_local 4
 fn_op 0 load_local 2
 fn_op 0 store_local 5
@@ -144,4 +145,4 @@ halt
 
 source=self_host/parser_hooks.kab
 statements=9
-fingerprint=862abfc57adfdbe2
+fingerprint=9c6c52f0df6db576

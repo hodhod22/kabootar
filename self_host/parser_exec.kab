@@ -1,12 +1,12 @@
-// SH2/SH13: one session object, reset in-place. Tramp is 0-arg and reads gSess.
+// SH2/SH13: reuse session; tramp takes sess (do not read gSess — LoadGlobal IC can stale).
 import "self_host/parser_session"
 import "self_host/parser_tramp"
 import "self_host/parser_main"
 
 let gSess = null
 
-fn tramp() {
-    return pTramp(gSess)
+fn tramp(sess) {
+    return pTramp(sess)
 }
 
 pub fn parseTokensExec(tokens) {

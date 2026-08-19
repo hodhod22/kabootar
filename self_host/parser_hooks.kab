@@ -2,7 +2,7 @@
 pub fn pCallHook(sess, n) {
     let prevH = sess["_hook"]
     sess["_hook"] = n
-    let r = sess["tramp"]()
+    let r = sess["tramp"](sess)
     sess["_hook"] = prevH
     return r
 }

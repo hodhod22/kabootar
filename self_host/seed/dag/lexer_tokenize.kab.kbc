@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=19
+constants=23
 const 0 number 0
 const 1 string pos
 const 2 string srcLen
@@ -18,7 +18,11 @@ const 14 string
 const 15 string \n
 const 16 string *
 const 17 bool true
-const 18 string type
+const 18 number 10000
+const 19 string lexer\srunaway
+const 20 string type
+const 21 string lexer\sstuck\spos=
+const 22 string \stype=
 global 0 char_code_at
 global 1 lxSkipSpace
 global 2 char_at
@@ -452,7 +456,7 @@ fn_op 2 return
 fn_arrows 2 0
 fn 3 tokenizeExec
 fn_params 3 source
-fn_locals 3 source,sess,tokens,tok
+fn_locals 3 source,sess,tokens,tok,n,at
 fn_op 3 const 0
 fn_op 3 const 1
 fn_op 3 load_local 0
@@ -469,6 +473,19 @@ fn_op 3 make_array 0
 fn_op 3 store_local 2
 fn_op 3 const 9
 fn_op 3 store_local 3
+fn_op 3 const 0
+fn_op 3 store_local 4
+fn_op 3 const 0
+fn_op 3 store_local 5
+fn_op 3 const 8
+fn_op 3 acc_add_local 4
+fn_op 3 load_local 4
+fn_op 3 const 18
+fn_op 3 gt
+fn_op 3 jump_if_false 3
+fn_op 3 const 19
+fn_op 3 throw
+fn_op 3 pop
 fn_op 3 load_local 1
 fn_op 3 load_global 1
 fn_op 3 call 1
@@ -479,29 +496,60 @@ fn_op 3 load_local 1
 fn_op 3 get_member 2
 fn_op 3 ge
 fn_op 3 jump_if_false 1
-fn_op 3 jump 31
+fn_op 3 jump 62
 fn_op 3 load_local 1
 fn_op 3 load_global 3
 fn_op 3 call 1
 fn_op 3 const 8
 fn_op 3 eq
 fn_op 3 jump_if_false 1
-fn_op 3 jump -18
+fn_op 3 jump -27
 fn_op 3 load_local 1
 fn_op 3 load_global 4
 fn_op 3 call 1
 fn_op 3 const 8
 fn_op 3 eq
 fn_op 3 jump_if_false 1
-fn_op 3 jump -25
+fn_op 3 jump -34
+fn_op 3 load_local 1
+fn_op 3 get_member 1
+fn_op 3 dup
+fn_op 3 store_local 5
+fn_op 3 pop
 fn_op 3 load_local 1
 fn_op 3 load_global 5
 fn_op 3 call 1
 fn_op 3 dup
 fn_op 3 store_local 3
 fn_op 3 pop
+fn_op 3 load_local 1
+fn_op 3 get_member 1
+fn_op 3 load_local 5
+fn_op 3 le
+fn_op 3 dup
+fn_op 3 jump_if_false 5
+fn_op 3 pop
 fn_op 3 load_local 3
-fn_op 3 get_member 18
+fn_op 3 get_member 20
+fn_op 3 load_global 6
+fn_op 3 ne
+fn_op 3 jump_if_false 14
+fn_op 3 const 21
+fn_op 3 throw
+fn_op 3 const 14
+fn_op 3 load_local 5
+fn_op 3 add
+fn_op 3 add
+fn_op 3 const 22
+fn_op 3 add
+fn_op 3 const 14
+fn_op 3 load_local 3
+fn_op 3 get_member 20
+fn_op 3 add
+fn_op 3 add
+fn_op 3 pop
+fn_op 3 load_local 3
+fn_op 3 get_member 20
 fn_op 3 load_global 6
 fn_op 3 eq
 fn_op 3 jump_if_false 1
@@ -510,7 +558,7 @@ fn_op 3 take_local 2
 fn_op 3 load_local 3
 fn_op 3 array_push_local 2
 fn_op 3 pop
-fn_op 3 jump -42
+fn_op 3 jump -82
 fn_op 3 take_local 2
 fn_op 3 load_global 6
 fn_op 3 const 9
@@ -544,4 +592,4 @@ halt
 
 source=self_host/lexer_tokenize.kab
 statements=7
-fingerprint=f60fe62beeed5b86
+fingerprint=fb9c08a3a9e5b0c2

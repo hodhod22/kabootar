@@ -363,7 +363,10 @@ pub fn read_member(
             "layer" => Ok(Value::String("kabootar".into())),
             _ => Err(format!("Kabootar browser has no member {}", field)),
         },
-        _ => Err("Member access requires object, array, string, or class instance".into()),
+        _ => Err(format!(
+            "Member access requires object, array, string, or class instance (got {} field={field})",
+            format_value(container)
+        )),
     }
 }
 

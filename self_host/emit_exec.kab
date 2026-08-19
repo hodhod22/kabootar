@@ -1,12 +1,12 @@
-// SH2/SH13: one emit session, reset in-place. Tramp is 0-arg and reads gE.
+// SH2/SH13: reuse session; tramp takes E (do not read gE — LoadGlobal IC can stale).
 import "self_host/emit_session"
 import "self_host/emit_tramp"
 import "self_host/emit_main_fn"
 
 let gE = null
 
-fn tramp() {
-    return eTramp(gE)
+fn tramp(E) {
+    return eTramp(E)
 }
 
 pub fn emitMainExec(program) {

@@ -332,9 +332,14 @@ impl Value {
         Rc::make_mut(items)
     }
 
-    /// P6b / leak-safety: mutate object map via copy-on-write (same as arrays).
+    /// Shared object identity: field writes are visible to every `Rc` clone.
+    /// Cow (`Rc::make_mut`) broke self-host lexer/parser sessions (`lxEat`/`bump`).
+    /// Single-threaded VM — all aliases go through this helper or `GetMember`.
     pub fn object_make_mut(map: &mut Rc<HashMap<String, Value>>) -> &mut HashMap<String, Value> {
-        Rc::make_mut(map)
+        let ptr = Rc::as_ptr(map).cast_mut();
+        // SAFETY: Kabootar is single-threaded; IndexSet invalidates member IC/slots
+        // before the next GetMember. No &HashMap is held across this &mut.
+        unsafe { &mut *ptr }
     }
 
     /// True when `a` and `b` are the same array/object allocation (`Rc::ptr_eq`).

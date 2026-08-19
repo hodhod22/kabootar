@@ -158,6 +158,7 @@ pub fn parseStmt_earlyAssign(sess) {
             sess["pVal"] = pCallCompare(sess)
             return { "kind": AST_ASSIGN, "sym": sess["pBindSym"], "rhs": sess["pVal"] }
         }
+        return null
 }
 
 // --- parser_stmt_enum_name ---
@@ -487,6 +488,7 @@ pub fn parseStmt_lateAssign(sess) {
             sess["pVal"] = pCallCompare(sess)
             return { "kind": AST_ASSIGN, "sym": sess["pBindSym"], "rhs": sess["pVal"] }
         }
+        return null
 }
 
 // --- parser_stmt_let ---

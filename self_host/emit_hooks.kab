@@ -4,7 +4,7 @@ pub fn eCallExpr(E, node) {
     let prevN = E["_node"]
     E["_hook"] = 0
     E["_node"] = node
-    E["tramp"]()
+    E["tramp"](E)
     E["_hook"] = prevH
     E["_node"] = prevN
 }
@@ -14,7 +14,7 @@ pub fn eCallStmt(E, node) {
     let prevN = E["_node"]
     E["_hook"] = 1
     E["_node"] = node
-    E["tramp"]()
+    E["tramp"](E)
     E["_hook"] = prevH
     E["_node"] = prevN
 }

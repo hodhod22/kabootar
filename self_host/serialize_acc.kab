@@ -1,9 +1,69 @@
-// P6b: serSerializeBc orchestration (skip-listed until ≤10s).
-import "self_host/serialize_ir"
+import "self_host/lexer_defs"
+import "self_host/serialize_pure"
 import "self_host/serialize_out"
 import "self_host/serialize_sections"
-import "self_host/serialize_acc_pool"
-import "self_host/serialize_acc_tail"
+import "self_host/serialize_ir"
+
+// --- serialize_acc_pool ---
+// P6b: const/globals pool appenders (skip-listed until ≤10s).
+
+pub fn serAppendConsts(out, constants) {
+    let i = 0
+    let n = len(constants)
+    while i < n {
+        out = out + CHAR_NL + serConstLine(i, constants[i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serAppendGlobals(out, globals) {
+    let i = 0
+    let n = len(globals)
+    while i < n {
+        out = serOutTagged(out, "global", i, globals[i])
+        i = i + 1
+    }
+    return out
+}
+
+// --- serialize_acc_tail_rest ---
+// P6b: serializeBc tail after tries (skip-listed until ≤10s).
+
+pub fn serAppendBcTailRest(out, bc) {
+    out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
+    out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
+    out = serAppendClasses(out, bc.classes)
+    out = serOutTag(out, "code")
+    return serAppendOps(out, bc.ops)
+}
+
+// --- serialize_acc_tries ---
+// P6b: main try-region appender (skip-listed until ≤10s).
+
+pub fn serAppendMainTries(out, tryRegions) {
+    if tryRegions == undefined {
+        return out
+    }
+    let nMtr = len(tryRegions)
+    let i = 0
+    while i < nMtr {
+        out = serOutTry4(out, "main_try_region", i, tryRegions[i])
+        i = i + 1
+    }
+    return out
+}
+
+// --- serialize_acc_tail ---
+// P6b: serializeBc tail orchestration (skip-listed until ≤10s).
+
+pub fn serAppendBcTail(out, bc) {
+    out = serAppendMainTries(out, bc.tryRegions)
+    return serAppendBcTailRest(out, bc)
+}
+
+// --- serialize_acc ---
+// P6b: serSerializeBc orchestration (skip-listed until ≤10s).
 
 pub fn serSerializeBc(bc) {
     let out = KBC_HEADER

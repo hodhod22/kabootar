@@ -26,24 +26,22 @@ const 22 string arrows
 global 0 CHAR_NL
 global 1 serConstLine
 global 2 serAppendConsts
-global 3 i
-global 4 n
-global 5 serOutTagged
-global 6 serAppendGlobals
-global 7 serAppendNamedList
-global 8 serAppendClasses
-global 9 serOutTag
-global 10 serAppendOps
-global 11 serAppendBcTailRest
-global 12 serOutTry4
-global 13 serAppendMainTries
-global 14 serAppendBcTail
-global 15 KBC_HEADER
-global 16 len
-global 17 serOutTagEq
-global 18 serAppendFunctions
-global 19 serAppendArrows
-global 20 serSerializeBc
+global 3 serOutTagged
+global 4 serAppendGlobals
+global 5 serAppendNamedList
+global 6 serAppendClasses
+global 7 serOutTag
+global 8 serAppendOps
+global 9 serAppendBcTailRest
+global 10 serOutTry4
+global 11 serAppendMainTries
+global 12 serAppendBcTail
+global 13 KBC_HEADER
+global 14 len
+global 15 serOutTagEq
+global 16 serAppendFunctions
+global 17 serAppendArrows
+global 18 serSerializeBc
 functions=6
 fn 0 serAppendConsts
 fn_params 0 out,constants
@@ -72,23 +70,27 @@ fn_op 0 return
 fn_arrows 0 0
 fn 1 serAppendGlobals
 fn_params 1 out,globals
-fn_locals 1 out,globals
-fn_op 1 load_global 3
-fn_op 1 load_global 4
+fn_locals 1 out,globals,i,n
+fn_op 1 const 0
+fn_op 1 store_local 2
+fn_op 1 len_local 1
+fn_op 1 store_local 3
+fn_op 1 load_local 2
+fn_op 1 load_local 3
 fn_op 1 lt
 fn_op 1 jump_if_false 13
 fn_op 1 load_local 0
 fn_op 1 const 3
-fn_op 1 load_global 3
-fn_op 1 load_global 3
+fn_op 1 load_local 2
+fn_op 1 load_local 2
 fn_op 1 index_get_local 1
-fn_op 1 load_global 5
+fn_op 1 load_global 3
 fn_op 1 call 4
 fn_op 1 dup
 fn_op 1 store_local 0
 fn_op 1 pop
 fn_op 1 const 2
-fn_op 1 acc_add_global 3
+fn_op 1 acc_add_local 2
 fn_op 1 jump -17
 fn_op 1 load_local 0
 fn_op 1 return
@@ -102,7 +104,7 @@ fn_op 2 const 5
 fn_op 2 const 6
 fn_op 2 load_local 1
 fn_op 2 get_member 7
-fn_op 2 load_global 7
+fn_op 2 load_global 5
 fn_op 2 call 5
 fn_op 2 dup
 fn_op 2 store_local 0
@@ -113,7 +115,7 @@ fn_op 2 const 9
 fn_op 2 const 10
 fn_op 2 load_local 1
 fn_op 2 get_member 11
-fn_op 2 load_global 7
+fn_op 2 load_global 5
 fn_op 2 call 5
 fn_op 2 dup
 fn_op 2 store_local 0
@@ -121,14 +123,14 @@ fn_op 2 pop
 fn_op 2 load_local 0
 fn_op 2 load_local 1
 fn_op 2 get_member 12
-fn_op 2 load_global 8
+fn_op 2 load_global 6
 fn_op 2 call 2
 fn_op 2 dup
 fn_op 2 store_local 0
 fn_op 2 pop
 fn_op 2 load_local 0
 fn_op 2 const 13
-fn_op 2 load_global 9
+fn_op 2 load_global 7
 fn_op 2 call 2
 fn_op 2 dup
 fn_op 2 store_local 0
@@ -136,13 +138,13 @@ fn_op 2 pop
 fn_op 2 load_local 0
 fn_op 2 load_local 1
 fn_op 2 get_member 14
-fn_op 2 load_global 10
+fn_op 2 load_global 8
 fn_op 2 call 2
 fn_op 2 return
 fn_arrows 2 0
 fn 3 serAppendMainTries
 fn_params 3 out,tryRegions
-fn_locals 3 out,tryRegions,nMtr
+fn_locals 3 out,tryRegions,nMtr,i
 fn_op 3 load_local 1
 fn_op 3 const 15
 fn_op 3 eq
@@ -151,22 +153,24 @@ fn_op 3 load_local 0
 fn_op 3 return
 fn_op 3 len_local 1
 fn_op 3 store_local 2
-fn_op 3 load_global 3
+fn_op 3 const 0
+fn_op 3 store_local 3
+fn_op 3 load_local 3
 fn_op 3 load_local 2
 fn_op 3 lt
 fn_op 3 jump_if_false 13
 fn_op 3 load_local 0
 fn_op 3 const 16
-fn_op 3 load_global 3
-fn_op 3 load_global 3
+fn_op 3 load_local 3
+fn_op 3 load_local 3
 fn_op 3 index_get_local 1
-fn_op 3 load_global 12
+fn_op 3 load_global 10
 fn_op 3 call 4
 fn_op 3 dup
 fn_op 3 store_local 0
 fn_op 3 pop
 fn_op 3 const 2
-fn_op 3 acc_add_global 3
+fn_op 3 acc_add_local 3
 fn_op 3 jump -17
 fn_op 3 load_local 0
 fn_op 3 return
@@ -177,29 +181,29 @@ fn_locals 4 out,bc
 fn_op 4 load_local 0
 fn_op 4 load_local 1
 fn_op 4 get_member 17
-fn_op 4 load_global 13
+fn_op 4 load_global 11
 fn_op 4 call 2
 fn_op 4 dup
 fn_op 4 store_local 0
 fn_op 4 pop
 fn_op 4 load_local 0
 fn_op 4 load_local 1
-fn_op 4 load_global 11
+fn_op 4 load_global 9
 fn_op 4 call 2
 fn_op 4 return
 fn_arrows 4 0
 fn 5 serSerializeBc
 fn_params 5 bc
 fn_locals 5 bc,out
-fn_op 5 load_global 15
+fn_op 5 load_global 13
 fn_op 5 store_local 1
 fn_op 5 load_local 1
 fn_op 5 const 18
 fn_op 5 load_local 0
 fn_op 5 get_member 19
-fn_op 5 load_global 16
+fn_op 5 load_global 14
 fn_op 5 call 1
-fn_op 5 load_global 17
+fn_op 5 load_global 15
 fn_op 5 call 3
 fn_op 5 dup
 fn_op 5 store_local 1
@@ -215,7 +219,7 @@ fn_op 5 pop
 fn_op 5 load_local 1
 fn_op 5 load_local 0
 fn_op 5 get_member 20
-fn_op 5 load_global 6
+fn_op 5 load_global 4
 fn_op 5 call 2
 fn_op 5 dup
 fn_op 5 store_local 1
@@ -223,7 +227,7 @@ fn_op 5 pop
 fn_op 5 load_local 1
 fn_op 5 load_local 0
 fn_op 5 get_member 21
-fn_op 5 load_global 18
+fn_op 5 load_global 16
 fn_op 5 call 2
 fn_op 5 dup
 fn_op 5 store_local 1
@@ -231,14 +235,14 @@ fn_op 5 pop
 fn_op 5 load_local 1
 fn_op 5 load_local 0
 fn_op 5 get_member 22
-fn_op 5 load_global 19
+fn_op 5 load_global 17
 fn_op 5 call 2
 fn_op 5 dup
 fn_op 5 store_local 1
 fn_op 5 pop
 fn_op 5 load_local 1
 fn_op 5 load_local 0
-fn_op 5 load_global 14
+fn_op 5 load_global 12
 fn_op 5 call 2
 fn_op 5 return
 fn_arrows 5 0
@@ -265,4 +269,4 @@ halt
 
 source=self_host/serialize_acc.kab
 statements=11
-fingerprint=d81a253650bcbc36
+fingerprint=ae647aa279f9906e

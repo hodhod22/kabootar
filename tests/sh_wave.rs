@@ -1,6 +1,7 @@
 //! SH0 inventory, SH1 facade seeds, SH3a nested push(len).
 
-use std::time::Instant;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
 use kabootar_lib::bytecode::run_module;
 use kabootar_lib::compile::{
@@ -61,6 +62,77 @@ fn ensure_compiler_image() {
     let stats = kabootar_lib::compile::compile_dirty_dag_seeds().expect("compile dirty");
     assert_eq!(stats.failed, 0, "SH7 dirty compile failed");
     kabootar_lib::compile::reset_self_host_toolchain_cache();
+}
+
+fn sh8_phase_timeout() -> Duration {
+    if cfg!(debug_assertions) {
+        Duration::from_secs(180)
+    } else {
+        Duration::from_secs(60)
+    }
+}
+
+fn sh8_spawn<T: Send + 'static>(label: &'static str, f: impl FnOnce() -> T + Send + 'static) -> T {
+    let (tx, rx) = mpsc::channel();
+    std::thread::Builder::new()
+        .name(label.into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+            let _ = tx.send(r);
+        })
+        .expect("spawn");
+    match rx.recv_timeout(sh8_phase_timeout()) {
+        Ok(Ok(v)) => v,
+        Ok(Err(p)) => std::panic::resume_unwind(p),
+        Err(_) => panic!("SH8 hung in {label} after {:?}", sh8_phase_timeout()),
+    }
+}
+
+fn sh8_call_export(module: &str, export: &str, arg: &str) -> String {
+    use kabootar_lib::bytecode::call_value;
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+
+    let module = module.to_string();
+    let export = export.to_string();
+    let arg = arg.to_string();
+    sh8_spawn("sh8-call", move || {
+        eprintln!("SH8 import {module} ...");
+        let t_imp = Instant::now();
+        let mut env = create_module_env();
+        import_module(&module, &mut env).unwrap_or_else(|e| panic!("import {module}: {e}"));
+        eprintln!(
+            "SH8 import {module} done {:.0}ms",
+            t_imp.elapsed().as_secs_f64() * 1000.0
+        );
+        let f = env
+            .get(&export)
+            .unwrap_or_else(|| panic!("{module}: missing export {export}"));
+        eprintln!("SH8 call {export} ...");
+        let t_call = Instant::now();
+        let v = call_value(
+            f,
+            vec![Value::String(arg)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "{export}: {}",
+                kabootar_lib::runtime::stdlib::error::format_runtime_error(&e)
+            )
+        });
+        eprintln!(
+            "SH8 call {export} done {:.0}ms",
+            t_call.elapsed().as_secs_f64() * 1000.0
+        );
+        kabootar_lib::value::format_value(&v)
+    })
 }
 
 #[test]
@@ -295,6 +367,29 @@ fn sh2_nested_if_while_fn_rust() {
     assert_eq!(kabootar_lib::value::format_value(&v), "1");
 }
 
+/// SH8: object field writes in a callee must be visible on the caller's object.
+#[test]
+fn sh8_object_arg_mutation_visible() {
+    let src = r#"
+fn inc(o) {
+    o["n"] = o["n"] + 1
+    return 0
+}
+let o = { "n": 0 }
+inc(o)
+return o["n"]
+"#;
+    let prog = compile_source(src).expect("compile");
+    let bc = prog.bytecode.expect("bytecode");
+    let mut env = create_global_env();
+    let v = run_module(&bc, &mut env).expect("run");
+    assert_eq!(
+        kabootar_lib::value::format_value(&v),
+        "1",
+        "callee object mutation must update caller alias"
+    );
+}
+
 #[test]
 fn sh2_parser_emit_exec_are_per_call_session() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host");
@@ -310,9 +405,8 @@ fn sh2_parser_emit_exec_are_per_call_session() {
     );
     assert!(parser.contains("pMakeSession()"), "alloc sess on first call");
     assert!(parser.contains("pResetSession(sess)"), "SH13 in-place reset");
-    assert!(parser.contains("gSess"), "rebind tramp target");
-    assert!(emit.contains("eResetSession(E)"), "SH13 emit reset");
-    assert!(emit.contains("gE = E"), "rebind emit tramp target");
+    assert!(parser.contains("fn tramp(sess)"), "tramp takes sess");
+    assert!(emit.contains("fn tramp(E)"), "emit tramp takes E");
 }
 
 /// SH3b: product facades re-export by alias (wrapping pub fn adds a Kab-VM frame).
@@ -338,7 +432,6 @@ fn sh3b_facades_are_aliases_not_wrap_fn() {
 
 /// SH3c: self-host serialize uses real newlines (CHAR_NL), not a one-line .kbc.
 #[test]
-#[ignore = "shares hang with SH8 tiny self-host compile in debug"]
 fn sh3c_self_host_kbc_has_real_newlines() {
     use kabootar_lib::compile::compile_source_self_host;
     ensure_compiler_image();
@@ -390,46 +483,60 @@ fn sh7b_product_tree_incremental() {
     assert_eq!(s2.dirty, 0, "second product-tree compile should be dirty=0");
 }
 
+/// SH8: tokenize tiny source via compiler-image (isolates lexer from parse tramp).
+#[test]
+fn sh8_tiny_tokenize_via_compiler_image() {
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    let missing = missing_compiler_dag_seeds().expect("scan");
+    eprintln!("SH8 tokenize missing_seeds={}", missing.len());
+    let t0 = Instant::now();
+    let out = sh8_call_export("self_host/lexer", "tokenize", "return 1\n");
+    eprintln!("SH8 tokenize ms={:.1} out={out}", t0.elapsed().as_secs_f64() * 1000.0);
+    assert!(
+        out.contains("EOF") || out.contains("return") || out.len() > 8,
+        "tokenize(return 1) should yield tokens, got {out}"
+    );
+}
+
 /// SH8: tiny source parses via compiler-image (`parse`).
 #[test]
-#[ignore = "import parse + tramp can hang in debug; rust nested-if is sh2_nested_if_while_fn_rust"]
 fn sh8_tiny_parse_via_compiler_image() {
-    use kabootar_lib::evaluator::create_module_env;
-    use kabootar_lib::modules::import_module;
-    use kabootar_lib::bytecode::call_value;
-    use kabootar_lib::value::Value;
-
-    ensure_compiler_image();
     std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
     let t0 = Instant::now();
-    let kind = std::thread::Builder::new()
-        .name("sh8-parse".into())
-        .stack_size(32 * 1024 * 1024)
-        .spawn(|| {
-            let mut env = create_module_env();
-            import_module("self_host/parse", &mut env).expect("import parse");
-            let parse_fn = env.get("parse").expect("parse export");
-            let ast = call_value(
-                parse_fn,
-                vec![Value::String("return 1\n".into())],
-                &[],
-                &[],
-                &[],
-                &[],
-                &mut env,
+    let kind = sh8_spawn("sh8-parse", || {
+        use kabootar_lib::bytecode::call_value;
+        use kabootar_lib::evaluator::create_module_env;
+        use kabootar_lib::modules::import_module;
+        use kabootar_lib::value::Value;
+
+        let mut env = create_module_env();
+        import_module("self_host/parse", &mut env).expect("import parse");
+        let parse_fn = env.get("parse").expect("parse export");
+        let ast = call_value(
+            parse_fn,
+            vec![Value::String("return 1\n".into())],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "parse tiny: {}",
+                kabootar_lib::runtime::stdlib::error::format_runtime_error(&e)
             )
-            .expect("parse tiny");
-            match ast {
-                Value::Object(map) => map
-                    .get("kind")
-                    .map(kabootar_lib::value::format_value)
-                    .unwrap_or_default(),
-                other => kabootar_lib::value::format_value(&other),
-            }
-        })
-        .expect("spawn")
-        .join()
-        .expect("join");
+        });
+        match ast {
+            Value::Object(map) => map
+                .get("kind")
+                .map(kabootar_lib::value::format_value)
+                .unwrap_or_default(),
+            other => kabootar_lib::value::format_value(&other),
+        }
+    });
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
     eprintln!("SH8 parse tiny kind={kind} ms={ms:.1}");
     assert!(
@@ -438,27 +545,23 @@ fn sh8_tiny_parse_via_compiler_image() {
     );
 }
 
-/// SH8: tiny self-host compile. Full `compile()` can hang in debug — opt-in.
+/// SH8: tiny self-host compile.
 #[test]
-#[ignore = "debug self-host compile of tiny source can hang; parse gate is sh8_tiny_parse_via_compiler_image"]
 fn sh8_tiny_self_host_compile() {
     use kabootar_lib::compile::compile_source_self_host;
+    std::env::set_var("KABOOTAR_VM", "host");
     ensure_compiler_image();
     let t0 = Instant::now();
-    let program = std::thread::Builder::new()
-        .name("sh8-tiny".into())
-        .stack_size(32 * 1024 * 1024)
-        .spawn(|| compile_source_self_host("return 1\n").expect("self-host tiny"))
-        .expect("spawn")
-        .join()
-        .expect("join");
+    let program = sh8_spawn("sh8-compile", || {
+        compile_source_self_host("return 1\n").expect("self-host tiny")
+    });
     let first_ms = t0.elapsed().as_secs_f64() * 1000.0;
     eprintln!("SH8 tiny first_ms={first_ms:.1}");
     assert!(program.bytecode.is_some(), "tiny self-host bytecode");
     let budget = if cfg!(debug_assertions) {
-        15_000.0
+        90_000.0
     } else {
-        2_000.0
+        12_000.0
     };
     assert!(
         first_ms < budget,

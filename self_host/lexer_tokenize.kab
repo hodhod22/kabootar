@@ -93,7 +93,13 @@ pub fn tokenizeExec(source) {
     }
     let tokens = []
     let tok = null
+    let n = 0
+    let at = 0
     while true {
+        n = n + 1
+        if n > 10000 {
+            throw "lexer runaway"
+        }
         lxSkipSpace(sess)
         if sess["pos"] >= sess["srcLen"] {
             break
@@ -104,7 +110,11 @@ pub fn tokenizeExec(source) {
         if lxSkipBlockComment(sess) == 1 {
             continue
         }
+        at = sess["pos"]
         tok = lxScan(sess)
+        if sess["pos"] <= at && tok.type != TOKEN_EOF {
+            throw "lexer stuck pos=" + ("" + at) + " type=" + ("" + tok.type)
+        }
         if tok.type == TOKEN_EOF {
             break
         }

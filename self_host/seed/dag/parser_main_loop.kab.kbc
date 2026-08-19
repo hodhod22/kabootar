@@ -110,4 +110,4 @@ halt
 
 source=self_host/parser_main_loop.kab
 statements=6
-fingerprint=36049cd7fb74a9fa
+fingerprint=33e460be8960f227
