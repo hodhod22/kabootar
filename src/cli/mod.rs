@@ -204,7 +204,8 @@ fn compile_cmd(args: &[String]) -> i32 {
 }
 
 pub fn compile_file_report(path: &str) -> Result<(usize, bool), String> {
-    let (n, bc, _) = compile_file_report_with(path, compile::CompilePrefer::SelfHostThenRust)?;
+    let prefer = compile::CompilePrefer::from_args_and_env(&[]);
+    let (n, bc, _) = compile_file_report_with(path, prefer)?;
     Ok((n, bc))
 }
 

@@ -1,6 +1,6 @@
 # Kabootar — språket
 
-> **Nolltolerans:** produkten ska vara **bara `.kab`** (även JIT/GC). Se [ROADMAP.md](ROADMAP.md) (rutan överst).
+> **Nolltolerans:** produkten ska vara **bara `.kab`** (även JIT, GC, stdlib, OS, CLI). Plan: [ROADMAP.md — egna fötter](ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Fart: [Våg FT](ROADMAP.md#våg-ft--fart-alla-tekniker-i-kab).
 
 > **Kan du redan JavaScript?** Läs [JAVASCRIPT.md](JAVASCRIPT.md) — där står **bara skillnaderna**. Du behöver inte gå igenom grundsyntaxen här nedan.
 

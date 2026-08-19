@@ -76,6 +76,18 @@ fn sh16_boot_policy_self_host_only_and_max_bytes() {
         boot.contains("kbcHeader") && compile.contains("guardAndPreprocess"),
         "bootPolicy kbcHeader + compile guardAndPreprocess"
     );
+    assert!(
+        boot.contains("rustFallbackPrefix") && boot.contains("self_host/"),
+        "bootPolicy rustFallbackPrefix must be self_host/"
+    );
+    let perf = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lib/kab/perf.kab"),
+    )
+    .expect("perf.kab");
+    assert!(
+        perf.contains("pub fn perfTick") && perf.contains("pub fn perfCount"),
+        "FT F0 kab/perf counters"
+    );
 }
 
 /// SH16: app `.kab` must not rust-fallback; oversize apps fail (split the module).
@@ -111,6 +123,24 @@ fn sh16_app_no_rust_fallback() {
     );
     let _ = std::fs::remove_file(&tiny);
     let _ = std::fs::remove_file(&big);
+}
+
+/// SH16: oversize under `self_host/` may still rust-compile (toolchain seeds); apps may not.
+#[test]
+fn sh16_toolchain_oversize_may_rust() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    let dir = std::env::temp_dir().join(format!("kab_sh16_tool_{}", std::process::id()));
+    let sh = dir.join("self_host");
+    let _ = std::fs::create_dir_all(&sh);
+    let huge = sh.join("huge.kab");
+    let src = "let x = 1\nreturn x + 2\n".to_string() + &"\n".repeat(70_000);
+    std::fs::write(&huge, src).expect("write toolchain huge");
+    let huge_s = huge.to_string_lossy().replace('\\', "/");
+    let (p, backend) = compile_file_prefer(&huge_s, CompilePrefer::SelfHostThenRust)
+        .expect("self_host oversize may rust-fallback");
+    assert!(p.has_bytecode() || p.stmt_count > 0);
+    assert_eq!(backend, "rust");
+    let _ = std::fs::remove_file(&huge);
 }
 
 fn ensure_compiler_image() {
