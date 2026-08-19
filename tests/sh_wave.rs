@@ -32,8 +32,13 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 40,
-        "compile.kab DAG should be dozens of shards, got {}",
+        inv.compile_dag.len() >= 20,
+        "compile.kab DAG should stay a real pipeline, got {}",
+        inv.compile_dag.len()
+    );
+    assert!(
+        inv.compile_dag.len() < 80,
+        "SH5 reverse-densify: compile DAG must stay under 80 files, got {}",
         inv.compile_dag.len()
     );
     let dag_vm = inv
@@ -160,5 +165,53 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    assert!(n >= 40, "compile DAG should be dozens of modules, wrote {n}");
+    assert!(n >= 20, "compile DAG should stay a pipeline, wrote {n}");
+}
+
+#[test]
+fn sh4_kbcb_v2_roundtrip() {
+    use kabootar_lib::bytecode::{deserialize_kbcb, serialize_kbcb, serialize_kbcb_v1};
+    let src = r#"
+fn add(a, b) {
+    return a + b
+}
+let obj = { "k": "v" }
+let xs = [1, 2, 3]
+return add(xs[0], len(obj))
+"#;
+    let prog = compile_source(src).expect("compile");
+    let m = prog.bytecode.expect("bytecode");
+    let bin = serialize_kbcb(&m);
+    assert_eq!(bin[4], 2, "default kbcb is v2");
+    let back = deserialize_kbcb(&bin).expect("v2 decode");
+    assert_eq!(back, m);
+    let v1 = serialize_kbcb_v1(&m);
+    let from_v1 = deserialize_kbcb(&v1).expect("v1 still loads");
+    assert_eq!(from_v1, m);
+}
+
+#[test]
+fn sh4_kbcb_v2_faster_than_text() {
+    use kabootar_lib::bytecode::{deserialize, deserialize_kbcb, serialize_kbcb};
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("self_host/seed/emit_impl.kab.kbc");
+    let text = std::fs::read_to_string(&path).expect("emit_impl seed");
+    let module = deserialize(&text).expect("text kbc");
+    let bin = serialize_kbcb(&module);
+    let n = 40;
+    let t0 = Instant::now();
+    for _ in 0..n {
+        let _ = deserialize(&text).expect("text");
+    }
+    let text_ms = t0.elapsed().as_secs_f64() * 1000.0;
+    let t0 = Instant::now();
+    for _ in 0..n {
+        let _ = deserialize_kbcb(&bin).expect("v2");
+    }
+    let v2_ms = t0.elapsed().as_secs_f64() * 1000.0;
+    eprintln!("SH4 emit_impl deserialize x{n} text={text_ms:.2}ms v2={v2_ms:.2}ms");
+    assert!(
+        v2_ms < text_ms,
+        "kbcb v2 should deserialize faster than text .kbc ({v2_ms:.2} vs {text_ms:.2})"
+    );
 }
