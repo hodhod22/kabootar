@@ -1,19 +1,18 @@
-// P6b: module session + trampoline entry.
+// SH2: fresh session object per parseTokens call. Tramp is 0-arg and reads gSess
+// (nested fn capture / tramp(sess) hang or fail rust-emit).
 import "self_host/parser_session"
 import "self_host/parser_tramp"
 import "self_host/parser_main"
 
-let sess = pMakeSession()
+let gSess = null
 
 fn tramp() {
-    return pTramp(sess)
+    return pTramp(gSess)
 }
 
-sess["tramp"] = tramp
-sess["_hook"] = 0
-
 pub fn parseTokensExec(tokens) {
-    pResetSession(sess)
+    let sess = pMakeSession()
+    gSess = sess
     sess["tramp"] = tramp
     sess["_hook"] = 0
     return parseMain(sess, tokens)

@@ -1,12 +1,369 @@
 import "self_host/lexer_defs"
 import "self_host/lexer_util"
-import "self_host/lexer_scan_punct"
-import "self_host/lexer_scan_arith"
-import "self_host/lexer_scan_eq"
-import "self_host/lexer_scan_cmp"
-import "self_host/lexer_scan_string"
-import "self_host/lexer_scan_word"
 
+// --- lexer_scan_arith ---
+pub fn lxScanPlusMinus(sess, c, line, col) {
+    if c == "+" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("+=", null, line, col)
+        }
+        return lxTok("+", null, line, col)
+    }
+    if c == "-" {
+        lxEat(sess)
+        if lxStarts(sess, ">") == 1 {
+            lxEat(sess)
+            return lxTok("->", null, line, col)
+        }
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("-=", null, line, col)
+        }
+        return lxTok("-", null, line, col)
+    }
+    return null
+}
+
+pub fn lxScanMulDiv(sess, c, line, col) {
+    if c == "*" {
+        lxEat(sess)
+        if lxStarts(sess, "*") == 1 {
+            lxEat(sess)
+            return lxTok("**", null, line, col)
+        }
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("*=", null, line, col)
+        }
+        return lxTok("*", null, line, col)
+    }
+    if c == "/" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("/=", null, line, col)
+        }
+        return lxTok("/", null, line, col)
+    }
+    if c == "%" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("%=", null, line, col)
+        }
+        return lxTok("%", null, line, col)
+    }
+    return null
+}
+
+// --- lexer_scan_cmp ---
+pub fn lxScanCmp(sess, c, line, col) {
+    if c == "<" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("<=", null, line, col)
+        }
+        if lxStarts(sess, "<") == 1 {
+            lxEat(sess)
+            return lxTok("<<", null, line, col)
+        }
+        return lxTok("<", null, line, col)
+    }
+    if c == ">" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok(">=", null, line, col)
+        }
+        if lxStarts(sess, ">") == 1 {
+            lxEat(sess)
+            if lxStarts(sess, ">") == 1 {
+                lxEat(sess)
+                return lxTok(">>>", null, line, col)
+            }
+            return lxTok(">>", null, line, col)
+        }
+        return lxTok(">", null, line, col)
+    }
+    if c == "." {
+        lxEat(sess)
+        if lxStarts(sess, ".") == 1 {
+            lxEat(sess)
+            if lxStarts(sess, ".") == 1 {
+                lxEat(sess)
+                return lxTok("...", null, line, col)
+            }
+            throw "Expected ... at line " + ("" + line) + " col " + ("" + col)
+        }
+        return lxTok(".", null, line, col)
+    }
+    return null
+}
+
+// --- lexer_scan_eq ---
+pub fn lxScanEqBang(sess, c, line, col) {
+    if c == "?" {
+        lxEat(sess)
+        if lxStarts(sess, "?") == 1 {
+            lxEat(sess)
+            return lxTok("??", null, line, col)
+        }
+        if lxStarts(sess, ".") == 1 {
+            lxEat(sess)
+            return lxTok("?.", null, line, col)
+        }
+        return lxTok("?", null, line, col)
+    }
+    if c == "=" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("==", null, line, col)
+        }
+        if lxStarts(sess, ">") == 1 {
+            lxEat(sess)
+            return lxTok("=>", null, line, col)
+        }
+        return lxTok("=", null, line, col)
+    }
+    if c == "!" {
+        lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("!=", null, line, col)
+        }
+        return lxTok("!", null, line, col)
+    }
+    return null
+}
+
+pub fn lxScanLogic(sess, c, line, col) {
+    if c == "&" {
+        lxEat(sess)
+        if lxStarts(sess, "&") == 1 {
+            lxEat(sess)
+            return lxTok("&&", null, line, col)
+        }
+        return lxTok("&", null, line, col)
+    }
+    if c == "|" {
+        lxEat(sess)
+        if lxStarts(sess, "|") == 1 {
+            lxEat(sess)
+            return lxTok("||", null, line, col)
+        }
+        return lxTok("|", null, line, col)
+    }
+    return null
+}
+
+// --- lexer_scan_punct ---
+pub fn lxScanPunct(sess, c, line, col) {
+    if c == "(" {
+        lxEat(sess)
+        return lxTok("(", null, line, col)
+    }
+    if c == ")" {
+        lxEat(sess)
+        return lxTok(")", null, line, col)
+    }
+    if c == "{" {
+        lxEat(sess)
+        return lxTok("{", null, line, col)
+    }
+    if c == "}" {
+        lxEat(sess)
+        return lxTok("}", null, line, col)
+    }
+    if c == "[" {
+        lxEat(sess)
+        return lxTok("[", null, line, col)
+    }
+    if c == "]" {
+        lxEat(sess)
+        return lxTok("]", null, line, col)
+    }
+    if c == ";" {
+        lxEat(sess)
+        return lxTok(";", null, line, col)
+    }
+    if c == "," {
+        lxEat(sess)
+        return lxTok(",", null, line, col)
+    }
+    if c == ":" {
+        lxEat(sess)
+        return lxTok(":", null, line, col)
+    }
+    if c == "^" {
+        lxEat(sess)
+        return lxTok("^", null, line, col)
+    }
+    if c == "~" {
+        lxEat(sess)
+        return lxTok("~", null, line, col)
+    }
+    return null
+}
+
+// --- lexer_scan_string ---
+pub fn lxScanHash(sess, c, line, col) {
+    if c != "#" {
+        return null
+    }
+    lxEat(sess)
+    let start = sess["pos"]
+    let cd = 0
+    let ch = ""
+    let ok = 0
+    while sess["pos"] < sess["srcLen"] {
+        cd = char_code_at(sess["src"], sess["pos"])
+        ch = char_at(sess["src"], sess["pos"])
+        ok = 0
+        if cd >= 65 && cd <= 90 { ok = 1 }
+        if cd >= 97 && cd <= 122 { ok = 1 }
+        if cd >= 48 && cd <= 57 { ok = 1 }
+        if ch == "_" { ok = 1 }
+        if ok == 0 { break }
+        lxEat(sess)
+    }
+    if sess["pos"] == start {
+        throw "Expected identifier after # at line " + ("" + line) + " col " + ("" + col)
+    }
+    return lxTok(TOKEN_PRIVATE, str_slice(sess["src"], start, sess["pos"]), line, col)
+}
+
+pub fn lxScanString(sess, c, line, col) {
+    if c != "\"" {
+        return null
+    }
+    lxEat(sess)
+    let i = sess["pos"]
+    let hasEsc = 0
+    while i < sess["srcLen"] {
+        if ch == "\\" {
+            hasEsc = 1
+            break
+        }
+        if ch == "\"" {
+            break
+        }
+        i = i + 1
+    }
+    if hasEsc == 0 {
+        if i >= sess["srcLen"] {
+            throw "Unterminated string at line " + ("" + line) + " col " + ("" + col)
+        }
+        let s = str_slice(sess["src"], start, i)
+        sess["col"] = sess["col"] + (i - start) + 1
+        sess["pos"] = i + 1
+        return lxTok(TOKEN_STRING, s, line, col)
+    }
+    while sess["pos"] < sess["srcLen"] {
+        if ch == "\\" {
+            lxEat(sess)
+            if sess["pos"] >= sess["srcLen"] {
+                throw "Unterminated string escape at line " + ("" + line) + " col " + ("" + col)
+            }
+            let e = char_at(sess["src"], sess["pos"])
+            lxEat(sess)
+            let piece = "\\" + e
+            if e == "n" { piece = "\n" }
+            if e == "r" { piece = "\r" }
+            if e == "t" { piece = "\t" }
+            if e == "\"" { piece = "\"" }
+            if e == "\\" { piece = "\\" }
+            s = s + piece
+            continue
+        }
+        lxEat(sess)
+        if ch == "\"" {
+            break
+        }
+        s = s + ch
+    }
+    return lxTok(TOKEN_STRING, s, line, col)
+}
+
+// --- lexer_scan_word ---
+pub fn lxScanNumber(sess, code0, line, col) {
+    if !(code0 >= 48 && code0 <= 57) {
+        return null
+    }
+    lxEat(sess)
+    while sess["pos"] < sess["srcLen"] {
+        if cd < 48 || cd > 57 {
+            break
+        }
+        lxEat(sess)
+    }
+    let digits = str_slice(sess["src"], start, sess["pos"])
+    if lxStarts(sess, "n") == 1 {
+        lxEat(sess)
+        return lxTok(TOKEN_BIGINT, digits, line, col)
+    }
+    if lxStarts(sess, ".") == 1 {
+        lxEat(sess)
+        let fracStart = sess["pos"]
+        while sess["pos"] < sess["srcLen"] {
+            if cd < 48 || cd > 57 {
+                break
+            }
+            lxEat(sess)
+        }
+        let frac = str_slice(sess["src"], fracStart, sess["pos"])
+        return lxTok(TOKEN_FLOAT, parse_float(digits + "." + frac), line, col)
+    }
+    return lxTok(TOKEN_NUMBER, parse_int(digits), line, col)
+}
+
+pub fn lxScanIdent(sess, c, code0, line, col) {
+    let start = sess["pos"]
+    let cd = 0
+    let ok = 0
+    if c == "_" {
+        lxEat(sess)
+        while sess["pos"] < sess["srcLen"] {
+            cd = char_code_at(sess["src"], sess["pos"])
+            ok = 0
+            if cd >= 65 && cd <= 90 { ok = 1 }
+            if cd >= 97 && cd <= 122 { ok = 1 }
+            if cd >= 48 && cd <= 57 { ok = 1 }
+            if cd == 95 { ok = 1 }
+            if ok == 0 { break }
+            lxEat(sess)
+        }
+        return lxTok(TOKEN_IDENT, str_slice(sess["src"], start, sess["pos"]), line, col)
+    }
+    let isAlpha = 0
+    if code0 >= 97 && code0 <= 122 { isAlpha = 1 }
+    if isAlpha == 0 && code0 >= 65 && code0 <= 90 { isAlpha = 1 }
+    if isAlpha == 0 {
+        return null
+    }
+    lxEat(sess)
+    while sess["pos"] < sess["srcLen"] {
+        cd = char_code_at(sess["src"], sess["pos"])
+        ok = 0
+        if cd >= 65 && cd <= 90 { ok = 1 }
+        if cd >= 97 && cd <= 122 { ok = 1 }
+        if cd >= 48 && cd <= 57 { ok = 1 }
+        if cd == 95 { ok = 1 }
+        if ok == 0 { break }
+        lxEat(sess)
+    }
+    let id = str_slice(sess["src"], start, sess["pos"])
+    let kw = KEYWORDS[id]
+    if kw == undefined {
+        return lxTok(TOKEN_IDENT, id, line, col)
+    }
+    return lxTok(kw, null, line, col)
+}
+
+// --- lexer_scan ---
 pub fn lxScan(sess) {
     if sess["pos"] >= sess["srcLen"] {
         return lxTok(TOKEN_EOF, null, sess["line"], sess["col"])

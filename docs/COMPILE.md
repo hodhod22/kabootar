@@ -24,7 +24,7 @@ Sibling `.kbcb` is written on compile. Warm the tree: `warm_self_host_disk_cache
 Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gamla platta `lexer.kab.kbc`.
 `.kbc`-strängkonstanter escapar `\n`/`\r`/`\t`/`\s` så whitespace inte bryter radformatet.
 
-**H6e seeds:** committed bytecode under `self_host/seed/*.kbc` (fingerprint-validerad) som kab-only cache. **P6b:** skip-list tom (`attempt-all`); emit/parser/lexer impls är tunna drivrutiner. Gates: `p6_skip_list_stays_until_ci_fast_gate`, `p6_seed_fingerprint_all_leaves_load`. Regenerera: `scripts/regen_self_host_seeds.sh`.
+**H6e seeds:** committed bytecode under `self_host/seed/` + packed `compiler.kbcb` (fingerprint). **P6b:** skip-list tom. Dirty toolchain: `compile_dirty_dag_seeds`. Produktträd: `compile_dirty_product_tree`. Gates: `tests/sh_wave.rs`.
 
 Self-host full compile av heavy leaves kan ta **minuter–timmar** — undvik i varje edit-loop; facader + seeds är CI-vägen.
 

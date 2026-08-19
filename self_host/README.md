@@ -1,151 +1,133 @@
 # Self-hosted Kabootar compiler
 
-Kabootar kompilerar sig själv steg för steg. Varje fas speglar motsvarande Rust-modul.
+Produktkompilatorn är **Kabootar** (`self_host/compile.kab`), inte Rust-emit, för app-`.kab`. Host-VM + Cranelift kör toolchainen. JIT/GC skrivs **inte** om i Kab.
+
+Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)** (`SH0`–`SH15`). **Fast Compile / Fast Run:** minimera compile-arbete (image, dirty-only, cache); dyra opts i runtime/JIT (P11–P13).
 
 ## Kedja
 
 ```
 source text
-    → lexer.kab        (src/lexer.rs)     token[]
-    → parse.kab        (facade)           AST
-    → emit.kab         (src/bytecode/compiler.rs)  opcode IR
-    → serialize.kab    (src/bytecode/types.rs)     .kbc text
-    → compile.kab      (facade)           source → .kbc
-    → [opt.kab]        (src/runtime/kv8/opt.rs)
-    → .kbc bytecode
-    → kabootar compile self_host/…   (full self-host)
+    → lexer.kab / tokenizeExec     token[]
+    → parse.kab  (parseTokens)     AST
+    → emit.kab   (emit)            opcode IR
+    → serialize.kab                .kbc text / kbcb v2
+    → compile.kab                  source → .kbc
+    → seed/compiler.kbcb           SH1 packed image (fingerprint)
 ```
 
-## Filer
+Default CLI: `kabootar compile` → self-host först, Rust fallback. `KABOOTAR_COMPILE=rust` tvingar host. Compiler-DAG och `vm_*` rust-kompileras till committed seeds (inte live self-host av 80+ shards).
 
-| Fil | Status | Beskrivning |
-|-----|--------|-------------|
-| `lexer_defs.kab` | klar | Token-konstanter och `KEYWORDS` |
-| `lexer.kab` | klar | `tokenize(source)` → token-array |
-| `ast_defs.kab` | klar | AST-nodtyper |
-| `parser.kab` | klar | `parseTokens(tokens)` → AST (+ generics: `<T>`, enum/class, typed calls/members) |
-| `emit_defs.kab` | klar | Opcode-namn för IR |
-| `emit.kab` | klar | `emit(ast)` → opcode IR (+ `functions[]`) |
-| `serialize_ir.kab` | klar | IR membership tables |
-| `serialize_esc.kab` | klar | escape helper (CI-fast) |
-| `serialize_op.kab` | klar | const/op/join helpers (skip-listed) |
-| `serialize_out.kab` | klar | out-line helpers (skip-listed) |
-| `serialize_sections.kab` | klar | section appenders (skip-listed) |
-| `serialize_acc.kab` | klar | serSerializeBc (skip-listed) |
-| `serialize_pure.kab` | klar | pub-import aggregator |
-| `serialize_defs.kab` | klar | pub-import aggregator |
-| `serialize.kab` | klar | `serialize_bc(ir)` → text |
-| `parse.kab` | klar | `parse(source)` facade (lexer + parser) |
-| `compile.kab` | klar | `compile(source)` → `.kbc` text (full pipeline) |
-| `test_lexer.kab` | klar | 234+ lexer-tester |
-| `test_parser.kab` | klar | Parser-tester |
-| `test_emit.kab` | klar | Emitter-tester |
-| `test_serialize.kab` | klar | Serializer-tester |
-| `roundtrip_probe.kab` | klar | Kabootar roundtrip smoke |
-| `roundtrip_main_probe.kab` | klar | Main program → Rust `deserialize` |
-| `roundtrip_fn_probe.kab` | klar | Fn-body roundtrip (Rust CI) |
-| `roundtrip_call_probe.kab` | klar | Fn call `add(1,2)` → Rust `run_module` |
-| `test_parse_facade.kab` | klar | `parse(source)` facade-tester |
-| `test_subset.kab` | klar | Utökad parser-subset |
-| `mini_module.kab` | klar | Lexer-liknande mini-modul (Rust) |
-| `larger_probe.kab` | klar | `compile(mini_module)` -> Rust CI |
-| `test_larger.kab` | klar | Larger compile smoke |
-| `test_m7.kab` | klar | `!=`-chains (parse smoke) |
-| `test_lexer_compile.kab` | klar | Lexer-like loop compile smoke |
-| `lexer_compile_probe.kab` | klar | Lexer loop -> Rust `run_module` CI |
-| `sample.kab` | klar | Bootstrap-exempel (`return 42`) |
-| `bootstrap_probe.kab` | klar | `compile(sample)` -> Rust `run_module` CI |
-| `test_bootstrap.kab` | klar | Bootstrap smoke |
-| `test_tiny.kab` | klar | Snabb smoke |
+## Nuläge (inte den gamla shard-listan)
 
-## Kör tester
+| Yta | Status |
+|-----|--------|
+| Skip-list | **tom** (`attempt-all`, P6b) |
+| Compile-DAG | **&lt; 80** `.kab` (SH5); `vm_*` **&lt; 40** (SH6) |
+| Image | `self_host/seed/compiler.kbcb` + `seed/dag/*.kbc` (SH1) |
+| Facader | `pub let` alias, inte wrapping `pub fn` (SH3b) |
+| Lexer | per-call `sess` i `tokenizeExec` |
+| Parser/emit | **SH2:** ny `pMakeSession`/`eMakeSession` per anrop; tramp 0-arg via `gSess`/`gE` (inte `tramp(sess)` — hänger). `pCondStack` kvar på sess |
+| Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
+| Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
+| Tiny parse | `sh8_tiny_parse_via_compiler_image` — full `compile("return 1")` fortfarande ignored i debug (hang) |
+
+Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored`.
+
+## Filer (ingångar)
+
+| Fil | Roll |
+|-----|------|
+| `compile.kab` | `compile(source)` / `compileIr` |
+| `parse.kab` | `parse` = tokenize + parseTokens |
+| `lexer.kab` / `parser.kab` / `emit.kab` / `serialize.kab` | tunna `pub let`-facader |
+| `parser_exec.kab` / `emit_exec.kab` | per-call session + tramp |
+| `ownership.kab` | O5 `@manual` |
+| `vm.kab` | kab-only VM (bootstrap; host-VM kör produkten) |
+| `seed/compiler.kbcb` | packed compile-DAG |
+
+## Tester
 
 ```bash
-kabootar self_host/test_lexer.kab
-kabootar self_host/test_parser.kab
-kabootar self_host/test_parse_facade.kab
-kabootar self_host/test_subset.kab
-kabootar self_host/test_larger.kab
-kabootar self_host/test_m7.kab
-kabootar self_host/test_lexer_compile.kab
-kabootar self_host/test_compile.kab
-kabootar self_host/test_bootstrap.kab
-kabootar compile self_host/compile.kab
-kabootar self_host/test_emit.kab
-kabootar self_host/test_serialize.kab
+cargo test --test sh_wave -- --test-threads=1
+cargo test --test self_host -- --test-threads=1
 kabootar self_host/test_tiny.kab
-cargo test --test self_host
+kabootar compile self_host/sample.kab
 ```
 
-## Designregler (lärt från lexern)
+## Designregler
 
-1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram (`set` / `share_bindings` för pile); captures markeras (`local_captures`) och får `assign` till parent. Rekursiva anrop får egna ramar (L1/L4). **Session-state** (`lxPos`, `eOps`, `pPos`, …) förblir modul-global; rekursions-temps migreras till fn-lokaler (S1).
-2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`, inte bara `push(arr, item)`.
-3. **Spara AST-fält före rekursion** — t.ex. `eSym = eNode["sym"]` innan `emitExpr(init)`; `pCallee = pLeft` innan call-args.
-4. **Bracket-access för AST-nycklar** — undvik `.then`, `.sym`, `.value` där det krockar; använd `node["sym"]`.
-5. **Radbrytning** — `"\n"` är literal i Kabootar; använd `CHAR_NL` från `lexer_defs` i serializer.
-6. **Assign: peek före bump** — `let tok = peek(); bump();` (inte `bump()`-returvärde) för att få `sym`.
-7. **Modulskala (L2)** — ≥40 top-level `fn` per modul OK (`share_bindings` vid register/clone). Äldre gräns ~7/~14 fn var en host-bug, inte ett språkkrav. Dela fortfarande stora filer av läsbarhetsskäl.
-8. **Exporterade fn + privata syskon** — Rust `refresh_function_closures` + `prepare_exported_bytecode_fn` (dela post-refresh closure).
-9. **Nested import** — använd `import "self_host/compile"` + `compile(src)` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` i samma modul som `parse.kab` (namnkrock).
-10. **Emitter: CALL-args i fn-kropp** — undvik var+literal i samma 2-arg `CALL`. Använd modul-global `ZERO = 0` + `char_code_at(ch, ZERO)`.
-11. **Windows stack** — `build.rs` sätter 16 MiB stack för `kabootar`-bin.
-12. **Compare-parse** — spara lhs i `pSave` före rhs; använd **inte** `parsePostfix()` för compare-rhs (skriver över `pLeft`). Undvik `parsePostfix()` i `.kbc`-cache (privata fn syns inte). Inline rhs som `+`-loopen + `null`/`undefined`/`true`/`false`.
-13. **Emitter while** — spara loop-head i `eWhileHead` (inte `eIdx`). Jump-args är **relativa** i VM: `target - jmpIndex - 1`.
-14. **Bytecode-cache** — `.kabootar/cache/*.kbc` ogiltigförklaras när källan är nyare (`read_bytecode_cache` mtime-check).
-15. **Serialize från `.kbc`** — undvik privata fn-anrop från exporterade fn (`serialize_bc`); använd modul-global `sOut` + `CHAR_NL` inline istället för `appendLine()`.
-16. **Array literal** — `[]` / `[a, b]` kräver `AST_ARRAY` + `make_array` i parser/emit/serialize (lexer.kab använder `let parts = []`).
-17. **Emitter scratch** — `eBxL`/`eBxR` för CALL/INDEX/MEMBER/BINARY; `eList` för OBJECT/ARRAY; `eBodyStmts` för BLOCK (inte `eLeft`).
-18. **Throw** — `throw expr` som `AST_THROW` + `throw` opcode i parser/emit/serialize.
-19. **Emitter nested if/while** — `eIfJmpStack`/`eIfSkipStack` för jump-patch (inte modul-global `eJmp`; nästlade `if` skrev över den). För `break`: trimma `eBreakIdxs` tillbaka till `eBf` när en loop är färdigpatchad, annars läcker inner-loop breaks till outer-loop.
-20. **Parser sym snapshot** — `symCopy()` + `pFnSym`/`pFnPub`; spara före rekursiv `parseStmt` (token/sträng-alias + modul-global `pSaveSym`).
-21. **Parser while/if cond** — `pCondStack`: spara `pCond` efter `parseExpr()` före body/then/else (annars skriver sista inner `if` över `while`-villkoret).
-22. **Parser let/assign sym** — `pBindSym` (inte `pSaveSym`): objektnycklar i rhs skriver över `pSaveSym` innan `return` (t.ex. `tokens = push(tokens, { column: lxCol })`).
-23. **Parser assign lookahead** — säker `ident =`-lookahead via `pNextTok = pToks[pPos+1]` med explicit EOF-fallback; undviker både OOB och att clobbra `pTok` före expr-stmts.
-24. **Parser bracket index** — fn-lokal `indexObj` (S1; tidigare `pIndexObj`): `parseCompare()` i `a[b]` skriver över `pLeft`.
-25. **Parser compare rhs** — `pInAddSub`-flagga: compare-rhs via `parseCompare()` i add/sub-läge (inte inline literal); annars `len(stack) - 1` lämnar `-` kvar och `while` får `Expected {`.
-26. **Parser `+`/`-` rhs** — `pAddLeftStack` + rekursiv `parseCompare()` under `pInAddSub=1` (inte ident-shortcut; tappar `.field` efter `+`, t.ex. `throw "msg" + eNode.kind`).
-27. **Parser && expr** — `pExprLeft` (inte `pSave`/`pBinOp`): `parseCompare()` skriver över båda under rhs-parse.
-28. **Emitter binary op** — fn-lokaler `binOp`/`binRight` före rekursiv `emitExpr` (S1; tidigare `eBinOpStack`).
-29. **pub fn exports** — `isPub` i AST, `eExports` i emit, `exports=` i serialize.
-30. **Emitter let/member** — `eStoreSym`/`eMemberFldStack` före rekursiv `emitExpr` (inte `eSym`/`eMemberFld`; clobbar sym/field). **`eAssignSym`** före `emitExpr(rhs)` på assign/let. **`eExprStmt`** på `AST_EXPR` (inte `eBxL`; clobras av call/member/index).
-31. **Emitter module globals in fn** — `let lxPos` på modulnivå delas mellan fn vid interpret; i bytecode ska `emitLoadSym`/`emitStoreSym` leta i `eFnLocals` först, sedan `eGlobals` (inte `localIndex` på assign till modul-global).
-32. **Emitter fn snapshot** — `snapArr(eFnOps)` (och params/locals/globals) vid push till `eFunctions`.
-33. **Emitter block loop** — `eBlockIStack`/`eBlockNStack`; efter `emitStmt` läs `eBlockI = eBlockIStack[…] + 1` (inte `eBlockI + 1`).
-34. **Emitter expr-loops** — object/array/call-arg med egna index-stackar (`eObjIStack`, `eArrIStack`, `eCallArgIStack`); samma pop/push-mönster som block. Extra top-level fn är OK efter L2 (tidigare OOM ~14 fn).
-35. **Parser parseTokens EOF** — `while pDone == 0` (inte `while true`/`break` i bytecode); dubbelkolla `pPos >= len(pToks)` och `pTok.type == "EOF"` före `parseStmt()`. `parseStmt()` returnerar `null` vid EOF; `parseTokens` pushar bara när `pVal != null`.
-36. **Emitter binary `+` i fn** — `emitExpr(AST_BINARY)` spara rhs i `eBxR` före `emitExpr(left)`; alltid rekursiv emit (ingen `eInFn`-genväg).
-37. **Parser let sym** — `pLetSym = symCopy(pTok.value)` före `bump()` på let-ident; använd `pLetSym` i `pSymPool` (inte `pTok.value` efter bump; clobbras av postfix/index/call-parse).
-38. **Parser undefined literal** — `TOKEN_UNDEFINED` i `parsePostfix` → `LIT_UNDEF` (emit.kab jämför `== undefined` / `!= undefined`).
-39. **Parser postfix chains** — interleaved `()`, `.`, `[]` i en loop (inte tre separata while; annars tappas `obj["x"].field`).
-40. **`null` vs `undefined`** — båda är förstklassiga i lexer/parser/bytecode. `null == undefined` är `false`. Saknad nyckel / oinitierad `let` → `undefined`; medveten tomhet → `null`. Self-host: `if node.kind == undefined`, `if obj["field"] != undefined` — **inte** `null` i dessa fall.
-41. **Program body** — samma block-stack-loop som `AST_BLOCK` + `OP_HALT`.
-42. **Parser index assign** — `arr[i] = rhs` → `AST_INDEX_ASSIGN` + `OP_INDEX_SET` (inte `parseExpr` + kvarlämnat `=`; emit.kab patchar `eFnOps[eJmp] = { … }`).
-43. **Emitter index assign** — spara `eBxRhs = eNode["rhs"]` före `emitExpr(eBxL)`/`emitExpr(eBxR)`; `emitExpr` clobbrar `eNode` (annars `eNode["rhs"]` läser index-noden → member access-fel).
-44. **Emitter popStack** — använd native `pop(stack)` (inte manuell while-kopia); self-host compile av emit.kab är annars extremt långsam.
-45. **Self-compiled vs Rust emit** — `import "self_host/emit"` = Rust-bytecode (~långsam men klar). `compile(emit.kab)` → `.kbc` = self-hosted bytecode; om `emit(parse("let x = 1"))` hänger via `.kbc` men import fungerar → felsök serialize/compile-output, inte bara emit.kab-logik.
-46. **Self-host nested builtins (SH3a)** — `push(stack, len(x))` uses argv N-path (snapshot `eArgs`/`eArgN`). Fast arity-2 path is retired. Gate: `sh3a_self_host_push_len_nested`.
-47. **Serialize radbrytning** — använd `CHAR_NL` från `lexer_defs`, **inte** `"\n"` (literal i Kabootar); annars blir `.kbc` en enda rad som Rust `deserialize` avvisar.
-48. **Emitter nested call** — `eCalleeStack` före rekursiv `emitExpr` på args (inte modul-global `eCallee`; nästlade `serialize_bc(emit(parse(x)))` laddar fel callee). Binary temps är fn-lokala (S1).
-49. **Parser nested call** — fn-lokaler `savedCallee`/`savedTypeArgs` (S1; tidigare `pCalleeStack`).
-50. **Parser generic call type args** — spara `savedTypeArgs` med call (S1); rekursiv `parseCompare` nollställer modul-global `pTypeArgs`.
-51. **Emit generic fn** — spara template i `eGenericTemplates`; vid `AST_CALL` till generic callee: infer/mangle → specialisera → ersätt callee med `id$Number` (importera **inte** extra modul från `emit.kab` — kombinerad import overflowar compile).
+**SH2:** parser/emit-cursors (`pPos`, `eOps`, …) ligger på **session-objektet**, inte nya modul-globaler. Trampolin: `sess["tramp"](sess)` så rekursion inte fångar en modul-`sess`. Nested `if`/`while` använder fortfarande `pCondStack` / `eIfJmpStack` **på sess** (full SH2 utan de stackarna är deepen).
+
+1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram. Captures: `local_captures`. **Lexer-ident:** `let cd`/`ok`/`start` i samma fn som loopen (`lxScanIdent`) — saknad `let` blir bytecode-global (`Undefined variable: cd`).
+2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`.
+3. **Spara AST-fält före rekursion** — t.ex. `eSym = eNode["sym"]` innan `emitExpr(init)`.
+4. **Bracket-access för AST-nycklar** — `node["sym"]` där `.then`/`.value` krockar.
+5. **Radbrytning** — använd `CHAR_NL`, inte `"\n"` i serializer (SH3c).
+6. **Assign: peek före bump** — `let tok = peek(); bump();`.
+7. **Modulskala (L2)** — ≥40 top-level `fn` per modul OK. Densify till 5-radersfiler är **föråldrat** (ökar import-evals).
+8. **Exporterade fn** — `pub let X = Ximpl` på facader (SH3b); wrapping `pub fn` ger extra Kab-VM-ram.
+9. **Nested import** — `import "self_host/compile"` för hela kedjan; `parse.kab` för AST-only. Importera inte `parser.kab` tillsammans med `parse.kab`.
+10. **CALL-args** — undvik var+literal i samma 2-arg `CALL` i heta fn.
+11. **Windows stack** — `build.rs` sätter 16 MiB för `kabootar`-bin.
+12–51. Nested if/while/call/clobber-workarounds (`pCondStack`, `eIfJmpStack`, `eCalleeStack`, …) är **session-fält**, inte nya modul-globaler. Full lista historiskt nedan; nya `let pSave*` / `let pPos` i facader är **förbjudna** (SH10).
+
+## Historiska clobber-regler (session-fält, inte nya globals)
+
+12. **Compare-parse** — spara lhs före rhs; inte `parsePostfix()` för compare-rhs.
+13. **Emitter while** — loop-head i `eWhileHead`; jump-args relativa: `target - jmpIndex - 1`.
+14. **Bytecode-cache** — `.kabootar/cache/*.kbc` + fingerprint (content + import-mtimes). SH7b kompilerar bara dirty.
+15. **Serialize från `.kbc`** — `CHAR_NL`; inte privata fn från exporterade `serialize_bc`.
+16. **Array literal** — `AST_ARRAY` + `make_array`.
+17. **Emitter scratch** — `eBxL`/`eBxR` / `eList` / `eBodyStmts` på sess.
+18. **Throw** — `AST_THROW` + `throw` opcode.
+19. **Nested if/while** — `eIfJmpStack`/`eIfSkipStack`; trimma `eBreakIdxs` efter inner loop.
+20. **Parser sym snapshot** — `pFnSym`/`pFnPub` på sess före rekursiv `parseStmt`.
+21. **while/if cond** — `pCondStack` på sess.
+22. **let/assign sym** — `pBindSym` (inte `pSaveSym`).
+23. **assign lookahead** — `pNextTok = pToks[pPos+1]` med EOF-fallback.
+24. **bracket index** — fn-lokal `indexObj`.
+25. **compare rhs** — `pInAddSub`.
+26. **`+`/`-` rhs** — `pAddLeftStack` + rekursiv `parseCompare`.
+27. **&& expr** — `pExprLeft`.
+28. **binary op** — fn-lokaler `binOp`/`binRight`.
+29. **pub exports** — `isPub` / `eExports` / `exports=`.
+30. **let/member** — `eStoreSym` / `eMemberFldStack` / `eAssignSym` / `eExprStmt`.
+31. **module globals in fn** — `eFnLocals` först, sedan `eGlobals`.
+32. **fn snapshot** — `snapArr(eFnOps)` vid push till `eFunctions`.
+33. **block loop** — `eBlockIStack`/`eBlockNStack`.
+34. **expr-loops** — `eObjIStack`, `eArrIStack`, `eCallArgIStack`.
+35. **parseTokens EOF** — `while pDone == 0`.
+36. **binary `+` i fn** — spara rhs före `emitExpr(left)`.
+37. **let sym** — `pLetSym` före `bump()`.
+38. **undefined literal** — `TOKEN_UNDEFINED` → `LIT_UNDEF`.
+39. **postfix chains** — interleaved `()`, `.`, `[]`.
+40. **`null` vs `undefined`** — `null == undefined` är `false`.
+41. **Program body** — block-stack + `OP_HALT`.
+42. **index assign** — `AST_INDEX_ASSIGN` + `OP_INDEX_SET`.
+43. **emit index assign** — spara `eBxRhs` före `emitExpr`.
+44. **popStack** — native `pop(stack)`.
+45. **import emit vs compile(emit.kab)** — häng via `.kbc` → serialize/compile, inte bara emit-logik.
+46. **SH3a** — `push(s, len(x))` argv N-path. Gate: `sh3a_*`.
+47. **CHAR_NL** i serialize (SH3c).
+48. **nested call emit** — `eCalleeStack`.
+49. **nested call parse** — fn-lokaler `savedCallee`/`savedTypeArgs`.
+50. **generic call type args** — `savedTypeArgs` med call.
+51. **generic emit** — `eGenericTemplates`; ingen extra import från `emit.kab`.
 
 ## Nästa milstolpar (Våg SH)
 
-Historiska 1–14 är klara (roundtrip, facader, bootstrap, generics). **Inte nästa:** fler `_probe`-filer eller postfix-splits.
-
-Konkret plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)** (`SH0`–`SH10`).
+Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte nästa:** fler `_probe`-filer.
 
 Kort ordning:
 
-1. **SH0** — mät DAG (filantal / import_ms / shard_evals); sluta committa `_probe`/`_bisect`.
-2. **SH1** — committed **compiler-image** så `import "self_host/compile"` inte evalar ~580 källor.
-3. **SH2** — **session-objekt** i stället för `pPos`/`eOps`/`lxPos` (det är vad README-regel 12–50 egentligen handlar om).
-4. **SH3** — fixa nested `push(a, len(b))`, wrap-fn-reentrancy, serialize-newline.
-5. **SH4** — binär `.kbcb` v2 (inte text i kuvert).
-6. **SH5** — reverse-densify (L2 tillåter många `fn`; 5-raders shards *kostar* import).
-7. **SH8** — tiny self-host compile som vanlig CI-gate, inte `#[ignore]`.
+1. ~~SH0/SH1~~ ✅ · **SH2** ny sess per anrop + `gSess` tramp ✅ subset
+2. ~~SH3–SH7 toolchain dirty+parallel~~ ✅ · **SH7b** produktträd ✅ API
+3. **SH8** tiny `parse()`/`compile()` 🚧 ignored (debug hang)
+4. **SH12–SH15** låg-allok, benches, mmap 📋 · **SH9** Cranelift på emit 📋
+5. ~~SH10/SH11~~ ✅
+
+## Historisk bootstrap-logg
 
 1. ~~`.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust~~ ✅
 2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)

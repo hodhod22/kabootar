@@ -20,9 +20,11 @@ mod dag;
 
 pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProgram};
 pub use dag::{
-    collect_self_host_inventory, compiler_image_path, is_compile_dag_path, is_self_host_vm_path,
+    collect_self_host_inventory, compile_dirty_dag_seeds, compile_dirty_product_tree,
+    compiler_image_path, dag_max_import_depth, is_compile_dag_path, is_self_host_vm_path,
     missing_compiler_dag_seeds, rust_compile_write_seed, walk_compile_dag,
-    write_compiler_dag_seeds, write_compiler_facade_seeds, SelfHostInventory,
+    write_compiler_dag_seeds, write_compiler_facade_seeds, DirtyCompileStats,
+    SelfHostInventory,
 };
 
 /// Which backend `kabootar compile` prefers (S2).

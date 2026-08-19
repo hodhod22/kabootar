@@ -1,20 +1,17 @@
-// P6b: module session + trampoline (CI-fast leaf; heavy logic in shards).
+// SH2: fresh emit session per emit() call. Tramp is 0-arg and reads gE.
 import "self_host/emit_session"
 import "self_host/emit_tramp"
 import "self_host/emit_main_fn"
 
-let E = eMakeSession()
+let gE = null
 
 fn tramp() {
-    return eTramp(E)
+    return eTramp(gE)
 }
 
-E["tramp"] = tramp
-E["_hook"] = 0
-E["_node"] = null
-
 pub fn emitMainExec(program) {
-    eResetSession(E)
+    let E = eMakeSession()
+    gE = E
     E["tramp"] = tramp
     E["_hook"] = 0
     E["_node"] = null

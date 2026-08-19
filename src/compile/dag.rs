@@ -110,6 +110,179 @@ pub fn walk_import_dag(entry: &str) -> Result<Vec<String>, String> {
     Ok(order)
 }
 
+/// BFS depth from `self_host/compile` (SH10 import-depth budget).
+pub fn dag_max_import_depth() -> Result<usize, String> {
+    let dir = self_host_dir();
+    let root = dir.parent().unwrap_or(&dir);
+    let mut seen = HashSet::new();
+    let mut q = VecDeque::new();
+    q.push_back((COMPILE_ENTRY.replace('\\', "/"), 0usize));
+    let mut max_d = 0usize;
+    while let Some((spec, depth)) = q.pop_front() {
+        let spec = spec.trim_end_matches(".kab").to_string();
+        if !seen.insert(spec.clone()) {
+            continue;
+        }
+        max_d = max_d.max(depth);
+        let rel = format!("{spec}.kab");
+        let path = root.join(&rel);
+        if !path.is_file() {
+            continue;
+        }
+        let source = fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+        for dep in extract_kab_imports(&source) {
+            q.push_back((dep, depth + 1));
+        }
+    }
+    Ok(max_d)
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DirtyCompileStats {
+    pub dirty: usize,
+    pub compiled: usize,
+    pub failed: usize,
+}
+
+/// SH7: rust-compile only DAG shards whose seed fingerprint is stale, then pack the image.
+pub fn compile_dirty_dag_seeds() -> Result<DirtyCompileStats, String> {
+    let dirty = missing_compiler_dag_seeds()?;
+    let n = dirty.len();
+    eprintln!("SH7 dirty={n}");
+    let mut stats = DirtyCompileStats {
+        dirty: n,
+        compiled: 0,
+        failed: 0,
+    };
+    if n == 0 {
+        return Ok(stats);
+    }
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get().min(8))
+        .unwrap_or(2)
+        .min(n)
+        .max(1);
+    if workers == 1 {
+        for rel in &dirty {
+            match rust_compile_write_seed(rel) {
+                Ok(_) => stats.compiled += 1,
+                Err(e) => {
+                    eprintln!("SH7 fail {rel}: {e}");
+                    stats.failed += 1;
+                }
+            }
+        }
+    } else {
+        let chunk = (n + workers - 1) / workers;
+        let mut joins = Vec::new();
+        for part in dirty.chunks(chunk) {
+            let part = part.to_vec();
+            joins.push(std::thread::spawn(move || {
+                let mut compiled = 0usize;
+                let mut failed = 0usize;
+                for rel in part {
+                    match rust_compile_write_seed(&rel) {
+                        Ok(_) => compiled += 1,
+                        Err(e) => {
+                            eprintln!("SH7 fail {rel}: {e}");
+                            failed += 1;
+                        }
+                    }
+                }
+                (compiled, failed)
+            }));
+        }
+        for j in joins {
+            let (c, f) = j.join().map_err(|_| "SH7 worker panicked".to_string())?;
+            stats.compiled += c;
+            stats.failed += f;
+        }
+    }
+    if stats.failed == 0 {
+        write_image_from_dag_dir()?;
+    }
+    Ok(stats)
+}
+
+/// SH7b: rust-compile dirty files in an import DAG (app/`lib` trees), write `.kabootar/cache`.
+pub fn compile_dirty_product_tree(entry: &str) -> Result<DirtyCompileStats, String> {
+    let dag = walk_import_dag(entry)?;
+    let mut dirty_paths = Vec::new();
+    for rel in dag {
+        let path = resolve_kab_path(&rel);
+        if !Path::new(&path).is_file() {
+            continue;
+        }
+        let mtime = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
+        let hit = mtime
+            .and_then(|t| super::read_bytecode_cache(&path, t).ok().flatten())
+            .is_some();
+        if !hit {
+            dirty_paths.push(path);
+        }
+    }
+    let n = dirty_paths.len();
+    eprintln!("SH7b dirty={n} entry={entry}");
+    let mut stats = DirtyCompileStats {
+        dirty: n,
+        compiled: 0,
+        failed: 0,
+    };
+    if n == 0 {
+        return Ok(stats);
+    }
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get().min(8))
+        .unwrap_or(2)
+        .min(n)
+        .max(1);
+    let compile_one = |path: &str| -> Result<(), String> {
+        let program = compile_file(path)?;
+        super::write_compile_marker(path, &program)?;
+        Ok(())
+    };
+    if workers == 1 {
+        for path in &dirty_paths {
+            match compile_one(path) {
+                Ok(()) => stats.compiled += 1,
+                Err(e) => {
+                    eprintln!("SH7b fail {path}: {e}");
+                    stats.failed += 1;
+                }
+            }
+        }
+    } else {
+        let chunk = (n + workers - 1) / workers;
+        let mut joins = Vec::new();
+        for part in dirty_paths.chunks(chunk) {
+            let part = part.to_vec();
+            joins.push(std::thread::spawn(move || {
+                let mut compiled = 0usize;
+                let mut failed = 0usize;
+                for path in part {
+                    match compile_file(&path).and_then(|p| {
+                        super::write_compile_marker(&path, &p)?;
+                        Ok(())
+                    }) {
+                        Ok(()) => compiled += 1,
+                        Err(e) => {
+                            eprintln!("SH7b fail {path}: {e}");
+                            failed += 1;
+                        }
+                    }
+                }
+                (compiled, failed)
+            }));
+        }
+        for j in joins {
+            let (c, f) = j.join().map_err(|_| "SH7b worker panicked".to_string())?;
+            stats.compiled += c;
+            stats.failed += f;
+        }
+    }
+    Ok(stats)
+}
+
 pub fn compiler_image_path() -> PathBuf {
     self_host_dir().join("seed").join("compiler.kbcb")
 }
