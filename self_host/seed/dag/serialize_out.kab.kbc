@@ -1,16 +1,214 @@
 kabootar-bytecode/1
-constants=0
-functions=0
+constants=6
+const 0 string \s
+const 1 string 
+const 2 string bodyStart
+const 3 string bodyEnd
+const 4 string catchStart
+const 5 string errLocal
+global 0 CHAR_NL
+global 1 serOutTag
+global 2 serOutSpNum
+global 3 serOutSp
+global 4 serOutTagEq
+global 5 serOutTagged
+global 6 s
+global 7 serOutTagged2
+global 8 serOutTry4
+global 9 serOutTry5
+functions=8
+fn 0 serOutTag
+fn_params 0 out,tag
+fn_locals 0 out,tag
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 add
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+fn 1 serOutSpNum
+fn_params 1 out,x
+fn_locals 1 out,x
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 add
+fn_op 1 const 1
+fn_op 1 load_local 1
+fn_op 1 add
+fn_op 1 add
+fn_op 1 return
+fn_arrows 1 0
+fn 2 serOutSp
+fn_params 2 out,s
+fn_locals 2 out,s
+fn_op 2 load_local 0
+fn_op 2 const 0
+fn_op 2 add
+fn_op 2 load_local 1
+fn_op 2 add
+fn_op 2 return
+fn_arrows 2 0
+fn 3 serOutTagEq
+fn_params 3 out,tag,n
+fn_locals 3 out,tag,n
+fn_op 3 load_local 0
+fn_op 3 load_global 0
+fn_op 3 add
+fn_op 3 load_local 1
+fn_op 3 add
+fn_op 3 const 1
+fn_op 3 load_local 2
+fn_op 3 add
+fn_op 3 add
+fn_op 3 return
+fn_arrows 3 0
+fn 4 serOutTagged
+fn_params 4 out,tag,i,rest
+fn_locals 4 out,tag,i,rest,s
+fn_op 4 load_local 0
+fn_op 4 load_local 1
+fn_op 4 load_global 1
+fn_op 4 call 2
+fn_op 4 store_local 4
+fn_op 4 load_local 4
+fn_op 4 load_local 2
+fn_op 4 load_global 2
+fn_op 4 call 2
+fn_op 4 dup
+fn_op 4 store_local 4
+fn_op 4 pop
+fn_op 4 load_local 4
+fn_op 4 load_local 3
+fn_op 4 load_global 3
+fn_op 4 call 2
+fn_op 4 return
+fn_arrows 4 0
+fn 5 serOutTagged2
+fn_params 5 out,tag,a,b,rest
+fn_locals 5 out,tag,a,b,rest
+fn_op 5 load_global 6
+fn_op 5 load_local 2
+fn_op 5 load_global 2
+fn_op 5 call 2
+fn_op 5 dup
+fn_op 5 store_global 6
+fn_op 5 pop
+fn_op 5 load_global 6
+fn_op 5 load_local 3
+fn_op 5 load_global 2
+fn_op 5 call 2
+fn_op 5 dup
+fn_op 5 store_global 6
+fn_op 5 pop
+fn_op 5 load_global 6
+fn_op 5 load_local 4
+fn_op 5 load_global 3
+fn_op 5 call 2
+fn_op 5 return
+fn_arrows 5 0
+fn 6 serOutTry4
+fn_params 6 out,tag,a,tr
+fn_locals 6 out,tag,a,tr
+fn_op 6 load_global 6
+fn_op 6 load_local 2
+fn_op 6 load_global 2
+fn_op 6 call 2
+fn_op 6 dup
+fn_op 6 store_global 6
+fn_op 6 pop
+fn_op 6 load_global 6
+fn_op 6 load_local 3
+fn_op 6 get_member 2
+fn_op 6 load_global 2
+fn_op 6 call 2
+fn_op 6 dup
+fn_op 6 store_global 6
+fn_op 6 pop
+fn_op 6 load_global 6
+fn_op 6 load_local 3
+fn_op 6 get_member 3
+fn_op 6 load_global 2
+fn_op 6 call 2
+fn_op 6 dup
+fn_op 6 store_global 6
+fn_op 6 pop
+fn_op 6 load_global 6
+fn_op 6 load_local 3
+fn_op 6 get_member 4
+fn_op 6 load_global 2
+fn_op 6 call 2
+fn_op 6 dup
+fn_op 6 store_global 6
+fn_op 6 pop
+fn_op 6 load_global 6
+fn_op 6 load_local 3
+fn_op 6 get_member 5
+fn_op 6 load_global 2
+fn_op 6 call 2
+fn_op 6 return
+fn_arrows 6 0
+fn 7 serOutTry5
+fn_params 7 out,tag,a,b,tr
+fn_locals 7 out,tag,a,b,tr
+fn_op 7 load_global 6
+fn_op 7 load_local 2
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 dup
+fn_op 7 store_global 6
+fn_op 7 pop
+fn_op 7 load_global 6
+fn_op 7 load_local 3
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 dup
+fn_op 7 store_global 6
+fn_op 7 pop
+fn_op 7 load_global 6
+fn_op 7 load_local 4
+fn_op 7 get_member 2
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 dup
+fn_op 7 store_global 6
+fn_op 7 pop
+fn_op 7 load_global 6
+fn_op 7 load_local 4
+fn_op 7 get_member 3
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 dup
+fn_op 7 store_global 6
+fn_op 7 pop
+fn_op 7 load_global 6
+fn_op 7 load_local 4
+fn_op 7 get_member 4
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 dup
+fn_op 7 store_global 6
+fn_op 7 pop
+fn_op 7 load_global 6
+fn_op 7 load_local 4
+fn_op 7 get_member 5
+fn_op 7 load_global 2
+fn_op 7 call 2
+fn_op 7 return
+fn_arrows 7 0
 arrows=0
-imports=3
-import 0 self_host/serialize_out_base
-import 1 self_host/serialize_out_tagged
-import 2 self_host/serialize_out_try
-pub_imports=3
-pub_import 0 self_host/serialize_out_base
-pub_import 1 self_host/serialize_out_tagged
-pub_import 2 self_host/serialize_out_try
-exports=0
+imports=1
+import 0 self_host/lexer_defs
+pub_imports=0
+exports=8
+export 0 serOutTag
+export 1 serOutSpNum
+export 2 serOutSp
+export 3 serOutTagEq
+export 4 serOutTagged
+export 5 serOutTagged2
+export 6 serOutTry4
+export 7 serOutTry5
 memory_mode=gc
 interfaces=0
 classes=0
@@ -18,5 +216,5 @@ code
 halt
 
 source=self_host/serialize_out.kab
-statements=3
-fingerprint=5c04391e3ab1ab85
+statements=9
+fingerprint=619549c9243c8697
