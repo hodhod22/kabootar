@@ -28,6 +28,11 @@ pub fn bootCompile(source) {
     return compile(source)
 }
 
+/// FT F0: last `compile()` / `compileIr()` phase ms (0 total, 1 parse, 2 emit, 3 serialize).
+pub fn bootLastCompileMs(kind) {
+    return lastCompileMs(kind)
+}
+
 /// True when text starts with the committed .kbc header (not a 3-char prefix).
 pub fn isBytecode(kbc) {
     let s = "" + kbc
@@ -71,6 +76,9 @@ pub fn bootPolicy(key, a) {
     }
     if key == "rustFallbackPrefix" {
         return "self_host/"
+    }
+    if key == "refuseKbcPath" {
+        return true
     }
     if key == "shouldSelfHost" {
         if a <= 0 {

@@ -370,14 +370,51 @@ fn_op 8 return
 fn_arrows 8 0
 fn 9 compileIr
 fn_params 9 source
-fn_locals 9 source
+fn_locals 9 source,src,t0,ast,t1,ir,t2
 fn_op 9 load_local 0
 fn_op 9 load_global 19
 fn_op 9 call 1
+fn_op 9 store_local 1
+fn_op 9 load_global 20
+fn_op 9 call 0
+fn_op 9 store_local 2
+fn_op 9 load_local 1
 fn_op 9 load_global 17
 fn_op 9 call 1
+fn_op 9 store_local 3
+fn_op 9 load_global 20
+fn_op 9 call 0
+fn_op 9 store_local 4
+fn_op 9 load_local 3
 fn_op 9 load_global 21
 fn_op 9 call 1
+fn_op 9 store_local 5
+fn_op 9 load_global 20
+fn_op 9 call 0
+fn_op 9 store_local 6
+fn_op 9 load_local 4
+fn_op 9 load_local 2
+fn_op 9 sub
+fn_op 9 dup
+fn_op 9 store_global 0
+fn_op 9 pop
+fn_op 9 load_local 6
+fn_op 9 load_local 4
+fn_op 9 sub
+fn_op 9 dup
+fn_op 9 store_global 1
+fn_op 9 pop
+fn_op 9 const 0
+fn_op 9 dup
+fn_op 9 store_global 2
+fn_op 9 pop
+fn_op 9 load_local 6
+fn_op 9 load_local 2
+fn_op 9 sub
+fn_op 9 dup
+fn_op 9 store_global 3
+fn_op 9 pop
+fn_op 9 load_local 5
 fn_op 9 return
 fn_arrows 9 0
 arrows=0
@@ -408,4 +445,4 @@ halt
 
 source=self_host/compile.kab
 statements=19
-fingerprint=440d1a95a8e64d3b
+fingerprint=a4ac35c7ff0bf37f

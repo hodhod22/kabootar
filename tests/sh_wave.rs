@@ -92,6 +92,14 @@ fn sh16_boot_policy_self_host_only_and_max_bytes() {
         compile.contains("pub fn lastCompileMs") && compile.contains("gMsTotal"),
         "FT F0 compile() must store phase ms"
     );
+    assert!(
+        compile.contains("gMsSer = 0") && boot.contains("bootLastCompileMs"),
+        "FT F0 compileIr records ms; bootLastCompileMs re-exports"
+    );
+    assert!(
+        boot.contains("refuseKbcPath"),
+        "SH16 bootPolicy refuseKbcPath"
+    );
 }
 
 /// SH16: app `.kab` must not rust-fallback; oversize apps fail (split the module).
@@ -145,6 +153,24 @@ fn sh16_toolchain_oversize_may_rust() {
     assert!(p.has_bytecode() || p.stmt_count > 0);
     assert_eq!(backend, "rust");
     let _ = std::fs::remove_file(&huge);
+}
+
+/// SH16: app `*.kbc` / `*.kbcb` is bytecode, not source — no rust-fallback compile.
+#[test]
+fn sh16_app_kbc_path_no_rust() {
+    use kabootar_lib::compile::{compile_file_prefer, CompilePrefer};
+    let dir = std::env::temp_dir().join(format!("kab_sh16_kbc_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let kbc = dir.join("app.kbc");
+    std::fs::write(&kbc, "let x = 1\nreturn x + 2\n").expect("write fake kbc");
+    let kbc_s = kbc.to_string_lossy().replace('\\', "/");
+    let err = compile_file_prefer(&kbc_s, CompilePrefer::SelfHostThenRust)
+        .expect_err("app .kbc must not rust-compile as source");
+    assert!(
+        err.contains("SH16"),
+        "expected SH16 error, got {err}"
+    );
+    let _ = std::fs::remove_file(&kbc);
 }
 
 fn ensure_compiler_image() {

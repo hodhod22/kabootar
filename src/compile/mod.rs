@@ -83,6 +83,11 @@ pub const SELF_HOST_MAX_SOURCE_BYTES: usize = 64 * 1024;
 
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
+    let lower = norm.to_ascii_lowercase();
+    // SH16: never treat packed bytecode as Kab source (loader mirrors refuseKbcPath).
+    if lower.ends_with(".kbc") || lower.ends_with(".kbcb") {
+        return false;
+    }
     for c in SELF_HOST_SKIP_LISTED_LEAVES {
         if norm.ends_with(c) || norm.contains(&format!("/{c}")) {
             return false;
