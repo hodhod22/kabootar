@@ -87,7 +87,7 @@ pub fn manual_runtime_checks() -> bool {
     cfg!(debug_assertions)
 }
 
-/// P13a — native i64 add-loop (Cranelift remains deepen; this is the maskinkod-klass kernel).
+/// P13a — native i64 add-loop kernel (Cranelift compiles typed bytecode; this remains a tight Rust kernel).
 #[inline(never)]
 pub fn native_add_loop(n: i64) -> i64 {
     let mut s = 0i64;

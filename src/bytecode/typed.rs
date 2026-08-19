@@ -100,6 +100,10 @@ pub fn try_run_typed_i64(
         TYPED_I64_FALLBACKS.fetch_add(1, Ordering::Relaxed);
         return None;
     }
+    if let Some(jit) = super::jit::try_run_jit(func, args) {
+        TYPED_I64_HITS.fetch_add(1, Ordering::Relaxed);
+        return Some(jit);
+    }
     TYPED_I64_HITS.fetch_add(1, Ordering::Relaxed);
     Some(run_typed_i64(func, args))
 }
