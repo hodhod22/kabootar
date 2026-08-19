@@ -1,43 +1,113 @@
 kabootar-bytecode/1
-constants=3
-const 0 number 1
-const 1 string pLeft
-const 2 null
-global 0 parseUnary_bang
-global 1 parseUnary_neg
-global 2 parseUnary_bitnot
+constants=10
+const 0 string pCur
+const 1 string type
+const 2 string !
+const 3 string kind
+const 4 string op
+const 5 string expr
+const 6 string pLeft
+const 7 null
+const 8 string -
+const 9 string ~
+global 0 bump
+global 1 AST_UNARY
+global 2 pCallUnary
 global 3 pCallPostfix
 global 4 parseUnary
 functions=1
 fn 0 parseUnary
 fn_params 0 sess
-fn_locals 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 24
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
-fn_op 0 const 0
-fn_op 0 eq
-fn_op 0 jump_if_false 3
-fn_op 0 load_local 0
-fn_op 0 get_member 1
-fn_op 0 return
-fn_op 0 load_local 0
+fn_op 0 pop
 fn_op 0 load_global 1
-fn_op 0 call 1
-fn_op 0 const 0
-fn_op 0 eq
-fn_op 0 jump_if_false 3
-fn_op 0 load_local 0
-fn_op 0 get_member 1
-fn_op 0 return
+fn_op 0 const 3
+fn_op 0 const 2
+fn_op 0 const 4
 fn_op 0 load_local 0
 fn_op 0 load_global 2
 fn_op 0 call 1
-fn_op 0 const 0
-fn_op 0 eq
-fn_op 0 jump_if_false 3
+fn_op 0 const 5
+fn_op 0 make_object 3
+fn_op 0 store_local 1
 fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
 fn_op 0 get_member 1
+fn_op 0 const 8
+fn_op 0 eq
+fn_op 0 jump_if_false 24
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_global 1
+fn_op 0 const 3
+fn_op 0 const 8
+fn_op 0 const 4
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 const 5
+fn_op 0 make_object 3
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 9
+fn_op 0 eq
+fn_op 0 jump_if_false 24
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_global 1
+fn_op 0 const 3
+fn_op 0 const 9
+fn_op 0 const 4
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 const 5
+fn_op 0 make_object 3
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
 fn_op 0 return
 fn_op 0 load_local 0
 fn_op 0 load_global 3
@@ -45,12 +115,11 @@ fn_op 0 call 1
 fn_op 0 return
 fn_arrows 0 0
 arrows=0
-imports=5
+imports=4
 import 0 self_host/lexer_defs
 import 1 self_host/ast_defs
 import 2 self_host/parser_hooks
 import 3 self_host/parser_util
-import 4 self_host/parser_unary_ops
 pub_imports=0
 exports=1
 export 0 parseUnary
@@ -61,5 +130,5 @@ code
 halt
 
 source=self_host/parser_unary.kab
-statements=6
-fingerprint=3b50fe70dfe432d8
+statements=5
+fingerprint=b45f61be0dbaa7c5

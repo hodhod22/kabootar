@@ -3,9 +3,40 @@ import "self_host/ast_defs"
 import "self_host/parser_hooks"
 import "self_host/parser_util"
 
-import "self_host/parser_add_shift_plus"
-import "self_host/parser_add_shift_shift"
+// --- parser_add_shift_plus ---
+pub fn parseAddShift_plus(sess) {
+    // P6b: one loop for +/- so `a - b + c` does not leave `+ c` unparsed.
+    while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
+        let op = sess["pCur"].type
+        bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallMul(sess)
+        while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
+            let shOp = sess["pCur"].type
+            bump(sess)
+            right = { "kind": AST_BINARY, "op": shOp, "left": right, "right": pCallMul(sess) }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return 0
+}
 
+// --- parser_add_shift_shift ---
+pub fn parseAddShift_shift(sess) {
+    while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
+        bump(sess)
+        // JS: + binds tighter than << — allow +/- on shift RHS.
+        while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
+            let addOp = sess["pCur"].type
+            bump(sess)
+            right = { "kind": AST_BINARY, "op": addOp, "left": right, "right": pCallMul(sess) }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return 0
+}
+
+// --- parser_add_shift ---
 pub fn parseAddShift(sess) {
     sess["pLeft"] = pCallMul(sess)
     parseAddShift_plus(sess)

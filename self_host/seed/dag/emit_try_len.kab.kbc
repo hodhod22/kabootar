@@ -90,7 +90,7 @@ imports=5
 import 0 self_host/ast_defs
 import 1 self_host/emit_defs
 import 2 self_host/emit_op
-import 3 self_host/emit_local_sym
+import 3 self_host/emit_local_map
 import 4 self_host/emit_sym_index
 pub_imports=0
 exports=1
@@ -103,4 +103,4 @@ halt
 
 source=self_host/emit_try_len.kab
 statements=6
-fingerprint=8008be4f25d0dfcd
+fingerprint=df5ad196527c4e77

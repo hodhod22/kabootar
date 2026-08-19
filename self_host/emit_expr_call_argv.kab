@@ -1,9 +1,0 @@
-import "self_host/emit_expr_call_argv_n"
-
-pub fn emitExpr_callArgv(E) {
-    // SH3a: always snapshot eArgs/eArgN (N-path). The arity-2 fast path
-    // clobbered callee/args when the second argument was itself a call
-    // (`push(stack, len(x))` emitted `len` instead of `push`).
-    emitExpr_callArgvN(E)
-    return 0
-}

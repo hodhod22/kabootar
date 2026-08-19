@@ -1,6 +1,28 @@
 import "self_host/ast_defs"
 import "self_host/emit_defs"
-import "self_host/emit_const_key"
+
+pub fn constKey(E, arg) {
+    if arg == KAB_UNDEF_CONST {
+        return "U"
+    }
+    if arg == null {
+        return "N"
+    }
+    if arg == true {
+        return "T"
+    }
+    if arg == false {
+        return "F"
+    }
+    let t = typeof(arg)
+    if t == "string" {
+        return "S" + ("" + len(arg)) + ":" + arg
+    }
+    if t == "number" {
+        return "D" + ("" + arg)
+    }
+    return "X" + ("" + arg)
+}
 
 pub fn symIndex(E, mode, arg) {
     if mode == "local" {
@@ -51,7 +73,9 @@ pub fn symIndex(E, mode, arg) {
             }
             E["eClassIdx"] = E["eClassIdx"] + 1
         }
-        return -1
+        let miss = 0
+        miss = miss - 1
+        return miss
     }
     throw "symIndex: bad mode"
 }

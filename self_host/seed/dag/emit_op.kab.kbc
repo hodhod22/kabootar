@@ -1,10 +1,10 @@
 kabootar-bytecode/1
 constants=9
-const 0 string eInFn
-const 1 number 1
-const 2 string eFnOps
-const 3 string op
-const 4 string arg
+const 0 string op
+const 1 string arg
+const 2 string eInFn
+const 3 number 1
+const 4 string eFnOps
 const 5 string eFnOpsN
 const 6 string eOps
 const 7 string eOpsN
@@ -14,67 +14,65 @@ global 1 emitOp
 functions=1
 fn 0 emitOp
 fn_params 0 E,op,arg
-fn_locals 0 E,op,arg,__kab_a0,__kab_a1,__kab_a2,__kab_a3
-fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 const 1
-fn_op 0 eq
-fn_op 0 jump_if_false 30
-fn_op 0 load_local 0
-fn_op 0 get_member 2
+fn_locals 0 E,op,arg,rec,__kab_a0,__kab_a1,__kab_a2,__kab_a3
 fn_op 0 load_local 1
-fn_op 0 const 3
+fn_op 0 const 0
 fn_op 0 load_local 2
-fn_op 0 const 4
+fn_op 0 const 1
 fn_op 0 make_object 2
-fn_op 0 load_global 0
-fn_op 0 call 2
 fn_op 0 store_local 3
 fn_op 0 load_local 0
-fn_op 0 const 2
+fn_op 0 get_member 2
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 26
+fn_op 0 load_local 0
+fn_op 0 get_member 4
 fn_op 0 load_local 3
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 4
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 5
-fn_op 0 const 1
+fn_op 0 const 3
 fn_op 0 add
-fn_op 0 store_local 4
+fn_op 0 store_local 5
 fn_op 0 load_local 0
 fn_op 0 const 5
-fn_op 0 load_local 4
+fn_op 0 load_local 5
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 jump 29
+fn_op 0 jump 25
 fn_op 0 load_local 0
 fn_op 0 get_member 6
-fn_op 0 load_local 1
-fn_op 0 const 3
-fn_op 0 load_local 2
-fn_op 0 const 4
-fn_op 0 make_object 2
+fn_op 0 load_local 3
 fn_op 0 load_global 0
 fn_op 0 call 2
-fn_op 0 store_local 5
+fn_op 0 store_local 6
 fn_op 0 load_local 0
 fn_op 0 const 6
-fn_op 0 load_local 5
+fn_op 0 load_local 6
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 7
-fn_op 0 const 1
+fn_op 0 const 3
 fn_op 0 add
-fn_op 0 store_local 6
+fn_op 0 store_local 7
 fn_op 0 load_local 0
 fn_op 0 const 7
-fn_op 0 load_local 6
+fn_op 0 load_local 7
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -95,4 +93,4 @@ halt
 
 source=self_host/emit_op.kab
 statements=1
-fingerprint=21c331a527db6f1
+fingerprint=97830db4237a3d7a

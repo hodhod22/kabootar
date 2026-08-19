@@ -1,12 +1,53 @@
-// P6b: section-appenders aggregator (attemptable).
 pub import "self_host/serialize_ops"
-pub import "self_host/serialize_lists"
-pub import "self_host/serialize_fn_tries"
-pub import "self_host/serialize_fn_one"
 pub import "self_host/serialize_fns"
-pub import "self_host/serialize_arrow_one"
 pub import "self_host/serialize_arrows"
-pub import "self_host/serialize_class_method_ops"
-pub import "self_host/serialize_class_method_one"
-pub import "self_host/serialize_class_methods"
-pub import "self_host/serialize_classes"
+import "self_host/serialize_ir_line"
+import "self_host/serialize_out"
+
+pub fn serAppendClassMethodOps(out, ci, j, ops) {
+    let k = 0
+    let nOps = len(ops)
+    while k < nOps {
+        out = serOutTagged2(out, "class_method_op", ci, j, serIrOpLine(ops[k]))
+        k = k + 1
+    }
+    return out
+}
+
+pub fn serAppendOneClassMethod(out, ci, j, meth) {
+    out = serOutTagged2(out, "class_method", ci, j, meth["sym"])
+    out = serOutTagged2(out, "class_method_params", ci, j, serJoinComma(meth["params"]))
+    out = serOutTagged2(out, "class_method_locals", ci, j, serJoinComma(meth["locals"]))
+    out = serOutTagged2(out, "class_method_globals", ci, j, serJoinComma(meth["globals"]))
+    return serAppendClassMethodOps(out, ci, j, meth["ops"])
+}
+
+pub fn serAppendClassMethods(out, ci, methods) {
+    let j = 0
+    let n = len(methods)
+    while j < n {
+        out = serAppendOneClassMethod(out, ci, j, methods[j])
+        j = j + 1
+    }
+    return out
+}
+
+pub fn serAppendClasses(out, classes) {
+    if classes == undefined {
+        return serOutTag(out, "classes=0")
+    }
+    out = serOutTagEq(out, "classes=", len(classes))
+    let i = 0
+    let n = len(classes)
+    while i < n {
+        let cls = classes[i]
+        out = serOutTagged(out, "class", i, cls["sym"])
+        if cls["isStruct"] == 1 {
+            out = serOutTag(out, "class_is_struct")
+            out = serOutSpNum(out, i)
+        }
+        out = serAppendClassMethods(out, i, cls["methods"])
+        i = i + 1
+    }
+    return out
+}

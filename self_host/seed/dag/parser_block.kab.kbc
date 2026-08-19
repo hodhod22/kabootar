@@ -14,7 +14,7 @@ const 10 string ;
 const 11 string pLoopBody
 global 0 push
 global 1 pEnterBody
-global 2 pop
+global 2 slice
 global 3 pLeaveBody
 global 4 pCallStmt
 global 5 bump
@@ -66,45 +66,50 @@ fn_op 0 return
 fn_arrows 0 0
 fn 1 pLeaveBody
 fn_params 1 sess
-fn_locals 1 sess,body,__kab_a0,__kab_a1,__kab_a2
+fn_locals 1 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
 fn_op 1 load_local 0
 fn_op 1 get_member 1
 fn_op 1 store_local 1
 fn_op 1 load_local 0
 fn_op 1 get_member 0
-fn_op 1 load_local 0
-fn_op 1 get_member 2
-fn_op 1 const 3
-fn_op 1 sub
-fn_op 1 index_get
 fn_op 1 store_local 2
-fn_op 1 load_local 0
-fn_op 1 const 1
-fn_op 1 load_local 2
-fn_op 1 index_set
-fn_op 1 swap
-fn_op 1 store_local 0
-fn_op 1 pop
-fn_op 1 load_local 0
-fn_op 1 get_member 0
-fn_op 1 load_global 2
-fn_op 1 call 1
+fn_op 1 len_local 2
 fn_op 1 store_local 3
-fn_op 1 load_local 0
-fn_op 1 const 0
 fn_op 1 load_local 3
-fn_op 1 index_set
-fn_op 1 swap
-fn_op 1 store_local 0
-fn_op 1 pop
-fn_op 1 load_local 0
-fn_op 1 get_member 2
 fn_op 1 const 3
 fn_op 1 sub
+fn_op 1 index_get_local 2
 fn_op 1 store_local 4
 fn_op 1 load_local 0
-fn_op 1 const 2
+fn_op 1 const 1
 fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 2
+fn_op 1 const 4
+fn_op 1 load_local 3
+fn_op 1 const 3
+fn_op 1 sub
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 store_local 5
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 load_local 5
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 const 3
+fn_op 1 sub
+fn_op 1 store_local 6
+fn_op 1 load_local 0
+fn_op 1 const 2
+fn_op 1 load_local 6
 fn_op 1 index_set
 fn_op 1 swap
 fn_op 1 store_local 0
@@ -114,13 +119,13 @@ fn_op 1 return
 fn_arrows 1 0
 fn 2 pParseBodyUntilRBrace
 fn_params 2 sess,eofMsg
-fn_locals 2 sess,eofMsg,__kab_a0
+fn_locals 2 sess,eofMsg,stmt,__kab_a0
 fn_op 2 load_local 0
 fn_op 2 get_member 5
 fn_op 2 get_member 6
 fn_op 2 const 7
 fn_op 2 ne
-fn_op 2 jump_if_false 35
+fn_op 2 jump_if_false 37
 fn_op 2 load_local 0
 fn_op 2 get_member 5
 fn_op 2 get_member 6
@@ -131,16 +136,18 @@ fn_op 2 load_local 1
 fn_op 2 throw
 fn_op 2 pop
 fn_op 2 load_local 0
-fn_op 2 get_member 1
-fn_op 2 load_local 0
 fn_op 2 load_global 4
 fn_op 2 call 1
-fn_op 2 load_global 0
-fn_op 2 call 2
 fn_op 2 store_local 2
 fn_op 2 load_local 0
-fn_op 2 const 1
+fn_op 2 get_member 1
 fn_op 2 load_local 2
+fn_op 2 load_global 0
+fn_op 2 call 2
+fn_op 2 store_local 3
+fn_op 2 load_local 0
+fn_op 2 const 1
+fn_op 2 load_local 3
 fn_op 2 index_set
 fn_op 2 swap
 fn_op 2 store_local 0
@@ -155,7 +162,7 @@ fn_op 2 load_local 0
 fn_op 2 load_global 5
 fn_op 2 call 1
 fn_op 2 pop
-fn_op 2 jump -41
+fn_op 2 jump -43
 fn_op 2 load_local 0
 fn_op 2 load_global 5
 fn_op 2 call 1
@@ -206,45 +213,50 @@ fn_op 3 return
 fn_arrows 3 0
 fn 4 pLeaveLoopBody
 fn_params 4 sess
-fn_locals 4 sess,body,__kab_a0,__kab_a1,__kab_a2
+fn_locals 4 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
 fn_op 4 load_local 0
 fn_op 4 get_member 11
 fn_op 4 store_local 1
 fn_op 4 load_local 0
 fn_op 4 get_member 0
-fn_op 4 load_local 0
-fn_op 4 get_member 2
-fn_op 4 const 3
-fn_op 4 sub
-fn_op 4 index_get
 fn_op 4 store_local 2
-fn_op 4 load_local 0
-fn_op 4 const 11
-fn_op 4 load_local 2
-fn_op 4 index_set
-fn_op 4 swap
-fn_op 4 store_local 0
-fn_op 4 pop
-fn_op 4 load_local 0
-fn_op 4 get_member 0
-fn_op 4 load_global 2
-fn_op 4 call 1
+fn_op 4 len_local 2
 fn_op 4 store_local 3
-fn_op 4 load_local 0
-fn_op 4 const 0
 fn_op 4 load_local 3
-fn_op 4 index_set
-fn_op 4 swap
-fn_op 4 store_local 0
-fn_op 4 pop
-fn_op 4 load_local 0
-fn_op 4 get_member 2
 fn_op 4 const 3
 fn_op 4 sub
+fn_op 4 index_get_local 2
 fn_op 4 store_local 4
 fn_op 4 load_local 0
-fn_op 4 const 2
+fn_op 4 const 11
 fn_op 4 load_local 4
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 2
+fn_op 4 const 4
+fn_op 4 load_local 3
+fn_op 4 const 3
+fn_op 4 sub
+fn_op 4 load_global 2
+fn_op 4 call 3
+fn_op 4 store_local 5
+fn_op 4 load_local 0
+fn_op 4 const 0
+fn_op 4 load_local 5
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 0
+fn_op 4 get_member 2
+fn_op 4 const 3
+fn_op 4 sub
+fn_op 4 store_local 6
+fn_op 4 load_local 0
+fn_op 4 const 2
+fn_op 4 load_local 6
 fn_op 4 index_set
 fn_op 4 swap
 fn_op 4 store_local 0
@@ -254,24 +266,26 @@ fn_op 4 return
 fn_arrows 4 0
 fn 5 pParseLoopUntilRBrace
 fn_params 5 sess
-fn_locals 5 sess,__kab_a0
+fn_locals 5 sess,stmt,__kab_a0
 fn_op 5 load_local 0
 fn_op 5 get_member 5
 fn_op 5 get_member 6
 fn_op 5 const 7
 fn_op 5 ne
-fn_op 5 jump_if_false 26
-fn_op 5 load_local 0
-fn_op 5 get_member 11
+fn_op 5 jump_if_false 28
 fn_op 5 load_local 0
 fn_op 5 load_global 4
 fn_op 5 call 1
-fn_op 5 load_global 0
-fn_op 5 call 2
 fn_op 5 store_local 1
 fn_op 5 load_local 0
-fn_op 5 const 11
+fn_op 5 get_member 11
 fn_op 5 load_local 1
+fn_op 5 load_global 0
+fn_op 5 call 2
+fn_op 5 store_local 2
+fn_op 5 load_local 0
+fn_op 5 const 11
+fn_op 5 load_local 2
 fn_op 5 index_set
 fn_op 5 swap
 fn_op 5 store_local 0
@@ -286,7 +300,7 @@ fn_op 5 load_local 0
 fn_op 5 load_global 5
 fn_op 5 call 1
 fn_op 5 pop
-fn_op 5 jump -32
+fn_op 5 jump -34
 fn_op 5 load_local 0
 fn_op 5 load_global 5
 fn_op 5 call 1
@@ -316,4 +330,4 @@ halt
 
 source=self_host/parser_block.kab
 statements=10
-fingerprint=e5845e06e0f3d92b
+fingerprint=b226ae74b5816f78

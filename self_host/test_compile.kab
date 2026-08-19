@@ -42,6 +42,11 @@ fn assert_true(v, msg) {
     assert_true(len(tText) > 40, "fn call output length")
 }
 
+{
+    tText = compile("@pure\nlet x = comptime { 1 }\nreturn x")
+    assert_true(len(tText) > 30, "kab preprocess comptime")
+}
+
 println("")
 println("Self-hosted compile tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

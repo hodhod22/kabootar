@@ -1,14 +1,15 @@
 import "self_host/emit_defs"
 import "self_host/emit_hooks"
+import "self_host/emit_arr_util"
 import "self_host/emit_sym_index"
 import "self_host/emit_local_map"
 
 pub fn emitFnCompileBody(E) {
     E["eInFn"] = 1
-    E["eFnOps"] = []
+    object_array_clear(E, "eFnOps")
     E["eFnOpsN"] = 0
-    E["eFnGlobals"] = []
-    E["eFnLocals"] = []
+    object_array_clear(E, "eFnGlobals")
+    object_array_clear(E, "eFnLocals")
     resetLocalMap(E)
     E["eParamI"] = 0
     while E["eParamI"] < len(E["eParams"]) {
@@ -17,4 +18,33 @@ pub fn emitFnCompileBody(E) {
         E["eParamI"] = E["eLoopSave"] + 1
     }
     eCallStmt(E, E["eFnBody"])
+}
+
+pub fn emitGenClassMeth(E) {
+    E["eMethTypeParams"] = E["eMeth"]["typeParams"]
+    if E["eMethTypeParams"] == undefined {
+        E["eMethTypeParams"] = []
+    }
+    if len(E["eMethTypeParams"]) == 0 {
+        E["eParams"] = E["eMeth"]["params"]
+        E["eFnBody"] = E["eMeth"]["body"]
+        emitFnCompileBody(E)
+        object_array_push(E, "eClassMethods", {
+            "sym": E["eMeth"]["sym"],
+            "params": arrUtil(E, "snap", E["eParams"]),
+            "locals": arrUtil(E, "snap", E["eFnLocals"]),
+            "globals": arrUtil(E, "snap", E["eFnGlobals"]),
+            "ops": arrUtil(E, "snap", E["eFnOps"])
+        })
+        E["eInFn"] = 0
+        return 0
+    }
+    object_array_push(E, "eGenericMethodTemplates", {
+        "classSym": E["eMangled"],
+        "methodSym": E["eMeth"]["sym"],
+        "typeParams": arrUtil(E, "snap", E["eMethTypeParams"]),
+        "params": arrUtil(E, "snap", E["eMeth"]["params"]),
+        "body": E["eMeth"]["body"]
+    })
+    return 0
 }

@@ -16,7 +16,8 @@ pub fn parsePostfix_arr(sess) {
     bump(sess)
     sess["pArgs"] = []
     while sess["pCur"].type != "]" {
-        sess["pArgs"] = push(sess["pArgs"], pCallCompare(sess))
+        let elem = pCallCompare(sess)
+        sess["pArgs"] = push(sess["pArgs"], elem)
         if sess["pCur"].type == "," {
             bump(sess)
         }
@@ -179,7 +180,7 @@ pub fn parsePostfix_obj(sess) {
         }
         bump(sess)
         sess["pVal"] = pCallCompare(sess)
-        sess["pObjFields"] = push(sess["pObjFields"], { "key": sess["pSaveSym"], "value": sess["pVal"] })
+        object_array_push(sess, "pObjFields", { "key": sess["pSaveSym"], "value": sess["pVal"] })
         if sess["pCur"].type == "," {
             bump(sess)
         }
@@ -273,7 +274,8 @@ pub fn parsePostfix_tail_call(sess) {
     sess["pArgs"] = []
     if sess["pCur"].type != ")" {
         while true {
-            sess["pArgs"] = push(sess["pArgs"], pCallCompare(sess))
+            let arg = pCallCompare(sess)
+            sess["pArgs"] = push(sess["pArgs"], arg)
             if sess["pCur"].type == "," {
                 bump(sess)
             } else {

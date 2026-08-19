@@ -1,7 +1,7 @@
 // H6e: serialize IR body — skip-listed leaf shard (thin facade).
 // Reached via self_host/serialize.kab → serialize_impl.kab → here.
 //
-// AccAdd body: serialize_acc.kab + serialize_pure.kab (skip-listed).
+// AccAdd body: serialize_acc.kab.
 // IR tables: serialize_ir.kab (attemptable).
 import "self_host/serialize_acc"
 

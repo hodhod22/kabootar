@@ -1,58 +1,43 @@
 kabootar-bytecode/1
 constants=4
 const 0 string eCalleeStack
-const 1 string eCalleeDepth
-const 2 number 1
-const 3 string eCallee
-global 0 pop
+const 1 string eCallee
+const 2 string eCalleeDepth
+const 3 number 1
+global 0 object_array_pop
 global 1 eCallExpr
 global 2 emitCallCallee
 functions=1
 fn 0 emitCallCallee
 fn_params 0 E
-fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2
+fn_locals 0 E,__kab_a0,__kab_a1
 fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 load_local 0
-fn_op 0 get_member 1
-fn_op 0 const 2
-fn_op 0 sub
-fn_op 0 index_get
+fn_op 0 const 0
+fn_op 0 load_global 0
+fn_op 0 call 2
 fn_op 0 store_local 1
 fn_op 0 load_local 0
-fn_op 0 const 3
+fn_op 0 const 1
 fn_op 0 load_local 1
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 load_global 0
-fn_op 0 call 1
+fn_op 0 get_member 2
+fn_op 0 const 3
+fn_op 0 sub
 fn_op 0 store_local 2
 fn_op 0 load_local 0
-fn_op 0 const 0
+fn_op 0 const 2
 fn_op 0 load_local 2
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
+fn_op 0 load_local 0
 fn_op 0 get_member 1
-fn_op 0 const 2
-fn_op 0 sub
-fn_op 0 store_local 3
-fn_op 0 load_local 0
-fn_op 0 const 1
-fn_op 0 load_local 3
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
-fn_op 0 pop
-fn_op 0 load_local 0
-fn_op 0 load_local 0
-fn_op 0 get_member 3
 fn_op 0 load_global 1
 fn_op 0 call 2
 fn_op 0 return
@@ -71,4 +56,4 @@ halt
 
 source=self_host/emit_call_callee.kab
 statements=2
-fingerprint=e2b7efbf1c7785e9
+fingerprint=c36aa75730cfcba9

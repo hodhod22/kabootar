@@ -1,5 +1,7 @@
 # Kabootar — språket
 
+> **Nolltolerans:** produkten ska vara **bara `.kab`** (även JIT/GC). Se [ROADMAP.md](ROADMAP.md) (rutan överst).
+
 > **Kan du redan JavaScript?** Läs [JAVASCRIPT.md](JAVASCRIPT.md) — där står **bara skillnaderna**. Du behöver inte gå igenom grundsyntaxen här nedan.
 
 ## Grundsyntax
@@ -130,7 +132,7 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | # | Funktion | Status | API |
 |---|----------|--------|-----|
 | 1 | Zero-FFI OS | ✅ | `os_syscall`, `lang_syscalls` |
-| 2 | Comptime 3.0 | 🔶 | `comptime { }`, `comptime_assert` |
+| 2 | Comptime 3.0 | ✅ | `comptime { }` foldas till literal vid compile; `comptime_assert` |
 | 3 | Aktörer | 🔶 | `actor Name { }`, `actor_spawn` |
 | 4 | Hot reload | 🔶 | `kabootar serve --watch` + kbc-invalidate |
 | 5 | Auto-SIMD | 🔶 | `@simd` (dokumentation) |

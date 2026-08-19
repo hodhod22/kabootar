@@ -1,3 +1,76 @@
-// P6b: ir-line aggregator (attemptable).
+import "self_host/emit_defs"
 pub import "self_host/serialize_ir_op"
-pub import "self_host/serialize_join"
+
+pub fn serJoinComma(arr) {
+    let params = ""
+    let k = 0
+    let n = len(arr)
+    while k < n {
+        if params == "" {
+            params = arr[k]
+        } else {
+            params = params + ","
+            params = params + arr[k]
+        }
+        k = k + 1
+    }
+    return params
+}
+
+pub fn serEscStr(s) {
+    let out = ""
+    let i = 0
+    let n = len(s)
+    while i < n {
+        let ch = char_at(s, i)
+        let piece = ch
+        if ch == "\\" {
+            piece = "\\\\"
+        }
+        if ch == " " {
+            piece = "\\s"
+        }
+        if ch == "\n" {
+            piece = "\\n"
+        }
+        if ch == "\r" {
+            piece = "\\r"
+        }
+        if ch == "\t" {
+            piece = "\\t"
+        }
+        out = out + piece
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serConstLine(idx, val) {
+    let line = "const "
+    line = line + ("" + idx)
+    line = line + " "
+    if val == KAB_UNDEF_CONST {
+        line = line + "undefined"
+        return line
+    }
+    if val == null {
+        line = line + "null"
+        return line
+    }
+    if val == true {
+        line = line + "bool true"
+        return line
+    }
+    if val == false {
+        line = line + "bool false"
+        return line
+    }
+    if typeof(val) == "string" {
+        line = line + "string "
+        line = line + serEscStr(val)
+        return line
+    }
+    line = line + "number "
+    line = line + ("" + val)
+    return line
+}

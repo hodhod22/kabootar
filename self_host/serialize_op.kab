@@ -1,4 +1,0 @@
-// P6b: pure op-helpers aggregator (attemptable).
-pub import "self_host/serialize_esc"
-pub import "self_host/serialize_const"
-pub import "self_host/serialize_ir_line"

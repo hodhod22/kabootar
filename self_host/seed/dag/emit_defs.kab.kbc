@@ -1,199 +1,202 @@
 kabootar-bytecode/1
-constants=63
+constants=64
 const 0 string const
 const 1 string pop
-const 2 string load_global
-const 3 string store_global
-const 4 string load_local
-const 5 string store_local
-const 6 string take_local
-const 7 string take_global
-const 8 string array_push_local
-const 9 string array_push_global
-const 10 string array_pop_local
-const 11 string array_pop_global
-const 12 string acc_add_local
-const 13 string acc_add_global
-const 14 string len_local
-const 15 string len_global
-const 16 string index_get_local
-const 17 string index_get_global
-const 18 string add
-const 19 string sub
-const 20 string mul
-const 21 string div
-const 22 string mod
-const 23 string pow
-const 24 string neg
-const 25 string bit_and
-const 26 string bit_or
-const 27 string bit_xor
-const 28 string shl
-const 29 string shr
-const 30 string ushr
-const 31 string bit_not
-const 32 string not
-const 33 string and
-const 34 string or
-const 35 string eq
-const 36 string ne
-const 37 string lt
-const 38 string gt
-const 39 string le
-const 40 string ge
-const 41 string make_object
-const 42 string make_array
-const 43 string index_get
-const 44 string index_set
-const 45 string get_member
-const 46 string set_member
-const 47 string jump
-const 48 string jump_if_false
-const 49 string jump_if_true
-const 50 string call
-const 51 string new_instance
-const 52 string return
-const 53 string throw
-const 54 string jump_if_result_err
-const 55 string make_arrow_fn
-const 56 string iterator_step_in_place
-const 57 string make_ok
-const 58 string make_err
-const 59 string make_some
-const 60 string make_none
-const 61 string halt
-const 62 string __kab_const_undefined__
+const 2 string dup
+const 3 string load_global
+const 4 string store_global
+const 5 string load_local
+const 6 string store_local
+const 7 string take_local
+const 8 string take_global
+const 9 string array_push_local
+const 10 string array_push_global
+const 11 string array_pop_local
+const 12 string array_pop_global
+const 13 string acc_add_local
+const 14 string acc_add_global
+const 15 string len_local
+const 16 string len_global
+const 17 string index_get_local
+const 18 string index_get_global
+const 19 string add
+const 20 string sub
+const 21 string mul
+const 22 string div
+const 23 string mod
+const 24 string pow
+const 25 string neg
+const 26 string bit_and
+const 27 string bit_or
+const 28 string bit_xor
+const 29 string shl
+const 30 string shr
+const 31 string ushr
+const 32 string bit_not
+const 33 string not
+const 34 string and
+const 35 string or
+const 36 string eq
+const 37 string ne
+const 38 string lt
+const 39 string gt
+const 40 string le
+const 41 string ge
+const 42 string make_object
+const 43 string make_array
+const 44 string index_get
+const 45 string index_set
+const 46 string get_member
+const 47 string set_member
+const 48 string jump
+const 49 string jump_if_false
+const 50 string jump_if_true
+const 51 string call
+const 52 string new_instance
+const 53 string return
+const 54 string throw
+const 55 string jump_if_result_err
+const 56 string make_arrow_fn
+const 57 string iterator_step_in_place
+const 58 string make_ok
+const 59 string make_err
+const 60 string make_some
+const 61 string make_none
+const 62 string halt
+const 63 string __kab_const_undefined__
 local 0 OP_CONST
 local 1 OP_POP
-local 2 OP_LOAD_GLOBAL
-local 3 OP_STORE_GLOBAL
-local 4 OP_LOAD_LOCAL
-local 5 OP_STORE_LOCAL
-local 6 OP_TAKE_LOCAL
-local 7 OP_TAKE_GLOBAL
-local 8 OP_ARRAY_PUSH_LOCAL
-local 9 OP_ARRAY_PUSH_GLOBAL
-local 10 OP_ARRAY_POP_LOCAL
-local 11 OP_ARRAY_POP_GLOBAL
-local 12 OP_ACC_ADD_LOCAL
-local 13 OP_ACC_ADD_GLOBAL
-local 14 OP_LEN_LOCAL
-local 15 OP_LEN_GLOBAL
-local 16 OP_INDEX_GET_LOCAL
-local 17 OP_INDEX_GET_GLOBAL
-local 18 OP_ADD
-local 19 OP_SUB
-local 20 OP_MUL
-local 21 OP_DIV
-local 22 OP_MOD
-local 23 OP_POW
-local 24 OP_NEG
-local 25 OP_BIT_AND
-local 26 OP_BIT_OR
-local 27 OP_BIT_XOR
-local 28 OP_SHL
-local 29 OP_SHR
-local 30 OP_USHR
-local 31 OP_BIT_NOT
-local 32 OP_NOT
-local 33 OP_AND
-local 34 OP_OR
-local 35 OP_EQ
-local 36 OP_NE
-local 37 OP_LT
-local 38 OP_GT
-local 39 OP_LE
-local 40 OP_GE
-local 41 OP_MAKE_OBJECT
-local 42 OP_MAKE_ARRAY
-local 43 OP_INDEX_GET
-local 44 OP_INDEX_SET
-local 45 OP_GET_MEMBER
-local 46 OP_SET_MEMBER
-local 47 OP_JUMP
-local 48 OP_JUMP_IF_FALSE
-local 49 OP_JUMP_IF_TRUE
-local 50 OP_CALL
-local 51 OP_NEW_INSTANCE
-local 52 OP_RETURN
-local 53 OP_THROW
-local 54 OP_JUMP_IF_RESULT_ERR
-local 55 OP_MAKE_ARROW
-local 56 OP_ITER_STEP
-local 57 OP_MAKE_OK
-local 58 OP_MAKE_ERR
-local 59 OP_MAKE_SOME
-local 60 OP_MAKE_NONE
-local 61 OP_HALT
-local 62 KAB_UNDEF_CONST
+local 2 OP_DUP
+local 3 OP_LOAD_GLOBAL
+local 4 OP_STORE_GLOBAL
+local 5 OP_LOAD_LOCAL
+local 6 OP_STORE_LOCAL
+local 7 OP_TAKE_LOCAL
+local 8 OP_TAKE_GLOBAL
+local 9 OP_ARRAY_PUSH_LOCAL
+local 10 OP_ARRAY_PUSH_GLOBAL
+local 11 OP_ARRAY_POP_LOCAL
+local 12 OP_ARRAY_POP_GLOBAL
+local 13 OP_ACC_ADD_LOCAL
+local 14 OP_ACC_ADD_GLOBAL
+local 15 OP_LEN_LOCAL
+local 16 OP_LEN_GLOBAL
+local 17 OP_INDEX_GET_LOCAL
+local 18 OP_INDEX_GET_GLOBAL
+local 19 OP_ADD
+local 20 OP_SUB
+local 21 OP_MUL
+local 22 OP_DIV
+local 23 OP_MOD
+local 24 OP_POW
+local 25 OP_NEG
+local 26 OP_BIT_AND
+local 27 OP_BIT_OR
+local 28 OP_BIT_XOR
+local 29 OP_SHL
+local 30 OP_SHR
+local 31 OP_USHR
+local 32 OP_BIT_NOT
+local 33 OP_NOT
+local 34 OP_AND
+local 35 OP_OR
+local 36 OP_EQ
+local 37 OP_NE
+local 38 OP_LT
+local 39 OP_GT
+local 40 OP_LE
+local 41 OP_GE
+local 42 OP_MAKE_OBJECT
+local 43 OP_MAKE_ARRAY
+local 44 OP_INDEX_GET
+local 45 OP_INDEX_SET
+local 46 OP_GET_MEMBER
+local 47 OP_SET_MEMBER
+local 48 OP_JUMP
+local 49 OP_JUMP_IF_FALSE
+local 50 OP_JUMP_IF_TRUE
+local 51 OP_CALL
+local 52 OP_NEW_INSTANCE
+local 53 OP_RETURN
+local 54 OP_THROW
+local 55 OP_JUMP_IF_RESULT_ERR
+local 56 OP_MAKE_ARROW
+local 57 OP_ITER_STEP
+local 58 OP_MAKE_OK
+local 59 OP_MAKE_ERR
+local 60 OP_MAKE_SOME
+local 61 OP_MAKE_NONE
+local 62 OP_HALT
+local 63 KAB_UNDEF_CONST
 functions=0
 arrows=0
 imports=0
 pub_imports=0
-exports=63
+exports=64
 export 0 OP_CONST
 export 1 OP_POP
-export 2 OP_LOAD_GLOBAL
-export 3 OP_STORE_GLOBAL
-export 4 OP_LOAD_LOCAL
-export 5 OP_STORE_LOCAL
-export 6 OP_TAKE_LOCAL
-export 7 OP_TAKE_GLOBAL
-export 8 OP_ARRAY_PUSH_LOCAL
-export 9 OP_ARRAY_PUSH_GLOBAL
-export 10 OP_ARRAY_POP_LOCAL
-export 11 OP_ARRAY_POP_GLOBAL
-export 12 OP_ACC_ADD_LOCAL
-export 13 OP_ACC_ADD_GLOBAL
-export 14 OP_LEN_LOCAL
-export 15 OP_LEN_GLOBAL
-export 16 OP_INDEX_GET_LOCAL
-export 17 OP_INDEX_GET_GLOBAL
-export 18 OP_ADD
-export 19 OP_SUB
-export 20 OP_MUL
-export 21 OP_DIV
-export 22 OP_MOD
-export 23 OP_POW
-export 24 OP_NEG
-export 25 OP_BIT_AND
-export 26 OP_BIT_OR
-export 27 OP_BIT_XOR
-export 28 OP_SHL
-export 29 OP_SHR
-export 30 OP_USHR
-export 31 OP_BIT_NOT
-export 32 OP_NOT
-export 33 OP_AND
-export 34 OP_OR
-export 35 OP_EQ
-export 36 OP_NE
-export 37 OP_LT
-export 38 OP_GT
-export 39 OP_LE
-export 40 OP_GE
-export 41 OP_MAKE_OBJECT
-export 42 OP_MAKE_ARRAY
-export 43 OP_INDEX_GET
-export 44 OP_INDEX_SET
-export 45 OP_GET_MEMBER
-export 46 OP_SET_MEMBER
-export 47 OP_JUMP
-export 48 OP_JUMP_IF_FALSE
-export 49 OP_JUMP_IF_TRUE
-export 50 OP_CALL
-export 51 OP_NEW_INSTANCE
-export 52 OP_RETURN
-export 53 OP_THROW
-export 54 OP_JUMP_IF_RESULT_ERR
-export 55 OP_MAKE_ARROW
-export 56 OP_ITER_STEP
-export 57 OP_MAKE_OK
-export 58 OP_MAKE_ERR
-export 59 OP_MAKE_SOME
-export 60 OP_MAKE_NONE
-export 61 OP_HALT
-export 62 KAB_UNDEF_CONST
+export 2 OP_DUP
+export 3 OP_LOAD_GLOBAL
+export 4 OP_STORE_GLOBAL
+export 5 OP_LOAD_LOCAL
+export 6 OP_STORE_LOCAL
+export 7 OP_TAKE_LOCAL
+export 8 OP_TAKE_GLOBAL
+export 9 OP_ARRAY_PUSH_LOCAL
+export 10 OP_ARRAY_PUSH_GLOBAL
+export 11 OP_ARRAY_POP_LOCAL
+export 12 OP_ARRAY_POP_GLOBAL
+export 13 OP_ACC_ADD_LOCAL
+export 14 OP_ACC_ADD_GLOBAL
+export 15 OP_LEN_LOCAL
+export 16 OP_LEN_GLOBAL
+export 17 OP_INDEX_GET_LOCAL
+export 18 OP_INDEX_GET_GLOBAL
+export 19 OP_ADD
+export 20 OP_SUB
+export 21 OP_MUL
+export 22 OP_DIV
+export 23 OP_MOD
+export 24 OP_POW
+export 25 OP_NEG
+export 26 OP_BIT_AND
+export 27 OP_BIT_OR
+export 28 OP_BIT_XOR
+export 29 OP_SHL
+export 30 OP_SHR
+export 31 OP_USHR
+export 32 OP_BIT_NOT
+export 33 OP_NOT
+export 34 OP_AND
+export 35 OP_OR
+export 36 OP_EQ
+export 37 OP_NE
+export 38 OP_LT
+export 39 OP_GT
+export 40 OP_LE
+export 41 OP_GE
+export 42 OP_MAKE_OBJECT
+export 43 OP_MAKE_ARRAY
+export 44 OP_INDEX_GET
+export 45 OP_INDEX_SET
+export 46 OP_GET_MEMBER
+export 47 OP_SET_MEMBER
+export 48 OP_JUMP
+export 49 OP_JUMP_IF_FALSE
+export 50 OP_JUMP_IF_TRUE
+export 51 OP_CALL
+export 52 OP_NEW_INSTANCE
+export 53 OP_RETURN
+export 54 OP_THROW
+export 55 OP_JUMP_IF_RESULT_ERR
+export 56 OP_MAKE_ARROW
+export 57 OP_ITER_STEP
+export 58 OP_MAKE_OK
+export 59 OP_MAKE_ERR
+export 60 OP_MAKE_SOME
+export 61 OP_MAKE_NONE
+export 62 OP_HALT
+export 63 KAB_UNDEF_CONST
 memory_mode=gc
 interfaces=0
 classes=0
@@ -324,9 +327,11 @@ const 61
 store_local 61
 const 62
 store_local 62
-load_local 62
+const 63
+store_local 63
+load_local 63
 halt
 
 source=self_host/emit_defs.kab
-statements=63
-fingerprint=d00ffacff903632c
+statements=64
+fingerprint=d11000aeca2f9233

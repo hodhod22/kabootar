@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=29
+constants=30
 const 0 number 0
 const 1 string pPos
 const 2 string pToks
@@ -17,19 +17,21 @@ const 13 string pTok
 const 14 string pNextTok
 const 15 string pDone
 const 16 string pSymPool
-const 17 string pSymN
-const 18 string 
-const 19 string pSymOut
-const 20 string pSymSrc
-const 21 string pSymI
-const 22 string pPopI
-const 23 string pPopNew
-const 24 string pImports
-const 25 string pIsPub
-const 26 string pFnPub
-const 27 string pInAddSub
-const 28 string pNoBit
-global 0 pSessionInit_core
+const 17 undefined
+const 18 string pSymN
+const 19 string 
+const 20 string pSymOut
+const 21 string pSymSrc
+const 22 string pSymI
+const 23 string pPopI
+const 24 string pPopNew
+const 25 string pImports
+const 26 string pIsPub
+const 27 string pFnPub
+const 28 string pInAddSub
+const 29 string pNoBit
+global 0 object_array_clear
+global 1 pSessionInit_core
 functions=1
 fn 0 pSessionInit_core
 fn_params 0 sess
@@ -114,6 +116,11 @@ fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 const 17
+fn_op 0 eq
+fn_op 0 jump_if_false 10
 fn_op 0 make_array 0
 fn_op 0 store_local 9
 fn_op 0 load_local 0
@@ -123,28 +130,34 @@ fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
+fn_op 0 jump 5
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 10
 fn_op 0 load_local 0
-fn_op 0 const 17
+fn_op 0 const 18
 fn_op 0 load_local 10
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 const 18
+fn_op 0 const 19
 fn_op 0 store_local 11
 fn_op 0 load_local 0
-fn_op 0 const 19
+fn_op 0 const 20
 fn_op 0 load_local 11
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 const 18
+fn_op 0 const 19
 fn_op 0 store_local 12
 fn_op 0 load_local 0
-fn_op 0 const 20
+fn_op 0 const 21
 fn_op 0 load_local 12
 fn_op 0 index_set
 fn_op 0 swap
@@ -153,7 +166,7 @@ fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 13
 fn_op 0 load_local 0
-fn_op 0 const 21
+fn_op 0 const 22
 fn_op 0 load_local 13
 fn_op 0 index_set
 fn_op 0 swap
@@ -162,7 +175,7 @@ fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 14
 fn_op 0 load_local 0
-fn_op 0 const 22
+fn_op 0 const 23
 fn_op 0 load_local 14
 fn_op 0 index_set
 fn_op 0 swap
@@ -171,25 +184,36 @@ fn_op 0 pop
 fn_op 0 make_array 0
 fn_op 0 store_local 15
 fn_op 0 load_local 0
-fn_op 0 const 23
+fn_op 0 const 24
 fn_op 0 load_local 15
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 25
+fn_op 0 const 17
+fn_op 0 eq
+fn_op 0 jump_if_false 10
 fn_op 0 make_array 0
 fn_op 0 store_local 16
 fn_op 0 load_local 0
-fn_op 0 const 24
+fn_op 0 const 25
 fn_op 0 load_local 16
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
+fn_op 0 jump 5
+fn_op 0 load_local 0
+fn_op 0 const 25
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 17
 fn_op 0 load_local 0
-fn_op 0 const 25
+fn_op 0 const 26
 fn_op 0 load_local 17
 fn_op 0 index_set
 fn_op 0 swap
@@ -198,7 +222,7 @@ fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 18
 fn_op 0 load_local 0
-fn_op 0 const 26
+fn_op 0 const 27
 fn_op 0 load_local 18
 fn_op 0 index_set
 fn_op 0 swap
@@ -207,7 +231,7 @@ fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 19
 fn_op 0 load_local 0
-fn_op 0 const 27
+fn_op 0 const 28
 fn_op 0 load_local 19
 fn_op 0 index_set
 fn_op 0 swap
@@ -216,7 +240,7 @@ fn_op 0 pop
 fn_op 0 const 0
 fn_op 0 store_local 20
 fn_op 0 load_local 0
-fn_op 0 const 28
+fn_op 0 const 29
 fn_op 0 load_local 20
 fn_op 0 index_set
 fn_op 0 swap
@@ -238,4 +262,4 @@ halt
 
 source=self_host/parser_session_core.kab
 statements=1
-fingerprint=83762be7518b9e10
+fingerprint=e147c5ae8620dbb1

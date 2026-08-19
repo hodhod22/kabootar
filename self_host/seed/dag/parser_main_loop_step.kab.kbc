@@ -13,19 +13,19 @@ const 9 number 0
 global 0 TOKEN_IMPORT
 global 1 bump
 global 2 TOKEN_STRING
-global 3 push
+global 3 object_array_push
 global 4 pCallStmt
 global 5 parseMain_loop_step
 functions=1
 fn 0 parseMain_loop_step
 fn_params 0 sess
-fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_locals 0 sess,__kab_a0,__kab_a1
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 get_member 1
 fn_op 0 load_global 0
 fn_op 0 eq
-fn_op 0 jump_if_false 50
+fn_op 0 jump_if_false 43
 fn_op 0 load_local 0
 fn_op 0 load_global 1
 fn_op 0 call 1
@@ -45,25 +45,18 @@ fn_op 0 get_member 0
 fn_op 0 get_member 1
 fn_op 0 load_global 2
 fn_op 0 eq
-fn_op 0 jump_if_false 19
+fn_op 0 jump_if_false 12
 fn_op 0 load_local 0
 fn_op 0 load_global 1
 fn_op 0 call 1
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 3
+fn_op 0 const 3
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 get_member 4
 fn_op 0 load_global 3
-fn_op 0 call 2
-fn_op 0 store_local 2
-fn_op 0 load_local 0
-fn_op 0 const 3
-fn_op 0 load_local 2
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 call 3
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 2
@@ -75,14 +68,14 @@ fn_op 0 load_local 0
 fn_op 0 load_global 1
 fn_op 0 call 1
 fn_op 0 pop
-fn_op 0 jump 30
+fn_op 0 jump 23
 fn_op 0 load_local 0
 fn_op 0 load_global 4
 fn_op 0 call 1
-fn_op 0 store_local 3
+fn_op 0 store_local 2
 fn_op 0 load_local 0
 fn_op 0 const 7
-fn_op 0 load_local 3
+fn_op 0 load_local 2
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -91,20 +84,13 @@ fn_op 0 load_local 0
 fn_op 0 get_member 7
 fn_op 0 const 5
 fn_op 0 ne
-fn_op 0 jump_if_false 14
+fn_op 0 jump_if_false 7
 fn_op 0 load_local 0
-fn_op 0 get_member 8
+fn_op 0 const 8
 fn_op 0 load_local 0
 fn_op 0 get_member 7
 fn_op 0 load_global 3
-fn_op 0 call 2
-fn_op 0 store_local 4
-fn_op 0 load_local 0
-fn_op 0 const 8
-fn_op 0 load_local 4
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 call 3
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 2
@@ -136,4 +122,4 @@ halt
 
 source=self_host/parser_main_loop_step.kab
 statements=5
-fingerprint=5053f3a935a4176f
+fingerprint=e5892103876ef1f8

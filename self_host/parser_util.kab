@@ -1,2 +1,25 @@
-pub import "self_host/parser_util_bump"
-pub import "self_host/parser_util_pool"
+import "self_host/lexer_defs"
+import "self_host/ast_defs"
+
+pub fn peek(sess) {
+    return sess["pCur"]
+}
+
+pub fn bump(sess) {
+    sess["pTok"] = sess["pCur"]
+    if sess["pPos"] < sess["pToksLen"] {
+        sess["pPos"] = sess["pPos"] + 1
+        if sess["pPos"] < sess["pToksLen"] {
+            sess["pCur"] = sess["pToks"][sess["pPos"]]
+        } else {
+            sess["pCur"] = sess["pEofTok"]
+        }
+    }
+    return sess["pTok"]
+}
+
+pub fn poolPush(sess, v) {
+    sess["pSymPool"] = push(sess["pSymPool"], v)
+    sess["pSymN"] = sess["pSymN"] + 1
+    return v
+}

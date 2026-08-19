@@ -1,5 +1,5 @@
 import "self_host/lexer_defs"
-import "self_host/serialize_pure"
+import "self_host/serialize_ir_line"
 import "self_host/serialize_out"
 import "self_host/serialize_sections"
 import "self_host/serialize_ir"

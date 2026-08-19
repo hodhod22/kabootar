@@ -1,2 +1,0 @@
-// P6b: pure-helpers aggregator (attemptable).
-pub import "self_host/serialize_op"

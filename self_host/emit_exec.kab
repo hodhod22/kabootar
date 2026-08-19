@@ -1,7 +1,310 @@
 // SH2/SH13: reuse session; tramp takes E (do not read gE — LoadGlobal IC can stale).
-import "self_host/emit_session"
 import "self_host/emit_tramp"
 import "self_host/emit_main_fn"
+
+// P6b: emit session (pools/stacks/temps). Thread as E into shards.
+// Imperative init — huge object literals are slow for self-host compile.
+pub fn eMakeSession() {
+    let E = {}
+    E["eConsts"] = []
+    E["eOps"] = []
+    E["eOpsN"] = 0
+    E["eGlobals"] = []
+    E["eFnOps"] = []
+    E["eFnOpsN"] = 0
+    E["eFnGlobals"] = []
+    E["eFnLocals"] = []
+    E["eConstMap"] = {}
+    E["eConstN"] = 0
+    E["eGlobalMap"] = {}
+    E["eGlobalN"] = 0
+    E["eLocalMap"] = {}
+    E["eLocalN"] = 0
+    E["eInFn"] = 0
+    E["eIdx"] = 0
+    E["eSym"] = null
+    E["eJmp"] = 0
+    E["eEnd"] = 0
+    E["eNode"] = null
+    E["eProg"] = 0
+    E["eLeft"] = null
+    E["eRight"] = null
+    E["eOp"] = ""
+    E["eBinOp"] = ""
+    E["eBinaryL"] = null
+    E["eBinaryR"] = null
+    E["eCond"] = null
+    E["eThen"] = null
+    E["eElse"] = null
+    E["eCondStack"] = []
+    E["eThenStack"] = []
+    E["eElseStack"] = []
+    E["eProgram"] = null
+    E["eFunctions"] = []
+    E["eParams"] = []
+    E["eFnBody"] = null
+    E["eFnName"] = ""
+    E["eBxL"] = null
+    E["eBxR"] = null
+    E["eBxRhs"] = null
+    E["eArgs"] = []
+    E["eCallee"] = null
+    E["eCalleeStack"] = []
+    E["eCallI"] = 0
+    E["eArgN"] = 0
+    E["eLocalI"] = 0
+    E["eGlobI"] = 0
+    E["eConstI"] = 0
+    E["eStmtI"] = 0
+    E["eObjI"] = 0
+    E["eParamI"] = 0
+    E["eFound"] = 0
+    E["eWhileHead"] = 0
+    E["eJumpOff"] = 0
+    E["eWhileHeads"] = []
+    E["eBreakIdxs"] = []
+    E["eBreakFromStack"] = []
+    E["eBi"] = 0
+    E["eBf"] = 0
+    E["eWh"] = 0
+    E["eWhNew"] = []
+    E["eWhI"] = 0
+    E["eList"] = []
+    E["eBodyStmts"] = []
+    E["eBlockStmts"] = []
+    E["eBlockN"] = 0
+    E["eBlockI"] = 0
+    E["eBlockNStack"] = []
+    E["eBlockIStack"] = []
+    E["eBlockStmtsStack"] = []
+    E["eBlockDepth"] = 0
+    E["eCalleeDepth"] = 0
+    E["eCallArgDepth"] = 0
+    E["eObjDepth"] = 0
+    E["eArrDepth"] = 0
+    E["eIfDepth"] = 0
+    E["eMemberDepth"] = 0
+    E["eIndexDepth"] = 0
+    E["eLenScratch"] = 0
+    E["eFld"] = null
+    E["eIfJmpStack"] = []
+    E["eIfSkipStack"] = []
+    E["eExports"] = []
+    E["eImports"] = []
+    E["eFnSave"] = ""
+    E["eFnPub"] = 0
+    E["eStoreSym"] = ""
+    E["eAssignSym"] = ""
+    E["eExprStmt"] = null
+    E["eMemberFld"] = ""
+    E["eMemberFldStack"] = []
+    E["eSnapI"] = 0
+    E["eSnapOut"] = []
+    E["eLoopSave"] = 0
+    E["eStmtKind"] = ""
+    E["eStmtNode"] = null
+    E["eObjIStack"] = []
+    E["eObjNStack"] = []
+    E["eArrIStack"] = []
+    E["eArrNStack"] = []
+    E["eCallArgIStack"] = []
+    E["eCallArgNStack"] = []
+    E["eArgsStack"] = []
+    E["eIndexStack"] = []
+    E["eLitNode"] = null
+    E["eGenericTemplates"] = []
+    E["eSpecMangled"] = []
+    E["eBindingSyms"] = []
+    E["eBindingTypes"] = []
+    E["eGenericClassTemplates"] = []
+    E["eGenericEnumTemplates"] = []
+    E["eGenericMethodTemplates"] = []
+    E["eClasses"] = []
+    E["eClassesN"] = 0
+    E["eEnums"] = []
+    E["eClassMethods"] = []
+    E["eClassMethodsSrc"] = []
+    E["eClassIsStruct"] = 0
+    E["eArrows"] = []
+    E["eTryRegions"] = []
+    E["eFnTryRegions"] = []
+    E["eForCounter"] = 0
+    E["eGenTmpl"] = null
+    E["eGenSym"] = ""
+    E["eMangled"] = ""
+    E["eExplicit"] = []
+    E["eTypeParams"] = []
+    E["eTypeArgs"] = []
+    E["eSaveInFn"] = 0
+    E["eSaveFnOps"] = []
+    E["eSaveFnOpsN"] = 0
+    E["eSaveFnLocals"] = []
+    E["eSaveFnGlobals"] = []
+    E["eGenI"] = 0
+    E["eInferType"] = ""
+    E["eResolveI"] = 0
+    E["eRecvClass"] = ""
+    E["eCtorCallee"] = null
+    E["eCtorName"] = ""
+    E["eMethodMangled"] = ""
+    E["eMethTmpl"] = null
+    E["eNewClasses"] = []
+    E["eNewMethods"] = []
+    E["eClassIdx"] = 0
+    E["eFoundMeth"] = 0
+    E["eCtorArgs"] = []
+    return E
+}
+
+pub fn eResetSession(E) {
+    object_array_clear(E, "eConsts")
+    object_array_clear(E, "eOps")
+    E["eOpsN"] = 0
+    object_array_clear(E, "eGlobals")
+    object_array_clear(E, "eFnOps")
+    E["eFnOpsN"] = 0
+    object_array_clear(E, "eFnGlobals")
+    object_array_clear(E, "eFnLocals")
+    E["eConstMap"] = {}
+    E["eConstN"] = 0
+    E["eGlobalMap"] = {}
+    E["eGlobalN"] = 0
+    E["eLocalMap"] = {}
+    E["eLocalN"] = 0
+    E["eInFn"] = 0
+    E["eIdx"] = 0
+    E["eSym"] = null
+    E["eJmp"] = 0
+    E["eEnd"] = 0
+    E["eNode"] = null
+    E["eProg"] = 0
+    E["eLeft"] = null
+    E["eRight"] = null
+    E["eOp"] = ""
+    E["eBinOp"] = ""
+    E["eBinaryL"] = null
+    E["eBinaryR"] = null
+    E["eCond"] = null
+    E["eThen"] = null
+    E["eElse"] = null
+    object_array_clear(E, "eCondStack")
+    object_array_clear(E, "eThenStack")
+    object_array_clear(E, "eElseStack")
+    E["eProgram"] = null
+    object_array_clear(E, "eFunctions")
+    object_array_clear(E, "eParams")
+    E["eFnBody"] = null
+    E["eFnName"] = ""
+    E["eBxL"] = null
+    E["eBxR"] = null
+    E["eBxRhs"] = null
+    object_array_clear(E, "eArgs")
+    E["eCallee"] = null
+    object_array_clear(E, "eCalleeStack")
+    E["eCallI"] = 0
+    E["eArgN"] = 0
+    E["eLocalI"] = 0
+    E["eGlobI"] = 0
+    E["eConstI"] = 0
+    E["eStmtI"] = 0
+    E["eObjI"] = 0
+    E["eParamI"] = 0
+    E["eFound"] = 0
+    E["eWhileHead"] = 0
+    E["eJumpOff"] = 0
+    object_array_clear(E, "eWhileHeads")
+    object_array_clear(E, "eBreakIdxs")
+    object_array_clear(E, "eBreakFromStack")
+    E["eBi"] = 0
+    E["eBf"] = 0
+    E["eWh"] = 0
+    object_array_clear(E, "eWhNew")
+    E["eWhI"] = 0
+    object_array_clear(E, "eList")
+    object_array_clear(E, "eBodyStmts")
+    object_array_clear(E, "eBlockStmts")
+    E["eBlockN"] = 0
+    E["eBlockI"] = 0
+    object_array_clear(E, "eBlockNStack")
+    object_array_clear(E, "eBlockIStack")
+    object_array_clear(E, "eBlockStmtsStack")
+    E["eBlockDepth"] = 0
+    E["eCalleeDepth"] = 0
+    E["eCallArgDepth"] = 0
+    E["eObjDepth"] = 0
+    E["eArrDepth"] = 0
+    E["eIfDepth"] = 0
+    E["eMemberDepth"] = 0
+    E["eIndexDepth"] = 0
+    E["eLenScratch"] = 0
+    E["eFld"] = null
+    object_array_clear(E, "eIfJmpStack")
+    object_array_clear(E, "eIfSkipStack")
+    object_array_clear(E, "eExports")
+    object_array_clear(E, "eImports")
+    E["eFnSave"] = ""
+    E["eFnPub"] = 0
+    E["eStoreSym"] = ""
+    E["eAssignSym"] = ""
+    E["eExprStmt"] = null
+    E["eMemberFld"] = ""
+    object_array_clear(E, "eMemberFldStack")
+    E["eSnapI"] = 0
+    object_array_clear(E, "eSnapOut")
+    E["eLoopSave"] = 0
+    E["eStmtKind"] = ""
+    E["eStmtNode"] = null
+    object_array_clear(E, "eObjIStack")
+    object_array_clear(E, "eObjNStack")
+    object_array_clear(E, "eArrIStack")
+    object_array_clear(E, "eArrNStack")
+    object_array_clear(E, "eCallArgIStack")
+    object_array_clear(E, "eCallArgNStack")
+    object_array_clear(E, "eArgsStack")
+    object_array_clear(E, "eIndexStack")
+    E["eLitNode"] = null
+    E["eGenericTemplates"] = []
+    E["eSpecMangled"] = []
+    E["eBindingSyms"] = []
+    E["eBindingTypes"] = []
+    E["eGenericClassTemplates"] = []
+    E["eGenericEnumTemplates"] = []
+    E["eGenericMethodTemplates"] = []
+    E["eClasses"] = []
+    E["eClassesN"] = 0
+    E["eEnums"] = []
+    E["eClassMethods"] = []
+    E["eClassMethodsSrc"] = []
+    E["eClassIsStruct"] = 0
+    E["eArrows"] = []
+    E["eTryRegions"] = []
+    E["eFnTryRegions"] = []
+    E["eForCounter"] = 0
+    E["eGenTmpl"] = null
+    E["eGenSym"] = ""
+    E["eMangled"] = ""
+    E["eExplicit"] = []
+    E["eTypeParams"] = []
+    E["eTypeArgs"] = []
+    E["eSaveInFn"] = 0
+    E["eSaveFnOps"] = []
+    E["eSaveFnOpsN"] = 0
+    E["eSaveFnLocals"] = []
+    E["eSaveFnGlobals"] = []
+    E["eGenI"] = 0
+    E["eInferType"] = ""
+    E["eResolveI"] = 0
+    E["eRecvClass"] = ""
+    E["eCtorCallee"] = null
+    E["eCtorName"] = ""
+    E["eMethodMangled"] = ""
+    E["eMethTmpl"] = null
+    E["eNewClasses"] = []
+    E["eNewMethods"] = []
+    E["eClassIdx"] = 0
+    E["eFoundMeth"] = 0
+    E["eCtorArgs"] = []
+}
 
 let gE = null
 
@@ -23,3 +326,5 @@ pub fn emitMainExec(program) {
     E["_node"] = null
     return emitMain(E, program)
 }
+
+pub let emitMainFromExec = emitMainExec

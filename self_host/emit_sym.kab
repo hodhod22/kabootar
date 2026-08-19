@@ -1,7 +1,7 @@
 import "self_host/ast_defs"
 import "self_host/emit_defs"
 import "self_host/emit_sym_index"
-import "self_host/emit_op"
+import "self_host/emit_arr_util"
 
 let eCallRet = 0
 

@@ -1,2 +1,0 @@
-import "self_host/emit_fn_body"
-import "self_host/emit_fn_scope"

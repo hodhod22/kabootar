@@ -249,7 +249,7 @@ fn_arrows 5 0
 arrows=0
 imports=5
 import 0 self_host/lexer_defs
-import 1 self_host/serialize_pure
+import 1 self_host/serialize_ir_line
 import 2 self_host/serialize_out
 import 3 self_host/serialize_sections
 import 4 self_host/serialize_ir
@@ -269,4 +269,4 @@ halt
 
 source=self_host/serialize_acc.kab
 statements=11
-fingerprint=ae647aa279f9906e
+fingerprint=2d75a8f0a5d6758a

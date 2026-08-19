@@ -4,13 +4,13 @@ Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**.
 
 ## H6e — boot-policy i Kab
 
-Produktpolicy för bootstrap: `import "kab/boot"` (`bootTokenize` / `bootCompile` / `bootCompileAndCheck` / `bootPipelineOk`). Gate: `examples/h6e_boot_policy_smoke.kab`, `examples/h6e_compile_prefer_smoke.kab`. Rust förblir processladdare + VM.
+Produktpolicy för bootstrap: `import "kab/boot"`. **Nolltolerans:** ingen Rust-emit, ingen Rust-JIT, ingen Rust-GC — se ROADMAP-rutan.
 
-**`kabootar run` / `run_file`:** samma preferens som compile — self-host först (cache `.kbc`), `KABOOTAR_COMPILE=rust` tvingar host-kompilator.
+**`kabootar run` / `run_file`:** self-host först. `KABOOTAR_COMPILE=rust` är **skuld** (ska bort), inte produktväg.
 
 ## `kabootar compile` (S2)
 
-Default: **`self_host/compile.kab`** producerar `.kbc` för app-källor. Vid fel eller hopp (t.ex. `self_host/*`, stora filer) → **Rust**-fallback.
+Default: **`self_host/compile.kab`**. Rust-fallback är **tillfällig** (stängs i SH16). `--rust` / `KABOOTAR_COMPILE=rust` ska försvinna för produktkällor.
 
 ```bash
 kabootar compile main.kab              # self-host → rust fallback

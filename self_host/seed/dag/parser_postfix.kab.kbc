@@ -109,32 +109,33 @@ global 33 TOKEN_ERR
 global 34 TOKEN_SOME
 global 35 AST_CALL
 global 36 parsePostfix_lit_wrap
-global 37 AST_OBJECT
-global 38 parsePostfix_obj
-global 39 parsePostfix_paren_arrow
-global 40 parsePostfix_paren_group
-global 41 parsePostfix_paren_scan
-global 42 parsePostfix_tail_call
-global 43 AST_MEMBER
-global 44 pCallTypeArgs
-global 45 len
-global 46 parsePostfix_tail_generic
-global 47 AST_INDEX
-global 48 parsePostfix_tail_index
-global 49 parsePostfix_tail_member_name
-global 50 parsePostfix_lit_scalar
-global 51 parsePostfix_obj_arr
-global 52 parsePostfix_paren
-global 53 parsePostfix_tail_member
-global 54 parsePostfix_lit
-global 55 parsePostfix_tail
-global 56 json_stringify
-global 57 parsePostfix_primary
-global 58 parsePostfix
+global 37 object_array_push
+global 38 AST_OBJECT
+global 39 parsePostfix_obj
+global 40 parsePostfix_paren_arrow
+global 41 parsePostfix_paren_group
+global 42 parsePostfix_paren_scan
+global 43 parsePostfix_tail_call
+global 44 AST_MEMBER
+global 45 pCallTypeArgs
+global 46 len
+global 47 parsePostfix_tail_generic
+global 48 AST_INDEX
+global 49 parsePostfix_tail_index
+global 50 parsePostfix_tail_member_name
+global 51 parsePostfix_lit_scalar
+global 52 parsePostfix_obj_arr
+global 53 parsePostfix_paren
+global 54 parsePostfix_tail_member
+global 55 parsePostfix_lit
+global 56 parsePostfix_tail
+global 57 json_stringify
+global 58 parsePostfix_primary
+global 59 parsePostfix
 functions=22
 fn 0 parsePostfix_arr
 fn_params 0 sess
-fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_locals 0 sess,__kab_a0,__kab_a1,elem,__kab_a2,__kab_a3
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 const 1
@@ -178,18 +179,20 @@ fn_op 0 get_member 3
 fn_op 0 get_member 5
 fn_op 0 const 8
 fn_op 0 ne
-fn_op 0 jump_if_false 26
-fn_op 0 load_local 0
-fn_op 0 get_member 7
+fn_op 0 jump_if_false 28
 fn_op 0 load_local 0
 fn_op 0 load_global 1
 fn_op 0 call 1
-fn_op 0 load_global 2
-fn_op 0 call 2
 fn_op 0 store_local 3
 fn_op 0 load_local 0
-fn_op 0 const 7
+fn_op 0 get_member 7
 fn_op 0 load_local 3
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 4
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -204,7 +207,7 @@ fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
-fn_op 0 jump -32
+fn_op 0 jump -34
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
@@ -215,10 +218,10 @@ fn_op 0 load_local 0
 fn_op 0 get_member 7
 fn_op 0 const 11
 fn_op 0 make_object 2
-fn_op 0 store_local 4
+fn_op 0 store_local 5
 fn_op 0 load_local 0
 fn_op 0 const 0
-fn_op 0 load_local 4
+fn_op 0 load_local 5
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -784,7 +787,7 @@ fn_op 5 return
 fn_arrows 5 0
 fn 6 parsePostfix_obj
 fn_params 6 sess
-fn_locals 6 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7
+fn_locals 6 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6
 fn_op 6 load_local 0
 fn_op 6 get_member 0
 fn_op 6 const 1
@@ -828,7 +831,7 @@ fn_op 6 get_member 3
 fn_op 6 get_member 5
 fn_op 6 const 39
 fn_op 6 ne
-fn_op 6 jump_if_false 117
+fn_op 6 jump_if_false 110
 fn_op 6 load_local 0
 fn_op 6 get_member 3
 fn_op 6 store_local 3
@@ -917,7 +920,7 @@ fn_op 6 swap
 fn_op 6 store_local 0
 fn_op 6 pop
 fn_op 6 load_local 0
-fn_op 6 get_member 38
+fn_op 6 const 38
 fn_op 6 load_local 0
 fn_op 6 get_member 40
 fn_op 6 const 44
@@ -925,15 +928,8 @@ fn_op 6 load_local 0
 fn_op 6 get_member 43
 fn_op 6 const 21
 fn_op 6 make_object 2
-fn_op 6 load_global 2
-fn_op 6 call 2
-fn_op 6 store_local 7
-fn_op 6 load_local 0
-fn_op 6 const 38
-fn_op 6 load_local 7
-fn_op 6 index_set
-fn_op 6 swap
-fn_op 6 store_local 0
+fn_op 6 load_global 37
+fn_op 6 call 3
 fn_op 6 pop
 fn_op 6 load_local 0
 fn_op 6 get_member 3
@@ -945,21 +941,21 @@ fn_op 6 load_local 0
 fn_op 6 load_global 0
 fn_op 6 call 1
 fn_op 6 pop
-fn_op 6 jump -123
+fn_op 6 jump -116
 fn_op 6 load_local 0
 fn_op 6 load_global 0
 fn_op 6 call 1
 fn_op 6 pop
-fn_op 6 load_global 37
+fn_op 6 load_global 38
 fn_op 6 const 10
 fn_op 6 load_local 0
 fn_op 6 get_member 38
 fn_op 6 const 45
 fn_op 6 make_object 2
-fn_op 6 store_local 8
+fn_op 6 store_local 7
 fn_op 6 load_local 0
 fn_op 6 const 0
-fn_op 6 load_local 8
+fn_op 6 load_local 7
 fn_op 6 index_set
 fn_op 6 swap
 fn_op 6 store_local 0
@@ -1216,7 +1212,7 @@ fn_op 9 return
 fn_arrows 9 0
 fn 10 parsePostfix_tail_call
 fn_params 10 sess
-fn_locals 10 sess,__kab_a0,__kab_a1,savedCallee,savedTypeArgs,__kab_a2,__kab_a3,__kab_a4,__kab_a5
+fn_locals 10 sess,__kab_a0,__kab_a1,savedCallee,savedTypeArgs,__kab_a2,arg,__kab_a3,__kab_a4,__kab_a5
 fn_op 10 load_local 0
 fn_op 10 get_member 3
 fn_op 10 get_member 5
@@ -1280,18 +1276,20 @@ fn_op 10 get_member 3
 fn_op 10 get_member 5
 fn_op 10 const 34
 fn_op 10 ne
-fn_op 10 jump_if_false 28
-fn_op 10 load_local 0
-fn_op 10 get_member 7
+fn_op 10 jump_if_false 30
 fn_op 10 load_local 0
 fn_op 10 load_global 1
 fn_op 10 call 1
-fn_op 10 load_global 2
-fn_op 10 call 2
 fn_op 10 store_local 6
 fn_op 10 load_local 0
-fn_op 10 const 7
+fn_op 10 get_member 7
 fn_op 10 load_local 6
+fn_op 10 load_global 2
+fn_op 10 call 2
+fn_op 10 store_local 7
+fn_op 10 load_local 0
+fn_op 10 const 7
+fn_op 10 load_local 7
 fn_op 10 index_set
 fn_op 10 swap
 fn_op 10 store_local 0
@@ -1308,7 +1306,7 @@ fn_op 10 call 1
 fn_op 10 pop
 fn_op 10 jump 1
 fn_op 10 jump 1
-fn_op 10 jump -28
+fn_op 10 jump -30
 fn_op 10 load_local 0
 fn_op 10 get_member 3
 fn_op 10 get_member 5
@@ -1332,19 +1330,19 @@ fn_op 10 const 37
 fn_op 10 load_local 4
 fn_op 10 const 53
 fn_op 10 make_object 4
-fn_op 10 store_local 7
+fn_op 10 store_local 8
 fn_op 10 load_local 0
 fn_op 10 const 0
-fn_op 10 load_local 7
+fn_op 10 load_local 8
 fn_op 10 index_set
 fn_op 10 swap
 fn_op 10 store_local 0
 fn_op 10 pop
 fn_op 10 make_array 0
-fn_op 10 store_local 8
+fn_op 10 store_local 9
 fn_op 10 load_local 0
 fn_op 10 const 52
-fn_op 10 load_local 8
+fn_op 10 load_local 9
 fn_op 10 index_set
 fn_op 10 swap
 fn_op 10 store_local 0
@@ -1390,7 +1388,7 @@ fn_op 11 pop
 fn_op 11 load_local 0
 fn_op 11 get_member 0
 fn_op 11 get_member 10
-fn_op 11 load_global 43
+fn_op 11 load_global 44
 fn_op 11 eq
 fn_op 11 jump_if_false 9
 fn_op 11 const 22
@@ -1408,7 +1406,7 @@ fn_op 11 const 22
 fn_op 11 eq
 fn_op 11 jump_if_false 30
 fn_op 11 load_local 0
-fn_op 11 load_global 44
+fn_op 11 load_global 45
 fn_op 11 call 1
 fn_op 11 store_local 4
 fn_op 11 load_local 0
@@ -1420,7 +1418,7 @@ fn_op 11 store_local 0
 fn_op 11 pop
 fn_op 11 load_local 0
 fn_op 11 get_member 56
-fn_op 11 load_global 45
+fn_op 11 load_global 46
 fn_op 11 call 1
 fn_op 11 const 2
 fn_op 11 gt
@@ -1437,8 +1435,7 @@ fn_op 11 store_local 0
 fn_op 11 pop
 fn_op 11 const 22
 fn_op 11 return
-fn_op 11 const 22
-fn_op 11 neg
+fn_op 11 const 57
 fn_op 11 return
 fn_arrows 11 0
 fn 12 parsePostfix_tail_index
@@ -1483,7 +1480,7 @@ fn_op 12 load_local 0
 fn_op 12 load_global 0
 fn_op 12 call 1
 fn_op 12 pop
-fn_op 12 load_global 47
+fn_op 12 load_global 48
 fn_op 12 const 10
 fn_op 12 load_local 1
 fn_op 12 const 59
@@ -1664,7 +1661,7 @@ fn_op 15 jump_if_false 2
 fn_op 15 const 2
 fn_op 15 return
 fn_op 15 load_local 0
-fn_op 15 load_global 38
+fn_op 15 load_global 39
 fn_op 15 call 1
 fn_op 15 pop
 fn_op 15 load_local 0
@@ -1710,7 +1707,7 @@ fn_op 16 load_global 0
 fn_op 16 call 1
 fn_op 16 pop
 fn_op 16 load_local 0
-fn_op 16 load_global 41
+fn_op 16 load_global 42
 fn_op 16 call 1
 fn_op 16 store_local 3
 fn_op 16 load_local 3
@@ -1729,13 +1726,13 @@ fn_op 16 jump_if_false 7
 fn_op 16 load_local 0
 fn_op 16 load_local 3
 fn_op 16 get_member 18
-fn_op 16 load_global 39
+fn_op 16 load_global 40
 fn_op 16 call 2
 fn_op 16 pop
 fn_op 16 jump 5
 fn_op 16 load_local 0
 fn_op 16 load_local 2
-fn_op 16 load_global 40
+fn_op 16 load_global 41
 fn_op 16 call 2
 fn_op 16 pop
 fn_op 16 const 2
@@ -1757,7 +1754,7 @@ fn_op 17 load_global 0
 fn_op 17 call 1
 fn_op 17 pop
 fn_op 17 load_local 0
-fn_op 17 load_global 49
+fn_op 17 load_global 50
 fn_op 17 call 1
 fn_op 17 pop
 fn_op 17 load_local 0
@@ -1773,7 +1770,7 @@ fn_op 17 index_set
 fn_op 17 swap
 fn_op 17 store_local 0
 fn_op 17 pop
-fn_op 17 load_global 43
+fn_op 17 load_global 44
 fn_op 17 const 10
 fn_op 17 load_local 0
 fn_op 17 get_member 0
@@ -1827,7 +1824,7 @@ fn_op 18 swap
 fn_op 18 store_local 0
 fn_op 18 pop
 fn_op 18 load_local 0
-fn_op 18 load_global 50
+fn_op 18 load_global 51
 fn_op 18 call 1
 fn_op 18 pop
 fn_op 18 load_local 0
@@ -1856,22 +1853,21 @@ fn_op 19 const 69
 fn_op 19 throw
 fn_op 19 pop
 fn_op 19 load_local 0
-fn_op 19 load_global 46
+fn_op 19 load_global 47
 fn_op 19 call 1
 fn_op 19 store_local 2
 fn_op 19 load_local 2
 fn_op 19 const 22
 fn_op 19 eq
 fn_op 19 jump_if_false 1
-fn_op 19 jump 31
+fn_op 19 jump 30
 fn_op 19 load_local 2
-fn_op 19 const 22
-fn_op 19 neg
+fn_op 19 const 70
 fn_op 19 eq
 fn_op 19 jump_if_false 1
 fn_op 19 jump 26
 fn_op 19 load_local 0
-fn_op 19 load_global 42
+fn_op 19 load_global 43
 fn_op 19 call 1
 fn_op 19 store_local 3
 fn_op 19 load_local 3
@@ -1879,7 +1875,7 @@ fn_op 19 const 2
 fn_op 19 eq
 fn_op 19 jump_if_false 17
 fn_op 19 load_local 0
-fn_op 19 load_global 53
+fn_op 19 load_global 54
 fn_op 19 call 1
 fn_op 19 store_local 4
 fn_op 19 load_local 4
@@ -1887,7 +1883,7 @@ fn_op 19 const 2
 fn_op 19 eq
 fn_op 19 jump_if_false 9
 fn_op 19 load_local 0
-fn_op 19 load_global 48
+fn_op 19 load_global 49
 fn_op 19 call 1
 fn_op 19 store_local 5
 fn_op 19 load_local 5
@@ -1895,7 +1891,7 @@ fn_op 19 const 2
 fn_op 19 eq
 fn_op 19 jump_if_false 1
 fn_op 19 jump 1
-fn_op 19 jump -50
+fn_op 19 jump -49
 fn_op 19 load_local 0
 fn_op 19 get_member 0
 fn_op 19 return
@@ -1922,7 +1918,16 @@ fn_op 20 swap
 fn_op 20 store_local 0
 fn_op 20 pop
 fn_op 20 load_local 0
-fn_op 20 load_global 54
+fn_op 20 load_global 55
+fn_op 20 call 1
+fn_op 20 pop
+fn_op 20 load_local 0
+fn_op 20 get_member 0
+fn_op 20 const 1
+fn_op 20 eq
+fn_op 20 jump_if_false 4
+fn_op 20 load_local 0
+fn_op 20 load_global 53
 fn_op 20 call 1
 fn_op 20 pop
 fn_op 20 load_local 0
@@ -1938,19 +1943,10 @@ fn_op 20 load_local 0
 fn_op 20 get_member 0
 fn_op 20 const 1
 fn_op 20 eq
-fn_op 20 jump_if_false 4
-fn_op 20 load_local 0
-fn_op 20 load_global 51
-fn_op 20 call 1
-fn_op 20 pop
-fn_op 20 load_local 0
-fn_op 20 get_member 0
-fn_op 20 const 1
-fn_op 20 eq
 fn_op 20 jump_if_false 6
 fn_op 20 load_local 0
 fn_op 20 get_member 3
-fn_op 20 load_global 56
+fn_op 20 load_global 57
 fn_op 20 call 1
 fn_op 20 throw
 fn_op 20 pop
@@ -1970,7 +1966,7 @@ fn_op 21 const 71
 fn_op 21 throw
 fn_op 21 pop
 fn_op 21 load_local 0
-fn_op 21 load_global 57
+fn_op 21 load_global 58
 fn_op 21 call 1
 fn_op 21 pop
 fn_op 21 load_local 0
@@ -1978,7 +1974,7 @@ fn_op 21 load_global 11
 fn_op 21 call 1
 fn_op 21 pop
 fn_op 21 load_local 0
-fn_op 21 load_global 55
+fn_op 21 load_global 56
 fn_op 21 call 1
 fn_op 21 return
 fn_arrows 21 0
@@ -2021,4 +2017,4 @@ halt
 
 source=self_host/parser_postfix.kab
 statements=27
-fingerprint=39f5d6c626d3ee4e
+fingerprint=21575f0ffd81fc0b

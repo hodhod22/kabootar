@@ -1,9 +1,86 @@
+pub fn emitOp(E, op, arg) {
+    let rec = { "op": op, "arg": arg }
+    if E["eInFn"] == 1 {
+        E["eFnOps"] = push(E["eFnOps"], rec)
+        E["eFnOpsN"] = E["eFnOpsN"] + 1
+    } else {
+        E["eOps"] = push(E["eOps"], rec)
+        E["eOpsN"] = E["eOpsN"] + 1
+    }
+}
+
 pub fn arrUtil(E, mode, stack, arr) {
     if mode == "snap" {
         // Single O(n) clone via native slice (not O(n²) push loop).
         return slice(stack, 0)
     }
     E["eLenScratch"] = len(arr)
+    if mode == "pushLenKey" {
+        object_array_push(E, stack, E["eLenScratch"])
+        return 0
+    }
     return push(stack, E["eLenScratch"])
 }
 
+/// Typed i64 AccAdd-loop (SH9): host Cranelift can compile this helper.
+pub fn accCount(n) {
+    let i = 0
+    let s = 0
+    while i < n {
+        s = s + 1
+        i = i + 1
+    }
+    return s
+}
+
+/// Typed i64 index-loop (SH9): `s += i` so Cranelift sees AccAdd with the loop index.
+pub fn idxSum(n) {
+    let i = 0
+    let s = 0
+    while i < n {
+        s = s + i
+        i = i + 1
+    }
+    return s
+}
+
+/// SH9 IndexGet-loop: `s += xs[i]` — host JIT flattens i64 arrays then Cranelift-loads.
+pub fn idxSumArr(xs) {
+    let i = 0
+    let n = len(xs)
+    let s = 0
+    while i < n {
+        s = s + xs[i]
+        i = i + 1
+    }
+    return s
+}
+
+/// SH9: LenLocal over a string (or any `len()` container) — JIT passes length, no IndexGet.
+pub fn strCount(s) {
+    let i = 0
+    let n = len(s)
+    let t = 0
+    while i < n {
+        t = t + 1
+        i = i + 1
+    }
+    return t
+}
+
+/// SH9: `s[i]` is a 1-char string Value (VM semantics, not i64 codepoint).
+pub fn strAt(s, i) {
+    return s[i]
+}
+
+/// SH9: AccAdd of `s[i]` 1-char strings (same as VM `t = t + s[i]`).
+pub fn strJoinIdx(s) {
+    let i = 0
+    let n = len(s)
+    let t = ""
+    while i < n {
+        t = t + s[i]
+        i = i + 1
+    }
+    return t
+}
