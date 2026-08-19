@@ -96,7 +96,7 @@ src/
     game/                       # Spel + XR FFI
     shared_memory.rs            # Typed arrays / SAB
 lib/                            # Fil-moduler (game, std, science, …)
-self_host/                      # Self-host kompilator + seed/*.kbc
+self_host/                      # Self-host compiler + seed/compiler.kbcb (SH1 image)
 docs/                           # Denna dokumentation
 ```
 

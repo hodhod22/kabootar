@@ -242,7 +242,7 @@ fn p10j_export_cache_second_import() {
 }
 
 #[test]
-#[ignore = "self-host toolchain import is minutes even in release; KABOOTAR_P10_PROFILE=1"]
+#[ignore = "debug self-host tiny compile can hang; SH8 gate waits on release budget"]
 fn p10_self_host_tiny_source_profile() {
     use kabootar_lib::compile::compile_source_self_host;
     use std::sync::Once;
@@ -264,9 +264,14 @@ fn p10_self_host_tiny_source_profile() {
         prog.bytecode.is_some() && prog2.bytecode.is_some(),
         "self-host tiny should emit bytecode"
     );
+    let budget = if cfg!(debug_assertions) {
+        15_000.0
+    } else {
+        2_000.0
+    };
     assert!(
-        first_ms < 180_000.0,
-        "self-host tiny (includes toolchain import) should stay under 180s CI, got {first_ms:.1} ms"
+        first_ms < budget,
+        "SH8: self-host tiny should stay under {budget} ms, got {first_ms:.1} ms"
     );
     assert!(
         second_ms < first_ms || second_ms < 30_000.0,

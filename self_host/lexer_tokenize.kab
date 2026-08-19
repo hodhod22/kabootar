@@ -3,8 +3,9 @@ import "self_host/lexer_util"
 import "self_host/lexer_scan"
 
 pub fn lxSkipSpace(sess) {
+    let cd = 0
     while sess["pos"] < sess["srcLen"] {
-        let cd = char_code_at(sess["src"], sess["pos"])
+        cd = char_code_at(sess["src"], sess["pos"])
         if cd == 32 || cd == 9 || cd == 13 {
             sess["col"] = sess["col"] + 1
             sess["pos"] = sess["pos"] + 1
@@ -35,8 +36,9 @@ pub fn lxSkipLineComment(sess) {
         return 0
     }
     sess["pos"] = sess["pos"] + 2
+    let ch = ""
     while sess["pos"] < sess["srcLen"] {
-        let ch = char_at(sess["src"], sess["pos"])
+        ch = char_at(sess["src"], sess["pos"])
         if ch == "\n" {
             sess["line"] = sess["line"] + 1
             sess["col"] = 1
@@ -63,8 +65,9 @@ pub fn lxSkipBlockComment(sess) {
         return 0
     }
     sess["pos"] = sess["pos"] + 2
+    let ch = ""
     while sess["pos"] < sess["srcLen"] {
-        let ch = char_at(sess["src"], sess["pos"])
+        ch = char_at(sess["src"], sess["pos"])
         sess["pos"] = sess["pos"] + 1
         sess["col"] = sess["col"] + 1
         if ch == "\n" {
@@ -89,6 +92,7 @@ pub fn tokenizeExec(source) {
         "col": 1
     }
     let tokens = []
+    let tok = null
     while true {
         lxSkipSpace(sess)
         if sess["pos"] >= sess["srcLen"] {
@@ -100,7 +104,7 @@ pub fn tokenizeExec(source) {
         if lxSkipBlockComment(sess) == 1 {
             continue
         }
-        let tok = lxScan(sess)
+        tok = lxScan(sess)
         if tok.type == TOKEN_EOF {
             break
         }

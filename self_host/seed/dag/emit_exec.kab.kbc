@@ -5,63 +5,56 @@ const 1 number 0
 const 2 string _hook
 const 3 null
 const 4 string _node
-global 0 eMakeSession
-global 1 E
-global 2 eTramp
-global 3 tramp
-global 4 eResetSession
-global 5 emitMain
-global 6 emitMainExec
-local 0 E
-local 1 __kab_a0
-local 2 __kab_a1
-local 3 __kab_a2
+global 0 eTramp
+global 1 tramp
+global 2 eMakeSession
+global 3 emitMain
+global 4 emitMainExec
 functions=2
 fn 0 tramp
-fn_params 0 
-fn_locals 0 
-fn_op 0 load_global 1
-fn_op 0 load_global 2
+fn_params 0 E
+fn_locals 0 E
+fn_op 0 load_local 0
+fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 return
 fn_arrows 0 0
 fn 1 emitMainExec
 fn_params 1 program
-fn_locals 1 program,__kab_a0,__kab_a1,__kab_a2
-fn_op 1 load_global 1
-fn_op 1 load_global 4
-fn_op 1 call 1
-fn_op 1 pop
-fn_op 1 load_global 3
+fn_locals 1 program,E,__kab_a0,__kab_a1,__kab_a2
+fn_op 1 load_global 2
+fn_op 1 call 0
 fn_op 1 store_local 1
 fn_op 1 load_global 1
-fn_op 1 const 0
-fn_op 1 load_local 1
-fn_op 1 index_set
-fn_op 1 swap
-fn_op 1 store_global 1
-fn_op 1 pop
-fn_op 1 const 1
 fn_op 1 store_local 2
-fn_op 1 load_global 1
-fn_op 1 const 2
+fn_op 1 load_local 1
+fn_op 1 const 0
 fn_op 1 load_local 2
 fn_op 1 index_set
 fn_op 1 swap
-fn_op 1 store_global 1
+fn_op 1 store_local 1
 fn_op 1 pop
-fn_op 1 const 3
+fn_op 1 const 1
 fn_op 1 store_local 3
-fn_op 1 load_global 1
-fn_op 1 const 4
+fn_op 1 load_local 1
+fn_op 1 const 2
 fn_op 1 load_local 3
 fn_op 1 index_set
 fn_op 1 swap
-fn_op 1 store_global 1
+fn_op 1 store_local 1
 fn_op 1 pop
-fn_op 1 load_global 1
+fn_op 1 const 3
+fn_op 1 store_local 4
+fn_op 1 load_local 1
+fn_op 1 const 4
+fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 1
+fn_op 1 pop
+fn_op 1 load_local 1
 fn_op 1 load_local 0
-fn_op 1 load_global 5
+fn_op 1 load_global 3
 fn_op 1 call 2
 fn_op 1 return
 fn_arrows 1 0
@@ -77,38 +70,8 @@ memory_mode=gc
 interfaces=0
 classes=0
 code
-load_global 0
-call 0
-store_local 0
-load_global 3
-store_local 1
-load_local 0
-const 0
-load_local 1
-index_set
-swap
-store_local 0
-pop
-const 1
-store_local 2
-load_local 0
-const 2
-load_local 2
-index_set
-swap
-store_local 0
-pop
-const 3
-store_local 3
-load_local 0
-const 4
-load_local 3
-index_set
-swap
-store_local 0
-pop
 halt
 
 source=self_host/emit_exec.kab
-statements=9
-fingerprint=eac996423382d861
+statements=5
+fingerprint=e1165a9ad3a70629

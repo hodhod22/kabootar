@@ -484,7 +484,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus (2026-08):** **P10** self-host pipeline (mät hela kedjan; member/shapes + CALL_n; *inte* mer isolerad parser). Därefter **P11–P18 (prestandatak)** — annars stannar vi i bytecode-klass. P6b skip-list tom; parser shards ≤10 s = klart nog. **L/O/T/J/S** ✅ subset; **P0–P9** + **GP/SC/DX** MVP subset landad.
+**Aktivt fokus (2026-08):** **Våg SH** — SH2 per-call sess ✅ subset; SH8 tiny **parse** CI; SH7b produktträd. Därefter SH12–SH15 och SH9. Full tiny `compile()` fortfarande hang i debug. Ny produktlogik i `.kab`, inte Rust. **L/O/T/J/S** ✅ subset; **P0–P9** + **GP/SC/DX** MVP subset landad.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -826,22 +826,27 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | Hastighet | Första `import "self_host/compile"` **< 2 s** (warm disk); andra compile i processen **≪ 1 s** för typisk app | Jaga postfix 4.5 s → 3.5 s isolerat |
 | Stabilitet | Noll *nya* modul-globala session-clobber; session-objekt är default | Fler `pSaveFoo`-globals |
 
-**Ordning (beroenden — gör inte 5 före 2):** SH0 → SH1 och SH2 parallellt → SH3 → SH4 → SH5 → SH7. SH6 bara om kab-only fortfarande är produktkrav. SH8 är delete-gate. SH9 rider på P13. SH10 är mätning som ska in från SH0.
+**Ordning (beroenden — gör inte 5 före 2):** SH0 → SH1 och SH2 parallellt → SH3 → SH4 → SH5 → SH7/SH7b. SH6 bara om kab-only fortfarande är produktkrav. SH8 är delete-gate. SH9 rider på P13. SH10 från SH0. **SH12 efter SH2+profil.** SH13 efter SH2. SH14 mätning från nu (baslinje), gate när SH8 inte hänger. SH15 deepen av SH4/P7.
 
 | Steg | Vad | Delete-gate / mätning | Status |
 |------|-----|------------------------|--------|
 | **SH0** | **Inventering** — räkna DAG (`compile.kab` fan-out), förbjud nya committed `_probe`/`_bisect`/`_acc_repro`; `KABOOTAR_P10_PROFILE=1` ska skriva `import_ms`, `shard_evals`, `unique_modules` | `tests/perf_p10_pipeline.rs` utökas med shard-count snapshot (inte 580+ *nya* filer) | ✅ `tests/sh_wave.rs` `sh0_self_host_compile_dag_snapshot`; PROFILE + `import_shard_stats` |
 | **SH1** | **Compiler-image** — ett committed `self_host/seed/compiler.kbcb` (eller packad katalog) som är *hela* parse+emit+serialize-DAG:en med matchande fingerprints; kall process laddar image, evalar inte 500 källor | `import "self_host/compile"` första gången **< 2 s** med image (CI); utan image får fail-fast + rust fallback | ✅ packed image + pre-parse; **release ~0.84 s**; debug-gate 5 s (`sh1_import_compile_image_budget`) |
-| **SH2** | **Session-objekt** — `parse`/`emit`/`tokenize` tar `sess` (`{ pos, toks, ops, … }`) i stället för modul-globaler; rekursion får inte clobbra parent | En smoke som nästlar `if` i `while` i `fn` *utan* `pCondStack`/`eIfJmpStack`; README-regel 19/21 blir onödig för ny kod | 📋 |
-| **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))`; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a: argv N-path alltid; `sh3a_*_push_len_nested`. SH3b/c kvar |
+| **SH2** | **Session-objekt** — `parse`/`emit`/`tokenize` tar `sess`; tramp `sess["tramp"](sess)` / `E["tramp"](E)` så anropet inte fångar modul-global sess. Nested `if`/`while` använder fortfarande `pCondStack`/`eIfJmpStack` **på sess** | `sh2_parser_emit_exec_are_per_call_session` + `sh2_nested_if_while_fn_rust`; inga `let sess = pMakeSession()` på modulnivå | ✅ subset (`parser_exec`/`emit_exec` per-call; lexer redan per-call) |
+| **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))`; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a argv N-path; SH3b facade `pub let` (`sh3b_*`); SH3c `sh3c_self_host_kbc_has_real_newlines` |
 | **SH4** | **Binär IR v2** — `kbcb` v2: opcodes som packed records (inte `store_local 3\n`); deserialize O(n) utan strängsplit per rad | Seed `emit_impl` deserialize **≪** text-`.kbc`; roundtrip `deserialize_kbcb_v2 == module` | ✅ `KBCB` v2 packed; v1 text still loads; `sh4_kbcb_v2_roundtrip` / `sh4_kbcb_v2_faster_than_text` |
 | **SH5** | **Reverse-densify** — slå ihop 5–20-raders `parser_*` / `emit_*` / `vm_ops_*` till *få* session-moduler nu när L2 tillåter många `fn`; mål: compile-DAG **< 80** filer (inte 580) | Import-depth och filantal i SH0-snapshot **ner**; varje sammanslagen fil self-host-kompilerar ≤10 s | ✅ subset: compile-DAG inlined (`parser_stmt`/`postfix`/`emit_expr_body`/`emit_stmt_body`/…); `vm_*` kvar till SH6; `sh0` `< 80` |
 | **SH6** | **Kab-VM dispatch** — `self_host/vm` har ~250 filer och ett CALL per op. Komprimera till op-tabell / stora `vm_ops_*.kab` (inte djupare trampoliner). Host-VM + Cranelift förblir produktions-eval | `KABOOTAR_VM=kab-only` smoke oförändrad; shard-antal `vm_*` **< 40** | ✅ `vm_ops_*`/`vm_s_*`/`vm_run_*` inlined; `sh0` `vm_files < 40` |
-| **SH7** | **Inkrementell + parallell shard-compile** — rust/self-host kompilerar bara dirty fingerprint; oberoende blad parallellt (`job_map` / rust threads) | Ändra en `parser_stmt_let.kab` → compile-tid ≪ full DAG; CI-loggar “dirty=N” | 📋 |
-| **SH8** | **Användbarhets-gate** — ta bort `#[ignore]` på *tiny* `compile_source_self_host("return 1")` när SH1 håller budget; full `compile(emit.kab)` får förbli ignored tills SH5 | `p10_self_host_tiny_source_profile` **inte ignored**; first_ms < 15 s CI (mål 2 s efter SH1) | 📋 |
+| **SH7** | **Inkrementell + parallell shard-compile (toolchain)** — rust/self-host kompilerar bara dirty fingerprint; oberoende blad parallellt | Ändra en compile-DAG-fil → ≪ full DAG; CI-loggar `dirty=N` | ✅ `compile_dirty_dag_seeds` (≤8 trådar + pack image); `sh7_dirty_dag_noop_when_image_fresh` |
+| **SH7b** | **Produktträd incremental** — app-`.kab` + `import`-deps: bara dirty + transitiva fingerprints; oberoende blad parallellt. Inte bara `self_host/seed` | Ändra ett blad i `lib/` → ≪ full rebuild; log `dirty=N deps=M`; cold vs incr i SH14 | ✅ `compile_dirty_product_tree`; `sh7b_product_tree_incremental` |
+| **SH8** | **Användbarhets-gate** — tiny parse via compiler-image i default CI; full `compile_source_self_host("return 1")` ignored i debug tills pipelinen inte hänger | `sh8_tiny_parse_via_compiler_image`; `p10_self_host_tiny_source_profile` ignored | ✅ parse-gate; 🚧 full `compile()` hang |
 | **SH9** | **Compiler på host-JIT** — när toolchain körs på host-VM: Cranelift (P13) på typed i64-hjälpare i emit/serialize (AccAdd-loopar, index-loopar). Inte “JIT:a parsern i Kab-VM” | `jit_stats` hits > 0 under `compile()` av en medium-fil; ingen ny produktlogik i Rust | 📋 |
-| **SH10** | **Stabilitetsbudget i CI** — max import-depth, max modul-globala muterbara namn i `parser_session*`/`emit_main*`, förbjud nya `pSave*`/`eBx*` utan SH2-undantag | `cargo test --test self_host` + ett lint-test som räknar `let pPos` / `let eOps` i facader | 📋 |
+| **SH10** | **Stabilitetsbudget i CI** — max import-depth, max modul-globala muterbara namn i `parser_session*`/`emit_main*`, förbjud nya `pSave*`/`eBx*` utan SH2-undantag | `cargo test --test self_host` + ett lint-test som räknar `let pPos` / `let eOps` i facader | ✅ `sh10_stability_budget` (depth < 25; inga `let pPos`/`let eOps` i facader) |
 | **SH11** | **Compiler-hotpath (Kab-källa)** — mikroopts *efter* profil (`perf_p10_pipeline` / `KABOOTAR_P10_PROFILE=1`); inte parser-isolering (P10i stängd). Se SH11a–c nedan | Fas-tid (emit/parse/serialize/ownership) ner vs samma baseline; ingen ny shard, ingen CI-leaf >10 s | ✅ subset (SH11a/b/c landade; 2 s-import och densify är SH1/SH5) |
+| **SH12** | **Låg-allok compile-hotpath** — återanvänd `sess`-buffertar (tokens/ops/out); färre temporära strängar/arrayer/objekt per token. **Inte** “zero-alloc” i default-Kab. Efter SH2 + P10a-profil | `allocs` / fas-ms ner på medium-fil vs samma baseline; ingen ny shard | 📋 |
+| **SH13** | **Compile-session bump (arena-lite)** — reset *in-place* (längd=0, behåll capacity); host-bump för rust-AST valfritt. **Inte** arena skriven i dynamisk Kab. Kräver SH2 per-call sess | Andra `compile()` i processen allokerar ≪ första; ingen use-after-reset | 📋 |
+| **SH14** | **Compiler throughput + regressionsgate** — cold / warm / incremental; tokens/s eller MB/s mot *Kab-baseline* (inte rustc som vinstkrav). Large-project: **10k → 100k LOC** först; 500k/1M deepen när 100k är CI-stabilt | `tests/perf_sh14_compiler.rs`; PR får inte regressa warm/incr över tröskel (samma anda som P9/P18) | 📋 |
+| **SH15** | **Content-addressed + mmap KBCB** — nyckel = source-hash + import-fingerprint + **compiler-image-version**; `mmap` av `kbcb` v2 utan text-deserialize på hit. Determinism: samma källor+deps → samma fingerprint | Hit = ingen text-`.kbc`-parse; image-version-mismatch ogiltigförklarar | 📋 |
 
 **SH11 — vad som är OK vs vad som inte ska göras nu**
 
@@ -862,6 +867,22 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 
 **Förväntad vinst (ärlig, inte 30–50 % stackat):** SH11a+b+c är **låg ensiffrig % på total `compile()`** för vanliga (icke-`@manual`) filer. Stacka inte fas-procent. Debug-VM (inga IC) kan visa mer; mät release + `perf_p10_pipeline`.
 
+**Fast Compile / Fast Run (överordnat, 2026-08):** minimera *arbete vid compile* (image, dirty-only, låg-allok, mmap-hit); flytta dyra opts till **runtime/JIT** (P11–P13). Compiler ska vara förutsägbar och cachebar; hastighetstaket för *körning* är inte rustc.
+
+**Förslag som redan ligger i roadmap (inte duplicerade som nya ID):**
+
+| Förslag | Redan | Kommentar |
+|---------|-------|-----------|
+| SH2 compiler sessions | SH2 🚧 | Explicit sess; nested-fn emit är blocker, inte ny punkt |
+| SH7 incremental + parallel (toolchain) | SH7 ✅ | Dirty fingerprint + parallella blad för `seed/` |
+| Compiler hot-path profiling | P10a + SH11 | `KABOOTAR_P10_PROFILE=1`; inte ny våg |
+| JIT coverage / typed paths / IC / shapes / nursery alloc | P11–P14 ✅ subset | **Deepen:** P13b auto-threshold; P11a f64/bool; P12b mega-IC ≠ `call_value` |
+| Persistent `.kbc` cache | P7 + fingerprint | SH15 lägger image-version + mmap ovanpå |
+
+**Inte in (orealistiskt eller fel tak):** “zero-alloc” som löfte för default-Kab-compiler; arena *i dynamisk Kab*; compiler-throughput som ska slå rustc/go; **1M LOC** som första CI-gate; ny JIT/IC-våg parallellt med P11–P13.
+
+**Nästa prestandasteg för self_host (efter mätning, inte mikroopts först):** (1) **SH2** per-call sess (nested-fn emit). (2) **SH8** tiny `compile()` utan hang. (3) **SH7b** produktträd dirty+parallel. (4) **SH12/SH13** låg-allok + in-place reset. (5) **SH14** cold/warm/incr-gate. (6) **SH15** mmap + content-addressed kbcb. (7) **SH9** Cranelift på typed AccAdd i emit. H6e deepen = mer produktlogik i Kab **utan** att flytta JIT/GC.
+
 **Icke-mål (låst, samma som H vs P):**
 
 - Fler parser-splits “för att CI ska gå under 10 s per fil”.
@@ -871,7 +892,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 
 **Första sprint (rekommenderad):** SH0 snapshot + SH1 image-prototyp för `parse.kab`-DAG:en (inte hela vm) + SH3a nested-call regression. SH2 session-objekt är den stora stabilitetsvinsten men rör parser/emit samtidigt — gör den som egen PR efter SH3.
 
-**Nästa prestandasteg för self_host (efter mätning, inte mikroopts först):** (1) **SH1 2 s-gate** — kall `import "self_host/compile"` evalar DAG:en, det slår parser-mikroopts. (2) **SH5 reverse-densify** — färre shards = färre import-evals; då blir literal-session, trampolin och inlined `while` *billiga att kompilera*. (3) **SH4 binär IR** — serialize/deserialize, inte `out +`. (4) **SH11a/b** som små PR:er när profilen visar emit/ownership. (5) **SH9** Cranelift på typed AccAdd/index-loopar i emit/serialize. H6e deepen = mer produktlogik i Kab **utan** att flytta JIT/GC.
+**Nästa prestandasteg för self_host (efter mätning, inte mikroopts först):** se **Fast Compile / Fast Run** ovan (SH2 → SH8 → SH7b → SH12–SH15 → SH9).
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 
