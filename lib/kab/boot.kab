@@ -6,7 +6,6 @@
 
 import "self_host/compile"
 import "self_host/lexer_tokenize"
-import "self_host/lexer_defs"
 
 let preferSelfHost = true
 
@@ -66,6 +65,9 @@ pub fn bootPolicy(key, a) {
     }
     if key == "appRustFallback" {
         return false
+    }
+    if key == "kbcHeader" {
+        return "kabootar-bytecode/1"
     }
     if key == "shouldSelfHost" {
         if a <= 0 {
