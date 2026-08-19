@@ -1,0 +1,33 @@
+kabootar-bytecode/1
+constants=0
+global 0 tokenizeImpl
+global 1 tokenTypeNameImpl
+global 2 tokenValueImpl
+local 0 tokenize
+local 1 token_type_name
+local 2 token_value
+functions=0
+arrows=0
+imports=1
+import 0 self_host/lexer_impl
+pub_imports=0
+exports=3
+export 0 tokenize
+export 1 token_type_name
+export 2 token_value
+memory_mode=gc
+interfaces=0
+classes=0
+code
+load_global 0
+store_local 0
+load_global 1
+store_local 1
+load_global 2
+store_local 2
+load_local 2
+halt
+
+source=self_host/lexer.kab
+statements=4
+fingerprint=36065a39156f8b25

@@ -1,0 +1,65 @@
+kabootar-bytecode/1
+constants=3
+const 0 number 1
+const 1 string pLeft
+const 2 null
+global 0 parseUnary_bang
+global 1 parseUnary_neg
+global 2 parseUnary_bitnot
+global 3 pCallPostfix
+global 4 parseUnary
+functions=1
+fn 0 parseUnary
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_unary_ops
+pub_imports=0
+exports=1
+export 0 parseUnary
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_unary.kab
+statements=6
+fingerprint=3b50fe70dfe432d8

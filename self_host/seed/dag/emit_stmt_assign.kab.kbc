@@ -1,0 +1,101 @@
+kabootar-bytecode/1
+constants=9
+const 0 string eNode
+const 1 string kind
+const 2 bool false
+const 3 null
+const 4 string sym
+const 5 string eAssignSym
+const 6 string rhs
+const 7 bool true
+const 8 number 1
+global 0 AST_ASSIGN
+global 1 tryEmitArrayPushAssign
+global 2 tryEmitAccAddAssign
+global 3 eCallExpr
+global 4 emitSym
+global 5 emitStmt_assign
+functions=1
+fn 0 emitStmt_assign
+fn_params 0 E
+fn_locals 0 E,__kab_a0
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 4
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 6
+fn_op 0 load_global 1
+fn_op 0 call 3
+fn_op 0 jump_if_false 2
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 6
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 jump_if_false 2
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 6
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 8
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 const 7
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_hooks
+import 3 self_host/emit_sym
+import 4 self_host/emit_try_array_push
+import 5 self_host/emit_try_acc_add
+pub_imports=0
+exports=1
+export 0 emitStmt_assign
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_stmt_assign.kab
+statements=7
+fingerprint=c814d2e8bde7136d

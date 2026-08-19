@@ -1,0 +1,478 @@
+kabootar-bytecode/1
+constants=69
+const 0 string "
+const 1 string `
+const 2 string \t
+const 3 string \n
+const 4 string \r
+const 5 string fn
+const 6 string let
+const 7 string const
+const 8 string return
+const 9 string if
+const 10 string else
+const 11 string match
+const 12 string Some
+const 13 string None
+const 14 string Ok
+const 15 string Err
+const 16 string while
+const 17 string do
+const 18 string for
+const 19 string in
+const 20 string of
+const 21 string switch
+const 22 string case
+const 23 string default
+const 24 string break
+const 25 string fallthrough
+const 26 string continue
+const 27 string async
+const 28 string await
+const 29 string yield
+const 30 string delete
+const 31 string throw
+const 32 string raise
+const 33 string pass
+const 34 string assert
+const 35 string with
+const 36 string using
+const 37 string as
+const 38 string is
+const 39 string not
+const 40 string extends
+const 41 string interface
+const 42 string implements
+const 43 string try
+const 44 string catch
+const 45 string finally
+const 46 string class
+const 47 string struct
+const 48 string enum
+const 49 string import
+const 50 string pub
+const 51 string this
+const 52 string self
+const 53 string super
+const 54 string trait
+const 55 string where
+const 56 string null
+const 57 string undefined
+const 58 string NaN
+const 59 string true
+const 60 string false
+const 61 string Identifier
+const 62 string PrivateName
+const 63 string Number
+const 64 string Float
+const 65 string BigInt
+const 66 string String
+const 67 string Template
+const 68 string EOF
+local 0 QUOTE
+local 1 BACKTICK
+local 2 CHAR_TAB
+local 3 CHAR_NL
+local 4 CHAR_CR
+local 5 TOKEN_FN
+local 6 TOKEN_LET
+local 7 TOKEN_CONST
+local 8 TOKEN_RETURN
+local 9 TOKEN_IF
+local 10 TOKEN_ELSE
+local 11 TOKEN_MATCH
+local 12 TOKEN_SOME
+local 13 TOKEN_NONE
+local 14 TOKEN_OK
+local 15 TOKEN_ERR
+local 16 TOKEN_WHILE
+local 17 TOKEN_DO
+local 18 TOKEN_FOR
+local 19 TOKEN_IN
+local 20 TOKEN_OF
+local 21 TOKEN_SWITCH
+local 22 TOKEN_CASE
+local 23 TOKEN_DEFAULT
+local 24 TOKEN_BREAK
+local 25 TOKEN_FALLTHROUGH
+local 26 TOKEN_CONTINUE
+local 27 TOKEN_ASYNC
+local 28 TOKEN_AWAIT
+local 29 TOKEN_YIELD
+local 30 TOKEN_DELETE
+local 31 TOKEN_THROW
+local 32 TOKEN_RAISE
+local 33 TOKEN_PASS
+local 34 TOKEN_ASSERT
+local 35 TOKEN_WITH
+local 36 TOKEN_USING
+local 37 TOKEN_AS
+local 38 TOKEN_IS
+local 39 TOKEN_NOT
+local 40 TOKEN_EXTENDS
+local 41 TOKEN_INTERFACE
+local 42 TOKEN_IMPLEMENTS
+local 43 TOKEN_TRY
+local 44 TOKEN_CATCH
+local 45 TOKEN_FINALLY
+local 46 TOKEN_CLASS
+local 47 TOKEN_STRUCT
+local 48 TOKEN_ENUM
+local 49 TOKEN_IMPORT
+local 50 TOKEN_PUB
+local 51 TOKEN_THIS
+local 52 TOKEN_SELF
+local 53 TOKEN_SUPER
+local 54 TOKEN_TRAIT
+local 55 TOKEN_WHERE
+local 56 TOKEN_NULL
+local 57 TOKEN_UNDEFINED
+local 58 TOKEN_NAN
+local 59 TOKEN_TRUE
+local 60 TOKEN_FALSE
+local 61 TOKEN_IDENT
+local 62 TOKEN_PRIVATE
+local 63 TOKEN_NUMBER
+local 64 TOKEN_FLOAT
+local 65 TOKEN_BIGINT
+local 66 TOKEN_STRING
+local 67 TOKEN_TEMPLATE
+local 68 TOKEN_EOF
+local 69 KEYWORDS
+functions=0
+arrows=0
+imports=0
+pub_imports=0
+exports=70
+export 0 QUOTE
+export 1 BACKTICK
+export 2 CHAR_TAB
+export 3 CHAR_NL
+export 4 CHAR_CR
+export 5 TOKEN_FN
+export 6 TOKEN_LET
+export 7 TOKEN_CONST
+export 8 TOKEN_RETURN
+export 9 TOKEN_IF
+export 10 TOKEN_ELSE
+export 11 TOKEN_MATCH
+export 12 TOKEN_SOME
+export 13 TOKEN_NONE
+export 14 TOKEN_OK
+export 15 TOKEN_ERR
+export 16 TOKEN_WHILE
+export 17 TOKEN_DO
+export 18 TOKEN_FOR
+export 19 TOKEN_IN
+export 20 TOKEN_OF
+export 21 TOKEN_SWITCH
+export 22 TOKEN_CASE
+export 23 TOKEN_DEFAULT
+export 24 TOKEN_BREAK
+export 25 TOKEN_FALLTHROUGH
+export 26 TOKEN_CONTINUE
+export 27 TOKEN_ASYNC
+export 28 TOKEN_AWAIT
+export 29 TOKEN_YIELD
+export 30 TOKEN_DELETE
+export 31 TOKEN_THROW
+export 32 TOKEN_RAISE
+export 33 TOKEN_PASS
+export 34 TOKEN_ASSERT
+export 35 TOKEN_WITH
+export 36 TOKEN_USING
+export 37 TOKEN_AS
+export 38 TOKEN_IS
+export 39 TOKEN_NOT
+export 40 TOKEN_EXTENDS
+export 41 TOKEN_INTERFACE
+export 42 TOKEN_IMPLEMENTS
+export 43 TOKEN_TRY
+export 44 TOKEN_CATCH
+export 45 TOKEN_FINALLY
+export 46 TOKEN_CLASS
+export 47 TOKEN_STRUCT
+export 48 TOKEN_ENUM
+export 49 TOKEN_IMPORT
+export 50 TOKEN_PUB
+export 51 TOKEN_THIS
+export 52 TOKEN_SELF
+export 53 TOKEN_SUPER
+export 54 TOKEN_TRAIT
+export 55 TOKEN_WHERE
+export 56 TOKEN_NULL
+export 57 TOKEN_UNDEFINED
+export 58 TOKEN_NAN
+export 59 TOKEN_TRUE
+export 60 TOKEN_FALSE
+export 61 TOKEN_IDENT
+export 62 TOKEN_PRIVATE
+export 63 TOKEN_NUMBER
+export 64 TOKEN_FLOAT
+export 65 TOKEN_BIGINT
+export 66 TOKEN_STRING
+export 67 TOKEN_TEMPLATE
+export 68 TOKEN_EOF
+export 69 KEYWORDS
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+const 1
+store_local 1
+const 2
+store_local 2
+const 3
+store_local 3
+const 4
+store_local 4
+const 5
+store_local 5
+const 6
+store_local 6
+const 7
+store_local 7
+const 8
+store_local 8
+const 9
+store_local 9
+const 10
+store_local 10
+const 11
+store_local 11
+const 12
+store_local 12
+const 13
+store_local 13
+const 14
+store_local 14
+const 15
+store_local 15
+const 16
+store_local 16
+const 17
+store_local 17
+const 18
+store_local 18
+const 19
+store_local 19
+const 20
+store_local 20
+const 21
+store_local 21
+const 22
+store_local 22
+const 23
+store_local 23
+const 24
+store_local 24
+const 25
+store_local 25
+const 26
+store_local 26
+const 27
+store_local 27
+const 28
+store_local 28
+const 29
+store_local 29
+const 30
+store_local 30
+const 31
+store_local 31
+const 32
+store_local 32
+const 33
+store_local 33
+const 34
+store_local 34
+const 35
+store_local 35
+const 36
+store_local 36
+const 37
+store_local 37
+const 38
+store_local 38
+const 39
+store_local 39
+const 40
+store_local 40
+const 41
+store_local 41
+const 42
+store_local 42
+const 43
+store_local 43
+const 44
+store_local 44
+const 45
+store_local 45
+const 46
+store_local 46
+const 47
+store_local 47
+const 48
+store_local 48
+const 49
+store_local 49
+const 50
+store_local 50
+const 51
+store_local 51
+const 52
+store_local 52
+const 53
+store_local 53
+const 54
+store_local 54
+const 55
+store_local 55
+const 56
+store_local 56
+const 57
+store_local 57
+const 58
+store_local 58
+const 59
+store_local 59
+const 60
+store_local 60
+const 61
+store_local 61
+const 62
+store_local 62
+const 63
+store_local 63
+const 64
+store_local 64
+const 65
+store_local 65
+const 66
+store_local 66
+const 67
+store_local 67
+const 68
+store_local 68
+const 5
+const 5
+const 6
+const 6
+const 7
+const 7
+const 8
+const 8
+const 9
+const 9
+const 10
+const 10
+const 11
+const 11
+const 12
+const 12
+const 13
+const 13
+const 14
+const 14
+const 15
+const 15
+const 16
+const 16
+const 17
+const 17
+const 18
+const 18
+const 19
+const 19
+const 20
+const 20
+const 21
+const 21
+const 22
+const 22
+const 23
+const 23
+const 24
+const 24
+const 25
+const 25
+const 26
+const 26
+const 27
+const 27
+const 28
+const 28
+const 29
+const 29
+const 30
+const 30
+const 31
+const 31
+const 32
+const 32
+const 33
+const 33
+const 34
+const 34
+const 35
+const 35
+const 36
+const 36
+const 37
+const 37
+const 38
+const 38
+const 39
+const 39
+const 40
+const 40
+const 41
+const 41
+const 42
+const 42
+const 43
+const 43
+const 44
+const 44
+const 45
+const 45
+const 46
+const 46
+const 47
+const 47
+const 54
+const 54
+const 55
+const 55
+const 48
+const 48
+const 49
+const 49
+const 50
+const 50
+const 51
+const 51
+const 52
+const 52
+const 53
+const 53
+const 56
+const 56
+const 57
+const 57
+const 58
+const 58
+const 59
+const 59
+const 60
+const 60
+make_object 56
+store_local 69
+load_local 69
+halt
+
+source=self_host/lexer_defs.kab
+statements=70
+fingerprint=6d172e793f91d846

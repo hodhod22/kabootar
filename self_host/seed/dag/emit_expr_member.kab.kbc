@@ -1,0 +1,510 @@
+kabootar-bytecode/1
+constants=32
+const 0 number 0
+const 1 null
+const 2 string eNode
+const 3 string kind
+const 4 bool false
+const 5 string object
+const 6 string eBxL
+const 7 string eMemberFldStack
+const 8 string field
+const 9 string eMemberDepth
+const 10 number 1
+const 11 string typeArgs
+const 12 undefined
+const 13 string sym
+const 14 string eGenSym
+const 15 string eFound
+const 16 string eGenI
+const 17 string eGenericEnumTemplates
+const 18 string eGenTmpl
+const 19 string snap
+const 20 string eTypeArgs
+const 21 string eMangled
+const 22 string $
+const 23 string eResolveI
+const 24 string _
+const 25 string eEnums
+const 26 string variants
+const 27 string global
+const 28 string eMemberFld
+const 29 string const
+const 30 string eIdx
+const 31 bool true
+global 0 AST_MEMBER
+global 1 push
+global 2 eMemTypeArgs
+global 3 AST_VAR
+global 4 len
+global 5 arrUtil
+global 6 eCallRet
+global 7 symIndex
+global 8 eCallExpr
+global 9 pop
+global 10 OP_GET_MEMBER
+global 11 emitOp
+global 12 emitExpr_member
+local 0 eCallRet
+local 1 eCallRet2
+local 2 eMemTypeArgs
+functions=1
+fn 0 emitExpr_member
+fn_params 0 E
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,__kab_a13,__kab_a14,__kab_a15,__kab_a16,__kab_a17,__kab_a18,__kab_a19,__kab_a20,__kab_a21,__kab_a22,__kab_a23
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 get_member 3
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 get_member 5
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 get_member 8
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 9
+fn_op 0 const 10
+fn_op 0 add
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 get_member 11
+fn_op 0 dup
+fn_op 0 store_global 2
+fn_op 0 pop
+fn_op 0 load_global 2
+fn_op 0 const 12
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 make_array 0
+fn_op 0 dup
+fn_op 0 store_global 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 get_member 3
+fn_op 0 load_global 3
+fn_op 0 eq
+fn_op 0 jump_if_false 290
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 get_member 13
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 14
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 0
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 0
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 6
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 load_local 0
+fn_op 0 get_member 17
+fn_op 0 load_global 4
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 46
+fn_op 0 load_local 0
+fn_op 0 get_member 17
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 index_get
+fn_op 0 get_member 13
+fn_op 0 load_local 0
+fn_op 0 get_member 14
+fn_op 0 eq
+fn_op 0 jump_if_false 23
+fn_op 0 load_local 0
+fn_op 0 get_member 17
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 index_get
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 18
+fn_op 0 load_local 7
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 10
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 8
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump 13
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 const 10
+fn_op 0 add
+fn_op 0 store_local 9
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 9
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -54
+fn_op 0 load_local 0
+fn_op 0 get_member 15
+fn_op 0 const 10
+fn_op 0 eq
+fn_op 0 jump_if_false 202
+fn_op 0 len_global 2
+fn_op 0 const 0
+fn_op 0 gt
+fn_op 0 jump_if_false 198
+fn_op 0 load_local 0
+fn_op 0 const 19
+fn_op 0 load_global 2
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 store_local 10
+fn_op 0 load_local 0
+fn_op 0 const 20
+fn_op 0 load_local 10
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 14
+fn_op 0 store_local 11
+fn_op 0 load_local 0
+fn_op 0 const 21
+fn_op 0 load_local 11
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 load_global 4
+fn_op 0 call 1
+fn_op 0 const 0
+fn_op 0 gt
+fn_op 0 jump_if_false 73
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 const 22
+fn_op 0 add
+fn_op 0 dup
+fn_op 0 store_global 6
+fn_op 0 pop
+fn_op 0 load_global 6
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 const 0
+fn_op 0 index_get
+fn_op 0 add
+fn_op 0 store_local 12
+fn_op 0 load_local 0
+fn_op 0 const 21
+fn_op 0 load_local 12
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 10
+fn_op 0 store_local 13
+fn_op 0 load_local 0
+fn_op 0 const 23
+fn_op 0 load_local 13
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 23
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 load_global 4
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 35
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 const 24
+fn_op 0 add
+fn_op 0 dup
+fn_op 0 store_global 6
+fn_op 0 pop
+fn_op 0 load_global 6
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 load_local 0
+fn_op 0 get_member 23
+fn_op 0 index_get
+fn_op 0 add
+fn_op 0 store_local 14
+fn_op 0 load_local 0
+fn_op 0 const 21
+fn_op 0 load_local 14
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 23
+fn_op 0 const 10
+fn_op 0 add
+fn_op 0 store_local 15
+fn_op 0 load_local 0
+fn_op 0 const 23
+fn_op 0 load_local 15
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -43
+fn_op 0 const 0
+fn_op 0 store_local 16
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 16
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 0
+fn_op 0 store_local 17
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 17
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 load_local 0
+fn_op 0 get_member 25
+fn_op 0 load_global 4
+fn_op 0 call 1
+fn_op 0 lt
+fn_op 0 jump_if_false 33
+fn_op 0 load_local 0
+fn_op 0 get_member 25
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 index_get
+fn_op 0 get_member 13
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 eq
+fn_op 0 jump_if_false 10
+fn_op 0 const 10
+fn_op 0 store_local 18
+fn_op 0 load_local 0
+fn_op 0 const 15
+fn_op 0 load_local 18
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump 13
+fn_op 0 load_local 0
+fn_op 0 get_member 16
+fn_op 0 const 10
+fn_op 0 add
+fn_op 0 store_local 19
+fn_op 0 load_local 0
+fn_op 0 const 16
+fn_op 0 load_local 19
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 jump -41
+fn_op 0 load_local 0
+fn_op 0 get_member 15
+fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 31
+fn_op 0 load_local 0
+fn_op 0 get_member 25
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 const 13
+fn_op 0 load_local 0
+fn_op 0 const 19
+fn_op 0 load_local 0
+fn_op 0 get_member 18
+fn_op 0 get_member 26
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 const 26
+fn_op 0 make_object 2
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 store_local 20
+fn_op 0 load_local 0
+fn_op 0 const 25
+fn_op 0 load_local 20
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 27
+fn_op 0 load_local 0
+fn_op 0 get_member 21
+fn_op 0 load_global 7
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_local 0
+fn_op 0 get_member 6
+fn_op 0 load_global 8
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_local 0
+fn_op 0 get_member 9
+fn_op 0 const 10
+fn_op 0 sub
+fn_op 0 index_get
+fn_op 0 store_local 21
+fn_op 0 load_local 0
+fn_op 0 const 28
+fn_op 0 load_local 21
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 load_global 9
+fn_op 0 call 1
+fn_op 0 store_local 22
+fn_op 0 load_local 0
+fn_op 0 const 7
+fn_op 0 load_local 22
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 9
+fn_op 0 const 10
+fn_op 0 sub
+fn_op 0 store_local 23
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 load_local 23
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 29
+fn_op 0 load_local 0
+fn_op 0 get_member 28
+fn_op 0 load_global 7
+fn_op 0 call 3
+fn_op 0 dup
+fn_op 0 store_global 6
+fn_op 0 pop
+fn_op 0 load_global 6
+fn_op 0 store_local 24
+fn_op 0 load_local 0
+fn_op 0 const 30
+fn_op 0 load_local 24
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 10
+fn_op 0 load_global 6
+fn_op 0 load_global 11
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 31
+fn_op 0 return
+fn_op 0 const 31
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_hooks
+import 3 self_host/emit_sym_index
+import 4 self_host/emit_arr_util
+import 5 self_host/emit_op
+pub_imports=0
+exports=1
+export 0 emitExpr_member
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+const 0
+store_local 1
+const 1
+store_local 2
+halt
+
+source=self_host/emit_expr_member.kab
+statements=10
+fingerprint=552b9ae4fc35a4dc

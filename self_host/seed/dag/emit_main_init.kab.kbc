@@ -1,0 +1,41 @@
+kabootar-bytecode/1
+constants=0
+global 0 emitMainInitCore
+global 1 emitMainInitStacks
+global 2 emitMainInitMeta
+global 3 emitMainInit
+functions=1
+fn 0 emitMainInit
+fn_params 0 E,program
+fn_locals 0 E,program
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=3
+import 0 self_host/emit_main_init_core
+import 1 self_host/emit_main_init_stacks
+import 2 self_host/emit_main_init_meta
+pub_imports=0
+exports=1
+export 0 emitMainInit
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_main_init.kab
+statements=4
+fingerprint=fb5aa02acd872f58

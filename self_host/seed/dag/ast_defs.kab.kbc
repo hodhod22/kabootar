@@ -1,0 +1,192 @@
+kabootar-bytecode/1
+constants=35
+const 0 string Program
+const 1 string Import
+const 2 string LetStmt
+const 3 string AssignStmt
+const 4 string IndexAssignStmt
+const 5 string MemberAssignStmt
+const 6 string ReturnStmt
+const 7 string ExprStmt
+const 8 string IfStmt
+const 9 string WhileStmt
+const 10 string FnStmt
+const 11 string EnumStmt
+const 12 string ClassStmt
+const 13 string InterfaceStmt
+const 14 string Literal
+const 15 string Variable
+const 16 string Binary
+const 17 string Unary
+const 18 string Call
+const 19 string Block
+const 20 string ContinueStmt
+const 21 string BreakStmt
+const 22 string ThrowStmt
+const 23 string TryStmt
+const 24 string ForOfStmt
+const 25 string Arrow
+const 26 string Object
+const 27 string Array
+const 28 string Member
+const 29 string Index
+const 30 string number
+const 31 string string
+const 32 string bool
+const 33 string null
+const 34 string undefined
+local 0 AST_PROGRAM
+local 1 AST_IMPORT
+local 2 AST_LET
+local 3 AST_ASSIGN
+local 4 AST_INDEX_ASSIGN
+local 5 AST_MEMBER_ASSIGN
+local 6 AST_RETURN
+local 7 AST_EXPR
+local 8 AST_IF
+local 9 AST_WHILE
+local 10 AST_FN
+local 11 AST_ENUM
+local 12 AST_CLASS
+local 13 AST_INTERFACE
+local 14 AST_LITERAL
+local 15 AST_VAR
+local 16 AST_BINARY
+local 17 AST_UNARY
+local 18 AST_CALL
+local 19 AST_BLOCK
+local 20 AST_CONTINUE
+local 21 AST_BREAK
+local 22 AST_THROW
+local 23 AST_TRY
+local 24 AST_FOR_OF
+local 25 AST_ARROW
+local 26 AST_OBJECT
+local 27 AST_ARRAY
+local 28 AST_MEMBER
+local 29 AST_INDEX
+local 30 LIT_NUMBER
+local 31 LIT_STRING
+local 32 LIT_BOOL
+local 33 LIT_NULL
+local 34 LIT_UNDEF
+functions=0
+arrows=0
+imports=0
+pub_imports=0
+exports=35
+export 0 AST_PROGRAM
+export 1 AST_IMPORT
+export 2 AST_LET
+export 3 AST_ASSIGN
+export 4 AST_INDEX_ASSIGN
+export 5 AST_MEMBER_ASSIGN
+export 6 AST_RETURN
+export 7 AST_EXPR
+export 8 AST_IF
+export 9 AST_WHILE
+export 10 AST_FN
+export 11 AST_ENUM
+export 12 AST_CLASS
+export 13 AST_INTERFACE
+export 14 AST_LITERAL
+export 15 AST_VAR
+export 16 AST_BINARY
+export 17 AST_UNARY
+export 18 AST_CALL
+export 19 AST_BLOCK
+export 20 AST_CONTINUE
+export 21 AST_BREAK
+export 22 AST_THROW
+export 23 AST_TRY
+export 24 AST_FOR_OF
+export 25 AST_ARROW
+export 26 AST_OBJECT
+export 27 AST_ARRAY
+export 28 AST_MEMBER
+export 29 AST_INDEX
+export 30 LIT_NUMBER
+export 31 LIT_STRING
+export 32 LIT_BOOL
+export 33 LIT_NULL
+export 34 LIT_UNDEF
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+const 1
+store_local 1
+const 2
+store_local 2
+const 3
+store_local 3
+const 4
+store_local 4
+const 5
+store_local 5
+const 6
+store_local 6
+const 7
+store_local 7
+const 8
+store_local 8
+const 9
+store_local 9
+const 10
+store_local 10
+const 11
+store_local 11
+const 12
+store_local 12
+const 13
+store_local 13
+const 14
+store_local 14
+const 15
+store_local 15
+const 16
+store_local 16
+const 17
+store_local 17
+const 18
+store_local 18
+const 19
+store_local 19
+const 20
+store_local 20
+const 21
+store_local 21
+const 22
+store_local 22
+const 23
+store_local 23
+const 24
+store_local 24
+const 25
+store_local 25
+const 26
+store_local 26
+const 27
+store_local 27
+const 28
+store_local 28
+const 29
+store_local 29
+const 30
+store_local 30
+const 31
+store_local 31
+const 32
+store_local 32
+const 33
+store_local 33
+const 34
+store_local 34
+load_local 34
+halt
+
+source=self_host/ast_defs.kab
+statements=35
+fingerprint=cef6f837b0958b05

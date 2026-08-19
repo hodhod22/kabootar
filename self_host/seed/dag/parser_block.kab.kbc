@@ -1,0 +1,319 @@
+kabootar-bytecode/1
+constants=12
+const 0 string pBodyStack
+const 1 string pBody
+const 2 string pBodyDepth
+const 3 number 1
+const 4 number 0
+const 5 string pCur
+const 6 string type
+const 7 string }
+const 8 string EOF
+const 9 null
+const 10 string ;
+const 11 string pLoopBody
+global 0 push
+global 1 pEnterBody
+global 2 pop
+global 3 pLeaveBody
+global 4 pCallStmt
+global 5 bump
+global 6 pParseBodyUntilRBrace
+global 7 pEnterLoopBody
+global 8 pLeaveLoopBody
+global 9 pParseLoopUntilRBrace
+functions=6
+fn 0 pEnterBody
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_global 0
+fn_op 0 call 2
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 const 3
+fn_op 0 add
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 make_array 0
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 4
+fn_op 0 return
+fn_arrows 0 0
+fn 1 pLeaveBody
+fn_params 1 sess
+fn_locals 1 sess,body,__kab_a0,__kab_a1,__kab_a2
+fn_op 1 load_local 0
+fn_op 1 get_member 1
+fn_op 1 store_local 1
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 const 3
+fn_op 1 sub
+fn_op 1 index_get
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 const 1
+fn_op 1 load_local 2
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 load_global 2
+fn_op 1 call 1
+fn_op 1 store_local 3
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 load_local 3
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 const 3
+fn_op 1 sub
+fn_op 1 store_local 4
+fn_op 1 load_local 0
+fn_op 1 const 2
+fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 1
+fn_op 1 return
+fn_arrows 1 0
+fn 2 pParseBodyUntilRBrace
+fn_params 2 sess,eofMsg
+fn_locals 2 sess,eofMsg,__kab_a0
+fn_op 2 load_local 0
+fn_op 2 get_member 5
+fn_op 2 get_member 6
+fn_op 2 const 7
+fn_op 2 ne
+fn_op 2 jump_if_false 35
+fn_op 2 load_local 0
+fn_op 2 get_member 5
+fn_op 2 get_member 6
+fn_op 2 const 8
+fn_op 2 eq
+fn_op 2 jump_if_false 3
+fn_op 2 load_local 1
+fn_op 2 throw
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 1
+fn_op 2 load_local 0
+fn_op 2 load_global 4
+fn_op 2 call 1
+fn_op 2 load_global 0
+fn_op 2 call 2
+fn_op 2 store_local 2
+fn_op 2 load_local 0
+fn_op 2 const 1
+fn_op 2 load_local 2
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 5
+fn_op 2 get_member 6
+fn_op 2 const 10
+fn_op 2 eq
+fn_op 2 jump_if_false 4
+fn_op 2 load_local 0
+fn_op 2 load_global 5
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 jump -41
+fn_op 2 load_local 0
+fn_op 2 load_global 5
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 const 4
+fn_op 2 return
+fn_arrows 2 0
+fn 3 pEnterLoopBody
+fn_params 3 sess
+fn_locals 3 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 3 load_local 0
+fn_op 3 get_member 0
+fn_op 3 load_local 0
+fn_op 3 get_member 11
+fn_op 3 load_global 0
+fn_op 3 call 2
+fn_op 3 store_local 1
+fn_op 3 load_local 0
+fn_op 3 const 0
+fn_op 3 load_local 1
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 pop
+fn_op 3 load_local 0
+fn_op 3 get_member 2
+fn_op 3 const 3
+fn_op 3 add
+fn_op 3 store_local 2
+fn_op 3 load_local 0
+fn_op 3 const 2
+fn_op 3 load_local 2
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 pop
+fn_op 3 make_array 0
+fn_op 3 store_local 3
+fn_op 3 load_local 0
+fn_op 3 const 11
+fn_op 3 load_local 3
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 pop
+fn_op 3 const 4
+fn_op 3 return
+fn_arrows 3 0
+fn 4 pLeaveLoopBody
+fn_params 4 sess
+fn_locals 4 sess,body,__kab_a0,__kab_a1,__kab_a2
+fn_op 4 load_local 0
+fn_op 4 get_member 11
+fn_op 4 store_local 1
+fn_op 4 load_local 0
+fn_op 4 get_member 0
+fn_op 4 load_local 0
+fn_op 4 get_member 2
+fn_op 4 const 3
+fn_op 4 sub
+fn_op 4 index_get
+fn_op 4 store_local 2
+fn_op 4 load_local 0
+fn_op 4 const 11
+fn_op 4 load_local 2
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 0
+fn_op 4 get_member 0
+fn_op 4 load_global 2
+fn_op 4 call 1
+fn_op 4 store_local 3
+fn_op 4 load_local 0
+fn_op 4 const 0
+fn_op 4 load_local 3
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 0
+fn_op 4 get_member 2
+fn_op 4 const 3
+fn_op 4 sub
+fn_op 4 store_local 4
+fn_op 4 load_local 0
+fn_op 4 const 2
+fn_op 4 load_local 4
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 1
+fn_op 4 return
+fn_arrows 4 0
+fn 5 pParseLoopUntilRBrace
+fn_params 5 sess
+fn_locals 5 sess,__kab_a0
+fn_op 5 load_local 0
+fn_op 5 get_member 5
+fn_op 5 get_member 6
+fn_op 5 const 7
+fn_op 5 ne
+fn_op 5 jump_if_false 26
+fn_op 5 load_local 0
+fn_op 5 get_member 11
+fn_op 5 load_local 0
+fn_op 5 load_global 4
+fn_op 5 call 1
+fn_op 5 load_global 0
+fn_op 5 call 2
+fn_op 5 store_local 1
+fn_op 5 load_local 0
+fn_op 5 const 11
+fn_op 5 load_local 1
+fn_op 5 index_set
+fn_op 5 swap
+fn_op 5 store_local 0
+fn_op 5 pop
+fn_op 5 load_local 0
+fn_op 5 get_member 5
+fn_op 5 get_member 6
+fn_op 5 const 10
+fn_op 5 eq
+fn_op 5 jump_if_false 4
+fn_op 5 load_local 0
+fn_op 5 load_global 5
+fn_op 5 call 1
+fn_op 5 pop
+fn_op 5 jump -32
+fn_op 5 load_local 0
+fn_op 5 load_global 5
+fn_op 5 call 1
+fn_op 5 pop
+fn_op 5 const 4
+fn_op 5 return
+fn_arrows 5 0
+arrows=0
+imports=4
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+pub_imports=0
+exports=6
+export 0 pEnterBody
+export 1 pLeaveBody
+export 2 pParseBodyUntilRBrace
+export 3 pEnterLoopBody
+export 4 pLeaveLoopBody
+export 5 pParseLoopUntilRBrace
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_block.kab
+statements=10
+fingerprint=e5845e06e0f3d92b

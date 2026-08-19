@@ -1,0 +1,18 @@
+kabootar-bytecode/1
+constants=0
+functions=0
+arrows=0
+imports=1
+import 0 self_host/serialize_op
+pub_imports=1
+pub_import 0 self_host/serialize_op
+exports=0
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_pure.kab
+statements=1
+fingerprint=db6b869a9844a925

@@ -20,7 +20,8 @@ mod dag;
 
 pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProgram};
 pub use dag::{
-    collect_self_host_inventory, rust_compile_write_seed, walk_compile_dag,
+    collect_self_host_inventory, compiler_image_path, is_compile_dag_path,
+    missing_compiler_dag_seeds, rust_compile_write_seed, walk_compile_dag,
     write_compiler_dag_seeds, write_compiler_facade_seeds, SelfHostInventory,
 };
 
@@ -469,6 +470,19 @@ pub fn compile_file_prefer_cached(
             );
         }
         return Ok((program, "seed"));
+    }
+    // SH1: compiler DAG without image must not self-host-compile the compiler.
+    if dag::is_compile_dag_path(path) && prefer != CompilePrefer::SelfHostOnly {
+        let program = compile_file(path)?;
+        if program.has_bytecode() {
+            let _ = write_compile_marker(path, &program);
+        }
+        return Ok((program, "rust"));
+    }
+    if dag::is_compile_dag_path(path) && prefer == CompilePrefer::SelfHostOnly {
+        return Err(format!(
+            "SH1: no compiler-image seed for `{path}` (run KABOOTAR_SH1_WARM=1 / write_compiler_dag_seeds)"
+        ));
     }
     // H6e delete-gate: kab-only must not live-Rust-compile skip-listed leaves.
     // Soften while the self-host toolchain / Kab VM is already executing

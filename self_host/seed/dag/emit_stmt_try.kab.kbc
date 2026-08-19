@@ -1,0 +1,190 @@
+kabootar-bytecode/1
+constants=22
+const 0 number 0
+const 1 string eNode
+const 2 string kind
+const 3 bool false
+const 4 null
+const 5 string eInFn
+const 6 number 1
+const 7 string try/catch\sonly\ssupported\sinside\sfn\s(self-host\semit)
+const 8 string body
+const 9 string handler
+const 10 string errName
+const 11 string eFnOpsN
+const 12 string local
+const 13 string eFnTryRegions
+const 14 string bodyStart
+const 15 string bodyEnd
+const 16 string catchStart
+const 17 string errLocal
+const 18 string op
+const 19 string arg
+const 20 string eFnOps
+const 21 bool true
+global 0 AST_TRY
+global 1 eCallStmt
+global 2 OP_JUMP
+global 3 emitOp
+global 4 symIndex
+global 5 push
+global 6 OP_STORE_LOCAL
+global 7 eCallRet
+global 8 emitStmt_try
+local 0 eCallRet
+local 1 eCallRet2
+functions=1
+fn 0 emitStmt_try
+fn_params 0 E
+fn_locals 0 E,tryBody,tryHandler,errName,bodyStart,bodyEnd,jmpEndIdx,catchStart,errLocal,__kab_a0,afterCatch,__kab_a1,__kab_a2,__kab_a3
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 2
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 3
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 const 6
+fn_op 0 ne
+fn_op 0 jump_if_false 3
+fn_op 0 const 7
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 8
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 9
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 10
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 get_member 11
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 11
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 const 0
+fn_op 0 load_global 3
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 5
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 get_member 11
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 const 12
+fn_op 0 load_local 3
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 store_local 8
+fn_op 0 load_local 0
+fn_op 0 get_member 13
+fn_op 0 load_local 4
+fn_op 0 const 14
+fn_op 0 load_local 5
+fn_op 0 const 15
+fn_op 0 load_local 7
+fn_op 0 const 16
+fn_op 0 load_local 8
+fn_op 0 const 17
+fn_op 0 make_object 4
+fn_op 0 load_global 5
+fn_op 0 call 2
+fn_op 0 store_local 9
+fn_op 0 load_local 0
+fn_op 0 const 13
+fn_op 0 load_local 9
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 6
+fn_op 0 load_local 8
+fn_op 0 load_global 3
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_local 2
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 11
+fn_op 0 store_local 10
+fn_op 0 load_local 10
+fn_op 0 load_local 6
+fn_op 0 sub
+fn_op 0 const 6
+fn_op 0 sub
+fn_op 0 dup
+fn_op 0 store_global 7
+fn_op 0 pop
+fn_op 0 load_global 2
+fn_op 0 const 18
+fn_op 0 load_global 7
+fn_op 0 const 19
+fn_op 0 make_object 2
+fn_op 0 store_local 11
+fn_op 0 load_local 0
+fn_op 0 get_member 20
+fn_op 0 load_local 6
+fn_op 0 load_local 11
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 swap
+fn_op 0 store_local 12
+fn_op 0 store_local 13
+fn_op 0 load_local 0
+fn_op 0 const 20
+fn_op 0 load_local 13
+fn_op 0 index_set
+fn_op 0 pop
+fn_op 0 load_local 12
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 21
+fn_op 0 return
+fn_op 0 const 21
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_hooks
+import 3 self_host/emit_sym_index
+import 4 self_host/emit_op
+pub_imports=0
+exports=1
+export 0 emitStmt_try
+memory_mode=gc
+interfaces=0
+classes=0
+code
+const 0
+store_local 0
+const 0
+store_local 1
+halt
+
+source=self_host/emit_stmt_try.kab
+statements=8
+fingerprint=51c91dc9c2d903de

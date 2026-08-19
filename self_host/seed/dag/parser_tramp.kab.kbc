@@ -1,0 +1,130 @@
+kabootar-bytecode/1
+constants=12
+const 0 string _hook
+const 1 number 1
+const 2 null
+const 3 number 0
+const 4 number 2
+const 5 number 3
+const 6 number 4
+const 7 number 5
+const 8 number 6
+const 9 number 7
+const 10 string parser\stramp:\sbad\shook\s
+const 11 string 
+global 0 parseTypeArgs
+global 1 parsePostfix
+global 2 parseUnary
+global 3 parseMul
+global 4 parseAddShift
+global 5 parseRelExpr
+global 6 parseCompare
+global 7 parseStmt
+global 8 pTramp
+functions=1
+fn 0 pTramp
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 1
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 5
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 4
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 7
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 5
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 8
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 6
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 9
+fn_op 0 eq
+fn_op 0 jump_if_false 4
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 call 1
+fn_op 0 return
+fn_op 0 const 10
+fn_op 0 throw
+fn_op 0 const 11
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 add
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=8
+import 0 self_host/parser_type_args
+import 1 self_host/parser_postfix
+import 2 self_host/parser_unary
+import 3 self_host/parser_mul
+import 4 self_host/parser_add_shift
+import 5 self_host/parser_rel_expr
+import 6 self_host/parser_compare
+import 7 self_host/parser_stmt
+pub_imports=0
+exports=1
+export 0 pTramp
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_tramp.kab
+statements=9
+fingerprint=c229005e3a11d992

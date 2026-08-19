@@ -1,0 +1,109 @@
+kabootar-bytecode/1
+constants=11
+const 0 string pCur
+const 1 string type
+const 2 string ==
+const 3 string !=
+const 4 string <
+const 5 string >
+const 6 string >=
+const 7 string <=
+const 8 number 0
+const 9 null
+const 10 string pLeft
+global 0 bump
+global 1 parseRelExpr_apply
+global 2 parseRelExpr_step
+functions=1
+fn 0 parseRelExpr_step
+fn_params 0 sess
+fn_locals 0 sess,op
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 5
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 7
+fn_op 0 eq
+fn_op 0 not
+fn_op 0 jump_if_false 2
+fn_op 0 const 8
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 10
+fn_op 0 load_global 1
+fn_op 0 call 3
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_rel_expr_apply
+pub_imports=0
+exports=1
+export 0 parseRelExpr_step
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_rel_expr_step.kab
+statements=6
+fingerprint=cf25da7270c6d6b8

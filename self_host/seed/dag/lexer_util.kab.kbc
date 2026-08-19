@@ -1,0 +1,129 @@
+kabootar-bytecode/1
+constants=11
+const 0 string pos
+const 1 number 1
+const 2 string col
+const 3 number 0
+const 4 string src
+const 5 string type
+const 6 string value
+const 7 string line
+const 8 string column
+const 9 string srcLen
+const 10 null
+global 0 lxEat
+global 1 char_at
+global 2 lxCh
+global 3 lxTok
+global 4 lxHas
+global 5 lxStarts
+functions=5
+fn 0 lxEat
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 1
+fn_op 0 add
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 const 1
+fn_op 0 add
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 2
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 return
+fn_arrows 0 0
+fn 1 lxCh
+fn_params 1 sess
+fn_locals 1 sess
+fn_op 1 load_local 0
+fn_op 1 get_member 4
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 load_global 1
+fn_op 1 call 2
+fn_op 1 return
+fn_arrows 1 0
+fn 2 lxTok
+fn_params 2 typ,val,line,col
+fn_locals 2 typ,val,line,col
+fn_op 2 load_local 0
+fn_op 2 const 5
+fn_op 2 load_local 1
+fn_op 2 const 6
+fn_op 2 load_local 2
+fn_op 2 const 7
+fn_op 2 load_local 3
+fn_op 2 const 8
+fn_op 2 make_object 4
+fn_op 2 return
+fn_arrows 2 0
+fn 3 lxHas
+fn_params 3 sess
+fn_locals 3 sess
+fn_op 3 load_local 0
+fn_op 3 get_member 0
+fn_op 3 load_local 0
+fn_op 3 get_member 9
+fn_op 3 lt
+fn_op 3 return
+fn_arrows 3 0
+fn 4 lxStarts
+fn_params 4 sess,ch
+fn_locals 4 sess,ch
+fn_op 4 load_local 0
+fn_op 4 get_member 0
+fn_op 4 load_local 0
+fn_op 4 get_member 9
+fn_op 4 ge
+fn_op 4 jump_if_false 2
+fn_op 4 const 3
+fn_op 4 return
+fn_op 4 load_local 0
+fn_op 4 get_member 4
+fn_op 4 load_local 0
+fn_op 4 get_member 0
+fn_op 4 load_global 1
+fn_op 4 call 2
+fn_op 4 load_local 1
+fn_op 4 eq
+fn_op 4 jump_if_false 2
+fn_op 4 const 1
+fn_op 4 return
+fn_op 4 const 3
+fn_op 4 return
+fn_arrows 4 0
+arrows=0
+imports=1
+import 0 self_host/lexer_defs
+pub_imports=0
+exports=5
+export 0 lxEat
+export 1 lxCh
+export 2 lxTok
+export 3 lxHas
+export 4 lxStarts
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/lexer_util.kab
+statements=6
+fingerprint=3f8d3d84c56205f8

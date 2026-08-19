@@ -1,0 +1,48 @@
+kabootar-bytecode/1
+constants=2
+const 0 string type
+const 1 string value
+global 0 tokenizeExec
+global 1 tokenizeImpl
+global 2 tokenTypeNameImpl
+global 3 tokenValueImpl
+functions=3
+fn 0 tokenizeImpl
+fn_params 0 source
+fn_locals 0 source
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+fn 1 tokenTypeNameImpl
+fn_params 1 tok
+fn_locals 1 tok
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 return
+fn_arrows 1 0
+fn 2 tokenValueImpl
+fn_params 2 tok
+fn_locals 2 tok
+fn_op 2 load_local 0
+fn_op 2 get_member 1
+fn_op 2 return
+fn_arrows 2 0
+arrows=0
+imports=1
+import 0 self_host/lexer_tokenize
+pub_imports=0
+exports=3
+export 0 tokenizeImpl
+export 1 tokenTypeNameImpl
+export 2 tokenValueImpl
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/lexer_impl.kab
+statements=4
+fingerprint=e1084b83d5046b56

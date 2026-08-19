@@ -1,0 +1,112 @@
+kabootar-bytecode/1
+constants=10
+const 0 string pCur
+const 1 string pTok
+const 2 string type
+const 3 string kind
+const 4 string lit
+const 5 string value
+const 6 string pLeft
+const 7 number 1
+const 8 null
+const 9 number 0
+global 0 TOKEN_NUMBER
+global 1 bump
+global 2 AST_LITERAL
+global 3 LIT_NUMBER
+global 4 TOKEN_STRING
+global 5 LIT_STRING
+global 6 parsePostfix_lit_num
+functions=1
+fn 0 parsePostfix_lit_num
+fn_params 0 sess
+fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 2
+fn_op 0 load_global 0
+fn_op 0 eq
+fn_op 0 jump_if_false 23
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_global 2
+fn_op 0 const 3
+fn_op 0 load_global 3
+fn_op 0 const 4
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 5
+fn_op 0 const 5
+fn_op 0 make_object 3
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 2
+fn_op 0 load_global 4
+fn_op 0 eq
+fn_op 0 jump_if_false 23
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_global 2
+fn_op 0 const 3
+fn_op 0 load_global 5
+fn_op 0 const 4
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 get_member 5
+fn_op 0 const 5
+fn_op 0 make_object 3
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 6
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 const 9
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=4
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+pub_imports=0
+exports=1
+export 0 parsePostfix_lit_num
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_postfix_lit_num.kab
+statements=5
+fingerprint=99dadff0d52fe9c1

@@ -1,0 +1,273 @@
+kabootar-bytecode/1
+constants=12
+const 0 string pos
+const 1 string srcLen
+const 2 null
+const 3 string line
+const 4 string col
+const 5 string src
+const 6 string Template\sliteral\snot\ssupported\sat\sline\s
+const 7 string 
+const 8 string \scol\s
+const 9 number 0
+const 10 string Unknown\scharacter:\s
+const 11 string \sat\sline\s
+global 0 TOKEN_EOF
+global 1 lxTok
+global 2 char_at
+global 3 lxScanPunct
+global 4 lxScanPlusMinus
+global 5 lxScanMulDiv
+global 6 lxScanEqBang
+global 7 lxScanLogic
+global 8 lxScanCmp
+global 9 lxScanHash
+global 10 lxScanString
+global 11 BACKTICK
+global 12 char_code_at
+global 13 lxScanNumber
+global 14 lxScanIdent
+global 15 lxScan
+functions=1
+fn 0 lxScan
+fn_params 0 sess
+fn_locals 0 sess,c,line,col,tok,code0
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 ge
+fn_op 0 jump_if_false 9
+fn_op 0 load_global 0
+fn_op 0 const 2
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 load_global 1
+fn_op 0 call 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 3
+fn_op 0 call 4
+fn_op 0 store_local 4
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 4
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 5
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 6
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 7
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 8
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 9
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 10
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 load_global 11
+fn_op 0 eq
+fn_op 0 jump_if_false 13
+fn_op 0 const 6
+fn_op 0 throw
+fn_op 0 const 7
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 8
+fn_op 0 add
+fn_op 0 const 7
+fn_op 0 load_local 3
+fn_op 0 add
+fn_op 0 add
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 const 9
+fn_op 0 load_global 12
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 load_local 5
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 13
+fn_op 0 call 4
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 5
+fn_op 0 load_local 2
+fn_op 0 load_local 3
+fn_op 0 load_global 14
+fn_op 0 call 5
+fn_op 0 dup
+fn_op 0 store_local 4
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 const 2
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 load_local 4
+fn_op 0 return
+fn_op 0 const 10
+fn_op 0 throw
+fn_op 0 load_local 1
+fn_op 0 add
+fn_op 0 const 11
+fn_op 0 add
+fn_op 0 const 7
+fn_op 0 load_local 2
+fn_op 0 add
+fn_op 0 add
+fn_op 0 const 8
+fn_op 0 add
+fn_op 0 const 7
+fn_op 0 load_local 3
+fn_op 0 add
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=8
+import 0 self_host/lexer_defs
+import 1 self_host/lexer_util
+import 2 self_host/lexer_scan_punct
+import 3 self_host/lexer_scan_arith
+import 4 self_host/lexer_scan_eq
+import 5 self_host/lexer_scan_cmp
+import 6 self_host/lexer_scan_string
+import 7 self_host/lexer_scan_word
+pub_imports=0
+exports=1
+export 0 lxScan
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/lexer_scan.kab
+statements=9
+fingerprint=c7b7bda91d54ad0a

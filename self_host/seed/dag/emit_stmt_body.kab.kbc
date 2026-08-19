@@ -1,0 +1,319 @@
+kabootar-bytecode/1
+constants=9
+const 0 string eStmtNode
+const 1 string eNode
+const 2 null
+const 3 string emitStmt:\snull\snode
+const 4 string kind
+const 5 string eStmtKind
+const 6 undefined
+const 7 string emitStmt:\smissing\skind
+const 8 string Unsupported\sstmt:\s
+global 0 AST_IF
+global 1 emitIfStmt
+global 2 AST_LET
+global 3 emitStmt_let
+global 4 AST_ASSIGN
+global 5 emitStmt_assign
+global 6 AST_INDEX_ASSIGN
+global 7 emitStmt_index_assign
+global 8 AST_MEMBER_ASSIGN
+global 9 emitStmt_member_assign
+global 10 AST_EXPR
+global 11 emitStmt_expr
+global 12 AST_THROW
+global 13 emitStmt_throw
+global 14 AST_TRY
+global 15 emitStmt_try
+global 16 AST_FOR_OF
+global 17 emitStmt_for_of
+global 18 AST_RETURN
+global 19 emitStmt_return
+global 20 AST_BLOCK
+global 21 emitStmt_block
+global 22 AST_CONTINUE
+global 23 emitStmt_continue
+global 24 AST_BREAK
+global 25 emitStmt_break
+global 26 AST_WHILE
+global 27 emitStmt_while
+global 28 AST_ENUM
+global 29 emitStmt_enum
+global 30 AST_CLASS
+global 31 emitStmt_class
+global 32 AST_INTERFACE
+global 33 emitStmt_interface
+global 34 AST_FN
+global 35 emitStmt_fn
+global 36 emitStmtBody
+functions=1
+fn 0 emitStmtBody
+fn_params 0 E,node
+fn_locals 0 E,node,__kab_a0,__kab_a1,__kab_a2,kind
+fn_op 0 load_local 1
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 2
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 const 3
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 4
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 const 5
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 const 7
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 5
+fn_op 0 load_global 0
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 2
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 4
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 5
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 6
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 8
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 9
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 10
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 11
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 12
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 13
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 14
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 15
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 16
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 17
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 18
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 19
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 20
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 21
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 22
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 23
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 24
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 25
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 26
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 27
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 28
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 29
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 30
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 31
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 32
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 33
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 load_global 34
+fn_op 0 eq
+fn_op 0 jump_if_false 6
+fn_op 0 load_local 0
+fn_op 0 load_global 35
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 const 2
+fn_op 0 return
+fn_op 0 const 8
+fn_op 0 throw
+fn_op 0 load_local 5
+fn_op 0 add
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=20
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_if_stmt
+import 3 self_host/emit_stmt_let
+import 4 self_host/emit_stmt_assign
+import 5 self_host/emit_stmt_index_assign
+import 6 self_host/emit_stmt_member_assign
+import 7 self_host/emit_stmt_expr
+import 8 self_host/emit_stmt_throw
+import 9 self_host/emit_stmt_try
+import 10 self_host/emit_stmt_for_of
+import 11 self_host/emit_stmt_return
+import 12 self_host/emit_stmt_block
+import 13 self_host/emit_stmt_continue
+import 14 self_host/emit_stmt_break
+import 15 self_host/emit_stmt_while
+import 16 self_host/emit_stmt_enum
+import 17 self_host/emit_stmt_class
+import 18 self_host/emit_stmt_interface
+import 19 self_host/emit_stmt_fn
+pub_imports=0
+exports=1
+export 0 emitStmtBody
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_stmt_body.kab
+statements=21
+fingerprint=1772af8ede9178ce

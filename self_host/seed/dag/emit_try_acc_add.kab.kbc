@@ -1,0 +1,179 @@
+kabootar-bytecode/1
+constants=11
+const 0 string kind
+const 1 bool false
+const 2 null
+const 3 string op
+const 4 string +
+const 5 string left
+const 6 string right
+const 7 string sym
+const 8 number 0
+const 9 bool true
+const 10 string global
+global 0 AST_BINARY
+global 1 AST_VAR
+global 2 localSymIndex
+global 3 eCallExpr
+global 4 OP_ACC_ADD_LOCAL
+global 5 emitOp
+global 6 symIndex
+global 7 OP_ACC_ADD_GLOBAL
+global 8 tryEmitAccAddAssign
+functions=1
+fn 0 tryEmitAccAddAssign
+fn_params 0 E,sym,rhs
+fn_locals 0 E,sym,rhs,left,right,li,gi
+fn_op 0 load_local 2
+fn_op 0 get_member 0
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 2
+fn_op 0 get_member 3
+fn_op 0 const 4
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 2
+fn_op 0 get_member 5
+fn_op 0 store_local 3
+fn_op 0 load_local 2
+fn_op 0 get_member 6
+fn_op 0 store_local 4
+fn_op 0 load_local 3
+fn_op 0 get_member 0
+fn_op 0 load_global 1
+fn_op 0 eq
+fn_op 0 jump_if_false 48
+fn_op 0 load_local 3
+fn_op 0 get_member 7
+fn_op 0 load_local 1
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 8
+fn_op 0 ge
+fn_op 0 jump_if_false 13
+fn_op 0 load_local 0
+fn_op 0 load_local 4
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 4
+fn_op 0 load_local 5
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 9
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 1
+fn_op 0 load_global 6
+fn_op 0 call 3
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 load_local 4
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 load_local 6
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 9
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 get_member 0
+fn_op 0 load_global 0
+fn_op 0 eq
+fn_op 0 jump_if_false 52
+fn_op 0 load_local 3
+fn_op 0 get_member 3
+fn_op 0 const 4
+fn_op 0 eq
+fn_op 0 jump_if_false 47
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_local 3
+fn_op 0 load_global 8
+fn_op 0 call 3
+fn_op 0 jump_if_false 41
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 8
+fn_op 0 ge
+fn_op 0 jump_if_false 13
+fn_op 0 load_local 0
+fn_op 0 load_local 4
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 4
+fn_op 0 load_local 5
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 9
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 10
+fn_op 0 load_local 1
+fn_op 0 load_global 6
+fn_op 0 call 3
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 load_local 4
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 load_local 6
+fn_op 0 load_global 5
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 9
+fn_op 0 return
+fn_op 0 const 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_op
+import 3 self_host/emit_local_sym
+import 4 self_host/emit_sym_index
+import 5 self_host/emit_hooks
+pub_imports=0
+exports=1
+export 0 tryEmitAccAddAssign
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_try_acc_add.kab
+statements=7
+fingerprint=14d3fd3fb6eb8b84

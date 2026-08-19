@@ -1,0 +1,168 @@
+kabootar-bytecode/1
+constants=12
+const 0 string kind
+const 1 bool false
+const 2 null
+const 3 string callee
+const 4 string args
+const 5 string sym
+const 6 string push
+const 7 number 2
+const 8 number 0
+const 9 number 1
+const 10 bool true
+const 11 string global
+global 0 AST_CALL
+global 1 AST_VAR
+global 2 localSymIndex
+global 3 OP_TAKE_LOCAL
+global 4 emitOp
+global 5 eCallExpr
+global 6 OP_ARRAY_PUSH_LOCAL
+global 7 OP_POP
+global 8 symIndex
+global 9 OP_TAKE_GLOBAL
+global 10 OP_ARRAY_PUSH_GLOBAL
+global 11 tryEmitArrayPushAssign
+functions=1
+fn 0 tryEmitArrayPushAssign
+fn_params 0 E,sym,rhs
+fn_locals 0 E,sym,rhs,cal,args,a0,li,gi
+fn_op 0 load_local 2
+fn_op 0 get_member 0
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 2
+fn_op 0 get_member 3
+fn_op 0 store_local 3
+fn_op 0 load_local 2
+fn_op 0 get_member 4
+fn_op 0 store_local 4
+fn_op 0 load_local 3
+fn_op 0 get_member 0
+fn_op 0 load_global 1
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 get_member 5
+fn_op 0 const 6
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 len_local 4
+fn_op 0 const 7
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 const 8
+fn_op 0 index_get_local 4
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 get_member 0
+fn_op 0 load_global 1
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 5
+fn_op 0 get_member 5
+fn_op 0 load_local 1
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 load_local 1
+fn_op 0 load_global 2
+fn_op 0 call 2
+fn_op 0 store_local 6
+fn_op 0 load_local 6
+fn_op 0 const 8
+fn_op 0 ge
+fn_op 0 jump_if_false 26
+fn_op 0 load_local 0
+fn_op 0 load_global 3
+fn_op 0 load_local 6
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 index_get_local 4
+fn_op 0 load_global 5
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 6
+fn_op 0 load_local 6
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 const 8
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 10
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 11
+fn_op 0 load_local 1
+fn_op 0 load_global 8
+fn_op 0 call 3
+fn_op 0 store_local 7
+fn_op 0 load_local 0
+fn_op 0 load_global 9
+fn_op 0 load_local 7
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 const 9
+fn_op 0 index_get_local 4
+fn_op 0 load_global 5
+fn_op 0 call 2
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 10
+fn_op 0 load_local 7
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 const 8
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 10
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=6
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_op
+import 3 self_host/emit_local_sym
+import 4 self_host/emit_sym_index
+import 5 self_host/emit_hooks
+pub_imports=0
+exports=1
+export 0 tryEmitArrayPushAssign
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_try_array_push.kab
+statements=7
+fingerprint=fb68d3e01fc9cb7a

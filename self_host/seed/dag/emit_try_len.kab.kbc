@@ -1,0 +1,106 @@
+kabootar-bytecode/1
+constants=9
+const 0 string kind
+const 1 bool false
+const 2 null
+const 3 string sym
+const 4 string len
+const 5 number 1
+const 6 number 0
+const 7 bool true
+const 8 string global
+global 0 AST_VAR
+global 1 localSymIndex
+global 2 OP_LEN_LOCAL
+global 3 emitOp
+global 4 symIndex
+global 5 OP_LEN_GLOBAL
+global 6 tryEmitLenCall
+functions=1
+fn 0 tryEmitLenCall
+fn_params 0 E,callee,args
+fn_locals 0 E,callee,args,a0,sym,li,gi
+fn_op 0 load_local 1
+fn_op 0 get_member 0
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 1
+fn_op 0 get_member 3
+fn_op 0 const 4
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 len_local 2
+fn_op 0 const 5
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 const 6
+fn_op 0 index_get_local 2
+fn_op 0 store_local 3
+fn_op 0 load_local 3
+fn_op 0 get_member 0
+fn_op 0 load_global 0
+fn_op 0 ne
+fn_op 0 jump_if_false 2
+fn_op 0 const 1
+fn_op 0 return
+fn_op 0 load_local 3
+fn_op 0 get_member 3
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 load_local 4
+fn_op 0 load_global 1
+fn_op 0 call 2
+fn_op 0 store_local 5
+fn_op 0 load_local 5
+fn_op 0 const 6
+fn_op 0 ge
+fn_op 0 jump_if_false 8
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 load_local 5
+fn_op 0 load_global 3
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 return
+fn_op 0 load_local 0
+fn_op 0 const 8
+fn_op 0 load_local 4
+fn_op 0 load_global 4
+fn_op 0 call 3
+fn_op 0 store_local 6
+fn_op 0 load_local 0
+fn_op 0 load_global 5
+fn_op 0 load_local 6
+fn_op 0 load_global 3
+fn_op 0 call 3
+fn_op 0 pop
+fn_op 0 const 7
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/ast_defs
+import 1 self_host/emit_defs
+import 2 self_host/emit_op
+import 3 self_host/emit_local_sym
+import 4 self_host/emit_sym_index
+pub_imports=0
+exports=1
+export 0 tryEmitLenCall
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/emit_try_len.kab
+statements=6
+fingerprint=8008be4f25d0dfcd

@@ -1,0 +1,58 @@
+kabootar-bytecode/1
+constants=5
+const 0 string pCur
+const 1 string type
+const 2 string EOF
+const 3 string parsePostfix\sEOF
+const 4 null
+global 0 parsePostfix_primary
+global 1 parsePostfix_bareArrow
+global 2 parsePostfix_tail
+global 3 parsePostfix
+functions=1
+fn 0 parsePostfix
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 jump_if_false 3
+fn_op 0 const 3
+fn_op 0 throw
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 load_global 2
+fn_op 0 call 1
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=7
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+import 2 self_host/parser_hooks
+import 3 self_host/parser_util
+import 4 self_host/parser_postfix_primary
+import 5 self_host/parser_postfix_bare_arrow
+import 6 self_host/parser_postfix_tail
+pub_imports=0
+exports=1
+export 0 parsePostfix
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_postfix.kab
+statements=8
+fingerprint=e56851a87b5fc4b

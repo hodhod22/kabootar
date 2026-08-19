@@ -1,0 +1,90 @@
+kabootar-bytecode/1
+constants=5
+const 0 string constants=
+const 1 string constants
+const 2 string globals
+const 3 string functions
+const 4 string arrows
+global 0 KBC_HEADER
+global 1 len
+global 2 serOutTagEq
+global 3 serAppendConsts
+global 4 serAppendGlobals
+global 5 serAppendFunctions
+global 6 serAppendArrows
+global 7 serAppendBcTail
+global 8 serSerializeBc
+functions=1
+fn 0 serSerializeBc
+fn_params 0 bc
+fn_locals 0 bc,out
+fn_op 0 load_global 0
+fn_op 0 store_local 1
+fn_op 0 load_local 1
+fn_op 0 const 0
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 load_global 2
+fn_op 0 call 3
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 load_global 3
+fn_op 0 call 2
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 2
+fn_op 0 load_global 4
+fn_op 0 call 2
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 3
+fn_op 0 load_global 5
+fn_op 0 call 2
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 get_member 4
+fn_op 0 load_global 6
+fn_op 0 call 2
+fn_op 0 dup
+fn_op 0 store_local 1
+fn_op 0 pop
+fn_op 0 load_local 1
+fn_op 0 load_local 0
+fn_op 0 load_global 7
+fn_op 0 call 2
+fn_op 0 return
+fn_arrows 0 0
+arrows=0
+imports=5
+import 0 self_host/serialize_ir
+import 1 self_host/serialize_out
+import 2 self_host/serialize_sections
+import 3 self_host/serialize_acc_pool
+import 4 self_host/serialize_acc_tail
+pub_imports=0
+exports=1
+export 0 serSerializeBc
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_acc.kab
+statements=6
+fingerprint=166aeeca657a0a94

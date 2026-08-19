@@ -1,0 +1,20 @@
+kabootar-bytecode/1
+constants=0
+functions=0
+arrows=0
+imports=2
+import 0 self_host/parser_util_bump
+import 1 self_host/parser_util_pool
+pub_imports=2
+pub_import 0 self_host/parser_util_bump
+pub_import 1 self_host/parser_util_pool
+exports=0
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_util.kab
+statements=2
+fingerprint=c93a424369d10a92

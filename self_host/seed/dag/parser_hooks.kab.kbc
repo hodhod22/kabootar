@@ -1,0 +1,147 @@
+kabootar-bytecode/1
+constants=10
+const 0 string _hook
+const 1 string tramp
+const 2 number 0
+const 3 number 1
+const 4 number 2
+const 5 number 3
+const 6 number 4
+const 7 number 5
+const 8 number 6
+const 9 number 7
+global 0 pCallHook
+global 1 pCallPostfix
+global 2 pCallTypeArgs
+global 3 pCallUnary
+global 4 pCallMul
+global 5 pCallAddShift
+global 6 pCallRelExpr
+global 7 pCallCompare
+global 8 pCallStmt
+functions=9
+fn 0 pCallHook
+fn_params 0 sess,n
+fn_locals 0 sess,n,prevH,__kab_a0,r,__kab_a1
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 store_local 2
+fn_op 0 load_local 1
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 3
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 call 0
+fn_op 0 store_local 4
+fn_op 0 load_local 2
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 0
+fn_op 0 load_local 5
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 4
+fn_op 0 return
+fn_arrows 0 0
+fn 1 pCallPostfix
+fn_params 1 sess
+fn_locals 1 sess
+fn_op 1 load_local 0
+fn_op 1 const 2
+fn_op 1 load_global 0
+fn_op 1 call 2
+fn_op 1 return
+fn_arrows 1 0
+fn 2 pCallTypeArgs
+fn_params 2 sess
+fn_locals 2 sess
+fn_op 2 load_local 0
+fn_op 2 const 3
+fn_op 2 load_global 0
+fn_op 2 call 2
+fn_op 2 return
+fn_arrows 2 0
+fn 3 pCallUnary
+fn_params 3 sess
+fn_locals 3 sess
+fn_op 3 load_local 0
+fn_op 3 const 4
+fn_op 3 load_global 0
+fn_op 3 call 2
+fn_op 3 return
+fn_arrows 3 0
+fn 4 pCallMul
+fn_params 4 sess
+fn_locals 4 sess
+fn_op 4 load_local 0
+fn_op 4 const 5
+fn_op 4 load_global 0
+fn_op 4 call 2
+fn_op 4 return
+fn_arrows 4 0
+fn 5 pCallAddShift
+fn_params 5 sess
+fn_locals 5 sess
+fn_op 5 load_local 0
+fn_op 5 const 6
+fn_op 5 load_global 0
+fn_op 5 call 2
+fn_op 5 return
+fn_arrows 5 0
+fn 6 pCallRelExpr
+fn_params 6 sess
+fn_locals 6 sess
+fn_op 6 load_local 0
+fn_op 6 const 7
+fn_op 6 load_global 0
+fn_op 6 call 2
+fn_op 6 return
+fn_arrows 6 0
+fn 7 pCallCompare
+fn_params 7 sess
+fn_locals 7 sess
+fn_op 7 load_local 0
+fn_op 7 const 8
+fn_op 7 load_global 0
+fn_op 7 call 2
+fn_op 7 return
+fn_arrows 7 0
+fn 8 pCallStmt
+fn_params 8 sess
+fn_locals 8 sess
+fn_op 8 load_local 0
+fn_op 8 const 9
+fn_op 8 load_global 0
+fn_op 8 call 2
+fn_op 8 return
+fn_arrows 8 0
+arrows=0
+imports=0
+pub_imports=0
+exports=9
+export 0 pCallHook
+export 1 pCallPostfix
+export 2 pCallTypeArgs
+export 3 pCallUnary
+export 4 pCallMul
+export 5 pCallAddShift
+export 6 pCallRelExpr
+export 7 pCallCompare
+export 8 pCallStmt
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/parser_hooks.kab
+statements=9
+fingerprint=862abfc57adfdbe2
