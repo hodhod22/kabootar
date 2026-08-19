@@ -3,32 +3,25 @@ constants=3
 const 0 string eCalleeStack
 const 1 string eCalleeDepth
 const 2 number 1
-global 0 pop
+global 0 object_array_pop
 global 1 dropCallCallee
 functions=1
 fn 0 dropCallCallee
 fn_params 0 E
-fn_locals 0 E,__kab_a0,__kab_a1
-fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 load_global 0
-fn_op 0 call 1
-fn_op 0 store_local 1
+fn_locals 0 E,__kab_a0
 fn_op 0 load_local 0
 fn_op 0 const 0
-fn_op 0 load_local 1
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 load_global 0
+fn_op 0 call 2
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 1
 fn_op 0 const 2
 fn_op 0 sub
-fn_op 0 store_local 2
+fn_op 0 store_local 1
 fn_op 0 load_local 0
 fn_op 0 const 1
-fn_op 0 load_local 2
+fn_op 0 load_local 1
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -47,4 +40,4 @@ halt
 
 source=self_host/emit_drop_callee.kab
 statements=1
-fingerprint=17b669868bfcee7e
+fingerprint=424114d1a4b75ba2

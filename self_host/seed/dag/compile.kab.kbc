@@ -1,29 +1,37 @@
 kabootar-bytecode/1
-constants=12
+constants=18
 const 0 string 
 const 1 string @manual
 const 2 bool true
 const 3 null
 const 4 bool false
-const 5 string KABOOTAR_P10_PROFILE
-const 6 string 1
-const 7 string PROFILE\sself_host\sparse_ms\s
-const 8 string PROFILE\sself_host\semit_ms\s
-const 9 string PROFILE\sself_host\sserialize_ms\s
-const 10 string PROFILE\sself_host\stotal_ms\s
-const 11 string PROFILE\sself_host\skbc_len\s
+const 5 string @pure\n
+const 6 string @io\n
+const 7 string @gc\n
+const 8 string @manual\n
+const 9 string comptime\s{
+const 10 string {
+const 11 string KABOOTAR_P10_PROFILE
+const 12 string 1
+const 13 string PROFILE\sself_host\sparse_ms\s
+const 14 string PROFILE\sself_host\semit_ms\s
+const 15 string PROFILE\sself_host\sserialize_ms\s
+const 16 string PROFILE\sself_host\stotal_ms\s
+const 17 string PROFILE\sself_host\skbc_len\s
 global 0 str_includes
 global 1 sourceIsManual
-global 2 checkOwnership
-global 3 date_now_ms
-global 4 parse
-global 5 emit
-global 6 serialize_bc
-global 7 env_get
-global 8 println
-global 9 compile
-global 10 compileIr
-functions=3
+global 2 replace_all
+global 3 preprocess
+global 4 checkOwnership
+global 5 date_now_ms
+global 6 parse
+global 7 emit
+global 8 serialize_bc
+global 9 env_get
+global 10 println
+global 11 compile
+global 12 compileIr
+functions=4
 fn 0 sourceIsManual
 fn_params 0 source
 fn_locals 0 source,s
@@ -41,114 +49,65 @@ fn_op 0 return
 fn_op 0 const 4
 fn_op 0 return
 fn_arrows 0 0
-fn 1 compile
+fn 1 preprocess
 fn_params 1 source
-fn_locals 1 source,err,t0,ast,t1,ir,t2,kbc,t3
+fn_locals 1 source,s
+fn_op 1 const 0
 fn_op 1 load_local 0
-fn_op 1 load_global 1
-fn_op 1 call 1
-fn_op 1 jump_if_false 11
-fn_op 1 load_local 0
-fn_op 1 load_global 2
-fn_op 1 call 1
+fn_op 1 add
 fn_op 1 store_local 1
 fn_op 1 load_local 1
-fn_op 1 const 3
-fn_op 1 ne
-fn_op 1 jump_if_false 3
-fn_op 1 load_local 1
-fn_op 1 throw
-fn_op 1 pop
-fn_op 1 load_global 3
-fn_op 1 call 0
-fn_op 1 store_local 2
-fn_op 1 load_local 0
-fn_op 1 load_global 4
-fn_op 1 call 1
-fn_op 1 store_local 3
-fn_op 1 load_global 3
-fn_op 1 call 0
-fn_op 1 store_local 4
-fn_op 1 load_local 3
-fn_op 1 load_global 5
-fn_op 1 call 1
-fn_op 1 store_local 5
-fn_op 1 load_global 3
-fn_op 1 call 0
-fn_op 1 store_local 6
-fn_op 1 load_local 5
-fn_op 1 load_global 6
-fn_op 1 call 1
-fn_op 1 store_local 7
-fn_op 1 load_global 3
-fn_op 1 call 0
-fn_op 1 store_local 8
 fn_op 1 const 5
-fn_op 1 load_global 7
-fn_op 1 call 1
+fn_op 1 const 0
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 1
+fn_op 1 pop
+fn_op 1 load_local 1
 fn_op 1 const 6
-fn_op 1 eq
-fn_op 1 jump_if_false 48
+fn_op 1 const 0
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 1
+fn_op 1 pop
+fn_op 1 load_local 1
 fn_op 1 const 7
 fn_op 1 const 0
-fn_op 1 load_local 4
-fn_op 1 load_local 2
-fn_op 1 sub
-fn_op 1 add
-fn_op 1 add
-fn_op 1 load_global 8
-fn_op 1 call 1
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 1
 fn_op 1 pop
+fn_op 1 load_local 1
 fn_op 1 const 8
 fn_op 1 const 0
-fn_op 1 load_local 6
-fn_op 1 load_local 4
-fn_op 1 sub
-fn_op 1 add
-fn_op 1 add
-fn_op 1 load_global 8
-fn_op 1 call 1
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 1
 fn_op 1 pop
+fn_op 1 load_local 1
 fn_op 1 const 9
-fn_op 1 const 0
-fn_op 1 load_local 8
-fn_op 1 load_local 6
-fn_op 1 sub
-fn_op 1 add
-fn_op 1 add
-fn_op 1 load_global 8
-fn_op 1 call 1
-fn_op 1 pop
 fn_op 1 const 10
-fn_op 1 const 0
-fn_op 1 load_local 8
-fn_op 1 load_local 2
-fn_op 1 sub
-fn_op 1 add
-fn_op 1 add
-fn_op 1 load_global 8
-fn_op 1 call 1
+fn_op 1 load_global 2
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 1
 fn_op 1 pop
-fn_op 1 const 11
-fn_op 1 const 0
-fn_op 1 len_local 7
-fn_op 1 add
-fn_op 1 add
-fn_op 1 load_global 8
-fn_op 1 call 1
-fn_op 1 pop
-fn_op 1 load_local 7
+fn_op 1 load_local 1
 fn_op 1 return
 fn_arrows 1 0
-fn 2 compileIr
+fn 2 compile
 fn_params 2 source
-fn_locals 2 source,err
+fn_locals 2 source,err,t0,ast,t1,ir,t2,kbc,t3
 fn_op 2 load_local 0
 fn_op 2 load_global 1
 fn_op 2 call 1
 fn_op 2 jump_if_false 11
 fn_op 2 load_local 0
-fn_op 2 load_global 2
+fn_op 2 load_global 4
 fn_op 2 call 1
 fn_op 2 store_local 1
 fn_op 2 load_local 1
@@ -158,13 +117,116 @@ fn_op 2 jump_if_false 3
 fn_op 2 load_local 1
 fn_op 2 throw
 fn_op 2 pop
-fn_op 2 load_local 0
-fn_op 2 load_global 4
-fn_op 2 call 1
 fn_op 2 load_global 5
+fn_op 2 call 0
+fn_op 2 store_local 2
+fn_op 2 load_local 0
+fn_op 2 load_global 3
 fn_op 2 call 1
+fn_op 2 load_global 6
+fn_op 2 call 1
+fn_op 2 store_local 3
+fn_op 2 load_global 5
+fn_op 2 call 0
+fn_op 2 store_local 4
+fn_op 2 load_local 3
+fn_op 2 load_global 7
+fn_op 2 call 1
+fn_op 2 store_local 5
+fn_op 2 load_global 5
+fn_op 2 call 0
+fn_op 2 store_local 6
+fn_op 2 load_local 5
+fn_op 2 load_global 8
+fn_op 2 call 1
+fn_op 2 store_local 7
+fn_op 2 load_global 5
+fn_op 2 call 0
+fn_op 2 store_local 8
+fn_op 2 const 11
+fn_op 2 load_global 9
+fn_op 2 call 1
+fn_op 2 const 12
+fn_op 2 eq
+fn_op 2 jump_if_false 48
+fn_op 2 const 13
+fn_op 2 const 0
+fn_op 2 load_local 4
+fn_op 2 load_local 2
+fn_op 2 sub
+fn_op 2 add
+fn_op 2 add
+fn_op 2 load_global 10
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 const 14
+fn_op 2 const 0
+fn_op 2 load_local 6
+fn_op 2 load_local 4
+fn_op 2 sub
+fn_op 2 add
+fn_op 2 add
+fn_op 2 load_global 10
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 const 15
+fn_op 2 const 0
+fn_op 2 load_local 8
+fn_op 2 load_local 6
+fn_op 2 sub
+fn_op 2 add
+fn_op 2 add
+fn_op 2 load_global 10
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 const 16
+fn_op 2 const 0
+fn_op 2 load_local 8
+fn_op 2 load_local 2
+fn_op 2 sub
+fn_op 2 add
+fn_op 2 add
+fn_op 2 load_global 10
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 const 17
+fn_op 2 const 0
+fn_op 2 len_local 7
+fn_op 2 add
+fn_op 2 add
+fn_op 2 load_global 10
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 load_local 7
 fn_op 2 return
 fn_arrows 2 0
+fn 3 compileIr
+fn_params 3 source
+fn_locals 3 source,err
+fn_op 3 load_local 0
+fn_op 3 load_global 1
+fn_op 3 call 1
+fn_op 3 jump_if_false 11
+fn_op 3 load_local 0
+fn_op 3 load_global 4
+fn_op 3 call 1
+fn_op 3 store_local 1
+fn_op 3 load_local 1
+fn_op 3 const 3
+fn_op 3 ne
+fn_op 3 jump_if_false 3
+fn_op 3 load_local 1
+fn_op 3 throw
+fn_op 3 pop
+fn_op 3 load_local 0
+fn_op 3 load_global 3
+fn_op 3 call 1
+fn_op 3 load_global 6
+fn_op 3 call 1
+fn_op 3 load_global 7
+fn_op 3 call 1
+fn_op 3 return
+fn_arrows 3 0
 arrows=0
 imports=4
 import 0 self_host/parse
@@ -182,5 +244,5 @@ code
 halt
 
 source=self_host/compile.kab
-statements=7
-fingerprint=819f0247d06f3e60
+statements=8
+fingerprint=d73fe408628d1c03

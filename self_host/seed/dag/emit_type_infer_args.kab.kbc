@@ -41,12 +41,13 @@ global 9 LIT_UNDEF
 global 10 emitInferLitFull
 global 11 eCallRet
 global 12 emitMangleWithTypeArgs
-global 13 push
-global 14 emitInferTypeArgsFrom
-global 15 arrUtil
-global 16 emitLoadExplicitTypeArgs
-global 17 emitResolveTypeArgs
-global 18 emitResolveTypeArgsMem
+global 13 object_array_clear
+global 14 object_array_push
+global 15 emitInferTypeArgsFrom
+global 16 arrUtil
+global 17 emitLoadExplicitTypeArgs
+global 18 emitResolveTypeArgs
+global 19 emitResolveTypeArgsMem
 local 0 eCallRet
 functions=8
 fn 0 emitInferVarBinding
@@ -331,21 +332,17 @@ fn_op 3 return
 fn_arrows 3 0
 fn 4 emitInferTypeArgsFrom
 fn_params 4 E,argsKey,errSym,litFull
-fn_locals 4 E,argsKey,errSym,litFull,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5
-fn_op 4 make_array 0
-fn_op 4 store_local 4
+fn_locals 4 E,argsKey,errSym,litFull,__kab_a0,__kab_a1,__kab_a2,__kab_a3
 fn_op 4 load_local 0
 fn_op 4 const 16
-fn_op 4 load_local 4
-fn_op 4 index_set
-fn_op 4 swap
-fn_op 4 store_local 0
+fn_op 4 load_global 13
+fn_op 4 call 2
 fn_op 4 pop
 fn_op 4 const 2
-fn_op 4 store_local 5
+fn_op 4 store_local 4
 fn_op 4 load_local 0
 fn_op 4 const 18
-fn_op 4 load_local 5
+fn_op 4 load_local 4
 fn_op 4 index_set
 fn_op 4 swap
 fn_op 4 store_local 0
@@ -357,25 +354,25 @@ fn_op 4 index_get_local 0
 fn_op 4 load_global 1
 fn_op 4 call 1
 fn_op 4 lt
-fn_op 4 jump_if_false 92
+fn_op 4 jump_if_false 85
 fn_op 4 load_local 1
 fn_op 4 index_get_local 0
 fn_op 4 load_local 0
 fn_op 4 get_member 18
 fn_op 4 index_get
-fn_op 4 store_local 6
+fn_op 4 store_local 5
 fn_op 4 load_local 0
 fn_op 4 const 20
-fn_op 4 load_local 6
+fn_op 4 load_local 5
 fn_op 4 index_set
 fn_op 4 swap
 fn_op 4 store_local 0
 fn_op 4 pop
 fn_op 4 const 9
-fn_op 4 store_local 7
+fn_op 4 store_local 6
 fn_op 4 load_local 0
 fn_op 4 const 7
-fn_op 4 load_local 7
+fn_op 4 load_local 6
 fn_op 4 index_set
 fn_op 4 swap
 fn_op 4 store_local 0
@@ -422,34 +419,27 @@ fn_op 4 throw
 fn_op 4 load_local 2
 fn_op 4 add
 fn_op 4 pop
-fn_op 4 jump 14
-fn_op 4 load_local 0
-fn_op 4 get_member 16
-fn_op 4 load_local 0
-fn_op 4 get_member 7
-fn_op 4 load_global 13
-fn_op 4 call 2
-fn_op 4 store_local 8
+fn_op 4 jump 7
 fn_op 4 load_local 0
 fn_op 4 const 16
-fn_op 4 load_local 8
-fn_op 4 index_set
-fn_op 4 swap
-fn_op 4 store_local 0
+fn_op 4 load_local 0
+fn_op 4 get_member 7
+fn_op 4 load_global 14
+fn_op 4 call 3
 fn_op 4 pop
 fn_op 4 load_local 0
 fn_op 4 get_member 18
 fn_op 4 const 8
 fn_op 4 add
-fn_op 4 store_local 9
+fn_op 4 store_local 7
 fn_op 4 load_local 0
 fn_op 4 const 18
-fn_op 4 load_local 9
+fn_op 4 load_local 7
 fn_op 4 index_set
 fn_op 4 swap
 fn_op 4 store_local 0
 fn_op 4 pop
-fn_op 4 jump -100
+fn_op 4 jump -93
 fn_op 4 const 1
 fn_op 4 return
 fn_arrows 4 0
@@ -492,7 +482,7 @@ fn_op 5 load_local 0
 fn_op 5 const 26
 fn_op 5 load_local 0
 fn_op 5 get_member 24
-fn_op 5 load_global 15
+fn_op 5 load_global 16
 fn_op 5 call 3
 fn_op 5 store_local 3
 fn_op 5 load_local 0
@@ -509,7 +499,7 @@ fn 6 emitResolveTypeArgs
 fn_params 6 E,argsKey,errSym,litFull
 fn_locals 6 E,argsKey,errSym,litFull
 fn_op 6 load_local 0
-fn_op 6 load_global 16
+fn_op 6 load_global 17
 fn_op 6 call 1
 fn_op 6 pop
 fn_op 6 load_local 0
@@ -523,7 +513,7 @@ fn_op 6 load_local 0
 fn_op 6 load_local 1
 fn_op 6 load_local 2
 fn_op 6 load_local 3
-fn_op 6 load_global 14
+fn_op 6 load_global 15
 fn_op 6 call 4
 fn_op 6 pop
 fn_op 6 const 1
@@ -533,7 +523,7 @@ fn 7 emitResolveTypeArgsMem
 fn_params 7 E,argsKey,errSym,litFull
 fn_locals 7 E,argsKey,errSym,litFull,__kab_a0
 fn_op 7 load_local 0
-fn_op 7 load_global 16
+fn_op 7 load_global 17
 fn_op 7 call 1
 fn_op 7 pop
 fn_op 7 load_local 0
@@ -556,7 +546,7 @@ fn_op 7 load_local 0
 fn_op 7 const 26
 fn_op 7 load_local 0
 fn_op 7 get_member 27
-fn_op 7 load_global 15
+fn_op 7 load_global 16
 fn_op 7 call 3
 fn_op 7 store_local 4
 fn_op 7 load_local 0
@@ -572,7 +562,7 @@ fn_op 7 load_local 0
 fn_op 7 load_local 1
 fn_op 7 load_local 2
 fn_op 7 load_local 3
-fn_op 7 load_global 14
+fn_op 7 load_global 15
 fn_op 7 call 4
 fn_op 7 return
 fn_arrows 7 0
@@ -601,4 +591,4 @@ halt
 
 source=self_host/emit_type_infer_args.kab
 statements=12
-fingerprint=a0524a71c739aafc
+fingerprint=2a4cbab9ddd99f34

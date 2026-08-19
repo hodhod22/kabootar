@@ -23,7 +23,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         import_shard_stats()
     );
     assert!(
-        inv.kab_files >= 80,
+        inv.kab_files >= 64,
         "self_host product .kab count, got {}",
         inv.kab_files
     );
@@ -367,6 +367,33 @@ fn sh2_nested_if_while_fn_rust() {
     assert_eq!(kabootar_lib::value::format_value(&v), "1");
 }
 
+/// SH2: nested named `fn` must save/restore outer eFnOps (MakeArrow + local), not clobber.
+#[test]
+fn sh2_nested_named_fn_self_host_emit() {
+    use kabootar_lib::compile::compile_source_self_host;
+    std::env::set_var("KABOOTAR_VM", "host");
+    let stats = kabootar_lib::compile::compile_dirty_dag_seeds().expect("heal emit DAG");
+    assert_eq!(stats.failed, 0, "dirty compile failed");
+    kabootar_lib::compile::reset_self_host_toolchain_cache();
+    let src = r#"
+fn outer(n) {
+    fn inner(x) {
+        return x + 1
+    }
+    return inner(n)
+}
+return outer(3)
+"#;
+    let ok = sh8_spawn("sh2-nestfn", move || {
+        let p = compile_source_self_host(src).expect("self-host nested fn");
+        let bc = p.bytecode.expect("bytecode");
+        let mut env = create_global_env();
+        let v = run_module(&bc, &mut env).expect("run");
+        kabootar_lib::value::format_value(&v) == "4"
+    });
+    assert!(ok, "SH2 nested named fn: outer(3) via inner should be 4");
+}
+
 /// SH8: object field writes in a callee must be visible on the caller's object.
 #[test]
 fn sh8_object_arg_mutation_visible() {
@@ -545,18 +572,28 @@ fn sh8_tiny_parse_via_compiler_image() {
     );
 }
 
-/// SH8: tiny self-host compile.
+/// SH8: tiny self-host compile. SH14: second compile in the same thread (session + toolchain reuse).
 #[test]
 fn sh8_tiny_self_host_compile() {
+    use kabootar_lib::bytecode::{jit_reset_for_tests, jit_stats};
     use kabootar_lib::compile::compile_source_self_host;
     std::env::set_var("KABOOTAR_VM", "host");
     ensure_compiler_image();
-    let t0 = Instant::now();
-    let program = sh8_spawn("sh8-compile", || {
-        compile_source_self_host("return 1\n").expect("self-host tiny")
+    jit_reset_for_tests();
+    let (first_ms, warm_ms, program) = sh8_spawn("sh8-compile", || {
+        let t0 = Instant::now();
+        let p = compile_source_self_host("return 1\n").expect("self-host tiny");
+        let first_ms = t0.elapsed().as_secs_f64() * 1000.0;
+        let t1 = Instant::now();
+        let p2 = compile_source_self_host(
+            "fn add(a, b) { return a + b }\nfn loopn(n) {\n  let i = 0\n  let s = 0\n  while i < n {\n    s = add(s, i)\n    i = i + 1\n  }\n  return s\n}\nreturn loopn(8)\n",
+        )
+        .expect("self-host warm");
+        let warm_ms = t1.elapsed().as_secs_f64() * 1000.0;
+        assert!(p2.bytecode.is_some(), "SH14 warm self-host bytecode");
+        (first_ms, warm_ms, p)
     });
-    let first_ms = t0.elapsed().as_secs_f64() * 1000.0;
-    eprintln!("SH8 tiny first_ms={first_ms:.1}");
+    eprintln!("SH8 tiny first_ms={first_ms:.1} SH14 warm_ms={warm_ms:.1}");
     assert!(program.bytecode.is_some(), "tiny self-host bytecode");
     let budget = if cfg!(debug_assertions) {
         90_000.0
@@ -566,6 +603,23 @@ fn sh8_tiny_self_host_compile() {
     assert!(
         first_ms < budget,
         "SH8 tiny compile should be < {budget} ms, got {first_ms:.1}"
+    );
+    assert!(
+        warm_ms < budget,
+        "SH14 warm self-host compile should be < {budget} ms, got {warm_ms:.1}"
+    );
+    if first_ms >= 2_000.0 {
+        assert!(
+            warm_ms <= first_ms * 0.75 + 250.0,
+            "SH14: second compile in-process should reuse toolchain+session (cold={first_ms:.1} warm={warm_ms:.1})"
+        );
+    }
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 self-host compile() jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: compile() of tiny/medium should hit Cranelift (accCount/serCount), hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
@@ -626,10 +680,271 @@ fn sh9_host_jit_add_loop() {
     assert_eq!(n, Some(8), "P13/SH9 jit_add_loop(8)");
 }
 
+/// SH9: `accCount` in emit DAG is a typed i64 AccAdd-loop — JIT hits when the toolchain runs it.
+#[test]
+fn sh9_emit_acc_count_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-acc", || {
+        let mut env = create_module_env();
+        import_module("self_host/emit_arr_util", &mut env).expect("import emit_arr_util");
+        let f = env
+            .get("accCount")
+            .expect("accCount export")
+            .clone();
+        let out = call_value(f, vec![Value::Number(64)], &[], &[], &[], &[], &mut env)
+            .expect("accCount");
+        matches!(out, Value::Number(64))
+    });
+    assert!(ok, "accCount(64) == 64");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 accCount jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected Cranelift on accCount, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+/// SH9: `serCount` in serialize DAG is a typed i64 AccAdd-loop.
+#[test]
+fn sh9_serialize_ser_count_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-ser", || {
+        let mut env = create_module_env();
+        import_module("self_host/serialize_ops", &mut env).expect("import serialize_ops");
+        let f = env.get("serCount").expect("serCount export").clone();
+        let out = call_value(f, vec![Value::Number(48)], &[], &[], &[], &[], &mut env)
+            .expect("serCount");
+        matches!(out, Value::Number(48))
+    });
+    assert!(ok, "serCount(48) == 48");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 serCount jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected Cranelift on serCount, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+/// SH9: `idxSum` is a typed i64 index AccAdd-loop (triangular numbers).
+#[test]
+fn sh9_emit_idx_sum_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-idx", || {
+        let mut env = create_module_env();
+        import_module("self_host/emit_arr_util", &mut env).expect("import emit_arr_util");
+        let f = env.get("idxSum").expect("idxSum export").clone();
+        let out = call_value(f, vec![Value::Number(32)], &[], &[], &[], &[], &mut env)
+            .expect("idxSum");
+        matches!(out, Value::Number(496))
+    });
+    assert!(ok, "idxSum(32) == 496");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 idxSum jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected Cranelift on idxSum, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+/// SH9: `idxSumArr` is a LenLocal + IndexGetLocal i64 loop (Cranelift loads flattened i64[]).
+#[test]
+fn sh9_emit_idx_sum_arr_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-idxarr", || {
+        let mut env = create_module_env();
+        import_module("self_host/emit_arr_util", &mut env).expect("import emit_arr_util");
+        let f = env.get("idxSumArr").expect("idxSumArr export").clone();
+        let xs = Value::from_array(vec![
+            Value::Number(1),
+            Value::Number(2),
+            Value::Number(3),
+            Value::Number(4),
+        ]);
+        let out = call_value(f, vec![xs], &[], &[], &[], &[], &mut env).expect("idxSumArr");
+        matches!(out, Value::Number(10))
+    });
+    assert!(ok, "idxSumArr([1,2,3,4]) == 10");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 idxSumArr jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected Cranelift on idxSumArr, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+/// SH9: `strCount` is a LenLocal-loop over a string (Cranelift gets `len`, no char IndexGet).
+#[test]
+fn sh9_emit_str_count_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-str", || {
+        let mut env = create_module_env();
+        import_module("self_host/emit_arr_util", &mut env).expect("import emit_arr_util");
+        let f = env.get("strCount").expect("strCount export").clone();
+        let out = call_value(
+            f,
+            vec![Value::String("kabootar".into())],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .expect("strCount");
+        matches!(out, Value::Number(8))
+    });
+    assert!(ok, "strCount(\"kabootar\") == 8");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 strCount jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected Cranelift on strCount, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+/// SH9: `strAt` / `strJoinIdx` use IndexGet of 1-char string Values (not i64 codepoints).
+#[test]
+fn sh9_emit_str_char_index_jit_hits() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::create_module_env;
+    use kabootar_lib::modules::import_module;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    ensure_compiler_image();
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh9-strch", || {
+        let mut env = create_module_env();
+        import_module("self_host/emit_arr_util", &mut env).expect("import emit_arr_util");
+        let at = env.get("strAt").expect("strAt").clone();
+        let join = env.get("strJoinIdx").expect("strJoinIdx").clone();
+        let ch = call_value(
+            at,
+            vec![Value::String("kab".into()), Value::Number(1)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .expect("strAt");
+        let cat = call_value(
+            join,
+            vec![Value::String("kab".into())],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .expect("strJoinIdx");
+        matches!(ch, Value::String(s) if s == "a")
+            && matches!(cat, Value::String(s) if s == "kab")
+    });
+    assert!(ok, "strAt(\"kab\", 1)==\"a\" and strJoinIdx(\"kab\")==\"kab\"");
+    let (hits, compiled, fails) = jit_stats();
+    eprintln!("SH9 str char-index jit hits={hits} compiled={compiled} fails={fails}");
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "SH9: expected host IndexGet 1-char path, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
 /// SH15: fingerprint includes compiler-image version (cache key changes if image ver changes).
 #[test]
 fn sh15_fingerprint_includes_image_version() {
     assert_eq!(kabootar_lib::compile::COMPILER_IMAGE_VERSION, 1);
     let a = kabootar_lib::compile::source_fingerprint("missing.kab", "return 1\n");
     assert!(!a.is_empty());
+}
+
+/// SH15: CA `kbcb` hit via mmap does not need the text `.kbc` sidecar.
+#[test]
+fn sh15_ca_kbcb_mmap_hit_skips_text() {
+    use kabootar_lib::compile::{
+        compile_source, read_bytecode_cache_at, source_fingerprint, write_compile_marker_at,
+        COMPILER_IMAGE_VERSION,
+    };
+    let tmp = std::env::temp_dir().join(format!("kab_sh15_int_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).expect("tmp");
+    let path = tmp.join("hit.kab");
+    let src = "return 1 + 1\n";
+    std::fs::write(&path, src).expect("write");
+    let path_s = path.to_str().expect("utf8");
+    let prog = compile_source(src).expect("compile");
+    write_compile_marker_at(&tmp, path_s, &prog).expect("cache");
+    let fp = source_fingerprint(path_s, src);
+    let ca = tmp
+        .join(".kabootar")
+        .join("cache")
+        .join("ca")
+        .join(format!("v{COMPILER_IMAGE_VERSION}_{fp}.kbcb"));
+    assert!(ca.is_file(), "CA kbcb {}", ca.display());
+    for ent in std::fs::read_dir(tmp.join(".kabootar").join("cache")).expect("cache dir") {
+        let ent = ent.expect("ent");
+        let p = ent.path();
+        if p.extension().and_then(|e| e.to_str()) == Some("kbc") {
+            let _ = std::fs::remove_file(&p);
+        }
+        if p.extension().and_then(|e| e.to_str()) == Some("kbcb") {
+            let _ = std::fs::remove_file(&p);
+        }
+    }
+    let mtime = std::fs::metadata(&path).unwrap().modified().unwrap();
+    let hit = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read");
+    assert!(hit.is_some(), "mmap CA hit after deleting path-keyed cache");
+    let _ = std::fs::remove_dir_all(&tmp);
 }

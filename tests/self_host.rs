@@ -1742,7 +1742,7 @@ fn h6e_boot_policy_smoke() {
     );
     let ok = std::thread::Builder::new()
         .name("h6e-boot".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(32 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 kabootar_lib::cli::run_file(&path).expect("h6e boot smoke should run"),
@@ -2245,11 +2245,15 @@ fn h6e_skip_listed_kab_only_uses_seed() {
 #[test]
 fn p6_seed_only_all_leaves_have_seeds() {
     use kabootar_lib::compile::{
-        seed_kbc_path, self_host_is_skip_listed, self_host_skip_policy, SELF_HOST_SKIP_LISTED_LEAVES,
+        seed_kbc_path, self_host_is_skip_listed, self_host_skip_policy, self_host_would_attempt,
+        SELF_HOST_MAX_SOURCE_BYTES, SELF_HOST_SKIP_LISTED_LEAVES,
     };
 
     assert_eq!(self_host_skip_policy(), "attempt-all");
     assert_eq!(SELF_HOST_SKIP_LISTED_LEAVES.len(), 0);
+    assert_eq!(SELF_HOST_MAX_SOURCE_BYTES, 65536);
+    assert!(self_host_would_attempt("app.kab", &"x".repeat(100)));
+    assert!(!self_host_would_attempt("app.kab", &"x".repeat(70000)));
     let root = env!("CARGO_MANIFEST_DIR");
     for rel in [
         "self_host/emit_impl.kab",
@@ -2312,36 +2316,21 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let body = format!("{root}/self_host/serialize_body.kab");
     let defs = format!("{root}/self_host/serialize_defs.kab");
     let ir = format!("{root}/self_host/serialize_ir.kab");
-    let pure = format!("{root}/self_host/serialize_pure.kab");
     let out = format!("{root}/self_host/serialize_out.kab");
     let sections = format!("{root}/self_host/serialize_sections.kab");
     let ops = format!("{root}/self_host/serialize_ops.kab");
     let fns = format!("{root}/self_host/serialize_fns.kab");
     let acc = format!("{root}/self_host/serialize_acc.kab");
-    let acc_pool = format!("{root}/self_host/serialize_acc_pool.kab");
-    let acc_tail = format!("{root}/self_host/serialize_acc_tail.kab");
-    let esc = format!("{root}/self_host/serialize_esc.kab");
-    let op = format!("{root}/self_host/serialize_op.kab");
-    let out_base = format!("{root}/self_host/serialize_out_base.kab");
-    let konst = format!("{root}/self_host/serialize_const.kab");
     let ir_line = format!("{root}/self_host/serialize_ir_line.kab");
     let ir_op = format!("{root}/self_host/serialize_ir_op.kab");
-    let ir_op_new = format!("{root}/self_host/serialize_ir_op_new.kab");
-    let ir_op_lookup = format!("{root}/self_host/serialize_ir_op_lookup.kab");
     let body_src = std::fs::read_to_string(&body).expect("read serialize_body");
     let defs_src = std::fs::read_to_string(&defs).expect("read serialize_defs");
     let ir_src = std::fs::read_to_string(&ir).expect("read serialize_ir");
-    let pure_src = std::fs::read_to_string(&pure).expect("read serialize_pure");
     let out_src = std::fs::read_to_string(&out).expect("read serialize_out");
     let sections_src = std::fs::read_to_string(&sections).expect("read serialize_sections");
     let ops_src = std::fs::read_to_string(&ops).expect("read serialize_ops");
     let fns_src = std::fs::read_to_string(&fns).expect("read serialize_fns");
     let acc_src = std::fs::read_to_string(&acc).expect("read serialize_acc");
-    let acc_pool_src = std::fs::read_to_string(&acc_pool).expect("read serialize_acc_pool");
-    let esc_src = std::fs::read_to_string(&esc).expect("read serialize_esc");
-    let op_src = std::fs::read_to_string(&op).expect("read serialize_op");
-    let out_base_src = std::fs::read_to_string(&out_base).expect("read serialize_out_base");
-    let const_src = std::fs::read_to_string(&konst).expect("read serialize_const");
     let ir_line_src = std::fs::read_to_string(&ir_line).expect("read serialize_ir_line");
     let ir_op_src = std::fs::read_to_string(&ir_op).expect("read serialize_ir_op");
     assert!(
@@ -2350,10 +2339,8 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     );
     assert!(
         defs_src.contains("pub import")
-            && pure_src.contains("pub import")
-            && out_src.contains("pub import")
             && sections_src.contains("pub import")
-            && op_src.contains("pub import")
+            && sections_src.contains("pub fn serAppendClasses(")
             && ir_line_src.contains("pub import"),
         "aggregators should stay pub-import facades"
     );
@@ -2366,7 +2353,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: IR_WITH_ARG must list len_*/index_get_* for serialize"
     );
     assert!(
-        out_base_src.contains("pub fn serOutTag(out, tag)") && !out_base_src.contains("let serOut ="),
+        out_src.contains("pub fn serOutTag(out, tag)") && !out_src.contains("let serOut ="),
         "P6b: out helpers must thread out string (no module-local serOut)"
     );
     assert!(
@@ -2376,15 +2363,16 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     );
     assert!(
         acc_src.contains("pub fn serSerializeBc(")
-            && acc_src.contains("serAppendConsts(")
-            && acc_pool_src.contains("pub fn serAppendConsts("),
+            && acc_src.contains("serAppendConsts("),
         "P6b: serSerializeBc must orchestrate pool/tail helpers"
     );
     assert!(
-        esc_src.contains("pub fn serEscStr(")
-            && const_src.contains("pub fn serConstLine(")
-            && ir_op_src.contains("pub fn serIrOpLine("),
-        "P6b: esc/const/ir_op helpers must live in their shards"
+        ir_line_src.contains("pub fn serEscStr(")
+            && ir_line_src.contains("pub fn serConstLine(")
+            && ir_op_src.contains("pub fn serIrOpLine(")
+            && ir_op_src.contains("pub fn serIrOpNewInstance(")
+            && ir_op_src.contains("pub fn serIrOpLookup("),
+        "P6b: esc/const in serialize_ir_line; ir op helpers in serialize_ir_op"
     );
     assert!(
         body_src.contains("serSerializeBc") && body_src.contains("fn serializeBcImplCore("),
@@ -2395,8 +2383,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: leaf must not keep AccAdd/section helpers"
     );
     for path in [
-        &body, &defs, &ir, &pure, &out, &sections, &op, &esc, &out_base, &ops, &ir_line, &acc,
-        &acc_pool, &acc_tail, &konst, &fns, &ir_op, &ir_op_new, &ir_op_lookup,
+        &body, &defs, &ir, &out, &sections, &ops, &ir_line, &acc, &fns, &ir_op,
     ] {
         assert!(
             !self_host_is_skip_listed(path),

@@ -27,12 +27,12 @@ const 23 string methodSym
 global 0 len
 global 1 emitFnCompileBody
 global 2 arrUtil
-global 3 push
+global 3 object_array_push
 global 4 emitGenClassMeth
 functions=1
 fn 0 emitGenClassMeth
 fn_params 0 E
-fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6
+fn_locals 0 E,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 get_member 1
@@ -64,7 +64,7 @@ fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 const 5
 fn_op 0 eq
-fn_op 0 jump_if_false 82
+fn_op 0 jump_if_false 75
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 get_member 6
@@ -92,7 +92,7 @@ fn_op 0 load_global 1
 fn_op 0 call 1
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 10
+fn_op 0 const 10
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 get_member 11
@@ -127,20 +127,13 @@ fn_op 0 call 3
 fn_op 0 const 18
 fn_op 0 make_object 5
 fn_op 0 load_global 3
-fn_op 0 call 2
-fn_op 0 store_local 5
-fn_op 0 load_local 0
-fn_op 0 const 10
-fn_op 0 load_local 5
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 call 3
 fn_op 0 pop
 fn_op 0 const 5
-fn_op 0 store_local 6
+fn_op 0 store_local 5
 fn_op 0 load_local 0
 fn_op 0 const 19
-fn_op 0 load_local 6
+fn_op 0 load_local 5
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -148,7 +141,7 @@ fn_op 0 pop
 fn_op 0 const 5
 fn_op 0 return
 fn_op 0 load_local 0
-fn_op 0 get_member 20
+fn_op 0 const 20
 fn_op 0 load_local 0
 fn_op 0 get_member 21
 fn_op 0 const 22
@@ -177,14 +170,7 @@ fn_op 0 get_member 8
 fn_op 0 const 8
 fn_op 0 make_object 5
 fn_op 0 load_global 3
-fn_op 0 call 2
-fn_op 0 store_local 7
-fn_op 0 load_local 0
-fn_op 0 const 20
-fn_op 0 load_local 7
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 call 3
 fn_op 0 pop
 fn_op 0 const 5
 fn_op 0 return
@@ -207,4 +193,4 @@ halt
 
 source=self_host/emit_gen_class_meth.kab
 statements=6
-fingerprint=d245abffd96f1827
+fingerprint=ece52ca14684d9c6

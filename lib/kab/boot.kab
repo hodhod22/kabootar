@@ -2,7 +2,7 @@
 
 // H6e: language bootstrap / compile policy in Kab. import "kab/boot"
 // Rust remains the process loader + VM; product compile policy prefers self_host.
-// KEEP <=~7 top-level fn.
+// KEEP <=~8 top-level fn (policy lives here; loader only mirrors).
 
 import "self_host/compile"
 import "self_host/lexer"
@@ -60,4 +60,25 @@ pub fn bootPipelineOk() {
     let toks = bootTokenize(src)
     let kbc = bootCompile(src)
     return preferSelfHost && len(toks) > 3 && isBytecode(kbc) && len(kbc) > 30
+}
+
+/// H6e compile-attempt policy (loader mirrors: skip-list empty, 64KiB source cap).
+/// `shouldSelfHost`: `a` is source length (path unused while skip-list is empty).
+pub fn bootPolicy(key, a) {
+    if key == "skip" {
+        return "attempt-all"
+    }
+    if key == "maxBytes" {
+        return 65536
+    }
+    if key == "prefer" {
+        return "self-host-then-rust"
+    }
+    if key == "shouldSelfHost" {
+        if a > 65536 {
+            return false
+        }
+        return true
+    }
+    return null
 }

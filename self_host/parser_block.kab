@@ -4,6 +4,7 @@ import "self_host/parser_hooks"
 import "self_host/parser_util"
 
 pub fn pEnterBody(sess) {
+    // Assign-back (not object_array_push): sess is Rc-shared across tramp calls.
     sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
     sess["pBodyDepth"] = sess["pBodyDepth"] + 1
     sess["pBody"] = []
@@ -12,8 +13,10 @@ pub fn pEnterBody(sess) {
 
 pub fn pLeaveBody(sess) {
     let body = sess["pBody"]
-    sess["pBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-    sess["pBodyStack"] = pop(sess["pBodyStack"])
+    let st = sess["pBodyStack"]
+    let n = len(st)
+    sess["pBody"] = st[n - 1]
+    sess["pBodyStack"] = slice(st, 0, n - 1)
     sess["pBodyDepth"] = sess["pBodyDepth"] - 1
     return body
 }
@@ -23,7 +26,8 @@ pub fn pParseBodyUntilRBrace(sess, eofMsg) {
         if sess["pCur"].type == "EOF" {
             throw eofMsg
         }
-        sess["pBody"] = push(sess["pBody"], pCallStmt(sess))
+        let stmt = pCallStmt(sess)
+        sess["pBody"] = push(sess["pBody"], stmt)
         if sess["pCur"].type == ";" {
             bump(sess)
         }
@@ -41,15 +45,18 @@ pub fn pEnterLoopBody(sess) {
 
 pub fn pLeaveLoopBody(sess) {
     let body = sess["pLoopBody"]
-    sess["pLoopBody"] = sess["pBodyStack"][sess["pBodyDepth"] - 1]
-    sess["pBodyStack"] = pop(sess["pBodyStack"])
+    let st = sess["pBodyStack"]
+    let n = len(st)
+    sess["pLoopBody"] = st[n - 1]
+    sess["pBodyStack"] = slice(st, 0, n - 1)
     sess["pBodyDepth"] = sess["pBodyDepth"] - 1
     return body
 }
 
 pub fn pParseLoopUntilRBrace(sess) {
     while sess["pCur"].type != "}" {
-        sess["pLoopBody"] = push(sess["pLoopBody"], pCallStmt(sess))
+        let stmt = pCallStmt(sess)
+        sess["pLoopBody"] = push(sess["pLoopBody"], stmt)
         if sess["pCur"].type == ";" {
             bump(sess)
         }

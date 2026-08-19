@@ -1,14 +1,132 @@
 kabootar-bytecode/1
-constants=0
-functions=0
+constants=10
+const 0 string pCur
+const 1 string pTok
+const 2 string pPos
+const 3 string pToksLen
+const 4 number 1
+const 5 string pToks
+const 6 string pEofTok
+const 7 null
+const 8 string pSymPool
+const 9 string pSymN
+global 0 peek
+global 1 bump
+global 2 push
+global 3 poolPush
+functions=3
+fn 0 peek
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 return
+fn_arrows 0 0
+fn 1 bump
+fn_params 1 sess
+fn_locals 1 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 store_local 1
+fn_op 1 load_local 0
+fn_op 1 const 1
+fn_op 1 load_local 1
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 load_local 0
+fn_op 1 get_member 3
+fn_op 1 lt
+fn_op 1 jump_if_false 42
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 const 4
+fn_op 1 add
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 const 2
+fn_op 1 load_local 2
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 load_local 0
+fn_op 1 get_member 3
+fn_op 1 lt
+fn_op 1 jump_if_false 14
+fn_op 1 load_local 0
+fn_op 1 get_member 5
+fn_op 1 load_local 0
+fn_op 1 get_member 2
+fn_op 1 index_get
+fn_op 1 store_local 3
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 load_local 3
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 jump 10
+fn_op 1 load_local 0
+fn_op 1 get_member 6
+fn_op 1 store_local 4
+fn_op 1 load_local 0
+fn_op 1 const 0
+fn_op 1 load_local 4
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 1
+fn_op 1 return
+fn_arrows 1 0
+fn 2 poolPush
+fn_params 2 sess,v
+fn_locals 2 sess,v,__kab_a0,__kab_a1
+fn_op 2 load_local 0
+fn_op 2 get_member 8
+fn_op 2 load_local 1
+fn_op 2 load_global 2
+fn_op 2 call 2
+fn_op 2 store_local 2
+fn_op 2 load_local 0
+fn_op 2 const 8
+fn_op 2 load_local 2
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 9
+fn_op 2 const 4
+fn_op 2 add
+fn_op 2 store_local 3
+fn_op 2 load_local 0
+fn_op 2 const 9
+fn_op 2 load_local 3
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 1
+fn_op 2 return
+fn_arrows 2 0
 arrows=0
 imports=2
-import 0 self_host/parser_util_bump
-import 1 self_host/parser_util_pool
-pub_imports=2
-pub_import 0 self_host/parser_util_bump
-pub_import 1 self_host/parser_util_pool
-exports=0
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
+pub_imports=0
+exports=3
+export 0 peek
+export 1 bump
+export 2 poolPush
 memory_mode=gc
 interfaces=0
 classes=0
@@ -16,5 +134,5 @@ code
 halt
 
 source=self_host/parser_util.kab
-statements=2
-fingerprint=c93a424369d10a92
+statements=5
+fingerprint=fdaca8350914a984

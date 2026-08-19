@@ -1,6 +1,6 @@
 // P6b: serialize aggregator — re-exports for importers that used serialize_defs.
 pub import "self_host/serialize_ir"
-pub import "self_host/serialize_pure"
+pub import "self_host/serialize_ir_line"
 pub import "self_host/serialize_out"
 pub import "self_host/serialize_sections"
 pub import "self_host/serialize_acc"

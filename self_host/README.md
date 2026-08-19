@@ -1,8 +1,8 @@
 # Self-hosted Kabootar compiler
 
-Produktkompilatorn är **Kabootar** (`self_host/compile.kab`), inte Rust-emit, för app-`.kab`. Host-VM + Cranelift kör toolchainen. JIT/GC skrivs **inte** om i Kab.
+**Slutmål (nolltolerans):** hela stacken är `.kab` — compiler, VM, **JIT, GC**, loader. Rust är skuld. Se [docs/ROADMAP.md](../docs/ROADMAP.md) (läs rutan överst).
 
-Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)** (`SH0`–`SH15`). **Fast Compile / Fast Run:** minimera compile-arbete (image, dirty-only, cache); dyra opts i runtime/JIT (P11–P13).
+Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. Nästa kod: reverse-densify i `.kab`, inte `src/`.
 
 ## Kedja
 
@@ -58,7 +58,7 @@ kabootar compile self_host/sample.kab
 
 ## Designregler
 
-**SH2:** parser/emit-cursors (`pPos`, `eOps`, …) ligger på **session-objektet**, inte nya modul-globaler. Trampolin: `sess["tramp"](sess)` så rekursion inte fångar en modul-`sess`. Nested `if`/`while` använder fortfarande `pCondStack` / `eIfJmpStack` **på sess** (full SH2 utan de stackarna är deepen).
+**SH2:** parser/emit-cursors (`pPos`, `eOps`, …) ligger på **session-objektet**, inte nya modul-globaler. Trampolin: `sess["tramp"](sess)` så rekursion inte fångar en modul-`sess`. Nested `if`/`while` använder `pCondStack` / `eIfJmpStack` **på sess**. Nested named `fn` i en funktion: `emitNestedNamedFn` (save/restore `eFnOps`, `MakeArrow` + lokal).
 
 1. **Fn-lokaler** — bytecode speglar lokaler på *aktuell* aktiveringsram. Captures: `local_captures`. **Lexer-ident:** `let cd`/`ok`/`start` i samma fn som loopen (`lxScanIdent`) — saknad `let` blir bytecode-global (`Undefined variable: cd`).
 2. **`push` returnerar ny array** — skriv `arr = push(arr, item)`.
@@ -122,11 +122,11 @@ Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte n�
 
 Kort ordning:
 
-1. ~~SH0/SH1~~ ✅ · **SH2** ny sess per anrop + `gSess` tramp ✅ subset
-2. ~~SH3–SH7 toolchain dirty+parallel~~ ✅ · **SH7b** produktträd ✅ API
-3. **SH8** tiny `parse()`/`compile()` 🚧 ignored (debug hang)
-4. **SH12–SH15** låg-allok, benches, mmap 📋 · **SH9** Cranelift på emit 📋
-5. ~~SH10/SH11~~ ✅
+1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
+2. ~~SH3–SH7b~~ ✅ · **SH5 deepen** expr-parser/`parseMain`/`parser_session`/`parser_util` inlined
+3. **SH8** tiny `compile()` via image
+4. **SH5** fler `emit_*`/`serialize_*` sammanslagningar (färre DAG-blad)
+5. ~~SH10/SH11/SH12–SH15 subset~~ ✅ · JIT/GC stannar native
 
 ## Historisk bootstrap-logg
 

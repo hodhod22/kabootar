@@ -11,39 +11,36 @@ const 7 string value
 const 8 string ,
 const 9 string Expected\s>
 global 0 bump
-global 1 TOKEN_IDENT
-global 2 poolPush
-global 3 push
-global 4 parseTypeArgs_consume
+global 1 object_array_clear
+global 2 TOKEN_IDENT
+global 3 poolPush
+global 4 object_array_push
+global 5 parseTypeArgs_consume
 functions=1
 fn 0 parseTypeArgs_consume
 fn_params 0 sess
-fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2
+fn_locals 0 sess,__kab_a0
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
-fn_op 0 make_array 0
-fn_op 0 store_local 1
 fn_op 0 load_local 0
 fn_op 0 const 0
-fn_op 0 load_local 1
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 load_global 1
+fn_op 0 call 2
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 1
 fn_op 0 get_member 2
 fn_op 0 const 3
 fn_op 0 ne
-fn_op 0 jump_if_false 52
+fn_op 0 jump_if_false 45
 fn_op 0 load_local 0
 fn_op 0 get_member 1
-fn_op 0 store_local 2
+fn_op 0 store_local 1
 fn_op 0 load_local 0
 fn_op 0 const 4
-fn_op 0 load_local 2
+fn_op 0 load_local 1
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
@@ -51,7 +48,7 @@ fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 4
 fn_op 0 get_member 2
-fn_op 0 load_global 1
+fn_op 0 load_global 2
 fn_op 0 ne
 fn_op 0 jump_if_false 3
 fn_op 0 const 5
@@ -62,22 +59,15 @@ fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 0
+fn_op 0 const 0
 fn_op 0 load_local 0
 fn_op 0 load_local 0
 fn_op 0 get_member 4
 fn_op 0 get_member 7
-fn_op 0 load_global 2
-fn_op 0 call 2
 fn_op 0 load_global 3
 fn_op 0 call 2
-fn_op 0 store_local 3
-fn_op 0 load_local 0
-fn_op 0 const 0
-fn_op 0 load_local 3
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 load_global 4
+fn_op 0 call 3
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 get_member 1
@@ -89,7 +79,7 @@ fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
-fn_op 0 jump -58
+fn_op 0 jump -51
 fn_op 0 load_local 0
 fn_op 0 get_member 1
 fn_op 0 get_member 2
@@ -124,4 +114,4 @@ halt
 
 source=self_host/parser_type_args_consume.kab
 statements=5
-fingerprint=fd3a4685e53675d7
+fingerprint=92c39a571529aea8

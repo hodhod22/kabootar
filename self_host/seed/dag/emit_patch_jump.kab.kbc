@@ -13,7 +13,7 @@ const 9 string eOps
 const 10 null
 global 0 eCallRet
 global 1 patchRelJump
-global 2 push
+global 2 object_array_push
 global 3 pushJmpAtLen
 local 0 eCallRet
 functions=2
@@ -116,24 +116,29 @@ fn_op 0 const 10
 fn_op 0 return
 fn_arrows 0 0
 fn 1 pushJmpAtLen
-fn_params 1 E,stack
-fn_locals 1 E,stack
+fn_params 1 E,key
+fn_locals 1 E,key
 fn_op 1 load_local 0
 fn_op 1 get_member 1
 fn_op 1 const 2
 fn_op 1 eq
-fn_op 1 jump_if_false 6
+fn_op 1 jump_if_false 8
+fn_op 1 load_local 0
 fn_op 1 load_local 1
 fn_op 1 load_local 0
 fn_op 1 get_member 3
 fn_op 1 load_global 2
-fn_op 1 call 2
-fn_op 1 return
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 jump 7
+fn_op 1 load_local 0
 fn_op 1 load_local 1
 fn_op 1 load_local 0
 fn_op 1 get_member 8
 fn_op 1 load_global 2
-fn_op 1 call 2
+fn_op 1 call 3
+fn_op 1 pop
+fn_op 1 const 0
 fn_op 1 return
 fn_arrows 1 0
 arrows=0
@@ -152,4 +157,4 @@ halt
 
 source=self_host/emit_patch_jump.kab
 statements=3
-fingerprint=998a949d310cdf8d
+fingerprint=ec09a8362c44a8b7

@@ -1,9 +1,0 @@
-// P6b densify: re-export session-wired emitter (shards under emit_*).
-import "self_host/emit_exec"
-
-pub let emitMainFromExec = emitMainExec
-
-// Compat: old call shape emitMain(E, program) — ignore passed E, use module session.
-pub fn emitMain(Eignored, program) {
-    return emitMainExec(program)
-}

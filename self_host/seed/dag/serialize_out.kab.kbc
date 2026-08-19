@@ -1,11 +1,15 @@
 kabootar-bytecode/1
-constants=6
+constants=10
 const 0 string \s
 const 1 string 
 const 2 string bodyStart
 const 3 string bodyEnd
 const 4 string catchStart
 const 5 string errLocal
+const 6 undefined
+const 7 null
+const 8 number 0
+const 9 number 1
 global 0 CHAR_NL
 global 1 serOutTag
 global 2 serOutSpNum
@@ -16,7 +20,8 @@ global 6 s
 global 7 serOutTagged2
 global 8 serOutTry4
 global 9 serOutTry5
-functions=8
+global 10 serAppendNamedList
+functions=9
 fn 0 serOutTag
 fn_params 0 out,tag
 fn_locals 0 out,tag
@@ -196,11 +201,55 @@ fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 return
 fn_arrows 7 0
+fn 8 serAppendNamedList
+fn_params 8 out,zeroTag,eqTag,itemTag,items
+fn_locals 8 out,zeroTag,eqTag,itemTag,items,i,n
+fn_op 8 load_local 4
+fn_op 8 const 6
+fn_op 8 eq
+fn_op 8 jump_if_false 5
+fn_op 8 load_local 0
+fn_op 8 load_local 1
+fn_op 8 load_global 1
+fn_op 8 call 2
+fn_op 8 return
+fn_op 8 load_local 0
+fn_op 8 load_local 2
+fn_op 8 len_local 4
+fn_op 8 load_global 4
+fn_op 8 call 3
+fn_op 8 dup
+fn_op 8 store_local 0
+fn_op 8 pop
+fn_op 8 const 8
+fn_op 8 store_local 5
+fn_op 8 len_local 4
+fn_op 8 store_local 6
+fn_op 8 load_local 5
+fn_op 8 load_local 6
+fn_op 8 lt
+fn_op 8 jump_if_false 13
+fn_op 8 load_local 0
+fn_op 8 load_local 3
+fn_op 8 load_local 5
+fn_op 8 load_local 5
+fn_op 8 index_get_local 4
+fn_op 8 load_global 5
+fn_op 8 call 4
+fn_op 8 dup
+fn_op 8 store_local 0
+fn_op 8 pop
+fn_op 8 const 9
+fn_op 8 acc_add_local 5
+fn_op 8 jump -17
+fn_op 8 load_local 0
+fn_op 8 return
+fn_arrows 8 0
 arrows=0
 imports=1
 import 0 self_host/lexer_defs
 pub_imports=0
-exports=8
+exports=9
 export 0 serOutTag
 export 1 serOutSpNum
 export 2 serOutSp
@@ -209,6 +258,7 @@ export 4 serOutTagged
 export 5 serOutTagged2
 export 6 serOutTry4
 export 7 serOutTry5
+export 8 serAppendNamedList
 memory_mode=gc
 interfaces=0
 classes=0
@@ -216,5 +266,5 @@ code
 halt
 
 source=self_host/serialize_out.kab
-statements=9
-fingerprint=619549c9243c8697
+statements=10
+fingerprint=64177219a72873c4

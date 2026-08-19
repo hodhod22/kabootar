@@ -61,7 +61,7 @@ impl CompilePrefer {
 /// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
 /// every public core is reached through thin `pub let X = Ximpl` facades
 /// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body` → `vm_run_exec_core`, `serialize` →
-/// `serialize_impl` → `serialize_body` → `serialize_acc` / `serialize_pure`). Only the
+/// `serialize_impl` → `serialize_body` → `serialize_acc`). Only the
 /// leaf shards below stay skip-listed (self-host AST density makes them CI-slow).
 /// Facades above them self-host-compile in CI-fast time. Product `import` prefers
 /// self-host via `load_program_for_file` → `compile_file_prefer_cached` (Rust only
@@ -72,6 +72,9 @@ impl CompilePrefer {
 /// densified shards. Committed `self_host/seed/*.kbc` remain a kab-only cache.
 pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[];
 
+/// H6e: same ceiling as `kab/boot` `bootPolicy("maxBytes")` (parity smoke).
+pub const SELF_HOST_MAX_SOURCE_BYTES: usize = 64 * 1024;
+
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
     for c in SELF_HOST_SKIP_LISTED_LEAVES {
@@ -79,10 +82,15 @@ fn should_attempt_self_host(path: &str, source: &str) -> bool {
             return false;
         }
     }
-    if source.len() > 64 * 1024 {
+    if source.len() > SELF_HOST_MAX_SOURCE_BYTES {
         return false;
     }
     true
+}
+
+/// Loader mirror of `kab/boot` `bootPolicy("shouldSelfHost")` (H6e deepen).
+pub fn self_host_would_attempt(path: &str, source: &str) -> bool {
+    should_attempt_self_host(path, source)
 }
 
 /// P6b: skip-list empty; seeds remain as kab-only cache for historical leaves.
@@ -755,17 +763,26 @@ pub fn write_compile_marker_at(
 
 pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
+    read_bytecode_cache_at(&base, path, source_mtime)
+}
+
+/// Load cached module from `base/.kabootar/cache`. CA `kbcb` hits mmap and skip text `.kbc`.
+pub fn read_bytecode_cache_at(
+    base: &Path,
+    path: &str,
+    source_mtime: SystemTime,
+) -> Result<Option<BytecodeModule>, String> {
     if let Ok(source) = fs::read_to_string(path) {
         let fp = source_fingerprint(path, &source);
-        let ca = cache_path_kbcb_ca(&base, &fp);
+        let ca = cache_path_kbcb_ca(base, &fp);
         if ca.is_file() {
             if let Ok(m) = deserialize_kbcb_file(&ca) {
                 return Ok(Some(m));
             }
         }
     }
-    let marker = cache_path_for(&base, path);
-    let kbcb_path = cache_path_kbcb(&base, path);
+    let marker = cache_path_for(base, path);
+    let kbcb_path = cache_path_kbcb(base, path);
     if kbcb_path.is_file() {
         let cache_mtime = fs::metadata(&kbcb_path)
             .ok()
@@ -915,5 +932,34 @@ mod tests {
         let p = compile_source("let x = 1\nx + 2").unwrap();
         assert_eq!(p.stmt_count, 2);
         assert!(p.has_bytecode());
+    }
+
+    #[test]
+    fn sh15_ca_mmap_hit_skips_text_kbc() {
+        let tmp = std::env::temp_dir().join(format!("kab_sh15_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp");
+        let path = tmp.join("hit.kab");
+        let src = "return 40 + 2\n";
+        fs::write(&path, src).expect("write kab");
+        let path_s = path.to_str().expect("utf8 path");
+        let prog = compile_source(src).expect("compile");
+        write_compile_marker_at(&tmp, path_s, &prog).expect("marker");
+        let fp = source_fingerprint(path_s, src);
+        let ca = cache_path_kbcb_ca(&tmp, &fp);
+        assert!(ca.is_file(), "missing CA {}", ca.display());
+        let _ = fs::remove_file(cache_path_for(&tmp, path_s));
+        let _ = fs::remove_file(cache_path_kbcb(&tmp, path_s));
+        let mtime = fs::metadata(&path).unwrap().modified().unwrap();
+        let hit = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read ca");
+        assert!(hit.is_some(), "SH15 CA mmap hit without text .kbc");
+        let wrong = ca.with_file_name(format!("v999_{fp}.kbcb"));
+        fs::rename(&ca, &wrong).expect("rename");
+        let miss = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read miss");
+        assert!(
+            miss.is_none(),
+            "SH15 image-version mismatch must not hit CA"
+        );
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

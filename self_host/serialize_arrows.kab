@@ -1,6 +1,43 @@
-// P6b: arrow-section appender (skip-listed until ≤10s).
+import "self_host/serialize_ir_line"
 import "self_host/serialize_out"
-import "self_host/serialize_arrow_one"
+import "self_host/serialize_ops"
+import "self_host/lexer_defs"
+
+// --- serialize_arrow_one ---
+pub fn serAppendOneArrow(out, i, arr) {
+    out = serOutTagged(out, "arrow", i, arr["sym"])
+    out = serOutTagged(out, "arrow_params", i, serJoinComma(arr["params"]))
+    out = serOutTagged(out, "arrow_locals", i, serJoinComma(arr["locals"]))
+    return serAppendTaggedOps(out, "arrow_op", i, arr["ops"])
+}
+
+/// SH2: arrows nested in a named fn (`fn_arrow` / `fn_arrow_op` lines).
+pub fn serAppendFnArrows(out, fi, arrows) {
+    if arrows == undefined {
+        return out
+    }
+    let n = len(arrows)
+    if n == 0 {
+        return out
+    }
+    out = serOutTagged(out, "fn_arrows", fi, n)
+    let ai = 0
+    while ai < n {
+        let arr = arrows[ai]
+        out = out + CHAR_NL + "fn_arrow " + ("" + fi) + " " + ("" + ai) + " " + arr["sym"]
+        out = out + CHAR_NL + "fn_arrow_params " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["params"])
+        out = out + CHAR_NL + "fn_arrow_locals " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["locals"])
+        let j = 0
+        let ops = arr["ops"]
+        let on = len(ops)
+        while j < on {
+            out = out + CHAR_NL + "fn_arrow_op " + ("" + fi) + " " + ("" + ai) + " " + serIrOpLine(ops[j])
+            j = j + 1
+        }
+        ai = ai + 1
+    }
+    return out
+}
 
 pub fn serAppendArrows(out, arrows) {
     if arrows == undefined {

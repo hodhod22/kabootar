@@ -3,6 +3,7 @@
 // ----- STACK MANIPULATION -----
 pub let OP_CONST = "const"
 pub let OP_POP = "pop"
+pub let OP_DUP = "dup"
 
 // ----- MEMORY ACCESS -----
 pub let OP_LOAD_GLOBAL = "load_global"

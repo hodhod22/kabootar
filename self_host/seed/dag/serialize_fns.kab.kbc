@@ -1,0 +1,184 @@
+kabootar-bytecode/1
+constants=16
+const 0 number 0
+const 1 string fn_try_region
+const 2 null
+const 3 number 1
+const 4 string fn
+const 5 string sym
+const 6 string fn_params
+const 7 string params
+const 8 string fn_locals
+const 9 string locals
+const 10 string tryRegions
+const 11 undefined
+const 12 string arrows
+const 13 string functions=
+const 14 string fn_op
+const 15 string ops
+global 0 serOutTry5
+global 1 serAppendFnTries
+global 2 serOutTagged
+global 3 serJoinComma
+global 4 serAppendFnArrows
+global 5 serAppendOneFn
+global 6 serOutTagEq
+global 7 serAppendTaggedOps
+global 8 serAppendFunctions
+functions=3
+fn 0 serAppendFnTries
+fn_params 0 out,i,regions
+fn_locals 0 out,i,regions,j,nTr
+fn_op 0 const 0
+fn_op 0 store_local 3
+fn_op 0 len_local 2
+fn_op 0 store_local 4
+fn_op 0 load_local 3
+fn_op 0 load_local 4
+fn_op 0 lt
+fn_op 0 jump_if_false 14
+fn_op 0 load_local 0
+fn_op 0 const 1
+fn_op 0 load_local 1
+fn_op 0 load_local 3
+fn_op 0 load_local 3
+fn_op 0 index_get_local 2
+fn_op 0 load_global 0
+fn_op 0 call 5
+fn_op 0 dup
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 const 3
+fn_op 0 acc_add_local 3
+fn_op 0 jump -18
+fn_op 0 load_local 0
+fn_op 0 return
+fn_arrows 0 0
+fn 1 serAppendOneFn
+fn_params 1 out,i,f
+fn_locals 1 out,i,f
+fn_op 1 load_local 0
+fn_op 1 const 4
+fn_op 1 load_local 1
+fn_op 1 load_local 2
+fn_op 1 get_member 5
+fn_op 1 load_global 2
+fn_op 1 call 4
+fn_op 1 dup
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 const 6
+fn_op 1 load_local 1
+fn_op 1 load_local 2
+fn_op 1 get_member 7
+fn_op 1 load_global 3
+fn_op 1 call 1
+fn_op 1 load_global 2
+fn_op 1 call 4
+fn_op 1 dup
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 const 8
+fn_op 1 load_local 1
+fn_op 1 load_local 2
+fn_op 1 get_member 9
+fn_op 1 load_global 3
+fn_op 1 call 1
+fn_op 1 load_global 2
+fn_op 1 call 4
+fn_op 1 dup
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 2
+fn_op 1 get_member 10
+fn_op 1 const 11
+fn_op 1 ne
+fn_op 1 jump_if_false 9
+fn_op 1 load_local 0
+fn_op 1 load_local 1
+fn_op 1 load_local 2
+fn_op 1 get_member 10
+fn_op 1 load_global 1
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 load_local 1
+fn_op 1 load_local 2
+fn_op 1 get_member 12
+fn_op 1 load_global 4
+fn_op 1 call 3
+fn_op 1 dup
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 return
+fn_arrows 1 0
+fn 2 serAppendFunctions
+fn_params 2 out,fns
+fn_locals 2 out,fns,i,n
+fn_op 2 load_local 0
+fn_op 2 const 13
+fn_op 2 len_local 1
+fn_op 2 load_global 6
+fn_op 2 call 3
+fn_op 2 dup
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 const 0
+fn_op 2 store_local 2
+fn_op 2 len_local 1
+fn_op 2 store_local 3
+fn_op 2 load_local 2
+fn_op 2 load_local 3
+fn_op 2 lt
+fn_op 2 jump_if_false 23
+fn_op 2 load_local 0
+fn_op 2 load_local 2
+fn_op 2 load_local 2
+fn_op 2 index_get_local 1
+fn_op 2 load_global 5
+fn_op 2 call 3
+fn_op 2 dup
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 const 14
+fn_op 2 load_local 2
+fn_op 2 load_local 2
+fn_op 2 index_get_local 1
+fn_op 2 get_member 15
+fn_op 2 load_global 7
+fn_op 2 call 4
+fn_op 2 dup
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 const 3
+fn_op 2 acc_add_local 2
+fn_op 2 jump -27
+fn_op 2 load_local 0
+fn_op 2 return
+fn_arrows 2 0
+arrows=0
+imports=4
+import 0 self_host/serialize_out
+import 1 self_host/serialize_ir_line
+import 2 self_host/serialize_ops
+import 3 self_host/serialize_arrows
+pub_imports=0
+exports=3
+export 0 serAppendFnTries
+export 1 serAppendOneFn
+export 2 serAppendFunctions
+memory_mode=gc
+interfaces=0
+classes=0
+code
+halt
+
+source=self_host/serialize_fns.kab
+statements=7
+fingerprint=e41f826208155bde

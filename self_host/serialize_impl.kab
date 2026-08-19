@@ -5,8 +5,7 @@
 // extra host `call_value` frame, which breaks Kab VM reentrancy under
 // KABOOTAR_VM=kab-only — see self_host/vm.kab header for the full explanation.
 //
-// serialize_body is a CI-fast re-export of serSerializeBc; AccAdd AST lives in
-// skip-listed serialize_pure.kab + serialize_acc.kab (seed-loaded under kab-only).
+// serialize_body re-exports serSerializeBc; AccAdd AST lives in serialize_acc.kab.
 
 import "self_host/serialize_body"
 

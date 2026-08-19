@@ -77,7 +77,7 @@ fn p10_host_pipeline_phases_complete() {
 }
 
 #[test]
-fn p10_rust_compile_parser_session_core_leaf() {
+fn p10_rust_compile_parser_session_leaf() {
     use kabootar_lib::compile::{compile_file_prefer_cached, CompilePrefer};
     use std::sync::Once;
 
@@ -89,7 +89,7 @@ fn p10_rust_compile_parser_session_core_leaf() {
 
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("self_host")
-        .join("parser_session_core.kab");
+        .join("parser_session.kab");
     let path_s = path.to_string_lossy().to_string();
     kabootar_lib::compile::invalidate_file_cache(&path_s);
 
@@ -97,10 +97,10 @@ fn p10_rust_compile_parser_session_core_leaf() {
     let (_prog, backend) =
         compile_file_prefer_cached(&path_s, CompilePrefer::Rust).expect("compile leaf");
     let leaf_ms = ms(t0);
-    eprintln!("P10 rust compile parser_session_core.kab: {leaf_ms:.1} ms backend={backend}");
+    eprintln!("P10 rust compile parser_session.kab: {leaf_ms:.1} ms backend={backend}");
     assert!(
         leaf_ms < 60_000.0,
-        "parser_session_core rust compile should stay under 60s CI, got {leaf_ms:.1} ms"
+        "parser_session rust compile should stay under 60s CI, got {leaf_ms:.1} ms"
     );
 }
 
@@ -172,7 +172,7 @@ fn p10_warm_self_host_subset_disk_cache() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = root
         .join("self_host")
-        .join("parser_util_bump.kab")
+        .join("parser_util.kab")
         .to_string_lossy()
         .replace('\\', "/");
     kabootar_lib::compile::invalidate_file_cache(&path);
@@ -184,7 +184,7 @@ fn p10_warm_self_host_subset_disk_cache() {
     let (_p2, b2) = compile_file_prefer_cached(&path, CompilePrefer::Rust).expect("disk hit");
     let second_ms = ms(t0);
     eprintln!(
-        "P10 self_host disk cache parser_util_bump: first={first_ms:.1}ms backend={b1} second={second_ms:.1}ms backend={b2}"
+        "P10 self_host disk cache parser_util: first={first_ms:.1}ms backend={b1} second={second_ms:.1}ms backend={b2}"
     );
     assert!(
         b2 == "disk-cache" || b2 == "cache" || b2 == "seed",
@@ -229,12 +229,12 @@ fn p10j_export_cache_second_import() {
     use kabootar_lib::modules::import_module;
 
     let mut env = create_module_env();
-    import_module("self_host/parser_util_bump", &mut env).expect("first import");
+    import_module("self_host/parser_util", &mut env).expect("first import");
     let t0 = Instant::now();
     let mut env2 = create_module_env();
-    import_module("self_host/parser_util_bump", &mut env2).expect("cached import");
+    import_module("self_host/parser_util", &mut env2).expect("cached import");
     let second_ms = ms(t0);
-    eprintln!("P10j second import parser_util_bump {second_ms:.2} ms");
+    eprintln!("P10j second import parser_util {second_ms:.2} ms");
     assert!(
         second_ms < 5_000.0,
         "in-process export cache should keep second import under 5s, got {second_ms:.1}"

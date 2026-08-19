@@ -13,6 +13,17 @@ fn sourceIsManual(source) {
     return false
 }
 
+/// H6e: product preprocess in Kab — strip `comptime {` so the parser never needs the Rust preprocessor.
+fn preprocess(source) {
+    let s = "" + source
+    s = replace_all(s, "@pure\n", "")
+    s = replace_all(s, "@io\n", "")
+    s = replace_all(s, "@gc\n", "")
+    s = replace_all(s, "@manual\n", "")
+    s = replace_all(s, "comptime {", "{")
+    return s
+}
+
 pub fn compile(source) {
     // O5 product wire: Kab ownership checker on @manual modules only.
     if sourceIsManual(source) {
@@ -22,7 +33,7 @@ pub fn compile(source) {
         }
     }
     let t0 = date_now_ms()
-    let ast = parse(source)
+    let ast = parse(preprocess(source))
     let t1 = date_now_ms()
     let ir = emit(ast)
     let t2 = date_now_ms()
@@ -46,5 +57,5 @@ pub fn compileIr(source) {
             throw err
         }
     }
-    return emit(parse(source))
+    return emit(parse(preprocess(source)))
 }

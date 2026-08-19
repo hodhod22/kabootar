@@ -1,8 +1,0 @@
-// P6b: serializeBc tail orchestration (skip-listed until ≤10s).
-import "self_host/serialize_acc_tries"
-import "self_host/serialize_acc_tail_rest"
-
-pub fn serAppendBcTail(out, bc) {
-    out = serAppendMainTries(out, bc.tryRegions)
-    return serAppendBcTailRest(out, bc)
-}

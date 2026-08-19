@@ -1,5 +1,4 @@
 import "self_host/lexer_defs"
-import "self_host/lexer_util"
 import "self_host/lexer_scan"
 
 pub fn lxSkipSpace(sess) {
