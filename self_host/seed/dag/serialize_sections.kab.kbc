@@ -2,30 +2,18 @@ kabootar-bytecode/1
 constants=0
 functions=0
 arrows=0
-imports=11
+imports=5
 import 0 self_host/serialize_ops
 import 1 self_host/serialize_lists
-import 2 self_host/serialize_fn_tries
-import 3 self_host/serialize_fn_one
-import 4 self_host/serialize_fns
-import 5 self_host/serialize_arrow_one
-import 6 self_host/serialize_arrows
-import 7 self_host/serialize_class_method_ops
-import 8 self_host/serialize_class_method_one
-import 9 self_host/serialize_class_methods
-import 10 self_host/serialize_classes
-pub_imports=11
+import 2 self_host/serialize_fns
+import 3 self_host/serialize_arrows
+import 4 self_host/serialize_classes
+pub_imports=5
 pub_import 0 self_host/serialize_ops
 pub_import 1 self_host/serialize_lists
-pub_import 2 self_host/serialize_fn_tries
-pub_import 3 self_host/serialize_fn_one
-pub_import 4 self_host/serialize_fns
-pub_import 5 self_host/serialize_arrow_one
-pub_import 6 self_host/serialize_arrows
-pub_import 7 self_host/serialize_class_method_ops
-pub_import 8 self_host/serialize_class_method_one
-pub_import 9 self_host/serialize_class_methods
-pub_import 10 self_host/serialize_classes
+pub_import 2 self_host/serialize_fns
+pub_import 3 self_host/serialize_arrows
+pub_import 4 self_host/serialize_classes
 exports=0
 memory_mode=gc
 interfaces=0
@@ -34,5 +22,5 @@ code
 halt
 
 source=self_host/serialize_sections.kab
-statements=11
-fingerprint=f0584d0fe95d9309
+statements=5
+fingerprint=15900c712513856c

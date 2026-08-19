@@ -1,48 +1,257 @@
 kabootar-bytecode/1
-constants=1
-const 0 string pLeft
-global 0 pCallMul
-global 1 parseAddShift_plus
-global 2 parseAddShift_shift
-global 3 parseAddShift
-functions=1
-fn 0 parseAddShift
+constants=14
+const 0 string pCur
+const 1 string type
+const 2 string +
+const 3 string -
+const 4 string pLeft
+const 5 string <<
+const 6 string >>
+const 7 string >>>
+const 8 string kind
+const 9 string op
+const 10 string left
+const 11 string right
+const 12 null
+const 13 number 0
+global 0 bump
+global 1 pCallMul
+global 2 AST_BINARY
+global 3 parseAddShift_plus
+global 4 right
+global 5 op
+global 6 left
+global 7 parseAddShift_shift
+global 8 parseAddShift
+functions=3
+fn 0 parseAddShift_plus
 fn_params 0 sess
-fn_locals 0 sess,__kab_a0
+fn_locals 0 sess,op,left,right,shOp,__kab_a0
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 2
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 3
+fn_op 0 eq
+fn_op 0 jump_if_false 80
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 store_local 1
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
-fn_op 0 store_local 1
+fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 const 0
+fn_op 0 get_member 4
+fn_op 0 store_local 2
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 store_local 3
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 5
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 6
+fn_op 0 eq
+fn_op 0 dup
+fn_op 0 jump_if_false 1
+fn_op 0 jump 6
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 const 7
+fn_op 0 eq
+fn_op 0 jump_if_false 23
+fn_op 0 load_local 0
+fn_op 0 get_member 0
+fn_op 0 get_member 1
+fn_op 0 store_local 4
+fn_op 0 load_local 0
+fn_op 0 load_global 0
+fn_op 0 call 1
+fn_op 0 pop
+fn_op 0 load_global 2
+fn_op 0 const 8
+fn_op 0 load_local 4
+fn_op 0 const 9
+fn_op 0 load_local 3
+fn_op 0 const 10
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 const 11
+fn_op 0 make_object 4
+fn_op 0 dup
+fn_op 0 store_local 3
+fn_op 0 pop
+fn_op 0 jump -47
+fn_op 0 load_global 2
+fn_op 0 const 8
 fn_op 0 load_local 1
+fn_op 0 const 9
+fn_op 0 load_local 2
+fn_op 0 const 10
+fn_op 0 load_local 3
+fn_op 0 const 11
+fn_op 0 make_object 4
+fn_op 0 store_local 5
+fn_op 0 load_local 0
+fn_op 0 const 4
+fn_op 0 load_local 5
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 load_local 0
-fn_op 0 load_global 1
-fn_op 0 call 1
-fn_op 0 pop
-fn_op 0 load_local 0
-fn_op 0 load_global 2
-fn_op 0 call 1
-fn_op 0 pop
-fn_op 0 load_local 0
-fn_op 0 get_member 0
+fn_op 0 jump -95
+fn_op 0 const 13
 fn_op 0 return
 fn_arrows 0 0
+fn 1 parseAddShift_shift
+fn_params 1 sess
+fn_locals 1 sess,addOp,__kab_a0
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 const 5
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 1
+fn_op 1 jump 6
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 const 6
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 1
+fn_op 1 jump 6
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 const 7
+fn_op 1 eq
+fn_op 1 jump_if_false 60
+fn_op 1 load_local 0
+fn_op 1 load_global 0
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 const 2
+fn_op 1 eq
+fn_op 1 dup
+fn_op 1 jump_if_false 1
+fn_op 1 jump 6
+fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 const 3
+fn_op 1 eq
+fn_op 1 jump_if_false 23
+fn_op 1 load_local 0
+fn_op 1 get_member 0
+fn_op 1 get_member 1
+fn_op 1 store_local 1
+fn_op 1 load_local 0
+fn_op 1 load_global 0
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_global 2
+fn_op 1 const 8
+fn_op 1 load_local 1
+fn_op 1 const 9
+fn_op 1 load_global 4
+fn_op 1 const 10
+fn_op 1 load_local 0
+fn_op 1 load_global 1
+fn_op 1 call 1
+fn_op 1 const 11
+fn_op 1 make_object 4
+fn_op 1 dup
+fn_op 1 store_global 4
+fn_op 1 pop
+fn_op 1 jump -38
+fn_op 1 load_global 2
+fn_op 1 const 8
+fn_op 1 load_global 5
+fn_op 1 const 9
+fn_op 1 load_global 6
+fn_op 1 const 10
+fn_op 1 load_global 4
+fn_op 1 const 11
+fn_op 1 make_object 4
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 const 4
+fn_op 1 load_local 2
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 0
+fn_op 1 pop
+fn_op 1 jump -84
+fn_op 1 const 13
+fn_op 1 return
+fn_arrows 1 0
+fn 2 parseAddShift
+fn_params 2 sess
+fn_locals 2 sess,__kab_a0
+fn_op 2 load_local 0
+fn_op 2 load_global 1
+fn_op 2 call 1
+fn_op 2 store_local 1
+fn_op 2 load_local 0
+fn_op 2 const 4
+fn_op 2 load_local 1
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 load_global 3
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 load_global 7
+fn_op 2 call 1
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 4
+fn_op 2 return
+fn_arrows 2 0
 arrows=0
-imports=6
+imports=4
 import 0 self_host/lexer_defs
 import 1 self_host/ast_defs
 import 2 self_host/parser_hooks
 import 3 self_host/parser_util
-import 4 self_host/parser_add_shift_plus
-import 5 self_host/parser_add_shift_shift
 pub_imports=0
-exports=1
-export 0 parseAddShift
+exports=3
+export 0 parseAddShift_plus
+export 1 parseAddShift_shift
+export 2 parseAddShift
 memory_mode=gc
 interfaces=0
 classes=0
@@ -51,4 +260,4 @@ halt
 
 source=self_host/parser_add_shift.kab
 statements=7
-fingerprint=5ef7b086b2a103e9
+fingerprint=6fe66843cf258c68
