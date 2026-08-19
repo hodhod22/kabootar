@@ -110,13 +110,13 @@ fn sh1_import_compile_image_budget() {
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
     eprintln!("SH1 import self_host/compile {ms:.1} ms");
     let budget = if cfg!(debug_assertions) {
-        15_000.0
+        5_000.0
     } else {
         2_000.0
     };
     assert!(
         ms < budget,
-        "SH1 first import with compiler-image should be < {budget} ms (2s release / 15s debug), got {ms:.1}"
+        "SH1 first import with compiler-image should be < {budget} ms (2s release / 5s debug), got {ms:.1}"
     );
 }
 

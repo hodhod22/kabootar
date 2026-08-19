@@ -114,8 +114,14 @@ pub fn compiler_image_path() -> PathBuf {
     self_host_dir().join("seed").join("compiler.kbcb")
 }
 
-fn image_cache() -> &'static Mutex<Option<HashMap<String, String>>> {
-    static CACHE: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+#[derive(Clone)]
+struct ImageMod {
+    fingerprint: String,
+    module: BytecodeModule,
+}
+
+fn image_cache() -> &'static Mutex<Option<HashMap<String, ImageMod>>> {
+    static CACHE: Mutex<Option<HashMap<String, ImageMod>>> = Mutex::new(None);
     &CACHE
 }
 
@@ -125,7 +131,7 @@ pub fn reload_compiler_image() {
     }
 }
 
-fn compiler_image_blob(basename: &str) -> Option<String> {
+fn compiler_image_mod(basename: &str) -> Option<ImageMod> {
     let mut slot = image_cache().lock().ok()?;
     if slot.is_none() {
         *slot = load_compiler_image().ok();
@@ -133,12 +139,18 @@ fn compiler_image_blob(basename: &str) -> Option<String> {
     slot.as_ref()?.get(basename).cloned()
 }
 
-fn load_compiler_image() -> Result<HashMap<String, String>, String> {
+fn fingerprint_from_seed_text(text: &str) -> Option<&str> {
+    text.lines()
+        .find(|l| l.starts_with("fingerprint="))
+        .map(|l| l.trim_start_matches("fingerprint="))
+}
+
+fn load_compiler_image() -> Result<HashMap<String, ImageMod>, String> {
     let bytes = fs::read(compiler_image_path()).map_err(|e| e.to_string())?;
     parse_compiler_image(&bytes)
 }
 
-fn parse_compiler_image(bytes: &[u8]) -> Result<HashMap<String, String>, String> {
+fn parse_compiler_image(bytes: &[u8]) -> Result<HashMap<String, ImageMod>, String> {
     if bytes.len() < 9 || bytes[0..4] != *IMAGE_MAGIC {
         return Err("not an SH1 compiler image".into());
     }
@@ -166,11 +178,19 @@ fn parse_compiler_image(bytes: &[u8]) -> Result<HashMap<String, String>, String>
         if i + bl > bytes.len() {
             return Err("SH1 image truncated (blob)".into());
         }
-        let text = std::str::from_utf8(&bytes[i..i + bl])
-            .map_err(|e| e.to_string())?
-            .to_string();
+        let text = std::str::from_utf8(&bytes[i..i + bl]).map_err(|e| e.to_string())?;
         i += bl;
-        map.insert(name, text);
+        let Some(fp) = fingerprint_from_seed_text(text) else {
+            continue;
+        };
+        let module = deserialize(text)?;
+        map.insert(
+            name,
+            ImageMod {
+                fingerprint: fp.to_string(),
+                module,
+            },
+        );
     }
     Ok(map)
 }
@@ -249,24 +269,35 @@ fn seed_text_if_fingerprint(text: &str, expected: &str) -> Result<Option<Bytecod
 }
 
 pub fn read_matching_seed(path: &str) -> Result<Option<BytecodeModule>, String> {
+    read_matching_seed_src(path, None)
+}
+
+pub fn read_matching_seed_src(
+    path: &str,
+    source: Option<&str>,
+) -> Result<Option<BytecodeModule>, String> {
     let path = resolve_kab_path(path);
-    let source = match fs::read_to_string(&path) {
-        Ok(s) => s,
-        Err(_) => return Ok(None),
+    let owned;
+    let source = match source {
+        Some(s) => s,
+        None => {
+            owned = match fs::read_to_string(&path) {
+                Ok(s) => s,
+                Err(_) => return Ok(None),
+            };
+            owned.as_str()
+        }
     };
-    let expected = source_fingerprint(&path, &source);
+    let expected = source_fingerprint(&path, source);
     let base_name = Path::new(&path)
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("");
-    if let Some(text) = compiler_image_blob(&format!("{base_name}.kbc")) {
-        if let Some(bc) = seed_text_if_fingerprint(&text, &expected)? {
-            return Ok(Some(bc));
-        }
-    }
-    if let Some(text) = compiler_image_blob(base_name) {
-        if let Some(bc) = seed_text_if_fingerprint(&text, &expected)? {
-            return Ok(Some(bc));
+    for key in [format!("{base_name}.kbc"), base_name.to_string()] {
+        if let Some(entry) = compiler_image_mod(&key) {
+            if entry.fingerprint == expected {
+                return Ok(Some(entry.module));
+            }
         }
     }
     for seed in seed_kbc_candidates(&path) {
