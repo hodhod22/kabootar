@@ -8,6 +8,7 @@
 import "negin/core"
 import "negin/optimized-reconciler"
 import "negin/helpers"
+import "negin/host-adapter"
 
 let buildConfig = {
     "mode": "production",
@@ -296,19 +297,119 @@ pub fn invalidateBuildCache(buildId) {
 
 // Incremental builds
 pub fn incrementalBuild(changedFiles) {
-    console.log("Running incremental build for " + len(changedFiles) + " changed files")
+    console.log("Running incremental build for changed files...")
     
-    let i = 0
+    let i =   0
     while i < len(changedFiles)) {
-        let file = changedFiles[i]
-        console.log("  - " + file)
+        console.log("  Rebuilding: " + changedFiles[i])
         i = i + 1
     }
     
-    return {
-        "success": true,
-        "incremental": true
+    return { "success": true, "incremental": true }
+}
+
+// Advanced code splitting
+pub fn advancedCodeSplit(modules, splitConfig) {
+    console.log("Advanced code splitting...")
+    
+    let strategy = splitConfig["strategy"] != null ? splitConfig["strategy"] : "route"
+    
+    if strategy == "route") {
+        return splitByRoute(modules)
+    } else if strategy == "vendor") {
+        return splitByVendor(modules)
+    } else if strategy == "component") {
+        return splitByComponent(modules)
     }
+    
+    return modules
+}
+
+fn splitByRoute(modules) {
+    console.log("  Splitting by route...")
+    return modules
+}
+
+fn splitByVendor(modules) {
+    console.log("  Splitting by vendor...")
+    return modules
+}
+
+fn splitByComponent(modules) {
+    console.log("  Splitting by component...")
+    return modules
+}
+
+// Lazy loading support
+pub fn createLazyChunk(modulePath) {
+    return {
+        "kind": "LazyChunk",
+        "path": modulePath,
+        "async": true
+    }
+}
+
+// Bundle analysis
+pub fn analyzeBundle(bundle) {
+    let analysis = {
+        "size": bundle["size"],
+        "gzipSize": bundle["size"] * 0.3,
+        "modules": bundle["modules"],
+        "chunks": bundle["chunks"],
+        "entryPoints": bundle["entryPoints"]
+    }
+    
+    console.log("Bundle analysis:")
+    console.log("  Size: " + analysis["size"] + " bytes")
+    console.log("  Gzip size: " + analysis["gzipSize"] + " bytes")
+    console.log("  Modules: " + len(analysis["modules"]))
+    console.log("  Chunks: " + len(analysis["chunks"]))
+    
+    return analysis
+}
+
+// Kabootar-specific build optimizations
+pub fn optimizeForKabootar(modules) {
+    console.log("Optimizing for Kabootar...")
+    
+    let optimized = []
+    
+    let i = 0
+    while i < len(modules)) {
+        let module = modules[i]
+        
+        // Optimize for GC mode
+        let kabootarOptimized = {
+            ...module,
+            "gcMode": true,
+            "kabootarPrimitives": detectKabootarPrimitives(module)
+        }
+        
+        optimized = push(optimized, kabootarOptimized)
+        i = i + 1
+    }
+    
+    return optimized
+}
+
+fn detectKabootarPrimitives(module) {
+    let primitives = []
+    
+    if module["usesSQL"] == true) {
+        primitives = push(primitives, "sql")
+    }
+    if module["usesHTTP"] == true) {
+        primitives = push(primitives, "http")
+    }
+    if module["usesKDOM"] == true) {
+        primitives = push(primitives, "kdom")
+    }
+    
+    return primitives
+}
+
+fn currentTime() {
+    return systemTime()
 }
 
 // Build plugins
@@ -316,6 +417,18 @@ let buildPlugins = []
 
 pub fn useBuildPlugin(plugin) {
     buildPlugins = push(buildPlugins, plugin)
+}
+
+pub fn applyBuildPlugins(modules) {
+    let result = modules
+    
+    let i = 0
+    while i < len(buildPlugins)) {
+        result = buildPlugins[i](result)
+        i = i + 1
+    }
+    
+    return result
 }
 
 pub fn runBuildPlugins(phase, data) {

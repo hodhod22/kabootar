@@ -120,17 +120,19 @@ fn oAtId(name) {
 }
 
 fn oMutCount(name) {
-    if object_has_own(oMutBorrows, name) {
-        return oMutBorrows[name]
+    let v = oMutBorrows[name]
+    if v == null {
+        return 0
     }
-    return 0
+    return v
 }
 
 fn oSharedCount(name) {
-    if object_has_own(oSharedBorrows, name) {
-        return oSharedBorrows[name]
+    let v = oSharedBorrows[name]
+    if v == null {
+        return 0
     }
-    return 0
+    return v
 }
 
 fn oMutAdd(name, delta) {

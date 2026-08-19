@@ -6,8 +6,7 @@
 
 import "negin/core"
 import "negin/hooks"
-import "negin/ssr-optimized"
-import "negin/query-database"
+import "negin/helpers"
 
 // File-based routing structure
 let fileRoutes = {}
@@ -598,29 +597,4 @@ fn getCurrentPath() {
 
 fn renderToStringOptimized(element) {
     return "<div>Rendered</div>"
-}
-
-fn typeof(value) {
-    if value == null) {
-        return "null"
-    }
-    if typeof(value) == "boolean") {
-        return "boolean"
-    }
-    if typeof(value) == "number") {
-        return "number"
-    }
-    if typeof(value) == "string") {
-        return "string"
-    }
-    if typeof(value) == "function") {
-        return "function"
-    }
-    if typeof(value) == "array") {
-        return "array"
-    }
-    if typeof(value) == "object") {
-        return "object"
-    }
-    return "unknown"
 }

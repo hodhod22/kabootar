@@ -9,6 +9,7 @@ import "negin/core"
 import "negin/reactive-core"
 import "negin/optimized-runtime"
 import "negin/helpers"
+import "negin/host-adapter"
 
 let profilingEnabled = false
 let profileData = {}
@@ -461,4 +462,136 @@ fn setInterval(callback, interval) {
 }
 
 fn clearInterval(id) {
+}
+
+// Advanced tracing
+let traceData = []
+let currentTrace = null
+
+pub fn startTrace(name) {
+    currentTrace = {
+        "kind": "Trace",
+        "name": name,
+        "startTime": currentTime(),
+        "spans": [],
+        "metadata": {}
+    }
+    
+    return currentTrace
+}
+
+pub fn endTrace() {
+    if currentTrace == null) {
+        return null
+    }
+    
+    currentTrace["endTime"] = currentTime()
+    currentTrace["duration"] = currentTrace["endTime"] - currentTrace["startTime"]
+    
+    traceData = push(traceData, currentTrace)
+    
+    let trace = currentTrace
+    currentTrace = null
+    
+    return trace
+}
+
+pub fn addTraceSpan(name, duration, metadata) {
+    if currentTrace != null) {
+        currentTrace["spans"] = push(currentTrace["spans"], {
+            "name": name,
+            "duration": duration,
+            "metadata": metadata != null ? metadata : {},
+            "timestamp": currentTime()
+        })
+    }
+}
+
+pub fn getTrace(name) {
+    let i = 0
+    while i < len(traceData)) {
+        if traceData[i]["name"] == name) {
+            return traceData[i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn getAllTraces() {
+    return traceData
+}
+
+// Kabootar-specific performance tracking
+pub fn trackKabootarPrimitive(primitiveName, duration) {
+    if profileData["kabootarPrimitives"] == null) {
+        profileData["kabootarPrimitives"] = {}
+    }
+    
+    if profileData["kabootarPrimitives"][primitiveName] == null) {
+        profileData["kabootarPrimitives"][primitiveName] = {
+            "count": 0,
+            "totalDuration": 0,
+            "averageDuration": 0
+        }
+    }
+    
+    let data = profileData["kabootarPrimitives"][primitiveName]
+    data["count"] = data["count"] + 1
+    data["totalDuration"] = data["totalDuration"] + duration
+    data["averageDuration"] = data["totalDuration"] / data["count"]
+}
+
+pub fn getKabootarPrimitiveMetrics() {
+    return profileData["kabootarPrimitives"]
+}
+
+// Real-time metrics
+let realtimeMetrics = {
+    "fps": 0,
+    "frameTime": 0,
+    "memoryUsage": 0,
+    "signalUpdates": 0,
+    "renderCount": 0
+}
+
+pub fn updateRealtimeMetrics(metrics) {
+    for key in metrics) {
+        realtimeMetrics[key] = metrics[key]
+    }
+}
+
+pub fn getRealtimeMetrics() {
+    return realtimeMetrics
+}
+
+// Performance thresholds
+let thresholds = {
+    "slowRender": 16,
+    "memoryWarning": 500,
+    "signalUpdateWarning": 100
+}
+
+pub fn setThreshold(name, value) {
+    thresholds[name] = value
+}
+
+pub fn checkThresholds() {
+    let warnings = []
+    
+    if performanceMetrics["averageRenderTime"] > thresholds["slowRender"]) {
+        warnings = push(warnings, {
+            "type": "slowRender",
+            "message": "Average render time exceeds threshold: " + performanceMetrics["averageRenderTime"] + "ms > " + thresholds["slowRender"] + "ms"
+        })
+    }
+    
+    if performanceMetrics["memoryPeak"] > thresholds["memoryWarning"]) {
+        warnings = push(warnings, {
+            "type": "memory",
+            "message": "Memory usage exceeds threshold: " + performanceMetrics["memoryPeak"] + "MB > " + thresholds["memoryWarning"] + "MB"
+        })
+    }
+    
+    return warnings
 }

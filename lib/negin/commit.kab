@@ -1,0 +1,167 @@
+// Negin commit — fiber diff → host-independent ops → Host Adapter ABI.
+// Canonical path: import "negin/commit"
+// Ops live in this module's slot (like static-tree hoistKeys). Do not pass an
+// op array as a 2nd call argument — Kab compiles `fn(x, arr)` as `fn(x)[arr]`.
+
+import "negin/host"
+
+let slot = []
+
+pub fn opSetText(node, value) {
+    let id = node["nid"]
+    return { "op": "SET_TEXT", "nodeId": id, "value": value }
+}
+
+pub fn opSetAttr(node, key, value) {
+    let id = node["nid"]
+    return { "op": "SET_ATTR", "nodeId": id, "key": key, "value": value }
+}
+
+pub fn opRemoveAttr(node, key) {
+    let id = node["nid"]
+    return { "op": "REMOVE_ATTR", "nodeId": id, "key": key }
+}
+
+pub fn opInsert(parent, node, index) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    return { "op": "INSERT", "parentId": pid, "nodeId": nid, "index": index }
+}
+
+pub fn opRemove(parent, node) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    return { "op": "REMOVE", "parentId": pid, "nodeId": nid }
+}
+
+pub fn opMove(parent, node, index) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    return { "op": "MOVE", "parentId": pid, "nodeId": nid, "index": index }
+}
+
+pub fn opEvent(node, eventType, handler) {
+    let id = node["nid"]
+    return { "op": "EVENT", "nodeId": id, "etype": eventType, "handler": handler }
+}
+
+pub fn commitClear() {
+    slot = []
+}
+
+pub fn commitPush(op) {
+    slot = push(slot, op)
+}
+
+fn expandSlot(host) {
+    let ops = slot
+    let nops = 0
+    if ops != null {
+        nops = len(ops)
+    }
+    let moveOk = hostHasCap(host, "supportsMoveNode")
+    let out = []
+    let i = 0
+    while i < nops {
+        let op = ops[i]
+        if op["op"] == "MOVE" {
+            if moveOk == false {
+                let pid = op["parentId"]
+                let nid = op["nodeId"]
+                let p = hostNodeById(host, pid)
+                let n = hostNodeById(host, nid)
+                let idx = op["index"]
+                out = push(out, opRemove(p, n))
+                out = push(out, opInsert(p, n, idx))
+            } else {
+                out = push(out, op)
+            }
+        } else {
+            out = push(out, op)
+        }
+        i = i + 1
+    }
+    slot = out
+}
+
+pub fn commitPending(host) {
+    expandSlot(host)
+    hostApply(host)
+    let ops = slot
+    let n = 0
+    if ops != null {
+        n = len(ops)
+    }
+    let i = 0
+    while i < n {
+        let op = ops[i]
+        hostApplyOp(host, op)
+        i = i + 1
+    }
+}
+
+fn findKeyIndex(list, key) {
+    let i = 0
+    while i < len(list) {
+        let item = list[i]
+        if item["key"] == key {
+            return i
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn keyedCommitOps(parent, oldList, newList) {
+    let ops = []
+    let i = 0
+    while i < len(newList) {
+        let n = newList[i]
+        let nkey = n["key"]
+        let oldIndex = findKeyIndex(oldList, nkey)
+        if oldIndex == null {
+            let nnode = n["node"]
+            ops = push(ops, opInsert(parent, nnode, i))
+        } else {
+            let prev = oldList[oldIndex]
+            let prevNode = prev["node"]
+            n["node"] = prevNode
+            let prevText = prev["txt"]
+            let ntext = n["txt"]
+            if prevText != ntext {
+                ops = push(ops, opSetText(prevNode, ntext))
+            }
+            if oldIndex != i {
+                ops = push(ops, opMove(parent, prevNode, i))
+            }
+        }
+        i = i + 1
+    }
+    let j = 0
+    while j < len(oldList) {
+        let prev = oldList[j]
+        let pkey = prev["key"]
+        if findKeyIndex(newList, pkey) == null {
+            let pnode = prev["node"]
+            ops = push(ops, opRemove(parent, pnode))
+        }
+        j = j + 1
+    }
+    return ops
+}
+
+pub fn commitKeyed(host, parent, oldList, newList) {
+    commitClear()
+    let list = keyedCommitOps(parent, oldList, newList)
+    let n = 0
+    if list != null {
+        n = len(list)
+    }
+    let i = 0
+    while i < n {
+        let op = list[i]
+        commitPush(op)
+        i = i + 1
+    }
+    commitPending(host)
+}

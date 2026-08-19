@@ -13,38 +13,49 @@ import "self_host/emit_expr_call"
 
 pub fn emitExprBody(E, node) {
     E["eNode"] = node
-    if E["eNode"] == null {
+    if node == null {
         throw "emitExpr: null node"
     }
-    if emitExpr_literal(E) {
+    let kind = node.kind
+    if kind == AST_LITERAL {
+        emitExpr_literal(E)
         return
     }
-    if emitExpr_var(E) {
+    if kind == AST_VAR {
+        emitExpr_var(E)
         return
     }
-    if emitExpr_unary(E) {
+    if kind == AST_UNARY {
+        emitExpr_unary(E)
         return
     }
-    if emitExpr_arrow(E) {
+    if kind == AST_ARROW {
+        emitExpr_arrow(E)
         return
     }
-    if emitExpr_binary(E) {
+    if kind == AST_BINARY {
+        emitExpr_binary(E)
         return
     }
-    if emitExpr_object(E) {
+    if kind == AST_OBJECT {
+        emitExpr_object(E)
         return
     }
-    if emitExpr_array(E) {
+    if kind == AST_ARRAY {
+        emitExpr_array(E)
         return
     }
-    if emitExpr_member(E) {
+    if kind == AST_MEMBER {
+        emitExpr_member(E)
         return
     }
-    if emitExpr_index(E) {
+    if kind == AST_INDEX {
+        emitExpr_index(E)
         return
     }
-    if emitExpr_call(E) {
+    if kind == AST_CALL {
+        emitExpr_call(E)
         return
     }
-    throw "Unsupported expr: " + E["eNode"].kind
+    throw "Unsupported expr: " + kind
 }

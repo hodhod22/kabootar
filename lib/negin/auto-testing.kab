@@ -8,6 +8,7 @@
 import "negin/core"
 import "negin/reactive-core"
 import "negin/helpers"
+import "negin/hooks"
 
 let testSuite = []
 let testResults = []
@@ -116,8 +117,68 @@ pub fn expect(actual) {
                     "message": "Snapshot mismatch for: " + key
                 }
             }
+        },
+        "toHaveLength": fn(expected) {
+            if len(actual) != expected) {
+                throw {
+                    "message": "Expected length " + expected + " but got " + len(actual)
+                }
+            }
+        },
+        "toBeGreaterThan": fn(expected) {
+            if actual <= expected) {
+                throw {
+                    "message": "Expected " + actual + " to be greater than " + expected
+                }
+            }
+        },
+        "toBeLessThan": fn(expected) {
+            if actual >= expected) {
+                throw {
+                    "message": "Expected " + actual + " to be less than " + expected
+                }
+            }
+        },
+        "toBeInstanceOf": fn(expected) {
+            if typeof(actual) != expected) {
+                throw {
+                    "message": "Expected instance of " + expected + " but got " + typeof(actual)
+                }
+            }
+        },
+        "toHaveProperty": fn(propPath) {
+            let obj = actual
+            let parts = split(propPath, ".")
+            
+            let i = 0
+            while i < len(parts)) {
+                if obj == null || obj[parts[i]] == null) {
+                    throw {
+                        "message": "Expected property " + propPath + " to exist"
+                    }
+                }
+                obj = obj[parts[i]]
+                i = i + 1
+            }
         }
     }
+}
+
+fn split(str, delimiter) {
+    let parts = []
+    let current = ""
+    let i = 0
+    while i < len(str)) {
+        if str[i] == delimiter) {
+            parts = push(parts, current)
+            current = ""
+        } else {
+            current = current + str[i]
+        }
+        i = i + 1
+    }
+    parts = push(parts, current)
+    return parts
 }
 
 fn deepEqual(a, b) {

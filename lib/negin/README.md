@@ -8,9 +8,10 @@ Negin är designat för Kabootar:
 - **GC-läge (default)** för UI/signals/hooks/reconciler
 - **Ingen @manual i kärnan** (endast för kOS/netstack/buffertar)
 - **Språkets inbyggda yor** (sql, db, http, kdom)
-- **Dubbel DOM-stöd** (host-DOM för WASM, kdom för Kabootar)
+- **Host-agnostiskt** — samma komponenter på kDOM, KV8, vanlig DOM och kOS/browser
 - **Signals + GC** för reaktivitet
 - **Fas 6:** keyed fiber-walk (`negin/fiber`), O(1) signal-tracking, giltig error-modul. Smoke: `examples/negin_fas6_smoke.kab`.
+- **Fas 7:** Host Adapter ABI, commit-ops, static hoisting. Smoke: `examples/negin_fas7_smoke.kab`.
 
 ## Installation
 
@@ -66,19 +67,20 @@ kdom_render(element, container)
 
 ### Host-Agnostisk Rendering
 
-Negin stöder både host-DOM (WASM) och kdom (Kabootar):
+Negin-kärnan pratar bara Host Adapter ABI. Hosten väljs via container/profil och **capabilities**, inte browser-namn:
 
 ```kab
-import "negin/host-adapter"
+import "negin/host"
+import "negin/commit"
 
-// Render till host-DOM (WASM)
-let domContainer = document.getElementById("app")
-render(createElement(App, {}), domContainer)
-
-// Render till kdom (Kabootar)
-let kdomContainer = { "kind": "KdomContainer" }
-render(createElement(App, {}), kdomContainer)
+let host = createHostFromContainer({ "kind": "KdomContainer" })
+let node = hostCreateNode(host, "p")
+commitClear()
+commitPush(opSetText(node, "hi"))
+commitPending(host)
 ```
+
+Fyra host-profiler: `kdom` (fast), `kos` (fast), `kv8` (förstaklassig, compat tills native batch/move), `browser` (compat). Samma ops (`SET_TEXT`, `SET_ATTR`, `INSERT`, `REMOVE`, `MOVE`) på alla.
 
 ## Fullstack Exempel med Kabootar
 
@@ -349,6 +351,15 @@ let html = renderToString(createElement(App, {}))
 - `useRef(initialValue)` - Ref hook
 - `useContext(context)` - Context hook
 - `useReducer(reducer, initialState)` - Reducer hook
+
+### Host ABI
+- `createHost(profile)` / `createHostFromContainer(container)`
+- `hostCreateNode` / `hostSetProp` / `hostRemoveProp` / `hostInsert` / `hostRemove` / `hostText` / `hostEvent` / `hostBatch`
+- `hostHasCap(host, name)` — `supportsBatchCommit`, `supportsNativeEvents`, `supportsStaticNodes`, `supportsMoveNode`, `supportsHydration`
+
+### Commit
+- `commitClear` / `commitPush(op)` / `commitPending(host)` — SET_TEXT, SET_ATTR, REMOVE_ATTR, INSERT, REMOVE, MOVE
+- `commitKeyed(host, parent, oldList, newList)`
 
 ### Signals
 - `createSignal(initialValue)` - Skapa signal

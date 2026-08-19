@@ -1,0 +1,500 @@
+// Negin Host Adapter ABI — same core against kDOM, KV8, browser DOM, kOS browser.
+// Canonical path: import "negin/host"
+// Negin never branches on Chrome vs Kabootar; only caps and profile.
+// Live tree: host["nodes"] (children as ids). Text/attrs on host["texts"] / host["attrs"].
+// createHost inlines the root node — passing a fresh host into hostCreateNode copies it.
+// Pending ops: mutate host["pending"] in place (field replace on a copied host is lost).
+
+pub fn hostCaps(profile) {
+    if profile == "kdom" {
+        return {
+            "supportsBatchCommit": true,
+            "supportsNativeEvents": true,
+            "supportsStaticNodes": true,
+            "supportsMoveNode": true,
+            "supportsHydration": true
+        }
+    }
+    if profile == "kos" {
+        return {
+            "supportsBatchCommit": true,
+            "supportsNativeEvents": true,
+            "supportsStaticNodes": true,
+            "supportsMoveNode": true,
+            "supportsHydration": true
+        }
+    }
+    if profile == "kv8" {
+        return {
+            "supportsBatchCommit": false,
+            "supportsNativeEvents": true,
+            "supportsStaticNodes": true,
+            "supportsMoveNode": false,
+            "supportsHydration": false
+        }
+    }
+    return {
+        "supportsBatchCommit": false,
+        "supportsNativeEvents": false,
+        "supportsStaticNodes": false,
+        "supportsMoveNode": true,
+        "supportsHydration": true
+    }
+}
+
+pub fn commitPathFor(profile) {
+    if profile == "kdom" {
+        return "fast"
+    }
+    if profile == "kos" {
+        return "fast"
+    }
+    return "compat"
+}
+
+pub fn detectHostProfile(container) {
+    if container == null {
+        return "browser"
+    }
+    let kind = container["kind"]
+    if kind == "KdomContainer" {
+        return "kdom"
+    }
+    if kind == "Kv8Container" {
+        return "kv8"
+    }
+    if kind == "KosBrowserContainer" {
+        return "kos"
+    }
+    if kind == "DomContainer" {
+        return "browser"
+    }
+    let profile = container["hostProfile"]
+    if profile != null {
+        return profile
+    }
+    return "browser"
+}
+
+pub fn hostHasCap(host, name) {
+    if host == null {
+        return false
+    }
+    return host[name] == true
+}
+
+fn logCommit(host, name) {
+    let log = host["log"]
+    host["log"] = push(log, name)
+}
+
+pub fn hostPutNode(host, node) {
+    let nodes = host["nodes"]
+    if nodes == null {
+        nodes = []
+    }
+    let out = []
+    let i = 0
+    let found = false
+    let nid = node["nid"]
+    while i < len(nodes) {
+        let n = nodes[i]
+        if n["nid"] == nid {
+            out = push(out, node)
+            found = true
+        } else {
+            out = push(out, n)
+        }
+        i = i + 1
+    }
+    if found == false {
+        out = push(out, node)
+    }
+    host["nodes"] = out
+}
+
+pub fn hostNodeById(host, id) {
+    let nodes = host["nodes"]
+    if nodes == null {
+        return null
+    }
+    let i = 0
+    while i < len(nodes) {
+        let n = nodes[i]
+        if n["nid"] == id {
+            return n
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn hostCreateNode(host, tag) {
+    let id = host["seq"]
+    host["seq"] = id + 1
+    let node = {
+        "kind": "HostNode",
+        "nid": id,
+        "tag": tag,
+        "children": [],
+        "parent": 0,
+        "evts": [],
+        "static": false,
+        "reused": false
+    }
+    hostPutNode(host, node)
+    logCommit(host, "CREATE")
+    return node
+}
+
+pub fn createHost(profile) {
+    let p = profile
+    if p == null {
+        p = "browser"
+    }
+    let caps = hostCaps(p)
+    let path = commitPathFor(p)
+    let root = {
+        "kind": "HostNode",
+        "nid": 1,
+        "tag": "root",
+        "children": [],
+        "parent": 0,
+        "evts": [],
+        "static": false,
+        "reused": false
+    }
+    let nodes = [root]
+    let host = {
+        "kind": "HostAdapter",
+        "profile": p,
+        "path": path,
+        "seq": 2,
+        "log": [],
+        "delegates": [],
+        "nodes": nodes,
+        "attrs": [],
+        "texts": [],
+        "pending": [],
+        "rootN": 1,
+        "supportsBatchCommit": false,
+        "supportsNativeEvents": false,
+        "supportsStaticNodes": false,
+        "supportsMoveNode": false,
+        "supportsHydration": false
+    }
+    if caps["supportsBatchCommit"] == true {
+        host["supportsBatchCommit"] = true
+    }
+    if caps["supportsNativeEvents"] == true {
+        host["supportsNativeEvents"] = true
+    }
+    if caps["supportsStaticNodes"] == true {
+        host["supportsStaticNodes"] = true
+    }
+    if caps["supportsMoveNode"] == true {
+        host["supportsMoveNode"] = true
+    }
+    if caps["supportsHydration"] == true {
+        host["supportsHydration"] = true
+    }
+    return host
+}
+
+pub fn createHostFromContainer(container) {
+    return createHost(detectHostProfile(container))
+}
+
+pub fn hostRoot(host) {
+    let rid = host["rootN"]
+    return hostNodeById(host, rid)
+}
+
+pub fn hostSetProp(host, node, key, value) {
+    let id = node["nid"]
+    let rec = { "kind": "HostAttr", "nid": id, "k": key, "v": value }
+    let attrs = host["attrs"]
+    host["attrs"] = push(attrs, rec)
+    logCommit(host, "SET_ATTR")
+}
+
+pub fn hostGetProp(host, node, key) {
+    let id = node["nid"]
+    let attrs = host["attrs"]
+    let found = null
+    let i = 0
+    while i < len(attrs) {
+        let rec = attrs[i]
+        if rec["nid"] == id {
+            if rec["k"] == key {
+                found = rec["v"]
+            }
+        }
+        i = i + 1
+    }
+    return found
+}
+
+pub fn hostRemoveProp(host, node, key) {
+    let id = node["nid"]
+    let rec = { "kind": "HostAttr", "nid": id, "k": key, "v": null }
+    let attrs = host["attrs"]
+    host["attrs"] = push(attrs, rec)
+    logCommit(host, "REMOVE_ATTR")
+}
+
+pub fn hostText(host, node, value) {
+    let id = node["nid"]
+    let rec = { "kind": "HostTxt", "nid": id, "v": value }
+    let texts = host["texts"]
+    host["texts"] = push(texts, rec)
+    logCommit(host, "SET_TEXT")
+}
+
+pub fn hostGetText(host, node) {
+    let id = node["nid"]
+    let texts = host["texts"]
+    let found = "none"
+    let i = 0
+    while i < len(texts) {
+        let rec = texts[i]
+        if rec["nid"] == id {
+            found = rec["v"]
+        }
+        i = i + 1
+    }
+    return found
+}
+
+fn spliceId(kids, nid, index) {
+    let out = []
+    let i = 0
+    let placed = false
+    while i < len(kids) {
+        if i == index {
+            out = push(out, nid)
+            placed = true
+        }
+        out = push(out, kids[i])
+        i = i + 1
+    }
+    if placed == false {
+        out = push(out, nid)
+    }
+    return out
+}
+
+fn dropId(kids, nid) {
+    let out = []
+    let i = 0
+    while i < len(kids) {
+        if kids[i] != nid {
+            out = push(out, kids[i])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn hostInsert(host, parent, node, index) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    let liveP = hostNodeById(host, pid)
+    let kids = liveP["children"]
+    liveP["children"] = spliceId(kids, nid, index)
+    hostPutNode(host, liveP)
+    let liveN = hostNodeById(host, nid)
+    liveN["parent"] = pid
+    hostPutNode(host, liveN)
+    logCommit(host, "INSERT")
+}
+
+pub fn hostRemove(host, parent, node) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    let liveP = hostNodeById(host, pid)
+    let kids = liveP["children"]
+    liveP["children"] = dropId(kids, nid)
+    hostPutNode(host, liveP)
+    let liveN = hostNodeById(host, nid)
+    liveN["parent"] = 0
+    hostPutNode(host, liveN)
+    logCommit(host, "REMOVE")
+}
+
+pub fn hostMove(host, parent, node, index) {
+    let pid = parent["nid"]
+    let nid = node["nid"]
+    let liveP = hostNodeById(host, pid)
+    let kids = liveP["children"]
+    kids = dropId(kids, nid)
+    kids = spliceId(kids, nid, index)
+    liveP["children"] = kids
+    hostPutNode(host, liveP)
+    if hostHasCap(host, "supportsMoveNode") {
+        logCommit(host, "MOVE")
+        return
+    }
+    logCommit(host, "REMOVE")
+    logCommit(host, "INSERT")
+}
+
+pub fn hostEvent(host, node, eventType, handler) {
+    let nid = node["nid"]
+    let rec = {
+        "kind": "HostEvent",
+        "etype": eventType,
+        "handler": handler,
+        "nodeId": nid
+    }
+    if hostHasCap(host, "supportsNativeEvents") {
+        let live = hostNodeById(host, nid)
+        let evts = live["evts"]
+        live["evts"] = push(evts, rec)
+        hostPutNode(host, live)
+        logCommit(host, "EVENT_NATIVE")
+    } else {
+        let delegates = host["delegates"]
+        host["delegates"] = push(delegates, rec)
+        logCommit(host, "EVENT_DELEGATE")
+    }
+}
+
+pub fn hostDispatch(host, node, eventType) {
+    let hits = 0
+    let nid = node["nid"]
+    let live = hostNodeById(host, nid)
+    let evts = live["evts"]
+    let i = 0
+    while i < len(evts) {
+        let rec = evts[i]
+        if rec["etype"] == eventType {
+            let h = rec["handler"]
+            if h != null {
+                h()
+            }
+            hits = hits + 1
+        }
+        i = i + 1
+    }
+    let delegates = host["delegates"]
+    let j = 0
+    while j < len(delegates) {
+        let rec = delegates[j]
+        if rec["etype"] == eventType {
+            if rec["nodeId"] == nid {
+                let h = rec["handler"]
+                if h != null {
+                    h()
+                }
+                hits = hits + 1
+            }
+        }
+        j = j + 1
+    }
+    return hits
+}
+
+fn hostApplyPending(host) {
+    let ops = host["pending"]
+    let n = 0
+    if ops != null {
+        n = len(ops)
+    }
+    let i = 0
+    while i < n {
+        let op = ops[i]
+        hostApplyOp(host, op)
+        i = i + 1
+    }
+}
+
+pub fn hostApplyEach(host) {
+    hostApplyPending(host)
+}
+
+pub fn hostBatch(host) {
+    logCommit(host, "BATCH")
+    hostApplyPending(host)
+}
+
+pub fn hostApply(host) {
+    if host["path"] == "fast" {
+        if hostHasCap(host, "supportsBatchCommit") {
+            logCommit(host, "BATCH")
+        }
+    }
+}
+
+pub fn hostApplyOp(host, op) {
+    let kind = op["op"]
+    if kind == "SET_TEXT" {
+        let tid = op["nodeId"]
+        let tnode = hostNodeById(host, tid)
+        let tval = op["value"]
+        hostText(host, tnode, tval)
+        return
+    }
+    if kind == "SET_ATTR" {
+        let aid = op["nodeId"]
+        let anode = hostNodeById(host, aid)
+        let akey = op["key"]
+        let aval = op["value"]
+        hostSetProp(host, anode, akey, aval)
+        return
+    }
+    if kind == "REMOVE_ATTR" {
+        let rid = op["nodeId"]
+        let rnode = hostNodeById(host, rid)
+        let rkey = op["key"]
+        hostRemoveProp(host, rnode, rkey)
+        return
+    }
+    if kind == "INSERT" {
+        let ipid = op["parentId"]
+        let inid = op["nodeId"]
+        let iparent = hostNodeById(host, ipid)
+        let inode = hostNodeById(host, inid)
+        let iidx = op["index"]
+        hostInsert(host, iparent, inode, iidx)
+        return
+    }
+    if kind == "REMOVE" {
+        let rpid = op["parentId"]
+        let rnid = op["nodeId"]
+        let rparent = hostNodeById(host, rpid)
+        let rnode = hostNodeById(host, rnid)
+        hostRemove(host, rparent, rnode)
+        return
+    }
+    if kind == "MOVE" {
+        let mpid = op["parentId"]
+        let mnid = op["nodeId"]
+        let mparent = hostNodeById(host, mpid)
+        let mnode = hostNodeById(host, mnid)
+        let midx = op["index"]
+        hostMove(host, mparent, mnode, midx)
+        return
+    }
+    if kind == "EVENT" {
+        let eid = op["nodeId"]
+        let enode = hostNodeById(host, eid)
+        let etype = op["etype"]
+        let ehandler = op["handler"]
+        hostEvent(host, enode, etype, ehandler)
+        return
+    }
+    if kind == "BATCH" {
+        let bops = op["ops"]
+        let n = 0
+        if bops != null {
+            n = len(bops)
+        }
+        let i = 0
+        while i < n {
+            let child = bops[i]
+            hostApplyOp(host, child)
+            i = i + 1
+        }
+    }
+}

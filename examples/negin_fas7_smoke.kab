@@ -1,0 +1,248 @@
+import "negin/host"
+import "negin/commit"
+import "negin/static-tree"
+import "negin/list"
+
+fn logHas(log, name) {
+    let i = 0
+    while i < len(log) {
+        if log[i] == name {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+let kdom = createHost("kdom")
+let kv8 = createHost("kv8")
+let browser = createHost("browser")
+let kos = createHost("kos")
+
+let profilesOk = kdom["profile"] == "kdom"
+if kv8["profile"] != "kv8" {
+    profilesOk = false
+}
+if browser["profile"] != "browser" {
+    profilesOk = false
+}
+if kos["profile"] != "kos" {
+    profilesOk = false
+}
+
+let pathOk = kdom["path"] == "fast"
+if kos["path"] != "fast" {
+    pathOk = false
+}
+if kv8["path"] != "compat" {
+    pathOk = false
+}
+if browser["path"] != "compat" {
+    pathOk = false
+}
+
+let kv8FirstClass = kv8["profile"] != "browser"
+if hostHasCap(kv8, "supportsNativeEvents") == false {
+    kv8FirstClass = false
+}
+
+let capsOk = hostHasCap(kdom, "supportsBatchCommit")
+if hostHasCap(kdom, "supportsMoveNode") == false {
+    capsOk = false
+}
+if hostHasCap(kv8, "supportsBatchCommit") {
+    capsOk = false
+}
+if hostHasCap(kv8, "supportsMoveNode") {
+    capsOk = false
+}
+if hostHasCap(browser, "supportsNativeEvents") {
+    capsOk = false
+}
+if hostHasCap(kos, "supportsStaticNodes") == false {
+    capsOk = false
+}
+
+let kdomBox = { "kind": "KdomContainer", "n": 1 }
+let kv8Box = { "kind": "Kv8Container", "n": 1 }
+let kosBox = { "kind": "KosBrowserContainer", "n": 1 }
+let domBox = { "kind": "DomContainer", "n": 1 }
+let detectK = detectHostProfile(kdomBox)
+let detectV = detectHostProfile(kv8Box)
+let detectO = detectHostProfile(kosBox)
+let detectB = detectHostProfile(domBox)
+let detectOk = detectK == "kdom"
+if detectV != "kv8" {
+    detectOk = false
+}
+if detectO != "kos" {
+    detectOk = false
+}
+if detectB != "browser" {
+    detectOk = false
+}
+
+let p = hostCreateNode(kdom, "p")
+let root = hostRoot(kdom)
+hostInsert(kdom, root, p, 0)
+commitClear()
+commitPush(opSetText(p, "hi"))
+commitPush(opSetAttr(p, "cls", "x"))
+commitPush(opRemoveAttr(p, "hidden"))
+commitPending(kdom)
+let pid = p["nid"]
+let liveP = hostNodeById(kdom, pid)
+let cls = hostGetProp(kdom, liveP, "cls")
+let ptxt = hostGetText(kdom, liveP)
+let commitOk = ptxt == "hi"
+if cls != "x" {
+    commitOk = false
+}
+
+let klog = kdom["log"]
+let batchOk = logHas(klog, "BATCH")
+let browserP = hostCreateNode(browser, "p")
+commitClear()
+commitPush(opSetText(browserP, "hi"))
+commitPending(browser)
+let blog = browser["log"]
+let bpid = browserP["nid"]
+let blive = hostNodeById(browser, bpid)
+let btxt = hostGetText(browser, blive)
+let compatOk = logHas(blog, "BATCH") == false
+if btxt != "hi" {
+    compatOk = false
+}
+
+let a = hostCreateNode(kdom, "li")
+let b = hostCreateNode(kdom, "li")
+hostText(kdom, a, "a")
+hostText(kdom, b, "b")
+let listParent = hostCreateNode(kdom, "ul")
+hostInsert(kdom, listParent, a, 0)
+hostInsert(kdom, listParent, b, 1)
+let oldList = [{ "key": "a", "node": a, "txt": "a" }, { "key": "b", "node": b, "txt": "b" }]
+let newList = [{ "key": "b", "node": b, "txt": "b" }, { "key": "a", "node": a, "txt": "a" }]
+commitKeyed(kdom, listParent, oldList, newList)
+let ulid = listParent["nid"]
+let liveUl = hostNodeById(kdom, ulid)
+let kids = liveUl["children"]
+let bid = b["nid"]
+let aid = a["nid"]
+let moveOk = len(kids) == 2
+if moveOk {
+    if kids[0] != bid {
+        moveOk = false
+    }
+    if kids[1] != aid {
+        moveOk = false
+    }
+}
+let klog2 = kdom["log"]
+if logHas(klog2, "MOVE") == false {
+    moveOk = false
+}
+
+let kv8a = hostCreateNode(kv8, "li")
+let kv8b = hostCreateNode(kv8, "li")
+let kv8ul = hostCreateNode(kv8, "ul")
+hostInsert(kv8, kv8ul, kv8a, 0)
+hostInsert(kv8, kv8ul, kv8b, 1)
+let kv8old = [{ "key": "a", "node": kv8a, "txt": "" }, { "key": "b", "node": kv8b, "txt": "" }]
+let kv8new = [{ "key": "b", "node": kv8b, "txt": "" }, { "key": "a", "node": kv8a, "txt": "" }]
+commitKeyed(kv8, kv8ul, kv8old, kv8new)
+let kv8ulid = kv8ul["nid"]
+let liveKv8ul = hostNodeById(kv8, kv8ulid)
+let kv8kids = liveKv8ul["children"]
+let kv8bid = kv8b["nid"]
+let kv8aid = kv8a["nid"]
+let kv8MoveOk = len(kv8kids) == 2
+if kv8MoveOk {
+    if kv8kids[0] != kv8bid {
+        kv8MoveOk = false
+    }
+    if kv8kids[1] != kv8aid {
+        kv8MoveOk = false
+    }
+}
+let kv8log = kv8["log"]
+if logHas(kv8log, "MOVE") {
+    kv8MoveOk = false
+}
+
+clearHoistCache()
+let tree = { "kind": "VNode", "tag": "h1", "hoistKey": "title", "txt": "Negin", "children": [] }
+let s1 = hoistStatic(kdom, tree)
+let s2 = hoistStatic(kdom, tree)
+let live = { "kind": "VNode", "tag": "span", "reactive": true, "txt": "n", "children": [] }
+let s1id = s1["nid"]
+let liveS1 = hostNodeById(kdom, s1id)
+let s2id = s2["nid"]
+let liveS2 = hostNodeById(kdom, s2id)
+let s1txt = hostGetText(kdom, s1)
+let staticOk = s1 != null
+if s2 == null {
+    staticOk = false
+}
+if staticOk {
+    if s1id != s2["nid"] {
+        staticOk = false
+    }
+    if liveS2["reused"] != true {
+        staticOk = false
+    }
+    if s1txt != "Negin" {
+        staticOk = false
+    }
+}
+if hoistStatic(kdom, live) != null {
+    staticOk = false
+}
+
+let clicks = 0
+fn onClick() {
+    clicks = clicks + 1
+}
+let btn = hostCreateNode(kdom, "button")
+hostEvent(kdom, btn, "click", onClick)
+hostDispatch(kdom, btn, "click")
+let nativeEvOk = clicks == 1
+let klog3 = kdom["log"]
+if logHas(klog3, "EVENT_NATIVE") == false {
+    nativeEvOk = false
+}
+
+let dclicks = 0
+fn onDelegated() {
+    dclicks = dclicks + 1
+}
+let dbtn = hostCreateNode(browser, "button")
+hostEvent(browser, dbtn, "click", onDelegated)
+hostDispatch(browser, dbtn, "click")
+let delegateOk = dclicks == 1
+let blog2 = browser["log"]
+if logHas(blog2, "EVENT_DELEGATE") == false {
+    delegateOk = false
+}
+
+let items = ["a", "b", "c", "d", "e"]
+let vis = listVisible(items, 50, 100, 50, 1)
+let listOk = len(vis) == 4
+if listOk {
+    if vis[0] != "a" {
+        listOk = false
+    }
+    if vis[3] != "d" {
+        listOk = false
+    }
+}
+
+let kv8box2 = { "kind": "Kv8Container", "n": 1 }
+let fromKv8 = createHostFromContainer(kv8box2)
+let containerOk = fromKv8["profile"] == "kv8"
+if fromKv8["path"] != "compat" {
+    containerOk = false
+}
+
+println("negin fas7 profiles=" + profilesOk + " path=" + pathOk + " kv8=" + kv8FirstClass + " caps=" + capsOk + " detect=" + detectOk + " commit=" + commitOk + " batch=" + batchOk + " compat=" + compatOk + " move=" + moveOk + " kv8move=" + kv8MoveOk + " static=" + staticOk + " nev=" + nativeEvOk + " del=" + delegateOk + " list=" + listOk + " ctr=" + containerOk)
+return profilesOk && pathOk && kv8FirstClass && capsOk && detectOk && commitOk && batchOk && compatOk && moveOk && kv8MoveOk && staticOk && nativeEvOk && delegateOk && listOk && containerOk

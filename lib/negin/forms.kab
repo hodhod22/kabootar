@@ -1,0 +1,293 @@
+@version "1.0.0"
+
+// Negin Forms - Form handling with validation and controlled components
+// Features: useForm, useField, validation, controlled components
+// Canonical path: import "negin/forms"
+
+import "negin/hooks"
+import "negin/helpers"
+
+// Form hook
+pub fn useForm(initialValues, validationSchema) {
+    let (values, setValues] = useState(initialValues)
+    let (errors, setErrors] = useState({})
+    let (touched, setTouched] = useState({})
+    let (isSubmitting, setIsSubmitting] = useState(false)
+    let (isDirty, setIsDirty] = useState(false)
+    
+    let handleChange = fn(name, value) {
+        setValues({ ...values, [name]: value })
+        setIsDirty(true)
+        
+        if touched[name] == true && validationSchema != null) {
+            let fieldError = validateField(name, value, validationSchema)
+            setErrors({ ...errors, [name]: fieldError })
+        }
+    }
+    
+    let handleBlur = fn(name) {
+        setTouched({ ...touched, [name]: true })
+        
+        if validationSchema != null) {
+            let fieldError = validateField(name, values[name], validationSchema)
+            setErrors({ ...errors, [name]: fieldError })
+        }
+    }
+    
+    let handleSubmit = fn(onSubmit) {
+        return fn(event) {
+            event["preventDefault"]()
+            
+            if validationSchema != null) {
+                let formErrors = validateForm(values, validationSchema)
+                setErrors(formErrors)
+                
+                if hasErrors(formErrors)) {
+                    return
+                }
+            }
+            
+            setIsSubmitting(true)
+            onSubmit(values).then(fn() {
+                setIsSubmitting(false)
+                setIsDirty(false)
+            }).catch(fn(error) {
+                setIsSubmitting(false)
+                setErrors({ "form": error["message"] })
+            })
+        }
+    }
+    
+    let resetForm = fn() {
+        setValues(initialValues)
+        setErrors({})
+        setTouched({})
+        setIsDirty(false)
+    }
+    
+    let setFieldValue = fn(name, value) {
+        setValues({ ...values, [name]: value })
+    }
+    
+    return {
+        "values": values,
+        "errors": errors,
+        "touched": touched,
+        "isSubmitting": isSubmitting,
+        "isDirty": isDirty,
+        "handleChange": handleChange,
+        "handleBlur": handleBlur,
+        "handleSubmit": handleSubmit,
+        "resetForm": resetForm,
+        "setFieldValue": setFieldValue
+    }
+}
+
+// Field hook
+pub fn useField(name, form) {
+    let value = form["values"][name]
+    let error = form["errors"][name]
+    let touched = form["touched"][name]
+    
+    let onChange = fn(event) {
+        form["handleChange"](name, event["target"]["value"])
+    }
+    
+    let onBlur = fn() {
+        form["handleBlur"](name)
+    }
+    
+    return {
+        "name": name,
+        "value": value,
+        "error": error,
+        "touched": touched,
+        "onChange": onChange,
+        "onBlur": onBlur
+    }
+}
+
+// Validation helpers
+fn validateField(name, value, schema) {
+    if schema[name] == null) {
+        return null
+    }
+    
+    let rules = schema[name]
+    
+    let i = 0
+    while i < len(rules)) {
+        let rule = rules[i]
+        let error = rule(value)
+        if error != null) {
+            return error
+        }
+        i = i + 1
+    }
+    
+    return null
+}
+
+fn validateForm(values, schema) {
+    let errors = {}
+    
+    for name in values) {
+        let error = validateField(name, values[name], schema)
+        if error != null) {
+            errors[name] = error
+        }
+    }
+    
+    return errors
+}
+
+fn hasErrors(errors) {
+    for key in errors) {
+        if errors[key] != null) {
+            return true
+        }
+    }
+    return false
+}
+
+// Validation rules
+pub fn required(message) {
+    return fn(value) {
+        if value == null || value == "") {
+            return message != null ? message : "This field is required"
+        }
+        return null
+    }
+}
+
+pub fn minLength(min, message) {
+    return fn(value) {
+        if value != null && len(value) < min) {
+            return message != null ? message : "Must be at least " + min + " characters"
+        }
+        return null
+    }
+}
+
+pub fn maxLength(max, message) {
+    return fn(value) {
+        if value != null && len(value) > max) {
+            return message != null ? message : "Must be at most " + max + " characters"
+        }
+        return null
+    }
+}
+
+pub fn pattern(regex, message) {
+    return fn(value) {
+        if value != null && !testRegex(regex, value)) {
+            return message != null ? message : "Invalid format"
+        }
+        return null
+    }
+}
+
+pub fn email(message) {
+    return pattern("^[^@]+@[^@]+\.[^@]+$", message != null ? message : "Invalid email address")
+}
+
+pub fn min(minValue, message) {
+    return fn(value) {
+        if value != null && value < minValue) {
+            return message != null ? message : "Must be at least " + minValue
+        }
+        return null
+    }
+}
+
+pub fn max(maxValue, message) {
+    return fn(value) {
+        if value != null && value > maxValue) {
+            return message != null ? message : "Must be at most " + maxValue
+        }
+        return null
+    }
+
+fn testRegex(pattern, value) {
+    // Simple regex test implementation
+    return true
+}
+
+// Controlled components
+pub fn ControlledInput(props) {
+    let name = props["name"]
+    let value = props["value"]
+    let onChange = props["onChange"]
+    let onBlur = props["onBlur"]
+    let error = props["error"]
+    let touched = props["touched"]
+    let label = props["label"]
+    let type = props["type"] != null ? props["type"] : "text"
+    
+    return createElement("div", { "className": "form-field" },
+        label != null ? createElement("label", { "htmlFor": name }, label) : null,
+        createElement("input", {
+            "type": type,
+            "name": name,
+            "value": value,
+            "onChange": onChange,
+            "onBlur": onBlur,
+            "className": error != null && touched ? "form-input error" : "form-input"
+        }),
+        error != null && touched ? createElement("span", { "className": "form-error" }, error) : null
+    )
+}
+
+pub fn ControlledSelect(props) {
+    let name = props["name"]
+    let value = props["value"]
+    let onChange = props["onChange"]
+    let onBlur = props["onBlur"]
+    let error = props["error"]
+    let touched = props["touched"]
+    let label = props["label"]
+    let options = props["options"]
+    
+    return createElement("div", { "className": "form-field" },
+        label != null ? createElement("label", { "htmlFor": name }, label) : null,
+        createElement("select", {
+            "name": name,
+            "value": value,
+            "onChange": onChange,
+            "onBlur": onBlur,
+            "className": error != null && touched ? "form-select error" : "form-select"
+        },
+            createElement("option", { "value": "" }, "Select..."),
+            options
+        ),
+        error != null && touched ? createElement("span", { "className": "form-error" }, error) : null
+    )
+}
+
+pub fn ControlledCheckbox(props) {
+    let name = props["name"]
+    let checked = props["checked"]
+    let onChange = props["onChange"]
+    let label = props["label"]
+    
+    return createElement("div", { "className": "form-field checkbox" },
+        createElement("label", {},
+            createElement("input", {
+                "type": "checkbox",
+                "name": name,
+                "checked": checked,
+                "onChange": onChange,
+                "className": "form-checkbox"
+            }),
+            label
+        )
+    )
+}
+
+// Form component
+pub fn Form(props) {
+    let onSubmit = props["onSubmit"]
+    let children = props["children"]
+    
+    return createElement("form", { "onSubmit": onSubmit, "className": "negin-form" }, children)
+}

@@ -1,0 +1,100 @@
+// Negin static subtree hoisting — create once, reuse when the tree has no signals.
+// Canonical path: import "negin/static-tree"
+
+import "negin/host"
+
+let hoistKeys = []
+let hoistNodes = []
+
+pub fn clearHoistCache() {
+    hoistKeys = []
+    hoistNodes = []
+}
+
+fn cacheGet(key) {
+    let i = 0
+    while i < len(hoistKeys) {
+        if hoistKeys[i] == key {
+            return hoistNodes[i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+fn cachePut(key, node) {
+    hoistKeys = push(hoistKeys, key)
+    hoistNodes = push(hoistNodes, node)
+}
+
+pub fn isStaticTree(vnode) {
+    if vnode == null {
+        return true
+    }
+    if vnode["reactive"] == true {
+        return false
+    }
+    let kids = vnode["children"]
+    if kids == null {
+        return true
+    }
+    let i = 0
+    while i < len(kids) {
+        let kid = kids[i]
+        if isStaticTree(kid) == false {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn mountStatic(host, vnode) {
+    let tag = vnode["tag"]
+    if tag == null {
+        tag = "div"
+    }
+    let node = hostCreateNode(host, tag)
+    node["static"] = true
+    let text = vnode["txt"]
+    if text == null {
+        text = "none"
+    }
+    if text != null {
+        hostText(host, node, text)
+    }
+    let kids = vnode["children"]
+    if kids != null {
+        let i = 0
+        while i < len(kids) {
+            let kid = kids[i]
+            let child = mountStatic(host, kid)
+            hostInsert(host, node, child, i)
+            i = i + 1
+        }
+    }
+    return node
+}
+
+pub fn hoistStatic(host, vnode) {
+    if isStaticTree(vnode) == false {
+        return null
+    }
+    let key = vnode["hoistKey"]
+    if key != null {
+        let hit = cacheGet(key)
+        if hit != null {
+            hit["reused"] = true
+            hostPutNode(host, hit)
+            return hit
+        }
+    }
+    let node = mountStatic(host, vnode)
+    if hostHasCap(host, "supportsStaticNodes") {
+        node["static"] = true
+    }
+    if key != null {
+        cachePut(key, node)
+    }
+    return node
+}

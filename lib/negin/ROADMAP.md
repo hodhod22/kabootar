@@ -30,8 +30,11 @@ React bär JS-historik: mutable DOM, closures, dependency arrays, separat bundle
 ## Hur det landar i koden (Fas 6+)
 - Fiber: `negin/fiber` keyed walk så barn återanvänds på `key`, inte index
 - Signals: `negin/signals` med `seen["e"+eid]` istället för linjär subscriber-scan
+- Host ABI: `negin/host` — fyra profiler, caps, samma createNode/setProp/insert-kärna
+- Commit: `negin/commit` — op-lista (SET_TEXT, MOVE, …) sedan host apply (fast/compat)
+- Static: `negin/static-tree` — UI utan signaler skapas en gång
 - Error: `negin/error` som giltig Kabootar (inga JS-`useState`-destructures)
-- Gate: `examples/negin_fas6_smoke.kab`
+- Gate: `examples/negin_fas6_smoke.kab`, `examples/negin_fas7_smoke.kab`
 
 ## Arkitektur
 
@@ -39,15 +42,36 @@ Lager, inte en React-kopia. UI är deklarativa komponenter; app-data kommer frå
 
 | Lager | Roll | Behållen React-idé | Negin-skillnad |
 |-------|------|--------------------|----------------|
-| **element / core** | `createElement`, render | deklarativt träd | host-agnostisk (kdom + host-DOM) |
+| **element / core** | `createElement`, render | deklarativt träd | samma komponenter på fyra hostar |
 | **component** | komposition, återanvändning | komponenter | GC-livstid, ingen class-component-historik |
-| **fiber / reconciler** | keyed patch | composable träd | keyed walk, inte index-only diff |
-| **signals** | data → UI | unikällsflöde | auto-track, inga dependency arrays |
-| **hooks** | lokal UI-state | bekant yta | sekundär; signals är default |
-| **state** | app-store | ekosystem | inte “allt i useState”; sql/http är källor |
-| **host-adapter** | sql / http / kdom | server+client | samma språk, ingen separat Node-runtime |
-| **ssr / hydration** | server/client-modell | samma komponenter | samma VM/bytecode |
+| **fiber / signals** | keyed walk + auto-track | composable träd | inte “React-fast”; diffar en gång |
+| **commit** | fiber → op-lista | patch | SET_TEXT / SET_ATTR / INSERT / REMOVE / MOVE |
+| **host ABI** | createNode/setProp/insert/… | host-render | kDOM, KV8, browser-DOM, kOS-browser |
+| **hooks / state** | lokal UI vs app-data | ekosystem | sql/http är källor; inte allt i useState |
+| **ssr / hydration** | samma komponenter | server/client | capability `supportsHydration` |
 | **error** | felgränser | composability | giltig Kab-syntax, log + recover |
+
+Negin är **host-agnostiskt**. Kärnan ska inte veta om den kör mot kDOM, KV8, vanlig DOM eller Kabootars egen browser. En komponent, fyra host-situationer:
+
+```
+                    Negin
+                      │
+              Core / Signals / Fiber
+                      │
+               Commit Operations
+                      │
+                Host Adapter ABI
+          ┌───────────┼───────────┐
+          │           │           │
+        kDOM        KV8       Browser DOM
+          │           │           │
+       kOS/browser   KV8      Chrome/Firefox/...
+```
+
+- **Fast path:** kDOM + kOS/browser — `supportsBatchCommit`, kompakt commit.
+- **Compat path:** vanlig DOM + KV8 (tills KV8 får native batch/move) — samma ops, DOM-liknande apply.
+- **KV8** är en förstaklassig host-profil, inte “browser-kompatibilitet”.
+- **Capabilities, inte browser detection:** `supportsBatchCommit`, `supportsNativeEvents`, `supportsStaticNodes`, `supportsMoveNode`, `supportsHydration`.
 
 **UI-state** = signaler och lokal view (öppen panel, hover, input-caret).  
 **Applikationsstate** = rader från `sql`/`db`, svar från `http_*`, kOS-session. Negin ska inte tvinga app-state genom hook-listan.
@@ -79,16 +103,33 @@ Fas 1–5 är historiska leveranser (core → Kabootar-integration → signals/S
 - [x] Gate: `examples/negin_fas6_smoke.kab`
 - [x] Roadmap: behållvärda React-styrkor vs Kabootar-vinster
 
-### Fas 7 — Göra “bättre än React” mätbart (nästa)
-Arbete styrs av listan *Sådant Negin kan försöka göra bättre*. En punkt i taget, med smoke.
+### Fas 7 — Host-agnostisk runtime (ABI + commit + static)
+Negin ska inte optimeras för en miljö. Samma API/komponentmodell över kDOM, KV8, vanlig DOM och kOS/browser. Inte “gör Negin React-fast”.
 
-- [ ] **Onödig rendering** — mät: signal-set uppdaterar bara beroende fiber-noder; ingen fullträds-reconcile i smoke
-- [ ] **State-gräns** — dokumenterad + API: `signal*` = UI; `sql`/`http_*` = app; förbjud “store i varje komponent”
-- [ ] **Inga dependency arrays** — `useEffect(fn, deps)` antingen auto-track eller avvecklas till `createEffect`
-- [ ] **Async state** — en `Result`/`loading`/`error`-yta driven av sql/http, inte separat Promise-reconciler
-- [ ] **Hydration/SSR** — en host-path: samma `render` mot kdom och host-DOM; smoke som roundtrippar markup
-- [ ] **Bundle/runtime** — Negin-core self-host-kompilerar; ingen dold JS-runtime i UI-hotpath
-- [ ] **Memory / GC** — inga extra VNode-allocs per identisk keyed child; valfri `gc_frame_stats` i UI-tick-smoke
+- [x] **Host Adapter ABI** — `createNode` / `setProp` / `removeProp` / `insert` / `remove` / `text` / `event` / `batch` (`negin/host`)
+- [x] **Host-oberoende commit-ops** — fiber keyed diff → op-lista → host apply; fast vs compat (`negin/commit`)
+- [x] **Static subtree hoisting** — statiskt UI skapas en gång och återanvänds (`negin/static-tree`)
+- [x] **Capability detection** — `hostHasCap`, inte `if Chrome` / `if Kabootar`
+- [x] **KV8 förstaklassig host** — egen profil (`kv8`), inte browser-fallback
+- [x] **Event som host-feature** — native vs delegation
+- [x] **List-primitive** — synligt fönster utan DOM-tricks (`negin/list`)
+- [x] Gate: `examples/negin_fas7_smoke.kab`
+
+Nästa (samma ABI, djupare hosts):
+- [ ] kdom-host / kv8-host / browser-dom-host / kos-browser-host mot riktiga noder (inte bara in-memory ABI)
+- [ ] KV8-optimering av objekt/events utan att röra browser-DOM-profilen
+- [ ] Wire Fas 6 fiber/signals → commit-ops i `render`
+
+### Fas 8 — Mätbara vinster (efter ABI)
+Samma host-oberoende kärna. En punkt i taget, med smoke.
+
+- [ ] **Onödig rendering** — signal-set uppdaterar bara beroende fiber-noder
+- [ ] **State-gräns** — `signal*` = UI; `sql`/`http_*` = app
+- [ ] **Inga dependency arrays** — `useEffect` auto-track eller `createEffect`
+- [ ] **Async state** — `Result`/`loading`/`error` från sql/http
+- [ ] **Hydration/SSR** — `supportsHydration` på host; smoke som roundtrippar markup
+- [ ] **Bundle/runtime** — Negin-core self-host-kompilerar
+- [ ] **Memory / GC** — inga extra VNode-allocs per identisk keyed child
 - [ ] **Giltig Kab överallt** — `reconciler`/`hooks` utan `if cond) {`, `fn()`-i-objekt och `let (a, b)`
 
 ## Filstruktur
@@ -98,20 +139,21 @@ lib/negin/
 ├── README.md
 ├── core.kab / element.kab / component.kab
 ├── fiber.kab            # keyed walk (Fas 6)
-├── reconciler.kab       # patch mot fiber
 ├── signals.kab          # createSignal / signalGet / signalSet / createEffect
-├── hooks.kab            # UI-lokal state (sekundär)
-├── state.kab            # app-store (inte UI-default)
-├── host-adapter.kab     # sql, http, kdom
+├── host.kab             # Host Adapter ABI + caps + 4 profiler (Fas 7)
+├── commit.kab           # SET_TEXT / SET_ATTR / INSERT / REMOVE / MOVE
+├── static-tree.kab      # static subtree hoisting
+├── list.kab             # host-oberoende list window
+├── host-adapter.kab     # sql / http / kml (Kabootar-primitives)
 ├── error.kab
-├── scheduler.kab / events.kab / context.kab / suspense.kab / ssr.kab
 └── examples/            # counter, todo, app, …
 examples/negin_fas6_smoke.kab
+examples/negin_fas7_smoke.kab
 ```
 
 ## API (Kabootar, inte JS)
 
-Signals + keyed fiber är den yta Fas 6 faktiskt kör. Inga tuple-destructures, inga anonyma `fn()` i objektliteral.
+Signals + keyed fiber (Fas 6) och Host ABI + commit-ops (Fas 7) är den yta som faktiskt kör. Inga tuple-destructures, inga anonyma `fn()` i objektliteral.
 
 ```kab
 import "negin/fiber"
@@ -147,4 +189,22 @@ import "negin/host-adapter"
 
 let result = sql("SELECT id, name FROM users", [])
 let rows = result["rows"]
+```
+
+Host ABI (Fas 7) — samma ops på kDOM, KV8, browser och kOS:
+
+```kab
+import "negin/host"
+import "negin/commit"
+import "negin/static-tree"
+
+let host = createHost("kdom")
+let node = hostCreateNode(host, "p")
+commitClear()
+commitPush(opSetText(node, "hi"))
+commitPending(host)
+
+let tree = { "type": "h1", "hoistKey": "title", "text": "Negin", "children": [] }
+let a = hoistStatic(host, tree)
+let b = hoistStatic(host, tree)
 ```
