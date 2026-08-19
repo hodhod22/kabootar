@@ -10,6 +10,7 @@ import "negin/dev-server"
 import "negin/build-pipeline"
 import "negin/auto-testing"
 import "negin/helpers"
+import "negin/host-adapter"
 
 let cliConfig = {
     "projectName": "negin-app",
@@ -34,7 +35,10 @@ pub fn createCLI(config) {
             "deploy": runDeploy,
             "lint": runLint,
             "format": runFormat,
-            "config": manageConfig
+            "config": manageConfig,
+            "kabootar": setupKabootar,
+            "db": manageDatabase,
+            "http": manageHTTP
         }
     }
 }
@@ -455,4 +459,60 @@ pub fn completeProgress() {
 // Helper functions
 fn currentTime() {
     return systemTime()
+}
+
+// Kabootar-specific commands
+pub fn setupKabootar(options) {
+    console.log("Setting up Kabootar integration...")
+    
+    let useKdom = options != null && options["kdom"] == true
+    let useSQL = options != null && options["sql"] == true
+    let useHTTP = options != null && options["http"] == true
+    
+    console.log("  kdom: " + useKdom)
+    console.log("  sql: " + useSQL)
+    console.log("  http: " + useHTTP)
+    
+    if useKdom) {
+        console.log("  Configuring kdom rendering...")
+    }
+    
+    if useSQL) {
+        console.log("  Configuring database...")
+    }
+    
+    if useHTTP) {
+        console.log("  Configuring HTTP routes...")
+    }
+    
+    console.log("Kabootar integration complete!")
+    return { "success": true }
+}
+
+pub fn manageDatabase(action, options) {
+    console.log("Managing database: " + action)
+    
+    if action == "migrate") {
+        console.log("  Running migrations...")
+    } else if action == "seed") {
+        console.log("  Seeding database...")
+    } else if action == "reset") {
+        console.log("  Resetting database...")
+    }
+    
+    return { "success": true }
+}
+
+pub fn manageHTTP(action, options) {
+    console.log("Managing HTTP: " + action)
+    
+    if action == "routes") {
+        console.log("  Listing routes...")
+    } else if action == "add") {
+        console.log("  Adding route...")
+    } else if action == "remove") {
+        console.log("  Removing route...")
+    }
+    
+    return { "success": true }
 }

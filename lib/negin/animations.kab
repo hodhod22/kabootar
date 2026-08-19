@@ -1,0 +1,329 @@
+@version "1.0.0"
+
+// Negin Animations - Animation support with transitions and keyframes
+// Features: useTransition, useAnimation, Transition component, keyframes
+// Canonical path: import "negin/animations"
+
+import "negin/hooks"
+import "negin/helpers"
+
+// Animation state
+let animationIdCounter = 0
+let activeAnimations = {}
+
+// Transition hook
+pub fn useAnimation(config) {
+    let (isAnimating, setIsAnimating] = useState(false)
+    let (progress, setProgress] = useState(0)
+    
+    let animate = fn() {
+        setIsAnimating(true)
+        setProgress(0)
+        
+        let duration = config["duration"] != null ? config["duration"] : 300
+        let easing = config["easing"] != null ? config["easing"] : "ease"
+        let startTime = currentTime()
+        
+        let animationId = animationIdCounter
+        animationIdCounter = animationIdCounter + 1
+        
+        activeAnimations[animationId] = {
+            "startTime": startTime,
+            "duration": duration,
+            "easing": easing,
+            "config": config
+        }
+        
+        let tick = fn() {
+            let elapsed = currentTime() - startTime
+            let newProgress = elapsed / duration
+            
+            if newProgress >= 1) {
+                newProgress = 1
+                setProgress(newProgress)
+                setIsAnimating(false)
+                activeAnimations[animationId] = null
+                
+                if config["onComplete"] != null) {
+                    config["onComplete"]()
+                }
+            } else {
+                setProgress(newProgress)
+                setTimeout(tick, 16)
+            }
+        }
+        
+        setTimeout(tick, 0)
+    }
+    
+    return {
+        "animate": animate,
+        "isAnimating": isAnimating,
+        "progress": progress
+    }
+}
+
+// Transition component
+pub fn Transition(props) {
+    let children = props["children"]
+    let in = props["in"]
+    let timeout = props["timeout"] != null ? props["timeout"] : 300
+    let unmountOnExit = props["unmountOnExit"] != null ? props["unmountOnExit"] : false
+    
+    let (mounted, setMounted] = useState(in)
+    let (entering, setEntering] = useState(false)
+    let (exiting, setExiting] = useState(false)
+    
+    useEffect(fn() {
+        if in) {
+            setMounted(true)
+            setTimeout(fn() {
+                setEntering(true)
+            }, 0)
+        } else {
+            setEntering(false)
+            setExiting(true)
+            
+            setTimeout(fn() {
+                setExiting(false)
+                if unmountOnExit) {
+                    setMounted(false)
+                }
+            }, timeout)
+        }
+    }, [in])
+    
+    if !mounted) {
+        return null
+    }
+    
+    let className = props["className"]
+    let transitionClass = entering ? "enter" : exiting ? "exit" : ""
+    
+    return createElement("div", {
+        "className": className + " " + transitionClass
+    }, children)
+}
+
+// Fade transition
+pub fn Fade(props) {
+    return createElement(Transition, {
+        "in": props["in"],
+        "timeout": props["timeout"],
+        "className": "fade-transition"
+    }, props["children"])
+}
+
+// Slide transition
+pub fn Slide(props) {
+    let direction = props["direction"] != null ? props["direction"] : "up"
+    return createElement(Transition, {
+        "in": props["in"],
+        "timeout": props["timeout"],
+        "className": "slide-transition slide-" + direction
+    }, props["children"])
+}
+
+// Scale transition
+pub fn Scale(props) {
+    return createElement(Transition, {
+        "in": props["in"],
+        "timeout": props["timeout"],
+        "className": "scale-transition"
+    }, props["children"])
+}
+
+// Keyframes
+pub fn keyframes(name, frames) {
+    return {
+        "kind": "Keyframes",
+        "name": name,
+        "frames": frames
+    }
+}
+
+// Create keyframe animation
+pub fn useKeyframes(animationName, duration) {
+    let (isAnimating, setIsAnimating] = useState(false)
+    
+    let play = fn() {
+        setIsAnimating(true)
+        
+        setTimeout(fn() {
+            setIsAnimating(false)
+        }, duration)
+    }
+    
+    return {
+        "play": play,
+        "isAnimating": isAnimating
+    }
+}
+
+// Spring animation
+pub fn useSpring(config) {
+    let (value, setValue] = useState(config["from"] != null ? config["from"] : 0)
+    let (isAnimating, setIsAnimating] = useState(false)
+    
+    let animate = fn() {
+        setIsAnimating(true)
+        
+        let to = config["to"] != null ? config["to"] : 1
+        let stiffness = config["stiffness"] != null ? config["stiffness"] : 100
+        let damping = config["damping"] != null ? config["damping"] : 10
+        let mass = config["mass"] != null ? config["mass"] : 1
+        
+        let current = value
+        let velocity = 0
+        let startTime = currentTime()
+        
+        let tick = fn() {
+            let elapsed = currentTime() - startTime
+            let force = (to - current) * stiffness - velocity * damping
+            let acceleration = force / mass
+            
+            velocity = velocity + acceleration * 0.016
+            current = current + velocity * 0.016
+            
+            setValue(current)
+            
+            if abs(velocity) < 0.01 && abs(to - current) < 0.01) {
+                setValue(to)
+                setIsAnimating(false)
+                
+                if config["onComplete"] != null) {
+                    config["onComplete"]()
+                }
+            } else {
+                setTimeout(tick, 16)
+            }
+        }
+        
+        setTimeout(tick, 0)
+    }
+    
+    return {
+        "animate": animate,
+        "value": value,
+        "isAnimating": isAnimating
+    }
+}
+
+fn abs(x) {
+    if x < 0) {
+        return -x
+    }
+    return x
+}
+
+// Staggered animation
+pub fn useStagger(items, delay) {
+    let (animatedItems, setAnimatedItems] = useState([])
+    
+    useEffect(fn() {
+        let delays = []
+        let i = 0
+        while i < len(items)) {
+            delays = push(delays, i * delay)
+            i = i + 1
+        }
+        
+        setAnimatedItems(delays)
+    }, [items, delay])
+    
+    return animatedItems
+}
+
+// Animation group
+pub fn AnimationGroup(props) {
+    let children = props["children"]
+    let appear = props["appear"] != null ? props["appear"] : true
+    let enter = props["enter"] != null ? props["enter"] : true
+    let exit = props["exit"] != null ? props["exit"] : true
+    
+    let (mounted, setMounted] = useState(appear)
+    
+    useEffect(fn() {
+        setMounted(appear)
+    }, [appear])
+    
+    if !mounted) {
+        return null
+    }
+    
+    return createElement("div", { "className": "animation-group" }, children)
+}
+
+// Motion component (Framer Motion-like)
+pub fn Motion(props) {
+    let children = props["children"]
+    let initial = props["initial"]
+    let animate = props["animate"]
+    let transition = props["transition"]
+    let whileHover = props["whileHover"]
+    let whileTap = props["whileTap"]
+    
+    let (state, setState] = useState(initial != null ? initial : {})
+    
+    useEffect(fn() {
+        if animate != null) {
+            setState(animate)
+        }
+    }, [animate])
+    
+    let style = props["style"]
+    let motionStyle = { ...style, ...state }
+    
+    return createElement("div", {
+        "style": motionStyle,
+        "className": props["className"]
+    }, children)
+}
+
+// Preset animations
+pub fn presets() {
+    return {
+        "fadeIn": {
+            "from": { "opacity": 0 },
+            "to": { "opacity": 1 },
+            "duration": 300
+        },
+        "fadeOut": {
+            "from": { "opacity": 1 },
+            "to": { "opacity": 0 },
+            "duration": 300
+        },
+        "slideInUp": {
+            "from": { "transform": "translateY(100%)", "opacity": 0 },
+            "to": { "transform": "translateY(0)", "opacity": 1 },
+            "duration": 300
+        },
+        "slideInDown": {
+            "from": { "transform": "translateY(-100%)", "opacity": 0 },
+            "to": { "transform": "translateY(0)", "opacity": 1 },
+            "duration": 300
+        },
+        "scaleIn": {
+            "from": { "transform": "scale(0)", "opacity": 0 },
+            "to": { "transform": "scale(1)", "opacity": 1 },
+            "duration": 300
+        },
+        "bounce": {
+            "from": { "transform": "scale(0.3)", "opacity": 0 },
+            "to": { "transform": "scale(1)", "opacity": 1 },
+            "duration": 500,
+            "easing": "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+        }
+    }
+}
+
+// Use preset animation
+pub fn usePreset(presetName) {
+    let preset = presets()[presetName]
+    
+    if preset == null) {
+        return null
+    }
+    
+    return useAnimation(preset)
+}

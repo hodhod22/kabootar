@@ -841,6 +841,26 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH8** | **Användbarhets-gate** — ta bort `#[ignore]` på *tiny* `compile_source_self_host("return 1")` när SH1 håller budget; full `compile(emit.kab)` får förbli ignored tills SH5 | `p10_self_host_tiny_source_profile` **inte ignored**; first_ms < 15 s CI (mål 2 s efter SH1) | 📋 |
 | **SH9** | **Compiler på host-JIT** — när toolchain körs på host-VM: Cranelift (P13) på typed i64-hjälpare i emit/serialize (AccAdd-loopar, index-loopar). Inte “JIT:a parsern i Kab-VM” | `jit_stats` hits > 0 under `compile()` av en medium-fil; ingen ny produktlogik i Rust | 📋 |
 | **SH10** | **Stabilitetsbudget i CI** — max import-depth, max modul-globala muterbara namn i `parser_session*`/`emit_main*`, förbjud nya `pSave*`/`eBx*` utan SH2-undantag | `cargo test --test self_host` + ett lint-test som räknar `let pPos` / `let eOps` i facader | 📋 |
+| **SH11** | **Compiler-hotpath (Kab-källa)** — mikroopts *efter* profil (`perf_p10_pipeline` / `KABOOTAR_P10_PROFILE=1`); inte parser-isolering (P10i stängd). Se SH11a–c nedan | Fas-tid (emit/parse/serialize/ownership) ner vs samma baseline; ingen ny shard, ingen CI-leaf >10 s | ✅ subset (SH11a/b/c landade; 2 s-import och densify är SH1/SH5) |
+
+**SH11 — vad som är OK vs vad som inte ska göras nu**
+
+Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budget** (self-host-*kompilera* shard-filen ≤10 s), inte för att runtime-init skulle vara “rätt”. En 80-fälts objektliteral i `emit_session.kab` är **medvetet undviken** (`Imperative init — huge object literals are slow for self-host compile`). `eMakeSession` körs **en gång per compile**, inte per AST-nod.
+
+| Steg | Vad | Varför OK / inte | Status |
+|------|-----|------------------|--------|
+| **SH11a** | **`object_has_own` → saknad-nyckel** i `ownership.kab` (`oMutCount` / `oSharedCount`): `let v = oMutBorrows[name]; if v == null { 0 } else { v }` | OK: räknare är aldrig `null` (0 lagras explicit). Vinst bara på **@manual**-checken, inte hela compile. Mät `ownership` i pipeline-profilen | ✅ |
+| **SH11b** | **`kind`-dispatch i `emitExprBody`** (samma mönster som `emitStmtBody` redan har för `AST_IF`): `let kind = node.kind` sedan en handler. Handlers slutar returnera `false` för “fel kind” | OK: en fältläsning + hopp i stället för upp till 10 anrop som alla läser `eNode.kind`. Liten fil, rör inte shard-budget. Gör `emitStmtBody` klart på samma sätt | ✅ (`emit_expr_body` / `emit_stmt_body`) |
+| **SH11c** | **Serialize AccAdd-kedja** — färre `out = serAppend*(out, …)`-varv där en uttrycks-kedja redan AccAdd:as (P10e). Inte `parts[]` + `join` (ingen produkt-`join`; array+push allokerar lika mycket) | OK som deepen av P10e. **Riktig** serialize-vinst är **SH4** binär IR, inte fler strängdelar | ✅ (`serialize_out_base`, const/op-loopar) |
+
+**Inte SH11 (låst tills SH5 reverse-densify, mätt mot total pipeline):**
+
+- **Session som en jätte-objektliteral** (`eMakeSession` / `pMakeSession`) — *körtid* kan bli billigare, men *self-host compile av shard-filen* blev medvetet långsammare med literaler. Görs först när session-init ligger i en densifierad modul (SH5), inte som 150-rads literal i en CI-leaf.
+- **Inlinea `parseRelExpr_step` / `parseMul_step` / … in i `while`** — mer källrader per fil → risk att spräcka 10 s-gate. P10: parsern är **tillräcklig**; 10–15 % där slår inte serialize/load/SH1. Följer med när expr-parsern slås ihop (SH5).
+- **Ta bort `pTramp` / `_hook` genom `sess["tramp"] = parseMul`** — trampolinen bryter import-cykler mellan shards. Funktionsvärden i session + IC är oprövat. Försvinner när parse-DAG:en är få filer (SH5), inte genom mer indirektion.
+- **Cacha `src`/`srcLen` som lokaler i `tokenizeExec`** — redan fält på `sess`. Heta loopen är `lxSkipSpace` / `lxScan` som fortfarande gör `sess["src"]`. Vinst = densify lexer till en fil *eller* P12 GetMember-hit, inte extra lokaler i drivrutinen.
+
+**Förväntad vinst (ärlig, inte 30–50 % stackat):** SH11a+b+c är **låg ensiffrig % på total `compile()`** för vanliga (icke-`@manual`) filer. Stacka inte fas-procent. Debug-VM (inga IC) kan visa mer; mät release + `perf_p10_pipeline`.
 
 **Icke-mål (låst, samma som H vs P):**
 
@@ -850,6 +870,8 @@ Se [COMPILE.md](COMPILE.md) § P10.
 - Att checka in `_probe_*.kab` som produkt.
 
 **Första sprint (rekommenderad):** SH0 snapshot + SH1 image-prototyp för `parse.kab`-DAG:en (inte hela vm) + SH3a nested-call regression. SH2 session-objekt är den stora stabilitetsvinsten men rör parser/emit samtidigt — gör den som egen PR efter SH3.
+
+**Nästa prestandasteg för self_host (efter mätning, inte mikroopts först):** (1) **SH1 2 s-gate** — kall `import "self_host/compile"` evalar DAG:en, det slår parser-mikroopts. (2) **SH5 reverse-densify** — färre shards = färre import-evals; då blir literal-session, trampolin och inlined `while` *billiga att kompilera*. (3) **SH4 binär IR** — serialize/deserialize, inte `out +`. (4) **SH11a/b** som små PR:er när profilen visar emit/ownership. (5) **SH9** Cranelift på typed AccAdd/index-loopar i emit/serialize. H6e deepen = mer produktlogik i Kab **utan** att flytta JIT/GC.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 

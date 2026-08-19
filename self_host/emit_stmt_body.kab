@@ -26,63 +26,81 @@ pub fn emitStmtBody(E, node) {
         throw "emitStmt: null node"
     }
     E["eStmtKind"] = E["eStmtNode"].kind
-    if E["eStmtKind"] == AST_IF {
+    let kind = E["eStmtKind"]
+    if kind == undefined {
+        throw "emitStmt: missing kind"
+    }
+    if kind == AST_IF {
         emitIfStmt(E)
         return
     }
-    if emitStmt_let(E) {
+    if kind == AST_LET {
+        emitStmt_let(E)
         return
     }
-    if emitStmt_assign(E) {
+    if kind == AST_ASSIGN {
+        emitStmt_assign(E)
         return
     }
-    if emitStmt_index_assign(E) {
+    if kind == AST_INDEX_ASSIGN {
+        emitStmt_index_assign(E)
         return
     }
-    if emitStmt_member_assign(E) {
+    if kind == AST_MEMBER_ASSIGN {
+        emitStmt_member_assign(E)
         return
     }
-    if emitStmt_expr(E) {
+    if kind == AST_EXPR {
+        emitStmt_expr(E)
         return
     }
-    if emitStmt_throw(E) {
+    if kind == AST_THROW {
+        emitStmt_throw(E)
         return
     }
-    if emitStmt_try(E) {
+    if kind == AST_TRY {
+        emitStmt_try(E)
         return
     }
-    if emitStmt_for_of(E) {
+    if kind == AST_FOR_OF {
+        emitStmt_for_of(E)
         return
     }
-    if emitStmt_return(E) {
+    if kind == AST_RETURN {
+        emitStmt_return(E)
         return
     }
-    if emitStmt_block(E) {
+    if kind == AST_BLOCK {
+        emitStmt_block(E)
         return
     }
-    if emitStmt_continue(E) {
+    if kind == AST_CONTINUE {
+        emitStmt_continue(E)
         return
     }
-    if emitStmt_break(E) {
+    if kind == AST_BREAK {
+        emitStmt_break(E)
         return
     }
-    if emitStmt_while(E) {
+    if kind == AST_WHILE {
+        emitStmt_while(E)
         return
     }
-    if emitStmt_enum(E) {
+    if kind == AST_ENUM {
+        emitStmt_enum(E)
         return
     }
-    if emitStmt_class(E) {
+    if kind == AST_CLASS {
+        emitStmt_class(E)
         return
     }
-    if emitStmt_interface(E) {
+    if kind == AST_INTERFACE {
+        emitStmt_interface(E)
         return
     }
-    if emitStmt_fn(E) {
+    if kind == AST_FN {
+        emitStmt_fn(E)
         return
     }
-    if E["eNode"].kind == undefined {
-        throw "emitStmt: missing kind"
-    }
-    throw "Unsupported stmt: " + E["eStmtKind"]
+    throw "Unsupported stmt: " + kind
 }

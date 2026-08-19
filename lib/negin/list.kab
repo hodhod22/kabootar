@@ -1,0 +1,52 @@
+// Negin List — host-independent window over large lists (tables, CAD, game UI).
+// Canonical path: import "negin/list"
+// Visible/changed items only; no DOM-specific tricks.
+
+pub fn visibleRange(scrollTop, viewportH, itemH, total, overscan) {
+    if itemH == 0 {
+        return { "start": 0, "end": 0 }
+    }
+    if itemH < 0 {
+        return { "start": 0, "end": 0 }
+    }
+    let first = scrollTop / itemH
+    if first < 0 {
+        first = 0
+    }
+    let visible = viewportH / itemH
+    if visible < 1 {
+        visible = 1
+    }
+    let start = first - overscan
+    if start < 0 {
+        start = 0
+    }
+    let end = first + visible + overscan
+    if end > total {
+        end = total
+    }
+    if start > end {
+        start = end
+    }
+    return { "start": start, "end": end }
+}
+
+pub fn listWindow(items, start, end) {
+    let out = []
+    if items == null {
+        return out
+    }
+    let i = start
+    while i < end {
+        if i < len(items) {
+            out = push(out, items[i])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+pub fn listVisible(items, scrollTop, viewportH, itemH, overscan) {
+    let range = visibleRange(scrollTop, viewportH, itemH, len(items), overscan)
+    return listWindow(items, range["start"], range["end"])
+}

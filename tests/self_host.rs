@@ -1798,6 +1798,29 @@ fn negin_fas6_smoke() {
 }
 
 #[test]
+fn negin_fas7_smoke() {
+    let path = format!(
+        "{}/examples/negin_fas7_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ok = std::thread::Builder::new()
+        .name("negin-fas7".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            std::env::set_var("KABOOTAR_COMPILE", "rust");
+            std::env::set_var("KABOOTAR_VM", "host");
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("negin fas7 smoke should run"),
+                kabootar_lib::value::Value::Bool(true)
+            )
+        })
+        .expect("spawn negin fas7 thread")
+        .join()
+        .expect("negin fas7 thread join");
+    assert!(ok);
+}
+
+#[test]
 fn h6e_run_selfhost_probe() {
     let path = format!(
         "{}/examples/h6e_run_selfhost_probe.kab",

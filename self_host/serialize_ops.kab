@@ -17,8 +17,7 @@ pub fn serAppendOps(out, ops) {
     let i = 0
     let n = len(ops)
     while i < n {
-        out = out + CHAR_NL
-        out = out + serIrOpLine(ops[i])
+        out = out + CHAR_NL + serIrOpLine(ops[i])
         i = i + 1
     }
     return out

@@ -1,0 +1,205 @@
+@version "1.0.0"
+
+// Negin State - Global state management with signals
+// Features: createSignalStore, createSignalStoreWithActions, useSignalStore
+// Canonical path: import "negin/state"
+
+import "negin/reactive-core"
+import "negin/hooks"
+import "negin/helpers"
+
+// Global store registry
+let stores = {}
+
+// Create a signal-based store
+pub fn createSignalStore(initialState) {
+    let storeId = generateStoreId()
+    let stateSignal = signal(initialState)
+    
+    let store = {
+        "kind": "SignalStore",
+        "id": storeId,
+        "state": stateSignal,
+        "getState": fn() {
+            return stateSignal["get"]()
+        },
+        "setState": fn(newState) {
+            stateSignal["set"](newState)
+        },
+        "update": fn(updater) {
+            stateSignal["update"](updater)
+        },
+        "subscribe": fn(callback) {
+            return stateSignal["subscribe"](callback)
+        }
+    }
+    
+    stores[storeId] = store
+    return store
+}
+
+// Create a signal-based store with actions
+pub fn createSignalStoreWithActions(initialState, actions) {
+    let store = createSignalStore(initialState)
+    
+    let dispatch = fn(action) {
+        let actionType = action["type"]
+        let actionPayload = action["payload"]
+        
+        if actions[actionType] != null) {
+            let newState = actions[actionType](store["state"]["get"](), actionPayload)
+            store["setState"](newState)
+        }
+    }
+    
+    store["dispatch"] = dispatch
+    store["actions"] = actions
+    
+    return store
+}
+
+// Hook to use a signal store
+pub fn useSignalStore(store) {
+    let (state, setState] = useState(store["state"]["get"]())
+    
+    useEffect(fn() {
+        let unsubscribe = store["subscribe"](fn(newState) {
+            setState(newState)
+        })
+        
+        return fn() {
+            if unsubscribe != null) {
+                unsubscribe()
+            }
+        }
+    }, [store])
+    
+    return {
+        "state": state,
+        "setState": store["setState"],
+        "update": store["update"],
+        "dispatch": store["dispatch"]
+    }
+}
+
+// Hook to create a local signal store
+pub fn useSignalStoreCreator(initialState) {
+    let store = createSignalStore(initialState)
+    let storeHook = useSignalStore(store)
+    
+    return storeHook
+}
+
+// Selector for optimized re-renders
+pub fn useSignalStoreSelector(store, selector) {
+    let (selected, setSelected] = useState(selector(store["state"]["get"]()))
+    
+    useEffect(fn() {
+        let unsubscribe = store["subscribe"](fn(newState) {
+            let newSelected = selector(newState)
+            if newSelected != selected) {
+                setSelected(newSelected)
+            }
+        })
+        
+        return fn() {
+            if unsubscribe != null) {
+                unsubscribe()
+            }
+        }
+    }, [store, selector])
+    
+    return selected
+}
+
+// Middleware support
+pub fn applyMiddleware(store, middlewares) {
+    let originalDispatch = store["dispatch"]
+    
+    let enhancedDispatch = fn(action) {
+        let dispatchChain = originalDispatch
+        
+        let i = len(middlewares) - 1
+        while i >= 0) {
+            let middleware = middlewares[i]
+            let next = dispatchChain
+            dispatchChain = fn(action) {
+                return middleware(store)(next)(action)
+            }
+            i = i - 1
+        }
+        
+        return dispatchChain(action)
+    }
+    
+    store["dispatch"] = enhancedDispatch
+    return store
+}
+
+// Logger middleware
+pub fn loggerMiddleware(store) {
+    return fn(next) {
+        return fn(action) {
+            console.log("Action:", action)
+            console.log("Previous state:", store["state"]["get"]())
+            let result = next(action)
+            console.log("New state:", store["state"]["get"]())
+            return result
+        }
+    }
+}
+
+// Thunk middleware for async actions
+pub fn thunkMiddleware(store) {
+    return fn(next) {
+        return fn(action) {
+            if typeof(action) == "function") {
+                return action(store["dispatch"], store["getState"])
+            }
+            return next(action)
+        }
+    }
+}
+
+// Combine multiple stores
+pub fn combineStores(storesMap) {
+    let combinedStore = {
+        "kind": "CombinedStore",
+        "stores": storesMap,
+        "getState": fn() {
+            let state = {}
+            for key in storesMap) {
+                state[key] = storesMap[key]["state"]["get"]()
+            }
+            return state
+        },
+        "setState": fn(newState) {
+            for key in newState) {
+                if storesMap[key] != null) {
+                    storesMap[key]["setState"](newState[key])
+                }
+            }
+        }
+    }
+    
+    return combinedStore
+}
+
+// Get store by ID
+pub fn getStore(storeId) {
+    return stores[storeId]
+}
+
+// Remove store
+pub fn removeStore(storeId) {
+    stores[storeId] = null
+}
+
+// Clear all stores
+pub fn clearStores() {
+    stores = {}
+}
+
+fn generateStoreId() {
+    return "store-" + currentTime()
+}
