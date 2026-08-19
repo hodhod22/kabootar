@@ -5,6 +5,25 @@ import "self_host/emit_exec"
 import "self_host/serialize_acc"
 import "self_host/ownership"
 
+let gMsParse = 0
+let gMsEmit = 0
+let gMsSer = 0
+let gMsTotal = 0
+
+/// FT F0: last `compile()` phase times (ms). kind 1=parse 2=emit 3=serialize else total.
+pub fn lastCompileMs(kind) {
+    if kind == 1 {
+        return gMsParse
+    }
+    if kind == 2 {
+        return gMsEmit
+    }
+    if kind == 3 {
+        return gMsSer
+    }
+    return gMsTotal
+}
+
 /// True when the file head opts into affine ownership (@manual).
 fn sourceIsManual(source) {
     let s = "" + source
@@ -73,6 +92,10 @@ pub fn compile(source) {
     let t2 = date_now_ms()
     let kbc = serSerializeBc(ir)
     let t3 = date_now_ms()
+    gMsParse = t1 - t0
+    gMsEmit = t2 - t1
+    gMsSer = t3 - t2
+    gMsTotal = t3 - t0
     if env_get("KABOOTAR_P10_PROFILE") == "1" {
         println("PROFILE self_host parse_ms " + ("" + (t1 - t0)))
         println("PROFILE self_host emit_ms " + ("" + (t2 - t1)))

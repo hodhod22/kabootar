@@ -100,7 +100,7 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 
 | Steg | Vad | Delete-gate / mätning | Status |
 |------|-----|------------------------|--------|
-| **F0** | **Profiler i Kab** — compile-fas-ms, op-histogram, alloc/frame, IC hit-rate | Samma siffra i release varje PR; ingen gissning | ✅ subset: `lib/kab/perf.kab` counters; deepen = fas-ms/PGO |
+| **F0** | **Profiler i Kab** — compile-fas-ms, op-histogram, alloc/frame, IC hit-rate | Samma siffra i release varje PR; ingen gissning | ✅ subset: `kab/perf` + `lastCompileMs` på `compile()` (parse/emit/serialize); deepen = PGO/histogram |
 | **F1** | **Dispatch** — threaded interpreter / copy-and-patch i Kab-VM | tight add-loop ≫ boxed interp | 📋 |
 | **F2** | **IC + shapes** — GetMember/LoadGlobal/CALL monomorf → poly (≤4) | hit-rate > 90 % på typisk app | 📋 (P12 Rust = skuld) |
 | **F3** | **Unbox slots** — i64/f64/bool/`array_f64` i frames | ≥10× vs boxed add-loop (Kab-VM) | 📋 (P11 Rust = skuld) |
