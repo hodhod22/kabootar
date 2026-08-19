@@ -40,7 +40,7 @@ Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_
 | Fil | Roll |
 |-----|------|
 | `compile.kab` | `compile(source)` / `compileIr` |
-| `parse.kab` | `parse` = tokenize + parseTokens |
+| `parse.kab` | `parse` = tokenizeExec + parseTokensExec |
 | `lexer.kab` / `parser.kab` / `emit.kab` / `serialize.kab` | tunna `pub let`-facader |
 | `parser_exec.kab` / `emit_exec.kab` | per-call session + tramp |
 | `ownership.kab` | O5 `@manual` |

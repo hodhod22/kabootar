@@ -5,7 +5,7 @@
 // KEEP <=~8 top-level fn (policy lives here; loader only mirrors).
 
 import "self_host/compile"
-import "self_host/lexer"
+import "self_host/lexer_tokenize"
 import "self_host/lexer_defs"
 
 let preferSelfHost = true
@@ -21,7 +21,7 @@ pub fn selfHostPreferred() {
 
 /// Self-hosted lexer entry (Kabootar source → tokens).
 pub fn bootTokenize(source) {
-    return tokenize(source)
+    return tokenizeExec(source)
 }
 
 /// Self-hosted compile entry (Kabootar source → .kbc text).

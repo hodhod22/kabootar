@@ -1,8 +1,8 @@
-// Facade: lexer + parser composed (avoids nested module private-fn call bug).
+// SH5: parse = tokenizeExec + parseTokensExec (no lexer/parser facade hops).
 import "self_host/lexer_defs"
-import "self_host/lexer"
-import "self_host/parser"
+import "self_host/lexer_tokenize"
+import "self_host/parser_exec"
 
 pub fn parse(source) {
-    return parseTokens(tokenize(source))
+    return parseTokensExec(tokenizeExec(source))
 }
