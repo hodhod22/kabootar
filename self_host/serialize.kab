@@ -1,12 +1,7 @@
-// H6e: self-hosted .kbc serializer — thin facade (impl in serialize_impl.kab).
+// SH5: serialize facade — AccAdd body in serialize_acc (no impl/body hop).
 // import "self_host/serialize"
-//
-// Re-export by alias (not a wrapping fn): a wrapping `fn serialize_bc` adds an extra
-// host `call_value` frame. Under KABOOTAR_VM=kab-only that breaks reentrancy the same
-// way a wrapped `runModule` does in self_host/vm.kab — see that file's header.
-//
-// AccAdd serialize lives in serialize_acc; serialize_body is a thin facade.
+// Re-export by alias (not a wrapping fn) — extra call_value breaks kab-only reentrancy.
 
-import "self_host/serialize_impl"
+import "self_host/serialize_acc"
 
-pub let serialize_bc = serializeBcImpl
+pub let serialize_bc = serSerializeBc

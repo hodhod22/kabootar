@@ -30,7 +30,7 @@ pub use dag::{
 /// Which backend `kabootar compile` prefers (S2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompilePrefer {
-    /// Self-host first, Rust on failure (default for app `.kab`).
+    /// Self-host first; Rust only for `self_host/` toolchain (SH16: apps have no rust fallback).
     SelfHostThenRust,
     /// Force Rust host compiler.
     Rust,
@@ -58,10 +58,16 @@ impl CompilePrefer {
     }
 }
 
+/// Loader mirror of `kab/boot` `bootPolicy("appRustFallback")`.
+/// Compiler/VM DAG may still rust-compile (SH1 seeds). App `.kab` may not.
+fn rust_fallback_allowed(path: &str) -> bool {
+    let n = path.replace('\\', "/");
+    n.contains("/self_host/") || n.starts_with("self_host/")
+}
+
 /// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
 /// every public core is reached through thin `pub let X = Ximpl` facades
-/// (`vm.kab` → `vm_impl` → `vm_run` → `vm_run_body` → `vm_run_exec_core`, `serialize` →
-/// `serialize_impl` → `serialize_body` → `serialize_acc`). Only the
+/// (`vm.kab` → `vm_run_exec_core`, `serialize` → `serialize_acc`). Only the
 /// leaf shards below stay skip-listed (self-host AST density makes them CI-slow).
 /// Facades above them self-host-compile in CI-fast time. Product `import` prefers
 /// self-host via `load_program_for_file` → `compile_file_prefer_cached` (Rust only
@@ -281,12 +287,27 @@ pub fn compile_file_prefer(
             }
             Ok((program, "self-host"))
         }
-        CompilePrefer::SelfHostThenRust => {
-            match compile_file_self_host(path) {
-                Ok(program) if program.has_bytecode() => Ok((program, "self-host")),
-                Ok(_) | Err(_) => Ok((compile_file(path)?, "rust")),
+        CompilePrefer::SelfHostThenRust => match compile_file_self_host(path) {
+            Ok(program) if program.has_bytecode() => Ok((program, "self-host")),
+            Ok(_) => {
+                if rust_fallback_allowed(path) {
+                    Ok((compile_file(path)?, "rust"))
+                } else {
+                    Err(format!(
+                        "SH16: rust compile fallback disabled for app `{path}` (no bytecode)"
+                    ))
+                }
             }
-        }
+            Err(e) => {
+                if rust_fallback_allowed(path) {
+                    Ok((compile_file(path)?, "rust"))
+                } else {
+                    Err(format!(
+                        "SH16: rust compile fallback disabled for app `{path}` ({e})"
+                    ))
+                }
+            }
+        },
     }
 }
 

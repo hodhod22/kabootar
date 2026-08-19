@@ -29,23 +29,13 @@ pub fn bootCompile(source) {
     return compile(source)
 }
 
-/// True when text looks like a kabootar-bytecode/1 module.
+/// True when text starts with the committed .kbc header (not a 3-char prefix).
 pub fn isBytecode(kbc) {
     let s = "" + kbc
-    if len(s) < 20 {
+    if len(s) < 18 {
         return false
     }
-    // Header: kabootar-bytecode…
-    if char_at(s, 0) != "k" {
-        return false
-    }
-    if char_at(s, 1) != "a" {
-        return false
-    }
-    if char_at(s, 2) != "b" {
-        return false
-    }
-    return true
+    return str_index_of(s, "kabootar-bytecode/1") == 0
 }
 
 /// Compile source and check that the result looks like committed .kbc.
@@ -72,9 +62,15 @@ pub fn bootPolicy(key, a) {
         return 65536
     }
     if key == "prefer" {
-        return "self-host-then-rust"
+        return "self-host-only"
+    }
+    if key == "appRustFallback" {
+        return false
     }
     if key == "shouldSelfHost" {
+        if a <= 0 {
+            return false
+        }
         if a > 65536 {
             return false
         }

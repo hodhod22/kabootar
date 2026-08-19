@@ -1,6 +1,0 @@
-// H6e: thin parser driver (skip-listed leaf).
-import "self_host/parser_exec"
-
-pub fn parseTokensImpl(tokens) {
-    return parseTokensExec(tokens)
-}

@@ -1,11 +1,11 @@
 kabootar-bytecode/1
 constants=0
-global 0 emitImpl
+global 0 emitMainExec
 local 0 emit
 functions=0
 arrows=0
 imports=1
-import 0 self_host/emit_impl
+import 0 self_host/emit_exec
 pub_imports=0
 exports=1
 export 0 emit
@@ -20,4 +20,4 @@ halt
 
 source=self_host/emit.kab
 statements=2
-fingerprint=619fd9b69c9eb8d1
+fingerprint=38e1f8d9db2355b8

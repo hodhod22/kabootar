@@ -1,11 +1,11 @@
 kabootar-bytecode/1
 constants=0
-global 0 parseTokensImpl
+global 0 parseTokensExec
 local 0 parseTokens
 functions=0
 arrows=0
 imports=1
-import 0 self_host/parser_impl
+import 0 self_host/parser_exec
 pub_imports=0
 exports=1
 export 0 parseTokens
@@ -20,4 +20,4 @@ halt
 
 source=self_host/parser.kab
 statements=2
-fingerprint=39641a1924e9376e
+fingerprint=f5d788de09703fb9
