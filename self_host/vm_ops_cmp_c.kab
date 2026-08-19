@@ -1,5 +1,0 @@
-import "self_host/vm_ops_cmp_not_member"
-
-pub fn runOpCmpC(S, name, arg, op, pool, globals, functions) {
-    return runOpCmpNotMember(S, name, arg, op, pool, globals, functions)
-}

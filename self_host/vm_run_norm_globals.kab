@@ -1,7 +1,0 @@
-pub fn vNormGlobals(bc) {
-    let globals = bc["globals"]
-    if globals == null || globals == undefined {
-        return []
-    }
-    return globals
-}

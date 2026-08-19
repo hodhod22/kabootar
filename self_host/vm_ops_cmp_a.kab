@@ -1,10 +1,196 @@
-import "self_host/vm_ops_cmp_eq"
-import "self_host/vm_ops_cmp_ord"
+import "self_host/vm_s_stack"
 
+// --- vm_ops_cmp_and ---
+pub fn runOpCmpAnd(S, name, arg, op, pool, globals, functions) {
+    if name == "and" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        if vTruthy(a) {
+            vPushS(S, b)
+        } else {
+            vPushS(S, a)
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_eq_only ---
+pub fn runOpCmpEqOnly(S, name, arg, op, pool, globals, functions) {
+    if name == "eq" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a == b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_ge ---
+pub fn runOpCmpGe(S, name, arg, op, pool, globals, functions) {
+    if name == "ge" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a >= b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_gt ---
+pub fn runOpCmpGt(S, name, arg, op, pool, globals, functions) {
+    if name == "gt" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a > b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_le ---
+pub fn runOpCmpLe(S, name, arg, op, pool, globals, functions) {
+    if name == "le" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a <= b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_lt ---
+pub fn runOpCmpLt(S, name, arg, op, pool, globals, functions) {
+    if name == "lt" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a < b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_member ---
+pub fn runOpCmpMember(S, name, arg, op, pool, globals, functions) {
+    if name == "get_member" {
+        let key = poolKey(pool, arg)
+        let obj = vPopS(S)
+        vPushS(S, vMemberGetS(S, obj, key))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_ne ---
+pub fn runOpCmpNe(S, name, arg, op, pool, globals, functions) {
+    if name == "ne" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a != b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_not ---
+pub fn runOpCmpNot(S, name, arg, op, pool, globals, functions) {
+    if name == "not" {
+        let v = vPopS(S)
+        vPushS(S, !vTruthy(v))
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_or ---
+pub fn runOpCmpOr(S, name, arg, op, pool, globals, functions) {
+    if name == "or" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        if vTruthy(a) {
+            vPushS(S, a)
+        } else {
+            vPushS(S, b)
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_cmp_ord2 ---
+pub fn runOpCmpOrd2(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpLe(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpGe(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_ord ---
+pub fn runOpCmpOrd(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpLt(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpGt(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_eq ---
+pub fn runOpCmpEq(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpEqOnly(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpNe(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_not_member ---
+pub fn runOpCmpNotMember(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpNot(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpMember(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_logic ---
+pub fn runOpCmpLogic(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpAnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpOr(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_a ---
 pub fn runOpCmpA(S, name, arg, op, pool, globals, functions) {
     let st = runOpCmpEq(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }
     return runOpCmpOrd(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_c ---
+pub fn runOpCmpC(S, name, arg, op, pool, globals, functions) {
+    return runOpCmpNotMember(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_cmp_b ---
+pub fn runOpCmpB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpCmpOrd2(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpCmpLogic(S, name, arg, op, pool, globals, functions)
 }

@@ -1,7 +1,0 @@
-pub fn vWriteThisS(S, updated) {
-    if len(S["thisStack"]) == 0 {
-        return
-    }
-    S["thisStack"] = pop(S["thisStack"])
-    S["thisStack"] = push(S["thisStack"], updated)
-}

@@ -1,6 +1,264 @@
+import "self_host/vm_s_stack"
+
+// --- vm_ops_arith_add ---
+pub fn runOpArithAdd(S, name, arg, op, pool, globals, functions) {
+    if name == "add" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a + b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_bit_and ---
+pub fn runOpArithBitAnd(S, name, arg, op, pool, globals, functions) {
+    if name == "bit_and" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a & b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_bit_not ---
+pub fn runOpArithBitNot(S, name, arg, op, pool, globals, functions) {
+    if name == "bit_not" {
+        let v = vPopS(S)
+        vPushS(S, ~v)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_bit_or ---
+pub fn runOpArithBitOr(S, name, arg, op, pool, globals, functions) {
+    if name == "bit_or" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a | b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_bit_xor ---
+pub fn runOpArithBitXor(S, name, arg, op, pool, globals, functions) {
+    if name == "bit_xor" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a ^ b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_div ---
+pub fn runOpArithDiv(S, name, arg, op, pool, globals, functions) {
+    if name == "div" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a / b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_mod ---
+pub fn runOpArithMod(S, name, arg, op, pool, globals, functions) {
+    if name == "mod" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a % b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_mul ---
+pub fn runOpArithMul(S, name, arg, op, pool, globals, functions) {
+    if name == "mul" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a * b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_neg ---
+// P6b: VM arith shard (neg) — mutates session S (arg AccAdd).
+
+pub fn runOpArithNeg(S, name, arg, op, pool, globals, functions) {
+    if name == "neg" {
+        let v = vPopS(S)
+        vPushS(S, 0 - v)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_pow ---
+pub fn runOpArithPow(S, name, arg, op, pool, globals, functions) {
+    if name == "pow" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a ** b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_shl ---
+pub fn runOpArithShl(S, name, arg, op, pool, globals, functions) {
+    if name == "shl" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a << b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_shr ---
+pub fn runOpArithShr(S, name, arg, op, pool, globals, functions) {
+    if name == "shr" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a >> b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_sub ---
+pub fn runOpArithSub(S, name, arg, op, pool, globals, functions) {
+    if name == "sub" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a - b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_ushr ---
+// P6b: VM arith shard (ushr) — mutates session S (arg AccAdd).
+
+pub fn runOpArithUshr(S, name, arg, op, pool, globals, functions) {
+    if name == "ushr" {
+        let b = vPopS(S)
+        let a = vPopS(S)
+        vPushS(S, a >>> b)
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+// --- vm_ops_arith_bit_and_or ---
+pub fn runOpArithBitAndOr(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithBitAnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithBitOr(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_bit_xor_not ---
+pub fn runOpArithBitXorNot(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithBitXor(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithBitNot(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_mul_div ---
+pub fn runOpArithMulDiv(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithMul(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithDiv(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_mod_pow ---
+pub fn runOpArithModPow(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithMod(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithPow(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_shift ---
+pub fn runOpArithShift(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithShl(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithShr(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_add_sub ---
+pub fn runOpArithAddSub(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithAdd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithSub(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_c ---
+// P6b: VM arith half-facade c.
+
+pub fn runOpArithC(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithBitAndOr(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithBitXorNot(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_b ---
+// P6b: VM arith half-facade b.
+
+pub fn runOpArithB(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithModPow(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithNeg(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_d ---
+// P6b: VM arith half-facade d.
+
+pub fn runOpArithD(S, name, arg, op, pool, globals, functions) {
+    let st = runOpArithShift(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpArithUshr(S, name, arg, op, pool, globals, functions)
+}
+
+// --- vm_ops_arith_a ---
 // P6b: VM arith half-facade a.
-import "self_host/vm_ops_arith_add_sub"
-import "self_host/vm_ops_arith_mul_div"
 
 pub fn runOpArithA(S, name, arg, op, pool, globals, functions) {
     let st = runOpArithAddSub(S, name, arg, op, pool, globals, functions)

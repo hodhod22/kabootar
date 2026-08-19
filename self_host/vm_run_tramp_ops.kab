@@ -1,6 +1,0 @@
-import "self_host/vm_run_ops_loop"
-
-pub fn vTrampOps(S) {
-    let a = S["_args"]
-    runOpsS(S, a[0], a[1], a[2], a[3])
-}

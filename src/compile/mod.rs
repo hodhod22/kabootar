@@ -20,7 +20,7 @@ mod dag;
 
 pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProgram};
 pub use dag::{
-    collect_self_host_inventory, compiler_image_path, is_compile_dag_path,
+    collect_self_host_inventory, compiler_image_path, is_compile_dag_path, is_self_host_vm_path,
     missing_compiler_dag_seeds, rust_compile_write_seed, walk_compile_dag,
     write_compiler_dag_seeds, write_compiler_facade_seeds, SelfHostInventory,
 };
@@ -439,7 +439,8 @@ fn compile_file_prefer_cached_src(
         }
     }
     let dag_hit = dag::is_compile_dag_path(path);
-    if !dag_hit {
+    let vm_hit = dag::is_self_host_vm_path(path);
+    if !dag_hit && !vm_hit {
         if let Some(t) = mtime {
             if let Some(bc) = read_bytecode_cache(path, t)? {
                 let program = CompiledProgram {
@@ -482,8 +483,8 @@ fn compile_file_prefer_cached_src(
         }
         return Ok((program, "seed"));
     }
-    // SH1: compiler DAG without image must not self-host-compile the compiler.
-    if dag_hit && prefer != CompilePrefer::SelfHostOnly {
+    // SH1/SH6: compiler DAG and densified kab-VM shards rust-compile (not live self-host).
+    if (dag_hit || vm_hit) && prefer != CompilePrefer::SelfHostOnly {
         let program = compile_file(path)?;
         if program.has_bytecode() {
             let _ = write_compile_marker(path, &program);

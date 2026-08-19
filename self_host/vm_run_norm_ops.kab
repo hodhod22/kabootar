@@ -1,7 +1,0 @@
-pub fn vNormOps(bc) {
-    let ops = bc["ops"]
-    if ops == null || ops == undefined {
-        return []
-    }
-    return ops
-}

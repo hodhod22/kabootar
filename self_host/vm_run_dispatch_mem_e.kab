@@ -1,5 +1,0 @@
-import "self_host/vm_ops_mem_e"
-
-pub fn runOpMemEwrap(S, name, arg, op, pool, globals, functions) {
-    return runOpMemE(S, name, arg, op, pool, globals, functions)
-}

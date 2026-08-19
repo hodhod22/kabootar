@@ -1,7 +1,0 @@
-import "self_host/vm_run_restore_fn_data"
-import "self_host/vm_run_restore_fn_ctrl"
-
-pub fn vRestoreFnFrame(S, fr) {
-    vRestoreFnData(S, fr)
-    vRestoreFnCtrl(S, fr)
-}

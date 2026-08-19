@@ -1,7 +1,25 @@
-import "self_host/vm_run_tramp_ops"
-import "self_host/vm_run_tramp_fn"
-import "self_host/vm_run_tramp_meth"
+import "self_host/vm_run_session"
+import "self_host/vm_run_ops_loop"
 
+// --- vm_run_tramp_fn ---
+pub fn vTrampFn(S) {
+    let a = S["_args"]
+    return runFnBodyS(S, a[0], a[1], a[2], a[3], a[4], a[5])
+}
+
+// --- vm_run_tramp_meth ---
+pub fn vTrampMeth(S) {
+    let a = S["_args"]
+    return runMethodBodyS(S, a[0], a[1], a[2], a[3], a[4], a[5])
+}
+
+// --- vm_run_tramp_ops ---
+pub fn vTrampOps(S) {
+    let a = S["_args"]
+    runOpsS(S, a[0], a[1], a[2], a[3])
+}
+
+// --- vm_run_tramp ---
 pub fn vTramp(S) {
     let k = S["_hook"]
     if k == 0 {

@@ -1,7 +1,0 @@
-pub fn vNormImports(bc) {
-    let imports = bc["imports"]
-    if imports == null || imports == undefined {
-        return []
-    }
-    return imports
-}

@@ -211,6 +211,17 @@ fn pack_compiler_image(entries: &[(String, String)]) -> Vec<u8> {
     out
 }
 
+/// Product `self_host/vm*.kab` (not probes): rust-compile like the SH1 compiler DAG.
+/// Densified SH6 shards are too large for live self-host compile on first import.
+pub fn is_self_host_vm_path(path: &str) -> bool {
+    let norm = path.replace('\\', "/");
+    let name = norm.rsplit('/').next().unwrap_or(&norm);
+    if is_probe_name(name) {
+        return false;
+    }
+    name == "vm.kab" || name.starts_with("vm_")
+}
+
 pub fn is_compile_dag_path(path: &str) -> bool {
     let norm = path.replace('\\', "/");
     static DAG: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();

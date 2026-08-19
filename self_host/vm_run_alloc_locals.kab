@@ -1,8 +1,0 @@
-pub fn vAllocLocals(S, n) {
-    S["locals"] = []
-    let li = 0
-    while li < n {
-        S["locals"] = push(S["locals"], undefined)
-        li = li + 1
-    }
-}

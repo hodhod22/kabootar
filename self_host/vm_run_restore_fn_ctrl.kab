@@ -1,6 +1,0 @@
-pub fn vRestoreFnCtrl(S, fr) {
-    S["ip"] = fr["ip"]
-    S["done"] = fr["done"]
-    S["result"] = fr["result"]
-    S["unsupported"] = fr["unsupported"]
-}

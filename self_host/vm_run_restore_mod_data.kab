@@ -1,9 +1,0 @@
-pub fn vRestoreModData(S, fr) {
-    S["stack"] = fr["stack"]
-    S["locals"] = fr["locals"]
-    S["globals"] = fr["globals"]
-    S["classes"] = fr["classes"]
-    S["arrows"] = fr["arrows"]
-    S["tryRegions"] = fr["tryRegions"]
-    S["localNames"] = fr["localNames"]
-}

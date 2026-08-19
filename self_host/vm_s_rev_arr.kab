@@ -1,9 +1,0 @@
-pub fn vReverseArr(raw, n) {
-    let arr = []
-    let oi = n - 1
-    while oi >= 0 {
-        arr = push(arr, raw[oi])
-        oi = oi - 1
-    }
-    return arr
-}

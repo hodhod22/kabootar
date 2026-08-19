@@ -1,7 +1,57 @@
-import "self_host/vm_run_mod_enter"
-import "self_host/vm_run_mod_leave"
-import "self_host/vm_run_hook_ops"
+import "self_host/vm_run_norm_bc"
+import "self_host/vm_run_restore_mod"
+import "self_host/vm_run_session"
 
+// --- vm_run_mod_enter_a ---
+pub fn vModEnterA(S, bc) {
+    if bc == null || bc == undefined {
+        throw "vm: null module"
+    }
+    let n = vNormBc(bc)
+    let old = vSaveModuleFrame(S)
+    vAllocGlobals(S, len(n["globals"]))
+    vBindImports(S, n["globals"], n["imports"])
+    return { "n": n, "old": old }
+}
+
+// --- vm_run_mod_enter_b ---
+pub fn vModEnterB(S, n) {
+    S["classes"] = n["classes"]
+    S["arrows"] = n["arrows"]
+    S["tryRegions"] = n["tryRegions"]
+    S["localNames"] = n["localNames"]
+    vBindFns(S, n["globals"], n["functions"])
+    vAllocLocals(S, len(n["localNames"]))
+    vResetExec(S)
+    vFillHostGlobals(S, n["globals"])
+}
+
+// --- vm_run_mod_leave ---
+pub fn vModLeave(S, old) {
+    let out = vTakeResult(S)
+    let unsupported = S["unsupported"]
+    vRestoreModuleFrame(S, old)
+    if unsupported {
+        throw "vm unsupported opcode in main"
+    }
+    return out
+}
+
+// --- vm_run_mod_enter ---
+pub fn vModEnter(S, bc) {
+    let a = vModEnterA(S, bc)
+    let n = a["n"]
+    vModEnterB(S, n)
+    return {
+        "old": a["old"],
+        "pool": n["pool"],
+        "globals": n["globals"],
+        "functions": n["functions"],
+        "ops": n["ops"]
+    }
+}
+
+// --- vm_run_mod_run ---
 pub fn vModRun(S, bc) {
     let ctx = vModEnter(S, bc)
     vCallRunOps(S, ctx["ops"], ctx["pool"], ctx["globals"], ctx["functions"])

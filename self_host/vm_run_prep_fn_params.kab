@@ -1,9 +1,0 @@
-pub fn vPrepFnParams(S, fnDef, callArgs) {
-    let pi = 0
-    while pi < len(fnDef["params"]) {
-        if pi < len(callArgs) {
-            S["locals"][pi] = callArgs[pi]
-        }
-        pi = pi + 1
-    }
-}
