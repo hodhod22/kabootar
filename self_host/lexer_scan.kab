@@ -241,9 +241,12 @@ pub fn lxScanString(sess, c, line, col) {
         return null
     }
     lxEat(sess)
+    let start = sess["pos"]
     let i = sess["pos"]
     let hasEsc = 0
+    let ch = ""
     while i < sess["srcLen"] {
+        ch = char_at(sess["src"], i)
         if ch == "\\" {
             hasEsc = 1
             break
@@ -262,7 +265,9 @@ pub fn lxScanString(sess, c, line, col) {
         sess["pos"] = i + 1
         return lxTok(TOKEN_STRING, s, line, col)
     }
+    let s = ""
     while sess["pos"] < sess["srcLen"] {
+        ch = char_at(sess["src"], sess["pos"])
         if ch == "\\" {
             lxEat(sess)
             if sess["pos"] >= sess["srcLen"] {
@@ -279,10 +284,11 @@ pub fn lxScanString(sess, c, line, col) {
             s = s + piece
             continue
         }
-        lxEat(sess)
         if ch == "\"" {
+            lxEat(sess)
             break
         }
+        lxEat(sess)
         s = s + ch
     }
     return lxTok(TOKEN_STRING, s, line, col)
@@ -293,8 +299,11 @@ pub fn lxScanNumber(sess, code0, line, col) {
     if !(code0 >= 48 && code0 <= 57) {
         return null
     }
+    let start = sess["pos"]
     lxEat(sess)
+    let cd = 0
     while sess["pos"] < sess["srcLen"] {
+        cd = char_code_at(sess["src"], sess["pos"])
         if cd < 48 || cd > 57 {
             break
         }
@@ -309,6 +318,7 @@ pub fn lxScanNumber(sess, code0, line, col) {
         lxEat(sess)
         let fracStart = sess["pos"]
         while sess["pos"] < sess["srcLen"] {
+            cd = char_code_at(sess["src"], sess["pos"])
             if cd < 48 || cd > 57 {
                 break
             }

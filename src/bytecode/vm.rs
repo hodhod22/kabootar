@@ -20,7 +20,9 @@ const MAX_BYTECODE_STACK: usize = 8192;
 struct MemberIc {
     ptr: u64,
     shape: u64,
-    key_idx: u16,
+    /// Interned member name — **not** `GetMember` const-pool index (`key_idx` is
+    /// per-function; `sess["pCur"]` and `sess["pLeft"]` can both be slot 0).
+    key: u32,
     slot: u16,
     value: Value,
 }
@@ -30,7 +32,7 @@ impl Default for MemberIc {
         Self {
             ptr: 0,
             shape: 0,
-            key_idx: 0,
+            key: u32::MAX,
             slot: 0,
             value: Value::Undefined,
         }
@@ -1024,7 +1026,7 @@ fn run_chunk(
                                 ic.method = None;
                             });
                         }
-                        let result = match call_bytecode_sync(func, call_args, env) {
+                        let (result, obj_wb) = match call_bytecode_sync(func, call_args, env) {
                             Ok(v) => v,
                             Err(e) => {
                                 if try_catch_propagated_throw(
@@ -1044,6 +1046,11 @@ fn run_chunk(
                                 return Err(e);
                             }
                         };
+                        crate::runtime::closure_sync::apply_object_arg_writebacks(
+                            &mut local_vals,
+                            &obj_wb,
+                        );
+                        crate::runtime::closure_sync::apply_object_arg_writebacks_env(env, &obj_wb);
                         if args.is_none() {
                             pull_env_into_local_vals(locals, &mut local_vals, env);
                         } else {
@@ -1566,45 +1573,13 @@ fn run_chunk(
                 let val = if let Value::EnumNamespace(type_name) = &container {
                     crate::class::resolve_enum_member(type_name, key, env)?
                 } else if let Value::Object(map) = &container {
-                    // P10g: interned key + shape slot table (AST node.kind → slots[i]).
-                    let ptr = object_ic_ptr(map);
-                    let shape = object_shape_hash(map);
-                    ensure_obj_slots(ptr, shape, map);
-                    let intern = intern_key(key);
-                    let cached = MEMBER_IC.with(|ic| {
-                        let ic = ic.borrow();
-                        if ic.ptr == ptr && ic.shape == shape && ic.key_idx == *key_idx {
-                            slot_load_i(ptr, ic.slot).or_else(|| Some(ic.value.clone()))
-                        } else {
-                            None
-                        }
-                    });
-                    if let Some(v) = cached {
+                    if let Some(v) = map.get(key) {
                         MEMBER_IC_HITS.fetch_add(1, Ordering::Relaxed);
                         crate::runtime::ptak::note_shape_hit();
-                        v
+                        v.clone()
                     } else {
                         MEMBER_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                        let val = if let Some(v) = slot_load(ptr, intern) {
-                            v
-                        } else if let Some(v) = map.get(key) {
-                            v.clone()
-                        } else {
-                            read_member(&container, key, env)?
-                        };
-                        if !member_is_callable(&val) {
-                            let slot = slot_index(ptr, intern).unwrap_or(0);
-                            MEMBER_IC.with(|ic| {
-                                *ic.borrow_mut() = MemberIc {
-                                    ptr,
-                                    shape,
-                                    key_idx: *key_idx,
-                                    slot,
-                                    value: val.clone(),
-                                };
-                            });
-                        }
-                        val
+                        read_member(&container, key, env)?
                     }
                 } else {
                     read_member(&container, key, env)?
@@ -2467,7 +2442,7 @@ fn call_bytecode_sync(
     mut func: BytecodeFunction,
     args: Vec<Value>,
     env: &mut Environment,
-) -> Result<Value, String> {
+) -> Result<(Value, Vec<(usize, Value)>), String> {
     crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
     crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
     let mut call_env = Environment::child_from(&func.closure);
@@ -2494,6 +2469,7 @@ fn call_bytecode_sync(
         Some(&capture_names),
     );
     crate::runtime::closure_sync::sync_bytecode_globals_to_root(&func, &call_env, env);
+    let mut wbs = Vec::new();
     if needs_obj_writeback {
         crate::runtime::closure_sync::writeback_object_args(
             func.def.as_ref(),
@@ -2501,8 +2477,13 @@ fn call_bytecode_sync(
             &local_vals,
             env,
         );
+        wbs = crate::runtime::closure_sync::object_arg_writebacks(
+            func.def.as_ref(),
+            &orig_args,
+            &local_vals,
+        );
     }
-    Ok(result)
+    Ok((result, wbs))
 }
 
 pub fn call_value(
@@ -2530,7 +2511,8 @@ pub fn call_value(
                     env,
                 );
             }
-            call_bytecode_sync(func, args, env)
+            let (v, _wb) = call_bytecode_sync(func, args, env)?;
+            Ok(v)
         }
         Value::NativeFunction(f) => f(&args, env),
         callee if crate::runtime::stdlib::symbol::is_symbol_ctor_object(&callee) => {

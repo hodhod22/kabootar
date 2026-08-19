@@ -1,6 +1,45 @@
-// P6b: class-section appender (skip-listed until ≤10s).
+import "self_host/serialize_pure"
 import "self_host/serialize_out"
-import "self_host/serialize_class_methods"
+
+// --- serialize_class_method_ops ---
+// P6b: class-method op appender (skip-listed until ≤10s).
+
+pub fn serAppendClassMethodOps(out, ci, j, ops) {
+    let k = 0
+    let nOps = len(ops)
+    while k < nOps {
+        out = serOutTagged2(out, "class_method_op", ci, j, serIrOpLine(ops[k]))
+        k = k + 1
+    }
+    return out
+}
+
+// --- serialize_class_method_one ---
+// P6b: one class-method header appender (skip-listed until ≤10s).
+
+pub fn serAppendOneClassMethod(out, ci, j, meth) {
+    out = serOutTagged2(out, "class_method", ci, j, meth["sym"])
+    out = serOutTagged2(out, "class_method_params", ci, j, serJoinComma(meth["params"]))
+    out = serOutTagged2(out, "class_method_locals", ci, j, serJoinComma(meth["locals"]))
+    out = serOutTagged2(out, "class_method_globals", ci, j, serJoinComma(meth["globals"]))
+    return serAppendClassMethodOps(out, ci, j, meth["ops"])
+}
+
+// --- serialize_class_methods ---
+// P6b: class-method appender (skip-listed until ≤10s).
+
+pub fn serAppendClassMethods(out, ci, methods) {
+    let j = 0
+    let n = len(methods)
+    while j < n {
+        out = serAppendOneClassMethod(out, ci, j, methods[j])
+        j = j + 1
+    }
+    return out
+}
+
+// --- serialize_classes ---
+// P6b: class-section appender (skip-listed until ≤10s).
 
 pub fn serAppendClasses(out, classes) {
     if classes == undefined {

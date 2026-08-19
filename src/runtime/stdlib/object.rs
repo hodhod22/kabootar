@@ -44,7 +44,8 @@ pub fn object_is_pattern_empty(map: &HashMap<String, Value>) -> bool {
 pub fn bind_object_method(receiver: Value, method: Value) -> Value {
     match &method {
         Value::BoundNative(_, f) => Value::BoundNative(Box::new(receiver), *f),
-        Value::BytecodeFn(_) | Value::Function { .. } => {
+        Value::BytecodeFn(_) => method,
+        Value::Function { .. } => {
             let mut binding = HashMap::new();
             binding.insert("__kab_obj_method".into(), Value::Bool(true));
             binding.insert("__kab_method_recv".into(), receiver);

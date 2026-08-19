@@ -4,9 +4,9 @@ const 0 null
 const 1 string tramp
 const 2 number 0
 const 3 string _hook
-global 0 gSess
-global 1 pTramp
-global 2 tramp
+global 0 pTramp
+global 1 tramp
+global 2 gSess
 global 3 pMakeSession
 global 4 pResetSession
 global 5 parseMain
@@ -14,17 +14,17 @@ global 6 parseTokensExec
 local 0 gSess
 functions=2
 fn 0 tramp
-fn_params 0 
-fn_locals 0 
+fn_params 0 sess
+fn_locals 0 sess
+fn_op 0 load_local 0
 fn_op 0 load_global 0
-fn_op 0 load_global 1
 fn_op 0 call 1
 fn_op 0 return
 fn_arrows 0 0
 fn 1 parseTokensExec
 fn_params 1 tokens
 fn_locals 1 tokens,sess,__kab_a0,__kab_a1,__kab_a2
-fn_op 1 load_global 0
+fn_op 1 load_global 2
 fn_op 1 store_local 1
 fn_op 1 load_local 1
 fn_op 1 const 0
@@ -37,9 +37,9 @@ fn_op 1 store_local 1
 fn_op 1 pop
 fn_op 1 load_local 1
 fn_op 1 dup
-fn_op 1 store_global 0
+fn_op 1 store_global 2
 fn_op 1 pop
-fn_op 1 load_global 2
+fn_op 1 load_global 1
 fn_op 1 store_local 2
 fn_op 1 load_local 1
 fn_op 1 const 1
@@ -53,7 +53,7 @@ fn_op 1 load_local 1
 fn_op 1 load_global 4
 fn_op 1 call 1
 fn_op 1 pop
-fn_op 1 load_global 2
+fn_op 1 load_global 1
 fn_op 1 store_local 3
 fn_op 1 load_local 1
 fn_op 1 const 1
@@ -95,4 +95,4 @@ halt
 
 source=self_host/parser_exec.kab
 statements=6
-fingerprint=e6c293eb09645945
+fingerprint=2236efdbd8916338

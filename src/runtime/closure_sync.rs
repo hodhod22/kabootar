@@ -118,6 +118,64 @@ pub fn writeback_object_args(
     }
 }
 
+/// Pointer identity of the object Rc at call time → callee's mutated object.
+pub fn object_arg_writebacks(
+    func: &BytecodeFnDef,
+    args: &[Value],
+    local_vals: &[Value],
+) -> Vec<(usize, Value)> {
+    let mut out = Vec::new();
+    for (param, arg) in func.params.iter().zip(args) {
+        let Value::Object(arg_map) = arg else {
+            continue;
+        };
+        let ptr = Rc::as_ptr(arg_map) as usize;
+        let Some(idx) = func.locals.iter().position(|l| l == param) else {
+            continue;
+        };
+        let Some(updated) = local_vals.get(idx) else {
+            continue;
+        };
+        if matches!(updated, Value::Object(_)) {
+            out.push((ptr, updated.clone()));
+        }
+    }
+    out
+}
+
+pub fn apply_object_arg_writebacks(local_vals: &mut [Value], wbs: &[(usize, Value)]) {
+    if wbs.is_empty() {
+        return;
+    }
+    for slot in local_vals.iter_mut() {
+        let Value::Object(map) = slot else {
+            continue;
+        };
+        let ptr = Rc::as_ptr(map) as usize;
+        if let Some((_, updated)) = wbs.iter().find(|(p, _)| *p == ptr) {
+            *slot = updated.clone();
+        }
+    }
+}
+
+pub fn apply_object_arg_writebacks_env(env: &mut Environment, wbs: &[(usize, Value)]) {
+    if wbs.is_empty() {
+        return;
+    }
+    for name in env.all_binding_names() {
+        let Some(live) = env.get(&name) else {
+            continue;
+        };
+        let Value::Object(map) = &live else {
+            continue;
+        };
+        let ptr = Rc::as_ptr(map) as usize;
+        if let Some((_, updated)) = wbs.iter().find(|(p, _)| *p == ptr) {
+            let _ = env.assign(&name, updated.clone());
+        }
+    }
+}
+
 pub fn pull_bytecode_globals(f: &mut BytecodeFunction, root: &Environment) {
     for name in &f.def.globals {
         if let Some(v) = root.get(name) {

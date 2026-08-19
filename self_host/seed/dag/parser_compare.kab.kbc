@@ -30,10 +30,10 @@ global 0 bump
 global 1 pCallRelExpr
 global 2 AST_BINARY
 global 3 parseCompare_bit
-global 4 left
-global 5 right
-global 6 parseCompare_eq
-global 7 op
+global 4 parseCompare_eq
+global 5 op
+global 6 right
+global 7 left
 global 8 parseCompare_logic_and
 global 9 parseCompare_logic_or_bit
 global 10 parseCompare_logic_or_and
@@ -49,7 +49,7 @@ fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 const 1
 fn_op 0 eq
-fn_op 0 jump_if_false 91
+fn_op 0 jump_if_false 105
 fn_op 0 load_local 0
 fn_op 0 get_member 2
 fn_op 0 get_member 3
@@ -90,11 +90,18 @@ fn_op 0 get_member 2
 fn_op 0 get_member 3
 fn_op 0 const 11
 fn_op 0 eq
-fn_op 0 jump_if_false 22
+fn_op 0 jump_if_false 29
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 store_local 2
 fn_op 0 load_global 2
 fn_op 0 const 6
 fn_op 0 const 11
@@ -112,17 +119,24 @@ fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 jump -28
+fn_op 0 jump -35
 fn_op 0 load_local 0
 fn_op 0 get_member 2
 fn_op 0 get_member 3
 fn_op 0 const 12
 fn_op 0 eq
-fn_op 0 jump_if_false 22
+fn_op 0 jump_if_false 29
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 5
+fn_op 0 store_local 1
+fn_op 0 load_local 0
+fn_op 0 load_global 1
+fn_op 0 call 1
+fn_op 0 store_local 2
 fn_op 0 load_global 2
 fn_op 0 const 6
 fn_op 0 const 12
@@ -140,13 +154,13 @@ fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
-fn_op 0 jump -28
+fn_op 0 jump -35
 fn_op 0 const 1
 fn_op 0 return
 fn_arrows 0 0
 fn 1 parseCompare_eq
 fn_params 1 sess
-fn_locals 1 sess,op,__kab_a0
+fn_locals 1 sess,op,left,right,__kab_a0
 fn_op 1 load_local 0
 fn_op 1 get_member 2
 fn_op 1 get_member 3
@@ -197,7 +211,7 @@ fn_op 1 get_member 2
 fn_op 1 get_member 3
 fn_op 1 const 18
 fn_op 1 eq
-fn_op 1 jump_if_false 26
+fn_op 1 jump_if_false 33
 fn_op 1 load_local 0
 fn_op 1 get_member 2
 fn_op 1 get_member 3
@@ -206,24 +220,31 @@ fn_op 1 load_local 0
 fn_op 1 load_global 0
 fn_op 1 call 1
 fn_op 1 pop
+fn_op 1 load_local 0
+fn_op 1 get_member 5
+fn_op 1 store_local 2
+fn_op 1 load_local 0
+fn_op 1 load_global 1
+fn_op 1 call 1
+fn_op 1 store_local 3
 fn_op 1 load_global 2
 fn_op 1 const 6
 fn_op 1 load_local 1
 fn_op 1 const 7
-fn_op 1 load_global 4
+fn_op 1 load_local 2
 fn_op 1 const 8
-fn_op 1 load_global 5
+fn_op 1 load_local 3
 fn_op 1 const 9
 fn_op 1 make_object 4
-fn_op 1 store_local 2
+fn_op 1 store_local 4
 fn_op 1 load_local 0
 fn_op 1 const 5
-fn_op 1 load_local 2
+fn_op 1 load_local 4
 fn_op 1 index_set
 fn_op 1 swap
 fn_op 1 store_local 0
 fn_op 1 pop
-fn_op 1 jump -77
+fn_op 1 jump -84
 fn_op 1 const 1
 fn_op 1 return
 fn_arrows 1 0
@@ -275,9 +296,9 @@ fn_op 2 call 1
 fn_op 2 pop
 fn_op 2 load_global 2
 fn_op 2 const 6
-fn_op 2 load_global 7
-fn_op 2 const 7
 fn_op 2 load_global 5
+fn_op 2 const 7
+fn_op 2 load_global 6
 fn_op 2 const 8
 fn_op 2 load_local 0
 fn_op 2 load_global 1
@@ -285,16 +306,16 @@ fn_op 2 call 1
 fn_op 2 const 9
 fn_op 2 make_object 4
 fn_op 2 dup
-fn_op 2 store_global 5
+fn_op 2 store_global 6
 fn_op 2 pop
 fn_op 2 jump -43
 fn_op 2 load_global 2
 fn_op 2 const 6
 fn_op 2 const 19
 fn_op 2 const 7
-fn_op 2 load_global 4
+fn_op 2 load_global 7
 fn_op 2 const 8
-fn_op 2 load_global 5
+fn_op 2 load_global 6
 fn_op 2 const 9
 fn_op 2 make_object 4
 fn_op 2 store_local 1
@@ -349,7 +370,7 @@ fn_op 3 call 1
 fn_op 3 pop
 fn_op 3 load_global 2
 fn_op 3 const 6
-fn_op 3 load_global 7
+fn_op 3 load_global 5
 fn_op 3 const 7
 fn_op 3 load_local 0
 fn_op 3 get_member 20
@@ -466,7 +487,7 @@ fn_op 5 load_global 2
 fn_op 5 const 6
 fn_op 5 const 21
 fn_op 5 const 7
-fn_op 5 load_global 4
+fn_op 5 load_global 7
 fn_op 5 const 8
 fn_op 5 load_local 0
 fn_op 5 get_member 20
@@ -530,7 +551,7 @@ fn_op 7 load_local 0
 fn_op 7 get_member 5
 fn_op 7 return
 fn_op 7 load_local 0
-fn_op 7 load_global 6
+fn_op 7 load_global 4
 fn_op 7 call 1
 fn_op 7 pop
 fn_op 7 load_local 0
@@ -577,4 +598,4 @@ halt
 
 source=self_host/parser_compare.kab
 statements=12
-fingerprint=cfc667452a27edf2
+fingerprint=eb5e56589461f839

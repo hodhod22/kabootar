@@ -199,7 +199,9 @@ pub fn compile_dirty_dag_seeds() -> Result<DirtyCompileStats, String> {
         }
     }
     if stats.failed == 0 {
-        write_image_from_dag_dir()?;
+        if let Err(e) = write_image_from_dag_dir() {
+            eprintln!("SH7 pack compiler.kbcb skipped: {e}");
+        }
     }
     Ok(stats)
 }
@@ -558,8 +560,16 @@ fn write_image_from_dag_dir() -> Result<(), String> {
         entries.push((name, text));
     }
     let packed = pack_compiler_image(&entries);
-    fs::write(compiler_image_path(), packed)
-        .map_err(|e| format!("write compiler.kbcb: {e}"))?;
+    let dest = compiler_image_path();
+    let tmp = dest.with_extension("kbcb.tmp");
+    fs::write(&tmp, &packed).map_err(|e| format!("write compiler.kbcb.tmp: {e}"))?;
+    match fs::rename(&tmp, &dest) {
+        Ok(()) => {}
+        Err(_) => {
+            let _ = fs::remove_file(&dest);
+            fs::rename(&tmp, &dest).map_err(|e| format!("write compiler.kbcb: {e}"))?;
+        }
+    }
     reload_compiler_image();
     Ok(())
 }
