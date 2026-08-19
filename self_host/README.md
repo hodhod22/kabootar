@@ -124,14 +124,28 @@ cargo test --test self_host
 43. **Emitter index assign** — spara `eBxRhs = eNode["rhs"]` före `emitExpr(eBxL)`/`emitExpr(eBxR)`; `emitExpr` clobbrar `eNode` (annars `eNode["rhs"]` läser index-noden → member access-fel).
 44. **Emitter popStack** — använd native `pop(stack)` (inte manuell while-kopia); self-host compile av emit.kab är annars extremt långsam.
 45. **Self-compiled vs Rust emit** — `import "self_host/emit"` = Rust-bytecode (~långsam men klar). `compile(emit.kab)` → `.kbc` = self-hosted bytecode; om `emit(parse("let x = 1"))` hänger via `.kbc` men import fungerar → felsök serialize/compile-output, inte bara emit.kab-logik.
-46. **Self-host nested builtins** — `push(stack, len(x))` kompileras fel (yttre anrop blir `len`). Använd `pushLen(stack, arr)` eller spara `eLenScratch = len(x)` före `push`.
+46. **Self-host nested builtins (SH3a)** — `push(stack, len(x))` uses argv N-path (snapshot `eArgs`/`eArgN`). Fast arity-2 path is retired. Gate: `sh3a_self_host_push_len_nested`.
 47. **Serialize radbrytning** — använd `CHAR_NL` från `lexer_defs`, **inte** `"\n"` (literal i Kabootar); annars blir `.kbc` en enda rad som Rust `deserialize` avvisar.
 48. **Emitter nested call** — `eCalleeStack` före rekursiv `emitExpr` på args (inte modul-global `eCallee`; nästlade `serialize_bc(emit(parse(x)))` laddar fel callee). Binary temps är fn-lokala (S1).
 49. **Parser nested call** — fn-lokaler `savedCallee`/`savedTypeArgs` (S1; tidigare `pCalleeStack`).
 50. **Parser generic call type args** — spara `savedTypeArgs` med call (S1); rekursiv `parseCompare` nollställer modul-global `pTypeArgs`.
 51. **Emit generic fn** — spara template i `eGenericTemplates`; vid `AST_CALL` till generic callee: infer/mangle → specialisera → ersätt callee med `id$Number` (importera **inte** extra modul från `emit.kab` — kombinerad import overflowar compile).
 
-## Nästa milstolpar
+## Nästa milstolpar (Våg SH)
+
+Historiska 1–14 är klara (roundtrip, facader, bootstrap, generics). **Inte nästa:** fler `_probe`-filer eller postfix-splits.
+
+Konkret plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)** (`SH0`–`SH10`).
+
+Kort ordning:
+
+1. **SH0** — mät DAG (filantal / import_ms / shard_evals); sluta committa `_probe`/`_bisect`.
+2. **SH1** — committed **compiler-image** så `import "self_host/compile"` inte evalar ~580 källor.
+3. **SH2** — **session-objekt** i stället för `pPos`/`eOps`/`lxPos` (det är vad README-regel 12–50 egentligen handlar om).
+4. **SH3** — fixa nested `push(a, len(b))`, wrap-fn-reentrancy, serialize-newline.
+5. **SH4** — binär `.kbcb` v2 (inte text i kuvert).
+6. **SH5** — reverse-densify (L2 tillåter många `fn`; 5-raders shards *kostar* import).
+7. **SH8** — tiny self-host compile som vanlig CI-gate, inte `#[ignore]`.
 
 1. ~~`.kbc` roundtrip: `deserialize(serialize_bc(emit(ast)))` i Rust~~ ✅
 2. ~~`fn`-anrop: `OP_CALL` mot self-hosted `functions[]`~~ ✅ (Rust `run_module`)

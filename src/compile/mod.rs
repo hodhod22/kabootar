@@ -16,7 +16,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 
+mod dag;
+
 pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProgram};
+pub use dag::{
+    collect_self_host_inventory, rust_compile_write_seed, walk_compile_dag,
+    write_compiler_dag_seeds, write_compiler_facade_seeds, SelfHostInventory,
+};
 
 /// Which backend `kabootar compile` prefers (S2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,8 +173,9 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         let module = deserialize(&kbc)?;
         let deser_ms = t_deser.elapsed().as_secs_f64() * 1000.0;
         if std::env::var("KABOOTAR_P10_PROFILE").as_deref() == Ok("1") {
+            let (shard_evals, unique_modules) = crate::modules::import_shard_stats();
             eprintln!(
-                "PROFILE self_host_host import_ms={import_ms:.1} cache_hit={cache_hit} pipe_ms={pipe_ms:.1} deserialize_ms={deser_ms:.1} kbc_bytes={}",
+                "PROFILE self_host_host import_ms={import_ms:.1} cache_hit={cache_hit} pipe_ms={pipe_ms:.1} deserialize_ms={deser_ms:.1} shard_evals={shard_evals} unique_modules={unique_modules} kbc_bytes={}",
                 kbc.len()
             );
         }
@@ -444,7 +451,7 @@ pub fn compile_file_prefer_cached(
             return Ok((program, "disk-cache"));
         }
     }
-    // H6e: committed seed `.kbc` for skip-listed leaves (no live Rust compile).
+    // H6e/SH1: committed seed `.kbc` (historical leaves + compiler DAG image).
     if let Some(bc) = read_seed_bytecode(path)? {
         let program = CompiledProgram {
             stmts: Vec::new(),
@@ -608,58 +615,19 @@ pub fn cache_dir() -> PathBuf {
     PathBuf::from(".kabootar").join("cache")
 }
 
-/// Committed seed `.kbc` for H6e skip-listed leaves (`self_host/seed/<file>.kbc`).
-/// Lets kab-only load heavy cores without a live Rust compile when the fingerprint matches.
+/// Committed seed `.kbc` (`self_host/seed/<file>.kbc` or `seed/dag/`).
 pub fn seed_kbc_path(path: &str) -> Option<PathBuf> {
-    let norm = path.replace('\\', "/");
-    let leaves = [
-        "emit_impl.kab",
-        "parser_impl.kab",
-        "lexer_impl.kab",
-    ];
-    let base_name = Path::new(&norm)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    if !leaves.contains(&base_name) {
-        return None;
-    }
-    if !(norm.contains("self_host/") || norm.ends_with(&format!("self_host/{base_name}"))) {
-        // Basename alone is not enough (cwd may be self_host/).
-        if !norm.contains("self_host") {
-            return None;
-        }
-    }
-    let parent = Path::new(path).parent()?;
-    Some(parent.join("seed").join(format!("{base_name}.kbc")))
+    let cands = dag::seed_kbc_candidates(path);
+    cands
+        .iter()
+        .find(|p| p.is_file())
+        .cloned()
+        .or_else(|| cands.into_iter().next())
 }
 
 /// Load committed seed bytecode when fingerprint matches current source.
 pub fn read_seed_bytecode(path: &str) -> Result<Option<BytecodeModule>, String> {
-    let Some(seed) = seed_kbc_path(path) else {
-        return Ok(None);
-    };
-    let text = match fs::read_to_string(&seed) {
-        Ok(t) => t,
-        Err(_) => return Ok(None),
-    };
-    if !text.starts_with(FORMAT_HEADER) {
-        return Ok(None);
-    }
-    let source = match fs::read_to_string(path) {
-        Ok(s) => s,
-        Err(_) => return Ok(None),
-    };
-    let expected = source_fingerprint(path, &source);
-    if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
-        let got = line.trim_start_matches("fingerprint=");
-        if got != expected {
-            return Ok(None);
-        }
-    } else {
-        return Ok(None);
-    }
-    Ok(Some(deserialize(&text)?))
+    dag::read_matching_seed(path)
 }
 
 pub fn cache_path_for(base: &Path, path: &str) -> PathBuf {
@@ -826,7 +794,7 @@ pub fn source_fingerprint(path: &str, source: &str) -> String {
     format!("{:x}", hasher.finish())
 }
 
-fn extract_kab_imports(source: &str) -> Vec<String> {
+pub(crate) fn extract_kab_imports(source: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in source.lines() {
         let t = line.trim();

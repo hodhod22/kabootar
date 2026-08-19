@@ -1,6 +1,6 @@
 # Kabootar — roadmap
 
-Produktplaner och docs: **[kOS](../lib/kos/README.md)** ([plan](../lib/kos/ROADMAP.md)) · **[kbrowser](../lib/kbrowser/README.md)** ([plan](../lib/kbrowser/ROADMAP.md)). Bygg kOS först. Implementeras i Kabootar; kör appar via Kv8 + kDOM + kstyle. Rust tunnas bort.
+Produktplaner och docs: **[kOS](../lib/kos/README.md)** ([plan](../lib/kos/ROADMAP.md)) · **[kbrowser](../lib/kbrowser/README.md)** ([plan](../lib/kbrowser/ROADMAP.md)). **Kabootar-kärna nu:** [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-) (compiler-image, session-objekt, färre shards) — inte fler parser-splits. Rust tunnas bort för *produktlogik*; JIT/GC stannar native.
 
 ## v0.2 (nu) — Kabootar-foundation
 
@@ -798,7 +798,60 @@ Se [COMPILE.md](COMPILE.md) § P10.
 - Science: Kab-API först; **hotpath får vara native/GPU** (redan SC-undantag) — P16 är det undantaget, inte en tillfällig skuldpunkt som ska “portas bort” om det sänker taket.
 - Ny produktlogik fortfarande inte i Rust.
 
-**Checkpoint P-tak:** P11a microbench landad + P13a native add-loop *eller* dokumenterat blocker (Cranelift-dep); P17b e2e-siffra; P18d docs. Full V8-paritet är **år**, inte en sprint — men faserna ska inte försvinna från listan.
+**Checkpoint P-tak:** P11a microbench landad + P13a Cranelift typed i64; P17b e2e-siffra; P18d docs. Full V8-paritet är **år**, inte en sprint — men faserna ska inte försvinna från listan.
+
+### Våg SH — Self-host: självständig, snabb, stabil 📋
+
+**Varför den här vågen finns:** P6b/P10 gjorde compiler-källan *körbar* genom att klyva den i hundratals shards. Det löste skip-list och CI-leaf-budget, men **sänkte självständigheten**: `import "self_host/compile"` är en djup DAG (~580 `.kab`, varav ~250 `vm_*`), första processladdning är fortfarande tung, och ~50 designregler i [self_host/README.md](../self_host/README.md) är symptom på **modul-global session** (`pPos`, `eOps`, `lxPos`, …). Kabootar blir inte mer self-host av fler `_probe_*.kab`; det blir mer self-host när **en process kan ladda en compiler-image och kompilera appar utan Rust-emit**.
+
+**Nuläge (studerat, inte slogan):**
+
+| Faktum | Konsekvens |
+|--------|------------|
+| `compile.kab` = parse → emit → serialize (+ ownership) | Kedjan är rätt; kostnaden är *ladda* den, inte en extra fas |
+| Facader (`parser.kab`, `emit.kab`, `serialize.kab`, `vm.kab`) är tunna `pub let` alias | Extra wrap-fn ger extra `call_value`-ram och **kab-only reentrancy-bugg** |
+| Parser/emit/lexer **session är modul-global** | Nested `if`/`while`/`call` clobbrar state → 50+ workarounds (pSave, eIfJmpStack, …) |
+| L2 tillåter ≥40 top-level `fn` per modul | Densify till 5-radersfiler är **föråldrad** som prestandastrategi; den **ökar import-evals** |
+| `.kbcb` = `KBCB` + UTF-8 `.kbc`-text | Deserialize är fortfarande linjär textparse, inte binär IR |
+| Seeds bara `emit_impl` / `parser_impl` / `lexer_impl` | Resten av DAG:en rust-kompileras eller evalas per process |
+| Host-VM kör produkten; `self_host/vm` är kab-only bootstrap | **Icke-mål:** ersätta Cranelift/host-VM med Kab-dispatch. Kab-VM ska vara *korrekt och liten* |
+| Nested `push(stack, len(x))` kompileras fel | Self-host måste undvika vanliga mönster → spröda källor |
+| Ignored tester `self_host_*_full_compile_and_run` (minuter–timmar) | “Self-host klar” är inte samma som “self-host *användbar*” |
+
+**Tre tak (samma anda som P):**
+
+| Yta | Mål när SH är klar | Inte målet |
+|-----|-------------------|------------|
+| Självständighet | App-`.kab` → `.kbc` via committed compiler-image, utan live Rust-emit | Skriva om JIT/GC i Kab |
+| Hastighet | Första `import "self_host/compile"` **< 2 s** (warm disk); andra compile i processen **≪ 1 s** för typisk app | Jaga postfix 4.5 s → 3.5 s isolerat |
+| Stabilitet | Noll *nya* modul-globala session-clobber; session-objekt är default | Fler `pSaveFoo`-globals |
+
+**Ordning (beroenden — gör inte 5 före 2):** SH0 → SH1 och SH2 parallellt → SH3 → SH4 → SH5 → SH7. SH6 bara om kab-only fortfarande är produktkrav. SH8 är delete-gate. SH9 rider på P13. SH10 är mätning som ska in från SH0.
+
+| Steg | Vad | Delete-gate / mätning | Status |
+|------|-----|------------------------|--------|
+| **SH0** | **Inventering** — räkna DAG (`compile.kab` fan-out), förbjud nya committed `_probe`/`_bisect`/`_acc_repro`; `KABOOTAR_P10_PROFILE=1` ska skriva `import_ms`, `shard_evals`, `unique_modules` | `tests/perf_p10_pipeline.rs` utökas med shard-count snapshot (inte 580+ *nya* filer) | ✅ `tests/sh_wave.rs` `sh0_self_host_compile_dag_snapshot`; PROFILE + `import_shard_stats` |
+| **SH1** | **Compiler-image** — ett committed `self_host/seed/compiler.kbcb` (eller packad katalog) som är *hela* parse+emit+serialize-DAG:en med matchande fingerprints; kall process laddar image, evalar inte 500 källor | `import "self_host/compile"` första gången **< 2 s** med image (CI); utan image får fail-fast + rust fallback | ✅ subset: `self_host/seed/dag/*.kbc` för compile-facader; `write_compiler_dag_seeds` (`KABOOTAR_SH1_WARM=1`) för hela DAG:en — 2 s-gate kvar |
+| **SH2** | **Session-objekt** — `parse`/`emit`/`tokenize` tar `sess` (`{ pos, toks, ops, … }`) i stället för modul-globaler; rekursion får inte clobbra parent | En smoke som nästlar `if` i `while` i `fn` *utan* `pCondStack`/`eIfJmpStack`; README-regel 19/21 blir onödig för ny kod | 📋 |
+| **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))`; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a: argv N-path alltid; `sh3a_*_push_len_nested`. SH3b/c kvar |
+| **SH4** | **Binär IR v2** — `kbcb` v2: opcodes som packed records (inte `store_local 3\n`); deserialize O(n) utan strängsplit per rad | Seed `emit_impl` deserialize **≪** text-`.kbc`; roundtrip `deserialize_kbcb_v2 == module` | 📋 |
+| **SH5** | **Reverse-densify** — slå ihop 5–20-raders `parser_*` / `emit_*` / `vm_ops_*` till *få* session-moduler nu när L2 tillåter många `fn`; mål: compile-DAG **< 80** filer (inte 580) | Import-depth och filantal i SH0-snapshot **ner**; varje sammanslagen fil self-host-kompilerar ≤10 s | 📋 |
+| **SH6** | **Kab-VM dispatch** — `self_host/vm` har ~250 filer och ett CALL per op. Komprimera till op-tabell / stora `vm_ops_*.kab` (inte djupare trampoliner). Host-VM + Cranelift förblir produktions-eval | `KABOOTAR_VM=kab-only` smoke oförändrad; shard-antal `vm_*` **< 40** | 📋 |
+| **SH7** | **Inkrementell + parallell shard-compile** — rust/self-host kompilerar bara dirty fingerprint; oberoende blad parallellt (`job_map` / rust threads) | Ändra en `parser_stmt_let.kab` → compile-tid ≪ full DAG; CI-loggar “dirty=N” | 📋 |
+| **SH8** | **Användbarhets-gate** — ta bort `#[ignore]` på *tiny* `compile_source_self_host("return 1")` när SH1 håller budget; full `compile(emit.kab)` får förbli ignored tills SH5 | `p10_self_host_tiny_source_profile` **inte ignored**; first_ms < 15 s CI (mål 2 s efter SH1) | 📋 |
+| **SH9** | **Compiler på host-JIT** — när toolchain körs på host-VM: Cranelift (P13) på typed i64-hjälpare i emit/serialize (AccAdd-loopar, index-loopar). Inte “JIT:a parsern i Kab-VM” | `jit_stats` hits > 0 under `compile()` av en medium-fil; ingen ny produktlogik i Rust | 📋 |
+| **SH10** | **Stabilitetsbudget i CI** — max import-depth, max modul-globala muterbara namn i `parser_session*`/`emit_main*`, förbjud nya `pSave*`/`eBx*` utan SH2-undantag | `cargo test --test self_host` + ett lint-test som räknar `let pPos` / `let eOps` i facader | 📋 |
+
+**Icke-mål (låst, samma som H vs P):**
+
+- Fler parser-splits “för att CI ska gå under 10 s per fil”.
+- Att `self_host/vm` ska slå host-VM eller Cranelift.
+- NaN-boxing / nursery i Kab.
+- Att checka in `_probe_*.kab` som produkt.
+
+**Första sprint (rekommenderad):** SH0 snapshot + SH1 image-prototyp för `parse.kab`-DAG:en (inte hela vm) + SH3a nested-call regression. SH2 session-objekt är den stora stabilitetsvinsten men rör parser/emit samtidigt — gör den som egen PR efter SH3.
+
+Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 
 
 ### Våg GP — Game production (3D, motor, pipeline) 📋
