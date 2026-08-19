@@ -27,10 +27,11 @@ Default CLI: `kabootar compile` → self-host först, Rust fallback. `KABOOTAR_C
 | Image | `self_host/seed/compiler.kbcb` + `seed/dag/*.kbc` (SH1) |
 | Facader | `pub let` alias, inte wrapping `pub fn` (SH3b) |
 | Lexer | per-call `sess` i `tokenizeExec` |
-| Parser/emit | **SH2:** ny `pMakeSession`/`eMakeSession` per anrop; tramp 0-arg via `gSess`/`gE` (inte `tramp(sess)` — hänger). `pCondStack` kvar på sess |
+| Parser/emit | **SH2/SH13:** återanvänd `gSess`/`gE` + `pResetSession`/`eResetSession`; tramp 0-arg. `pCondStack` på sess |
 | Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
 | Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
-| Tiny parse | `sh8_tiny_parse_via_compiler_image` — full `compile("return 1")` fortfarande ignored i debug (hang) |
+| Tiny parse | `sh8_tiny_parse_via_compiler_image` i CI; full `compile("return 1")` ignored i debug |
+| Cache | SH15 content-addressed `cache/ca/v{image}_{fp}.kbcb` + mmap |
 
 Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored`.
 

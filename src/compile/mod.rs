@@ -24,7 +24,7 @@ pub use dag::{
     compiler_image_path, dag_max_import_depth, is_compile_dag_path, is_self_host_vm_path,
     missing_compiler_dag_seeds, rust_compile_write_seed, walk_compile_dag,
     write_compiler_dag_seeds, write_compiler_facade_seeds, DirtyCompileStats,
-    SelfHostInventory,
+    SelfHostInventory, IMAGE_VERSION as COMPILER_IMAGE_VERSION,
 };
 
 /// Which backend `kabootar compile` prefers (S2).
@@ -685,6 +685,31 @@ fn cache_path_kbcb(base: &Path, path: &str) -> PathBuf {
     cache_path_for(base, path).with_extension("kbcb")
 }
 
+fn cache_path_kbcb_ca(base: &Path, fingerprint: &str) -> PathBuf {
+    base.join(".kabootar")
+        .join("cache")
+        .join("ca")
+        .join(format!("v{COMPILER_IMAGE_VERSION}_{fingerprint}.kbcb"))
+}
+
+fn deserialize_kbcb_file(path: &Path) -> Result<BytecodeModule, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let file = fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
+        let map = unsafe { memmap2::Mmap::map(&file) }
+            .map_err(|e| format!("mmap {}: {e}", path.display()))?;
+        if looks_like_kbcb(&map) {
+            return deserialize_kbcb(&map);
+        }
+        return Err(format!("not kbcb: {}", path.display()));
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let bytes = fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+        deserialize_kbcb(&bytes)
+    }
+}
+
 pub fn write_compile_marker(path: &str, program: &CompiledProgram) -> Result<(), String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
     write_compile_marker_at(&base, path, program)
@@ -710,7 +735,12 @@ pub fn write_compile_marker_at(
         ));
         let kbcb = serialize_kbcb(program.bytecode.as_ref().unwrap());
         let kbcb_path = cache_path_kbcb(base, path);
-        let _ = fs::write(&kbcb_path, kbcb);
+        let _ = fs::write(&kbcb_path, &kbcb);
+        let ca = cache_path_kbcb_ca(base, &fp);
+        if let Some(parent) = ca.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let _ = fs::write(&ca, &kbcb);
         text
     } else {
         let source = fs::read_to_string(path).unwrap_or_default();
@@ -725,18 +755,26 @@ pub fn write_compile_marker_at(
 
 pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {
     let base = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {e}"))?;
+    if let Ok(source) = fs::read_to_string(path) {
+        let fp = source_fingerprint(path, &source);
+        let ca = cache_path_kbcb_ca(&base, &fp);
+        if ca.is_file() {
+            if let Ok(m) = deserialize_kbcb_file(&ca) {
+                return Ok(Some(m));
+            }
+        }
+    }
     let marker = cache_path_for(&base, path);
     let kbcb_path = cache_path_kbcb(&base, path);
-    if let Ok(bytes) = fs::read(&kbcb_path) {
-        if looks_like_kbcb(&bytes) {
-            let cache_mtime = fs::metadata(&kbcb_path)
-                .ok()
-                .and_then(|m| m.modified().ok());
-            if let Some(cache_mtime) = cache_mtime {
-                if source_mtime > cache_mtime {
-                    return Ok(None);
-                }
-            }
+    if kbcb_path.is_file() {
+        let cache_mtime = fs::metadata(&kbcb_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        let mtime_ok = match cache_mtime {
+            Some(cache_mtime) => source_mtime <= cache_mtime,
+            None => true,
+        };
+        if mtime_ok {
             if let Ok(source) = fs::read_to_string(path) {
                 let expected = source_fingerprint(path, &source);
                 if let Ok(text) = fs::read_to_string(&marker) {
@@ -755,7 +793,9 @@ pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Optio
                     }
                 }
             }
-            return Ok(Some(deserialize_kbcb(&bytes)?));
+            if let Ok(m) = deserialize_kbcb_file(&kbcb_path) {
+                return Ok(Some(m));
+            }
         }
     }
     let text = match fs::read_to_string(&marker) {

@@ -93,6 +93,7 @@ cranelift = "0.116"
 cranelift-jit = "0.116"
 cranelift-module = "0.116"
 cranelift-native = "0.116"
+memmap2 = "0.9"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["Document", "Window", "Element", "HtmlElement", "HtmlIFrameElement", "Node", "HtmlCollection", "HtmlCanvasElement", "CanvasRenderingContext2d"] }
