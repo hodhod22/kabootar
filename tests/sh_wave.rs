@@ -73,8 +73,8 @@ fn sh16_boot_policy_self_host_only_and_max_bytes() {
     )
     .expect("compile.kab");
     assert!(
-        compile.contains("sourceLooksLikeKbc") && compile.contains("sourceEmpty"),
-        "compile() must reject empty source and .kbc-as-source"
+        boot.contains("kbcHeader") && compile.contains("guardAndPreprocess"),
+        "bootPolicy kbcHeader + compile guardAndPreprocess"
     );
 }
 

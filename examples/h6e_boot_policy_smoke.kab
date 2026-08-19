@@ -12,7 +12,7 @@ let kbcOk = isBytecode(bootCompile("return 42"))
 preferKabEval()
 let evalOk = evalSource("1 + 2") == 3
 let classOk = evalSource("class Box { constructor(n) { this.n = n } } new Box(7).n") == 7
-let polOk = bootPolicy("skip") == "attempt-all" && bootPolicy("maxBytes") == 65536 && bootPolicy("prefer") == "self-host-only" && bootPolicy("appRustFallback") == false
+let polOk = bootPolicy("skip") == "attempt-all" && bootPolicy("maxBytes") == 65536 && bootPolicy("prefer") == "self-host-only" && bootPolicy("appRustFallback") == false && bootPolicy("kbcHeader") == "kabootar-bytecode/1"
 let attemptOk = bootPolicy("shouldSelfHost", 100) && !bootPolicy("shouldSelfHost", 70000) && !bootPolicy("shouldSelfHost", 0)
 
 println("h6e pipe=" + pipeOk + " lex=" + lexOk + " kbc=" + kbcOk + " eval=" + evalOk + " class=" + classOk + " pol=" + polOk)
