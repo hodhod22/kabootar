@@ -1,5 +1,6 @@
 // Full self-hosted pipeline: source text -> kabootar-bytecode/1 text.
-import "self_host/parse"
+import "self_host/lexer_tokenize"
+import "self_host/parser_exec"
 import "self_host/emit_exec"
 import "self_host/serialize_acc"
 import "self_host/ownership"
@@ -33,9 +34,20 @@ fn sourceEmpty(source) {
     return len("" + source) == 0
 }
 
+fn sourceLooksLikeKbc(source) {
+    return str_index_of("" + source, "kabootar-bytecode/1") == 0
+}
+
+fn parseSource(source) {
+    return parseTokensExec(tokenizeExec(source))
+}
+
 pub fn compile(source) {
     if sourceEmpty(source) {
         throw "SH16: empty source"
+    }
+    if sourceLooksLikeKbc(source) {
+        throw "SH16: refusing to compile bytecode as source"
     }
     if sourceTooBig(source) {
         throw "SH16: source exceeds bootPolicy maxBytes; split the module"
@@ -48,7 +60,7 @@ pub fn compile(source) {
         }
     }
     let t0 = date_now_ms()
-    let ast = parse(preprocess(source))
+    let ast = parseSource(preprocess(source))
     let t1 = date_now_ms()
     let ir = emitMainExec(ast)
     let t2 = date_now_ms()
@@ -69,6 +81,9 @@ pub fn compileIr(source) {
     if sourceEmpty(source) {
         throw "SH16: empty source"
     }
+    if sourceLooksLikeKbc(source) {
+        throw "SH16: refusing to compile bytecode as source"
+    }
     if sourceTooBig(source) {
         throw "SH16: source exceeds bootPolicy maxBytes; split the module"
     }
@@ -78,5 +93,5 @@ pub fn compileIr(source) {
             throw err
         }
     }
-    return emitMainExec(parse(preprocess(source)))
+    return emitMainExec(parseSource(preprocess(source)))
 }

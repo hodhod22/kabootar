@@ -8,12 +8,11 @@ Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Vå
 
 ```
 source text
-    → lexer.kab / tokenizeExec     token[]
-    → parse.kab  (parseTokens)     AST
-    → emit.kab   (emit)            opcode IR
-    → serialize.kab                .kbc text / kbcb v2
-    → compile.kab                  source → .kbc
-    → seed/compiler.kbcb           SH1 packed image (fingerprint)
+    → tokenizeExec / parseTokensExec   AST
+    → emitMainExec                     opcode IR
+    → serSerializeBc                   .kbc text
+    → compile.kab                      source → .kbc
+    → seed/compiler.kbcb               SH1 packed image
 ```
 
 Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** Rust-fallback (SH16); `self_host/` DAG får rust-seeds. `KABOOTAR_COMPILE=rust` är skuld. `bootPolicy("prefer")` = `self-host-only`.
