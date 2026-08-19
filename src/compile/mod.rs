@@ -420,6 +420,14 @@ pub fn compile_file_prefer_cached(
     path: &str,
     prefer: CompilePrefer,
 ) -> Result<(CompiledProgram, &'static str), String> {
+    compile_file_prefer_cached_src(path, prefer, None)
+}
+
+fn compile_file_prefer_cached_src(
+    path: &str,
+    prefer: CompilePrefer,
+    source: Option<&str>,
+) -> Result<(CompiledProgram, &'static str), String> {
     let mtime = fs::metadata(path)
         .ok()
         .and_then(|m| m.modified().ok());
@@ -430,34 +438,37 @@ pub fn compile_file_prefer_cached(
             }
         }
     }
-    if let Some(t) = mtime {
-        if let Some(bc) = read_bytecode_cache(path, t)? {
-            let program = CompiledProgram {
-                stmts: Vec::new(),
-                bytecode: Some(bc.clone()),
-                stmt_count: rough_stmt_count(
-                    &fs::read_to_string(path).unwrap_or_default(),
-                ),
-                memory_mode: bc.memory_mode,
-            };
-            if let Ok(mut map) = cache().lock() {
-                map.insert(
-                    path.to_string(),
-                    CachedProgram {
-                        mtime: t,
-                        program: program.clone(),
-                    },
-                );
+    let dag_hit = dag::is_compile_dag_path(path);
+    if !dag_hit {
+        if let Some(t) = mtime {
+            if let Some(bc) = read_bytecode_cache(path, t)? {
+                let program = CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(bc.clone()),
+                    stmt_count: rough_stmt_count(
+                        &fs::read_to_string(path).unwrap_or_default(),
+                    ),
+                    memory_mode: bc.memory_mode,
+                };
+                if let Ok(mut map) = cache().lock() {
+                    map.insert(
+                        path.to_string(),
+                        CachedProgram {
+                            mtime: t,
+                            program: program.clone(),
+                        },
+                    );
+                }
+                return Ok((program, "disk-cache"));
             }
-            return Ok((program, "disk-cache"));
         }
     }
     // H6e/SH1: committed seed `.kbc` (historical leaves + compiler DAG image).
-    if let Some(bc) = read_seed_bytecode(path)? {
+    if let Some(bc) = dag::read_matching_seed_src(path, source)? {
         let program = CompiledProgram {
             stmts: Vec::new(),
             bytecode: Some(bc.clone()),
-            stmt_count: rough_stmt_count(&fs::read_to_string(path).unwrap_or_default()),
+            stmt_count: 0,
             memory_mode: bc.memory_mode,
         };
         if let (Some(t), Ok(mut map)) = (mtime, cache().lock()) {
@@ -472,14 +483,14 @@ pub fn compile_file_prefer_cached(
         return Ok((program, "seed"));
     }
     // SH1: compiler DAG without image must not self-host-compile the compiler.
-    if dag::is_compile_dag_path(path) && prefer != CompilePrefer::SelfHostOnly {
+    if dag_hit && prefer != CompilePrefer::SelfHostOnly {
         let program = compile_file(path)?;
         if program.has_bytecode() {
             let _ = write_compile_marker(path, &program);
         }
         return Ok((program, "rust"));
     }
-    if dag::is_compile_dag_path(path) && prefer == CompilePrefer::SelfHostOnly {
+    if dag_hit && prefer == CompilePrefer::SelfHostOnly {
         return Err(format!(
             "SH1: no compiler-image seed for `{path}` (run KABOOTAR_SH1_WARM=1 / write_compiler_dag_seeds)"
         ));
@@ -550,13 +561,12 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
     // (`compile_file_prefer_cached`). Force Rust while the self-host toolchain or
     // Kab VM is already active so nested loads cannot recurse into another
     // full self-host compile of the compiler.
-    let _ = source; // caller already read; prefer path re-reads + fingerprint/cache.
     let prefer = if KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
         CompilePrefer::Rust
     } else {
         CompilePrefer::from_args_and_env(&[])
     };
-    let (program, _) = compile_file_prefer_cached(path, prefer)?;
+    let (program, _) = compile_file_prefer_cached_src(path, prefer, Some(source))?;
     Ok(program)
 }
 
@@ -786,6 +796,21 @@ pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Optio
 
 /// Hash of file bytes plus mtimes of `import "…"` deps (incremental self-host cache key).
 pub fn source_fingerprint(path: &str, source: &str) -> String {
+    static FP: OnceLock<Mutex<HashMap<String, (u64, String)>>> = OnceLock::new();
+    let cache = FP.get_or_init(|| Mutex::new(HashMap::new()));
+    let mtime_key = fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
+    if let Ok(map) = cache.lock() {
+        if let Some((mt, fp)) = map.get(path) {
+            if *mt == mtime_key {
+                return fp.clone();
+            }
+        }
+    }
     let mut hasher = DefaultHasher::new();
     source.hash(&mut hasher);
     let base = Path::new(path).parent().unwrap_or_else(|| Path::new("."));
@@ -805,7 +830,11 @@ pub fn source_fingerprint(path: &str, source: &str) -> String {
         }
         dep.hash(&mut hasher);
     }
-    format!("{:x}", hasher.finish())
+    let fp = format!("{:x}", hasher.finish());
+    if let Ok(mut map) = cache.lock() {
+        map.insert(path.to_string(), (mtime_key, fp.clone()));
+    }
+    fp
 }
 
 pub(crate) fn extract_kab_imports(source: &str) -> Vec<String> {
