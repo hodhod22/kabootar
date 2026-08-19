@@ -11,7 +11,10 @@ mod vm;
 
 pub use compiler::{can_compile, take_hard_compile_error, try_compile};
 pub use optimize::{optimize_module, OptStats};
-pub use kbcb::{deserialize_kbcb, looks_like_kbcb, serialize_kbcb, KBCB_MAGIC};
+pub use kbcb::{
+    deserialize_kbcb, deserialize_kbcb_v2, looks_like_kbcb, serialize_kbcb, serialize_kbcb_v1,
+    serialize_kbcb_v2, KBCB_MAGIC, KBCB_VERSION,
+};
 pub use jit::{jit_add_loop, jit_reset_for_tests, jit_stats};
 pub use typed::{fn_is_typed_i64, typed_i64_reset_for_tests, typed_i64_stats};
 pub use types::{
