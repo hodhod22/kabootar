@@ -1,5 +1,4 @@
-// SH2: fresh session object per parseTokens call. Tramp is 0-arg and reads gSess
-// (nested fn capture / tramp(sess) hang or fail rust-emit).
+// SH2/SH13: one session object, reset in-place. Tramp is 0-arg and reads gSess.
 import "self_host/parser_session"
 import "self_host/parser_tramp"
 import "self_host/parser_main"
@@ -11,9 +10,15 @@ fn tramp() {
 }
 
 pub fn parseTokensExec(tokens) {
-    let sess = pMakeSession()
-    gSess = sess
-    sess["tramp"] = tramp
+    let sess = gSess
+    if sess == null {
+        sess = pMakeSession()
+        gSess = sess
+        sess["tramp"] = tramp
+    } else {
+        pResetSession(sess)
+        sess["tramp"] = tramp
+    }
     sess["_hook"] = 0
     return parseMain(sess, tokens)
 }

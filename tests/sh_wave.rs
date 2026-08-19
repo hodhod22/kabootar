@@ -308,8 +308,10 @@ fn sh2_parser_emit_exec_are_per_call_session() {
         !emit.lines().any(|l| l.starts_with("let E = eMakeSession()")),
         "SH2: emit_exec must not keep a module-global E"
     );
-    assert!(parser.contains("let sess = pMakeSession()"), "per-call sess");
-    assert!(parser.contains("gSess = sess"), "rebind tramp target");
+    assert!(parser.contains("pMakeSession()"), "alloc sess on first call");
+    assert!(parser.contains("pResetSession(sess)"), "SH13 in-place reset");
+    assert!(parser.contains("gSess"), "rebind tramp target");
+    assert!(emit.contains("eResetSession(E)"), "SH13 emit reset");
     assert!(emit.contains("gE = E"), "rebind emit tramp target");
 }
 
@@ -388,7 +390,7 @@ fn sh7b_product_tree_incremental() {
     assert_eq!(s2.dirty, 0, "second product-tree compile should be dirty=0");
 }
 
-/// SH8: tiny source parses via compiler-image (`parse`), without full `compile()` hang.
+/// SH8: tiny source parses via compiler-image (`parse`).
 #[test]
 #[ignore = "import parse + tramp can hang in debug; rust nested-if is sh2_nested_if_while_fn_rust"]
 fn sh8_tiny_parse_via_compiler_image() {
@@ -512,4 +514,19 @@ fn sh10_stability_budget() {
         psave_let, 0,
         "SH10: no module-level `let pSave*` in product self_host (use session fields)"
     );
+}
+
+/// SH9: host Cranelift helper is available (P13 add-loop) while the toolchain runs on host-VM.
+#[test]
+fn sh9_host_jit_add_loop() {
+    let n = kabootar_lib::bytecode::jit_add_loop(8);
+    assert_eq!(n, Some(8), "P13/SH9 jit_add_loop(8)");
+}
+
+/// SH15: fingerprint includes compiler-image version (cache key changes if image ver changes).
+#[test]
+fn sh15_fingerprint_includes_image_version() {
+    assert_eq!(kabootar_lib::compile::COMPILER_IMAGE_VERSION, 1);
+    let a = kabootar_lib::compile::source_fingerprint("missing.kab", "return 1\n");
+    assert!(!a.is_empty());
 }

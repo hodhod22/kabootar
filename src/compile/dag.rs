@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 /// Packed compiler-image (catalog of `.kbc` blobs). Not P10f single-module `KBCB`.
 const IMAGE_MAGIC: &[u8; 4] = b"SH1I";
-const IMAGE_VERSION: u8 = 1;
+pub const IMAGE_VERSION: u8 = 1;
 
 const COMPILE_ENTRY: &str = "self_host/compile";
 

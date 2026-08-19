@@ -1,4 +1,4 @@
-// SH2: fresh emit session per emit() call. Tramp is 0-arg and reads gE.
+// SH2/SH13: one emit session, reset in-place. Tramp is 0-arg and reads gE.
 import "self_host/emit_session"
 import "self_host/emit_tramp"
 import "self_host/emit_main_fn"
@@ -10,9 +10,15 @@ fn tramp() {
 }
 
 pub fn emitMainExec(program) {
-    let E = eMakeSession()
-    gE = E
-    E["tramp"] = tramp
+    let E = gE
+    if E == null {
+        E = eMakeSession()
+        gE = E
+        E["tramp"] = tramp
+    } else {
+        eResetSession(E)
+        E["tramp"] = tramp
+    }
     E["_hook"] = 0
     E["_node"] = null
     return emitMain(E, program)

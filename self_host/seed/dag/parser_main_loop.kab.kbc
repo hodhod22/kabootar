@@ -1,82 +1,95 @@
 kabootar-bytecode/1
-constants=10
-const 0 string pDone
-const 1 number 0
-const 2 string pPos
-const 3 string pToksLen
-const 4 number 1
-const 5 null
-const 6 string pCur
-const 7 string pTok
-const 8 string type
-const 9 string EOF
+constants=12
+const 0 number 0
+const 1 string pDone
+const 2 null
+const 3 number 1
+const 4 number 1000000
+const 5 string parser\srunaway
+const 6 string pPos
+const 7 string pToksLen
+const 8 string pCur
+const 9 string pTok
+const 10 string type
+const 11 string EOF
 global 0 parseMain_loop_step
 global 1 parseMain_loop
 functions=1
 fn 0 parseMain_loop
 fn_params 0 sess
-fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2
-fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 const 1
-fn_op 0 eq
-fn_op 0 jump_if_false 55
-fn_op 0 load_local 0
-fn_op 0 get_member 2
-fn_op 0 load_local 0
-fn_op 0 get_member 3
-fn_op 0 ge
-fn_op 0 jump_if_false 9
-fn_op 0 const 4
+fn_locals 0 sess,n,__kab_a0,__kab_a1,__kab_a2
+fn_op 0 const 0
 fn_op 0 store_local 1
 fn_op 0 load_local 0
+fn_op 0 get_member 1
 fn_op 0 const 0
+fn_op 0 eq
+fn_op 0 jump_if_false 64
+fn_op 0 const 3
+fn_op 0 acc_add_local 1
 fn_op 0 load_local 1
-fn_op 0 index_set
-fn_op 0 swap
-fn_op 0 store_local 0
+fn_op 0 const 4
+fn_op 0 gt
+fn_op 0 jump_if_false 3
+fn_op 0 const 5
+fn_op 0 throw
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 0
-fn_op 0 const 1
-fn_op 0 eq
-fn_op 0 jump_if_false 25
-fn_op 0 load_local 0
 fn_op 0 get_member 6
+fn_op 0 load_local 0
+fn_op 0 get_member 7
+fn_op 0 ge
+fn_op 0 jump_if_false 9
+fn_op 0 const 3
 fn_op 0 store_local 2
 fn_op 0 load_local 0
-fn_op 0 const 7
+fn_op 0 const 1
 fn_op 0 load_local 2
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 7
-fn_op 0 get_member 8
-fn_op 0 const 9
+fn_op 0 get_member 1
+fn_op 0 const 0
 fn_op 0 eq
-fn_op 0 jump_if_false 9
-fn_op 0 const 4
+fn_op 0 jump_if_false 25
+fn_op 0 load_local 0
+fn_op 0 get_member 8
 fn_op 0 store_local 3
 fn_op 0 load_local 0
-fn_op 0 const 0
+fn_op 0 const 9
 fn_op 0 load_local 3
 fn_op 0 index_set
 fn_op 0 swap
 fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
-fn_op 0 get_member 0
+fn_op 0 get_member 9
+fn_op 0 get_member 10
+fn_op 0 const 11
+fn_op 0 eq
+fn_op 0 jump_if_false 9
+fn_op 0 const 3
+fn_op 0 store_local 4
+fn_op 0 load_local 0
 fn_op 0 const 1
+fn_op 0 load_local 4
+fn_op 0 index_set
+fn_op 0 swap
+fn_op 0 store_local 0
+fn_op 0 pop
+fn_op 0 load_local 0
+fn_op 0 get_member 1
+fn_op 0 const 0
 fn_op 0 eq
 fn_op 0 jump_if_false 4
 fn_op 0 load_local 0
 fn_op 0 load_global 0
 fn_op 0 call 1
 fn_op 0 pop
-fn_op 0 jump -60
-fn_op 0 const 1
+fn_op 0 jump -69
+fn_op 0 const 0
 fn_op 0 return
 fn_arrows 0 0
 arrows=0
@@ -97,4 +110,4 @@ halt
 
 source=self_host/parser_main_loop.kab
 statements=6
-fingerprint=a81b824d06b9a65c
+fingerprint=36049cd7fb74a9fa

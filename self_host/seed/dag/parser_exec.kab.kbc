@@ -1,49 +1,79 @@
 kabootar-bytecode/1
-constants=3
-const 0 string tramp
-const 1 number 0
-const 2 string _hook
-global 0 pTramp
-global 1 tramp
-global 2 pMakeSession
-global 3 parseMain
-global 4 parseTokensExec
+constants=4
+const 0 null
+const 1 string tramp
+const 2 number 0
+const 3 string _hook
+global 0 gSess
+global 1 pTramp
+global 2 tramp
+global 3 pMakeSession
+global 4 pResetSession
+global 5 parseMain
+global 6 parseTokensExec
+local 0 gSess
 functions=2
 fn 0 tramp
-fn_params 0 sess
-fn_locals 0 sess
-fn_op 0 load_local 0
+fn_params 0 
+fn_locals 0 
 fn_op 0 load_global 0
+fn_op 0 load_global 1
 fn_op 0 call 1
 fn_op 0 return
 fn_arrows 0 0
 fn 1 parseTokensExec
 fn_params 1 tokens
-fn_locals 1 tokens,sess,__kab_a0,__kab_a1
-fn_op 1 load_global 2
-fn_op 1 call 0
+fn_locals 1 tokens,sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 1 load_global 0
 fn_op 1 store_local 1
-fn_op 1 load_global 1
-fn_op 1 store_local 2
 fn_op 1 load_local 1
 fn_op 1 const 0
+fn_op 1 eq
+fn_op 1 jump_if_false 19
+fn_op 1 load_global 3
+fn_op 1 call 0
+fn_op 1 dup
+fn_op 1 store_local 1
+fn_op 1 pop
+fn_op 1 load_local 1
+fn_op 1 dup
+fn_op 1 store_global 0
+fn_op 1 pop
+fn_op 1 load_global 2
+fn_op 1 store_local 2
+fn_op 1 load_local 1
+fn_op 1 const 1
 fn_op 1 load_local 2
 fn_op 1 index_set
 fn_op 1 swap
 fn_op 1 store_local 1
 fn_op 1 pop
-fn_op 1 const 1
+fn_op 1 jump 13
+fn_op 1 load_local 1
+fn_op 1 load_global 4
+fn_op 1 call 1
+fn_op 1 pop
+fn_op 1 load_global 2
 fn_op 1 store_local 3
 fn_op 1 load_local 1
-fn_op 1 const 2
+fn_op 1 const 1
 fn_op 1 load_local 3
+fn_op 1 index_set
+fn_op 1 swap
+fn_op 1 store_local 1
+fn_op 1 pop
+fn_op 1 const 2
+fn_op 1 store_local 4
+fn_op 1 load_local 1
+fn_op 1 const 3
+fn_op 1 load_local 4
 fn_op 1 index_set
 fn_op 1 swap
 fn_op 1 store_local 1
 fn_op 1 pop
 fn_op 1 load_local 1
 fn_op 1 load_local 0
-fn_op 1 load_global 3
+fn_op 1 load_global 5
 fn_op 1 call 2
 fn_op 1 return
 fn_arrows 1 0
@@ -59,8 +89,10 @@ memory_mode=gc
 interfaces=0
 classes=0
 code
+const 0
+store_local 0
 halt
 
 source=self_host/parser_exec.kab
-statements=5
-fingerprint=423de405cb56305c
+statements=6
+fingerprint=e6c293eb09645945

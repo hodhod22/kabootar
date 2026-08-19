@@ -234,10 +234,9 @@ global 94 TOKEN_TRAIT
 global 95 AST_INTERFACE
 global 96 parseStmt_iface
 global 97 parseStmt_dispatch_ctrl
-global 98 r
-global 99 parseStmt_dispatch_decl
-global 100 TOKEN_PUB
-global 101 parseStmt
+global 98 parseStmt_dispatch_decl
+global 99 TOKEN_PUB
+global 100 parseStmt
 functions=39
 fn 0 parseStmt_block
 fn_params 0 sess
@@ -3861,79 +3860,83 @@ fn_op 36 return
 fn_arrows 36 0
 fn 37 parseStmt_dispatch_decl
 fn_params 37 sess
-fn_locals 37 sess
-fn_op 37 load_global 98
+fn_locals 37 sess,r
+fn_op 37 load_local 0
+fn_op 37 load_global 59
+fn_op 37 call 1
+fn_op 37 store_local 1
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 load_local 0
 fn_op 37 load_global 23
 fn_op 37 call 1
 fn_op 37 dup
-fn_op 37 store_global 98
+fn_op 37 store_local 1
 fn_op 37 pop
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 load_local 0
 fn_op 37 load_global 91
 fn_op 37 call 1
 fn_op 37 dup
-fn_op 37 store_global 98
+fn_op 37 store_local 1
 fn_op 37 pop
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 load_local 0
 fn_op 37 load_global 88
 fn_op 37 call 1
 fn_op 37 dup
-fn_op 37 store_global 98
+fn_op 37 store_local 1
 fn_op 37 pop
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 load_local 0
 fn_op 37 load_global 96
 fn_op 37 call 1
 fn_op 37 dup
-fn_op 37 store_global 98
+fn_op 37 store_local 1
 fn_op 37 pop
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 load_local 0
 fn_op 37 load_global 92
 fn_op 37 call 1
 fn_op 37 dup
-fn_op 37 store_global 98
+fn_op 37 store_local 1
 fn_op 37 pop
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 const 3
 fn_op 37 ne
 fn_op 37 jump_if_false 2
-fn_op 37 load_global 98
+fn_op 37 load_local 1
 fn_op 37 return
 fn_op 37 const 3
 fn_op 37 return
 fn_arrows 37 0
 fn 38 parseStmt
 fn_params 38 sess
-fn_locals 38 sess,__kab_a0,__kab_a1
+fn_locals 38 sess,__kab_a0,__kab_a1,r
 fn_op 38 load_local 0
 fn_op 38 get_member 0
 fn_op 38 get_member 1
@@ -3954,7 +3957,7 @@ fn_op 38 pop
 fn_op 38 load_local 0
 fn_op 38 get_member 0
 fn_op 38 get_member 1
-fn_op 38 load_global 100
+fn_op 38 load_global 99
 fn_op 38 eq
 fn_op 38 jump_if_false 13
 fn_op 38 load_local 0
@@ -3970,11 +3973,15 @@ fn_op 38 index_set
 fn_op 38 swap
 fn_op 38 store_local 0
 fn_op 38 pop
+fn_op 38 load_local 0
 fn_op 38 load_global 98
+fn_op 38 call 1
+fn_op 38 store_local 3
+fn_op 38 load_local 3
 fn_op 38 const 3
 fn_op 38 ne
 fn_op 38 jump_if_false 2
-fn_op 38 load_global 98
+fn_op 38 load_local 3
 fn_op 38 return
 fn_op 38 load_local 0
 fn_op 38 load_global 97
@@ -4037,4 +4044,4 @@ halt
 
 source=self_host/parser_stmt.kab
 statements=44
-fingerprint=70af7a1f2d3a07d5
+fingerprint=d1603e2782edc501
