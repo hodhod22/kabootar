@@ -1,0 +1,17 @@
+// FT F0: process-local counters in Kab (no Rust profiler). import "kab/perf"
+
+let gPerfN = 0
+
+pub fn perfReset() {
+    gPerfN = 0
+    return true
+}
+
+pub fn perfTick(name) {
+    gPerfN = gPerfN + 1
+    return gPerfN
+}
+
+pub fn perfCount() {
+    return gPerfN
+}

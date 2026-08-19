@@ -6,7 +6,7 @@ Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**.
 
 Produktpolicy för bootstrap: `import "kab/boot"`. **Nolltolerans:** ingen Rust-emit, ingen Rust-JIT, ingen Rust-GC — se ROADMAP-rutan.
 
-**`kabootar run` / `run_file`:** self-host först. `KABOOTAR_COMPILE=rust` är **skuld** (ska bort), inte produktväg.
+**`kabootar run` / `run_file`:** self-host först. `KABOOTAR_COMPILE=rust` är **skuld** (ska bort), inte produktväg. Full Rust-fri plan: [ROADMAP.md — Kabootar på egna fötter](ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Fart (JIT/IC/GC/AOT i Kab): [Våg FT](ROADMAP.md#våg-ft--fart-alla-tekniker-i-kab).
 
 ## `kabootar compile` (S2)
 

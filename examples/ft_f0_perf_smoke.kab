@@ -1,0 +1,11 @@
+// FT F0: Kab profiler counters (cargo run --bin kabootar -- examples/ft_f0_perf_smoke.kab)
+import "kab/perf"
+
+perfReset()
+perfTick("compile")
+perfTick("emit")
+let n = perfCount()
+if n == 2 {
+    return true
+}
+return false

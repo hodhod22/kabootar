@@ -58,7 +58,7 @@ impl CompilePrefer {
     }
 }
 
-/// Loader mirror of `kab/boot` `bootPolicy("appRustFallback")`.
+/// Loader mirror of `kab/boot` `bootPolicy("appRustFallback")` + `rustFallbackPrefix`.
 /// Compiler/VM DAG may still rust-compile (SH1 seeds). App `.kab` may not.
 fn rust_fallback_allowed(path: &str) -> bool {
     let n = path.replace('\\', "/");
