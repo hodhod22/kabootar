@@ -1,0 +1,5 @@
+import "kab/aot_emit_plan"
+import "kab/aot_load_plan"
+
+let plan = aotEmitPlan("x64")
+return aotLoadPlanOk(plan, "x64")

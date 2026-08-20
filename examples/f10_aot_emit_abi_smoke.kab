@@ -1,0 +1,3 @@
+import "kab/aot_emit_abi"
+
+return aotEmitAbi("x64") == "abi:win64"

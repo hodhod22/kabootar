@@ -1,0 +1,3 @@
+import "kab/aot_abi"
+
+return aotAbiOk("x64", "win64")

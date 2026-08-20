@@ -136,7 +136,7 @@ Kort ordning:
 13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
 14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (header/fingerprint/reloc/symbol/alignment/sections/pages/RX text/RW data/R rodata/entry/fingerprinted cache key/target + `aotSealOk`/`aotLayoutOk`); native emit deepen; `nollAotReady` still false
+16. ~~**F10 AOT native-image policy**~~ ✅ (header/fingerprint/reloc/symbol/alignment/sections/pages/RX text/RW data/R rodata/entry/fingerprinted cache key/target/ABI + `aotEmitPlan`/`aotLoadPlanOk`); native emit deepen; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 

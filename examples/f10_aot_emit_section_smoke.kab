@@ -1,0 +1,3 @@
+import "kab/aot_emit_section"
+
+return aotEmitSection("text") == "text:rx"
