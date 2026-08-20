@@ -4,7 +4,6 @@ import "self_host/emit_arr_util"
 import "self_host/emit_hooks"
 import "self_host/emit_sym"
 import "self_host/emit_sym_index"
-import "self_host/emit_local_map"
 import "self_host/emit_fn_scope"
 
 pub fn tryEmitArrayPushAssign(E, sym, rhs) {

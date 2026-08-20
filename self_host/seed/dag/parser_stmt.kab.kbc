@@ -3917,12 +3917,11 @@ fn_op 38 call 1
 fn_op 38 return
 fn_arrows 38 0
 arrows=0
-imports=5
+imports=4
 import 0 self_host/lexer_defs
 import 1 self_host/ast_defs
 import 2 self_host/parser_hooks
-import 3 self_host/parser_util
-import 4 self_host/parser_block
+import 3 self_host/parser_block
 pub_imports=0
 exports=39
 export 0 parseStmt_block
@@ -3971,5 +3970,5 @@ code
 halt
 
 source=self_host/parser_stmt.kab
-statements=44
-fingerprint=a4bf5cdb46e265a
+statements=43
+fingerprint=665f7944616b7f66

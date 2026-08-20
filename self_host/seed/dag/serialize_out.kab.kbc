@@ -16,11 +16,10 @@ global 2 serOutSpNum
 global 3 serOutSp
 global 4 serOutTagEq
 global 5 serOutTagged
-global 6 s
-global 7 serOutTagged2
-global 8 serOutTry4
-global 9 serOutTry5
-global 10 serAppendNamedList
+global 6 serOutTagged2
+global 7 serOutTry4
+global 8 serOutTry5
+global 9 serAppendNamedList
 functions=9
 fn 0 serOutTag
 fn_params 0 out,tag
@@ -91,22 +90,27 @@ fn_op 4 return
 fn_arrows 4 0
 fn 5 serOutTagged2
 fn_params 5 out,tag,a,b,rest
-fn_locals 5 out,tag,a,b,rest
-fn_op 5 load_global 6
+fn_locals 5 out,tag,a,b,rest,s
+fn_op 5 load_local 0
+fn_op 5 load_local 1
+fn_op 5 load_global 1
+fn_op 5 call 2
+fn_op 5 store_local 5
+fn_op 5 load_local 5
 fn_op 5 load_local 2
 fn_op 5 load_global 2
 fn_op 5 call 2
 fn_op 5 dup
-fn_op 5 store_global 6
+fn_op 5 store_local 5
 fn_op 5 pop
-fn_op 5 load_global 6
+fn_op 5 load_local 5
 fn_op 5 load_local 3
 fn_op 5 load_global 2
 fn_op 5 call 2
 fn_op 5 dup
-fn_op 5 store_global 6
+fn_op 5 store_local 5
 fn_op 5 pop
-fn_op 5 load_global 6
+fn_op 5 load_local 5
 fn_op 5 load_local 4
 fn_op 5 load_global 3
 fn_op 5 call 2
@@ -114,39 +118,44 @@ fn_op 5 return
 fn_arrows 5 0
 fn 6 serOutTry4
 fn_params 6 out,tag,a,tr
-fn_locals 6 out,tag,a,tr
-fn_op 6 load_global 6
+fn_locals 6 out,tag,a,tr,s
+fn_op 6 load_local 0
+fn_op 6 load_local 1
+fn_op 6 load_global 1
+fn_op 6 call 2
+fn_op 6 store_local 4
+fn_op 6 load_local 4
 fn_op 6 load_local 2
 fn_op 6 load_global 2
 fn_op 6 call 2
 fn_op 6 dup
-fn_op 6 store_global 6
+fn_op 6 store_local 4
 fn_op 6 pop
-fn_op 6 load_global 6
+fn_op 6 load_local 4
 fn_op 6 load_local 3
 fn_op 6 get_member 2
 fn_op 6 load_global 2
 fn_op 6 call 2
 fn_op 6 dup
-fn_op 6 store_global 6
+fn_op 6 store_local 4
 fn_op 6 pop
-fn_op 6 load_global 6
+fn_op 6 load_local 4
 fn_op 6 load_local 3
 fn_op 6 get_member 3
 fn_op 6 load_global 2
 fn_op 6 call 2
 fn_op 6 dup
-fn_op 6 store_global 6
+fn_op 6 store_local 4
 fn_op 6 pop
-fn_op 6 load_global 6
+fn_op 6 load_local 4
 fn_op 6 load_local 3
 fn_op 6 get_member 4
 fn_op 6 load_global 2
 fn_op 6 call 2
 fn_op 6 dup
-fn_op 6 store_global 6
+fn_op 6 store_local 4
 fn_op 6 pop
-fn_op 6 load_global 6
+fn_op 6 load_local 4
 fn_op 6 load_local 3
 fn_op 6 get_member 5
 fn_op 6 load_global 2
@@ -155,46 +164,51 @@ fn_op 6 return
 fn_arrows 6 0
 fn 7 serOutTry5
 fn_params 7 out,tag,a,b,tr
-fn_locals 7 out,tag,a,b,tr
-fn_op 7 load_global 6
+fn_locals 7 out,tag,a,b,tr,s
+fn_op 7 load_local 0
+fn_op 7 load_local 1
+fn_op 7 load_global 1
+fn_op 7 call 2
+fn_op 7 store_local 5
+fn_op 7 load_local 5
 fn_op 7 load_local 2
 fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 dup
-fn_op 7 store_global 6
+fn_op 7 store_local 5
 fn_op 7 pop
-fn_op 7 load_global 6
+fn_op 7 load_local 5
 fn_op 7 load_local 3
 fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 dup
-fn_op 7 store_global 6
+fn_op 7 store_local 5
 fn_op 7 pop
-fn_op 7 load_global 6
+fn_op 7 load_local 5
 fn_op 7 load_local 4
 fn_op 7 get_member 2
 fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 dup
-fn_op 7 store_global 6
+fn_op 7 store_local 5
 fn_op 7 pop
-fn_op 7 load_global 6
+fn_op 7 load_local 5
 fn_op 7 load_local 4
 fn_op 7 get_member 3
 fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 dup
-fn_op 7 store_global 6
+fn_op 7 store_local 5
 fn_op 7 pop
-fn_op 7 load_global 6
+fn_op 7 load_local 5
 fn_op 7 load_local 4
 fn_op 7 get_member 4
 fn_op 7 load_global 2
 fn_op 7 call 2
 fn_op 7 dup
-fn_op 7 store_global 6
+fn_op 7 store_local 5
 fn_op 7 pop
-fn_op 7 load_global 6
+fn_op 7 load_local 5
 fn_op 7 load_local 4
 fn_op 7 get_member 5
 fn_op 7 load_global 2
@@ -267,4 +281,4 @@ halt
 
 source=self_host/serialize_out.kab
 statements=10
-fingerprint=64177219a72873c4
+fingerprint=af0294dcccbae3b9

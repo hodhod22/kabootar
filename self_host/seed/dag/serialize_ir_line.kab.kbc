@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=25
+constants=32
 const 0 string 
 const 1 number 0
 const 2 null
@@ -25,13 +25,27 @@ const 21 string bool\sfalse
 const 22 string string
 const 23 string string\s
 const 24 string number\s
+const 25 string arg
+const 26 string arg2
+const 27 undefined
+const 28 string |
+const 29 string Unsupported\sIR\sop:\s
+const 30 string serialize:\snull\sop\sin\sIR
+const 31 string op
 global 0 serJoinComma
 global 1 char_at
 global 2 serEscStr
 global 3 KAB_UNDEF_CONST
 global 4 typeof
 global 5 serConstLine
-functions=3
+global 6 OP_NEW_INSTANCE
+global 7 serIrOpNewInstance
+global 8 IR_WITH_ARG
+global 9 str_index_of
+global 10 IR_ZERO_ARG
+global 11 serIrOpLookup
+global 12 serIrOpLine
+functions=6
 fn 0 serJoinComma
 fn_params 0 arr
 fn_locals 0 arr,params,k,n
@@ -200,16 +214,121 @@ fn_op 2 acc_add_local 2
 fn_op 2 load_local 2
 fn_op 2 return
 fn_arrows 2 0
+fn 3 serIrOpNewInstance
+fn_params 3 op
+fn_locals 3 op,line,a2
+fn_op 3 load_global 6
+fn_op 3 store_local 1
+fn_op 3 const 7
+fn_op 3 acc_add_local 1
+fn_op 3 const 0
+fn_op 3 load_local 0
+fn_op 3 get_member 25
+fn_op 3 add
+fn_op 3 acc_add_local 1
+fn_op 3 const 7
+fn_op 3 acc_add_local 1
+fn_op 3 load_local 0
+fn_op 3 get_member 26
+fn_op 3 store_local 2
+fn_op 3 load_local 2
+fn_op 3 const 27
+fn_op 3 eq
+fn_op 3 jump_if_false 4
+fn_op 3 const 1
+fn_op 3 dup
+fn_op 3 store_local 2
+fn_op 3 pop
+fn_op 3 const 0
+fn_op 3 load_local 2
+fn_op 3 add
+fn_op 3 acc_add_local 1
+fn_op 3 load_local 1
+fn_op 3 return
+fn_arrows 3 0
+fn 4 serIrOpLookup
+fn_params 4 name,op
+fn_locals 4 name,op,line
+fn_op 4 load_global 8
+fn_op 4 const 28
+fn_op 4 load_local 0
+fn_op 4 add
+fn_op 4 const 28
+fn_op 4 add
+fn_op 4 load_global 9
+fn_op 4 call 2
+fn_op 4 const 1
+fn_op 4 ge
+fn_op 4 jump_if_false 11
+fn_op 4 load_local 0
+fn_op 4 store_local 2
+fn_op 4 const 7
+fn_op 4 acc_add_local 2
+fn_op 4 const 0
+fn_op 4 load_local 1
+fn_op 4 get_member 25
+fn_op 4 add
+fn_op 4 acc_add_local 2
+fn_op 4 load_local 2
+fn_op 4 return
+fn_op 4 load_global 10
+fn_op 4 const 28
+fn_op 4 load_local 0
+fn_op 4 add
+fn_op 4 const 28
+fn_op 4 add
+fn_op 4 load_global 9
+fn_op 4 call 2
+fn_op 4 const 1
+fn_op 4 ge
+fn_op 4 jump_if_false 2
+fn_op 4 load_local 0
+fn_op 4 return
+fn_op 4 const 29
+fn_op 4 throw
+fn_op 4 load_local 0
+fn_op 4 add
+fn_op 4 return
+fn_arrows 4 0
+fn 5 serIrOpLine
+fn_params 5 op
+fn_locals 5 op,name
+fn_op 5 load_local 0
+fn_op 5 const 2
+fn_op 5 eq
+fn_op 5 jump_if_false 3
+fn_op 5 const 30
+fn_op 5 throw
+fn_op 5 pop
+fn_op 5 load_local 0
+fn_op 5 get_member 31
+fn_op 5 store_local 1
+fn_op 5 load_local 1
+fn_op 5 load_global 6
+fn_op 5 eq
+fn_op 5 jump_if_false 4
+fn_op 5 load_local 0
+fn_op 5 load_global 7
+fn_op 5 call 1
+fn_op 5 return
+fn_op 5 load_local 1
+fn_op 5 load_local 0
+fn_op 5 load_global 11
+fn_op 5 call 2
+fn_op 5 return
+fn_arrows 5 0
 arrows=0
 imports=2
 import 0 self_host/emit_defs
-import 1 self_host/serialize_ir_op
-pub_imports=1
-pub_import 0 self_host/serialize_ir_op
-exports=3
+import 1 self_host/serialize_ir
+pub_imports=0
+exports=6
 export 0 serJoinComma
 export 1 serEscStr
 export 2 serConstLine
+export 3 serIrOpNewInstance
+export 4 serIrOpLookup
+export 5 serIrOpLine
 memory_mode=gc
 interfaces=0
 classes=0
@@ -217,5 +336,5 @@ code
 halt
 
 source=self_host/serialize_ir_line.kab
-statements=5
-fingerprint=be2e279d27b4d6e8
+statements=8
+fingerprint=242630179d5a8be8

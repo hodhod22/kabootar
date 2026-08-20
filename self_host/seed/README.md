@@ -13,7 +13,7 @@ bytecode for the `compile.kab` import DAG (fingerprint-validated). Regenerera:
 KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored --nocapture
 ```
 
-Gates: `sh1_compiler_dag_image_complete`, `sh1_import_compile_image_budget` (**2 s release**, 5 s debug). **SH5:** compile-DAG **78** files (`sh0` `< 80`). **SH6:** `vm_*` **< 40** (`sh0` / `sh6_vm_shard_count_under_40`).
+Gates: `sh1_compiler_dag_image_complete`, `sh1_import_compile_image_budget` (**2 s release**, 5 s debug). **SH5:** compile-DAG **< 80** (`sh0`); serialize/emit densify (sections + ir_line + emit_sym_index). **SH6:** `vm_*` **< 40** (`sh0` / `sh6_vm_shard_count_under_40`).
 
 ## Policy
 

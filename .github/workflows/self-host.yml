@@ -27,9 +27,13 @@ on:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+    env:
+      KABOOTAR_COMPILE: self-host
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: SH16 app rust-fallback closed
+        run: cargo test --test sh_wave sh16_ -- --test-threads=1
       - name: S3 self-host bootstrap gate
         run: cargo test --test self_host self_host_bootstrap_compile_and_run -- --test-threads=1
       - name: Ownership suite (optional)

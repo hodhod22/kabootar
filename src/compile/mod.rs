@@ -60,9 +60,19 @@ impl CompilePrefer {
 
 /// Loader mirror of `kab/boot` `bootPolicy("appRustFallback")` + `rustFallbackPrefix`.
 /// Compiler/VM DAG may still rust-compile (SH1 seeds). App `.kab` may not.
-fn rust_fallback_allowed(path: &str) -> bool {
+pub fn rust_fallback_allowed(path: &str) -> bool {
     let n = path.replace('\\', "/");
     n.contains("/self_host/") || n.starts_with("self_host/")
+}
+
+/// SH16: product `run`/`compile` refuse `--rust` / `KABOOTAR_COMPILE=rust` for apps.
+pub fn refuse_app_rust_compile(path: &str, prefer: CompilePrefer) -> Result<(), String> {
+    if prefer == CompilePrefer::Rust && !rust_fallback_allowed(path) {
+        return Err(format!(
+            "SH16: rust compile disabled for app `{path}` (self-host only; toolchain rust is self_host/)"
+        ));
+    }
+    Ok(())
 }
 
 /// Skip self-host for the heavy emit/parser/lexer/serialize/vm leaf shards. H6e:
@@ -609,8 +619,9 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
 }
 
 pub fn eval_file_cached(path: &str, env: &mut Environment) -> Result<Value, String> {
-    // Product run path: prefer self-host .kbc (KABOOTAR_COMPILE=rust forces host).
+    // Product run path: self-host first. SH16: rust env/flag is toolchain-only.
     let prefer = CompilePrefer::from_args_and_env(&[]);
+    refuse_app_rust_compile(path, prefer)?;
     let (program, _) = compile_file_prefer_cached(path, prefer)?;
     eval_program(&program, env)
 }

@@ -69,19 +69,13 @@ fn is_test_file(p: &Path) -> bool {
 pub fn run_test_file(path: &Path) -> TestResult {
     let path_s = path.to_string_lossy().replace('\\', "/");
     let mut env = create_global_env();
-    // Force host compiler: self-host .kbc can eval to Null for small scripts.
-    let prev = std::env::var("KABOOTAR_COMPILE").ok();
-    std::env::set_var("KABOOTAR_COMPILE", "rust");
+    // SH16: app tests compile via self-host (rust only for self_host/ toolchain).
     std::env::set_var("KABOOTAR_VM", "host");
     compile::invalidate_file_cache(&path_s);
     let result = match fs::read_to_string(path) {
         Ok(src) => crate::evaluator::eval_source(&src, &mut env),
         Err(e) => Err(format!("read {path_s}: {e}")),
     };
-    match prev {
-        Some(v) => std::env::set_var("KABOOTAR_COMPILE", v),
-        None => std::env::remove_var("KABOOTAR_COMPILE"),
-    }
     match result {
         Ok(v) => {
             let ok = match &v {

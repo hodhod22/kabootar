@@ -10,7 +10,7 @@ Produktpolicy för bootstrap: `import "kab/boot"`. **Nolltolerans:** ingen Rust-
 
 ## `kabootar compile` (S2)
 
-Default: **`self_host/compile.kab`**. Rust-fallback är **tillfällig** (stängs i SH16). `--rust` / `KABOOTAR_COMPILE=rust` ska försvinna för produktkällor. Efter `compile()` / `compileIr()`: `lastCompileMs` eller `bootLastCompileMs` (0 total, 1 parse, 2 emit, 3 serialize). App-`*.kbc`/`*.kbcb` kompileras inte som källa.
+Default: **`self_host/compile.kab`**. Rust-fallback för appar är **stängd** (SH16). `--rust` / `KABOOTAR_COMPILE=rust` gäller bara `self_host/` (toolchain-seeds). Efter `compile()` / `compileIr()`: `lastCompileMs` eller `bootLastCompileMs` (0 total, 1 parse, 2 emit, 3 serialize). App-`*.kbc`/`*.kbcb` kompileras inte som källa.
 
 ```bash
 kabootar compile main.kab              # self-host → rust fallback

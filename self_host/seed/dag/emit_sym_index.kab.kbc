@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=38
+constants=39
 const 0 string U
 const 1 null
 const 2 string N
@@ -38,13 +38,18 @@ const 34 string eClassesN
 const 35 string eClasses
 const 36 string sym
 const 37 string symIndex:\sbad\smode
+const 38 string eInFn
 global 0 KAB_UNDEF_CONST
 global 1 typeof
 global 2 constKey
 global 3 push
 global 4 LIT_UNDEF
 global 5 symIndex
-functions=2
+global 6 localSymIndex
+global 7 resetLocalMap
+global 8 len
+global 9 rebuildLocalMap
+functions=5
 fn 0 constKey
 fn_params 0 E,arg
 fn_locals 0 E,arg,t
@@ -390,14 +395,136 @@ fn_op 1 const 37
 fn_op 1 throw
 fn_op 1 return
 fn_arrows 1 0
+fn 2 localSymIndex
+fn_params 2 E,sym
+fn_locals 2 E,sym,li
+fn_op 2 load_local 0
+fn_op 2 get_member 38
+fn_op 2 const 19
+fn_op 2 ne
+fn_op 2 jump_if_false 2
+fn_op 2 const 39
+fn_op 2 return
+fn_op 2 load_local 0
+fn_op 2 get_member 15
+fn_op 2 load_local 1
+fn_op 2 index_get
+fn_op 2 store_local 2
+fn_op 2 load_local 2
+fn_op 2 const 16
+fn_op 2 ne
+fn_op 2 jump_if_false 2
+fn_op 2 load_local 2
+fn_op 2 return
+fn_op 2 const 39
+fn_op 2 return
+fn_arrows 2 0
+fn 3 resetLocalMap
+fn_params 3 E
+fn_locals 3 E,__kab_a0,__kab_a1
+fn_op 3 make_object 0
+fn_op 3 store_local 1
+fn_op 3 load_local 0
+fn_op 3 const 15
+fn_op 3 load_local 1
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 pop
+fn_op 3 const 32
+fn_op 3 store_local 2
+fn_op 3 load_local 0
+fn_op 3 const 18
+fn_op 3 load_local 2
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 return
+fn_arrows 3 0
+fn 4 rebuildLocalMap
+fn_params 4 E
+fn_locals 4 E,__kab_a0,__kab_a1,i,n,__kab_a2,__kab_a3,__kab_a4,__kab_a5
+fn_op 4 make_object 0
+fn_op 4 store_local 1
+fn_op 4 load_local 0
+fn_op 4 const 15
+fn_op 4 load_local 1
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 const 32
+fn_op 4 store_local 2
+fn_op 4 load_local 0
+fn_op 4 const 18
+fn_op 4 load_local 2
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 const 32
+fn_op 4 store_local 3
+fn_op 4 load_local 0
+fn_op 4 get_member 17
+fn_op 4 load_global 8
+fn_op 4 call 1
+fn_op 4 store_local 4
+fn_op 4 load_local 3
+fn_op 4 load_local 4
+fn_op 4 lt
+fn_op 4 jump_if_false 38
+fn_op 4 load_local 3
+fn_op 4 store_local 5
+fn_op 4 load_local 0
+fn_op 4 get_member 15
+fn_op 4 load_local 0
+fn_op 4 get_member 17
+fn_op 4 load_local 3
+fn_op 4 index_get
+fn_op 4 load_local 5
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 swap
+fn_op 4 store_local 6
+fn_op 4 store_local 7
+fn_op 4 load_local 0
+fn_op 4 const 15
+fn_op 4 load_local 7
+fn_op 4 index_set
+fn_op 4 pop
+fn_op 4 load_local 6
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 load_local 0
+fn_op 4 get_member 18
+fn_op 4 const 19
+fn_op 4 add
+fn_op 4 store_local 8
+fn_op 4 load_local 0
+fn_op 4 const 18
+fn_op 4 load_local 8
+fn_op 4 index_set
+fn_op 4 swap
+fn_op 4 store_local 0
+fn_op 4 pop
+fn_op 4 const 19
+fn_op 4 acc_add_local 3
+fn_op 4 jump -42
+fn_op 4 const 1
+fn_op 4 return
+fn_arrows 4 0
 arrows=0
 imports=2
 import 0 self_host/ast_defs
 import 1 self_host/emit_defs
 pub_imports=0
-exports=2
+exports=5
 export 0 constKey
 export 1 symIndex
+export 2 localSymIndex
+export 3 resetLocalMap
+export 4 rebuildLocalMap
 memory_mode=gc
 interfaces=0
 classes=0
@@ -405,5 +532,5 @@ code
 halt
 
 source=self_host/emit_sym_index.kab
-statements=4
-fingerprint=b8d2879ce80b98ea
+statements=7
+fingerprint=ee8e6744cbcb1d5c

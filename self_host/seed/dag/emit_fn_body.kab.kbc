@@ -282,12 +282,11 @@ fn_op 1 const 3
 fn_op 1 return
 fn_arrows 1 0
 arrows=0
-imports=5
+imports=4
 import 0 self_host/emit_defs
 import 1 self_host/emit_hooks
 import 2 self_host/emit_arr_util
 import 3 self_host/emit_sym_index
-import 4 self_host/emit_local_map
 pub_imports=0
 exports=2
 export 0 emitFnCompileBody
@@ -299,5 +298,5 @@ code
 halt
 
 source=self_host/emit_fn_body.kab
-statements=7
-fingerprint=1179f1462149af27
+statements=6
+fingerprint=ec11421a5abd439a

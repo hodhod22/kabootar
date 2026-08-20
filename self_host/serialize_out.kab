@@ -29,6 +29,7 @@ pub fn serOutTagged(out, tag, i, rest) {
 }
 
 pub fn serOutTagged2(out, tag, a, b, rest) {
+    let s = serOutTag(out, tag)
     s = serOutSpNum(s, a)
     s = serOutSpNum(s, b)
     return serOutSp(s, rest)
@@ -38,6 +39,7 @@ pub fn serOutTagged2(out, tag, a, b, rest) {
 // P6b: serOutTry4 (skip-listed until ≤10s).
 
 pub fn serOutTry4(out, tag, a, tr) {
+    let s = serOutTag(out, tag)
     s = serOutSpNum(s, a)
     s = serOutSpNum(s, tr["bodyStart"])
     s = serOutSpNum(s, tr["bodyEnd"])
@@ -49,6 +51,7 @@ pub fn serOutTry4(out, tag, a, tr) {
 // P6b: serOutTry5 (skip-listed until ≤10s).
 
 pub fn serOutTry5(out, tag, a, b, tr) {
+    let s = serOutTag(out, tag)
     s = serOutSpNum(s, a)
     s = serOutSpNum(s, b)
     s = serOutSpNum(s, tr["bodyStart"])

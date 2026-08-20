@@ -409,11 +409,10 @@ fn_op 0 make_object 3
 fn_op 0 return
 fn_arrows 0 0
 arrows=0
-imports=4
+imports=3
 import 0 self_host/lexer_defs
 import 1 self_host/ast_defs
 import 2 self_host/parser_hooks
-import 3 self_host/parser_util
 pub_imports=0
 exports=1
 export 0 parseMain
@@ -424,5 +423,5 @@ code
 halt
 
 source=self_host/parser_main.kab
-statements=5
-fingerprint=3a092a5ce1c19940
+statements=4
+fingerprint=c28db76a8391ab6d

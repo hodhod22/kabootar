@@ -173,6 +173,44 @@ fn sh16_app_kbc_path_no_rust() {
     let _ = std::fs::remove_file(&kbc);
 }
 
+/// SH16: product run/compile refuse rust env for app `.kab` (toolchain rust remains self_host/).
+#[test]
+fn sh16_app_run_refuses_rust_env() {
+    use kabootar_lib::compile::eval_file_cached;
+    use kabootar_lib::evaluator::create_global_env;
+    let dir = std::env::temp_dir().join(format!("kab_sh16_run_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let tiny = dir.join("app.kab");
+    std::fs::write(&tiny, "return 1\n").expect("write");
+    let tiny_s = tiny.to_string_lossy().replace('\\', "/");
+    let prev = std::env::var("KABOOTAR_COMPILE").ok();
+    std::env::set_var("KABOOTAR_COMPILE", "rust");
+    let mut env = create_global_env();
+    let err = eval_file_cached(&tiny_s, &mut env).expect_err("app rust env must fail");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_COMPILE", v),
+        None => std::env::remove_var("KABOOTAR_COMPILE"),
+    }
+    let _ = std::fs::remove_file(&tiny);
+    assert!(
+        err.contains("SH16"),
+        "expected SH16 error, got {err}"
+    );
+}
+
+/// SH16: `kabootar compile --rust` on an app file fails.
+#[test]
+fn sh16_cli_compile_rust_flag_fails_for_app() {
+    let dir = std::env::temp_dir().join(format!("kab_sh16_cli_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let tiny = dir.join("app.kab");
+    std::fs::write(&tiny, "return 1\n").expect("write");
+    let tiny_s = tiny.to_string_lossy().replace('\\', "/");
+    let code = kabootar_lib::cli::run(&["compile".into(), "--rust".into(), tiny_s]);
+    let _ = std::fs::remove_file(&tiny);
+    assert_eq!(code, 1, "compile --rust on app must exit 1");
+}
+
 fn ensure_compiler_image() {
     let missing = missing_compiler_dag_seeds().expect("scan dag seeds");
     if missing.is_empty() {
