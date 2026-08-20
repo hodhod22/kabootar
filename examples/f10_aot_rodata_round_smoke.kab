@@ -1,0 +1,5 @@
+import "kab/aot_emit_rodata"
+import "kab/aot_load_rodata"
+
+let rodata = aotEmitRodata("x64")
+return aotLoadRodataOk(rodata, "x64")

@@ -1,0 +1,3 @@
+import "kab/aot_ship_text"
+
+return aotShipTextOk("kabootar-x64.kbn", "text:rx|c3", "arm64") == false
