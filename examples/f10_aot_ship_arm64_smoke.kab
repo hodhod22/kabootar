@@ -1,0 +1,7 @@
+import "kab/aot_emit_image"
+import "kab/aot_image_name"
+import "kab/aot_ship"
+
+let name = aotImageName("arm64")
+let image = aotEmitImage("arm64")
+return aotShipOk(name, image, "arm64")

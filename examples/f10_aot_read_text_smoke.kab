@@ -1,0 +1,4 @@
+import "kab/aot_read_text"
+
+let read = aotReadText
+return read != null

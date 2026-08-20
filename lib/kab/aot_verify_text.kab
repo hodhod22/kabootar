@@ -1,0 +1,12 @@
+// F10: native image filename and RX text payload must agree.
+// import "kab/aot_verify_text"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyTextOk(name, text) {
+    if name == "kabootar-x64.kbn" {
+        return text == "text:rx|c3"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return text == "text:rx|d65f03c0"
+    }
+    return false
+}

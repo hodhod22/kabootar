@@ -1,0 +1,3 @@
+import "kab/aot_loaded_text"
+
+return aotLoadedTextOk("text:rwx|c3") == false
