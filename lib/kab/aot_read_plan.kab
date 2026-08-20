@@ -1,0 +1,6 @@
+// F10: load a persisted Kab-native image plan through the host FS capability.
+// import "kab/aot_read_plan"; do not import other kab/aot* leaves.
+
+pub fn aotReadPlan(path) {
+    return os_read(path)
+}
