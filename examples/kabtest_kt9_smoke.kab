@@ -1,0 +1,7 @@
+import "kabtest/ci"
+
+let g = ktCiIsProductGate("kabtest_kt9_smoke.kab")
+if g {
+    return true
+}
+return false

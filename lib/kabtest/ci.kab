@@ -1,0 +1,17 @@
+// KT9: product CI policy in Kab. import "kabtest/ci"
+// cargo test remains only for src/ skuld (SH28).
+
+pub fn ktCiIsProductGate(name) {
+    return str_includes(name, "kabtest")
+}
+
+pub fn ktCiCargoForSrcSkuld(kind) {
+    return kind == "src"
+}
+
+pub fn ktCiSmokeOk(ok) {
+    if ok {
+        return true
+    }
+    return false
+}

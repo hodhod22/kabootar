@@ -1,0 +1,7 @@
+import "kabtest/self"
+
+let n = ktSelfArith()
+if n == 42 {
+    return true
+}
+return false

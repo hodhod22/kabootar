@@ -1,0 +1,8 @@
+import "kabtest/tap"
+
+let p = ktTapPlan(1)
+let ok = str_includes(p, "1..")
+if ok {
+    return true
+}
+return false

@@ -1,0 +1,10 @@
+// KT4: Kabootar self-checks that stay off the compile/boot/vm import DAG.
+// import "kabtest/self"
+
+pub fn ktSelfArith() {
+    return 40 + 2
+}
+
+pub fn ktSelfAdd(a, b) {
+    return a + b
+}

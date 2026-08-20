@@ -1,0 +1,7 @@
+import "kabtest/cli"
+
+let a = ktCliIsTest("test")
+if a {
+    return true
+}
+return false

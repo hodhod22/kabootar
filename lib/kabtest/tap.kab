@@ -1,0 +1,20 @@
+// KT3: TAP reporter. import "kabtest/tap"
+
+pub fn ktTapPlan(n) {
+    let s = "1.."
+    return s + n
+}
+
+pub fn ktTapOk(i, name) {
+    let s = "ok "
+    s = s + i
+    s = s + " - "
+    return s + name
+}
+
+pub fn ktTapNotOk(i, name) {
+    let s = "not ok "
+    s = s + i
+    s = s + " - "
+    return s + name
+}

@@ -1,0 +1,7 @@
+import "kab/stdlib"
+
+let n = stdAdd(40, 2)
+if n == 42 {
+    return true
+}
+return false

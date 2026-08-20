@@ -1,0 +1,8 @@
+import "kabtest/report"
+
+let j = ktJsonResult(1, 0)
+let a = str_includes(j, "ok")
+if a {
+    return true
+}
+return false

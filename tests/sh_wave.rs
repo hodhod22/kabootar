@@ -436,6 +436,127 @@ fn sh6_vm_shard_count_under_40() {
     );
 }
 
+/// SH6: run policy lives in Kab (`vmPrefer` / `maxKbc`); loader only mirrors.
+#[test]
+fn sh6_vm_policy_in_kab() {
+    let boot = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lib/kab/boot.kab"),
+    )
+    .expect("boot.kab");
+    let vm = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("lib/kab/vm.kab"),
+    )
+    .expect("vm.kab");
+    assert!(
+        boot.contains("return \"kab\"") && boot.contains("maxKbc") && boot.contains("262144"),
+        "bootPolicy vmPrefer=kab and maxKbc"
+    );
+    assert!(
+        boot.contains("vmAppHostFallback"),
+        "bootPolicy vmAppHostFallback (false = Kab evalKbc does not host-run oversize)"
+    );
+    assert!(
+        vm.contains("maxKbcBytes") && vm.contains("bootPolicy(\"maxKbc\")"),
+        "kab/vm must read maxKbc from bootPolicy"
+    );
+    assert!(
+        vm.contains("bootPolicy(\"vmAppHostFallback\") == true"),
+        "evalKbc must not host-fallback unless vmAppHostFallback"
+    );
+}
+
+/// SH6: tiny bytecode eval uses Kab VM when enabled; failure is not swallowed by host.
+#[test]
+fn sh6_tiny_eval_program_kab_or_host_ok() {
+    use kabootar_lib::compile::{compile_source, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let program = compile_source("let x = 1\nreturn x + 2\n").expect("compile tiny");
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tiny-eval".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            let mut env = create_global_env();
+            eval_program(&program, &mut env).map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("tiny eval");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH17: i64 JIT planner lives in Kab (opcode filter + linear-scan GPR count).
+#[test]
+fn sh17_jit_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let jit = std::fs::read_to_string(root.join("lib/kab/jit.kab")).expect("jit.kab");
+    let boot = std::fs::read_to_string(root.join("lib/kab/boot.kab")).expect("boot.kab");
+    assert!(
+        jit.contains("pub fn jitCanCompile")
+            && jit.contains("pub fn jitGprCount")
+            && jit.contains("acc_add_local")
+            && jit.contains("pub fn jitEmitRet")
+            && jit.contains("pub fn jitEmitI64IncRet")
+            && jit.contains("195"),
+        "SH17 Kab JIT x64 RET + i64 inc templates"
+    );
+    assert!(
+        !jit.contains("cranelift") && !jit.contains("Cranelift"),
+        "SH17 must not depend on the host JIT engine from Kab"
+    );
+    assert!(
+        boot.contains("if key == \"jit\"") && boot.contains("return \"kab\""),
+        "bootPolicy jit=kab"
+    );
+}
+
+/// SH18: nursery bump + frame budget live in Kab (not host GC).
+#[test]
+fn sh18_gc_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let gc = std::fs::read_to_string(root.join("lib/kab/gc.kab")).expect("gc.kab");
+    assert!(
+        gc.contains("pub fn gcNurseryCap")
+            && gc.contains("pub fn gcBump")
+            && gc.contains("pub fn gcNeedCollect")
+            && gc.contains("pub fn gcFrameBudgetMs")
+            && gc.contains("65536"),
+        "SH18 Kab nursery cap + bump + 16ms frame budget"
+    );
+}
+
+/// SH19: process loader policy lives in Kab (host main.rs is skuld).
+#[test]
+fn sh19_load_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let load = std::fs::read_to_string(root.join("lib/kab/load.kab")).expect("load.kab");
+    assert!(
+        load.contains("pub fn loadIsKab")
+            && load.contains("pub fn loadEntry")
+            && load.contains("pub fn loadReady")
+            && load.contains(".kab"),
+        "SH19 Kab loader path + entry"
+    );
+}
+
+/// SH20: core stdlib wrappers live in Kab (host natives are skuld).
+#[test]
+fn sh20_stdlib_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let st = std::fs::read_to_string(root.join("lib/kab/stdlib.kab")).expect("stdlib.kab");
+    assert!(
+        st.contains("pub fn stdAdd")
+            && st.contains("pub fn stdLen")
+            && st.contains("pub fn stdHas"),
+        "SH20 Kab stdAdd/stdLen/stdHas"
+    );
+}
+
 #[test]
 fn sh6_vm_facade_evals() {
     let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));

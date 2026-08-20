@@ -1,0 +1,17 @@
+// KT8: kabootar test argv in Kab. import "kabtest/cli"
+// Rust test_runner.rs stays until SH25 delete-gate.
+
+pub fn ktCliIsTest(cmd) {
+    return cmd == "test"
+}
+
+pub fn ktCliDefaultRoot() {
+    return "tests"
+}
+
+pub fn ktCliExit(ok) {
+    if ok {
+        return 0
+    }
+    return 1
+}

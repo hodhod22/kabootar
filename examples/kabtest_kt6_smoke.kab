@@ -1,0 +1,7 @@
+import "kabtest/guest_proc"
+
+let can = ktGuestProcCanRun("ok.golden")
+if can {
+    return true
+}
+return false

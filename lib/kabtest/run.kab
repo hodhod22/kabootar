@@ -1,0 +1,31 @@
+// KT2: discover test filenames. import "kabtest/run"
+
+pub fn ktIsTestFile(name) {
+    let s = "" + name
+    let a = str_includes(s, "_test.kab")
+    if a {
+        return true
+    }
+    return str_includes(s, ".test.kab")
+}
+
+pub fn ktResultIsPass(v) {
+    return v == true
+}
+
+pub fn ktCount3(a, b, c) {
+    let n = 0
+    let x = ktIsTestFile(a)
+    if x {
+        n = n + 1
+    }
+    let y = ktIsTestFile(b)
+    if y {
+        n = n + 1
+    }
+    let z = ktIsTestFile(c)
+    if z {
+        n = n + 1
+    }
+    return n
+}

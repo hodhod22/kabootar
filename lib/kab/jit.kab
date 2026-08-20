@@ -1,0 +1,36 @@
+// SH17: Kab JIT subset. import "kab/jit"
+// x64 templates (bytes). mmap/exec of the buffer is still a deepen.
+
+pub fn jitGprCount(nLocals) {
+    return nLocals + 1
+}
+
+pub fn jitCanCompile(ops) {
+    return len(ops) > 0
+}
+
+pub fn jitOpOk(name) {
+    return name == "acc_add_local"
+}
+
+pub fn jitThreshold() {
+    return 8
+}
+
+pub fn jitEmitRet() {
+    let b = []
+    b = push(b, 195)
+    return b
+}
+
+/// xor eax,eax; add eax,1; ret  — i64 AccAdd +1 then return.
+pub fn jitEmitI64IncRet() {
+    let b = []
+    b = push(b, 49)
+    b = push(b, 192)
+    b = push(b, 131)
+    b = push(b, 192)
+    b = push(b, 1)
+    b = push(b, 195)
+    return b
+}

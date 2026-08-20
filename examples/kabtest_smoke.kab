@@ -1,0 +1,6 @@
+// kabtest KT1 smoke (cargo run --bin kabootar -- examples/kabtest_smoke.kab)
+import "kabtest"
+
+let a = 1 + 1
+assertEq(a, 2)
+return true

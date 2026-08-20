@@ -1,0 +1,7 @@
+import "kabtest/run"
+
+let n = ktCount3("lib.kab", "ok_test.kab", "guest.test.kab")
+if n == 2 {
+    return ktResultIsPass(true)
+}
+return false

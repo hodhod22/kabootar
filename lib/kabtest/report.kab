@@ -1,0 +1,24 @@
+// KT3: JSON reporter. import "kabtest/report"
+
+pub fn ktJsonBool(b) {
+    if b {
+        return "true"
+    }
+    return "false"
+}
+
+pub fn ktJsonResult(passed, failed) {
+    let ok = failed == 0
+    let s = "{\"ok\":"
+    s = s + ktJsonBool(ok)
+    s = s + ",\"passed\":"
+    s = s + passed
+    s = s + ",\"failed\":"
+    s = s + failed
+    return s + "}"
+}
+
+pub fn ktJsonWrite(path, body) {
+    os_write(path, body)
+    return true
+}

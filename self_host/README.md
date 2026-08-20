@@ -1,6 +1,6 @@
 # Self-hosted Kabootar compiler
 
-**Slutmål (nolltolerans):** hela stacken är `.kab` — compiler, VM, **JIT, GC**, loader. Rust är skuld. Se [docs/ROADMAP.md](../docs/ROADMAP.md) (läs rutan överst).
+**Slutmål (nolltolerans):** hela stacken är `.kab`. Rust är skuld tills [SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Plan: [docs/ROADMAP.md — Kabootar på egna fötter](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
 Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. Nästa kod: reverse-densify i `.kab`, inte `src/`.
 
