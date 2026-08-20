@@ -1,0 +1,7 @@
+import "kab/io_mkdir"
+
+let ok = ioMkdir("/ft14d")
+if ok {
+    return true
+}
+return false

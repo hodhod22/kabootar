@@ -1,0 +1,7 @@
+import "kab/io_put"
+
+let ok = ioPut("ft14_ok.txt", "ok")
+if ok {
+    return true
+}
+return false

@@ -1,0 +1,7 @@
+import "kab/gpu"
+
+let ok = gpuUseCpu(0)
+if ok {
+    return true
+}
+return false

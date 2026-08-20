@@ -1,0 +1,9 @@
+// FT F17: league CI policy. import "kab/liga"
+// Gates vs Kab baseline, not rustc.
+
+pub fn ligaFpsOk(fps) {
+    if fps >= 60 {
+        return true
+    }
+    return false
+}
