@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=10
+constants=19
 const 0 string _hook
 const 1 string tramp
 const 2 number 0
@@ -10,6 +10,15 @@ const 6 number 4
 const 7 number 5
 const 8 number 6
 const 9 number 7
+const 10 string pCur
+const 11 string pTok
+const 12 string pPos
+const 13 string pToksLen
+const 14 string pToks
+const 15 string pEofTok
+const 16 null
+const 17 string pSymPool
+const 18 string pSymN
 global 0 pCallHook
 global 1 pCallPostfix
 global 2 pCallTypeArgs
@@ -19,7 +28,11 @@ global 5 pCallAddShift
 global 6 pCallRelExpr
 global 7 pCallCompare
 global 8 pCallStmt
-functions=9
+global 9 peek
+global 10 bump
+global 11 push
+global 12 poolPush
+functions=12
 fn 0 pCallHook
 fn_params 0 sess,n
 fn_locals 0 sess,n,prevH,__kab_a0,r,__kab_a1
@@ -124,10 +137,115 @@ fn_op 8 load_global 0
 fn_op 8 call 2
 fn_op 8 return
 fn_arrows 8 0
+fn 9 peek
+fn_params 9 sess
+fn_locals 9 sess
+fn_op 9 load_local 0
+fn_op 9 get_member 10
+fn_op 9 return
+fn_arrows 9 0
+fn 10 bump
+fn_params 10 sess
+fn_locals 10 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_op 10 load_local 0
+fn_op 10 get_member 10
+fn_op 10 store_local 1
+fn_op 10 load_local 0
+fn_op 10 const 11
+fn_op 10 load_local 1
+fn_op 10 index_set
+fn_op 10 swap
+fn_op 10 store_local 0
+fn_op 10 pop
+fn_op 10 load_local 0
+fn_op 10 get_member 12
+fn_op 10 load_local 0
+fn_op 10 get_member 13
+fn_op 10 lt
+fn_op 10 jump_if_false 42
+fn_op 10 load_local 0
+fn_op 10 get_member 12
+fn_op 10 const 3
+fn_op 10 add
+fn_op 10 store_local 2
+fn_op 10 load_local 0
+fn_op 10 const 12
+fn_op 10 load_local 2
+fn_op 10 index_set
+fn_op 10 swap
+fn_op 10 store_local 0
+fn_op 10 pop
+fn_op 10 load_local 0
+fn_op 10 get_member 12
+fn_op 10 load_local 0
+fn_op 10 get_member 13
+fn_op 10 lt
+fn_op 10 jump_if_false 14
+fn_op 10 load_local 0
+fn_op 10 get_member 14
+fn_op 10 load_local 0
+fn_op 10 get_member 12
+fn_op 10 index_get
+fn_op 10 store_local 3
+fn_op 10 load_local 0
+fn_op 10 const 10
+fn_op 10 load_local 3
+fn_op 10 index_set
+fn_op 10 swap
+fn_op 10 store_local 0
+fn_op 10 pop
+fn_op 10 jump 10
+fn_op 10 load_local 0
+fn_op 10 get_member 15
+fn_op 10 store_local 4
+fn_op 10 load_local 0
+fn_op 10 const 10
+fn_op 10 load_local 4
+fn_op 10 index_set
+fn_op 10 swap
+fn_op 10 store_local 0
+fn_op 10 pop
+fn_op 10 load_local 0
+fn_op 10 get_member 11
+fn_op 10 return
+fn_arrows 10 0
+fn 11 poolPush
+fn_params 11 sess,v
+fn_locals 11 sess,v,__kab_a0,__kab_a1
+fn_op 11 load_local 0
+fn_op 11 get_member 17
+fn_op 11 load_local 1
+fn_op 11 load_global 11
+fn_op 11 call 2
+fn_op 11 store_local 2
+fn_op 11 load_local 0
+fn_op 11 const 17
+fn_op 11 load_local 2
+fn_op 11 index_set
+fn_op 11 swap
+fn_op 11 store_local 0
+fn_op 11 pop
+fn_op 11 load_local 0
+fn_op 11 get_member 18
+fn_op 11 const 3
+fn_op 11 add
+fn_op 11 store_local 3
+fn_op 11 load_local 0
+fn_op 11 const 18
+fn_op 11 load_local 3
+fn_op 11 index_set
+fn_op 11 swap
+fn_op 11 store_local 0
+fn_op 11 pop
+fn_op 11 load_local 1
+fn_op 11 return
+fn_arrows 11 0
 arrows=0
-imports=0
+imports=2
+import 0 self_host/lexer_defs
+import 1 self_host/ast_defs
 pub_imports=0
-exports=9
+exports=12
 export 0 pCallHook
 export 1 pCallPostfix
 export 2 pCallTypeArgs
@@ -137,6 +255,9 @@ export 5 pCallAddShift
 export 6 pCallRelExpr
 export 7 pCallCompare
 export 8 pCallStmt
+export 9 peek
+export 10 bump
+export 11 poolPush
 memory_mode=gc
 interfaces=0
 classes=0
@@ -144,5 +265,5 @@ code
 halt
 
 source=self_host/parser_hooks.kab
-statements=9
-fingerprint=9c6c52f0df6db576
+statements=14
+fingerprint=9621372afd2f3b9d

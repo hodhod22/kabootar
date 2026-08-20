@@ -15,7 +15,7 @@ source text
     → seed/compiler.kbcb               SH1 packed image
 ```
 
-Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** Rust-fallback (SH16); `self_host/` DAG får rust-seeds. `KABOOTAR_COMPILE=rust` är skuld. `bootPolicy("prefer")` = `self-host-only`.
+Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** Rust-fallback (SH16); `KABOOTAR_COMPILE=rust` / `--rust` **felar** för appar. `self_host/` DAG får rust-seeds. `bootPolicy("prefer")` = `self-host-only`.
 
 ## Nuläge (inte den gamla shard-listan)
 
@@ -122,9 +122,9 @@ Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte n�
 Kort ordning:
 
 1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
-2. ~~SH3–SH7b~~ ✅ · **SH5 deepen** facader → exec/acc (inga `*_impl`)
-3. **SH16** stäng Rust-emit för appar (`bootPolicy` self-host-only + maxBytes i `compile.kab`)
-4. **SH5** fler `emit_*`/`serialize_*` sammanslagningar (färre DAG-blad)
+2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections, parser_expr, emit_fn_scope)
+3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
+4. **SH5** fler `parser_stmt`/`parser_postfix` sammanslagningar om leaf ≤10 s
 5. **SH17/SH18** JIT/GC i `.kab`
 
 ## Historisk bootstrap-logg

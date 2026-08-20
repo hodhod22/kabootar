@@ -2336,10 +2336,11 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     );
     assert!(
         defs_src.contains("pub import")
-            && sections_src.contains("pub import")
             && sections_src.contains("pub fn serAppendClasses(")
-            && ir_line_src.contains("pub import"),
-        "aggregators should stay pub-import facades"
+            && sections_src.contains("pub fn serAppendFunctions(")
+            && sections_src.contains("pub fn serAppendOps(")
+            && ir_line_src.contains("pub fn serIrOpLine("),
+        "SH5: sections hold class/fn/op appenders; ir_line holds IR op helpers"
     );
     assert!(
         ir_src.contains("pub let IR_WITH_ARG") && ir_src.contains("pub let IR_ZERO_ARG"),
@@ -2354,9 +2355,10 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: out helpers must thread out string (no module-local serOut)"
     );
     assert!(
-        ops_src.contains("pub fn serAppendOps(")
-            && fns_src.contains("pub fn serAppendFunctions(out, fns)"),
-        "P6b: section appenders must live in leaf shards and thread out"
+        ops_src.contains("pub import")
+            && fns_src.contains("pub import")
+            && sections_src.contains("pub fn serAppendFunctions(out, fns)"),
+        "SH5: section appenders live in serialize_sections; ops/fns are facades"
     );
     assert!(
         acc_src.contains("pub fn serSerializeBc(")
@@ -2366,10 +2368,11 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     assert!(
         ir_line_src.contains("pub fn serEscStr(")
             && ir_line_src.contains("pub fn serConstLine(")
-            && ir_op_src.contains("pub fn serIrOpLine(")
-            && ir_op_src.contains("pub fn serIrOpNewInstance(")
-            && ir_op_src.contains("pub fn serIrOpLookup("),
-        "P6b: esc/const in serialize_ir_line; ir op helpers in serialize_ir_op"
+            && ir_line_src.contains("pub fn serIrOpLine(")
+            && ir_line_src.contains("pub fn serIrOpNewInstance(")
+            && ir_line_src.contains("pub fn serIrOpLookup(")
+            && ir_op_src.contains("pub import"),
+        "SH5: esc/const/ir-op helpers in serialize_ir_line; serialize_ir_op is a facade"
     );
     assert!(
         fac_src.contains("serSerializeBc") && fac_src.contains("pub let serialize_bc"),
@@ -2680,7 +2683,6 @@ fn p6b_emit_symindex_map_progress() {
         "emit_exec.kab",
         "emit_sym.kab",
         "emit_sym_index.kab",
-        "emit_local_map.kab",
     ]);
     assert!(
         src.contains("E[\"eConstMap\"] = {}"),
@@ -2708,10 +2710,8 @@ fn p6b_emit_symindex_map_progress() {
 #[test]
 fn p6b_parser_iterative_add_progress() {
     let src = self_host_concat(&[
-        "parser_compare.kab",
-        "parser_add_shift.kab",
-        "parser_rel_expr.kab",
-        "parser_util.kab",
+        "parser_expr.kab",
+        "parser_hooks.kab",
         "parser_session.kab",
         "parser_stmt.kab",
     ]);
@@ -3023,11 +3023,9 @@ fn p6b_serialize_shards_compile_budget() {
     use kabootar_lib::compile::{compile_file_self_host, P6_SELF_HOST_LEAF_CI_FAST_MS};
     use std::time::Instant;
     for name in [
-        "serialize_fns.kab",
-        "serialize_ir_op.kab",
-        "serialize_arrows.kab",
-        "serialize_ops.kab",
+        "serialize_sections.kab",
         "serialize_acc.kab",
+        "serialize.kab",
     ] {
         let path = self_host_path(name);
         let name2 = name.to_string();

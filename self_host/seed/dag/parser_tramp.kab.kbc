@@ -107,15 +107,11 @@ fn_op 0 add
 fn_op 0 return
 fn_arrows 0 0
 arrows=0
-imports=8
+imports=4
 import 0 self_host/parser_type_args
 import 1 self_host/parser_postfix
-import 2 self_host/parser_unary
-import 3 self_host/parser_mul
-import 4 self_host/parser_add_shift
-import 5 self_host/parser_rel_expr
-import 6 self_host/parser_compare
-import 7 self_host/parser_stmt
+import 2 self_host/parser_expr
+import 3 self_host/parser_stmt
 pub_imports=0
 exports=1
 export 0 pTramp
@@ -126,5 +122,5 @@ code
 halt
 
 source=self_host/parser_tramp.kab
-statements=9
-fingerprint=c229005e3a11d992
+statements=5
+fingerprint=9a4d0828ba54df58

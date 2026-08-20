@@ -180,6 +180,10 @@ fn compile_cmd(args: &[String]) -> i32 {
         eprintln!("Usage: kabootar compile <file.kab> [--self-host|--rust|--native]");
         return 1;
     };
+    if let Err(e) = compile::refuse_app_rust_compile(path, prefer) {
+        eprintln!("Compile error: {e}");
+        return 1;
+    }
     match compile_file_report_with(path, prefer) {
         Ok((n, bytecode, backend)) => {
             if args.iter().any(|a| a == "--native") {
@@ -205,6 +209,7 @@ fn compile_cmd(args: &[String]) -> i32 {
 
 pub fn compile_file_report(path: &str) -> Result<(usize, bool), String> {
     let prefer = compile::CompilePrefer::from_args_and_env(&[]);
+    compile::refuse_app_rust_compile(path, prefer)?;
     let (n, bc, _) = compile_file_report_with(path, prefer)?;
     Ok((n, bc))
 }

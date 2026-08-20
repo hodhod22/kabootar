@@ -1,8 +1,126 @@
-pub import "self_host/serialize_ops"
-pub import "self_host/serialize_fns"
-pub import "self_host/serialize_arrows"
+// SH5: ops/fns/arrows/classes in one module (was four P6b shards).
+import "self_host/lexer_defs"
 import "self_host/serialize_ir_line"
 import "self_host/serialize_out"
+
+/// Typed i64 AccAdd-loop (SH9 serialize): host Cranelift can compile this helper.
+pub fn serCount(n) {
+    let i = 0
+    let s = 0
+    while i < n {
+        s = s + 1
+        i = i + 1
+    }
+    return s
+}
+
+pub fn serAppendTaggedOps(out, tag, i, ops) {
+    let j = 0
+    let n = len(ops)
+    if serCount(n) != n {
+        throw "serialize tagged op count mismatch"
+    }
+    while j < n {
+        out = serOutTagged(out, tag, i, serIrOpLine(ops[j]))
+        j = j + 1
+    }
+    return out
+}
+
+pub fn serAppendOps(out, ops) {
+    let i = 0
+    let n = len(ops)
+    if serCount(n) != n {
+        throw "serialize op count mismatch"
+    }
+    while i < n {
+        out = out + CHAR_NL + serIrOpLine(ops[i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serAppendOneArrow(out, i, arr) {
+    out = serOutTagged(out, "arrow", i, arr["sym"])
+    out = serOutTagged(out, "arrow_params", i, serJoinComma(arr["params"]))
+    out = serOutTagged(out, "arrow_locals", i, serJoinComma(arr["locals"]))
+    return serAppendTaggedOps(out, "arrow_op", i, arr["ops"])
+}
+
+/// SH2: arrows nested in a named fn (`fn_arrow` / `fn_arrow_op` lines).
+pub fn serAppendFnArrows(out, fi, arrows) {
+    if arrows == undefined {
+        return out
+    }
+    let n = len(arrows)
+    if n == 0 {
+        return out
+    }
+    out = serOutTagged(out, "fn_arrows", fi, n)
+    let ai = 0
+    while ai < n {
+        let arr = arrows[ai]
+        out = out + CHAR_NL + "fn_arrow " + ("" + fi) + " " + ("" + ai) + " " + arr["sym"]
+        out = out + CHAR_NL + "fn_arrow_params " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["params"])
+        out = out + CHAR_NL + "fn_arrow_locals " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["locals"])
+        let j = 0
+        let ops = arr["ops"]
+        let on = len(ops)
+        while j < on {
+            out = out + CHAR_NL + "fn_arrow_op " + ("" + fi) + " " + ("" + ai) + " " + serIrOpLine(ops[j])
+            j = j + 1
+        }
+        ai = ai + 1
+    }
+    return out
+}
+
+pub fn serAppendArrows(out, arrows) {
+    if arrows == undefined {
+        return serOutTag(out, "arrows=0")
+    }
+    out = serOutTagEq(out, "arrows=", len(arrows))
+    let i = 0
+    let n = len(arrows)
+    while i < n {
+        out = serAppendOneArrow(out, i, arrows[i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serAppendFnTries(out, i, regions) {
+    let j = 0
+    let nTr = len(regions)
+    while j < nTr {
+        out = serOutTry5(out, "fn_try_region", i, j, regions[j])
+        j = j + 1
+    }
+    return out
+}
+
+pub fn serAppendOneFn(out, i, f) {
+    out = serOutTagged(out, "fn", i, f.sym)
+    out = serOutTagged(out, "fn_params", i, serJoinComma(f.params))
+    out = serOutTagged(out, "fn_locals", i, serJoinComma(f.locals))
+    if f["tryRegions"] != undefined {
+        out = serAppendFnTries(out, i, f["tryRegions"])
+    }
+    out = serAppendFnArrows(out, i, f["arrows"])
+    return out
+}
+
+pub fn serAppendFunctions(out, fns) {
+    out = serOutTagEq(out, "functions=", len(fns))
+    let i = 0
+    let n = len(fns)
+    while i < n {
+        out = serAppendOneFn(out, i, fns[i])
+        out = serAppendTaggedOps(out, "fn_op", i, fns[i].ops)
+        i = i + 1
+    }
+    return out
+}
 
 pub fn serAppendClassMethodOps(out, ci, j, ops) {
     let k = 0

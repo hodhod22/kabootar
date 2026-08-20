@@ -1,10 +1,6 @@
 import "self_host/parser_type_args"
 import "self_host/parser_postfix"
-import "self_host/parser_unary"
-import "self_host/parser_mul"
-import "self_host/parser_add_shift"
-import "self_host/parser_rel_expr"
-import "self_host/parser_compare"
+import "self_host/parser_expr"
 import "self_host/parser_stmt"
 
 pub fn pTramp(sess) {
