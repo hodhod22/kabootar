@@ -1,0 +1,3 @@
+import "kab/aot_pgo"
+
+return aotPgoOk(8)

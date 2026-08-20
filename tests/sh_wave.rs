@@ -660,6 +660,39 @@ fn f10_aot_plan_in_kab() {
     );
 }
 
+/// F10: PGO hit threshold (do not import kab/aot or kab/jit).
+#[test]
+fn f10_aot_pgo_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/aot_pgo.kab")).expect("aot_pgo.kab");
+    assert!(
+        p.contains("pub fn aotPgoOk") && p.contains("8"),
+        "F10 Kab aotPgoOk"
+    );
+}
+
+/// F10: native image fn count (do not import kab/aot).
+#[test]
+fn f10_aot_img_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/aot_img.kab")).expect("aot_img.kab");
+    assert!(
+        i.contains("pub fn aotImageOk"),
+        "F10 Kab aotImageOk"
+    );
+}
+
+/// F10: cold-start ms budget (do not import kab/aot).
+#[test]
+fn f10_aot_cd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/aot_cd.kab")).expect("aot_cd.kab");
+    assert!(
+        c.contains("pub fn aotColdOk") && c.contains("100"),
+        "F10 Kab aotColdOk"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {
