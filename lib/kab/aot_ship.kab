@@ -1,0 +1,12 @@
+// F10: a first image is shippable only when name, bytes, and target agree.
+// import "kab/aot_ship"; do not import other kab/aot* leaves.
+
+pub fn aotShipOk(name, image, target) {
+    if target == "x64" {
+        return name == "kabootar-x64.kbn" && image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret"
+    }
+    if target == "arm64" {
+        return name == "kabootar-arm64.kbn" && image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret"
+    }
+    return false
+}

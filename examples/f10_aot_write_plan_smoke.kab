@@ -1,0 +1,3 @@
+import "kab/aot_write_plan"
+
+return aotWritePlan("f10_aot_plan.kbn", "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw")

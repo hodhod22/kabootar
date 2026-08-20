@@ -1,0 +1,3 @@
+import "kab/aot_emit_code"
+
+return aotEmitCode("x64") == "code:x64:ret"

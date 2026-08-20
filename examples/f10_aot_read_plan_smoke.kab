@@ -1,0 +1,4 @@
+import "kab/aot_read_plan"
+
+let plan = aotReadPlan
+return plan != null

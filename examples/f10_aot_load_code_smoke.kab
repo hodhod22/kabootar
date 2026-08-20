@@ -1,0 +1,3 @@
+import "kab/aot_load_code"
+
+return aotLoadCodeOk("code:x64:ret", "x64")

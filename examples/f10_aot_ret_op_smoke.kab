@@ -1,0 +1,3 @@
+import "kab/aot_ret_op"
+
+return aotRetOp("x64") == "c3"

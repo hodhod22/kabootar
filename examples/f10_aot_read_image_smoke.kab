@@ -1,0 +1,4 @@
+import "kab/aot_read_image"
+
+let read = aotReadImage
+return read != null
