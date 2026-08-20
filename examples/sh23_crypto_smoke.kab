@@ -1,0 +1,7 @@
+import "kab/crypto"
+
+let ok = cryptoIsHttps("https://example.com")
+if ok {
+    return true
+}
+return false

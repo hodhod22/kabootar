@@ -1,0 +1,8 @@
+// SH18: nursery promote off the gc.kab leaf. import "kab/gc_prom"
+
+pub fn gcPromote(used, cap) {
+    if used > cap {
+        return used - cap
+    }
+    return 0
+}

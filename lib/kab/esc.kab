@@ -1,0 +1,8 @@
+// FT F12: escape / stackalloc policy. import "kab/esc"
+
+pub fn escFitsFrame(n) {
+    if n <= 16 {
+        return true
+    }
+    return false
+}

@@ -80,6 +80,18 @@ pub fn bootPolicy(key, a) {
     if key == "refuseKbcPath" {
         return true
     }
+    if key == "vmPrefer" {
+        return "kab"
+    }
+    if key == "maxKbc" {
+        return 262144
+    }
+    if key == "vmAppHostFallback" {
+        return false
+    }
+    if key == "jit" {
+        return "kab"
+    }
     if key == "shouldSelfHost" {
         if a <= 0 {
             return false

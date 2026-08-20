@@ -1,0 +1,7 @@
+import "kab/aot"
+
+let ok = aotWarmOk(1)
+if ok {
+    return true
+}
+return false

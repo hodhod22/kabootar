@@ -1,0 +1,7 @@
+import "kab/io"
+
+let ok = ioNoCopy(1)
+if ok {
+    return true
+}
+return false

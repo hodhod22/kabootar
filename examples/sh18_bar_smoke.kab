@@ -1,0 +1,7 @@
+import "kab/gc_bar"
+
+let ok = gcWriteBarrier(1, 2)
+if ok {
+    return true
+}
+return false

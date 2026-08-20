@@ -1,0 +1,7 @@
+import "kab/gc_mark"
+
+let n = gcSweepDead(10, 7)
+if n == 3 {
+    return true
+}
+return false

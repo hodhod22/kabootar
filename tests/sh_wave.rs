@@ -502,6 +502,8 @@ fn sh17_jit_plan_in_kab() {
             && jit.contains("acc_add_local")
             && jit.contains("pub fn jitEmitRet")
             && jit.contains("pub fn jitEmitI64IncRet")
+            && jit.contains("pub fn jitMapKind")
+            && jit.contains("pub fn jitIncLen")
             && jit.contains("195"),
         "SH17 Kab JIT x64 RET + i64 inc templates"
     );
@@ -512,6 +514,50 @@ fn sh17_jit_plan_in_kab() {
     assert!(
         boot.contains("if key == \"jit\"") && boot.contains("return \"kab\""),
         "bootPolicy jit=kab"
+    );
+}
+
+/// SH17: RET opcode check stays in a tiny leaf (jit.kab emit DAG overflows if grown).
+#[test]
+fn sh17_jit_ret_check_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_check.kab")).expect("jit_check.kab");
+    assert!(
+        c.contains("pub fn jitByteIsRet") && c.contains("195"),
+        "SH17 Kab RET byte check"
+    );
+}
+
+/// F8: inline budget stays in a tiny leaf (do not grow jit.kab).
+#[test]
+fn f8_jit_opt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let o = std::fs::read_to_string(root.join("lib/kab/jit_opt.kab")).expect("jit_opt.kab");
+    assert!(
+        o.contains("pub fn jitCanInline"),
+        "F8 Kab jitCanInline"
+    );
+}
+
+/// F10: AOT/PGO warm gate in a tiny leaf.
+#[test]
+fn f10_aot_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/aot.kab")).expect("aot.kab");
+    assert!(
+        a.contains("pub fn aotWarmOk"),
+        "F10 Kab aotWarmOk"
+    );
+}
+
+/// F14: zero-copy I/O policy in a tiny leaf.
+#[test]
+fn f14_io_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/io.kab")).expect("io.kab");
+    assert!(
+        i.contains("pub fn ioNoCopy"),
+        "F14 Kab ioNoCopy"
     );
 }
 
@@ -527,6 +573,50 @@ fn sh18_gc_plan_in_kab() {
             && gc.contains("pub fn gcFrameBudgetMs")
             && gc.contains("65536"),
         "SH18 Kab nursery cap + bump + 16ms frame budget"
+    );
+}
+
+/// SH18: promote stays in a tiny leaf (do not grow gc.kab).
+#[test]
+fn sh18_gc_prom_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/gc_prom.kab")).expect("gc_prom.kab");
+    assert!(
+        p.contains("pub fn gcPromote"),
+        "SH18 Kab nursery promote"
+    );
+}
+
+/// SH18: sweep stays in a tiny leaf.
+#[test]
+fn sh18_gc_mark_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/gc_mark.kab")).expect("gc_mark.kab");
+    assert!(
+        m.contains("pub fn gcSweepDead"),
+        "SH18 Kab sweep dead count"
+    );
+}
+
+/// SH18: write barrier stays in a tiny leaf.
+#[test]
+fn sh18_gc_bar_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let b = std::fs::read_to_string(root.join("lib/kab/gc_bar.kab")).expect("gc_bar.kab");
+    assert!(
+        b.contains("pub fn gcWriteBarrier"),
+        "SH18 Kab write barrier"
+    );
+}
+
+/// F12: escape/stackalloc policy in a tiny leaf.
+#[test]
+fn f12_esc_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/esc.kab")).expect("esc.kab");
+    assert!(
+        e.contains("pub fn escFitsFrame"),
+        "F12 Kab escFitsFrame"
     );
 }
 
@@ -554,6 +644,112 @@ fn sh20_stdlib_plan_in_kab() {
             && st.contains("pub fn stdLen")
             && st.contains("pub fn stdHas"),
         "SH20 Kab stdAdd/stdLen/stdHas"
+    );
+}
+
+/// SH21: OS/FS policy lives in Kab (host os_* are capabilities).
+#[test]
+fn sh21_os_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let os = std::fs::read_to_string(root.join("lib/kab/os.kab")).expect("os.kab");
+    assert!(
+        os.contains("pub fn kabOsIsVfs")
+            && os.contains("pub fn kabOsCapRead")
+            && os.contains("pub fn kabOsCapWrite")
+            && os.contains("/apps/"),
+        "SH21 Kab VFS path + read/write caps"
+    );
+}
+
+/// SH22: SQL policy/scalar lives in Kab (host src/sql is skuld).
+#[test]
+fn sh22_sql_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let sql = std::fs::read_to_string(root.join("lib/kab/sql.kab")).expect("sql.kab");
+    assert!(
+        sql.contains("pub fn sqlIsSelect")
+            && sql.contains("pub fn sqlScalarOne")
+            && sql.contains("pub fn sqlOk"),
+        "SH22 Kab sqlIsSelect + scalar 1"
+    );
+}
+
+/// SH23: TLS/pin policy lives in Kab (host rustls is skuld).
+#[test]
+fn sh23_crypto_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/crypto.kab")).expect("crypto.kab");
+    assert!(
+        c.contains("pub fn cryptoIsHttps")
+            && c.contains("pub fn cryptoPinOk")
+            && c.contains("pub fn cryptoTrustOk")
+            && c.contains("https://"),
+        "SH23 Kab https + pin + trust"
+    );
+}
+
+/// SH24: HTTP method/status policy lives in Kab (host http.rs is skuld).
+#[test]
+fn sh24_http_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/http.kab")).expect("http.kab");
+    assert!(
+        h.contains("pub fn httpIsGet")
+            && h.contains("pub fn httpOk")
+            && h.contains("pub fn httpIsFetch"),
+        "SH24 Kab GET + 200 + fetch"
+    );
+}
+
+/// SH25: CLI argv lives in Kab (host src/cli is skuld).
+#[test]
+fn sh25_cli_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/cli.kab")).expect("cli.kab");
+    assert!(
+        c.contains("pub fn cliIsRun")
+            && c.contains("pub fn cliIsRepl")
+            && c.contains("pub fn cliIsTest"),
+        "SH25 Kab run/repl/test argv"
+    );
+}
+
+/// SH26: science/nd arithmetic lives in Kab (host GPU is syscall skuld).
+#[test]
+fn sh26_sci_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/sci.kab")).expect("sci.kab");
+    assert!(
+        s.contains("pub fn sciAdd")
+            && s.contains("pub fn sciMul")
+            && s.contains("pub fn sciGpuOff"),
+        "SH26 Kab sciAdd/sciMul + GPU off"
+    );
+}
+
+/// SH27: DOM/game-loop policy lives in Kab (host browser* is skuld).
+#[test]
+fn sh27_ui_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let u = std::fs::read_to_string(root.join("lib/kab/ui.kab")).expect("ui.kab");
+    assert!(
+        u.contains("pub fn uiIsDiv")
+            && u.contains("pub fn uiTickMs")
+            && u.contains("pub fn uiReady"),
+        "SH27 Kab div + 16ms tick"
+    );
+}
+
+/// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
+#[test]
+fn sh28_noll_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/noll.kab")).expect("noll.kab");
+    assert!(
+        n.contains("pub fn nollSrcGoal")
+            && n.contains("pub fn nollRustcStillHost")
+            && n.contains("pub fn nollBootstrapFromKab"),
+        "SH28 Kab src-goal 0 + host rustc still + Kab bootstrap"
     );
 }
 

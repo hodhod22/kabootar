@@ -1,0 +1,17 @@
+// SH23: Kab crypto/TLS policy. import "kab/crypto"
+// Host rustls remains skuld until delete-gate.
+
+pub fn cryptoIsHttps(url) {
+    return str_includes(url, "https://")
+}
+
+pub fn cryptoPinOk(fp) {
+    return str_includes(fp, "sha256")
+}
+
+pub fn cryptoTrustOk(nRoots) {
+    if nRoots > 0 {
+        return true
+    }
+    return false
+}

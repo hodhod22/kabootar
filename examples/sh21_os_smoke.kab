@@ -1,0 +1,7 @@
+import "kab/os"
+
+let ok = kabOsIsVfs("/apps/note.txt")
+if ok {
+    return true
+}
+return false

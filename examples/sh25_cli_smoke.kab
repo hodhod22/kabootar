@@ -1,0 +1,7 @@
+import "kab/cli"
+
+let ok = cliIsRun("run")
+if ok {
+    return true
+}
+return false

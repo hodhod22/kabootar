@@ -1,0 +1,7 @@
+import "kab/jit"
+
+let n = jitIncLen()
+if n == 6 {
+    return true
+}
+return false

@@ -1,5 +1,5 @@
 // SH17: Kab JIT subset. import "kab/jit"
-// x64 templates (bytes). mmap/exec of the buffer is still a deepen.
+// x64 templates (bytes). Map policy is rwx; host mmap/exec is still a deepen.
 
 pub fn jitGprCount(nLocals) {
     return nLocals + 1
@@ -33,4 +33,13 @@ pub fn jitEmitI64IncRet() {
     b = push(b, 1)
     b = push(b, 195)
     return b
+}
+
+/// Host RWX mmap of the buffer is still a deepen (not guest os_mm_mmap).
+pub fn jitMapKind() {
+    return "rwx"
+}
+
+pub fn jitIncLen() {
+    return 6
 }

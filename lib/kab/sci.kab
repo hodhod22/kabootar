@@ -1,0 +1,14 @@
+// SH26: Kab science/nd policy. import "kab/sci"
+// Host GPU natives remain syscalls until delete-gate.
+
+pub fn sciAdd(a, b) {
+    return a + b
+}
+
+pub fn sciMul(a, b) {
+    return a * b
+}
+
+pub fn sciGpuOff() {
+    return false
+}

@@ -1,0 +1,14 @@
+// SH25: Kab CLI/REPL/test argv. import "kab/cli"
+// Host src/cli remains skuld until delete-gate.
+
+pub fn cliIsRun(cmd) {
+    return cmd == "run"
+}
+
+pub fn cliIsRepl(cmd) {
+    return cmd == "repl"
+}
+
+pub fn cliIsTest(cmd) {
+    return cmd == "test"
+}

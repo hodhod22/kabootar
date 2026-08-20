@@ -1,0 +1,7 @@
+import "kab/jit_check"
+
+let ok = jitByteIsRet(195)
+if ok {
+    return true
+}
+return false

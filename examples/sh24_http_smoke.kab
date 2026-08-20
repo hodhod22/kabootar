@@ -1,0 +1,7 @@
+import "kab/http"
+
+let ok = httpOk(200)
+if ok {
+    return true
+}
+return false

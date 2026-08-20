@@ -1,0 +1,7 @@
+import "kab/esc"
+
+let ok = escFitsFrame(8)
+if ok {
+    return true
+}
+return false

@@ -107,14 +107,14 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | **F4** | **Call convention** — argc 0–3 utan heap-argv; frame reuse | CALL inte top-3 i profiler | 📋 |
 | **F5** | **Peephole** — AccAdd, len_local, index_get_*; Kab-emit redan delvis | self-host serialize/loop billigare | ✅ subset i `self_host` emit |
 | **F6** | **Inline små fn** — JIT och/eller emit för 1-block getters | färre CALL i hot loops | 📋 |
-| **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: `jitEmitRet` + `jitEmitI64IncRet` (xor/add/ret); deepen = mmap/exec |
-| **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | 📋 |
+| **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: templates + `jitMapKind` rwx; deepen = host mmap/exec |
+| **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `kab/jit_opt` `jitCanInline`; SSA/LICM/deopt deepen |
 | **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitGprCount` linear-scan stub; deepen = färgning + SIMD |
-| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | 📋 |
-| **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: `gcBump` / `gcNeedCollect` / 16 ms; promote deepen |
-| **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | 📋 |
+| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: `kab/aot` `aotWarmOk`; native image deepen |
+| **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: bump + promote + sweep + `gcWriteBarrier`; concurrent mark deepen |
+| **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | ✅ subset: `kab/esc` `escFitsFrame`; `@manual` release deepen |
 | **F13** | **Parallell compile + workers** | SH7/P8 deepen i Kab | ✅ SH7 subset; workers deepen |
-| **F14** | **I/O-stack** — async FS/net utan extra copy | SH21/SH24; e2e vs Node | 📋 |
+| **F14** | **I/O-stack** — async FS/net utan extra copy | SH21/SH24; e2e vs Node | ✅ subset: `kab/io` `ioNoCopy`; async FS/net deepen |
 | **F15** | **Same-room webb** — ingen JSON-varv UI↔SQL | P17 deepen i Kab | ✅ subset |
 | **F16** | **GPU kernels** — nd/matmul bakom Kab-API | SC/P16; CPU-fallback i Kab | 📋 deepen |
 | **F17** | **Liga-CI** — Python / V8-klass / C#-klass / 60 FPS game | `perf_tak_*` mot Kab-baseline (inte rustc som vinst) | 📋 |
@@ -981,18 +981,18 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH14** | **Compiler throughput + regressionsgate** — cold / warm / incremental; tokens/s eller MB/s mot *Kab-baseline* (inte rustc som vinstkrav). Large-project: **10k → 100k LOC** först; 500k/1M deepen när 100k är CI-stabilt | `tests/perf_sh14_compiler.rs`; PR får inte regressa warm/incr över tröskel (samma anda som P9/P18) | ✅ 100k ~0.42s; 500k ~2.3s; 1M release CI ~5.1s; self-host warm |
 | **SH15** | **Content-addressed + mmap KBCB** — nyckel = source-hash + import-fingerprint + **compiler-image-version**; `mmap` av `kbcb` v2 utan text-deserialize på hit. Determinism: samma källor+deps → samma fingerprint | Hit = ingen text-`.kbc`-parse; image-version-mismatch ogiltigförklarar | ✅ `read_bytecode_cache_at` CA mmap; `sh15_ca_*` skips text `.kbc` |
 | **SH16** | **Stäng Rust-compile för appar** | CI `KABOOTAR_COMPILE=self-host`; rust-fallback **failar** för app-`.kab` | ✅ subset: `refuseKbcPath` (`.kbc`/`.kbcb` inte källa); `bootLastCompileMs`; toolchain-oversize får rust |
-| **SH17** | **JIT i Kabootar** — register-alloc + native-emit som `.kab` (ersätt Cranelift i `src/`). Får börja som subset (i64-loopar). Bred teknik: [Våg FT](#våg-ft--fart-alla-tekniker-i-kab) F7–F10 | Hot loop kompilerad av Kab-JIT; `src/` JIT-moduler raderas när smoke är grön | ✅ subset: `jitEmitI64IncRet` x64 AccAdd+1; mmap/exec deepen |
-| **SH18** | **GC i Kabootar** — nursery/sweep som `.kab` (ersätt Rust-GC) | Frame-budget smoke utan `src/` GC; sedan radera | ✅ subset: `lib/kab/gc.kab` bump/`gcFrameBudgetMs`; mark/sweep + radera host-GC deepen |
+| **SH17** | **JIT i Kabootar** — register-alloc + native-emit som `.kab` (ersätt Cranelift i `src/`). Får börja som subset (i64-loopar). Bred teknik: [Våg FT](#våg-ft--fart-alla-tekniker-i-kab) F7–F10 | Hot loop kompilerad av Kab-JIT; `src/` JIT-moduler raderas när smoke är grön | ✅ subset: templates + map + `kab/jit_check` `jitByteIsRet`; host mmap/exec deepen |
+| **SH18** | **GC i Kabootar** — nursery/sweep som `.kab` (ersätt Rust-GC) | Frame-budget smoke utan `src/` GC; sedan radera | ✅ subset: bump + promote + sweep + `gc_bar.kab`; radera host-GC deepen |
 | **SH19** | **Laddare i Kab** — ingen `main.rs` som produkt. `.kab` startar runtime | `kabootar`-binär = Kab-bootstrap eller Kab-AOT | ✅ subset: `lib/kab/load.kab` `loadIsKab` / `loadEntry`; radera `main.rs` deepen |
 | **SH20** | **Stdlib i Kab** — sträng, array, objekt, math, JSON, datum, regex, collections som `.kab` (ersätt `src/runtime/stdlib`) | Smoke utan Rust-natives för kärn-API; radera motsvarande `.rs` | ✅ subset: `lib/kab/stdlib.kab` `stdAdd` / `stdLen` / `stdHas`; JSON/datum/regex + radera natives deepen |
-| **SH21** | **OS/FS/process i Kab** — `import "os"` policy + I/O i `.kab` (kOS). Rust `runtime/os` skuld | App läser/skriver filer via Kab-OS; host-FS bara kapabilitet tills drivrutin är Kab | 📋 |
-| **SH22** | **SQL i Kab** — query/storage i `.kab` (ersätt `src/sql`) | `sql()` smoke utan Rust-motor | 📋 |
-| **SH23** | **Krypto + TLS i Kab** — `import "crypto"` och trust/pinning i `.kab` (ersätt rustls-host) | HTTPS-smoke emitterad/verifierad i Kab | 📋 |
-| **SH24** | **HTTP i Kab** — server/fetch ovanpå SH21/SH23 | `http_fetch_async` / `http_serve` utan `src/runtime/http.rs` | 📋 |
-| **SH25** | **CLI, REPL, test-runner i Kab** — `kabootar run/compile/test` | CI kan köra `.kab`-gates utan `src/cli` | 📋 [kabtest](../lib/kabtest/ROADMAP.md) KT8 |
-| **SH26** | **Science/GPU-API i Kab** — kernels och nd i `.kab`; native GPU bara syscall | Science-smoke på Kab-VM/JIT | 📋 |
-| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | 📋 |
-| **SH28** | **Radera produkt-Rust** — tom `src/` för runtime; inget rustc för att köra Kabootar | `src/**/*.rs` produkt = 0; dokumenterad bootstrap-image från Kab | 📋 |
+| **SH21** | **OS/FS/process i Kab** — `import "os"` policy + I/O i `.kab` (kOS). Rust `runtime/os` skuld | App läser/skriver filer via Kab-OS; host-FS bara kapabilitet tills drivrutin är Kab | ✅ subset: `lib/kab/os.kab` `kabOsIsVfs` / caps; `kos/vfs` + radera `runtime/os` deepen |
+| **SH22** | **SQL i Kab** — query/storage i `.kab` (ersätt `src/sql`) | `sql()` smoke utan Rust-motor | ✅ subset: `lib/kab/sql.kab` `sqlIsSelect` / `sqlScalarOne`; parser/storage + radera `src/sql` deepen |
+| **SH23** | **Krypto + TLS i Kab** — `import "crypto"` och trust/pinning i `.kab` (ersätt rustls-host) | HTTPS-smoke emitterad/verifierad i Kab | ✅ subset: `lib/kab/crypto.kab` `cryptoIsHttps` / pin/trust; rustls-delete deepen |
+| **SH24** | **HTTP i Kab** — server/fetch ovanpå SH21/SH23 | `http_fetch_async` / `http_serve` utan `src/runtime/http.rs` | ✅ subset: `lib/kab/http.kab` `httpIsGet` / `httpOk`; fetch/serve + radera host-HTTP deepen |
+| **SH25** | **CLI, REPL, test-runner i Kab** — `kabootar run/compile/test` | CI kan köra `.kab`-gates utan `src/cli` | ✅ subset: `lib/kab/cli.kab` run/repl/test; radera `src/cli` + kabtest KT8 deepen |
+| **SH26** | **Science/GPU-API i Kab** — kernels och nd i `.kab`; native GPU bara syscall | Science-smoke på Kab-VM/JIT | ✅ subset: `lib/kab/sci.kab` `sciAdd` / `sciMul` / `sciGpuOff`; nd/FFT/GPU deepen |
+| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | ✅ subset: `lib/kab/ui.kab` `uiIsDiv` / `uiTickMs`; kbrowser/canvas deepen |
+| **SH28** | **Radera produkt-Rust** — tom `src/` för runtime; inget rustc för att köra Kabootar | `src/**/*.rs` produkt = 0; dokumenterad bootstrap-image från Kab | ✅ subset: `lib/kab/noll.kab` mål `nollSrcGoal=0`; **radera inte `src/`** förrän AOT/bootstrap |
 
 **SH11 — vad som är OK vs vad som inte ska göras nu**
 

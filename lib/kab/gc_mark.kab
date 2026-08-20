@@ -1,0 +1,8 @@
+// SH18: sweep off the gc.kab leaf. import "kab/gc_mark"
+
+pub fn gcSweepDead(total, live) {
+    if total > live {
+        return total - live
+    }
+    return 0
+}

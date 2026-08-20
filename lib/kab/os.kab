@@ -1,0 +1,14 @@
+// SH21: Kab OS/FS policy. import "kab/os"
+// Host os_* remain capabilities until kOS drivers replace them.
+
+pub fn kabOsIsVfs(path) {
+    return str_includes(path, "/apps/")
+}
+
+pub fn kabOsCapRead() {
+    return true
+}
+
+pub fn kabOsCapWrite() {
+    return true
+}
