@@ -1,0 +1,7 @@
+import "kab/disp_nm"
+
+let s = dispOpAccAdd()
+if s == "acc_add_local" {
+    return true
+}
+return false

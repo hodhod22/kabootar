@@ -1,0 +1,9 @@
+// F3: bool unbox slot. import "kab/unbox_b"
+// Do not import kab/unbox or kab/vm.
+
+pub fn unboxBoolOk(nBytes) {
+    if nBytes == 1 {
+        return true
+    }
+    return false
+}

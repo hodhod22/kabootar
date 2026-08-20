@@ -605,6 +605,28 @@ fn f1_disp_plan_in_kab() {
     );
 }
 
+/// F1: copy-and-patch slot vs AccAdd template (do not import kab/vm).
+#[test]
+fn f1_disp_cp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/disp_cp.kab")).expect("disp_cp.kab");
+    assert!(
+        c.contains("pub fn dispPatchFits") && c.contains("6"),
+        "F1 Kab dispPatchFits"
+    );
+}
+
+/// F1: AccAdd opcode name for direct dispatch (do not import kab/vm).
+#[test]
+fn f1_disp_nm_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/disp_nm.kab")).expect("disp_nm.kab");
+    assert!(
+        n.contains("pub fn dispOpAccAdd") && n.contains("acc_add_local"),
+        "F1 Kab dispOpAccAdd"
+    );
+}
+
 /// F2: monomorphic IC/shape policy in a tiny leaf.
 #[test]
 fn f2_ic_plan_in_kab() {
@@ -616,6 +638,39 @@ fn f2_ic_plan_in_kab() {
     );
 }
 
+/// F2: poly IC ≤4 shapes (do not import kab/ic or kab/vm).
+#[test]
+fn f2_ic_pl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/ic_pl.kab")).expect("ic_pl.kab");
+    assert!(
+        p.contains("pub fn icIsPoly") && p.contains("4"),
+        "F2 Kab icIsPoly"
+    );
+}
+
+/// F2: megamorphic IC >4 shapes (do not import kab/ic or kab/vm).
+#[test]
+fn f2_ic_mg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/ic_mg.kab")).expect("ic_mg.kab");
+    assert!(
+        m.contains("pub fn icIsMega") && m.contains("4"),
+        "F2 Kab icIsMega"
+    );
+}
+
+/// F2: IC hit-rate gate (do not import kab/ic or kab/vm).
+#[test]
+fn f2_ic_ht_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/ic_ht.kab")).expect("ic_ht.kab");
+    assert!(
+        h.contains("pub fn icHitOk") && h.contains("90"),
+        "F2 Kab icHitOk"
+    );
+}
+
 /// F3: 8-byte unbox slot policy in a tiny leaf.
 #[test]
 fn f3_unbox_plan_in_kab() {
@@ -624,6 +679,17 @@ fn f3_unbox_plan_in_kab() {
     assert!(
         u.contains("pub fn unboxSlotOk"),
         "F3 Kab unboxSlotOk"
+    );
+}
+
+/// F3: bool unbox slot (do not import kab/unbox or kab/vm).
+#[test]
+fn f3_unbox_b_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let b = std::fs::read_to_string(root.join("lib/kab/unbox_b.kab")).expect("unbox_b.kab");
+    assert!(
+        b.contains("pub fn unboxBoolOk") && b.contains("1"),
+        "F3 Kab unboxBoolOk"
     );
 }
 

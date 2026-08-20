@@ -1,0 +1,12 @@
+// F2: polymorphic IC (2..4 shapes). import "kab/ic_pl"
+// Do not import kab/ic or kab/vm.
+
+pub fn icIsPoly(nShapes) {
+    if nShapes == 1 {
+        return false
+    }
+    if nShapes <= 4 {
+        return true
+    }
+    return false
+}

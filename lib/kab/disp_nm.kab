@@ -1,0 +1,6 @@
+// F1: AccAdd opcode token for direct dispatch. import "kab/disp_nm"
+// Do not import kab/disp, kab/disp_cp, or kab/vm.
+
+pub fn dispOpAccAdd() {
+    return "acc_add_local"
+}
