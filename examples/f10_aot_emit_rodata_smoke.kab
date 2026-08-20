@@ -1,0 +1,3 @@
+import "kab/aot_emit_rodata"
+
+return aotEmitRodata("x64") == "rodata:r|00"
