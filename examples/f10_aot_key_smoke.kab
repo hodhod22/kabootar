@@ -1,0 +1,3 @@
+import "kab/aot_key"
+
+return aotCacheKeyOk("sha256:abc")

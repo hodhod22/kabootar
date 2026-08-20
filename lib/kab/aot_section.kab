@@ -1,0 +1,6 @@
+// F10: Kab native images carry only known sections. import "kab/aot_section"
+// Do not import other kab/aot* leaves. Section layout remains Kab-owned.
+
+pub fn aotSectionOk(name) {
+    return name == "text" || name == "rodata" || name == "data"
+}

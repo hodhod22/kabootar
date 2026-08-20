@@ -1,0 +1,3 @@
+import "kab/aot_seal"
+
+return aotSealOk("kabootar-native/1", "rx", 0, 4096)

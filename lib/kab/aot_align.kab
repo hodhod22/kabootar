@@ -1,0 +1,6 @@
+// F10: native image sections reserve at least 16 bytes of alignment. import "kab/aot_align"
+// Exact modulo alignment is deferred until self-host has a compatible modulo path.
+
+pub fn aotAlignOk(bytes) {
+    return bytes >= 16
+}

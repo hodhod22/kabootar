@@ -1,0 +1,3 @@
+import "kab/aot_page"
+
+return aotPageOk(4096)

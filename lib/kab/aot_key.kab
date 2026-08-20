@@ -1,0 +1,6 @@
+// F10: native-image cache keys must carry a non-empty Kab fingerprint. import "kab/aot_key"
+// Do not import other kab/aot* leaves. Cache-key policy remains Kab-owned.
+
+pub fn aotCacheKeyOk(key) {
+    return len(key) > 7
+}
