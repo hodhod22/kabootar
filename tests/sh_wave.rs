@@ -2360,6 +2360,66 @@ fn f10_aot_verify_native_arm64_in_kab() {
     );
 }
 
+/// F10: first native images can be persisted through Kab host capability.
+#[test]
+fn f10_aot_write_native_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let w = std::fs::read_to_string(root.join("lib/kab/aot_write_native.kab"))
+        .expect("aot_write_native.kab");
+    assert!(
+        w.contains("pub fn aotWriteNative") && w.contains("os_write(path, image)"),
+        "F10 Kab native image writer"
+    );
+}
+
+/// F10: first native images can be loaded through Kab host capability.
+#[test]
+fn f10_aot_read_native_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_read_native.kab"))
+        .expect("aot_read_native.kab");
+    assert!(
+        r.contains("pub fn aotReadNative") && r.contains("os_read(path)"),
+        "F10 Kab native image reader"
+    );
+}
+
+/// F10: persisted native bytes must match plan prefix plus first-image sections.
+#[test]
+fn f10_aot_loaded_native_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_native.kab"))
+        .expect("aot_loaded_native.kab");
+    assert!(
+        l.contains("pub fn aotLoadedNativeOk") && l.contains("text:rx|c3"),
+        "F10 Kab persisted native image"
+    );
+}
+
+/// F10: emitted native image round-trips through the persisted-native gate.
+#[test]
+fn f10_aot_loaded_native_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_native_round_smoke.kab"))
+        .expect("f10_aot_loaded_native_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitNative") && s.contains("aotLoadedNativeOk"),
+        "F10 Kab persisted native round-trip"
+    );
+}
+
+/// F10: persisted-native gate rejects RWX text payloads.
+#[test]
+fn f10_aot_loaded_native_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_native_reject_smoke.kab"))
+        .expect("f10_aot_loaded_native_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedNativeOk") && s.contains("text:rwx") && s.contains("false"),
+        "F10 Kab persisted native RWX rejection"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {
