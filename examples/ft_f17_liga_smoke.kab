@@ -1,0 +1,7 @@
+import "kab/liga"
+
+let ok = ligaFpsOk(60)
+if ok {
+    return true
+}
+return false

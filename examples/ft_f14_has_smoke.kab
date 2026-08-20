@@ -1,0 +1,8 @@
+import "kab/io_has"
+
+os_write("ft14_ok.txt", "ok")
+let ok = ioHas("ft14_ok.txt")
+if ok {
+    return true
+}
+return false

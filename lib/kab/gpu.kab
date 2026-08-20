@@ -1,0 +1,9 @@
+// FT F16: GPU kernel policy. import "kab/gpu"
+// Native GPU is syscall skuld. Do not import kab/sci.
+
+pub fn gpuUseCpu(nDev) {
+    if nDev == 0 {
+        return true
+    }
+    return false
+}

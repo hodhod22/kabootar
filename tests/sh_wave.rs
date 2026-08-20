@@ -616,6 +616,72 @@ fn f6_inl_plan_in_kab() {
     );
 }
 
+/// F16: CPU fallback when no GPU device, tiny leaf.
+#[test]
+fn f16_gpu_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/gpu.kab")).expect("gpu.kab");
+    assert!(
+        g.contains("pub fn gpuUseCpu"),
+        "F16 Kab gpuUseCpu"
+    );
+}
+
+/// F17: 60 FPS league gate vs Kab baseline (not rustc).
+#[test]
+fn f17_liga_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/liga.kab")).expect("liga.kab");
+    assert!(
+        l.contains("pub fn ligaFpsOk"),
+        "F17 Kab ligaFpsOk"
+    );
+}
+
+/// F14: os_write via Kab policy leaf (host FS capability).
+#[test]
+fn f14_io_put_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/io_put.kab")).expect("io_put.kab");
+    assert!(
+        p.contains("pub fn ioPut") && p.contains("os_write"),
+        "F14 Kab ioPut"
+    );
+}
+
+/// F14: os_read via Kab policy leaf.
+#[test]
+fn f14_io_get_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/io_get.kab")).expect("io_get.kab");
+    assert!(
+        g.contains("pub fn ioGet") && g.contains("os_read"),
+        "F14 Kab ioGet"
+    );
+}
+
+/// F14: os_mkdir via Kab policy leaf.
+#[test]
+fn f14_io_mkdir_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/io_mkdir.kab")).expect("io_mkdir.kab");
+    assert!(
+        m.contains("pub fn ioMkdir") && m.contains("os_mkdir"),
+        "F14 Kab ioMkdir"
+    );
+}
+
+/// F14: os_exists via Kab policy leaf.
+#[test]
+fn f14_io_has_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/io_has.kab")).expect("io_has.kab");
+    assert!(
+        h.contains("pub fn ioHas") && h.contains("os_exists"),
+        "F14 Kab ioHas"
+    );
+}
+
 /// SH18: nursery bump + frame budget live in Kab (not host GC).
 #[test]
 fn sh18_gc_plan_in_kab() {
