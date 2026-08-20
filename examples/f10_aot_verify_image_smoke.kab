@@ -1,0 +1,3 @@
+import "kab/aot_verify_image"
+
+return aotVerifyImageOk("kabootar-x64.kbn", "kabootar-native/1|x64|text:rx|rodata:r|data:rw")

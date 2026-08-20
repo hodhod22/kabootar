@@ -1,0 +1,3 @@
+import "kab/aot_load_manifest"
+
+return aotLoadManifestOk("kabootar-native/1|x64|text:rx|rodata:r|data:rw", "x64")

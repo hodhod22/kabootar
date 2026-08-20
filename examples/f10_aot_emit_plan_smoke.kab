@@ -1,0 +1,3 @@
+import "kab/aot_emit_plan"
+
+return aotEmitPlan("x64") == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw"

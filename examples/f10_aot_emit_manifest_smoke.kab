@@ -1,0 +1,3 @@
+import "kab/aot_emit_manifest"
+
+return aotEmitManifest("x64") == "kabootar-native/1|x64|text:rx|rodata:r|data:rw"
