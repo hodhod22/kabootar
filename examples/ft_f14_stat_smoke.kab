@@ -1,0 +1,9 @@
+import "kab/io_stat"
+
+os_write("ft14_ok.txt", "ok")
+let s = ioStat("ft14_ok.txt")
+let n = len(s)
+if n > 0 {
+    return true
+}
+return false

@@ -1,0 +1,7 @@
+import "kab/jit_np"
+
+let n = jitPagesFor(6)
+if n == 1 {
+    return true
+}
+return false

@@ -1,0 +1,4 @@
+import "kab/http_bd"
+
+httpBodyOf(200, "ok")
+return true
