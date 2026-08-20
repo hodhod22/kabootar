@@ -1,0 +1,6 @@
+// F14 deepen: delete via host capability. import "kab/io_del"
+
+pub fn ioDel(path) {
+    os_delete(path)
+    return true
+}

@@ -114,7 +114,7 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: bump + promote + sweep + `gcWriteBarrier`; concurrent mark deepen |
 | **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | ✅ subset: `kab/esc` `escFitsFrame`; `@manual` release deepen |
 | **F13** | **Parallell compile + workers** | SH7/P8 deepen i Kab | ✅ SH7 subset; workers deepen |
-| **F14** | **I/O-stack** — async FS/net utan extra copy | SH21/SH24; e2e vs Node | ✅ subset: `ioPut`/`ioGet`/`ioMkdir`/`ioHas`; async net deepen |
+| **F14** | **I/O-stack** — async FS/net utan extra copy | SH21/SH24; e2e vs Node | ✅ subset: put/get/mkdir/has/del/list; async net deepen |
 | **F15** | **Same-room webb** — ingen JSON-varv UI↔SQL | P17 deepen i Kab | ✅ subset |
 | **F16** | **GPU kernels** — nd/matmul bakom Kab-API | SC/P16; CPU-fallback i Kab | ✅ subset: `kab/gpu` `gpuUseCpu`; matmul kernel deepen |
 | **F17** | **Liga-CI** — Python / V8-klass / C#-klass / 60 FPS game | `perf_tak_*` mot Kab-baseline (inte rustc som vinst) | ✅ subset: `kab/liga` `ligaFpsOk`; Python/V8/C# benches deepen |

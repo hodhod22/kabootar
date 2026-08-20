@@ -1,0 +1,8 @@
+import "kab/io_del"
+
+os_write("ft14_del.txt", "x")
+let ok = ioDel("ft14_del.txt")
+if ok {
+    return true
+}
+return false
