@@ -1,0 +1,9 @@
+// F2: IC hit-rate gate (percent). import "kab/ic_ht"
+// Do not import other kab/ic_* or kab/vm.
+
+pub fn icHitOk(pct) {
+    if pct >= 90 {
+        return true
+    }
+    return false
+}

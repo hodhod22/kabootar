@@ -1,0 +1,3 @@
+import "kab/ic_pl"
+
+return icIsPoly(4)

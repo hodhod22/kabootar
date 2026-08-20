@@ -1,0 +1,3 @@
+import "kab/ic_mg"
+
+return icIsMega(5)

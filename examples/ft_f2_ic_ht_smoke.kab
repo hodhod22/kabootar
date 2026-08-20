@@ -1,0 +1,3 @@
+import "kab/ic_ht"
+
+return icHitOk(90)

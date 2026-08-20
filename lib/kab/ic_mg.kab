@@ -1,0 +1,9 @@
+// F2: megamorphic IC (>4 shapes). import "kab/ic_mg"
+// Do not import kab/ic, kab/ic_pl, or kab/vm.
+
+pub fn icIsMega(nShapes) {
+    if nShapes > 4 {
+        return true
+    }
+    return false
+}

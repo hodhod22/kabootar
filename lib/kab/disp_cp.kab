@@ -1,0 +1,9 @@
+// F1: copy-and-patch slot vs i64 AccAdd template. import "kab/disp_cp"
+// Do not import kab/disp or kab/vm.
+
+pub fn dispPatchFits(n) {
+    if n <= 6 {
+        return true
+    }
+    return false
+}
