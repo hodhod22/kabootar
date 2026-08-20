@@ -1,0 +1,7 @@
+import "kab/unbox_af"
+
+let n = unboxArrF64Stride()
+if n == 8 {
+    return true
+}
+return false
