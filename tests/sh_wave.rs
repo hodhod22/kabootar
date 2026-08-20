@@ -797,6 +797,132 @@ fn f10_aot_sym_in_kab() {
     );
 }
 
+/// F10: native image sections reserve 16-byte alignment.
+#[test]
+fn f10_aot_align_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/aot_align.kab")).expect("aot_align.kab");
+    assert!(
+        a.contains("pub fn aotAlignOk") && a.contains(">= 16"),
+        "F10 Kab aotAlignOk"
+    );
+}
+
+/// F10: Kab-native images have text, rodata, and data sections.
+#[test]
+fn f10_aot_section_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_section.kab")).expect("aot_section.kab");
+    assert!(
+        s.contains("pub fn aotSectionOk") && s.contains("\"rodata\""),
+        "F10 Kab aotSectionOk"
+    );
+}
+
+/// F10: native image mappings reserve at least one page.
+#[test]
+fn f10_aot_page_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/aot_page.kab")).expect("aot_page.kab");
+    assert!(
+        p.contains("pub fn aotPageOk") && p.contains(">= 4096"),
+        "F10 Kab aotPageOk"
+    );
+}
+
+/// F10: emitted text is RX, never RWX.
+#[test]
+fn f10_aot_protect_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/aot_protect.kab")).expect("aot_protect.kab");
+    assert!(
+        p.contains("pub fn aotTextProtectOk") && p.contains("\"rx\""),
+        "F10 Kab aotTextProtectOk"
+    );
+}
+
+/// F10: initial native image has a non-empty entry image.
+#[test]
+fn f10_aot_entry_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/aot_entry.kab")).expect("aot_entry.kab");
+    assert!(
+        e.contains("pub fn aotEntryOk") && e.contains("imageSize > 0"),
+        "F10 Kab aotEntryOk"
+    );
+}
+
+/// F10: sealing combines native header, RX text, and entry validation.
+#[test]
+fn f10_aot_seal_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_seal.kab")).expect("aot_seal.kab");
+    assert!(
+        s.contains("pub fn aotSealOk")
+            && s.contains("kabootar-native/1")
+            && s.contains("textMode == \"rx\""),
+        "F10 Kab aotSealOk"
+    );
+}
+
+/// F10: native-image cache keys carry a non-empty fingerprint.
+#[test]
+fn f10_aot_key_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let k = std::fs::read_to_string(root.join("lib/kab/aot_key.kab")).expect("aot_key.kab");
+    assert!(
+        k.contains("pub fn aotCacheKeyOk") && k.contains("len(key) > 7"),
+        "F10 Kab aotCacheKeyOk"
+    );
+}
+
+/// F10: mutable native-image data is isolated in RW pages.
+#[test]
+fn f10_aot_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/aot_data.kab")).expect("aot_data.kab");
+    assert!(
+        d.contains("pub fn aotDataProtectOk") && d.contains("\"rw\""),
+        "F10 Kab aotDataProtectOk"
+    );
+}
+
+/// F10: native-image read-only data is isolated in R pages.
+#[test]
+fn f10_aot_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_rodata.kab")).expect("aot_rodata.kab");
+    assert!(
+        r.contains("pub fn aotRodataProtectOk") && r.contains("\"r\""),
+        "F10 Kab aotRodataProtectOk"
+    );
+}
+
+/// F10: native-image text, rodata, and data use distinct protections.
+#[test]
+fn f10_aot_layout_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/aot_layout.kab")).expect("aot_layout.kab");
+    assert!(
+        l.contains("pub fn aotLayoutOk")
+            && l.contains("textMode == \"rx\"")
+            && l.contains("rodataMode == \"r\"")
+            && l.contains("dataMode == \"rw\""),
+        "F10 Kab aotLayoutOk"
+    );
+}
+
+/// F10: first Kab-native images target x64 or arm64.
+#[test]
+fn f10_aot_target_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/aot_target.kab")).expect("aot_target.kab");
+    assert!(
+        t.contains("pub fn aotTargetOk") && t.contains("\"arm64\""),
+        "F10 Kab aotTargetOk"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {

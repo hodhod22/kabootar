@@ -1,0 +1,3 @@
+import "kab/aot_layout"
+
+return aotLayoutOk("rx", "r", "rw")

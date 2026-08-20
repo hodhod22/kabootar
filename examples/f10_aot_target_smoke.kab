@@ -1,0 +1,3 @@
+import "kab/aot_target"
+
+return aotTargetOk("x64")

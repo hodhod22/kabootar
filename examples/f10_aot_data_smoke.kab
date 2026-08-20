@@ -1,0 +1,3 @@
+import "kab/aot_data"
+
+return aotDataProtectOk("rw")

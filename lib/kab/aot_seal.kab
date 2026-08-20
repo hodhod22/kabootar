@@ -1,0 +1,6 @@
+// F10: a native image is sealable only with a valid header, RX text, and entry.
+// import "kab/aot_seal"; do not import other kab/aot* leaves.
+
+pub fn aotSealOk(header, textMode, entry, imageSize) {
+    return header == "kabootar-native/1" && textMode == "rx" && entry >= 0 && entry < imageSize
+}
