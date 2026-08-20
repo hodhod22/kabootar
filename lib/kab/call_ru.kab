@@ -1,0 +1,9 @@
+// F4: reuse caller frame when nothing live. import "kab/call_ru"
+// Do not import kab/call, kab/call_st, or kab/vm.
+
+pub fn callReuseOk(nLive) {
+    if nLive == 0 {
+        return true
+    }
+    return false
+}

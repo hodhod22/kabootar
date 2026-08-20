@@ -1,0 +1,3 @@
+import "kab/jit_licm"
+
+return jitLicmOk(1)

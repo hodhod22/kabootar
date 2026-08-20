@@ -1,0 +1,3 @@
+import "kab/jit_gvn"
+
+return jitGvnOk(1)

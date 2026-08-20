@@ -1,0 +1,9 @@
+// F6: op-count budget for 1-block inline. import "kab/inl_ops"
+// Do not import kab/inl, kab/jit, or kab/jit_opt.
+
+pub fn emitInlineOpsOk(nOps) {
+    if nOps <= 4 {
+        return true
+    }
+    return false
+}

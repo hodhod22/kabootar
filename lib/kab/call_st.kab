@@ -1,0 +1,9 @@
+// F4: heap/stack argv when argc > 3. import "kab/call_st"
+// Do not import kab/call or kab/vm.
+
+pub fn callNeedsStack(argc) {
+    if argc > 3 {
+        return true
+    }
+    return false
+}

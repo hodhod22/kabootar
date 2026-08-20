@@ -1,0 +1,9 @@
+// F6: getter-only emit inline. import "kab/inl_get"
+// Do not import kab/inl, kab/inl_ops, or kab/jit.
+
+pub fn emitInlineGetOk(nGets) {
+    if nGets == 1 {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,3 @@
+import "kab/call_ru"
+
+return callReuseOk(0)

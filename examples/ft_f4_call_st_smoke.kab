@@ -1,0 +1,3 @@
+import "kab/call_st"
+
+return callNeedsStack(4)

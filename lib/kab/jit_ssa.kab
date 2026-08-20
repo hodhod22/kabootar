@@ -1,0 +1,9 @@
+// F8: SSA phi gate. import "kab/jit_ssa"
+// Do not grow jit.kab. Do not import other kab/jit_* opt leaves.
+
+pub fn jitSsaOk(nPhi) {
+    if nPhi >= 1 {
+        return true
+    }
+    return false
+}
