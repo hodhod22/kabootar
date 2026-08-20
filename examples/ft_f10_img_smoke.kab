@@ -1,0 +1,3 @@
+import "kab/aot_img"
+
+return aotImageOk(1)

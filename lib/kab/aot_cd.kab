@@ -1,0 +1,9 @@
+// F10: cold-start budget (ms). import "kab/aot_cd"
+// Do not import other kab/aot* leaves.
+
+pub fn aotColdOk(ms) {
+    if ms <= 100 {
+        return true
+    }
+    return false
+}

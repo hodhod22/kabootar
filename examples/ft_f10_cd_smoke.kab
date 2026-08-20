@@ -1,0 +1,3 @@
+import "kab/aot_cd"
+
+return aotColdOk(100)

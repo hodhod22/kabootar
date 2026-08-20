@@ -1,0 +1,9 @@
+// F10: PGO hit threshold for AOT. import "kab/aot_pgo"
+// Do not import kab/aot or kab/jit.
+
+pub fn aotPgoOk(nHits) {
+    if nHits >= 8 {
+        return true
+    }
+    return false
+}
