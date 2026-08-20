@@ -3,10 +3,10 @@
 
 pub fn aotVerifyLayoutOk(name, layout) {
     if name == "kabootar-x64.kbn" {
-        return layout == "text:rx|c3||rodata:r|00||data:rw|00"
+        return layout == "text:rx|b80100000001c090c3||rodata:r|00||data:rw|00"
     }
     if name == "kabootar-arm64.kbn" {
-        return layout == "text:rx|d65f03c0||rodata:r|00||data:rw|00"
+        return layout == "text:rx|d28000208b000000d503201fd65f03c0||rodata:r|00||data:rw|00"
     }
     return false
 }

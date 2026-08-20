@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented nop opcode for text padding.
+// import "kab/aot_nop_op"; do not import other kab/aot* leaves.
+
+pub fn aotNopOp(target) {
+    if target == "x64" {
+        return "90"
+    }
+    if target == "arm64" {
+        return "d503201f"
+    }
+    return ""
+}

@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_native"
+import "kab/aot_ship_native"
+
+let name = aotImageName("x64")
+let image = aotEmitNative("x64")
+return aotShipNativeOk(name, image, "x64")

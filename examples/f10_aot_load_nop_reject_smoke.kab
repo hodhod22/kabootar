@@ -1,0 +1,3 @@
+import "kab/aot_load_nop"
+
+return aotLoadNopOk("90", "arm64") == false

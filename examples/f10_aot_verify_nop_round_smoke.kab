@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_nop_op"
+import "kab/aot_verify_nop"
+
+let name = aotImageName("x64")
+let op = aotNopOp("x64")
+return aotVerifyNopOk(name, op)

@@ -1,3 +1,3 @@
 import "kab/aot_ship_layout"
 
-return aotShipLayoutOk("kabootar-x64.kbn", "text:rx|c3||rodata:r|00||data:rw|00", "x64")
+return aotShipLayoutOk("kabootar-x64.kbn", "text:rx|b80100000001c090c3||rodata:r|00||data:rw|00", "x64")

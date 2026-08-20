@@ -3,10 +3,10 @@
 
 pub fn aotShipTextOk(name, text, target) {
     if target == "x64" {
-        return name == "kabootar-x64.kbn" && text == "text:rx|c3"
+        return name == "kabootar-x64.kbn" && text == "text:rx|b80100000001c090c3"
     }
     if target == "arm64" {
-        return name == "kabootar-arm64.kbn" && text == "text:rx|d65f03c0"
+        return name == "kabootar-arm64.kbn" && text == "text:rx|d28000208b000000d503201fd65f03c0"
     }
     return false
 }

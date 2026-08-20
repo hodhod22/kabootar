@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image integer-one opcode.
+// import "kab/aot_load_one"; do not import other kab/aot* leaves.
+
+pub fn aotLoadOneOk(op, target) {
+    if target == "x64" {
+        return op == "b801000000"
+    }
+    if target == "arm64" {
+        return op == "d2800020"
+    }
+    return false
+}

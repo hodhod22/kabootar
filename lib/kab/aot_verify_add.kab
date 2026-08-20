@@ -1,0 +1,12 @@
+// F10: native image filename and add opcode must agree.
+// import "kab/aot_verify_add"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyAddOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "01c0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "8b000000"
+    }
+    return false
+}

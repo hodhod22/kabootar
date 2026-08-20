@@ -2,10 +2,10 @@
 // import "kab/aot_loaded_layout"; do not import other kab/aot* leaves.
 
 pub fn aotLoadedLayoutOk(layout) {
-    if layout == "text:rx|c3||rodata:r|00||data:rw|00" {
+    if layout == "text:rx|b80100000001c090c3||rodata:r|00||data:rw|00" {
         return true
     }
-    if layout == "text:rx|d65f03c0||rodata:r|00||data:rw|00" {
+    if layout == "text:rx|d28000208b000000d503201fd65f03c0||rodata:r|00||data:rw|00" {
         return true
     }
     return false
