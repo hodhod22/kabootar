@@ -1,0 +1,3 @@
+import "kab/aot_add_op"
+
+return aotAddOp("x64") == "01c0"

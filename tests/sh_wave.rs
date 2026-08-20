@@ -1400,14 +1400,14 @@ fn f10_aot_ship_arm64_in_kab() {
     );
 }
 
-/// F10: first native text sections carry RX plus the return opcode.
+/// F10: first native text sections carry RX plus one then add then nop then return.
 #[test]
 fn f10_aot_emit_text_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_text.kab"))
         .expect("aot_emit_text.kab");
     assert!(
-        t.contains("pub fn aotEmitText") && t.contains("text:rx|c3"),
+        t.contains("pub fn aotEmitText") && t.contains("text:rx|b80100000001c090c3"),
         "F10 Kab aotEmitText"
     );
 }
@@ -1419,7 +1419,7 @@ fn f10_aot_load_text_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_text.kab"))
         .expect("aot_load_text.kab");
     assert!(
-        t.contains("pub fn aotLoadTextOk") && t.contains("text:rx|d65f03c0"),
+        t.contains("pub fn aotLoadTextOk") && t.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotLoadTextOk"
     );
 }
@@ -1455,7 +1455,7 @@ fn f10_aot_verify_text_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_text.kab"))
         .expect("aot_verify_text.kab");
     assert!(
-        v.contains("pub fn aotVerifyTextOk") && v.contains("text:rx|d65f03c0"),
+        v.contains("pub fn aotVerifyTextOk") && v.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotVerifyTextOk"
     );
 }
@@ -1527,7 +1527,7 @@ fn f10_aot_loaded_text_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_text.kab"))
         .expect("aot_loaded_text.kab");
     assert!(
-        l.contains("pub fn aotLoadedTextOk") && l.contains("text:rx|c3"),
+        l.contains("pub fn aotLoadedTextOk") && l.contains("text:rx|b80100000001c090c3"),
         "F10 Kab persisted native RX text"
     );
 }
@@ -1575,7 +1575,7 @@ fn f10_aot_ship_text_in_kab() {
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_text.kab"))
         .expect("aot_ship_text.kab");
     assert!(
-        s.contains("pub fn aotShipTextOk") && s.contains("text:rx|d65f03c0"),
+        s.contains("pub fn aotShipTextOk") && s.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotShipTextOk"
     );
 }
@@ -2055,7 +2055,7 @@ fn f10_aot_emit_layout_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_layout.kab"))
         .expect("aot_emit_layout.kab");
     assert!(
-        t.contains("pub fn aotEmitLayout") && t.contains("text:rx|c3"),
+        t.contains("pub fn aotEmitLayout") && t.contains("text:rx|b80100000001c090c3"),
         "F10 Kab aotEmitLayout"
     );
 }
@@ -2067,7 +2067,7 @@ fn f10_aot_load_layout_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_layout.kab"))
         .expect("aot_load_layout.kab");
     assert!(
-        t.contains("pub fn aotLoadLayoutOk") && t.contains("text:rx|d65f03c0"),
+        t.contains("pub fn aotLoadLayoutOk") && t.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotLoadLayoutOk"
     );
 }
@@ -2103,7 +2103,7 @@ fn f10_aot_verify_layout_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_layout.kab"))
         .expect("aot_verify_layout.kab");
     assert!(
-        v.contains("pub fn aotVerifyLayoutOk") && v.contains("text:rx|d65f03c0"),
+        v.contains("pub fn aotVerifyLayoutOk") && v.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotVerifyLayoutOk"
     );
 }
@@ -2175,7 +2175,7 @@ fn f10_aot_loaded_layout_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_layout.kab"))
         .expect("aot_loaded_layout.kab");
     assert!(
-        l.contains("pub fn aotLoadedLayoutOk") && l.contains("text:rx|c3"),
+        l.contains("pub fn aotLoadedLayoutOk") && l.contains("text:rx|b80100000001c090c3"),
         "F10 Kab persisted native layout"
     );
 }
@@ -2223,7 +2223,7 @@ fn f10_aot_ship_layout_in_kab() {
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_layout.kab"))
         .expect("aot_ship_layout.kab");
     assert!(
-        s.contains("pub fn aotShipLayoutOk") && s.contains("text:rx|d65f03c0"),
+        s.contains("pub fn aotShipLayoutOk") && s.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotShipLayoutOk"
     );
 }
@@ -2271,7 +2271,7 @@ fn f10_aot_emit_native_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_native.kab"))
         .expect("aot_emit_native.kab");
     assert!(
-        t.contains("pub fn aotEmitNative") && t.contains("text:rx|c3"),
+        t.contains("pub fn aotEmitNative") && t.contains("text:rx|b80100000001c090c3"),
         "F10 Kab aotEmitNative"
     );
 }
@@ -2283,7 +2283,7 @@ fn f10_aot_load_native_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_native.kab"))
         .expect("aot_load_native.kab");
     assert!(
-        t.contains("pub fn aotLoadNativeOk") && t.contains("text:rx|d65f03c0"),
+        t.contains("pub fn aotLoadNativeOk") && t.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotLoadNativeOk"
     );
 }
@@ -2319,7 +2319,7 @@ fn f10_aot_verify_native_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_native.kab"))
         .expect("aot_verify_native.kab");
     assert!(
-        v.contains("pub fn aotVerifyNativeOk") && v.contains("text:rx|d65f03c0"),
+        v.contains("pub fn aotVerifyNativeOk") && v.contains("text:rx|d28000208b000000d503201fd65f03c0"),
         "F10 Kab aotVerifyNativeOk"
     );
 }
@@ -2391,7 +2391,7 @@ fn f10_aot_loaded_native_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_native.kab"))
         .expect("aot_loaded_native.kab");
     assert!(
-        l.contains("pub fn aotLoadedNativeOk") && l.contains("text:rx|c3"),
+        l.contains("pub fn aotLoadedNativeOk") && l.contains("text:rx|b80100000001c090c3"),
         "F10 Kab persisted native image"
     );
 }
@@ -2417,6 +2417,524 @@ fn f10_aot_loaded_native_reject_in_kab() {
     assert!(
         s.contains("aotLoadedNativeOk") && s.contains("text:rwx") && s.contains("false"),
         "F10 Kab persisted native RWX rejection"
+    );
+}
+
+/// F10: native image is shippable only when name, payload, and target agree.
+#[test]
+fn f10_aot_ship_native_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_native.kab"))
+        .expect("aot_ship_native.kab");
+    assert!(
+        s.contains("pub fn aotShipNativeOk") && s.contains("text:rx|d28000208b000000d503201fd65f03c0"),
+        "F10 Kab aotShipNativeOk"
+    );
+}
+
+/// F10: emitted name and native image round-trip through the ship-native gate.
+#[test]
+fn f10_aot_ship_native_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_native_round_smoke.kab"))
+        .expect("f10_aot_ship_native_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitNative") && s.contains("aotShipNativeOk"),
+        "F10 Kab native ship round-trip"
+    );
+}
+
+/// F10: ship-native gate rejects a native image for the wrong target.
+#[test]
+fn f10_aot_ship_native_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_native_reject_smoke.kab"))
+        .expect("f10_aot_ship_native_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipNativeOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab native ship target rejection"
+    );
+}
+
+/// F10: arm64 name and native image round-trip through the ship-native gate.
+#[test]
+fn f10_aot_ship_native_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_native_arm64_smoke.kab"))
+        .expect("f10_aot_ship_native_arm64_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitNative") && s.contains("\"arm64\""),
+        "F10 Kab arm64 native ship round-trip"
+    );
+}
+
+/// F10: first Kab-native images emit a documented nop opcode for text padding.
+#[test]
+fn f10_aot_nop_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_nop_op.kab")).expect("aot_nop_op.kab");
+    assert!(
+        r.contains("pub fn aotNopOp") && r.contains("d503201f"),
+        "F10 Kab aotNopOp"
+    );
+}
+
+/// F10: loader accepts only a documented first-image nop opcode.
+#[test]
+fn f10_aot_load_nop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_load_nop.kab")).expect("aot_load_nop.kab");
+    assert!(
+        r.contains("pub fn aotLoadNopOk") && r.contains("d503201f"),
+        "F10 Kab aotLoadNopOk"
+    );
+}
+
+/// F10: emitted nop opcode round-trips through loader validation.
+#[test]
+fn f10_aot_nop_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_nop_round_smoke.kab"))
+        .expect("f10_aot_nop_round_smoke.kab");
+    assert!(
+        s.contains("aotNopOp") && s.contains("aotLoadNopOk"),
+        "F10 Kab nop opcode round-trip"
+    );
+}
+
+/// F10: loader rejects a nop opcode for the wrong target.
+#[test]
+fn f10_aot_load_nop_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_nop_reject_smoke.kab"))
+        .expect("f10_aot_load_nop_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadNopOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab nop opcode target rejection"
+    );
+}
+
+/// F10: first Kab-native images emit a documented integer-zero opcode for the return register.
+#[test]
+fn f10_aot_zero_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_zero_op.kab")).expect("aot_zero_op.kab");
+    assert!(
+        r.contains("pub fn aotZeroOp") && r.contains("aa1f03e0"),
+        "F10 Kab aotZeroOp"
+    );
+}
+
+/// F10: loader accepts only a documented first-image integer-zero opcode.
+#[test]
+fn f10_aot_load_zero_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_load_zero.kab")).expect("aot_load_zero.kab");
+    assert!(
+        r.contains("pub fn aotLoadZeroOk") && r.contains("aa1f03e0"),
+        "F10 Kab aotLoadZeroOk"
+    );
+}
+
+/// F10: emitted integer-zero opcode round-trips through loader validation.
+#[test]
+fn f10_aot_zero_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_zero_round_smoke.kab"))
+        .expect("f10_aot_zero_round_smoke.kab");
+    assert!(
+        s.contains("aotZeroOp") && s.contains("aotLoadZeroOk"),
+        "F10 Kab integer-zero opcode round-trip"
+    );
+}
+
+/// F10: loader rejects an integer-zero opcode for the wrong target.
+#[test]
+fn f10_aot_load_zero_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_zero_reject_smoke.kab"))
+        .expect("f10_aot_load_zero_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadZeroOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab integer-zero opcode target rejection"
+    );
+}
+
+/// F10: first Kab-native images emit a documented integer-one opcode for the return register.
+#[test]
+fn f10_aot_one_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_one_op.kab")).expect("aot_one_op.kab");
+    assert!(
+        r.contains("pub fn aotOneOp") && r.contains("d2800020"),
+        "F10 Kab aotOneOp"
+    );
+}
+
+/// F10: loader accepts only a documented first-image integer-one opcode.
+#[test]
+fn f10_aot_load_one_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_load_one.kab")).expect("aot_load_one.kab");
+    assert!(
+        r.contains("pub fn aotLoadOneOk") && r.contains("d2800020"),
+        "F10 Kab aotLoadOneOk"
+    );
+}
+
+/// F10: emitted integer-one opcode round-trips through loader validation.
+#[test]
+fn f10_aot_one_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_one_round_smoke.kab"))
+        .expect("f10_aot_one_round_smoke.kab");
+    assert!(
+        s.contains("aotOneOp") && s.contains("aotLoadOneOk"),
+        "F10 Kab integer-one opcode round-trip"
+    );
+}
+
+/// F10: loader rejects an integer-one opcode for the wrong target.
+#[test]
+fn f10_aot_load_one_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_one_reject_smoke.kab"))
+        .expect("f10_aot_load_one_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadOneOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab integer-one opcode target rejection"
+    );
+}
+
+/// F10: first Kab-native images emit a documented add opcode for the return register.
+#[test]
+fn f10_aot_add_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_add_op.kab")).expect("aot_add_op.kab");
+    assert!(
+        r.contains("pub fn aotAddOp") && r.contains("8b000000"),
+        "F10 Kab aotAddOp"
+    );
+}
+
+/// F10: loader accepts only a documented first-image add opcode.
+#[test]
+fn f10_aot_load_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_load_add.kab")).expect("aot_load_add.kab");
+    assert!(
+        r.contains("pub fn aotLoadAddOk") && r.contains("8b000000"),
+        "F10 Kab aotLoadAddOk"
+    );
+}
+
+/// F10: emitted add opcode round-trips through loader validation.
+#[test]
+fn f10_aot_add_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_add_round_smoke.kab"))
+        .expect("f10_aot_add_round_smoke.kab");
+    assert!(
+        s.contains("aotAddOp") && s.contains("aotLoadAddOk"),
+        "F10 Kab add opcode round-trip"
+    );
+}
+
+/// F10: loader rejects an add opcode for the wrong target.
+#[test]
+fn f10_aot_load_add_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_add_reject_smoke.kab"))
+        .expect("f10_aot_load_add_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadAddOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab add opcode target rejection"
+    );
+}
+
+/// F10: first Kab-native images emit a documented sub opcode for the return register.
+#[test]
+fn f10_aot_sub_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_sub_op.kab")).expect("aot_sub_op.kab");
+    assert!(
+        r.contains("pub fn aotSubOp") && r.contains("cb000000"),
+        "F10 Kab aotSubOp"
+    );
+}
+
+/// F10: loader accepts only a documented first-image sub opcode.
+#[test]
+fn f10_aot_load_sub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_load_sub.kab")).expect("aot_load_sub.kab");
+    assert!(
+        r.contains("pub fn aotLoadSubOk") && r.contains("cb000000"),
+        "F10 Kab aotLoadSubOk"
+    );
+}
+
+/// F10: emitted sub opcode round-trips through loader validation.
+#[test]
+fn f10_aot_sub_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_sub_round_smoke.kab"))
+        .expect("f10_aot_sub_round_smoke.kab");
+    assert!(
+        s.contains("aotSubOp") && s.contains("aotLoadSubOk"),
+        "F10 Kab sub opcode round-trip"
+    );
+}
+
+/// F10: loader rejects a sub opcode for the wrong target.
+#[test]
+fn f10_aot_load_sub_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_sub_reject_smoke.kab"))
+        .expect("f10_aot_load_sub_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadSubOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab sub opcode target rejection"
+    );
+}
+
+/// F10: native image filename and sub opcode must agree.
+#[test]
+fn f10_aot_verify_sub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_sub.kab"))
+        .expect("aot_verify_sub.kab");
+    assert!(
+        v.contains("pub fn aotVerifySubOk") && v.contains("cb000000"),
+        "F10 Kab aotVerifySubOk"
+    );
+}
+
+/// F10: emitted image name and sub opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_sub_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_sub_round_smoke.kab"))
+        .expect("f10_aot_verify_sub_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotSubOp") && s.contains("aotVerifySubOk"),
+        "F10 Kab sub opcode verify round-trip"
+    );
+}
+
+/// F10: verify rejects a sub opcode for the wrong image name.
+#[test]
+fn f10_aot_verify_sub_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_sub_reject_smoke.kab"))
+        .expect("f10_aot_verify_sub_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifySubOk") && s.contains("cb000000") && s.contains("false"),
+        "F10 Kab sub opcode name rejection"
+    );
+}
+
+/// F10: arm64 image name and sub opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_sub_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_sub_arm64_smoke.kab"))
+        .expect("f10_aot_verify_sub_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifySubOk"),
+        "F10 Kab arm64 sub opcode verify round-trip"
+    );
+}
+
+/// F10: native image filename and add opcode must agree.
+#[test]
+fn f10_aot_verify_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_add.kab"))
+        .expect("aot_verify_add.kab");
+    assert!(
+        v.contains("pub fn aotVerifyAddOk") && v.contains("8b000000"),
+        "F10 Kab aotVerifyAddOk"
+    );
+}
+
+/// F10: emitted image name and add opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_add_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_add_round_smoke.kab"))
+        .expect("f10_aot_verify_add_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotAddOp") && s.contains("aotVerifyAddOk"),
+        "F10 Kab add opcode verify round-trip"
+    );
+}
+
+/// F10: verify rejects an add opcode for the wrong image name.
+#[test]
+fn f10_aot_verify_add_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_add_reject_smoke.kab"))
+        .expect("f10_aot_verify_add_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyAddOk") && s.contains("8b000000") && s.contains("false"),
+        "F10 Kab add opcode name rejection"
+    );
+}
+
+/// F10: arm64 image name and add opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_add_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_add_arm64_smoke.kab"))
+        .expect("f10_aot_verify_add_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyAddOk"),
+        "F10 Kab arm64 add opcode verify round-trip"
+    );
+}
+
+/// F10: native image filename and integer-one opcode must agree.
+#[test]
+fn f10_aot_verify_one_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_one.kab"))
+        .expect("aot_verify_one.kab");
+    assert!(
+        v.contains("pub fn aotVerifyOneOk") && v.contains("d2800020"),
+        "F10 Kab aotVerifyOneOk"
+    );
+}
+
+/// F10: emitted image name and integer-one opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_one_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_one_round_smoke.kab"))
+        .expect("f10_aot_verify_one_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotOneOp") && s.contains("aotVerifyOneOk"),
+        "F10 Kab integer-one opcode verify round-trip"
+    );
+}
+
+/// F10: verify rejects an integer-one opcode for the wrong image name.
+#[test]
+fn f10_aot_verify_one_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_one_reject_smoke.kab"))
+        .expect("f10_aot_verify_one_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyOneOk") && s.contains("d2800020") && s.contains("false"),
+        "F10 Kab integer-one opcode name rejection"
+    );
+}
+
+/// F10: arm64 image name and integer-one opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_one_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_one_arm64_smoke.kab"))
+        .expect("f10_aot_verify_one_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyOneOk"),
+        "F10 Kab arm64 integer-one opcode verify round-trip"
+    );
+}
+
+/// F10: native image filename and integer-zero opcode must agree.
+#[test]
+fn f10_aot_verify_zero_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_zero.kab"))
+        .expect("aot_verify_zero.kab");
+    assert!(
+        v.contains("pub fn aotVerifyZeroOk") && v.contains("aa1f03e0"),
+        "F10 Kab aotVerifyZeroOk"
+    );
+}
+
+/// F10: emitted image name and integer-zero opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_zero_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_zero_round_smoke.kab"))
+        .expect("f10_aot_verify_zero_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotZeroOp") && s.contains("aotVerifyZeroOk"),
+        "F10 Kab integer-zero opcode verify round-trip"
+    );
+}
+
+/// F10: verify rejects an integer-zero opcode for the wrong image name.
+#[test]
+fn f10_aot_verify_zero_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_zero_reject_smoke.kab"))
+        .expect("f10_aot_verify_zero_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyZeroOk") && s.contains("aa1f03e0") && s.contains("false"),
+        "F10 Kab integer-zero opcode name rejection"
+    );
+}
+
+/// F10: arm64 image name and integer-zero opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_zero_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_zero_arm64_smoke.kab"))
+        .expect("f10_aot_verify_zero_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyZeroOk"),
+        "F10 Kab arm64 integer-zero opcode verify round-trip"
+    );
+}
+
+/// F10: native image filename and nop opcode must agree.
+#[test]
+fn f10_aot_verify_nop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_nop.kab"))
+        .expect("aot_verify_nop.kab");
+    assert!(
+        v.contains("pub fn aotVerifyNopOk") && v.contains("d503201f"),
+        "F10 Kab aotVerifyNopOk"
+    );
+}
+
+/// F10: emitted image name and nop opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_nop_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_nop_round_smoke.kab"))
+        .expect("f10_aot_verify_nop_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotNopOp") && s.contains("aotVerifyNopOk"),
+        "F10 Kab nop opcode verify round-trip"
+    );
+}
+
+/// F10: verify rejects a nop opcode for the wrong image name.
+#[test]
+fn f10_aot_verify_nop_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_nop_reject_smoke.kab"))
+        .expect("f10_aot_verify_nop_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyNopOk") && s.contains("d503201f") && s.contains("false"),
+        "F10 Kab nop opcode name rejection"
+    );
+}
+
+/// F10: arm64 image name and nop opcode round-trip through verification.
+#[test]
+fn f10_aot_verify_nop_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_nop_arm64_smoke.kab"))
+        .expect("f10_aot_verify_nop_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyNopOk"),
+        "F10 Kab arm64 nop opcode verify round-trip"
     );
 }
 

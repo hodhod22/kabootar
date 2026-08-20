@@ -1,0 +1,3 @@
+import "kab/aot_zero_op"
+
+return aotZeroOp("x64") == "31c0"

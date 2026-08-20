@@ -1,0 +1,3 @@
+import "kab/aot_verify_nop"
+
+return aotVerifyNopOk("kabootar-x64.kbn", "d503201f") == false

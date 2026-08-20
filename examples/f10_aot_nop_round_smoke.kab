@@ -1,0 +1,5 @@
+import "kab/aot_nop_op"
+import "kab/aot_load_nop"
+
+let op = aotNopOp("x64")
+return aotLoadNopOk(op, "x64")

@@ -2,10 +2,10 @@
 // import "kab/aot_loaded_native"; do not import other kab/aot* leaves.
 
 pub fn aotLoadedNativeOk(image) {
-    if image == "kabootar-native/1|x64||text:rx|c3||rodata:r|00||data:rw|00" {
+    if image == "kabootar-native/1|x64||text:rx|b80100000001c090c3||rodata:r|00||data:rw|00" {
         return true
     }
-    if image == "kabootar-native/1|arm64||text:rx|d65f03c0||rodata:r|00||data:rw|00" {
+    if image == "kabootar-native/1|arm64||text:rx|d28000208b000000d503201fd65f03c0||rodata:r|00||data:rw|00" {
         return true
     }
     return false

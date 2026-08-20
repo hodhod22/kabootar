@@ -1,0 +1,3 @@
+import "kab/aot_nop_op"
+
+return aotNopOp("x64") == "90"

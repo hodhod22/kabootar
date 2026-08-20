@@ -1,3 +1,3 @@
 import "kab/aot_load_text"
 
-return aotLoadTextOk("text:rx|c3", "x64")
+return aotLoadTextOk("text:rx|b80100000001c090c3", "x64")

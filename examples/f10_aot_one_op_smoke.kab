@@ -1,0 +1,3 @@
+import "kab/aot_one_op"
+
+return aotOneOp("x64") == "b801000000"
