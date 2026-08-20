@@ -1,0 +1,12 @@
+// F10: persisted text bytes must match first native RX plus return opcode.
+// import "kab/aot_loaded_text"; do not import other kab/aot* leaves.
+
+pub fn aotLoadedTextOk(text) {
+    if text == "text:rx|c3" {
+        return true
+    }
+    if text == "text:rx|d65f03c0" {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,3 @@
+import "kab/aot_emit_text"
+
+return aotEmitText("x64") == "text:rx|c3"

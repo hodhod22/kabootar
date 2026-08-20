@@ -1,0 +1,5 @@
+import "kab/aot_ret_op"
+import "kab/aot_load_ret"
+
+let op = aotRetOp("x64")
+return aotLoadRetOk(op, "x64")

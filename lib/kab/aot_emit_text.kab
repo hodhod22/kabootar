@@ -1,0 +1,12 @@
+// F10: first Kab-native text sections carry RX plus the return opcode.
+// import "kab/aot_emit_text"; do not import other kab/aot* leaves.
+
+pub fn aotEmitText(target) {
+    if target == "x64" {
+        return "text:rx|c3"
+    }
+    if target == "arm64" {
+        return "text:rx|d65f03c0"
+    }
+    return ""
+}
