@@ -1,0 +1,5 @@
+import "kab/aot_emit_native"
+import "kab/aot_loaded_native"
+
+let image = aotEmitNative("x64")
+return aotLoadedNativeOk(image)

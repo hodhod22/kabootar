@@ -1,0 +1,6 @@
+// F10: load persisted first native images through the host FS capability.
+// import "kab/aot_read_native"; do not import other kab/aot* leaves.
+
+pub fn aotReadNative(path) {
+    return os_read(path)
+}
