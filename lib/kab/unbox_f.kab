@@ -1,0 +1,9 @@
+// F3: f64 unbox slot. import "kab/unbox_f"
+// Do not import kab/unbox, kab/unbox_b, or kab/vm.
+
+pub fn unboxF64Ok(nBytes) {
+    if nBytes == 8 {
+        return true
+    }
+    return false
+}

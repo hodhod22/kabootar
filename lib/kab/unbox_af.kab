@@ -1,0 +1,6 @@
+// F3: packed array_f64 element stride. import "kab/unbox_af"
+// Do not import other kab/unbox* or kab/vm.
+
+pub fn unboxArrF64Stride() {
+    return 8
+}

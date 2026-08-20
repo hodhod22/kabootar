@@ -693,6 +693,28 @@ fn f3_unbox_b_in_kab() {
     );
 }
 
+/// F3: f64 unbox slot (do not import kab/unbox or kab/vm).
+#[test]
+fn f3_unbox_f_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/unbox_f.kab")).expect("unbox_f.kab");
+    assert!(
+        f.contains("pub fn unboxF64Ok") && f.contains("8"),
+        "F3 Kab unboxF64Ok"
+    );
+}
+
+/// F3: array_f64 packed stride (do not import kab/unbox or kab/vm).
+#[test]
+fn f3_unbox_af_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/unbox_af.kab")).expect("unbox_af.kab");
+    assert!(
+        a.contains("pub fn unboxArrF64Stride") && a.contains("8"),
+        "F3 Kab unboxArrF64Stride"
+    );
+}
+
 /// F4: argc 0-3 register call policy in a tiny leaf.
 #[test]
 fn f4_call_plan_in_kab() {
