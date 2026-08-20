@@ -693,6 +693,17 @@ fn f10_aot_cd_in_kab() {
     );
 }
 
+/// F10: steady-state frame budget (do not import kab/aot).
+#[test]
+fn f10_aot_ss_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_ss.kab")).expect("aot_ss.kab");
+    assert!(
+        s.contains("pub fn aotSteadyOk") && s.contains("16"),
+        "F10 Kab aotSteadyOk"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {

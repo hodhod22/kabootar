@@ -1,0 +1,3 @@
+import "kab/aot_ss"
+
+return aotSteadyOk(16)
