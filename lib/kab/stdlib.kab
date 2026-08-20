@@ -1,0 +1,14 @@
+// SH20: Kab stdlib subset. import "kab/stdlib"
+// Host natives remain until delete-gate.
+
+pub fn stdAdd(a, b) {
+    return a + b
+}
+
+pub fn stdLen(xs) {
+    return len(xs)
+}
+
+pub fn stdHas(s, part) {
+    return str_includes(s, part)
+}

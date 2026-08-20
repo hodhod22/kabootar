@@ -1,0 +1,21 @@
+// SH18: Kab GC subset. import "kab/gc"
+// Nursery bump + frame budget. Host heap remains skuld until delete-gate.
+
+pub fn gcNurseryCap() {
+    return 65536
+}
+
+pub fn gcBump(used, n) {
+    return used + n
+}
+
+pub fn gcNeedCollect(used, cap) {
+    if used > cap {
+        return true
+    }
+    return false
+}
+
+pub fn gcFrameBudgetMs() {
+    return 16
+}

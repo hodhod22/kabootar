@@ -1,7 +1,7 @@
 @version "1.0.0"
 
-// H6e hard path: Kab VM first; host bytecode_run_kbc only as soft fallback.
-// KABOOTAR_VM=kab-only → Rust eval_program calls evalKbcKabOnly (no host VM).
+// H6e hard path: Kab VM first. `vmAppHostFallback` is false — evalKbc does not call host VM.
+// KABOOTAR_VM=kab-only → Rust eval_program has no host run_module for apps.
 // KEEP <=~7 top-level pub fn.
 
 import "kab/boot"
@@ -29,6 +29,10 @@ fn kabVmCoreOk() {
     return n == 42 && callOk && nativeOk && classOk && arithOk && unaryOk && orOk
 }
 
+fn maxKbcBytes() {
+    return bootPolicy("maxKbc")
+}
+
 fn tryKabVm(kbc) {
     let bc = deserializeKbc(kbc)
     return runModule(bc)
@@ -54,8 +58,9 @@ pub fn kabVmRunEnabled() {
 /// Kab-only `.kbc` run — no host VM fallback (H6e / KABOOTAR_VM=kab-only).
 pub fn evalKbcKabOnly(kbc) {
     let s = "" + kbc
-    if len(s) > 262144 {
-        throw "evalKbcKabOnly: .kbc exceeds 256KB"
+    let cap = maxKbcBytes()
+    if len(s) > cap {
+        throw "evalKbcKabOnly: .kbc exceeds bootPolicy maxKbc"
     }
     return tryKabVm(kbc)
 }
@@ -64,8 +69,12 @@ pub fn evalKbcKabOnly(kbc) {
 /// Healthy prefer path: kab-only (no `bytecode_run_kbc`). Soft fallback only while probe cold/failed.
 pub fn evalKbc(kbc) {
     let s = "" + kbc
-    if len(s) > 262144 {
-        return bytecode_run_kbc(kbc)
+    let cap = maxKbcBytes()
+    if len(s) > cap {
+        if bootPolicy("vmAppHostFallback") == true {
+            return bytecode_run_kbc(kbc)
+        }
+        throw "evalKbc: .kbc exceeds bootPolicy maxKbc"
     }
     if kabVmRunPrefer {
         if !kabVmRunCached {
@@ -85,7 +94,10 @@ pub fn evalKbc(kbc) {
     if err == null {
         return kab
     }
-    return bytecode_run_kbc(kbc)
+    if bootPolicy("vmAppHostFallback") == true {
+        return bytecode_run_kbc(kbc)
+    }
+    throw err
 }
 
 /// Kab-only: compile IR + runModule (no host VM).

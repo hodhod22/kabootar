@@ -35,4 +35,4 @@ kabootar registry list
 - `src/cli/{doc,test_runner,registry_web}.rs`
 - `tests/dx_smoke_test.kab`, `tests/dx_tooling.rs`
 
-Roadmap: [ROADMAP.md](ROADMAP.md) **Våg DX-TOOL**.
+Roadmap: [ROADMAP.md](ROADMAP.md) **Våg DX-TOOL**. Produkt-testrunner: [kabtest](../lib/kabtest/README.md) (ersätter denna yta på sikt).

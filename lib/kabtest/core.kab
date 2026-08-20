@@ -1,0 +1,26 @@
+// KT1: kabtest asserts. import "kabtest/core"
+
+pub fn ktAssertTrue(cond, message) {
+    if cond {
+        return true
+    }
+    throw "assertTrue failed"
+}
+
+pub fn ktAssertEq(a, b, message) {
+    if a == b {
+        return true
+    }
+    throw "assertEq failed"
+}
+
+pub fn ktAssertNeq(a, b, message) {
+    if a != b {
+        return true
+    }
+    throw "assertNeq failed"
+}
+
+pub fn ktSummary(passed, failed) {
+    return failed == 0
+}

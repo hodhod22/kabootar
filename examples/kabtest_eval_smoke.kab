@@ -1,0 +1,7 @@
+import "kabtest/eval"
+
+let src = "return true"
+if ktRunSource(src) {
+    return true
+}
+return false

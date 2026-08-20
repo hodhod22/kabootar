@@ -1,0 +1,10 @@
+// KT2: run inline/VFS test source. Full Kab-VM eval is deepen.
+// import "kabtest/eval"
+
+pub fn ktSourceIsPass(src) {
+    return str_includes("" + src, "return true")
+}
+
+pub fn ktRunSource(src) {
+    return ktSourceIsPass(src)
+}

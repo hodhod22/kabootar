@@ -1,0 +1,7 @@
+import "kabtest/cov"
+
+let p = ktCovPct(1, 2)
+if p == 50 {
+    return true
+}
+return false

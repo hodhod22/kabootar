@@ -1,0 +1,7 @@
+import "kabtest/guest_kv8"
+
+let can = ktGuestKv8CanRun("ok.kv8")
+if can {
+    return true
+}
+return false

@@ -1,0 +1,7 @@
+import "kab/load"
+
+let ok = loadIsKab("app.kab")
+if ok {
+    return true
+}
+return false

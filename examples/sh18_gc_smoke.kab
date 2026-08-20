@@ -1,0 +1,7 @@
+import "kab/gc"
+
+let u = gcBump(0, 8)
+if u == 8 {
+    return true
+}
+return false

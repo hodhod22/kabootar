@@ -81,6 +81,9 @@ pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[];
 /// H6e: same ceiling as `kab/boot` `bootPolicy("maxBytes")` (parity smoke).
 pub const SELF_HOST_MAX_SOURCE_BYTES: usize = 64 * 1024;
 
+/// Loader mirror of `kab/boot` `bootPolicy("maxKbc")`.
+pub const KAB_VM_MAX_KBC_BYTES: usize = 262144;
+
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
     let lower = norm.to_ascii_lowercase();
@@ -125,8 +128,7 @@ pub fn self_host_is_skip_listed(path: &str) -> bool {
 }
 
 fn kab_vm_only_mode() -> bool {
-    // Process-wide strict only via env. Default delete-gate for `.kbc` lives in
-    // `kab/vm` `evalKbc` when `kabVmRunOk` (Rust may still host-fallback for large/kv8).
+    // Process-wide strict only via env. Nested Kab eval may still host-load toolchain shards.
     matches!(
         std::env::var("KABOOTAR_VM").as_deref(),
         Ok("kab-only") | Ok("only") | Ok("kab_only")
@@ -559,19 +561,18 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
         if bytecode.uses_bytecode() {
             if kab_vm_run_enabled(env)? {
                 let kbc = serialize(bytecode);
-                // Kab VM subset: small modules only; large ones stay on host VM
-                // (unless kab-only, which rejects oversized modules).
-                if kbc.len() <= 262144 {
+                // SH6: healthy/forced Kab VM — no silent host run_module on small .kbc.
+                // Oversize still uses host unless kab-only.
+                if kbc.len() <= KAB_VM_MAX_KBC_BYTES {
                     match eval_kbc_via_kab_vm(&kbc, env) {
                         Ok(v) => return Ok(v),
-                        Err(e) if kab_vm_only_mode() => {
+                        Err(e) => {
                             let detail = crate::runtime::stdlib::error::format_runtime_error(&e);
-                            return Err(format!("Kab VM only (no host fallback): {detail}"))
+                            return Err(format!("SH6: Kab VM failed (no host fallback): {detail}"))
                         }
-                        Err(_) => {}
                     }
                 } else if kab_vm_only_mode() {
-                    return Err("Kab VM only: .kbc exceeds 256KB size gate".into());
+                    return Err("Kab VM only: .kbc exceeds bootPolicy maxKbc".into());
                 }
             }
             if kab_vm_only_mode() {

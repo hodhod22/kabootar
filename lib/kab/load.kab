@@ -1,0 +1,17 @@
+// SH19: Kab loader policy. import "kab/load"
+// Host main.rs stays until AOT/bootstrap delete-gate.
+
+pub fn loadIsKab(path) {
+    return str_includes(path, ".kab")
+}
+
+pub fn loadEntry() {
+    return "main"
+}
+
+pub fn loadReady(nBytes) {
+    if nBytes > 0 {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,17 @@
+// KT7: coverage policy in Kab. import "kabtest/cov"
+// Module-hit + percent; line-approx deepen (no while).
+
+pub fn ktCovIsMod(path) {
+    return str_includes(path, ".kab")
+}
+
+pub fn ktCovPct(hit, total) {
+    if total == 0 {
+        return 0
+    }
+    return (hit * 100) / total
+}
+
+pub fn ktCovLineHint(src) {
+    return str_includes(src, "return")
+}

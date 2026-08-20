@@ -1,0 +1,6 @@
+import "kabtest/core"
+import "kab/jit"
+
+let n = jitGprCount(3)
+ktAssertEq(n, 4)
+return true

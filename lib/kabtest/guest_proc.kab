@@ -1,0 +1,14 @@
+// KT6: process/golden adapter. import "kabtest/guest_proc"
+// Host spawn (kOS os_spawn / argv) is deepen — policy stays here.
+
+pub fn ktGuestProcCanRun(path) {
+    return str_includes(path, ".golden")
+}
+
+pub fn ktGuestProcMatch(out, expect) {
+    return out == expect
+}
+
+pub fn ktGuestProcExitOk(code) {
+    return code == 0
+}

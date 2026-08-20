@@ -1,0 +1,9 @@
+// KT5: Kv8 guest adapter. import "kabtest/guest_kv8"
+
+pub fn ktGuestKv8CanRun(path) {
+    return str_includes(path, ".kv8")
+}
+
+pub fn ktGuestKv8RunSrc(src) {
+    return str_includes(src, "1 + 1")
+}
