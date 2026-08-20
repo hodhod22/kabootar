@@ -682,6 +682,28 @@ fn f14_io_has_in_kab() {
     );
 }
 
+/// F14: os_delete via Kab policy leaf.
+#[test]
+fn f14_io_del_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/io_del.kab")).expect("io_del.kab");
+    assert!(
+        d.contains("pub fn ioDel") && d.contains("os_delete"),
+        "F14 Kab ioDel"
+    );
+}
+
+/// F14: os_list via Kab policy leaf.
+#[test]
+fn f14_io_list_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/io_list.kab")).expect("io_list.kab");
+    assert!(
+        l.contains("pub fn ioList") && l.contains("os_list"),
+        "F14 Kab ioList"
+    );
+}
+
 /// SH18: nursery bump + frame budget live in Kab (not host GC).
 #[test]
 fn sh18_gc_plan_in_kab() {

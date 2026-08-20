@@ -1,0 +1,8 @@
+import "kab/io_list"
+
+let xs = ioList(".")
+let n = len(xs)
+if n >= 0 {
+    return true
+}
+return false
