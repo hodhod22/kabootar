@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_layout"
+import "kab/aot_ship_layout"
+
+let name = aotImageName("arm64")
+let layout = aotEmitLayout("arm64")
+return aotShipLayoutOk(name, layout, "arm64")

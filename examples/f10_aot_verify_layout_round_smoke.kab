@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_layout"
+import "kab/aot_verify_layout"
+
+let name = aotImageName("x64")
+let layout = aotEmitLayout("x64")
+return aotVerifyLayoutOk(name, layout)

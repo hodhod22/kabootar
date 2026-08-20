@@ -1,0 +1,3 @@
+import "kab/aot_emit_native"
+
+return aotEmitNative("x64") == "kabootar-native/1|x64||text:rx|c3||rodata:r|00||data:rw|00"
