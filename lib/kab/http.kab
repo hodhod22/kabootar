@@ -1,0 +1,17 @@
+// SH24: Kab HTTP policy. import "kab/http"
+// Host runtime/http.rs remains skuld until delete-gate.
+
+pub fn httpIsGet(m) {
+    return m == "GET"
+}
+
+pub fn httpOk(code) {
+    if code == 200 {
+        return true
+    }
+    return false
+}
+
+pub fn httpIsFetch(url) {
+    return str_includes(url, "http")
+}

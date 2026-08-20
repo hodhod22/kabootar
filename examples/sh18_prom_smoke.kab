@@ -1,0 +1,7 @@
+import "kab/gc_prom"
+
+let n = gcPromote(10, 8)
+if n == 2 {
+    return true
+}
+return false

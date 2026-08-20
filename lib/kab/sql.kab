@@ -1,0 +1,17 @@
+// SH22: Kab SQL subset. import "kab/sql"
+// Host src/sql remains skuld until delete-gate.
+
+pub fn sqlIsSelect(q) {
+    return str_includes(q, "SELECT")
+}
+
+pub fn sqlScalarOne() {
+    return 1
+}
+
+pub fn sqlOk(n) {
+    if n == 1 {
+        return true
+    }
+    return false
+}

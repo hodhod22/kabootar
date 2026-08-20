@@ -1,0 +1,14 @@
+// SH28: product-Rust delete policy. import "kab/noll"
+// Do not delete src/ until Kab bootstrap/AOT is the process.
+
+pub fn nollSrcGoal() {
+    return 0
+}
+
+pub fn nollRustcStillHost() {
+    return true
+}
+
+pub fn nollBootstrapFromKab() {
+    return true
+}

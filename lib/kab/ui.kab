@@ -1,0 +1,14 @@
+// SH27: Kab UI/DOM/game-loop policy. import "kab/ui"
+// Host runtime/browser* remains skuld until delete-gate.
+
+pub fn uiIsDiv(tag) {
+    return tag == "div"
+}
+
+pub fn uiTickMs() {
+    return 16
+}
+
+pub fn uiReady() {
+    return true
+}

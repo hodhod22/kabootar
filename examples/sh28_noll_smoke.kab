@@ -1,0 +1,7 @@
+import "kab/noll"
+
+let g = nollSrcGoal()
+if g == 0 {
+    return true
+}
+return false

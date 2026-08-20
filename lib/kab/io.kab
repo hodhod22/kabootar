@@ -1,0 +1,9 @@
+// FT F14: I/O stack policy. import "kab/io"
+// Host FS/net remain capabilities (SH21/SH24).
+
+pub fn ioNoCopy(nBuf) {
+    if nBuf == 1 {
+        return true
+    }
+    return false
+}

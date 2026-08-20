@@ -1,0 +1,8 @@
+// FT F10: AOT/PGO policy. import "kab/aot"
+
+pub fn aotWarmOk(nHits) {
+    if nHits > 0 {
+        return true
+    }
+    return false
+}

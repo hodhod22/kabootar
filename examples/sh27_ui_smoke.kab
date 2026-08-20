@@ -1,0 +1,7 @@
+import "kab/ui"
+
+let ok = uiIsDiv("div")
+if ok {
+    return true
+}
+return false
