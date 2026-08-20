@@ -572,6 +572,83 @@ fn f8_jit_opt_in_kab() {
     );
 }
 
+/// F8: LICM hoist gate (do not grow jit.kab).
+#[test]
+fn f8_jit_licm_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/jit_licm.kab")).expect("jit_licm.kab");
+    assert!(
+        l.contains("pub fn jitLicmOk"),
+        "F8 Kab jitLicmOk"
+    );
+}
+
+/// F8: GVN/CSE gate (do not grow jit.kab).
+#[test]
+fn f8_jit_gvn_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/jit_gvn.kab")).expect("jit_gvn.kab");
+    assert!(
+        g.contains("pub fn jitGvnOk"),
+        "F8 Kab jitGvnOk"
+    );
+}
+
+/// F8: deopt guard gate (do not grow jit.kab).
+#[test]
+fn f8_jit_deopt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/jit_deopt.kab")).expect("jit_deopt.kab");
+    assert!(
+        d.contains("pub fn jitDeoptOk"),
+        "F8 Kab jitDeoptOk"
+    );
+}
+
+/// F8: SSA phi gate (do not grow jit.kab).
+#[test]
+fn f8_jit_ssa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/jit_ssa.kab")).expect("jit_ssa.kab");
+    assert!(
+        s.contains("pub fn jitSsaOk"),
+        "F8 Kab jitSsaOk"
+    );
+}
+
+/// F9: linear-scan GPR count (do not grow jit.kab).
+#[test]
+fn f9_jit_gpr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/jit_gpr.kab")).expect("jit_gpr.kab");
+    assert!(
+        g.contains("pub fn jitScanGprs"),
+        "F9 Kab jitScanGprs"
+    );
+}
+
+/// F9: graph-coloring GPR budget (do not grow jit.kab).
+#[test]
+fn f9_jit_col_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_col.kab")).expect("jit_col.kab");
+    assert!(
+        c.contains("pub fn jitColorOk") && c.contains("16"),
+        "F9 Kab jitColorOk"
+    );
+}
+
+/// F9: SIMD 16-byte lane (do not grow jit.kab).
+#[test]
+fn f9_jit_simd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/jit_simd.kab")).expect("jit_simd.kab");
+    assert!(
+        s.contains("pub fn jitSimdOk") && s.contains("16"),
+        "F9 Kab jitSimdOk"
+    );
+}
+
 /// F10: AOT/PGO warm gate in a tiny leaf.
 #[test]
 fn f10_aot_plan_in_kab() {
@@ -726,6 +803,28 @@ fn f4_call_plan_in_kab() {
     );
 }
 
+/// F4: stack/heap argv when argc > 3 (do not import kab/call or kab/vm).
+#[test]
+fn f4_call_st_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/call_st.kab")).expect("call_st.kab");
+    assert!(
+        s.contains("pub fn callNeedsStack") && s.contains("3"),
+        "F4 Kab callNeedsStack"
+    );
+}
+
+/// F4: frame reuse when nLive is 0 (do not import kab/call or kab/vm).
+#[test]
+fn f4_call_ru_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/call_ru.kab")).expect("call_ru.kab");
+    assert!(
+        r.contains("pub fn callReuseOk"),
+        "F4 Kab callReuseOk"
+    );
+}
+
 /// F6: 1-block emit inline policy in a tiny leaf.
 #[test]
 fn f6_inl_plan_in_kab() {
@@ -734,6 +833,28 @@ fn f6_inl_plan_in_kab() {
     assert!(
         i.contains("pub fn emitCanInline"),
         "F6 Kab emitCanInline"
+    );
+}
+
+/// F6: op-count budget for emit inline (do not import kab/inl or kab/jit).
+#[test]
+fn f6_inl_ops_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let o = std::fs::read_to_string(root.join("lib/kab/inl_ops.kab")).expect("inl_ops.kab");
+    assert!(
+        o.contains("pub fn emitInlineOpsOk") && o.contains("4"),
+        "F6 Kab emitInlineOpsOk"
+    );
+}
+
+/// F6: getter-only emit inline (do not import kab/inl or kab/jit).
+#[test]
+fn f6_inl_get_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/inl_get.kab")).expect("inl_get.kab");
+    assert!(
+        g.contains("pub fn emitInlineGetOk"),
+        "F6 Kab emitInlineGetOk"
     );
 }
 

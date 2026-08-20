@@ -1,0 +1,3 @@
+import "kab/jit_col"
+
+return jitColorOk(16)

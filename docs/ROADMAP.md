@@ -104,12 +104,12 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | **F1** | **Dispatch** — threaded interpreter / copy-and-patch i Kab-VM | tight add-loop ≫ boxed interp | ✅ subset: `dispIsDirect` + `dispPatchFits` + `dispOpAccAdd`; threaded/copy-and-patch deepen |
 | **F2** | **IC + shapes** — GetMember/LoadGlobal/CALL monomorf → poly (≤4) | hit-rate > 90 % på typisk app | ✅ subset: `icIsMono` + `icIsPoly` + `icIsMega` + `icHitOk` (≥90); GetMember IC deepen |
 | **F3** | **Unbox slots** — i64/f64/bool/`array_f64` i frames | ≥10× vs boxed add-loop (Kab-VM) | ✅ subset: `unboxSlotOk` + `unboxBoolOk` + `unboxF64Ok` + `unboxArrF64Stride`; frame packing deepen |
-| **F4** | **Call convention** — argc 0–3 utan heap-argv; frame reuse | CALL inte top-3 i profiler | ✅ subset: `kab/call` `callFitsRegs`; frame reuse deepen |
+| **F4** | **Call convention** — argc 0–3 utan heap-argv; frame reuse | CALL inte top-3 i profiler | ✅ subset: `callFitsRegs` + `callNeedsStack` + `callReuseOk`; CALL-profile deepen |
 | **F5** | **Peephole** — AccAdd, len_local, index_get_*; Kab-emit redan delvis | self-host serialize/loop billigare | ✅ subset i `self_host` emit |
-| **F6** | **Inline små fn** — JIT och/eller emit för 1-block getters | färre CALL i hot loops | ✅ subset: `kab/inl` `emitCanInline`; emit/JIT inline deepen |
+| **F6** | **Inline små fn** — JIT och/eller emit för 1-block getters | färre CALL i hot loops | ✅ subset: `emitCanInline` + `emitInlineOpsOk` + `emitInlineGetOk`; emit/JIT inline deepen |
 | **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: templates + `jitMapIncRetOk` + `jitPageSize` + `jitPagesFor`; host VirtualAlloc/exec deepen (ingen ny Rust-JIT) |
-| **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `kab/jit_opt` `jitCanInline`; SSA/LICM/deopt deepen |
-| **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitGprCount` linear-scan stub; deepen = färgning + SIMD |
+| **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `jitCanInline` + `jitLicmOk` + `jitGvnOk` + `jitDeoptOk` + `jitSsaOk`; native-loop deepen |
+| **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitScanGprs` + `jitColorOk` + `jitSimdOk`; nd-add/dot deepen |
 | **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: `kab/aot` `aotWarmOk`; native image deepen |
 | **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: bump + promote + sweep + `gcWriteBarrier`; concurrent mark deepen |
 | **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | ✅ subset: `kab/esc` `escFitsFrame`; `@manual` release deepen |

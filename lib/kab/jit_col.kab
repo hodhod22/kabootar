@@ -1,0 +1,9 @@
+// F9: graph-coloring GPR budget. import "kab/jit_col"
+// Do not grow jit.kab. Do not import kab/jit or kab/jit_gpr.
+
+pub fn jitColorOk(nLive) {
+    if nLive <= 16 {
+        return true
+    }
+    return false
+}

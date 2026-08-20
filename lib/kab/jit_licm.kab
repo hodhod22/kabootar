@@ -1,0 +1,9 @@
+// F8: LICM hoist gate. import "kab/jit_licm"
+// Do not grow jit.kab. Do not import kab/jit_opt.
+
+pub fn jitLicmOk(nInv) {
+    if nInv > 0 {
+        return true
+    }
+    return false
+}

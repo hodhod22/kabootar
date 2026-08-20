@@ -1,0 +1,9 @@
+// F8: deopt guard gate. import "kab/jit_deopt"
+// Do not grow jit.kab. Do not import other kab/jit_* opt leaves.
+
+pub fn jitDeoptOk(nGuard) {
+    if nGuard > 0 {
+        return true
+    }
+    return false
+}
