@@ -33,7 +33,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 20,
+        inv.compile_dag.len() >= 12,
         "compile.kab DAG should stay a real pipeline, got {}",
         inv.compile_dag.len()
     );

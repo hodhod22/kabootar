@@ -1,9 +1,2 @@
-import "self_host/emit_expr_body"
-import "self_host/emit_stmt_body"
-
-pub fn eTramp(E) {
-    if E["_hook"] == 0 {
-        return emitExprBody(E, E["_node"])
-    }
-    return emitStmtBody(E, E["_node"])
-}
+// SH5: eTramp lives in emit_exec.
+pub import "self_host/emit_exec"

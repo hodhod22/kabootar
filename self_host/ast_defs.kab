@@ -1,3 +1,136 @@
+// Self-hosted lexer / AST / opcode constants (was lexer_defs + ast_defs + emit_defs).
+// Mirrors src/lexer/token.rs and src/bytecode/types.rs.
+
+pub let QUOTE = "\""
+pub let BACKTICK = "`"
+pub let CHAR_TAB = "\t"
+pub let CHAR_NL = "\n"
+pub let CHAR_CR = "\r"
+
+pub let TOKEN_FN = "fn"
+pub let TOKEN_LET = "let"
+pub let TOKEN_CONST = "const"
+pub let TOKEN_RETURN = "return"
+pub let TOKEN_IF = "if"
+pub let TOKEN_ELSE = "else"
+pub let TOKEN_MATCH = "match"
+pub let TOKEN_SOME = "Some"
+pub let TOKEN_NONE = "None"
+pub let TOKEN_OK = "Ok"
+pub let TOKEN_ERR = "Err"
+pub let TOKEN_WHILE = "while"
+pub let TOKEN_DO = "do"
+pub let TOKEN_FOR = "for"
+pub let TOKEN_IN = "in"
+pub let TOKEN_OF = "of"
+pub let TOKEN_SWITCH = "switch"
+pub let TOKEN_CASE = "case"
+pub let TOKEN_DEFAULT = "default"
+pub let TOKEN_BREAK = "break"
+pub let TOKEN_FALLTHROUGH = "fallthrough"
+pub let TOKEN_CONTINUE = "continue"
+pub let TOKEN_ASYNC = "async"
+pub let TOKEN_AWAIT = "await"
+pub let TOKEN_YIELD = "yield"
+pub let TOKEN_DELETE = "delete"
+pub let TOKEN_THROW = "throw"
+pub let TOKEN_RAISE = "raise"
+pub let TOKEN_PASS = "pass"
+pub let TOKEN_ASSERT = "assert"
+pub let TOKEN_WITH = "with"
+pub let TOKEN_USING = "using"
+pub let TOKEN_AS = "as"
+pub let TOKEN_IS = "is"
+pub let TOKEN_NOT = "not"
+pub let TOKEN_EXTENDS = "extends"
+pub let TOKEN_INTERFACE = "interface"
+pub let TOKEN_IMPLEMENTS = "implements"
+pub let TOKEN_TRY = "try"
+pub let TOKEN_CATCH = "catch"
+pub let TOKEN_FINALLY = "finally"
+pub let TOKEN_CLASS = "class"
+pub let TOKEN_STRUCT = "struct"
+pub let TOKEN_ENUM = "enum"
+pub let TOKEN_IMPORT = "import"
+pub let TOKEN_PUB = "pub"
+pub let TOKEN_THIS = "this"
+pub let TOKEN_SELF = "self"
+pub let TOKEN_SUPER = "super"
+pub let TOKEN_TRAIT = "trait"
+pub let TOKEN_WHERE = "where"
+pub let TOKEN_NULL = "null"
+pub let TOKEN_UNDEFINED = "undefined"
+pub let TOKEN_NAN = "NaN"
+pub let TOKEN_TRUE = "true"
+pub let TOKEN_FALSE = "false"
+pub let TOKEN_IDENT = "Identifier"
+pub let TOKEN_PRIVATE = "PrivateName"
+pub let TOKEN_NUMBER = "Number"
+pub let TOKEN_FLOAT = "Float"
+pub let TOKEN_BIGINT = "BigInt"
+pub let TOKEN_STRING = "String"
+pub let TOKEN_TEMPLATE = "Template"
+pub let TOKEN_EOF = "EOF"
+
+pub let KEYWORDS = {
+    "fn": "fn",
+    "let": "let",
+    "const": "const",
+    "return": "return",
+    "if": "if",
+    "else": "else",
+    "match": "match",
+    "Some": "Some",
+    "None": "None",
+    "Ok": "Ok",
+    "Err": "Err",
+    "while": "while",
+    "do": "do",
+    "for": "for",
+    "in": "in",
+    "of": "of",
+    "switch": "switch",
+    "case": "case",
+    "default": "default",
+    "break": "break",
+    "fallthrough": "fallthrough",
+    "continue": "continue",
+    "async": "async",
+    "await": "await",
+    "yield": "yield",
+    "delete": "delete",
+    "throw": "throw",
+    "raise": "raise",
+    "pass": "pass",
+    "assert": "assert",
+    "with": "with",
+    "using": "using",
+    "as": "as",
+    "is": "is",
+    "not": "not",
+    "extends": "extends",
+    "interface": "interface",
+    "implements": "implements",
+    "try": "try",
+    "catch": "catch",
+    "finally": "finally",
+    "class": "class",
+    "struct": "struct",
+    "trait": "trait",
+    "where": "where",
+    "enum": "enum",
+    "import": "import",
+    "pub": "pub",
+    "this": "this",
+    "self": "self",
+    "super": "super",
+    "null": "null",
+    "undefined": "undefined",
+    "NaN": "NaN",
+    "true": "true",
+    "false": "false"
+}
+
 // AST node kind constants for the self-hosted parser.
 
 pub let AST_PROGRAM = "Program"
@@ -36,3 +169,195 @@ pub let LIT_STRING = "string"
 pub let LIT_BOOL = "bool"
 pub let LIT_NULL = "null"
 pub let LIT_UNDEF = "undefined"
+
+// SH5: opcode names (was emit_defs; mirrors src/bytecode/types.rs).
+pub let OP_CONST = "const"
+pub let OP_POP = "pop"
+pub let OP_DUP = "dup"
+pub let OP_LOAD_GLOBAL = "load_global"
+pub let OP_STORE_GLOBAL = "store_global"
+pub let OP_LOAD_LOCAL = "load_local"
+pub let OP_STORE_LOCAL = "store_local"
+pub let OP_TAKE_LOCAL = "take_local"
+pub let OP_TAKE_GLOBAL = "take_global"
+pub let OP_ARRAY_PUSH_LOCAL = "array_push_local"
+pub let OP_ARRAY_PUSH_GLOBAL = "array_push_global"
+pub let OP_ARRAY_POP_LOCAL = "array_pop_local"
+pub let OP_ARRAY_POP_GLOBAL = "array_pop_global"
+pub let OP_ACC_ADD_LOCAL = "acc_add_local"
+pub let OP_ACC_ADD_GLOBAL = "acc_add_global"
+pub let OP_LEN_LOCAL = "len_local"
+pub let OP_LEN_GLOBAL = "len_global"
+pub let OP_INDEX_GET_LOCAL = "index_get_local"
+pub let OP_INDEX_GET_GLOBAL = "index_get_global"
+pub let OP_ADD = "add"
+pub let OP_SUB = "sub"
+pub let OP_MUL = "mul"
+pub let OP_DIV = "div"
+pub let OP_MOD = "mod"
+pub let OP_POW = "pow"
+pub let OP_NEG = "neg"
+pub let OP_BIT_AND = "bit_and"
+pub let OP_BIT_OR = "bit_or"
+pub let OP_BIT_XOR = "bit_xor"
+pub let OP_SHL = "shl"
+pub let OP_SHR = "shr"
+pub let OP_USHR = "ushr"
+pub let OP_BIT_NOT = "bit_not"
+pub let OP_NOT = "not"
+pub let OP_AND = "and"
+pub let OP_OR = "or"
+pub let OP_EQ = "eq"
+pub let OP_NE = "ne"
+pub let OP_LT = "lt"
+pub let OP_GT = "gt"
+pub let OP_LE = "le"
+pub let OP_GE = "ge"
+pub let OP_MAKE_OBJECT = "make_object"
+pub let OP_MAKE_ARRAY = "make_array"
+pub let OP_INDEX_GET = "index_get"
+pub let OP_INDEX_SET = "index_set"
+pub let OP_GET_MEMBER = "get_member"
+pub let OP_SET_MEMBER = "set_member"
+pub let OP_JUMP = "jump"
+pub let OP_JUMP_IF_FALSE = "jump_if_false"
+pub let OP_JUMP_IF_TRUE = "jump_if_true"
+pub let OP_CALL = "call"
+pub let OP_NEW_INSTANCE = "new_instance"
+pub let OP_RETURN = "return"
+pub let OP_THROW = "throw"
+pub let OP_JUMP_IF_RESULT_ERR = "jump_if_result_err"
+pub let OP_MAKE_ARROW = "make_arrow_fn"
+pub let OP_ITER_STEP = "iterator_step_in_place"
+pub let OP_MAKE_OK = "make_ok"
+pub let OP_MAKE_ERR = "make_err"
+pub let OP_MAKE_SOME = "make_some"
+pub let OP_MAKE_NONE = "make_none"
+pub let OP_HALT = "halt"
+pub let KAB_UNDEF_CONST = "__kab_const_undefined__"
+
+// P6b: parser trampoline hooks (shared AccAdd path; was parser_hooks).
+pub fn pCallHook(sess, n) {
+    let prevH = sess["_hook"]
+    sess["_hook"] = n
+    let r = sess["tramp"](sess)
+    sess["_hook"] = prevH
+    return r
+}
+
+pub fn pCallPostfix(sess) {
+    return pCallHook(sess, 0)
+}
+
+pub fn pCallTypeArgs(sess) {
+    return pCallHook(sess, 1)
+}
+
+pub fn pCallUnary(sess) {
+    return pCallHook(sess, 2)
+}
+
+pub fn pCallMul(sess) {
+    return pCallHook(sess, 3)
+}
+
+pub fn pCallAddShift(sess) {
+    return pCallHook(sess, 4)
+}
+
+pub fn pCallRelExpr(sess) {
+    return pCallHook(sess, 5)
+}
+
+pub fn pCallCompare(sess) {
+    return pCallHook(sess, 6)
+}
+
+pub fn pCallStmt(sess) {
+    return pCallHook(sess, 7)
+}
+
+pub fn peek(sess) {
+    return sess["pCur"]
+}
+
+pub fn bump(sess) {
+    sess["pTok"] = sess["pCur"]
+    if sess["pPos"] < sess["pToksLen"] {
+        sess["pPos"] = sess["pPos"] + 1
+        if sess["pPos"] < sess["pToksLen"] {
+            sess["pCur"] = sess["pToks"][sess["pPos"]]
+        } else {
+            sess["pCur"] = sess["pEofTok"]
+        }
+    }
+    return sess["pTok"]
+}
+
+pub fn poolPush(sess, v) {
+    sess["pSymPool"] = push(sess["pSymPool"], v)
+    sess["pSymN"] = sess["pSymN"] + 1
+    return v
+}
+
+pub fn pEnterBody(sess) {
+    // Assign-back (not object_array_push): sess is Rc-shared across tramp calls.
+    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pBody"])
+    sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+    sess["pBody"] = []
+    return 0
+}
+
+pub fn pLeaveBody(sess) {
+    let body = sess["pBody"]
+    let st = sess["pBodyStack"]
+    let n = len(st)
+    sess["pBody"] = st[n - 1]
+    sess["pBodyStack"] = slice(st, 0, n - 1)
+    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+    return body
+}
+
+pub fn pParseBodyUntilRBrace(sess, eofMsg) {
+    while sess["pCur"].type != "}" {
+        if sess["pCur"].type == "EOF" {
+            throw eofMsg
+        }
+        let stmt = pCallStmt(sess)
+        sess["pBody"] = push(sess["pBody"], stmt)
+        if sess["pCur"].type == ";" {
+            bump(sess)
+        }
+    }
+    bump(sess)
+    return 0
+}
+
+pub fn pEnterLoopBody(sess) {
+    sess["pBodyStack"] = push(sess["pBodyStack"], sess["pLoopBody"])
+    sess["pBodyDepth"] = sess["pBodyDepth"] + 1
+    sess["pLoopBody"] = []
+    return 0
+}
+
+pub fn pLeaveLoopBody(sess) {
+    let body = sess["pLoopBody"]
+    let st = sess["pBodyStack"]
+    let n = len(st)
+    sess["pLoopBody"] = st[n - 1]
+    sess["pBodyStack"] = slice(st, 0, n - 1)
+    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+    return body
+}
+
+pub fn pParseLoopUntilRBrace(sess) {
+    while sess["pCur"].type != "}" {
+        let stmt = pCallStmt(sess)
+        sess["pLoopBody"] = push(sess["pLoopBody"], stmt)
+        if sess["pCur"].type == ";" {
+            bump(sess)
+        }
+    }
+    bump(sess)
+    return 0
+}

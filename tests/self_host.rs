@@ -2339,40 +2339,45 @@ fn p6b_serialize_body_still_skip_listed_progress() {
             && sections_src.contains("pub fn serAppendClasses(")
             && sections_src.contains("pub fn serAppendFunctions(")
             && sections_src.contains("pub fn serAppendOps(")
-            && ir_line_src.contains("pub fn serIrOpLine("),
-        "SH5: sections hold class/fn/op appenders; ir_line holds IR op helpers"
+            && sections_src.contains("pub fn serIrOpLine(")
+            && sections_src.contains("pub fn serSerializeBc(")
+            && ir_line_src.contains("pub import"),
+        "SH5: sections hold class/fn/op/IR/serialize; ir_line is a facade"
     );
     assert!(
-        ir_src.contains("pub let IR_WITH_ARG") && ir_src.contains("pub let IR_ZERO_ARG"),
-        "P6b: IR membership tables must live in serialize_ir"
+        sections_src.contains("pub let IR_WITH_ARG") && sections_src.contains("pub let IR_ZERO_ARG"),
+        "SH5: IR membership tables live in serialize_sections"
     );
     assert!(
-        ir_src.contains("|len_global|") && ir_src.contains("|index_get_global|"),
+        sections_src.contains("|len_global|") && sections_src.contains("|index_get_global|"),
         "P6b: IR_WITH_ARG must list len_*/index_get_* for serialize"
     );
     assert!(
-        out_src.contains("pub fn serOutTag(out, tag)") && !out_src.contains("let serOut ="),
+        sections_src.contains("pub fn serOutTag(out, tag)") && !sections_src.contains("let serOut ="),
         "P6b: out helpers must thread out string (no module-local serOut)"
     );
     assert!(
         ops_src.contains("pub import")
             && fns_src.contains("pub import")
+            && out_src.contains("pub import")
+            && acc_src.contains("pub import")
             && sections_src.contains("pub fn serAppendFunctions(out, fns)"),
-        "SH5: section appenders live in serialize_sections; ops/fns are facades"
+        "SH5: section appenders live in serialize_sections; ops/fns/out/acc are facades"
     );
     assert!(
-        acc_src.contains("pub fn serSerializeBc(")
-            && acc_src.contains("serAppendConsts("),
-        "P6b: serSerializeBc must orchestrate pool/tail helpers"
+        acc_src.contains("pub import")
+            && sections_src.contains("serAppendConsts("),
+        "SH5: serSerializeBc orchestrates pool/tail helpers in serialize_sections"
     );
     assert!(
-        ir_line_src.contains("pub fn serEscStr(")
-            && ir_line_src.contains("pub fn serConstLine(")
-            && ir_line_src.contains("pub fn serIrOpLine(")
-            && ir_line_src.contains("pub fn serIrOpNewInstance(")
-            && ir_line_src.contains("pub fn serIrOpLookup(")
+        sections_src.contains("pub fn serEscStr(")
+            && sections_src.contains("pub fn serConstLine(")
+            && sections_src.contains("pub fn serIrOpLine(")
+            && sections_src.contains("pub fn serIrOpNewInstance(")
+            && sections_src.contains("pub fn serIrOpLookup(")
+            && ir_src.contains("pub import")
             && ir_op_src.contains("pub import"),
-        "SH5: esc/const/ir-op helpers in serialize_ir_line; serialize_ir_op is a facade"
+        "SH5: esc/const/ir-op helpers in serialize_sections; ir/ir_op are facades"
     );
     assert!(
         fac_src.contains("serSerializeBc") && fac_src.contains("pub let serialize_bc"),
@@ -2710,9 +2715,8 @@ fn p6b_emit_symindex_map_progress() {
 #[test]
 fn p6b_parser_iterative_add_progress() {
     let src = self_host_concat(&[
-        "parser_expr.kab",
-        "parser_hooks.kab",
-        "parser_session.kab",
+        "parser_exec.kab",
+        "ast_defs.kab",
         "parser_stmt.kab",
     ]);
     assert!(
@@ -2751,7 +2755,7 @@ fn p6b_parser_iterative_add_progress() {
 fn p6b_len_index_cheap_path_progress() {
     use kabootar_lib::bytecode::{compile_source, try_compile, Opcode};
     let emit = self_host_concat(&["emit_expr_body.kab"]);
-    let defs = std::fs::read_to_string(self_host_path("emit_defs.kab")).expect("read emit_defs");
+    let defs = std::fs::read_to_string(self_host_path("ast_defs.kab")).expect("read ast_defs");
     assert!(
         defs.contains("OP_LEN_GLOBAL")
             && defs.contains("OP_INDEX_GET_GLOBAL")

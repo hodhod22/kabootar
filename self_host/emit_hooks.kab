@@ -1,20 +1,2 @@
-// P6b: trampoline hooks for emitExpr/emitStmt across shards (no circular imports).
-pub fn eCallExpr(E, node) {
-    let prevH = E["_hook"]
-    let prevN = E["_node"]
-    E["_hook"] = 0
-    E["_node"] = node
-    E["tramp"](E)
-    E["_hook"] = prevH
-    E["_node"] = prevN
-}
-
-pub fn eCallStmt(E, node) {
-    let prevH = E["_hook"]
-    let prevN = E["_node"]
-    E["_hook"] = 1
-    E["_node"] = node
-    E["tramp"](E)
-    E["_hook"] = prevH
-    E["_node"] = prevN
-}
+// SH5: eCallExpr / emitOp / arrUtil / SH9 helpers live in emit_sym.
+pub import "self_host/emit_sym"

@@ -731,7 +731,7 @@ fn_op 16 store_local 1
 fn_op 16 load_local 1
 fn_op 16 len_local 0
 fn_op 16 lt
-fn_op 16 jump_if_false 30
+fn_op 16 jump_if_false 28
 fn_op 16 load_local 1
 fn_op 16 index_get_local 0
 fn_op 16 store_local 2
@@ -740,10 +740,9 @@ fn_op 16 load_global 16
 fn_op 16 call 1
 fn_op 16 const 0
 fn_op 16 gt
-fn_op 16 jump_if_false 6
+fn_op 16 jump_if_false 5
 fn_op 16 load_local 2
-fn_op 16 const 3
-fn_op 16 neg
+fn_op 16 const 38
 fn_op 16 load_global 19
 fn_op 16 call 2
 fn_op 16 pop
@@ -752,16 +751,15 @@ fn_op 16 load_global 18
 fn_op 16 call 1
 fn_op 16 const 0
 fn_op 16 gt
-fn_op 16 jump_if_false 6
+fn_op 16 jump_if_false 5
 fn_op 16 load_local 2
-fn_op 16 const 3
-fn_op 16 neg
+fn_op 16 const 38
 fn_op 16 load_global 20
 fn_op 16 call 2
 fn_op 16 pop
 fn_op 16 const 3
 fn_op 16 acc_add_local 1
-fn_op 16 jump -34
+fn_op 16 jump -32
 fn_op 16 const 4
 fn_op 16 return
 fn_arrows 16 0

@@ -1,13 +1,36 @@
 kabootar-bytecode/1
-constants=5
+constants=17
 const 0 string _hook
 const 1 string _node
 const 2 number 0
 const 3 string tramp
 const 4 number 1
+const 5 string op
+const 6 string arg
+const 7 string eInFn
+const 8 string eFnOps
+const 9 string eFnOpsN
+const 10 string eOps
+const 11 string eOpsN
+const 12 null
+const 13 string snap
+const 14 string eLenScratch
+const 15 string pushLenKey
+const 16 string 
 global 0 eCallExpr
 global 1 eCallStmt
-functions=2
+global 2 push
+global 3 emitOp
+global 4 slice
+global 5 object_array_push
+global 6 arrUtil
+global 7 accCount
+global 8 idxSum
+global 9 idxSumArr
+global 10 strCount
+global 11 strAt
+global 12 strJoinIdx
+functions=10
 fn 0 eCallExpr
 fn_params 0 E,node
 fn_locals 0 E,node,prevH,prevN,__kab_a0,__kab_a1,__kab_a2,__kab_a3
@@ -110,12 +133,239 @@ fn_op 1 swap
 fn_op 1 store_local 0
 fn_op 1 return
 fn_arrows 1 0
+fn 2 emitOp
+fn_params 2 E,op,arg
+fn_locals 2 E,op,arg,rec,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_op 2 load_local 1
+fn_op 2 const 5
+fn_op 2 load_local 2
+fn_op 2 const 6
+fn_op 2 make_object 2
+fn_op 2 store_local 3
+fn_op 2 load_local 0
+fn_op 2 get_member 7
+fn_op 2 const 4
+fn_op 2 eq
+fn_op 2 jump_if_false 26
+fn_op 2 load_local 0
+fn_op 2 get_member 8
+fn_op 2 load_local 3
+fn_op 2 load_global 2
+fn_op 2 call 2
+fn_op 2 store_local 4
+fn_op 2 load_local 0
+fn_op 2 const 8
+fn_op 2 load_local 4
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 9
+fn_op 2 const 4
+fn_op 2 add
+fn_op 2 store_local 5
+fn_op 2 load_local 0
+fn_op 2 const 9
+fn_op 2 load_local 5
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 jump 25
+fn_op 2 load_local 0
+fn_op 2 get_member 10
+fn_op 2 load_local 3
+fn_op 2 load_global 2
+fn_op 2 call 2
+fn_op 2 store_local 6
+fn_op 2 load_local 0
+fn_op 2 const 10
+fn_op 2 load_local 6
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 load_local 0
+fn_op 2 get_member 11
+fn_op 2 const 4
+fn_op 2 add
+fn_op 2 store_local 7
+fn_op 2 load_local 0
+fn_op 2 const 11
+fn_op 2 load_local 7
+fn_op 2 index_set
+fn_op 2 swap
+fn_op 2 store_local 0
+fn_op 2 pop
+fn_op 2 const 12
+fn_op 2 return
+fn_arrows 2 0
+fn 3 arrUtil
+fn_params 3 E,mode,stack,arr
+fn_locals 3 E,mode,stack,arr,__kab_a0
+fn_op 3 load_local 1
+fn_op 3 const 13
+fn_op 3 eq
+fn_op 3 jump_if_false 5
+fn_op 3 load_local 2
+fn_op 3 const 2
+fn_op 3 load_global 4
+fn_op 3 call 2
+fn_op 3 return
+fn_op 3 len_local 3
+fn_op 3 store_local 4
+fn_op 3 load_local 0
+fn_op 3 const 14
+fn_op 3 load_local 4
+fn_op 3 index_set
+fn_op 3 swap
+fn_op 3 store_local 0
+fn_op 3 pop
+fn_op 3 load_local 1
+fn_op 3 const 15
+fn_op 3 eq
+fn_op 3 jump_if_false 9
+fn_op 3 load_local 0
+fn_op 3 load_local 2
+fn_op 3 load_local 0
+fn_op 3 get_member 14
+fn_op 3 load_global 5
+fn_op 3 call 3
+fn_op 3 pop
+fn_op 3 const 2
+fn_op 3 return
+fn_op 3 load_local 2
+fn_op 3 load_local 0
+fn_op 3 get_member 14
+fn_op 3 load_global 2
+fn_op 3 call 2
+fn_op 3 return
+fn_arrows 3 0
+fn 4 accCount
+fn_params 4 n
+fn_locals 4 n,i,s
+fn_op 4 const 2
+fn_op 4 store_local 1
+fn_op 4 const 2
+fn_op 4 store_local 2
+fn_op 4 load_local 1
+fn_op 4 load_local 0
+fn_op 4 lt
+fn_op 4 jump_if_false 5
+fn_op 4 const 4
+fn_op 4 acc_add_local 2
+fn_op 4 const 4
+fn_op 4 acc_add_local 1
+fn_op 4 jump -9
+fn_op 4 load_local 2
+fn_op 4 return
+fn_arrows 4 0
+fn 5 idxSum
+fn_params 5 n
+fn_locals 5 n,i,s
+fn_op 5 const 2
+fn_op 5 store_local 1
+fn_op 5 const 2
+fn_op 5 store_local 2
+fn_op 5 load_local 1
+fn_op 5 load_local 0
+fn_op 5 lt
+fn_op 5 jump_if_false 5
+fn_op 5 load_local 1
+fn_op 5 acc_add_local 2
+fn_op 5 const 4
+fn_op 5 acc_add_local 1
+fn_op 5 jump -9
+fn_op 5 load_local 2
+fn_op 5 return
+fn_arrows 5 0
+fn 6 idxSumArr
+fn_params 6 xs
+fn_locals 6 xs,i,n,s
+fn_op 6 const 2
+fn_op 6 store_local 1
+fn_op 6 len_local 0
+fn_op 6 store_local 2
+fn_op 6 const 2
+fn_op 6 store_local 3
+fn_op 6 load_local 1
+fn_op 6 load_local 2
+fn_op 6 lt
+fn_op 6 jump_if_false 6
+fn_op 6 load_local 1
+fn_op 6 index_get_local 0
+fn_op 6 acc_add_local 3
+fn_op 6 const 4
+fn_op 6 acc_add_local 1
+fn_op 6 jump -10
+fn_op 6 load_local 3
+fn_op 6 return
+fn_arrows 6 0
+fn 7 strCount
+fn_params 7 s
+fn_locals 7 s,i,n,t
+fn_op 7 const 2
+fn_op 7 store_local 1
+fn_op 7 len_local 0
+fn_op 7 store_local 2
+fn_op 7 const 2
+fn_op 7 store_local 3
+fn_op 7 load_local 1
+fn_op 7 load_local 2
+fn_op 7 lt
+fn_op 7 jump_if_false 5
+fn_op 7 const 4
+fn_op 7 acc_add_local 3
+fn_op 7 const 4
+fn_op 7 acc_add_local 1
+fn_op 7 jump -9
+fn_op 7 load_local 3
+fn_op 7 return
+fn_arrows 7 0
+fn 8 strAt
+fn_params 8 s,i
+fn_locals 8 s,i
+fn_op 8 load_local 1
+fn_op 8 index_get_local 0
+fn_op 8 return
+fn_arrows 8 0
+fn 9 strJoinIdx
+fn_params 9 s
+fn_locals 9 s,i,n,t
+fn_op 9 const 2
+fn_op 9 store_local 1
+fn_op 9 len_local 0
+fn_op 9 store_local 2
+fn_op 9 const 16
+fn_op 9 store_local 3
+fn_op 9 load_local 1
+fn_op 9 load_local 2
+fn_op 9 lt
+fn_op 9 jump_if_false 6
+fn_op 9 load_local 1
+fn_op 9 index_get_local 0
+fn_op 9 acc_add_local 3
+fn_op 9 const 4
+fn_op 9 acc_add_local 1
+fn_op 9 jump -10
+fn_op 9 load_local 3
+fn_op 9 return
+fn_arrows 9 0
 arrows=0
 imports=0
 pub_imports=0
-exports=2
+exports=10
 export 0 eCallExpr
 export 1 eCallStmt
+export 2 emitOp
+export 3 arrUtil
+export 4 accCount
+export 5 idxSum
+export 6 idxSumArr
+export 7 strCount
+export 8 strAt
+export 9 strJoinIdx
 memory_mode=gc
 interfaces=0
 classes=0
@@ -123,5 +373,5 @@ code
 halt
 
 source=self_host/emit_hooks.kab
-statements=2
-fingerprint=729b72dc35874a3b
+statements=10
+fingerprint=b614e30105912402

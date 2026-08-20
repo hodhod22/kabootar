@@ -1,2 +1,2 @@
-// SH5: peek/bump/poolPush live in parser_hooks.
-pub import "self_host/parser_hooks"
+// SH5: peek/bump/poolPush live in ast_defs.
+pub import "self_host/ast_defs"
