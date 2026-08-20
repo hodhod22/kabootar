@@ -1,0 +1,9 @@
+// FT F3: unbox slot policy. import "kab/unbox"
+// Host P11 unbox is skuld. Do not import kab/vm.
+
+pub fn unboxSlotOk(nBytes) {
+    if nBytes == 8 {
+        return true
+    }
+    return false
+}

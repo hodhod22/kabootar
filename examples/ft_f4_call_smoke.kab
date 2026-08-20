@@ -1,0 +1,7 @@
+import "kab/call"
+
+let ok = callFitsRegs(2)
+if ok {
+    return true
+}
+return false

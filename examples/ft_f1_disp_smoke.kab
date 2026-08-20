@@ -1,0 +1,7 @@
+import "kab/disp"
+
+let ok = dispIsDirect(1)
+if ok {
+    return true
+}
+return false

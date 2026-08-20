@@ -1,0 +1,7 @@
+import "kab/ic"
+
+let ok = icIsMono(1)
+if ok {
+    return true
+}
+return false

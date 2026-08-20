@@ -1,0 +1,7 @@
+import "kab/inl"
+
+let ok = emitCanInline(1)
+if ok {
+    return true
+}
+return false

@@ -1,0 +1,7 @@
+import "kab/unbox"
+
+let ok = unboxSlotOk(8)
+if ok {
+    return true
+}
+return false

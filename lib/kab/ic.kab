@@ -1,0 +1,9 @@
+// FT F2: IC / shape policy. import "kab/ic"
+// Host P12 IC is skuld. Do not import kab/vm.
+
+pub fn icIsMono(nShapes) {
+    if nShapes == 1 {
+        return true
+    }
+    return false
+}
