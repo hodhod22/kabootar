@@ -1,0 +1,4 @@
+import "kab/aot_write_rodata"
+
+let w = aotWriteRodata
+return w != null

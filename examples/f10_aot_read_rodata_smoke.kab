@@ -1,0 +1,4 @@
+import "kab/aot_read_rodata"
+
+let read = aotReadRodata
+return read != null

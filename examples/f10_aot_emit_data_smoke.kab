@@ -1,0 +1,3 @@
+import "kab/aot_emit_data"
+
+return aotEmitData("x64") == "data:rw|00"

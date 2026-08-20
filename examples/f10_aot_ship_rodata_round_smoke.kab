@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_rodata"
+import "kab/aot_ship_rodata"
+
+let name = aotImageName("x64")
+let rodata = aotEmitRodata("x64")
+return aotShipRodataOk(name, rodata, "x64")

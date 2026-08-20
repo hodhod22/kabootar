@@ -1,0 +1,6 @@
+// F10: persisted rodata bytes must match first native R plus a zero stub.
+// import "kab/aot_loaded_rodata"; do not import other kab/aot* leaves.
+
+pub fn aotLoadedRodataOk(rodata) {
+    return rodata == "rodata:r|00"
+}
