@@ -1,0 +1,9 @@
+// FT F6: small-fn inline policy. import "kab/inl"
+// Do not grow jit.kab. jitCanInline is F8.
+
+pub fn emitCanInline(nBlocks) {
+    if nBlocks == 1 {
+        return true
+    }
+    return false
+}

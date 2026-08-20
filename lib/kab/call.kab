@@ -1,0 +1,9 @@
+// FT F4: call convention policy. import "kab/call"
+// Do not import kab/vm.
+
+pub fn callFitsRegs(argc) {
+    if argc <= 3 {
+        return true
+    }
+    return false
+}

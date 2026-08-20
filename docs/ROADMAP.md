@@ -101,12 +101,12 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | Steg | Vad | Delete-gate / mätning | Status |
 |------|-----|------------------------|--------|
 | **F0** | **Profiler i Kab** — compile-fas-ms, op-histogram, alloc/frame, IC hit-rate | Samma siffra i release varje PR; ingen gissning | ✅ subset: `lastCompileMs` / `bootLastCompileMs`; `compileIr` sätter parse/emit; deepen = PGO |
-| **F1** | **Dispatch** — threaded interpreter / copy-and-patch i Kab-VM | tight add-loop ≫ boxed interp | 📋 |
-| **F2** | **IC + shapes** — GetMember/LoadGlobal/CALL monomorf → poly (≤4) | hit-rate > 90 % på typisk app | 📋 (P12 Rust = skuld) |
-| **F3** | **Unbox slots** — i64/f64/bool/`array_f64` i frames | ≥10× vs boxed add-loop (Kab-VM) | 📋 (P11 Rust = skuld) |
-| **F4** | **Call convention** — argc 0–3 utan heap-argv; frame reuse | CALL inte top-3 i profiler | 📋 |
+| **F1** | **Dispatch** — threaded interpreter / copy-and-patch i Kab-VM | tight add-loop ≫ boxed interp | ✅ subset: `kab/disp` `dispIsDirect`; copy-and-patch deepen |
+| **F2** | **IC + shapes** — GetMember/LoadGlobal/CALL monomorf → poly (≤4) | hit-rate > 90 % på typisk app | ✅ subset: `kab/ic` `icIsMono`; poly≤4 + hit-rate deepen |
+| **F3** | **Unbox slots** — i64/f64/bool/`array_f64` i frames | ≥10× vs boxed add-loop (Kab-VM) | ✅ subset: `kab/unbox` `unboxSlotOk`; f64/bool/array deepen |
+| **F4** | **Call convention** — argc 0–3 utan heap-argv; frame reuse | CALL inte top-3 i profiler | ✅ subset: `kab/call` `callFitsRegs`; frame reuse deepen |
 | **F5** | **Peephole** — AccAdd, len_local, index_get_*; Kab-emit redan delvis | self-host serialize/loop billigare | ✅ subset i `self_host` emit |
-| **F6** | **Inline små fn** — JIT och/eller emit för 1-block getters | färre CALL i hot loops | 📋 |
+| **F6** | **Inline små fn** — JIT och/eller emit för 1-block getters | färre CALL i hot loops | ✅ subset: `kab/inl` `emitCanInline`; emit/JIT inline deepen |
 | **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: templates + `jitMapKind` rwx; deepen = host mmap/exec |
 | **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `kab/jit_opt` `jitCanInline`; SSA/LICM/deopt deepen |
 | **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitGprCount` linear-scan stub; deepen = färgning + SIMD |

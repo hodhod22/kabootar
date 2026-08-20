@@ -561,6 +561,61 @@ fn f14_io_plan_in_kab() {
     );
 }
 
+/// F1: direct dispatch policy in a tiny leaf (do not import kab/vm).
+#[test]
+fn f1_disp_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/disp.kab")).expect("disp.kab");
+    assert!(
+        d.contains("pub fn dispIsDirect"),
+        "F1 Kab dispIsDirect"
+    );
+}
+
+/// F2: monomorphic IC/shape policy in a tiny leaf.
+#[test]
+fn f2_ic_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/ic.kab")).expect("ic.kab");
+    assert!(
+        c.contains("pub fn icIsMono"),
+        "F2 Kab icIsMono"
+    );
+}
+
+/// F3: 8-byte unbox slot policy in a tiny leaf.
+#[test]
+fn f3_unbox_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let u = std::fs::read_to_string(root.join("lib/kab/unbox.kab")).expect("unbox.kab");
+    assert!(
+        u.contains("pub fn unboxSlotOk"),
+        "F3 Kab unboxSlotOk"
+    );
+}
+
+/// F4: argc 0-3 register call policy in a tiny leaf.
+#[test]
+fn f4_call_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/call.kab")).expect("call.kab");
+    assert!(
+        c.contains("pub fn callFitsRegs"),
+        "F4 Kab callFitsRegs"
+    );
+}
+
+/// F6: 1-block emit inline policy in a tiny leaf.
+#[test]
+fn f6_inl_plan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/inl.kab")).expect("inl.kab");
+    assert!(
+        i.contains("pub fn emitCanInline"),
+        "F6 Kab emitCanInline"
+    );
+}
+
 /// SH18: nursery bump + frame budget live in Kab (not host GC).
 #[test]
 fn sh18_gc_plan_in_kab() {

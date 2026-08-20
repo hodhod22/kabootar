@@ -1,0 +1,9 @@
+// FT F1: interpreter dispatch policy. import "kab/disp"
+// Do not import kab/vm (DAG overflow).
+
+pub fn dispIsDirect(n) {
+    if n == 1 {
+        return true
+    }
+    return false
+}
