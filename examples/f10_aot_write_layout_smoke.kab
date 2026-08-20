@@ -1,0 +1,4 @@
+import "kab/aot_write_layout"
+
+let w = aotWriteLayout
+return w != null

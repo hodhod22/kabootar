@@ -1,0 +1,12 @@
+// F10: loader accepts only plan prefix plus concatenated first-image sections.
+// import "kab/aot_load_native"; do not import other kab/aot* leaves.
+
+pub fn aotLoadNativeOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64||text:rx|c3||rodata:r|00||data:rw|00"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64||text:rx|d65f03c0||rodata:r|00||data:rw|00"
+    }
+    return false
+}

@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_native"
+import "kab/aot_verify_native"
+
+let name = aotImageName("arm64")
+let image = aotEmitNative("arm64")
+return aotVerifyNativeOk(name, image)

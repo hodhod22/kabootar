@@ -1,0 +1,3 @@
+import "kab/aot_loaded_layout"
+
+return aotLoadedLayoutOk("text:rx|c3||rodata:r|00||data:rw|00")
