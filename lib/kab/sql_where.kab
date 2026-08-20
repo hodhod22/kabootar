@@ -1,0 +1,6 @@
+// SH22: WHERE-clause gate off sql.kab. import "kab/sql_where"
+// Do not grow sql.kab. Host src/sql remains skuld.
+
+pub fn sqlIsWhere(q) {
+    return str_includes(q, "WHERE")
+}

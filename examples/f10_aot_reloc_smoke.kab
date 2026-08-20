@@ -1,0 +1,3 @@
+import "kab/aot_reloc"
+
+return aotRelocBaseOk(0)

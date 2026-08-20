@@ -1,0 +1,7 @@
+import "kab/gc_conc"
+
+let left = gcMarkStep(3, 16)
+if left == 2 {
+    return true
+}
+return false

@@ -1,0 +1,6 @@
+import "kab/noll_aot"
+
+if nollAotReady() {
+    return false
+}
+return true

@@ -1,0 +1,3 @@
+import "kab/http_post"
+
+return httpIsPost("POST")

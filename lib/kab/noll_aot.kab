@@ -1,0 +1,6 @@
+// SH28: AOT-ready gate off noll.kab. import "kab/noll_aot"
+// Do not grow noll.kab. Do not delete src/ while this is false.
+
+pub fn nollAotReady() {
+    return false
+}

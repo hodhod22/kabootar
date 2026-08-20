@@ -1,0 +1,6 @@
+// F10: native image exports need a non-empty Kab symbol. import "kab/aot_sym"
+// Do not import other kab/aot* leaves. Symbol ownership stays in Kab.
+
+pub fn aotSymbolOk(name) {
+    return len(name) > 0
+}

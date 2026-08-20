@@ -1,0 +1,7 @@
+import "kab/load_img"
+
+let n = loadImageName()
+if n == "compiler.kbcb" {
+    return true
+}
+return false

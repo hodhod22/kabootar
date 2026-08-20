@@ -1,0 +1,3 @@
+import "kab/cli_fmt"
+
+return cliIsFmt("fmt")

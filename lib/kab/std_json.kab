@@ -1,0 +1,6 @@
+// SH20: JSON subset off stdlib.kab. import "kab/std_json"
+// Do not grow stdlib.kab. Host JSON natives remain skuld.
+
+pub fn stdJsonIsNull(s) {
+    return s == "null"
+}

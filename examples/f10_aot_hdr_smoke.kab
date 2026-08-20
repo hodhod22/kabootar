@@ -1,0 +1,7 @@
+import "kab/aot_hdr"
+
+let h = aotNativeHdr()
+if h == "kabootar-native/1" {
+    return true
+}
+return false

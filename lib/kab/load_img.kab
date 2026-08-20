@@ -1,0 +1,6 @@
+// SH19: packed compiler-image name. import "kab/load_img"
+// Do not grow load.kab. mmap of the image is still a deepen.
+
+pub fn loadImageName() {
+    return "compiler.kbcb"
+}

@@ -1,0 +1,6 @@
+// F10: image relocation needs a non-negative load base. import "kab/aot_reloc"
+// Do not import other kab/aot* leaves. Native relocation remains Kab-owned.
+
+pub fn aotRelocBaseOk(base) {
+    return base >= 0
+}

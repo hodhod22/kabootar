@@ -1,0 +1,6 @@
+// SH25: fmt argv off cli.kab. import "kab/cli_fmt"
+// Do not grow cli.kab. Host src/cli remains skuld.
+
+pub fn cliIsFmt(cmd) {
+    return cmd == "fmt"
+}

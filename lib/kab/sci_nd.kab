@@ -1,0 +1,9 @@
+// SH26: nd length gate off sci.kab. import "kab/sci_nd"
+// Do not grow sci.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdLenOk(n) {
+    if n >= 0 {
+        return true
+    }
+    return false
+}

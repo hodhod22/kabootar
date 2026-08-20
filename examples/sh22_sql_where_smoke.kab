@@ -1,0 +1,3 @@
+import "kab/sql_where"
+
+return sqlIsWhere("SELECT 1 WHERE x = 1")
