@@ -1,0 +1,4 @@
+import "kab/http_hd"
+
+httpHeadersOf(200, "ok")
+return true

@@ -1,0 +1,7 @@
+// F14/SH24: read body of in-process response. import "kab/http_bd"
+// No TCP. Do not import other kab/http_* here. No nested calls (overflow).
+
+pub fn httpBodyOf(code, body) {
+    let r = http_response(code, body)
+    return http_body(r)
+}

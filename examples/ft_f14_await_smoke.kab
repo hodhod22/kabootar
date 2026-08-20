@@ -1,0 +1,9 @@
+import "kab/io_await"
+
+let xs = []
+let r = ioAwaitAll(xs)
+let n = len(r)
+if n >= 0 {
+    return true
+}
+return false

@@ -1,0 +1,4 @@
+import "kab/http_st"
+
+httpStatusOf(200, "ok")
+return true

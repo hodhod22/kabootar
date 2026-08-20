@@ -528,6 +528,39 @@ fn sh17_jit_ret_check_in_kab() {
     );
 }
 
+/// SH17: rwx map policy for inc+ret lives off jit.kab (emit DAG overflows if grown).
+#[test]
+fn sh17_jit_map_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/jit_map.kab")).expect("jit_map.kab");
+    assert!(
+        m.contains("pub fn jitMapIncRetOk") && m.contains("rwx") && m.contains("6"),
+        "SH17 Kab rwx map for 6-byte inc+ret"
+    );
+}
+
+/// SH17: page size lives off jit.kab (emit DAG overflows if grown).
+#[test]
+fn sh17_jit_pg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/jit_pg.kab")).expect("jit_pg.kab");
+    assert!(
+        p.contains("pub fn jitPageSize") && p.contains("4096"),
+        "SH17 Kab jitPageSize"
+    );
+}
+
+/// SH17: page count for a template lives off jit.kab.
+#[test]
+fn sh17_jit_np_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_np.kab")).expect("jit_np.kab");
+    assert!(
+        n.contains("pub fn jitPagesFor") && n.contains("4096"),
+        "SH17 Kab jitPagesFor"
+    );
+}
+
 /// F8: inline budget stays in a tiny leaf (do not grow jit.kab).
 #[test]
 fn f8_jit_opt_in_kab() {
@@ -701,6 +734,204 @@ fn f14_io_list_in_kab() {
     assert!(
         l.contains("pub fn ioList") && l.contains("os_list"),
         "F14 Kab ioList"
+    );
+}
+
+/// F14: os_stat via Kab policy leaf.
+#[test]
+fn f14_io_stat_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/io_stat.kab")).expect("io_stat.kab");
+    assert!(
+        s.contains("pub fn ioStat") && s.contains("os_stat"),
+        "F14 Kab ioStat"
+    );
+}
+
+/// F14: os_write_async via Kab policy leaf (no await in the leaf).
+#[test]
+fn f14_io_async_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/io_async.kab")).expect("io_async.kab");
+    assert!(
+        a.contains("pub fn ioWriteAsync") && a.contains("os_write_async"),
+        "F14 Kab ioWriteAsync"
+    );
+}
+
+/// F14: os_read_async via Kab policy leaf (no await in the leaf).
+#[test]
+fn f14_io_aread_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/io_aread.kab")).expect("io_aread.kab");
+    assert!(
+        r.contains("pub fn ioReadAsync") && r.contains("os_read_async"),
+        "F14 Kab ioReadAsync"
+    );
+}
+
+/// F14: await_all via Kab policy leaf.
+#[test]
+fn f14_io_await_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/io_await.kab")).expect("io_await.kab");
+    assert!(
+        a.contains("pub fn ioAwaitAll") && a.contains("await_all"),
+        "F14 Kab ioAwaitAll"
+    );
+}
+
+/// F14: HTTP timeout policy (no TCP).
+#[test]
+fn f14_http_to_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/http_to.kab")).expect("http_to.kab");
+    assert!(
+        t.contains("pub fn httpSetTimeout") && t.contains("http_set_timeout"),
+        "F14 Kab httpSetTimeout"
+    );
+}
+
+/// F14: wrap http_fetch_async; smokes must not call it (no live net).
+#[test]
+fn f14_http_fetch_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/http_fetch.kab")).expect("http_fetch.kab");
+    assert!(
+        f.contains("pub fn httpFetch") && f.contains("http_fetch_async"),
+        "F14 Kab httpFetch"
+    );
+}
+
+/// F14: HTTP timeout reset (no TCP).
+#[test]
+fn f14_http_rst_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/http_rst.kab")).expect("http_rst.kab");
+    assert!(
+        r.contains("pub fn httpResetTimeout") && r.contains("http_reset_timeout"),
+        "F14 Kab httpResetTimeout"
+    );
+}
+
+/// F14: in-process http_request (no TCP).
+#[test]
+fn f14_http_req_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let q = std::fs::read_to_string(root.join("lib/kab/http_req.kab")).expect("http_req.kab");
+    assert!(
+        q.contains("pub fn httpReq") && q.contains("http_request"),
+        "F14 Kab httpReq"
+    );
+}
+
+/// F14: wrap http_serve; smokes must not call it (bind + accept loop).
+#[test]
+fn f14_http_srv_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/http_srv.kab")).expect("http_srv.kab");
+    assert!(
+        s.contains("pub fn httpServe") && s.contains("http_serve"),
+        "F14 Kab httpServe"
+    );
+}
+
+/// F14: in-process http_route (no TCP).
+#[test]
+fn f14_http_rt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/http_rt.kab")).expect("http_rt.kab");
+    assert!(
+        r.contains("pub fn httpRouteOk") && r.contains("http_route"),
+        "F14 Kab httpRouteOk"
+    );
+}
+
+/// F14: in-process http_response (no TCP).
+#[test]
+fn f14_http_res_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/http_res.kab")).expect("http_res.kab");
+    assert!(
+        h.contains("pub fn httpRes") && h.contains("http_response"),
+        "F14 Kab httpRes"
+    );
+}
+
+/// F14: in-process http_status (no TCP).
+#[test]
+fn f14_http_st_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/http_st.kab")).expect("http_st.kab");
+    assert!(
+        s.contains("pub fn httpStatusOf") && s.contains("http_status"),
+        "F14 Kab httpStatusOf"
+    );
+}
+
+/// F14: in-process http_body (no TCP).
+#[test]
+fn f14_http_bd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let b = std::fs::read_to_string(root.join("lib/kab/http_bd.kab")).expect("http_bd.kab");
+    assert!(
+        b.contains("pub fn httpBodyOf") && b.contains("http_body"),
+        "F14 Kab httpBodyOf"
+    );
+}
+
+/// F14: in-process http_headers (no TCP).
+#[test]
+fn f14_http_hd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/http_hd.kab")).expect("http_hd.kab");
+    assert!(
+        h.contains("pub fn httpHeadersOf") && h.contains("http_headers"),
+        "F14 Kab httpHeadersOf"
+    );
+}
+
+/// F14: in-process http_header lookup (no TCP).
+#[test]
+fn f14_http_hg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/http_hg.kab")).expect("http_hg.kab");
+    assert!(
+        g.contains("pub fn httpHeaderOf") && g.contains("http_header"),
+        "F14 Kab httpHeaderOf"
+    );
+}
+
+/// F14: in-process http_process (no TCP).
+#[test]
+fn f14_http_pc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/http_pc.kab")).expect("http_pc.kab");
+    assert!(
+        p.contains("pub fn httpProcess") && p.contains("http_process"),
+        "F14 Kab httpProcess"
+    );
+}
+
+/// F14: in-process http_request_async (no await, no TCP).
+#[test]
+fn f14_http_ra_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/http_ra.kab")).expect("http_ra.kab");
+    assert!(
+        a.contains("pub fn httpReqAsync") && a.contains("http_request_async"),
+        "F14 Kab httpReqAsync"
+    );
+}
+
+/// F14: wrap http_serve_once; smokes must not call it (bind + accept).
+#[test]
+fn f14_http_so_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/http_so.kab")).expect("http_so.kab");
+    assert!(
+        s.contains("pub fn httpServeOnce") && s.contains("http_serve_once"),
+        "F14 Kab httpServeOnce"
     );
 }
 

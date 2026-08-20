@@ -1,0 +1,7 @@
+import "kab/http_res"
+
+let r = httpRes(200, "ok")
+if r != null {
+    return true
+}
+return false

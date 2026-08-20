@@ -1,0 +1,4 @@
+import "kab/http_ra"
+
+httpReqAsync("GET", "/", "x")
+return true

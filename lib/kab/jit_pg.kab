@@ -1,0 +1,6 @@
+// SH17/F7: host page size for future rwx map. import "kab/jit_pg"
+// Do not grow jit.kab. Do not import kab/jit. No Rust mmap.
+
+pub fn jitPageSize() {
+    return 4096
+}

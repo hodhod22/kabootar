@@ -1,0 +1,7 @@
+import "kab/io_async"
+
+let p = ioWriteAsync("ft14_a.txt", "ok")
+if p != null {
+    return true
+}
+return false

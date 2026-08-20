@@ -1,0 +1,6 @@
+// F14/SH24: in-process raw HTTP dispatch. import "kab/http_pc"
+// No TCP. Do not import other kab/http_* here.
+
+pub fn httpProcess(raw) {
+    return http_process(raw)
+}

@@ -1,0 +1,7 @@
+import "kab/http_req"
+
+let r = httpReq("GET", "/", "x")
+if r != null {
+    return true
+}
+return false

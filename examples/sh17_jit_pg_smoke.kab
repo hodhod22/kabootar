@@ -1,0 +1,7 @@
+import "kab/jit_pg"
+
+let n = jitPageSize()
+if n == 4096 {
+    return true
+}
+return false

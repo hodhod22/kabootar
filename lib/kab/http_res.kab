@@ -1,0 +1,6 @@
+// F14/SH24: in-process response object. import "kab/http_res"
+// No TCP.
+
+pub fn httpRes(code, body) {
+    return http_response(code, body)
+}

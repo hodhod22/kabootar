@@ -1,0 +1,6 @@
+// F14/SH24: wrap host serve-once. import "kab/http_so"
+// Do not call from smokes (binds a port and accept-blocks).
+
+pub fn httpServeOnce(port) {
+    return http_serve_once(port)
+}

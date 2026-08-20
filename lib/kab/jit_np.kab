@@ -1,0 +1,9 @@
+// SH17/F7: pages needed for a template. import "kab/jit_np"
+// Do not grow jit.kab. Do not import kab/jit_pg. No Rust mmap.
+
+pub fn jitPagesFor(n) {
+    if n <= 4096 {
+        return 1
+    }
+    return 2
+}

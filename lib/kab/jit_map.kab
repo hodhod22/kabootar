@@ -1,0 +1,12 @@
+// SH17/F7: rwx map policy for i64 inc+ret (6 bytes). import "kab/jit_map"
+// Do not grow jit.kab. Do not import kab/jit. Not guest os_mm_mmap. No Rust mmap.
+
+pub fn jitMapIncRetOk(n, kind) {
+    if n == 6 {
+        if kind == "rwx" {
+            return true
+        }
+        return false
+    }
+    return false
+}
