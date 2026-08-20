@@ -599,6 +599,17 @@ fn sh17_jit_np_in_kab() {
     );
 }
 
+/// SH17: exec policy after rwx map (no VirtualAlloc in Rust).
+#[test]
+fn sh17_jit_exec_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/jit_exec.kab")).expect("jit_exec.kab");
+    assert!(
+        e.contains("pub fn jitExecOk") && e.contains("rwx") && !e.contains("VirtualAlloc"),
+        "SH17 Kab jitExecOk"
+    );
+}
+
 /// F8: inline budget stays in a tiny leaf (do not grow jit.kab).
 #[test]
 fn f8_jit_opt_in_kab() {
@@ -739,6 +750,50 @@ fn f10_aot_ss_in_kab() {
     assert!(
         s.contains("pub fn aotSteadyOk") && s.contains("16"),
         "F10 Kab aotSteadyOk"
+    );
+}
+
+/// F10: fingerprint must be non-empty (native image key).
+#[test]
+fn f10_aot_fp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/aot_fp.kab")).expect("aot_fp.kab");
+    assert!(
+        f.contains("pub fn aotFpOk") && f.contains("len(fp)"),
+        "F10 Kab aotFpOk"
+    );
+}
+
+/// F10: Kab-native image header (not LLVM as product).
+#[test]
+fn f10_aot_hdr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/aot_hdr.kab")).expect("aot_hdr.kab");
+    assert!(
+        h.contains("pub fn aotNativeHdr") && h.contains("kabootar-native/1"),
+        "F10 Kab aotNativeHdr"
+    );
+}
+
+/// F10: relocation must accept a non-negative image base.
+#[test]
+fn f10_aot_reloc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_reloc.kab")).expect("aot_reloc.kab");
+    assert!(
+        r.contains("pub fn aotRelocBaseOk") && r.contains("base >= 0"),
+        "F10 Kab aotRelocBaseOk"
+    );
+}
+
+/// F10: native image exports require a non-empty Kab symbol.
+#[test]
+fn f10_aot_sym_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_sym.kab")).expect("aot_sym.kab");
+    assert!(
+        s.contains("pub fn aotSymbolOk") && s.contains("len(name)"),
+        "F10 Kab aotSymbolOk"
     );
 }
 
@@ -1274,6 +1329,17 @@ fn sh18_gc_bar_in_kab() {
     );
 }
 
+/// SH18: concurrent mark step stays in a tiny leaf (do not grow gc.kab).
+#[test]
+fn sh18_gc_conc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/gc_conc.kab")).expect("gc_conc.kab");
+    assert!(
+        c.contains("pub fn gcMarkStep") && c.contains("budgetMs"),
+        "SH18 Kab concurrent mark step"
+    );
+}
+
 /// F12: escape/stackalloc policy in a tiny leaf.
 #[test]
 fn f12_esc_plan_in_kab() {
@@ -1299,6 +1365,28 @@ fn sh19_load_plan_in_kab() {
     );
 }
 
+/// SH19: `.kbc`/`.kbcb` is a packed image, not source (do not grow load.kab).
+#[test]
+fn sh19_load_kbc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let k = std::fs::read_to_string(root.join("lib/kab/load_kbc.kab")).expect("load_kbc.kab");
+    assert!(
+        k.contains("pub fn loadIsKbc") && k.contains(".kbc"),
+        "SH19 Kab loadIsKbc"
+    );
+}
+
+/// SH19: compiler-image filename lives off load.kab.
+#[test]
+fn sh19_load_img_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/load_img.kab")).expect("load_img.kab");
+    assert!(
+        i.contains("pub fn loadImageName") && i.contains("compiler.kbcb"),
+        "SH19 Kab loadImageName"
+    );
+}
+
 /// SH20: core stdlib wrappers live in Kab (host natives are skuld).
 #[test]
 fn sh20_stdlib_plan_in_kab() {
@@ -1309,6 +1397,39 @@ fn sh20_stdlib_plan_in_kab() {
             && st.contains("pub fn stdLen")
             && st.contains("pub fn stdHas"),
         "SH20 Kab stdAdd/stdLen/stdHas"
+    );
+}
+
+/// SH20: JSON null token lives off stdlib.kab.
+#[test]
+fn sh20_std_json_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let j = std::fs::read_to_string(root.join("lib/kab/std_json.kab")).expect("std_json.kab");
+    assert!(
+        j.contains("pub fn stdJsonIsNull") && j.contains("null"),
+        "SH20 Kab stdJsonIsNull"
+    );
+}
+
+/// SH20: epoch-ms gate lives off stdlib.kab.
+#[test]
+fn sh20_std_date_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/std_date.kab")).expect("std_date.kab");
+    assert!(
+        d.contains("pub fn stdDateEpochOk"),
+        "SH20 Kab stdDateEpochOk"
+    );
+}
+
+/// SH20: regex literal-hit lives off stdlib.kab.
+#[test]
+fn sh20_std_re_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/std_re.kab")).expect("std_re.kab");
+    assert!(
+        r.contains("pub fn stdReHit") && r.contains("str_index_of"),
+        "SH20 Kab stdReHit"
     );
 }
 
@@ -1326,6 +1447,28 @@ fn sh21_os_plan_in_kab() {
     );
 }
 
+/// SH21: file-path gate lives off os.kab.
+#[test]
+fn sh21_os_fs_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/os_fs.kab")).expect("os_fs.kab");
+    assert!(
+        f.contains("pub fn kabOsIsFile") && f.contains("."),
+        "SH21 Kab kabOsIsFile"
+    );
+}
+
+/// SH21: process argv gate lives off os.kab.
+#[test]
+fn sh21_os_proc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/os_proc.kab")).expect("os_proc.kab");
+    assert!(
+        p.contains("pub fn kabOsArgvOk"),
+        "SH21 Kab kabOsArgvOk"
+    );
+}
+
 /// SH22: SQL policy/scalar lives in Kab (host src/sql is skuld).
 #[test]
 fn sh22_sql_plan_in_kab() {
@@ -1336,6 +1479,28 @@ fn sh22_sql_plan_in_kab() {
             && sql.contains("pub fn sqlScalarOne")
             && sql.contains("pub fn sqlOk"),
         "SH22 Kab sqlIsSelect + scalar 1"
+    );
+}
+
+/// SH22: WHERE-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_where_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let w = std::fs::read_to_string(root.join("lib/kab/sql_where.kab")).expect("sql_where.kab");
+    assert!(
+        w.contains("pub fn sqlIsWhere") && w.contains("WHERE"),
+        "SH22 Kab sqlIsWhere"
+    );
+}
+
+/// SH22: row-store gate lives off sql.kab.
+#[test]
+fn sh22_sql_store_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/sql_store.kab")).expect("sql_store.kab");
+    assert!(
+        s.contains("pub fn sqlStoreOk"),
+        "SH22 Kab sqlStoreOk"
     );
 }
 
@@ -1353,6 +1518,28 @@ fn sh23_crypto_plan_in_kab() {
     );
 }
 
+/// SH23: TLS 1.2 gate lives off crypto.kab.
+#[test]
+fn sh23_crypto_tls_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/crypto_tls.kab")).expect("crypto_tls.kab");
+    assert!(
+        t.contains("pub fn cryptoTls12Ok") && t.contains("1.2"),
+        "SH23 Kab cryptoTls12Ok"
+    );
+}
+
+/// SH23: PEM root marker lives off crypto.kab.
+#[test]
+fn sh23_crypto_root_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/crypto_root.kab")).expect("crypto_root.kab");
+    assert!(
+        r.contains("pub fn cryptoRootPem") && r.contains("BEGIN"),
+        "SH23 Kab cryptoRootPem"
+    );
+}
+
 /// SH24: HTTP method/status policy lives in Kab (host http.rs is skuld).
 #[test]
 fn sh24_http_plan_in_kab() {
@@ -1363,6 +1550,28 @@ fn sh24_http_plan_in_kab() {
             && h.contains("pub fn httpOk")
             && h.contains("pub fn httpIsFetch"),
         "SH24 Kab GET + 200 + fetch"
+    );
+}
+
+/// SH24: POST method lives off http.kab.
+#[test]
+fn sh24_http_post_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/http_post.kab")).expect("http_post.kab");
+    assert!(
+        p.contains("pub fn httpIsPost") && p.contains("POST"),
+        "SH24 Kab httpIsPost"
+    );
+}
+
+/// SH24: JSON content-type lives off http.kab.
+#[test]
+fn sh24_http_ct_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/http_ct.kab")).expect("http_ct.kab");
+    assert!(
+        c.contains("pub fn httpIsJson") && c.contains("json"),
+        "SH24 Kab httpIsJson"
     );
 }
 
@@ -1379,6 +1588,28 @@ fn sh25_cli_plan_in_kab() {
     );
 }
 
+/// SH25: compile argv lives off cli.kab.
+#[test]
+fn sh25_cli_cc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/cli_cc.kab")).expect("cli_cc.kab");
+    assert!(
+        c.contains("pub fn cliIsCompile") && c.contains("compile"),
+        "SH25 Kab cliIsCompile"
+    );
+}
+
+/// SH25: fmt argv lives off cli.kab.
+#[test]
+fn sh25_cli_fmt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/cli_fmt.kab")).expect("cli_fmt.kab");
+    assert!(
+        f.contains("pub fn cliIsFmt") && f.contains("fmt"),
+        "SH25 Kab cliIsFmt"
+    );
+}
+
 /// SH26: science/nd arithmetic lives in Kab (host GPU is syscall skuld).
 #[test]
 fn sh26_sci_plan_in_kab() {
@@ -1389,6 +1620,28 @@ fn sh26_sci_plan_in_kab() {
             && s.contains("pub fn sciMul")
             && s.contains("pub fn sciGpuOff"),
         "SH26 Kab sciAdd/sciMul + GPU off"
+    );
+}
+
+/// SH26: nd length lives off sci.kab.
+#[test]
+fn sh26_sci_nd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/sci_nd.kab")).expect("sci_nd.kab");
+    assert!(
+        n.contains("pub fn sciNdLenOk"),
+        "SH26 Kab sciNdLenOk"
+    );
+}
+
+/// SH26: FFT power-of-two size lives off sci.kab.
+#[test]
+fn sh26_sci_fft_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/sci_fft.kab")).expect("sci_fft.kab");
+    assert!(
+        f.contains("pub fn sciFftPow2") && f.contains("8"),
+        "SH26 Kab sciFftPow2"
     );
 }
 
@@ -1405,6 +1658,28 @@ fn sh27_ui_plan_in_kab() {
     );
 }
 
+/// SH27: canvas tag lives off ui.kab.
+#[test]
+fn sh27_ui_cv_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/ui_cv.kab")).expect("ui_cv.kab");
+    assert!(
+        c.contains("pub fn uiIsCanvas") && c.contains("canvas"),
+        "SH27 Kab uiIsCanvas"
+    );
+}
+
+/// SH27: 60 FPS frame gate lives off ui.kab.
+#[test]
+fn sh27_ui_fps_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/ui_fps.kab")).expect("ui_fps.kab");
+    assert!(
+        f.contains("pub fn uiFpsOk") && f.contains("16"),
+        "SH27 Kab uiFpsOk"
+    );
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {
@@ -1415,6 +1690,28 @@ fn sh28_noll_plan_in_kab() {
             && n.contains("pub fn nollRustcStillHost")
             && n.contains("pub fn nollBootstrapFromKab"),
         "SH28 Kab src-goal 0 + host rustc still + Kab bootstrap"
+    );
+}
+
+/// SH28: AOT is not ready — must not delete src/.
+#[test]
+fn sh28_noll_aot_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/noll_aot.kab")).expect("noll_aot.kab");
+    assert!(
+        a.contains("pub fn nollAotReady") && a.contains("return false"),
+        "SH28 Kab nollAotReady is false"
+    );
+}
+
+/// SH28: keep src/ until AOT/bootstrap.
+#[test]
+fn sh28_noll_keep_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let k = std::fs::read_to_string(root.join("lib/kab/noll_keep.kab")).expect("noll_keep.kab");
+    assert!(
+        k.contains("pub fn nollKeepSrc") && k.contains("return true"),
+        "SH28 Kab nollKeepSrc"
     );
 }
 

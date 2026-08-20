@@ -1,0 +1,3 @@
+import "kab/ui_fps"
+
+return uiFpsOk(16)

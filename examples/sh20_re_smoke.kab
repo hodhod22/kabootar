@@ -1,0 +1,3 @@
+import "kab/std_re"
+
+return stdReHit("ab", "a")

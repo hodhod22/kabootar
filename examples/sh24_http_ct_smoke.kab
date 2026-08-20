@@ -1,0 +1,3 @@
+import "kab/http_ct"
+
+return httpIsJson("application/json")

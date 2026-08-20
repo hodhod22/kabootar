@@ -1,0 +1,3 @@
+import "kab/cli_cc"
+
+return cliIsCompile("compile")

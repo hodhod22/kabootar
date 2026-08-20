@@ -1,0 +1,3 @@
+import "kab/jit_exec"
+
+return jitExecOk(1, "rwx")

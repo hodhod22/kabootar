@@ -1,0 +1,3 @@
+import "kab/os_proc"
+
+return kabOsArgvOk(1)

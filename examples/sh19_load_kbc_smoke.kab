@@ -1,0 +1,3 @@
+import "kab/load_kbc"
+
+return loadIsKbc("app.kbc")

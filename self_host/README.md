@@ -125,7 +125,18 @@ Kort ordning:
 2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections, parser_expr, emit_fn_scope)
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
 4. **SH5** fler `parser_stmt`/`parser_postfix` sammanslagningar om leaf ≤10 s
-5. **SH17/SH18** JIT/GC i `.kab`
+5. ~~**SH17/SH18**~~ ✅ subset (`jitExecOk` + `gcMarkStep`); mmap/exec + radera host-GC deepen
+6. ~~**SH19**~~ ✅ subset (`loadIsKab` + `loadIsKbc` + `loadImageName`); radera `main.rs` deepen
+7. ~~**SH20**~~ ✅ subset (JSON/datum/regex leaves); radera natives deepen
+8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk`); radera `runtime/os` deepen
+9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk`); radera `src/sql` deepen
+10. ~~**SH23**~~ ✅ subset (`cryptoTls12Ok` + `cryptoRootPem`); rustls-delete deepen
+11. ~~**SH24**~~ ✅ subset (`httpIsPost` + `httpIsJson`); radera `runtime/http.rs` deepen
+12. ~~**SH25**~~ ✅ subset (`cliIsCompile` + `cliIsFmt`); radera `src/cli` deepen
+13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
+14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
+15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
+16. ~~**F10 AOT hdr/fp/reloc/sym**~~ ✅ (`aotFpOk` + `aotNativeHdr` + `aotRelocBaseOk` + `aotSymbolOk`); native emit deepen; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 

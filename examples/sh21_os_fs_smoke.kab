@@ -1,0 +1,3 @@
+import "kab/os_fs"
+
+return kabOsIsFile("note.txt")

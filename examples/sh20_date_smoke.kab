@@ -1,0 +1,3 @@
+import "kab/std_date"
+
+return stdDateEpochOk(0)

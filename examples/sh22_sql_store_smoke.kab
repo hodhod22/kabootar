@@ -1,0 +1,3 @@
+import "kab/sql_store"
+
+return sqlStoreOk(0)
