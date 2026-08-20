@@ -1,12 +1,282 @@
 // SH2/SH13: reuse session; tramp takes sess (do not read gSess — LoadGlobal IC can stale).
-import "self_host/parser_session"
-import "self_host/parser_tramp"
-import "self_host/parser_main"
+// SH5: parseMain + pTramp + session live here (was parser_main / parser_tramp / parser_session).
+import "self_host/ast_defs"
+import "self_host/parser_postfix"
+import "self_host/parser_stmt"
+
+fn pSessionInit_core(sess) {
+    sess["pPos"] = 0
+    sess["pToks"] = []
+    sess["pToksLen"] = 0
+    sess["pCur"] = null
+    sess["pEofTok"] = { "type": "EOF", "value": null, "line": 1, "column": 1 }
+    sess["pTok"] = null
+    sess["pNextTok"] = null
+    sess["pDone"] = 0
+    sess["pSymPool"] = []
+    sess["pSymN"] = 0
+    sess["pSymOut"] = ""
+    sess["pSymSrc"] = ""
+    sess["pSymI"] = 0
+    sess["pPopI"] = 0
+    sess["pPopNew"] = []
+    sess["pImports"] = []
+    sess["pIsPub"] = 0
+    sess["pFnPub"] = 0
+    sess["pInAddSub"] = 0
+    sess["pNoBit"] = 0
+    return 0
+}
+
+fn pSessionInit_expr(sess) {
+    sess["pLeft"] = null
+    sess["pRight"] = null
+    sess["pArgs"] = []
+    sess["pIdent"] = null
+    sess["pInit"] = null
+    sess["pVal"] = null
+    sess["pCallee"] = null
+    sess["pObjFields"] = []
+    sess["pSave"] = null
+    sess["pAssignLhs"] = null
+    sess["pBinOp"] = ""
+    sess["pSaveSym"] = ""
+    sess["pBindSym"] = ""
+    sess["pExprLeft"] = null
+    sess["pAddLeft"] = null
+    sess["pAddLeftStack"] = []
+    sess["pTypeArgs"] = []
+    sess["pSnapTypeArgs"] = []
+    sess["pIsGenericCallee"] = 0
+    sess["pAngleI"] = 0
+    sess["pAngleTok"] = null
+    sess["pAngleOut"] = []
+    sess["pMemberName"] = ""
+    return 0
+}
+
+fn pSessionInit_stmt(sess) {
+    sess["pBody"] = []
+    sess["pBodyStack"] = []
+    sess["pStmts"] = []
+    sess["pParams"] = []
+    sess["pCond"] = null
+    sess["pCondStack"] = []
+    sess["pThen"] = null
+    sess["pElse"] = null
+    sess["pLoopBody"] = []
+    sess["pFnSym"] = ""
+    sess["pLetSym"] = ""
+    sess["pBodyDepth"] = 0
+    sess["pCondDepth"] = 0
+    return 0
+}
+
+fn pSessionInit_type(sess) {
+    sess["pTypeParams"] = []
+    sess["pParamTypes"] = []
+    sess["pReturnType"] = ""
+    sess["pVariants"] = []
+    sess["pClassFields"] = []
+    sess["pClassMethods"] = []
+    sess["pFieldType"] = ""
+    sess["pFieldDefault"] = null
+    sess["pVariantFields"] = []
+    sess["pMethTypeParams"] = []
+    sess["pMethParams"] = []
+    sess["pMethParamTypes"] = []
+    sess["pVariantName"] = ""
+    sess["pVariantSym"] = ""
+    sess["pEnumSym"] = ""
+    sess["pClassSym"] = ""
+    sess["pIsStruct"] = 0
+    sess["pIfaceSym"] = ""
+    sess["pIfaceMethods"] = []
+    sess["pAssocTypes"] = []
+    sess["pWhereClause"] = []
+    sess["pWhereParam"] = ""
+    sess["pWhereTrait"] = ""
+    sess["pParamType"] = ""
+    return 0
+}
+
+pub fn pMakeSession() {
+    let sess = {}
+    pSessionInit_core(sess)
+    pSessionInit_expr(sess)
+    pSessionInit_stmt(sess)
+    pSessionInit_type(sess)
+    return sess
+}
+
+pub fn pResetSession(sess) {
+    pSessionInit_core(sess)
+    pSessionInit_expr(sess)
+    pSessionInit_stmt(sess)
+    pSessionInit_type(sess)
+    return 0
+}
 
 let gSess = null
 
+fn parseTypeArgs_scan(sess) {
+    if sess["pCur"].type != "<" {
+        return 0
+    }
+    sess["pAngleI"] = sess["pPos"] + 1
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return 0
+    }
+    sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+    if sess["pAngleTok"].type != TOKEN_IDENT {
+        return 0
+    }
+    sess["pAngleI"] = sess["pAngleI"] + 1
+    while sess["pAngleI"] < sess["pToksLen"] {
+        sess["pAngleTok"] = sess["pToks"][sess["pAngleI"]]
+        if sess["pAngleTok"].type == ">" {
+            break
+        }
+        if sess["pAngleTok"].type == "<" {
+            return 0
+        }
+        if sess["pAngleTok"].type == "," {
+            sess["pAngleI"] = sess["pAngleI"] + 1
+        } else {
+            if sess["pAngleTok"].type == TOKEN_IDENT {
+                sess["pAngleI"] = sess["pAngleI"] + 1
+            } else {
+                return 0
+            }
+        }
+    }
+    if sess["pAngleI"] >= sess["pToksLen"] {
+        return 0
+    }
+    if sess["pToks"][sess["pAngleI"]].type != ">" {
+        return 0
+    }
+    return 1
+}
+
+pub fn parseTypeArgs(sess) {
+    if parseTypeArgs_scan(sess) == 0 {
+        return []
+    }
+    bump(sess)
+    sess["pAngleOut"] = []
+    while sess["pCur"].type != ">" {
+        sess["pTok"] = sess["pCur"]
+        if sess["pTok"].type != TOKEN_IDENT {
+            throw "Expected type name"
+        }
+        bump(sess)
+        sess["pAngleOut"] = push(sess["pAngleOut"], poolPush(sess, sess["pTok"].value))
+        if sess["pCur"].type == "," {
+            bump(sess)
+        }
+    }
+    if sess["pCur"].type != ">" {
+        throw "Expected >"
+    }
+    bump(sess)
+    return sess["pAngleOut"]
+}
+
+pub fn pTramp(sess) {
+    if sess["_hook"] == 1 {
+        return parseTypeArgs(sess)
+    }
+    if sess["_hook"] == 0 {
+        return parsePostfix(sess)
+    }
+    if sess["_hook"] == 2 {
+        return parseUnary(sess)
+    }
+    if sess["_hook"] == 3 {
+        return parseMul(sess)
+    }
+    if sess["_hook"] == 4 {
+        return parseAddShift(sess)
+    }
+    if sess["_hook"] == 5 {
+        return parseRelExpr(sess)
+    }
+    if sess["_hook"] == 6 {
+        return parseCompare(sess)
+    }
+    if sess["_hook"] == 7 {
+        return parseStmt(sess)
+    }
+    throw "parser tramp: bad hook " + ("" + sess["_hook"])
+}
+
 fn tramp(sess) {
     return pTramp(sess)
+}
+
+pub fn parseMain(sess, tokens) {
+    sess["pToks"] = tokens
+    sess["pToksLen"] = len(tokens)
+    sess["pPos"] = 0
+    if sess["pToksLen"] > 0 {
+        sess["pCur"] = sess["pToks"][0]
+    } else {
+        sess["pCur"] = sess["pEofTok"]
+    }
+    sess["pSymPool"] = []
+    sess["pSymN"] = 0
+    sess["pImports"] = []
+    sess["pCondStack"] = []
+    sess["pCondDepth"] = 0
+    sess["pAddLeftStack"] = []
+    sess["pBodyStack"] = push([], sess["pBody"])
+    sess["pBodyDepth"] = 1
+    sess["pBody"] = []
+    sess["pDone"] = 0
+    let n = 0
+    while sess["pDone"] == 0 {
+        n = n + 1
+        if n > 1000000 {
+            throw "parser runaway"
+        }
+        if sess["pPos"] >= sess["pToksLen"] {
+            sess["pDone"] = 1
+        }
+        if sess["pDone"] == 0 {
+            sess["pTok"] = sess["pCur"]
+            if sess["pTok"].type == "EOF" {
+                sess["pDone"] = 1
+            }
+        }
+        if sess["pDone"] == 0 {
+            if sess["pTok"].type == TOKEN_IMPORT {
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                if sess["pTok"].type == TOKEN_STRING {
+                    bump(sess)
+                    sess["pImports"] = push(sess["pImports"], sess["pTok"].value)
+                }
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+            } else {
+                sess["pVal"] = pCallStmt(sess)
+                if sess["pVal"] != null {
+                    sess["pBody"] = push(sess["pBody"], sess["pVal"])
+                }
+            }
+            if sess["pCur"].type == ";" {
+                bump(sess)
+            }
+        }
+    }
+    let programBody = sess["pBody"]
+    let st = sess["pBodyStack"]
+    sess["pBody"] = st[len(st) - 1]
+    sess["pBodyStack"] = slice(st, 0, len(st) - 1)
+    sess["pBodyDepth"] = sess["pBodyDepth"] - 1
+    return { "kind": AST_PROGRAM, "body": programBody, "imports": sess["pImports"] }
 }
 
 pub fn parseTokensExec(tokens) {
@@ -21,4 +291,194 @@ pub fn parseTokensExec(tokens) {
     }
     sess["_hook"] = 0
     return parseMain(sess, tokens)
+}
+
+// SH5: unary/mul/add-shift/rel/compare (was parser_expr).
+pub fn parseUnary(sess) {
+    if sess["pCur"].type == "!" {
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_UNARY, "op": "!", "expr": pCallUnary(sess) }
+        return sess["pLeft"]
+    }
+    if sess["pCur"].type == "-" {
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_UNARY, "op": "-", "expr": pCallUnary(sess) }
+        return sess["pLeft"]
+    }
+    if sess["pCur"].type == "~" {
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_UNARY, "op": "~", "expr": pCallUnary(sess) }
+        return sess["pLeft"]
+    }
+    return pCallPostfix(sess)
+}
+
+pub fn parseMul(sess) {
+    sess["pLeft"] = pCallUnary(sess)
+    while sess["pCur"].type == "*" || sess["pCur"].type == "/" || sess["pCur"].type == "%" || sess["pCur"].type == "**" {
+        let op = sess["pCur"].type
+        bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallUnary(sess)
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return sess["pLeft"]
+}
+
+pub fn parseAddShift_plus(sess) {
+    // P6b: one loop for +/- so `a - b + c` does not leave `+ c` unparsed.
+    while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
+        let op = sess["pCur"].type
+        bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallMul(sess)
+        while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
+            let shOp = sess["pCur"].type
+            bump(sess)
+            right = { "kind": AST_BINARY, "op": shOp, "left": right, "right": pCallMul(sess) }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return 0
+}
+
+pub fn parseAddShift_shift(sess) {
+    while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
+        bump(sess)
+        // JS: + binds tighter than << — allow +/- on shift RHS.
+        while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
+            let addOp = sess["pCur"].type
+            bump(sess)
+            right = { "kind": AST_BINARY, "op": addOp, "left": right, "right": pCallMul(sess) }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return 0
+}
+
+pub fn parseAddShift(sess) {
+    sess["pLeft"] = pCallMul(sess)
+    parseAddShift_plus(sess)
+    parseAddShift_shift(sess)
+    return sess["pLeft"]
+}
+
+pub fn parseRelExpr(sess) {
+    sess["pLeft"] = pCallAddShift(sess)
+    while sess["pCur"].type == "==" || sess["pCur"].type == "!=" || sess["pCur"].type == "<" || sess["pCur"].type == ">" || sess["pCur"].type == ">=" || sess["pCur"].type == "<=" {
+        let op = sess["pCur"].type
+        bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallAddShift(sess)
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return sess["pLeft"]
+}
+
+pub fn parseCompare_bit(sess) {
+    if sess["pNoBit"] == 0 {
+        while sess["pCur"].type == "&" {
+            bump(sess)
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "&", "left": left, "right": right }
+        }
+        while sess["pCur"].type == "^" {
+            bump(sess)
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "^", "left": left, "right": right }
+        }
+        while sess["pCur"].type == "|" {
+            bump(sess)
+            let left = sess["pLeft"]
+            let right = pCallRelExpr(sess)
+            sess["pLeft"] = { "kind": AST_BINARY, "op": "|", "left": left, "right": right }
+        }
+    }
+    return 0
+}
+
+pub fn parseCompare_eq(sess) {
+    while sess["pCur"].type == "==" || sess["pCur"].type == "!=" || sess["pCur"].type == "<" || sess["pCur"].type == ">" || sess["pCur"].type == ">=" || sess["pCur"].type == "<=" {
+        let op = sess["pCur"].type
+        bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallRelExpr(sess)
+        sess["pLeft"] = { "kind": AST_BINARY, "op": op, "left": left, "right": right }
+    }
+    return 0
+}
+
+pub fn parseCompare_logic_and(sess) {
+    while sess["pCur"].type == "&&" {
+        bump(sess)
+        if sess["pNoBit"] == 0 {
+            while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+                bump(sess)
+                right = { "kind": AST_BINARY, "op": op, "left": right, "right": pCallRelExpr(sess) }
+            }
+        }
+        sess["pLeft"] = { "kind": AST_BINARY, "op": "&&", "left": left, "right": right }
+    }
+    return 0
+}
+
+pub fn parseCompare_logic_or_bit(sess) {
+    if sess["pNoBit"] != 0 {
+        return 0
+    }
+    while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+        bump(sess)
+        sess["pRight"] = { "kind": AST_BINARY, "op": op, "left": sess["pRight"], "right": pCallRelExpr(sess) }
+    }
+    return 0
+}
+
+pub fn parseCompare_logic_or_and(sess) {
+    while sess["pCur"].type == "&&" {
+        bump(sess)
+        let andLeft = sess["pRight"]
+        let andRight = pCallRelExpr(sess)
+        sess["pRight"] = andRight
+        parseCompare_logic_or_bit(sess)
+        andRight = sess["pRight"]
+        sess["pRight"] = { "kind": AST_BINARY, "op": "&&", "left": andLeft, "right": andRight }
+    }
+    return 0
+}
+
+pub fn parseCompare_logic_or(sess) {
+    while sess["pCur"].type == "||" {
+        bump(sess)
+        sess["pRight"] = pCallRelExpr(sess)
+        parseCompare_logic_or_bit(sess)
+        parseCompare_logic_or_and(sess)
+        sess["pLeft"] = { "kind": AST_BINARY, "op": "||", "left": left, "right": sess["pRight"] }
+    }
+    return 0
+}
+
+pub fn parseCompare_logic(sess) {
+    parseCompare_logic_and(sess)
+    parseCompare_logic_or(sess)
+    return 0
+}
+
+pub fn parseCompare(sess) {
+    if sess["pCur"].type == "EOF" {
+        throw "parseCompare EOF"
+    }
+    // P6b: fully iterative precedence climb (no right-recursive parseCompare).
+    sess["pLeft"] = pCallAddShift(sess)
+    if sess["pInAddSub"] == 1 {
+        return sess["pLeft"]
+    }
+    parseCompare_eq(sess)
+    parseCompare_bit(sess)
+    if sess["pNoBit"] == 1 {
+        return sess["pLeft"]
+    }
+    parseCompare_logic(sess)
+    return sess["pLeft"]
 }

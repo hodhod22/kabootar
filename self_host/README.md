@@ -122,9 +122,9 @@ Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte n�
 Kort ordning:
 
 1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
-2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections, parser_expr, emit_fn_scope)
+2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections+out+ir_line+acc, parser_expr→exec, parser_hooks/lexer_defs/emit_defs→ast_defs, lexer_tokenize→scan, emit_fn_scope/hooks/arr_util→sym, emit_sym_index→sym, emit_tramp/main_fn→exec, parser_main/tramp/type_args/session→exec, parser_block→hooks)
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
-4. **SH5** fler `parser_stmt`/`parser_postfix` sammanslagningar om leaf ≤10 s
+4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader.
 5. ~~**SH17/SH18**~~ ✅ subset (`jitExecOk` + `gcMarkStep`); mmap/exec + radera host-GC deepen
 6. ~~**SH19**~~ ✅ subset (`loadIsKab` + `loadIsKbc` + `loadImageName`); radera `main.rs` deepen
 7. ~~**SH20**~~ ✅ subset (JSON/datum/regex leaves); radera natives deepen

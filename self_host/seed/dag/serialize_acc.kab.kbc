@@ -247,12 +247,9 @@ fn_op 5 call 2
 fn_op 5 return
 fn_arrows 5 0
 arrows=0
-imports=5
+imports=2
 import 0 self_host/lexer_defs
-import 1 self_host/serialize_ir_line
-import 2 self_host/serialize_out
-import 3 self_host/serialize_sections
-import 4 self_host/serialize_ir
+import 1 self_host/serialize_sections
 pub_imports=0
 exports=6
 export 0 serAppendConsts
@@ -268,5 +265,5 @@ code
 halt
 
 source=self_host/serialize_acc.kab
-statements=11
-fingerprint=2d75a8f0a5d6758a
+statements=8
+fingerprint=2e660e2ccf41fef7

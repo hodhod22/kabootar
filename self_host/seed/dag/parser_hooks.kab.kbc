@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=19
+constants=27
 const 0 string _hook
 const 1 string tramp
 const 2 number 0
@@ -19,6 +19,14 @@ const 15 string pEofTok
 const 16 null
 const 17 string pSymPool
 const 18 string pSymN
+const 19 string pBodyStack
+const 20 string pBody
+const 21 string pBodyDepth
+const 22 string type
+const 23 string }
+const 24 string EOF
+const 25 string ;
+const 26 string pLoopBody
 global 0 pCallHook
 global 1 pCallPostfix
 global 2 pCallTypeArgs
@@ -32,7 +40,14 @@ global 9 peek
 global 10 bump
 global 11 push
 global 12 poolPush
-functions=12
+global 13 pEnterBody
+global 14 slice
+global 15 pLeaveBody
+global 16 pParseBodyUntilRBrace
+global 17 pEnterLoopBody
+global 18 pLeaveLoopBody
+global 19 pParseLoopUntilRBrace
+functions=18
 fn 0 pCallHook
 fn_params 0 sess,n
 fn_locals 0 sess,n,prevH,__kab_a0,r,__kab_a1
@@ -240,12 +255,296 @@ fn_op 11 pop
 fn_op 11 load_local 1
 fn_op 11 return
 fn_arrows 11 0
+fn 12 pEnterBody
+fn_params 12 sess
+fn_locals 12 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 12 load_local 0
+fn_op 12 get_member 19
+fn_op 12 load_local 0
+fn_op 12 get_member 20
+fn_op 12 load_global 11
+fn_op 12 call 2
+fn_op 12 store_local 1
+fn_op 12 load_local 0
+fn_op 12 const 19
+fn_op 12 load_local 1
+fn_op 12 index_set
+fn_op 12 swap
+fn_op 12 store_local 0
+fn_op 12 pop
+fn_op 12 load_local 0
+fn_op 12 get_member 21
+fn_op 12 const 3
+fn_op 12 add
+fn_op 12 store_local 2
+fn_op 12 load_local 0
+fn_op 12 const 21
+fn_op 12 load_local 2
+fn_op 12 index_set
+fn_op 12 swap
+fn_op 12 store_local 0
+fn_op 12 pop
+fn_op 12 make_array 0
+fn_op 12 store_local 3
+fn_op 12 load_local 0
+fn_op 12 const 20
+fn_op 12 load_local 3
+fn_op 12 index_set
+fn_op 12 swap
+fn_op 12 store_local 0
+fn_op 12 pop
+fn_op 12 const 2
+fn_op 12 return
+fn_arrows 12 0
+fn 13 pLeaveBody
+fn_params 13 sess
+fn_locals 13 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
+fn_op 13 load_local 0
+fn_op 13 get_member 20
+fn_op 13 store_local 1
+fn_op 13 load_local 0
+fn_op 13 get_member 19
+fn_op 13 store_local 2
+fn_op 13 len_local 2
+fn_op 13 store_local 3
+fn_op 13 load_local 3
+fn_op 13 const 3
+fn_op 13 sub
+fn_op 13 index_get_local 2
+fn_op 13 store_local 4
+fn_op 13 load_local 0
+fn_op 13 const 20
+fn_op 13 load_local 4
+fn_op 13 index_set
+fn_op 13 swap
+fn_op 13 store_local 0
+fn_op 13 pop
+fn_op 13 load_local 2
+fn_op 13 const 2
+fn_op 13 load_local 3
+fn_op 13 const 3
+fn_op 13 sub
+fn_op 13 load_global 14
+fn_op 13 call 3
+fn_op 13 store_local 5
+fn_op 13 load_local 0
+fn_op 13 const 19
+fn_op 13 load_local 5
+fn_op 13 index_set
+fn_op 13 swap
+fn_op 13 store_local 0
+fn_op 13 pop
+fn_op 13 load_local 0
+fn_op 13 get_member 21
+fn_op 13 const 3
+fn_op 13 sub
+fn_op 13 store_local 6
+fn_op 13 load_local 0
+fn_op 13 const 21
+fn_op 13 load_local 6
+fn_op 13 index_set
+fn_op 13 swap
+fn_op 13 store_local 0
+fn_op 13 pop
+fn_op 13 load_local 1
+fn_op 13 return
+fn_arrows 13 0
+fn 14 pParseBodyUntilRBrace
+fn_params 14 sess,eofMsg
+fn_locals 14 sess,eofMsg,stmt,__kab_a0
+fn_op 14 load_local 0
+fn_op 14 get_member 10
+fn_op 14 get_member 22
+fn_op 14 const 23
+fn_op 14 ne
+fn_op 14 jump_if_false 37
+fn_op 14 load_local 0
+fn_op 14 get_member 10
+fn_op 14 get_member 22
+fn_op 14 const 24
+fn_op 14 eq
+fn_op 14 jump_if_false 3
+fn_op 14 load_local 1
+fn_op 14 throw
+fn_op 14 pop
+fn_op 14 load_local 0
+fn_op 14 load_global 8
+fn_op 14 call 1
+fn_op 14 store_local 2
+fn_op 14 load_local 0
+fn_op 14 get_member 20
+fn_op 14 load_local 2
+fn_op 14 load_global 11
+fn_op 14 call 2
+fn_op 14 store_local 3
+fn_op 14 load_local 0
+fn_op 14 const 20
+fn_op 14 load_local 3
+fn_op 14 index_set
+fn_op 14 swap
+fn_op 14 store_local 0
+fn_op 14 pop
+fn_op 14 load_local 0
+fn_op 14 get_member 10
+fn_op 14 get_member 22
+fn_op 14 const 25
+fn_op 14 eq
+fn_op 14 jump_if_false 4
+fn_op 14 load_local 0
+fn_op 14 load_global 10
+fn_op 14 call 1
+fn_op 14 pop
+fn_op 14 jump -43
+fn_op 14 load_local 0
+fn_op 14 load_global 10
+fn_op 14 call 1
+fn_op 14 pop
+fn_op 14 const 2
+fn_op 14 return
+fn_arrows 14 0
+fn 15 pEnterLoopBody
+fn_params 15 sess
+fn_locals 15 sess,__kab_a0,__kab_a1,__kab_a2
+fn_op 15 load_local 0
+fn_op 15 get_member 19
+fn_op 15 load_local 0
+fn_op 15 get_member 26
+fn_op 15 load_global 11
+fn_op 15 call 2
+fn_op 15 store_local 1
+fn_op 15 load_local 0
+fn_op 15 const 19
+fn_op 15 load_local 1
+fn_op 15 index_set
+fn_op 15 swap
+fn_op 15 store_local 0
+fn_op 15 pop
+fn_op 15 load_local 0
+fn_op 15 get_member 21
+fn_op 15 const 3
+fn_op 15 add
+fn_op 15 store_local 2
+fn_op 15 load_local 0
+fn_op 15 const 21
+fn_op 15 load_local 2
+fn_op 15 index_set
+fn_op 15 swap
+fn_op 15 store_local 0
+fn_op 15 pop
+fn_op 15 make_array 0
+fn_op 15 store_local 3
+fn_op 15 load_local 0
+fn_op 15 const 26
+fn_op 15 load_local 3
+fn_op 15 index_set
+fn_op 15 swap
+fn_op 15 store_local 0
+fn_op 15 pop
+fn_op 15 const 2
+fn_op 15 return
+fn_arrows 15 0
+fn 16 pLeaveLoopBody
+fn_params 16 sess
+fn_locals 16 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
+fn_op 16 load_local 0
+fn_op 16 get_member 26
+fn_op 16 store_local 1
+fn_op 16 load_local 0
+fn_op 16 get_member 19
+fn_op 16 store_local 2
+fn_op 16 len_local 2
+fn_op 16 store_local 3
+fn_op 16 load_local 3
+fn_op 16 const 3
+fn_op 16 sub
+fn_op 16 index_get_local 2
+fn_op 16 store_local 4
+fn_op 16 load_local 0
+fn_op 16 const 26
+fn_op 16 load_local 4
+fn_op 16 index_set
+fn_op 16 swap
+fn_op 16 store_local 0
+fn_op 16 pop
+fn_op 16 load_local 2
+fn_op 16 const 2
+fn_op 16 load_local 3
+fn_op 16 const 3
+fn_op 16 sub
+fn_op 16 load_global 14
+fn_op 16 call 3
+fn_op 16 store_local 5
+fn_op 16 load_local 0
+fn_op 16 const 19
+fn_op 16 load_local 5
+fn_op 16 index_set
+fn_op 16 swap
+fn_op 16 store_local 0
+fn_op 16 pop
+fn_op 16 load_local 0
+fn_op 16 get_member 21
+fn_op 16 const 3
+fn_op 16 sub
+fn_op 16 store_local 6
+fn_op 16 load_local 0
+fn_op 16 const 21
+fn_op 16 load_local 6
+fn_op 16 index_set
+fn_op 16 swap
+fn_op 16 store_local 0
+fn_op 16 pop
+fn_op 16 load_local 1
+fn_op 16 return
+fn_arrows 16 0
+fn 17 pParseLoopUntilRBrace
+fn_params 17 sess
+fn_locals 17 sess,stmt,__kab_a0
+fn_op 17 load_local 0
+fn_op 17 get_member 10
+fn_op 17 get_member 22
+fn_op 17 const 23
+fn_op 17 ne
+fn_op 17 jump_if_false 28
+fn_op 17 load_local 0
+fn_op 17 load_global 8
+fn_op 17 call 1
+fn_op 17 store_local 1
+fn_op 17 load_local 0
+fn_op 17 get_member 26
+fn_op 17 load_local 1
+fn_op 17 load_global 11
+fn_op 17 call 2
+fn_op 17 store_local 2
+fn_op 17 load_local 0
+fn_op 17 const 26
+fn_op 17 load_local 2
+fn_op 17 index_set
+fn_op 17 swap
+fn_op 17 store_local 0
+fn_op 17 pop
+fn_op 17 load_local 0
+fn_op 17 get_member 10
+fn_op 17 get_member 22
+fn_op 17 const 25
+fn_op 17 eq
+fn_op 17 jump_if_false 4
+fn_op 17 load_local 0
+fn_op 17 load_global 10
+fn_op 17 call 1
+fn_op 17 pop
+fn_op 17 jump -34
+fn_op 17 load_local 0
+fn_op 17 load_global 10
+fn_op 17 call 1
+fn_op 17 pop
+fn_op 17 const 2
+fn_op 17 return
+fn_arrows 17 0
 arrows=0
-imports=2
-import 0 self_host/lexer_defs
-import 1 self_host/ast_defs
+imports=1
+import 0 self_host/ast_defs
 pub_imports=0
-exports=12
+exports=18
 export 0 pCallHook
 export 1 pCallPostfix
 export 2 pCallTypeArgs
@@ -258,6 +557,12 @@ export 8 pCallStmt
 export 9 peek
 export 10 bump
 export 11 poolPush
+export 12 pEnterBody
+export 13 pLeaveBody
+export 14 pParseBodyUntilRBrace
+export 15 pEnterLoopBody
+export 16 pLeaveLoopBody
+export 17 pParseLoopUntilRBrace
 memory_mode=gc
 interfaces=0
 classes=0
@@ -265,5 +570,5 @@ code
 halt
 
 source=self_host/parser_hooks.kab
-statements=14
-fingerprint=9621372afd2f3b9d
+statements=19
+fingerprint=4ba90dd72497ed61

@@ -1,8 +1,8 @@
 // Full self-hosted pipeline: source text -> kabootar-bytecode/1 text.
-import "self_host/lexer_tokenize"
+import "self_host/lexer_scan"
 import "self_host/parser_exec"
 import "self_host/emit_exec"
-import "self_host/serialize_acc"
+import "self_host/serialize_sections"
 import "self_host/ownership"
 
 let gMsParse = 0

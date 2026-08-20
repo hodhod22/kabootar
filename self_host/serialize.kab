@@ -1,7 +1,7 @@
-// SH5: serialize facade — AccAdd body in serialize_acc (no impl/body hop).
+// SH5: serialize facade — AccAdd body in serialize_sections.
 // import "self_host/serialize"
 // Re-export by alias (not a wrapping fn) — extra call_value breaks kab-only reentrancy.
 
-import "self_host/serialize_acc"
+import "self_host/serialize_sections"
 
 pub let serialize_bc = serSerializeBc

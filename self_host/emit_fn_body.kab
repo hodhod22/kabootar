@@ -1,2 +1,2 @@
-// SH5: emitFnCompileBody / emitGenClassMeth live in emit_fn_scope.
-pub import "self_host/emit_fn_scope"
+// SH5: emitFnCompileBody / emitGenClassMeth live in emit_sym.
+pub import "self_host/emit_sym"

@@ -3894,14 +3894,9 @@ fn_op 26 add
 fn_op 26 return
 fn_arrows 26 0
 arrows=0
-imports=7
+imports=2
 import 0 self_host/ast_defs
-import 1 self_host/emit_defs
-import 2 self_host/emit_arr_util
-import 3 self_host/emit_hooks
-import 4 self_host/emit_sym
-import 5 self_host/emit_sym_index
-import 6 self_host/emit_fn_scope
+import 1 self_host/emit_sym
 pub_imports=0
 exports=27
 export 0 tryEmitArrayPushAssign
@@ -3948,5 +3943,5 @@ store_local 4
 halt
 
 source=self_host/emit_stmt_body.kab
-statements=39
-fingerprint=ae80e25686e95c3b
+statements=34
+fingerprint=ca156dd3dca91a7e

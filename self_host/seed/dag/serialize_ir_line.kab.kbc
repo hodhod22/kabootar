@@ -1,37 +1,40 @@
 kabootar-bytecode/1
-constants=32
-const 0 string 
-const 1 number 0
-const 2 null
-const 3 string ,
-const 4 number 1
-const 5 string \\
-const 6 string \\\\
-const 7 string \s
-const 8 string \\s
-const 9 string \n
-const 10 string \\n
-const 11 string \r
-const 12 string \\r
-const 13 string \t
-const 14 string \\t
-const 15 string const\s
-const 16 string undefined
-const 17 string null
-const 18 bool true
-const 19 string bool\strue
-const 20 bool false
-const 21 string bool\sfalse
-const 22 string string
-const 23 string string\s
-const 24 string number\s
-const 25 string arg
-const 26 string arg2
-const 27 undefined
-const 28 string |
-const 29 string Unsupported\sIR\sop:\s
-const 30 string serialize:\snull\sop\sin\sIR
-const 31 string op
+constants=35
+const 0 string kabootar-bytecode/1
+const 1 string |const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|
+const 2 string |pop|dup|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|
+const 3 string 
+const 4 number 0
+const 5 null
+const 6 string ,
+const 7 number 1
+const 8 string \\
+const 9 string \\\\
+const 10 string \s
+const 11 string \\s
+const 12 string \n
+const 13 string \\n
+const 14 string \r
+const 15 string \\r
+const 16 string \t
+const 17 string \\t
+const 18 string const\s
+const 19 string undefined
+const 20 string null
+const 21 bool true
+const 22 string bool\strue
+const 23 bool false
+const 24 string bool\sfalse
+const 25 string string
+const 26 string string\s
+const 27 string number\s
+const 28 string arg
+const 29 string arg2
+const 30 undefined
+const 31 string |
+const 32 string Unsupported\sIR\sop:\s
+const 33 string serialize:\snull\sop\sin\sIR
+const 34 string op
 global 0 serJoinComma
 global 1 char_at
 global 2 serEscStr
@@ -45,13 +48,16 @@ global 9 str_index_of
 global 10 IR_ZERO_ARG
 global 11 serIrOpLookup
 global 12 serIrOpLine
+local 0 KBC_HEADER
+local 1 IR_WITH_ARG
+local 2 IR_ZERO_ARG
 functions=6
 fn 0 serJoinComma
 fn_params 0 arr
 fn_locals 0 arr,params,k,n
-fn_op 0 const 0
+fn_op 0 const 3
 fn_op 0 store_local 1
-fn_op 0 const 1
+fn_op 0 const 4
 fn_op 0 store_local 2
 fn_op 0 len_local 0
 fn_op 0 store_local 3
@@ -60,7 +66,7 @@ fn_op 0 load_local 3
 fn_op 0 lt
 fn_op 0 jump_if_false 18
 fn_op 0 load_local 1
-fn_op 0 const 0
+fn_op 0 const 3
 fn_op 0 eq
 fn_op 0 jump_if_false 6
 fn_op 0 load_local 2
@@ -69,12 +75,12 @@ fn_op 0 dup
 fn_op 0 store_local 1
 fn_op 0 pop
 fn_op 0 jump 5
-fn_op 0 const 3
+fn_op 0 const 6
 fn_op 0 acc_add_local 1
 fn_op 0 load_local 2
 fn_op 0 index_get_local 0
 fn_op 0 acc_add_local 1
-fn_op 0 const 4
+fn_op 0 const 7
 fn_op 0 acc_add_local 2
 fn_op 0 jump -22
 fn_op 0 load_local 1
@@ -83,9 +89,9 @@ fn_arrows 0 0
 fn 1 serEscStr
 fn_params 1 s
 fn_locals 1 s,out,i,n,ch,piece
-fn_op 1 const 0
+fn_op 1 const 3
 fn_op 1 store_local 1
-fn_op 1 const 1
+fn_op 1 const 4
 fn_op 1 store_local 2
 fn_op 1 len_local 0
 fn_op 1 store_local 3
@@ -101,48 +107,48 @@ fn_op 1 store_local 4
 fn_op 1 load_local 4
 fn_op 1 store_local 5
 fn_op 1 load_local 4
-fn_op 1 const 5
-fn_op 1 eq
-fn_op 1 jump_if_false 4
-fn_op 1 const 6
-fn_op 1 dup
-fn_op 1 store_local 5
-fn_op 1 pop
-fn_op 1 load_local 4
-fn_op 1 const 7
-fn_op 1 eq
-fn_op 1 jump_if_false 4
 fn_op 1 const 8
-fn_op 1 dup
-fn_op 1 store_local 5
-fn_op 1 pop
-fn_op 1 load_local 4
+fn_op 1 eq
+fn_op 1 jump_if_false 4
 fn_op 1 const 9
-fn_op 1 eq
-fn_op 1 jump_if_false 4
+fn_op 1 dup
+fn_op 1 store_local 5
+fn_op 1 pop
+fn_op 1 load_local 4
 fn_op 1 const 10
-fn_op 1 dup
-fn_op 1 store_local 5
-fn_op 1 pop
-fn_op 1 load_local 4
+fn_op 1 eq
+fn_op 1 jump_if_false 4
 fn_op 1 const 11
-fn_op 1 eq
-fn_op 1 jump_if_false 4
-fn_op 1 const 12
 fn_op 1 dup
 fn_op 1 store_local 5
 fn_op 1 pop
 fn_op 1 load_local 4
-fn_op 1 const 13
+fn_op 1 const 12
 fn_op 1 eq
 fn_op 1 jump_if_false 4
+fn_op 1 const 13
+fn_op 1 dup
+fn_op 1 store_local 5
+fn_op 1 pop
+fn_op 1 load_local 4
 fn_op 1 const 14
+fn_op 1 eq
+fn_op 1 jump_if_false 4
+fn_op 1 const 15
+fn_op 1 dup
+fn_op 1 store_local 5
+fn_op 1 pop
+fn_op 1 load_local 4
+fn_op 1 const 16
+fn_op 1 eq
+fn_op 1 jump_if_false 4
+fn_op 1 const 17
 fn_op 1 dup
 fn_op 1 store_local 5
 fn_op 1 pop
 fn_op 1 load_local 5
 fn_op 1 acc_add_local 1
-fn_op 1 const 4
+fn_op 1 const 7
 fn_op 1 acc_add_local 2
 fn_op 1 jump -56
 fn_op 1 load_local 1
@@ -151,32 +157,16 @@ fn_arrows 1 0
 fn 2 serConstLine
 fn_params 2 idx,val
 fn_locals 2 idx,val,line
-fn_op 2 const 15
+fn_op 2 const 18
 fn_op 2 store_local 2
-fn_op 2 const 0
+fn_op 2 const 3
 fn_op 2 load_local 0
 fn_op 2 add
 fn_op 2 acc_add_local 2
-fn_op 2 const 7
+fn_op 2 const 10
 fn_op 2 acc_add_local 2
 fn_op 2 load_local 1
 fn_op 2 load_global 3
-fn_op 2 eq
-fn_op 2 jump_if_false 4
-fn_op 2 const 16
-fn_op 2 acc_add_local 2
-fn_op 2 load_local 2
-fn_op 2 return
-fn_op 2 load_local 1
-fn_op 2 const 2
-fn_op 2 eq
-fn_op 2 jump_if_false 4
-fn_op 2 const 17
-fn_op 2 acc_add_local 2
-fn_op 2 load_local 2
-fn_op 2 return
-fn_op 2 load_local 1
-fn_op 2 const 18
 fn_op 2 eq
 fn_op 2 jump_if_false 4
 fn_op 2 const 19
@@ -184,20 +174,36 @@ fn_op 2 acc_add_local 2
 fn_op 2 load_local 2
 fn_op 2 return
 fn_op 2 load_local 1
-fn_op 2 const 20
+fn_op 2 const 5
 fn_op 2 eq
 fn_op 2 jump_if_false 4
+fn_op 2 const 20
+fn_op 2 acc_add_local 2
+fn_op 2 load_local 2
+fn_op 2 return
+fn_op 2 load_local 1
 fn_op 2 const 21
+fn_op 2 eq
+fn_op 2 jump_if_false 4
+fn_op 2 const 22
+fn_op 2 acc_add_local 2
+fn_op 2 load_local 2
+fn_op 2 return
+fn_op 2 load_local 1
+fn_op 2 const 23
+fn_op 2 eq
+fn_op 2 jump_if_false 4
+fn_op 2 const 24
 fn_op 2 acc_add_local 2
 fn_op 2 load_local 2
 fn_op 2 return
 fn_op 2 load_local 1
 fn_op 2 load_global 4
 fn_op 2 call 1
-fn_op 2 const 22
+fn_op 2 const 25
 fn_op 2 eq
 fn_op 2 jump_if_false 8
-fn_op 2 const 23
+fn_op 2 const 26
 fn_op 2 acc_add_local 2
 fn_op 2 load_local 1
 fn_op 2 load_global 2
@@ -205,9 +211,9 @@ fn_op 2 call 1
 fn_op 2 acc_add_local 2
 fn_op 2 load_local 2
 fn_op 2 return
-fn_op 2 const 24
+fn_op 2 const 27
 fn_op 2 acc_add_local 2
-fn_op 2 const 0
+fn_op 2 const 3
 fn_op 2 load_local 1
 fn_op 2 add
 fn_op 2 acc_add_local 2
@@ -219,27 +225,27 @@ fn_params 3 op
 fn_locals 3 op,line,a2
 fn_op 3 load_global 6
 fn_op 3 store_local 1
-fn_op 3 const 7
+fn_op 3 const 10
 fn_op 3 acc_add_local 1
-fn_op 3 const 0
+fn_op 3 const 3
 fn_op 3 load_local 0
-fn_op 3 get_member 25
+fn_op 3 get_member 28
 fn_op 3 add
 fn_op 3 acc_add_local 1
-fn_op 3 const 7
+fn_op 3 const 10
 fn_op 3 acc_add_local 1
 fn_op 3 load_local 0
-fn_op 3 get_member 26
+fn_op 3 get_member 29
 fn_op 3 store_local 2
 fn_op 3 load_local 2
-fn_op 3 const 27
+fn_op 3 const 30
 fn_op 3 eq
 fn_op 3 jump_if_false 4
-fn_op 3 const 1
+fn_op 3 const 4
 fn_op 3 dup
 fn_op 3 store_local 2
 fn_op 3 pop
-fn_op 3 const 0
+fn_op 3 const 3
 fn_op 3 load_local 2
 fn_op 3 add
 fn_op 3 acc_add_local 1
@@ -250,41 +256,41 @@ fn 4 serIrOpLookup
 fn_params 4 name,op
 fn_locals 4 name,op,line
 fn_op 4 load_global 8
-fn_op 4 const 28
+fn_op 4 const 31
 fn_op 4 load_local 0
 fn_op 4 add
-fn_op 4 const 28
+fn_op 4 const 31
 fn_op 4 add
 fn_op 4 load_global 9
 fn_op 4 call 2
-fn_op 4 const 1
+fn_op 4 const 4
 fn_op 4 ge
 fn_op 4 jump_if_false 11
 fn_op 4 load_local 0
 fn_op 4 store_local 2
-fn_op 4 const 7
+fn_op 4 const 10
 fn_op 4 acc_add_local 2
-fn_op 4 const 0
+fn_op 4 const 3
 fn_op 4 load_local 1
-fn_op 4 get_member 25
+fn_op 4 get_member 28
 fn_op 4 add
 fn_op 4 acc_add_local 2
 fn_op 4 load_local 2
 fn_op 4 return
 fn_op 4 load_global 10
-fn_op 4 const 28
+fn_op 4 const 31
 fn_op 4 load_local 0
 fn_op 4 add
-fn_op 4 const 28
+fn_op 4 const 31
 fn_op 4 add
 fn_op 4 load_global 9
 fn_op 4 call 2
-fn_op 4 const 1
+fn_op 4 const 4
 fn_op 4 ge
 fn_op 4 jump_if_false 2
 fn_op 4 load_local 0
 fn_op 4 return
-fn_op 4 const 29
+fn_op 4 const 32
 fn_op 4 throw
 fn_op 4 load_local 0
 fn_op 4 add
@@ -294,14 +300,14 @@ fn 5 serIrOpLine
 fn_params 5 op
 fn_locals 5 op,name
 fn_op 5 load_local 0
-fn_op 5 const 2
+fn_op 5 const 5
 fn_op 5 eq
 fn_op 5 jump_if_false 3
-fn_op 5 const 30
+fn_op 5 const 33
 fn_op 5 throw
 fn_op 5 pop
 fn_op 5 load_local 0
-fn_op 5 get_member 31
+fn_op 5 get_member 34
 fn_op 5 store_local 1
 fn_op 5 load_local 1
 fn_op 5 load_global 6
@@ -318,23 +324,31 @@ fn_op 5 call 2
 fn_op 5 return
 fn_arrows 5 0
 arrows=0
-imports=2
+imports=1
 import 0 self_host/emit_defs
-import 1 self_host/serialize_ir
 pub_imports=0
-exports=6
+exports=9
 export 0 serJoinComma
 export 1 serEscStr
 export 2 serConstLine
 export 3 serIrOpNewInstance
 export 4 serIrOpLookup
 export 5 serIrOpLine
+export 6 KBC_HEADER
+export 7 IR_WITH_ARG
+export 8 IR_ZERO_ARG
 memory_mode=gc
 interfaces=0
 classes=0
 code
+const 0
+store_local 0
+const 1
+store_local 1
+const 2
+store_local 2
 halt
 
 source=self_host/serialize_ir_line.kab
-statements=8
-fingerprint=242630179d5a8be8
+statements=10
+fingerprint=453bd7ab9f223044

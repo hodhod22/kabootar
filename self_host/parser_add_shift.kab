@@ -1,2 +1,2 @@
-// SH5: parseAddShift lives in parser_expr.
-pub import "self_host/parser_expr"
+// SH5: parseAddShift lives in parser_exec.
+pub import "self_host/parser_exec"

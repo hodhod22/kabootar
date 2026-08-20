@@ -731,12 +731,11 @@ fn_op 4 make_object 12
 fn_op 4 return
 fn_arrows 4 0
 arrows=0
-imports=5
+imports=4
 import 0 self_host/ast_defs
 import 1 self_host/emit_defs
-import 2 self_host/emit_arr_util
-import 3 self_host/emit_hooks
-import 4 self_host/emit_sym_index
+import 2 self_host/emit_hooks
+import 3 self_host/emit_sym
 pub_imports=0
 exports=5
 export 0 emitMainInitCore
@@ -751,5 +750,5 @@ code
 halt
 
 source=self_host/emit_main_fn.kab
-statements=10
-fingerprint=9ec98ce6e8d134fc
+statements=9
+fingerprint=afea99c04caacfdc

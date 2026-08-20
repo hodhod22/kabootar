@@ -1,2 +1,2 @@
-// SH5: IR op helpers live in serialize_ir_line.
-pub import "self_host/serialize_ir_line"
+// SH5: IR op helpers live in serialize_sections.
+pub import "self_host/serialize_sections"
