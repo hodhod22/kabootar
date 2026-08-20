@@ -1,0 +1,3 @@
+import "kab/aot_load_layout"
+
+return aotLoadLayoutOk("text:rx|c3||rodata:r|00||data:rw|00", "x64")

@@ -1,0 +1,3 @@
+import "kab/aot_loaded_data"
+
+return aotLoadedDataOk("data:rw|00")

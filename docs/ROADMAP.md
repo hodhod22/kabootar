@@ -110,7 +110,7 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: templates + `jitMapIncRetOk` + `jitPageSize` + `jitPagesFor` + `jitExecOk`; host mmap/exec deepen (ingen ny Rust-JIT) |
 | **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `jitCanInline` + `jitLicmOk` + `jitGvnOk` + `jitDeoptOk` + `jitSsaOk`; native-loop deepen |
 | **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitScanGprs` + `jitColorOk` + `jitSimdOk`; nd-add/dot deepen |
-| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: x64/arm64 ship/ret-op/text/rodata plus emit/load/verify data; native machine-code deepen |
+| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: x64/arm64 ship/ret-op/text/rodata/data plus emit/load/verify layout; native machine-code deepen |
 | **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: bump + promote + sweep + `gcWriteBarrier` + `gcMarkStep`; concurrent mark deepen |
 | **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | ✅ subset: `kab/esc` `escFitsFrame`; `@manual` release deepen |
 | **F13** | **Parallell compile + workers** | SH7/P8 deepen i Kab | ✅ SH7 subset; workers deepen |

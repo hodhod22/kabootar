@@ -1,0 +1,12 @@
+// F10: native image filename and concatenated layout payload must agree.
+// import "kab/aot_verify_layout"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyLayoutOk(name, layout) {
+    if name == "kabootar-x64.kbn" {
+        return layout == "text:rx|c3||rodata:r|00||data:rw|00"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return layout == "text:rx|d65f03c0||rodata:r|00||data:rw|00"
+    }
+    return false
+}

@@ -1,0 +1,3 @@
+import "kab/aot_loaded_data"
+
+return aotLoadedDataOk("data:rx|00") == false

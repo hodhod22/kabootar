@@ -1,0 +1,3 @@
+import "kab/aot_verify_layout"
+
+return aotVerifyLayoutOk("kabootar-x64.kbn", "text:rx|c3||rodata:r|00||data:rw|00")

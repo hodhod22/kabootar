@@ -1,0 +1,12 @@
+// F10: RW data is shippable only when name, payload, and target agree.
+// import "kab/aot_ship_data"; do not import other kab/aot* leaves.
+
+pub fn aotShipDataOk(name, data, target) {
+    if target == "x64" {
+        return name == "kabootar-x64.kbn" && data == "data:rw|00"
+    }
+    if target == "arm64" {
+        return name == "kabootar-arm64.kbn" && data == "data:rw|00"
+    }
+    return false
+}

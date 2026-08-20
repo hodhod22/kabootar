@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_emit_data"
+import "kab/aot_ship_data"
+
+let name = aotImageName("x64")
+let data = aotEmitData("x64")
+return aotShipDataOk(name, data, "x64")

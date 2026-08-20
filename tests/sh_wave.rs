@@ -1892,6 +1892,222 @@ fn f10_aot_verify_data_in_kab() {
     );
 }
 
+/// F10: emitted image name and RW data round-trip through verification.
+#[test]
+fn f10_aot_verify_data_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_data_round_smoke.kab"))
+        .expect("f10_aot_verify_data_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitData") && s.contains("aotVerifyDataOk"),
+        "F10 Kab RW data verify round-trip"
+    );
+}
+
+/// F10: verify rejects RX data for a native image name.
+#[test]
+fn f10_aot_verify_data_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_data_reject_smoke.kab"))
+        .expect("f10_aot_verify_data_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyDataOk") && s.contains("data:rx") && s.contains("false"),
+        "F10 Kab RW data verify RX rejection"
+    );
+}
+
+/// F10: arm64 image name and RW data round-trip through verification.
+#[test]
+fn f10_aot_verify_data_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_data_arm64_smoke.kab"))
+        .expect("f10_aot_verify_data_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyDataOk"),
+        "F10 Kab arm64 RW data verify round-trip"
+    );
+}
+
+/// F10: first native RW data can be persisted through Kab host capability.
+#[test]
+fn f10_aot_write_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let w = std::fs::read_to_string(root.join("lib/kab/aot_write_data.kab"))
+        .expect("aot_write_data.kab");
+    assert!(
+        w.contains("pub fn aotWriteData") && w.contains("os_write(path, data)"),
+        "F10 Kab native RW data writer"
+    );
+}
+
+/// F10: first native RW data can be loaded through Kab host capability.
+#[test]
+fn f10_aot_read_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_read_data.kab"))
+        .expect("aot_read_data.kab");
+    assert!(
+        r.contains("pub fn aotReadData") && r.contains("os_read(path)"),
+        "F10 Kab native RW data reader"
+    );
+}
+
+/// F10: persisted data bytes must match first native RW plus a zero stub.
+#[test]
+fn f10_aot_loaded_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_data.kab"))
+        .expect("aot_loaded_data.kab");
+    assert!(
+        l.contains("pub fn aotLoadedDataOk") && l.contains("data:rw|00"),
+        "F10 Kab persisted native RW data"
+    );
+}
+
+/// F10: emitted RW data round-trips through the persisted-data gate.
+#[test]
+fn f10_aot_loaded_data_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_data_round_smoke.kab"))
+        .expect("f10_aot_loaded_data_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitData") && s.contains("aotLoadedDataOk"),
+        "F10 Kab persisted RW data round-trip"
+    );
+}
+
+/// F10: persisted-data gate rejects RX payloads.
+#[test]
+fn f10_aot_loaded_data_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_data_reject_smoke.kab"))
+        .expect("f10_aot_loaded_data_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedDataOk") && s.contains("data:rx") && s.contains("false"),
+        "F10 Kab persisted RW data RX rejection"
+    );
+}
+
+/// F10: emitted arm64 RW data round-trips through the persisted-data gate.
+#[test]
+fn f10_aot_loaded_data_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_data_arm64_smoke.kab"))
+        .expect("f10_aot_loaded_data_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotLoadedDataOk"),
+        "F10 Kab persisted arm64 RW data round-trip"
+    );
+}
+
+/// F10: RW data is shippable only when name, payload, and target agree.
+#[test]
+fn f10_aot_ship_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_data.kab"))
+        .expect("aot_ship_data.kab");
+    assert!(
+        s.contains("pub fn aotShipDataOk") && s.contains("data:rw|00"),
+        "F10 Kab aotShipDataOk"
+    );
+}
+
+/// F10: emitted name and RW data round-trip through the ship-data gate.
+#[test]
+fn f10_aot_ship_data_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_data_round_smoke.kab"))
+        .expect("f10_aot_ship_data_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitData") && s.contains("aotShipDataOk"),
+        "F10 Kab RW data ship round-trip"
+    );
+}
+
+/// F10: ship-data gate rejects RW data for the wrong target.
+#[test]
+fn f10_aot_ship_data_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_data_reject_smoke.kab"))
+        .expect("f10_aot_ship_data_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipDataOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab RW data ship target rejection"
+    );
+}
+
+/// F10: arm64 name and RW data round-trip through the ship-data gate.
+#[test]
+fn f10_aot_ship_data_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_data_arm64_smoke.kab"))
+        .expect("f10_aot_ship_data_arm64_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitData") && s.contains("\"arm64\""),
+        "F10 Kab arm64 RW data ship round-trip"
+    );
+}
+
+/// F10: first native layouts concatenate RX text, R rodata, and RW data.
+#[test]
+fn f10_aot_emit_layout_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_layout.kab"))
+        .expect("aot_emit_layout.kab");
+    assert!(
+        t.contains("pub fn aotEmitLayout") && t.contains("text:rx|c3"),
+        "F10 Kab aotEmitLayout"
+    );
+}
+
+/// F10: loader accepts only concatenated RX text, R rodata, and RW data.
+#[test]
+fn f10_aot_load_layout_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/aot_load_layout.kab"))
+        .expect("aot_load_layout.kab");
+    assert!(
+        t.contains("pub fn aotLoadLayoutOk") && t.contains("text:rx|d65f03c0"),
+        "F10 Kab aotLoadLayoutOk"
+    );
+}
+
+/// F10: emitted layout round-trips through loader validation.
+#[test]
+fn f10_aot_layout_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_layout_round_smoke.kab"))
+        .expect("f10_aot_layout_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitLayout") && s.contains("aotLoadLayoutOk"),
+        "F10 Kab layout round-trip"
+    );
+}
+
+/// F10: loader rejects a layout for the wrong target.
+#[test]
+fn f10_aot_load_layout_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_layout_reject_smoke.kab"))
+        .expect("f10_aot_load_layout_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadLayoutOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab layout target rejection"
+    );
+}
+
+/// F10: native image filename and concatenated layout payload must agree.
+#[test]
+fn f10_aot_verify_layout_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_layout.kab"))
+        .expect("aot_verify_layout.kab");
+    assert!(
+        v.contains("pub fn aotVerifyLayoutOk") && v.contains("text:rx|d65f03c0"),
+        "F10 Kab aotVerifyLayoutOk"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {
