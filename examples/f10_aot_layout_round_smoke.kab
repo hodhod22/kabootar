@@ -1,0 +1,5 @@
+import "kab/aot_emit_layout"
+import "kab/aot_load_layout"
+
+let layout = aotEmitLayout("x64")
+return aotLoadLayoutOk(layout, "x64")

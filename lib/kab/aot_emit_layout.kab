@@ -1,0 +1,12 @@
+// F10: first native layouts concatenate RX text, R rodata, and RW data.
+// import "kab/aot_emit_layout"; do not import other kab/aot* leaves.
+
+pub fn aotEmitLayout(target) {
+    if target == "x64" {
+        return "text:rx|c3||rodata:r|00||data:rw|00"
+    }
+    if target == "arm64" {
+        return "text:rx|d65f03c0||rodata:r|00||data:rw|00"
+    }
+    return ""
+}
