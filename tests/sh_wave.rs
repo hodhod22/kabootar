@@ -1700,6 +1700,198 @@ fn f10_aot_verify_rodata_reject_in_kab() {
     );
 }
 
+/// F10: arm64 image name and R rodata round-trip through verification.
+#[test]
+fn f10_aot_verify_rodata_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_verify_rodata_arm64_smoke.kab"))
+        .expect("f10_aot_verify_rodata_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotVerifyRodataOk"),
+        "F10 Kab arm64 R rodata verify round-trip"
+    );
+}
+
+/// F10: first native R rodata can be persisted through Kab host capability.
+#[test]
+fn f10_aot_write_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let w = std::fs::read_to_string(root.join("lib/kab/aot_write_rodata.kab"))
+        .expect("aot_write_rodata.kab");
+    assert!(
+        w.contains("pub fn aotWriteRodata") && w.contains("os_write(path, rodata)"),
+        "F10 Kab native R rodata writer"
+    );
+}
+
+/// F10: first native R rodata can be loaded through Kab host capability.
+#[test]
+fn f10_aot_read_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/aot_read_rodata.kab"))
+        .expect("aot_read_rodata.kab");
+    assert!(
+        r.contains("pub fn aotReadRodata") && r.contains("os_read(path)"),
+        "F10 Kab native R rodata reader"
+    );
+}
+
+/// F10: persisted rodata bytes must match first native R plus a zero stub.
+#[test]
+fn f10_aot_loaded_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_rodata.kab"))
+        .expect("aot_loaded_rodata.kab");
+    assert!(
+        l.contains("pub fn aotLoadedRodataOk") && l.contains("rodata:r|00"),
+        "F10 Kab persisted native R rodata"
+    );
+}
+
+/// F10: emitted R rodata round-trips through the persisted-rodata gate.
+#[test]
+fn f10_aot_loaded_rodata_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_rodata_round_smoke.kab"))
+        .expect("f10_aot_loaded_rodata_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitRodata") && s.contains("aotLoadedRodataOk"),
+        "F10 Kab persisted R rodata round-trip"
+    );
+}
+
+/// F10: persisted-rodata gate rejects RW payloads.
+#[test]
+fn f10_aot_loaded_rodata_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_rodata_reject_smoke.kab"))
+        .expect("f10_aot_loaded_rodata_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedRodataOk") && s.contains("rodata:rw") && s.contains("false"),
+        "F10 Kab persisted R rodata RW rejection"
+    );
+}
+
+/// F10: emitted arm64 R rodata round-trips through the persisted-rodata gate.
+#[test]
+fn f10_aot_loaded_rodata_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_loaded_rodata_arm64_smoke.kab"))
+        .expect("f10_aot_loaded_rodata_arm64_smoke.kab");
+    assert!(
+        s.contains("\"arm64\"") && s.contains("aotLoadedRodataOk"),
+        "F10 Kab persisted arm64 R rodata round-trip"
+    );
+}
+
+/// F10: R rodata is shippable only when name, payload, and target agree.
+#[test]
+fn f10_aot_ship_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_rodata.kab"))
+        .expect("aot_ship_rodata.kab");
+    assert!(
+        s.contains("pub fn aotShipRodataOk") && s.contains("rodata:r|00"),
+        "F10 Kab aotShipRodataOk"
+    );
+}
+
+/// F10: emitted name and R rodata round-trip through the ship-rodata gate.
+#[test]
+fn f10_aot_ship_rodata_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_rodata_round_smoke.kab"))
+        .expect("f10_aot_ship_rodata_round_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitRodata") && s.contains("aotShipRodataOk"),
+        "F10 Kab R rodata ship round-trip"
+    );
+}
+
+/// F10: ship-rodata gate rejects R rodata for the wrong target.
+#[test]
+fn f10_aot_ship_rodata_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_rodata_reject_smoke.kab"))
+        .expect("f10_aot_ship_rodata_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipRodataOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab R rodata ship target rejection"
+    );
+}
+
+/// F10: arm64 name and R rodata round-trip through the ship-rodata gate.
+#[test]
+fn f10_aot_ship_rodata_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_ship_rodata_arm64_smoke.kab"))
+        .expect("f10_aot_ship_rodata_arm64_smoke.kab");
+    assert!(
+        s.contains("aotImageName") && s.contains("aotEmitRodata") && s.contains("\"arm64\""),
+        "F10 Kab arm64 R rodata ship round-trip"
+    );
+}
+
+/// F10: first native data sections carry RW plus a zero stub.
+#[test]
+fn f10_aot_emit_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_data.kab"))
+        .expect("aot_emit_data.kab");
+    assert!(
+        t.contains("pub fn aotEmitData") && t.contains("data:rw|00"),
+        "F10 Kab aotEmitData"
+    );
+}
+
+/// F10: loader accepts only RW data plus a documented zero stub.
+#[test]
+fn f10_aot_load_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/aot_load_data.kab"))
+        .expect("aot_load_data.kab");
+    assert!(
+        t.contains("pub fn aotLoadDataOk") && t.contains("data:rw|00"),
+        "F10 Kab aotLoadDataOk"
+    );
+}
+
+/// F10: emitted RW data round-trips through loader validation.
+#[test]
+fn f10_aot_data_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_data_round_smoke.kab"))
+        .expect("f10_aot_data_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitData") && s.contains("aotLoadDataOk"),
+        "F10 Kab RW data round-trip"
+    );
+}
+
+/// F10: loader rejects RX data payloads.
+#[test]
+fn f10_aot_load_data_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_load_data_reject_smoke.kab"))
+        .expect("f10_aot_load_data_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadDataOk") && s.contains("data:rx") && s.contains("false"),
+        "F10 Kab RW data RX rejection"
+    );
+}
+
+/// F10: native image filename and RW data payload must agree.
+#[test]
+fn f10_aot_verify_data_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_data.kab"))
+        .expect("aot_verify_data.kab");
+    assert!(
+        v.contains("pub fn aotVerifyDataOk") && v.contains("data:rw|00"),
+        "F10 Kab aotVerifyDataOk"
+    );
+}
+
 /// F14: zero-copy I/O policy in a tiny leaf.
 #[test]
 fn f14_io_plan_in_kab() {

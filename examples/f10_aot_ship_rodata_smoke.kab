@@ -1,0 +1,3 @@
+import "kab/aot_ship_rodata"
+
+return aotShipRodataOk("kabootar-x64.kbn", "rodata:r|00", "x64")

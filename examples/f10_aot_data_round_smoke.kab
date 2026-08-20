@@ -1,0 +1,5 @@
+import "kab/aot_emit_data"
+import "kab/aot_load_data"
+
+let data = aotEmitData("x64")
+return aotLoadDataOk(data, "x64")
