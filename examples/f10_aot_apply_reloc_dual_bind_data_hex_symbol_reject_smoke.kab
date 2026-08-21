@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_bind"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTableData("x64")
+let addr = aotApplyRelocTableAddressData(table, 4096, "x64")
+return aotRelocSymbolBindOk(addr, 4128) == false

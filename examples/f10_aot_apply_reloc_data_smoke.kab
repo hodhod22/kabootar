@@ -1,0 +1,5 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTableData("x64")
+return aotApplyRelocTableAddressData(table, 4096, "x64") == 4096
