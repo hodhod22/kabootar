@@ -1,0 +1,12 @@
+// F10: load the first serialized symbol-table record for its target.
+// Do not import other kab/aot* leaves. Symbol loading stays in Kab.
+
+pub fn aotLoadSymbolOk(record, target) {
+    if target == "x64" {
+        return record == "sym:text:32:main:x64"
+    }
+    if target == "arm64" {
+        return record == "sym:text:32:main:arm64"
+    }
+    return false
+}

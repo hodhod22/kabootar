@@ -1015,7 +1015,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 
 **Fast Compile / Fast Run:** compile-arbete i Kab. Körning = Kab-VM, sedan **Kab-JIT (SH17)** och **Kab-GC (SH18)** — inte mer JIT/GC i Rust.
 
-**Nästa steg (bara `.kab`):** F10 frame-local lowering + x64/arm64 bytecode-roundtrip ✅; nästa är relocation/symboladdress — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
+**Nästa steg (bara `.kab`):** F10 frame-local lowering och x64/arm64 bytecode-roundtrip ✅; relocation/symbol-adresser, sektionsbindning, bytecode-bindning, serialiserade poster, symbol-/relocation-tabellimage-varianter samt validerad table-apply till patchad adress ✅. Nästa är att applicera relocationen på verkliga native-image-bytes — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
 
 **Icke-mål:**
 

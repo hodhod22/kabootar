@@ -1,0 +1,6 @@
+import "kab/aot_sym"
+
+if aotSymbolRecordOk("main", 32, "wasm") != false {
+    return false
+}
+return aotSymbolTableEntryAddress(4096, "main", 32, "wasm") == -1

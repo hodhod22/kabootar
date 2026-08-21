@@ -1,0 +1,12 @@
+// F10: serialize the first ordered relocation table for a Kab-native image.
+// Do not import other kab/aot* leaves. Relocation-table serialization stays in Kab.
+
+pub fn aotEmitRelocTable(target) {
+    if target == "x64" {
+        return "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+    }
+    if target == "arm64" {
+        return "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+    }
+    return ""
+}

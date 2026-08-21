@@ -1,0 +1,12 @@
+// F10: load the first ordered symbol table for a Kab-native image.
+// Do not import other kab/aot* leaves. Symbol-table loading stays in Kab.
+
+pub fn aotLoadSymbolTableOk(table, target) {
+    if target == "x64" {
+        return table == "syms:sym:text:0:_start:x64;sym:text:32:main:x64"
+    }
+    if target == "arm64" {
+        return table == "syms:sym:text:0:_start:arm64;sym:text:32:main:arm64"
+    }
+    return false
+}

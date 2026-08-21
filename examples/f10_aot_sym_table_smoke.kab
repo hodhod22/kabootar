@@ -1,0 +1,3 @@
+import "kab/aot_sym"
+
+return aotSymbolTableEntryAddress(4096, "main", 32, "x64") == 4128

@@ -4,3 +4,23 @@
 pub fn aotSectionOk(name) {
     return name == "text" || name == "rodata" || name == "data"
 }
+
+// F10: a known image section resolves from its non-negative base and offset.
+pub fn aotSectionAddress(base, name, offset) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if name == "text" {
+        return base + offset
+    }
+    if name == "rodata" {
+        return base + offset
+    }
+    if name == "data" {
+        return base + offset
+    }
+    return -1
+}

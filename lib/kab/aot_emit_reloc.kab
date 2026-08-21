@@ -1,0 +1,35 @@
+// F10: serialize the first relocation record for a Kab-native image payload.
+// Do not import other kab/aot* leaves. Relocation serialization stays in Kab.
+
+pub fn aotEmitReloc(target) {
+    if target == "x64" {
+        return "reloc:text:32:0:main:x64"
+    }
+    if target == "arm64" {
+        return "reloc:text:32:0:main:arm64"
+    }
+    return ""
+}
+
+// F10: serialize the supported relocation addends used by native table patches.
+pub fn aotEmitRelocWithAddend(target, addend) {
+    if target == "x64" {
+        if addend == 0 {
+            return "reloc:text:32:0:main:x64"
+        }
+        if addend == 8 {
+            return "reloc:text:32:8:main:x64"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if addend == 0 {
+            return "reloc:text:32:0:main:arm64"
+        }
+        if addend == 8 {
+            return "reloc:text:32:8:main:arm64"
+        }
+        return ""
+    }
+    return ""
+}

@@ -1,0 +1,12 @@
+// F10: native relocation and symbol addresses must bind exactly.
+// Do not import other kab/aot* leaves. Binding ownership stays in Kab.
+
+pub fn aotRelocSymbolBindOk(relocAddress, symbolAddress) {
+    if relocAddress < 0 {
+        return false
+    }
+    if symbolAddress < 0 {
+        return false
+    }
+    return relocAddress == symbolAddress
+}

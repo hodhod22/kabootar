@@ -1,0 +1,23 @@
+import "kab/aot_reloc"
+import "kab/aot_sym"
+import "kab/aot_bind"
+
+if aotRelocRecordOk(4096, 32, "main", "arm64") == false {
+    return false
+}
+if aotSymbolRecordOk("main", 32, "arm64") == false {
+    return false
+}
+if aotRelocTableEntryAddress(4096, 32, "main", "arm64") != 4128 {
+    return false
+}
+if aotSymbolTableEntryAddress(4096, "main", 32, "arm64") != 4128 {
+    return false
+}
+if aotRelocSymbolBindOk(
+    aotRelocSectionEntryAddress(4096, "text", 32, "main", "arm64"),
+    aotSymbolSectionEntryAddress(4096, "text", "main", 32, "arm64")
+) == false {
+    return false
+}
+return aotRelocTablePatchedAddress(4096, 32, 8, "main", "arm64") == 4136

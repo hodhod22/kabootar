@@ -1,0 +1,3 @@
+import "kab/aot_section"
+
+return aotSectionAddress(4096, "rodata", 32) == 4128

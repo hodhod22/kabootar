@@ -1,0 +1,8 @@
+import "kab/aot_emit_reloc"
+import "kab/aot_load_reloc"
+
+let record = aotEmitRelocWithAddend("x64", 4)
+if record != "" {
+    return false
+}
+return aotLoadRelocWithAddendOk("reloc:text:32:4:main:x64", "x64", 4) == false
