@@ -1,0 +1,3 @@
+import "kab/aot_verify_ja"
+
+return aotVerifyJaOk("kabootar-x64.kbn", "54000008") == false

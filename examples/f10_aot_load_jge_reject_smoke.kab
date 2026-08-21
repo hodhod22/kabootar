@@ -1,0 +1,3 @@
+import "kab/aot_load_jge"
+
+return aotLoadJgeOk("7d00", "arm64") == false

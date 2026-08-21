@@ -1,0 +1,3 @@
+import "kab/aot_load_jle"
+
+return aotLoadJleOk("7e00", "arm64") == false

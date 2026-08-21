@@ -1,0 +1,12 @@
+// F10: native image filename and jge opcode must agree.
+// import "kab/aot_verify_jge"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyJgeOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "7d00"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "5400000a"
+    }
+    return false
+}
