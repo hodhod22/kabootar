@@ -1,0 +1,3 @@
+import "kab/aot_test_op"
+
+return aotTestOp("x64") == "85c0"

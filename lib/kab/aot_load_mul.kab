@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image mul opcode.
+// import "kab/aot_load_mul"; do not import other kab/aot* leaves.
+
+pub fn aotLoadMulOk(op, target) {
+    if target == "x64" {
+        return op == "0fafc0"
+    }
+    if target == "arm64" {
+        return op == "9b007c00"
+    }
+    return false
+}

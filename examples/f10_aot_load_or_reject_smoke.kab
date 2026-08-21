@@ -1,0 +1,3 @@
+import "kab/aot_load_or"
+
+return aotLoadOrOk("09c0", "arm64") == false

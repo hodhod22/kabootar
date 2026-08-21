@@ -3,10 +3,10 @@
 
 pub fn aotShipNativeOk(name, image, target) {
     if target == "x64" {
-        return name == "kabootar-x64.kbn" && image == "kabootar-native/1|x64||text:rx|b80100000001c090c3||rodata:r|00||data:rw|00"
+        return name == "kabootar-x64.kbn" && image == "kabootar-native/1|x64||text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740090c3||rodata:r|00||data:rw|00"
     }
     if target == "arm64" {
-        return name == "kabootar-arm64.kbn" && image == "kabootar-native/1|arm64||text:rx|d28000208b000000d503201fd65f03c0||rodata:r|00||data:rw|00"
+        return name == "kabootar-arm64.kbn" && image == "kabootar-native/1|arm64||text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000d503201fd65f03c0||rodata:r|00||data:rw|00"
     }
     return false
 }

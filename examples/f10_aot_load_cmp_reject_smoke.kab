@@ -1,0 +1,3 @@
+import "kab/aot_load_cmp"
+
+return aotLoadCmpOk("39c0", "arm64") == false

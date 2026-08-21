@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented mul opcode for the return register.
+// import "kab/aot_mul_op"; do not import other kab/aot* leaves.
+
+pub fn aotMulOp(target) {
+    if target == "x64" {
+        return "0fafc0"
+    }
+    if target == "arm64" {
+        return "9b007c00"
+    }
+    return ""
+}

@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image shr opcode.
+// import "kab/aot_load_shr"; do not import other kab/aot* leaves.
+
+pub fn aotLoadShrOk(op, target) {
+    if target == "x64" {
+        return op == "d1e8"
+    }
+    if target == "arm64" {
+        return op == "d341fc00"
+    }
+    return false
+}

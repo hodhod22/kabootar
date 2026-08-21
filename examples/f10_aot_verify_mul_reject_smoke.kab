@@ -1,0 +1,3 @@
+import "kab/aot_verify_mul"
+
+return aotVerifyMulOk("kabootar-x64.kbn", "9b007c00") == false

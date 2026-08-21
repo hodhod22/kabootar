@@ -1,0 +1,12 @@
+// F10: native image filename and neg opcode must agree.
+// import "kab/aot_verify_neg"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyNegOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "f7d8"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "cb0003e0"
+    }
+    return false
+}

@@ -1,0 +1,3 @@
+import "kab/aot_verify_xor"
+
+return aotVerifyXorOk("kabootar-x64.kbn", "ca000000") == false

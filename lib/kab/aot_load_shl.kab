@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image shl opcode.
+// import "kab/aot_load_shl"; do not import other kab/aot* leaves.
+
+pub fn aotLoadShlOk(op, target) {
+    if target == "x64" {
+        return op == "d1e0"
+    }
+    if target == "arm64" {
+        return op == "d37ff800"
+    }
+    return false
+}

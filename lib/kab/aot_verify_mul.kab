@@ -1,0 +1,12 @@
+// F10: native image filename and mul opcode must agree.
+// import "kab/aot_verify_mul"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyMulOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "0fafc0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "9b007c00"
+    }
+    return false
+}

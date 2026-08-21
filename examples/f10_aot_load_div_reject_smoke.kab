@@ -1,0 +1,3 @@
+import "kab/aot_load_div"
+
+return aotLoadDivOk("f7f8", "arm64") == false

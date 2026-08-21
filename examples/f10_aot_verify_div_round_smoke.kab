@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_div_op"
+import "kab/aot_verify_div"
+
+let name = aotImageName("x64")
+let op = aotDivOp("x64")
+return aotVerifyDivOk(name, op)

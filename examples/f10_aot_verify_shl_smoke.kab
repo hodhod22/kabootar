@@ -1,0 +1,3 @@
+import "kab/aot_verify_shl"
+
+return aotVerifyShlOk("kabootar-x64.kbn", "d1e0")

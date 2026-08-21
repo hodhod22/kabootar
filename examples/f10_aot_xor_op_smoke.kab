@@ -1,0 +1,3 @@
+import "kab/aot_xor_op"
+
+return aotXorOp("x64") == "33c0"

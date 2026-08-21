@@ -1,0 +1,3 @@
+import "kab/aot_or_op"
+
+return aotOrOp("x64") == "09c0"

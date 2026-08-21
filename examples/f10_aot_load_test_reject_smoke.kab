@@ -1,0 +1,3 @@
+import "kab/aot_load_test"
+
+return aotLoadTestOk("85c0", "arm64") == false
