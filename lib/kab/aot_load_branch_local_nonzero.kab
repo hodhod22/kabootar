@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image local-nonzero branch.
+// import "kab/aot_load_branch_local_nonzero"; do not import other kab/aot* leaves.
+
+pub fn aotLoadBranchLocalNonzeroOk(op, target) {
+    if target == "x64" {
+        return op == "48837df8007500"
+    }
+    if target == "arm64" {
+        return op == "a00b40f91f0000f154000001"
+    }
+    return false
+}

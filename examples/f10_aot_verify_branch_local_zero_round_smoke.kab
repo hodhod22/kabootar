@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_branch_local_zero_op"
+import "kab/aot_verify_branch_local_zero"
+
+let name = aotImageName("x64")
+let op = aotBranchLocalZeroOp("x64")
+return aotVerifyBranchLocalZeroOk(name, op)

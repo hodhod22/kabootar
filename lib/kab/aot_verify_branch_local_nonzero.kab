@@ -1,0 +1,12 @@
+// F10: native image filename and local-nonzero branch must agree.
+// import "kab/aot_verify_branch_local_nonzero"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyBranchLocalNonzeroOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "48837df8007500"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "a00b40f91f0000f154000001"
+    }
+    return false
+}

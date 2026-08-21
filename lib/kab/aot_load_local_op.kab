@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented frame-local load into the return register.
+// import "kab/aot_load_local_op"; do not import other kab/aot* leaves.
+
+pub fn aotLoadLocalOp(target) {
+    if target == "x64" {
+        return "488b45f8"
+    }
+    if target == "arm64" {
+        return "a00b40f9"
+    }
+    return ""
+}

@@ -1,0 +1,5 @@
+import "kab/aot_branch_local_zero_op"
+import "kab/aot_load_branch_local_zero"
+
+let op = aotBranchLocalZeroOp("x64")
+return aotLoadBranchLocalZeroOk(op, "x64")

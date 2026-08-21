@@ -4,3 +4,28 @@
 pub fn aotSymbolOk(name) {
     return len(name) > 0
 }
+
+// F10: a named symbol resolves to a non-negative image-relative address.
+pub fn aotSymbolAddress(base, name, offset) {
+    if base < 0 || offset < 0 || len(name) == 0 {
+        return -1
+    }
+    return base + offset
+}
+
+// F10: a symbol-table record requires a name, a non-negative offset, and a supported target.
+pub fn aotSymbolRecordOk(name, offset, target) {
+    if len(name) == 0 {
+        return false
+    }
+    if offset < 0 {
+        return false
+    }
+    if target == "x64" {
+        return true
+    }
+    if target == "arm64" {
+        return true
+    }
+    return false
+}

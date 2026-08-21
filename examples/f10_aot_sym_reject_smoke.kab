@@ -1,0 +1,3 @@
+import "kab/aot_sym"
+
+return aotSymbolAddress(0, "", 0) == -1

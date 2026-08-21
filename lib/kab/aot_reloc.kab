@@ -4,3 +4,39 @@
 pub fn aotRelocBaseOk(base) {
     return base >= 0
 }
+
+// F10: relocation resolves a non-negative section offset from its image base.
+pub fn aotRelocAddress(base, offset) {
+    if base < 0 || offset < 0 {
+        return -1
+    }
+    return base + offset
+}
+
+// F10: a relocation record needs a usable symbol, offset, and supported image target.
+pub fn aotRelocRecordOk(base, offset, symbol, target) {
+    if base < 0 {
+        return false
+    }
+    if offset < 0 {
+        return false
+    }
+    if len(symbol) == 0 {
+        return false
+    }
+    if target == "x64" {
+        return true
+    }
+    if target == "arm64" {
+        return true
+    }
+    return false
+}
+
+// F10: relocation patching adds a non-negative addend to the resolved address.
+pub fn aotRelocPatchedAddress(base, offset, addend) {
+    if base < 0 || offset < 0 || addend < 0 {
+        return -1
+    }
+    return base + offset + addend
+}

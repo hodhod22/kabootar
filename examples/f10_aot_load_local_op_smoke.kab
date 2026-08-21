@@ -1,0 +1,3 @@
+import "kab/aot_load_local_op"
+
+return aotLoadLocalOp("x64") == "488b45f8"

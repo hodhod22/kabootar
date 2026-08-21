@@ -1,0 +1,3 @@
+import "kab/aot_branch_local_nonzero_op"
+
+return aotBranchLocalNonzeroOp("x64") == "48837df8007500"

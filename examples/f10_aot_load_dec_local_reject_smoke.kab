@@ -1,0 +1,3 @@
+import "kab/aot_load_dec_local"
+
+return aotLoadDecLocalOk("488345f8ff", "arm64") == false

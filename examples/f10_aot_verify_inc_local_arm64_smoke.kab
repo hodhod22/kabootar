@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_inc_local_op"
+import "kab/aot_verify_inc_local"
+
+let name = aotImageName("arm64")
+let op = aotIncLocalOp("arm64")
+return aotVerifyIncLocalOk(name, op)

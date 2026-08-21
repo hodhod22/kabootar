@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented comparison of the first frame local with zero.
+// import "kab/aot_cmp_local_zero_op"; do not import other kab/aot* leaves.
+
+pub fn aotCmpLocalZeroOp(target) {
+    if target == "x64" {
+        return "48837df800"
+    }
+    if target == "arm64" {
+        return "a00b40f91f0000f1"
+    }
+    return ""
+}

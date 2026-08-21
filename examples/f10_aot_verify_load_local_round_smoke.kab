@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_load_local_op"
+import "kab/aot_verify_load_local"
+
+let name = aotImageName("x64")
+let op = aotLoadLocalOp("x64")
+return aotVerifyLoadLocalOk(name, op)
