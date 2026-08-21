@@ -376,8 +376,16 @@ fn ast_kind<'a>(v: &'a kabootar_lib::value::Value) -> Option<&'a str> {
 
 #[test]
 fn self_host_lexer_suite() {
-    kabootar_lib::cli::run_file(&self_host_path("test_lexer.kab"))
-        .expect("self_host/test_lexer.kab should pass");
+    let ok = std::thread::Builder::new()
+        .name("lexer-suite".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            kabootar_lib::cli::run_file(&self_host_path("test_lexer.kab"))
+                .expect("self_host/test_lexer.kab should pass");
+        })
+        .expect("spawn lexer suite")
+        .join();
+    ok.expect("lexer suite thread");
 }
 
 #[test]

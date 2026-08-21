@@ -1,0 +1,26 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_image_name"
+import "kab/aot_ship"
+import "kab/aot_verify_full"
+
+let table = aotEmitRelocTable("arm64")
+let image = aotEmitImageWithTables("arm64")
+let patched = aotApplyRelocTableToImageTextAt40(image, table, 4096, "arm64")
+let hex32 = aotApplyRelocTableWordHexAt32(table, 4096, "arm64")
+let hex40 = aotApplyRelocTableWordHexAt40(table, 4096, "arm64")
+let prefix = "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c000000000000000000000000000000000000000000000000000000000"
+let suffix = "|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+let mid = prefix + hex32
+let code = mid + hex40
+let expected = code + suffix
+if patched != expected {
+    return false
+}
+let name = aotImageName("arm64")
+let verified = aotVerifyFullOk(name, patched)
+if verified == false {
+    return false
+}
+return aotShipOk(name, patched, "arm64")

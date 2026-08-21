@@ -1,0 +1,32 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_bind"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_image_name"
+import "kab/aot_loaded_image"
+import "kab/aot_ship"
+import "kab/aot_verify_full"
+
+let table = aotEmitRelocTable("x64")
+let image = aotEmitImageWithTables("x64")
+let patched = aotApplyRelocTableToImageTextAt40(image, table, 4096, "x64")
+let loaded = aotLoadedImageOk(patched)
+if loaded == false {
+    return false
+}
+let addr32 = aotApplyRelocTableAddressAt32(table, 4096, "x64")
+let addr40 = aotApplyRelocTableAddressAt40(table, 4096, "x64")
+let bind32 = aotRelocSymbolBindOk(addr32, 4128)
+let bind40 = aotRelocSymbolBindOk(addr40, 4136)
+if bind32 == false {
+    return false
+}
+if bind40 == false {
+    return false
+}
+let name = aotImageName("x64")
+let verified = aotVerifyFullOk(name, patched)
+if verified == false {
+    return false
+}
+return aotShipOk(name, patched, "x64")

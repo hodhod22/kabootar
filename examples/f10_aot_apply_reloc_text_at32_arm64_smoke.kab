@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_code"
+import "kab/aot_emit_reloc_table"
+
+let code = aotEmitCode("arm64")
+let table = aotEmitRelocTable("arm64")
+return aotApplyRelocTableToTextAt32(code, table, 4096, "arm64") == "code:arm64:d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000"

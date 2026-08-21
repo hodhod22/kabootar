@@ -1,0 +1,16 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_code"
+import "kab/aot_emit_reloc_table"
+
+let code = aotEmitCode("x64")
+let table = aotEmitRelocTable("x64")
+let addr32 = aotApplyRelocTableAddressAt32(table, 4096, "x64")
+let addr40 = aotApplyRelocTableAddressAt40(table, 4096, "x64")
+let hex = aotApplyRelocTableToTextAt40(code, table, 4096, "x64")
+if addr32 != 4128 {
+    return false
+}
+if addr40 != 4136 {
+    return false
+}
+return hex == "code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000"

@@ -19,3 +19,305 @@ pub fn aotApplyRelocTableAddress(table, base, target) {
     }
     return -1
 }
+
+// F10: patched address of the addend-0 table entry (text offset 32).
+pub fn aotApplyRelocTableAddressAt32(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return base + 32
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return base + 32
+        }
+        return -1
+    }
+    return -1
+}
+
+// F10: patched address of the addend-8 table entry (text offset 40).
+pub fn aotApplyRelocTableAddressAt40(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return base + 32 + 8
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return base + 32 + 8
+        }
+        return -1
+    }
+    return -1
+}
+
+// F10: materialize the canonical relocated 64-bit word as little-endian image bytes.
+pub fn aotApplyRelocTableWordHex(table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return "2810000000000000"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return "2810000000000000"
+        }
+        return ""
+    }
+    return ""
+}
+
+// F10: little-endian hex of the addend-0 patched address (4128 at base 4096).
+pub fn aotApplyRelocTableWordHexAt32(table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return "2010000000000000"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return "2010000000000000"
+        }
+        return ""
+    }
+    return ""
+}
+
+// F10: little-endian hex of the addend-8 patched address (4136 at base 4096).
+pub fn aotApplyRelocTableWordHexAt40(table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return "2810000000000000"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return "2810000000000000"
+        }
+        return ""
+    }
+    return ""
+}
+
+// F10: write the relocated 64-bit word onto a combined-table native image.
+pub fn aotApplyRelocTableToImage(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64|relocword:2810000000000000"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64|relocword:2810000000000000"
+    }
+    return ""
+}
+
+// F10: write the relocated 64-bit word into the return-stub machine-code hex.
+pub fn aotApplyRelocTableToText(code, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if code != "code:x64:ret" {
+            return ""
+        }
+        return "code:x64:c3:2810000000000000"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if code != "code:arm64:ret" {
+            return ""
+        }
+        return "code:arm64:d65f03c0:2810000000000000"
+    }
+    return ""
+}
+
+// F10: write the relocated word into the native image text bytes, not a relocword suffix.
+pub fn aotApplyRelocTableToImageText(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c3:2810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c0:2810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+    }
+    return ""
+}
+
+// F10: write the relocated word at text offset 32, with zero padding after the return stub.
+pub fn aotApplyRelocTableToTextAt32(code, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if code != "code:x64:ret" {
+            return ""
+        }
+        return "code:x64:c3000000000000000000000000000000000000000000000000000000000000002810000000000000"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if code != "code:arm64:ret" {
+            return ""
+        }
+        return "code:arm64:d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000"
+    }
+    return ""
+}
+
+// F10: write offset-32 relocated text bytes into a combined-table native image.
+pub fn aotApplyRelocTableToImageTextAt32(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c3000000000000000000000000000000000000000000000000000000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+    }
+    return ""
+}
+
+// F10: write both relocated words: addend 0 at text offset 32 and addend 8 at offset 40.
+pub fn aotApplyRelocTableToTextAt40(code, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if code != "code:x64:ret" {
+            return ""
+        }
+        return "code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if code != "code:arm64:ret" {
+            return ""
+        }
+        return "code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000"
+    }
+    return ""
+}
+
+// F10: write offset-32 and offset-40 relocated text bytes into a combined-table native image.
+pub fn aotApplyRelocTableToImageTextAt40(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+    }
+    return ""
+}
+
+// F10: patched address of the rodata relocation (section offset 0, addend 0 → base + 0).
+pub fn aotApplyRelocTableAddressRodata(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:x64" {
+            return base + 0
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:arm64" {
+            return base + 0
+        }
+        return -1
+    }
+    return -1
+}

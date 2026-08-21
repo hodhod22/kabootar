@@ -1,0 +1,16 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_code"
+import "kab/aot_emit_reloc_table"
+
+let code = aotEmitCode("x64")
+let table = aotEmitRelocTable("x64")
+let text = aotApplyRelocTableToTextAt40(code, table, 4096, "arm64")
+let hex32 = aotApplyRelocTableWordHexAt32(table, 4096, "arm64")
+let hex40 = aotApplyRelocTableWordHexAt40(table, 4096, "arm64")
+if text != "" {
+    return false
+}
+if hex32 != "" {
+    return false
+}
+return hex40 == ""

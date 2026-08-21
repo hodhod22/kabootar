@@ -1,0 +1,21 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_bind"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTable("arm64")
+let addr32 = aotApplyRelocTableAddressAt32(table, 4096, "arm64")
+let addr40 = aotApplyRelocTableAddressAt40(table, 4096, "arm64")
+let hex32 = aotApplyRelocTableWordHexAt32(table, 4096, "arm64")
+let hex40 = aotApplyRelocTableWordHexAt40(table, 4096, "arm64")
+let bind32 = aotRelocSymbolBindOk(addr32, 4128)
+let bind40 = aotRelocSymbolBindOk(addr40, 4136)
+if hex32 != "2010000000000000" {
+    return false
+}
+if hex40 != "2810000000000000" {
+    return false
+}
+if bind32 == false {
+    return false
+}
+return bind40

@@ -283,10 +283,13 @@ pub fn peek(sess) {
 
 pub fn bump(sess) {
     sess["pTok"] = sess["pCur"]
-    if sess["pPos"] < sess["pToksLen"] {
-        sess["pPos"] = sess["pPos"] + 1
-        if sess["pPos"] < sess["pToksLen"] {
-            sess["pCur"] = sess["pToks"][sess["pPos"]]
+    let pos = sess["pPos"]
+    let n = sess["pToksLen"]
+    if pos < n {
+        pos = pos + 1
+        sess["pPos"] = pos
+        if pos < n {
+            sess["pCur"] = sess["pToks"][pos]
         } else {
             sess["pCur"] = sess["pEofTok"]
         }
