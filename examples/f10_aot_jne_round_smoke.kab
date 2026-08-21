@@ -1,0 +1,5 @@
+import "kab/aot_jne_op"
+import "kab/aot_load_jne"
+
+let op = aotJneOp("x64")
+return aotLoadJneOk(op, "x64")

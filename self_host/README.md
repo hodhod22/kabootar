@@ -136,7 +136,7 @@ Kort ordning:
 13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
 14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (x64/arm64 ship/ret-op/nop-op load+verify/zero-op load+verify/one-op load+verify/add-op load+verify/sub-op load+verify/mul-op load+verify/div-op load+verify/and-op load+verify/or-op load+verify/shl-op load+verify/shr-op load+verify/not-op load+verify/xor-op load+verify/neg-op load+verify/cmp-op load+verify/test-op load+verify/je-op load+verify/text+layout+native one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+nop+ret/rodata/data + write/read bind); native machine-code deepen; `nollAotReady` still false
+16. ~~**F10 AOT native-image policy**~~ ✅ (x64/arm64 ship/ret-op/nop-op load+verify/zero-op load+verify/one-op load+verify/add-op load+verify/sub-op load+verify/mul-op load+verify/div-op load+verify/and-op load+verify/or-op load+verify/shl-op load+verify/shr-op load+verify/not-op load+verify/xor-op load+verify/neg-op load+verify/cmp-op load+verify/test-op load+verify/je-op load+verify/jne-op load+verify/jl-op load+verify/text one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+jl+nop+ret/layout+native one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+nop+ret/rodata/data + write/read bind); native machine-code deepen; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 

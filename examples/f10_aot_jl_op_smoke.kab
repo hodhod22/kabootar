@@ -1,0 +1,3 @@
+import "kab/aot_jl_op"
+
+return aotJlOp("x64") == "7c00"
