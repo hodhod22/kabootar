@@ -1,4 +1,4 @@
-// F10: first native layouts concatenate RX one-add-sub-mul-div-and-or-shl-shr-not-xor-neg-cmp-test-je-jne-jl-jle-jg-jge-ja-jae-jb-jbe-js-jns-nop-ret text, R rodata, and RW data.
+// F10: first native layouts concatenate RX arithmetic, branches, call/stack/frame/local lowering, nop/ret text, R rodata, and RW data.
 // import "kab/aot_emit_layout"; do not import other kab/aot* leaves.
 
 pub fn aotEmitLayout(target) {

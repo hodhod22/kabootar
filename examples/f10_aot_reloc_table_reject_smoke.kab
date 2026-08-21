@@ -1,0 +1,3 @@
+import "kab/aot_reloc"
+
+return aotRelocTableEntryAddress(4096, 32, "", "x64") == -1

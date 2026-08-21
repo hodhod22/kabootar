@@ -1,0 +1,12 @@
+// F10: load the first ordered relocation table for a Kab-native image.
+// Do not import other kab/aot* leaves. Relocation-table loading stays in Kab.
+
+pub fn aotLoadRelocTableOk(table, target) {
+    if target == "x64" {
+        return table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+    }
+    if target == "arm64" {
+        return table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
+    }
+    return false
+}

@@ -1,4 +1,4 @@
-// F10: first native images emit plan prefix plus one-add-sub-mul-div-and-or-shl-shr-not-xor-neg-cmp-test-je-jne-jl-jle-jg-jge-ja-jae-jb-jbe-js-jns-nop-ret section payloads.
+// F10: first native images emit a plan prefix plus arithmetic, branches, call/stack/frame/local lowering, nop/ret section payloads.
 // import "kab/aot_emit_native"; do not import other kab/aot* leaves.
 
 pub fn aotEmitNative(target) {

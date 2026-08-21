@@ -1,0 +1,5 @@
+import "kab/aot_emit_reloc"
+import "kab/aot_load_reloc"
+
+let record = aotEmitRelocWithAddend("x64", 8)
+return aotLoadRelocWithAddendOk(record, "x64", 8)

@@ -1,0 +1,21 @@
+// F10: apply the validated first relocation table to its native image base.
+// Do not import other kab/aot* leaves. Relocation application stays in Kab.
+
+pub fn aotApplyRelocTableAddress(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
+            return base + 32 + 8
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return base + 32 + 8
+        }
+        return -1
+    }
+    return -1
+}

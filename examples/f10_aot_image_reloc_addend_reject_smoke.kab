@@ -1,0 +1,8 @@
+import "kab/aot_emit_image"
+import "kab/aot_load_image"
+
+let image = aotEmitImageWithRelocAddend("x64", 4)
+if image != "" {
+    return false
+}
+return aotLoadImageOk("kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|sym:text:32:main:x64|reloc:text:32:4:main:x64", "x64") == false

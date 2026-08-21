@@ -1,0 +1,5 @@
+import "kab/aot_emit_sym"
+import "kab/aot_load_sym"
+
+let record = aotEmitSymbol("x64")
+return aotLoadSymbolOk(record, "x64")

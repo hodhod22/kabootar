@@ -1,0 +1,12 @@
+// F10: serialize the first ordered symbol table for a Kab-native image.
+// Do not import other kab/aot* leaves. Symbol-table serialization stays in Kab.
+
+pub fn aotEmitSymbolTable(target) {
+    if target == "x64" {
+        return "syms:sym:text:0:_start:x64;sym:text:32:main:x64"
+    }
+    if target == "arm64" {
+        return "syms:sym:text:0:_start:arm64;sym:text:32:main:arm64"
+    }
+    return ""
+}

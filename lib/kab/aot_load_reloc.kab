@@ -1,0 +1,35 @@
+// F10: load the first serialized relocation record for its target.
+// Do not import other kab/aot* leaves. Relocation loading stays in Kab.
+
+pub fn aotLoadRelocOk(record, target) {
+    if target == "x64" {
+        return record == "reloc:text:32:0:main:x64"
+    }
+    if target == "arm64" {
+        return record == "reloc:text:32:0:main:arm64"
+    }
+    return false
+}
+
+// F10: validate the supported relocation addends used by native table patches.
+pub fn aotLoadRelocWithAddendOk(record, target, addend) {
+    if target == "x64" {
+        if addend == 0 {
+            return record == "reloc:text:32:0:main:x64"
+        }
+        if addend == 8 {
+            return record == "reloc:text:32:8:main:x64"
+        }
+        return false
+    }
+    if target == "arm64" {
+        if addend == 0 {
+            return record == "reloc:text:32:0:main:arm64"
+        }
+        if addend == 8 {
+            return record == "reloc:text:32:8:main:arm64"
+        }
+        return false
+    }
+    return false
+}

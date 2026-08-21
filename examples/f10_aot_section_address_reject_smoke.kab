@@ -1,0 +1,3 @@
+import "kab/aot_section"
+
+return aotSectionAddress(4096, "bss", 32) == -1

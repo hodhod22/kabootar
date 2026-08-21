@@ -1,4 +1,4 @@
-// F10: first Kab-native text sections carry RX plus one then add then sub then mul then div then and then or then shl then shr then not then xor then neg then cmp then test then je then jne then jl then jle then jg then jge then ja then jae then jb then jbe then js then jns then nop then return.
+// F10: first Kab-native text sections carry RX plus arithmetic, comparisons, all supported conditional jumps, jmp/call, stack/frame/local lowering, nop, and return.
 // import "kab/aot_emit_text"; do not import other kab/aot* leaves.
 
 pub fn aotEmitText(target) {

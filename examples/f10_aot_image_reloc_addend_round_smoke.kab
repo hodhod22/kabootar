@@ -1,0 +1,5 @@
+import "kab/aot_emit_image"
+import "kab/aot_load_image"
+
+let image = aotEmitImageWithRelocAddend("x64", 8)
+return aotLoadImageOk(image, "x64")

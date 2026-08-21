@@ -1,0 +1,3 @@
+import "kab/aot_load_image"
+
+return aotLoadImageOk("kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|reloc:text:32:0:main:arm64", "x64") == false

@@ -40,3 +40,75 @@ pub fn aotRelocPatchedAddress(base, offset, addend) {
     }
     return base + offset + addend
 }
+
+// F10: a table entry resolves only when its relocation record is valid.
+pub fn aotRelocTableEntryAddress(base, offset, symbol, target) {
+    if aotRelocRecordOk(base, offset, symbol, target) == false {
+        return -1
+    }
+    return aotRelocPatchedAddress(base, offset, 0)
+}
+
+// F10: a relocation table patch resolves a validated record with its addend.
+pub fn aotRelocTablePatchedAddress(base, offset, addend, symbol, target) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if addend < 0 {
+        return -1
+    }
+    if len(symbol) == 0 {
+        return -1
+    }
+    if target == "x64" {
+        return base + offset + addend
+    }
+    if target == "arm64" {
+        return base + offset + addend
+    }
+    return -1
+}
+
+// F10: a relocation table entry must also name a known image section.
+pub fn aotRelocSectionEntryAddress(base, section, offset, symbol, target) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if len(symbol) == 0 {
+        return -1
+    }
+    if section == "text" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    if section == "rodata" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    if section == "data" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    return -1
+}

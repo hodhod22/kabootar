@@ -1,0 +1,4 @@
+import "kab/aot_emit_image"
+import "kab/aot_loaded_image"
+
+return aotLoadedImageOk(aotEmitImageWithRelocAddend("arm64", 8))
