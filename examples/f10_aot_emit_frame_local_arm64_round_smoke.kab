@@ -1,0 +1,17 @@
+import "kab/aot_emit_text"
+import "kab/aot_frame_enter_op"
+import "kab/aot_call_op"
+import "kab/aot_nop_op"
+import "kab/aot_store_local_op"
+import "kab/aot_inc_local_op"
+import "kab/aot_dec_local_op"
+import "kab/aot_cmp_local_zero_op"
+import "kab/aot_branch_local_zero_op"
+import "kab/aot_branch_local_nonzero_op"
+import "kab/aot_load_local_op"
+import "kab/aot_frame_exit_op"
+import "kab/aot_ret_op"
+
+let prefix = "text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aa"
+let expected = prefix + aotFrameEnterOp("arm64") + aotCallOp("arm64") + aotNopOp("arm64") + aotStoreLocalOp("arm64") + aotIncLocalOp("arm64") + aotDecLocalOp("arm64") + aotCmpLocalZeroOp("arm64") + aotBranchLocalZeroOp("arm64") + aotBranchLocalNonzeroOp("arm64") + aotLoadLocalOp("arm64") + aotFrameExitOp("arm64") + aotRetOp("arm64")
+return aotEmitText("arm64") == expected

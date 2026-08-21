@@ -1,0 +1,12 @@
+// F10: native image filename and frame-local decrement must agree.
+// import "kab/aot_verify_dec_local"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyDecLocalOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "488345f8ff"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "a00b40f9000400d1a00b00f9"
+    }
+    return false
+}

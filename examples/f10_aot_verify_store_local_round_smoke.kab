@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_store_local_op"
+import "kab/aot_verify_store_local"
+
+let name = aotImageName("x64")
+let op = aotStoreLocalOp("x64")
+return aotVerifyStoreLocalOk(name, op)

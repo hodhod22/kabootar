@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-local increment.
+// import "kab/aot_load_inc_local"; do not import other kab/aot* leaves.
+
+pub fn aotLoadIncLocalOk(op, target) {
+    if target == "x64" {
+        return op == "488345f801"
+    }
+    if target == "arm64" {
+        return op == "a00b40f900040091a00b00f9"
+    }
+    return false
+}

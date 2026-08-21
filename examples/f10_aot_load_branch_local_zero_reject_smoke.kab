@@ -1,0 +1,3 @@
+import "kab/aot_load_branch_local_zero"
+
+return aotLoadBranchLocalZeroOk("48837df8007400", "arm64") == false

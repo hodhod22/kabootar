@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_frame_exit_op"
+import "kab/aot_verify_frame_exit"
+
+let name = aotImageName("x64")
+let op = aotFrameExitOp("x64")
+return aotVerifyFrameExitOk(name, op)

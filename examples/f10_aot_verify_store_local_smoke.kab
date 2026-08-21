@@ -1,0 +1,3 @@
+import "kab/aot_verify_store_local"
+
+return aotVerifyStoreLocalOk("kabootar-x64.kbn", "488945f8")

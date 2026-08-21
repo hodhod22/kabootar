@@ -1,0 +1,3 @@
+import "kab/aot_sym"
+
+return aotSymbolRecordOk("main", 32, "x64")

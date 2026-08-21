@@ -1,0 +1,3 @@
+import "kab/aot_reloc"
+
+return aotRelocAddress(-1, 0) == -1 && aotRelocAddress(0, -1) == -1

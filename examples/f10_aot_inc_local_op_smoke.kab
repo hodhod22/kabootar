@@ -1,0 +1,3 @@
+import "kab/aot_inc_local_op"
+
+return aotIncLocalOp("x64") == "488345f801"

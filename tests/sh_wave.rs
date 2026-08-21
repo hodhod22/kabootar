@@ -781,8 +781,80 @@ fn f10_aot_reloc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let r = std::fs::read_to_string(root.join("lib/kab/aot_reloc.kab")).expect("aot_reloc.kab");
     assert!(
-        r.contains("pub fn aotRelocBaseOk") && r.contains("base >= 0"),
-        "F10 Kab aotRelocBaseOk"
+        r.contains("pub fn aotRelocBaseOk")
+            && r.contains("base >= 0")
+            && r.contains("pub fn aotRelocAddress")
+            && r.contains("pub fn aotRelocRecordOk")
+            && r.contains("pub fn aotRelocPatchedAddress"),
+        "F10 Kab relocation patch"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_patch_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_reloc_patch_smoke.kab"))
+        .expect("f10_aot_reloc_patch_smoke.kab");
+    assert!(
+        s.contains("aotRelocPatchedAddress") && s.contains("4136"),
+        "F10 Kab relocation patch"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_patch_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_reloc_patch_reject_smoke.kab"))
+        .expect("f10_aot_reloc_patch_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocPatchedAddress") && s.contains("-1"),
+        "F10 Kab relocation patch rejection"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_record_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_reloc_record_smoke.kab"))
+        .expect("f10_aot_reloc_record_smoke.kab");
+    assert!(
+        s.contains("aotRelocRecordOk") && s.contains("\"main\"") && s.contains("\"x64\""),
+        "F10 Kab relocation record"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_record_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_reloc_record_reject_smoke.kab"))
+        .expect("f10_aot_reloc_record_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocRecordOk") && s.contains("\"\"") && s.contains("false"),
+        "F10 Kab relocation record rejection"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_record_target_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_reloc_record_target_reject_smoke.kab"),
+    )
+    .expect("f10_aot_reloc_record_target_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocRecordOk") && s.contains("\"wasm\"") && s.contains("false"),
+        "F10 Kab relocation target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_reloc_reject_smoke.kab"))
+        .expect("f10_aot_reloc_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocAddress") && s.contains("-1"),
+        "F10 Kab relocation rejection"
     );
 }
 
@@ -792,9 +864,66 @@ fn f10_aot_sym_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let s = std::fs::read_to_string(root.join("lib/kab/aot_sym.kab")).expect("aot_sym.kab");
     assert!(
-        s.contains("pub fn aotSymbolOk") && s.contains("len(name)"),
-        "F10 Kab aotSymbolOk"
+        s.contains("pub fn aotSymbolOk")
+            && s.contains("len(name)")
+            && s.contains("pub fn aotSymbolAddress")
+            && s.contains("pub fn aotSymbolRecordOk"),
+        "F10 Kab symbol record"
     );
+}
+
+#[test]
+fn f10_aot_sym_record_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_sym_record_smoke.kab"))
+        .expect("f10_aot_sym_record_smoke.kab");
+    assert!(
+        s.contains("aotSymbolRecordOk") && s.contains("\"main\"") && s.contains("\"x64\""),
+        "F10 Kab symbol record"
+    );
+}
+
+#[test]
+fn f10_aot_sym_record_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_sym_record_reject_smoke.kab"))
+        .expect("f10_aot_sym_record_reject_smoke.kab");
+    assert!(
+        s.contains("aotSymbolRecordOk") && s.contains("\"\"") && s.contains("false"),
+        "F10 Kab symbol record rejection"
+    );
+}
+
+#[test]
+fn f10_aot_sym_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_sym_reject_smoke.kab"))
+        .expect("f10_aot_sym_reject_smoke.kab");
+    assert!(
+        s.contains("aotSymbolAddress") && s.contains("\"\"") && s.contains("-1"),
+        "F10 Kab symbol rejection"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_sym_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_reloc_sym_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-reloc-sym".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation-symbol smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation-symbol smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// F10: native image sections reserve 16-byte alignment.
@@ -1407,7 +1536,7 @@ fn f10_aot_emit_text_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_text.kab"))
         .expect("aot_emit_text.kab");
     assert!(
-        t.contains("pub fn aotEmitText") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        t.contains("pub fn aotEmitText") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab aotEmitText"
     );
 }
@@ -1419,7 +1548,7 @@ fn f10_aot_load_text_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_text.kab"))
         .expect("aot_load_text.kab");
     assert!(
-        t.contains("pub fn aotLoadTextOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        t.contains("pub fn aotLoadTextOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotLoadTextOk"
     );
 }
@@ -1455,7 +1584,7 @@ fn f10_aot_verify_text_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_text.kab"))
         .expect("aot_verify_text.kab");
     assert!(
-        v.contains("pub fn aotVerifyTextOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        v.contains("pub fn aotVerifyTextOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotVerifyTextOk"
     );
 }
@@ -1527,7 +1656,7 @@ fn f10_aot_loaded_text_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_text.kab"))
         .expect("aot_loaded_text.kab");
     assert!(
-        l.contains("pub fn aotLoadedTextOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        l.contains("pub fn aotLoadedTextOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab persisted native RX text"
     );
 }
@@ -1575,7 +1704,7 @@ fn f10_aot_ship_text_in_kab() {
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_text.kab"))
         .expect("aot_ship_text.kab");
     assert!(
-        s.contains("pub fn aotShipTextOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        s.contains("pub fn aotShipTextOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotShipTextOk"
     );
 }
@@ -2055,7 +2184,7 @@ fn f10_aot_emit_layout_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_layout.kab"))
         .expect("aot_emit_layout.kab");
     assert!(
-        t.contains("pub fn aotEmitLayout") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        t.contains("pub fn aotEmitLayout") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab aotEmitLayout"
     );
 }
@@ -2067,7 +2196,7 @@ fn f10_aot_load_layout_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_layout.kab"))
         .expect("aot_load_layout.kab");
     assert!(
-        t.contains("pub fn aotLoadLayoutOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        t.contains("pub fn aotLoadLayoutOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotLoadLayoutOk"
     );
 }
@@ -2103,7 +2232,7 @@ fn f10_aot_verify_layout_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_layout.kab"))
         .expect("aot_verify_layout.kab");
     assert!(
-        v.contains("pub fn aotVerifyLayoutOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        v.contains("pub fn aotVerifyLayoutOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotVerifyLayoutOk"
     );
 }
@@ -2175,7 +2304,7 @@ fn f10_aot_loaded_layout_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_layout.kab"))
         .expect("aot_loaded_layout.kab");
     assert!(
-        l.contains("pub fn aotLoadedLayoutOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        l.contains("pub fn aotLoadedLayoutOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab persisted native layout"
     );
 }
@@ -2223,7 +2352,7 @@ fn f10_aot_ship_layout_in_kab() {
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_layout.kab"))
         .expect("aot_ship_layout.kab");
     assert!(
-        s.contains("pub fn aotShipLayoutOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        s.contains("pub fn aotShipLayoutOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotShipLayoutOk"
     );
 }
@@ -2271,7 +2400,7 @@ fn f10_aot_emit_native_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_emit_native.kab"))
         .expect("aot_emit_native.kab");
     assert!(
-        t.contains("pub fn aotEmitNative") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        t.contains("pub fn aotEmitNative") && t.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab aotEmitNative"
     );
 }
@@ -2283,7 +2412,7 @@ fn f10_aot_load_native_in_kab() {
     let t = std::fs::read_to_string(root.join("lib/kab/aot_load_native.kab"))
         .expect("aot_load_native.kab");
     assert!(
-        t.contains("pub fn aotLoadNativeOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        t.contains("pub fn aotLoadNativeOk") && t.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotLoadNativeOk"
     );
 }
@@ -2319,7 +2448,7 @@ fn f10_aot_verify_native_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_native.kab"))
         .expect("aot_verify_native.kab");
     assert!(
-        v.contains("pub fn aotVerifyNativeOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        v.contains("pub fn aotVerifyNativeOk") && v.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotVerifyNativeOk"
     );
 }
@@ -2391,7 +2520,7 @@ fn f10_aot_loaded_native_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_native.kab"))
         .expect("aot_loaded_native.kab");
     assert!(
-        l.contains("pub fn aotLoadedNativeOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090c3"),
+        l.contains("pub fn aotLoadedNativeOk") && l.contains("text:rx|b80100000001c029c00fafc0f7f821c009c0d1e0d1e8f7d033c0f7d839c085c0740075007c007e007f007d007700730072007600780079007a007b0070007100e90000000050584883ec104883c4104889d84889c3554889e5e80000000090488945f8488345f801488345f8ff48837df80048837df800740048837df8007500488b45f8c9c3"),
         "F10 Kab persisted native image"
     );
 }
@@ -2427,7 +2556,7 @@ fn f10_aot_ship_native_in_kab() {
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship_native.kab"))
         .expect("aot_ship_native.kab");
     assert!(
-        s.contains("pub fn aotShipNativeOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fd65f03c0"),
+        s.contains("pub fn aotShipNativeOk") && s.contains("text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000540000015400000b5400000d5400000c5400000a540000085400000254000003540000095400000454000005540000065400000714000000e00f1ff8e00741f8ff4300d1ff430091e00301aae10300aafd7bbfa9fd03009194000000d503201fa00b00f9a00b40f900040091a00b00f9a00b40f9000400d1a00b00f9a00b40f91f0000f1a00b40f91f0000f154000000a00b40f91f0000f154000001a00b40f9fd7bc1a8d65f03c0"),
         "F10 Kab aotShipNativeOk"
     );
 }
@@ -4456,6 +4585,160 @@ fn f10_aot_frame_enter_in_kab() {
     assert!(op.contains("aotFrameEnterOp") && op.contains("fd7bbfa9fd030091"));
     assert!(load.contains("aotLoadFrameEnterOk") && load.contains("fd7bbfa9fd030091"));
     assert!(verify.contains("aotVerifyFrameEnterOk") && verify.contains("fd7bbfa9fd030091"));
+}
+
+#[test]
+fn f10_aot_frame_exit_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_frame_exit_op.kab"))
+        .expect("aot_frame_exit_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_frame_exit.kab"))
+        .expect("aot_load_frame_exit.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_frame_exit.kab"))
+        .expect("aot_verify_frame_exit.kab");
+    assert!(op.contains("aotFrameExitOp") && op.contains("fd7bc1a8"));
+    assert!(load.contains("aotLoadFrameExitOk") && load.contains("fd7bc1a8"));
+    assert!(verify.contains("aotVerifyFrameExitOk") && verify.contains("fd7bc1a8"));
+}
+
+#[test]
+fn f10_aot_load_local_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_load_local_op.kab"))
+        .expect("aot_load_local_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_load_local.kab"))
+        .expect("aot_load_load_local.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_load_local.kab"))
+        .expect("aot_verify_load_local.kab");
+    assert!(op.contains("aotLoadLocalOp") && op.contains("a00b40f9"));
+    assert!(load.contains("aotLoadLoadLocalOk") && load.contains("a00b40f9"));
+    assert!(verify.contains("aotVerifyLoadLocalOk") && verify.contains("a00b40f9"));
+}
+
+#[test]
+fn f10_aot_store_local_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_store_local_op.kab"))
+        .expect("aot_store_local_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_store_local.kab"))
+        .expect("aot_load_store_local.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_store_local.kab"))
+        .expect("aot_verify_store_local.kab");
+    assert!(op.contains("aotStoreLocalOp") && op.contains("a00b00f9"));
+    assert!(load.contains("aotLoadStoreLocalOk") && load.contains("a00b00f9"));
+    assert!(verify.contains("aotVerifyStoreLocalOk") && verify.contains("a00b00f9"));
+}
+
+#[test]
+fn f10_aot_inc_local_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_inc_local_op.kab"))
+        .expect("aot_inc_local_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_inc_local.kab"))
+        .expect("aot_load_inc_local.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_inc_local.kab"))
+        .expect("aot_verify_inc_local.kab");
+    assert!(op.contains("aotIncLocalOp") && op.contains("a00b40f900040091a00b00f9"));
+    assert!(load.contains("aotLoadIncLocalOk") && load.contains("a00b40f900040091a00b00f9"));
+    assert!(verify.contains("aotVerifyIncLocalOk") && verify.contains("a00b40f900040091a00b00f9"));
+}
+
+#[test]
+fn f10_aot_dec_local_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_dec_local_op.kab"))
+        .expect("aot_dec_local_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_dec_local.kab"))
+        .expect("aot_load_dec_local.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_dec_local.kab"))
+        .expect("aot_verify_dec_local.kab");
+    assert!(op.contains("aotDecLocalOp") && op.contains("a00b40f9000400d1a00b00f9"));
+    assert!(load.contains("aotLoadDecLocalOk") && load.contains("a00b40f9000400d1a00b00f9"));
+    assert!(verify.contains("aotVerifyDecLocalOk") && verify.contains("a00b40f9000400d1a00b00f9"));
+}
+
+#[test]
+fn f10_aot_cmp_local_zero_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_cmp_local_zero_op.kab"))
+        .expect("aot_cmp_local_zero_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_cmp_local_zero.kab"))
+        .expect("aot_load_cmp_local_zero.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_cmp_local_zero.kab"))
+        .expect("aot_verify_cmp_local_zero.kab");
+    assert!(op.contains("aotCmpLocalZeroOp") && op.contains("a00b40f91f0000f1"));
+    assert!(load.contains("aotLoadCmpLocalZeroOk") && load.contains("a00b40f91f0000f1"));
+    assert!(verify.contains("aotVerifyCmpLocalZeroOk") && verify.contains("a00b40f91f0000f1"));
+}
+
+#[test]
+fn f10_aot_branch_local_zero_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_branch_local_zero_op.kab"))
+        .expect("aot_branch_local_zero_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_branch_local_zero.kab"))
+        .expect("aot_load_branch_local_zero.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_branch_local_zero.kab"))
+        .expect("aot_verify_branch_local_zero.kab");
+    assert!(op.contains("aotBranchLocalZeroOp") && op.contains("a00b40f91f0000f154000000"));
+    assert!(load.contains("aotLoadBranchLocalZeroOk") && load.contains("a00b40f91f0000f154000000"));
+    assert!(verify.contains("aotVerifyBranchLocalZeroOk") && verify.contains("a00b40f91f0000f154000000"));
+}
+
+#[test]
+fn f10_aot_branch_local_nonzero_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let op = std::fs::read_to_string(root.join("lib/kab/aot_branch_local_nonzero_op.kab"))
+        .expect("aot_branch_local_nonzero_op.kab");
+    let load = std::fs::read_to_string(root.join("lib/kab/aot_load_branch_local_nonzero.kab"))
+        .expect("aot_load_branch_local_nonzero.kab");
+    let verify = std::fs::read_to_string(root.join("lib/kab/aot_verify_branch_local_nonzero.kab"))
+        .expect("aot_verify_branch_local_nonzero.kab");
+    assert!(op.contains("aotBranchLocalNonzeroOp") && op.contains("a00b40f91f0000f154000001"));
+    assert!(load.contains("aotLoadBranchLocalNonzeroOk") && load.contains("a00b40f91f0000f154000001"));
+    assert!(verify.contains("aotVerifyBranchLocalNonzeroOk") && verify.contains("a00b40f91f0000f154000001"));
+}
+
+#[test]
+fn f10_aot_emit_frame_local_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_emit_frame_local_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-frame-local".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile frame-local emitter smoke");
+            let value = eval_program(&program, &mut env).expect("run frame-local emitter smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_emit_frame_local_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_emit_frame_local_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-frame-local-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 frame-local emitter smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 frame-local emitter smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// F10: native image filename and add opcode must agree.

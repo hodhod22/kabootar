@@ -1,0 +1,5 @@
+import "kab/aot_load_local_op"
+import "kab/aot_load_load_local"
+
+let op = aotLoadLocalOp("x64")
+return aotLoadLoadLocalOk(op, "x64")

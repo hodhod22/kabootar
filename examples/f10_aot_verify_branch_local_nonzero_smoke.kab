@@ -1,0 +1,3 @@
+import "kab/aot_verify_branch_local_nonzero"
+
+return aotVerifyBranchLocalNonzeroOk("kabootar-x64.kbn", "48837df8007500")

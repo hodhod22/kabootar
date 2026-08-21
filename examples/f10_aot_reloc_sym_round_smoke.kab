@@ -1,0 +1,10 @@
+import "kab/aot_reloc"
+import "kab/aot_sym"
+
+if aotRelocRecordOk(4096, 32, "main", "x64") == false {
+    return false
+}
+if aotSymbolRecordOk("main", 32, "x64") == false {
+    return false
+}
+return aotRelocAddress(4096, 32) == aotSymbolAddress(4096, "main", 32)

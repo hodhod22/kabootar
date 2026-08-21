@@ -1,0 +1,12 @@
+// F10: native image filename and frame-local load must agree.
+// import "kab/aot_verify_load_local"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyLoadLocalOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "488b45f8"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "a00b40f9"
+    }
+    return false
+}
