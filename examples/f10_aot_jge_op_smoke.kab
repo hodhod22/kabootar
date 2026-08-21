@@ -1,0 +1,3 @@
+import "kab/aot_jge_op"
+
+return aotJgeOp("x64") == "7d00"

@@ -110,7 +110,7 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 | **F7** | **Baseline JIT i Kab** — template per opcode → maskinkod (SH17 start) | `jit_stats` hits från Kab-JIT, inte Cranelift | ✅ subset: templates + `jitMapIncRetOk` + `jitPageSize` + `jitPagesFor` + `jitExecOk`; host mmap/exec deepen (ingen ny Rust-JIT) |
 | **F8** | **Optimizing JIT** — SSA, inlining, LICM, GVN, deopt | i64-loop nära native minus skatt | ✅ subset: `jitCanInline` + `jitLicmOk` + `jitGvnOk` + `jitDeoptOk` + `jitSsaOk`; native-loop deepen |
 | **F9** | **Regalloc + SIMD i JIT** — linear-scan; later SIMD-unbox | nd-add/dot utan boxed loop | ✅ subset: `jitScanGprs` + `jitColorOk` + `jitSimdOk`; nd-add/dot deepen |
-| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: x64/arm64 ship/ret-op/nop-op (load+verify)/zero-op (load+verify)/one-op (load+verify)/add-op (load+verify)/sub-op (load+verify)/mul-op (load+verify)/div-op (load+verify)/and-op (load+verify)/or-op (load+verify)/shl-op (load+verify)/shr-op (load+verify)/not-op (load+verify)/xor-op (load+verify)/neg-op (load+verify)/cmp-op (load+verify)/test-op (load+verify)/je-op (load+verify)/jne-op (load+verify)/jl-op (load+verify)/text (one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+jl+nop+ret)/layout+native (one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+nop+ret)/rodata/data plus write/read bind; native machine-code deepen |
+| **F10** | **AOT + PGO** — warmed image; profilstyrd JIT/AOT | kallstart + steady-state gates | ✅ subset: x64/arm64 ship/ret-op/nop-op (load+verify)/zero-op (load+verify)/one-op (load+verify)/add-op (load+verify)/sub-op (load+verify)/mul-op (load+verify)/div-op (load+verify)/and-op (load+verify)/or-op (load+verify)/shl-op (load+verify)/shr-op (load+verify)/not-op (load+verify)/xor-op (load+verify)/neg-op (load+verify)/cmp-op (load+verify)/test-op (load+verify)/je-op (load+verify)/jne-op (load+verify)/jl-op (load+verify)/jle-op (load+verify)/jg-op (load+verify)/jge-op (load+verify)/text+layout+native (one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+jl+jle+jg+jge+nop+ret)/rodata/data plus write/read bind; native machine-code deepen |
 | **F11** | **Nursery GC i Kab** (SH18) — bump, promote, frame-budget | 60 FPS utan GC-spike i idle | ✅ subset: bump + promote + sweep + `gcWriteBarrier` + `gcMarkStep`; concurrent mark deepen |
 | **F12** | **Escape analysis + `@manual` release** — stackalloc; noll checks | use-after-move bara debug | ✅ subset: `kab/esc` `escFitsFrame`; `@manual` release deepen |
 | **F13** | **Parallell compile + workers** | SH7/P8 deepen i Kab | ✅ SH7 subset; workers deepen |
@@ -1015,7 +1015,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 
 **Fast Compile / Fast Run:** compile-arbete i Kab. Körning = Kab-VM, sedan **Kab-JIT (SH17)** och **Kab-GC (SH18)** — inte mer JIT/GC i Rust.
 
-**Nästa steg (bara `.kab`):** F10 layout that prefixes one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+jl+nop+ret — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
+**Nästa steg (bara `.kab`):** F10 ja-op (load+verify) — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
 
 **Icke-mål:**
 
