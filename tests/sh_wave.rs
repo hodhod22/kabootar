@@ -2921,6 +2921,339 @@ fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_reject_exec() {
 }
 
 #[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotApplyRelocTableWordHexData"),
+        "F10 Kab loaded data-hex dual-bind via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-symbol".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile data hex loaded-symbol bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run data hex loaded-symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_arm64_smoke.kab");
+    assert!(
+        s.contains("aotRelocSymbolBindOk") && s.contains("\"arm64\"") && s.contains("4096"),
+        "F10 Kab arm64 loaded data-hex dual-bind via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocSymbolBindOk") && s.contains("4128") && s.contains("false"),
+        "F10 Kab loaded data-hex symbol-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-symbol-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 data hex loaded-symbol bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 data hex loaded-symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_symbol_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-symbol-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile data hex loaded-symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run data hex loaded-symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab loaded data-hex dual-bind via ship+bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile data hex loaded-ship bind smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run data hex loaded-ship bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotShipOk") && s.contains("aotRelocSymbolBindOk") && s.contains("\"arm64\""),
+        "F10 Kab arm64 loaded data-hex dual-bind via ship+bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab loaded data-hex ship+bind target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 data hex loaded-ship bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 data hex loaded-ship bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile data hex loaded-ship bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run data hex loaded-ship bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotRelocSymbolBindOk"),
+        "F10 Kab loaded data-hex dual-bind via verify+ship+bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile data hex loaded-verify-ship bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run data hex loaded-verify-ship bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk") && s.contains("aotShipOk") && s.contains("\"arm64\""),
+        "F10 Kab arm64 loaded data-hex dual-bind via verify+ship+bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("false"),
+        "F10 Kab loaded data-hex verify+ship+bind name rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 data hex loaded-verify-ship bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 data hex loaded-verify-ship bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_data_hex_loaded_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-data-hex-loaded-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile data hex loaded-verify-ship bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run data hex loaded-verify-ship bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
 fn f10_aot_apply_reloc_rodata_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_rodata_smoke.kab"))
