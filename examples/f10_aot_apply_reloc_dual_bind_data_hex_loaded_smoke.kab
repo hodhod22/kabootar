@@ -1,0 +1,15 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_loaded_image"
+
+let table = aotEmitRelocTableData("x64")
+let image = aotEmitImageWithRelocTableData("x64")
+let patched = aotApplyRelocTableToImageDataHex(image, table, 4096, "x64")
+let hex = aotApplyRelocTableWordHexData(table, 4096, "x64")
+let prefix = "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|"
+let suffix = "|code:x64:ret|sym:data:0:g0:x64|relocs:reloc:data:0:0:g0:x64"
+if patched != prefix + hex + suffix {
+    return false
+}
+return aotLoadedImageOk(patched)
