@@ -1,0 +1,3 @@
+import "kab/aot_verify_pop"
+
+return aotVerifyPopOk("kabootar-x64.kbn", "e00741f8") == false

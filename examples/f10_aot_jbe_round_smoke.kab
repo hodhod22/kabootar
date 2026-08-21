@@ -1,0 +1,5 @@
+import "kab/aot_jbe_op"
+import "kab/aot_load_jbe"
+
+let op = aotJbeOp("x64")
+return aotLoadJbeOk(op, "x64")

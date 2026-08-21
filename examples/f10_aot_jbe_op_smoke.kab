@@ -1,0 +1,3 @@
+import "kab/aot_jbe_op"
+
+return aotJbeOp("x64") == "7600"

@@ -1,0 +1,3 @@
+import "kab/aot_verify_push"
+
+return aotVerifyPushOk("kabootar-x64.kbn", "e00f1ff8") == false

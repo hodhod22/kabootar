@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented 16-byte stack-allocation opcode.
+// import "kab/aot_stack_alloc_op"; do not import other kab/aot* leaves.
+
+pub fn aotStackAllocOp(target) {
+    if target == "x64" {
+        return "4883ec10"
+    }
+    if target == "arm64" {
+        return "ff4300d1"
+    }
+    return ""
+}

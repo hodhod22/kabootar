@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-entry prologue.
+// import "kab/aot_load_frame_enter"; do not import other kab/aot* leaves.
+
+pub fn aotLoadFrameEnterOk(op, target) {
+    if target == "x64" {
+        return op == "554889e5"
+    }
+    if target == "arm64" {
+        return op == "fd7bbfa9fd030091"
+    }
+    return false
+}

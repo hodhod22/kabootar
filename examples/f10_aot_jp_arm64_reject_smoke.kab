@@ -1,0 +1,3 @@
+import "kab/aot_jp_op"
+
+return aotJpOp("arm64") == ""

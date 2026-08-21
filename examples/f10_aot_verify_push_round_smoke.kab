@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_push_op"
+import "kab/aot_verify_push"
+
+let name = aotImageName("x64")
+let op = aotPushOp("x64")
+return aotVerifyPushOk(name, op)

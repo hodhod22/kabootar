@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_pop_op"
+import "kab/aot_verify_pop"
+
+let name = aotImageName("x64")
+let op = aotPopOp("x64")
+return aotVerifyPopOk(name, op)

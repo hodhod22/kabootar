@@ -1,0 +1,3 @@
+import "kab/aot_load_jbe"
+
+return aotLoadJbeOk("7600", "arm64") == false

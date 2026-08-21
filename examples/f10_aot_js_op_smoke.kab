@@ -1,0 +1,3 @@
+import "kab/aot_js_op"
+
+return aotJsOp("x64") == "7800"

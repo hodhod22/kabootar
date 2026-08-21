@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_call_op"
+import "kab/aot_verify_call"
+
+let name = aotImageName("x64")
+let op = aotCallOp("x64")
+return aotVerifyCallOk(name, op)

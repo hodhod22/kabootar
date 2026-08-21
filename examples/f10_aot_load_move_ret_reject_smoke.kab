@@ -1,0 +1,3 @@
+import "kab/aot_load_move_ret"
+
+return aotLoadMoveRetOk("4889c3", "arm64") == false

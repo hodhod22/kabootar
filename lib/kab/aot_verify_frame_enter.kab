@@ -1,0 +1,12 @@
+// F10: native image filename and frame-entry prologue must agree.
+// import "kab/aot_verify_frame_enter"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyFrameEnterOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "554889e5"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "fd7bbfa9fd030091"
+    }
+    return false
+}

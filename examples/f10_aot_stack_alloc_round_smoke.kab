@@ -1,0 +1,5 @@
+import "kab/aot_stack_alloc_op"
+import "kab/aot_load_stack_alloc"
+
+let op = aotStackAllocOp("x64")
+return aotLoadStackAllocOk(op, "x64")

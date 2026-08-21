@@ -1,0 +1,3 @@
+import "kab/aot_load_jns"
+
+return aotLoadJnsOk("7900", "arm64") == false

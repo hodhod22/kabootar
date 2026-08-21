@@ -1,0 +1,5 @@
+import "kab/aot_move_arg_op"
+import "kab/aot_load_move_arg"
+
+let op = aotMoveArgOp("x64")
+return aotLoadMoveArgOk(op, "x64")

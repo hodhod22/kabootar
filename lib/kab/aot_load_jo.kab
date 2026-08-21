@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image jo opcode.
+// import "kab/aot_load_jo"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJoOk(op, target) {
+    if target == "x64" {
+        return op == "7000"
+    }
+    if target == "arm64" {
+        return op == "54000006"
+    }
+    return false
+}

@@ -1,0 +1,12 @@
+// F10: native image filename and jns opcode must agree.
+// import "kab/aot_verify_jns"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyJnsOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "7900"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "54000005"
+    }
+    return false
+}

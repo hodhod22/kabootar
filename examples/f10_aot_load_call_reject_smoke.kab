@@ -1,0 +1,3 @@
+import "kab/aot_load_call"
+
+return aotLoadCallOk("e800000000", "arm64") == false

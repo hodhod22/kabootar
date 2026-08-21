@@ -1,0 +1,3 @@
+import "kab/aot_push_op"
+
+return aotPushOp("x64") == "50"

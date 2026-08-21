@@ -1,0 +1,9 @@
+// F10: loader accepts only the documented x64 first-image jnp opcode.
+// import "kab/aot_load_jnp"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJnpOk(op, target) {
+    if target == "x64" {
+        return op == "7b00"
+    }
+    return false
+}

@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image jae opcode.
+// import "kab/aot_load_jae"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJaeOk(op, target) {
+    if target == "x64" {
+        return op == "7300"
+    }
+    if target == "arm64" {
+        return op == "54000002"
+    }
+    return false
+}
