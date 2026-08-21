@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_shr_op"
+import "kab/aot_verify_shr"
+
+let name = aotImageName("arm64")
+let op = aotShrOp("arm64")
+return aotVerifyShrOk(name, op)

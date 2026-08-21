@@ -1,0 +1,3 @@
+import "kab/aot_shl_op"
+
+return aotShlOp("x64") == "d1e0"

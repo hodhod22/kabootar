@@ -1,0 +1,3 @@
+import "kab/aot_not_op"
+
+return aotNotOp("x64") == "f7d0"

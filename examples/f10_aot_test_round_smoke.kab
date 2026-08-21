@@ -1,0 +1,5 @@
+import "kab/aot_test_op"
+import "kab/aot_load_test"
+
+let op = aotTestOp("x64")
+return aotLoadTestOk(op, "x64")

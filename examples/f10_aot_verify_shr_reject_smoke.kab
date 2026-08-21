@@ -1,0 +1,3 @@
+import "kab/aot_verify_shr"
+
+return aotVerifyShrOk("kabootar-x64.kbn", "d341fc00") == false

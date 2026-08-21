@@ -1,0 +1,3 @@
+import "kab/aot_mul_op"
+
+return aotMulOp("x64") == "0fafc0"

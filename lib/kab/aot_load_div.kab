@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image div opcode.
+// import "kab/aot_load_div"; do not import other kab/aot* leaves.
+
+pub fn aotLoadDivOk(op, target) {
+    if target == "x64" {
+        return op == "f7f8"
+    }
+    if target == "arm64" {
+        return op == "9ac00c00"
+    }
+    return false
+}

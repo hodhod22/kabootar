@@ -1,0 +1,3 @@
+import "kab/aot_verify_div"
+
+return aotVerifyDivOk("kabootar-x64.kbn", "9ac00c00") == false

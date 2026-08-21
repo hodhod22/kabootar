@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_cmp_op"
+import "kab/aot_verify_cmp"
+
+let name = aotImageName("x64")
+let op = aotCmpOp("x64")
+return aotVerifyCmpOk(name, op)

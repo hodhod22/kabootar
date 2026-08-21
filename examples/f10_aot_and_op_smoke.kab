@@ -1,0 +1,3 @@
+import "kab/aot_and_op"
+
+return aotAndOp("x64") == "21c0"

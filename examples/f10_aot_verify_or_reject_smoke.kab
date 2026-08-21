@@ -1,0 +1,3 @@
+import "kab/aot_verify_or"
+
+return aotVerifyOrOk("kabootar-x64.kbn", "aa000000") == false

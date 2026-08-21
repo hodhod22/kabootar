@@ -1,0 +1,5 @@
+import "kab/aot_shl_op"
+import "kab/aot_load_shl"
+
+let op = aotShlOp("x64")
+return aotLoadShlOk(op, "x64")

@@ -1,0 +1,3 @@
+import "kab/aot_load_not"
+
+return aotLoadNotOk("f7d0", "arm64") == false

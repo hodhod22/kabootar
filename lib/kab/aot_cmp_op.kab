@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented cmp opcode for the return register.
+// import "kab/aot_cmp_op"; do not import other kab/aot* leaves.
+
+pub fn aotCmpOp(target) {
+    if target == "x64" {
+        return "39c0"
+    }
+    if target == "arm64" {
+        return "eb00001f"
+    }
+    return ""
+}

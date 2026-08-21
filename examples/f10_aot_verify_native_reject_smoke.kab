@@ -1,3 +1,3 @@
 import "kab/aot_verify_native"
 
-return aotVerifyNativeOk("kabootar-x64.kbn", "kabootar-native/1|arm64||text:rx|d28000208b000000d503201fd65f03c0||rodata:r|00||data:rw|00") == false
+return aotVerifyNativeOk("kabootar-x64.kbn", "kabootar-native/1|arm64||text:rx|d28000208b000000cb0000009b007c009ac00c008a000000aa000000d37ff800d341fc00aa2003e0ca000000cb0003e0eb00001fea00001f54000000d503201fd65f03c0||rodata:r|00||data:rw|00") == false

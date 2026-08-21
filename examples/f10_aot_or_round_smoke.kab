@@ -1,0 +1,5 @@
+import "kab/aot_or_op"
+import "kab/aot_load_or"
+
+let op = aotOrOp("x64")
+return aotLoadOrOk(op, "x64")

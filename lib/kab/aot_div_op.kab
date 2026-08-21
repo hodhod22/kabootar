@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented div opcode for the return register.
+// import "kab/aot_div_op"; do not import other kab/aot* leaves.
+
+pub fn aotDivOp(target) {
+    if target == "x64" {
+        return "f7f8"
+    }
+    if target == "arm64" {
+        return "9ac00c00"
+    }
+    return ""
+}
