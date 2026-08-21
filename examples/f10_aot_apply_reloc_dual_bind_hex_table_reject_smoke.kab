@@ -1,0 +1,9 @@
+import "kab/aot_apply_reloc"
+
+let table = "relocs:reloc:text:32:0:main:x64"
+let hex32 = aotApplyRelocTableWordHexAt32(table, 4096, "x64")
+let hex40 = aotApplyRelocTableWordHexAt40(table, 4096, "x64")
+if hex32 != "" {
+    return false
+}
+return hex40 == ""

@@ -25,7 +25,7 @@ Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** R
 | Compile-DAG | **&lt; 80** `.kab` (SH5); `vm_*` **&lt; 40** (SH6) |
 | Image | `self_host/seed/compiler.kbcb` + `seed/dag/*.kbc` (SH1) |
 | Facader | `pub let` alias, inte wrapping `pub fn` (SH3b) |
-| Lexer | per-call `sess` i `tokenizeExec` |
+| Lexer | **SH12:** `gLxSess` + in-place tokens; skip/ident/number cache `src`/`pos` |
 | Parser/emit | **SH2/SH13:** återanvänd `gSess`/`gE` + `pResetSession`/`eResetSession`; tramp 0-arg. `pCondStack` på sess |
 | Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
 | Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
@@ -136,7 +136,7 @@ Kort ordning:
 13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
 14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (x64/arm64 ship/ret-op/nop-op load+verify/zero-op load+verify/one-op load+verify/add-op load+verify/sub-op load+verify/mul-op load+verify/div-op load+verify/and-op load+verify/or-op load+verify/shl-op load+verify/shr-op load+verify/not-op load+verify/xor-op load+verify/neg-op load+verify/cmp-op load+verify/test-op load+verify/je-op load+verify/jne-op load+verify/jl-op load+verify/jle-op load+verify/jg-op load+verify/jge-op load+verify/text+layout+native one+add+sub+mul+div+and+or+shl+shr+not+xor+neg+cmp+test+je+jne+jl+jle+jg+jge+nop+ret/rodata/data + write/read bind); native machine-code deepen; `nollAotReady` still false
+16. ~~**F10 AOT native-image policy**~~ ✅ (… + serialiserad rodata-reloc-tabell + `aotApplyRelocTableAddressRodata` base+0); nästa: skriv rodata-ordet in i imagen; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 

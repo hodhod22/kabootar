@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTable("x64")
+let image = aotEmitImageWithTables("x64")
+return aotApplyRelocTableToImageTextAt32(image, table, 4096, "arm64") == ""

@@ -1017,8 +1017,11 @@ fn f10_aot_reloc_table_serial_in_kab() {
         .expect("aot_load_reloc_table.kab");
     assert!(
         emit.contains("pub fn aotEmitRelocTable")
+            && emit.contains("pub fn aotEmitRelocTableRodata")
             && emit.contains("reloc:text:32:8:main:x64")
+            && emit.contains("reloc:rodata:0:0:kstr:x64")
             && load.contains("pub fn aotLoadRelocTableOk")
+            && load.contains("pub fn aotLoadRelocTableRodataOk")
             && load.contains("reloc:text:32:0:main:arm64"),
         "F10 Kab serialized relocation table"
     );
@@ -1104,16 +1107,2993 @@ fn f10_aot_reloc_table_serial_arm64_round_exec() {
 }
 
 #[test]
+fn f10_aot_reloc_table_rodata_serial_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_reloc_table_rodata_serial_round_smoke.kab"),
+    )
+    .expect("f10_aot_reloc_table_rodata_serial_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitRelocTableRodata") && s.contains("aotLoadRelocTableRodataOk"),
+        "F10 Kab serialized rodata relocation table roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_table_rodata_serial_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_reloc_table_rodata_serial_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-reloc-table-rodata-serial".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata relocation table serial smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata relocation table serial smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_reloc_table_rodata_serial_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_reloc_table_rodata_serial_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_reloc_table_rodata_serial_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotEmitRelocTableRodata")
+            && s.contains("aotLoadRelocTableRodataOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 serialized rodata relocation table roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_table_rodata_serial_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_reloc_table_rodata_serial_reject_smoke.kab"),
+    )
+    .expect("f10_aot_reloc_table_rodata_serial_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadRelocTableRodataOk") && s.contains("\"arm64\"") && s.contains("false"),
+        "F10 Kab serialized rodata relocation table rejection"
+    );
+}
+
+#[test]
+fn f10_aot_reloc_table_rodata_serial_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_reloc_table_rodata_serial_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-reloc-table-rodata-serial-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 rodata relocation table serial smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 rodata relocation table serial smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_reloc_table_rodata_serial_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_reloc_table_rodata_serial_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-reloc-table-rodata-serial-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata relocation table serial rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata relocation table serial rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_rodata_smoke.kab"))
+        .expect("f10_aot_apply_reloc_rodata_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressRodata") && s.contains("4096"),
+        "F10 Kab rodata relocation table-apply is base + 0"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata reloc apply smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata reloc apply smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressRodata")
+            && s.contains("\"arm64\"")
+            && s.contains("4096"),
+        "F10 Kab arm64 rodata relocation table-apply is base + 0"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressRodata") && s.contains("\"arm64\"") && s.contains("-1"),
+        "F10 Kab rodata relocation table-apply target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 rodata reloc apply smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 rodata reloc apply smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata reloc apply rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata reloc apply rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
 fn f10_aot_apply_reloc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let a = std::fs::read_to_string(root.join("lib/kab/aot_apply_reloc.kab"))
         .expect("aot_apply_reloc.kab");
     assert!(
         a.contains("pub fn aotApplyRelocTableAddress")
+            && a.contains("pub fn aotApplyRelocTableAddressAt32")
+            && a.contains("pub fn aotApplyRelocTableAddressAt40")
+            && a.contains("pub fn aotApplyRelocTableAddressRodata")
+            && a.contains("reloc:rodata:0:0:kstr")
             && a.contains("base + 32 + 8")
-            && a.contains("reloc:text:32:8:main:arm64"),
+            && a.contains("pub fn aotApplyRelocTableWordHex")
+            && a.contains("pub fn aotApplyRelocTableWordHexAt32")
+            && a.contains("pub fn aotApplyRelocTableWordHexAt40")
+            && a.contains("pub fn aotApplyRelocTableToImage")
+            && a.contains("pub fn aotApplyRelocTableToText")
+            && a.contains("pub fn aotApplyRelocTableToImageText")
+            && a.contains("pub fn aotApplyRelocTableToTextAt32")
+            && a.contains("pub fn aotApplyRelocTableToImageTextAt32")
+            && a.contains("pub fn aotApplyRelocTableToTextAt40")
+            && a.contains("pub fn aotApplyRelocTableToImageTextAt40")
+            && a.contains("code:x64:c3:2810000000000000")
+            && a.contains("20100000000000002810000000000000")
+            && a.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && a.contains("relocword:2810000000000000"),
         "F10 Kab relocation table application"
     );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_image_smoke.kab"))
+        .expect("f10_aot_apply_reloc_image_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage") && s.contains("relocword:2810000000000000"),
+        "F10 Kab relocation word written onto native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("\"arm64\"")
+            && s.contains("relocword:2810000000000000"),
+        "F10 Kab arm64 relocation word written onto native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation image patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation image patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation image patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image patch rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_text_smoke.kab"))
+        .expect("f10_aot_apply_reloc_text_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToText") && s.contains("code:x64:c3:2810000000000000"),
+        "F10 Kab relocation written into text machine-code hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToText")
+            && s.contains("\"arm64\"")
+            && s.contains("code:arm64:d65f03c0:2810000000000000"),
+        "F10 Kab arm64 relocation written into text machine-code hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToText")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation text patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation text patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation text patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text patch rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_image_text_smoke.kab"))
+        .expect("f10_aot_apply_reloc_image_text_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("code:x64:c3:2810000000000000"),
+        "F10 Kab relocation written into native image text bytes"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("\"arm64\"")
+            && s.contains("code:arm64:d65f03c0:2810000000000000"),
+        "F10 Kab arm64 relocation written into native image text bytes"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation image text patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation image text patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation image text patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text patch rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_text_at32_smoke.kab"))
+        .expect("f10_aot_apply_reloc_text_at32_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt32")
+            && s.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000"),
+        "F10 Kab relocation written at text offset 32"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at32_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at32".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text offset-32 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text offset-32 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_at32_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_at32_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000"),
+        "F10 Kab arm64 relocation written at text offset 32"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_at32_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_at32_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation text offset-32 target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at32_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at32-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation text offset-32 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation text offset-32 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at32_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at32_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at32-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text offset-32 rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text offset-32 rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000"),
+        "F10 Kab relocation written at native image text offset 32"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text offset-32 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text offset-32 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000"),
+        "F10 Kab arm64 relocation written at native image text offset 32"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation image text offset-32 target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation image text offset-32 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation image text offset-32 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text offset-32 rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text offset-32 rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_text_at40_smoke.kab"))
+        .expect("f10_aot_apply_reloc_text_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("20100000000000002810000000000000"),
+        "F10 Kab relocation written at text offsets 32 and 40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text offset-40 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text offset-40 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("20100000000000002810000000000000"),
+        "F10 Kab arm64 relocation written at text offsets 32 and 40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_text_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_text_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation text offset-40 target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation text offset-40 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation text offset-40 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_text_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_text_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-text-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation text offset-40 rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation text offset-40 rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("20100000000000002810000000000000"),
+        "F10 Kab relocation written at native image text offsets 32 and 40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text offset-40 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text offset-40 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("20100000000000002810000000000000"),
+        "F10 Kab arm64 relocation written at native image text offsets 32 and 40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab relocation image text offset-40 target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation image text offset-40 patch smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation image text offset-40 patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation image text offset-40 rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation image text offset-40 rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_dual_bind_smoke.kab"))
+        .expect("f10_aot_apply_reloc_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressAt32")
+            && s.contains("aotApplyRelocTableAddressAt40")
+            && s.contains("4128")
+            && s.contains("4136")
+            && s.contains("aotApplyRelocTableToTextAt40"),
+        "F10 Kab dual relocation words bound to patched addresses"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressAt32")
+            && s.contains("aotApplyRelocTableAddressAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab arm64 dual relocation words bound to patched addresses"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("-1"),
+        "F10 Kab dual relocation bind target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_base_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_base_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_base_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressAt32")
+            && s.contains("aotApplyRelocTableAddressAt40")
+            && s.contains("-1"),
+        "F10 Kab dual relocation bind negative-base rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_base_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_base_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-base-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation bind negative-base smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation bind negative-base smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddressAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("-1"),
+        "F10 Kab dual relocation bind offset-40 target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation bind offset-40 rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation bind offset-40 rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_symbol_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_symbol_smoke.kab");
+    assert!(
+        s.contains("aotRelocSymbolBindOk")
+            && s.contains("4128")
+            && s.contains("4136")
+            && s.contains("aotApplyRelocTableAddressAt32")
+            && s.contains("aotApplyRelocTableAddressAt40"),
+        "F10 Kab dual relocation bind via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_symbol_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-symbol".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_symbol_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_symbol_arm64_smoke.kab");
+    assert!(
+        s.contains("aotRelocSymbolBindOk")
+            && s.contains("\"arm64\"")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab arm64 dual relocation bind via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_symbol_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_symbol_reject_smoke.kab");
+    assert!(
+        s.contains("aotRelocSymbolBindOk")
+            && s.contains("4136")
+            && s.contains("false"),
+        "F10 Kab dual relocation symbol bind mismatch rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_symbol_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-symbol-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_symbol_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_symbol_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-symbol-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_hex_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_hex_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("2010000000000000")
+            && s.contains("2810000000000000")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab dual relocation text-hex bound to patched addresses"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_hex_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-hex".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation text-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation text-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_hex_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_hex_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("2010000000000000")
+            && s.contains("2810000000000000"),
+        "F10 Kab arm64 dual relocation text-hex bound to patched addresses"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_hex_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_hex_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab dual relocation text-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_hex_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-hex-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation text-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation text-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_hex_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-hex-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation text-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation text-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_base_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_hex_base_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_hex_base_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("8192")
+            && s.contains("\"\""),
+        "F10 Kab dual relocation text-hex wrong-base rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_base_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_hex_base_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-hex-base-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation text-hex wrong-base smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation text-hex wrong-base smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_table_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_hex_table_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_hex_table_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("relocs:reloc:text:32:0:main:x64")
+            && s.contains("\"\""),
+        "F10 Kab dual relocation text-hex wrong-table rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_hex_table_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_hex_table_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-hex-table-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation text-hex wrong-table smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation text-hex wrong-table smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_text_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_text_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("prefix + hex32"),
+        "F10 Kab ToTextAt40 bound to WordHexAt32 and WordHexAt40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_text_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-text-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation ToTextAt40 word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation ToTextAt40 word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_text_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_text_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("d65f03c0"),
+        "F10 Kab arm64 ToTextAt40 bound to WordHexAt32 and WordHexAt40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_text_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_text_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab ToTextAt40 word-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_text_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-text-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation ToTextAt40 word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation ToTextAt40 word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_text_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_text_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-text-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation ToTextAt40 word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation ToTextAt40 word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_image_text_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_image_text_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("prefix + hex32"),
+        "F10 Kab ToImageTextAt40 bound to WordHexAt32 and WordHexAt40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_image_text_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-image-text-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation ToImageTextAt40 word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation ToImageTextAt40 word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_image_text_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_image_text_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("aapcs64"),
+        "F10 Kab arm64 ToImageTextAt40 bound to WordHexAt32 and WordHexAt40"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_image_text_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_image_text_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab ToImageTextAt40 word-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_image_text_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-image-text-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation ToImageTextAt40 word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation ToImageTextAt40 word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_image_text_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_image_text_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-image-text-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation ToImageTextAt40 word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation ToImageTextAt40 word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("aotLoadImageWithRelocTextAt40Ok"),
+        "F10 Kab offset-40 image load bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 load word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 load word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 image load bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-40 image load word-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation offset-40 load word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation offset-40 load word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 load word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 load word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_verify_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_verify_at40_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("aotApplyRelocTableToImageTextAt40"),
+        "F10 Kab offset-40 image verify bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_verify_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-verify-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 verify word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 verify word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_verify_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_verify_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 image verify bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_verify_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_verify_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("false"),
+        "F10 Kab offset-40 image verify word-hex name rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_verify_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-verify-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation offset-40 verify word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation offset-40 verify word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_verify_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_verify_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-verify-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 verify word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 verify word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_ship_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_ship_at40_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40"),
+        "F10 Kab offset-40 image ship bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_ship_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-ship-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 ship word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 ship word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_ship_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_ship_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 image ship bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_ship_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_ship_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-40 image ship word-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_ship_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-ship-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation offset-40 ship word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation offset-40 ship word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_ship_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_ship_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-ship-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 ship word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 ship word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_at40_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("aotApplyRelocTableWordHexAt40")
+            && s.contains("aotApplyRelocTableToImageTextAt40"),
+        "F10 Kab offset-40 loaded image bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 loaded-image word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 loaded-image word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotApplyRelocTableWordHexAt32")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 loaded image bound to word-hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-40 loaded image word-hex target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation offset-40 loaded-image word-hex bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation offset-40 loaded-image word-hex bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation offset-40 loaded-image word-hex rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation offset-40 loaded-image word-hex rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab loaded offset-40 image bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-symbol-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded-image symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded-image symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("\"arm64\"")
+            && s.contains("4128"),
+        "F10 Kab arm64 loaded offset-40 image bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("4136")
+            && s.contains("false"),
+        "F10 Kab loaded offset-40 image symbol bind mismatch rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-symbol-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation loaded-image symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation loaded-image symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_symbol_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-symbol-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded-image symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded-image symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_ship_at40_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotShipOk")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab loaded offset-40 image ship bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-ship-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded-image ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded-image ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_ship_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 loaded offset-40 image ship bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_ship_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab loaded offset-40 image ship symbol bind target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-ship-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation loaded-image ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation loaded-image ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_ship_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_ship_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-ship-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded-image ship symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded-image ship symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab loaded offset-40 verify+ship bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-verify-ship-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded verify ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded verify ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 loaded offset-40 verify+ship bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("false"),
+        "F10 Kab loaded offset-40 verify name rejection after bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-verify-ship-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation loaded verify ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation loaded verify ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_loaded_verify_ship_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-loaded-verify-ship-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation loaded verify ship symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation loaded verify ship symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("4128")
+            && s.contains("4136"),
+        "F10 Kab load+verify+ship offset-40 bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-verify-ship-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation load verify ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation load verify ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 load+verify+ship offset-40 bound via aotRelocSymbolBindOk"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("aotRelocSymbolBindOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab load-API target rejection after bind"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-verify-ship-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 dual relocation load verify ship symbol bind smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 dual relocation load verify ship symbol bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-dual-bind-load-verify-ship-at40-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile dual relocation load verify ship symbol bind rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run dual relocation load verify ship symbol bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_load_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_load_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage") && s.contains("aotLoadImageWithRelocWordOk"),
+        "F10 Kab patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_load_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-load".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_load_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_load_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("aotLoadImageWithRelocWordOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_load_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-load-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_load_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_load_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocWordOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab patched native image load rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_load_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_load_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-load-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile patched native image load rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run patched native image load rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_load_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_load_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText") && s.contains("aotLoadImageWithRelocTextOk"),
+        "F10 Kab text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_load_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-load".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_load_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_load_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("aotLoadImageWithRelocTextOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_load_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-load-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_load_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_load_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab text-patched native image load rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_load_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_load_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-load-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile text-patched native image load rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run text-patched native image load rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_load_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_load_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("aotLoadImageWithRelocTextAt32Ok"),
+        "F10 Kab offset-32 text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_load_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32-load".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-32 text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-32 text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_load_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_load_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("aotLoadImageWithRelocTextAt32Ok")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-32 text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_load_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32-load-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 offset-32 text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 offset-32 text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at32_load_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at32_load_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt32Ok")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-32 text-patched native image load rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at32_load_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at32_load_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at32-load-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-32 text-patched native image load rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-32 text-patched native image load rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_load_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_load_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotLoadImageWithRelocTextAt40Ok"),
+        "F10 Kab offset-40 text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_load_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40-load".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-40 text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-40 text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_load_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_load_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 text-patched native image load roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_load_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40-load-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 offset-40 text-patched native image load smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 offset-40 text-patched native image load smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_image_text_at40_load_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_image_text_at40_load_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocTextAt40Ok")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-40 text-patched native image load rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_image_text_at40_load_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_image_text_at40_load_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-image-text-at40-load-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-40 text-patched native image load rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-40 text-patched native image load rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 #[test]
@@ -1139,6 +4119,39 @@ fn f10_aot_apply_reloc_table_reject_in_kab() {
 }
 
 #[test]
+fn f10_aot_apply_reloc_base_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_base_reject_smoke.kab"))
+        .expect("f10_aot_apply_reloc_base_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableAddress") && s.contains("-1"),
+        "F10 Kab relocation table negative-base rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_word_smoke.kab"))
+        .expect("f10_aot_apply_reloc_word_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHex") && s.contains("2810000000000000"),
+        "F10 Kab relocation table word materialization"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_word_reject_smoke.kab"))
+        .expect("f10_aot_apply_reloc_word_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHex") && s.contains("\"\""),
+        "F10 Kab relocation table word rejection"
+    );
+}
+
+#[test]
 fn f10_aot_apply_reloc_table_exec() {
     let path = format!(
         "{}/examples/f10_aot_apply_reloc_table_smoke.kab",
@@ -1152,6 +4165,103 @@ fn f10_aot_apply_reloc_table_exec() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile relocation table application smoke");
             let value = eval_program(&program, &mut env).expect("run relocation table application smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_word_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-word".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation word smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation word smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_apply_reloc_word_arm64_smoke.kab"))
+        .expect("f10_aot_apply_reloc_word_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableWordHex")
+            && s.contains("\"arm64\"")
+            && s.contains("2810000000000000"),
+        "F10 Kab arm64 relocation table word materialization"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_word_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-word-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 relocation word smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 relocation word smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_word_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_word_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-word-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation word rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation word rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_base_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_base_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-base-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile relocation negative-base smoke");
+            let value = eval_program(&program, &mut env).expect("run relocation negative-base smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -2150,6 +5260,14 @@ fn f10_aot_load_image_in_kab() {
         i.contains("pub fn aotLoadImageOk")
             && i.contains("pub fn aotLoadImageWithRelocTableOk")
             && i.contains("pub fn aotLoadImageWithTablesOk")
+            && i.contains("pub fn aotLoadImageWithRelocWordOk")
+            && i.contains("pub fn aotLoadImageWithRelocTextOk")
+            && i.contains("pub fn aotLoadImageWithRelocTextAt32Ok")
+            && i.contains("pub fn aotLoadImageWithRelocTextAt40Ok")
+            && i.contains("20100000000000002810000000000000")
+            && i.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && i.contains("code:x64:c3:2810000000000000")
+            && i.contains("relocword:2810000000000000")
             && i.contains("code:arm64:ret")
             && i.contains("reloc:text:32:8:main:arm64")
             && i.contains("sym:text:32:main:arm64")
@@ -2602,6 +5720,557 @@ fn f10_aot_image_tables_ship_arm64_round_exec() {
 }
 
 #[test]
+fn f10_aot_image_reloc_word_ship_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_word_ship_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_word_ship_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_word_ship_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_word_ship_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-word-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_word_ship_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_word_ship_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_word_ship_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_word_ship_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_word_ship_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-word-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_word_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_word_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_word_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("relocword:2810000000000000")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab patched native image ship rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_word_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_word_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-word-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile patched native image ship rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run patched native image ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_ship_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_ship_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_ship_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_ship_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_ship_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_ship_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at32_ship_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at32_ship_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab offset-32 text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at32_ship_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at32-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-32 text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-32 text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at32_ship_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at32_ship_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-32 text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at32_ship_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at32-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 offset-32 text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 offset-32 text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at40_ship_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at40_ship_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab offset-40 text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at40_ship_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at40-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-40 text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-40 text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at40_ship_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at40_ship_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 offset-40 text-patched native image ship roundtrip"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at40_ship_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at40-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile arm64 offset-40 text-patched native image ship smoke");
+            let value = eval_program(&program, &mut env).expect("run arm64 offset-40 text-patched native image ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at40_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at40_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("20100000000000002810000000000000")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-40 text-patched native image ship rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at40_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at40-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-40 text-patched native image ship rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-40 text-patched native image ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_verify_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at40_verify_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at40_verify_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("20100000000000002810000000000000")
+            && s.contains("false"),
+        "F10 Kab offset-40 text-patched native image verify rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at40_verify_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at40_verify_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at40-verify-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-40 text-patched native image verify rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-40 text-patched native image verify rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at32_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at32_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab offset-32 text-patched native image ship rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at32_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at32-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-32 text-patched native image ship rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-32 text-patched native image ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_verify_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_at32_verify_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_at32_verify_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && s.contains("false"),
+        "F10 Kab offset-32 text-patched native image verify rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_at32_verify_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_at32_verify_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-at32-verify-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile offset-32 text-patched native image verify rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run offset-32 text-patched native image verify rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("code:x64:c3:2810000000000000")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab text-patched native image ship rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile text-patched native image ship rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run text-patched native image ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_image_reloc_text_verify_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_image_reloc_text_verify_reject_smoke.kab"),
+    )
+    .expect("f10_aot_image_reloc_text_verify_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("code:x64:c3:2810000000000000")
+            && s.contains("false"),
+        "F10 Kab text-patched native image verify rejection"
+    );
+}
+
+#[test]
+fn f10_aot_image_reloc_text_verify_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_image_reloc_text_verify_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-image-reloc-text-verify-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile text-patched native image verify rejection smoke");
+            let value = eval_program(&program, &mut env).expect("run text-patched native image verify rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
 fn f10_aot_image_tables_arm64_round_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let s = std::fs::read_to_string(
@@ -2828,6 +6497,286 @@ fn f10_aot_loaded_image_tables_arm64_exec() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile persisted arm64 combined-table image smoke");
             let value = eval_program(&program, &mut env).expect("run persisted arm64 combined-table image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_word_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_word_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_word_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage") && s.contains("aotLoadedImageOk"),
+        "F10 Kab persisted patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_word_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_word_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-word".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted patched relocword image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted patched relocword image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_word_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_word_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_word_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImage")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab persisted arm64 patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_word_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_word_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-word-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted arm64 patched relocword image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted arm64 patched relocword image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText") && s.contains("aotLoadedImageOk"),
+        "F10 Kab persisted text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted text-patched image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageText")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab persisted arm64 text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted arm64 text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted arm64 text-patched image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at32_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_at32_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_at32_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32") && s.contains("aotLoadedImageOk"),
+        "F10 Kab persisted offset-32 text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at32_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_at32_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text-at32".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted offset-32 text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted offset-32 text-patched image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at32_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_at32_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_at32_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt32")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab persisted arm64 offset-32 text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at32_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_at32_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text-at32-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted arm64 offset-32 text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted arm64 offset-32 text-patched image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at40_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_at40_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_at40_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40") && s.contains("aotLoadedImageOk"),
+        "F10 Kab persisted offset-40 text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at40_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_at40_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text-at40".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted offset-40 text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted offset-40 text-patched image smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at40_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_loaded_image_reloc_text_at40_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_loaded_image_reloc_text_at40_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageTextAt40")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab persisted arm64 offset-40 text-patched native image"
+    );
+}
+
+#[test]
+fn f10_aot_loaded_image_reloc_text_at40_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_loaded_image_reloc_text_at40_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-loaded-image-reloc-text-at40-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile persisted arm64 offset-40 text-patched image smoke");
+            let value = eval_program(&program, &mut env).expect("run persisted arm64 offset-40 text-patched image smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -3127,7 +7076,12 @@ fn f10_aot_loaded_image_in_kab() {
     let l = std::fs::read_to_string(root.join("lib/kab/aot_loaded_image.kab"))
         .expect("aot_loaded_image.kab");
     assert!(
-        l.contains("pub fn aotLoadedImageOk") && l.contains("code:x64:ret"),
+        l.contains("pub fn aotLoadedImageOk")
+            && l.contains("code:x64:ret")
+            && l.contains("code:x64:c3:2810000000000000")
+            && l.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && l.contains("20100000000000002810000000000000")
+            && l.contains("code:arm64:d65f03c0:2810000000000000"),
         "F10 Kab persisted native image"
     );
 }
@@ -3139,7 +7093,11 @@ fn f10_aot_verify_full_in_kab() {
     let v = std::fs::read_to_string(root.join("lib/kab/aot_verify_full.kab"))
         .expect("aot_verify_full.kab");
     assert!(
-        v.contains("pub fn aotVerifyFullOk") && v.contains("kabootar-arm64.kbn"),
+        v.contains("pub fn aotVerifyFullOk")
+            && v.contains("kabootar-arm64.kbn")
+            && v.contains("code:x64:c3:2810000000000000")
+            && v.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && v.contains("20100000000000002810000000000000"),
         "F10 Kab aotVerifyFullOk"
     );
 }
@@ -3219,7 +7177,11 @@ fn f10_aot_ship_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let s = std::fs::read_to_string(root.join("lib/kab/aot_ship.kab")).expect("aot_ship.kab");
     assert!(
-        s.contains("pub fn aotShipOk") && s.contains("kabootar-arm64.kbn"),
+        s.contains("pub fn aotShipOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("code:x64:c3:2810000000000000")
+            && s.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
+            && s.contains("20100000000000002810000000000000"),
         "F10 Kab aotShipOk"
     );
 }
@@ -7794,6 +11756,36 @@ fn sh2_parser_emit_exec_are_per_call_session() {
     assert!(parser.contains("pResetSession(sess)"), "SH13 in-place reset");
     assert!(parser.contains("fn tramp(sess)"), "tramp takes sess");
     assert!(emit.contains("fn tramp(E)"), "emit tramp takes E");
+}
+
+/// SH12: lexer hot path caches src locals; tokenize reuses session, in-place token push.
+#[test]
+fn sh12_lexer_hotpath_low_alloc() {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/lexer_scan.kab"),
+    )
+    .expect("lexer_scan");
+    assert!(
+        src.contains("let src = sess[\"src\"]"),
+        "SH12: lxSkipSpace/scan must cache src locally after SH5 densify"
+    );
+    assert!(src.contains("let gLxSess = null"), "SH12 reuse lexer session");
+    assert!(
+        src.contains("object_array_push(sess, \"tokens\""),
+        "SH12 in-place token push (not COW push per token)"
+    );
+    assert!(
+        src.contains("if n > srcLen + 8"),
+        "SH12: runaway bound must follow source length, not 10000"
+    );
+    let bump = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/ast_defs.kab"),
+    )
+    .expect("ast_defs");
+    assert!(
+        bump.contains("let n = sess[\"pToksLen\"]"),
+        "SH12: bump caches pToksLen"
+    );
 }
 
 /// SH3b: product facades re-export by alias (wrapping pub fn adds a Kab-VM frame).

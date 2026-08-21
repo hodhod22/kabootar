@@ -10,3 +10,14 @@ pub fn aotLoadRelocTableOk(table, target) {
     }
     return false
 }
+
+// F10: load the first ordered rodata relocation table.
+pub fn aotLoadRelocTableRodataOk(table, target) {
+    if target == "x64" {
+        return table == "relocs:reloc:rodata:0:0:kstr:x64"
+    }
+    if target == "arm64" {
+        return table == "relocs:reloc:rodata:0:0:kstr:arm64"
+    }
+    return false
+}

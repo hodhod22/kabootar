@@ -244,23 +244,28 @@ pub fn lxScanHash(sess, c, line, col) {
     lxEat(sess)
     let start = sess["pos"]
     let cd = 0
-    let ch = ""
     let ok = 0
-    while sess["pos"] < sess["srcLen"] {
-        cd = char_code_at(sess["src"], sess["pos"])
-        ch = char_at(sess["src"], sess["pos"])
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
+    let pos = sess["pos"]
+    let scol = sess["col"]
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
         ok = 0
         if cd >= 65 && cd <= 90 { ok = 1 }
         if cd >= 97 && cd <= 122 { ok = 1 }
         if cd >= 48 && cd <= 57 { ok = 1 }
-        if ch == "_" { ok = 1 }
+        if cd == 95 { ok = 1 }
         if ok == 0 { break }
-        lxEat(sess)
+        pos = pos + 1
+        scol = scol + 1
     }
-    if sess["pos"] == start {
+    sess["pos"] = pos
+    sess["col"] = scol
+    if pos == start {
         throw "Expected identifier after # at line " + ("" + line) + " col " + ("" + col)
     }
-    return lxTok(TOKEN_PRIVATE, str_slice(sess["src"], start, sess["pos"]), line, col)
+    return lxTok(TOKEN_PRIVATE, str_slice(src, start, pos), line, col)
 }
 
 pub fn lxScanString(sess, c, line, col) {
@@ -326,54 +331,75 @@ pub fn lxScanNumber(sess, code0, line, col) {
     if !(code0 >= 48 && code0 <= 57) {
         return null
     }
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
     let start = sess["pos"]
-    lxEat(sess)
+    let pos = start + 1
+    let scol = sess["col"] + 1
     let cd = 0
-    while sess["pos"] < sess["srcLen"] {
-        cd = char_code_at(sess["src"], sess["pos"])
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
         if cd < 48 || cd > 57 {
             break
         }
-        lxEat(sess)
+        pos = pos + 1
+        scol = scol + 1
     }
-    let digits = str_slice(sess["src"], start, sess["pos"])
+    sess["pos"] = pos
+    sess["col"] = scol
+    let digits = str_slice(src, start, pos)
     if lxStarts(sess, "n") == 1 {
         lxEat(sess)
         return lxTok(TOKEN_BIGINT, digits, line, col)
     }
     if lxStarts(sess, ".") == 1 {
         lxEat(sess)
-        let fracStart = sess["pos"]
-        while sess["pos"] < sess["srcLen"] {
-            cd = char_code_at(sess["src"], sess["pos"])
+        src = sess["src"]
+        srcLen = sess["srcLen"]
+        pos = sess["pos"]
+        scol = sess["col"]
+        let fracStart = pos
+        while pos < srcLen {
+            cd = char_code_at(src, pos)
             if cd < 48 || cd > 57 {
                 break
             }
-            lxEat(sess)
+            pos = pos + 1
+            scol = scol + 1
         }
-        let frac = str_slice(sess["src"], fracStart, sess["pos"])
+        sess["pos"] = pos
+        sess["col"] = scol
+        let frac = str_slice(src, fracStart, pos)
         return lxTok(TOKEN_FLOAT, parse_float(digits + "." + frac), line, col)
     }
     return lxTok(TOKEN_NUMBER, parse_int(digits), line, col)
 }
 
 pub fn lxScanIdent(sess, c, code0, line, col) {
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
     let start = sess["pos"]
+    let pos = start
+    let scol = sess["col"]
     let cd = 0
     let ok = 0
     if c == "_" {
-        lxEat(sess)
-        while sess["pos"] < sess["srcLen"] {
-            cd = char_code_at(sess["src"], sess["pos"])
+        pos = pos + 1
+        scol = scol + 1
+        while pos < srcLen {
+            cd = char_code_at(src, pos)
             ok = 0
             if cd >= 65 && cd <= 90 { ok = 1 }
             if cd >= 97 && cd <= 122 { ok = 1 }
             if cd >= 48 && cd <= 57 { ok = 1 }
             if cd == 95 { ok = 1 }
             if ok == 0 { break }
-            lxEat(sess)
+            pos = pos + 1
+            scol = scol + 1
         }
-        return lxTok(TOKEN_IDENT, str_slice(sess["src"], start, sess["pos"]), line, col)
+        sess["pos"] = pos
+        sess["col"] = scol
+        return lxTok(TOKEN_IDENT, str_slice(src, start, pos), line, col)
     }
     let isAlpha = 0
     if code0 >= 97 && code0 <= 122 { isAlpha = 1 }
@@ -381,18 +407,22 @@ pub fn lxScanIdent(sess, c, code0, line, col) {
     if isAlpha == 0 {
         return null
     }
-    lxEat(sess)
-    while sess["pos"] < sess["srcLen"] {
-        cd = char_code_at(sess["src"], sess["pos"])
+    pos = pos + 1
+    scol = scol + 1
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
         ok = 0
         if cd >= 65 && cd <= 90 { ok = 1 }
         if cd >= 97 && cd <= 122 { ok = 1 }
         if cd >= 48 && cd <= 57 { ok = 1 }
         if cd == 95 { ok = 1 }
         if ok == 0 { break }
-        lxEat(sess)
+        pos = pos + 1
+        scol = scol + 1
     }
-    let id = str_slice(sess["src"], start, sess["pos"])
+    sess["pos"] = pos
+    sess["col"] = scol
+    let id = str_slice(src, start, pos)
     let kw = KEYWORDS[id]
     if kw == undefined {
         return lxTok(TOKEN_IDENT, id, line, col)
@@ -436,106 +466,145 @@ pub fn lxScan(sess) {
 }
 
 // SH5: skip + tokenizeExec (was lexer_tokenize).
+// SH12: cache src/srcLen/pos locally; reuse gLxSess + in-place token array.
 pub fn lxSkipSpace(sess) {
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
+    let pos = sess["pos"]
+    let col = sess["col"]
+    let line = sess["line"]
     let cd = 0
-    while sess["pos"] < sess["srcLen"] {
-        cd = char_code_at(sess["src"], sess["pos"])
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
         if cd == 32 || cd == 9 || cd == 13 {
-            sess["col"] = sess["col"] + 1
-            sess["pos"] = sess["pos"] + 1
+            col = col + 1
+            pos = pos + 1
             continue
         }
         if cd == 10 {
-            sess["line"] = sess["line"] + 1
-            sess["col"] = 1
-            sess["pos"] = sess["pos"] + 1
+            line = line + 1
+            col = 1
+            pos = pos + 1
             continue
         }
         break
     }
+    sess["pos"] = pos
+    sess["col"] = col
+    sess["line"] = line
     return 0
 }
 
 pub fn lxSkipLineComment(sess) {
-    if sess["pos"] >= sess["srcLen"] {
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
+    let pos = sess["pos"]
+    if pos >= srcLen {
         return 0
     }
-    if char_at(sess["src"], sess["pos"]) != "/" {
+    if char_at(src, pos) != "/" {
         return 0
     }
-    if sess["pos"] + 1 >= sess["srcLen"] {
+    if pos + 1 >= srcLen {
         return 0
     }
-    if char_at(sess["src"], sess["pos"] + 1) != "/" {
+    if char_at(src, pos + 1) != "/" {
         return 0
     }
-    sess["pos"] = sess["pos"] + 2
-    let ch = ""
-    while sess["pos"] < sess["srcLen"] {
-        ch = char_at(sess["src"], sess["pos"])
-        if ch == "\n" {
-            sess["line"] = sess["line"] + 1
-            sess["col"] = 1
-            sess["pos"] = sess["pos"] + 1
+    pos = pos + 2
+    let col = sess["col"] + 2
+    let line = sess["line"]
+    let cd = 0
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
+        if cd == 10 {
+            line = line + 1
+            col = 1
+            pos = pos + 1
             break
         }
-        sess["col"] = sess["col"] + 1
-        sess["pos"] = sess["pos"] + 1
+        col = col + 1
+        pos = pos + 1
     }
+    sess["pos"] = pos
+    sess["col"] = col
+    sess["line"] = line
     return 1
 }
 
 pub fn lxSkipBlockComment(sess) {
-    if sess["pos"] >= sess["srcLen"] {
+    let src = sess["src"]
+    let srcLen = sess["srcLen"]
+    let pos = sess["pos"]
+    if pos >= srcLen {
         return 0
     }
-    if char_at(sess["src"], sess["pos"]) != "/" {
+    if char_at(src, pos) != "/" {
         return 0
     }
-    if sess["pos"] + 1 >= sess["srcLen"] {
+    if pos + 1 >= srcLen {
         return 0
     }
-    if char_at(sess["src"], sess["pos"] + 1) != "*" {
+    if char_at(src, pos + 1) != "*" {
         return 0
     }
-    sess["pos"] = sess["pos"] + 2
-    let ch = ""
-    while sess["pos"] < sess["srcLen"] {
-        ch = char_at(sess["src"], sess["pos"])
-        sess["pos"] = sess["pos"] + 1
-        sess["col"] = sess["col"] + 1
-        if ch == "\n" {
-            sess["line"] = sess["line"] + 1
-            sess["col"] = 1
+    pos = pos + 2
+    let col = sess["col"] + 2
+    let line = sess["line"]
+    let cd = 0
+    while pos < srcLen {
+        cd = char_code_at(src, pos)
+        pos = pos + 1
+        col = col + 1
+        if cd == 10 {
+            line = line + 1
+            col = 1
         }
-        if ch == "*" && sess["pos"] < sess["srcLen"] && char_at(sess["src"], sess["pos"]) == "/" {
-            sess["pos"] = sess["pos"] + 1
-            sess["col"] = sess["col"] + 1
+        if cd == 42 && pos < srcLen && char_at(src, pos) == "/" {
+            pos = pos + 1
+            col = col + 1
             break
         }
     }
+    sess["pos"] = pos
+    sess["col"] = col
+    sess["line"] = line
     return 1
 }
 
+let gLxSess = null
+
 pub fn tokenizeExec(source) {
-    let sess = {
-        "pos": 0,
-        "src": source,
-        "srcLen": len(source),
-        "line": 1,
-        "col": 1
+    let sess = gLxSess
+    if sess == null {
+        sess = {
+            "pos": 0,
+            "src": source,
+            "srcLen": len(source),
+            "line": 1,
+            "col": 1,
+            "tokens": []
+        }
+        gLxSess = sess
+    } else {
+        sess["pos"] = 0
+        sess["src"] = source
+        sess["srcLen"] = len(source)
+        sess["line"] = 1
+        sess["col"] = 1
+        object_array_clear(sess, "tokens")
     }
-    let tokens = []
+    let srcLen = sess["srcLen"]
     let tok = null
     let n = 0
     let at = 0
     while true {
         n = n + 1
-        if n > 10000 {
+        if n > srcLen + 8 {
             throw "lexer runaway"
         }
         lxSkipSpace(sess)
-        if sess["pos"] >= sess["srcLen"] {
+        if sess["pos"] >= srcLen {
             break
         }
         if lxSkipLineComment(sess) == 1 {
@@ -552,8 +621,10 @@ pub fn tokenizeExec(source) {
         if tok.type == TOKEN_EOF {
             break
         }
-        tokens = push(tokens, tok)
+        object_array_push(sess, "tokens", tok)
     }
-    tokens = push(tokens, lxTok(TOKEN_EOF, null, sess["line"], sess["col"]))
-    return tokens
+    object_array_push(sess, "tokens", lxTok(TOKEN_EOF, null, sess["line"], sess["col"]))
+    let toks = sess["tokens"]
+    sess["tokens"] = []
+    return toks
 }
