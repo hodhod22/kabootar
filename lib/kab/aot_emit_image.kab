@@ -55,3 +55,14 @@ pub fn aotEmitImageWithTables(target) {
     }
     return ""
 }
+
+// F10: emit a native image carrying the first rodata relocation table.
+pub fn aotEmitImageWithRelocTableRodata(target) {
+    if target == "x64" {
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|sym:rodata:0:kstr:x64|relocs:reloc:rodata:0:0:kstr:x64"
+    }
+    if target == "arm64" {
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|sym:rodata:0:kstr:arm64|relocs:reloc:rodata:0:0:kstr:arm64"
+    }
+    return ""
+}

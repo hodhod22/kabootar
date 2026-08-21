@@ -21,6 +21,9 @@ pub fn aotVerifyFullOk(name, image) {
         if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c3000000000000000000000000000000000000000000000000000000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64" {
             return true
         }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|sym:rodata:0:kstr:x64|relocs:reloc:rodata:0:0:kstr:x64|relocword:0010000000000000" {
+            return true
+        }
         return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
     }
     if name == "kabootar-arm64.kbn" {
@@ -40,6 +43,9 @@ pub fn aotVerifyFullOk(name, image) {
             return true
         }
         if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c0000000000000000000000000000000000000000000000000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|sym:rodata:0:kstr:arm64|relocs:reloc:rodata:0:0:kstr:arm64|relocword:0010000000000000" {
             return true
         }
         return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"

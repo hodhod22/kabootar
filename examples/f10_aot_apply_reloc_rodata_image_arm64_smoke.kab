@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTableRodata("arm64")
+let image = aotEmitImageWithRelocTableRodata("arm64")
+return aotApplyRelocTableToImageRodata(image, table, 4096, "arm64") == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|sym:rodata:0:kstr:arm64|relocs:reloc:rodata:0:0:kstr:arm64|relocword:0010000000000000"

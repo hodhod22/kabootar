@@ -1313,6 +1313,526 @@ fn f10_aot_apply_reloc_rodata_reject_exec() {
 }
 
 #[test]
+fn f10_aot_apply_reloc_rodata_image_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodata") && s.contains("relocword:0010000000000000"),
+        "F10 Kab rodata relocation word written onto native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata reloc image patch smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata reloc image patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodata")
+            && s.contains("\"arm64\"")
+            && s.contains("relocword:0010000000000000"),
+        "F10 Kab arm64 rodata relocation word written onto native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodata")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab rodata relocation image patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile arm64 rodata reloc image patch smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run arm64 rodata reloc image patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile rodata reloc image patch rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run rodata reloc image patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_load_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_load_round_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocWordRodataOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab rodata patched image load/persist/verify/ship"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_load_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-rodata-image-load".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata image load/ship smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata image load/ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_arm64_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_load_arm64_round_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_load_arm64_round_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocWordRodataOk")
+            && s.contains("\"arm64\"")
+            && s.contains("aotShipOk"),
+        "F10 Kab arm64 rodata patched image load/persist/verify/ship"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_load_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_load_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithRelocWordRodataOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab rodata patched image load target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_arm64_round_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_load_arm64_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-rodata-image-load-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile arm64 rodata image load/ship smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run arm64 rodata image load/ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_load_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_load_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-rodata-image-load-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile rodata image load rejection smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run rodata image load rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("relocword:0010000000000000")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab rodata patched image ship rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-rodata-image-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile rodata image ship rejection smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run rodata image ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_verify_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_verify_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_verify_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("relocword:0010000000000000")
+            && s.contains("false"),
+        "F10 Kab rodata patched image verify rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_verify_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_verify_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-rodata-image-verify-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile rodata image verify rejection smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run rodata image verify rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_hex_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_hex_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToRodata") && s.contains("rodata:r|0010000000000000"),
+        "F10 Kab rodata relocation word written into section hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_hex_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-hex".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata section hex patch smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata section hex patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_hex_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_hex_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToRodata")
+            && s.contains("\"arm64\"")
+            && s.contains("rodata:r|0010000000000000"),
+        "F10 Kab arm64 rodata relocation word written into section hex"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_hex_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_hex_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToRodata") && s.contains("\"arm64\"") && s.contains("\"\""),
+        "F10 Kab rodata section hex patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_hex_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-hex-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile arm64 rodata section hex patch smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run arm64 rodata section hex patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_hex_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_hex_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-hex-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile rodata section hex patch rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run rodata section hex patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_hex_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_hex_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodataHex")
+            && s.contains("rodata:r|0010000000000000"),
+        "F10 Kab rodata section hex written into native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_hex_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image-hex".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile rodata image hex patch smoke");
+            let value = eval_program(&program, &mut env).expect("run rodata image hex patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_hex_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_hex_arm64_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodataHex")
+            && s.contains("\"arm64\"")
+            && s.contains("rodata:r|0010000000000000"),
+        "F10 Kab arm64 rodata section hex written into native image"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_apply_reloc_rodata_image_hex_reject_smoke.kab"),
+    )
+    .expect("f10_aot_apply_reloc_rodata_image_hex_reject_smoke.kab");
+    assert!(
+        s.contains("aotApplyRelocTableToImageRodataHex")
+            && s.contains("\"arm64\"")
+            && s.contains("\"\""),
+        "F10 Kab rodata image hex patch target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_hex_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image-hex-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile arm64 rodata image hex patch smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run arm64 rodata image hex patch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_apply_reloc_rodata_image_hex_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_apply_reloc_rodata_image_hex_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-apply-reloc-rodata-image-hex-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile rodata image hex patch rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run rodata image hex patch rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
 fn f10_aot_apply_reloc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let a = std::fs::read_to_string(root.join("lib/kab/aot_apply_reloc.kab"))
@@ -1322,6 +1842,12 @@ fn f10_aot_apply_reloc_in_kab() {
             && a.contains("pub fn aotApplyRelocTableAddressAt32")
             && a.contains("pub fn aotApplyRelocTableAddressAt40")
             && a.contains("pub fn aotApplyRelocTableAddressRodata")
+            && a.contains("pub fn aotApplyRelocTableWordHexRodata")
+            && a.contains("pub fn aotApplyRelocTableToImageRodata")
+            && a.contains("pub fn aotApplyRelocTableToRodata")
+            && a.contains("pub fn aotApplyRelocTableToImageRodataHex")
+            && a.contains("rodata:r|0010000000000000")
+            && a.contains("relocword:0010000000000000")
             && a.contains("reloc:rodata:0:0:kstr")
             && a.contains("base + 32 + 8")
             && a.contains("pub fn aotApplyRelocTableWordHex")
@@ -5243,6 +5769,8 @@ fn f10_aot_emit_image_in_kab() {
             && i.contains("pub fn aotEmitImageWithRelocAddend")
             && i.contains("pub fn aotEmitImageWithRelocTable")
             && i.contains("pub fn aotEmitImageWithTables")
+            && i.contains("pub fn aotEmitImageWithRelocTableRodata")
+            && i.contains("reloc:rodata:0:0:kstr:x64")
             && i.contains("code:x64:ret")
             && i.contains("sym:text:32:main:x64")
             && i.contains("reloc:text:32:0:main:x64"),
@@ -5264,6 +5792,8 @@ fn f10_aot_load_image_in_kab() {
             && i.contains("pub fn aotLoadImageWithRelocTextOk")
             && i.contains("pub fn aotLoadImageWithRelocTextAt32Ok")
             && i.contains("pub fn aotLoadImageWithRelocTextAt40Ok")
+            && i.contains("pub fn aotLoadImageWithRelocWordRodataOk")
+            && i.contains("relocword:0010000000000000")
             && i.contains("20100000000000002810000000000000")
             && i.contains("c3000000000000000000000000000000000000000000000000000000000000002810000000000000")
             && i.contains("code:x64:c3:2810000000000000")

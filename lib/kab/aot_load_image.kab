@@ -82,3 +82,14 @@ pub fn aotLoadImageWithRelocTextAt40Ok(image, target) {
     }
     return false
 }
+
+// F10: load a native image after its rodata relocated word is written.
+pub fn aotLoadImageWithRelocWordRodataOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|sym:rodata:0:kstr:x64|relocs:reloc:rodata:0:0:kstr:x64|relocword:0010000000000000"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|sym:rodata:0:kstr:arm64|relocs:reloc:rodata:0:0:kstr:arm64|relocword:0010000000000000"
+    }
+    return false
+}

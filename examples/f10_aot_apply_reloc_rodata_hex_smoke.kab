@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_emit_rodata"
+
+let rodata = aotEmitRodata("x64")
+let table = aotEmitRelocTableRodata("x64")
+return aotApplyRelocTableToRodata(rodata, table, 4096, "x64") == "rodata:r|0010000000000000"
