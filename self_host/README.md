@@ -136,7 +136,7 @@ Kort ordning:
 13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
 14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (… + dual-bind via `aotLoadedImageOk` av data-hex-imagen mot word-hex); nästa: dual-bind av loaded data-hex-image mot `aotRelocSymbolBindOk` (4096); `nollAotReady` still false
+16. ~~**F10 AOT native-image policy**~~ ✅ (… + dual-bind av `aotVerifyFullOk` tillsammans med loaded+ship+bind för data-hex); nästa: dual-bind av `aotLoadImageWithRelocDataHexOk` tillsammans med verify+ship+bind; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 
