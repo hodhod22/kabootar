@@ -406,19 +406,16 @@ fn o5_compile_wires_ownership_checker() {
 
 #[test]
 fn self_host_ownership_suite() {
-    let path = self_host_path("test_ownership.kab");
     let ok = std::thread::Builder::new()
         .name("ownership-suite".into())
         .stack_size(32 * 1024 * 1024)
-        .spawn(move || {
-            let prev = std::env::var("KABOOTAR_VM").ok();
-            std::env::set_var("KABOOTAR_VM", "host");
-            let r = kabootar_lib::cli::run_file(&path);
-            match prev {
-                Some(p) => std::env::set_var("KABOOTAR_VM", p),
-                None => std::env::remove_var("KABOOTAR_VM"),
-            }
-            r.expect("self_host/test_ownership.kab should pass");
+        .spawn(|| {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            let program = compile_file_cached(&self_host_path("test_ownership.kab"))
+                .expect("compile test_ownership.kab");
+            eval_program(&program, &mut env).expect("self_host/test_ownership.kab should pass");
         })
         .expect("spawn ownership suite")
         .join();

@@ -2,9 +2,12 @@
 // Tracks Owned from owned_alloc and moves via let-assign / drop / owned_move / move.
 // O5 deepen: exclusive/shared borrow counts (double &mut, move-while-borrowed).
 
-let oPlaces = {}
-let oMutBorrows = {}
-let oSharedBorrows = {}
+let oPlaceKeys = []
+let oPlaceVals = []
+let oMutKeys = []
+let oMutVals = []
+let oSharedKeys = []
+let oSharedVals = []
 let oErrors = []
 let oToks = []
 let oI = 0
@@ -13,20 +16,110 @@ fn oErr(msg) {
     oErrors = push(oErrors, msg)
 }
 
-fn oCode(ch) {
-    return char_code_at(ch, 0)
+fn oPairIndex(keys, name) {
+    let i = 0
+    while i < len(keys) {
+        if keys[i] == name {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn oPairGet(keys, vals, name) {
+    let i = oPairIndex(keys, name)
+    if i < 0 {
+        return null
+    }
+    return vals[i]
+}
+
+fn oPairSetVals(vals, idx, val) {
+    let nxt = []
+    let j = 0
+    while j < len(vals) {
+        if j == idx {
+            nxt = push(nxt, val)
+        } else {
+            nxt = push(nxt, vals[j])
+        }
+        j = j + 1
+    }
+    return nxt
+}
+
+fn oPlaceGet(name) {
+    return oPairGet(oPlaceKeys, oPlaceVals, name)
+}
+
+fn oSetPlace(name, val) {
+    let i = oPairIndex(oPlaceKeys, name)
+    if i < 0 {
+        oPlaceKeys = push(oPlaceKeys, name)
+        oPlaceVals = push(oPlaceVals, val)
+        return
+    }
+    oPlaceVals = oPairSetVals(oPlaceVals, i, val)
+}
+
+fn oMutCount(name) {
+    let v = oPairGet(oMutKeys, oMutVals, name)
+    if v == null {
+        return 0
+    }
+    return v
+}
+
+fn oSharedCount(name) {
+    let v = oPairGet(oSharedKeys, oSharedVals, name)
+    if v == null {
+        return 0
+    }
+    return v
+}
+
+fn oMutAdd(name, delta) {
+    let n = oMutCount(name) + delta
+    let stored = n
+    if n < 0 {
+        stored = 0
+    }
+    let i = oPairIndex(oMutKeys, name)
+    if i < 0 {
+        oMutKeys = push(oMutKeys, name)
+        oMutVals = push(oMutVals, stored)
+        return
+    }
+    oMutVals = oPairSetVals(oMutVals, i, stored)
+}
+
+fn oSharedAdd(name, delta) {
+    let n = oSharedCount(name) + delta
+    let stored = n
+    if n < 0 {
+        stored = 0
+    }
+    let i = oPairIndex(oSharedKeys, name)
+    if i < 0 {
+        oSharedKeys = push(oSharedKeys, name)
+        oSharedVals = push(oSharedVals, stored)
+        return
+    }
+    oSharedVals = oPairSetVals(oSharedVals, i, stored)
 }
 
 fn oIsIdentStart(ch) {
-    let cd = oCode(ch)
-    if cd >= 97 && cd <= 122 {
-        return 1
-    }
-    if cd >= 65 && cd <= 90 {
-        return 1
-    }
     if ch == "_" {
         return 1
+    }
+    let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    let j = 0
+    while j < len(letters) {
+        if char_at(letters, j) == ch {
+            return 1
+        }
+        j = j + 1
     }
     return 0
 }
@@ -35,17 +128,17 @@ fn oIsIdentChar(ch) {
     if oIsIdentStart(ch) == 1 {
         return 1
     }
-    let cd = oCode(ch)
-    if cd >= 48 && cd <= 57 {
-        return 1
-    }
-    return 0
+    return oIsDigit(ch)
 }
 
 fn oIsDigit(ch) {
-    let cd = oCode(ch)
-    if cd >= 48 && cd <= 57 {
-        return 1
+    let digits = "0123456789"
+    let j = 0
+    while j < len(digits) {
+        if char_at(digits, j) == ch {
+            return 1
+        }
+        j = j + 1
     }
     return 0
 }
@@ -119,41 +212,6 @@ fn oAtId(name) {
     return 0
 }
 
-fn oMutCount(name) {
-    let v = oMutBorrows[name]
-    if v == null {
-        return 0
-    }
-    return v
-}
-
-fn oSharedCount(name) {
-    let v = oSharedBorrows[name]
-    if v == null {
-        return 0
-    }
-    return v
-}
-
-fn oMutAdd(name, delta) {
-    // Mutate module maps directly (Kab CoW: map args do not write back)
-    let n = oMutCount(name) + delta
-    if n <= 0 {
-        oMutBorrows[name] = 0
-    } else {
-        oMutBorrows[name] = n
-    }
-}
-
-fn oSharedAdd(name, delta) {
-    let n = oSharedCount(name) + delta
-    if n <= 0 {
-        oSharedBorrows[name] = 0
-    } else {
-        oSharedBorrows[name] = n
-    }
-}
-
 fn oIsBorrowed(name) {
     if oMutCount(name) > 0 {
         return 1
@@ -165,7 +223,7 @@ fn oIsBorrowed(name) {
 }
 
 fn oUse(name, doMove) {
-    let st = oPlaces[name]
+    let st = oPlaceGet(name)
     if st == "moved" {
         oErr("ownership: use after move of `" + name + "`")
         return 0
@@ -176,7 +234,7 @@ fn oUse(name, doMove) {
                 oErr("ownership: cannot move `" + name + "` while borrowed")
                 return 0
             }
-            oPlaces[name] = "moved"
+            oSetPlace(name, "moved")
             return 1
         }
         return 0
@@ -185,7 +243,7 @@ fn oUse(name, doMove) {
 }
 
 fn oBorrow(name, isMut) {
-    let st = oPlaces[name]
+    let st = oPlaceGet(name)
     if st == "moved" {
         oErr("ownership: use after move of `" + name + "`")
         return
@@ -353,7 +411,7 @@ fn oStmt() {
             oBump()
             let produced = oExpr(1)
             if produced == 1 {
-                oPlaces[name] = "owned"
+                oSetPlace(name, "owned")
             }
         }
         return
@@ -367,7 +425,7 @@ fn oStmt() {
             oBump()
             let produced = oExpr(1)
             if produced == 1 {
-                oPlaces[name] = "owned"
+                oSetPlace(name, "owned")
             }
             return
         }
@@ -377,9 +435,12 @@ fn oStmt() {
 }
 
 pub fn checkOwnership(source) {
-    oPlaces = {}
-    oMutBorrows = {}
-    oSharedBorrows = {}
+    oPlaceKeys = []
+    oPlaceVals = []
+    oMutKeys = []
+    oMutVals = []
+    oSharedKeys = []
+    oSharedVals = []
     oErrors = []
     oToks = oTokenize(source)
     oI = 0
@@ -390,11 +451,10 @@ pub fn checkOwnership(source) {
             oBump()
         }
     }
-    let keys = object_keys(oPlaces)
     let i = 0
-    while i < len(keys) {
-        let k = keys[i]
-        if oPlaces[k] == "owned" {
+    while i < len(oPlaceKeys) {
+        let k = oPlaceKeys[i]
+        if oPlaceVals[i] == "owned" {
             oErr("ownership: Owned '" + k + "' dropped out of scope without move/drop (leak-lint)")
         }
         i = i + 1
