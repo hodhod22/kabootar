@@ -1,0 +1,3 @@
+import "kab/aot_load_jae"
+
+return aotLoadJaeOk("7300", "arm64") == false

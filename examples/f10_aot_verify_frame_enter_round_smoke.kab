@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_frame_enter_op"
+import "kab/aot_verify_frame_enter"
+
+let name = aotImageName("x64")
+let op = aotFrameEnterOp("x64")
+return aotVerifyFrameEnterOk(name, op)

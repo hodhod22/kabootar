@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented return-to-argument-register move.
+// import "kab/aot_move_ret_op"; do not import other kab/aot* leaves.
+
+pub fn aotMoveRetOp(target) {
+    if target == "x64" {
+        return "4889c3"
+    }
+    if target == "arm64" {
+        return "e10300aa"
+    }
+    return ""
+}

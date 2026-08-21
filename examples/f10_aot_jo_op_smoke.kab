@@ -1,0 +1,3 @@
+import "kab/aot_jo_op"
+
+return aotJoOp("x64") == "7000"

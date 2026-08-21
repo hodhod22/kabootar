@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_jmp_op"
+import "kab/aot_verify_jmp"
+
+let name = aotImageName("arm64")
+let op = aotJmpOp("arm64")
+return aotVerifyJmpOk(name, op)

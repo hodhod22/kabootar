@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image js opcode.
+// import "kab/aot_load_js"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJsOk(op, target) {
+    if target == "x64" {
+        return op == "7800"
+    }
+    if target == "arm64" {
+        return op == "54000004"
+    }
+    return false
+}

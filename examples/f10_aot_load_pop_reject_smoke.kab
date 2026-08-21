@@ -1,0 +1,3 @@
+import "kab/aot_load_pop"
+
+return aotLoadPopOk("58", "arm64") == false

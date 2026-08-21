@@ -1,0 +1,5 @@
+import "kab/aot_jmp_op"
+import "kab/aot_load_jmp"
+
+let op = aotJmpOp("x64")
+return aotLoadJmpOk(op, "x64")

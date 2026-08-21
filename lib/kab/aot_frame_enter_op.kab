@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented frame-entry prologue.
+// import "kab/aot_frame_enter_op"; do not import other kab/aot* leaves.
+
+pub fn aotFrameEnterOp(target) {
+    if target == "x64" {
+        return "554889e5"
+    }
+    if target == "arm64" {
+        return "fd7bbfa9fd030091"
+    }
+    return ""
+}

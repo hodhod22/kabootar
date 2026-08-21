@@ -1,0 +1,12 @@
+// F10: native image filename and stack-allocation opcode must agree.
+// import "kab/aot_verify_stack_alloc"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyStackAllocOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "4883ec10"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "ff4300d1"
+    }
+    return false
+}

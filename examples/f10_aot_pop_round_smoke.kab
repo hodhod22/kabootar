@@ -1,0 +1,5 @@
+import "kab/aot_pop_op"
+import "kab/aot_load_pop"
+
+let op = aotPopOp("x64")
+return aotLoadPopOk(op, "x64")

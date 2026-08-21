@@ -1,0 +1,3 @@
+import "kab/aot_move_ret_op"
+
+return aotMoveRetOp("x64") == "4889c3"

@@ -1,0 +1,3 @@
+import "kab/aot_verify_jp"
+
+return aotVerifyJpOk("kabootar-x64.kbn", "7a00") == false

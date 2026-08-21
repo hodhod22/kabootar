@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_stack_free_op"
+import "kab/aot_verify_stack_free"
+
+let name = aotImageName("x64")
+let op = aotStackFreeOp("x64")
+return aotVerifyStackFreeOk(name, op)

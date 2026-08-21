@@ -1,0 +1,3 @@
+import "kab/aot_stack_free_op"
+
+return aotStackFreeOp("x64") == "4883c410"

@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_move_arg_op"
+import "kab/aot_verify_move_arg"
+
+let name = aotImageName("arm64")
+let op = aotMoveArgOp("arm64")
+return aotVerifyMoveArgOk(name, op)

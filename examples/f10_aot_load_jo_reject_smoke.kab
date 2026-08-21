@@ -1,0 +1,3 @@
+import "kab/aot_load_jo"
+
+return aotLoadJoOk("7000", "arm64") == false

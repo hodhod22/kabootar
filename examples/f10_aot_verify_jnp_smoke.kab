@@ -1,0 +1,3 @@
+import "kab/aot_verify_jnp"
+
+return aotVerifyJnpOk("kabootar-x64.kbn", "7b00")

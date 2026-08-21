@@ -1,0 +1,3 @@
+import "kab/aot_verify_stack_free"
+
+return aotVerifyStackFreeOk("kabootar-x64.kbn", "ff430091") == false

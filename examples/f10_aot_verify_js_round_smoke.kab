@@ -1,0 +1,7 @@
+import "kab/aot_image_name"
+import "kab/aot_js_op"
+import "kab/aot_verify_js"
+
+let name = aotImageName("x64")
+let op = aotJsOp("x64")
+return aotVerifyJsOk(name, op)

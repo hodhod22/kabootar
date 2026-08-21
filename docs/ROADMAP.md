@@ -1015,7 +1015,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 
 **Fast Compile / Fast Run:** compile-arbete i Kab. Körning = Kab-VM, sedan **Kab-JIT (SH17)** och **Kab-GC (SH18)** — inte mer JIT/GC i Rust.
 
-**Nästa steg (bara `.kab`):** F10 ja-op (load+verify) — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
+**Nästa steg (bara `.kab`):** F10 stack-frame-op (load+verify) — `nollAotReady` förblir false. **Radera inte `src/`.** Inga nya `src/*.rs`.
 
 **Icke-mål:**
 

@@ -1,0 +1,3 @@
+import "kab/aot_jno_op"
+
+return aotJnoOp("x64") == "7100"

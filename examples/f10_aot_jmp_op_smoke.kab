@@ -1,0 +1,3 @@
+import "kab/aot_jmp_op"
+
+return aotJmpOp("x64") == "e900000000"

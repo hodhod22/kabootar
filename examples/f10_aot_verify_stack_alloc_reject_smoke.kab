@@ -1,0 +1,3 @@
+import "kab/aot_verify_stack_alloc"
+
+return aotVerifyStackAllocOk("kabootar-x64.kbn", "ff4300d1") == false

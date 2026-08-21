@@ -1,0 +1,5 @@
+import "kab/aot_call_op"
+import "kab/aot_load_call"
+
+let op = aotCallOp("x64")
+return aotLoadCallOk(op, "x64")
