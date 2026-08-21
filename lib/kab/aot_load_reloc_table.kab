@@ -21,3 +21,14 @@ pub fn aotLoadRelocTableRodataOk(table, target) {
     }
     return false
 }
+
+// F10: load the first ordered data relocation table.
+pub fn aotLoadRelocTableDataOk(table, target) {
+    if target == "x64" {
+        return table == "relocs:reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return table == "relocs:reloc:data:0:0:g0:arm64"
+    }
+    return false
+}

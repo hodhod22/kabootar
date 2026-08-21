@@ -21,3 +21,14 @@ pub fn aotEmitRelocTableRodata(target) {
     }
     return ""
 }
+
+// F10: serialize the first ordered data relocation table.
+pub fn aotEmitRelocTableData(target) {
+    if target == "x64" {
+        return "relocs:reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return "relocs:reloc:data:0:0:g0:arm64"
+    }
+    return ""
+}

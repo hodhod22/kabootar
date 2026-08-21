@@ -1,0 +1,7 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_emit_data"
+
+let data = aotEmitData("x64")
+let table = aotEmitRelocTableData("x64")
+return aotApplyRelocTableToData(data, table, 4096, "x64") == "data:rw|0010000000000000"

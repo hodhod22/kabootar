@@ -1,0 +1,3 @@
+import "kab/aot_ship"
+
+return aotShipOk("kabootar-x64.kbn", "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|code:x64:ret|sym:rodata:0:kstr:x64|relocs:reloc:rodata:0:0:kstr:x64", "arm64") == false
