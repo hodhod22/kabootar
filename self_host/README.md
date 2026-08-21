@@ -136,7 +136,7 @@ Kort ordning:
 13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
 14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (… + serialiserad rodata-reloc-tabell + `aotApplyRelocTableAddressRodata` base+0); nästa: skriv rodata-ordet in i imagen; `nollAotReady` still false
+16. ~~**F10 AOT native-image policy**~~ ✅ (… + `aotApplyRelocTableToImageRodataHex`); nästa: load/persist/verify/ship av rodata-hex-imagen; `nollAotReady` still false
 
 ## Historisk bootstrap-logg
 
