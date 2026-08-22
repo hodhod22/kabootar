@@ -1,0 +1,6 @@
+import "kab/gc_host"
+
+if gcHostDeleteOk() {
+    return false
+}
+return true

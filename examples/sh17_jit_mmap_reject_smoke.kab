@@ -1,0 +1,9 @@
+import "kab/jit_mmap"
+
+if jitMmapOk(6, "rw") {
+    return false
+}
+if jitMmapOk(7, "rwx") {
+    return false
+}
+return true

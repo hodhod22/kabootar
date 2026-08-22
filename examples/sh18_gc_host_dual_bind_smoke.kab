@@ -1,0 +1,20 @@
+import "kab/gc"
+import "kab/gc_conc"
+import "kab/gc_host"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+let u = gcBump(0, 8)
+if u != 8 {
+    return false
+}
+let budget = gcFrameBudgetMs()
+if budget != 16 {
+    return false
+}
+let left = gcMarkStep(3, budget)
+if left != 2 {
+    return false
+}
+return gcHostDeleteOk() == false
