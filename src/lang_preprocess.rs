@@ -59,6 +59,8 @@ pub fn preprocess(source: &str) -> String {
 pub fn preprocess_with_meta(source: &str) -> (String, ModuleDirectives) {
     let meta = scan_header_directives(source);
     let s = strip_header_directives(source);
+    // `comptime { }` is folded to a literal in `bytecode::compile_source` (Comptime 3.0).
+    // Fallback: treat leftover blocks as ordinary `{ … }` so LSP/parse still works.
     let s = expand_comptime_keyword(&s);
     let s = expand_html_blocks(&s);
     let s = expand_actor_declarations(&s);
@@ -139,63 +141,97 @@ pub fn strip_header_directives(source: &str) -> String {
     }
 }
 
-/// `comptime { ... }` → `{ ... }` (compile-time blocks run as normal const code today).
-/// `comptime { ... }` → `{ ... }` (compile-time blocks run as normal const code today).
-pub fn expand_comptime_keyword(source: &str) -> String {
-    let mut out = String::new();
+/// Rewrite each `comptime { … }` via `rewrite(body)`.
+/// Skips strings and `//` comments. Identifier-bounded (`comptime` not part of a name).
+pub fn rewrite_comptime_blocks<F>(source: &str, mut rewrite: F) -> Result<String, String>
+where
+    F: FnMut(&str) -> Result<String, String>,
+{
     let chars: Vec<char> = source.chars().collect();
+    let mut out = String::new();
     let mut i = 0;
-    
     while i < chars.len() {
-        // Kolla om vi har "comptime" här
-        if i + 8 <= chars.len()
-            && chars[i] == 'c'
-            && chars[i+1] == 'o'
-            && chars[i+2] == 'm'
-            && chars[i+3] == 'p'
-            && chars[i+4] == 't'
-            && chars[i+5] == 'i'
-            && chars[i+6] == 'm'
-            && chars[i+7] == 'e'
-        {
+        if chars[i] == '"' {
+            out.push('"');
+            i += 1;
+            while i < chars.len() {
+                let c = chars[i];
+                out.push(c);
+                i += 1;
+                if c == '\\' && i < chars.len() {
+                    out.push(chars[i]);
+                    i += 1;
+                    continue;
+                }
+                if c == '"' {
+                    break;
+                }
+            }
+            continue;
+        }
+        if chars[i] == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+            while i < chars.len() && chars[i] != '\n' {
+                out.push(chars[i]);
+                i += 1;
+            }
+            continue;
+        }
+        if is_comptime_kw(&chars, i) {
             let mut k = i + 8;
-            
-            // Hoppa över whitespace
             while k < chars.len() && chars[k].is_whitespace() {
                 k += 1;
             }
-            
-            // Kolla om nästa tecken är '{'
             if k < chars.len() && chars[k] == '{' {
-                // Hitta matchande '}'
                 let mut depth = 1;
                 let mut end = k + 1;
                 while end < chars.len() && depth > 0 {
-                    if chars[end] == '{' { depth += 1; }
-                    else if chars[end] == '}' { depth -= 1; }
+                    if chars[end] == '{' {
+                        depth += 1;
+                    } else if chars[end] == '}' {
+                        depth -= 1;
+                    }
                     end += 1;
                 }
-                
                 if depth == 0 {
-                    // Vi hoppar över "comptime" och allt fram till '{'
-                    // Vill du behålla '{' och '}'? 
-                    // Om ja, lägg till '{' + body + '}'
-                    let body: String = chars[k+1..end-1].iter().collect();
-                    out.push('{');
-                    out.push_str(&body);
-                    out.push('}');
+                    let body: String = chars[k + 1..end - 1].iter().collect();
+                    out.push_str(&rewrite(body.trim())?);
                     i = end;
                     continue;
                 }
             }
         }
-        
-        // Lägg till aktuellt tecken
         out.push(chars[i]);
         i += 1;
     }
-    
-    out
+    Ok(out)
+}
+
+fn is_comptime_kw(chars: &[char], i: usize) -> bool {
+    if i + 8 > chars.len() {
+        return false;
+    }
+    let kw = ['c', 'o', 'm', 'p', 't', 'i', 'm', 'e'];
+    if chars[i..i + 8] != kw {
+        return false;
+    }
+    if i > 0 {
+        let p = chars[i - 1];
+        if p == '_' || p.is_alphanumeric() {
+            return false;
+        }
+    }
+    if i + 8 < chars.len() {
+        let n = chars[i + 8];
+        if n == '_' || n.is_alphanumeric() {
+            return false;
+        }
+    }
+    true
+}
+
+/// `comptime { ... }` → `{ ... }` (runtime fallback when not folded).
+pub fn expand_comptime_keyword(source: &str) -> String {
+    rewrite_comptime_blocks(source, |body| Ok(format!("{{ {body} }}"))).unwrap_or_else(|_| source.to_string())
 }
 /// `html! { <tag>...</tag> }` → `kv8_create()` + `kv8_run_ui`.
 pub fn expand_html_blocks(source: &str) -> String {
@@ -414,6 +450,20 @@ mod tests {
         let src = "comptime { let x = 1; x }";
         let out = expand_comptime_keyword(src);
         assert!(!out.contains("comptime"));
-        assert!(out.contains("{ let x = 1"));
+        assert!(out.contains("let x = 1"));
+    }
+
+    #[test]
+    fn comptime_skips_string_literal() {
+        let src = r#"let s = "comptime { 1 }""#;
+        let out = expand_comptime_keyword(src);
+        assert!(out.contains("comptime { 1 }"));
+    }
+
+    #[test]
+    fn rewrite_comptime_blocks_applies_rewrite() {
+        let out = rewrite_comptime_blocks("let x = comptime { 6 * 7 }", |body| Ok(body.trim().to_string()))
+            .expect("rewrite");
+        assert_eq!(out, "let x = 6 * 7");
     }
 }

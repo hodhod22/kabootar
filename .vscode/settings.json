@@ -7,5 +7,6 @@
   "rust-analyzer.runnables.extraTestBinaryArgs": ["--test-threads=1"],
   "rust-analyzer.cargo.extraEnv": {
     "RUST_BACKTRACE": "1"
-  }
+  },
+  "git.ignoreLimitWarning": true
 }

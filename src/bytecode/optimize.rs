@@ -53,9 +53,16 @@ fn optimize_chunk(
     regions: &mut [GeneratorTryRegion],
 ) -> OptStats {
     let mut stats = OptStats::default();
-    fold_constants(code, constants, regions, &mut stats);
-    peephole(code, constants, regions, &mut stats);
-    trim_dead_after_halt(code, regions, &mut stats);
+    for _ in 0..8 {
+        let before = stats.folds + stats.peepholes + stats.dead_removed;
+        fold_constants(code, constants, regions, &mut stats);
+        fold_unaries(code, constants, regions, &mut stats);
+        peephole(code, constants, regions, &mut stats);
+        trim_dead_after_halt(code, regions, &mut stats);
+        if stats.folds + stats.peepholes + stats.dead_removed == before {
+            break;
+        }
+    }
     stats
 }
 
@@ -136,6 +143,21 @@ fn fold_binop(a: &Constant, b: &Constant, op: &Opcode) -> Option<Constant> {
         (Constant::Number(x), Constant::Number(y), Opcode::Mod) if *y != 0 => {
             Some(Constant::Number(x % y))
         }
+        (Constant::Number(x), Constant::Number(y), Opcode::Pow) if *y >= 0 && *y <= 32 => {
+            Some(Constant::Number(x.pow(*y as u32)))
+        }
+        (Constant::Number(x), Constant::Number(y), Opcode::BitAnd) => Some(Constant::Number(x & y)),
+        (Constant::Number(x), Constant::Number(y), Opcode::BitOr) => Some(Constant::Number(x | y)),
+        (Constant::Number(x), Constant::Number(y), Opcode::BitXor) => Some(Constant::Number(x ^ y)),
+        (Constant::Number(x), Constant::Number(y), Opcode::Shl) if *y >= 0 && *y < 64 => {
+            Some(Constant::Number(x.wrapping_shl(*y as u32)))
+        }
+        (Constant::Number(x), Constant::Number(y), Opcode::Shr) if *y >= 0 && *y < 64 => {
+            Some(Constant::Number(x >> y))
+        }
+        (Constant::String(x), Constant::String(y), Opcode::Add) => {
+            Some(Constant::String(format!("{x}{y}")))
+        }
         (Constant::Number(x), Constant::Number(y), Opcode::Eq) => {
             Some(Constant::Bool(x == y))
         }
@@ -160,93 +182,221 @@ fn fold_binop(a: &Constant, b: &Constant, op: &Opcode) -> Option<Constant> {
     }
 }
 
-fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [GeneratorTryRegion], stats: &mut OptStats) {
+fn fold_unary(c: &Constant, op: &Opcode) -> Option<Constant> {
+    match (c, op) {
+        (Constant::Bool(b), Opcode::Not) => Some(Constant::Bool(!*b)),
+        (Constant::Number(0), Opcode::Not) => Some(Constant::Bool(true)),
+        (Constant::Number(_), Opcode::Not) => Some(Constant::Bool(false)),
+        (Constant::Null | Constant::Undefined, Opcode::Not) => Some(Constant::Bool(true)),
+        (Constant::Number(n), Opcode::Neg) => Some(Constant::Number(-n)),
+        (Constant::Float(n), Opcode::Neg) => Some(Constant::Float(-n)),
+        (Constant::Number(n), Opcode::BitNot) => Some(Constant::Number(!n)),
+        _ => None,
+    }
+}
+
+fn fold_unaries(
+    code: &mut Vec<Opcode>,
+    constants: &mut Vec<Constant>,
+    regions: &mut [GeneratorTryRegion],
+    stats: &mut OptStats,
+) {
     let mut i = 0;
-    while i < code.len() {
-        let removed = match peephole_step(code, constants, i) {
-            Some(0) => {
-                stats.peepholes += 1;
-                i += 1;
-                continue;
-            }
-            Some(n) => n,
-            None => {
+    while i + 1 < code.len() {
+        let ci = match &code[i] {
+            Opcode::Const(c) => *c,
+            _ => {
                 i += 1;
                 continue;
             }
         };
-        remap_try_regions(regions, i, removed);
-        adjust_jump_targets(code, i, removed);
-        stats.peepholes += removed;
+        let uop = code[i + 1].clone();
+        if matches!(uop, Opcode::Not | Opcode::Neg | Opcode::BitNot) {
+            if let Some(c) = constants.get(ci as usize) {
+                if let Some(folded) = fold_unary(c, &uop) {
+                    let idx = find_or_push_const(constants, folded);
+                    code[i] = Opcode::Const(idx);
+                    code.remove(i + 1);
+                    remap_try_regions(regions, i + 1, 1);
+                    adjust_jump_targets(code, i + 1, 1);
+                    stats.folds += 1;
+                    continue;
+                }
+            }
+        }
+        i += 1;
     }
 }
 
-fn peephole_step(code: &mut Vec<Opcode>, constants: &[Constant], i: usize) -> Option<usize> {
-    match &code[i] {
-        Opcode::Jump(0) | Opcode::JumpIfFalse(0) | Opcode::JumpIfResultErr(0) => {
-            code.remove(i);
-            Some(1)
-        }
-        Opcode::Const(ci) if i + 1 < code.len() => {
-            let ci = *ci;
-            match code[i + 1].clone() {
-            Opcode::IndexGet => match constants.get(ci as usize) {
-                Some(Constant::String(s)) if ident_member_key(s) => {
-                    code[i] = Opcode::GetMember(ci);
-                    code.remove(i + 1);
-                    Some(1)
-                }
-                _ => None,
-            },
-            Opcode::IndexGetLocal(li) => match constants.get(ci as usize) {
-                Some(Constant::String(s)) if ident_member_key(s) => {
-                    code[i] = Opcode::LoadLocal(li);
-                    code[i + 1] = Opcode::GetMember(ci);
-                    Some(0)
-                }
-                _ => None,
-            },
-            Opcode::IndexGetGlobal(gi) => match constants.get(ci as usize) {
-                Some(Constant::String(s)) if ident_member_key(s) => {
-                    code[i] = Opcode::LoadGlobal(gi);
-                    code[i + 1] = Opcode::GetMember(ci);
-                    Some(0)
-                }
-                _ => None,
-            },
-            Opcode::Pop => {
-                code.remove(i);
-                code.remove(i);
-                Some(2)
-            }
-            Opcode::JumpIfFalse(off) => match constants.get(ci as usize) {
-                Some(Constant::Bool(false)) => {
-                    code.remove(i);
-                    code[i] = Opcode::Jump(off);
-                    Some(1)
-                }
-                Some(Constant::Bool(true)) => {
-                    code.remove(i + 1);
-                    code.remove(i);
-                    Some(2)
-                }
-                _ => None,
-            },
-            _ => None,
-            }
-        }
-        Opcode::LoadLocal(a) if i + 1 < code.len() && matches!(code[i + 1], Opcode::StoreLocal(b) if *a == b) => {
-            code.remove(i + 1);
-            code.remove(i);
-            Some(2)
-        }
-        Opcode::Not if i > 0 && matches!(code[i - 1], Opcode::Not) => {
-            code.remove(i);
-            code.remove(i - 1);
-            Some(2)
-        }
+fn const_is_truthy(c: &Constant) -> Option<bool> {
+    match c {
+        Constant::Bool(b) => Some(*b),
+        Constant::Number(0) | Constant::Null | Constant::Undefined => Some(false),
+        Constant::Number(_) => Some(true),
+        Constant::Float(n) => Some(*n != 0.0 && !n.is_nan()),
+        Constant::String(s) => Some(!s.is_empty()),
+        Constant::Nan => Some(false),
         _ => None,
     }
+}
+
+fn next_live(live: &[Option<Opcode>], mut i: usize) -> Option<usize> {
+    while i < live.len() {
+        if live[i].is_some() {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+fn jump_offset(op: &Opcode) -> Option<i32> {
+    match op {
+        Opcode::Jump(o)
+        | Opcode::JumpIfFalse(o)
+        | Opcode::JumpIfResultErr(o)
+        | Opcode::JumpUnlessResultOk(o)
+        | Opcode::JumpUnlessResultErr(o)
+        | Opcode::JumpUnlessOptionSome(o)
+        | Opcode::JumpUnlessOptionNone(o)
+        | Opcode::JumpUnlessEnumVariant(_, _, o)
+        | Opcode::JumpUnlessConstEq(_, o)
+        | Opcode::JumpUnlessArray(o)
+        | Opcode::JumpUnlessObject(o)
+        | Opcode::JumpUnlessObjectEmpty(o)
+        | Opcode::JumpUnlessHasMember(_, o)
+        | Opcode::JumpIfNotNullish(o) => Some(*o),
+        _ => None,
+    }
+}
+
+/// O(n) peephole: mark deletions, then compact. `Vec::remove` per hit is O(n²) on
+/// large main chunks (SH14 100k `s = s + 1` → Const+Pop after every AccAdd).
+fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [GeneratorTryRegion], stats: &mut OptStats) {
+    if code.is_empty() {
+        return;
+    }
+    let mut live: Vec<Option<Opcode>> = code.iter().cloned().map(Some).collect();
+    let mut i = 0;
+    while i < live.len() {
+        let Some(op) = live[i].clone() else {
+            i += 1;
+            continue;
+        };
+        match &op {
+            Opcode::Jump(0) | Opcode::JumpIfFalse(0) | Opcode::JumpIfResultErr(0) => {
+                live[i] = None;
+                stats.peepholes += 1;
+            }
+            Opcode::Const(ci) => {
+                if let Some(j) = next_live(&live, i + 1) {
+                    match live[j].clone() {
+                        Some(Opcode::IndexGet) => match constants.get(*ci as usize) {
+                            Some(Constant::String(s)) if ident_member_key(s) => {
+                                live[i] = Some(Opcode::GetMember(*ci));
+                                live[j] = None;
+                                stats.peepholes += 1;
+                            }
+                            _ => {}
+                        },
+                        Some(Opcode::IndexGetLocal(li)) => match constants.get(*ci as usize) {
+                            Some(Constant::String(s)) if ident_member_key(s) => {
+                                live[i] = Some(Opcode::LoadLocal(li));
+                                live[j] = Some(Opcode::GetMember(*ci));
+                                stats.peepholes += 1;
+                            }
+                            _ => {}
+                        },
+                        Some(Opcode::IndexGetGlobal(gi)) => match constants.get(*ci as usize) {
+                            Some(Constant::String(s)) if ident_member_key(s) => {
+                                live[i] = Some(Opcode::LoadGlobal(gi));
+                                live[j] = Some(Opcode::GetMember(*ci));
+                                stats.peepholes += 1;
+                            }
+                            _ => {}
+                        },
+                        Some(Opcode::Pop) => {
+                            live[i] = None;
+                            live[j] = None;
+                            stats.peepholes += 2;
+                        }
+                        Some(Opcode::JumpIfFalse(off)) => {
+                            match constants.get(*ci as usize).and_then(const_is_truthy) {
+                                Some(false) => {
+                                    live[i] = None;
+                                    live[j] = Some(Opcode::Jump(off));
+                                    stats.peepholes += 1;
+                                }
+                                Some(true) => {
+                                    live[i] = None;
+                                    live[j] = None;
+                                    stats.peepholes += 2;
+                                }
+                                None => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Opcode::LoadLocal(a) => {
+                if let Some(j) = next_live(&live, i + 1) {
+                    if matches!(live[j], Some(Opcode::StoreLocal(b)) if b == *a) {
+                        live[i] = None;
+                        live[j] = None;
+                        stats.peepholes += 2;
+                    }
+                }
+            }
+            Opcode::Not if i > 0 => {
+                if let Some(p) = (0..i).rev().find(|&k| live[k].is_some()) {
+                    if matches!(live[p], Some(Opcode::Not)) {
+                        live[i] = None;
+                        live[p] = None;
+                        stats.peepholes += 2;
+                    }
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    compact_live_ops(code, &live, regions);
+}
+
+fn compact_live_ops(
+    code: &mut Vec<Opcode>,
+    live: &[Option<Opcode>],
+    regions: &mut [GeneratorTryRegion],
+) {
+    let n = live.len();
+    let mut map = vec![0usize; n + 1];
+    let mut kept: Vec<(usize, Opcode)> = Vec::with_capacity(n);
+    for (old, slot) in live.iter().enumerate() {
+        map[old] = kept.len();
+        if let Some(op) = slot {
+            kept.push((old, op.clone()));
+        }
+    }
+    map[n] = kept.len();
+    let mut out = Vec::with_capacity(kept.len());
+    for (new_ip, (old_ip, mut op)) in kept.into_iter().enumerate() {
+        if let Some(off) = jump_offset(&op) {
+            let target = ((old_ip as i32) + 1 + off).clamp(0, n as i32) as usize;
+            let nt = map[target];
+            set_jump_target(new_ip, &mut op, nt);
+        }
+        out.push(op);
+    }
+    for r in regions.iter_mut() {
+        r.body_start = map[r.body_start.min(n)];
+        r.body_end = map[r.body_end.min(n)];
+        r.catch_start = map[r.catch_start.min(n)];
+        if r.body_end < r.body_start {
+            r.body_end = r.body_start;
+        }
+    }
+    *code = out;
 }
 
 fn set_jump_target(ip: usize, op: &mut Opcode, target: usize) {
@@ -478,6 +628,27 @@ mod tests {
     }
 
     #[test]
+    fn drops_const_pop_without_n_squared_remove() {
+        let mut constants = vec![Constant::Null];
+        let mut code = Vec::new();
+        for _ in 0..8 {
+            code.push(Opcode::AccAddLocal(0));
+            code.push(Opcode::Const(0));
+            code.push(Opcode::Pop);
+        }
+        code.push(Opcode::Halt);
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.peepholes >= 16);
+        assert_eq!(
+            code.iter().filter(|o| matches!(o, Opcode::AccAddLocal(0))).count(),
+            8
+        );
+        assert!(!code.iter().any(|o| matches!(o, Opcode::Pop)));
+        assert!(matches!(code.last(), Some(Opcode::Halt)));
+    }
+
+    #[test]
     fn folds_const_false_jump_if_false_to_jump() {
         let mut constants = vec![Constant::Bool(false), Constant::Bool(true)];
         let mut code = vec![
@@ -628,5 +799,53 @@ peek(x)
             .count();
         assert!(has_get, "expected GetMember after sess[\"pCur\"] inline: {:?}", m.main_code);
         assert_eq!(call1, 0, "peek(n[\"pCur\"]) should inline, code={:?}", m.main_code);
+    }
+
+    #[test]
+    fn folds_unary_not() {
+        let mut constants = vec![Constant::Bool(true)];
+        let mut code = vec![Opcode::Const(0), Opcode::Not, Opcode::Halt];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.folds >= 1);
+        assert!(matches!(code.first(), Some(Opcode::Const(_))));
+        assert!(!code.iter().any(|o| matches!(o, Opcode::Not)));
+    }
+
+    #[test]
+    fn folds_string_concat() {
+        let mut constants = vec![
+            Constant::String("ka".into()),
+            Constant::String("b".into()),
+        ];
+        let mut code = vec![
+            Opcode::Const(0),
+            Opcode::Const(1),
+            Opcode::Add,
+            Opcode::Halt,
+        ];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.folds >= 1);
+        match code.first() {
+            Some(Opcode::Const(i)) => {
+                assert_eq!(constants[*i as usize], Constant::String("kab".into()));
+            }
+            other => panic!("expected folded const, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn folds_bitand() {
+        let mut constants = vec![Constant::Number(6), Constant::Number(3)];
+        let mut code = vec![
+            Opcode::Const(0),
+            Opcode::Const(1),
+            Opcode::BitAnd,
+            Opcode::Halt,
+        ];
+        let mut regions = vec![];
+        let stats = optimize_chunk(&mut code, &mut constants, &mut regions);
+        assert!(stats.folds >= 1);
     }
 }

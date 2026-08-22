@@ -20,6 +20,7 @@ pub struct PageTable {
 pub struct Vmm {
     tables: HashMap<u64, PageTable>,
     next_phys: u64,
+    phys_pages: HashMap<u64, Vec<u8>>,
 }
 
 impl Default for Vmm {
@@ -27,6 +28,7 @@ impl Default for Vmm {
         let mut v = Self {
             tables: HashMap::new(),
             next_phys: 0x1000_0000,
+            phys_pages: HashMap::new(),
         };
         v.tables.insert(1, PageTable::default());
         v
@@ -82,7 +84,39 @@ impl Vmm {
     pub fn alloc_phys(&mut self) -> u64 {
         let p = self.next_phys;
         self.next_phys += PAGE_SIZE;
+        self.phys_pages.insert(p, vec![0u8; PAGE_SIZE as usize]);
         p
+    }
+
+    pub fn phys_page(&self, page: u64) -> Option<&[u8]> {
+        self.phys_pages.get(&(page & !(PAGE_SIZE - 1)))
+            .map(|v| v.as_slice())
+    }
+
+    pub fn phys_page_mut(&mut self, page: u64) -> Option<&mut [u8]> {
+        self.phys_pages.get_mut(&(page & !(PAGE_SIZE - 1)))
+            .map(|v| v.as_mut_slice())
+    }
+
+    pub fn store_byte(&mut self, phys_addr: u64, byte: u8) -> Result<(), String> {
+        let page = phys_addr & !(PAGE_SIZE - 1);
+        let off = (phys_addr & (PAGE_SIZE - 1)) as usize;
+        let page_data = self
+            .phys_pages
+            .get_mut(&page)
+            .ok_or_else(|| "invalid phys page".to_string())?;
+        page_data[off] = byte;
+        Ok(())
+    }
+
+    pub fn load_byte(&self, phys_addr: u64) -> Result<u8, String> {
+        let page = phys_addr & !(PAGE_SIZE - 1);
+        let off = (phys_addr & (PAGE_SIZE - 1)) as usize;
+        let page_data = self
+            .phys_pages
+            .get(&page)
+            .ok_or_else(|| "invalid phys page".to_string())?;
+        Ok(page_data[off])
     }
 
     pub fn mapped_pages(&self) -> usize {

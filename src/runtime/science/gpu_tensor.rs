@@ -3,7 +3,6 @@
 use super::helpers::{num, vector_at, vector_out};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 const MARK: &str = "__kab_gpu_tensor";
 

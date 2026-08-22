@@ -56,6 +56,54 @@ fn comptime_assert_passes() {
 }
 
 #[test]
+fn comptime_block_folds_to_literal() {
+    let out = eval(
+        r#"
+        let x = comptime { 6 * 7 }
+        x
+        "#,
+    );
+    match &out {
+        Value::Number(42) => {}
+        _ => panic!("expected 42, got {out:?}"),
+    }
+}
+
+#[test]
+fn comptime_block_folds_string() {
+    let out = eval(
+        r#"
+        let x = comptime { "kabootar" }
+        x
+        "#,
+    );
+    match &out {
+        Value::String(s) if s == "kabootar" => {}
+        _ => panic!("expected kabootar string, got {out:?}"),
+    }
+}
+
+#[test]
+fn comptime_fold_native_rewrites_block() {
+    let out = eval(
+        r#"
+        comptime_fold("let x = comptime { 6 * 7 }\nreturn x")
+        "#,
+    );
+    match &out {
+        Value::String(s) if s.contains("42") && !s.contains("comptime") => {}
+        _ => panic!("expected folded source with 42, got {out:?}"),
+    }
+}
+
+#[test]
+fn comptime_assert_in_block_fails_compile() {
+    let mut env = create_global_env();
+    let err = eval_source(r#"comptime { comptime_assert(false, "nope") }"#, &mut env);
+    assert!(err.is_err());
+}
+
+#[test]
 fn lang_benchmark_runs_function() {
     let out = eval(
         r#"

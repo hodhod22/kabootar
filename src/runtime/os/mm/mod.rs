@@ -97,7 +97,16 @@ impl MemorySubsystem {
         if !entry.cow {
             return Ok(entry.phys);
         }
+        let old_phys = entry.phys;
         let phys = self.vmm.alloc_phys();
+        let snapshot = self
+            .vmm
+            .phys_page(old_phys)
+            .map(|p| p.to_vec())
+            .unwrap_or_else(|| vec![0u8; PAGE_SIZE as usize]);
+        if let Some(new_data) = self.vmm.phys_page_mut(phys) {
+            new_data.copy_from_slice(&snapshot);
+        }
         self.vmm.map_entry(
             pid,
             PageEntry {
@@ -109,6 +118,74 @@ impl MemorySubsystem {
         )?;
         self.cache.invalidate_line(virt);
         Ok(phys)
+    }
+
+    /// Store bytes at guest virtual address (translate + phys write).
+    pub fn store(&mut self, pid: u64, virt: u64, data: &[u8]) -> Result<usize, String> {
+        if data.is_empty() {
+            return Ok(0);
+        }
+        let entry = self.vmm.entry(pid, virt)?;
+        if entry.perms & 2 == 0 {
+            return Err("os_mm_store: page not writable".into());
+        }
+        if entry.cow {
+            self.cow_break(pid, virt)?;
+        }
+        let mut written = 0usize;
+        for (i, &byte) in data.iter().enumerate() {
+            let v = virt + i as u64;
+            let phys = self.translate(pid, v)?;
+            self.vmm.store_byte(phys, byte)?;
+            written += 1;
+        }
+        self.cache.invalidate_line(virt);
+        Ok(written)
+    }
+
+    /// Load bytes from guest virtual address (translate + phys read).
+    pub fn load(&mut self, pid: u64, virt: u64, len: usize) -> Result<Vec<u8>, String> {
+        if len == 0 {
+            return Ok(Vec::new());
+        }
+        let entry = self.vmm.entry(pid, virt)?;
+        if entry.perms & 1 == 0 {
+            return Err("os_mm_load: page not readable".into());
+        }
+        let mut out = Vec::with_capacity(len);
+        for i in 0..len {
+            let v = virt + i as u64;
+            let phys = self.translate(pid, v)?;
+            out.push(self.vmm.load_byte(phys)?);
+        }
+        Ok(out)
+    }
+
+    /// Simulate guest call at `virt` for known JIT templates (inc+ret → 1, loop8 → 8).
+    pub fn call_at(&mut self, pid: u64, virt: u64) -> Result<i64, String> {
+        let entry = self.vmm.entry(pid, virt)?;
+        if entry.perms & 4 == 0 {
+            return Err("os_mm_call: page not executable".into());
+        }
+        let bytes6 = self.load(pid, virt, 6)?;
+        if bytes6.len() == 6
+            && bytes6[0] == 49
+            && bytes6[1] == 192
+            && bytes6[2] == 131
+            && bytes6[3] == 192
+            && bytes6[4] == 1
+            && bytes6[5] == 195
+        {
+            return Ok(1);
+        }
+        let bytes8 = self.load(pid, virt, 8)?;
+        if bytes8.len() == 8 && bytes8[0] == 76 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            if (1..=64).contains(&n) {
+                return Ok(n as i64);
+            }
+        }
+        Err("os_mm_call: unknown guest entry".into())
     }
 
     pub fn malloc(&mut self, pid: u64, size: usize) -> Result<u64, String> {

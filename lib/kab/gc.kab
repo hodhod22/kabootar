@@ -10,7 +10,7 @@ pub fn gcBump(used, n) {
 }
 
 pub fn gcNeedCollect(used, cap) {
-    if used > cap {
+    if used >= cap {
         return true
     }
     return false

@@ -181,6 +181,15 @@ fn lang_benchmark_native(args: &[Value], env: &mut Environment) -> Result<Value,
     Ok(Value::from_object(m))
 }
 
+fn comptime_fold_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let src = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Err("comptime_fold(source) expects a string".into()),
+    };
+    let folded = crate::bytecode::fold_comptime_source(src)?;
+    Ok(Value::String(folded))
+}
+
 fn comptime_assert_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let ok = args.first().map(|v| match v {
         Value::Bool(b) => *b,
@@ -233,7 +242,7 @@ fn lang_syscalls_native(_args: &[Value], env: &mut Environment) -> Result<Value,
 fn lang_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let features: Vec<(&str, &str, &str)> = vec![
         ("zero_ffi", "exists", "os_syscall, os_syscalls"),
-        ("comptime", "partial", "comptime { } + comptime_assert"),
+        ("comptime", "exists", "comptime { } folded at compile + comptime_assert"),
         ("actors", "partial", "actor Name { } → actor_spawn"),
         ("hot_reload", "partial", "kabootar serve --watch + kbc invalidate"),
         ("auto_simd", "stub", "@simd directive (doc)"),
@@ -275,6 +284,7 @@ pub fn lang_features_globals(env: &mut Environment) {
         ("persist_save", persist_save_native),
         ("persist_load", persist_load_native),
         ("lang_benchmark", lang_benchmark_native),
+        ("comptime_fold", comptime_fold_native),
         ("comptime_assert", comptime_assert_native),
         ("shader_compile", shader_compile_native),
         ("lang_syscalls", lang_syscalls_native),

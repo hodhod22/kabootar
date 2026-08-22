@@ -128,6 +128,61 @@ fn d2_mmu_fault_mmap_and_cow() {
 }
 
 #[test]
+fn d2_os_mm_store_after_mmap() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 393216, 4096, 7);
+        let tpl = [49, 192, 131, 192, 1, 195];
+        let n = os_mm_store(1, 393216, tpl);
+        base == 393216 && n == 6
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 393216, 4096, 7);
+        let tpl = [49, 192, 131, 192, 1, 195];
+        let n = os_mm_store(1, 393216, tpl);
+        let r = os_mm_call(1, 393216);
+        base == 393216 && n == 6 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop8_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 401408, 4096, 7);
+        let tpl = [76, 8, 0, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 401408, tpl);
+        let r = os_mm_call(1, 401408);
+        base == 401408 && n == 8 && r == 8
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop16_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 409600, 4096, 7);
+        let tpl = [76, 16, 0, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 409600, tpl);
+        let r = os_mm_call(1, 409600);
+        base == 409600 && n == 8 && r == 16
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn process_threads_signals_jobs() {
     let tid = eval("os_thread_spawn(1, \"worker\")");
     assert!(matches!(tid, Value::Number(n) if n > 0));

@@ -13,7 +13,6 @@ use crate::runtime::stdlib::object::{
 use crate::runtime::stdlib::opt::{get_member_value, is_nullish};
 use crate::value::{Environment, Value};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 pub(crate) fn get_internal(
     target: &Value,
