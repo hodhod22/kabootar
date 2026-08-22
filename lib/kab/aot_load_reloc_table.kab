@@ -32,3 +32,25 @@ pub fn aotLoadRelocTableDataOk(table, target) {
     }
     return false
 }
+
+// F10: load ordered rodata then data relocation entries.
+pub fn aotLoadRelocTableRodataDataOk(table, target) {
+    if target == "x64" {
+        return table == "relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return table == "relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+    }
+    return false
+}
+
+// F10: load ordered text then rodata then data relocation entries.
+pub fn aotLoadRelocTableTextRodataDataOk(table, target) {
+    if target == "x64" {
+        return table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+    }
+    return false
+}

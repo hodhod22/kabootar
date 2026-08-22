@@ -342,6 +342,46 @@ pub fn aotApplyRelocTableAddressData(table, base, target) {
     return -1
 }
 
+// F10: patched address shared by rodata then data relocations (both base + 0).
+pub fn aotApplyRelocTableAddressRodataData(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return base + 0
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return base + 0
+        }
+        return -1
+    }
+    return -1
+}
+
+// F10: patched address shared by text+rodata+data (rodata/data at base + 0).
+pub fn aotApplyRelocTableAddressTextRodataData(table, base, target) {
+    if base < 0 {
+        return -1
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return base + 0
+        }
+        return -1
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return base + 0
+        }
+        return -1
+    }
+    return -1
+}
+
 // F10: little-endian hex of the rodata patched address (4096 at base 4096).
 pub fn aotApplyRelocTableWordHexRodata(table, base, target) {
     if base != 4096 {
@@ -486,6 +526,46 @@ pub fn aotApplyRelocTableWordHexData(table, base, target) {
     return ""
 }
 
+// F10: little-endian hex shared by rodata then data patches (4096 at base 4096).
+pub fn aotApplyRelocTableWordHexRodataData(table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return "0010000000000000"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return "0010000000000000"
+        }
+        return ""
+    }
+    return ""
+}
+
+// F10: little-endian hex shared by text+rodata+data rodata/data patches (4096 at base 4096).
+pub fn aotApplyRelocTableWordHexTextRodataData(table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table == "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return "0010000000000000"
+        }
+        return ""
+    }
+    if target == "arm64" {
+        if table == "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return "0010000000000000"
+        }
+        return ""
+    }
+    return ""
+}
+
 // F10: write the data relocated 64-bit word onto a native image.
 pub fn aotApplyRelocTableToImageData(image, table, base, target) {
     if base != 4096 {
@@ -534,6 +614,58 @@ pub fn aotApplyRelocTableToImageDataHex(image, table, base, target) {
             return ""
         }
         return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|0010000000000000|code:arm64:ret|sym:data:0:g0:arm64|relocs:reloc:data:0:0:g0:arm64"
+    }
+    return ""
+}
+
+// F10: write both rodata and data section hex into one native image.
+pub fn aotApplyRelocTableToImageRodataDataHex(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:ret|syms:sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:ret|syms:sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+    }
+    return ""
+}
+
+// F10: write text hex plus rodata and data section hex into one native image.
+pub fn aotApplyRelocTableToImageTextRodataDataHex(image, table, base, target) {
+    if base != 4096 {
+        return ""
+    }
+    if target == "x64" {
+        if table != "relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return ""
+        }
+        if image != "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64;sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return ""
+        }
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64;sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        if table != "relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return ""
+        }
+        if image != "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64;sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return ""
+        }
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64;sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
     }
     return ""
 }

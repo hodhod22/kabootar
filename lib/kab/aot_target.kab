@@ -2,5 +2,11 @@
 // import "kab/aot_target"; do not import other kab/aot* leaves.
 
 pub fn aotTargetOk(target) {
-    return target == "x64" || target == "arm64"
+    if target == "x64" {
+        return true
+    }
+    if target == "arm64" {
+        return true
+    }
+    return false
 }

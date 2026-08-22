@@ -1,0 +1,26 @@
+import "kab/aot_cd"
+import "kab/aot_fp"
+import "kab/aot_img"
+import "kab/aot_pgo"
+import "kab/aot_seal"
+import "kab/aot_ss"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+if aotSteadyOk(16) == false {
+    return false
+}
+if aotImageOk(1) == false {
+    return false
+}
+if aotSealOk("kabootar-native/1", "rw", 0, 4096) != false {
+    return false
+}
+return aotPgoWarmImageWithFpColdSs(8, "abc", 100, 16, "riscv") == ""

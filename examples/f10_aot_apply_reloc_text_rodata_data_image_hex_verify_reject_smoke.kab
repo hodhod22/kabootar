@@ -1,0 +1,9 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_verify_full"
+
+let table = aotEmitRelocTableTextRodataData("x64")
+let image = aotEmitImageWithRelocTableTextRodataData("x64")
+let patched = aotApplyRelocTableToImageTextRodataDataHex(image, table, 4096, "x64")
+return aotVerifyFullOk("kabootar-arm64.kbn", patched) == false

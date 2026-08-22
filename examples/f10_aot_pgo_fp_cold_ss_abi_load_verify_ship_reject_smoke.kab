@@ -1,0 +1,74 @@
+import "kab/aot_abi"
+import "kab/aot_align"
+import "kab/aot_cd"
+import "kab/aot_data"
+import "kab/aot_entry"
+import "kab/aot_fp"
+import "kab/aot_img"
+import "kab/aot_load_image"
+import "kab/aot_loaded_image"
+import "kab/aot_page"
+import "kab/aot_pgo"
+import "kab/aot_protect"
+import "kab/aot_rodata"
+import "kab/aot_seal"
+import "kab/aot_section"
+import "kab/aot_ss"
+import "kab/aot_target"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+if aotSteadyOk(16) == false {
+    return false
+}
+if aotImageOk(1) == false {
+    return false
+}
+if aotSealOk("kabootar-native/1", "rx", 0, 4096) == false {
+    return false
+}
+if aotEntryOk(4096) == false {
+    return false
+}
+if aotPageOk(4096) == false {
+    return false
+}
+if aotAlignOk(16) == false {
+    return false
+}
+if aotSectionOk("text") == false {
+    return false
+}
+if aotSectionOk("rodata") == false {
+    return false
+}
+if aotSectionOk("data") == false {
+    return false
+}
+if aotTextProtectOk("rx") == false {
+    return false
+}
+if aotRodataProtectOk("r") == false {
+    return false
+}
+if aotDataProtectOk("rw") == false {
+    return false
+}
+if aotTargetOk("x64") == false {
+    return false
+}
+if aotAbiOk("x64", "win64") == false {
+    return false
+}
+let image = aotPgoWarmImageWithFpColdSs(8, "abc", 100, 16, "x64")
+if aotLoadedImageOk(image) == false {
+    return false
+}
+return aotLoadImageWithPgoWarmFpColdSsOk(image, "arm64") == false

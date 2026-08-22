@@ -1,0 +1,20 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_bind"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTableTextRodataData("x64")
+let image = aotEmitImageWithRelocTableTextRodataData("x64")
+let addr = aotApplyRelocTableAddressTextRodataData(table, 8192, "x64")
+let hex = aotApplyRelocTableWordHexTextRodataData(table, 8192, "x64")
+let patched = aotApplyRelocTableToImageTextRodataDataHex(image, table, 8192, "x64")
+if addr != 8192 {
+    return false
+}
+if hex != "" {
+    return false
+}
+if patched != "" {
+    return false
+}
+return aotRelocSymbolBindOk(addr, 4096) == false

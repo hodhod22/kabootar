@@ -1,0 +1,21 @@
+import "kab/aot_cd"
+import "kab/aot_fp"
+import "kab/aot_pgo"
+import "kab/aot_ss"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+if aotSteadyOk(17) != false {
+    return false
+}
+if aotPgoWarmImageWithFpColdSs(8, "abc", 100, 17, "x64") != "" {
+    return false
+}
+return aotPgoWarmImageWithFpColdSs(8, "abc", 100, 16, "riscv") == ""

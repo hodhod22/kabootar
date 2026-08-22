@@ -2,7 +2,16 @@
 // Do not import other kab/aot* leaves. Section layout remains Kab-owned.
 
 pub fn aotSectionOk(name) {
-    return name == "text" || name == "rodata" || name == "data"
+    if name == "text" {
+        return true
+    }
+    if name == "rodata" {
+        return true
+    }
+    if name == "data" {
+        return true
+    }
+    return false
 }
 
 // F10: a known image section resolves from its non-negative base and offset.
