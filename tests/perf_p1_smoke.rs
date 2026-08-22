@@ -6,6 +6,9 @@ use kabootar_lib::bytecode::{
 };
 use kabootar_lib::evaluator::{create_global_env, eval_source};
 use kabootar_lib::value::Value;
+use std::sync::Mutex;
+
+static CALL_IC_TEST: Mutex<()> = Mutex::new(());
 
 #[test]
 fn member_ic_hits_on_repeated_get() {
@@ -79,6 +82,7 @@ fn global_ic_invalidates_on_store() {
 
 #[test]
 fn call_ic_hits_on_repeated_native() {
+    let _g = CALL_IC_TEST.lock().expect("call ic lock");
     call_ic_reset_for_tests();
     let mut env = create_global_env();
     let v = eval_source(
@@ -104,6 +108,7 @@ fn call_ic_hits_on_repeated_native() {
 
 #[test]
 fn bytecode_call_ic_hits_on_repeated_direct() {
+    let _g = CALL_IC_TEST.lock().expect("call ic lock");
     call_ic_reset_for_tests();
     let mut env = create_global_env();
     let v = eval_source(
@@ -127,6 +132,85 @@ fn bytecode_call_ic_hits_on_repeated_direct() {
     assert!(
         hits > 0,
         "expected Call IC hits on repeated bytecode add2, hits={hits} misses={misses}"
+    );
+}
+
+#[test]
+fn call_ic_poly_two_bytecode_fns() {
+    let _g = CALL_IC_TEST.lock().expect("call ic lock");
+    call_ic_reset_for_tests();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn a() { return 1 }
+        fn b() { return 2 }
+        let s = 0
+        let i = 0
+        while i < 32 {
+            let f = a
+            if i > 15 {
+                f = b
+            }
+            s = s + f()
+            i = i + 1
+        }
+        s == 16 + 32
+        "#,
+        &mut env,
+    )
+    .expect("poly call ic");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    let (hits, misses) = call_ic_stats();
+    assert!(
+        hits > misses,
+        "P12b: 2-way poly should hit after filling slots, hits={hits} misses={misses}"
+    );
+    assert_eq!(
+        kabootar_lib::bytecode::call_ic_mega_hits(),
+        0,
+        "two callees must not go mega"
+    );
+}
+
+#[test]
+fn call_ic_mega_three_bytecode_fns() {
+    let _g = CALL_IC_TEST.lock().expect("call ic lock");
+    call_ic_reset_for_tests();
+    let mut env = create_global_env();
+    let v = eval_source(
+        r#"
+        fn a() { return 1 }
+        fn b() { return 2 }
+        fn c() { return 3 }
+        let s = 0
+        let i = 0
+        let t = 0
+        while i < 32 {
+            let f = a
+            if t == 1 {
+                f = b
+            }
+            if t == 2 {
+                f = c
+            }
+            s = s + f()
+            t = t + 1
+            if t == 3 {
+                t = 0
+            }
+            i = i + 1
+        }
+        s == 63
+        "#,
+        &mut env,
+    )
+    .expect("mega call ic");
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+    let mega = kabootar_lib::bytecode::call_ic_mega_hits();
+    let (hits, misses) = call_ic_stats();
+    assert!(
+        mega > 0,
+        "P12b: 3rd distinct callee should mega-dispatch (no call_value), mega={mega} hits={hits} misses={misses}"
     );
 }
 

@@ -3,6 +3,9 @@
 use kabootar_lib::evaluator::{create_global_env, eval_source};
 use kabootar_lib::runtime::ptak::{native_add_loop, nursery_reset_for_tests};
 use kabootar_lib::value::Value;
+use std::sync::Mutex;
+
+static P13_JIT_TEST: Mutex<()> = Mutex::new(());
 
 #[test]
 fn p11b_homogeneous_f64_sum() {
@@ -44,7 +47,9 @@ fn p13a_native_add_loop() {
 
 #[test]
 fn p13a_cranelift_jit_add_loop() {
+    let _g = P13_JIT_TEST.lock().expect("p13 lock");
     kabootar_lib::bytecode::jit_reset_for_tests();
+    kabootar_lib::bytecode::jit_set_call_threshold_for_tests(1);
     let mut env = create_global_env();
     let v = eval_source(
         r#"
@@ -72,6 +77,78 @@ fn p13a_cranelift_jit_add_loop() {
     assert!(
         compiled > 0 || hits > 0,
         "Cranelift should compile or run typed add_loop, hits={hits} compiled={compiled} fails={fails}"
+    );
+}
+
+#[test]
+fn p13b_jit_after_n_calls() {
+    use kabootar_lib::bytecode::{
+        call_value, jit_call_threshold, jit_reset_for_tests, jit_set_call_threshold_for_tests,
+        jit_stats, JIT_CALL_THRESHOLD_DEFAULT,
+    };
+    let _g = P13_JIT_TEST.lock().expect("p13 lock");
+    jit_reset_for_tests();
+    assert_eq!(JIT_CALL_THRESHOLD_DEFAULT, 8);
+    jit_set_call_threshold_for_tests(8);
+    assert_eq!(jit_call_threshold(), 8);
+    let mut env = create_global_env();
+    eval_source(
+        r#"
+        fn p13b_tiny(n) {
+            let s = 0
+            let i = 0
+            while i < n {
+                s = s + 1
+                i = i + 1
+            }
+            return s
+        }
+        "#,
+        &mut env,
+    )
+    .expect("define p13b_tiny");
+    let f = env.get("p13b_tiny").expect("p13b_tiny").clone();
+    for i in 0..7 {
+        let out = call_value(
+            f.clone(),
+            vec![Value::Number(3)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &mut env,
+        )
+        .unwrap_or_else(|e| panic!("warmup {i}: {e}"));
+        assert!(
+            matches!(out, Value::Number(3)),
+            "warmup {i} got {out:?}"
+        );
+    }
+    let (hits, compiled, fails) = jit_stats();
+    assert_eq!(fails, 0);
+    #[cfg(not(target_arch = "wasm32"))]
+    assert_eq!(
+        (hits, compiled),
+        (0, 0),
+        "P13b: first 7 calls stay interpreter, hits={hits} compiled={compiled}"
+    );
+    let out = call_value(
+        f,
+        vec![Value::Number(3)],
+        &[],
+        &[],
+        &[],
+        &[],
+        &mut env,
+    )
+    .expect("hot call");
+    assert!(matches!(out, Value::Number(3)), "hot got {out:?}");
+    let (hits, compiled, fails) = jit_stats();
+    assert_eq!(fails, 0);
+    #[cfg(not(target_arch = "wasm32"))]
+    assert!(
+        hits > 0 || compiled > 0,
+        "P13b: 8th call should Cranelift, hits={hits} compiled={compiled}"
     );
 }
 

@@ -3,7 +3,6 @@
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 pub const THROW_MARKER: &str = "\x01kab_throw\x01";
 

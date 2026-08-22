@@ -2,7 +2,6 @@
 
 use crate::lang_preprocess::MemoryMode;
 use crate::value::{Environment, OwnedBuf, Value};
-use std::rc::Rc;
 
 const MODE_KEY: &str = "__memory_mode";
 

@@ -3,7 +3,6 @@
 use crate::ast::BinaryOp;
 use crate::runtime::stdlib::descriptor::{property_key_from_value, PropertyKey};
 use crate::value::{format_value, Environment, Value};
-use std::rc::Rc;
 
 fn to_float(val: &Value) -> Option<f64> {
     match val {

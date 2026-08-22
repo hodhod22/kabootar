@@ -35,7 +35,7 @@ pub fn jitEmitI64IncRet() {
     return b
 }
 
-/// Host RWX mmap of the buffer is still a deepen (not guest os_mm_mmap).
+/// rwx map kind; guest mmap args live in kab/jit_mm (os_mm_mmap deepen).
 pub fn jitMapKind() {
     return "rwx"
 }

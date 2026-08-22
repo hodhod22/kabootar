@@ -13,7 +13,6 @@ use super::promise::{
 use crate::runtime::kabootar_dom::{assign_ids, DomNode};
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 thread_local! {
     static EVENT_PROPAGATION_STOPPED: Cell<bool> = const { Cell::new(false) };

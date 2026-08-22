@@ -213,6 +213,21 @@ fn os_mm_cow_break_native(args: &[Value], env: &mut Environment) -> Result<Value
     with_subsys(&os, |s| Ok(Value::Number(s.mm.cow_break(pid, virt)? as i64)))
 }
 
+fn os_mm_store_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let pid = num_arg(args, 0, "os_mm_store pid")?;
+    let virt = num_arg(args, 1, "os_mm_store virt")?;
+    let data = bytes_arg(args, 2).ok_or("os_mm_store expects byte array")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.store(pid, virt, &data)? as i64)))
+}
+
+fn os_mm_call_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let pid = num_arg(args, 0, "os_mm_call pid")?;
+    let virt = num_arg(args, 1, "os_mm_call virt")?;
+    let os = get_os(env)?;
+    with_subsys(&os, |s| Ok(Value::Number(s.mm.call_at(pid, virt)?)))
+}
+
 fn os_thread_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let pid = num_arg(args, 0, "os_thread_spawn pid")?;
     let name = str_arg(args, 1).unwrap_or_else(|| "worker".into());
@@ -464,6 +479,8 @@ pub fn register_architecture_globals(env: &mut Environment) {
     env.set("os_mm_mmap".into(), Value::NativeFunction(os_mm_mmap_native));
     env.set("os_mm_cow_share".into(), Value::NativeFunction(os_mm_cow_share_native));
     env.set("os_mm_cow_break".into(), Value::NativeFunction(os_mm_cow_break_native));
+    env.set("os_mm_store".into(), Value::NativeFunction(os_mm_store_native));
+    env.set("os_mm_call".into(), Value::NativeFunction(os_mm_call_native));
     env.set("os_thread_spawn".into(), Value::NativeFunction(os_thread_spawn_native));
     env.set("os_signal_send".into(), Value::NativeFunction(os_signal_send_native));
     env.set("os_job_create".into(), Value::NativeFunction(os_job_create_native));

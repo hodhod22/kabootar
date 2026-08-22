@@ -37,14 +37,14 @@ fn sourceIsManual(source) {
     return false
 }
 
-/// H6e: product preprocess in Kab — strip `comptime {` so the parser never needs the Rust preprocessor.
+/// H6e: product preprocess in Kab — Comptime 3.0 folds `comptime { … }` to literals before parse.
 fn preprocess(source) {
     let s = "" + source
     s = replace_all(s, "@pure\n", "")
     s = replace_all(s, "@io\n", "")
     s = replace_all(s, "@gc\n", "")
     s = replace_all(s, "@manual\n", "")
-    s = replace_all(s, "comptime {", "{")
+    s = comptime_fold(s)
     return s
 }
 

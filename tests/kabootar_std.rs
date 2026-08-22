@@ -175,6 +175,36 @@ fn object_assign_and_has_key() {
 }
 
 #[test]
+fn object_array_push_and_clear_in_place() {
+    let out = eval(
+        r#"
+        let E = { "eOps": [] }
+        object_array_push(E, "eOps", 1)
+        object_array_push(E, "eOps", 2)
+        let n = len(E["eOps"])
+        object_array_clear(E, "eOps")
+        n == 2 && len(E["eOps"]) == 0 && object_array_pop(E, "eOps") == null
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)));
+}
+
+#[test]
+fn object_array_truncate_in_place() {
+    let out = eval(
+        r#"
+        let E = { "xs": [] }
+        object_array_push(E, "xs", 1)
+        object_array_push(E, "xs", 2)
+        object_array_push(E, "xs", 3)
+        object_array_truncate(E, "xs", 1)
+        len(E["xs"]) == 1 && E["xs"][0] == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)));
+}
+
+#[test]
 fn import_std_module() {
     let mut env = create_global_env();
     import_module("std", &mut env).unwrap();

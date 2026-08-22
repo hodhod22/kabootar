@@ -47,6 +47,11 @@ fn assert_true(v, msg) {
     assert_true(len(tText) > 30, "kab preprocess comptime")
 }
 
+{
+    tText = compile("let x = comptime { 6 * 7 }\nreturn x")
+    assert_true(str_includes(tText, "42"), "comptime fold to literal 42")
+}
+
 println("")
 println("Self-hosted compile tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
 if fail > 0 {

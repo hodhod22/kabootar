@@ -800,6 +800,111 @@ fn insert_native(
     map.insert(js_name.into(), Value::NativeFunction(func));
 }
 
+fn object_array_push_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut obj = args
+        .first()
+        .cloned()
+        .ok_or("object_array_push(obj, key, item)")?;
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err("object_array_push key must be a string".into()),
+    };
+    let item = args
+        .get(2)
+        .cloned()
+        .ok_or("object_array_push(obj, key, item)")?;
+    let Value::Object(ref mut map) = obj else {
+        return Err("object_array_push requires an object".into());
+    };
+    let map = Value::object_make_mut(map);
+    match map.get_mut(&key) {
+        Some(Value::Array(items)) => {
+            Value::reject_direct_container_cycle(&Value::Array(Rc::clone(items)), &item)?;
+            Value::array_make_mut(items).push(item);
+            Ok(Value::Number(items.len() as i64))
+        }
+        Some(_) => Err("object_array_push field is not an array".into()),
+        None => Err(format!("object_array_push missing field `{key}`")),
+    }
+}
+
+fn object_array_pop_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut obj = args
+        .first()
+        .cloned()
+        .ok_or("object_array_pop(obj, key)")?;
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err("object_array_pop key must be a string".into()),
+    };
+    let Value::Object(ref mut map) = obj else {
+        return Err("object_array_pop requires an object".into());
+    };
+    let map = Value::object_make_mut(map);
+    match map.get_mut(&key) {
+        Some(Value::Array(items)) => {
+            let vec = Value::array_make_mut(items);
+            Ok(vec.pop().unwrap_or(Value::Null))
+        }
+        Some(_) => Err("object_array_pop field is not an array".into()),
+        None => Err(format!("object_array_pop missing field `{key}`")),
+    }
+}
+
+fn object_array_clear_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut obj = args
+        .first()
+        .cloned()
+        .ok_or("object_array_clear(obj, key)")?;
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err("object_array_clear key must be a string".into()),
+    };
+    let Value::Object(ref mut map) = obj else {
+        return Err("object_array_clear requires an object".into());
+    };
+    let map = Value::object_make_mut(map);
+    match map.get_mut(&key) {
+        Some(Value::Array(items)) => {
+            Value::array_make_mut(items).clear();
+            Ok(Value::Number(0))
+        }
+        Some(_) => Err("object_array_clear field is not an array".into()),
+        None => Err(format!("object_array_clear missing field `{key}`")),
+    }
+}
+
+fn object_array_truncate_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let mut obj = args
+        .first()
+        .cloned()
+        .ok_or("object_array_truncate(obj, key, len)")?;
+    let key = match args.get(1) {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err("object_array_truncate key must be a string".into()),
+    };
+    let new_len = match args.get(2) {
+        Some(Value::Number(n)) if *n >= 0 => *n as usize,
+        _ => return Err("object_array_truncate len must be a non-negative number".into()),
+    };
+    let Value::Object(ref mut map) = obj else {
+        return Err("object_array_truncate requires an object".into());
+    };
+    let map = Value::object_make_mut(map);
+    match map.get_mut(&key) {
+        Some(Value::Array(items)) => {
+            let vec = Value::array_make_mut(items);
+            if new_len > vec.len() {
+                return Err("object_array_truncate beyond length".into());
+            }
+            vec.truncate(new_len);
+            Ok(Value::Number(vec.len() as i64))
+        }
+        Some(_) => Err("object_array_truncate field is not an array".into()),
+        None => Err(format!("object_array_truncate missing field `{key}`")),
+    }
+}
+
 fn object_get_prototype_of_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let _ = args;
     Err(
@@ -885,6 +990,10 @@ pub fn register_object(env: &mut Environment) {
         ("object_group_by", object_group_by_native),
         ("group_by", object_group_by_native),
         ("structured_clone", structured_clone_native),
+        ("object_array_push", object_array_push_native),
+        ("object_array_pop", object_array_pop_native),
+        ("object_array_clear", object_array_clear_native),
+        ("object_array_truncate", object_array_truncate_native),
     ];
     for (name, func) in fns {
         env.set(name.to_string(), Value::NativeFunction(*func));

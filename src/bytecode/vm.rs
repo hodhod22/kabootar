@@ -70,23 +70,38 @@ static GLOBAL_IC_HITS: AtomicU64 = AtomicU64::new(0);
 static GLOBAL_IC_MISSES: AtomicU64 = AtomicU64::new(0);
 static CALL_IC_HITS: AtomicU64 = AtomicU64::new(0);
 static CALL_IC_MISSES: AtomicU64 = AtomicU64::new(0);
+static CALL_IC_MEGA: AtomicU64 = AtomicU64::new(0);
 
 thread_local! {
     static CALL_ARGS_BUF: RefCell<Vec<Value>> = RefCell::new(Vec::new());
 }
 
 struct CallIc {
-    native: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
-    bc_ptr: usize,
-    method: Option<fn(&[Value], &mut Environment) -> Result<Value, String>>,
+    a: Option<CallKind>,
+    b: Option<CallKind>,
+    mega: bool,
+}
+
+#[derive(Clone, Copy)]
+enum CallKind {
+    Native(fn(&[Value], &mut Environment) -> Result<Value, String>),
+    Bc(usize),
+    Method(fn(&[Value], &mut Environment) -> Result<Value, String>),
+}
+
+impl CallKind {
+    fn matches(self, other: CallKind) -> bool {
+        match (self, other) {
+            (CallKind::Native(x), CallKind::Native(y)) => std::ptr::fn_addr_eq(x, y),
+            (CallKind::Bc(x), CallKind::Bc(y)) => x == y,
+            (CallKind::Method(x), CallKind::Method(y)) => std::ptr::fn_addr_eq(x, y),
+            _ => false,
+        }
+    }
 }
 
 thread_local! {
-    static CALL_IC: RefCell<CallIc> = RefCell::new(CallIc {
-        native: None,
-        bc_ptr: 0,
-        method: None,
-    });
+    static CALL_ICS: RefCell<HashMap<u64, CallIc>> = RefCell::new(HashMap::new());
 }
 
 struct Intern {
@@ -177,7 +192,7 @@ pub fn global_ic_reset_for_tests() {
     GLOBAL_IC.with(|ic| *ic.borrow_mut() = GlobalIc::default());
 }
 
-/// Diagnostic counters for Call native IC (P1).
+/// Diagnostic counters for Call IC (P1/P12b). `(hits, misses)`.
 pub fn call_ic_stats() -> (u64, u64) {
     (
         CALL_IC_HITS.load(Ordering::Relaxed),
@@ -185,15 +200,53 @@ pub fn call_ic_stats() -> (u64, u64) {
     )
 }
 
+/// P12b: calls after the site went megamorphic (≥3 distinct callees).
+pub fn call_ic_mega_hits() -> u64 {
+    CALL_IC_MEGA.load(Ordering::Relaxed)
+}
+
 pub fn call_ic_reset_for_tests() {
     CALL_IC_HITS.store(0, Ordering::Relaxed);
     CALL_IC_MISSES.store(0, Ordering::Relaxed);
-    CALL_IC.with(|ic| {
-        let mut ic = ic.borrow_mut();
-        ic.native = None;
-        ic.bc_ptr = 0;
-        ic.method = None;
-    });
+    CALL_IC_MEGA.store(0, Ordering::Relaxed);
+    CALL_ICS.with(|m| m.borrow_mut().clear());
+}
+
+fn call_site_key(code: &[Opcode], ip: usize) -> u64 {
+    (code.as_ptr() as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (ip as u64)
+}
+
+/// P12b: 1–2 callees stay polymorphic; a 3rd distinct target flips mega.
+/// Fast Native/BytecodeFn/BoundNative paths never go through `call_value`.
+fn call_ic_observe(site: u64, kind: CallKind) -> bool {
+    CALL_ICS.with(|m| {
+        let mut m = m.borrow_mut();
+        let ic = m.entry(site).or_insert(CallIc {
+            a: None,
+            b: None,
+            mega: false,
+        });
+        if ic.mega {
+            CALL_IC_MEGA.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+        let hit = ic.a.map(|k| k.matches(kind)).unwrap_or(false)
+            || ic.b.map(|k| k.matches(kind)).unwrap_or(false);
+        if hit {
+            CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
+            return true;
+        }
+        CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
+        if ic.a.is_none() {
+            ic.a = Some(kind);
+        } else if ic.b.is_none() {
+            ic.b = Some(kind);
+        } else {
+            ic.mega = true;
+            CALL_IC_MEGA.fetch_add(1, Ordering::Relaxed);
+        }
+        false
+    })
 }
 
 fn take_call_args(stack: &mut Vec<Value>, n: usize) -> Result<Vec<Value>, String> {
@@ -977,23 +1030,7 @@ fn run_chunk(
                     take_call_args(stack, n)?
                 };
                 if let Value::NativeFunction(f) = callee {
-                    let hit = CALL_IC.with(|ic| {
-                        ic.borrow()
-                            .native
-                            .map(|p| std::ptr::fn_addr_eq(p, f))
-                            .unwrap_or(false)
-                    });
-                    if hit {
-                        CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
-                    } else {
-                        CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                        CALL_IC.with(|ic| {
-                            let mut ic = ic.borrow_mut();
-                            ic.native = Some(f);
-                            ic.bc_ptr = 0;
-                            ic.method = None;
-                        });
-                    }
+                    let _hit = call_ic_observe(call_site_key(code, *ip), CallKind::Native(f));
                     let result = f(&call_args, env);
                     if used_buf {
                         recycle_call_args(call_args);
@@ -1014,18 +1051,7 @@ fn run_chunk(
                 } else if let Value::BytecodeFn(func) = callee {
                     if !func.def.generator_fn && !func.def.async_fn {
                         let p = Rc::as_ptr(&func.def) as usize;
-                        let hit = CALL_IC.with(|ic| ic.borrow().bc_ptr == p);
-                        if hit {
-                            CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
-                        } else {
-                            CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                            CALL_IC.with(|ic| {
-                                let mut ic = ic.borrow_mut();
-                                ic.bc_ptr = p;
-                                ic.native = None;
-                                ic.method = None;
-                            });
-                        }
+                        let _hit = call_ic_observe(call_site_key(code, *ip), CallKind::Bc(p));
                         let (result, obj_wb) = match call_bytecode_sync(func, call_args, env) {
                             Ok(v) => v,
                             Err(e) => {
@@ -1106,23 +1132,7 @@ fn run_chunk(
                         push_stack(stack, result)?;
                     }
                 } else if let Value::BoundNative(receiver, f) = callee {
-                    let hit = CALL_IC.with(|ic| {
-                        ic.borrow()
-                            .method
-                            .map(|p| std::ptr::fn_addr_eq(p, f))
-                            .unwrap_or(false)
-                    });
-                    if hit {
-                        CALL_IC_HITS.fetch_add(1, Ordering::Relaxed);
-                    } else {
-                        CALL_IC_MISSES.fetch_add(1, Ordering::Relaxed);
-                        CALL_IC.with(|ic| {
-                            let mut ic = ic.borrow_mut();
-                            ic.method = Some(f);
-                            ic.native = None;
-                            ic.bc_ptr = 0;
-                        });
-                    }
+                    let _hit = call_ic_observe(call_site_key(code, *ip), CallKind::Method(f));
                     let mut recv = (*receiver).clone();
                     crate::runtime::stdlib::object::refresh_value_from_env_by_oid(&mut recv, env);
                     let mut method_args = Vec::with_capacity(call_args.len() + 1);
@@ -1708,7 +1718,7 @@ fn run_chunk(
                 }
             }
             Opcode::ArraySliceFrom(start) => {
-                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(items) = arr else {
                     return Err("ArraySliceFrom requires an array".into());
                 };
@@ -1894,7 +1904,7 @@ fn run_chunk(
                 push_stack(stack, peek)?;
             }
             Opcode::ArraySliceRest(start_trim, end_trim) => {
-                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(items) = arr else {
                     return Err("ArraySliceRest requires an array".into());
                 };
@@ -2002,7 +2012,7 @@ fn run_chunk(
                 push_stack(stack, instance)?;
             }
             Opcode::NewInstanceFromArray(class_idx) => {
-                let mut arr = stack.pop().ok_or("Bytecode stack underflow")?;
+                let arr = stack.pop().ok_or("Bytecode stack underflow")?;
                 let Value::Array(call_args) = arr else {
                     return Err("Spread constructor requires an array of arguments".into());
                 };
