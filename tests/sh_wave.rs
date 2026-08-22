@@ -7809,6 +7809,5491 @@ fn f10_aot_pgo_fp_cold_ss_image_name_load_verify_ship_reject_exec() {
         .expect("join");
 }
 
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("sym:text:32:main:x64")
+            && s.contains("reloc:text:32:0:main:x64"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc dual-bind smoke");
+            let value =
+                eval_program(&program, &mut env).expect("run PGO-fp-cold-ss sym/reloc dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("\"arm64\"")
+            && s.contains("sym:text:32:main:arm64"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("sym:text:32:main:x64"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+img dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+img dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("\"arm64\"")
+            && s.contains("sym:text:32:main:arm64"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+img dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+img dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+img dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+img dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+img dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+img load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+img load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+img dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+img load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+img load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_img_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-img-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+img load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+img load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("sym:text:32:main:x64"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img+seal dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+seal dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+seal dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("\"arm64\"")
+            && s.contains("sym:text:32:main:arm64"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+seal dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+seal dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+seal dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+seal dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+seal dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+seal dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+seal dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+seal load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+seal load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+seal dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotSealOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+seal load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+seal load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+seal load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_seal_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-seal-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+seal load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+seal load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("page:4096"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+img+seal+entry dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+entry dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+entry dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSealOk")
+            && s.contains("\"arm64\"")
+            && s.contains("page:4096"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+entry dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+entry dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+entry dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+entry dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+entry dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+entry dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+entry dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+entry load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+entry load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+entry dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotEntryOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+entry load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+entry load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+entry load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_entry_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-entry-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+entry load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+entry load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("page:4096"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+page dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+page dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+page dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotEntryOk")
+            && s.contains("\"arm64\"")
+            && s.contains("page:4096"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+page dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+page dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+page dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+page dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+page dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+page dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+page dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+page load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+page load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+page dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotPageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+page load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+page load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+page load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_page_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-page-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+page load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+page load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+align dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+align dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+align dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotPageOk")
+            && s.contains("\"arm64\"")
+            && s.contains("ss:16"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+align dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+align dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+align dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+align dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+align dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+align dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+align dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+align load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+align load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+align dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotAlignOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+align load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+align load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+align load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_align_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-align-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+align load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+align load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("\"text\"")
+            && s.contains("\"rodata\"")
+            && s.contains("\"data\"")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("text:rx"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+section dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+section dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+section dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotSectionOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotAlignOk")
+            && s.contains("\"arm64\"")
+            && s.contains("rodata:r"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+section dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotSectionOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"bss\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+section dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+section dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+section dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+section dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+section dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+section dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+section load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+section load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotSectionOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+section dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotSectionOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+section load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+section load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+section load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_section_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-section-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+section load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+section load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("\"rx\"")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("text:rx"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+text-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+text-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+text-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotTextProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotSectionOk")
+            && s.contains("\"arm64\"")
+            && s.contains("text:rx"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+text-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotTextProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"rwx\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+text-protect dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+text-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+text-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+text-protect dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+text-protect dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+text-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotTextProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+text-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotTextProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+text-protect load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_protect_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-protect-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+text-protect load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("\"r\"")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("rodata:r"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotRodataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotTextProtectOk")
+            && s.contains("\"arm64\"")
+            && s.contains("rodata:r"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotRodataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"rw\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotRodataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+rodata-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotRodataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+rodata-protect load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_rodata_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-rodata-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+rodata-protect load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("\"rw\"")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("data:rw"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+data-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+data-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+data-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotDataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("\"arm64\"")
+            && s.contains("data:rw"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+data-protect dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotDataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"r\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+data-protect dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+data-protect dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+data-protect dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+data-protect dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+data-protect dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+data-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotDataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+data-protect dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotDataProtectOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+data-protect load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_data_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-data-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+data-protect load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("\"x64\"")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:ret"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+target dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+target dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+target dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotTargetOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotDataProtectOk")
+            && s.contains("\"arm64\"")
+            && s.contains("code:arm64:ret"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+target dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotTargetOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+target dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+target dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+target dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+target dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+target dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+target dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+target load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+target load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotTargetOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+target dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotTargetOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+target load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+target load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+target load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_target_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-target-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+target load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+target load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("win64")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("abi:win64"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+abi dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+abi dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+abi dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotAbiOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotTargetOk")
+            && s.contains("\"arm64\"")
+            && s.contains("abi:aapcs64"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+abi dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotAbiOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("sysv")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+abi dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+abi dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+abi dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+abi dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+abi dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+abi dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+abi load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+abi load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotAbiOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+abi dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotAbiOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+abi load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+abi load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+abi load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_abi_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-abi-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+abi load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+abi load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:ret"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-code dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-code dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-code dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotAbiOk")
+            && s.contains("\"arm64\"")
+            && s.contains("code:arm64:ret"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-code dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:nop")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-code dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-code dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-code dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-code dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-code dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-code dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-code load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-code load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-code dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-code load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-code load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-code load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_code_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-code-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-code load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-code load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("kabootar-x64.kbn")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:ret"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-code dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-code dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-code dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("\"arm64\"")
+            && s.contains("kabootar-arm64.kbn"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-code dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:nop")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-code dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-code dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-code dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-code dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-code dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-code dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-code dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-code load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_code_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-code-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-code load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("kabootar-x64.kbn")
+            && s.contains("text:rx|rodata:r|data:rw")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:ret"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-manifest dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-manifest dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-manifest dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadManifestOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("\"arm64\"")
+            && s.contains("kabootar-arm64.kbn")
+            && s.contains("text:rx|rodata:r|data:rw"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-manifest dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadManifestOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("text:rw")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-manifest dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-manifest dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-manifest dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-manifest dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-manifest dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-manifest dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-manifest dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadManifestOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-manifest load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_manifest_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-manifest-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-manifest load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("kabootar-x64.kbn")
+            && s.contains("text:rx|rodata:r|data:rw")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("code:x64:ret"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-image dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-image dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-image dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("\"arm64\"")
+            && s.contains("kabootar-arm64.kbn"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-image dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("text:rw")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-image dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-image dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-image dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-image dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-image dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-image dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-image dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-image load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_image_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-image-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-image load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("kabootar-x64.kbn")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("pgo:8|fp:abc|cold:100|ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-full dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-full dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-full dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("\"arm64\"")
+            && s.contains("kabootar-arm64.kbn"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-full dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("ss:17")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-full dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-full dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-full dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-full dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-full dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-full dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+verify-full dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+verify-full load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_verify_full_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-verify-full-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+verify-full load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("kabootar-x64.kbn")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("pgo:8|fp:abc|cold:100|ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+ship dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+ship dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+ship dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("\"arm64\"")
+            && s.contains("kabootar-arm64.kbn"),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+ship dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"arm64\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+ship dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+ship dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+ship dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+ship dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+ship dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotLoadedImageOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+ship dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+ship load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+ship load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+ship dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotShipOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+ship load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+ship load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+ship load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_ship_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-ship-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+ship load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+ship load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("pgo:8|fp:abc|cold:100|ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+loaded dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+loaded dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+loaded dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+loaded dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("ss:17")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+loaded dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+loaded dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+loaded dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+loaded dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+loaded dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+loaded dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+loaded load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+loaded load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+loaded dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+loaded load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+loaded load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+loaded load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_loaded_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-loaded-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+loaded load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+loaded load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("pgo:8|fp:abc|cold:100|ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-warm dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-dual-bind".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-warm dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-warm dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-warm dual-bind to warm image"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"arm64\"")
+            && s.contains("\"riscv\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-warm dual-bind rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-dual-bind-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-warm dual-bind smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-warm dual-bind smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_dual_bind_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-dual-bind-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-warm dual-bind rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-warm dual-bind rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-warm dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotShipOk")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc+load-warm dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotLoadedImageOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc+load-warm load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_load_warm_fp_cold_ss_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-load-warm-fp-cold-ss-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc+load-warm load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_smoke.kab");
+    assert!(
+        s.contains("aotPgoOk")
+            && s.contains("aotFpOk")
+            && s.contains("aotColdOk")
+            && s.contains("aotSteadyOk")
+            && s.contains("aotSymbolRecordOk")
+            && s.contains("aotRelocRecordOk")
+            && s.contains("aotImageOk")
+            && s.contains("aotSealOk")
+            && s.contains("aotEntryOk")
+            && s.contains("aotPageOk")
+            && s.contains("aotAlignOk")
+            && s.contains("aotSectionOk")
+            && s.contains("aotTextProtectOk")
+            && s.contains("aotRodataProtectOk")
+            && s.contains("aotDataProtectOk")
+            && s.contains("aotTargetOk")
+            && s.contains("aotAbiOk")
+            && s.contains("aotLoadCodeOk")
+            && s.contains("aotVerifyCodeOk")
+            && s.contains("aotLoadManifestOk")
+            && s.contains("aotVerifyImageOk")
+            && s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("aotImageName")
+            && s.contains("pgo:8|fp:abc|cold:100|ss:16"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc full native-image policy capstone dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-full-policy-load-verify-ship".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_arm64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_arm64_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_arm64_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotLoadedImageOk")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"arm64\""),
+        "F10 Kab arm64 PGO-fp-cold-ss sym/reloc full native-image policy capstone dual-bind via load+verify+ship"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_reject_smoke.kab"),
+    )
+    .expect("f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_reject_smoke.kab");
+    assert!(
+        s.contains("aotVerifyFullOk")
+            && s.contains("aotShipOk")
+            && s.contains("aotLoadImageWithPgoWarmFpColdSsSymRelocOk")
+            && s.contains("aotPgoWarmImageWithFpColdSsSymReloc")
+            && s.contains("\"arm64\"")
+            && s.contains("false"),
+        "F10 Kab PGO-fp-cold-ss sym/reloc full policy capstone load+verify+ship target rejection"
+    );
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_arm64_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_arm64_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-full-policy-load-verify-ship-arm64".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile arm64 PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run arm64 PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+#[test]
+fn f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_reject_exec() {
+    let path = format!(
+        "{}/examples/f10_aot_pgo_fp_cold_ss_sym_reloc_full_policy_load_verify_ship_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-pgo-fp-cold-ss-sym-reloc-full-policy-load-verify-ship-reject".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path)
+                .expect("compile PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship rejection smoke");
+            let value = eval_program(&program, &mut env)
+                .expect("run PGO-fp-cold-ss sym/reloc full policy capstone load-verify-ship rejection smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// F10: native image fn count (do not import kab/aot).
 #[test]
 fn f10_aot_img_in_kab() {

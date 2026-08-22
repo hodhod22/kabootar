@@ -81,3 +81,26 @@ pub fn aotPgoWarmImageWithFpColdSs(nHits, fp, coldMs, ssMs, target) {
     }
     return ""
 }
+
+// F10: emit a warmed native image with PGO budgets plus sym/reloc records.
+pub fn aotPgoWarmImageWithFpColdSsSymReloc(nHits, fp, coldMs, ssMs, target) {
+    if aotPgoOk(nHits) == false {
+        return ""
+    }
+    if len(fp) == 0 {
+        return ""
+    }
+    if coldMs > 100 {
+        return ""
+    }
+    if ssMs > 16 {
+        return ""
+    }
+    if target == "x64" {
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:" + fp + "|cold:100|ss:16|sym:text:32:main:x64|reloc:text:32:0:main:x64"
+    }
+    if target == "arm64" {
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:" + fp + "|cold:100|ss:16|sym:text:32:main:arm64|reloc:text:32:0:main:arm64"
+    }
+    return ""
+}
