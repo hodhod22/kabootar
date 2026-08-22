@@ -1,0 +1,6 @@
+// SH19: host main.rs delete policy off load.kab. import "kab/load_main"
+// Do not grow load.kab. Do not delete host main.rs until Kab bootstrap/AOT smoke is complete.
+
+pub fn loadMainDeleteOk() {
+    return false
+}

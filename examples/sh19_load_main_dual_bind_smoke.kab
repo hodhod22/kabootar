@@ -1,0 +1,21 @@
+import "kab/load"
+import "kab/load_kbc"
+import "kab/load_img"
+import "kab/load_main"
+
+if loadMainDeleteOk() != false {
+    return false
+}
+if loadIsKab("app.kab") == false {
+    return false
+}
+if loadIsKbc("cache/app.kbc") == false {
+    return false
+}
+if loadImageName() != "compiler.kbcb" {
+    return false
+}
+if loadEntry() != "main" {
+    return false
+}
+return loadMainDeleteOk() == false

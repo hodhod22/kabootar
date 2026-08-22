@@ -1,0 +1,10 @@
+import "kab/load"
+import "kab/load_main"
+
+if loadMainDeleteOk() {
+    return false
+}
+if loadReady(0) {
+    return false
+}
+return loadMainDeleteOk() == false
