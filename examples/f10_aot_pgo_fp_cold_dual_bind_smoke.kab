@@ -1,0 +1,14 @@
+import "kab/aot_cd"
+import "kab/aot_fp"
+import "kab/aot_pgo"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+return aotPgoWarmImageWithFpCold(8, "abc", 100, "x64") == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100"

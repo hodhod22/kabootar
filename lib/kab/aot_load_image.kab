@@ -126,3 +126,69 @@ pub fn aotLoadImageWithRelocDataHexOk(image, target) {
     }
     return false
 }
+
+// F10: load a native image after both rodata and data hex are written.
+pub fn aotLoadImageWithRelocRodataDataHexOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:ret|syms:sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:ret|syms:sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+    }
+    return false
+}
+
+// F10: load a native image after text, rodata, and data hex are written.
+pub fn aotLoadImageWithRelocTextRodataDataHexOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64;sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64;sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+    }
+    return false
+}
+
+// F10: load a warmed native image gated by the PGO hit threshold.
+pub fn aotLoadImageWithPgoWarmOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8"
+    }
+    return false
+}
+
+// F10: load a warmed native image gated by PGO hits and fingerprint.
+pub fn aotLoadImageWithPgoWarmFpOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc"
+    }
+    return false
+}
+
+// F10: load a warmed native image gated by PGO, fingerprint, and cold-start budget.
+pub fn aotLoadImageWithPgoWarmFpColdOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc|cold:100"
+    }
+    return false
+}
+
+// F10: load a warmed native image gated by PGO, fingerprint, cold-start, and steady-state budgets.
+pub fn aotLoadImageWithPgoWarmFpColdSsOk(image, target) {
+    if target == "x64" {
+        return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100|ss:16"
+    }
+    if target == "arm64" {
+        return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc|cold:100|ss:16"
+    }
+    return false
+}

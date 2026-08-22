@@ -1,0 +1,18 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_bind"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_loaded_image"
+import "kab/aot_ship"
+
+let table = aotEmitRelocTableRodataData("x64")
+let image = aotEmitImageWithRelocTableRodataData("x64")
+let patched = aotApplyRelocTableToImageRodataDataHex(image, table, 4096, "x64")
+if aotLoadedImageOk(patched) == false {
+    return false
+}
+let addr = aotApplyRelocTableAddressRodataData(table, 4096, "x64")
+if aotRelocSymbolBindOk(addr, 4096) == false {
+    return false
+}
+return aotShipOk("kabootar-x64.kbn", patched, "arm64") == false

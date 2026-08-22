@@ -1,0 +1,84 @@
+import "kab/aot_abi"
+import "kab/aot_align"
+import "kab/aot_cd"
+import "kab/aot_data"
+import "kab/aot_entry"
+import "kab/aot_fp"
+import "kab/aot_img"
+import "kab/aot_load_code"
+import "kab/aot_load_manifest"
+import "kab/aot_page"
+import "kab/aot_pgo"
+import "kab/aot_protect"
+import "kab/aot_rodata"
+import "kab/aot_seal"
+import "kab/aot_section"
+import "kab/aot_ss"
+import "kab/aot_target"
+import "kab/aot_verify_code"
+import "kab/aot_verify_image"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+if aotSteadyOk(16) == false {
+    return false
+}
+if aotImageOk(1) == false {
+    return false
+}
+if aotSealOk("kabootar-native/1", "rx", 0, 4096) == false {
+    return false
+}
+if aotEntryOk(4096) == false {
+    return false
+}
+if aotPageOk(4096) == false {
+    return false
+}
+if aotAlignOk(16) == false {
+    return false
+}
+if aotSectionOk("text") == false {
+    return false
+}
+if aotSectionOk("rodata") == false {
+    return false
+}
+if aotSectionOk("data") == false {
+    return false
+}
+if aotTextProtectOk("rx") == false {
+    return false
+}
+if aotRodataProtectOk("r") == false {
+    return false
+}
+if aotDataProtectOk("rw") == false {
+    return false
+}
+if aotTargetOk("arm64") == false {
+    return false
+}
+if aotAbiOk("arm64", "aapcs64") == false {
+    return false
+}
+if aotLoadCodeOk("code:arm64:ret", "arm64") == false {
+    return false
+}
+if aotVerifyCodeOk("kabootar-arm64.kbn", "code:arm64:ret") == false {
+    return false
+}
+if aotLoadManifestOk("kabootar-native/1|arm64|text:rx|rodata:r|data:rw", "arm64") == false {
+    return false
+}
+if aotVerifyImageOk("kabootar-arm64.kbn", "kabootar-native/1|arm64|text:rx|rodata:r|data:rw") == false {
+    return false
+}
+return aotPgoWarmImageWithFpColdSs(8, "abc", 100, 16, "arm64") == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc|cold:100|ss:16"

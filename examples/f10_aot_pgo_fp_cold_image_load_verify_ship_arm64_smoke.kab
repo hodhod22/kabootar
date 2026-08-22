@@ -1,0 +1,30 @@
+import "kab/aot_cd"
+import "kab/aot_fp"
+import "kab/aot_image_name"
+import "kab/aot_load_image"
+import "kab/aot_loaded_image"
+import "kab/aot_pgo"
+import "kab/aot_ship"
+import "kab/aot_verify_full"
+
+if aotPgoOk(8) == false {
+    return false
+}
+if aotFpOk("abc") == false {
+    return false
+}
+if aotColdOk(100) == false {
+    return false
+}
+let image = aotPgoWarmImageWithFpCold(8, "abc", 100, "arm64")
+if aotLoadedImageOk(image) == false {
+    return false
+}
+if aotLoadImageWithPgoWarmFpColdOk(image, "arm64") == false {
+    return false
+}
+let name = aotImageName("arm64")
+if aotVerifyFullOk(name, image) == false {
+    return false
+}
+return aotShipOk(name, image, "arm64")

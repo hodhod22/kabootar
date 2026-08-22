@@ -1,0 +1,5 @@
+import "kab/aot_load_image"
+import "kab/aot_pgo"
+
+let image = aotPgoWarmImageWithFp(8, "abc", "x64")
+return aotLoadImageWithPgoWarmFpOk(image, "arm64") == false

@@ -1,0 +1,11 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+
+let table = aotEmitRelocTableTextRodataData("arm64")
+let image = aotEmitImageWithRelocTableTextRodataData("arm64")
+let patched = aotApplyRelocTableToImageTextRodataDataHex(image, table, 4096, "arm64")
+let a = "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000"
+let b = "|data:rw|0010000000000000"
+let c = "|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64;sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64"
+return patched == a + b + c

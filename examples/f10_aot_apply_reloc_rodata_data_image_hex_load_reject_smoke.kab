@@ -1,0 +1,9 @@
+import "kab/aot_apply_reloc"
+import "kab/aot_emit_image"
+import "kab/aot_emit_reloc_table"
+import "kab/aot_load_image"
+
+let table = aotEmitRelocTableRodataData("x64")
+let image = aotEmitImageWithRelocTableRodataData("x64")
+let patched = aotApplyRelocTableToImageRodataDataHex(image, table, 4096, "x64")
+return aotLoadImageWithRelocRodataDataHexOk(patched, "arm64") == false

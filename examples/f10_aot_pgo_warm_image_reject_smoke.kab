@@ -1,0 +1,6 @@
+import "kab/aot_pgo"
+
+if aotPgoWarmImage(7, "x64") != "" {
+    return false
+}
+return aotPgoWarmImage(8, "riscv") == ""

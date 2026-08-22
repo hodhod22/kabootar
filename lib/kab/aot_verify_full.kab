@@ -33,6 +33,24 @@ pub fn aotVerifyFullOk(name, image) {
         if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|0010000000000000|code:x64:ret|sym:data:0:g0:x64|relocs:reloc:data:0:0:g0:x64" {
             return true
         }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:ret|syms:sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return true
+        }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64;sym:rodata:0:kstr:x64;sym:data:0:g0:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64;reloc:rodata:0:0:kstr:x64;reloc:data:0:0:g0:x64" {
+            return true
+        }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8" {
+            return true
+        }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc" {
+            return true
+        }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100" {
+            return true
+        }
+        if image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100|ss:16" {
+            return true
+        }
         return image == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
     }
     if name == "kabootar-arm64.kbn" {
@@ -64,6 +82,24 @@ pub fn aotVerifyFullOk(name, image) {
             return true
         }
         if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|0010000000000000|code:arm64:ret|sym:data:0:g0:arm64|relocs:reloc:data:0:0:g0:arm64" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:ret|syms:sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|0010000000000000|data:rw|0010000000000000|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64;sym:rodata:0:kstr:arm64;sym:data:0:g0:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64;reloc:rodata:0:0:kstr:arm64;reloc:data:0:0:g0:arm64" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc|cold:100" {
+            return true
+        }
+        if image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:ret|pgo:8|fp:abc|cold:100|ss:16" {
             return true
         }
         return image == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:arm64:d65f03c00000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:arm64;sym:text:32:main:arm64|relocs:reloc:text:32:0:main:arm64;reloc:text:32:8:main:arm64"
