@@ -33,6 +33,49 @@ pub fn emitOp(E, op, arg) {
     }
 }
 
+pub fn emitOp2(E, op, arg, arg2) {
+    let rec = { "op": op, "arg": arg, "arg2": arg2 }
+    if E["eInFn"] == 1 {
+        E["eFnOps"] = push(E["eFnOps"], rec)
+        E["eFnOpsN"] = E["eFnOpsN"] + 1
+    } else {
+        E["eOps"] = push(E["eOps"], rec)
+        E["eOpsN"] = E["eOpsN"] + 1
+    }
+}
+
+pub fn opsLen(E) {
+    if E["eInFn"] == 1 {
+        return E["eFnOpsN"]
+    }
+    return E["eOpsN"]
+}
+
+pub fn patchJumpAt(E, idx) {
+    patchJumpTo(E, idx, opsLen(E))
+}
+
+pub fn patchJumpTo(E, idx, target) {
+    let rec = null
+    if E["eInFn"] == 1 {
+        rec = E["eFnOps"][idx]
+    } else {
+        rec = E["eOps"][idx]
+    }
+    let off = target - idx - 1
+    let patched = { "op": rec.op, "arg": rec.arg }
+    if rec.arg2 != undefined {
+        patched = { "op": rec.op, "arg": rec.arg, "arg2": off }
+    } else {
+        patched = { "op": rec.op, "arg": off }
+    }
+    if E["eInFn"] == 1 {
+        E["eFnOps"][idx] = patched
+    } else {
+        E["eOps"][idx] = patched
+    }
+}
+
 pub fn arrUtil(E, mode, stack, arr) {
     if mode == "snap" {
         // Single O(n) clone via native slice (not O(n²) push loop).

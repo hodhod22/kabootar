@@ -2,7 +2,9 @@
 
 **Slutmål (nolltolerans):** hela stacken är `.kab`. Rust är skuld tills [SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Plan: [docs/ROADMAP.md — Kabootar på egna fötter](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
-Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. Nästa kod: reverse-densify i `.kab`, inte `src/`.
+Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. Nästa kod: reverse-densify och språkparitet i `.kab`, inte `src/`.
+
+**Dok efter varje deepen:** uppdatera [docs/ROADMAP.md](../docs/ROADMAP.md) (status + **Nästa**) och den här filen (nuläge + milstolpar + tester) i samma pass. Språkparitet: även [docs/LANGUAGE.md](../docs/LANGUAGE.md).
 
 ## Kedja
 
@@ -22,11 +24,12 @@ Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** R
 | Yta | Status |
 |-----|--------|
 | Skip-list | **tom** (`attempt-all`, P6b) |
-| Compile-DAG | **&lt; 80** `.kab` (SH5); `vm_*` **&lt; 40** (SH6) |
+| Compile-DAG | **12** `.kab` (SH5 platå); `vm_*` **&lt; 40** (SH6) |
 | Image | `self_host/seed/compiler.kbcb` + `seed/dag/*.kbc` (SH1) |
 | Facader | `pub let` alias, inte wrapping `pub fn` (SH3b) |
 | Lexer | **SH12:** `gLxSess` + in-place tokens; skip/ident/number cache `src`/`pos` |
 | Parser/emit | **SH2/SH13:** återanvänd `gSess`/`gE` + `pResetSession`/`eResetSession`; tramp 0-arg. `pCondStack` på sess |
+| **`match`** | ✅ produktkompilatorn: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** (fält/shorthand; `...rest` i emit). Kab-VM: `jump_unless_*` / `match_fail` / unwrap. Inte enum-mönster; inte `if let`/`while let` |
 | Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
 | Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
 | Tiny parse | `sh8_tiny_parse_via_compiler_image` i CI; full `compile("return 1")` ignored i debug |
@@ -50,7 +53,9 @@ Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_
 
 ```bash
 cargo test --test sh_wave -- --test-threads=1
-cargo test --test self_host -- --test-threads=1
+cargo test --test self_host self_host_parser_suite -- --test-threads=1
+cargo test --test self_host self_host_match_array_object_compile_run -- --test-threads=1
+cargo test --test self_host self_host_match_const_kab_only -- --test-threads=1
 kabootar self_host/test_tiny.kab
 kabootar compile self_host/sample.kab
 ```
@@ -124,7 +129,7 @@ Kort ordning:
 1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
 2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections+out+ir_line+acc, parser_expr→exec, parser_hooks/lexer_defs/emit_defs→ast_defs, lexer_tokenize→scan, emit_fn_scope/hooks/arr_util→sym, emit_sym_index→sym, emit_tramp/main_fn→exec, parser_main/tramp/type_args/session→exec, parser_block→hooks)
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
-4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader.
+4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`** parse+emit: const/`_`/`Some`/`None`/`Ok`/`Err` + guards + array/objekt; Kab-VM opcodes landade.
 5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; `gcHostDeleteOk` host-GC dual-bind)
 6. ~~**SH19**~~ ✅ subset + deepen (`loadMainDeleteOk` main.rs dual-bind)
 7. ~~**SH20**~~ ✅ subset (JSON/datum/regex leaves); radera natives deepen

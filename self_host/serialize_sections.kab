@@ -3,8 +3,8 @@ import "self_host/ast_defs"
 
 pub let KBC_HEADER = "kabootar-bytecode/1"
 
-pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|"
-pub let IR_ZERO_ARG = "|pop|dup|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|"
+pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|jump_unless_option_some|jump_unless_option_none|jump_unless_result_ok|jump_unless_result_err|jump_unless_array|jump_unless_object|jump_unless_object_empty|index_peek_from_end|object_rest|"
+pub let IR_ZERO_ARG = "|pop|dup|swap|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|match_fail|unwrap_option_some|unwrap_result_ok|unwrap_result_err|get_length|"
 
 pub fn serJoinComma(arr) {
     let params = ""
@@ -93,6 +93,19 @@ pub fn serIrOpNewInstance(op) {
     return line
 }
 
+pub fn serIrOpTwoArg(op) {
+    let line = op.op
+    line = line + " "
+    line = line + ("" + op.arg)
+    line = line + " "
+    let a2 = op.arg2
+    if a2 == undefined {
+        a2 = 0
+    }
+    line = line + ("" + a2)
+    return line
+}
+
 pub fn serIrOpLookup(name, op) {
     if str_index_of(IR_WITH_ARG, "|" + name + "|") >= 0 {
         let line = name
@@ -112,7 +125,16 @@ pub fn serIrOpLine(op) {
     }
     let name = op.op
     if name == OP_NEW_INSTANCE {
-        return serIrOpNewInstance(op)
+        return serIrOpTwoArg(op)
+    }
+    if name == OP_JUMP_UNLESS_CONST_EQ {
+        return serIrOpTwoArg(op)
+    }
+    if name == OP_JUMP_UNLESS_HAS_MEMBER {
+        return serIrOpTwoArg(op)
+    }
+    if name == OP_ARRAY_SLICE_REST {
+        return serIrOpTwoArg(op)
     }
     return serIrOpLookup(name, op)
 }

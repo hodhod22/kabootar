@@ -200,6 +200,75 @@ pub fn runOpDataSwap(S, name, arg, op, pool, globals, functions) {
     return 0
 }
 
+pub fn runOpDataIndexPeekFromEnd(S, name, arg, op, pool, globals, functions) {
+    if name != "index_peek_from_end" {
+        return 0
+    }
+    let arr = vPeekS(S)
+    if typeof(arr) != "array" {
+        throw "IndexPeekFromEnd requires an array"
+    }
+    let fromEnd = arg
+    if fromEnd <= 0 || fromEnd > len(arr) {
+        throw "IndexPeekFromEnd index out of range"
+    }
+    vPushS(S, arr[len(arr) - fromEnd])
+    vBumpIpS(S)
+    return 1
+}
+
+pub fn runOpDataArraySliceRest(S, name, arg, op, pool, globals, functions) {
+    if name != "array_slice_rest" {
+        return 0
+    }
+    let endTrim = op["arg2"]
+    if endTrim == undefined {
+        endTrim = 0
+    }
+    let arr = vPopS(S)
+    if typeof(arr) != "array" {
+        throw "ArraySliceRest requires an array"
+    }
+    let start = arg
+    if start + endTrim > len(arr) {
+        vPushS(S, [])
+    } else {
+        vPushS(S, slice(arr, start, len(arr) - endTrim))
+    }
+    vBumpIpS(S)
+    return 1
+}
+
+pub fn runOpDataObjectRest(S, name, arg, op, pool, globals, functions) {
+    if name != "object_rest" {
+        return 0
+    }
+    let n = arg
+    let exclude = {}
+    let i = 0
+    while i < n {
+        exclude["" + vPopS(S)] = 1
+        i = i + 1
+    }
+    let obj = vPopS(S)
+    if typeof(obj) != "object" || obj == null {
+        throw "ObjectRest requires an object"
+    }
+    let rest = {}
+    let keys = object_keys(obj)
+    i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        if exclude[k] != 1 {
+            rest[k] = obj[k]
+        }
+        i = i + 1
+    }
+    vPushS(S, rest)
+    vBumpIpS(S)
+    return 1
+}
+
 // --- vm_ops_data_index ---
 pub fn runOpDataIndex(S, name, arg, op, pool, globals, functions) {
     let st = runOpDataIndexGet(S, name, arg, op, pool, globals, functions)
@@ -255,7 +324,19 @@ pub fn runOpDataStack(S, name, arg, op, pool, globals, functions) {
     if st != 0 {
         return st
     }
-    return runOpDataSwap(S, name, arg, op, pool, globals, functions)
+    st = runOpDataSwap(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpDataIndexPeekFromEnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpDataArraySliceRest(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataObjectRest(S, name, arg, op, pool, globals, functions)
 }
 
 // --- vm_ops_data_c ---

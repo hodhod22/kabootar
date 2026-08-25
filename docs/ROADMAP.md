@@ -5,8 +5,10 @@
 > **JIT och GC ska flyttas till Kabootar.** Rust-Cranelift / Rust-GC är **skuld**, inte tak.  
 > Ny `.rs`-feature = regression. Nästa arbete är att **ersätta och radera** Rust, inte att förfina den.  
 > Undantag finns **inte**. En sista processladdare får bara finnas tills den också är Kab (`.kab` → maskinkod *från* Kab).
+>
+> **Dok efter varje deepen:** uppdatera **[ROADMAP.md](ROADMAP.md)** (status + **Nästa**) och **[self_host/README.md](../self_host/README.md)** (nuläge + milstolpar + tester) i samma pass som koden. Språkytor: även [LANGUAGE.md](LANGUAGE.md) / [FEATURES.md](FEATURES.md) när paritet ändras.
 
-**Nu:** densify (SH5) → SH16 → Kab-VM/JIT/GC (SH6/17/18) smoke-complete → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
+**Nu:** språk i self-host (`match` array/objekt + Kab-VM opcodes) → SH5 platå (DAG 12) → SH16 redan stängd för appar → Kab-VM/JIT/GC deepen → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
 
 Produktplaner: **[kOS](../lib/kos/README.md)** · **[kbrowser](../lib/kbrowser/README.md)** · **[kabtest](../lib/kabtest/README.md)**. Detalj: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-).
 
@@ -606,7 +608,7 @@ Ordning (strikt) — **just nu: endast språk**, sedan prestanda + spel parallel
 | **SC** | Science / AI | NumPy/SciPy/sklearn/PyTorch-klass + **SC5 Kab-only** + **SC6** production + **SC7** surface modules |
 | **DX** | Exploration DX | REPL + notebook — slå Python för *utforskning* (samma runtime som ship) |
 
-**Aktivt fokus:** nolltolerans `.kab`. SH5 densify → SH16 stäng Rust-emit → **SH17 JIT i Kab** → **SH18 GC i Kab** → radera `src/`.
+**Aktivt fokus:** nolltolerans `.kab`. Språkparitet i produktkompilatorn (self-host `match` array/objekt + Kab-VM opcodes) → SH5 platå → SH16 stäng Rust-emit (appar) → **SH17 JIT i Kab** → **SH18 GC i Kab** → radera `src/`.
 
 **Klass vs struct (2026-07):** `class` → **`this`**; `struct` → **`self`** / `&self` / `&mut self` (R1).
 
@@ -621,8 +623,10 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
 | **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/kos/async` använder riktig `await` | ✅ |
 | **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `kos/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
+| **L6** | **Self-host `match`** — parse+emit i `parser_postfix` / `emit_expr_body` så appar (SH16, ingen Rust-emit) kan kompilera `match` | ✅ subset: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** (inkl. `...rest`) + Kab-VM `jump_unless_*`/`match_fail`/`unwrap_*`. Kvar: enum-mönster, `if let`/`while let` |
 
-**Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`
+**Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`  
+**Checkpoint L6:** `cargo test --test self_host self_host_match_const_wildcard_compile_run` + `self_host_match_array_object_compile_run` + `self_host_match_const_kab_only`
 
 ### Våg O — Ownership (systems, compile-time) ✅ subset
 
@@ -733,6 +737,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
 | **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` (`--rust` / `--self-host`; `self_host/` → Rust) | ✅ |
 | **S3** | CI: self-host bygger self-host (bootstrap) som gate | ✅ |
+| **S4** | **Språkparitet i produktkompilatorn** — `match` parse+emit (L6); inte bara host-Rust | ✅ subset (`self_host_parser_suite` + match compile-run + kab-only + `vm_lang_probe`); enum-mönster + `if let`/`while let` kvar |
 
 ### Våg K — Ekosystem i Kabootar 📋
 
@@ -964,7 +969,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH2** | **Session-objekt** — `parse`/`emit`/`tokenize` tar `sess`; tramp `sess["tramp"](sess)` / `E["tramp"](E)` så anropet inte fångar modul-global sess. Nested `if`/`while` använder fortfarande `pCondStack`/`eIfJmpStack` **på sess** | `sh2_parser_emit_exec_are_per_call_session` + `sh2_nested_if_while_fn_rust`; inga `let sess = pMakeSession()` på modulnivå | ✅ (`parser_exec`/`emit_exec` per-call; nested named `fn` → `emitNestedNamedFn`) |
 | **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))`; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a argv N-path; SH3b facade `pub let` (`sh3b_*`); SH3c `sh3c_self_host_kbc_has_real_newlines` |
 | **SH4** | **Binär IR v2** — `kbcb` v2: opcodes som packed records (inte `store_local 3\n`); deserialize O(n) utan strängsplit per rad | Seed `emit_impl` deserialize **≪** text-`.kbc`; roundtrip `deserialize_kbcb_v2 == module` | ✅ `KBCB` v2 packed; v1 text still loads; `sh4_kbcb_v2_roundtrip` / `sh4_kbcb_v2_faster_than_text` |
-| **SH5** | **Reverse-densify** — slå ihop tunna shards; compile-DAG **< 80** | SH0 ner; leaf ≤10 s | ✅ deepen: `lexer_tokenize`→`lexer_scan`; `parser_expr`→`parser_exec`; `parser_hooks`/`lexer_defs`/`emit_defs`→`ast_defs`; `emit_fn_scope`/`emit_hooks`/`emit_arr_util`→`emit_sym`; `serialize_*`→`serialize_sections` (out/ir_line/acc); `emit_sym_index`→`emit_sym`; `emit_tramp`/`emit_main_fn`→`emit_exec`; `parser_main`/`parser_tramp`/`parser_type_args`/`parser_session`→`parser_exec` |
+| **SH5** | **Reverse-densify** — slå ihop tunna shards; compile-DAG **< 80** | SH0 ner; leaf ≤10 s | ✅ platå **12** filer (compile + lexer_scan + parser_exec/postfix/stmt + emit_exec/sym/expr_body/stmt_body + serialize_sections + ownership + ast_defs). **`match`** parse+emit: const/`_`/`Some`/`None`/`Ok`/`Err` + guards + array/objekt. Inte merge `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader |
 | **SH6** | **Kab-VM som produktväg** — inte evig bootstrap | `KABOOTAR_VM=kab-only` default-smoke; `vm_*` **< 40** | ✅ subset: frisk/forcerad Kab-VM sväljer inte fel i host `run_module` (små `.kbc`); oversize fortfarande host om inte kab-only |
 | **SH7** | **Inkrementell + parallell shard-compile (toolchain)** — rust/self-host kompilerar bara dirty fingerprint; oberoende blad parallellt | Ändra en compile-DAG-fil → ≪ full DAG; CI-loggar `dirty=N` | ✅ `compile_dirty_dag_seeds` (≤8 trådar + pack image); `sh7_dirty_dag_noop_when_image_fresh` |
 | **SH7b** | **Produktträd incremental** — app-`.kab` + `import`-deps: bara dirty + transitiva fingerprints; oberoende blad parallellt. Inte bara `self_host/seed` | Ändra ett blad i `lib/` → ≪ full rebuild; log `dirty=N deps=M`; cold vs incr i SH14 | ✅ `compile_dirty_product_tree`; `sh7b_product_tree_incremental` |
@@ -1023,7 +1028,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 - Ny Cranelift/IC/GC i Rust (det ska bli `.kab`).
 - Att checka in `_probe_*.kab` som produkt.
 
-**Nästa:** SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); optimering av chain-eval för full capstone exec; SH17 JIT exec round-trip deepen. Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust).
+**Nästa:** språk i self-host — enum-mönster + `if let`/`while let`; SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH17 JIT exec round-trip deepen. Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 

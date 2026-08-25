@@ -104,6 +104,14 @@ pub fn vPopS(S) {
     return top
 }
 
+pub fn vPeekS(S) {
+    let st = S["stack"]
+    if len(st) == 0 {
+        throw "vm stack underflow"
+    }
+    return st[len(st) - 1]
+}
+
 // --- vm_s_push ---
 // P6b: push onto session stack.
 pub fn vPushS(S, v) {

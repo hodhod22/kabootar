@@ -455,6 +455,124 @@ pub fn parsePostfix_tail(sess) {
     return sess["pLeft"]
 }
 
+pub fn parseMatchPat(sess) {
+    let t = sess["pCur"].type
+    if t == "[" {
+        bump(sess)
+        let pieces = []
+        while sess["pCur"].type != "]" {
+            if sess["pCur"].type == "," {
+                bump(sess)
+                continue
+            }
+            pieces = push(pieces, { "kind": "item", "pat": parseMatchPat(sess) })
+        }
+        bump(sess)
+        return { "kind": "array", "pieces": pieces }
+    }
+    if t == "{" {
+        bump(sess)
+        let fields = []
+        while sess["pCur"].type != "}" {
+            if sess["pCur"].type == "," {
+                bump(sess)
+                continue
+            }
+            bump(sess)
+            let key = sess["pTok"]["value"]
+            let hadColon = 0
+            if sess["pCur"].type == ":" {
+                bump(sess)
+                hadColon = 1
+                fields = push(fields, { "kind": "field", "key": key, "pat": parseMatchPat(sess) })
+            }
+            if hadColon == 0 {
+                fields = push(fields, { "kind": "shorthand", "key": key })
+            }
+        }
+        bump(sess)
+        return { "kind": "object", "fields": fields }
+    }
+    if t == TOKEN_IDENT {
+        bump(sess)
+        let name = sess["pTok"]["value"]
+        if name == "_" {
+            return { "kind": "wild" }
+        }
+        return { "kind": "var", "sym": name }
+    }
+    if t == TOKEN_NUMBER || t == TOKEN_FLOAT {
+        bump(sess)
+        return { "kind": "const", "value": sess["pTok"]["value"] }
+    }
+    if t == TOKEN_STRING {
+        bump(sess)
+        return { "kind": "const", "value": sess["pTok"]["value"] }
+    }
+    if t == TOKEN_TRUE {
+        bump(sess)
+        return { "kind": "const", "value": true }
+    }
+    if t == TOKEN_FALSE {
+        bump(sess)
+        return { "kind": "const", "value": false }
+    }
+    if t == TOKEN_NULL {
+        bump(sess)
+        return { "kind": "const", "value": null }
+    }
+    if t == TOKEN_UNDEFINED {
+        bump(sess)
+        return { "kind": "const", "undef": 1 }
+    }
+    if t == TOKEN_NONE {
+        bump(sess)
+        return { "kind": "none" }
+    }
+    if t == TOKEN_SOME || t == TOKEN_OK || t == TOKEN_ERR {
+        bump(sess)
+        let wrap = "some"
+        if t == TOKEN_OK {
+            wrap = "ok"
+        }
+        if t == TOKEN_ERR {
+            wrap = "err"
+        }
+        bump(sess)
+        let inner = parseMatchPat(sess)
+        bump(sess)
+        return { "kind": wrap, "inner": inner }
+    }
+    throw "Unexpected token in pattern"
+}
+
+pub fn parsePostfix_match(sess) {
+    if sess["pCur"].type != TOKEN_MATCH {
+        return 0
+    }
+    bump(sess)
+    let value = pCallCompare(sess)
+    bump(sess)
+    let arms = []
+    while sess["pCur"].type != "}" {
+        let pat = parseMatchPat(sess)
+        let guard = null
+        if sess["pCur"].type == TOKEN_IF {
+            bump(sess)
+            guard = pCallCompare(sess)
+        }
+        bump(sess)
+        let body = pCallCompare(sess)
+        arms = push(arms, { "pattern": pat, "guard": guard, "body": body })
+        if sess["pCur"].type == "," {
+            bump(sess)
+        }
+    }
+    bump(sess)
+    sess["pLeft"] = { "kind": AST_MATCH, "scrutinee": value, "arms": arms }
+    return 1
+}
+
 // --- parser_postfix_primary ---
 pub fn parsePostfix_primary(sess) {
     sess["pLeft"] = null
@@ -465,6 +583,9 @@ pub fn parsePostfix_primary(sess) {
     }
     if sess["pLeft"] == null {
         parsePostfix_obj_arr(sess)
+    }
+    if sess["pLeft"] == null {
+        parsePostfix_match(sess)
     }
     if sess["pLeft"] == null {
         throw json_stringify(sess["pCur"])

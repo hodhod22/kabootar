@@ -424,7 +424,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Ursprung | Konstruktion | Status |
 |----------|--------------|--------|
-| Rust | `match` / mönstermatchning | ✅ tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, guards |
+| Rust | `match` / mönstermatchning | ✅ host: tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, guards. **Self-host:** samma minus enum-mönster (L6); Kab-VM dispatch landad |
 | Rust | `enum` (användardefinierad) | ✅ `enum Color { Red, Green }`, `Color.Red`, `Msg.Move(x,y)` |
 | Rust | `if let` / `while let` | ✅ socker över `match` |
 | Rust | fälttyper i klasser | ✅ `x: number` / `status: Color` runtime-check |
