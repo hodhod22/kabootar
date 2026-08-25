@@ -6,3 +6,44 @@ pub fn gcSweepDead(total, live) {
     }
     return 0
 }
+
+/// Mark object as live during GC
+pub fn gcMarkObject(object, markSet) {
+    let id = object["id"]
+    let i = 0
+    while i < len(markSet) {
+        if markSet[i] == id {
+            return false  // already marked
+        }
+        i = i + 1
+    }
+    return true  // newly marked
+}
+
+/// Mark all reachable objects from roots
+pub fn gcMarkReachable(roots, objects) {
+    let marked = []
+    let i = 0
+    while i < len(roots) {
+        let root = roots[i]
+        if gcMarkObject(root, marked) {
+            marked = push(marked, root["id"])
+        }
+        i = i + 1
+    }
+    return marked
+}
+
+/// Mark objects with their age
+pub fn gcMarkWithAge(objects, ages) {
+    let i = 0
+    while i < len(objects) {
+        let obj = objects[i]
+        let id = obj["id"]
+        if id < len(ages) {
+            ages[id] = ages[id] + 1
+        }
+        i = i + 1
+    }
+    return ages
+}
