@@ -140,7 +140,7 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 7 | Web-native | 🔶 | `html! { }` → Kv8 |
 | 8 | Verktygskedja | 🔶 | `compile`, `fmt`, `registry_*` |
 | 9 | Statisk binär | 🔶 | `cargo build --release` |
-| 10 | Match + guards | ✅ | `match x if cond =>` |
+| 10 | Match + guards | ✅ host; self-host array/objekt | `match x { 1 => …, _ => … }` — self-host: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + array/objekt ([ROADMAP L6](ROADMAP.md#våg-l--language-systems-ready--subset)) |
 | 10b | User `enum` | ✅ | `enum Color { Red, Green }`, `Color.Red`, `match` |
 | 10c | `if let` / `while let` | ✅ | `if let Some(x) = opt { }`, `while let Ok(v) = r { }` |
 | 10d | Class field types | ✅ | `age: number` valideras vid tilldelning |
@@ -153,7 +153,7 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 17 | Persistens | 🔶 | `@persist`, `persist_save/load` |
 | 18 | GPU/shader | 🔶 | `shader_compile`, `webgl_*` |
 | 19 | Resumable fel | 🔶 | `try/catch` returnerar resume-värde |
-| 20 | Självhostande | 🔶 | Kompilator i Rust idag |
+| 20 | Självhostande | 🔶 | Produktkompilator i `self_host/` (`.kab`); Rust-host skuld tills SH28 |
 
 ```kabootar
 lang_info();                                    // alla 20

@@ -89,7 +89,170 @@ pub fn runOpJumpTrue(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_jump_b ---
 pub fn runOpJumpB(S, name, arg, op, pool, globals, functions) {
-    return runOpJumpResult(S, name, arg, op, pool, globals, functions)
+    let st = runOpJumpResult(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpMatch(S, name, arg, op, pool, globals, functions)
+}
+
+pub fn vIsPlainObjS(v) {
+    if typeof(v) != "object" {
+        return false
+    }
+    if v == null {
+        return false
+    }
+    if v["vmOption"] != undefined {
+        return false
+    }
+    if v["vmResult"] != undefined {
+        return false
+    }
+    if v["vmArrow"] != undefined {
+        return false
+    }
+    return true
+}
+
+pub fn vConstEqS(v, c) {
+    if v != v && c != c {
+        return true
+    }
+    return v == c
+}
+
+pub fn runOpJumpMatchJump(S, name, arg, op, pool, globals, functions) {
+    if name == "jump_unless_const_eq" {
+        let off = op["arg2"]
+        if off == undefined {
+            off = 0
+        }
+        if !vConstEqS(vPeekS(S), poolVal(pool, arg)) {
+            vAddIpS(S, 1 + off)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_option_some" {
+        let v = vPeekS(S)
+        if !(typeof(v) == "object" && v != null && v["vmOption"] == "some") {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_option_none" {
+        let v = vPeekS(S)
+        if !(typeof(v) == "object" && v != null && v["vmOption"] == "none") {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_result_ok" {
+        let v = vPeekS(S)
+        if !(typeof(v) == "object" && v != null && v["vmResult"] == "ok") {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_result_err" {
+        let v = vPeekS(S)
+        if !(typeof(v) == "object" && v != null && v["vmResult"] == "err") {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_array" {
+        if typeof(vPeekS(S)) != "array" {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_object" {
+        if !vIsPlainObjS(vPeekS(S)) {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_object_empty" {
+        let v = vPeekS(S)
+        if !(vIsPlainObjS(v) && len(v) == 0) {
+            vAddIpS(S, 1 + arg)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "jump_unless_has_member" {
+        let off = op["arg2"]
+        if off == undefined {
+            off = 0
+        }
+        let key = poolKey(pool, arg)
+        let v = vPeekS(S)
+        if !(vIsPlainObjS(v) && object_has_own(v, key)) {
+            vAddIpS(S, 1 + off)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
+    return 0
+}
+
+pub fn runOpJumpMatchUnwrap(S, name, arg, op, pool, globals, functions) {
+    if name == "unwrap_option_some" {
+        let v = vPopS(S)
+        if !(typeof(v) == "object" && v != null && v["vmOption"] == "some") {
+            throw "UnwrapOptionSome requires Option Some"
+        }
+        vPushS(S, v["v"])
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "unwrap_result_ok" {
+        let v = vPopS(S)
+        if !(typeof(v) == "object" && v != null && v["vmResult"] == "ok") {
+            throw "UnwrapResultOk requires Result Ok"
+        }
+        vPushS(S, v["v"])
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "unwrap_result_err" {
+        let v = vPopS(S)
+        if !(typeof(v) == "object" && v != null && v["vmResult"] == "err") {
+            throw "UnwrapResultErr requires Result Err"
+        }
+        vPushS(S, v["v"])
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "match_fail" {
+        throw "No matching pattern"
+    }
+    return 0
+}
+
+pub fn runOpJumpMatch(S, name, arg, op, pool, globals, functions) {
+    let st = runOpJumpMatchJump(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpJumpMatchUnwrap(S, name, arg, op, pool, globals, functions)
 }
 
 // --- vm_ops_jump_a ---

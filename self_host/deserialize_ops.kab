@@ -98,9 +98,9 @@ pub fn parseConstLine(line) {
 
 /// Flat CSV tables — long if-chains / big object literals explode self-host parse time.
 /// Opcode text equals the KBC token for these (see emit_defs).
-let ZERO_ARG_CSV = "pop,add,sub,mul,div,mod,eq,ne,lt,gt,le,ge,and,or,not,neg,pow,throw,index_get,index_set,return,halt,swap,array_push,concat_array,merge_object,call_from_array,bit_and,bit_or,bit_xor,shl,shr,ushr,bit_not,dup,get_length,iterator_step_in_place,make_ok,make_err,make_some,make_none"
+let ZERO_ARG_CSV = "pop,add,sub,mul,div,mod,eq,ne,lt,gt,le,ge,and,or,not,neg,pow,throw,index_get,index_set,return,halt,swap,array_push,concat_array,merge_object,call_from_array,bit_and,bit_or,bit_xor,shl,shr,ushr,bit_not,dup,get_length,iterator_step_in_place,make_ok,make_err,make_some,make_none,match_fail,unwrap_option_some,unwrap_result_ok,unwrap_result_err"
 
-let ARG_HEAD_CSV = "const,load_local,store_local,load_global,store_global,jump,jump_if_false,jump_if_true,jump_if_not_nullish,jump_if_result_err,make_arrow_fn,call,get_member,set_member,make_object,make_array,array_push_local,array_push_global,take_local,take_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global,len_local,len_global,index_get_local,index_get_global"
+let ARG_HEAD_CSV = "const,load_local,store_local,load_global,store_global,jump,jump_if_false,jump_if_true,jump_if_not_nullish,jump_if_result_err,make_arrow_fn,call,get_member,set_member,make_object,make_array,array_push_local,array_push_global,take_local,take_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global,len_local,len_global,index_get_local,index_get_global,jump_unless_option_some,jump_unless_option_none,jump_unless_result_ok,jump_unless_result_err,jump_unless_array,jump_unless_object,jump_unless_object_empty,index_peek_from_end,object_rest"
 
 pub fn csvHas(csv, item) {
     // Prefer indexOf over split+scan (fewer allocs on hot deserialize path).
@@ -129,14 +129,14 @@ pub fn parseOpLine(line) {
     }
     let head = str_slice(line, 0, sp)
     let argRest = trim(str_slice(line, sp + 1, len(line)))
-    if head == "new_instance" {
+    if head == "new_instance" || head == "jump_unless_const_eq" || head == "jump_unless_has_member" || head == "array_slice_rest" {
         let sp2 = str_index_of(argRest, " ")
         if sp2 < 0 {
-            return { "op": OP_NEW_INSTANCE, "arg": parse_int(argRest), "arg2": 0 }
+            return { "op": head, "arg": parse_int(argRest), "arg2": 0 }
         }
-        let ci = parse_int(trim(str_slice(argRest, 0, sp2)))
-        let argc = parse_int(trim(str_slice(argRest, sp2 + 1, len(argRest))))
-        return { "op": OP_NEW_INSTANCE, "arg": ci, "arg2": argc }
+        let a1 = parse_int(trim(str_slice(argRest, 0, sp2)))
+        let a2 = parse_int(trim(str_slice(argRest, sp2 + 1, len(argRest))))
+        return { "op": head, "arg": a1, "arg2": a2 }
     }
     if head == "member_set" {
         return { "op": OP_SET_MEMBER, "arg": parse_int(argRest) }

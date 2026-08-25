@@ -462,10 +462,13 @@ fn run_parser_test_suite() -> Result<(), String> {
     use kabootar_lib::compile::{compile_file_cached, eval_program};
     use kabootar_lib::evaluator::create_global_env;
 
-    let programs = load_self_host_parser_programs()?;
+    let programs = load_self_host_parser_programs().map_err(|e| format!("parser deps: {e}"))?;
     let mut env = create_global_env();
-    preload_self_host_parser_deps(&mut env, &programs)?;
-    eval_program(&compile_file_cached(&self_host_path("test_parser.kab"))?, &mut env)?;
+    preload_self_host_parser_deps(&mut env, &programs)
+        .map_err(|e| format!("parser preload: {e}"))?;
+    let suite = compile_file_cached(&self_host_path("test_parser.kab"))
+        .map_err(|e| format!("test_parser compile: {e}"))?;
+    eval_program(&suite, &mut env).map_err(|e| format!("test_parser eval: {e}"))?;
     Ok(())
 }
 
@@ -474,7 +477,7 @@ fn self_host_parser_suite() {
     // Windows cargo-test default stack overflows on self-host parse of the suite.
     let ok = std::thread::Builder::new()
         .name("parser-suite".into())
-        .stack_size(32 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(|| run_parser_test_suite().expect("self_host/test_parser.kab should pass"))
         .expect("spawn parser suite")
         .join();
@@ -2032,7 +2035,7 @@ fn self_host_vm_lang_probe() {
     );
     let ok = std::thread::Builder::new()
         .name("vm-lang".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 kabootar_lib::cli::run_file(&path).expect("vm_lang_probe should run"),
@@ -2206,6 +2209,111 @@ fn self_host_emit_nested_call_argn_restore() {
     let mut env = create_global_env();
     let v = run_module(&module, &mut env).expect("run");
     assert_eq!(format_value(&v), "cdefgh");
+}
+
+/// Self-host parser+emit `match` (const + wildcard) — SH16 apps cannot use Rust-emit.
+#[test]
+fn self_host_match_const_wildcard_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 1 { 1 => 2, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_const_eq") && kbc.contains("match_fail"),
+        "expected match IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_match_array_object_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [1, 2] { [a, b] => a + b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-arr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match array"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_array"),
+        "expected array match IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_match_const_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 1 { 1 => 2, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run match under kab-only");
+    assert_eq!(formatted, "2");
 }
 
 /// H6e: kab-only may compile thin impl leaves live (skip-list empty).

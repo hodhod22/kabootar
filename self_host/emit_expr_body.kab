@@ -1228,5 +1228,259 @@ pub fn emitExprBody(E, node) {
         emitExpr_call(E)
         return
     }
+    if kind == AST_MATCH {
+        emitExpr_match(E)
+        return
+    }
     throw "Unsupported expr: " + kind
+}
+
+pub fn emitPatJump(E, op) {
+    let j = opsLen(E)
+    emitOp(E, op, 0)
+    E["ePatFails"] = push(E["ePatFails"], j)
+}
+
+pub fn emitPatJump2(E, op, arg) {
+    let j = opsLen(E)
+    emitOp2(E, op, arg, 0)
+    E["ePatFails"] = push(E["ePatFails"], j)
+}
+
+pub fn emitMatchArrPiece(E, piece, idx) {
+    emitOp(E, OP_DUP, 0)
+    let ci = symIndex(E, "const", idx)
+    emitOp(E, OP_CONST, ci)
+    emitOp(E, OP_INDEX_GET, 0)
+    if piece.kind == "wild" {
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    emitMatchPat(E, piece["pat"])
+}
+
+pub fn emitMatchArrPieceFromEnd(E, piece, fromEnd) {
+    emitOp(E, OP_DUP, 0)
+    emitOp(E, OP_INDEX_PEEK_FROM_END, fromEnd)
+    if piece.kind == "wild" {
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    emitMatchPat(E, piece["pat"])
+}
+
+pub fn emitMatchPatArray(E, pat) {
+    emitPatJump(E, OP_JUMP_UNLESS_ARRAY)
+    let pieces = pat.pieces
+    let restAt = -1
+    let pi = 0
+    while pi < len(pieces) {
+        if pieces[pi].kind == "rest" {
+            restAt = pi
+        }
+        pi = pi + 1
+    }
+    if restAt < 0 {
+        emitOp(E, OP_DUP, 0)
+        emitOp(E, OP_GET_LENGTH, 0)
+        let nPieces = len(pieces)
+        let lenCi = symIndex(E, "const", nPieces)
+        emitOp(E, OP_CONST, lenCi)
+        emitOp(E, OP_EQ, 0)
+        emitPatJump(E, OP_JUMP_IF_FALSE)
+        pi = 0
+        while pi < len(pieces) {
+            emitMatchArrPiece(E, pieces[pi], pi)
+            pi = pi + 1
+        }
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    let afterN = len(pieces) - restAt - 1
+    emitOp(E, OP_DUP, 0)
+    emitOp(E, OP_GET_LENGTH, 0)
+    let minN = restAt + afterN
+    let minCi = symIndex(E, "const", minN)
+    emitOp(E, OP_CONST, minCi)
+    emitOp(E, OP_GE, 0)
+    emitPatJump(E, OP_JUMP_IF_FALSE)
+    pi = 0
+    while pi < restAt {
+        emitMatchArrPiece(E, pieces[pi], pi)
+        pi = pi + 1
+    }
+    let rname = pieces[restAt]["sym"]
+    if rname != "" && rname != null && rname != undefined {
+        emitOp(E, OP_DUP, 0)
+        emitOp2(E, OP_ARRAY_SLICE_REST, restAt, afterN)
+        emitSym(E, 1, rname)
+    }
+    pi = 0
+    while pi < afterN {
+        emitMatchArrPieceFromEnd(E, pieces[restAt + 1 + pi], afterN - pi)
+        pi = pi + 1
+    }
+    emitOp(E, OP_POP, 0)
+}
+
+pub fn emitMatchPatObject(E, pat) {
+    emitPatJump(E, OP_JUMP_UNLESS_OBJECT)
+    let fields = pat.fields
+    if len(fields) == 0 {
+        emitPatJump(E, OP_JUMP_UNLESS_OBJECT_EMPTY)
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    let boundKeys = []
+    let fi = 0
+    while fi < len(fields) {
+        let f = fields[fi]
+        let fk = f.kind
+        if fk == "shorthand" {
+            let ki = symIndex(E, "const", f.key)
+            emitPatJump2(E, OP_JUMP_UNLESS_HAS_MEMBER, ki)
+            emitOp(E, OP_DUP, 0)
+            emitOp(E, OP_GET_MEMBER, ki)
+            emitSym(E, 1, f.key)
+            boundKeys = push(boundKeys, f.key)
+        }
+        if fk == "field" {
+            let ki = symIndex(E, "const", f.key)
+            emitPatJump2(E, OP_JUMP_UNLESS_HAS_MEMBER, ki)
+            emitOp(E, OP_DUP, 0)
+            emitOp(E, OP_GET_MEMBER, ki)
+            emitMatchPat(E, f["pat"])
+            boundKeys = push(boundKeys, f.key)
+        }
+        if fk == "rest" {
+            let rname = f["sym"]
+            if rname != "" && rname != null && rname != undefined {
+                emitOp(E, OP_DUP, 0)
+                if len(boundKeys) == 0 {
+                    emitSym(E, 1, rname)
+                } else {
+                    let bi = 0
+                    while bi < len(boundKeys) {
+                        let restKey = boundKeys[bi]
+                        let restCi = symIndex(E, "const", restKey)
+                        emitOp(E, OP_CONST, restCi)
+                        bi = bi + 1
+                    }
+                    emitOp(E, OP_OBJECT_REST, len(boundKeys))
+                    emitSym(E, 1, rname)
+                }
+            }
+        }
+        fi = fi + 1
+    }
+    emitOp(E, OP_POP, 0)
+}
+
+pub fn emitMatchPat(E, pat) {
+    let k = pat.kind
+    if k == "wild" {
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    if k == "var" {
+        emitSym(E, 1, pat.sym)
+        return
+    }
+    if k == "array" {
+        emitMatchPatArray(E, pat)
+        return
+    }
+    if k == "object" {
+        emitMatchPatObject(E, pat)
+        return
+    }
+    if k == "none" {
+        emitPatJump(E, OP_JUMP_UNLESS_OPTION_NONE)
+        emitOp(E, OP_POP, 0)
+        return
+    }
+    if k == "some" {
+        emitPatJump(E, OP_JUMP_UNLESS_OPTION_SOME)
+        emitOp(E, OP_UNWRAP_OPTION_SOME, 0)
+        emitMatchPat(E, pat.inner)
+        return
+    }
+    if k == "ok" {
+        emitPatJump(E, OP_JUMP_UNLESS_RESULT_OK)
+        emitOp(E, OP_UNWRAP_RESULT_OK, 0)
+        emitMatchPat(E, pat.inner)
+        return
+    }
+    if k == "err" {
+        emitPatJump(E, OP_JUMP_UNLESS_RESULT_ERR)
+        emitOp(E, OP_UNWRAP_RESULT_ERR, 0)
+        emitMatchPat(E, pat.inner)
+        return
+    }
+    let cval = pat.value
+    if pat.undef == 1 {
+        cval = KAB_UNDEF_CONST
+    }
+    if pat.nan == 1 {
+        cval = 0 / 0
+    }
+    let cidx = symIndex(E, "const", cval)
+    emitPatJump2(E, OP_JUMP_UNLESS_CONST_EQ, cidx)
+    emitOp(E, OP_POP, 0)
+}
+
+pub fn emitExpr_match(E) {
+    let node = E["eNode"]
+    eCallExpr(E, node["scrutinee"])
+    let arms = node["arms"]
+    let n = len(arms)
+    let endJumps = []
+    let armHeads = []
+    let guardPatches = []
+    let failAts = []
+    let ai = 0
+    while ai < n {
+        armHeads = push(armHeads, opsLen(E))
+        emitOp(E, OP_DUP, 0)
+        E["ePatFails"] = []
+        emitMatchPat(E, arms[ai]["pattern"])
+        if arms[ai]["guard"] != null {
+            eCallExpr(E, arms[ai]["guard"])
+            let gj = opsLen(E)
+            emitOp(E, OP_JUMP_IF_FALSE, 0)
+            guardPatches = push(guardPatches, [gj, ai + 1])
+        }
+        eCallExpr(E, arms[ai]["body"])
+        emitOp(E, OP_SWAP, 0)
+        emitOp(E, OP_POP, 0)
+        endJumps = push(endJumps, opsLen(E))
+        emitOp(E, OP_JUMP, 0)
+        let failAt = opsLen(E)
+        failAts = push(failAts, failAt)
+        let fails = E["ePatFails"]
+        let fi = 0
+        while fi < len(fails) {
+            patchJumpAt(E, fails[fi])
+            fi = fi + 1
+        }
+        emitOp(E, OP_POP, 0)
+        ai = ai + 1
+    }
+    let gi = 0
+    while gi < len(guardPatches) {
+        let gp = guardPatches[gi]
+        let next = gp[1]
+        if next < n {
+            patchJumpTo(E, gp[0], armHeads[next])
+        } else {
+            patchJumpTo(E, gp[0], failAts[n - 1])
+        }
+        gi = gi + 1
+    }
+    emitOp(E, OP_MATCH_FAIL, 0)
+    let ei = 0
+    while ei < len(endJumps) {
+        patchJumpAt(E, endJumps[ei])
+        ei = ei + 1
+    }
 }

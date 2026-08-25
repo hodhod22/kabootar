@@ -441,6 +441,40 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "Box(42) emits new_instance with argc 1")
 }
 
+// -- match const arms ----------------------------------------------
+{
+    let ast = parseTokens(tokenize("match 1 { 1 => 2, _ => 0 }"))
+    let bc = emit(ast)
+    tHas = 0
+    let tFail = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_JUMP_UNLESS_CONST_EQ {
+            tHas = 1
+        }
+        if bc.ops[tI].op == OP_MATCH_FAIL {
+            tFail = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "match emits jump_unless_const_eq")
+    assert_eq(tFail, 1, "match emits match_fail")
+}
+
+{
+    let ast = parseTokens(tokenize("match xs { [a, b] => a, _ => 0 }"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.ops) {
+        if bc.ops[tI].op == OP_JUMP_UNLESS_ARRAY {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "array match emits jump_unless_array")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted emit tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
