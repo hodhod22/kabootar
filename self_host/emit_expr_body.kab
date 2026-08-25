@@ -51,6 +51,213 @@ pub fn tryEmitLenCall(E, callee, args) {
     return true
 }
 
+// SH11: direct emit for simple AccAdd patterns like "x = x + 1"
+pub fn tryEmitAccAddLiteral(E, target, rhs) {
+    if target.kind != AST_VAR {
+        return false
+    }
+    if rhs.kind != AST_LITERAL {
+        return false
+    }
+    let val = rhs["value"]
+    if val != 1 {
+        return false
+    }
+    let sym = target["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_ACC_ADD_LOCAL, li)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_ACC_ADD_GLOBAL, gi)
+    return true
+}
+
+// SH11: direct emit for IndexGet on local arrays
+pub fn tryEmitIndexGetLocal(E, arr, idx) {
+    if arr.kind != AST_VAR {
+        return false
+    }
+    if idx.kind != AST_LITERAL {
+        return false
+    }
+    let arrSym = arr["sym"]
+    let arrLi = localSymIndex(E, arrSym)
+    if arrLi < 0 {
+        return false
+    }
+    let idxVal = idx["value"]
+    if idxVal < 0 {
+        return false
+    }
+    let idxLi = localSymIndex(E, "idx")
+    if idxLi < 0 {
+        return false
+    }
+    emitOp(E, OP_INDEX_GET_LOCAL, arrLi)
+    return true
+}
+
+// SH11: direct emit for constant binary operations
+pub fn tryEmitConstBinaryOp(E, op, left, right) {
+    if left.kind != AST_LITERAL {
+        return false
+    }
+    if right.kind != AST_LITERAL {
+        return false
+    }
+    let leftVal = left["value"]
+    let rightVal = right["value"]
+    
+    // Only optimize simple constant folding for immediate values
+    if op == "+" {
+        let sum = leftVal + rightVal
+        let ci = symIndex(E, "constLit", { "kind": AST_LITERAL, "value": sum })
+        emitOp(E, OP_CONST, ci)
+        return true
+    }
+    if op == "-" {
+        let diff = leftVal - rightVal
+        let ci = symIndex(E, "constLit", { "kind": AST_LITERAL, "value": diff })
+        emitOp(E, OP_CONST, ci)
+        return true
+    }
+    if op == "*" {
+        let prod = leftVal * rightVal
+        let ci = symIndex(E, "constLit", { "kind": AST_LITERAL, "value": prod })
+        emitOp(E, OP_CONST, ci)
+        return true
+    }
+    return false
+}
+
+// SH11: direct emit for array literal with constant elements
+pub fn tryEmitConstArrayLiteral(E, elements) {
+    if len(elements) == 0 {
+        return false
+    }
+    let allConst = 1
+    let i = 0
+    while i < len(elements) {
+        if elements[i].kind != AST_LITERAL {
+            allConst = 0
+        }
+        i = i + 1
+    }
+    if allConst == 0 {
+        return false
+    }
+    // For small constant arrays, we could pre-allocate
+    if len(elements) <= 4 {
+        emitOp(E, OP_MAKE_ARRAY, len(elements))
+        let j = 0
+        while j < len(elements) {
+            let ci = symIndex(E, "constLit", elements[j])
+            emitOp(E, OP_CONST, ci)
+            j = j + 1
+        }
+        return true
+    }
+    return false
+}
+
+// SH11: direct emit for simple string comparisons
+pub fn tryEmitStringEqLiteral(E, left, right) {
+    if left.kind != AST_VAR {
+        return false
+    }
+    if right.kind != AST_LITERAL {
+        return false
+    }
+    let sym = left["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_LOAD_LOCAL, li)
+        let ci = symIndex(E, "constLit", right)
+        emitOp(E, OP_CONST, ci)
+        emitOp(E, OP_EQ, 0)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_LOAD_GLOBAL, gi)
+    let ci = symIndex(E, "constLit", right)
+    emitOp(E, OP_CONST, ci)
+    emitOp(E, OP_EQ, 0)
+    return true
+}
+
+// SH11: direct emit for array.length property access
+pub fn tryEmitArrayLengthProperty(E, obj, prop) {
+    if obj.kind != AST_VAR {
+        return false
+    }
+    if prop.kind != AST_LITERAL {
+        return false
+    }
+    if prop["value"] != "length" {
+        return false
+    }
+    let sym = obj["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_LEN_LOCAL, li)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_LEN_GLOBAL, gi)
+    return true
+}
+
+// SH11: direct emit for simple array.pop() pattern
+pub fn tryEmitArrayPopPattern(E, callee, args) {
+    if callee.kind != AST_MEMBER {
+        return false
+    }
+    let obj = callee["object"]
+    let prop = callee["property"]
+    if prop.kind != AST_VAR {
+        return false
+    }
+    if prop["sym"] != "pop" {
+        return false
+    }
+    if len(args) != 0 {
+        return false
+    }
+    if obj.kind != AST_VAR {
+        return false
+    }
+    let sym = obj["sym"]
+    let li = localSymIndex(E, sym)
+    if li >= 0 {
+        emitOp(E, OP_ARRAY_POP_LOCAL, li)
+        return true
+    }
+    let gi = symIndex(E, "global", sym)
+    emitOp(E, OP_ARRAY_POP_GLOBAL, gi)
+    return true
+}
+
+// SH11: direct emit for simple negation pattern
+pub fn tryEmitSimpleNegation(E, expr) {
+    if expr.kind != AST_UNARY {
+        return false
+    }
+    if expr["op"] != "-" {
+        return false
+    }
+    let operand = expr["operand"]
+    if operand.kind != AST_LITERAL {
+        return false
+    }
+    let val = operand["value"]
+    let negated = -val
+    let ci = symIndex(E, "constLit", { "kind": AST_LITERAL, "value": negated })
+    emitOp(E, OP_CONST, ci)
+    return true
+}
+
 let eCallRetFast = 0
 
 pub fn emitCallArgFast(E, argNode) {

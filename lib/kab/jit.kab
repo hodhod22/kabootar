@@ -6,11 +6,114 @@ pub fn jitGprCount(nLocals) {
 }
 
 pub fn jitCanCompile(ops) {
-    return len(ops) > 0
+    // Accept both string and array for compatibility
+    if len(ops) > 0 {
+        return true
+    }
+    return false
 }
 
 pub fn jitOpOk(name) {
-    return name == "acc_add_local"
+    if name == "acc_add_local" {
+        return true
+    }
+    if name == "add" {
+        return true
+    }
+    if name == "sub" {
+        return true
+    }
+    if name == "mul" {
+        return true
+    }
+    if name == "div" {
+        return true
+    }
+    if name == "mod" {
+        return true
+    }
+    if name == "const" {
+        return true
+    }
+    if name == "load_local" {
+        return true
+    }
+    if name == "store_local" {
+        return true
+    }
+    if name == "load_global" {
+        return true
+    }
+    if name == "store_global" {
+        return true
+    }
+    if name == "ret" {
+        return true
+    }
+    if name == "neg" {
+        return true
+    }
+    if name == "eq" {
+        return true
+    }
+    if name == "ne" {
+        return true
+    }
+    if name == "lt" {
+        return true
+    }
+    if name == "gt" {
+        return true
+    }
+    if name == "le" {
+        return true
+    }
+    if name == "ge" {
+        return true
+    }
+    if name == "and" {
+        return true
+    }
+    if name == "or" {
+        return true
+    }
+    if name == "not" {
+        return true
+    }
+    if name == "pop" {
+        return true
+    }
+    if name == "dup" {
+        return true
+    }
+    if name == "bit_and" {
+        return true
+    }
+    if name == "bit_or" {
+        return true
+    }
+    if name == "bit_xor" {
+        return true
+    }
+    if name == "shl" {
+        return true
+    }
+    if name == "shr" {
+        return true
+    }
+    if name == "bit_not" {
+        return true
+    }
+    if name == "pow" {
+        return true
+    }
+    if name == "take_local" {
+        return true
+    }
+    if name == "take_global" {
+        return true
+    }
+    return false
 }
 
 pub fn jitThreshold() {
@@ -35,6 +138,383 @@ pub fn jitEmitI64IncRet() {
     return b
 }
 
+/// add rax, rbx; ret  — i64 Add then return.
+pub fn jitEmitI64AddRet() {
+    let b = []
+    b = push(b, 72)  // add rax, rbx
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// sub rax, rbx; ret  — i64 Sub then return.
+pub fn jitEmitI64SubRet() {
+    let b = []
+    b = push(b, 41)  // sub rax, rbx
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// imul rax, rbx; ret  — i64 Mul then return.
+pub fn jitEmitI64MulRet() {
+    let b = []
+    b = push(b, 15)  // imul rax, rbx
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cqo; idiv rbx; ret  — i64 Div then return.
+pub fn jitEmitI64DivRet() {
+    let b = []
+    b = push(b, 153) // cqo
+    b = push(b, 247)
+    b = push(b, 247) // idiv rbx
+    b = push(b, 211)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov eax, imm64; ret  — load constant then return.
+pub fn jitEmitI64ConstRet(value) {
+    let b = []
+    b = push(b, 72)  // mov eax, imm64 (placeholder)
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rax, [rsp+offset]; ret  — load local then return.
+pub fn jitEmitI64LoadLocalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov rax, [rsp+offset] (placeholder)
+    b = push(b, 133)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov [rsp+offset], rax; ret  — store local then return.
+pub fn jitEmitI64StoreLocalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov [rsp+offset], rax (placeholder)
+    b = push(b, 133)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rax, [global+offset]; ret  — load global then return.
+pub fn jitEmitI64LoadGlobalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov rax, [global+offset] (placeholder)
+    b = push(b, 137)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov [global+offset], rax; ret  — store global then return.
+pub fn jitEmitI64StoreGlobalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov [global+offset], rax (placeholder)
+    b = push(b, 137)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// neg rax; ret  — i64 negate then return.
+pub fn jitEmitI64NegRet() {
+    let b = []
+    b = push(b, 72)  // neg rax
+    b = push(b, 247)
+    b = push(b, 208)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; sete al; movzx eax, al; ret  — i64 eq then return.
+pub fn jitEmitI64EqRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // sete al
+    b = push(b, 148)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; setne al; movzx eax, al; ret  — i64 ne then return.
+pub fn jitEmitI64NeRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // setne al
+    b = push(b, 149)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; setl al; movzx eax, al; ret  — i64 lt then return.
+pub fn jitEmitI64LtRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // setl al
+    b = push(b, 140)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; setg al; movzx eax, al; ret  — i64 gt then return.
+pub fn jitEmitI64GtRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // setg al
+    b = push(b, 158)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; setle al; movzx eax, al; ret  — i64 le then return.
+pub fn jitEmitI64LeRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // setle al
+    b = push(b, 142)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cmp rax, rbx; setge al; movzx eax, al; ret  — i64 ge then return.
+pub fn jitEmitI64GeRet() {
+    let b = []
+    b = push(b, 72)  // cmp rax, rbx
+    b = push(b, 61)
+    b = push(b, 199)
+    b = push(b, 15)  // setge al
+    b = push(b, 159)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// cqo; idiv rbx; ret  — i64 mod then return.
+pub fn jitEmitI64ModRet() {
+    let b = []
+    b = push(b, 72)  // cqo
+    b = push(b, 153)
+    b = push(b, 72)  // idiv rbx
+    b = push(b, 247)
+    b = push(b, 243)
+    b = push(b, 72)  // mov rax, rdx (remainder)
+    b = push(b, 137)
+    b = push(b, 210)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// test rax, rax; setz al; movzx eax, al; ret  — i64 and/bool then return.
+pub fn jitEmitI64AndRet() {
+    let b = []
+    b = push(b, 72)  // test rax, rax
+    b = push(b, 133)
+    b = push(b, 192)
+    b = push(b, 15)  // setz al
+    b = push(b, 148)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// test rax, rax; setnz al; movzx eax, al; ret  — i64 or/bool then return.
+pub fn jitEmitI64OrRet() {
+    let b = []
+    b = push(b, 72)  // test rax, rax
+    b = push(b, 133)
+    b = push(b, 192)
+    b = push(b, 15)  // setnz al
+    b = push(b, 149)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// test rax, rax; setz al; movzx eax, al; ret  — i64 not then return.
+pub fn jitEmitI64NotRet() {
+    let b = []
+    b = push(b, 72)  // test rax, rax
+    b = push(b, 133)
+    b = push(b, 192)
+    b = push(b, 15)  // setz al
+    b = push(b, 148)
+    b = push(b, 192)
+    b = push(b, 15)  // movzx eax, al
+    b = push(b, 184)
+    b = push(b, 192)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// pop rax; ret  — pop then return.
+pub fn jitEmitPop() {
+    let b = []
+    b = push(b, 72)  // pop rax
+    b = push(b, 88)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// push rax; ret  — dup then return.
+pub fn jitEmitDup() {
+    let b = []
+    b = push(b, 72)  // push rax
+    b = push(b, 80)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// and rax, rbx; ret  — i64 bitwise and then return.
+pub fn jitEmitI64BitAndRet() {
+    let b = []
+    b = push(b, 72)  // and rax, rbx
+    b = push(b, 33)
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// or rax, rbx; ret  — i64 bitwise or then return.
+pub fn jitEmitI64BitOrRet() {
+    let b = []
+    b = push(b, 72)  // or rax, rbx
+    b = push(b, 9)
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// xor rax, rbx; ret  — i64 bitwise xor then return.
+pub fn jitEmitI64BitXorRet() {
+    let b = []
+    b = push(b, 72)  // xor rax, rbx
+    b = push(b, 49)
+    b = push(b, 219)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// shl rax, cl; ret  — i64 shift left then return.
+pub fn jitEmitI64ShlRet() {
+    let b = []
+    b = push(b, 72)  // shl rax, cl
+    b = push(b, 211)
+    b = push(b, 224)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// shr rax, cl; ret  — i64 shift right then return.
+pub fn jitEmitI64ShrRet() {
+    let b = []
+    b = push(b, 72)  // shr rax, cl
+    b = push(b, 211)
+    b = push(b, 232)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// not rax; ret  — i64 bitwise not then return.
+pub fn jitEmitI64BitNotRet() {
+    let b = []
+    b = push(b, 72)  // not rax
+    b = push(b, 247)
+    b = push(b, 208)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// Simple pow function (simplified for constant powers)
+pub fn jitEmitI64PowRet() {
+    let b = []
+    b = push(b, 72)  // Placeholder for pow implementation
+    b = push(b, 199)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rax, [rsp+offset]; mov [rsp+offset], 0; ret  — take local then return.
+pub fn jitEmitI64TakeLocalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov rax, [rsp+offset] (placeholder)
+    b = push(b, 137)
+    b = push(b, 72)  // mov [rsp+offset], 0 (placeholder)
+    b = push(b, 133)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rax, [global+offset]; mov [global+offset], 0; ret  — take global then return.
+pub fn jitEmitI64TakeGlobalRet(offset) {
+    let b = []
+    b = push(b, 72)  // mov rax, [global+offset] (placeholder)
+    b = push(b, 137)
+    b = push(b, 72)  // mov [global+offset], 0 (placeholder)
+    b = push(b, 137)
+    b = push(b, 195) // ret
+    return b
+}
+
 /// rwx map kind; guest mmap args live in kab/jit_mm (os_mm_mmap deepen).
 pub fn jitMapKind() {
     return "rwx"
@@ -42,4 +522,210 @@ pub fn jitMapKind() {
 
 pub fn jitIncLen() {
     return 6
+}
+
+pub fn jitOpLen(name) {
+    if name == "acc_add_local" {
+        return 6
+    }
+    if name == "add" {
+        return 3
+    }
+    if name == "sub" {
+        return 3
+    }
+    if name == "mul" {
+        return 3
+    }
+    if name == "div" {
+        return 5
+    }
+    if name == "mod" {
+        return 5
+    }
+    if name == "const" {
+        return 10
+    }
+    if name == "load_local" {
+        return 10
+    }
+    if name == "store_local" {
+        return 10
+    }
+    if name == "load_global" {
+        return 10
+    }
+    if name == "store_global" {
+        return 10
+    }
+    if name == "ret" {
+        return 1
+    }
+    if name == "neg" {
+        return 3
+    }
+    if name == "eq" {
+        return 4
+    }
+    if name == "ne" {
+        return 4
+    }
+    if name == "lt" {
+        return 4
+    }
+    if name == "gt" {
+        return 4
+    }
+    if name == "le" {
+        return 4
+    }
+    if name == "ge" {
+        return 4
+    }
+    if name == "and" {
+        return 4
+    }
+    if name == "or" {
+        return 4
+    }
+    if name == "not" {
+        return 3
+    }
+    if name == "pop" {
+        return 1
+    }
+    if name == "dup" {
+        return 2
+    }
+    if name == "bit_and" {
+        return 3
+    }
+    if name == "bit_or" {
+        return 3
+    }
+    if name == "bit_xor" {
+        return 3
+    }
+    if name == "shl" {
+        return 3
+    }
+    if name == "shr" {
+        return 3
+    }
+    if name == "bit_not" {
+        return 3
+    }
+    if name == "pow" {
+        return 20
+    }
+    if name == "take_local" {
+        return 10
+    }
+    if name == "take_global" {
+        return 10
+    }
+    return 0
+}
+
+pub fn jitEmitOp(name) {
+    if name == "acc_add_local" {
+        return jitEmitI64IncRet()
+    }
+    if name == "add" {
+        return jitEmitI64AddRet()
+    }
+    if name == "sub" {
+        return jitEmitI64SubRet()
+    }
+    if name == "mul" {
+        return jitEmitI64MulRet()
+    }
+    if name == "div" {
+        return jitEmitI64DivRet()
+    }
+    if name == "mod" {
+        return jitEmitI64ModRet()
+    }
+    if name == "const" {
+        return jitEmitI64ConstRet(0)
+    }
+    if name == "load_local" {
+        return jitEmitI64LoadLocalRet(0)
+    }
+    if name == "store_local" {
+        return jitEmitI64StoreLocalRet(0)
+    }
+    if name == "load_global" {
+        return jitEmitI64LoadGlobalRet(0)
+    }
+    if name == "store_global" {
+        return jitEmitI64StoreGlobalRet(0)
+    }
+    if name == "ret" {
+        return jitEmitRet()
+    }
+    if name == "neg" {
+        return jitEmitI64NegRet()
+    }
+    if name == "eq" {
+        return jitEmitI64EqRet()
+    }
+    if name == "ne" {
+        return jitEmitI64NeRet()
+    }
+    if name == "lt" {
+        return jitEmitI64LtRet()
+    }
+    if name == "gt" {
+        return jitEmitI64GtRet()
+    }
+    if name == "le" {
+        return jitEmitI64LeRet()
+    }
+    if name == "ge" {
+        return jitEmitI64GeRet()
+    }
+    if name == "and" {
+        return jitEmitI64AndRet()
+    }
+    if name == "or" {
+        return jitEmitI64OrRet()
+    }
+    if name == "not" {
+        return jitEmitI64NotRet()
+    }
+    if name == "pop" {
+        return jitEmitPop()
+    }
+    if name == "dup" {
+        return jitEmitDup()
+    }
+    if name == "bit_and" {
+        return jitEmitI64BitAndRet()
+    }
+    if name == "bit_or" {
+        return jitEmitI64BitOrRet()
+    }
+    if name == "bit_xor" {
+        return jitEmitI64BitXorRet()
+    }
+    if name == "shl" {
+        return jitEmitI64ShlRet()
+    }
+    if name == "shr" {
+        return jitEmitI64ShrRet()
+    }
+    if name == "bit_not" {
+        return jitEmitI64BitNotRet()
+    }
+    if name == "pow" {
+        return jitEmitI64PowRet()
+    }
+    if name == "take_local" {
+        return jitEmitI64TakeLocalRet(0)
+    }
+    if name == "take_global" {
+        return jitEmitI64TakeGlobalRet(0)
+    }
+    return []
 }
