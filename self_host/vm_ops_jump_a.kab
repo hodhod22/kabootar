@@ -210,6 +210,33 @@ pub fn runOpJumpMatchJump(S, name, arg, op, pool, globals, functions) {
         vBumpIpS(S)
         return 1
     }
+    if name == "jump_unless_enum_variant" {
+        let off = op["arg3"]
+        if off == undefined {
+            off = 0
+        }
+        let tn = poolKey(pool, arg)
+        let vr = poolKey(pool, op["arg2"])
+        let v = vPeekS(S)
+        let ok = 0
+        if typeof(v) == "object" && v != null {
+            if v["variant"] == vr {
+                let vt = "" + v["typeName"]
+                if vt == tn {
+                    ok = 1
+                }
+                if str_index_of(vt, tn + "$") == 0 {
+                    ok = 1
+                }
+            }
+        }
+        if ok == 0 {
+            vAddIpS(S, 1 + off)
+            return 1
+        }
+        vBumpIpS(S)
+        return 1
+    }
     return 0
 }
 
@@ -243,6 +270,23 @@ pub fn runOpJumpMatchUnwrap(S, name, arg, op, pool, globals, functions) {
     }
     if name == "match_fail" {
         throw "No matching pattern"
+    }
+    if name == "unpack_enum_fields" {
+        let v = vPopS(S)
+        let fields = v["fields"]
+        if fields == undefined {
+            throw "UnpackEnumFields requires EnumValue"
+        }
+        if len(fields) != arg {
+            throw "UnpackEnumFields field count"
+        }
+        let i = len(fields) - 1
+        while i >= 0 {
+            vPushS(S, fields[i])
+            i = i - 1
+        }
+        vBumpIpS(S)
+        return 1
     }
     return 0
 }

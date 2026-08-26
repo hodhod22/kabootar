@@ -208,6 +208,9 @@ pub fn pTramp(sess) {
     if sess["_hook"] == 7 {
         return parseStmt(sess)
     }
+    if sess["_hook"] == 8 {
+        return parseMatchPat(sess)
+    }
     throw "parser tramp: bad hook " + ("" + sess["_hook"])
 }
 

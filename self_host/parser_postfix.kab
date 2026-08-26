@@ -499,6 +499,24 @@ pub fn parseMatchPat(sess) {
         if name == "_" {
             return { "kind": "wild" }
         }
+        if sess["pCur"].type == "." {
+            bump(sess)
+            bump(sess)
+            let variant = sess["pTok"]["value"]
+            let fields = []
+            if sess["pCur"].type == "(" {
+                bump(sess)
+                while sess["pCur"].type != ")" {
+                    if sess["pCur"].type == "," {
+                        bump(sess)
+                        continue
+                    }
+                    fields = push(fields, parseMatchPat(sess))
+                }
+                bump(sess)
+            }
+            return { "kind": "enum", "typeName": name, "variant": variant, "fields": fields }
+        }
         return { "kind": "var", "sym": name }
     }
     if t == TOKEN_NUMBER || t == TOKEN_FLOAT {
