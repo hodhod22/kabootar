@@ -141,7 +141,7 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 8 | Verktygskedja | 🔶 | `compile`, `fmt`, `registry_*` |
 | 9 | Statisk binär | 🔶 | `cargo build --release` |
 | 10 | Match + guards | ✅ host; self-host array/objekt/enum + `if let`/`while let` | `match x { 1 => …, _ => … }` — self-host: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + array/objekt + `Type.Variant` ([ROADMAP L6](ROADMAP.md#våg-l--language-systems-ready--subset)) |
-| 10b | User `enum` | ✅ | `enum Color { Red, Green }`, `Color.Red`, `match` |
+| 10b | User `enum` | ✅ host + self-host unit/payload | `enum Color { Red, Green }`, `Color.Red`, `Msg.Move(x)` |
 | 10c | `if let` / `while let` | ✅ host; self-host socker | `if let Some(x) = opt { }`, `while let Ok(v) = r { }` |
 | 10d | Class field types | ✅ | `age: number` valideras vid tilldelning |
 | 11 | Effect system | 🔶 | `@pure` `@io` `@disk` (strippas) |

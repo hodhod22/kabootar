@@ -676,7 +676,7 @@ pub fn parseStmt_enum_variant(sess) {
                 throw "Expected variant field type"
             }
             bump(sess)
-            object_array_push(sess, "pVariantFields", poolPush(sess, sess["pTok"].value))
+            sess["pVariantFields"] = push(sess["pVariantFields"], poolPush(sess, sess["pTok"].value))
             if sess["pCur"].type == "," {
                 bump(sess)
             }
@@ -685,7 +685,7 @@ pub fn parseStmt_enum_variant(sess) {
     }
     object_array_push(sess, "pVariants", {
         "name": sess["pVariantSym"],
-        "fields": sess["pVariantFields"]
+        "fields": slice(sess["pVariantFields"], 0)
     })
     if sess["pCur"].type == "," {
         bump(sess)

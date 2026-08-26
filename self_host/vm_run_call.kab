@@ -49,6 +49,9 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
     if kind == "method" {
         return vCallRunMeth(S, c["meth"], pool, globals, functions, c["recv"], ordered)
     }
+    if kind == "enumCtor" {
+        return vApplyEnumCtor(c["ctor"], ordered)
+    }
     return vCallHost(c["callee"], ordered)
 }
 
@@ -70,13 +73,30 @@ pub fn vClassifyFnArrow(callee) {
 }
 
 // --- vm_run_callee_meth ---
-/// Classify method|host given non-null callee that is not fn/arrow.
+/// Classify method|enumCtor|host given non-null callee that is not fn/arrow.
 pub fn vClassifyMethHost(callee) {
     let vmM = vObjGet(callee, "vmM")
     if vmM != undefined {
         return { "kind": "method", "meth": vmM, "recv": vObjGet(callee, "vmR") }
     }
+    if typeof(callee) == "object" && callee != null {
+        if callee["vmEnumCtor"] == 1 {
+            return { "kind": "enumCtor", "ctor": callee }
+        }
+    }
     return { "kind": "host", "callee": callee }
+}
+
+pub fn vApplyEnumCtor(ctor, ordered) {
+    if len(ordered) != ctor["arity"] {
+        throw "enum ctor arity"
+    }
+    return {
+        "vmEnum": 1,
+        "typeName": ctor["typeName"],
+        "variant": ctor["variant"],
+        "fields": ordered
+    }
 }
 
 // --- vm_run_call_apply ---

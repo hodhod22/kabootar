@@ -2448,6 +2448,82 @@ fn self_host_match_enum_pattern_kab_only() {
     assert_eq!(formatted, "7");
 }
 
+#[test]
+fn self_host_match_enum_payload_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Msg { Move(n) }\nreturn match Msg.Move(4) { Msg.Move(x) => x, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-enum-pay".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile enum payload"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("unpack_enum_fields") && kbc.contains("enum_variant_fields"),
+        "expected payload enum IR, kbc snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_match_enum_payload_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Msg { Move(n) }\nreturn match Msg.Move(4) { Msg.Move(x) => x, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-enum-pay-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile enum payload kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-enum-pay-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run enum payload under kab-only");
+    assert_eq!(formatted, "4");
+}
+
 /// H6e: kab-only may compile thin impl leaves live (skip-list empty).
 #[test]
 fn h6e_skip_listed_kab_only_uses_seed() {

@@ -316,9 +316,23 @@ pub fn emitStmt_enum(E) {
             })
             return true
         }
+        let rawVars = E["eNode"]["variants"]
+        if rawVars == undefined {
+            rawVars = []
+        }
+        let vars = []
+        let vi = 0
+        while vi < len(rawVars) {
+            let vf = rawVars[vi]["fields"]
+            if vf == undefined {
+                vf = []
+            }
+            vars = push(vars, { "name": rawVars[vi]["name"], "fields": slice(vf, 0) })
+            vi = vi + 1
+        }
         E["eEnums"] = push(E["eEnums"], {
             "sym": E["eNode"]["sym"],
-            "variants": arrUtil(E, "snap", E["eNode"]["variants"])
+            "variants": vars
         })
         symIndex(E, "global", E["eNode"]["sym"])
         return true
