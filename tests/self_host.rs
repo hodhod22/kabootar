@@ -2373,8 +2373,11 @@ fn self_host_while_let_ok_compile_run() {
 }
 
 #[test]
-fn self_host_match_enum_pattern_ir() {
+fn self_host_match_enum_pattern_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
     use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
 
     let src = "enum Color { Red, Blue }\nreturn match Color.Red { Color.Red => 7, _ => 0 }";
     let program = std::thread::Builder::new()
@@ -2387,10 +2390,62 @@ fn self_host_match_enum_pattern_ir() {
     let bc = program.bytecode.expect("bytecode");
     let kbc = kabootar_lib::bytecode::serialize(&bc);
     assert!(
-        kbc.contains("jump_unless_enum_variant"),
-        "expected enum match IR, kbc snippet:\n{}",
-        kbc.chars().take(600).collect::<String>()
+        kbc.contains("jump_unless_enum_variant") && kbc.contains("enum 0 Color"),
+        "expected enum match + enum section, kbc snippet:\n{}",
+        kbc.chars().take(700).collect::<String>()
     );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_match_enum_pattern_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Color { Red, Blue }\nreturn match Color.Red { Color.Red => 7, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-enum-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile enum match kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-enum-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run enum match under kab-only");
+    assert_eq!(formatted, "7");
 }
 
 /// H6e: kab-only may compile thin impl leaves live (skip-list empty).

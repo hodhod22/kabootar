@@ -24,6 +24,7 @@ pub fn vModEnterB(S, n) {
     vAllocLocals(S, len(n["localNames"]))
     vResetExec(S)
     vFillHostGlobals(S, n["globals"])
+    vBindEnums(S, n["globals"], n["enums"])
 }
 
 // --- vm_run_mod_leave ---

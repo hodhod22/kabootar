@@ -287,11 +287,33 @@ pub fn vMemberGetS(S, obj, key) {
         return undefined
     }
     if typeof(obj) == "object" {
+        if obj["vmEnumNs"] == 1 {
+            return vEnumNsGet(obj, key)
+        }
         if obj["vmC"] != undefined {
             return vMemberGetClass(S, obj, key)
         }
     }
     return obj[key]
+}
+
+pub fn vEnumNsGet(obj, key) {
+    let vs = obj["variants"]
+    if vs == undefined {
+        return undefined
+    }
+    let i = 0
+    while i < len(vs) {
+        if vs[i]["name"] == key {
+            let fields = vs[i]["fields"]
+            if fields == undefined || len(fields) == 0 {
+                return { "vmEnum": 1, "typeName": obj["typeName"], "variant": key, "fields": [] }
+            }
+            return { "vmEnumCtor": 1, "typeName": obj["typeName"], "variant": key, "arity": len(fields) }
+        }
+        i = i + 1
+    }
+    return undefined
 }
 
 // --- vm_s_pool ---

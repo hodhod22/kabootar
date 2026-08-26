@@ -71,6 +71,25 @@ pub fn vFillHostGlobals(S, globals) {
     }
 }
 
+pub fn vBindEnums(S, globals, enums) {
+    if enums == null || enums == undefined {
+        return
+    }
+    let ei = 0
+    while ei < len(enums) {
+        let en = enums[ei]
+        let name = en["sym"]
+        let gi = 0
+        while gi < len(globals) {
+            if globals[gi] == name {
+                S["globals"][gi] = { "vmEnumNs": 1, "typeName": name, "variants": en["variants"] }
+            }
+            gi = gi + 1
+        }
+        ei = ei + 1
+    }
+}
+
 // --- vm_run_hook_fn ---
 pub fn vCallRunFn(S, fnDef, pool, globals, functions, callArgs, caps) {
     let prevA = S["_args"]

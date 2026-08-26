@@ -370,6 +370,42 @@ pub fn serAppendClassMethods(out, ci, methods) {
     return out
 }
 
+pub fn serAppendOneEnumVariant(out, ei, vi, v) {
+    out = serOutTagged2(out, "enum_variant", ei, vi, v["name"])
+    let fields = v["fields"]
+    if fields == undefined {
+        return out
+    }
+    if len(fields) == 0 {
+        return out
+    }
+    return serOutTagged2(out, "enum_variant_fields", ei, vi, serJoinComma(fields))
+}
+
+pub fn serAppendEnums(out, enums) {
+    if enums == undefined {
+        return serOutTag(out, "enums=0")
+    }
+    out = serOutTagEq(out, "enums=", len(enums))
+    let i = 0
+    let n = len(enums)
+    while i < n {
+        let en = enums[i]
+        out = serOutTagged(out, "enum", i, en["sym"])
+        let vars = en["variants"]
+        if vars == undefined {
+            vars = []
+        }
+        let vi = 0
+        while vi < len(vars) {
+            out = serAppendOneEnumVariant(out, i, vi, vars[vi])
+            vi = vi + 1
+        }
+        i = i + 1
+    }
+    return out
+}
+
 pub fn serAppendClasses(out, classes) {
     if classes == undefined {
         return serOutTag(out, "classes=0")
@@ -414,6 +450,7 @@ pub fn serAppendBcTailRest(out, bc) {
     out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
     out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
     out = serAppendClasses(out, bc.classes)
+    out = serAppendEnums(out, bc["enums"])
     out = serOutTag(out, "code")
     return serAppendOps(out, bc.ops)
 }

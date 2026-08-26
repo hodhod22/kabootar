@@ -474,6 +474,25 @@ pub fn serialize(module: &BytecodeModule) -> String {
             write_embedded_fn(&mut out, "class_method", &format!("{ci} {mi}"), method);
         }
     }
+    writeln!(out, "enums={}", module.enums.len()).unwrap();
+    for (ei, en) in module.enums.iter().enumerate() {
+        writeln!(out, "enum {ei} {}", escape(&en.name)).unwrap();
+        for (vi, v) in en.variants.iter().enumerate() {
+            writeln!(out, "enum_variant {ei} {vi} {}", escape(&v.name)).unwrap();
+            if !v.fields.is_empty() {
+                writeln!(
+                    out,
+                    "enum_variant_fields {ei} {vi} {}",
+                    v.fields
+                        .iter()
+                        .map(|s| escape(s))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+                .unwrap();
+            }
+        }
+    }
     writeln!(out, "code").unwrap();
     for op in &module.main_code {
         writeln!(out, "{}", encode_op(op)).unwrap();
@@ -501,6 +520,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
     let mut exports: Vec<String> = Vec::new();
     let mut interfaces: Vec<BytecodeInterfaceDef> = Vec::new();
     let mut classes: Vec<BytecodeClassDef> = Vec::new();
+    let mut enums: Vec<BytecodeEnumDef> = Vec::new();
     let mut memory_mode = crate::lang_preprocess::MemoryMode::Gc;
     let mut in_code = false;
 
@@ -976,6 +996,24 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             ensure_class(&mut classes, idx, name);
             continue;
         }
+        if let Some(rest) = line.strip_prefix("enum_variant_fields ") {
+            let (ei, vi, fields) = parse_class_method_index_list(rest)?;
+            ensure_enum(&mut enums, ei, String::new());
+            ensure_enum_variant(&mut enums[ei].variants, vi, String::new());
+            enums[ei].variants[vi].fields = fields;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("enum_variant ") {
+            let (ei, vi, name) = parse_class_method_index_name(rest)?;
+            ensure_enum(&mut enums, ei, String::new());
+            ensure_enum_variant(&mut enums[ei].variants, vi, name);
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("enum ") {
+            let (idx, name) = parse_index_name(rest)?;
+            ensure_enum(&mut enums, idx, name);
+            continue;
+        }
         if line.starts_with("constants=")
             || line.starts_with("functions=")
             || line.starts_with("arrows=")
@@ -986,6 +1024,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             || line.starts_with("memory_mode=")
             || line.starts_with("interfaces=")
             || line.starts_with("classes=")
+            || line.starts_with("enums=")
             || line.starts_with("class_method_arrows ")
         {
             continue;
@@ -1028,7 +1067,7 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
         arrow_functions,
         classes,
         interfaces,
-        enums: Vec::new(),
+        enums,
         imports,
         pub_imports,
         exports,
@@ -1199,6 +1238,36 @@ fn ensure_class(classes: &mut Vec<BytecodeClassDef>, idx: usize, name: String) {
     }
     if !name.is_empty() {
         classes[idx].name = name;
+    }
+}
+
+fn ensure_enum(enums: &mut Vec<BytecodeEnumDef>, idx: usize, name: String) {
+    if enums.len() <= idx {
+        enums.resize(
+            idx + 1,
+            BytecodeEnumDef {
+                name: String::new(),
+                variants: Vec::new(),
+            },
+        );
+    }
+    if !name.is_empty() {
+        enums[idx].name = name;
+    }
+}
+
+fn ensure_enum_variant(variants: &mut Vec<BytecodeEnumVariantDef>, idx: usize, name: String) {
+    if variants.len() <= idx {
+        variants.resize(
+            idx + 1,
+            BytecodeEnumVariantDef {
+                name: String::new(),
+                fields: Vec::new(),
+            },
+        );
+    }
+    if !name.is_empty() {
+        variants[idx].name = name;
     }
 }
 

@@ -314,7 +314,13 @@ pub fn emitStmt_enum(E) {
                 "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
                 "variants": arrUtil(E, "snap",E["eNode"]["variants"])
             })
+            return true
         }
+        E["eEnums"] = push(E["eEnums"], {
+            "sym": E["eNode"]["sym"],
+            "variants": arrUtil(E, "snap", E["eNode"]["variants"])
+        })
+        symIndex(E, "global", E["eNode"]["sym"])
         return true
     return true
 }
