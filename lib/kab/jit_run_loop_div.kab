@@ -1,0 +1,30 @@
+// SH17 deepen: mmap+exec policy for loop-div template. import "kab/jit_run_loop_div"
+// Do not grow jit_run_loop_mul.kab.
+
+import "kab/jit_mmap_loop"
+import "kab/jit_np"
+import "kab/jit_exec"
+import "kab/jit_mm_loop_div"
+import "kab/jit_patch_loop_div"
+import "kab/jit_loop_div"
+
+pub fn jitRunLoopDivOk(base, kind, bytes, n, d) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopDivOk(bytes, n, d) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopDivOk(nb, kind, n, d) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

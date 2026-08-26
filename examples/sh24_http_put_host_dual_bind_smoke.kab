@@ -1,0 +1,10 @@
+import "kab/http_put"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsPut("PUT") == false {
+    return false
+}
+return httpHostDeleteOk() == false

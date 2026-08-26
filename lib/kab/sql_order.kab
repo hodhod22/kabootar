@@ -1,0 +1,6 @@
+// SH22: ORDER-clause gate off sql.kab. import "kab/sql_order"
+// Do not grow sql_limit.kab. Host src/sql remains skuld.
+
+pub fn sqlIsOrder(q) {
+    return str_includes(q, "ORDER")
+}

@@ -1,0 +1,11 @@
+import "kab/jit"
+import "kab/jit_patch"
+import "kab/jit_run"
+
+let kind = "rwx"
+let tpl = jitEmitI64IncRet()
+let bad = push(tpl, 0)
+if jitPatchIncRetOk(bad) != false {
+    return false
+}
+return jitRunIncRetOk(0, kind, tpl) == false

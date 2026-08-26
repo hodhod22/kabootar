@@ -1,0 +1,7 @@
+import "kab/jit_loop_not"
+import "kab/jit_call_loop_not"
+
+let kind = "rwx"
+let n = 0
+let tpl = jitEmitI64LoopNotN(8)
+return jitCallLoopNotOk(507904, kind, n, tpl) == false

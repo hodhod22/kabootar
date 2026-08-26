@@ -1,0 +1,3 @@
+import "kab/sql_update"
+
+return sqlIsUpdate("UPDATE t SET x = 1")

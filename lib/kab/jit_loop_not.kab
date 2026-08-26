@@ -1,0 +1,30 @@
+// SH17 deepen: i64 loopN + bit_not template. import "kab/jit_loop_not"
+// Do not grow jit_loop_ushr.kab. Magic S + n + ret; os_mm_call returns ~n.
+
+import "kab/jit_loop_n"
+
+pub fn jitLoopNotOk(n) {
+    return jitLoopNOk(n)
+}
+
+pub fn jitLoopNotRax(n) {
+    return ~n
+}
+
+pub fn jitLoopNotLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 83, count n, pad, ret — simulated guest rax=~n.
+pub fn jitEmitI64LoopNotN(n) {
+    let b = []
+    b = push(b, 83)
+    b = push(b, n)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

@@ -1,0 +1,50 @@
+// SH17 deepen: i64 loopN + shr template. import "kab/jit_loop_shr"
+// Do not grow jit_loop_shl.kab. Magic Q + n + shift + ret; os_mm_call returns n>>shift.
+
+import "kab/jit_loop_n"
+
+pub fn jitLoopShrShMax() {
+    return 6
+}
+
+pub fn jitLoopShrShOk(sh) {
+    if sh <= 0 {
+        return false
+    }
+    if sh > jitLoopShrShMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopShrOk(n, sh) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopShrShOk(sh) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopShrRax(n, sh) {
+    return n >> sh
+}
+
+pub fn jitLoopShrLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 81, count n, shift, pad, ret — simulated guest rax=n>>shift.
+pub fn jitEmitI64LoopShrN(n, sh) {
+    let b = []
+    b = push(b, 81)
+    b = push(b, n)
+    b = push(b, sh)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

@@ -1,0 +1,21 @@
+// SH17 deepen: translate-write + run + exec call policy. import "kab/jit_call"
+// Do not grow jit.kab. Full inc+ret pipeline in Kab policy leaves.
+
+import "kab/jit_wr"
+import "kab/jit_run"
+import "kab/jit_mm_call"
+
+/// mmap(base) → store → exec policy → guest call returns rax=1.
+pub fn jitCallIncRetOk(base, kind, bytes) {
+    if jitWrIncRetOk(bytes) == false {
+        return false
+    }
+    if jitRunIncRetOk(base, kind, bytes) == false {
+        return false
+    }
+    let r = jitMmCallIncRet(bytes)
+    if r != 1 {
+        return false
+    }
+    return true
+}

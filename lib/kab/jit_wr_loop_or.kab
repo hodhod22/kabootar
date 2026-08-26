@@ -1,0 +1,28 @@
+// SH17 deepen: translate+store for loop-or template. import "kab/jit_wr_loop_or"
+// Do not grow jit_wr_loop_and.kab.
+
+import "kab/jit_patch_loop_or"
+import "kab/jit_mm_loop_or"
+import "kab/jit_mm_store_loop_or"
+import "kab/jit_loop_or"
+
+pub fn jitWrLoopOrOk(bytes, n, mask) {
+    if jitPatchLoopOrOk(bytes, n, mask) == false {
+        return false
+    }
+    let pid = jitMmLoopOrPid()
+    let virt = jitMmLoopOrVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopOr(bytes, n, mask)
+    if w != jitLoopOrLen() {
+        return false
+    }
+    return true
+}

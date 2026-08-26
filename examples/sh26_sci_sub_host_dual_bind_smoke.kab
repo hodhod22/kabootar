@@ -1,0 +1,10 @@
+import "kab/sci_sub"
+import "kab/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciSub(44, 2) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

@@ -1,0 +1,7 @@
+import "kab/sci_div"
+
+let n = sciDiv(8, 2)
+if n == 4 {
+    return true
+}
+return false

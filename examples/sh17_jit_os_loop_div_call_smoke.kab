@@ -1,0 +1,10 @@
+import "kab/jit_loop_div"
+import "kab/jit_mm_loop_div"
+import "kab/jit_call_loop_div"
+
+let kind = "rwx"
+let n = 16
+let d = 2
+let tpl = jitEmitI64LoopDivN(n, d)
+let base = os_mm_mmap(jitMmLoopDivPid(), jitMmLoopDivVirt(), jitMmLoopDivLen(), jitMmLoopDivProt())
+return jitCallLoopDivOk(base, kind, n, d, tpl)

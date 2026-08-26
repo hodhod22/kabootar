@@ -1,0 +1,22 @@
+// SH19 deepen: ship native image off PGO bootstrap. import "kab/load_ship"
+// Do not grow load_aot_pgo.kab. Host main.rs stays until ship smoke completes.
+// Nested call args must be locals first — module-scope binding quirk.
+
+import "kab/load_aot"
+import "kab/load_aot_pgo"
+import "kab/aot_ship"
+
+pub fn loadShipNativeName() {
+    return "kabootar-x64.kbn"
+}
+    10|
+/// PGO bootstrap plus shippable native name and image plan validates.
+pub fn loadShipOk(nBytes) {
+    if loadAotPgoBootstrapOk(nBytes) == false {
+        return false
+    }
+    let name = loadShipNativeName()
+    let plan = loadAotPgoSymRelocPlan()
+    let target = loadAotTarget()
+    20|    return aotShipOk(name, plan, target)
+}

@@ -1,0 +1,11 @@
+import "kab/jit"
+import "kab/jit_mm"
+import "kab/jit_mm_store"
+import "kab/jit_mm_call"
+
+let tpl = jitEmitI64IncRet()
+os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+if jitMmStoreIncRet(tpl) != 6 {
+    return false
+}
+return jitMmCallIncRet(tpl) == 1

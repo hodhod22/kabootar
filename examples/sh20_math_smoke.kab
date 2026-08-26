@@ -1,0 +1,7 @@
+import "kab/std_math"
+
+let n = stdMul(6, 7)
+if n == 42 {
+    return true
+}
+return false

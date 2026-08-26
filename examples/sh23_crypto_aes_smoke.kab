@@ -1,0 +1,3 @@
+import "kab/crypto_aes"
+
+return cryptoAes256Ok("aes-256")

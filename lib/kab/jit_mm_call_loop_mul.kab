@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-mul template. import "kab/jit_mm_call_loop_mul"
+// Do not grow jit_mm_call_loop_sub.kab.
+
+import "kab/jit_mm_loop_mul"
+import "kab/jit_loop_mul"
+
+pub fn jitMmCallLoopMul(bytes, n, m) {
+    if jitLoopMulOk(n, m) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopMulLen() {
+        return 0
+    }
+    let pid = jitMmLoopMulPid()
+    let virt = jitMmLoopMulVirt()
+    let r = os_mm_call(pid, virt)
+    if r != jitLoopMulRax(n, m) {
+        return 0
+    }
+    return r
+}

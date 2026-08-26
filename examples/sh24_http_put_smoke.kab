@@ -1,0 +1,3 @@
+import "kab/http_put"
+
+return httpIsPut("PUT")

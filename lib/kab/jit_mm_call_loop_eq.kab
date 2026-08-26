@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-eq template. import "kab/jit_mm_call_loop_eq"
+// Do not grow jit_mm_call_loop_neg.kab.
+
+import "kab/jit_mm_loop_eq"
+import "kab/jit_loop_eq"
+
+pub fn jitMmCallLoopEq(bytes, n, k) {
+    if jitLoopEqOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopEqLen() {
+        return 0
+    }
+    let pid = jitMmLoopEqPid()
+    let virt = jitMmLoopEqVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopEqRax(n, k) {
+        return 0
+    }
+    return rax
+}

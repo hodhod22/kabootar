@@ -1,0 +1,37 @@
+// SH17 deepen: validate i64 loop-mul template. import "kab/jit_patch_loop_mul"
+// Do not grow jit_patch_loop_sub.kab.
+
+import "kab/jit_loop_mul"
+import "kab/jit_check"
+
+pub fn jitPatchLoopMulOk(bytes, n, m) {
+    if jitLoopMulOk(n, m) == false {
+        return false
+    }
+    let tpl = jitEmitI64LoopMulN(n, m)
+    if len(bytes) != jitLoopMulLen() {
+        return false
+    }
+    if len(tpl) != jitLoopMulLen() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if bytes[3] != tpl[3] {
+        return false
+    }
+    if bytes[4] != tpl[4] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

@@ -1,0 +1,8 @@
+import "kab/jit_loop_gt"
+import "kab/jit_call_loop_gt"
+
+let kind = "rwx"
+let n = 12
+let k = 0
+let tpl = jitEmitI64LoopGtN(8, 10)
+return jitCallLoopGtOk(548864, kind, n, k, tpl) == false

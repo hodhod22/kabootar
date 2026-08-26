@@ -1,0 +1,10 @@
+import "kab/cli_help"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsHelp("help") == false {
+    return false
+}
+return cliHostDeleteOk() == false

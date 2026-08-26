@@ -1,0 +1,7 @@
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+if p[0] != "n" {
+    return false
+}
+return p[1] == 42

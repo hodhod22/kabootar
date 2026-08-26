@@ -1,0 +1,8 @@
+import "kab/jit_loop_div"
+import "kab/jit_call_loop_div"
+
+let kind = "rwx"
+let n = 16
+let d = 0
+let tpl = jitEmitI64LoopDivN(8, 2)
+return jitCallLoopDivOk(442368, kind, n, d, tpl) == false

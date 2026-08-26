@@ -1,0 +1,40 @@
+// SH17 deepen: variable-count i64 loop template. import "kab/jit_loop_n"
+// Do not grow jit_loop.kab. Magic L + count N + ret; os_mm_call returns N.
+
+import "kab/jit_loop"
+
+pub fn jitLoopNMax() {
+    return 64
+}
+
+pub fn jitLoopNOk(n) {
+    if n <= 0 {
+        return false
+    }
+    if n > jitLoopNMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopNRax(n) {
+    return n
+}
+
+pub fn jitLoopNLen() {
+    return jitLoopLen()
+}
+
+/// Loop marker 76, count n, pad, ret — simulated guest rax=n.
+pub fn jitEmitI64LoopN(n) {
+    let b = []
+    b = push(b, 76)
+    b = push(b, n)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

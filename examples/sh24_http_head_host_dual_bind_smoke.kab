@@ -1,0 +1,10 @@
+import "kab/http_head"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsHead("HEAD") == false {
+    return false
+}
+return httpHostDeleteOk() == false

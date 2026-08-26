@@ -1,0 +1,50 @@
+// SH17 deepen: i64 loopN + bit-xor template. import "kab/jit_loop_xor"
+// Do not grow jit_loop_or.kab. Magic O + n + mask + ret; os_mm_call returns n^mask.
+
+import "kab/jit_loop_n"
+
+pub fn jitLoopXorMaskMax() {
+    return 64
+}
+
+pub fn jitLoopXorMaskOk(mask) {
+    if mask <= 0 {
+        return false
+    }
+    if mask > jitLoopXorMaskMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopXorOk(n, mask) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopXorMaskOk(mask) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopXorRax(n, mask) {
+    return n ^ mask
+}
+
+pub fn jitLoopXorLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 79, count n, mask, pad, ret — simulated guest rax=n^mask.
+pub fn jitEmitI64LoopXorN(n, mask) {
+    let b = []
+    b = push(b, 79)
+    b = push(b, n)
+    b = push(b, mask)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

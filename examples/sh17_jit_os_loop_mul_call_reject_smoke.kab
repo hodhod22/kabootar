@@ -1,0 +1,8 @@
+import "kab/jit_loop_mul"
+import "kab/jit_call_loop_mul"
+
+let kind = "rwx"
+let n = 16
+let m = 0
+let tpl = jitEmitI64LoopMulN(8, 3)
+return jitCallLoopMulOk(434176, kind, n, m, tpl) == false

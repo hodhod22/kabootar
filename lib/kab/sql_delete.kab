@@ -1,0 +1,6 @@
+// SH22: DELETE-clause gate off sql.kab. import "kab/sql_delete"
+// Do not grow sql_update.kab. Host src/sql remains skuld.
+
+pub fn sqlIsDelete(q) {
+    return str_includes(q, "DELETE")
+}

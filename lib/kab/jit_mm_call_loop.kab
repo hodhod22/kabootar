@@ -1,0 +1,18 @@
+// SH17 deepen: guest call for loop8 template. import "kab/jit_mm_call_loop"
+// Do not grow jit_mm_call.kab.
+
+import "kab/jit_mm_loop"
+import "kab/jit_loop"
+
+pub fn jitMmCallLoop(bytes) {
+    if len(bytes) != jitLoopLen() {
+        return 0
+    }
+    let pid = jitMmLoopPid()
+    let virt = jitMmLoopVirt()
+    let r = os_mm_call(pid, virt)
+    if r != jitLoopRax() {
+        return 0
+    }
+    return r
+}

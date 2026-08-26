@@ -1,0 +1,8 @@
+import "kab/jit_loop_n"
+
+let n = 16
+let b = jitEmitI64LoopN(n)
+if len(b) != 8 {
+    return false
+}
+return b[1] == n

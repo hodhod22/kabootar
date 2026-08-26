@@ -1,0 +1,24 @@
+import "kab/ui"
+import "kab/ui_cv"
+import "kab/ui_fps"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDiv("div") == false {
+    return false
+}
+if uiTickMs() != 16 {
+    return false
+}
+if uiReady() == false {
+    return false
+}
+if uiIsCanvas("canvas") == false {
+    return false
+}
+if uiFpsOk(16) == false {
+    return false
+}
+return uiHostDeleteOk() == false

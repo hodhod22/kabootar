@@ -1,0 +1,24 @@
+import "kab/http"
+import "kab/http_post"
+import "kab/http_ct"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsGet("GET") == false {
+    return false
+}
+if httpOk(200) == false {
+    return false
+}
+if httpIsFetch("http://example.com") == false {
+    return false
+}
+if httpIsPost("POST") == false {
+    return false
+}
+if httpIsJson("application/json") == false {
+    return false
+}
+return httpHostDeleteOk() == false

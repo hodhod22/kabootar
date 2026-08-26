@@ -1,0 +1,8 @@
+import "kab/jit"
+import "kab/jit_mm"
+import "kab/jit_call"
+
+let kind = "rwx"
+let tpl = jitEmitI64IncRet()
+let base = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+return jitCallIncRetOk(base, kind, tpl)

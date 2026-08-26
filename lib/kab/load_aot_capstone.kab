@@ -1,0 +1,22 @@
+// SH19 capstone: full AOT chain plus all host delete gates closed. import "kab/load_aot_capstone"
+// Do not grow load_aot_chain.kab. nollAotReady stays false; do not delete src/.
+
+import "kab/load_aot_chain"
+import "kab/noll_host"
+
+pub fn loadAotCapstoneNativeName() {
+    return loadAotChainNativeName()
+}
+
+/// True when every SH19–SH27 host delete gate is still closed.
+pub fn loadAotCapstoneGatesClosed() {
+    return nollAllHostGatesClosed()
+}
+
+/// Full load_aot chain plus all host delete gates still closed.
+pub fn loadAotCapstoneOk(nBytes) {
+    if loadAotChainOk(nBytes) == false {
+        return false
+    }
+    return loadAotCapstoneGatesClosed()
+}

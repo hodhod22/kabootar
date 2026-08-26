@@ -1,0 +1,11 @@
+import "kab/std_obj"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let o = { "n": 42 }
+if stdObjGet(o, "n") != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

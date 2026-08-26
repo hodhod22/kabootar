@@ -1,0 +1,34 @@
+// SH19 deepen: AOT sym/reloc table bootstrap off load_aot. import "kab/load_aot_reloc"
+// Do not grow load_aot.kab. Host main.rs stays until table bootstrap smoke completes.
+// Nested call args must be locals first — module-scope binding quirk.
+
+import "kab/load_aot"
+import "kab/aot_load_image"
+
+pub fn loadAotRelocTablePlan() {
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+}
+    10|
+pub fn loadAotTablesPlan() {
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+}
+
+/// Basic bootstrap plus ordered relocation table plan validates.
+pub fn loadAotRelocTableOk(nBytes) {
+    if loadAotBootstrapOk(nBytes) == false {
+        return false
+    }
+    20|    let plan = loadAotRelocTablePlan()
+    let target = loadAotTarget()
+    return aotLoadImageWithRelocTableOk(plan, target)
+}
+
+/// Basic bootstrap plus ordered symbol and relocation tables validate.
+pub fn loadAotRelocBootstrapOk(nBytes) {
+    if loadAotBootstrapOk(nBytes) == false {
+        return false
+    }
+    30|    let plan = loadAotTablesPlan()
+    let target = loadAotTarget()
+    return aotLoadImageWithTablesOk(plan, target)
+}

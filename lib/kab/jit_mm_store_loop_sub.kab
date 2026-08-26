@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-sub template. import "kab/jit_mm_store_loop_sub"
+// Do not grow jit_mm_store_loop_add.kab.
+
+import "kab/jit_mm_loop_sub"
+import "kab/jit_loop_sub"
+
+pub fn jitMmStoreLoopSub(bytes, n, s) {
+    if jitLoopSubOk(n, s) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopSubLen() {
+        return 0
+    }
+    let pid = jitMmLoopSubPid()
+    let virt = jitMmLoopSubVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

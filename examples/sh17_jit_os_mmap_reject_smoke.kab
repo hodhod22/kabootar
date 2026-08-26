@@ -1,0 +1,9 @@
+import "kab/jit_mm"
+
+if jitOsMmapOk(7, "rwx") != false {
+    return false
+}
+if jitOsMmapOk(6, "rw") != false {
+    return false
+}
+return jitOsMmapOk(6, "rwx")

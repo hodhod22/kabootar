@@ -1,0 +1,22 @@
+import "kab/jit_mm"
+import "kab/jit_mmap"
+import "kab/jit_np"
+import "kab/jit_exec"
+
+let n = 6
+let kind = "rwx"
+if jitMmapOk(n, kind) == false {
+    return false
+}
+if jitOsMmapOk(n, kind) == false {
+    return false
+}
+let pages = jitPagesFor(n)
+if pages != 1 {
+    return false
+}
+let base = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+if base <= 0 {
+    return false
+}
+return jitExecOk(pages, kind)

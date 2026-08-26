@@ -1,0 +1,6 @@
+// SH23: TLS 1.3 gate off crypto.kab. import "kab/crypto_tls13"
+// Do not grow crypto_tls.kab. Host rustls remains skuld.
+
+pub fn cryptoTls13Ok(ver) {
+    return ver == "1.3"
+}

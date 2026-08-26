@@ -1,0 +1,24 @@
+import "kab/cli"
+import "kab/cli_cc"
+import "kab/cli_fmt"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsRun("run") == false {
+    return false
+}
+if cliIsRepl("repl") == false {
+    return false
+}
+if cliIsTest("test") == false {
+    return false
+}
+if cliIsCompile("compile") == false {
+    return false
+}
+if cliIsFmt("fmt") == false {
+    return false
+}
+return cliHostDeleteOk() == false
