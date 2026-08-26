@@ -2316,6 +2316,83 @@ fn self_host_match_const_kab_only() {
     assert_eq!(formatted, "2");
 }
 
+#[test]
+fn self_host_if_let_some_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let Some(x) = Some(3) { return x } return 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_option_some"),
+        "expected if-let IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_while_let_ok_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let r = Ok(2)\nlet n = 0\nwhile let Ok(v) = r {\n  n = n + v\n  r = Err(0)\n}\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-while-let".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile while let"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_result_ok"),
+        "expected while-let IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_match_enum_pattern_ir() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "enum Color { Red, Blue }\nreturn match Color.Red { Color.Red => 7, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-enum".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile enum match"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_enum_variant"),
+        "expected enum match IR, kbc snippet:\n{}",
+        kbc.chars().take(600).collect::<String>()
+    );
+}
+
 /// H6e: kab-only may compile thin impl leaves live (skip-list empty).
 #[test]
 fn h6e_skip_listed_kab_only_uses_seed() {

@@ -1247,6 +1247,12 @@ pub fn emitPatJump2(E, op, arg) {
     E["ePatFails"] = push(E["ePatFails"], j)
 }
 
+pub fn emitPatJump3(E, op, arg, arg2) {
+    let j = opsLen(E)
+    emitOp3(E, op, arg, arg2, 0)
+    E["ePatFails"] = push(E["ePatFails"], j)
+}
+
 pub fn emitMatchArrPiece(E, piece, idx) {
     emitOp(E, OP_DUP, 0)
     let ci = symIndex(E, "const", idx)
@@ -1417,6 +1423,26 @@ pub fn emitMatchPat(E, pat) {
         emitMatchPat(E, pat.inner)
         return
     }
+    if k == "enum" {
+        let ti = symIndex(E, "const", pat["typeName"])
+        let vi = symIndex(E, "const", pat["variant"])
+        emitPatJump3(E, OP_JUMP_UNLESS_ENUM_VARIANT, ti, vi)
+        let fields = pat["fields"]
+        if fields == undefined {
+            fields = []
+        }
+        if len(fields) == 0 {
+            emitOp(E, OP_POP, 0)
+            return
+        }
+        emitOp(E, OP_UNPACK_ENUM_FIELDS, len(fields))
+        let ei = 0
+        while ei < len(fields) {
+            emitMatchPat(E, fields[ei])
+            ei = ei + 1
+        }
+        return
+    }
     let cval = pat.value
     if pat.undef == 1 {
         cval = KAB_UNDEF_CONST
@@ -1450,7 +1476,15 @@ pub fn emitExpr_match(E) {
             emitOp(E, OP_JUMP_IF_FALSE, 0)
             guardPatches = push(guardPatches, [gj, ai + 1])
         }
-        eCallExpr(E, arms[ai]["body"])
+        let body = arms[ai]["body"]
+        let bk = body.kind
+        if bk == AST_BLOCK || bk == AST_IF || bk == AST_EXPR || bk == AST_WHILE {
+            eCallStmt(E, body)
+            let ni = symIndex(E, "const", null)
+            emitOp(E, OP_CONST, ni)
+        } else {
+            eCallExpr(E, body)
+        }
         emitOp(E, OP_SWAP, 0)
         emitOp(E, OP_POP, 0)
         endJumps = push(endJumps, opsLen(E))

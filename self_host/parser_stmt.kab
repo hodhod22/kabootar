@@ -606,6 +606,27 @@ pub fn parseStmt_while(sess) {
         return null
     }
     bump(sess)
+    if sess["pCur"].type == TOKEN_LET {
+        bump(sess)
+        let pat = pCallMatchPat(sess)
+        bump(sess)
+        let scrut = pCallCompare(sess)
+        if sess["pCur"].type != "{" {
+            throw "Expected {"
+        }
+        bump(sess)
+        pEnterLoopBody(sess)
+        pParseLoopUntilRBrace(sess)
+        let whileBody = pLeaveLoopBody(sess)
+        let okArm = { "kind": AST_BLOCK, "body": whileBody }
+        let brArm = { "kind": AST_BLOCK, "body": [{ "kind": AST_BREAK }] }
+        let arms = []
+        arms = push(arms, { "pattern": pat, "guard": null, "body": okArm })
+        arms = push(arms, { "pattern": { "kind": "wild" }, "guard": null, "body": brArm })
+        let mx = { "kind": AST_MATCH, "scrutinee": scrut, "arms": arms }
+        let trueLit = { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true }
+        return { "kind": AST_WHILE, "cond": trueLit, "body": { "kind": AST_BLOCK, "body": [{ "kind": AST_EXPR, "expr": mx }] } }
+    }
     let whileCond = pCallCompare(sess)
     if sess["pCur"].type != "{" {
         throw "Expected {"
@@ -696,11 +717,41 @@ pub fn parseStmt_fn_sig(sess) {
 }
 
 // --- parser_stmt_if ---
+pub fn parseStmt_ifLet(sess) {
+    bump(sess)
+    let pat = pCallMatchPat(sess)
+    bump(sess)
+    let scrut = pCallCompare(sess)
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterBody(sess)
+    pParseBodyUntilRBrace(sess, "Unclosed if let block")
+    let thenB = { "kind": AST_BLOCK, "body": pLeaveBody(sess) }
+    let elseB = { "kind": AST_LITERAL, "lit": LIT_NULL, "value": null }
+    if sess["pCur"].type == TOKEN_ELSE {
+        bump(sess)
+        if sess["pCur"].type == TOKEN_IF {
+            elseB = parseStmt_if(sess)
+        } else {
+            elseB = parseStmt_if_else_block(sess)
+        }
+    }
+    let arms = []
+    arms = push(arms, { "pattern": pat, "guard": null, "body": thenB })
+    arms = push(arms, { "pattern": { "kind": "wild" }, "guard": null, "body": elseB })
+    return { "kind": AST_EXPR, "expr": { "kind": AST_MATCH, "scrutinee": scrut, "arms": arms } }
+}
+
 pub fn parseStmt_if(sess) {
     if !(sess["pCur"].type == TOKEN_IF) {
         return null
     }
     bump(sess)
+    if sess["pCur"].type == TOKEN_LET {
+        return parseStmt_ifLet(sess)
+    }
     // Iterative else-if: avoid deep parseStmt recursion (hangs on long chains).
     let chainConds = []
     let chainThens = []
@@ -715,6 +766,10 @@ pub fn parseStmt_if(sess) {
         bump(sess)
         if sess["pCur"].type == TOKEN_IF {
             bump(sess)
+            if sess["pCur"].type == TOKEN_LET {
+                finalElse = parseStmt_ifLet(sess)
+                break
+            }
             continue
         }
         finalElse = parseStmt_if_else_block(sess)

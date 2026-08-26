@@ -44,6 +44,17 @@ pub fn emitOp2(E, op, arg, arg2) {
     }
 }
 
+pub fn emitOp3(E, op, arg, arg2, arg3) {
+    let rec = { "op": op, "arg": arg, "arg2": arg2, "arg3": arg3 }
+    if E["eInFn"] == 1 {
+        E["eFnOps"] = push(E["eFnOps"], rec)
+        E["eFnOpsN"] = E["eFnOpsN"] + 1
+    } else {
+        E["eOps"] = push(E["eOps"], rec)
+        E["eOpsN"] = E["eOpsN"] + 1
+    }
+}
+
 pub fn opsLen(E) {
     if E["eInFn"] == 1 {
         return E["eFnOpsN"]
@@ -64,10 +75,14 @@ pub fn patchJumpTo(E, idx, target) {
     }
     let off = target - idx - 1
     let patched = { "op": rec.op, "arg": rec.arg }
-    if rec.arg2 != undefined {
-        patched = { "op": rec.op, "arg": rec.arg, "arg2": off }
+    if rec.arg3 != undefined {
+        patched = { "op": rec.op, "arg": rec.arg, "arg2": rec.arg2, "arg3": off }
     } else {
-        patched = { "op": rec.op, "arg": off }
+        if rec.arg2 != undefined {
+            patched = { "op": rec.op, "arg": rec.arg, "arg2": off }
+        } else {
+            patched = { "op": rec.op, "arg": off }
+        }
     }
     if E["eInFn"] == 1 {
         E["eFnOps"][idx] = patched

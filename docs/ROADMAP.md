@@ -8,7 +8,7 @@
 >
 > **Dok efter varje deepen:** uppdatera **[ROADMAP.md](ROADMAP.md)** (status + **Nästa**) och **[self_host/README.md](../self_host/README.md)** (nuläge + milstolpar + tester) i samma pass som koden. Språkytor: även [LANGUAGE.md](LANGUAGE.md) / [FEATURES.md](FEATURES.md) när paritet ändras.
 
-**Nu:** språk i self-host (`match` array/objekt + Kab-VM opcodes) → SH5 platå (DAG 12) → SH16 redan stängd för appar → Kab-VM/JIT/GC deepen → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
+**Nu:** språk i self-host (`match` enum + `if let`/`while let`) → SH5 platå (DAG 12) → SH16 redan stängd för appar → Kab-VM/JIT/GC deepen → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
 
 Produktplaner: **[kOS](../lib/kos/README.md)** · **[kbrowser](../lib/kbrowser/README.md)** · **[kabtest](../lib/kabtest/README.md)**. Detalj: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-).
 
@@ -623,10 +623,10 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
 | **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/kos/async` använder riktig `await` | ✅ |
 | **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `kos/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
-| **L6** | **Self-host `match`** — parse+emit i `parser_postfix` / `emit_expr_body` så appar (SH16, ingen Rust-emit) kan kompilera `match` | ✅ subset: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** (inkl. `...rest`) + Kab-VM `jump_unless_*`/`match_fail`/`unwrap_*`. Kvar: enum-mönster, `if let`/`while let` |
+| **L6** | **Self-host `match`** — parse+emit i `parser_postfix` / `emit_expr_body` så appar (SH16, ingen Rust-emit) kan kompilera `match` | ✅ subset: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** + **enum-mönster** (`Type.Variant` / fält) + **`if let`/`while let`** (socker → `match`) + Kab-VM `jump_unless_*`/`match_fail`/`unwrap_*`/`jump_unless_enum_variant`/`unpack_enum_fields`. Kvar: enum-sektion i text-`.kbc` (runtime `Color.Red` utan host-enum-register) |
 
 **Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`  
-**Checkpoint L6:** `cargo test --test self_host self_host_match_const_wildcard_compile_run` + `self_host_match_array_object_compile_run` + `self_host_match_const_kab_only`
+**Checkpoint L6:** `cargo test --test self_host self_host_match_const_wildcard_compile_run` + `self_host_match_array_object_compile_run` + `self_host_match_const_kab_only` + `self_host_if_let_some_compile_run` + `self_host_while_let_ok_compile_run` + `self_host_match_enum_pattern_ir`
 
 ### Våg O — Ownership (systems, compile-time) ✅ subset
 
@@ -737,7 +737,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
 | **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` (`--rust` / `--self-host`; `self_host/` → Rust) | ✅ |
 | **S3** | CI: self-host bygger self-host (bootstrap) som gate | ✅ |
-| **S4** | **Språkparitet i produktkompilatorn** — `match` parse+emit (L6); inte bara host-Rust | ✅ subset (`self_host_parser_suite` + match compile-run + kab-only + `vm_lang_probe`); enum-mönster + `if let`/`while let` kvar |
+| **S4** | **Språkparitet i produktkompilatorn** — `match` parse+emit (L6); inte bara host-Rust | ✅ subset (`if let`/`while let` + enum-mönster-IR; text-`.kbc` enum-register kvar) |
 
 ### Våg K — Ekosystem i Kabootar 📋
 
@@ -1028,7 +1028,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 - Ny Cranelift/IC/GC i Rust (det ska bli `.kab`).
 - Att checka in `_probe_*.kab` som produkt.
 
-**Nästa:** språk i self-host — enum-mönster + `if let`/`while let`; SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH17 JIT exec round-trip deepen. Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
+**Nästa:** språk i self-host — enum-register i text-`.kbc` (kör `Color.Red`); SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH17 JIT exec round-trip deepen. Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 

@@ -237,6 +237,8 @@ pub let OP_JUMP_UNLESS_ARRAY = "jump_unless_array"
 pub let OP_JUMP_UNLESS_OBJECT = "jump_unless_object"
 pub let OP_JUMP_UNLESS_OBJECT_EMPTY = "jump_unless_object_empty"
 pub let OP_JUMP_UNLESS_HAS_MEMBER = "jump_unless_has_member"
+pub let OP_JUMP_UNLESS_ENUM_VARIANT = "jump_unless_enum_variant"
+pub let OP_UNPACK_ENUM_FIELDS = "unpack_enum_fields"
 pub let OP_INDEX_PEEK_FROM_END = "index_peek_from_end"
 pub let OP_ARRAY_SLICE_REST = "array_slice_rest"
 pub let OP_OBJECT_REST = "object_rest"
@@ -294,6 +296,10 @@ pub fn pCallCompare(sess) {
 
 pub fn pCallStmt(sess) {
     return pCallHook(sess, 7)
+}
+
+pub fn pCallMatchPat(sess) {
+    return pCallHook(sess, 8)
 }
 
 pub fn peek(sess) {
