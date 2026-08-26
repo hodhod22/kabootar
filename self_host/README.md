@@ -29,7 +29,7 @@ Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** R
 | Facader | `pub let` alias, inte wrapping `pub fn` (SH3b) |
 | Lexer | **SH12:** `gLxSess` + in-place tokens; skip/ident/number cache `src`/`pos` |
 | Parser/emit | **SH2/SH13:** återanvänd `gSess`/`gE` + `pResetSession`/`eResetSession`; tramp 0-arg. `pCondStack` på sess |
-| **`match`** | ✅ produktkompilatorn: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** + **enum-mönster** + **`if let`/`while let`**. Text-`.kbc` **enum-sektion**; `Color.Red` körs (host + Kab-VM). Payload-ctors (`Variant(x)`) i Kab-VM kvar |
+| **`match`** | ✅ produktkompilatorn: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** + **enum** (unit + payload-ctors) + **`if let`/`while let`**. Text-`.kbc` enum-sektion; host + Kab-VM |
 | Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
 | Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
 | Tiny parse | `sh8_tiny_parse_via_compiler_image` i CI; full `compile("return 1")` ignored i debug |
@@ -57,7 +57,7 @@ cargo test --test self_host self_host_parser_suite -- --test-threads=1
 cargo test --test self_host self_host_if_let_some_compile_run -- --test-threads=1
 cargo test --test self_host self_host_while_let_ok_compile_run -- --test-threads=1
 cargo test --test self_host self_host_match_enum_pattern_compile_run -- --test-threads=1
-cargo test --test self_host self_host_match_enum_pattern_kab_only -- --test-threads=1
+cargo test --test self_host self_host_match_enum_payload -- --test-threads=1
 kabootar self_host/test_tiny.kab
 kabootar compile self_host/sample.kab
 ```
@@ -131,7 +131,7 @@ Kort ordning:
 1. ~~SH0/SH1~~ ✅ · **SH2** nested named `fn` + sess ✅
 2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections+out+ir_line+acc, parser_expr→exec, parser_hooks/lexer_defs/emit_defs→ast_defs, lexer_tokenize→scan, emit_fn_scope/hooks/arr_util→sym, emit_sym_index→sym, emit_tramp/main_fn→exec, parser_main/tramp/type_args/session→exec, parser_block→hooks)
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
-4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`**: enum-runtime (`Color.Red`) + `if let`/`while let`.
+4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`**: enum unit + payload + `if let`/`while let`.
 5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; `gcHostDeleteOk` host-GC dual-bind)
 6. ~~**SH19**~~ ✅ subset + deepen (`loadMainDeleteOk` main.rs dual-bind)
 7. ~~**SH20**~~ ✅ subset (JSON/datum/regex leaves); radera natives deepen
