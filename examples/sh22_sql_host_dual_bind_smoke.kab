@@ -1,0 +1,21 @@
+import "kab/sql"
+import "kab/sql_where"
+import "kab/sql_store"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsSelect("SELECT 1") == false {
+    return false
+}
+if sqlScalarOne() != 1 {
+    return false
+}
+if sqlIsWhere("SELECT 1 WHERE x = 1") == false {
+    return false
+}
+if sqlStoreOk(0) == false {
+    return false
+}
+return sqlHostDeleteOk() == false

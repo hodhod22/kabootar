@@ -1,0 +1,8 @@
+import "kab/jit_loop_or"
+import "kab/jit_call_loop_or"
+
+let kind = "rwx"
+let n = 12
+let mask = 0
+let tpl = jitEmitI64LoopOrN(8, 10)
+return jitCallLoopOrOk(466944, kind, n, mask, tpl) == false

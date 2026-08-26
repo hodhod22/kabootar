@@ -1,0 +1,8 @@
+import "kab/jit_loop_eq"
+import "kab/jit_call_loop_eq"
+
+let kind = "rwx"
+let n = 12
+let k = 0
+let tpl = jitEmitI64LoopEqN(8, 12)
+return jitCallLoopEqOk(524288, kind, n, k, tpl) == false

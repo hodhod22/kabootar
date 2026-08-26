@@ -1,0 +1,10 @@
+import "kab/cli_lint"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsLint("lint") == false {
+    return false
+}
+return cliHostDeleteOk() == false

@@ -1,0 +1,10 @@
+import "kab/jit_loop_ge"
+import "kab/jit_mm_loop_ge"
+import "kab/jit_call_loop_ge"
+
+let kind = "rwx"
+let n = 12
+let k = 12
+let tpl = jitEmitI64LoopGeN(n, k)
+let base = os_mm_mmap(jitMmLoopGePid(), jitMmLoopGeVirt(), jitMmLoopGeLen(), jitMmLoopGeProt())
+return jitCallLoopGeOk(base, kind, n, k, tpl)

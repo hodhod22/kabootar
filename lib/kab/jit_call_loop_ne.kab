@@ -1,0 +1,24 @@
+// SH17 deepen: loop-ne wr+run+call pipeline. import "kab/jit_call_loop_ne"
+// Do not grow jit_call_loop_eq.kab.
+
+import "kab/jit_wr_loop_ne"
+import "kab/jit_run_loop_ne"
+import "kab/jit_mm_call_loop_ne"
+import "kab/jit_loop_ne"
+
+pub fn jitCallLoopNeOk(base, kind, n, k, bytes) {
+    if jitLoopNeOk(n, k) == false {
+        return false
+    }
+    if jitWrLoopNeOk(bytes, n, k) == false {
+        return false
+    }
+    if jitRunLoopNeOk(base, kind, bytes, n, k) == false {
+        return false
+    }
+    let rax = jitMmCallLoopNe(bytes, n, k)
+    if rax != jitLoopNeRax(n, k) {
+        return false
+    }
+    return true
+}

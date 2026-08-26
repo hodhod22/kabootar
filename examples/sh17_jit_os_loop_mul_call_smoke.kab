@@ -1,0 +1,10 @@
+import "kab/jit_loop_mul"
+import "kab/jit_mm_loop_mul"
+import "kab/jit_call_loop_mul"
+
+let kind = "rwx"
+let n = 16
+let m = 3
+let tpl = jitEmitI64LoopMulN(n, m)
+let base = os_mm_mmap(jitMmLoopMulPid(), jitMmLoopMulVirt(), jitMmLoopMulLen(), jitMmLoopMulProt())
+return jitCallLoopMulOk(base, kind, n, m, tpl)

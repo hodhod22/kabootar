@@ -1,0 +1,10 @@
+import "kab/crypto_aes"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoAes256Ok("aes-256") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

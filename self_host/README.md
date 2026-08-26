@@ -132,18 +132,18 @@ Kort ordning:
 2. ~~SH3–SH7b~~ ✅ · ~~SH5 densify~~ ✅ (serialize_sections+out+ir_line+acc, parser_expr→exec, parser_hooks/lexer_defs/emit_defs→ast_defs, lexer_tokenize→scan, emit_fn_scope/hooks/arr_util→sym, emit_sym_index→sym, emit_tramp/main_fn→exec, parser_main/tramp/type_args/session→exec, parser_block→hooks)
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
 4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`**: enum unit + payload + `if let`/`while let`.
-5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; `gcHostDeleteOk` host-GC dual-bind)
+5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; loop8/loopN/arith-imm/bit-ops/shifts/unary/eq/ne/lt/gt/le/ge `os_mm_call`; `gcHostDeleteOk` host-GC dual-bind)
 6. ~~**SH19**~~ ✅ subset + deepen (`loadMainDeleteOk` main.rs dual-bind)
-7. ~~**SH20**~~ ✅ subset (JSON/datum/regex leaves); radera natives deepen
-8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk`); radera `runtime/os` deepen
-9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk`); radera `src/sql` deepen
-10. ~~**SH23**~~ ✅ subset (`cryptoTls12Ok` + `cryptoRootPem`); rustls-delete deepen
-11. ~~**SH24**~~ ✅ subset (`httpIsPost` + `httpIsJson`); radera `runtime/http.rs` deepen
-12. ~~**SH25**~~ ✅ subset (`cliIsCompile` + `cliIsFmt`); radera `src/cli` deepen
-13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2`); GPU kernel deepen
-14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk`); kbrowser deepen
+7. ~~**SH20**~~ ✅ subset (JSON/datum/regex + math + objekt + collections leaves); radera natives deepen
+8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk` + `kabOsEnvOk` + `kabOsCwdOk`); radera `runtime/os` deepen
+9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk` + `sqlIsLimit` + `sqlIsOrder` + `sqlIsInsert` + `sqlIsUpdate` + `sqlIsDelete`); radera `src/sql` deepen
+10. ~~**SH23**~~ ✅ subset (`cryptoTls12Ok` + `cryptoRootPem` + `cryptoTls13Ok` + `cryptoSha256Ok` + `cryptoHmacOk` + `cryptoAes256Ok`); rustls-delete deepen
+11. ~~**SH24**~~ ✅ subset (`httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete`); radera `runtime/http.rs` deepen
+12. ~~**SH25**~~ ✅ subset (`cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp`); radera `src/cli` deepen
+13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv`); GPU kernel deepen
+14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk` + `uiIsSpan`); kbrowser deepen
 15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
-16. ~~**F10 AOT native-image policy**~~ ✅ (ret-stub + sym/reloc + `nollAotReady` dual-bind); ~~**SH17–SH19 deepen**~~ ✅ (`jitMmapOk`, `gcHostDeleteOk`, `loadMainDeleteOk` still false)
+16. ~~**F10 AOT native-image policy**~~ ✅ (ret-stub + sym/reloc + `nollAotReady` dual-bind); ~~**SH17–SH19 deepen**~~ ✅ (`jitMmapOk`, loopN arith-imm + bit-ops/shifts/unary/eq/ne/lt/gt/le/ge exec, `gcHostDeleteOk`, `loadMainDeleteOk` still false)
 
 ## Historisk bootstrap-logg
 

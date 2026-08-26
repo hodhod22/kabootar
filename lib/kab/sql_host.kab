@@ -1,0 +1,6 @@
+// SH22: host src/sql delete policy off sql.kab. import "kab/sql_host"
+// Do not grow sql.kab. Do not delete src/sql until smoke is complete.
+
+pub fn sqlHostDeleteOk() {
+    return false
+}

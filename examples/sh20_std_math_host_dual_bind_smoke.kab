@@ -1,0 +1,10 @@
+import "kab/std_math"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+if stdMul(6, 7) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

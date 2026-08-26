@@ -1,0 +1,10 @@
+import "kab/jit_loop_shl"
+import "kab/jit_mm_loop_shl"
+import "kab/jit_call_loop_shl"
+
+let kind = "rwx"
+let n = 12
+let sh = 1
+let tpl = jitEmitI64LoopShlN(n, sh)
+let base = os_mm_mmap(jitMmLoopShlPid(), jitMmLoopShlVirt(), jitMmLoopShlLen(), jitMmLoopShlProt())
+return jitCallLoopShlOk(base, kind, n, sh, tpl)

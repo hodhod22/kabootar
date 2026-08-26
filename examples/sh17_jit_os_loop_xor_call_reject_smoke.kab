@@ -1,0 +1,8 @@
+import "kab/jit_loop_xor"
+import "kab/jit_call_loop_xor"
+
+let kind = "rwx"
+let n = 12
+let mask = 0
+let tpl = jitEmitI64LoopXorN(8, 10)
+return jitCallLoopXorOk(475136, kind, n, mask, tpl) == false

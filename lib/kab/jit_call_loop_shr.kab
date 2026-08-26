@@ -1,0 +1,24 @@
+// SH17 deepen: loop-shr wr+run+call pipeline. import "kab/jit_call_loop_shr"
+// Do not grow jit_call_loop_shl.kab.
+
+import "kab/jit_wr_loop_shr"
+import "kab/jit_run_loop_shr"
+import "kab/jit_mm_call_loop_shr"
+import "kab/jit_loop_shr"
+
+pub fn jitCallLoopShrOk(base, kind, n, sh, bytes) {
+    if jitLoopShrOk(n, sh) == false {
+        return false
+    }
+    if jitWrLoopShrOk(bytes, n, sh) == false {
+        return false
+    }
+    if jitRunLoopShrOk(base, kind, bytes, n, sh) == false {
+        return false
+    }
+    let rax = jitMmCallLoopShr(bytes, n, sh)
+    if rax != jitLoopShrRax(n, sh) {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,10 @@
+import "kab/sql_order"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsOrder("SELECT 1 ORDER BY x") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

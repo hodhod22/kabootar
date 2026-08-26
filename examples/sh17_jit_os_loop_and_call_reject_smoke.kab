@@ -1,0 +1,8 @@
+import "kab/jit_loop_and"
+import "kab/jit_call_loop_and"
+
+let kind = "rwx"
+let n = 12
+let mask = 0
+let tpl = jitEmitI64LoopAndN(8, 10)
+return jitCallLoopAndOk(458752, kind, n, mask, tpl) == false

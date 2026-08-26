@@ -1,0 +1,10 @@
+import "kab/cli_version"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsVersion("version") == false {
+    return false
+}
+return cliHostDeleteOk() == false

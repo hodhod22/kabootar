@@ -981,6 +981,1103 @@ fn sh17_jit_os_loop_n_call_reject_in_kab() {
     );
 }
 
+/// SH17 deepen: variable-count i64 loopN+add template lives off jit_loop_n.kab.
+#[test]
+fn sh17_jit_loop_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_add.kab")).expect("jit_loop_add.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopAddN")
+            && n.contains("pub fn jitLoopAddOk")
+            && n.contains("pub fn jitLoopAddRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+add template"
+    );
+}
+
+/// SH17 deepen: loop-add wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_add.kab")).expect("jit_call_loop_add.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopAddOk")
+            && c.contains("jitWrLoopAddOk")
+            && c.contains("jitRunLoopAddOk")
+            && c.contains("jitMmCallLoopAdd"),
+        "SH17 Kab jitCallLoopAddOk loop-add pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+add template.
+#[test]
+fn sh17_jit_os_loop_add_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_add_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_add_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopAddOk")
+            && s.contains("jitEmitI64LoopAddN")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab loop-add os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid add imm before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_add_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_add_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_add_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopAddOk")
+            && s.contains("jitEmitI64LoopAddN")
+            && s.contains("0"),
+        "SH17 Kab loop-add call rejection"
+    );
+}
+
+/// SH17 deepen: variable-count i64 loopN+sub template lives off jit_loop_add.kab.
+#[test]
+fn sh17_jit_loop_sub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_sub.kab")).expect("jit_loop_sub.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopSubN")
+            && n.contains("pub fn jitLoopSubOk")
+            && n.contains("pub fn jitLoopSubRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+sub template"
+    );
+}
+
+/// SH17 deepen: loop-sub wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_sub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_sub.kab")).expect("jit_call_loop_sub.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopSubOk")
+            && c.contains("jitWrLoopSubOk")
+            && c.contains("jitRunLoopSubOk")
+            && c.contains("jitMmCallLoopSub"),
+        "SH17 Kab jitCallLoopSubOk loop-sub pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+sub template.
+#[test]
+fn sh17_jit_os_loop_sub_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_sub_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_sub_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopSubOk")
+            && s.contains("jitEmitI64LoopSubN")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab loop-sub os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid sub imm before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_sub_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_sub_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_sub_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopSubOk")
+            && s.contains("jitEmitI64LoopSubN")
+            && s.contains("0"),
+        "SH17 Kab loop-sub call rejection"
+    );
+}
+
+/// SH17 deepen: variable-count i64 loopN+mul template lives off jit_loop_sub.kab.
+#[test]
+fn sh17_jit_loop_mul_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_mul.kab")).expect("jit_loop_mul.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopMulN")
+            && n.contains("pub fn jitLoopMulOk")
+            && n.contains("pub fn jitLoopMulRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+mul template"
+    );
+}
+
+/// SH17 deepen: loop-mul wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_mul_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_mul.kab")).expect("jit_call_loop_mul.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopMulOk")
+            && c.contains("jitWrLoopMulOk")
+            && c.contains("jitRunLoopMulOk")
+            && c.contains("jitMmCallLoopMul"),
+        "SH17 Kab jitCallLoopMulOk loop-mul pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+mul template.
+#[test]
+fn sh17_jit_os_loop_mul_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_mul_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_mul_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopMulOk")
+            && s.contains("jitEmitI64LoopMulN")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab loop-mul os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid mul imm before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_mul_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_mul_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_mul_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopMulOk")
+            && s.contains("jitEmitI64LoopMulN")
+            && s.contains("0"),
+        "SH17 Kab loop-mul call rejection"
+    );
+}
+
+/// SH17 deepen: variable-count i64 loopN+div template lives off jit_loop_mul.kab.
+#[test]
+fn sh17_jit_loop_div_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_div.kab")).expect("jit_loop_div.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopDivN")
+            && n.contains("pub fn jitLoopDivOk")
+            && n.contains("pub fn jitLoopDivRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+div template"
+    );
+}
+
+/// SH17 deepen: loop-div wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_div_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_div.kab")).expect("jit_call_loop_div.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopDivOk")
+            && c.contains("jitWrLoopDivOk")
+            && c.contains("jitRunLoopDivOk")
+            && c.contains("jitMmCallLoopDiv"),
+        "SH17 Kab jitCallLoopDivOk loop-div pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+div template.
+#[test]
+fn sh17_jit_os_loop_div_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_div_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_div_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopDivOk")
+            && s.contains("jitEmitI64LoopDivN")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("2"),
+        "SH17 Kab loop-div os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid div imm before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_div_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_div_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_div_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopDivOk")
+            && s.contains("jitEmitI64LoopDivN")
+            && s.contains("0"),
+        "SH17 Kab loop-div call rejection"
+    );
+}
+
+/// SH17 deepen: variable-count i64 loopN+mod template lives off jit_loop_div.kab.
+#[test]
+fn sh17_jit_loop_mod_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_mod.kab")).expect("jit_loop_mod.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopModN")
+            && n.contains("pub fn jitLoopModOk")
+            && n.contains("pub fn jitLoopModRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+mod template"
+    );
+}
+
+/// SH17 deepen: loop-mod wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_mod_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_mod.kab")).expect("jit_call_loop_mod.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopModOk")
+            && c.contains("jitWrLoopModOk")
+            && c.contains("jitRunLoopModOk")
+            && c.contains("jitMmCallLoopMod"),
+        "SH17 Kab jitCallLoopModOk loop-mod pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+mod template.
+#[test]
+fn sh17_jit_os_loop_mod_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_mod_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_mod_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopModOk")
+            && s.contains("jitEmitI64LoopModN")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("5"),
+        "SH17 Kab loop-mod os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid mod imm before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_mod_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_mod_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_mod_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopModOk")
+            && s.contains("jitEmitI64LoopModN")
+            && s.contains("0"),
+        "SH17 Kab loop-mod call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+bit-and template lives off jit_loop_mod.kab.
+#[test]
+fn sh17_jit_loop_and_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_and.kab")).expect("jit_loop_and.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopAndN")
+            && n.contains("pub fn jitLoopAndOk")
+            && n.contains("pub fn jitLoopAndRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+and template"
+    );
+}
+
+/// SH17 deepen: loop-and wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_and_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_and.kab")).expect("jit_call_loop_and.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopAndOk")
+            && c.contains("jitWrLoopAndOk")
+            && c.contains("jitRunLoopAndOk")
+            && c.contains("jitMmCallLoopAnd"),
+        "SH17 Kab jitCallLoopAndOk loop-and pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+and template.
+#[test]
+fn sh17_jit_os_loop_and_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_and_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_and_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopAndOk")
+            && s.contains("jitEmitI64LoopAndN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-and os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid and-mask before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_and_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_and_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_and_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopAndOk")
+            && s.contains("jitEmitI64LoopAndN")
+            && s.contains("0"),
+        "SH17 Kab loop-and call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+bit-or template lives off jit_loop_and.kab.
+#[test]
+fn sh17_jit_loop_or_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_or.kab")).expect("jit_loop_or.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopOrN")
+            && n.contains("pub fn jitLoopOrOk")
+            && n.contains("pub fn jitLoopOrRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+or template"
+    );
+}
+
+/// SH17 deepen: loop-or wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_or_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_or.kab")).expect("jit_call_loop_or.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopOrOk")
+            && c.contains("jitWrLoopOrOk")
+            && c.contains("jitRunLoopOrOk")
+            && c.contains("jitMmCallLoopOr"),
+        "SH17 Kab jitCallLoopOrOk loop-or pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+or template.
+#[test]
+fn sh17_jit_os_loop_or_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_or_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_or_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopOrOk")
+            && s.contains("jitEmitI64LoopOrN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-or os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid or-mask before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_or_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_or_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_or_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopOrOk")
+            && s.contains("jitEmitI64LoopOrN")
+            && s.contains("0"),
+        "SH17 Kab loop-or call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+bit-xor template lives off jit_loop_or.kab.
+#[test]
+fn sh17_jit_loop_xor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_xor.kab")).expect("jit_loop_xor.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopXorN")
+            && n.contains("pub fn jitLoopXorOk")
+            && n.contains("pub fn jitLoopXorRax")
+            && n.contains("64"),
+        "SH17 Kab i64 loopN+xor template"
+    );
+}
+
+/// SH17 deepen: loop-xor wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_xor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_xor.kab")).expect("jit_call_loop_xor.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopXorOk")
+            && c.contains("jitWrLoopXorOk")
+            && c.contains("jitRunLoopXorOk")
+            && c.contains("jitMmCallLoopXor"),
+        "SH17 Kab jitCallLoopXorOk loop-xor pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+xor template.
+#[test]
+fn sh17_jit_os_loop_xor_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_xor_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_xor_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopXorOk")
+            && s.contains("jitEmitI64LoopXorN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-xor os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid xor-mask before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_xor_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_xor_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_xor_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopXorOk")
+            && s.contains("jitEmitI64LoopXorN")
+            && s.contains("0"),
+        "SH17 Kab loop-xor call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+shl template lives off jit_loop_xor.kab.
+#[test]
+fn sh17_jit_loop_shl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_shl.kab")).expect("jit_loop_shl.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopShlN")
+            && n.contains("pub fn jitLoopShlOk")
+            && n.contains("pub fn jitLoopShlRax")
+            && n.contains("6"),
+        "SH17 Kab i64 loopN+shl template"
+    );
+}
+
+/// SH17 deepen: loop-shl wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_shl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_shl.kab")).expect("jit_call_loop_shl.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopShlOk")
+            && c.contains("jitWrLoopShlOk")
+            && c.contains("jitRunLoopShlOk")
+            && c.contains("jitMmCallLoopShl"),
+        "SH17 Kab jitCallLoopShlOk loop-shl pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+shl template.
+#[test]
+fn sh17_jit_os_loop_shl_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_shl_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_shl_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopShlOk")
+            && s.contains("jitEmitI64LoopShlN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("1"),
+        "SH17 Kab loop-shl os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid shl before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_shl_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_shl_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_shl_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopShlOk")
+            && s.contains("jitEmitI64LoopShlN")
+            && s.contains("0"),
+        "SH17 Kab loop-shl call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+shr template lives off jit_loop_shl.kab.
+#[test]
+fn sh17_jit_loop_shr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_shr.kab")).expect("jit_loop_shr.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopShrN")
+            && n.contains("pub fn jitLoopShrOk")
+            && n.contains("pub fn jitLoopShrRax")
+            && n.contains("6"),
+        "SH17 Kab i64 loopN+shr template"
+    );
+}
+
+/// SH17 deepen: loop-shr wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_shr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_shr.kab")).expect("jit_call_loop_shr.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopShrOk")
+            && c.contains("jitWrLoopShrOk")
+            && c.contains("jitRunLoopShrOk")
+            && c.contains("jitMmCallLoopShr"),
+        "SH17 Kab jitCallLoopShrOk loop-shr pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+shr template.
+#[test]
+fn sh17_jit_os_loop_shr_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_shr_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_shr_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopShrOk")
+            && s.contains("jitEmitI64LoopShrN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("1"),
+        "SH17 Kab loop-shr os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid shr before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_shr_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_shr_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_shr_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopShrOk")
+            && s.contains("jitEmitI64LoopShrN")
+            && s.contains("0"),
+        "SH17 Kab loop-shr call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+ushr template lives off jit_loop_shr.kab.
+#[test]
+fn sh17_jit_loop_ushr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_ushr.kab")).expect("jit_loop_ushr.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopUshrN")
+            && n.contains("pub fn jitLoopUshrOk")
+            && n.contains("pub fn jitLoopUshrRax")
+            && n.contains("6"),
+        "SH17 Kab i64 loopN+ushr template"
+    );
+}
+
+/// SH17 deepen: loop-ushr wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_ushr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_ushr.kab")).expect("jit_call_loop_ushr.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopUshrOk")
+            && c.contains("jitWrLoopUshrOk")
+            && c.contains("jitRunLoopUshrOk")
+            && c.contains("jitMmCallLoopUshr"),
+        "SH17 Kab jitCallLoopUshrOk loop-ushr pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+ushr template.
+#[test]
+fn sh17_jit_os_loop_ushr_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ushr_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_ushr_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopUshrOk")
+            && s.contains("jitEmitI64LoopUshrN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("2"),
+        "SH17 Kab loop-ushr os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid ushr before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_ushr_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ushr_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_ushr_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopUshrOk")
+            && s.contains("jitEmitI64LoopUshrN")
+            && s.contains("0"),
+        "SH17 Kab loop-ushr call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+bit_not template lives off jit_loop_ushr.kab.
+#[test]
+fn sh17_jit_loop_not_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_not.kab")).expect("jit_loop_not.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopNotN")
+            && n.contains("pub fn jitLoopNotOk")
+            && n.contains("pub fn jitLoopNotRax")
+            && n.contains("83"),
+        "SH17 Kab i64 loopN+not template"
+    );
+}
+
+/// SH17 deepen: loop-not wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_not_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_not.kab")).expect("jit_call_loop_not.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopNotOk")
+            && c.contains("jitWrLoopNotOk")
+            && c.contains("jitRunLoopNotOk")
+            && c.contains("jitMmCallLoopNot"),
+        "SH17 Kab jitCallLoopNotOk loop-not pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+not template.
+#[test]
+fn sh17_jit_os_loop_not_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_not_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_not_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNotOk")
+            && s.contains("jitEmitI64LoopNotN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-not os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid not count before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_not_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_not_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_not_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNotOk")
+            && s.contains("jitEmitI64LoopNotN")
+            && s.contains("0"),
+        "SH17 Kab loop-not call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+neg template lives off jit_loop_not.kab.
+#[test]
+fn sh17_jit_loop_neg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_neg.kab")).expect("jit_loop_neg.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopNegN")
+            && n.contains("pub fn jitLoopNegOk")
+            && n.contains("pub fn jitLoopNegRax")
+            && n.contains("84"),
+        "SH17 Kab i64 loopN+neg template"
+    );
+}
+
+/// SH17 deepen: loop-neg wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_neg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_neg.kab")).expect("jit_call_loop_neg.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopNegOk")
+            && c.contains("jitWrLoopNegOk")
+            && c.contains("jitRunLoopNegOk")
+            && c.contains("jitMmCallLoopNeg"),
+        "SH17 Kab jitCallLoopNegOk loop-neg pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+neg template.
+#[test]
+fn sh17_jit_os_loop_neg_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_neg_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_neg_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNegOk")
+            && s.contains("jitEmitI64LoopNegN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-neg os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid neg count before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_neg_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_neg_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_neg_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNegOk")
+            && s.contains("jitEmitI64LoopNegN")
+            && s.contains("0"),
+        "SH17 Kab loop-neg call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+eq template lives off jit_loop_neg.kab.
+#[test]
+fn sh17_jit_loop_eq_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_eq.kab")).expect("jit_loop_eq.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopEqN")
+            && n.contains("pub fn jitLoopEqOk")
+            && n.contains("pub fn jitLoopEqRax")
+            && n.contains("85"),
+        "SH17 Kab i64 loopN+eq template"
+    );
+}
+
+/// SH17 deepen: loop-eq wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_eq_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_eq.kab")).expect("jit_call_loop_eq.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopEqOk")
+            && c.contains("jitWrLoopEqOk")
+            && c.contains("jitRunLoopEqOk")
+            && c.contains("jitMmCallLoopEq"),
+        "SH17 Kab jitCallLoopEqOk loop-eq pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+eq template.
+#[test]
+fn sh17_jit_os_loop_eq_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_eq_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_eq_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopEqOk")
+            && s.contains("jitEmitI64LoopEqN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-eq os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid eq rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_eq_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_eq_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_eq_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopEqOk")
+            && s.contains("jitEmitI64LoopEqN")
+            && s.contains("0"),
+        "SH17 Kab loop-eq call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+ne template lives off jit_loop_eq.kab.
+#[test]
+fn sh17_jit_loop_ne_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_ne.kab")).expect("jit_loop_ne.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopNeN")
+            && n.contains("pub fn jitLoopNeOk")
+            && n.contains("pub fn jitLoopNeRax")
+            && n.contains("86"),
+        "SH17 Kab i64 loopN+ne template"
+    );
+}
+
+/// SH17 deepen: loop-ne wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_ne_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_ne.kab")).expect("jit_call_loop_ne.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopNeOk")
+            && c.contains("jitWrLoopNeOk")
+            && c.contains("jitRunLoopNeOk")
+            && c.contains("jitMmCallLoopNe"),
+        "SH17 Kab jitCallLoopNeOk loop-ne pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+ne template.
+#[test]
+fn sh17_jit_os_loop_ne_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ne_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_ne_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNeOk")
+            && s.contains("jitEmitI64LoopNeN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-ne os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid ne rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_ne_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ne_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_ne_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNeOk")
+            && s.contains("jitEmitI64LoopNeN")
+            && s.contains("0"),
+        "SH17 Kab loop-ne call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+lt template lives off jit_loop_ne.kab.
+#[test]
+fn sh17_jit_loop_lt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_lt.kab")).expect("jit_loop_lt.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopLtN")
+            && n.contains("pub fn jitLoopLtOk")
+            && n.contains("pub fn jitLoopLtRax")
+            && n.contains("87"),
+        "SH17 Kab i64 loopN+lt template"
+    );
+}
+
+/// SH17 deepen: loop-lt wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_lt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_lt.kab")).expect("jit_call_loop_lt.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopLtOk")
+            && c.contains("jitWrLoopLtOk")
+            && c.contains("jitRunLoopLtOk")
+            && c.contains("jitMmCallLoopLt"),
+        "SH17 Kab jitCallLoopLtOk loop-lt pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+lt template.
+#[test]
+fn sh17_jit_os_loop_lt_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_lt_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_lt_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopLtOk")
+            && s.contains("jitEmitI64LoopLtN")
+            && s.contains("os_mm_mmap")
+            && s.contains("10")
+            && s.contains("12"),
+        "SH17 Kab loop-lt os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid lt rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_lt_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_lt_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_lt_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopLtOk")
+            && s.contains("jitEmitI64LoopLtN")
+            && s.contains("0"),
+        "SH17 Kab loop-lt call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+gt template lives off jit_loop_lt.kab.
+#[test]
+fn sh17_jit_loop_gt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_gt.kab")).expect("jit_loop_gt.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopGtN")
+            && n.contains("pub fn jitLoopGtOk")
+            && n.contains("pub fn jitLoopGtRax")
+            && n.contains("88"),
+        "SH17 Kab i64 loopN+gt template"
+    );
+}
+
+/// SH17 deepen: loop-gt wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_gt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_gt.kab")).expect("jit_call_loop_gt.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopGtOk")
+            && c.contains("jitWrLoopGtOk")
+            && c.contains("jitRunLoopGtOk")
+            && c.contains("jitMmCallLoopGt"),
+        "SH17 Kab jitCallLoopGtOk loop-gt pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+gt template.
+#[test]
+fn sh17_jit_os_loop_gt_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_gt_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_gt_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopGtOk")
+            && s.contains("jitEmitI64LoopGtN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-gt os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid gt rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_gt_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_gt_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_gt_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopGtOk")
+            && s.contains("jitEmitI64LoopGtN")
+            && s.contains("0"),
+        "SH17 Kab loop-gt call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+le template lives off jit_loop_gt.kab.
+#[test]
+fn sh17_jit_loop_le_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_le.kab")).expect("jit_loop_le.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopLeN")
+            && n.contains("pub fn jitLoopLeOk")
+            && n.contains("pub fn jitLoopLeRax")
+            && n.contains("89"),
+        "SH17 Kab i64 loopN+le template"
+    );
+}
+
+/// SH17 deepen: loop-le wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_le_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_le.kab")).expect("jit_call_loop_le.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopLeOk")
+            && c.contains("jitWrLoopLeOk")
+            && c.contains("jitRunLoopLeOk")
+            && c.contains("jitMmCallLoopLe"),
+        "SH17 Kab jitCallLoopLeOk loop-le pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+le template.
+#[test]
+fn sh17_jit_os_loop_le_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_le_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_le_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopLeOk")
+            && s.contains("jitEmitI64LoopLeN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-le os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid le rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_le_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_le_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_le_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopLeOk")
+            && s.contains("jitEmitI64LoopLeN")
+            && s.contains("0"),
+        "SH17 Kab loop-le call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+ge template lives off jit_loop_le.kab.
+#[test]
+fn sh17_jit_loop_ge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_ge.kab")).expect("jit_loop_ge.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopGeN")
+            && n.contains("pub fn jitLoopGeOk")
+            && n.contains("pub fn jitLoopGeRax")
+            && n.contains("90"),
+        "SH17 Kab i64 loopN+ge template"
+    );
+}
+
+/// SH17 deepen: loop-ge wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_ge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_ge.kab")).expect("jit_call_loop_ge.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopGeOk")
+            && c.contains("jitWrLoopGeOk")
+            && c.contains("jitRunLoopGeOk")
+            && c.contains("jitMmCallLoopGe"),
+        "SH17 Kab jitCallLoopGeOk loop-ge pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+ge template.
+#[test]
+fn sh17_jit_os_loop_ge_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ge_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_ge_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopGeOk")
+            && s.contains("jitEmitI64LoopGeN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-ge os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid ge rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_ge_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_ge_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_ge_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopGeOk")
+            && s.contains("jitEmitI64LoopGeN")
+            && s.contains("0"),
+        "SH17 Kab loop-ge call rejection"
+    );
+}
+
 /// SH17 deepen: os_mm_mmap + translate write + call dual-bind.
 #[test]
 fn sh17_jit_os_wr_call_in_kab() {
@@ -33531,6 +34628,81 @@ fn sh20_std_host_dual_bind_in_kab() {
     );
 }
 
+/// SH20 deepen: math leaf lives off stdlib.kab.
+#[test]
+fn sh20_std_math_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/std_math.kab")).expect("std_math.kab");
+    assert!(
+        m.contains("pub fn stdMul") && m.contains("*"),
+        "SH20 Kab stdMul"
+    );
+}
+
+/// SH20 deepen: math dual-bind to host delete gate.
+#[test]
+fn sh20_std_math_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh20_std_math_host_dual_bind_smoke.kab"))
+        .expect("sh20_std_math_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("stdHostDeleteOk")
+            && s.contains("stdMul")
+            && s.contains("42"),
+        "SH20 Kab std math host dual-bind"
+    );
+}
+
+/// SH20 deepen: object leaf lives off stdlib.kab.
+#[test]
+fn sh20_std_obj_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let o = std::fs::read_to_string(root.join("lib/kab/std_obj.kab")).expect("std_obj.kab");
+    assert!(
+        o.contains("pub fn stdObjGet") && o.contains("o[k]"),
+        "SH20 Kab stdObjGet"
+    );
+}
+
+/// SH20 deepen: object dual-bind to host delete gate.
+#[test]
+fn sh20_std_obj_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh20_std_obj_host_dual_bind_smoke.kab"))
+        .expect("sh20_std_obj_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("stdHostDeleteOk")
+            && s.contains("stdObjGet")
+            && s.contains("42"),
+        "SH20 Kab std object host dual-bind"
+    );
+}
+
+/// SH20 deepen: collections leaf lives off stdlib.kab.
+#[test]
+fn sh20_std_col_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/std_col.kab")).expect("std_col.kab");
+    assert!(
+        c.contains("pub fn stdColPair") && c.contains("push"),
+        "SH20 Kab stdColPair"
+    );
+}
+
+/// SH20 deepen: collections dual-bind to host delete gate.
+#[test]
+fn sh20_std_col_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh20_std_col_host_dual_bind_smoke.kab"))
+        .expect("sh20_std_col_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("stdHostDeleteOk")
+            && s.contains("stdColPair")
+            && s.contains("42"),
+        "SH20 Kab std collections host dual-bind"
+    );
+}
+
 /// SH21: OS/FS policy lives in Kab (host os_* are capabilities).
 #[test]
 fn sh21_os_plan_in_kab() {
@@ -33595,6 +34767,56 @@ fn sh21_os_host_dual_bind_in_kab() {
     );
 }
 
+/// SH21 deepen: process env leaf lives off os.kab.
+#[test]
+fn sh21_os_env_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/os_env.kab")).expect("os_env.kab");
+    assert!(
+        e.contains("pub fn kabOsEnvOk") && e.contains("len"),
+        "SH21 Kab kabOsEnvOk"
+    );
+}
+
+/// SH21 deepen: env dual-bind to host delete gate.
+#[test]
+fn sh21_os_env_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh21_os_env_host_dual_bind_smoke.kab"))
+        .expect("sh21_os_env_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("kabOsHostDeleteOk")
+            && s.contains("kabOsEnvOk")
+            && s.contains("PATH"),
+        "SH21 Kab os env host dual-bind"
+    );
+}
+
+/// SH21 deepen: cwd leaf lives off os.kab.
+#[test]
+fn sh21_os_cwd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/os_cwd.kab")).expect("os_cwd.kab");
+    assert!(
+        c.contains("pub fn kabOsCwdOk") && c.contains("/"),
+        "SH21 Kab kabOsCwdOk"
+    );
+}
+
+/// SH21 deepen: cwd dual-bind to host delete gate.
+#[test]
+fn sh21_os_cwd_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh21_os_cwd_host_dual_bind_smoke.kab"))
+        .expect("sh21_os_cwd_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("kabOsHostDeleteOk")
+            && s.contains("kabOsCwdOk")
+            && s.contains("/apps"),
+        "SH21 Kab os cwd host dual-bind"
+    );
+}
+
 /// SH22: SQL policy/scalar lives in Kab (host src/sql is skuld).
 #[test]
 fn sh22_sql_plan_in_kab() {
@@ -33654,6 +34876,131 @@ fn sh22_sql_host_dual_bind_in_kab() {
             && s.contains("sqlIsWhere")
             && s.contains("sqlStoreOk"),
         "SH22 Kab sql host dual-bind"
+    );
+}
+
+/// SH22 deepen: LIMIT-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_limit_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/sql_limit.kab")).expect("sql_limit.kab");
+    assert!(
+        l.contains("pub fn sqlIsLimit") && l.contains("LIMIT"),
+        "SH22 Kab sqlIsLimit"
+    );
+}
+
+/// SH22 deepen: LIMIT dual-bind to host delete gate.
+#[test]
+fn sh22_sql_limit_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh22_sql_limit_host_dual_bind_smoke.kab"))
+        .expect("sh22_sql_limit_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sqlHostDeleteOk")
+            && s.contains("sqlIsLimit")
+            && s.contains("LIMIT"),
+        "SH22 Kab sql LIMIT host dual-bind"
+    );
+}
+
+/// SH22 deepen: ORDER-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_order_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let o = std::fs::read_to_string(root.join("lib/kab/sql_order.kab")).expect("sql_order.kab");
+    assert!(
+        o.contains("pub fn sqlIsOrder") && o.contains("ORDER"),
+        "SH22 Kab sqlIsOrder"
+    );
+}
+
+/// SH22 deepen: ORDER dual-bind to host delete gate.
+#[test]
+fn sh22_sql_order_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh22_sql_order_host_dual_bind_smoke.kab"))
+        .expect("sh22_sql_order_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sqlHostDeleteOk")
+            && s.contains("sqlIsOrder")
+            && s.contains("ORDER"),
+        "SH22 Kab sql ORDER host dual-bind"
+    );
+}
+
+/// SH22 deepen: INSERT-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_insert_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/sql_insert.kab")).expect("sql_insert.kab");
+    assert!(
+        i.contains("pub fn sqlIsInsert") && i.contains("INSERT"),
+        "SH22 Kab sqlIsInsert"
+    );
+}
+
+/// SH22 deepen: INSERT dual-bind to host delete gate.
+#[test]
+fn sh22_sql_insert_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh22_sql_insert_host_dual_bind_smoke.kab"))
+        .expect("sh22_sql_insert_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sqlHostDeleteOk")
+            && s.contains("sqlIsInsert")
+            && s.contains("INSERT"),
+        "SH22 Kab sql INSERT host dual-bind"
+    );
+}
+
+/// SH22 deepen: UPDATE-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_update_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let u = std::fs::read_to_string(root.join("lib/kab/sql_update.kab")).expect("sql_update.kab");
+    assert!(
+        u.contains("pub fn sqlIsUpdate") && u.contains("UPDATE"),
+        "SH22 Kab sqlIsUpdate"
+    );
+}
+
+/// SH22 deepen: UPDATE dual-bind to host delete gate.
+#[test]
+fn sh22_sql_update_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh22_sql_update_host_dual_bind_smoke.kab"))
+        .expect("sh22_sql_update_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sqlHostDeleteOk")
+            && s.contains("sqlIsUpdate")
+            && s.contains("UPDATE"),
+        "SH22 Kab sql UPDATE host dual-bind"
+    );
+}
+
+/// SH22 deepen: DELETE-clause gate lives off sql.kab.
+#[test]
+fn sh22_sql_delete_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/sql_delete.kab")).expect("sql_delete.kab");
+    assert!(
+        d.contains("pub fn sqlIsDelete") && d.contains("DELETE"),
+        "SH22 Kab sqlIsDelete"
+    );
+}
+
+/// SH22 deepen: DELETE dual-bind to host delete gate.
+#[test]
+fn sh22_sql_delete_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh22_sql_delete_host_dual_bind_smoke.kab"))
+        .expect("sh22_sql_delete_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sqlHostDeleteOk")
+            && s.contains("sqlIsDelete")
+            && s.contains("DELETE"),
+        "SH22 Kab sql DELETE host dual-bind"
     );
 }
 
@@ -33721,6 +35068,106 @@ fn sh23_crypto_host_dual_bind_in_kab() {
     );
 }
 
+/// SH23 deepen: TLS 1.3 gate lives off crypto.kab.
+#[test]
+fn sh23_crypto_tls13_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/crypto_tls13.kab")).expect("crypto_tls13.kab");
+    assert!(
+        t.contains("pub fn cryptoTls13Ok") && t.contains("1.3"),
+        "SH23 Kab cryptoTls13Ok"
+    );
+}
+
+/// SH23 deepen: TLS 1.3 dual-bind to host delete gate.
+#[test]
+fn sh23_crypto_tls13_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh23_crypto_tls13_host_dual_bind_smoke.kab"))
+        .expect("sh23_crypto_tls13_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cryptoHostDeleteOk")
+            && s.contains("cryptoTls13Ok")
+            && s.contains("1.3"),
+        "SH23 Kab crypto TLS 1.3 host dual-bind"
+    );
+}
+
+/// SH23 deepen: SHA-256 alg gate lives off crypto.kab.
+#[test]
+fn sh23_crypto_sha_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/crypto_sha.kab")).expect("crypto_sha.kab");
+    assert!(
+        s.contains("pub fn cryptoSha256Ok") && s.contains("sha256"),
+        "SH23 Kab cryptoSha256Ok"
+    );
+}
+
+/// SH23 deepen: SHA dual-bind to host delete gate.
+#[test]
+fn sh23_crypto_sha_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh23_crypto_sha_host_dual_bind_smoke.kab"))
+        .expect("sh23_crypto_sha_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cryptoHostDeleteOk")
+            && s.contains("cryptoSha256Ok")
+            && s.contains("sha256"),
+        "SH23 Kab crypto SHA host dual-bind"
+    );
+}
+
+/// SH23 deepen: HMAC alg gate lives off crypto.kab.
+#[test]
+fn sh23_crypto_hmac_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/crypto_hmac.kab")).expect("crypto_hmac.kab");
+    assert!(
+        h.contains("pub fn cryptoHmacOk") && h.contains("hmac-sha256"),
+        "SH23 Kab cryptoHmacOk"
+    );
+}
+
+/// SH23 deepen: HMAC dual-bind to host delete gate.
+#[test]
+fn sh23_crypto_hmac_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh23_crypto_hmac_host_dual_bind_smoke.kab"))
+        .expect("sh23_crypto_hmac_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cryptoHostDeleteOk")
+            && s.contains("cryptoHmacOk")
+            && s.contains("hmac-sha256"),
+        "SH23 Kab crypto HMAC host dual-bind"
+    );
+}
+
+/// SH23 deepen: AES-256 alg gate lives off crypto.kab.
+#[test]
+fn sh23_crypto_aes_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/crypto_aes.kab")).expect("crypto_aes.kab");
+    assert!(
+        a.contains("pub fn cryptoAes256Ok") && a.contains("aes-256"),
+        "SH23 Kab cryptoAes256Ok"
+    );
+}
+
+/// SH23 deepen: AES dual-bind to host delete gate.
+#[test]
+fn sh23_crypto_aes_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh23_crypto_aes_host_dual_bind_smoke.kab"))
+        .expect("sh23_crypto_aes_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cryptoHostDeleteOk")
+            && s.contains("cryptoAes256Ok")
+            && s.contains("aes-256"),
+        "SH23 Kab crypto AES host dual-bind"
+    );
+}
+
 /// SH24: HTTP method/status policy lives in Kab (host http.rs is skuld).
 #[test]
 fn sh24_http_plan_in_kab() {
@@ -33784,6 +35231,106 @@ fn sh24_http_host_dual_bind_in_kab() {
     );
 }
 
+/// SH24 deepen: PUT method lives off http.kab.
+#[test]
+fn sh24_http_put_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/http_put.kab")).expect("http_put.kab");
+    assert!(
+        p.contains("pub fn httpIsPut") && p.contains("PUT"),
+        "SH24 Kab httpIsPut"
+    );
+}
+
+/// SH24 deepen: PUT dual-bind to host delete gate.
+#[test]
+fn sh24_http_put_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh24_http_put_host_dual_bind_smoke.kab"))
+        .expect("sh24_http_put_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("httpHostDeleteOk")
+            && s.contains("httpIsPut")
+            && s.contains("PUT"),
+        "SH24 Kab http PUT host dual-bind"
+    );
+}
+
+/// SH24 deepen: PATCH method lives off http.kab.
+#[test]
+fn sh24_http_patch_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/http_patch.kab")).expect("http_patch.kab");
+    assert!(
+        p.contains("pub fn httpIsPatch") && p.contains("PATCH"),
+        "SH24 Kab httpIsPatch"
+    );
+}
+
+/// SH24 deepen: PATCH dual-bind to host delete gate.
+#[test]
+fn sh24_http_patch_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh24_http_patch_host_dual_bind_smoke.kab"))
+        .expect("sh24_http_patch_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("httpHostDeleteOk")
+            && s.contains("httpIsPatch")
+            && s.contains("PATCH"),
+        "SH24 Kab http PATCH host dual-bind"
+    );
+}
+
+/// SH24 deepen: HEAD method lives off http.kab.
+#[test]
+fn sh24_http_head_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/http_head.kab")).expect("http_head.kab");
+    assert!(
+        h.contains("pub fn httpIsHead") && h.contains("HEAD"),
+        "SH24 Kab httpIsHead"
+    );
+}
+
+/// SH24 deepen: HEAD dual-bind to host delete gate.
+#[test]
+fn sh24_http_head_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh24_http_head_host_dual_bind_smoke.kab"))
+        .expect("sh24_http_head_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("httpHostDeleteOk")
+            && s.contains("httpIsHead")
+            && s.contains("HEAD"),
+        "SH24 Kab http HEAD host dual-bind"
+    );
+}
+
+/// SH24 deepen: DELETE method lives off http.kab.
+#[test]
+fn sh24_http_delete_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/http_delete.kab")).expect("http_delete.kab");
+    assert!(
+        d.contains("pub fn httpIsDelete") && d.contains("DELETE"),
+        "SH24 Kab httpIsDelete"
+    );
+}
+
+/// SH24 deepen: DELETE dual-bind to host delete gate.
+#[test]
+fn sh24_http_delete_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh24_http_delete_host_dual_bind_smoke.kab"))
+        .expect("sh24_http_delete_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("httpHostDeleteOk")
+            && s.contains("httpIsDelete")
+            && s.contains("DELETE"),
+        "SH24 Kab http DELETE host dual-bind"
+    );
+}
+
 /// SH25: CLI argv lives in Kab (host src/cli is skuld).
 #[test]
 fn sh25_cli_plan_in_kab() {
@@ -33844,6 +35391,106 @@ fn sh25_cli_host_dual_bind_in_kab() {
             && s.contains("cliIsCompile")
             && s.contains("cliIsFmt"),
         "SH25 Kab cli host dual-bind"
+    );
+}
+
+/// SH25 deepen: check argv lives off cli.kab.
+#[test]
+fn sh25_cli_check_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/cli_check.kab")).expect("cli_check.kab");
+    assert!(
+        c.contains("pub fn cliIsCheck") && c.contains("check"),
+        "SH25 Kab cliIsCheck"
+    );
+}
+
+/// SH25 deepen: check dual-bind to host delete gate.
+#[test]
+fn sh25_cli_check_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_check_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_check_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsCheck")
+            && s.contains("check"),
+        "SH25 Kab cli check host dual-bind"
+    );
+}
+
+/// SH25 deepen: lint argv lives off cli.kab.
+#[test]
+fn sh25_cli_lint_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/cli_lint.kab")).expect("cli_lint.kab");
+    assert!(
+        l.contains("pub fn cliIsLint") && l.contains("lint"),
+        "SH25 Kab cliIsLint"
+    );
+}
+
+/// SH25 deepen: lint dual-bind to host delete gate.
+#[test]
+fn sh25_cli_lint_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_lint_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_lint_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsLint")
+            && s.contains("lint"),
+        "SH25 Kab cli lint host dual-bind"
+    );
+}
+
+/// SH25 deepen: version argv lives off cli.kab.
+#[test]
+fn sh25_cli_version_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("lib/kab/cli_version.kab")).expect("cli_version.kab");
+    assert!(
+        v.contains("pub fn cliIsVersion") && v.contains("version"),
+        "SH25 Kab cliIsVersion"
+    );
+}
+
+/// SH25 deepen: version dual-bind to host delete gate.
+#[test]
+fn sh25_cli_version_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_version_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_version_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsVersion")
+            && s.contains("version"),
+        "SH25 Kab cli version host dual-bind"
+    );
+}
+
+/// SH25 deepen: help argv lives off cli.kab.
+#[test]
+fn sh25_cli_help_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/cli_help.kab")).expect("cli_help.kab");
+    assert!(
+        h.contains("pub fn cliIsHelp") && h.contains("help"),
+        "SH25 Kab cliIsHelp"
+    );
+}
+
+/// SH25 deepen: help dual-bind to host delete gate.
+#[test]
+fn sh25_cli_help_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_help_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_help_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsHelp")
+            && s.contains("help"),
+        "SH25 Kab cli help host dual-bind"
     );
 }
 
@@ -33911,6 +35558,56 @@ fn sh26_sci_host_dual_bind_in_kab() {
     );
 }
 
+/// SH26 deepen: sub kernel lives off sci.kab.
+#[test]
+fn sh26_sci_sub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/sci_sub.kab")).expect("sci_sub.kab");
+    assert!(
+        s.contains("pub fn sciSub") && s.contains("-"),
+        "SH26 Kab sciSub"
+    );
+}
+
+/// SH26 deepen: sub dual-bind to host delete gate.
+#[test]
+fn sh26_sci_sub_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_sub_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_sub_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciSub")
+            && s.contains("42"),
+        "SH26 Kab sci sub host dual-bind"
+    );
+}
+
+/// SH26 deepen: div kernel lives off sci.kab.
+#[test]
+fn sh26_sci_div_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/sci_div.kab")).expect("sci_div.kab");
+    assert!(
+        d.contains("pub fn sciDiv") && d.contains("/"),
+        "SH26 Kab sciDiv"
+    );
+}
+
+/// SH26 deepen: div dual-bind to host delete gate.
+#[test]
+fn sh26_sci_div_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_div_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_div_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciDiv")
+            && s.contains("42"),
+        "SH26 Kab sci div host dual-bind"
+    );
+}
+
 /// SH27: DOM/game-loop policy lives in Kab (host browser* is skuld).
 #[test]
 fn sh27_ui_plan_in_kab() {
@@ -33971,6 +35668,31 @@ fn sh27_ui_host_dual_bind_in_kab() {
             && s.contains("uiIsCanvas")
             && s.contains("uiFpsOk"),
         "SH27 Kab ui host dual-bind"
+    );
+}
+
+/// SH27 deepen: span tag lives off ui.kab.
+#[test]
+fn sh27_ui_span_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/ui_span.kab")).expect("ui_span.kab");
+    assert!(
+        s.contains("pub fn uiIsSpan") && s.contains("span"),
+        "SH27 Kab uiIsSpan"
+    );
+}
+
+/// SH27 deepen: span dual-bind to host delete gate.
+#[test]
+fn sh27_ui_span_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_span_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_span_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk")
+            && s.contains("uiIsSpan")
+            && s.contains("span"),
+        "SH27 Kab ui span host dual-bind"
     );
 }
 

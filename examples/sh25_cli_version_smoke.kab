@@ -1,0 +1,3 @@
+import "kab/cli_version"
+
+return cliIsVersion("version")

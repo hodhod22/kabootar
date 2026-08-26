@@ -1,0 +1,10 @@
+import "kab/crypto_tls13"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoTls13Ok("1.3") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

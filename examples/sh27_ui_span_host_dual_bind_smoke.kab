@@ -1,0 +1,10 @@
+import "kab/ui_span"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSpan("span") == false {
+    return false
+}
+return uiHostDeleteOk() == false

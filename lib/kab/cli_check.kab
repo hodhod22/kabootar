@@ -1,0 +1,6 @@
+// SH25: check argv off cli.kab. import "kab/cli_check"
+// Do not grow cli_fmt.kab. Host src/cli remains skuld.
+
+pub fn cliIsCheck(cmd) {
+    return cmd == "check"
+}

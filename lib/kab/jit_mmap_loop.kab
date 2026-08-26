@@ -1,0 +1,18 @@
+// SH17 deepen: rwx mmap policy for loop8 (8 bytes, 1 page). import "kab/jit_mmap_loop"
+// Do not grow jit_mmap.kab.
+
+import "kab/jit_loop"
+
+pub fn jitMmapLoopOk(n, kind) {
+    if n != jitLoopLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    let page = 4096
+    if n <= page {
+        return true
+    }
+    return false
+}

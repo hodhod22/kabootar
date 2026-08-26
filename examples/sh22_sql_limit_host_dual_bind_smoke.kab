@@ -1,0 +1,10 @@
+import "kab/sql_limit"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsLimit("SELECT 1 LIMIT 1") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

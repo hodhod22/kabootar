@@ -1,0 +1,3 @@
+import "kab/sql_insert"
+
+return sqlIsInsert("INSERT INTO t VALUES (1)")

@@ -1,0 +1,24 @@
+import "kab/os"
+import "kab/os_fs"
+import "kab/os_proc"
+import "kab/os_host"
+
+if kabOsHostDeleteOk() != false {
+    return false
+}
+if kabOsIsVfs("/apps/note.txt") == false {
+    return false
+}
+if kabOsCapRead() == false {
+    return false
+}
+if kabOsCapWrite() == false {
+    return false
+}
+if kabOsIsFile("app.kab") == false {
+    return false
+}
+if kabOsArgvOk(1) == false {
+    return false
+}
+return kabOsHostDeleteOk() == false

@@ -1,0 +1,8 @@
+import "kab/jit_loop_ushr"
+import "kab/jit_call_loop_ushr"
+
+let kind = "rwx"
+let n = 12
+let sh = 0
+let tpl = jitEmitI64LoopUshrN(8, 2)
+return jitCallLoopUshrOk(499712, kind, n, sh, tpl) == false

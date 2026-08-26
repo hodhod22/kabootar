@@ -1,0 +1,8 @@
+import "kab/jit_loop_mod"
+import "kab/jit_call_loop_mod"
+
+let kind = "rwx"
+let n = 16
+let r = 0
+let tpl = jitEmitI64LoopModN(8, 5)
+return jitCallLoopModOk(450560, kind, n, r, tpl) == false

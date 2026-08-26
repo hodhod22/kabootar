@@ -1,0 +1,10 @@
+import "kab/crypto_sha"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoSha256Ok("sha256") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

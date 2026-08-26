@@ -1,0 +1,6 @@
+// SH23: AES-256 alg gate off crypto.kab. import "kab/crypto_aes"
+// Do not grow crypto_hmac.kab. Host cipher natives remain skuld.
+
+pub fn cryptoAes256Ok(alg) {
+    return alg == "aes-256"
+}

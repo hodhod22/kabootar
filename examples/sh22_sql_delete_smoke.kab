@@ -1,0 +1,3 @@
+import "kab/sql_delete"
+
+return sqlIsDelete("DELETE FROM t WHERE x = 1")

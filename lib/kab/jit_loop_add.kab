@@ -1,0 +1,50 @@
+// SH17 deepen: i64 loopN + add-imm template. import "kab/jit_loop_add"
+// Do not grow jit_loop_n.kab. Magic L + count N + add K + ret; os_mm_call returns N+K.
+
+import "kab/jit_loop_n"
+
+pub fn jitLoopAddKMax() {
+    return 64
+}
+
+pub fn jitLoopAddKOk(k) {
+    if k <= 0 {
+        return false
+    }
+    if k > jitLoopAddKMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopAddOk(n, k) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopAddKOk(k) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopAddRax(n, k) {
+    return n + k
+}
+
+pub fn jitLoopAddLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 76, count n, add k, pad, ret — simulated guest rax=n+k.
+pub fn jitEmitI64LoopAddN(n, k) {
+    let b = []
+    b = push(b, 76)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

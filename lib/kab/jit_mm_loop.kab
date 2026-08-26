@@ -1,0 +1,36 @@
+// SH17 deepen: loop8 guest mmap args. import "kab/jit_mm_loop"
+// Do not grow jit_mm.kab. Separate virt slot from inc+ret.
+
+import "kab/jit_loop"
+
+pub fn jitMmLoopPid() {
+    return 1
+}
+
+pub fn jitMmLoopVirt() {
+    return 401408
+}
+
+pub fn jitMmLoopLen() {
+    return 4096
+}
+
+pub fn jitMmLoopProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopOk(n, kind) {
+    if n != jitLoopLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopLen() != 4096 {
+        return false
+    }
+    if jitMmLoopProt() != 7 {
+        return false
+    }
+    return true
+}

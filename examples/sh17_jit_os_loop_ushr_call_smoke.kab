@@ -1,0 +1,10 @@
+import "kab/jit_loop_ushr"
+import "kab/jit_mm_loop_ushr"
+import "kab/jit_call_loop_ushr"
+
+let kind = "rwx"
+let n = 12
+let sh = 2
+let tpl = jitEmitI64LoopUshrN(n, sh)
+let base = os_mm_mmap(jitMmLoopUshrPid(), jitMmLoopUshrVirt(), jitMmLoopUshrLen(), jitMmLoopUshrProt())
+return jitCallLoopUshrOk(base, kind, n, sh, tpl)

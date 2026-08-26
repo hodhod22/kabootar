@@ -1,0 +1,5 @@
+import "kab/jit"
+import "kab/jit_mm_store"
+
+let tpl = jitEmitI64IncRet()
+return jitMmStoreIncRet(tpl) == 0

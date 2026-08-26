@@ -1,0 +1,30 @@
+// SH17 deepen: mmap+exec policy for loop-shr template. import "kab/jit_run_loop_shr"
+// Do not grow jit_run_loop_shl.kab.
+
+import "kab/jit_mmap_loop"
+import "kab/jit_np"
+import "kab/jit_exec"
+import "kab/jit_mm_loop_shr"
+import "kab/jit_patch_loop_shr"
+import "kab/jit_loop_shr"
+
+pub fn jitRunLoopShrOk(base, kind, bytes, n, sh) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopShrOk(bytes, n, sh) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopShrOk(nb, kind, n, sh) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

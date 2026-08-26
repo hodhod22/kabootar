@@ -1,0 +1,6 @@
+// SH26: div kernel off sci.kab. import "kab/sci_div"
+// Do not grow sci_sub.kab. Host GPU remains syscall skuld.
+
+pub fn sciDiv(a, b) {
+    return a / b
+}

@@ -1,0 +1,10 @@
+import "kab/cli_check"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsCheck("check") == false {
+    return false
+}
+return cliHostDeleteOk() == false

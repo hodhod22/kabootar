@@ -1,0 +1,3 @@
+import "kab/cli_lint"
+
+return cliIsLint("lint")

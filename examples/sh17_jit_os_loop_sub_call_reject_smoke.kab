@@ -1,0 +1,8 @@
+import "kab/jit_loop_sub"
+import "kab/jit_call_loop_sub"
+
+let kind = "rwx"
+let n = 16
+let s = 0
+let tpl = jitEmitI64LoopSubN(8, 3)
+return jitCallLoopSubOk(425984, kind, n, s, tpl) == false

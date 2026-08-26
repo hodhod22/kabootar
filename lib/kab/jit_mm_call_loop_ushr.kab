@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-ushr template. import "kab/jit_mm_call_loop_ushr"
+// Do not grow jit_mm_call_loop_shr.kab.
+
+import "kab/jit_mm_loop_ushr"
+import "kab/jit_loop_ushr"
+
+pub fn jitMmCallLoopUshr(bytes, n, sh) {
+    if jitLoopUshrOk(n, sh) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopUshrLen() {
+        return 0
+    }
+    let pid = jitMmLoopUshrPid()
+    let virt = jitMmLoopUshrVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopUshrRax(n, sh) {
+        return 0
+    }
+    return rax
+}

@@ -1,0 +1,22 @@
+import "kab/stdlib"
+import "kab/std_json"
+import "kab/std_date"
+import "kab/std_re"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+if stdAdd(40, 2) != 42 {
+    return false
+}
+if stdJsonIsNull("null") == false {
+    return false
+}
+if stdDateEpochOk(0) == false {
+    return false
+}
+if stdReHit("ab", "a") == false {
+    return false
+}
+return stdHostDeleteOk() == false

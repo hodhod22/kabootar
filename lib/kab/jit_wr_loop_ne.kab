@@ -1,0 +1,28 @@
+// SH17 deepen: translate+store for loop-ne template. import "kab/jit_wr_loop_ne"
+// Do not grow jit_wr_loop_eq.kab.
+
+import "kab/jit_patch_loop_ne"
+import "kab/jit_mm_loop_ne"
+import "kab/jit_mm_store_loop_ne"
+import "kab/jit_loop_ne"
+
+pub fn jitWrLoopNeOk(bytes, n, k) {
+    if jitPatchLoopNeOk(bytes, n, k) == false {
+        return false
+    }
+    let pid = jitMmLoopNePid()
+    let virt = jitMmLoopNeVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopNe(bytes, n, k)
+    if w != jitLoopNeLen() {
+        return false
+    }
+    return true
+}

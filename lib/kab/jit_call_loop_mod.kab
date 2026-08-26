@@ -1,0 +1,24 @@
+// SH17 deepen: loop-mod wr+run+call pipeline. import "kab/jit_call_loop_mod"
+// Do not grow jit_call_loop_div.kab.
+
+import "kab/jit_wr_loop_mod"
+import "kab/jit_run_loop_mod"
+import "kab/jit_mm_call_loop_mod"
+import "kab/jit_loop_mod"
+
+pub fn jitCallLoopModOk(base, kind, n, r, bytes) {
+    if jitLoopModOk(n, r) == false {
+        return false
+    }
+    if jitWrLoopModOk(bytes, n, r) == false {
+        return false
+    }
+    if jitRunLoopModOk(base, kind, bytes, n, r) == false {
+        return false
+    }
+    let rax = jitMmCallLoopMod(bytes, n, r)
+    if rax != jitLoopModRax(n, r) {
+        return false
+    }
+    return true
+}

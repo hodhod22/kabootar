@@ -1,0 +1,24 @@
+// SH17 deepen: loopN wr+run+call pipeline. import "kab/jit_call_loop_n"
+// Do not grow jit_call_loop.kab.
+
+import "kab/jit_wr_loop_n"
+import "kab/jit_run_loop_n"
+import "kab/jit_mm_call_loop_n"
+import "kab/jit_loop_n"
+
+pub fn jitCallLoopNOk(base, kind, n, bytes) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitWrLoopNOk(bytes, n) == false {
+        return false
+    }
+    if jitRunLoopNOk(base, kind, bytes, n) == false {
+        return false
+    }
+    let r = jitMmCallLoopN(bytes, n)
+    if r != jitLoopNRax(n) {
+        return false
+    }
+    return true
+}

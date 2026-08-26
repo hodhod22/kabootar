@@ -1,0 +1,24 @@
+import "kab/crypto"
+import "kab/crypto_tls"
+import "kab/crypto_root"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoIsHttps("https://example.com") == false {
+    return false
+}
+if cryptoPinOk("sha256:abc") == false {
+    return false
+}
+if cryptoTrustOk(1) == false {
+    return false
+}
+if cryptoTls12Ok("1.2") == false {
+    return false
+}
+if cryptoRootPem("-----BEGIN CERT-----") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

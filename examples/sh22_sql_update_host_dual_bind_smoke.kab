@@ -1,0 +1,10 @@
+import "kab/sql_update"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsUpdate("UPDATE t SET x = 1") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

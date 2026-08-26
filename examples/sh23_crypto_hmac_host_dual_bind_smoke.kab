@@ -1,0 +1,10 @@
+import "kab/crypto_hmac"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoHmacOk("hmac-sha256") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false
