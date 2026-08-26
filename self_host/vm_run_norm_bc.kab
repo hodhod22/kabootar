@@ -90,6 +90,15 @@ pub fn vNormBc(bc) {
         "arrows": vNormArrows(bc),
         "tryRegions": vNormTries(bc),
         "localNames": vNormLocals(bc),
-        "ops": vNormOps(bc)
+        "ops": vNormOps(bc),
+        "enums": vNormEnums(bc)
     }
+}
+
+pub fn vNormEnums(bc) {
+    let enums = bc["enums"]
+    if enums == null || enums == undefined {
+        return []
+    }
+    return enums
 }

@@ -18,6 +18,9 @@ pub fn deserApplyLine(st, line) {
     if starts_with(line, "class") || starts_with(line, "classes=") {
         return deserClass(st, line)
     }
+    if starts_with(line, "enum") {
+        return deserEnum(st, line)
+    }
     return deserMisc(st, line)
 }
 

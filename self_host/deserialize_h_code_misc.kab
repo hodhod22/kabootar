@@ -58,3 +58,57 @@ pub fn deserMisc(st, line) {
     return "skip"
 }
 
+pub fn deserEnum(st, line) {
+    if starts_with(line, "enums=") {
+        return "ok"
+    }
+    if starts_with(line, "enum ") {
+        let rest = str_slice(line, 5, len(line))
+        let sp = str_index_of(rest, " ")
+        let idx = parse_int(trim(str_slice(rest, 0, sp)))
+        let sym = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        let enums = st["enums"]
+        if enums == undefined {
+            enums = []
+        }
+        while len(enums) <= idx {
+            enums = push(enums, { "sym": "", "variants": [] })
+        }
+        enums[idx]["sym"] = sym
+        st["enums"] = enums
+        return "ok"
+    }
+    if starts_with(line, "enum_variant_fields ") {
+        let rest = trim(str_slice(line, 20, len(line)))
+        let sp = str_index_of(rest, " ")
+        let ei = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let vi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let fl = unescapeKbc(trim(str_slice(rest2, sp2 + 1, len(rest2))))
+        let fields = []
+        if fl != "" {
+            fields = split(fl, ",")
+        }
+        st["enums"][ei]["variants"][vi]["fields"] = fields
+        return "ok"
+    }
+    if starts_with(line, "enum_variant ") {
+        let rest = trim(str_slice(line, 13, len(line)))
+        let sp = str_index_of(rest, " ")
+        let ei = parse_int(trim(str_slice(rest, 0, sp)))
+        let rest2 = trim(str_slice(rest, sp + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let vi = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let name = unescapeKbc(trim(str_slice(rest2, sp2 + 1, len(rest2))))
+        let vars = st["enums"][ei]["variants"]
+        while len(vars) <= vi {
+            vars = push(vars, { "name": "", "fields": [] })
+        }
+        vars[vi]["name"] = name
+        st["enums"][ei]["variants"] = vars
+        return "ok"
+    }
+    return "skip"
+}
+
