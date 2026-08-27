@@ -1,0 +1,3 @@
+import "kab/cli_watch"
+
+return cliIsWatch("watch") == true

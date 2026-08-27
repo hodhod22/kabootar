@@ -1,0 +1,11 @@
+import "kab/std_colrix"
+import "kab/std_colfill"
+import "kab/std_colpush"
+
+let p = stdColFill(1, 1)
+p = stdColPush(p, 42)
+p = stdColPush(p, 1)
+if stdColRIndex(p, 1) != 2 {
+    return false
+}
+return stdColRIndex(p, 99) == 0 - 1

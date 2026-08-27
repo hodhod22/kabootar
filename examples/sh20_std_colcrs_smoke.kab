@@ -1,0 +1,9 @@
+import "kab/std_colcrs"
+import "kab/std_colfill"
+import "kab/std_colpush"
+
+let a = stdColFill(1, 2)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 0)
+b = stdColPush(b, 21)
+return stdColCross(a, b) == 42

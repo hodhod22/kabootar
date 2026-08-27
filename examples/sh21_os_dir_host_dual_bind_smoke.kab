@@ -1,0 +1,14 @@
+import "kab/os_dir"
+import "kab/os_cwd"
+import "kab/os_host"
+
+if kabOsHostDeleteOk() != false {
+    return false
+}
+if kabOsCwdOk("/apps") == false {
+    return false
+}
+if kabOsIsDir("/apps") == false {
+    return false
+}
+return kabOsHostDeleteOk() == false

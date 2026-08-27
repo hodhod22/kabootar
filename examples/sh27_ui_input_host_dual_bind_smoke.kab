@@ -1,0 +1,10 @@
+import "kab/ui_input"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsInput("input") == false {
+    return false
+}
+return uiHostDeleteOk() == false

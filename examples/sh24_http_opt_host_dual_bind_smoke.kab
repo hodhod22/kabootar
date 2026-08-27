@@ -1,0 +1,14 @@
+import "kab/http_opt"
+import "kab/http_delete"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsDelete("DELETE") == false {
+    return false
+}
+if httpIsOptions("OPTIONS") == false {
+    return false
+}
+return httpHostDeleteOk() == false

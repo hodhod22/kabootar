@@ -1,0 +1,3 @@
+import "kab/http_trc"
+
+return httpIsTrace("TRACE") == true

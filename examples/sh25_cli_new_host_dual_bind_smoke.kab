@@ -1,0 +1,14 @@
+import "kab/cli_new"
+import "kab/cli_bench"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsBench("bench") == false {
+    return false
+}
+if cliIsNew("new") == false {
+    return false
+}
+return cliHostDeleteOk() == false

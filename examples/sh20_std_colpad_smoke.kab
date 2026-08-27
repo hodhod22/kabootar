@@ -1,0 +1,9 @@
+import "kab/std_colpad"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let p = stdColFill(1, 40)
+let e = stdColFill(1, 40)
+e = stdColPush(e, 42)
+return stdColEq(stdColPad(p, 2, 42), e)

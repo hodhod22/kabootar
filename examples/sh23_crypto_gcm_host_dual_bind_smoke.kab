@@ -1,0 +1,14 @@
+import "kab/crypto_gcm"
+import "kab/crypto_chacha"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoChaChaOk("chacha20") == false {
+    return false
+}
+if cryptoGcmOk("aes-256-gcm") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

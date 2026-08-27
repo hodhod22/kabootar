@@ -1,0 +1,5 @@
+import "kab/std_colmax"
+import "kab/std_colrange"
+
+let r = stdColRange(40, 43)
+return stdColMax(r) == 42

@@ -1,0 +1,14 @@
+import "kab/cli_cat"
+import "kab/cli_ls"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsLs("ls") == false {
+    return false
+}
+if cliIsCat("cat") == false {
+    return false
+}
+return cliHostDeleteOk() == false

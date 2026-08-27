@@ -1,0 +1,9 @@
+// SH26: max kernel off sci_abs.kab. import "kab/sci_max"
+// Do not grow sci_abs.kab. Host GPU remains syscall skuld.
+
+pub fn sciMax(a, b) {
+    if a > b {
+        return a
+    }
+    return b
+}

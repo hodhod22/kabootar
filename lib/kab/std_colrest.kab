@@ -1,0 +1,13 @@
+// SH20: collections rest off std_collast.kab. import "kab/std_colrest"
+// Do not grow std_collast.kab. stdHostDeleteOk stays false.
+
+pub fn stdColRest(p) {
+    let n = len(p)
+    let out = []
+    let i = 1
+    while i < n {
+        out = push(out, p[i])
+        i = i + 1
+    }
+    return out
+}

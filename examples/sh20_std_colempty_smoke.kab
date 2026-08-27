@@ -1,0 +1,5 @@
+import "kab/std_colempty"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+return stdColEmpty(p) == false

@@ -1,0 +1,3 @@
+import "kab/cli_rm"
+
+return cliIsRm("rm") == true

@@ -1,0 +1,14 @@
+import "kab/http_trc"
+import "kab/http_opt"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsOptions("OPTIONS") == false {
+    return false
+}
+if httpIsTrace("TRACE") == false {
+    return false
+}
+return httpHostDeleteOk() == false

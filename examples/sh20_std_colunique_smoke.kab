@@ -1,0 +1,9 @@
+import "kab/std_colunique"
+import "kab/std_colconcat"
+import "kab/std_collast"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+let d = stdColConcat(p, p)
+let u = stdColUnique(d)
+return stdColLast(u) == 42

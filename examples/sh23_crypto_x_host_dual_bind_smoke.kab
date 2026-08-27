@@ -1,0 +1,14 @@
+import "kab/crypto_x"
+import "kab/crypto_ed"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoEd25519Ok("ed25519") == false {
+    return false
+}
+if cryptoX25519Ok("x25519") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

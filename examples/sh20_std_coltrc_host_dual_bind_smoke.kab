@@ -1,0 +1,18 @@
+import "kab/std_coltrc"
+import "kab/std_colident"
+import "kab/std_coldiag"
+import "kab/std_colfill"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let e = stdColFill(2, 1)
+if stdColEq(stdColDiag(stdColIdent(2)), e) == false {
+    return false
+}
+if stdColTrace(stdColIdent(2)) != 2 {
+    return false
+}
+return stdHostDeleteOk() == false

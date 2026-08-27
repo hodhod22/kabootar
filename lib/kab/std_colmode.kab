@@ -1,0 +1,24 @@
+// SH20: collections mode off std_colmed.kab. import "kab/std_colmode"
+// Do not grow std_colmed.kab. stdHostDeleteOk stays false.
+
+import "kab/std_colcount"
+
+pub fn stdColMode(p) {
+    let n = len(p)
+    if n == 0 {
+        return 0
+    }
+    let best = p[0]
+    let bc = stdColCount(p, best)
+    let i = 1
+    while i < n {
+        let x = p[i]
+        let c = stdColCount(p, x)
+        if c > bc {
+            best = x
+            bc = c
+        }
+        i = i + 1
+    }
+    return best
+}

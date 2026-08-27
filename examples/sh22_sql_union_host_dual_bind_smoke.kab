@@ -1,0 +1,14 @@
+import "kab/sql_union"
+import "kab/sql_dist"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsDistinct("SELECT DISTINCT a FROM t") == false {
+    return false
+}
+if sqlIsUnion("SELECT a FROM t UNION SELECT b FROM u") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

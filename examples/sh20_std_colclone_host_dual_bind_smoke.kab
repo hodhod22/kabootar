@@ -1,0 +1,17 @@
+import "kab/std_colclone"
+import "kab/std_coleq"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let c = stdColClone(p)
+if stdColEq(c, p) != true {
+    return false
+}
+if stdColEq(p, p) != true {
+    return false
+}
+return stdHostDeleteOk() == false

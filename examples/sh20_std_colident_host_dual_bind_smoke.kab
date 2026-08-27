@@ -1,0 +1,24 @@
+import "kab/std_colident"
+import "kab/std_coldiag"
+import "kab/std_colzip"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColRange(40, 42)
+let b = stdColRange(42, 44)
+let ez = stdColFill(1, 40)
+ez = stdColPush(ez, 43)
+if stdColEq(stdColDiag(stdColZip(a, b)), ez) == false {
+    return false
+}
+let e = stdColFill(2, 1)
+if stdColEq(stdColDiag(stdColIdent(2)), e) == false {
+    return false
+}
+return stdHostDeleteOk() == false

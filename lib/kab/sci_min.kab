@@ -1,0 +1,9 @@
+// SH26: min kernel off sci_max.kab. import "kab/sci_min"
+// Do not grow sci_max.kab. Host GPU remains syscall skuld.
+
+pub fn sciMin(a, b) {
+    if a < b {
+        return a
+    }
+    return b
+}

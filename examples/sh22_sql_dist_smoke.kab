@@ -1,0 +1,3 @@
+import "kab/sql_dist"
+
+return sqlIsDistinct("SELECT DISTINCT a FROM t") == true

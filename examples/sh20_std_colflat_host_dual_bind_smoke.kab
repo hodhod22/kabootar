@@ -1,0 +1,23 @@
+import "kab/std_colflat"
+import "kab/std_colunzip"
+import "kab/std_colzip"
+import "kab/std_coltake"
+import "kab/std_coldrop"
+import "kab/std_collast"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let z = stdColZip(stdColTake(p, 1), stdColDrop(p, 1))
+let u = stdColUnzip(z)
+let f = stdColFlat(z)
+if u[1][0] != 42 {
+    return false
+}
+if stdColLast(f) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/crypto_ed"
+
+return cryptoEd25519Ok("ed25519") == true

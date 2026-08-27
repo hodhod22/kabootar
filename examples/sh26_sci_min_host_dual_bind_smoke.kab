@@ -1,0 +1,14 @@
+import "kab/sci_min"
+import "kab/sci_max"
+import "kab/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciMax(7, 42) != 42 {
+    return false
+}
+if sciMin(42, 99) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

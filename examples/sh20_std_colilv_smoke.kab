@@ -1,0 +1,10 @@
+import "kab/std_colilv"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let a = stdColFill(1, 40)
+let b = stdColFill(1, 42)
+let e = stdColFill(1, 40)
+e = stdColPush(e, 42)
+return stdColEq(stdColInterleave(a, b), e)

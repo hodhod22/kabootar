@@ -1,0 +1,6 @@
+import "kab/std_colclone"
+import "kab/std_coleq"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+return stdColEq(stdColClone(p), p) == true

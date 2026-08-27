@@ -1,0 +1,6 @@
+// SH26: cube kernel off sci_sqr.kab. import "kab/sci_cub"
+// Do not grow sci_sqr.kab. Host GPU remains syscall skuld.
+
+pub fn sciCub(a) {
+    return a * a * a
+}

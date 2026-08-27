@@ -1,0 +1,14 @@
+import "kab/cli_mod"
+import "kab/cli_rm"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsRm("rm") == false {
+    return false
+}
+if cliIsMod("mod") == false {
+    return false
+}
+return cliHostDeleteOk() == false

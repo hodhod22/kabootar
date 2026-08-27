@@ -134,15 +134,15 @@ Kort ordning:
 4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`**: enum unit + payload + `if let`/`while let`.
 5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; loop8/loopN/arith-imm/bit-ops/shifts/unary/eq/ne/lt/gt/le/ge `os_mm_call`; `gcHostDeleteOk` host-GC dual-bind)
 6. ~~**SH19**~~ ✅ subset + deepen (`loadMainDeleteOk` main.rs dual-bind)
-7. ~~**SH20**~~ ✅ subset (JSON/datum/regex + math + objekt + collections leaves); radera natives deepen
-8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk` + `kabOsEnvOk` + `kabOsCwdOk`); radera `runtime/os` deepen
-9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk` + `sqlIsLimit` + `sqlIsOrder` + `sqlIsInsert` + `sqlIsUpdate` + `sqlIsDelete`); radera `src/sql` deepen
-10. ~~**SH23**~~ ✅ subset (`cryptoTls12Ok` + `cryptoRootPem` + `cryptoTls13Ok` + `cryptoSha256Ok` + `cryptoHmacOk` + `cryptoAes256Ok`); rustls-delete deepen
-11. ~~**SH24**~~ ✅ subset (`httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete`); radera `runtime/http.rs` deepen
-12. ~~**SH25**~~ ✅ subset (`cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp`); radera `src/cli` deepen
-13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv`); GPU kernel deepen
-14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk` + `uiIsSpan`); kbrowser deepen
-15. ~~**SH28**~~ ✅ subset (`nollAotReady=false` + `nollKeepSrc`); **radera inte `src/`**
+7. ~~**SH20**~~ ✅ subset (JSON/datum/regex + math + objekt + collections + colget + collen + colpush + colpop + colfirst + collast + colrest + colempty + colconcat + colrev + colcontains + colindex + colcount + coltake + coldrop + colzip + colunzip + colflat + colunique + coleq + colclone + colrepeat + colfill + colrange + colsum + colmax + colmin + colprod + colavg + colmed + colmode + colsort + coldesc + colfind + colrfind + colrix + colslice + colwin + colchunk + colrot + colpad + colilv + coltr + coldiag + colident + coltrc + colrow + colcol + colshape + colrshp + coldot + colmv + colmm + colout + colcrs leaves); radera natives deepen
+8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk` + `kabOsEnvOk` + `kabOsCwdOk` + `kabOsIsDir` + `kabOsJoin` + `kabOsBase` + `kabOsExt` + `kabOsDirname` + `kabOsNorm` + `kabOsAbs` + `kabOsRel`); radera `runtime/os` deepen
+9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk` + `sqlIsLimit` + `sqlIsOrder` + `sqlIsInsert` + `sqlIsUpdate` + `sqlIsDelete` + `sqlIsCreate` + `sqlIsJoin` + `sqlIsGroup` + `sqlIsHaving` + `sqlIsDistinct` + `sqlIsUnion`); radera `src/sql` deepen
+10. ~~**SH23**~~ ✅ subset (`cryptoTls12Ok` + `cryptoRootPem` + `cryptoTls13Ok` + `cryptoSha256Ok` + `cryptoHmacOk` + `cryptoAes256Ok` + `cryptoChaChaOk` + `cryptoGcmOk` + `cryptoEd25519Ok` + `cryptoX25519Ok`); rustls-delete deepen
+11. ~~**SH24**~~ ✅ subset (`httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete` + `httpIsOptions` + `httpIsTrace` + `httpIsConnect`); radera `runtime/http.rs` deepen
+12. ~~**SH25**~~ ✅ subset (`cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp` + `cliIsDoc` + `cliIsBench` + `cliIsNew` + `cliIsInit` + `cliIsWatch` + `cliIsClean` + `cliIsAdd` + `cliIsRm` + `cliIsMod` + `cliIsLs` + `cliIsCat`); radera `src/cli` deepen
+13. ~~**SH26**~~ ✅ subset (`sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv` + `sciNeg` + `sciAbs` + `sciMax` + `sciMin` + `sciClamp` + `sciPow` + `sciSqr` + `sciCub` + `sciSign`); GPU kernel deepen
+14. ~~**SH27**~~ ✅ subset (`uiIsCanvas` + `uiFpsOk` + `uiIsSpan` + `uiIsButton` + `uiIsInput` + `uiIsImg` + `uiIsP` + `uiIsA` + `uiIsUl` + `uiIsLi` + `uiIsOl`); kbrowser deepen
+15. ~~**SH28**~~ ✅ subset (`nollSrcGoalZero=0` + `nollBootstrapFromKabOk=true` + `nollAllGatesClosedOk=true` + `nollAotReady=false` + `nollAotProcess=false` + `nollImageIsProcess=false` + `nollMmapExecProcess=false` + `nollStubIsProcess=false` + `nollSyscallIsKab=false` + `nollRustcNotHost=false` + `nollHostOptional=false` + `nollNoNewRs=true` + `nollKeepSrc` + `nollDropSrc=false` + `nollProcessIsKab=false` + `nollBootstrapImage` + `nollCargoNotRuntime=false` + `nollRustcNotProcess=false` + `nollMmapStub=false` + `nollStubFrozen=false` + `nollHostSyscallGone=false` + `nollProductSrcGone=false` + `nollCargoTomlGone=false` + `nollRustcCiGone=false` + `nollKabtestProductCi=false` + `nollUserNoRustc=false`); **radera inte `src/`**
 16. ~~**F10 AOT native-image policy**~~ ✅ (ret-stub + sym/reloc + `nollAotReady` dual-bind); ~~**SH17–SH19 deepen**~~ ✅ (`jitMmapOk`, loopN arith-imm + bit-ops/shifts/unary/eq/ne/lt/gt/le/ge exec, `gcHostDeleteOk`, `loadMainDeleteOk` still false)
 
 ## Historisk bootstrap-logg

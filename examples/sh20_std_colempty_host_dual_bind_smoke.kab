@@ -1,0 +1,20 @@
+import "kab/std_colempty"
+import "kab/std_colrest"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let e = []
+if stdColEmpty(p) != false {
+    return false
+}
+if stdColEmpty(e) != true {
+    return false
+}
+if stdColRest(p)[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

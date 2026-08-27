@@ -1,0 +1,14 @@
+import "kab/ui_li"
+import "kab/ui_ul"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsUl("ul") == false {
+    return false
+}
+if uiIsLi("li") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/os_ext"
+
+return kabOsExt("/apps/main.kab") == ".kab"

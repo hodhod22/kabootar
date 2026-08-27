@@ -1,0 +1,19 @@
+import "kab/std_coldrop"
+import "kab/std_coltake"
+import "kab/std_colfirst"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let t = stdColTake(p, 1)
+let d = stdColDrop(p, 1)
+if stdColFirst(t) != "n" {
+    return false
+}
+if stdColFirst(d) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

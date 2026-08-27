@@ -1,0 +1,14 @@
+import "kab/sci_cub"
+import "kab/sci_sqr"
+import "kab/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciSqr(6) != 36 {
+    return false
+}
+if sciCub(3) != 27 {
+    return false
+}
+return sciHostDeleteOk() == false

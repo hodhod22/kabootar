@@ -1,0 +1,11 @@
+import "kab/std_colwin"
+import "kab/std_colslice"
+import "kab/std_colrange"
+import "kab/std_coleq"
+
+let r = stdColRange(40, 43)
+let w = stdColWindow(r, 2)
+if len(w) != 2 {
+    return false
+}
+return stdColEq(w[0], stdColSlice(r, 0, 2))

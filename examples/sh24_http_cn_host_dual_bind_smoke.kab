@@ -1,0 +1,14 @@
+import "kab/http_cn"
+import "kab/http_trc"
+import "kab/http_host"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpIsTrace("TRACE") == false {
+    return false
+}
+if httpIsConnect("CONNECT") == false {
+    return false
+}
+return httpHostDeleteOk() == false

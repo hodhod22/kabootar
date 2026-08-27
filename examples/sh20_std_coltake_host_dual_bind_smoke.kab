@@ -1,0 +1,18 @@
+import "kab/std_coltake"
+import "kab/std_colcount"
+import "kab/std_colfirst"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let t = stdColTake(p, 1)
+if stdColCount(p, 42) != 1 {
+    return false
+}
+if stdColFirst(t) != "n" {
+    return false
+}
+return stdHostDeleteOk() == false

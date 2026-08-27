@@ -1,0 +1,21 @@
+import "kab/std_coldot"
+import "kab/std_colrshp"
+import "kab/std_colshape"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let es = stdColFill(2, 2)
+let r = stdColRange(40, 44)
+if stdColEq(stdColShape(stdColReshape(r, 2, 2)), es) == false {
+    return false
+}
+let v = stdColFill(2, 1)
+if stdColDot(v, v) != 2 {
+    return false
+}
+return stdHostDeleteOk() == false

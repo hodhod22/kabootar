@@ -1,0 +1,18 @@
+import "kab/std_coleq"
+import "kab/std_colunique"
+import "kab/std_colconcat"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+let u = stdColUnique(stdColConcat(p, p))
+if stdColEq(u, p) != true {
+    return false
+}
+if stdColEq(p, p) != true {
+    return false
+}
+return stdHostDeleteOk() == false

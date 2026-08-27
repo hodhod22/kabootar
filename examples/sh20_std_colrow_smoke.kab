@@ -1,0 +1,9 @@
+import "kab/std_colrow"
+import "kab/std_colident"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let e = stdColFill(1, 1)
+e = stdColPush(e, 0)
+return stdColEq(stdColRow(stdColIdent(2), 0), e)

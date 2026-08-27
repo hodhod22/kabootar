@@ -1,0 +1,4 @@
+import "kab/os_base"
+import "kab/os_join"
+
+return kabOsBase(kabOsJoin("/apps", "main")) == "main"

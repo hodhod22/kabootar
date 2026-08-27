@@ -1,0 +1,3 @@
+import "kab/http_opt"
+
+return httpIsOptions("OPTIONS") == true

@@ -1,0 +1,6 @@
+// SH25: new argv off cli_bench.kab. import "kab/cli_new"
+// Do not grow cli_bench.kab. Host src/cli remains skuld.
+
+pub fn cliIsNew(cmd) {
+    return cmd == "new"
+}

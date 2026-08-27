@@ -1,0 +1,7 @@
+// SH20: collections push off std_collen.kab. import "kab/std_colpush"
+// Do not grow std_collen.kab. stdHostDeleteOk stays false.
+// Use arr = push(arr, x); do not assign through empty-key object_array_push.
+
+pub fn stdColPush(p, x) {
+    return push(p, x)
+}

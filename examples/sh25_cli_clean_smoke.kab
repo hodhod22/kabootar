@@ -1,0 +1,3 @@
+import "kab/cli_clean"
+
+return cliIsClean("clean") == true

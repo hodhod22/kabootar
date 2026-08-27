@@ -1,0 +1,3 @@
+import "kab/sql_create"
+
+return sqlIsCreate("CREATE TABLE t") == true

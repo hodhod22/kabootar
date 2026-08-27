@@ -1,0 +1,3 @@
+import "kab/os_dn"
+
+return kabOsDirname("/apps/main.kab") == "/apps"

@@ -1,0 +1,7 @@
+import "kab/std_colmed"
+import "kab/std_colfill"
+import "kab/std_colpush"
+
+let p = stdColFill(2, 1)
+p = stdColPush(p, 42)
+return stdColMedian(p) == 1

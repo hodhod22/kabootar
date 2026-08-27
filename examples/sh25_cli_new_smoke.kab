@@ -1,0 +1,3 @@
+import "kab/cli_new"
+
+return cliIsNew("new") == true

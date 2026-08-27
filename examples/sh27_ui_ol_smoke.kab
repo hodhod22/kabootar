@@ -1,0 +1,3 @@
+import "kab/ui_ol"
+
+return uiIsOl("ol")

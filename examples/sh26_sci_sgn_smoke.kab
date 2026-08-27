@@ -1,0 +1,7 @@
+import "kab/sci_sgn"
+
+let n = sciSign(0 - 4)
+if n == 0 - 1 {
+    return true
+}
+return false

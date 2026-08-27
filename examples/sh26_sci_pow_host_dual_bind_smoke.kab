@@ -1,0 +1,14 @@
+import "kab/sci_pow"
+import "kab/sci_clmp"
+import "kab/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciClamp(99, 0, 42) != 42 {
+    return false
+}
+if sciPow(42, 1) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

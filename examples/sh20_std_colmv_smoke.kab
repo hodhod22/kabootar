@@ -1,0 +1,7 @@
+import "kab/std_colmv"
+import "kab/std_colident"
+import "kab/std_colfill"
+import "kab/std_coleq"
+
+let v = stdColFill(2, 1)
+return stdColEq(stdColMatVec(stdColIdent(2), v), v)

@@ -1,0 +1,6 @@
+import "kab/std_colmm"
+import "kab/std_colident"
+import "kab/std_coleq"
+
+let i2 = stdColIdent(2)
+return stdColEq(stdColMatMul(i2, i2), i2)
