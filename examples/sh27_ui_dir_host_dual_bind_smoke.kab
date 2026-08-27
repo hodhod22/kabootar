@@ -1,0 +1,14 @@
+import "kab/ui_dir"
+import "kab/ui_nobr"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNobr("nobr") == false {
+    return false
+}
+if uiIsDir("dir") == false {
+    return false
+}
+return uiHostDeleteOk() == false

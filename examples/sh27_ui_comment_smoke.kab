@@ -1,0 +1,3 @@
+import "kab/ui_comment"
+
+return uiIsComment("comment")

@@ -1,0 +1,6 @@
+// SH27: rb tag off ui_strike.kab. import "kab/ui_rb"
+// Do not grow ui_strike.kab. Host browser* remains skuld.
+
+pub fn uiIsRb(tag) {
+    return tag == "rb"
+}

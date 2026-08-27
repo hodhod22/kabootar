@@ -1,0 +1,3 @@
+import "kab/ui_nextid"
+
+return uiIsNextid("nextid")

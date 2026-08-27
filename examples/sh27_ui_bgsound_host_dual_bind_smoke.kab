@@ -1,0 +1,14 @@
+import "kab/ui_bgsound"
+import "kab/ui_spacer"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSpacer("spacer") == false {
+    return false
+}
+if uiIsBgsound("bgsound") == false {
+    return false
+}
+return uiHostDeleteOk() == false

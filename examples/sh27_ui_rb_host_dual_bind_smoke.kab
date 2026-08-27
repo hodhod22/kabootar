@@ -1,0 +1,14 @@
+import "kab/ui_rb"
+import "kab/ui_strike"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsStrike("strike") == false {
+    return false
+}
+if uiIsRb("rb") == false {
+    return false
+}
+return uiHostDeleteOk() == false

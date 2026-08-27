@@ -1,0 +1,14 @@
+import "kab/ui_image"
+import "kab/ui_xml"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsXml("xml") == false {
+    return false
+}
+if uiIsImage("image") == false {
+    return false
+}
+return uiHostDeleteOk() == false

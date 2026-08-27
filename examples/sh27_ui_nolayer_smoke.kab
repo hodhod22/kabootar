@@ -1,0 +1,3 @@
+import "kab/ui_nolayer"
+
+return uiIsNolayer("nolayer")

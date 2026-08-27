@@ -1,0 +1,14 @@
+import "kab/ui_noembed"
+import "kab/ui_menuitem"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMenuitem("menuitem") == false {
+    return false
+}
+if uiIsNoembed("noembed") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_xmp"
+import "kab/ui_listing"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsListing("listing") == false {
+    return false
+}
+if uiIsXmp("xmp") == false {
+    return false
+}
+return uiHostDeleteOk() == false

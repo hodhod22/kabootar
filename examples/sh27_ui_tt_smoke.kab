@@ -1,0 +1,3 @@
+import "kab/ui_tt"
+
+return uiIsTt("tt")

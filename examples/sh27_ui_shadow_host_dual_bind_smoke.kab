@@ -1,0 +1,14 @@
+import "kab/ui_shadow"
+import "kab/ui_rbc"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRbc("rbc") == false {
+    return false
+}
+if uiIsShadow("shadow") == false {
+    return false
+}
+return uiHostDeleteOk() == false

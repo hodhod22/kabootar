@@ -1,0 +1,6 @@
+// SH27: ilayer tag off ui_layer.kab. import "kab/ui_ilayer"
+// Do not grow ui_layer.kab. Host browser* remains skuld.
+
+pub fn uiIsIlayer(tag) {
+    return tag == "ilayer"
+}

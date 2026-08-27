@@ -1,0 +1,6 @@
+// SH27: plaintext tag off ui_xmp.kab. import "kab/ui_plaintext"
+// Do not grow ui_xmp.kab. Host browser* remains skuld.
+
+pub fn uiIsPlaintext(tag) {
+    return tag == "plaintext"
+}

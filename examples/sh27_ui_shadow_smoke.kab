@@ -1,0 +1,3 @@
+import "kab/ui_shadow"
+
+return uiIsShadow("shadow")

@@ -1,0 +1,3 @@
+import "kab/ui_defs"
+
+return uiIsDefs("defs")

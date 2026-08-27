@@ -1,0 +1,3 @@
+import "kab/ui_image"
+
+return uiIsImage("image")

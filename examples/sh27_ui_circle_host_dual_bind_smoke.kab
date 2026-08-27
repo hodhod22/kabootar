@@ -1,0 +1,14 @@
+import "kab/ui_circle"
+import "kab/ui_rect"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRect("rect") == false {
+    return false
+}
+if uiIsCircle("circle") == false {
+    return false
+}
+return uiHostDeleteOk() == false

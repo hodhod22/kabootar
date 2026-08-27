@@ -1,0 +1,3 @@
+import "kab/ui_circle"
+
+return uiIsCircle("circle")

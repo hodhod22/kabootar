@@ -1,0 +1,14 @@
+import "kab/ui_layer"
+import "kab/ui_nextid"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNextid("nextid") == false {
+    return false
+}
+if uiIsLayer("layer") == false {
+    return false
+}
+return uiHostDeleteOk() == false

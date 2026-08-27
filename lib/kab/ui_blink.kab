@@ -1,0 +1,6 @@
+// SH27: blink tag off ui_dir.kab. import "kab/ui_blink"
+// Do not grow ui_dir.kab. Host browser* remains skuld.
+
+pub fn uiIsBlink(tag) {
+    return tag == "blink"
+}

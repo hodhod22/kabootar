@@ -1,0 +1,3 @@
+import "kab/ui_layer"
+
+return uiIsLayer("layer")

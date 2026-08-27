@@ -1,0 +1,14 @@
+import "kab/ui_plaintext"
+import "kab/ui_xmp"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsXmp("xmp") == false {
+    return false
+}
+if uiIsPlaintext("plaintext") == false {
+    return false
+}
+return uiHostDeleteOk() == false
