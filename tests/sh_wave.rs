@@ -42335,6 +42335,62 @@ fn sh27_ui_defs_host_dual_bind_in_kab() {
     );
 }
 
+/// SH27 deepen: symbol tag lives off ui_defs.kab.
+#[test]
+fn sh27_ui_symbol_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_symbol.kab"))
+        .expect("ui_symbol.kab");
+    assert!(
+        l.contains("pub fn uiIsSymbol") && l.contains("symbol"),
+        "SH27 Kab uiIsSymbol"
+    );
+}
+
+/// SH27 deepen: symbol dual-bind to host delete gate.
+#[test]
+fn sh27_ui_symbol_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh27_ui_symbol_host_dual_bind_smoke.kab"),
+    )
+    .expect("sh27_ui_symbol_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk")
+            && s.contains("uiIsSymbol")
+            && s.contains("symbol"),
+        "SH27 Kab ui symbol host dual-bind"
+    );
+}
+
+/// SH27 deepen: marker tag lives off ui_symbol.kab (not ui_mark.kab).
+#[test]
+fn sh27_ui_marker_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_marker.kab"))
+        .expect("ui_marker.kab");
+    assert!(
+        l.contains("pub fn uiIsMarker") && l.contains("marker"),
+        "SH27 Kab uiIsMarker"
+    );
+}
+
+/// SH27 deepen: marker dual-bind to host delete gate.
+#[test]
+fn sh27_ui_marker_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh27_ui_marker_host_dual_bind_smoke.kab"),
+    )
+    .expect("sh27_ui_marker_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk")
+            && s.contains("uiIsMarker")
+            && s.contains("marker"),
+        "SH27 Kab ui marker host dual-bind"
+    );
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {

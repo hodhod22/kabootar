@@ -1,0 +1,3 @@
+import "kab/ui_symbol"
+
+return uiIsSymbol("symbol")

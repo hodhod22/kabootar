@@ -1,0 +1,14 @@
+import "kab/ui_marker"
+import "kab/ui_symbol"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSymbol("symbol") == false {
+    return false
+}
+if uiIsMarker("marker") == false {
+    return false
+}
+return uiHostDeleteOk() == false

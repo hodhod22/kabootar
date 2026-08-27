@@ -1,0 +1,6 @@
+// SH27: symbol tag off ui_defs.kab. import "kab/ui_symbol"
+// Do not grow ui_defs.kab. Host browser* remains skuld.
+
+pub fn uiIsSymbol(tag) {
+    return tag == "symbol"
+}
