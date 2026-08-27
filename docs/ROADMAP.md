@@ -996,7 +996,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH24** | **HTTP i Kab** — server/fetch ovanpå SH21/SH23 | `http_fetch_async` / `http_serve` utan `src/runtime/http.rs` | ✅ subset: host wraps + `httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete` + `httpIsOptions` + `httpIsTrace` + `httpIsConnect`; radera `runtime/http.rs` deepen |
 | **SH25** | **CLI, REPL, test-runner i Kab** — `kabootar run/compile/test` | CI kan köra `.kab`-gates utan `src/cli` | ✅ subset: run/repl/test + `cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp` + `cliIsDoc` + `cliIsBench` + `cliIsNew` + `cliIsInit` + `cliIsWatch` + `cliIsClean` + `cliIsAdd` + `cliIsRm` + `cliIsMod` + `cliIsLs` + `cliIsCat`; radera `src/cli` + kabtest KT8 deepen |
 | **SH26** | **Science/GPU-API i Kab** — kernels och nd i `.kab`; native GPU bara syscall | Science-smoke på Kab-VM/JIT | ✅ subset: `sciAdd`/`sciMul`/`sciGpuOff` + `sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv` + `sciNeg` + `sciAbs` + `sciMax` + `sciMin` + `sciClamp` + `sciPow` + `sciSqr` + `sciCub` + `sciSign`; GPU kernel deepen |
-| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | ✅ subset: `uiIsDiv` / `uiTickMs` + `uiIsCanvas` + `uiFpsOk` + `uiIsSpan` + `uiIsButton` + `uiIsInput` + `uiIsImg` + `uiIsP` + `uiIsA` + `uiIsUl` + `uiIsLi` + `uiIsOl`; kbrowser deepen |
+| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | ✅ subset: `uiIsDiv` / `uiTickMs` + `uiIsCanvas` + `uiFpsOk` + `uiIsSpan` + `uiIsButton` + `uiIsInput` + `uiIsImg` + `uiIsP` + `uiIsA` + `uiIsUl` + `uiIsLi` + `uiIsOl` + `uiIsH1`; kbrowser deepen |
 | **SH28** | **Radera produkt-Rust** — tom `src/` för runtime; inget rustc för att köra Kabootar | `src/**/*.rs` produkt = 0; dokumenterad bootstrap-image från Kab | ✅ subset: `nollSrcGoal=0` + `nollSrcGoalZero=0` + `nollBootstrapFromKabOk=true` + `nollAllGatesClosedOk=true` + `nollAotReady=false` + `nollAotProcess=false` + `nollImageIsProcess=false` + `nollMmapExecProcess=false` + `nollStubIsProcess=false` + `nollSyscallIsKab=false` + `nollRustcNotHost=false` + `nollHostOptional=false` + `nollNoNewRs=true` + `nollKeepSrc` + `nollDropSrc=false` + `nollProcessIsKab=false` + `nollBootstrapImage` + `nollCargoNotRuntime=false` + `nollRustcNotProcess=false` + `nollMmapStub=false` + `nollStubFrozen=false` + `nollHostSyscallGone=false` + `nollProductSrcGone=false` + `nollCargoTomlGone=false` + `nollRustcCiGone=false` + `nollKabtestProductCi=false` + `nollUserNoRustc=false`; **radera inte `src/`** förrän AOT |
 
 **SH11 — vad som är OK vs vad som inte ska göras nu**
@@ -1028,7 +1028,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 - Ny Cranelift/IC/GC i Rust (det ska bli `.kab`).
 - Att checka in `_probe_*.kab` som produkt.
 
-**Nästa:** SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH27 UI dual-bind deepen (nästa leaf efter ui_ol: uiIsH1). Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
+**Nästa:** SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH27 UI dual-bind deepen (nästa leaf efter ui_h1: uiIsH2). Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 

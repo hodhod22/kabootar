@@ -1,0 +1,3 @@
+import "kab/ui_h1"
+
+return uiIsH1("h1")

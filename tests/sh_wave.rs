@@ -38296,6 +38296,31 @@ fn sh27_ui_ol_host_dual_bind_in_kab() {
     );
 }
 
+/// SH27 deepen: h1 tag lives off ui_ol.kab.
+#[test]
+fn sh27_ui_h1_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/ui_h1.kab")).expect("ui_h1.kab");
+    assert!(
+        h.contains("pub fn uiIsH1") && h.contains("h1"),
+        "SH27 Kab uiIsH1"
+    );
+}
+
+/// SH27 deepen: h1 dual-bind to host delete gate.
+#[test]
+fn sh27_ui_h1_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_h1_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_h1_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk")
+            && s.contains("uiIsH1")
+            && s.contains("h1"),
+        "SH27 Kab ui h1 host dual-bind"
+    );
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {
