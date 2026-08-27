@@ -1,0 +1,14 @@
+import "kab/ui_rtc"
+import "kab/ui_rb"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRb("rb") == false {
+    return false
+}
+if uiIsRtc("rtc") == false {
+    return false
+}
+return uiHostDeleteOk() == false

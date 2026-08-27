@@ -1,0 +1,3 @@
+import "kab/ui_noembed"
+
+return uiIsNoembed("noembed")

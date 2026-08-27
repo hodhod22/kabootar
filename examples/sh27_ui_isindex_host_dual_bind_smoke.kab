@@ -1,0 +1,14 @@
+import "kab/ui_isindex"
+import "kab/ui_basefont"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBasefont("basefont") == false {
+    return false
+}
+if uiIsIsindex("isindex") == false {
+    return false
+}
+return uiHostDeleteOk() == false

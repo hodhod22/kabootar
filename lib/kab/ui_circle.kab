@@ -1,0 +1,6 @@
+// SH27: circle tag off ui_rect.kab. import "kab/ui_circle"
+// Do not grow ui_rect.kab. Host browser* remains skuld.
+
+pub fn uiIsCircle(tag) {
+    return tag == "circle"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_spacer"
+import "kab/ui_noembed"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNoembed("noembed") == false {
+    return false
+}
+if uiIsSpacer("spacer") == false {
+    return false
+}
+return uiHostDeleteOk() == false

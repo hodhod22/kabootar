@@ -1,0 +1,3 @@
+import "kab/ui_div"
+
+return uiIsDiv("div")

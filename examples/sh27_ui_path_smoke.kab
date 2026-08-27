@@ -1,0 +1,3 @@
+import "kab/ui_path"
+
+return uiIsPath("path")

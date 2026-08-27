@@ -1,0 +1,6 @@
+// SH27: polyline tag off ui_line.kab. import "kab/ui_polyline"
+// Do not grow ui_line.kab. Host browser* remains skuld.
+
+pub fn uiIsPolyline(tag) {
+    return tag == "polyline"
+}

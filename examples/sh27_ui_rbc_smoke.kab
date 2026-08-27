@@ -1,0 +1,3 @@
+import "kab/ui_rbc"
+
+return uiIsRbc("rbc")

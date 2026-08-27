@@ -1,0 +1,3 @@
+import "kab/ui_element"
+
+return uiIsElement("element")

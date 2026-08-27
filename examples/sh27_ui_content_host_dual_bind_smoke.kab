@@ -1,0 +1,14 @@
+import "kab/ui_content"
+import "kab/ui_shadow"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsShadow("shadow") == false {
+    return false
+}
+if uiIsContent("content") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_nextid"
+import "kab/ui_element"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsElement("element") == false {
+    return false
+}
+if uiIsNextid("nextid") == false {
+    return false
+}
+return uiHostDeleteOk() == false

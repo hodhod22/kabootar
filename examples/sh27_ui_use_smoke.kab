@@ -1,0 +1,3 @@
+import "kab/ui_use"
+
+return uiIsUse("use")

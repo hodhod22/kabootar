@@ -1,0 +1,14 @@
+import "kab/ui_menuitem"
+import "kab/ui_plaintext"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPlaintext("plaintext") == false {
+    return false
+}
+if uiIsMenuitem("menuitem") == false {
+    return false
+}
+return uiHostDeleteOk() == false

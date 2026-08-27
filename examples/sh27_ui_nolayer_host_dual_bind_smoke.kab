@@ -1,0 +1,14 @@
+import "kab/ui_nolayer"
+import "kab/ui_ilayer"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsIlayer("ilayer") == false {
+    return false
+}
+if uiIsNolayer("nolayer") == false {
+    return false
+}
+return uiHostDeleteOk() == false

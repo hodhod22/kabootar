@@ -1,0 +1,3 @@
+import "kab/ui_applet"
+
+return uiIsApplet("applet")

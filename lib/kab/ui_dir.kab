@@ -1,0 +1,6 @@
+// SH27: dir tag off ui_nobr.kab. import "kab/ui_dir"
+// Do not grow ui_nobr.kab. Host browser* remains skuld.
+
+pub fn uiIsDir(tag) {
+    return tag == "dir"
+}

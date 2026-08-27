@@ -1,0 +1,6 @@
+// SH27: rbc tag off ui_rtc.kab. import "kab/ui_rbc"
+// Do not grow ui_rtc.kab. Host browser* remains skuld.
+
+pub fn uiIsRbc(tag) {
+    return tag == "rbc"
+}

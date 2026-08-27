@@ -1,0 +1,14 @@
+import "kab/ui_line"
+import "kab/ui_ellipse"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsEllipse("ellipse") == false {
+    return false
+}
+if uiIsLine("line") == false {
+    return false
+}
+return uiHostDeleteOk() == false

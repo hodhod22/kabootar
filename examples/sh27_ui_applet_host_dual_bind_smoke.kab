@@ -1,0 +1,14 @@
+import "kab/ui_applet"
+import "kab/ui_blink"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBlink("blink") == false {
+    return false
+}
+if uiIsApplet("applet") == false {
+    return false
+}
+return uiHostDeleteOk() == false

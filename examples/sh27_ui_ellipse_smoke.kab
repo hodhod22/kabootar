@@ -1,0 +1,3 @@
+import "kab/ui_ellipse"
+
+return uiIsEllipse("ellipse")

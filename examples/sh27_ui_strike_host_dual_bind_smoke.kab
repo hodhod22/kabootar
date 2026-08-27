@@ -1,0 +1,14 @@
+import "kab/ui_strike"
+import "kab/ui_tt"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTt("tt") == false {
+    return false
+}
+if uiIsStrike("strike") == false {
+    return false
+}
+return uiHostDeleteOk() == false
