@@ -1,0 +1,14 @@
+import "kab/ui_dialog"
+import "kab/ui_summary"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSummary("summary") == false {
+    return false
+}
+if uiIsDialog("dialog") == false {
+    return false
+}
+return uiHostDeleteOk() == false

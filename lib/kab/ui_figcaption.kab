@@ -1,0 +1,6 @@
+// SH27: figcaption tag off ui_figure.kab. import "kab/ui_figcaption"
+// Do not grow ui_figure.kab. Host browser* remains skuld.
+
+pub fn uiIsFigcaption(tag) {
+    return tag == "figcaption"
+}

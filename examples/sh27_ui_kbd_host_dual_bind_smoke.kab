@@ -1,0 +1,14 @@
+import "kab/ui_kbd"
+import "kab/ui_br"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBr("br") == false {
+    return false
+}
+if uiIsKbd("kbd") == false {
+    return false
+}
+return uiHostDeleteOk() == false

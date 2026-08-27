@@ -1,0 +1,6 @@
+// SH27: head tag off ui_base.kab. import "kab/ui_head"
+// Do not grow ui_base.kab. Host browser* remains skuld.
+
+pub fn uiIsHead(tag) {
+    return tag == "head"
+}

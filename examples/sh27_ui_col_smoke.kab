@@ -1,0 +1,3 @@
+import "kab/ui_col"
+
+return uiIsCol("col")

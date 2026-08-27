@@ -1,0 +1,14 @@
+import "kab/ui_bdo"
+import "kab/ui_bdi"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBdi("bdi") == false {
+    return false
+}
+if uiIsBdo("bdo") == false {
+    return false
+}
+return uiHostDeleteOk() == false

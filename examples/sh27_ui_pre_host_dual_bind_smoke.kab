@@ -1,0 +1,14 @@
+import "kab/ui_pre"
+import "kab/ui_dialog"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDialog("dialog") == false {
+    return false
+}
+if uiIsPre("pre") == false {
+    return false
+}
+return uiHostDeleteOk() == false

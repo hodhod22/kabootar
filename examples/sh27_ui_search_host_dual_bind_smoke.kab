@@ -1,0 +1,14 @@
+import "kab/ui_search"
+import "kab/ui_menu"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMenu("menu") == false {
+    return false
+}
+if uiIsSearch("search") == false {
+    return false
+}
+return uiHostDeleteOk() == false

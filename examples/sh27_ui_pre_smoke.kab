@@ -1,0 +1,3 @@
+import "kab/ui_pre"
+
+return uiIsPre("pre")

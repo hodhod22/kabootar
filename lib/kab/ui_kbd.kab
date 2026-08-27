@@ -1,0 +1,6 @@
+// SH27: kbd tag off ui_br.kab. import "kab/ui_kbd"
+// Do not grow ui_br.kab. Host browser* remains skuld.
+
+pub fn uiIsKbd(tag) {
+    return tag == "kbd"
+}

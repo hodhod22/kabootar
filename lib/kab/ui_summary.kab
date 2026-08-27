@@ -1,0 +1,6 @@
+// SH27: summary tag off ui_details.kab. import "kab/ui_summary"
+// Do not grow ui_details.kab. Host browser* remains skuld.
+
+pub fn uiIsSummary(tag) {
+    return tag == "summary"
+}

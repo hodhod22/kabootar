@@ -1,0 +1,14 @@
+import "kab/ui_math"
+import "kab/ui_svg"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSvg("svg") == false {
+    return false
+}
+if uiIsMath("math") == false {
+    return false
+}
+return uiHostDeleteOk() == false

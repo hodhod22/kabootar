@@ -1,0 +1,6 @@
+// SH27: form tag off ui_h6.kab. import "kab/ui_form"
+// Do not grow ui_h6.kab. Host browser* remains skuld.
+
+pub fn uiIsForm(tag) {
+    return tag == "form"
+}

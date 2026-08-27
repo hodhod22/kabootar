@@ -1,0 +1,14 @@
+import "kab/ui_script"
+import "kab/ui_noscript"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNoscript("noscript") == false {
+    return false
+}
+if uiIsScript("script") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH27: body tag off ui_head.kab. import "kab/ui_body"
+// Do not grow ui_head.kab. Host browser* remains skuld.
+
+pub fn uiIsBody(tag) {
+    return tag == "body"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_rt"
+import "kab/ui_ruby"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRuby("ruby") == false {
+    return false
+}
+if uiIsRt("rt") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_option"
+
+return uiIsOption("option")

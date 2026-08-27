@@ -1,0 +1,3 @@
+import "kab/ui_data"
+
+return uiIsData("data")

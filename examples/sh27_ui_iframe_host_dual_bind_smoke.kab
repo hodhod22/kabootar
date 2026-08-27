@@ -1,0 +1,14 @@
+import "kab/ui_iframe"
+import "kab/ui_track"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTrack("track") == false {
+    return false
+}
+if uiIsIframe("iframe") == false {
+    return false
+}
+return uiHostDeleteOk() == false

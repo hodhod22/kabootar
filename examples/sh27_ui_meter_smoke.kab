@@ -1,0 +1,3 @@
+import "kab/ui_meter"
+
+return uiIsMeter("meter")

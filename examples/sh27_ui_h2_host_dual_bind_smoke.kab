@@ -1,0 +1,14 @@
+import "kab/ui_h2"
+import "kab/ui_h1"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsH1("h1") == false {
+    return false
+}
+if uiIsH2("h2") == false {
+    return false
+}
+return uiHostDeleteOk() == false

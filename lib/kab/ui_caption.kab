@@ -1,0 +1,6 @@
+// SH27: caption tag off ui_col.kab. import "kab/ui_caption"
+// Do not grow ui_col.kab. Host browser* remains skuld.
+
+pub fn uiIsCaption(tag) {
+    return tag == "caption"
+}

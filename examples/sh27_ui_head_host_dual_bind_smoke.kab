@@ -1,0 +1,14 @@
+import "kab/ui_head"
+import "kab/ui_base"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBase("base") == false {
+    return false
+}
+if uiIsHead("head") == false {
+    return false
+}
+return uiHostDeleteOk() == false

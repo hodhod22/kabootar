@@ -1,0 +1,6 @@
+// SH27: param tag off ui_object.kab. import "kab/ui_param"
+// Do not grow ui_object.kab. Host browser* remains skuld.
+
+pub fn uiIsParam(tag) {
+    return tag == "param"
+}

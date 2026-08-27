@@ -1,0 +1,14 @@
+import "kab/ui_meta"
+import "kab/ui_link"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLink("link") == false {
+    return false
+}
+if uiIsMeta("meta") == false {
+    return false
+}
+return uiHostDeleteOk() == false

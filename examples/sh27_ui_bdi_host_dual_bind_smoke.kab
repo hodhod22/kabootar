@@ -1,0 +1,14 @@
+import "kab/ui_bdi"
+import "kab/ui_rp"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRp("rp") == false {
+    return false
+}
+if uiIsBdi("bdi") == false {
+    return false
+}
+return uiHostDeleteOk() == false

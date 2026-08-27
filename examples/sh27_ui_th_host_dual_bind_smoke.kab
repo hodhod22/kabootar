@@ -1,0 +1,14 @@
+import "kab/ui_th"
+import "kab/ui_tr"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTr("tr") == false {
+    return false
+}
+if uiIsTh("th") == false {
+    return false
+}
+return uiHostDeleteOk() == false

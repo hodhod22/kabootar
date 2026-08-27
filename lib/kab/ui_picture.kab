@@ -1,0 +1,6 @@
+// SH27: picture tag off ui_optgroup.kab. import "kab/ui_picture"
+// Do not grow ui_optgroup.kab. Host browser* remains skuld.
+
+pub fn uiIsPicture(tag) {
+    return tag == "picture"
+}

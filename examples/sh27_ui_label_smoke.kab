@@ -1,0 +1,3 @@
+import "kab/ui_label"
+
+return uiIsLabel("label")

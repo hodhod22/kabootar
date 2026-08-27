@@ -1,0 +1,3 @@
+import "kab/ui_title"
+
+return uiIsTitle("title")

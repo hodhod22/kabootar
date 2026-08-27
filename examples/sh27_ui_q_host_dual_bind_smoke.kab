@@ -1,0 +1,14 @@
+import "kab/ui_q"
+import "kab/ui_time"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTime("time") == false {
+    return false
+}
+if uiIsQ("q") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_dl"
+import "kab/ui_address"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAddress("address") == false {
+    return false
+}
+if uiIsDl("dl") == false {
+    return false
+}
+return uiHostDeleteOk() == false

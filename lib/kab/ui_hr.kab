@@ -1,0 +1,6 @@
+// SH27: hr tag off ui_legend.kab. import "kab/ui_hr"
+// Do not grow ui_legend.kab. Host browser* remains skuld.
+
+pub fn uiIsHr(tag) {
+    return tag == "hr"
+}

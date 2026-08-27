@@ -1,0 +1,3 @@
+import "kab/ui_blockquote"
+
+return uiIsBlockquote("blockquote")

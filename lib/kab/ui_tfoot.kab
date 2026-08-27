@@ -1,0 +1,6 @@
+// SH27: tfoot tag off ui_tbody.kab. import "kab/ui_tfoot"
+// Do not grow ui_tbody.kab. Host browser* remains skuld.
+
+pub fn uiIsTfoot(tag) {
+    return tag == "tfoot"
+}

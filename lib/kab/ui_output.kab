@@ -1,0 +1,6 @@
+// SH27: output tag off ui_progress.kab. import "kab/ui_output"
+// Do not grow ui_progress.kab. Host browser* remains skuld.
+
+pub fn uiIsOutput(tag) {
+    return tag == "output"
+}

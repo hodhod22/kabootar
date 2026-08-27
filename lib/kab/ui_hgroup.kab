@@ -1,0 +1,6 @@
+// SH27: hgroup tag off ui_html.kab. import "kab/ui_hgroup"
+// Do not grow ui_html.kab. Host browser* remains skuld.
+
+pub fn uiIsHgroup(tag) {
+    return tag == "hgroup"
+}

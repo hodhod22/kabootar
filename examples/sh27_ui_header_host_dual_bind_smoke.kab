@@ -1,0 +1,14 @@
+import "kab/ui_header"
+import "kab/ui_nav"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNav("nav") == false {
+    return false
+}
+if uiIsHeader("header") == false {
+    return false
+}
+return uiHostDeleteOk() == false

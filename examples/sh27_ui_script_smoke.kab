@@ -1,0 +1,3 @@
+import "kab/ui_script"
+
+return uiIsScript("script")

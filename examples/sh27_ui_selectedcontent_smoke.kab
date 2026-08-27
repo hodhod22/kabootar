@@ -1,0 +1,3 @@
+import "kab/ui_selectedcontent"
+
+return uiIsSelectedcontent("selectedcontent")

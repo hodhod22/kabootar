@@ -1,0 +1,14 @@
+import "kab/ui_col"
+import "kab/ui_colgroup"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsColgroup("colgroup") == false {
+    return false
+}
+if uiIsCol("col") == false {
+    return false
+}
+return uiHostDeleteOk() == false

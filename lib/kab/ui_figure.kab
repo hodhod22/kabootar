@@ -1,0 +1,6 @@
+// SH27: figure tag off ui_aside.kab. import "kab/ui_figure"
+// Do not grow ui_aside.kab. Host browser* remains skuld.
+
+pub fn uiIsFigure(tag) {
+    return tag == "figure"
+}

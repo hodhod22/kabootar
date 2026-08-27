@@ -1,0 +1,3 @@
+import "kab/ui_dl"
+
+return uiIsDl("dl")

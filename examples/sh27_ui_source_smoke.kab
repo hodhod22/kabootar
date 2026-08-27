@@ -1,0 +1,3 @@
+import "kab/ui_source"
+
+return uiIsSource("source")

@@ -1,0 +1,6 @@
+// SH27: samp tag off ui_kbd.kab. import "kab/ui_samp"
+// Do not grow ui_kbd.kab. Host browser* remains skuld.
+
+pub fn uiIsSamp(tag) {
+    return tag == "samp"
+}

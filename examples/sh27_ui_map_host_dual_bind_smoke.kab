@@ -1,0 +1,14 @@
+import "kab/ui_map"
+import "kab/ui_picture"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPicture("picture") == false {
+    return false
+}
+if uiIsMap("map") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_abbr"
+import "kab/ui_var"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsVar("var") == false {
+    return false
+}
+if uiIsAbbr("abbr") == false {
+    return false
+}
+return uiHostDeleteOk() == false

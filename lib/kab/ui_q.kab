@@ -1,0 +1,6 @@
+// SH27: q tag off ui_time.kab. import "kab/ui_q"
+// Do not grow ui_time.kab. Host browser* remains skuld.
+
+pub fn uiIsQ(tag) {
+    return tag == "q"
+}

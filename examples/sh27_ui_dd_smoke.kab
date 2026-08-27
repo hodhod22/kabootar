@@ -1,0 +1,3 @@
+import "kab/ui_dd"
+
+return uiIsDd("dd")

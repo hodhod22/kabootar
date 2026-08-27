@@ -1,0 +1,3 @@
+import "kab/ui_object"
+
+return uiIsObject("object")

@@ -1,0 +1,14 @@
+import "kab/ui_selectedcontent"
+import "kab/ui_math"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMath("math") == false {
+    return false
+}
+if uiIsSelectedcontent("selectedcontent") == false {
+    return false
+}
+return uiHostDeleteOk() == false

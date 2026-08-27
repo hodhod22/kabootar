@@ -1,0 +1,14 @@
+import "kab/ui_small"
+import "kab/ui_mark"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMark("mark") == false {
+    return false
+}
+if uiIsSmall("small") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_noscript"
+import "kab/ui_slot"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSlot("slot") == false {
+    return false
+}
+if uiIsNoscript("noscript") == false {
+    return false
+}
+return uiHostDeleteOk() == false

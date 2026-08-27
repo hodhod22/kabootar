@@ -1,0 +1,14 @@
+import "kab/ui_textarea"
+import "kab/ui_label"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLabel("label") == false {
+    return false
+}
+if uiIsTextarea("textarea") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_table"
+
+return uiIsTable("table")

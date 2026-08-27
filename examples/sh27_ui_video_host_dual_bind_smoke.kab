@@ -1,0 +1,14 @@
+import "kab/ui_video"
+import "kab/ui_blockquote"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBlockquote("blockquote") == false {
+    return false
+}
+if uiIsVideo("video") == false {
+    return false
+}
+return uiHostDeleteOk() == false

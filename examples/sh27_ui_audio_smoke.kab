@@ -1,0 +1,3 @@
+import "kab/ui_audio"
+
+return uiIsAudio("audio")

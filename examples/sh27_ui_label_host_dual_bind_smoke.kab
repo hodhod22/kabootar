@@ -1,0 +1,14 @@
+import "kab/ui_label"
+import "kab/ui_form"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsForm("form") == false {
+    return false
+}
+if uiIsLabel("label") == false {
+    return false
+}
+return uiHostDeleteOk() == false

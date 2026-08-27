@@ -1,0 +1,14 @@
+import "kab/ui_slot"
+import "kab/ui_template"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTemplate("template") == false {
+    return false
+}
+if uiIsSlot("slot") == false {
+    return false
+}
+return uiHostDeleteOk() == false

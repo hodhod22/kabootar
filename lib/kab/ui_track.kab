@@ -1,0 +1,6 @@
+// SH27: track tag off ui_source.kab. import "kab/ui_track"
+// Do not grow ui_source.kab. Host browser* remains skuld.
+
+pub fn uiIsTrack(tag) {
+    return tag == "track"
+}

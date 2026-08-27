@@ -1,0 +1,3 @@
+import "kab/ui_sup"
+
+return uiIsSup("sup")

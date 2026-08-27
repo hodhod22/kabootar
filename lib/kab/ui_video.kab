@@ -1,0 +1,6 @@
+// SH27: video tag off ui_blockquote.kab. import "kab/ui_video"
+// Do not grow ui_blockquote.kab. Host browser* remains skuld.
+
+pub fn uiIsVideo(tag) {
+    return tag == "video"
+}

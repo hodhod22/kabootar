@@ -1,0 +1,14 @@
+import "kab/ui_output"
+import "kab/ui_progress"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsProgress("progress") == false {
+    return false
+}
+if uiIsOutput("output") == false {
+    return false
+}
+return uiHostDeleteOk() == false

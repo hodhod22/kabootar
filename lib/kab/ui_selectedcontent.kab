@@ -1,0 +1,6 @@
+// SH27: selectedcontent tag off ui_math.kab. import "kab/ui_selectedcontent"
+// Do not grow ui_math.kab. Host browser* remains skuld.
+
+pub fn uiIsSelectedcontent(tag) {
+    return tag == "selectedcontent"
+}

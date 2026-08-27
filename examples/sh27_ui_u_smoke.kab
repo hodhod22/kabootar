@@ -1,0 +1,3 @@
+import "kab/ui_u"
+
+return uiIsU("u")

@@ -1,0 +1,6 @@
+// SH27: math tag off ui_svg.kab. import "kab/ui_math"
+// Do not grow ui_svg.kab. Host browser* remains skuld.
+
+pub fn uiIsMath(tag) {
+    return tag == "math"
+}

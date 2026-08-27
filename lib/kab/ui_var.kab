@@ -1,0 +1,6 @@
+// SH27: var tag off ui_samp.kab. import "kab/ui_var"
+// Do not grow ui_samp.kab. Host browser* remains skuld.
+
+pub fn uiIsVar(tag) {
+    return tag == "var"
+}

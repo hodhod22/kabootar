@@ -1,0 +1,14 @@
+import "kab/ui_figcaption"
+import "kab/ui_figure"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFigure("figure") == false {
+    return false
+}
+if uiIsFigcaption("figcaption") == false {
+    return false
+}
+return uiHostDeleteOk() == false

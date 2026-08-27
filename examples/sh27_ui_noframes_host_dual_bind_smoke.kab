@@ -1,0 +1,14 @@
+import "kab/ui_noframes"
+import "kab/ui_frame"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFrame("frame") == false {
+    return false
+}
+if uiIsNoframes("noframes") == false {
+    return false
+}
+return uiHostDeleteOk() == false

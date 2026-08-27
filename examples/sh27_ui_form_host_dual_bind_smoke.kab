@@ -1,0 +1,14 @@
+import "kab/ui_form"
+import "kab/ui_h6"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsH6("h6") == false {
+    return false
+}
+if uiIsForm("form") == false {
+    return false
+}
+return uiHostDeleteOk() == false

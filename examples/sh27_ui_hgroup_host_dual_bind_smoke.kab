@@ -1,0 +1,14 @@
+import "kab/ui_hgroup"
+import "kab/ui_html"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsHtml("html") == false {
+    return false
+}
+if uiIsHgroup("hgroup") == false {
+    return false
+}
+return uiHostDeleteOk() == false

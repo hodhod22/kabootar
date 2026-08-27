@@ -1,0 +1,14 @@
+import "kab/ui_dfn"
+import "kab/ui_data"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsData("data") == false {
+    return false
+}
+if uiIsDfn("dfn") == false {
+    return false
+}
+return uiHostDeleteOk() == false

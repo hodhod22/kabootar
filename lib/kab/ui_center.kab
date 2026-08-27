@@ -1,0 +1,6 @@
+// SH27: center tag off ui_font.kab. import "kab/ui_center"
+// Do not grow ui_font.kab. Host browser* remains skuld.
+
+pub fn uiIsCenter(tag) {
+    return tag == "center"
+}

@@ -1,0 +1,3 @@
+import "kab/ui_dfn"
+
+return uiIsDfn("dfn")

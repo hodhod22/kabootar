@@ -1,0 +1,3 @@
+import "kab/ui_details"
+
+return uiIsDetails("details")

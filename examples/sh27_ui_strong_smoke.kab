@@ -1,0 +1,3 @@
+import "kab/ui_strong"
+
+return uiIsStrong("strong")
