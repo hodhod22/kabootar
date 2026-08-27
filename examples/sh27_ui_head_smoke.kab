@@ -1,0 +1,3 @@
+import "kab/ui_head"
+
+return uiIsHead("head")

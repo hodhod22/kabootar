@@ -1,0 +1,14 @@
+import "kab/ui_title"
+import "kab/ui_meta"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMeta("meta") == false {
+    return false
+}
+if uiIsTitle("title") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_code"
+
+return uiIsCode("code")

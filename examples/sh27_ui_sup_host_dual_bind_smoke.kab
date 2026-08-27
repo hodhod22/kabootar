@@ -1,0 +1,14 @@
+import "kab/ui_sup"
+import "kab/ui_sub"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSub("sub") == false {
+    return false
+}
+if uiIsSup("sup") == false {
+    return false
+}
+return uiHostDeleteOk() == false

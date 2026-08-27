@@ -1,0 +1,3 @@
+import "kab/ui_legend"
+
+return uiIsLegend("legend")

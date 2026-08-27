@@ -1,0 +1,6 @@
+// SH27: map tag off ui_picture.kab. import "kab/ui_map"
+// Do not grow ui_picture.kab. Host browser* remains skuld.
+
+pub fn uiIsMap(tag) {
+    return tag == "map"
+}

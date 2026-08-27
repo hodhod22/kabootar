@@ -1,0 +1,14 @@
+import "kab/ui_dt"
+import "kab/ui_dl"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDl("dl") == false {
+    return false
+}
+if uiIsDt("dt") == false {
+    return false
+}
+return uiHostDeleteOk() == false

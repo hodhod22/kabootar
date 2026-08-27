@@ -1,0 +1,14 @@
+import "kab/ui_source"
+import "kab/ui_audio"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAudio("audio") == false {
+    return false
+}
+if uiIsSource("source") == false {
+    return false
+}
+return uiHostDeleteOk() == false

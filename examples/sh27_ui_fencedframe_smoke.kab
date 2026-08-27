@@ -1,0 +1,3 @@
+import "kab/ui_fencedframe"
+
+return uiIsFencedframe("fencedframe")

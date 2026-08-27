@@ -1,0 +1,14 @@
+import "kab/ui_center"
+import "kab/ui_font"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFont("font") == false {
+    return false
+}
+if uiIsCenter("center") == false {
+    return false
+}
+return uiHostDeleteOk() == false

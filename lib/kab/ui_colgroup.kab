@@ -1,0 +1,6 @@
+// SH27: colgroup tag off ui_param.kab. import "kab/ui_colgroup"
+// Do not grow ui_param.kab. Host browser* remains skuld.
+
+pub fn uiIsColgroup(tag) {
+    return tag == "colgroup"
+}

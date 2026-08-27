@@ -1,0 +1,6 @@
+// SH27: cite tag off ui_abbr.kab. import "kab/ui_cite"
+// Do not grow ui_abbr.kab. Host browser* remains skuld.
+
+pub fn uiIsCite(tag) {
+    return tag == "cite"
+}

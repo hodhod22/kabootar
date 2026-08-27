@@ -1,0 +1,6 @@
+// SH27: area tag off ui_map.kab. import "kab/ui_area"
+// Do not grow ui_map.kab. Host browser* remains skuld.
+
+pub fn uiIsArea(tag) {
+    return tag == "area"
+}

@@ -1,0 +1,3 @@
+import "kab/ui_s"
+
+return uiIsS("s")

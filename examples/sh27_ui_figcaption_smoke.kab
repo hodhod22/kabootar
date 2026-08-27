@@ -1,0 +1,3 @@
+import "kab/ui_figcaption"
+
+return uiIsFigcaption("figcaption")

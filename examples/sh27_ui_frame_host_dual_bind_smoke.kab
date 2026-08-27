@@ -1,0 +1,14 @@
+import "kab/ui_frame"
+import "kab/ui_frameset"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFrameset("frameset") == false {
+    return false
+}
+if uiIsFrame("frame") == false {
+    return false
+}
+return uiHostDeleteOk() == false

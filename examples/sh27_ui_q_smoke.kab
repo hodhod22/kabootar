@@ -1,0 +1,3 @@
+import "kab/ui_q"
+
+return uiIsQ("q")

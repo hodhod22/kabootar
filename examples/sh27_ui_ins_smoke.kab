@@ -1,0 +1,3 @@
+import "kab/ui_ins"
+
+return uiIsIns("ins")

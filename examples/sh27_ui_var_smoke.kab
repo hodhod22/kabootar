@@ -1,0 +1,3 @@
+import "kab/ui_var"
+
+return uiIsVar("var")

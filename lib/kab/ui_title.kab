@@ -1,0 +1,6 @@
+// SH27: title tag off ui_meta.kab. import "kab/ui_title"
+// Do not grow ui_meta.kab. Host browser* remains skuld.
+
+pub fn uiIsTitle(tag) {
+    return tag == "title"
+}

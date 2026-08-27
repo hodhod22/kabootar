@@ -1,0 +1,6 @@
+// SH27: noframes tag off ui_frame.kab. import "kab/ui_noframes"
+// Do not grow ui_frame.kab. Host browser* remains skuld.
+
+pub fn uiIsNoframes(tag) {
+    return tag == "noframes"
+}

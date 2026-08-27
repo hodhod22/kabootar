@@ -1,0 +1,14 @@
+import "kab/ui_legend"
+import "kab/ui_fieldset"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFieldset("fieldset") == false {
+    return false
+}
+if uiIsLegend("legend") == false {
+    return false
+}
+return uiHostDeleteOk() == false

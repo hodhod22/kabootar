@@ -1,0 +1,3 @@
+import "kab/ui_colgroup"
+
+return uiIsColgroup("colgroup")

@@ -1,0 +1,6 @@
+// SH27: svg tag off ui_portal.kab. import "kab/ui_svg"
+// Do not grow ui_portal.kab. Host browser* remains skuld.
+
+pub fn uiIsSvg(tag) {
+    return tag == "svg"
+}

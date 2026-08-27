@@ -1,0 +1,14 @@
+import "kab/ui_param"
+import "kab/ui_object"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsObject("object") == false {
+    return false
+}
+if uiIsParam("param") == false {
+    return false
+}
+return uiHostDeleteOk() == false

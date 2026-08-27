@@ -1,0 +1,6 @@
+// SH27: ruby tag off ui_wbr.kab. import "kab/ui_ruby"
+// Do not grow ui_wbr.kab. Host browser* remains skuld.
+
+pub fn uiIsRuby(tag) {
+    return tag == "ruby"
+}

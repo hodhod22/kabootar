@@ -1,0 +1,14 @@
+import "kab/ui_code"
+import "kab/ui_pre"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPre("pre") == false {
+    return false
+}
+if uiIsCode("code") == false {
+    return false
+}
+return uiHostDeleteOk() == false

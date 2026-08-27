@@ -1,0 +1,3 @@
+import "kab/ui_search"
+
+return uiIsSearch("search")

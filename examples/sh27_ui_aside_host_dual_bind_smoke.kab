@@ -1,0 +1,14 @@
+import "kab/ui_aside"
+import "kab/ui_article"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArticle("article") == false {
+    return false
+}
+if uiIsAside("aside") == false {
+    return false
+}
+return uiHostDeleteOk() == false

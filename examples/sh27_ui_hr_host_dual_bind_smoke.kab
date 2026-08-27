@@ -1,0 +1,14 @@
+import "kab/ui_hr"
+import "kab/ui_legend"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLegend("legend") == false {
+    return false
+}
+if uiIsHr("hr") == false {
+    return false
+}
+return uiHostDeleteOk() == false

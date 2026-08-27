@@ -1,0 +1,3 @@
+import "kab/ui_time"
+
+return uiIsTime("time")

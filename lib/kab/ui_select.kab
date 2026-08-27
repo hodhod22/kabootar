@@ -1,0 +1,6 @@
+// SH27: select tag off ui_textarea.kab. import "kab/ui_select"
+// Do not grow ui_textarea.kab. Host browser* remains skuld.
+
+pub fn uiIsSelect(tag) {
+    return tag == "select"
+}

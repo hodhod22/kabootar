@@ -1,0 +1,3 @@
+import "kab/ui_select"
+
+return uiIsSelect("select")

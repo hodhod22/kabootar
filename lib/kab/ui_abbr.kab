@@ -1,0 +1,6 @@
+// SH27: abbr tag off ui_var.kab. import "kab/ui_abbr"
+// Do not grow ui_var.kab. Host browser* remains skuld.
+
+pub fn uiIsAbbr(tag) {
+    return tag == "abbr"
+}

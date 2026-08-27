@@ -1,0 +1,6 @@
+// SH27: optgroup tag off ui_datalist.kab. import "kab/ui_optgroup"
+// Do not grow ui_datalist.kab. Host browser* remains skuld.
+
+pub fn uiIsOptgroup(tag) {
+    return tag == "optgroup"
+}

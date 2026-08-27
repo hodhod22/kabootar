@@ -1,0 +1,3 @@
+import "kab/ui_output"
+
+return uiIsOutput("output")

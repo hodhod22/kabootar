@@ -1,0 +1,14 @@
+import "kab/ui_object"
+import "kab/ui_embed"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsEmbed("embed") == false {
+    return false
+}
+if uiIsObject("object") == false {
+    return false
+}
+return uiHostDeleteOk() == false

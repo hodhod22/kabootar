@@ -1,0 +1,3 @@
+import "kab/ui_small"
+
+return uiIsSmall("small")

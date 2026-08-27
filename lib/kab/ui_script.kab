@@ -1,0 +1,6 @@
+// SH27: script tag off ui_noscript.kab. import "kab/ui_script"
+// Do not grow ui_noscript.kab. Host browser* remains skuld.
+
+pub fn uiIsScript(tag) {
+    return tag == "script"
+}

@@ -1,0 +1,3 @@
+import "kab/ui_rp"
+
+return uiIsRp("rp")

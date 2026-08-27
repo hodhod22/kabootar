@@ -1,0 +1,14 @@
+import "kab/ui_thead"
+import "kab/ui_td"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTd("td") == false {
+    return false
+}
+if uiIsThead("thead") == false {
+    return false
+}
+return uiHostDeleteOk() == false

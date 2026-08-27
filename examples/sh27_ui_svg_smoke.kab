@@ -1,0 +1,3 @@
+import "kab/ui_svg"
+
+return uiIsSvg("svg")

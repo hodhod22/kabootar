@@ -1,0 +1,14 @@
+import "kab/ui_portal"
+import "kab/ui_search"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSearch("search") == false {
+    return false
+}
+if uiIsPortal("portal") == false {
+    return false
+}
+return uiHostDeleteOk() == false
