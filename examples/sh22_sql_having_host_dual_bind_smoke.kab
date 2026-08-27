@@ -1,0 +1,14 @@
+import "kab/sql_having"
+import "kab/sql_group"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsGroup("SELECT a FROM t GROUP BY a") == false {
+    return false
+}
+if sqlIsHaving("SELECT a FROM t HAVING n = 1") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

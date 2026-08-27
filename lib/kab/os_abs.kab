@@ -1,0 +1,17 @@
+// SH21: path abs leaf off os_norm.kab. import "kab/os_abs"
+// Do not grow os_norm.kab. kabOsHostDeleteOk stays false.
+
+import "kab/os_norm"
+import "kab/os_join"
+
+pub fn kabOsAbs(cwd, path) {
+    let n = len(path)
+    if n < 1 {
+        return kabOsNorm(cwd)
+    }
+    let ch = str_slice(path, 0, 1)
+    if ch == "/" {
+        return kabOsNorm(path)
+    }
+    return kabOsNorm(kabOsJoin(cwd, path))
+}

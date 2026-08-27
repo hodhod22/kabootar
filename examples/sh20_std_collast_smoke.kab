@@ -1,0 +1,5 @@
+import "kab/std_collast"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+return stdColLast(p) == 42

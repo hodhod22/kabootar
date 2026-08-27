@@ -1,0 +1,3 @@
+import "kab/cli_mod"
+
+return cliIsMod("mod") == true

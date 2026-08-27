@@ -1,0 +1,23 @@
+// SH20: collections identity off std_coldiag.kab. import "kab/std_colident"
+// Do not grow std_coldiag.kab. stdHostDeleteOk stays false.
+
+pub fn stdColIdent(n) {
+    let out = []
+    let i = 0
+    while i < n {
+        let row = []
+        let j = 0
+        while j < n {
+            if i == j {
+                row = push(row, 1)
+            }
+            if i != j {
+                row = push(row, 0)
+            }
+            j = j + 1
+        }
+        out = push(out, row)
+        i = i + 1
+    }
+    return out
+}

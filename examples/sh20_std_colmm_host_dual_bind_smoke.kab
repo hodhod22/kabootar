@@ -1,0 +1,19 @@
+import "kab/std_colmm"
+import "kab/std_colmv"
+import "kab/std_colident"
+import "kab/std_colfill"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(2, 1)
+let i2 = stdColIdent(2)
+if stdColEq(stdColMatVec(i2, v), v) == false {
+    return false
+}
+if stdColEq(stdColMatMul(i2, i2), i2) == false {
+    return false
+}
+return stdHostDeleteOk() == false

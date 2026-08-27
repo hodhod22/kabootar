@@ -1,0 +1,3 @@
+import "kab/cli_ls"
+
+return cliIsLs("ls") == true

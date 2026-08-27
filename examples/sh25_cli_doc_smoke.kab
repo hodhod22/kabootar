@@ -1,0 +1,3 @@
+import "kab/cli_doc"
+
+return cliIsDoc("doc") == true

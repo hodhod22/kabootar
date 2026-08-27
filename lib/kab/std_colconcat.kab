@@ -1,0 +1,19 @@
+// SH20: collections concat off std_colempty.kab. import "kab/std_colconcat"
+// Do not grow std_colempty.kab. stdHostDeleteOk stays false.
+
+pub fn stdColConcat(a, b) {
+    let out = []
+    let i = 0
+    let na = len(a)
+    while i < na {
+        out = push(out, a[i])
+        i = i + 1
+    }
+    let j = 0
+    let nb = len(b)
+    while j < nb {
+        out = push(out, b[j])
+        j = j + 1
+    }
+    return out
+}

@@ -1,0 +1,17 @@
+// SH20: collections take off std_colcount.kab. import "kab/std_coltake"
+// Do not grow std_colcount.kab. stdHostDeleteOk stays false.
+
+pub fn stdColTake(p, k) {
+    let n = len(p)
+    let m = k
+    if m > n {
+        m = n
+    }
+    let out = []
+    let i = 0
+    while i < m {
+        out = push(out, p[i])
+        i = i + 1
+    }
+    return out
+}

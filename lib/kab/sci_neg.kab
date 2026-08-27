@@ -1,0 +1,6 @@
+// SH26: negate kernel off sci_div.kab. import "kab/sci_neg"
+// Do not grow sci_div.kab. Host GPU remains syscall skuld.
+
+pub fn sciNeg(a) {
+    return 0 - a
+}

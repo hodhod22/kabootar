@@ -1,0 +1,14 @@
+import "kab/cli_watch"
+import "kab/cli_init"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsInit("init") == false {
+    return false
+}
+if cliIsWatch("watch") == false {
+    return false
+}
+return cliHostDeleteOk() == false

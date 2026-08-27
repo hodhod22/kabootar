@@ -1,0 +1,10 @@
+import "kab/std_colfind"
+import "kab/std_colfill"
+import "kab/std_colpush"
+
+let p = stdColFill(1, 1)
+p = stdColPush(p, 42)
+if stdColFind(p, 42) != 42 {
+    return false
+}
+return stdColFind(p, 99) == 0 - 1

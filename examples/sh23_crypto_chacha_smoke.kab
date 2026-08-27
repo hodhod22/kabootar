@@ -1,0 +1,3 @@
+import "kab/crypto_chacha"
+
+return cryptoChaChaOk("chacha20") == true

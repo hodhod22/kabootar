@@ -1,0 +1,20 @@
+import "kab/std_colmed"
+import "kab/std_colavg"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_colrange"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let r = stdColRange(40, 43)
+if stdColAvg(r) != 41 {
+    return false
+}
+let p = stdColFill(2, 1)
+p = stdColPush(p, 42)
+if stdColMedian(p) != 1 {
+    return false
+}
+return stdHostDeleteOk() == false

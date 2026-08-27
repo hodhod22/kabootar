@@ -1,0 +1,14 @@
+import "kab/sql_group"
+import "kab/sql_join"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsJoin("SELECT a FROM t JOIN u") == false {
+    return false
+}
+if sqlIsGroup("SELECT a FROM t GROUP BY a") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/cli_add"
+
+return cliIsAdd("add") == true

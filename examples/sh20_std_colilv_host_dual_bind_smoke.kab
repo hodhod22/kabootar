@@ -1,0 +1,22 @@
+import "kab/std_colilv"
+import "kab/std_colpad"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColFill(1, 40)
+let ep = stdColFill(1, 40)
+ep = stdColPush(ep, 42)
+if stdColEq(stdColPad(p, 2, 42), ep) == false {
+    return false
+}
+let a = stdColFill(1, 40)
+let b = stdColFill(1, 42)
+if stdColEq(stdColInterleave(a, b), ep) == false {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,19 @@
+import "kab/std_colrix"
+import "kab/std_colrfind"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColFill(1, 1)
+p = stdColPush(p, 42)
+p = stdColPush(p, 1)
+if stdColFindLast(p, 1) != 1 {
+    return false
+}
+if stdColRIndex(p, 1) != 2 {
+    return false
+}
+return stdHostDeleteOk() == false

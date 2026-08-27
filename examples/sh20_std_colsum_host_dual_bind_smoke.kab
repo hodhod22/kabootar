@@ -1,0 +1,17 @@
+import "kab/std_colsum"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let r = stdColRange(40, 43)
+let f = stdColFill(2, 21)
+if stdColSum(f) != 42 {
+    return false
+}
+if stdColSum(r) != 123 {
+    return false
+}
+return stdHostDeleteOk() == false

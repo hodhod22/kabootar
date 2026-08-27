@@ -1,0 +1,19 @@
+// SH20: collections chunk off std_colwin.kab. import "kab/std_colchunk"
+// Do not grow std_colwin.kab. stdHostDeleteOk stays false.
+
+import "kab/std_colslice"
+
+pub fn stdColChunk(p, k) {
+    let n = len(p)
+    let out = []
+    if k < 1 {
+        return out
+    }
+    let i = 0
+    while i < n {
+        let b = i + k
+        out = push(out, stdColSlice(p, i, b))
+        i = b
+    }
+    return out
+}

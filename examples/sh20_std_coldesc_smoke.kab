@@ -1,0 +1,10 @@
+import "kab/std_coldesc"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let p = stdColFill(1, 1)
+p = stdColPush(p, 42)
+let e = stdColFill(1, 42)
+e = stdColPush(e, 1)
+return stdColEq(stdColSortDesc(p), e)

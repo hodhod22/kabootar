@@ -1,0 +1,3 @@
+import "kab/os_dir"
+
+return kabOsIsDir("/apps") == true

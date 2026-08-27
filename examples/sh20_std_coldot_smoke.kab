@@ -1,0 +1,5 @@
+import "kab/std_coldot"
+import "kab/std_colfill"
+
+let v = stdColFill(2, 1)
+return stdColDot(v, v) == 2

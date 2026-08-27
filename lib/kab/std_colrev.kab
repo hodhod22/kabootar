@@ -1,0 +1,13 @@
+// SH20: collections reverse off std_colconcat.kab. import "kab/std_colrev"
+// Do not grow std_colconcat.kab. stdHostDeleteOk stays false.
+
+pub fn stdColRev(p) {
+    let out = []
+    let n = len(p)
+    let i = n
+    while i > 0 {
+        i = i - 1
+        out = push(out, p[i])
+    }
+    return out
+}

@@ -1,0 +1,25 @@
+// SH20: collections reshape off std_colshape.kab. import "kab/std_colrshp"
+// Do not grow std_colshape.kab. stdHostDeleteOk stays false.
+
+import "kab/std_colchunk"
+
+pub fn stdColReshape(p, nr, nc) {
+    if nr < 1 {
+        return []
+    }
+    if nc < 1 {
+        return []
+    }
+    let need = nr * nc
+    let n = len(p)
+    if n < need {
+        return []
+    }
+    let take = []
+    let i = 0
+    while i < need {
+        take = push(take, p[i])
+        i = i + 1
+    }
+    return stdColChunk(take, nc)
+}

@@ -1,0 +1,5 @@
+import "kab/std_colrange"
+import "kab/std_collast"
+
+let r = stdColRange(40, 43)
+return stdColLast(r) == 42

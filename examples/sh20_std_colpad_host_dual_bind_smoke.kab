@@ -1,0 +1,25 @@
+import "kab/std_colpad"
+import "kab/std_colrot"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let r = stdColRange(40, 43)
+let er = stdColFill(1, 41)
+er = stdColPush(er, 42)
+er = stdColPush(er, 40)
+if stdColEq(stdColRotate(r, 1), er) == false {
+    return false
+}
+let p = stdColFill(1, 40)
+let e = stdColFill(1, 40)
+e = stdColPush(e, 42)
+if stdColEq(stdColPad(p, 2, 42), e) == false {
+    return false
+}
+return stdHostDeleteOk() == false

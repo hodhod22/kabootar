@@ -1,0 +1,10 @@
+import "kab/std_colrshp"
+import "kab/std_colshape"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_coleq"
+
+let r = stdColRange(40, 44)
+let m = stdColReshape(r, 2, 2)
+let e = stdColFill(2, 2)
+return stdColEq(stdColShape(m), e)

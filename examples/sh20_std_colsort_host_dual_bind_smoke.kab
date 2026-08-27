@@ -1,0 +1,21 @@
+import "kab/std_colsort"
+import "kab/std_colmode"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColFill(2, 1)
+p = stdColPush(p, 42)
+if stdColMode(p) != 1 {
+    return false
+}
+let e = stdColFill(2, 1)
+e = stdColPush(e, 42)
+if stdColEq(stdColSort(p), e) == false {
+    return false
+}
+return stdHostDeleteOk() == false

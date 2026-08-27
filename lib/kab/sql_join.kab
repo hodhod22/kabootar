@@ -1,0 +1,6 @@
+// SH22: JOIN-clause gate off sql_create.kab. import "kab/sql_join"
+// Do not grow sql_create.kab. sqlHostDeleteOk stays false.
+
+pub fn sqlIsJoin(q) {
+    return str_includes(q, "JOIN")
+}

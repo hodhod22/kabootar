@@ -1,0 +1,6 @@
+// SH25: init argv off cli_new.kab. import "kab/cli_init"
+// Do not grow cli_new.kab. Host src/cli remains skuld.
+
+pub fn cliIsInit(cmd) {
+    return cmd == "init"
+}

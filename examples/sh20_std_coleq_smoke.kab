@@ -1,0 +1,8 @@
+import "kab/std_coleq"
+import "kab/std_colunique"
+import "kab/std_colconcat"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+let u = stdColUnique(stdColConcat(p, p))
+return stdColEq(u, p) == true

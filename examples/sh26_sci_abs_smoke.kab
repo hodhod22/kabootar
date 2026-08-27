@@ -1,0 +1,7 @@
+import "kab/sci_abs"
+
+let n = sciAbs(0 - 4)
+if n == 4 {
+    return true
+}
+return false

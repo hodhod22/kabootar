@@ -1,0 +1,21 @@
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_collen"
+import "kab/std_collast"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let f = stdColFill(2, 42)
+let r = stdColRange(40, 43)
+if stdColLast(f) != 42 {
+    return false
+}
+if stdColLen(r) != 3 {
+    return false
+}
+if stdColLast(r) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

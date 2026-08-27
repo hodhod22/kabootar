@@ -1,0 +1,5 @@
+import "kab/std_colprod"
+import "kab/std_colfill"
+
+let f = stdColFill(1, 42)
+return stdColProduct(f) == 42

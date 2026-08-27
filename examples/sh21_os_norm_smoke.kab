@@ -1,0 +1,3 @@
+import "kab/os_norm"
+
+return kabOsNorm("/apps//main") == "/apps/main"

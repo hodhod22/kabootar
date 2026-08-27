@@ -1,0 +1,4 @@
+import "kab/std_coltrc"
+import "kab/std_colident"
+
+return stdColTrace(stdColIdent(2)) == 2

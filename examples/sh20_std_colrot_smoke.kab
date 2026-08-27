@@ -1,0 +1,11 @@
+import "kab/std_colrot"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let r = stdColRange(40, 43)
+let e = stdColFill(1, 41)
+e = stdColPush(e, 42)
+e = stdColPush(e, 40)
+return stdColEq(stdColRotate(r, 1), e)

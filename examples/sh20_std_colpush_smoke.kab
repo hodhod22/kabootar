@@ -1,0 +1,7 @@
+import "kab/std_colpush"
+import "kab/std_collen"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+p = stdColPush(p, 7)
+return stdColLen(p) == 3

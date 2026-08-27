@@ -1,0 +1,14 @@
+import "kab/os_norm"
+import "kab/os_dn"
+import "kab/os_host"
+
+if kabOsHostDeleteOk() != false {
+    return false
+}
+if kabOsDirname("/apps/main.kab") != "/apps" {
+    return false
+}
+if kabOsNorm("/apps//main") != "/apps/main" {
+    return false
+}
+return kabOsHostDeleteOk() == false

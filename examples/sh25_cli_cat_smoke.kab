@@ -1,0 +1,3 @@
+import "kab/cli_cat"
+
+return cliIsCat("cat") == true

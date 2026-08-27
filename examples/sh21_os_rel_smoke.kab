@@ -1,0 +1,3 @@
+import "kab/os_rel"
+
+return kabOsRel("/apps", "/apps/main") == "main"

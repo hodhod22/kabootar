@@ -1,0 +1,14 @@
+import "kab/cli_bench"
+import "kab/cli_doc"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsDoc("doc") == false {
+    return false
+}
+if cliIsBench("bench") == false {
+    return false
+}
+return cliHostDeleteOk() == false

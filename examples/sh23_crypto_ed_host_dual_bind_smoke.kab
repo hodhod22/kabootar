@@ -1,0 +1,14 @@
+import "kab/crypto_ed"
+import "kab/crypto_gcm"
+import "kab/crypto_host"
+
+if cryptoHostDeleteOk() != false {
+    return false
+}
+if cryptoGcmOk("aes-256-gcm") == false {
+    return false
+}
+if cryptoEd25519Ok("ed25519") == false {
+    return false
+}
+return cryptoHostDeleteOk() == false

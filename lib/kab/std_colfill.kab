@@ -1,0 +1,12 @@
+// SH20: collections fill off std_colrepeat.kab. import "kab/std_colfill"
+// Do not grow std_colrepeat.kab. stdHostDeleteOk stays false.
+
+pub fn stdColFill(n, x) {
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, x)
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,7 @@
+import "kab/sci_sqr"
+
+let n = sciSqr(3)
+if n == 9 {
+    return true
+}
+return false

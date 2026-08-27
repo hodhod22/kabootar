@@ -1,0 +1,9 @@
+// SH26: abs kernel off sci_neg.kab. import "kab/sci_abs"
+// Do not grow sci_neg.kab. Host GPU remains syscall skuld.
+
+pub fn sciAbs(a) {
+    if a < 0 {
+        return 0 - a
+    }
+    return a
+}

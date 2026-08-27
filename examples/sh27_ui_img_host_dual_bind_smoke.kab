@@ -1,0 +1,10 @@
+import "kab/ui_img"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsImg("img") == false {
+    return false
+}
+return uiHostDeleteOk() == false

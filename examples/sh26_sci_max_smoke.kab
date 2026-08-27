@@ -1,0 +1,7 @@
+import "kab/sci_max"
+
+let n = sciMax(3, 7)
+if n == 7 {
+    return true
+}
+return false

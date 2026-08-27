@@ -1,0 +1,8 @@
+import "kab/std_colout"
+import "kab/std_colfill"
+
+let a = stdColFill(1, 2)
+let b = stdColFill(1, 21)
+let m = stdColOuter(a, b)
+let row = m[0]
+return row[0] == 42

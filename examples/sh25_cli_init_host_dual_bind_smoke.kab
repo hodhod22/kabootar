@@ -1,0 +1,14 @@
+import "kab/cli_init"
+import "kab/cli_new"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsNew("new") == false {
+    return false
+}
+if cliIsInit("init") == false {
+    return false
+}
+return cliHostDeleteOk() == false

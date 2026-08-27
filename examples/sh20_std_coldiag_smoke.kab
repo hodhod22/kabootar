@@ -1,0 +1,12 @@
+import "kab/std_coldiag"
+import "kab/std_colzip"
+import "kab/std_colrange"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+
+let a = stdColRange(40, 42)
+let b = stdColRange(42, 44)
+let e = stdColFill(1, 40)
+e = stdColPush(e, 43)
+return stdColEq(stdColDiag(stdColZip(a, b)), e)

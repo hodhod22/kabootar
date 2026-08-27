@@ -1,0 +1,5 @@
+import "kab/std_colfill"
+import "kab/std_collast"
+
+let f = stdColFill(2, 42)
+return stdColLast(f) == 42

@@ -1,0 +1,6 @@
+// SH26: square kernel off sci_pow.kab. import "kab/sci_sqr"
+// Do not grow sci_pow.kab. Host GPU remains syscall skuld.
+
+pub fn sciSqr(a) {
+    return a * a
+}

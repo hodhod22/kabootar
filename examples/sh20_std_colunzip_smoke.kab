@@ -1,0 +1,11 @@
+import "kab/std_colunzip"
+import "kab/std_colzip"
+import "kab/std_coltake"
+import "kab/std_coldrop"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+let z = stdColZip(stdColTake(p, 1), stdColDrop(p, 1))
+let u = stdColUnzip(z)
+let right = u[1]
+return right[0] == 42

@@ -1,0 +1,6 @@
+// SH22: GROUP-clause gate off sql_join.kab. import "kab/sql_group"
+// Do not grow sql_join.kab. sqlHostDeleteOk stays false.
+
+pub fn sqlIsGroup(q) {
+    return str_includes(q, "GROUP")
+}

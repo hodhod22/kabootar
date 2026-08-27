@@ -1,0 +1,14 @@
+import "kab/cli_add"
+import "kab/cli_clean"
+import "kab/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsClean("clean") == false {
+    return false
+}
+if cliIsAdd("add") == false {
+    return false
+}
+return cliHostDeleteOk() == false

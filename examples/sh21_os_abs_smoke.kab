@@ -1,0 +1,3 @@
+import "kab/os_abs"
+
+return kabOsAbs("/apps", "main") == "/apps/main"

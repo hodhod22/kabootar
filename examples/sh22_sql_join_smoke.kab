@@ -1,0 +1,3 @@
+import "kab/sql_join"
+
+return sqlIsJoin("SELECT a FROM t JOIN u") == true

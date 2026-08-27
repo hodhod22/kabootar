@@ -1,0 +1,7 @@
+import "kab/sci_clmp"
+
+let n = sciClamp(9, 0, 5)
+if n == 5 {
+    return true
+}
+return false

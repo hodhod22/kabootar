@@ -1,0 +1,7 @@
+import "kab/std_coltake"
+import "kab/std_colfirst"
+import "kab/std_col"
+
+let p = stdColPair("n", 42)
+let t = stdColTake(p, 1)
+return stdColFirst(t) == "n"

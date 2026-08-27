@@ -1,0 +1,3 @@
+import "kab/http_cn"
+
+return httpIsConnect("CONNECT") == true

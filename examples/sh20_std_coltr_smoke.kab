@@ -1,0 +1,12 @@
+import "kab/std_coltr"
+import "kab/std_colzip"
+import "kab/std_colrange"
+import "kab/std_coleq"
+
+let a = stdColRange(40, 42)
+let b = stdColRange(42, 44)
+let t = stdColTranspose(stdColZip(a, b))
+if stdColEq(t[0], a) == false {
+    return false
+}
+return stdColEq(t[1], b)

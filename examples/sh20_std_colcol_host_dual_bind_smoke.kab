@@ -1,0 +1,21 @@
+import "kab/std_colcol"
+import "kab/std_colrow"
+import "kab/std_colident"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let er = stdColFill(1, 1)
+er = stdColPush(er, 0)
+if stdColEq(stdColRow(stdColIdent(2), 0), er) == false {
+    return false
+}
+let ec = stdColFill(2, 1)
+if stdColEq(stdColCol(stdColIdent(2), 0), ec) == false {
+    return false
+}
+return stdHostDeleteOk() == false

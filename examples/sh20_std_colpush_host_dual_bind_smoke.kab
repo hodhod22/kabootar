@@ -1,0 +1,18 @@
+import "kab/std_colpush"
+import "kab/std_collen"
+import "kab/std_colget"
+import "kab/std_col"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColPair("n", 42)
+p = stdColPush(p, 7)
+if stdColLen(p) != 3 {
+    return false
+}
+if stdColGet(p, 1) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

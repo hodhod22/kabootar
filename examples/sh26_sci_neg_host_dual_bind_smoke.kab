@@ -1,0 +1,14 @@
+import "kab/sci_neg"
+import "kab/sci_div"
+import "kab/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciDiv(84, 2) != 42 {
+    return false
+}
+if sciNeg(0 - 42) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

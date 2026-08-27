@@ -1,0 +1,6 @@
+// SH25: doc argv off cli_help.kab. import "kab/cli_doc"
+// Do not grow cli_help.kab. Host src/cli remains skuld.
+
+pub fn cliIsDoc(cmd) {
+    return cmd == "doc"
+}

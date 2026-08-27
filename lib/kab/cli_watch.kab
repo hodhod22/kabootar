@@ -1,0 +1,6 @@
+// SH25: watch argv off cli_init.kab. import "kab/cli_watch"
+// Do not grow cli_init.kab. Host src/cli remains skuld.
+
+pub fn cliIsWatch(cmd) {
+    return cmd == "watch"
+}

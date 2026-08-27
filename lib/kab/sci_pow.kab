@@ -1,0 +1,12 @@
+// SH26: power kernel off sci_clmp.kab. import "kab/sci_pow"
+// Do not grow sci_clmp.kab. Host GPU remains syscall skuld.
+
+pub fn sciPow(b, e) {
+    let r = 1
+    let i = 0
+    while i < e {
+        r = r * b
+        i = i + 1
+    }
+    return r
+}

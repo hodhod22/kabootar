@@ -1,0 +1,11 @@
+import "kab/std_colrfind"
+import "kab/std_colfill"
+import "kab/std_colpush"
+
+let p = stdColFill(1, 1)
+p = stdColPush(p, 42)
+p = stdColPush(p, 1)
+if stdColFindLast(p, 1) != 1 {
+    return false
+}
+return stdColFindLast(p, 99) == 0 - 1

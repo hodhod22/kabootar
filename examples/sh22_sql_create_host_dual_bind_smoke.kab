@@ -1,0 +1,14 @@
+import "kab/sql_create"
+import "kab/sql_delete"
+import "kab/sql_host"
+
+if sqlHostDeleteOk() != false {
+    return false
+}
+if sqlIsDelete("DELETE FROM t WHERE x = 1") == false {
+    return false
+}
+if sqlIsCreate("CREATE TABLE t") == false {
+    return false
+}
+return sqlHostDeleteOk() == false

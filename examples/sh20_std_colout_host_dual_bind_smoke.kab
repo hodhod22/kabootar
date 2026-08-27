@@ -1,0 +1,22 @@
+import "kab/std_colout"
+import "kab/std_colmm"
+import "kab/std_colident"
+import "kab/std_colfill"
+import "kab/std_coleq"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let i2 = stdColIdent(2)
+if stdColEq(stdColMatMul(i2, i2), i2) == false {
+    return false
+}
+let a = stdColFill(1, 2)
+let b = stdColFill(1, 21)
+let m = stdColOuter(a, b)
+let row = m[0]
+if row[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

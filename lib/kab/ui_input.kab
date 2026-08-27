@@ -1,0 +1,6 @@
+// SH27: input tag off ui.kab. import "kab/ui_input"
+// Do not grow ui_button.kab. Host browser* remains skuld.
+
+pub fn uiIsInput(tag) {
+    return tag == "input"
+}
