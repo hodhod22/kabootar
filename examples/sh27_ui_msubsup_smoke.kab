@@ -1,0 +1,3 @@
+import "kab/ui_msubsup"
+
+return uiIsMsubsup("msubsup")

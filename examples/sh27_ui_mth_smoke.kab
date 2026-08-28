@@ -1,0 +1,3 @@
+import "kab/ui_mth"
+
+return uiIsMth("mth")

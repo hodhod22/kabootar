@@ -1,0 +1,6 @@
+// SH27: menclose tag off ui_mfenced.kab. import "kab/ui_menclose"
+// Do not grow ui_mfenced.kab. Host browser* remains skuld.
+
+pub fn uiIsMenclose(tag) {
+    return tag == "menclose"
+}

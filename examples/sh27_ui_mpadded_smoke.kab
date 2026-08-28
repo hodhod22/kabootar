@@ -1,0 +1,3 @@
+import "kab/ui_mpadded"
+
+return uiIsMpadded("mpadded")

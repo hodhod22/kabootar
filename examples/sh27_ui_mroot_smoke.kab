@@ -1,0 +1,3 @@
+import "kab/ui_mroot"
+
+return uiIsMroot("mroot")

@@ -1,0 +1,14 @@
+import "kab/ui_mtable"
+import "kab/ui_none"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNone("none") == false {
+    return false
+}
+if uiIsMtable("mtable") == false {
+    return false
+}
+return uiHostDeleteOk() == false

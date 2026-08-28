@@ -1,0 +1,3 @@
+import "kab/ui_mfenced"
+
+return uiIsMfenced("mfenced")

@@ -1,0 +1,3 @@
+import "kab/ui_mtd"
+
+return uiIsMtd("mtd")

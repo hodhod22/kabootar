@@ -1,0 +1,6 @@
+// SH27: mfrac tag off ui_mspace.kab. import "kab/ui_mfrac"
+// Do not grow ui_mspace.kab. Host browser* remains skuld.
+
+pub fn uiIsMfrac(tag) {
+    return tag == "mfrac"
+}

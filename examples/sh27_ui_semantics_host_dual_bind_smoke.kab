@@ -1,0 +1,14 @@
+import "kab/ui_semantics"
+import "kab/ui_menclose"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMenclose("menclose") == false {
+    return false
+}
+if uiIsSemantics("semantics") == false {
+    return false
+}
+return uiHostDeleteOk() == false

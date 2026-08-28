@@ -1,0 +1,3 @@
+import "kab/ui_mphantom"
+
+return uiIsMphantom("mphantom")

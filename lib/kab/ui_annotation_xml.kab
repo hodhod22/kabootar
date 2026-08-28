@@ -1,0 +1,6 @@
+// SH27: annotation-xml tag off ui_annotation.kab. import "kab/ui_annotation_xml"
+// Do not grow ui_annotation.kab. Host browser* remains skuld.
+
+pub fn uiIsAnnotationXml(tag) {
+    return tag == "annotation-xml"
+}
