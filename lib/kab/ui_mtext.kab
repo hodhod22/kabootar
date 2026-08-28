@@ -1,0 +1,6 @@
+// SH27: mtext tag off ui_mo.kab. import "kab/ui_mtext"
+// Do not grow ui_mo.kab. Host browser* remains skuld.
+
+pub fn uiIsMtext(tag) {
+    return tag == "mtext"
+}

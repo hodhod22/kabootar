@@ -1,0 +1,14 @@
+import "kab/ui_vkern"
+import "kab/ui_hkern"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsHkern("hkern") == false {
+    return false
+}
+if uiIsVkern("vkern") == false {
+    return false
+}
+return uiHostDeleteOk() == false

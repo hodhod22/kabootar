@@ -1,0 +1,3 @@
+import "kab/ui_font_face_name"
+
+return uiIsFontFaceName("font-face-name")

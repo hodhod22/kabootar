@@ -1,0 +1,14 @@
+import "kab/ui_fe_blend"
+import "kab/ui_fe_gaussian_blur"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeGaussianBlur("feGaussianBlur") == false {
+    return false
+}
+if uiIsFeBlend("feBlend") == false {
+    return false
+}
+return uiHostDeleteOk() == false

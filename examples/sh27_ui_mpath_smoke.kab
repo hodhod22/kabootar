@@ -1,0 +1,3 @@
+import "kab/ui_mpath"
+
+return uiIsMpath("mpath")

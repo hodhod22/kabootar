@@ -1,0 +1,6 @@
+// SH27: SVG text tag off ui_stop.kab. import "kab/ui_text"
+// Do not grow ui_stop.kab. Host browser* remains skuld.
+
+pub fn uiIsText(tag) {
+    return tag == "text"
+}

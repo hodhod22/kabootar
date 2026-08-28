@@ -1,0 +1,6 @@
+// SH27: linearGradient tag off ui_pattern.kab. import "kab/ui_linear_gradient"
+// Do not grow ui_pattern.kab. Host browser* remains skuld.
+
+pub fn uiIsLinearGradient(tag) {
+    return tag == "linearGradient"
+}

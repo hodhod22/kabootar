@@ -1,0 +1,6 @@
+// SH27: vkern tag off ui_hkern.kab. import "kab/ui_vkern"
+// Do not grow ui_hkern.kab. Host browser* remains skuld.
+
+pub fn uiIsVkern(tag) {
+    return tag == "vkern"
+}

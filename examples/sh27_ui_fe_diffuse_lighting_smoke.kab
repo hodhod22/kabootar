@@ -1,0 +1,3 @@
+import "kab/ui_fe_diffuse_lighting"
+
+return uiIsFeDiffuseLighting("feDiffuseLighting")

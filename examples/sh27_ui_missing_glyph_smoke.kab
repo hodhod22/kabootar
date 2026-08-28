@@ -1,0 +1,3 @@
+import "kab/ui_missing_glyph"
+
+return uiIsMissingGlyph("missing-glyph")

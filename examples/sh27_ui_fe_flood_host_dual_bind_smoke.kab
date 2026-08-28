@@ -1,0 +1,14 @@
+import "kab/ui_fe_flood"
+import "kab/ui_fe_displacement_map"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeDisplacementMap("feDisplacementMap") == false {
+    return false
+}
+if uiIsFeFlood("feFlood") == false {
+    return false
+}
+return uiHostDeleteOk() == false

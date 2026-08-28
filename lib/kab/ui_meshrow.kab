@@ -1,0 +1,6 @@
+// SH27: meshrow tag off ui_meshgradient.kab. import "kab/ui_meshrow"
+// Do not grow ui_meshgradient.kab. Host browser* remains skuld.
+
+pub fn uiIsMeshrow(tag) {
+    return tag == "meshrow"
+}

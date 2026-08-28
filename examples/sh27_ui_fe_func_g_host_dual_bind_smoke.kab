@@ -1,0 +1,14 @@
+import "kab/ui_fe_func_g"
+import "kab/ui_fe_func_b"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeFuncB("feFuncB") == false {
+    return false
+}
+if uiIsFeFuncG("feFuncG") == false {
+    return false
+}
+return uiHostDeleteOk() == false

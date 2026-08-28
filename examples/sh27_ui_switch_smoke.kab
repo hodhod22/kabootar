@@ -1,0 +1,3 @@
+import "kab/ui_switch"
+
+return uiIsSwitch("switch")

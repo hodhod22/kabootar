@@ -1,0 +1,14 @@
+import "kab/ui_mn"
+import "kab/ui_mi"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMi("mi") == false {
+    return false
+}
+if uiIsMn("mn") == false {
+    return false
+}
+return uiHostDeleteOk() == false

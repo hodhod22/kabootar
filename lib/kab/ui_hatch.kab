@@ -1,0 +1,6 @@
+// SH27: hatch tag off ui_desc.kab. import "kab/ui_hatch"
+// Do not grow ui_desc.kab. Host browser* remains skuld.
+
+pub fn uiIsHatch(tag) {
+    return tag == "hatch"
+}

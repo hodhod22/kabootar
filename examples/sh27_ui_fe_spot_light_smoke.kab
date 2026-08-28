@@ -1,0 +1,3 @@
+import "kab/ui_fe_spot_light"
+
+return uiIsFeSpotLight("feSpotLight")

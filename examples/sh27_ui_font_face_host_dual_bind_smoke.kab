@@ -1,0 +1,14 @@
+import "kab/ui_font_face"
+import "kab/ui_missing_glyph"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMissingGlyph("missing-glyph") == false {
+    return false
+}
+if uiIsFontFace("font-face") == false {
+    return false
+}
+return uiHostDeleteOk() == false

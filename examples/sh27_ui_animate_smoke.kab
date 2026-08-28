@@ -1,0 +1,3 @@
+import "kab/ui_animate"
+
+return uiIsAnimate("animate")

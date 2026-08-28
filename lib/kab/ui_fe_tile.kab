@@ -1,0 +1,6 @@
+// SH27: feTile tag off ui_fe_spot_light.kab. import "kab/ui_fe_tile"
+// Do not grow ui_fe_spot_light.kab. Host browser* remains skuld.
+
+pub fn uiIsFeTile(tag) {
+    return tag == "feTile"
+}

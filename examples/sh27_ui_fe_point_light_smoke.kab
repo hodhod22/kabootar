@@ -1,0 +1,3 @@
+import "kab/ui_fe_point_light"
+
+return uiIsFePointLight("fePointLight")

@@ -1,0 +1,3 @@
+import "kab/ui_hatch"
+
+return uiIsHatch("hatch")

@@ -1,0 +1,14 @@
+import "kab/ui_radial_gradient"
+import "kab/ui_linear_gradient"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLinearGradient("linearGradient") == false {
+    return false
+}
+if uiIsRadialGradient("radialGradient") == false {
+    return false
+}
+return uiHostDeleteOk() == false

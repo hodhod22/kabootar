@@ -1,0 +1,3 @@
+import "kab/ui_fe_offset"
+
+return uiIsFeOffset("feOffset")

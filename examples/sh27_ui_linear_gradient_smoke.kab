@@ -1,0 +1,3 @@
+import "kab/ui_linear_gradient"
+
+return uiIsLinearGradient("linearGradient")

@@ -1,0 +1,6 @@
+// SH27: stop tag off ui_radial_gradient.kab. import "kab/ui_stop"
+// Do not grow ui_radial_gradient.kab. Host browser* remains skuld.
+
+pub fn uiIsStop(tag) {
+    return tag == "stop"
+}

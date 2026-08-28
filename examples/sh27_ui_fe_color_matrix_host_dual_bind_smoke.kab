@@ -1,0 +1,14 @@
+import "kab/ui_fe_color_matrix"
+import "kab/ui_fe_blend"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeBlend("feBlend") == false {
+    return false
+}
+if uiIsFeColorMatrix("feColorMatrix") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH27: cursor tag off ui_solidcolor.kab. import "kab/ui_cursor"
+// Do not grow ui_solidcolor.kab. Host browser* remains skuld.
+
+pub fn uiIsCursor(tag) {
+    return tag == "cursor"
+}

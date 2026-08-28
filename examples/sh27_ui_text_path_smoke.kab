@@ -1,0 +1,3 @@
+import "kab/ui_text_path"
+
+return uiIsTextPath("textPath")

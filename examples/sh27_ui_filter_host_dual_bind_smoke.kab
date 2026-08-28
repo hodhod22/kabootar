@@ -1,0 +1,14 @@
+import "kab/ui_filter"
+import "kab/ui_switch"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSwitch("switch") == false {
+    return false
+}
+if uiIsFilter("filter") == false {
+    return false
+}
+return uiHostDeleteOk() == false

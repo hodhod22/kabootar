@@ -1,0 +1,6 @@
+// SH27: fePointLight tag off ui_fe_offset.kab. import "kab/ui_fe_point_light"
+// Do not grow ui_fe_offset.kab. Host browser* remains skuld.
+
+pub fn uiIsFePointLight(tag) {
+    return tag == "fePointLight"
+}

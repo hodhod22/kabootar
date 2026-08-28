@@ -1,0 +1,14 @@
+import "kab/ui_foreign_object"
+import "kab/ui_text_path"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTextPath("textPath") == false {
+    return false
+}
+if uiIsForeignObject("foreignObject") == false {
+    return false
+}
+return uiHostDeleteOk() == false

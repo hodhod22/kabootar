@@ -1,0 +1,14 @@
+import "kab/ui_animate_motion"
+import "kab/ui_animate"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAnimate("animate") == false {
+    return false
+}
+if uiIsAnimateMotion("animateMotion") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_glyph_ref"
+import "kab/ui_alt_glyph_item"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAltGlyphItem("altGlyphItem") == false {
+    return false
+}
+if uiIsGlyphRef("glyphRef") == false {
+    return false
+}
+return uiHostDeleteOk() == false

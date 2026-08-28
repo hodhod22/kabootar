@@ -1,0 +1,14 @@
+import "kab/ui_fe_image"
+import "kab/ui_fe_func_r"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeFuncR("feFuncR") == false {
+    return false
+}
+if uiIsFeImage("feImage") == false {
+    return false
+}
+return uiHostDeleteOk() == false

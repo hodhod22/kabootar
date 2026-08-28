@@ -1,0 +1,6 @@
+// SH27: meshgradient tag off ui_vkern.kab. import "kab/ui_meshgradient"
+// Do not grow ui_vkern.kab. Host browser* remains skuld.
+
+pub fn uiIsMeshgradient(tag) {
+    return tag == "meshgradient"
+}

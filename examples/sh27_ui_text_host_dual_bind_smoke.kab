@@ -1,0 +1,14 @@
+import "kab/ui_text"
+import "kab/ui_stop"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsStop("stop") == false {
+    return false
+}
+if uiIsText("text") == false {
+    return false
+}
+return uiHostDeleteOk() == false

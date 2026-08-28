@@ -1,0 +1,14 @@
+import "kab/ui_mpath"
+import "kab/ui_set"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSet("set") == false {
+    return false
+}
+if uiIsMpath("mpath") == false {
+    return false
+}
+return uiHostDeleteOk() == false

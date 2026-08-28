@@ -1,0 +1,3 @@
+import "kab/ui_fe_func_g"
+
+return uiIsFeFuncG("feFuncG")

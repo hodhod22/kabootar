@@ -1,0 +1,6 @@
+// SH27: feGaussianBlur tag off ui_filter.kab. import "kab/ui_fe_gaussian_blur"
+// Do not grow ui_filter.kab. Host browser* remains skuld.
+
+pub fn uiIsFeGaussianBlur(tag) {
+    return tag == "feGaussianBlur"
+}
