@@ -44988,6 +44988,995 @@ fn sh27_ui_mlongdiv_host_dual_bind_in_kab() {
     );
 }
 
+/// SH27 deepen: mstack tag lives off ui_mlongdiv.kab.
+#[test]
+fn sh27_ui_mstack_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_mstack.kab")).expect("ui_mstack.kab");
+    assert!(
+        l.contains("pub fn uiIsMstack") && l.contains("\"mstack\""),
+        "SH27 Kab uiIsMstack"
+    );
+}
+
+/// SH27 deepen: mstack dual-bind to host delete gate.
+#[test]
+fn sh27_ui_mstack_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_mstack_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_mstack_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMstack") && s.contains("\"mstack\""),
+        "SH27 Kab ui mstack host dual-bind"
+    );
+}
+
+/// SH27 deepen: msrow tag lives off ui_mstack.kab.
+#[test]
+fn sh27_ui_msrow_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_msrow.kab")).expect("ui_msrow.kab");
+    assert!(
+        l.contains("pub fn uiIsMsrow") && l.contains("\"msrow\""),
+        "SH27 Kab uiIsMsrow"
+    );
+}
+
+/// SH27 deepen: msrow dual-bind to host delete gate.
+#[test]
+fn sh27_ui_msrow_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_msrow_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_msrow_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMsrow") && s.contains("\"msrow\""),
+        "SH27 Kab ui msrow host dual-bind"
+    );
+}
+
+/// SH27 deepen: mscarries tag lives off ui_msrow.kab.
+#[test]
+fn sh27_ui_mscarries_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_mscarries.kab")).expect("ui_mscarries.kab");
+    assert!(
+        l.contains("pub fn uiIsMscarries") && l.contains("\"mscarries\""),
+        "SH27 Kab uiIsMscarries"
+    );
+}
+
+/// SH27 deepen: mscarries dual-bind to host delete gate.
+#[test]
+fn sh27_ui_mscarries_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_mscarries_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_mscarries_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMscarries") && s.contains("\"mscarries\""),
+        "SH27 Kab ui mscarries host dual-bind"
+    );
+}
+
+/// SH27 deepen: mscarry tag lives off ui_mscarries.kab.
+#[test]
+fn sh27_ui_mscarry_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_mscarry.kab")).expect("ui_mscarry.kab");
+    assert!(
+        l.contains("pub fn uiIsMscarry") && l.contains("\"mscarry\""),
+        "SH27 Kab uiIsMscarry"
+    );
+}
+
+/// SH27 deepen: mscarry dual-bind to host delete gate.
+#[test]
+fn sh27_ui_mscarry_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_mscarry_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_mscarry_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMscarry") && s.contains("\"mscarry\""),
+        "SH27 Kab ui mscarry host dual-bind"
+    );
+}
+
+/// SH27 deepen: msline tag lives off ui_mscarry.kab.
+#[test]
+fn sh27_ui_msline_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_msline.kab")).expect("ui_msline.kab");
+    assert!(
+        l.contains("pub fn uiIsMsline") && l.contains("\"msline\""),
+        "SH27 Kab uiIsMsline"
+    );
+}
+
+/// SH27 deepen: msline dual-bind to host delete gate.
+#[test]
+fn sh27_ui_msline_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_msline_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_msline_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMsline") && s.contains("\"msline\""),
+        "SH27 Kab ui msline host dual-bind"
+    );
+}
+
+/// SH27 deepen: mglyph tag lives off ui_msline.kab.
+#[test]
+fn sh27_ui_mglyph_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_mglyph.kab")).expect("ui_mglyph.kab");
+    assert!(
+        l.contains("pub fn uiIsMglyph") && l.contains("\"mglyph\""),
+        "SH27 Kab uiIsMglyph"
+    );
+}
+
+/// SH27 deepen: mglyph dual-bind to host delete gate.
+#[test]
+fn sh27_ui_mglyph_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_mglyph_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_mglyph_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMglyph") && s.contains("\"mglyph\""),
+        "SH27 Kab ui mglyph host dual-bind"
+    );
+}
+
+/// SH27 deepen: ci tag lives off ui_mglyph.kab.
+#[test]
+fn sh27_ui_ci_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_ci.kab")).expect("ui_ci.kab");
+    assert!(
+        l.contains("pub fn uiIsCi") && l.contains("\"ci\""),
+        "SH27 Kab uiIsCi"
+    );
+}
+
+/// SH27 deepen: ci dual-bind to host delete gate.
+#[test]
+fn sh27_ui_ci_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_ci_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_ci_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCi") && s.contains("\"ci\""),
+        "SH27 Kab ui ci host dual-bind"
+    );
+}
+
+/// SH27 deepen: cn tag lives off ui_ci.kab.
+#[test]
+fn sh27_ui_cn_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_cn.kab")).expect("ui_cn.kab");
+    assert!(
+        l.contains("pub fn uiIsCn") && l.contains("\"cn\""),
+        "SH27 Kab uiIsCn"
+    );
+}
+
+/// SH27 deepen: cn dual-bind to host delete gate.
+#[test]
+fn sh27_ui_cn_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_cn_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_cn_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCn") && s.contains("\"cn\""),
+        "SH27 Kab ui cn host dual-bind"
+    );
+}
+
+/// SH27 deepen: csymbol tag lives off ui_cn.kab.
+#[test]
+fn sh27_ui_csymbol_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_csymbol.kab")).expect("ui_csymbol.kab");
+    assert!(
+        l.contains("pub fn uiIsCsymbol") && l.contains("\"csymbol\""),
+        "SH27 Kab uiIsCsymbol"
+    );
+}
+
+/// SH27 deepen: csymbol dual-bind to host delete gate.
+#[test]
+fn sh27_ui_csymbol_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_csymbol_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_csymbol_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCsymbol") && s.contains("\"csymbol\""),
+        "SH27 Kab ui csymbol host dual-bind"
+    );
+}
+
+/// SH27 deepen: apply tag lives off ui_csymbol.kab.
+#[test]
+fn sh27_ui_apply_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_apply.kab")).expect("ui_apply.kab");
+    assert!(
+        l.contains("pub fn uiIsApply") && l.contains("\"apply\""),
+        "SH27 Kab uiIsApply"
+    );
+}
+
+/// SH27 deepen: apply dual-bind to host delete gate.
+#[test]
+fn sh27_ui_apply_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_apply_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_apply_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsApply") && s.contains("\"apply\""),
+        "SH27 Kab ui apply host dual-bind"
+    );
+}
+
+/// SH27 deepen: bind tag lives off ui_apply.kab.
+#[test]
+fn sh27_ui_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_bind.kab")).expect("ui_bind.kab");
+    assert!(
+        l.contains("pub fn uiIsBind") && l.contains("\"bind\""),
+        "SH27 Kab uiIsBind"
+    );
+}
+
+/// SH27 deepen: bind dual-bind to host delete gate.
+#[test]
+fn sh27_ui_bind_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_bind_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_bind_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsBind") && s.contains("\"bind\""),
+        "SH27 Kab ui bind host dual-bind"
+    );
+}
+
+/// SH27 deepen: bvar tag lives off ui_bind.kab.
+#[test]
+fn sh27_ui_bvar_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_bvar.kab")).expect("ui_bvar.kab");
+    assert!(
+        l.contains("pub fn uiIsBvar") && l.contains("\"bvar\""),
+        "SH27 Kab uiIsBvar"
+    );
+}
+
+/// SH27 deepen: bvar dual-bind to host delete gate.
+#[test]
+fn sh27_ui_bvar_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_bvar_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_bvar_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsBvar") && s.contains("\"bvar\""),
+        "SH27 Kab ui bvar host dual-bind"
+    );
+}
+
+/// SH27 deepen: share tag lives off ui_bvar.kab.
+#[test]
+fn sh27_ui_share_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_share.kab")).expect("ui_share.kab");
+    assert!(
+        l.contains("pub fn uiIsShare") && l.contains("\"share\""),
+        "SH27 Kab uiIsShare"
+    );
+}
+
+/// SH27 deepen: share dual-bind to host delete gate.
+#[test]
+fn sh27_ui_share_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_share_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_share_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsShare") && s.contains("\"share\""),
+        "SH27 Kab ui share host dual-bind"
+    );
+}
+
+/// SH27 deepen: condition tag lives off ui_share.kab.
+#[test]
+fn sh27_ui_condition_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_condition.kab")).expect("ui_condition.kab");
+    assert!(
+        l.contains("pub fn uiIsCondition") && l.contains("\"condition\""),
+        "SH27 Kab uiIsCondition"
+    );
+}
+
+/// SH27 deepen: condition dual-bind to host delete gate.
+#[test]
+fn sh27_ui_condition_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_condition_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_condition_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCondition") && s.contains("\"condition\""),
+        "SH27 Kab ui condition host dual-bind"
+    );
+}
+
+/// SH27 deepen: piecewise tag lives off ui_condition.kab.
+#[test]
+fn sh27_ui_piecewise_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_piecewise.kab")).expect("ui_piecewise.kab");
+    assert!(
+        l.contains("pub fn uiIsPiecewise") && l.contains("\"piecewise\""),
+        "SH27 Kab uiIsPiecewise"
+    );
+}
+
+/// SH27 deepen: piecewise dual-bind to host delete gate.
+#[test]
+fn sh27_ui_piecewise_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_piecewise_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_piecewise_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsPiecewise") && s.contains("\"piecewise\""),
+        "SH27 Kab ui piecewise host dual-bind"
+    );
+}
+
+/// SH27 deepen: piece tag lives off ui_piecewise.kab.
+#[test]
+fn sh27_ui_piece_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_piece.kab")).expect("ui_piece.kab");
+    assert!(
+        l.contains("pub fn uiIsPiece") && l.contains("\"piece\""),
+        "SH27 Kab uiIsPiece"
+    );
+}
+
+/// SH27 deepen: piece dual-bind to host delete gate.
+#[test]
+fn sh27_ui_piece_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_piece_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_piece_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsPiece") && s.contains("\"piece\""),
+        "SH27 Kab ui piece host dual-bind"
+    );
+}
+
+/// SH27 deepen: otherwise tag lives off ui_piece.kab.
+#[test]
+fn sh27_ui_otherwise_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_otherwise.kab")).expect("ui_otherwise.kab");
+    assert!(
+        l.contains("pub fn uiIsOtherwise") && l.contains("\"otherwise\""),
+        "SH27 Kab uiIsOtherwise"
+    );
+}
+
+/// SH27 deepen: otherwise dual-bind to host delete gate.
+#[test]
+fn sh27_ui_otherwise_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_otherwise_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_otherwise_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsOtherwise") && s.contains("\"otherwise\""),
+        "SH27 Kab ui otherwise host dual-bind"
+    );
+}
+
+/// SH27 deepen: lambda tag lives off ui_otherwise.kab.
+#[test]
+fn sh27_ui_lambda_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_lambda.kab")).expect("ui_lambda.kab");
+    assert!(
+        l.contains("pub fn uiIsLambda") && l.contains("\"lambda\""),
+        "SH27 Kab uiIsLambda"
+    );
+}
+
+/// SH27 deepen: lambda dual-bind to host delete gate.
+#[test]
+fn sh27_ui_lambda_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_lambda_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_lambda_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsLambda") && s.contains("\"lambda\""),
+        "SH27 Kab ui lambda host dual-bind"
+    );
+}
+
+/// SH27 deepen: reln tag lives off ui_lambda.kab.
+#[test]
+fn sh27_ui_reln_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_reln.kab")).expect("ui_reln.kab");
+    assert!(
+        l.contains("pub fn uiIsReln") && l.contains("\"reln\""),
+        "SH27 Kab uiIsReln"
+    );
+}
+
+/// SH27 deepen: reln dual-bind to host delete gate.
+#[test]
+fn sh27_ui_reln_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_reln_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_reln_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsReln") && s.contains("\"reln\""),
+        "SH27 Kab ui reln host dual-bind"
+    );
+}
+
+/// SH27 deepen: fn tag lives off ui_reln.kab.
+#[test]
+fn sh27_ui_fn_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_fn.kab")).expect("ui_fn.kab");
+    assert!(
+        l.contains("pub fn uiIsFn") && l.contains("\"fn\""),
+        "SH27 Kab uiIsFn"
+    );
+}
+
+/// SH27 deepen: fn dual-bind to host delete gate.
+#[test]
+fn sh27_ui_fn_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_fn_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_fn_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsFn") && s.contains("\"fn\""),
+        "SH27 Kab ui fn host dual-bind"
+    );
+}
+
+/// SH27 deepen: interval tag lives off ui_fn.kab.
+#[test]
+fn sh27_ui_interval_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_interval.kab")).expect("ui_interval.kab");
+    assert!(
+        l.contains("pub fn uiIsInterval") && l.contains("\"interval\""),
+        "SH27 Kab uiIsInterval"
+    );
+}
+
+/// SH27 deepen: interval dual-bind to host delete gate.
+#[test]
+fn sh27_ui_interval_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_interval_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_interval_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsInterval") && s.contains("\"interval\""),
+        "SH27 Kab ui interval host dual-bind"
+    );
+}
+
+/// SH27 deepen: list tag lives off ui_interval.kab.
+#[test]
+fn sh27_ui_list_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_list.kab")).expect("ui_list.kab");
+    assert!(
+        l.contains("pub fn uiIsList") && l.contains("\"list\""),
+        "SH27 Kab uiIsList"
+    );
+}
+
+/// SH27 deepen: list dual-bind to host delete gate.
+#[test]
+fn sh27_ui_list_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_list_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_list_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsList") && s.contains("\"list\""),
+        "SH27 Kab ui list host dual-bind"
+    );
+}
+
+/// SH27 deepen: vector tag lives off ui_list.kab.
+#[test]
+fn sh27_ui_vector_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_vector.kab")).expect("ui_vector.kab");
+    assert!(
+        l.contains("pub fn uiIsVector") && l.contains("\"vector\""),
+        "SH27 Kab uiIsVector"
+    );
+}
+
+/// SH27 deepen: vector dual-bind to host delete gate.
+#[test]
+fn sh27_ui_vector_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_vector_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_vector_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsVector") && s.contains("\"vector\""),
+        "SH27 Kab ui vector host dual-bind"
+    );
+}
+
+/// SH27 deepen: matrix tag lives off ui_vector.kab.
+#[test]
+fn sh27_ui_matrix_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_matrix.kab")).expect("ui_matrix.kab");
+    assert!(
+        l.contains("pub fn uiIsMatrix") && l.contains("\"matrix\""),
+        "SH27 Kab uiIsMatrix"
+    );
+}
+
+/// SH27 deepen: matrix dual-bind to host delete gate.
+#[test]
+fn sh27_ui_matrix_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_matrix_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_matrix_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMatrix") && s.contains("\"matrix\""),
+        "SH27 Kab ui matrix host dual-bind"
+    );
+}
+
+/// SH27 deepen: matrixrow tag lives off ui_matrix.kab.
+#[test]
+fn sh27_ui_matrixrow_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_matrixrow.kab")).expect("ui_matrixrow.kab");
+    assert!(
+        l.contains("pub fn uiIsMatrixrow") && l.contains("\"matrixrow\""),
+        "SH27 Kab uiIsMatrixrow"
+    );
+}
+
+/// SH27 deepen: matrixrow dual-bind to host delete gate.
+#[test]
+fn sh27_ui_matrixrow_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_matrixrow_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_matrixrow_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMatrixrow") && s.contains("\"matrixrow\""),
+        "SH27 Kab ui matrixrow host dual-bind"
+    );
+}
+
+/// SH27 deepen: selector tag lives off ui_matrixrow.kab.
+#[test]
+fn sh27_ui_selector_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_selector.kab")).expect("ui_selector.kab");
+    assert!(
+        l.contains("pub fn uiIsSelector") && l.contains("\"selector\""),
+        "SH27 Kab uiIsSelector"
+    );
+}
+
+/// SH27 deepen: selector dual-bind to host delete gate.
+#[test]
+fn sh27_ui_selector_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_selector_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_selector_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsSelector") && s.contains("\"selector\""),
+        "SH27 Kab ui selector host dual-bind"
+    );
+}
+
+/// SH27 deepen: domain tag lives off ui_selector.kab.
+#[test]
+fn sh27_ui_domain_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_domain.kab")).expect("ui_domain.kab");
+    assert!(
+        l.contains("pub fn uiIsDomain") && l.contains("\"domain\""),
+        "SH27 Kab uiIsDomain"
+    );
+}
+
+/// SH27 deepen: domain dual-bind to host delete gate.
+#[test]
+fn sh27_ui_domain_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_domain_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_domain_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsDomain") && s.contains("\"domain\""),
+        "SH27 Kab ui domain host dual-bind"
+    );
+}
+
+/// SH27 deepen: codomain tag lives off ui_domain.kab.
+#[test]
+fn sh27_ui_codomain_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_codomain.kab")).expect("ui_codomain.kab");
+    assert!(
+        l.contains("pub fn uiIsCodomain") && l.contains("\"codomain\""),
+        "SH27 Kab uiIsCodomain"
+    );
+}
+
+/// SH27 deepen: codomain dual-bind to host delete gate.
+#[test]
+fn sh27_ui_codomain_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_codomain_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_codomain_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCodomain") && s.contains("\"codomain\""),
+        "SH27 Kab ui codomain host dual-bind"
+    );
+}
+
+/// SH27 deepen: domainof tag lives off ui_codomain.kab.
+#[test]
+fn sh27_ui_domainof_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_domainof.kab")).expect("ui_domainof.kab");
+    assert!(
+        l.contains("pub fn uiIsDomainof") && l.contains("\"domainof\""),
+        "SH27 Kab uiIsDomainof"
+    );
+}
+
+/// SH27 deepen: domainof dual-bind to host delete gate.
+#[test]
+fn sh27_ui_domainof_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_domainof_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_domainof_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsDomainof") && s.contains("\"domainof\""),
+        "SH27 Kab ui domainof host dual-bind"
+    );
+}
+
+/// SH27 deepen: ident tag lives off ui_domainof.kab.
+#[test]
+fn sh27_ui_ident_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_ident.kab")).expect("ui_ident.kab");
+    assert!(
+        l.contains("pub fn uiIsIdent") && l.contains("\"ident\""),
+        "SH27 Kab uiIsIdent"
+    );
+}
+
+/// SH27 deepen: ident dual-bind to host delete gate.
+#[test]
+fn sh27_ui_ident_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_ident_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_ident_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsIdent") && s.contains("\"ident\""),
+        "SH27 Kab ui ident host dual-bind"
+    );
+}
+
+/// SH27 deepen: compose tag lives off ui_ident.kab.
+#[test]
+fn sh27_ui_compose_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_compose.kab")).expect("ui_compose.kab");
+    assert!(
+        l.contains("pub fn uiIsCompose") && l.contains("\"compose\""),
+        "SH27 Kab uiIsCompose"
+    );
+}
+
+/// SH27 deepen: compose dual-bind to host delete gate.
+#[test]
+fn sh27_ui_compose_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_compose_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_compose_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsCompose") && s.contains("\"compose\""),
+        "SH27 Kab ui compose host dual-bind"
+    );
+}
+
+/// SH27 deepen: inverse tag lives off ui_compose.kab.
+#[test]
+fn sh27_ui_inverse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_inverse.kab")).expect("ui_inverse.kab");
+    assert!(
+        l.contains("pub fn uiIsInverse") && l.contains("\"inverse\""),
+        "SH27 Kab uiIsInverse"
+    );
+}
+
+/// SH27 deepen: inverse dual-bind to host delete gate.
+#[test]
+fn sh27_ui_inverse_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_inverse_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_inverse_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsInverse") && s.contains("\"inverse\""),
+        "SH27 Kab ui inverse host dual-bind"
+    );
+}
+
+/// SH27 deepen: plus tag lives off ui_inverse.kab.
+#[test]
+fn sh27_ui_plus_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_plus.kab")).expect("ui_plus.kab");
+    assert!(
+        l.contains("pub fn uiIsPlus") && l.contains("\"plus\""),
+        "SH27 Kab uiIsPlus"
+    );
+}
+
+/// SH27 deepen: plus dual-bind to host delete gate.
+#[test]
+fn sh27_ui_plus_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_plus_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_plus_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsPlus") && s.contains("\"plus\""),
+        "SH27 Kab ui plus host dual-bind"
+    );
+}
+
+/// SH27 deepen: minus tag lives off ui_plus.kab.
+#[test]
+fn sh27_ui_minus_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_minus.kab")).expect("ui_minus.kab");
+    assert!(
+        l.contains("pub fn uiIsMinus") && l.contains("\"minus\""),
+        "SH27 Kab uiIsMinus"
+    );
+}
+
+/// SH27 deepen: minus dual-bind to host delete gate.
+#[test]
+fn sh27_ui_minus_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_minus_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_minus_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMinus") && s.contains("\"minus\""),
+        "SH27 Kab ui minus host dual-bind"
+    );
+}
+
+/// SH27 deepen: times tag lives off ui_minus.kab.
+#[test]
+fn sh27_ui_times_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_times.kab")).expect("ui_times.kab");
+    assert!(
+        l.contains("pub fn uiIsTimes") && l.contains("\"times\""),
+        "SH27 Kab uiIsTimes"
+    );
+}
+
+/// SH27 deepen: times dual-bind to host delete gate.
+#[test]
+fn sh27_ui_times_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_times_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_times_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsTimes") && s.contains("\"times\""),
+        "SH27 Kab ui times host dual-bind"
+    );
+}
+
+/// SH27 deepen: divide tag lives off ui_times.kab.
+#[test]
+fn sh27_ui_divide_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_divide.kab")).expect("ui_divide.kab");
+    assert!(
+        l.contains("pub fn uiIsDivide") && l.contains("\"divide\""),
+        "SH27 Kab uiIsDivide"
+    );
+}
+
+/// SH27 deepen: divide dual-bind to host delete gate.
+#[test]
+fn sh27_ui_divide_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_divide_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_divide_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsDivide") && s.contains("\"divide\""),
+        "SH27 Kab ui divide host dual-bind"
+    );
+}
+
+/// SH27 deepen: power tag lives off ui_divide.kab.
+#[test]
+fn sh27_ui_power_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_power.kab")).expect("ui_power.kab");
+    assert!(
+        l.contains("pub fn uiIsPower") && l.contains("\"power\""),
+        "SH27 Kab uiIsPower"
+    );
+}
+
+/// SH27 deepen: power dual-bind to host delete gate.
+#[test]
+fn sh27_ui_power_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_power_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_power_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsPower") && s.contains("\"power\""),
+        "SH27 Kab ui power host dual-bind"
+    );
+}
+
+/// SH27 deepen: root tag lives off ui_power.kab.
+#[test]
+fn sh27_ui_root_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_root.kab")).expect("ui_root.kab");
+    assert!(
+        l.contains("pub fn uiIsRoot") && l.contains("\"root\""),
+        "SH27 Kab uiIsRoot"
+    );
+}
+
+/// SH27 deepen: root dual-bind to host delete gate.
+#[test]
+fn sh27_ui_root_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_root_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_root_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsRoot") && s.contains("\"root\""),
+        "SH27 Kab ui root host dual-bind"
+    );
+}
+
+/// SH27 deepen: gcd tag lives off ui_root.kab.
+#[test]
+fn sh27_ui_gcd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_gcd.kab")).expect("ui_gcd.kab");
+    assert!(
+        l.contains("pub fn uiIsGcd") && l.contains("\"gcd\""),
+        "SH27 Kab uiIsGcd"
+    );
+}
+
+/// SH27 deepen: gcd dual-bind to host delete gate.
+#[test]
+fn sh27_ui_gcd_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_gcd_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_gcd_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsGcd") && s.contains("\"gcd\""),
+        "SH27 Kab ui gcd host dual-bind"
+    );
+}
+
+/// SH27 deepen: and tag lives off ui_gcd.kab.
+#[test]
+fn sh27_ui_and_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_and.kab")).expect("ui_and.kab");
+    assert!(
+        l.contains("pub fn uiIsAnd") && l.contains("\"and\""),
+        "SH27 Kab uiIsAnd"
+    );
+}
+
+/// SH27 deepen: and dual-bind to host delete gate.
+#[test]
+fn sh27_ui_and_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_and_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_and_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsAnd") && s.contains("\"and\""),
+        "SH27 Kab ui and host dual-bind"
+    );
+}
+
+/// SH27 deepen: or tag lives off ui_and.kab.
+#[test]
+fn sh27_ui_cm_or_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_or.kab")).expect("ui_or.kab");
+    assert!(
+        l.contains("pub fn uiIsOr") && l.contains("\"or\""),
+        "SH27 Kab uiIsOr"
+    );
+}
+
+/// SH27 deepen: or dual-bind to host delete gate.
+#[test]
+fn sh27_ui_cm_or_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_or_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_or_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsOr") && s.contains("\"or\""),
+        "SH27 Kab ui or host dual-bind"
+    );
+}
+
+/// SH27 deepen: xor tag lives off ui_or.kab.
+#[test]
+fn sh27_ui_xor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_xor.kab")).expect("ui_xor.kab");
+    assert!(
+        l.contains("pub fn uiIsXor") && l.contains("\"xor\""),
+        "SH27 Kab uiIsXor"
+    );
+}
+
+/// SH27 deepen: xor dual-bind to host delete gate.
+#[test]
+fn sh27_ui_xor_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_xor_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_xor_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsXor") && s.contains("\"xor\""),
+        "SH27 Kab ui xor host dual-bind"
+    );
+}
+
+/// SH27 deepen: not tag lives off ui_xor.kab.
+#[test]
+fn sh27_ui_not_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_not.kab")).expect("ui_not.kab");
+    assert!(
+        l.contains("pub fn uiIsNot") && l.contains("\"not\""),
+        "SH27 Kab uiIsNot"
+    );
+}
+
+/// SH27 deepen: not dual-bind to host delete gate.
+#[test]
+fn sh27_ui_not_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_not_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_not_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsNot") && s.contains("\"not\""),
+        "SH27 Kab ui not host dual-bind"
+    );
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {

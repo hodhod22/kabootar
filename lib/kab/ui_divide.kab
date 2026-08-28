@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML divide. Off previous ui_times.kab.
+pub fn uiIsDivide(tag) {
+    return tag == "divide"
+}

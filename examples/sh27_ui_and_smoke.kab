@@ -1,0 +1,3 @@
+import "kab/ui_and"
+
+return uiIsAnd("and")

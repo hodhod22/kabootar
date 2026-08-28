@@ -1,0 +1,14 @@
+import "kab/ui_power"
+import "kab/ui_divide"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDivide("divide") != true {
+    return false
+}
+if uiIsPower("power") != true {
+    return false
+}
+return uiHostDeleteOk() == false

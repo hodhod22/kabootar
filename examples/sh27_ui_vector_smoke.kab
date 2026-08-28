@@ -1,0 +1,3 @@
+import "kab/ui_vector"
+
+return uiIsVector("vector")

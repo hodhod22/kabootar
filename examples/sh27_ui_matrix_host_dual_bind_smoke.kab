@@ -1,0 +1,14 @@
+import "kab/ui_matrix"
+import "kab/ui_vector"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsVector("vector") == false {
+    return false
+}
+if uiIsMatrix("matrix") == false {
+    return false
+}
+return uiHostDeleteOk() == false

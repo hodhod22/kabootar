@@ -1,0 +1,6 @@
+// SH27: piecewise tag off ui_condition.kab. import "kab/ui_piecewise"
+// Do not grow ui_condition.kab. Host browser* remains skuld.
+
+pub fn uiIsPiecewise(tag) {
+    return tag == "piecewise"
+}

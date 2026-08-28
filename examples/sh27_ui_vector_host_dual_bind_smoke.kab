@@ -1,0 +1,14 @@
+import "kab/ui_vector"
+import "kab/ui_list"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsList("list") == false {
+    return false
+}
+if uiIsVector("vector") == false {
+    return false
+}
+return uiHostDeleteOk() == false

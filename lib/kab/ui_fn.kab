@@ -1,0 +1,6 @@
+// SH27: fn tag off ui_reln.kab. import "kab/ui_fn"
+// Do not grow ui_reln.kab. Host browser* remains skuld.
+
+pub fn uiIsFn(tag) {
+    return tag == "fn"
+}

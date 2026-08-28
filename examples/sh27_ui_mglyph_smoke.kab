@@ -1,0 +1,3 @@
+import "kab/ui_mglyph"
+
+return uiIsMglyph("mglyph")

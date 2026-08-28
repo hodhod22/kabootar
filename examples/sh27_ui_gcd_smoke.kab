@@ -1,0 +1,3 @@
+import "kab/ui_gcd"
+
+return uiIsGcd("gcd")

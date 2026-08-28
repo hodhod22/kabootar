@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML not. Off previous ui_xor.kab.
+pub fn uiIsNot(tag) {
+    return tag == "not"
+}

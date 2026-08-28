@@ -1,0 +1,14 @@
+import "kab/ui_selector"
+import "kab/ui_matrixrow"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMatrixrow("matrixrow") == false {
+    return false
+}
+if uiIsSelector("selector") == false {
+    return false
+}
+return uiHostDeleteOk() == false

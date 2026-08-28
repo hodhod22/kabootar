@@ -1,0 +1,14 @@
+import "kab/ui_interval"
+import "kab/ui_fn"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFn("fn") == false {
+    return false
+}
+if uiIsInterval("interval") == false {
+    return false
+}
+return uiHostDeleteOk() == false

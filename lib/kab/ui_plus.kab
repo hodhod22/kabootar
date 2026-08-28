@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML plus. Off previous ui_inverse.kab.
+pub fn uiIsPlus(tag) {
+    return tag == "plus"
+}

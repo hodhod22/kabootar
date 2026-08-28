@@ -1,0 +1,3 @@
+import "kab/ui_selector"
+
+return uiIsSelector("selector")

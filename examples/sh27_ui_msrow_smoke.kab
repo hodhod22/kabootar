@@ -1,0 +1,3 @@
+import "kab/ui_msrow"
+
+return uiIsMsrow("msrow")

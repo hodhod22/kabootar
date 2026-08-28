@@ -1,0 +1,14 @@
+import "kab/ui_csymbol"
+import "kab/ui_cn"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCn("cn") == false {
+    return false
+}
+if uiIsCsymbol("csymbol") == false {
+    return false
+}
+return uiHostDeleteOk() == false

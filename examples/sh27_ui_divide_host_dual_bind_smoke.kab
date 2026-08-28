@@ -1,0 +1,14 @@
+import "kab/ui_divide"
+import "kab/ui_times"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTimes("times") != true {
+    return false
+}
+if uiIsDivide("divide") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH27: reln tag off ui_lambda.kab. import "kab/ui_reln"
+// Do not grow ui_lambda.kab. Host browser* remains skuld.
+
+pub fn uiIsReln(tag) {
+    return tag == "reln"
+}

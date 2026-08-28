@@ -1,0 +1,14 @@
+import "kab/ui_compose"
+import "kab/ui_ident"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsIdent("ident") == false {
+    return false
+}
+if uiIsCompose("compose") == false {
+    return false
+}
+return uiHostDeleteOk() == false

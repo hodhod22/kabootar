@@ -1,0 +1,3 @@
+import "kab/ui_inverse"
+
+return uiIsInverse("inverse")

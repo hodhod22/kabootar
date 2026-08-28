@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML or. Off previous ui_and.kab.
+pub fn uiIsOr(tag) {
+    return tag == "or"
+}

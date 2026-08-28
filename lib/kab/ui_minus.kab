@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML minus. Off previous ui_plus.kab.
+pub fn uiIsMinus(tag) {
+    return tag == "minus"
+}

@@ -1,0 +1,6 @@
+// SH27: msline tag off ui_mscarry.kab. import "kab/ui_msline"
+// Do not grow ui_mscarry.kab. Host browser* remains skuld.
+
+pub fn uiIsMsline(tag) {
+    return tag == "msline"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_reln"
+import "kab/ui_lambda"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLambda("lambda") == false {
+    return false
+}
+if uiIsReln("reln") == false {
+    return false
+}
+return uiHostDeleteOk() == false

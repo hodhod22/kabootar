@@ -1,0 +1,14 @@
+import "kab/ui_not"
+import "kab/ui_xor"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsXor("xor") != true {
+    return false
+}
+if uiIsNot("not") != true {
+    return false
+}
+return uiHostDeleteOk() == false

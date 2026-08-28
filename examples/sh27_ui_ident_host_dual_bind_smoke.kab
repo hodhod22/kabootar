@@ -1,0 +1,14 @@
+import "kab/ui_ident"
+import "kab/ui_domainof"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDomainof("domainof") == false {
+    return false
+}
+if uiIsIdent("ident") == false {
+    return false
+}
+return uiHostDeleteOk() == false

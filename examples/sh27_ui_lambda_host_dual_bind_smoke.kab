@@ -1,0 +1,14 @@
+import "kab/ui_lambda"
+import "kab/ui_otherwise"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsOtherwise("otherwise") == false {
+    return false
+}
+if uiIsLambda("lambda") == false {
+    return false
+}
+return uiHostDeleteOk() == false

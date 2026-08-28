@@ -1,0 +1,3 @@
+import "kab/ui_power"
+
+return uiIsPower("power")

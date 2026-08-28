@@ -1,0 +1,14 @@
+import "kab/ui_domainof"
+import "kab/ui_codomain"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCodomain("codomain") == false {
+    return false
+}
+if uiIsDomainof("domainof") == false {
+    return false
+}
+return uiHostDeleteOk() == false

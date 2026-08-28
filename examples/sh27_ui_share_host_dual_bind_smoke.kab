@@ -1,0 +1,14 @@
+import "kab/ui_share"
+import "kab/ui_bvar"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsBvar("bvar") == false {
+    return false
+}
+if uiIsShare("share") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_msrow"
+import "kab/ui_mstack"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMstack("mstack") == false {
+    return false
+}
+if uiIsMsrow("msrow") == false {
+    return false
+}
+return uiHostDeleteOk() == false

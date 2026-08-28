@@ -1,0 +1,6 @@
+// SH27: condition tag off ui_share.kab. import "kab/ui_condition"
+// Do not grow ui_share.kab. Host browser* remains skuld.
+
+pub fn uiIsCondition(tag) {
+    return tag == "condition"
+}

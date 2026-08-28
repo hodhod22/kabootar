@@ -1,0 +1,14 @@
+import "kab/ui_and"
+import "kab/ui_gcd"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsGcd("gcd") != true {
+    return false
+}
+if uiIsAnd("and") != true {
+    return false
+}
+return uiHostDeleteOk() == false
