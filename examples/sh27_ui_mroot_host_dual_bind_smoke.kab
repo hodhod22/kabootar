@@ -1,0 +1,14 @@
+import "kab/ui_mroot"
+import "kab/ui_msqrt"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMsqrt("msqrt") == false {
+    return false
+}
+if uiIsMroot("mroot") == false {
+    return false
+}
+return uiHostDeleteOk() == false

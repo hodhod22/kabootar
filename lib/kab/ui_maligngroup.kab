@@ -1,0 +1,6 @@
+// SH27: maligngroup tag off ui_mlabeledtr.kab. import "kab/ui_maligngroup"
+// Do not grow ui_mlabeledtr.kab. Host browser* remains skuld.
+
+pub fn uiIsMaligngroup(tag) {
+    return tag == "maligngroup"
+}

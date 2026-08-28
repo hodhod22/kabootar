@@ -1,0 +1,14 @@
+import "kab/ui_merror"
+import "kab/ui_mstyle"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMstyle("mstyle") == false {
+    return false
+}
+if uiIsMerror("merror") == false {
+    return false
+}
+return uiHostDeleteOk() == false

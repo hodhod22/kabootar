@@ -1,0 +1,6 @@
+// SH27: mstyle tag off ui_malignmark.kab. import "kab/ui_mstyle"
+// Do not grow ui_malignmark.kab. Host browser* remains skuld.
+
+pub fn uiIsMstyle(tag) {
+    return tag == "mstyle"
+}

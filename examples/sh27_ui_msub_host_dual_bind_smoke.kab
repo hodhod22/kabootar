@@ -1,0 +1,14 @@
+import "kab/ui_msub"
+import "kab/ui_mroot"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMroot("mroot") == false {
+    return false
+}
+if uiIsMsub("msub") == false {
+    return false
+}
+return uiHostDeleteOk() == false

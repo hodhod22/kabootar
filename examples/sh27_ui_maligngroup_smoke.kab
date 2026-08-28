@@ -1,0 +1,3 @@
+import "kab/ui_maligngroup"
+
+return uiIsMaligngroup("maligngroup")

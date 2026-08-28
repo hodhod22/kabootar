@@ -1,0 +1,14 @@
+import "kab/ui_mtd"
+import "kab/ui_mtr"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMtr("mtr") == false {
+    return false
+}
+if uiIsMtd("mtd") == false {
+    return false
+}
+return uiHostDeleteOk() == false

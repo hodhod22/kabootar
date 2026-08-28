@@ -1,0 +1,3 @@
+import "kab/ui_mstyle"
+
+return uiIsMstyle("mstyle")

@@ -1,0 +1,14 @@
+import "kab/ui_mphantom"
+import "kab/ui_mpadded"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMpadded("mpadded") == false {
+    return false
+}
+if uiIsMphantom("mphantom") == false {
+    return false
+}
+return uiHostDeleteOk() == false

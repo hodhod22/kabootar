@@ -1,0 +1,14 @@
+import "kab/ui_munder"
+import "kab/ui_msubsup"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMsubsup("msubsup") == false {
+    return false
+}
+if uiIsMunder("munder") == false {
+    return false
+}
+return uiHostDeleteOk() == false

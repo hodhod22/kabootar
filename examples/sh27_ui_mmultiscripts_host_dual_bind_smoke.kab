@@ -1,0 +1,14 @@
+import "kab/ui_mmultiscripts"
+import "kab/ui_munderover"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMunderover("munderover") == false {
+    return false
+}
+if uiIsMmultiscripts("mmultiscripts") == false {
+    return false
+}
+return uiHostDeleteOk() == false

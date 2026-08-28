@@ -1,0 +1,14 @@
+import "kab/ui_annotation_xml"
+import "kab/ui_annotation"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAnnotation("annotation") == false {
+    return false
+}
+if uiIsAnnotationXml("annotation-xml") == false {
+    return false
+}
+return uiHostDeleteOk() == false

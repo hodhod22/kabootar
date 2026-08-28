@@ -1,0 +1,3 @@
+import "kab/ui_mfrac"
+
+return uiIsMfrac("mfrac")

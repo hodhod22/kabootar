@@ -1,0 +1,14 @@
+import "kab/ui_annotation"
+import "kab/ui_semantics"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSemantics("semantics") == false {
+    return false
+}
+if uiIsAnnotation("annotation") == false {
+    return false
+}
+return uiHostDeleteOk() == false

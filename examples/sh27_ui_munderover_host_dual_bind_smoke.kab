@@ -1,0 +1,14 @@
+import "kab/ui_munderover"
+import "kab/ui_mover"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMover("mover") == false {
+    return false
+}
+if uiIsMunderover("munderover") == false {
+    return false
+}
+return uiHostDeleteOk() == false

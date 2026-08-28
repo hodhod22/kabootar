@@ -1,0 +1,3 @@
+import "kab/ui_semantics"
+
+return uiIsSemantics("semantics")

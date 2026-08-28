@@ -1,0 +1,3 @@
+import "kab/ui_mtr"
+
+return uiIsMtr("mtr")

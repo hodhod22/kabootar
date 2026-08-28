@@ -1,0 +1,6 @@
+// SH27: mpadded tag off ui_merror.kab. import "kab/ui_mpadded"
+// Do not grow ui_merror.kab. Host browser* remains skuld.
+
+pub fn uiIsMpadded(tag) {
+    return tag == "mpadded"
+}

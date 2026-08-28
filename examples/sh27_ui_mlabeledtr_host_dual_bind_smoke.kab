@@ -1,0 +1,14 @@
+import "kab/ui_mlabeledtr"
+import "kab/ui_mth"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMth("mth") == false {
+    return false
+}
+if uiIsMlabeledtr("mlabeledtr") == false {
+    return false
+}
+return uiHostDeleteOk() == false

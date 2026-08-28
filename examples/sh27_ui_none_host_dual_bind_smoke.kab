@@ -1,0 +1,14 @@
+import "kab/ui_none"
+import "kab/ui_mprescripts"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMprescripts("mprescripts") == false {
+    return false
+}
+if uiIsNone("none") == false {
+    return false
+}
+return uiHostDeleteOk() == false

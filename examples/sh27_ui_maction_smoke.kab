@@ -1,0 +1,3 @@
+import "kab/ui_maction"
+
+return uiIsMaction("maction")

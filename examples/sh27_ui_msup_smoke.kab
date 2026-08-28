@@ -1,0 +1,3 @@
+import "kab/ui_msup"
+
+return uiIsMsup("msup")

@@ -1,0 +1,3 @@
+import "kab/ui_merror"
+
+return uiIsMerror("merror")
