@@ -1,0 +1,14 @@
+import "kab/ui_unknown"
+import "kab/ui_discard"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDiscard("discard") == false {
+    return false
+}
+if uiIsUnknown("unknown") == false {
+    return false
+}
+return uiHostDeleteOk() == false

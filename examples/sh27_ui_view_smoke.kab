@@ -1,0 +1,3 @@
+import "kab/ui_view"
+
+return uiIsView("view")

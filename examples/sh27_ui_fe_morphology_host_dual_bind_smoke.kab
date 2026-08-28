@@ -1,0 +1,14 @@
+import "kab/ui_fe_morphology"
+import "kab/ui_fe_merge_node"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeMergeNode("feMergeNode") == false {
+    return false
+}
+if uiIsFeMorphology("feMorphology") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_fe_distant_light"
+
+return uiIsFeDistantLight("feDistantLight")

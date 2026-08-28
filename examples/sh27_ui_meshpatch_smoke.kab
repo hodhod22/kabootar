@@ -1,0 +1,3 @@
+import "kab/ui_meshpatch"
+
+return uiIsMeshpatch("meshpatch")

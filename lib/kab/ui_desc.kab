@@ -1,0 +1,6 @@
+// SH27: desc tag off ui_metadata.kab. import "kab/ui_desc"
+// Do not grow ui_metadata.kab. Host browser* remains skuld.
+
+pub fn uiIsDesc(tag) {
+    return tag == "desc"
+}

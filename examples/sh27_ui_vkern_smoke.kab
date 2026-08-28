@@ -1,0 +1,3 @@
+import "kab/ui_vkern"
+
+return uiIsVkern("vkern")

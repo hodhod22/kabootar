@@ -1,0 +1,14 @@
+import "kab/ui_meshrow"
+import "kab/ui_meshgradient"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMeshgradient("meshgradient") == false {
+    return false
+}
+if uiIsMeshrow("meshrow") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_tspan"
+
+return uiIsTspan("tspan")

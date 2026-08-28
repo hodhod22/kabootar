@@ -1,0 +1,3 @@
+import "kab/ui_mrow"
+
+return uiIsMrow("mrow")

@@ -1,0 +1,14 @@
+import "kab/ui_hkern"
+import "kab/ui_font_face_name"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFontFaceName("font-face-name") == false {
+    return false
+}
+if uiIsHkern("hkern") == false {
+    return false
+}
+return uiHostDeleteOk() == false

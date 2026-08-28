@@ -1,0 +1,6 @@
+// SH27: glyph tag off ui_glyph_ref.kab. import "kab/ui_glyph"
+// Do not grow ui_glyph_ref.kab. Host browser* remains skuld.
+
+pub fn uiIsGlyph(tag) {
+    return tag == "glyph"
+}

@@ -1,0 +1,3 @@
+import "kab/ui_fe_drop_shadow"
+
+return uiIsFeDropShadow("feDropShadow")

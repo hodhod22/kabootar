@@ -1,0 +1,6 @@
+// SH27: mn tag off ui_mi.kab. import "kab/ui_mn"
+// Do not grow ui_mi.kab. Host browser* remains skuld.
+
+pub fn uiIsMn(tag) {
+    return tag == "mn"
+}

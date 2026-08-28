@@ -1,0 +1,6 @@
+// SH27: feBlend tag off ui_fe_gaussian_blur.kab. import "kab/ui_fe_blend"
+// Do not grow ui_fe_gaussian_blur.kab. Host browser* remains skuld.
+
+pub fn uiIsFeBlend(tag) {
+    return tag == "feBlend"
+}

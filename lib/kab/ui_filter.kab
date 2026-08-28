@@ -1,0 +1,6 @@
+// SH27: SVG filter tag off ui_switch.kab. import "kab/ui_filter"
+// Do not grow ui_switch.kab. Host browser* remains skuld.
+
+pub fn uiIsFilter(tag) {
+    return tag == "filter"
+}

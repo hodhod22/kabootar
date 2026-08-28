@@ -1,0 +1,3 @@
+import "kab/ui_fe_gaussian_blur"
+
+return uiIsFeGaussianBlur("feGaussianBlur")

@@ -1,0 +1,6 @@
+// SH27: font-face-src tag off ui_font_face.kab. import "kab/ui_font_face_src"
+// Do not grow ui_font_face.kab. Host browser* remains skuld.
+
+pub fn uiIsFontFaceSrc(tag) {
+    return tag == "font-face-src"
+}

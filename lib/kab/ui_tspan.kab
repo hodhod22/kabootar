@@ -1,0 +1,6 @@
+// SH27: tspan tag off ui_text.kab. import "kab/ui_tspan"
+// Do not grow ui_text.kab. Host browser* remains skuld.
+
+pub fn uiIsTspan(tag) {
+    return tag == "tspan"
+}

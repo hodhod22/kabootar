@@ -1,0 +1,14 @@
+import "kab/ui_pattern"
+import "kab/ui_mask"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMask("mask") == false {
+    return false
+}
+if uiIsPattern("pattern") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -8,7 +8,7 @@
 >
 > **Dok efter varje deepen:** uppdatera **[ROADMAP.md](ROADMAP.md)** (status + **Nästa**) och **[self_host/README.md](../self_host/README.md)** (nuläge + milstolpar + tester) i samma pass som koden. Språkytor: även [LANGUAGE.md](LANGUAGE.md) / [FEATURES.md](FEATURES.md) när paritet ändras.
 
-**Nu:** språk i self-host (`match` enum payload + `if let`/`while let`) → SH5 platå (DAG 12) → SH16 redan stängd för appar → Kab-VM/JIT/GC deepen → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
+**Nu:** språk i self-host (T5 default-metoder, `struct` `&self`, `match` enum/`if let`) → SH5 platå (DAG 12) → SH16 redan stängd för appar → Kab-VM/JIT/GC deepen → **fart i Kab (Våg FT)** → stdlib–CLI i `.kab` (SH20–27) → radera `src/` (SH28). Planer: [egna fötter](#kabootar-på-egna-fötter--noll-rust) · [fart](#våg-ft--fart-alla-tekniker-i-kab).
 
 Produktplaner: **[kOS](../lib/kos/README.md)** · **[kbrowser](../lib/kbrowser/README.md)** · **[kabtest](../lib/kabtest/README.md)**. Detalj: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-).
 
@@ -265,9 +265,9 @@ Namnet **FT** (fart/teknik) så det inte krockar med [Våg F — generics](#våg
 
 ## v2.14 — Språksocker
 
-- [x] `?`-operator på `Result` — unwrap `Ok`, propagera `Err`
+- [x] `?`-operator på `Result` — unwrap `Ok`, propagera `Err` (host + self-host `result_question`)
 - [x] `match`-guards — `n if n > 0 => "positive"`
-- [x] `is(obj, "Class")` — klass-/arv-kontroll (kompletterar `is_impl`)
+- [x] `is(obj, "Class")` — klass-/arv-kontroll (kompletterar `is_impl`; self-host → `instanceof`)
 
 ## v2.15 — Match-mönster för array och objekt
 
@@ -623,10 +623,10 @@ Blockerare från `self_host/README.md` och `lib/kv8/` — måste bort innan ekos
 | **L3** | **Closures under rekursion** — fångade `let` överlever nästlade anrop av samma fn | ✅ (via L1) |
 | **L4** | **Await i modul/fn** — microtask writeback av globals; capture-bitar (`local_captures`); Await synkar locals; `lib/kos/async` använder riktig `await` | ✅ |
 | **L5** | **Runtime MemBox** — `@manual` + `owned_*` / `kos/mem` (move/drop vid runtime); GC default. **Inte** compile-time ownership/borrow-check | ✅ runtime |
-| **L6** | **Self-host `match`** — parse+emit i `parser_postfix` / `emit_expr_body` så appar (SH16, ingen Rust-emit) kan kompilera `match` | ✅ subset: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + **array/objekt** + **enum-mönster** + **`if let`/`while let`** + text-`.kbc` enum-sektion + **payload-ctors** (`Msg.Move(n)`) på host-VM och Kab-VM |
+| **L6** | **Self-host `match`** — parse+emit i `parser_postfix` / `emit_expr_body` så appar (SH16, ingen Rust-emit) kan kompilera `match` | ✅ subset: const/`_`/var/`Some`/`None`/`Ok`/`Err`/`NaN` + guards + **array/objekt** + **`...rest`** + **or-mönster** + **range** + **`n @ pat`** (inkl. **`n @ { a, ...r }`** / **`n @ [h, ...t]`** + guard) + **`(pat)`** + **`if let`/`while let`** + **enum** (unit/payload) + text-`.kbc` enum-sektion |
 
 **Checkpoint L1–L5:** `cargo test --test v228_language bytecode_` + `cargo test --test ownership_manual` + `cargo test --test s2_compile_cli`  
-**Checkpoint L6:** `cargo test --test self_host self_host_match_` (const/array/if-let/while-let/enum unit + **payload** compile-run och kab-only)
+**Checkpoint L6:** `cargo test --test self_host self_host_match_` + `self_host_if_let_` + `self_host_while_let_` (const/array/if-let/while-let/enum unit + **payload** + **`...rest`/`[a, ...mid, b]`** + **or-mönster** + **range** / **öppen range** + **`n @ pat`** compile-run och kab-only)
 
 ### Våg O — Ownership (systems, compile-time) ✅ subset
 
@@ -655,7 +655,7 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 | **T2** | **Generiska traits** — `trait Show<T> { … }` | ✅ |
 | **T3** | **Associated types** — `trait Iter { type Item; }` (subset) | ✅ |
 | **T4** | **Default-metoder** i trait-kropp | ✅ |
-| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset (+ `type Item;` → `associatedTypes`; default method body `{ … }` i parser) |
+| **T5** | Self-host: trait/`where` i `self_host/parser` + `emit` | ✅ subset (+ `type Item;` → `interface_assoc_types`; **`type Item = Number`** på klass → `class_assoc_types`; default-metod inject; **`where T: Trait`** på generiska fn, metoder och klasser; **`trait Show<T>`** → `interface_type_params` + `implements Show$Number`) |
 
 **Icke-mål:** HKT, `dyn Trait`-objekt, Rust-coherence.
 
@@ -667,7 +667,7 @@ G5 gav `trait` ≈ `interface`. Det räcker **inte** för systems-/generics-kod.
 | **R1** | **`struct Name { … }`** — värdetyper + metoder med **`self` / `&self` / `&mut self`** | ✅ |
 | **R2** | Struct + `@manual` ownership (move) | ✅ |
 | **R3** | Generiska structs `struct Box<T>` | ✅ |
-| **R4** | Self-host: `struct`/`self` i parser+emit | ✅ subset |
+| **R4** | Self-host: `struct`/`self` i parser+emit | ✅ subset (+ **`&self` / `&mut self`** parse + host compile-run; **`struct Box<T>`** specialisering + fält) |
 
 **Regel:** `class` → `this`; `struct` → `self`. Se [CLASSES.md](CLASSES.md).
 
@@ -726,7 +726,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **Iterator helpers** | `Iterator.from`, `.map`/`.filter`/`.take` (ES2025) ✅ |
 | **Map/Set** | `getOrInsert` / `getOrInsertComputed` ✅ |
 | **RegExp** | `u` + `\p{…}` + `v`/`unicodeSets` ✅ subset |
-| **Syntax** | logical assign `||=` `&&=` `??=` ✅ |
+| **Syntax** | logical assign `||=` `&&=` `??=` ✅ host + self-host |
 
 **Checkpoint J:** `cargo test --test js_stdlib_gaps` + `cargo test --test kabootar_js_parity`
 
@@ -737,7 +737,7 @@ Kabootar har **inte** JS-prototyper. Två tydliga modeller:
 | **S1** | Migrera bort workarounds som L1–L3 gör onödiga (fn-lokala stacks istället för `eNode`/`pLeft`-familjen där det går) | ✅ slice: `emit.kab` AST_BINARY + `parser.kab` call/index |
 | **S2** | `kabootar compile` default via `self_host/compile.kab` för `.kab` → `.kbc` (`--rust` / `--self-host`; `self_host/` → Rust) | ✅ |
 | **S3** | CI: self-host bygger self-host (bootstrap) som gate | ✅ |
-| **S4** | **Språkparitet i produktkompilatorn** — `match` parse+emit (L6); inte bara host-Rust | ✅ subset (`if let`/`while let` + enum unit/payload + text-`.kbc` enum-register) |
+| **S4** | **Språkparitet i produktkompilatorn** — `match` parse+emit (L6); inte bara host-Rust | ✅ subset (`if let`/`while let` + or + **`n @`** + enum unit/payload + **`...rest`/`[a, ...mid, b]`** + **or-mönster** + **range** / **öppen range** + **`n @ pat`** / **`(pat)`** + text-`.kbc` enum-register) |
 
 ### Våg K — Ekosystem i Kabootar 📋
 
@@ -967,7 +967,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH0** | **Inventering** — räkna DAG (`compile.kab` fan-out), förbjud nya committed `_probe`/`_bisect`/`_acc_repro`; `KABOOTAR_P10_PROFILE=1` ska skriva `import_ms`, `shard_evals`, `unique_modules` | `tests/perf_p10_pipeline.rs` utökas med shard-count snapshot (inte 580+ *nya* filer) | ✅ `tests/sh_wave.rs` `sh0_self_host_compile_dag_snapshot`; PROFILE + `import_shard_stats` |
 | **SH1** | **Compiler-image** — ett committed `self_host/seed/compiler.kbcb` (eller packad katalog) som är *hela* parse+emit+serialize-DAG:en med matchande fingerprints; kall process laddar image, evalar inte 500 källor | `import "self_host/compile"` första gången **< 2 s** med image (CI); utan image får fail-fast + rust fallback | ✅ packed image + pre-parse; **release ~0.84 s**; debug-gate 5 s (`sh1_import_compile_image_budget`) |
 | **SH2** | **Session-objekt** — `parse`/`emit`/`tokenize` tar `sess`; tramp `sess["tramp"](sess)` / `E["tramp"](E)` så anropet inte fångar modul-global sess. Nested `if`/`while` använder fortfarande `pCondStack`/`eIfJmpStack` **på sess** | `sh2_parser_emit_exec_are_per_call_session` + `sh2_nested_if_while_fn_rust`; inga `let sess = pMakeSession()` på modulnivå | ✅ (`parser_exec`/`emit_exec` per-call; nested named `fn` → `emitNestedNamedFn`) |
-| **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))`; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a argv N-path; SH3b facade `pub let` (`sh3b_*`); SH3c `sh3c_self_host_kbc_has_real_newlines` |
+| **SH3** | **Språk/emit-buggar som self-host tvingas runda** — (a) nested call `f(g(x))` / `push(a, len(b))` / **`len(pair(...))`**; (b) extra frame på wrapping `pub fn`; (c) `"\n"` vs `CHAR_NL` i serialize | Tre regressionstester i `tests/self_host.rs` + Rust-emit parity; förbjud nya workarounds i README utan bug-id | ✅ SH3a **lokala `callArgs`/`arrElems`** (inte `sess["pArgs"]`) + argv N-path + **`len(expr)` → `get_length`**; SH3b facade `pub let` (`sh3b_*`); SH3c `sh3c_self_host_kbc_has_real_newlines` |
 | **SH4** | **Binär IR v2** — `kbcb` v2: opcodes som packed records (inte `store_local 3\n`); deserialize O(n) utan strängsplit per rad | Seed `emit_impl` deserialize **≪** text-`.kbc`; roundtrip `deserialize_kbcb_v2 == module` | ✅ `KBCB` v2 packed; v1 text still loads; `sh4_kbcb_v2_roundtrip` / `sh4_kbcb_v2_faster_than_text` |
 | **SH5** | **Reverse-densify** — slå ihop tunna shards; compile-DAG **< 80** | SH0 ner; leaf ≤10 s | ✅ platå **12** filer (compile + lexer_scan + parser_exec/postfix/stmt + emit_exec/sym/expr_body/stmt_body + serialize_sections + ownership + ast_defs). **`match`** parse+emit: const/`_`/`Some`/`None`/`Ok`/`Err` + guards + array/objekt. Inte merge `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader |
 | **SH6** | **Kab-VM som produktväg** — inte evig bootstrap | `KABOOTAR_VM=kab-only` default-smoke; `vm_*` **< 40** | ✅ subset: frisk/forcerad Kab-VM sväljer inte fel i host `run_module` (små `.kbc`); oversize fortfarande host om inte kab-only |
@@ -996,7 +996,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH24** | **HTTP i Kab** — server/fetch ovanpå SH21/SH23 | `http_fetch_async` / `http_serve` utan `src/runtime/http.rs` | ✅ subset: host wraps + `httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete` + `httpIsOptions` + `httpIsTrace` + `httpIsConnect`; radera `runtime/http.rs` deepen |
 | **SH25** | **CLI, REPL, test-runner i Kab** — `kabootar run/compile/test` | CI kan köra `.kab`-gates utan `src/cli` | ✅ subset: run/repl/test + `cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp` + `cliIsDoc` + `cliIsBench` + `cliIsNew` + `cliIsInit` + `cliIsWatch` + `cliIsClean` + `cliIsAdd` + `cliIsRm` + `cliIsMod` + `cliIsLs` + `cliIsCat`; radera `src/cli` + kabtest KT8 deepen |
 | **SH26** | **Science/GPU-API i Kab** — kernels och nd i `.kab`; native GPU bara syscall | Science-smoke på Kab-VM/JIT | ✅ subset: `sciAdd`/`sciMul`/`sciGpuOff` + `sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv` + `sciNeg` + `sciAbs` + `sciMax` + `sciMin` + `sciClamp` + `sciPow` + `sciSqr` + `sciCub` + `sciSign`; GPU kernel deepen |
-| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | ✅ subset: `uiIsDiv` / `uiTickMs` + `uiIsCanvas` + `uiFpsOk` + `uiIsSpan` + `uiIsButton` + `uiIsInput` + `uiIsImg` + `uiIsP` + `uiIsA` + `uiIsUl` + `uiIsLi` + `uiIsOl` + `uiIsH1` + `uiIsH2` + `uiIsH3` + `uiIsH4` + `uiIsH5` + `uiIsH6` + `uiIsForm` + `uiIsLabel` + `uiIsTextarea` + `uiIsSelect` + `uiIsOption` + `uiIsTable` + `uiIsTr` + `uiIsTh` + `uiIsTd` + `uiIsThead` + `uiIsTbody` + `uiIsTfoot` + `uiIsNav` + `uiIsHeader` + `uiIsFooter` + `uiIsMain` + `uiIsSection` + `uiIsArticle` + `uiIsAside` + `uiIsFigure` + `uiIsFigcaption` + `uiIsDetails` + `uiIsSummary` + `uiIsDialog` + `uiIsPre` + `uiIsCode` + `uiIsBlockquote` + `uiIsVideo` + `uiIsAudio` + `uiIsSource` + `uiIsTrack` + `uiIsIframe` + `uiIsFieldset` + `uiIsLegend` + `uiIsHr` + `uiIsBr` + `uiIsKbd` + `uiIsSamp` + `uiIsVar` + `uiIsAbbr` + `uiIsCite` + `uiIsMark` + `uiIsSmall` + `uiIsStrong` + `uiIsEm` + `uiIsSub` + `uiIsSup` + `uiIsTime` + `uiIsQ` + `uiIsB` + `uiIsI` + `uiIsU` + `uiIsS` + `uiIsDel` + `uiIsIns` + `uiIsWbr` + `uiIsRuby` + `uiIsRt` + `uiIsRp` + `uiIsBdi` + `uiIsBdo` + `uiIsData` + `uiIsDfn` + `uiIsMeter` + `uiIsProgress` + `uiIsOutput` + `uiIsDatalist` + `uiIsOptgroup` + `uiIsPicture` + `uiIsMap` + `uiIsArea` + `uiIsEmbed` + `uiIsObject` + `uiIsParam` + `uiIsColgroup` + `uiIsCol` + `uiIsCaption` + `uiIsTemplate` + `uiIsSlot` + `uiIsNoscript` + `uiIsScript` + `uiIsStyle` + `uiIsLink` + `uiIsMeta` + `uiIsTitle` + `uiIsBase` + `uiIsHead` + `uiIsBody` + `uiIsHtml` + `uiIsHgroup` + `uiIsAddress` + `uiIsDl` + `uiIsDt` + `uiIsDd` + `uiIsMenu` + `uiIsSearch` + `uiIsPortal` + `uiIsSvg` + `uiIsMath` + `uiIsSelectedcontent` + `uiIsFencedframe` + `uiIsFrameset` + `uiIsFrame` + `uiIsNoframes` + `uiIsMarquee` + `uiIsFont` + `uiIsCenter` + `uiIsNobr` + `uiIsDir` + `uiIsBlink` + `uiIsApplet` + `uiIsBasefont` + `uiIsIsindex` + `uiIsKeygen` + `uiIsListing` + `uiIsXmp` + `uiIsPlaintext` + `uiIsMenuitem` + `uiIsNoembed` + `uiIsSpacer` + `uiIsBgsound` + `uiIsAcronym` + `uiIsBig` + `uiIsTt` + `uiIsStrike` + `uiIsRb` + `uiIsRtc` + `uiIsRbc` + `uiIsShadow` + `uiIsContent` + `uiIsElement` + `uiIsNextid` + `uiIsLayer` + `uiIsIlayer` + `uiIsNolayer` + `uiIsMulticol` + `uiIsComment` + `uiIsXml` + `uiIsImage` + `uiIsServer` + `uiIsDiv` + `uiIsRect` + `uiIsCircle` + `uiIsEllipse` + `uiIsLine` + `uiIsPolyline` + `uiIsPolygon` + `uiIsPath` + `uiIsG` + `uiIsUse` + `uiIsDefs` + `uiIsSymbol` + `uiIsMarker` + `uiIsClipPath` + `uiIsMask`; kbrowser deepen |
+| **SH27** | **Browser/DOM/game i Kab** — kbrowser + canvas/game-loop i `.kab` | UI-smoke utan `src/runtime/browser*` produktlogik | ✅ subset: `uiIsDiv` / `uiTickMs` + `uiIsCanvas` + `uiFpsOk` + `uiIsSpan` + `uiIsButton` + `uiIsInput` + `uiIsImg` + `uiIsP` + `uiIsA` + `uiIsUl` + `uiIsLi` + `uiIsOl` + `uiIsH1` + `uiIsH2` + `uiIsH3` + `uiIsH4` + `uiIsH5` + `uiIsH6` + `uiIsForm` + `uiIsLabel` + `uiIsTextarea` + `uiIsSelect` + `uiIsOption` + `uiIsTable` + `uiIsTr` + `uiIsTh` + `uiIsTd` + `uiIsThead` + `uiIsTbody` + `uiIsTfoot` + `uiIsNav` + `uiIsHeader` + `uiIsFooter` + `uiIsMain` + `uiIsSection` + `uiIsArticle` + `uiIsAside` + `uiIsFigure` + `uiIsFigcaption` + `uiIsDetails` + `uiIsSummary` + `uiIsDialog` + `uiIsPre` + `uiIsCode` + `uiIsBlockquote` + `uiIsVideo` + `uiIsAudio` + `uiIsSource` + `uiIsTrack` + `uiIsIframe` + `uiIsFieldset` + `uiIsLegend` + `uiIsHr` + `uiIsBr` + `uiIsKbd` + `uiIsSamp` + `uiIsVar` + `uiIsAbbr` + `uiIsCite` + `uiIsMark` + `uiIsSmall` + `uiIsStrong` + `uiIsEm` + `uiIsSub` + `uiIsSup` + `uiIsTime` + `uiIsQ` + `uiIsB` + `uiIsI` + `uiIsU` + `uiIsS` + `uiIsDel` + `uiIsIns` + `uiIsWbr` + `uiIsRuby` + `uiIsRt` + `uiIsRp` + `uiIsBdi` + `uiIsBdo` + `uiIsData` + `uiIsDfn` + `uiIsMeter` + `uiIsProgress` + `uiIsOutput` + `uiIsDatalist` + `uiIsOptgroup` + `uiIsPicture` + `uiIsMap` + `uiIsArea` + `uiIsEmbed` + `uiIsObject` + `uiIsParam` + `uiIsColgroup` + `uiIsCol` + `uiIsCaption` + `uiIsTemplate` + `uiIsSlot` + `uiIsNoscript` + `uiIsScript` + `uiIsStyle` + `uiIsLink` + `uiIsMeta` + `uiIsTitle` + `uiIsBase` + `uiIsHead` + `uiIsBody` + `uiIsHtml` + `uiIsHgroup` + `uiIsAddress` + `uiIsDl` + `uiIsDt` + `uiIsDd` + `uiIsMenu` + `uiIsSearch` + `uiIsPortal` + `uiIsSvg` + `uiIsMath` + `uiIsSelectedcontent` + `uiIsFencedframe` + `uiIsFrameset` + `uiIsFrame` + `uiIsNoframes` + `uiIsMarquee` + `uiIsFont` + `uiIsCenter` + `uiIsNobr` + `uiIsDir` + `uiIsBlink` + `uiIsApplet` + `uiIsBasefont` + `uiIsIsindex` + `uiIsKeygen` + `uiIsListing` + `uiIsXmp` + `uiIsPlaintext` + `uiIsMenuitem` + `uiIsNoembed` + `uiIsSpacer` + `uiIsBgsound` + `uiIsAcronym` + `uiIsBig` + `uiIsTt` + `uiIsStrike` + `uiIsRb` + `uiIsRtc` + `uiIsRbc` + `uiIsShadow` + `uiIsContent` + `uiIsElement` + `uiIsNextid` + `uiIsLayer` + `uiIsIlayer` + `uiIsNolayer` + `uiIsMulticol` + `uiIsComment` + `uiIsXml` + `uiIsImage` + `uiIsServer` + `uiIsDiv` + `uiIsRect` + `uiIsCircle` + `uiIsEllipse` + `uiIsLine` + `uiIsPolyline` + `uiIsPolygon` + `uiIsPath` + `uiIsG` + `uiIsUse` + `uiIsDefs` + `uiIsSymbol` + `uiIsMarker` + `uiIsClipPath` + `uiIsMask` + `uiIsPattern` + `uiIsLinearGradient` + `uiIsRadialGradient` + `uiIsStop` + `uiIsText` + `uiIsTspan` + `uiIsTextPath` + `uiIsForeignObject` + `uiIsSwitch` + `uiIsFilter` + `uiIsFeGaussianBlur` + `uiIsFeBlend` + `uiIsFeColorMatrix` + `uiIsFeComponentTransfer` + `uiIsFeComposite` + `uiIsFeConvolveMatrix` + `uiIsFeDiffuseLighting` + `uiIsFeDisplacementMap` + `uiIsFeFlood` + `uiIsFeFuncA` + `uiIsFeFuncB` + `uiIsFeFuncG` + `uiIsFeFuncR` + `uiIsFeImage` + `uiIsFeMerge` + `uiIsFeMergeNode` + `uiIsFeMorphology` + `uiIsFeOffset` + `uiIsFePointLight` + `uiIsFeSpecularLighting` + `uiIsFeSpotLight` + `uiIsFeTile` + `uiIsFeTurbulence` + `uiIsFeDistantLight` + `uiIsFeDropShadow` + `uiIsAnimate` + `uiIsAnimateMotion` + `uiIsAnimateTransform` + `uiIsSet` + `uiIsMpath` + `uiIsView` + `uiIsMetadata` + `uiIsDesc` + `uiIsHatch` + `uiIsHatchpath` + `uiIsSolidcolor` + `uiIsCursor` + `uiIsTref` + `uiIsAltGlyph` + `uiIsAltGlyphDef` + `uiIsAltGlyphItem` + `uiIsGlyphRef` + `uiIsGlyph` + `uiIsMissingGlyph` + `uiIsFontFace` + `uiIsFontFaceSrc` + `uiIsFontFaceUri` + `uiIsFontFaceFormat` + `uiIsFontFaceName` + `uiIsHkern` + `uiIsVkern` + `uiIsMeshgradient` + `uiIsMeshrow` + `uiIsMeshpatch` + `uiIsDiscard` + `uiIsUnknown` + `uiIsMrow` + `uiIsMi` + `uiIsMn` + `uiIsMo` + `uiIsMtext` + `uiIsMs`; kbrowser deepen |
 | **SH28** | **Radera produkt-Rust** — tom `src/` för runtime; inget rustc för att köra Kabootar | `src/**/*.rs` produkt = 0; dokumenterad bootstrap-image från Kab | ✅ subset: `nollSrcGoal=0` + `nollSrcGoalZero=0` + `nollBootstrapFromKabOk=true` + `nollAllGatesClosedOk=true` + `nollAotReady=false` + `nollAotProcess=false` + `nollImageIsProcess=false` + `nollMmapExecProcess=false` + `nollStubIsProcess=false` + `nollSyscallIsKab=false` + `nollRustcNotHost=false` + `nollHostOptional=false` + `nollNoNewRs=true` + `nollKeepSrc` + `nollDropSrc=false` + `nollProcessIsKab=false` + `nollBootstrapImage` + `nollCargoNotRuntime=false` + `nollRustcNotProcess=false` + `nollMmapStub=false` + `nollStubFrozen=false` + `nollHostSyscallGone=false` + `nollProductSrcGone=false` + `nollCargoTomlGone=false` + `nollRustcCiGone=false` + `nollKabtestProductCi=false` + `nollUserNoRustc=false`; **radera inte `src/`** förrän AOT |
 
 **SH11 — vad som är OK vs vad som inte ska göras nu**
@@ -1028,7 +1028,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 - Ny Cranelift/IC/GC i Rust (det ska bli `.kab`).
 - Att checka in `_probe_*.kab` som produkt.
 
-**Nästa:** SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH27 UI dual-bind deepen (nästa leaf efter ui_mask: uiIsPattern). Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
+**Nästa:** SH20–SH28 delete-gate deepen (alla gates fortfarande `false`); SH27 UI dual-bind deepen (nästa leaf efter ui_ms: uiIsMspace). Se [Kabootar på egna fötter](#kabootar-på-egna-fötter--noll-rust). **Dok:** ROADMAP + `self_host/README.md` efter varje pass.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 
@@ -1484,7 +1484,7 @@ Nedan är **hämtad parity** (JS/Deno/DOM/OS). Den är **underordnad** Våg L→
 | **A6** ✅ | **Typed arrays** — Float64Array, DataView, ArrayBuffer constructor | 2 veckor |
 | **A7** ✅ | **Proxy/Reflect** — alla traps, `Reflect.construct`, invariants | 2 veckor |
 | **A8** ✅ | **WeakMap** / **WeakSet** | 1 vecka |
-| **A9** ✅ | **`using`** (explicit resource management), `import.meta`, dynamisk `import()` | 2–3 veckor |
+| **A9** ✅ | **`using`**, **`import.meta`** / **`import()`**, **`delete o.x`**, klassisk **`for let i = 0; …`** (self-host) | 2–3 veckor |
 | **A10** ✅ | **Intl** (minimal: `Intl.NumberFormat`, `Intl.DateTimeFormat`) | 3–4 veckor |
 | **A11** ✅ | **Temporal** (optional polyfill-nivå) | 2–3 veckor |
 | **A12** ✅ | Spec-polish: iterator/bytecode `try_regions` i `.kbc`, generator kantfall, Error `.cause`/stack | 2 veckor |
@@ -1582,7 +1582,7 @@ Bygger på **Våg E** (fn-generics v1). Se [GENERICS.md](GENERICS.md#fas-2--g6-p
 | **F2** ✅ | **G7** — Generiska klassmetoder (`fn map<U>(f)` + `this`), Rust parse + monomorph (`echo$Number` på klass) |
 | **F3** ✅ | **G8** — Generiska klasser (`class Box<T>`), `Box(42)` → `Box$Number`, infer + explicit type args |
 | **F4** ✅ | **G9** — Generiska enum (`enum Option<T>`), `Option.Some(42)` → `Option$Number` |
-| **F5** ✅ | **G10** — Self-host: G6 variabel-inferens i `emit.kab`, G9 enum-parse + member `typeArgs` |
+| **F5** ✅ | **G10** — Self-host: G6–G9 compile-run inkl. **`pair<A,B>`**, **`Result<T,E>`**, **`id<Number>`**, **`id(id(42))`**, två `id`-specs, `match Option`/`Result`, **`class Child<T> extends Base<T>`**, **`super.tag()`** / **`super.init`**, **`super.n += 2`**, fälttyp `T`, **`Box<String>`**, **`id(Box)`** |
 | **F6** ✅ | **G11** — LSP: hover specialiserad signatur, go-to-def på `T`, completion |
 
 **Icke-mål Våg F:** trait bounds, HKT, runtime `typeid`. (Struct = Våg R.)

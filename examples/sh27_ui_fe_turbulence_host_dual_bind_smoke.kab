@@ -1,0 +1,14 @@
+import "kab/ui_fe_turbulence"
+import "kab/ui_fe_tile"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeTile("feTile") == false {
+    return false
+}
+if uiIsFeTurbulence("feTurbulence") == false {
+    return false
+}
+return uiHostDeleteOk() == false

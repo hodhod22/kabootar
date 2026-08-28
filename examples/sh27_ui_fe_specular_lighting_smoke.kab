@@ -1,0 +1,3 @@
+import "kab/ui_fe_specular_lighting"
+
+return uiIsFeSpecularLighting("feSpecularLighting")

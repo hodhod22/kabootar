@@ -1,0 +1,14 @@
+import "kab/ui_fe_convolve_matrix"
+import "kab/ui_fe_composite"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeComposite("feComposite") == false {
+    return false
+}
+if uiIsFeConvolveMatrix("feConvolveMatrix") == false {
+    return false
+}
+return uiHostDeleteOk() == false

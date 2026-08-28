@@ -1,0 +1,3 @@
+import "kab/ui_alt_glyph_item"
+
+return uiIsAltGlyphItem("altGlyphItem")

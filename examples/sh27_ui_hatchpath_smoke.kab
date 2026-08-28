@@ -1,0 +1,3 @@
+import "kab/ui_hatchpath"
+
+return uiIsHatchpath("hatchpath")

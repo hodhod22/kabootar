@@ -1,0 +1,14 @@
+import "kab/ui_fe_spot_light"
+import "kab/ui_fe_specular_lighting"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeSpecularLighting("feSpecularLighting") == false {
+    return false
+}
+if uiIsFeSpotLight("feSpotLight") == false {
+    return false
+}
+return uiHostDeleteOk() == false

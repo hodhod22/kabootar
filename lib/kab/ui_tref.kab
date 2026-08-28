@@ -1,0 +1,6 @@
+// SH27: tref tag off ui_cursor.kab. import "kab/ui_tref"
+// Do not grow ui_cursor.kab. Host browser* remains skuld.
+
+pub fn uiIsTref(tag) {
+    return tag == "tref"
+}

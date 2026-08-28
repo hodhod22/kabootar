@@ -1,0 +1,14 @@
+import "kab/ui_fe_merge"
+import "kab/ui_fe_image"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeImage("feImage") == false {
+    return false
+}
+if uiIsFeMerge("feMerge") == false {
+    return false
+}
+return uiHostDeleteOk() == false

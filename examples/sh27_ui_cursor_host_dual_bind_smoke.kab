@@ -1,0 +1,14 @@
+import "kab/ui_cursor"
+import "kab/ui_solidcolor"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSolidcolor("solidcolor") == false {
+    return false
+}
+if uiIsCursor("cursor") == false {
+    return false
+}
+return uiHostDeleteOk() == false

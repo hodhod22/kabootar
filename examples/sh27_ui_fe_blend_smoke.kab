@@ -1,0 +1,3 @@
+import "kab/ui_fe_blend"
+
+return uiIsFeBlend("feBlend")

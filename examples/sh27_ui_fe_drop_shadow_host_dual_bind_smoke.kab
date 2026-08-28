@@ -1,0 +1,14 @@
+import "kab/ui_fe_drop_shadow"
+import "kab/ui_fe_distant_light"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFeDistantLight("feDistantLight") == false {
+    return false
+}
+if uiIsFeDropShadow("feDropShadow") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,3 @@
+import "kab/ui_ms"
+
+return uiIsMs("ms")

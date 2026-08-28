@@ -1,0 +1,14 @@
+import "kab/ui_text_path"
+import "kab/ui_tspan"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTspan("tspan") == false {
+    return false
+}
+if uiIsTextPath("textPath") == false {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_font_face_name"
+import "kab/ui_font_face_format"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFontFaceFormat("font-face-format") == false {
+    return false
+}
+if uiIsFontFaceName("font-face-name") == false {
+    return false
+}
+return uiHostDeleteOk() == false

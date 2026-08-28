@@ -1,0 +1,14 @@
+import "kab/ui_mrow"
+import "kab/ui_unknown"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsUnknown("unknown") == false {
+    return false
+}
+if uiIsMrow("mrow") == false {
+    return false
+}
+return uiHostDeleteOk() == false

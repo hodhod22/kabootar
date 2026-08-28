@@ -1,0 +1,3 @@
+import "kab/ui_mo"
+
+return uiIsMo("mo")

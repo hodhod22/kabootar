@@ -1,0 +1,3 @@
+import "kab/ui_animate_motion"
+
+return uiIsAnimateMotion("animateMotion")
