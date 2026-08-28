@@ -1,0 +1,3 @@
+import "kab/ui_mask"
+
+return uiIsMask("mask")

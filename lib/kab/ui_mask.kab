@@ -1,0 +1,6 @@
+// SH27: mask tag off ui_clip_path.kab. import "kab/ui_mask"
+// Do not grow ui_clip_path.kab. Host browser* remains skuld.
+
+pub fn uiIsMask(tag) {
+    return tag == "mask"
+}

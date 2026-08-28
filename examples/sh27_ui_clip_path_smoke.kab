@@ -1,0 +1,3 @@
+import "kab/ui_clip_path"
+
+return uiIsClipPath("clipPath")

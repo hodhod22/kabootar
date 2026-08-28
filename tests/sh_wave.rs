@@ -42391,6 +42391,57 @@ fn sh27_ui_marker_host_dual_bind_in_kab() {
     );
 }
 
+/// SH27 deepen: clipPath tag lives off ui_marker.kab.
+#[test]
+fn sh27_ui_clip_path_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_clip_path.kab"))
+        .expect("ui_clip_path.kab");
+    assert!(
+        l.contains("pub fn uiIsClipPath") && l.contains("clipPath"),
+        "SH27 Kab uiIsClipPath"
+    );
+}
+
+/// SH27 deepen: clipPath dual-bind to host delete gate.
+#[test]
+fn sh27_ui_clip_path_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh27_ui_clip_path_host_dual_bind_smoke.kab"),
+    )
+    .expect("sh27_ui_clip_path_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk")
+            && s.contains("uiIsClipPath")
+            && s.contains("clipPath"),
+        "SH27 Kab ui clipPath host dual-bind"
+    );
+}
+
+/// SH27 deepen: mask tag lives off ui_clip_path.kab.
+#[test]
+fn sh27_ui_mask_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui_mask.kab")).expect("ui_mask.kab");
+    assert!(
+        l.contains("pub fn uiIsMask") && l.contains("mask"),
+        "SH27 Kab uiIsMask"
+    );
+}
+
+/// SH27 deepen: mask dual-bind to host delete gate.
+#[test]
+fn sh27_ui_mask_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_ui_mask_host_dual_bind_smoke.kab"))
+        .expect("sh27_ui_mask_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("uiHostDeleteOk") && s.contains("uiIsMask") && s.contains("mask"),
+        "SH27 Kab ui mask host dual-bind"
+    );
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {
