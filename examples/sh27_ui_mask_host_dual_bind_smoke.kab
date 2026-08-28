@@ -1,0 +1,14 @@
+import "kab/ui_mask"
+import "kab/ui_clip_path"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsClipPath("clipPath") == false {
+    return false
+}
+if uiIsMask("mask") == false {
+    return false
+}
+return uiHostDeleteOk() == false

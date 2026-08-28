@@ -1,0 +1,14 @@
+import "kab/ui_clip_path"
+import "kab/ui_marker"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMarker("marker") == false {
+    return false
+}
+if uiIsClipPath("clipPath") == false {
+    return false
+}
+return uiHostDeleteOk() == false
