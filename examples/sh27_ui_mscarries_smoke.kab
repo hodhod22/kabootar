@@ -1,0 +1,3 @@
+import "kab/ui_mscarries"
+
+return uiIsMscarries("mscarries")

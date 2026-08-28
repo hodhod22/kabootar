@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML gcd. Off previous ui_root.kab.
+pub fn uiIsGcd(tag) {
+    return tag == "gcd"
+}

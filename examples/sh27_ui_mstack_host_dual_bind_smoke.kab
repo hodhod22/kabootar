@@ -1,0 +1,14 @@
+import "kab/ui_mstack"
+import "kab/ui_mlongdiv"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMlongdiv("mlongdiv") == false {
+    return false
+}
+if uiIsMstack("mstack") == false {
+    return false
+}
+return uiHostDeleteOk() == false

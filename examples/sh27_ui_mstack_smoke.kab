@@ -1,0 +1,3 @@
+import "kab/ui_mstack"
+
+return uiIsMstack("mstack")

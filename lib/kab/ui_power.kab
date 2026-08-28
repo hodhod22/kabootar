@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML power. Off previous ui_divide.kab.
+pub fn uiIsPower(tag) {
+    return tag == "power"
+}

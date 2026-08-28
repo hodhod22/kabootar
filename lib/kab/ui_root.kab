@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML root. Off previous ui_power.kab.
+pub fn uiIsRoot(tag) {
+    return tag == "root"
+}

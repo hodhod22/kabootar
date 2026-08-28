@@ -1,0 +1,3 @@
+import "kab/ui_share"
+
+return uiIsShare("share")

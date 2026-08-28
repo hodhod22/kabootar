@@ -1,0 +1,14 @@
+import "kab/ui_plus"
+import "kab/ui_inverse"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsInverse("inverse") != true {
+    return false
+}
+if uiIsPlus("plus") != true {
+    return false
+}
+return uiHostDeleteOk() == false

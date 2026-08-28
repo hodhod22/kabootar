@@ -1,0 +1,14 @@
+import "kab/ui_mscarry"
+import "kab/ui_mscarries"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMscarries("mscarries") == false {
+    return false
+}
+if uiIsMscarry("mscarry") == false {
+    return false
+}
+return uiHostDeleteOk() == false

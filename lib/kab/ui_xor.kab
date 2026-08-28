@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML xor. Off previous ui_or.kab.
+pub fn uiIsXor(tag) {
+    return tag == "xor"
+}

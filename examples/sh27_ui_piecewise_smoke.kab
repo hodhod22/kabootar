@@ -1,0 +1,3 @@
+import "kab/ui_piecewise"
+
+return uiIsPiecewise("piecewise")

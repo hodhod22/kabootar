@@ -1,0 +1,14 @@
+import "kab/ui_inverse"
+import "kab/ui_compose"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCompose("compose") == false {
+    return false
+}
+if uiIsInverse("inverse") == false {
+    return false
+}
+return uiHostDeleteOk() == false

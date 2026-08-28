@@ -1,0 +1,3 @@
+import "kab/ui_interval"
+
+return uiIsInterval("interval")

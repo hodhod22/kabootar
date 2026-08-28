@@ -1,0 +1,6 @@
+// SH27: bind tag off ui_apply.kab. import "kab/ui_bind"
+// Do not grow ui_apply.kab. Host browser* remains skuld.
+
+pub fn uiIsBind(tag) {
+    return tag == "bind"
+}

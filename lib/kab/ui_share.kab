@@ -1,0 +1,6 @@
+// SH27: share tag off ui_bvar.kab. import "kab/ui_share"
+// Do not grow ui_bvar.kab. Host browser* remains skuld.
+
+pub fn uiIsShare(tag) {
+    return tag == "share"
+}

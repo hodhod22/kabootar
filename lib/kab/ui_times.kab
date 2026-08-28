@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML times. Off previous ui_minus.kab.
+pub fn uiIsTimes(tag) {
+    return tag == "times"
+}

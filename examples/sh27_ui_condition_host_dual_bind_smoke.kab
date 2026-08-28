@@ -1,0 +1,14 @@
+import "kab/ui_condition"
+import "kab/ui_share"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsShare("share") == false {
+    return false
+}
+if uiIsCondition("condition") == false {
+    return false
+}
+return uiHostDeleteOk() == false

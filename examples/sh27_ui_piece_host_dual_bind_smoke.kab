@@ -1,0 +1,14 @@
+import "kab/ui_piece"
+import "kab/ui_piecewise"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPiecewise("piecewise") == false {
+    return false
+}
+if uiIsPiece("piece") == false {
+    return false
+}
+return uiHostDeleteOk() == false

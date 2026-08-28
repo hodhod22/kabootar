@@ -1,0 +1,14 @@
+import "kab/ui_mglyph"
+import "kab/ui_msline"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMsline("msline") == false {
+    return false
+}
+if uiIsMglyph("mglyph") == false {
+    return false
+}
+return uiHostDeleteOk() == false

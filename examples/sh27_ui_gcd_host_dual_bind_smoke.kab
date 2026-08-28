@@ -1,0 +1,14 @@
+import "kab/ui_gcd"
+import "kab/ui_root"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRoot("root") != true {
+    return false
+}
+if uiIsGcd("gcd") != true {
+    return false
+}
+return uiHostDeleteOk() == false

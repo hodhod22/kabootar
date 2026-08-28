@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML and. Off previous ui_gcd.kab.
+pub fn uiIsAnd(tag) {
+    return tag == "and"
+}

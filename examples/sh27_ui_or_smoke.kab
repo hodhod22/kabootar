@@ -1,0 +1,3 @@
+import "kab/ui_or"
+
+return uiIsOr("or")

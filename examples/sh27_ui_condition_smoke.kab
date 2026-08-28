@@ -1,0 +1,3 @@
+import "kab/ui_condition"
+
+return uiIsCondition("condition")

@@ -1,0 +1,3 @@
+import "kab/ui_apply"
+
+return uiIsApply("apply")

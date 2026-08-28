@@ -1,0 +1,14 @@
+import "kab/ui_cn"
+import "kab/ui_ci"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCi("ci") == false {
+    return false
+}
+if uiIsCn("cn") == false {
+    return false
+}
+return uiHostDeleteOk() == false

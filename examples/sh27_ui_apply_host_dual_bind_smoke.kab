@@ -1,0 +1,14 @@
+import "kab/ui_apply"
+import "kab/ui_csymbol"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCsymbol("csymbol") == false {
+    return false
+}
+if uiIsApply("apply") == false {
+    return false
+}
+return uiHostDeleteOk() == false

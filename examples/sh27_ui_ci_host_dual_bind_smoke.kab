@@ -1,0 +1,14 @@
+import "kab/ui_ci"
+import "kab/ui_mglyph"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMglyph("mglyph") == false {
+    return false
+}
+if uiIsCi("ci") == false {
+    return false
+}
+return uiHostDeleteOk() == false
