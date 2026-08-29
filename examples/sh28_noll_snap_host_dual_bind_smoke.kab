@@ -1,0 +1,18 @@
+import "kab/noll_snap"
+import "kab/noll_san"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSanIsKab() != false {
+    return false
+}
+if nollSnapIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,0 +1,18 @@
+import "kab/noll_net"
+import "kab/noll_rand"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollRandIsKab() != false {
+    return false
+}
+if nollNetIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

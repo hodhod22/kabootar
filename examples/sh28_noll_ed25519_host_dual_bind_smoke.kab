@@ -1,0 +1,18 @@
+import "kab/noll_ed25519"
+import "kab/noll_x25519"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollX25519IsKab() != false {
+    return false
+}
+if nollEd25519IsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

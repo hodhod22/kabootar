@@ -1,0 +1,6 @@
+// SH28: product DHCP stack is not Kab-only yet. import "kab/noll_dhcp"
+// Do not grow noll_snmp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollDhcpIsKab() {
+    return false
+}

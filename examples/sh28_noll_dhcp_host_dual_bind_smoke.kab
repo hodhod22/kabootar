@@ -1,0 +1,18 @@
+import "kab/noll_dhcp"
+import "kab/noll_snmp"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSnmpIsKab() != false {
+    return false
+}
+if nollDhcpIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

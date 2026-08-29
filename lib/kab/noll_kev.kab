@@ -1,0 +1,6 @@
+// SH28: product KEV stack is not Kab-only yet. import "kab/noll_kev"
+// Do not grow noll_nvd.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollKevIsKab() {
+    return false
+}

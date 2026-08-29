@@ -1,0 +1,18 @@
+import "kab/noll_nvd"
+import "kab/noll_ghsa"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollGhsaIsKab() != false {
+    return false
+}
+if nollNvdIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

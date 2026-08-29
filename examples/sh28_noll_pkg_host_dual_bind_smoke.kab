@@ -1,0 +1,18 @@
+import "kab/noll_pkg"
+import "kab/noll_cat"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCatIsKab() != false {
+    return false
+}
+if nollPkgIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH28: product signify stack is not Kab-only yet. import "kab/noll_signify"
+// Do not grow noll_minisign.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSignifyIsKab() {
+    return false
+}

@@ -1,0 +1,18 @@
+import "kab/noll_totp"
+import "kab/noll_webauthn"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollWebauthnIsKab() != false {
+    return false
+}
+if nollTotpIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

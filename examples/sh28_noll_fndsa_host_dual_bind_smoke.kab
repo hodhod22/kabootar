@@ -1,0 +1,18 @@
+import "kab/noll_fndsa"
+import "kab/noll_mldsa"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollMldsaIsKab() != false {
+    return false
+}
+if nollFndsaIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

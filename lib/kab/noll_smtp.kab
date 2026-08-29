@@ -1,0 +1,6 @@
+// SH28: product SMTP stack is not Kab-only yet. import "kab/noll_smtp"
+// Do not grow noll_mqtt.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSmtpIsKab() {
+    return false
+}

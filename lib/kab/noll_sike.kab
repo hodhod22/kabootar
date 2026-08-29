@@ -1,0 +1,6 @@
+// SH28: product SIKE stack is not Kab-only yet. import "kab/noll_sike"
+// Do not grow noll_frodo.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSikeIsKab() {
+    return false
+}

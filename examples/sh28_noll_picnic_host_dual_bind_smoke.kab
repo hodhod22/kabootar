@@ -1,0 +1,18 @@
+import "kab/noll_picnic"
+import "kab/noll_gemss"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollGemssIsKab() != false {
+    return false
+}
+if nollPicnicIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

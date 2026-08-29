@@ -1,0 +1,6 @@
+// SH28: product publish CLI is not Kab-only yet. import "kab/noll_pub"
+// Do not grow noll_lock.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollPubIsKab() {
+    return false
+}

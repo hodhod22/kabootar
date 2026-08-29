@@ -1,0 +1,18 @@
+import "kab/noll_merkle"
+import "kab/noll_wots"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollWotsIsKab() != false {
+    return false
+}
+if nollMerkleIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

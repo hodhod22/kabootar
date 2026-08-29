@@ -1,0 +1,6 @@
+// SH28: product notary stack is not Kab-only yet. import "kab/noll_notary"
+// Do not grow noll_cosign.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollNotaryIsKab() {
+    return false
+}

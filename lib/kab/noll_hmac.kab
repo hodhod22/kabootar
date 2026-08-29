@@ -1,0 +1,6 @@
+// SH28: product HMAC stack is not Kab-only yet. import "kab/noll_hmac"
+// Do not grow noll_hkdf.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollHmacIsKab() {
+    return false
+}

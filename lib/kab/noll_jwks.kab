@@ -1,0 +1,6 @@
+// SH28: product JWKS stack is not Kab-only yet. import "kab/noll_jwks"
+// Do not grow noll_jwt.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollJwksIsKab() {
+    return false
+}

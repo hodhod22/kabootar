@@ -1,0 +1,6 @@
+// SH28: product SCTP stack is not Kab-only yet. import "kab/noll_sctp"
+// Do not grow noll_icmp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSctpIsKab() {
+    return false
+}

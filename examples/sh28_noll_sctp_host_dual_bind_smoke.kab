@@ -1,0 +1,18 @@
+import "kab/noll_sctp"
+import "kab/noll_icmp"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollIcmpIsKab() != false {
+    return false
+}
+if nollSctpIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

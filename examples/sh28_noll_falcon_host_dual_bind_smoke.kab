@@ -1,0 +1,18 @@
+import "kab/noll_falcon"
+import "kab/noll_sphincs"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSphincsIsKab() != false {
+    return false
+}
+if nollFalconIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

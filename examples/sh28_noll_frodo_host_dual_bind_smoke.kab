@@ -1,0 +1,18 @@
+import "kab/noll_frodo"
+import "kab/noll_hqc"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollHqcIsKab() != false {
+    return false
+}
+if nollFrodoIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

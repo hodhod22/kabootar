@@ -1,0 +1,6 @@
+// SH28: product GeMSS stack is not Kab-only yet. import "kab/noll_gemss"
+// Do not grow noll_rainbow.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollGemssIsKab() {
+    return false
+}

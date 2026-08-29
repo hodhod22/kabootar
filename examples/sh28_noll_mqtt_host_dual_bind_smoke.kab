@@ -1,0 +1,18 @@
+import "kab/noll_mqtt"
+import "kab/noll_grpc"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollGrpcIsKab() != false {
+    return false
+}
+if nollMqttIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

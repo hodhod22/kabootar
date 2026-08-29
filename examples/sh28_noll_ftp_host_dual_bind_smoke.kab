@@ -1,0 +1,18 @@
+import "kab/noll_ftp"
+import "kab/noll_pop"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollPopIsKab() != false {
+    return false
+}
+if nollFtpIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

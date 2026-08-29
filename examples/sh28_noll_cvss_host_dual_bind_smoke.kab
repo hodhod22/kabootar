@@ -1,0 +1,18 @@
+import "kab/noll_cvss"
+import "kab/noll_cpe"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCpeIsKab() != false {
+    return false
+}
+if nollCvssIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

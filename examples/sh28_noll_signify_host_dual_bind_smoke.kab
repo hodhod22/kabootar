@@ -1,0 +1,18 @@
+import "kab/noll_signify"
+import "kab/noll_minisign"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollMinisignIsKab() != false {
+    return false
+}
+if nollSignifyIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

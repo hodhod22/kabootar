@@ -1,0 +1,18 @@
+import "kab/noll_add"
+import "kab/noll_clean"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCleanIsKab() != false {
+    return false
+}
+if nollAddIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

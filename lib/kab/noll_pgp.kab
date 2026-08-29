@@ -1,0 +1,6 @@
+// SH28: product PGP stack is not Kab-only yet. import "kab/noll_pgp"
+// Do not grow noll_age.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollPgpIsKab() {
+    return false
+}

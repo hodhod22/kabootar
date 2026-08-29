@@ -1,0 +1,18 @@
+import "kab/noll_sigstore"
+import "kab/noll_fulcio"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollFulcioIsKab() != false {
+    return false
+}
+if nollSigstoreIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

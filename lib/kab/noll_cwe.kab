@@ -1,0 +1,6 @@
+// SH28: product CWE stack is not Kab-only yet. import "kab/noll_cwe"
+// Do not grow noll_cve.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCweIsKab() {
+    return false
+}

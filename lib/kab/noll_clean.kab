@@ -1,0 +1,6 @@
+// SH28: product clean CLI is not Kab-only yet. import "kab/noll_clean"
+// Do not grow noll_watch.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCleanIsKab() {
+    return false
+}

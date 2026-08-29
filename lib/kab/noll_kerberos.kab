@@ -1,0 +1,6 @@
+// SH28: product Kerberos stack is not Kab-only yet. import "kab/noll_kerberos"
+// Do not grow noll_radius.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollKerberosIsKab() {
+    return false
+}

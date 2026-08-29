@@ -1,0 +1,18 @@
+import "kab/noll_trace"
+import "kab/noll_prof"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollProfIsKab() != false {
+    return false
+}
+if nollTraceIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

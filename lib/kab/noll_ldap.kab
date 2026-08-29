@@ -1,0 +1,6 @@
+// SH28: product LDAP stack is not Kab-only yet. import "kab/noll_ldap"
+// Do not grow noll_ssh.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollLdapIsKab() {
+    return false
+}

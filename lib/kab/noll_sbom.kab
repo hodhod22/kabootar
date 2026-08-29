@@ -1,0 +1,6 @@
+// SH28: product SBOM stack is not Kab-only yet. import "kab/noll_sbom"
+// Do not grow noll_cyclonedx.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSbomIsKab() {
+    return false
+}

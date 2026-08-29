@@ -1,0 +1,6 @@
+// SH28: product minisign stack is not Kab-only yet. import "kab/noll_minisign"
+// Do not grow noll_pgp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMinisignIsKab() {
+    return false
+}

@@ -1,0 +1,18 @@
+import "kab/noll_vex"
+import "kab/noll_sbom"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSbomIsKab() != false {
+    return false
+}
+if nollVexIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

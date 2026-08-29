@@ -1,0 +1,18 @@
+import "kab/noll_dilithium"
+import "kab/noll_kyber"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollKyberIsKab() != false {
+    return false
+}
+if nollDilithiumIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false
