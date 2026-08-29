@@ -1,0 +1,14 @@
+import "kab/ui_cartesianproduct"
+import "kab/ui_momentabout"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMomentabout("momentabout") != true {
+    return false
+}
+if uiIsCartesianproduct("cartesianproduct") != true {
+    return false
+}
+return uiHostDeleteOk() == false

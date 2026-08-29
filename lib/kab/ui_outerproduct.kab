@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML outerproduct. Off previous ui_scalarproduct.kab.
+pub fn uiIsOuterproduct(tag) {
+    return tag == "outerproduct"
+}

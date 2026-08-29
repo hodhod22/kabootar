@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sep. Off previous ui_domainofapplication.kab.
+pub fn uiIsSep(tag) {
+    return tag == "sep"
+}

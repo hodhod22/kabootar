@@ -1,0 +1,14 @@
+import "kab/ui_min"
+import "kab/ui_ceiling"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCeiling("ceiling") != true {
+    return false
+}
+if uiIsMin("min") != true {
+    return false
+}
+return uiHostDeleteOk() == false

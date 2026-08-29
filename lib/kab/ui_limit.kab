@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML limit. Off previous ui_product.kab.
+pub fn uiIsLimit(tag) {
+    return tag == "limit"
+}

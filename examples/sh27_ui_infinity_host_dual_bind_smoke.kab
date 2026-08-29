@@ -1,0 +1,14 @@
+import "kab/ui_infinity"
+import "kab/ui_eulergamma"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsEulergamma("eulergamma") != true {
+    return false
+}
+if uiIsInfinity("infinity") != true {
+    return false
+}
+return uiHostDeleteOk() == false

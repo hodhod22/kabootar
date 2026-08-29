@@ -1,0 +1,14 @@
+import "kab/ui_ceiling"
+import "kab/ui_floor"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFloor("floor") != true {
+    return false
+}
+if uiIsCeiling("ceiling") != true {
+    return false
+}
+return uiHostDeleteOk() == false

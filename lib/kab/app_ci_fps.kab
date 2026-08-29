@@ -1,0 +1,7 @@
+// FT F18: 60 FPS game-loop app-CI. Off app_ci.kab.
+pub fn appCiFpsOk(fps) {
+    if fps >= 60 {
+        return true
+    }
+    return false
+}

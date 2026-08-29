@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML tendsto. Off previous ui_factorof.kab.
+pub fn uiIsTendsto(tag) {
+    return tag == "tendsto"
+}

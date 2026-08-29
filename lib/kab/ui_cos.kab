@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cos. Off previous ui_sin.kab.
+pub fn uiIsCos(tag) {
+    return tag == "cos"
+}

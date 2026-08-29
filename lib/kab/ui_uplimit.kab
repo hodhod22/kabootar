@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML uplimit. Off previous ui_lowlimit.kab.
+pub fn uiIsUplimit(tag) {
+    return tag == "uplimit"
+}

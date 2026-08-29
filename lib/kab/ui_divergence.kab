@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML divergence. Off previous ui_curl.kab.
+pub fn uiIsDivergence(tag) {
+    return tag == "divergence"
+}

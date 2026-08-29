@@ -1,0 +1,14 @@
+import "kab/ui_union"
+import "kab/ui_determinant"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDeterminant("determinant") != true {
+    return false
+}
+if uiIsUnion("union") != true {
+    return false
+}
+return uiHostDeleteOk() == false

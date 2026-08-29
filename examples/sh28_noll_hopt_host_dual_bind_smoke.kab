@@ -1,0 +1,22 @@
+import "kab/noll_hopt"
+import "kab/noll_rchost"
+import "kab/noll"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollRustcNotHost() != false {
+    return false
+}
+if nollRustcStillHost() != true {
+    return false
+}
+if nollHostOptional() != false {
+    return false
+}
+return nollHostDeleteOk() == false

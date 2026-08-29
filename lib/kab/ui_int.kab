@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML int. Off previous ui_tendsto.kab.
+pub fn uiIsInt(tag) {
+    return tag == "int"
+}

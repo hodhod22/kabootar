@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML infinity. Off previous ui_eulergamma.kab.
+pub fn uiIsInfinity(tag) {
+    return tag == "infinity"
+}

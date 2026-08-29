@@ -1,0 +1,14 @@
+import "kab/ui_int"
+import "kab/ui_tendsto"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTendsto("tendsto") != true {
+    return false
+}
+if uiIsInt("int") != true {
+    return false
+}
+return uiHostDeleteOk() == false

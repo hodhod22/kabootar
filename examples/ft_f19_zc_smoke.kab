@@ -1,0 +1,7 @@
+import "kab/zc"
+
+let ok = zcSqlViewOk(0)
+if ok {
+    return true
+}
+return false

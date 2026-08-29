@@ -1,0 +1,14 @@
+import "kab/ui_log"
+import "kab/ui_logbase"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLogbase("logbase") != true {
+    return false
+}
+if uiIsLog("log") != true {
+    return false
+}
+return uiHostDeleteOk() == false

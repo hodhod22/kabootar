@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML emptyset. Off previous ui_laplacian.kab.
+pub fn uiIsEmptyset(tag) {
+    return tag == "emptyset"
+}

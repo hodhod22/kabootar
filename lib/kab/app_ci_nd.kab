@@ -1,0 +1,7 @@
+// FT F18: nd/AI-kernel app-CI. Off app_ci_fps.kab.
+pub fn appCiNdOk(ms) {
+    if ms <= 50 {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,22 @@
+// SH18 deepen: repeated load frames under frame budget. import "kab/gc_stress"
+// Do not grow gc_load.kab. Three nursery cycles without host GC heap.
+
+import "kab/gc_load"
+
+pub fn gcStressCycleCount() {
+    return 3
+}
+
+/// Run three consecutive gcLoadFramesOk passes at the same `live` gray target.
+pub fn gcStressCyclesOk(live) {
+    if gcLoadFramesOk(live) == false {
+        return false
+    }
+    if gcLoadFramesOk(live) == false {
+        return false
+    }
+    if gcLoadFramesOk(live) == false {
+        return false
+    }
+    return true
+}

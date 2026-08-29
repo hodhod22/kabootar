@@ -1,0 +1,22 @@
+import "kab/noll_bootk"
+import "kab/noll"
+import "kab/noll_srcz"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollBootstrapFromKab() != true {
+    return false
+}
+if nollBootstrapFromKabOk() != true {
+    return false
+}
+if nollSrcGoalZero() != 0 {
+    return false
+}
+return nollHostDeleteOk() == false

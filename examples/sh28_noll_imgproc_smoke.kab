@@ -1,0 +1,3 @@
+import "kab/noll_imgproc"
+
+return nollImageIsProcess() == false

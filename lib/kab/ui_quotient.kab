@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML quotient. Off previous ui_rem.kab.
+pub fn uiIsQuotient(tag) {
+    return tag == "quotient"
+}

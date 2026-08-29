@@ -1,0 +1,6 @@
+import "kab/mm"
+
+if mmF64Ok("f64", 8) != true {
+    return false
+}
+return true

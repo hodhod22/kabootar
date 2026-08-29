@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML tan. Off previous ui_cos.kab.
+pub fn uiIsTan(tag) {
+    return tag == "tan"
+}

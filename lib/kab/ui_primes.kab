@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML primes. Off previous ui_naturalnumbers.kab.
+pub fn uiIsPrimes(tag) {
+    return tag == "primes"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_emptyset"
+import "kab/ui_laplacian"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLaplacian("laplacian") != true {
+    return false
+}
+if uiIsEmptyset("emptyset") != true {
+    return false
+}
+return uiHostDeleteOk() == false

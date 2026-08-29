@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML in. Off previous ui_intersect.kab.
+pub fn uiIsIn(tag) {
+    return tag == "in"
+}

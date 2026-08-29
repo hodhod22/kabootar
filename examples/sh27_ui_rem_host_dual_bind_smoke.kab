@@ -1,0 +1,14 @@
+import "kab/ui_rem"
+import "kab/ui_geq"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsGeq("geq") != true {
+    return false
+}
+if uiIsRem("rem") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH28: product src/ count goal is zero. import "kab/noll_srcz"
+// Do not grow noll_nors.kab or noll.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSrcGoalZero() {
+    return 0
+}

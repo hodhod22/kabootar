@@ -1,0 +1,24 @@
+import "kab/std_colscale"
+import "kab/std_collerp"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let z = stdColFill(1, 0)
+z = stdColPush(z, 0)
+let w = stdColFill(1, 84)
+w = stdColPush(w, 0)
+let m = stdColLerp(z, w, 1)
+if m[0] != 84 {
+    return false
+}
+let v = stdColFill(1, 21)
+v = stdColPush(v, 0)
+let q = stdColScale(v, 2)
+if q[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

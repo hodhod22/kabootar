@@ -1,0 +1,7 @@
+// SH28: product syscalls still live in Rust host — policy "host-syscall-gone" is false.
+// import "kab/noll_syscall"
+// Do not grow noll_stub.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollHostSyscallGone() {
+    return false
+}

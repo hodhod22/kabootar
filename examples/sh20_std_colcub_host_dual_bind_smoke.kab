@@ -1,0 +1,20 @@
+import "kab/std_colcub"
+import "kab/std_colsqr"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let q = stdColSqr(v)
+if q[0] != 1764 {
+    return false
+}
+let c = stdColCub(v)
+if c[0] != 74088 {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,18 @@
+// SH20: collections abs off std_colneg.kab. import "kab/std_colabs"
+// Do not grow std_colneg.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAbs(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        let x = a[i]
+        if x < 0 {
+            out = push(out, 0 - x)
+        } else {
+            out = push(out, x)
+        }
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML forall. Off previous ui_implies.kab.
+pub fn uiIsForall(tag) {
+    return tag == "forall"
+}

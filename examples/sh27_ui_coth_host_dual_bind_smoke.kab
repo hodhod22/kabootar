@@ -1,0 +1,14 @@
+import "kab/ui_coth"
+import "kab/ui_csch"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCsch("csch") != true {
+    return false
+}
+if uiIsCoth("coth") != true {
+    return false
+}
+return uiHostDeleteOk() == false

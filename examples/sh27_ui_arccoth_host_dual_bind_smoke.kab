@@ -1,0 +1,14 @@
+import "kab/ui_arccoth"
+import "kab/ui_arccot"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArccot("arccot") != true {
+    return false
+}
+if uiIsArccoth("arccoth") != true {
+    return false
+}
+return uiHostDeleteOk() == false

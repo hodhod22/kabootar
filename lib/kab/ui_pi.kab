@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML pi. Off previous ui_imaginaryi.kab.
+pub fn uiIsPi(tag) {
+    return tag == "pi"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arccos. Off previous ui_arcsin.kab.
+pub fn uiIsArccos(tag) {
+    return tag == "arccos"
+}

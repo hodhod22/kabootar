@@ -1,0 +1,46 @@
+import "kab/noll_ci"
+import "kab/noll_toml"
+import "kab/noll_srcprod"
+import "kab/noll_syscall"
+import "kab/noll_stub"
+import "kab/noll_mmap"
+import "kab/noll_rustc"
+import "kab/noll_cargo"
+import "kab/noll_image"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollBootstrapImage() != "kabootar.kbc" {
+    return false
+}
+if nollCargoNotRuntime() != false {
+    return false
+}
+if nollRustcNotProcess() != false {
+    return false
+}
+if nollMmapStub() != false {
+    return false
+}
+if nollStubFrozen() != false {
+    return false
+}
+if nollHostSyscallGone() != false {
+    return false
+}
+if nollProductSrcGone() != false {
+    return false
+}
+if nollCargoTomlGone() != false {
+    return false
+}
+if nollRustcCiGone() != false {
+    return false
+}
+return nollHostDeleteOk() == false

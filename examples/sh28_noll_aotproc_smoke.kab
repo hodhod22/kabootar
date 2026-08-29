@@ -1,0 +1,3 @@
+import "kab/noll_aotproc"
+
+return nollAotProcess() == false

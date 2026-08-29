@@ -1,0 +1,27 @@
+import "kab/std_collerp"
+import "kab/std_coldist"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let p = stdColFill(1, 42)
+p = stdColPush(p, 0)
+let z = stdColFill(1, 0)
+z = stdColPush(z, 0)
+if stdColDist(p, z) != 42 {
+    return false
+}
+let w = stdColFill(1, 84)
+w = stdColPush(w, 0)
+let m = stdColLerp(z, w, 1)
+if m[0] != 84 {
+    return false
+}
+let h = stdColLerp(z, w, 0)
+if h[0] != 0 {
+    return false
+}
+return stdHostDeleteOk() == false

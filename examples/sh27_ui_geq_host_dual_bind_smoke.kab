@@ -1,0 +1,14 @@
+import "kab/ui_geq"
+import "kab/ui_leq"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLeq("leq") != true {
+    return false
+}
+if uiIsGeq("geq") != true {
+    return false
+}
+return uiHostDeleteOk() == false

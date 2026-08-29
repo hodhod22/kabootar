@@ -1,0 +1,13 @@
+// SH20: collections round off std_colceil.kab. import "kab/std_colround"
+// Do not grow std_colceil.kab. stdHostDeleteOk stays false.
+
+pub fn stdColRound(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, round(a[i]))
+        i = i + 1
+    }
+    return out
+}

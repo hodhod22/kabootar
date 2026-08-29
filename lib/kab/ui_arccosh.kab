@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arccosh. Off previous ui_arctan.kab.
+pub fn uiIsArccosh(tag) {
+    return tag == "arccosh"
+}

@@ -1,0 +1,3 @@
+import "kab/noll_toml"
+
+return nollCargoTomlGone() == false

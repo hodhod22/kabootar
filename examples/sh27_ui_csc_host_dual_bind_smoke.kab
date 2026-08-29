@@ -1,0 +1,14 @@
+import "kab/ui_csc"
+import "kab/ui_sec"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSec("sec") != true {
+    return false
+}
+if uiIsCsc("csc") != true {
+    return false
+}
+return uiHostDeleteOk() == false

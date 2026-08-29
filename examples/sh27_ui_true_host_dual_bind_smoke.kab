@@ -1,0 +1,14 @@
+import "kab/ui_true"
+import "kab/ui_notanumber"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNotanumber("notanumber") != true {
+    return false
+}
+if uiIsTrue("true") != true {
+    return false
+}
+return uiHostDeleteOk() == false

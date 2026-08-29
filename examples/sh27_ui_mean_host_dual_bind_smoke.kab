@@ -1,0 +1,14 @@
+import "kab/ui_mean"
+import "kab/ui_lcm"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLcm("lcm") != true {
+    return false
+}
+if uiIsMean("mean") != true {
+    return false
+}
+return uiHostDeleteOk() == false

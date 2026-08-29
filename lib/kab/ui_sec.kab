@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sec. Off previous ui_tan.kab.
+pub fn uiIsSec(tag) {
+    return tag == "sec"
+}

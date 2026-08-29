@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML transpose. Off previous ui_outerproduct.kab.
+pub fn uiIsTranspose(tag) {
+    return tag == "transpose"
+}

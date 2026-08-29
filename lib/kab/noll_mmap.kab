@@ -1,0 +1,7 @@
+// SH28: process is not yet a mmap-only image stub — policy "mmap-stub" is false.
+// import "kab/noll_mmap"
+// Do not grow noll_rustc.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMmapStub() {
+    return false
+}

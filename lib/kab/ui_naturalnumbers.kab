@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML naturalnumbers. Off previous ui_complexes.kab.
+pub fn uiIsNaturalnumbers(tag) {
+    return tag == "naturalnumbers"
+}

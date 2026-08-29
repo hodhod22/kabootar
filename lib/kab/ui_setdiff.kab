@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML setdiff. Off previous ui_notprsubset.kab.
+pub fn uiIsSetdiff(tag) {
+    return tag == "setdiff"
+}

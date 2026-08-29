@@ -1,0 +1,17 @@
+// SH20: collections hadamard div off std_colmul.kab. import "kab/std_coldiv"
+// Do not grow std_colmul.kab. stdHostDeleteOk stays false.
+
+pub fn stdColDiv(a, b) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] / b[i])
+        i = i + 1
+    }
+    return out
+}

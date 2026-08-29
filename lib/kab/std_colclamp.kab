@@ -1,0 +1,20 @@
+// SH20: collections clamp off std_colsign.kab. import "kab/std_colclamp"
+// Do not grow std_colsign.kab. stdHostDeleteOk stays false.
+
+pub fn stdColClamp(a, lo, hi) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        let x = a[i]
+        if x < lo {
+            x = lo
+        }
+        if x > hi {
+            x = hi
+        }
+        out = push(out, x)
+        i = i + 1
+    }
+    return out
+}

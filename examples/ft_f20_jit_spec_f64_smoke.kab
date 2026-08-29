@@ -1,0 +1,14 @@
+import "kab/ic"
+import "kab/jit_spec"
+import "kab/jit_spec_f64"
+
+if icIsMono(1) != true {
+    return false
+}
+if jitSpecOk("i64") != true {
+    return false
+}
+if jitSpecF64Ok("f64") != true {
+    return false
+}
+return true

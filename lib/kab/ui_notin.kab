@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML notin. Off previous ui_in.kab.
+pub fn uiIsNotin(tag) {
+    return tag == "notin"
+}

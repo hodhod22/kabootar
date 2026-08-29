@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML domainofapplication. Off previous ui_false.kab.
+pub fn uiIsDomainofapplication(tag) {
+    return tag == "domainofapplication"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML floor. Off previous ui_imaginary.kab.
+pub fn uiIsFloor(tag) {
+    return tag == "floor"
+}

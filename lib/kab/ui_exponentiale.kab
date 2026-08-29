@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML exponentiale. Off previous ui_primes.kab.
+pub fn uiIsExponentiale(tag) {
+    return tag == "exponentiale"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_scalarproduct"
+import "kab/ui_vectorproduct"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsVectorproduct("vectorproduct") != true {
+    return false
+}
+if uiIsScalarproduct("scalarproduct") != true {
+    return false
+}
+return uiHostDeleteOk() == false

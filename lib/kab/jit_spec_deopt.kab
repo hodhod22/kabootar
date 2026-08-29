@@ -1,0 +1,7 @@
+// FT F20: deopt specialized fn when IC sees a new type. Off jit_spec_f64.kab.
+pub fn jitSpecDeoptOk(seen, spec) {
+    if seen != spec {
+        return true
+    }
+    return false
+}

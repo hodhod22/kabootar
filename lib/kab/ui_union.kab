@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML union. Off previous ui_determinant.kab.
+pub fn uiIsUnion(tag) {
+    return tag == "union"
+}

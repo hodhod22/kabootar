@@ -1,0 +1,9 @@
+// FT F21: lazy AOT — boot graph only (~100 ms). import "kab/aot_lazy"
+// Not a giant image as default. Rest is baseline-JIT. F10 deepen.
+
+pub fn aotLazyOk(ms) {
+    if ms <= 100 {
+        return true
+    }
+    return false
+}

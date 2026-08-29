@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML complexes. Off previous ui_reals.kab.
+pub fn uiIsComplexes(tag) {
+    return tag == "complexes"
+}

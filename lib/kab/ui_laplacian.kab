@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML laplacian. Off previous ui_grad.kab.
+pub fn uiIsLaplacian(tag) {
+    return tag == "laplacian"
+}

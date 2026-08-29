@@ -1,0 +1,21 @@
+import "kab/noll_gates"
+import "kab/noll_bootk"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollAllHostGatesClosed() != true {
+    return false
+}
+if nollAllGatesClosedOk() != true {
+    return false
+}
+if nollBootstrapFromKabOk() != true {
+    return false
+}
+return nollHostDeleteOk() == false

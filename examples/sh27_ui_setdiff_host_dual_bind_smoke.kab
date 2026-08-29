@@ -1,0 +1,14 @@
+import "kab/ui_setdiff"
+import "kab/ui_notprsubset"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNotprsubset("notprsubset") != true {
+    return false
+}
+if uiIsSetdiff("setdiff") != true {
+    return false
+}
+return uiHostDeleteOk() == false

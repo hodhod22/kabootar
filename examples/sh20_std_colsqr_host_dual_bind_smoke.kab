@@ -1,0 +1,22 @@
+import "kab/std_colsqr"
+import "kab/std_colsqrt"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let sq = stdColFill(1, 1764)
+sq = stdColPush(sq, 0)
+let s = stdColSqrt(sq)
+if s[0] != 42 {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let q = stdColSqr(v)
+if q[0] != 1764 {
+    return false
+}
+return stdHostDeleteOk() == false

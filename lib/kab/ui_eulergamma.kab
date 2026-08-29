@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML eulergamma. Off previous ui_pi.kab.
+pub fn uiIsEulergamma(tag) {
+    return tag == "eulergamma"
+}

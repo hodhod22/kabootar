@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arctanh. Off previous ui_arcsinh.kab.
+pub fn uiIsArctanh(tag) {
+    return tag == "arctanh"
+}

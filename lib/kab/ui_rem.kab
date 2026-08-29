@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML rem. Off previous ui_geq.kab.
+pub fn uiIsRem(tag) {
+    return tag == "rem"
+}

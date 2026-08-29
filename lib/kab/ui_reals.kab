@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML reals. Off previous ui_rationals.kab.
+pub fn uiIsReals(tag) {
+    return tag == "reals"
+}

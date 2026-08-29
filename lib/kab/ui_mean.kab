@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML mean. Off previous ui_lcm.kab.
+pub fn uiIsMean(tag) {
+    return tag == "mean"
+}

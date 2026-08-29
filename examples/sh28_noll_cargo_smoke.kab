@@ -1,0 +1,3 @@
+import "kab/noll_cargo"
+
+return nollCargoNotRuntime() == false

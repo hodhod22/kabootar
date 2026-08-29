@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML exp. Off previous ui_ln.kab.
+pub fn uiIsExp(tag) {
+    return tag == "exp"
+}

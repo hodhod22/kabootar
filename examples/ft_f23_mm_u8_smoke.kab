@@ -1,0 +1,10 @@
+import "kab/mm"
+import "kab/mm_u8"
+
+if mmF64Ok("f64", 8) != true {
+    return false
+}
+if mmU8Ok("u8", 1) != true {
+    return false
+}
+return true

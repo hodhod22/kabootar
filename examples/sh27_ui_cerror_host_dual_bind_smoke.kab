@@ -1,0 +1,14 @@
+import "kab/ui_cerror"
+import "kab/ui_declare"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDeclare("declare") != true {
+    return false
+}
+if uiIsCerror("cerror") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,22 @@
+import "kab/std_colfloor"
+import "kab/std_colcub"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let c = stdColCub(v)
+if c[0] != 74088 {
+    return false
+}
+let f = stdColFill(1, 42.9)
+f = stdColPush(f, 0)
+let g = stdColFloor(f)
+if g[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

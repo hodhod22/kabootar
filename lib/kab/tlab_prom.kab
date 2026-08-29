@@ -1,0 +1,7 @@
+// FT F22: promote to shared old when TLAB full. Off tlab.kab.
+pub fn tlabPromoteOk(used, cap) {
+    if used >= cap {
+        return true
+    }
+    return false
+}

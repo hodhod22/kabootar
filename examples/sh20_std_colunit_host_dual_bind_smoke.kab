@@ -1,0 +1,19 @@
+import "kab/std_colunit"
+import "kab/std_colnorm"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 0)
+v = stdColPush(v, 42)
+if stdColNorm(v) != 42 {
+    return false
+}
+let u = stdColUnit(v)
+if u[1] != 1 {
+    return false
+}
+return stdHostDeleteOk() == false

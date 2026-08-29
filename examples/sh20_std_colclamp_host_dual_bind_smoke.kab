@@ -1,0 +1,22 @@
+import "kab/std_colclamp"
+import "kab/std_colsign"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let p = stdColSign(v)
+if p[0] != 1 {
+    return false
+}
+let a = stdColFill(1, 84)
+a = stdColPush(a, 0)
+let c = stdColClamp(a, 0, 42)
+if c[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

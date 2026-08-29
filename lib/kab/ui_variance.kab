@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML variance. Off previous ui_sdev.kab.
+pub fn uiIsVariance(tag) {
+    return tag == "variance"
+}

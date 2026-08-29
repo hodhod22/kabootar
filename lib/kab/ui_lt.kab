@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML lt. Off previous ui_neq.kab.
+pub fn uiIsLt(tag) {
+    return tag == "lt"
+}

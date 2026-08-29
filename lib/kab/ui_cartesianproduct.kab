@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cartesianproduct. Off previous ui_momentabout.kab.
+pub fn uiIsCartesianproduct(tag) {
+    return tag == "cartesianproduct"
+}

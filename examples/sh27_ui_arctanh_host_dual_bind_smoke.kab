@@ -1,0 +1,14 @@
+import "kab/ui_arctanh"
+import "kab/ui_arcsinh"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArcsinh("arcsinh") != true {
+    return false
+}
+if uiIsArctanh("arctanh") != true {
+    return false
+}
+return uiHostDeleteOk() == false

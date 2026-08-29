@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML degree. Off previous ui_uplimit.kab.
+pub fn uiIsDegree(tag) {
+    return tag == "degree"
+}

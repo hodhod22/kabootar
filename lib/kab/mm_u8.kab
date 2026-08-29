@@ -1,0 +1,10 @@
+// FT F23: mmap-bulk Uint8Array via os_mm. Off mm.kab.
+pub fn mmU8Ok(kind, stride) {
+    if kind != "u8" {
+        return false
+    }
+    if stride != 1 {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,14 @@
+import "kab/ui_real"
+import "kab/ui_arg"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArg("arg") != true {
+    return false
+}
+if uiIsReal("real") != true {
+    return false
+}
+return uiHostDeleteOk() == false

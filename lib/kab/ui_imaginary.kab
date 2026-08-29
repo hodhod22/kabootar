@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML imaginary. Off previous ui_real.kab.
+pub fn uiIsImaginary(tag) {
+    return tag == "imaginary"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML integers. Off previous ui_emptyset.kab.
+pub fn uiIsIntegers(tag) {
+    return tag == "integers"
+}

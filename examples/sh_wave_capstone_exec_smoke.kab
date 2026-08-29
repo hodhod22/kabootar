@@ -1,0 +1,23 @@
+import "kab/wave_capstone"
+import "kab/gc_capstone"
+import "kab/load_aot_capstone"
+
+if waveCapstoneGatesClosed() == false {
+    return false
+}
+if gcCapstoneGatesClosed() == false {
+    return false
+}
+if loadAotCapstoneGatesClosed() == false {
+    return false
+}
+if waveCapstoneNativeName() != "kabootar-x64.kbn" {
+    return false
+}
+if waveCapstoneLiveGray() != 2 {
+    return false
+}
+if waveCapstoneBytes() != 4096 {
+    return false
+}
+return true

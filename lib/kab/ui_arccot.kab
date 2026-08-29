@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arccot. Off previous ui_arccosh.kab.
+pub fn uiIsArccot(tag) {
+    return tag == "arccot"
+}

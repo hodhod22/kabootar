@@ -1,0 +1,17 @@
+// SH20: collections lerp off std_coldist.kab. import "kab/std_collerp"
+// Do not grow std_coldist.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLerp(a, b, t) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] + t * (b[i] - a[i]))
+        i = i + 1
+    }
+    return out
+}

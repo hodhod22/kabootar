@@ -1,0 +1,14 @@
+import "kab/ui_cbytes"
+import "kab/ui_cs"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCs("cs") != true {
+    return false
+}
+if uiIsCbytes("cbytes") != true {
+    return false
+}
+return uiHostDeleteOk() == false

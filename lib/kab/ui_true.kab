@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML true. Off previous ui_notanumber.kab.
+pub fn uiIsTrue(tag) {
+    return tag == "true"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_arccosh"
+import "kab/ui_arctan"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArctan("arctan") != true {
+    return false
+}
+if uiIsArccosh("arccosh") != true {
+    return false
+}
+return uiHostDeleteOk() == false

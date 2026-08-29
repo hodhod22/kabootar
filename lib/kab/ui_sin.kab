@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sin. Off previous ui_exp.kab.
+pub fn uiIsSin(tag) {
+    return tag == "sin"
+}

@@ -1,0 +1,10 @@
+import "kab/zc"
+import "kab/zc_nd"
+
+if zcSqlViewOk(0) != true {
+    return false
+}
+if zcNdViewOk(0) != true {
+    return false
+}
+return true

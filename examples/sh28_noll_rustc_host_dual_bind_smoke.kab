@@ -1,0 +1,22 @@
+import "kab/noll_rustc"
+import "kab/noll_cargo"
+import "kab/noll_image"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollBootstrapImage() != "kabootar.kbc" {
+    return false
+}
+if nollCargoNotRuntime() != false {
+    return false
+}
+if nollRustcNotProcess() != false {
+    return false
+}
+return nollHostDeleteOk() == false

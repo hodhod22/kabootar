@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML vectorproduct. Off previous ui_cartesianproduct.kab.
+pub fn uiIsVectorproduct(tag) {
+    return tag == "vectorproduct"
+}

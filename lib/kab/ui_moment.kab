@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML moment. Off previous ui_mode.kab.
+pub fn uiIsMoment(tag) {
+    return tag == "moment"
+}

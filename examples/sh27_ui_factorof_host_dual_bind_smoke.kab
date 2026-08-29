@@ -1,0 +1,14 @@
+import "kab/ui_factorof"
+import "kab/ui_approx"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsApprox("approx") != true {
+    return false
+}
+if uiIsFactorof("factorof") != true {
+    return false
+}
+return uiHostDeleteOk() == false

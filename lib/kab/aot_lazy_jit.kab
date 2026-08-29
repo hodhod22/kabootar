@@ -1,0 +1,7 @@
+// FT F21: remainder of the program is baseline-JIT. Off aot_lazy.kab.
+pub fn aotLazyJitOk(kind) {
+    if kind != "jit" {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arg. Off previous ui_conjugate.kab.
+pub fn uiIsArg(tag) {
+    return tag == "arg"
+}

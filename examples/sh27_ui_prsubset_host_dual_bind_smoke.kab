@@ -1,0 +1,14 @@
+import "kab/ui_prsubset"
+import "kab/ui_subset"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSubset("subset") != true {
+    return false
+}
+if uiIsPrsubset("prsubset") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML card. Off previous ui_setdiff.kab.
+pub fn uiIsCard(tag) {
+    return tag == "card"
+}

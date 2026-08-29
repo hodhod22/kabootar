@@ -1,0 +1,7 @@
+// SH28: product CI is not yet kabtest-only — policy "kabtest-product-ci" is false.
+// import "kab/noll_kabtest"
+// Do not grow noll_ci.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollKabtestProductCi() {
+    return false
+}

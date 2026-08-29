@@ -1,0 +1,14 @@
+import "kab/ui_lcm"
+import "kab/ui_max"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMax("max") != true {
+    return false
+}
+if uiIsLcm("lcm") != true {
+    return false
+}
+return uiHostDeleteOk() == false

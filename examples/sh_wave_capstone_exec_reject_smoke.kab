@@ -1,0 +1,6 @@
+import "kab/wave_capstone"
+
+if waveCapstoneBytes() == 0 {
+    return false
+}
+return waveCapstoneGatesClosed()
