@@ -1,0 +1,14 @@
+import "kab/ui_handler"
+import "kab/ui_prefetch"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPrefetch("prefetch") != true {
+    return false
+}
+if uiIsHandler("handler") != true {
+    return false
+}
+return uiHostDeleteOk() == false

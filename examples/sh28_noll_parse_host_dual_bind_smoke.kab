@@ -1,0 +1,18 @@
+import "kab/noll_parse"
+import "kab/noll_compile"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCompileIsKab() != false {
+    return false
+}
+if nollParseIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

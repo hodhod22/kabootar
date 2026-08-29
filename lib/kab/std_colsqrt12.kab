@@ -1,0 +1,13 @@
+// SH20: collections sqrt1_2 off std_colsqrt2.kab. import "kab/std_colsqrt12"
+// Do not grow std_colsqrt2.kab. stdHostDeleteOk stays false.
+
+pub fn stdColSqrt12(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, sqrt1_2())
+        i = i + 1
+    }
+    return out
+}

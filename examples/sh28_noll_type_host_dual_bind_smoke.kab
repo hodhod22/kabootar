@@ -1,0 +1,18 @@
+import "kab/noll_type"
+import "kab/noll_lex"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollLexIsKab() != false {
+    return false
+}
+if nollTypeIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

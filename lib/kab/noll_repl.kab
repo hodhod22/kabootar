@@ -1,0 +1,6 @@
+// SH28: product REPL is not Kab-only yet. import "kab/noll_repl"
+// Do not grow noll_cli.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollReplIsKab() {
+    return false
+}

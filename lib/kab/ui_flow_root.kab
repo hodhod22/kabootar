@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowRoot. Off previous ui_text_area.kab.
+pub fn uiIsFlowRoot(tag) {
+    return tag == "flowRoot"
+}

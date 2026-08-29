@@ -1,0 +1,6 @@
+// SH28: product stdlib host is not Kab-only yet. import "kab/noll_std"
+// Do not grow noll_link.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollStdIsKab() {
+    return false
+}

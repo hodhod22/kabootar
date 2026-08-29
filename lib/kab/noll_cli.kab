@@ -1,0 +1,6 @@
+// SH28: product CLI is not Kab-only yet. import "kab/noll_cli"
+// Do not grow noll_std.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCliIsKab() {
+    return false
+}

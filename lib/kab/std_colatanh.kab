@@ -1,0 +1,13 @@
+// SH20: collections atanh off std_colacosh.kab. import "kab/std_colatanh"
+// Do not grow std_colacosh.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAtanh(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, atanh(a[i]))
+        i = i + 1
+    }
+    return out
+}

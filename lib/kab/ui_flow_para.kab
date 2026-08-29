@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowPara. Off previous ui_flow_div.kab.
+pub fn uiIsFlowPara(tag) {
+    return tag == "flowPara"
+}

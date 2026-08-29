@@ -1,0 +1,24 @@
+import "kab/std_colcbrt"
+import "kab/std_colhypot"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 3)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 4)
+b = stdColPush(b, 0)
+let k = stdColHypot(a, b)
+if k[0] != 5 {
+    return false
+}
+let g = stdColFill(1, 8)
+g = stdColPush(g, 0)
+let w = stdColCbrt(g)
+if w[0] != 2 {
+    return false
+}
+return stdHostDeleteOk() == false

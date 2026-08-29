@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowLine. Off previous ui_flow_span.kab.
+pub fn uiIsFlowLine(tag) {
+    return tag == "flowLine"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowRegion. Off previous ui_flow_root.kab.
+pub fn uiIsFlowRegion(tag) {
+    return tag == "flowRegion"
+}

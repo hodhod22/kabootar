@@ -1,0 +1,13 @@
+// SH20: collections cbrt off std_colhypot.kab. import "kab/std_colcbrt"
+// Do not grow std_colhypot.kab. stdHostDeleteOk stays false.
+
+pub fn stdColCbrt(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, cbrt(a[i]))
+        i = i + 1
+    }
+    return out
+}

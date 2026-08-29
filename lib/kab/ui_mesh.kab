@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG mesh. Off previous ui_solid_color.kab.
+pub fn uiIsMesh(tag) {
+    return tag == "mesh"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG color-profile. Off previous ui_animate_color.kab.
+pub fn uiIsColorProfile(tag) {
+    return tag == "color-profile"
+}

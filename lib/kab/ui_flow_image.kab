@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowImage. Off previous ui_flow_region_exclude.kab.
+pub fn uiIsFlowImage(tag) {
+    return tag == "flowImage"
+}

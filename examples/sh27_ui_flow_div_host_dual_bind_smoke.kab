@@ -1,0 +1,14 @@
+import "kab/ui_flow_div"
+import "kab/ui_flow_region"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFlowRegion("flowRegion") != true {
+    return false
+}
+if uiIsFlowDiv("flowDiv") != true {
+    return false
+}
+return uiHostDeleteOk() == false

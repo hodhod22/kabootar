@@ -1,0 +1,18 @@
+import "kab/noll_gc"
+import "kab/noll_vm"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollVmIsKab() != false {
+    return false
+}
+if nollGcIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

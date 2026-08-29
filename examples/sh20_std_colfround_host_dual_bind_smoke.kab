@@ -1,0 +1,22 @@
+import "kab/std_colfround"
+import "kab/std_colclz32"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 1)
+h = stdColPush(h, 0)
+let k = stdColClz32(h)
+if k[0] != 31 {
+    return false
+}
+let g = stdColFill(1, 2)
+g = stdColPush(g, 0)
+let w = stdColFround(g)
+if w[0] != 2 {
+    return false
+}
+return stdHostDeleteOk() == false

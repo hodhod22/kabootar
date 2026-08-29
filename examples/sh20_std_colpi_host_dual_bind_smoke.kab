@@ -1,0 +1,26 @@
+import "kab/std_colpi"
+import "kab/std_colrandom"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 7)
+a = stdColPush(a, 0)
+let r = stdColRandom(a)
+if len(r) != 2 {
+    return false
+}
+if r[0] < 0 {
+    return false
+}
+if r[0] > 1 {
+    return false
+}
+let p = stdColPi(a)
+if p[0] != pi() {
+    return false
+}
+return stdHostDeleteOk() == false

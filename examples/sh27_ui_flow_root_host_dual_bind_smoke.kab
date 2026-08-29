@@ -1,0 +1,14 @@
+import "kab/ui_flow_root"
+import "kab/ui_text_area"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTextArea("textArea") != true {
+    return false
+}
+if uiIsFlowRoot("flowRoot") != true {
+    return false
+}
+return uiHostDeleteOk() == false

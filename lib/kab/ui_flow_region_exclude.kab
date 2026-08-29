@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowRegionExclude. Off previous ui_flow_tref.kab.
+pub fn uiIsFlowRegionExclude(tag) {
+    return tag == "flowRegionExclude"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny solidColor. Off previous ui_flow_image.kab.
+pub fn uiIsSolidColor(tag) {
+    return tag == "solidColor"
+}

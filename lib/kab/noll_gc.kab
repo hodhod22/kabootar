@@ -1,0 +1,6 @@
+// SH28: product GC is not Kab-only yet. import "kab/noll_gc"
+// Do not grow noll_vm.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollGcIsKab() {
+    return false
+}

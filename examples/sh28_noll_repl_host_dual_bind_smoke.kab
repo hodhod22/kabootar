@@ -1,0 +1,18 @@
+import "kab/noll_repl"
+import "kab/noll_cli"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCliIsKab() != false {
+    return false
+}
+if nollReplIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

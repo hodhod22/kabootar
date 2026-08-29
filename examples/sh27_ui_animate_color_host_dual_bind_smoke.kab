@@ -1,0 +1,14 @@
+import "kab/ui_animate_color"
+import "kab/ui_eq"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsEq("eq") != true {
+    return false
+}
+if uiIsAnimateColor("animateColor") != true {
+    return false
+}
+return uiHostDeleteOk() == false

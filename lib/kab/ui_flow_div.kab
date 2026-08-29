@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowDiv. Off previous ui_flow_region.kab.
+pub fn uiIsFlowDiv(tag) {
+    return tag == "flowDiv"
+}
