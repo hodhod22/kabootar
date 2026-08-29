@@ -1,0 +1,18 @@
+import "kab/noll_hmac"
+import "kab/noll_hkdf"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollHkdfIsKab() != false {
+    return false
+}
+if nollHmacIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

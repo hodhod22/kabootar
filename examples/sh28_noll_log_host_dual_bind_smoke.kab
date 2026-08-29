@@ -1,0 +1,18 @@
+import "kab/noll_log"
+import "kab/noll_auth"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollAuthIsKab() != false {
+    return false
+}
+if nollLogIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

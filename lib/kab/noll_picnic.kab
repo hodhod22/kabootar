@@ -1,0 +1,6 @@
+// SH28: product Picnic stack is not Kab-only yet. import "kab/noll_picnic"
+// Do not grow noll_gemss.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollPicnicIsKab() {
+    return false
+}

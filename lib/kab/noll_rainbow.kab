@@ -1,0 +1,6 @@
+// SH28: product Rainbow stack is not Kab-only yet. import "kab/noll_rainbow"
+// Do not grow noll_sike.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollRainbowIsKab() {
+    return false
+}

@@ -1,0 +1,6 @@
+// SH28: product QUIC stack is not Kab-only yet. import "kab/noll_quic"
+// Do not grow noll_udp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollQuicIsKab() {
+    return false
+}

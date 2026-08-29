@@ -1,0 +1,18 @@
+import "kab/noll_mlkem"
+import "kab/noll_slhdsa"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSlhdsaIsKab() != false {
+    return false
+}
+if nollMlkemIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

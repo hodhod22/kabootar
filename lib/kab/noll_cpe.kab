@@ -1,0 +1,6 @@
+// SH28: product CPE stack is not Kab-only yet. import "kab/noll_cpe"
+// Do not grow noll_cwe.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCpeIsKab() {
+    return false
+}

@@ -1,0 +1,6 @@
+// SH28: product GHSA stack is not Kab-only yet. import "kab/noll_ghsa"
+// Do not grow noll_osv.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollGhsaIsKab() {
+    return false
+}

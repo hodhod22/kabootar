@@ -1,0 +1,18 @@
+import "kab/noll_mceliece"
+import "kab/noll_ntru"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollNtruIsKab() != false {
+    return false
+}
+if nollMcelieceIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

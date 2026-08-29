@@ -1,0 +1,18 @@
+import "kab/noll_argon"
+import "kab/noll_hotp"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollHotpIsKab() != false {
+    return false
+}
+if nollArgonIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

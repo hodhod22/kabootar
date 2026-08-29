@@ -1,0 +1,18 @@
+import "kab/noll_ws"
+import "kab/noll_http"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollHttpIsKab() != false {
+    return false
+}
+if nollWsIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

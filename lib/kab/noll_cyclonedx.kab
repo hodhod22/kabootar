@@ -1,0 +1,6 @@
+// SH28: product CycloneDX stack is not Kab-only yet. import "kab/noll_cyclonedx"
+// Do not grow noll_spdx.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCyclonedxIsKab() {
+    return false
+}

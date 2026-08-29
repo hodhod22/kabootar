@@ -1,0 +1,18 @@
+import "kab/noll_spy"
+import "kab/noll_fix"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollFixIsKab() != false {
+    return false
+}
+if nollSpyIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

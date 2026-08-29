@@ -1,0 +1,6 @@
+// SH28: product debugger is not Kab-only yet. import "kab/noll_dbg"
+// Do not grow noll_log.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollDbgIsKab() {
+    return false
+}

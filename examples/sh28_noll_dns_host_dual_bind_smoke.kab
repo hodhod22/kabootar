@@ -1,0 +1,18 @@
+import "kab/noll_dns"
+import "kab/noll_net"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollNetIsKab() != false {
+    return false
+}
+if nollDnsIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

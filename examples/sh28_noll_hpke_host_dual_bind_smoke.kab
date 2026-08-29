@@ -1,0 +1,18 @@
+import "kab/noll_hpke"
+import "kab/noll_xwing"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollXwingIsKab() != false {
+    return false
+}
+if nollHpkeIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

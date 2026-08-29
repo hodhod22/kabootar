@@ -1,0 +1,18 @@
+import "kab/noll_bcrypt"
+import "kab/noll_scrypt"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollScryptIsKab() != false {
+    return false
+}
+if nollBcryptIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

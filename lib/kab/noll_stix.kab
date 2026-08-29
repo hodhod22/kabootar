@@ -1,0 +1,6 @@
+// SH28: product STIX stack is not Kab-only yet. import "kab/noll_stix"
+// Do not grow noll_capec.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollStixIsKab() {
+    return false
+}

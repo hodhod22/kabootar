@@ -1,0 +1,18 @@
+import "kab/noll_pub"
+import "kab/noll_lock"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollLockIsKab() != false {
+    return false
+}
+if nollPubIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

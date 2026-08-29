@@ -1,0 +1,6 @@
+// SH28: product CAPEC stack is not Kab-only yet. import "kab/noll_capec"
+// Do not grow noll_attack.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCapecIsKab() {
+    return false
+}

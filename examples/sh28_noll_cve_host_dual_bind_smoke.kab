@@ -1,0 +1,18 @@
+import "kab/noll_cve"
+import "kab/noll_vex"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollVexIsKab() != false {
+    return false
+}
+if nollCveIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

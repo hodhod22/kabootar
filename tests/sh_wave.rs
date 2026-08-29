@@ -52089,6 +52089,3334 @@ fn sh28_noll_lsp_host_dual_bind_in_kab() {
     );
 }
 
+/// SH28 deepen: product docs CLI is not Kab-only yet — leaf lives off noll_lsp.kab.
+#[test]
+fn sh28_noll_doc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_doc.kab")).expect("noll_doc.kab");
+    assert!(
+        i.contains("pub fn nollDocIsKab") && i.contains("return false"),
+        "SH28 Kab nollDocIsKab"
+    );
+}
+
+/// SH28 deepen: doc-is-Kab dual-bind to LSP-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_doc_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_doc_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_doc_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLspIsKab")
+            && s.contains("nollDocIsKab"),
+        "SH28 Kab noll doc host dual-bind"
+    );
+}
+
+/// SH28 deepen: product bench CLI is not Kab-only yet — leaf lives off noll_doc.kab.
+#[test]
+fn sh28_noll_bench_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_bench.kab")).expect("noll_bench.kab");
+    assert!(
+        i.contains("pub fn nollBenchIsKab") && i.contains("return false"),
+        "SH28 Kab nollBenchIsKab"
+    );
+}
+
+/// SH28 deepen: bench-is-Kab dual-bind to doc-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_bench_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_bench_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_bench_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollDocIsKab")
+            && s.contains("nollBenchIsKab"),
+        "SH28 Kab noll bench host dual-bind"
+    );
+}
+
+/// SH28 deepen: product new CLI is not Kab-only yet — leaf lives off noll_bench.kab.
+#[test]
+fn sh28_noll_new_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_new.kab")).expect("noll_new.kab");
+    assert!(
+        i.contains("pub fn nollNewIsKab") && i.contains("return false"),
+        "SH28 Kab nollNewIsKab"
+    );
+}
+
+/// SH28 deepen: new-is-Kab dual-bind to bench-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_new_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_new_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_new_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollBenchIsKab")
+            && s.contains("nollNewIsKab"),
+        "SH28 Kab noll new host dual-bind"
+    );
+}
+
+/// SH28 deepen: product init CLI is not Kab-only yet — leaf lives off noll_new.kab.
+#[test]
+fn sh28_noll_init_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_init.kab")).expect("noll_init.kab");
+    assert!(
+        i.contains("pub fn nollInitIsKab") && i.contains("return false"),
+        "SH28 Kab nollInitIsKab"
+    );
+}
+
+/// SH28 deepen: init-is-Kab dual-bind to new-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_init_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_init_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_init_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNewIsKab")
+            && s.contains("nollInitIsKab"),
+        "SH28 Kab noll init host dual-bind"
+    );
+}
+
+/// SH28 deepen: product watch CLI is not Kab-only yet — leaf lives off noll_init.kab.
+#[test]
+fn sh28_noll_watch_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_watch.kab")).expect("noll_watch.kab");
+    assert!(
+        i.contains("pub fn nollWatchIsKab") && i.contains("return false"),
+        "SH28 Kab nollWatchIsKab"
+    );
+}
+
+/// SH28 deepen: watch-is-Kab dual-bind to init-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_watch_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_watch_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_watch_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollInitIsKab")
+            && s.contains("nollWatchIsKab"),
+        "SH28 Kab noll watch host dual-bind"
+    );
+}
+
+/// SH28 deepen: product clean CLI is not Kab-only yet — leaf lives off noll_watch.kab.
+#[test]
+fn sh28_noll_clean_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_clean.kab")).expect("noll_clean.kab");
+    assert!(
+        i.contains("pub fn nollCleanIsKab") && i.contains("return false"),
+        "SH28 Kab nollCleanIsKab"
+    );
+}
+
+/// SH28 deepen: clean-is-Kab dual-bind to watch-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_clean_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_clean_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_clean_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollWatchIsKab")
+            && s.contains("nollCleanIsKab"),
+        "SH28 Kab noll clean host dual-bind"
+    );
+}
+
+/// SH28 deepen: product add CLI is not Kab-only yet — leaf lives off noll_clean.kab.
+#[test]
+fn sh28_noll_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_add.kab")).expect("noll_add.kab");
+    assert!(
+        i.contains("pub fn nollAddIsKab") && i.contains("return false"),
+        "SH28 Kab nollAddIsKab"
+    );
+}
+
+/// SH28 deepen: add-is-Kab dual-bind to clean-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_add_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_add_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_add_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCleanIsKab")
+            && s.contains("nollAddIsKab"),
+        "SH28 Kab noll add host dual-bind"
+    );
+}
+
+/// SH28 deepen: product rm CLI is not Kab-only yet — leaf lives off noll_add.kab.
+#[test]
+fn sh28_noll_rm_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_rm.kab")).expect("noll_rm.kab");
+    assert!(
+        i.contains("pub fn nollRmIsKab") && i.contains("return false"),
+        "SH28 Kab nollRmIsKab"
+    );
+}
+
+/// SH28 deepen: rm-is-Kab dual-bind to add-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_rm_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_rm_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_rm_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollAddIsKab")
+            && s.contains("nollRmIsKab"),
+        "SH28 Kab noll rm host dual-bind"
+    );
+}
+
+/// SH28 deepen: product mod CLI is not Kab-only yet — leaf lives off noll_rm.kab.
+#[test]
+fn sh28_noll_mod_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mod.kab")).expect("noll_mod.kab");
+    assert!(
+        i.contains("pub fn nollModIsKab") && i.contains("return false"),
+        "SH28 Kab nollModIsKab"
+    );
+}
+
+/// SH28 deepen: mod-is-Kab dual-bind to rm-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mod_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mod_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mod_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRmIsKab")
+            && s.contains("nollModIsKab"),
+        "SH28 Kab noll mod host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ls CLI is not Kab-only yet — leaf lives off noll_mod.kab.
+#[test]
+fn sh28_noll_ls_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ls.kab")).expect("noll_ls.kab");
+    assert!(
+        i.contains("pub fn nollLsIsKab") && i.contains("return false"),
+        "SH28 Kab nollLsIsKab"
+    );
+}
+
+/// SH28 deepen: ls-is-Kab dual-bind to mod-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ls_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ls_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ls_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollModIsKab")
+            && s.contains("nollLsIsKab"),
+        "SH28 Kab noll ls host dual-bind"
+    );
+}
+
+/// SH28 deepen: product cat CLI is not Kab-only yet — leaf lives off noll_ls.kab.
+#[test]
+fn sh28_noll_cat_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cat.kab")).expect("noll_cat.kab");
+    assert!(
+        i.contains("pub fn nollCatIsKab") && i.contains("return false"),
+        "SH28 Kab nollCatIsKab"
+    );
+}
+
+/// SH28 deepen: cat-is-Kab dual-bind to ls-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cat_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cat_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cat_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLsIsKab")
+            && s.contains("nollCatIsKab"),
+        "SH28 Kab noll cat host dual-bind"
+    );
+}
+
+/// SH28 deepen: product pkg CLI is not Kab-only yet — leaf lives off noll_cat.kab.
+#[test]
+fn sh28_noll_pkg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_pkg.kab")).expect("noll_pkg.kab");
+    assert!(
+        i.contains("pub fn nollPkgIsKab") && i.contains("return false"),
+        "SH28 Kab nollPkgIsKab"
+    );
+}
+
+/// SH28 deepen: pkg-is-Kab dual-bind to cat-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_pkg_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_pkg_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_pkg_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCatIsKab")
+            && s.contains("nollPkgIsKab"),
+        "SH28 Kab noll pkg host dual-bind"
+    );
+}
+
+/// SH28 deepen: product lockfile is not Kab-only yet — leaf lives off noll_pkg.kab.
+#[test]
+fn sh28_noll_lock_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_lock.kab")).expect("noll_lock.kab");
+    assert!(
+        i.contains("pub fn nollLockIsKab") && i.contains("return false"),
+        "SH28 Kab nollLockIsKab"
+    );
+}
+
+/// SH28 deepen: lock-is-Kab dual-bind to pkg-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_lock_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_lock_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_lock_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPkgIsKab")
+            && s.contains("nollLockIsKab"),
+        "SH28 Kab noll lock host dual-bind"
+    );
+}
+
+/// SH28 deepen: product publish CLI is not Kab-only yet — leaf lives off noll_lock.kab.
+#[test]
+fn sh28_noll_pub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_pub.kab")).expect("noll_pub.kab");
+    assert!(
+        i.contains("pub fn nollPubIsKab") && i.contains("return false"),
+        "SH28 Kab nollPubIsKab"
+    );
+}
+
+/// SH28 deepen: pub-is-Kab dual-bind to lock-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_pub_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_pub_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_pub_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLockIsKab")
+            && s.contains("nollPubIsKab"),
+        "SH28 Kab noll pub host dual-bind"
+    );
+}
+
+/// SH28 deepen: product package registry is not Kab-only yet — leaf lives off noll_pub.kab.
+#[test]
+fn sh28_noll_reg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_reg.kab")).expect("noll_reg.kab");
+    assert!(
+        i.contains("pub fn nollRegIsKab") && i.contains("return false"),
+        "SH28 Kab nollRegIsKab"
+    );
+}
+
+/// SH28 deepen: reg-is-Kab dual-bind to pub-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_reg_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_reg_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_reg_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPubIsKab")
+            && s.contains("nollRegIsKab"),
+        "SH28 Kab noll reg host dual-bind"
+    );
+}
+
+/// SH28 deepen: product auth is not Kab-only yet — leaf lives off noll_reg.kab.
+#[test]
+fn sh28_noll_auth_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_auth.kab")).expect("noll_auth.kab");
+    assert!(
+        i.contains("pub fn nollAuthIsKab") && i.contains("return false"),
+        "SH28 Kab nollAuthIsKab"
+    );
+}
+
+/// SH28 deepen: auth-is-Kab dual-bind to reg-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_auth_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_auth_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_auth_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRegIsKab")
+            && s.contains("nollAuthIsKab"),
+        "SH28 Kab noll auth host dual-bind"
+    );
+}
+
+/// SH28 deepen: product logging is not Kab-only yet — leaf lives off noll_auth.kab.
+#[test]
+fn sh28_noll_log_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_log.kab")).expect("noll_log.kab");
+    assert!(
+        i.contains("pub fn nollLogIsKab") && i.contains("return false"),
+        "SH28 Kab nollLogIsKab"
+    );
+}
+
+/// SH28 deepen: log-is-Kab dual-bind to auth-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_log_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_log_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_log_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollAuthIsKab")
+            && s.contains("nollLogIsKab"),
+        "SH28 Kab noll log host dual-bind"
+    );
+}
+
+/// SH28 deepen: product debugger is not Kab-only yet — leaf lives off noll_log.kab.
+#[test]
+fn sh28_noll_dbg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_dbg.kab")).expect("noll_dbg.kab");
+    assert!(
+        i.contains("pub fn nollDbgIsKab") && i.contains("return false"),
+        "SH28 Kab nollDbgIsKab"
+    );
+}
+
+/// SH28 deepen: dbg-is-Kab dual-bind to log-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_dbg_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_dbg_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_dbg_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLogIsKab")
+            && s.contains("nollDbgIsKab"),
+        "SH28 Kab noll dbg host dual-bind"
+    );
+}
+
+/// SH28 deepen: product profiler is not Kab-only yet — leaf lives off noll_dbg.kab.
+#[test]
+fn sh28_noll_prof_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_prof.kab")).expect("noll_prof.kab");
+    assert!(
+        i.contains("pub fn nollProfIsKab") && i.contains("return false"),
+        "SH28 Kab nollProfIsKab"
+    );
+}
+
+/// SH28 deepen: prof-is-Kab dual-bind to dbg-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_prof_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_prof_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_prof_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollDbgIsKab")
+            && s.contains("nollProfIsKab"),
+        "SH28 Kab noll prof host dual-bind"
+    );
+}
+
+/// SH28 deepen: product tracing is not Kab-only yet — leaf lives off noll_prof.kab.
+#[test]
+fn sh28_noll_trace_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_trace.kab")).expect("noll_trace.kab");
+    assert!(
+        i.contains("pub fn nollTraceIsKab") && i.contains("return false"),
+        "SH28 Kab nollTraceIsKab"
+    );
+}
+
+/// SH28 deepen: trace-is-Kab dual-bind to prof-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_trace_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_trace_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_trace_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollProfIsKab")
+            && s.contains("nollTraceIsKab"),
+        "SH28 Kab noll trace host dual-bind"
+    );
+}
+
+/// SH28 deepen: product coverage is not Kab-only yet — leaf lives off noll_trace.kab.
+#[test]
+fn sh28_noll_cov_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cov.kab")).expect("noll_cov.kab");
+    assert!(
+        i.contains("pub fn nollCovIsKab") && i.contains("return false"),
+        "SH28 Kab nollCovIsKab"
+    );
+}
+
+/// SH28 deepen: cov-is-Kab dual-bind to trace-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cov_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cov_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cov_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollTraceIsKab")
+            && s.contains("nollCovIsKab"),
+        "SH28 Kab noll cov host dual-bind"
+    );
+}
+
+/// SH28 deepen: product fuzzer is not Kab-only yet — leaf lives off noll_cov.kab.
+#[test]
+fn sh28_noll_fuzz_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_fuzz.kab")).expect("noll_fuzz.kab");
+    assert!(
+        i.contains("pub fn nollFuzzIsKab") && i.contains("return false"),
+        "SH28 Kab nollFuzzIsKab"
+    );
+}
+
+/// SH28 deepen: fuzz-is-Kab dual-bind to cov-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_fuzz_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_fuzz_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_fuzz_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCovIsKab")
+            && s.contains("nollFuzzIsKab"),
+        "SH28 Kab noll fuzz host dual-bind"
+    );
+}
+
+/// SH28 deepen: product sanitizer is not Kab-only yet — leaf lives off noll_fuzz.kab.
+#[test]
+fn sh28_noll_san_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_san.kab")).expect("noll_san.kab");
+    assert!(
+        i.contains("pub fn nollSanIsKab") && i.contains("return false"),
+        "SH28 Kab nollSanIsKab"
+    );
+}
+
+/// SH28 deepen: san-is-Kab dual-bind to fuzz-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_san_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_san_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_san_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFuzzIsKab")
+            && s.contains("nollSanIsKab"),
+        "SH28 Kab noll san host dual-bind"
+    );
+}
+
+/// SH28 deepen: product snapshot tests are not Kab-only yet — leaf lives off noll_san.kab.
+#[test]
+fn sh28_noll_snap_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_snap.kab")).expect("noll_snap.kab");
+    assert!(
+        i.contains("pub fn nollSnapIsKab") && i.contains("return false"),
+        "SH28 Kab nollSnapIsKab"
+    );
+}
+
+/// SH28 deepen: snap-is-Kab dual-bind to san-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_snap_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_snap_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_snap_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSanIsKab")
+            && s.contains("nollSnapIsKab"),
+        "SH28 Kab noll snap host dual-bind"
+    );
+}
+
+/// SH28 deepen: product mocks are not Kab-only yet — leaf lives off noll_snap.kab.
+#[test]
+fn sh28_noll_mock_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mock.kab")).expect("noll_mock.kab");
+    assert!(
+        i.contains("pub fn nollMockIsKab") && i.contains("return false"),
+        "SH28 Kab nollMockIsKab"
+    );
+}
+
+/// SH28 deepen: mock-is-Kab dual-bind to snap-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mock_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mock_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mock_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSnapIsKab")
+            && s.contains("nollMockIsKab"),
+        "SH28 Kab noll mock host dual-bind"
+    );
+}
+
+/// SH28 deepen: product test fixtures are not Kab-only yet — leaf lives off noll_mock.kab.
+#[test]
+fn sh28_noll_fix_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_fix.kab")).expect("noll_fix.kab");
+    assert!(
+        i.contains("pub fn nollFixIsKab") && i.contains("return false"),
+        "SH28 Kab nollFixIsKab"
+    );
+}
+
+/// SH28 deepen: fix-is-Kab dual-bind to mock-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_fix_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_fix_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_fix_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMockIsKab")
+            && s.contains("nollFixIsKab"),
+        "SH28 Kab noll fix host dual-bind"
+    );
+}
+
+/// SH28 deepen: product test spies are not Kab-only yet — leaf lives off noll_fix.kab.
+#[test]
+fn sh28_noll_spy_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_spy.kab")).expect("noll_spy.kab");
+    assert!(
+        i.contains("pub fn nollSpyIsKab") && i.contains("return false"),
+        "SH28 Kab nollSpyIsKab"
+    );
+}
+
+/// SH28 deepen: spy-is-Kab dual-bind to fix-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_spy_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_spy_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_spy_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFixIsKab")
+            && s.contains("nollSpyIsKab"),
+        "SH28 Kab noll spy host dual-bind"
+    );
+}
+
+/// SH28 deepen: product test fakes are not Kab-only yet — leaf lives off noll_spy.kab.
+#[test]
+fn sh28_noll_fake_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_fake.kab")).expect("noll_fake.kab");
+    assert!(
+        i.contains("pub fn nollFakeIsKab") && i.contains("return false"),
+        "SH28 Kab nollFakeIsKab"
+    );
+}
+
+/// SH28 deepen: fake-is-Kab dual-bind to spy-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_fake_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_fake_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_fake_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSpyIsKab")
+            && s.contains("nollFakeIsKab"),
+        "SH28 Kab noll fake host dual-bind"
+    );
+}
+
+/// SH28 deepen: product test clock is not Kab-only yet — leaf lives off noll_fake.kab.
+#[test]
+fn sh28_noll_clock_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_clock.kab")).expect("noll_clock.kab");
+    assert!(
+        i.contains("pub fn nollClockIsKab") && i.contains("return false"),
+        "SH28 Kab nollClockIsKab"
+    );
+}
+
+/// SH28 deepen: clock-is-Kab dual-bind to fake-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_clock_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_clock_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_clock_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFakeIsKab")
+            && s.contains("nollClockIsKab"),
+        "SH28 Kab noll clock host dual-bind"
+    );
+}
+
+/// SH28 deepen: product test RNG is not Kab-only yet — leaf lives off noll_clock.kab.
+#[test]
+fn sh28_noll_rand_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_rand.kab")).expect("noll_rand.kab");
+    assert!(
+        i.contains("pub fn nollRandIsKab") && i.contains("return false"),
+        "SH28 Kab nollRandIsKab"
+    );
+}
+
+/// SH28 deepen: rand-is-Kab dual-bind to clock-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_rand_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_rand_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_rand_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollClockIsKab")
+            && s.contains("nollRandIsKab"),
+        "SH28 Kab noll rand host dual-bind"
+    );
+}
+
+/// SH28 deepen: product net stack is not Kab-only yet — leaf lives off noll_rand.kab.
+#[test]
+fn sh28_noll_net_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_net.kab")).expect("noll_net.kab");
+    assert!(
+        i.contains("pub fn nollNetIsKab") && i.contains("return false"),
+        "SH28 Kab nollNetIsKab"
+    );
+}
+
+/// SH28 deepen: net-is-Kab dual-bind to rand-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_net_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_net_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_net_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRandIsKab")
+            && s.contains("nollNetIsKab"),
+        "SH28 Kab noll net host dual-bind"
+    );
+}
+
+/// SH28 deepen: product DNS stack is not Kab-only yet — leaf lives off noll_net.kab.
+#[test]
+fn sh28_noll_dns_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_dns.kab")).expect("noll_dns.kab");
+    assert!(
+        i.contains("pub fn nollDnsIsKab") && i.contains("return false"),
+        "SH28 Kab nollDnsIsKab"
+    );
+}
+
+/// SH28 deepen: dns-is-Kab dual-bind to net-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_dns_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_dns_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_dns_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNetIsKab")
+            && s.contains("nollDnsIsKab"),
+        "SH28 Kab noll dns host dual-bind"
+    );
+}
+
+/// SH28 deepen: product TLS stack is not Kab-only yet — leaf lives off noll_dns.kab.
+#[test]
+fn sh28_noll_tls_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_tls.kab")).expect("noll_tls.kab");
+    assert!(
+        i.contains("pub fn nollTlsIsKab") && i.contains("return false"),
+        "SH28 Kab nollTlsIsKab"
+    );
+}
+
+/// SH28 deepen: tls-is-Kab dual-bind to dns-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_tls_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_tls_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_tls_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollDnsIsKab")
+            && s.contains("nollTlsIsKab"),
+        "SH28 Kab noll tls host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HTTP stack is not Kab-only yet — leaf lives off noll_tls.kab.
+#[test]
+fn sh28_noll_http_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_http.kab")).expect("noll_http.kab");
+    assert!(
+        i.contains("pub fn nollHttpIsKab") && i.contains("return false"),
+        "SH28 Kab nollHttpIsKab"
+    );
+}
+
+/// SH28 deepen: http-is-Kab dual-bind to tls-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_http_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_http_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_http_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollTlsIsKab")
+            && s.contains("nollHttpIsKab"),
+        "SH28 Kab noll http host dual-bind"
+    );
+}
+
+/// SH28 deepen: product WebSocket stack is not Kab-only yet — leaf lives off noll_http.kab.
+#[test]
+fn sh28_noll_ws_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ws.kab")).expect("noll_ws.kab");
+    assert!(
+        i.contains("pub fn nollWsIsKab") && i.contains("return false"),
+        "SH28 Kab nollWsIsKab"
+    );
+}
+
+/// SH28 deepen: ws-is-Kab dual-bind to http-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ws_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ws_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ws_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHttpIsKab")
+            && s.contains("nollWsIsKab"),
+        "SH28 Kab noll ws host dual-bind"
+    );
+}
+
+/// SH28 deepen: product UDP stack is not Kab-only yet — leaf lives off noll_ws.kab.
+#[test]
+fn sh28_noll_udp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_udp.kab")).expect("noll_udp.kab");
+    assert!(
+        i.contains("pub fn nollUdpIsKab") && i.contains("return false"),
+        "SH28 Kab nollUdpIsKab"
+    );
+}
+
+/// SH28 deepen: udp-is-Kab dual-bind to ws-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_udp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_udp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_udp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollWsIsKab")
+            && s.contains("nollUdpIsKab"),
+        "SH28 Kab noll udp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product QUIC stack is not Kab-only yet — leaf lives off noll_udp.kab.
+#[test]
+fn sh28_noll_quic_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_quic.kab")).expect("noll_quic.kab");
+    assert!(
+        i.contains("pub fn nollQuicIsKab") && i.contains("return false"),
+        "SH28 Kab nollQuicIsKab"
+    );
+}
+
+/// SH28 deepen: quic-is-Kab dual-bind to udp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_quic_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_quic_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_quic_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollUdpIsKab")
+            && s.contains("nollQuicIsKab"),
+        "SH28 Kab noll quic host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ICMP stack is not Kab-only yet — leaf lives off noll_quic.kab.
+#[test]
+fn sh28_noll_icmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_icmp.kab")).expect("noll_icmp.kab");
+    assert!(
+        i.contains("pub fn nollIcmpIsKab") && i.contains("return false"),
+        "SH28 Kab nollIcmpIsKab"
+    );
+}
+
+/// SH28 deepen: icmp-is-Kab dual-bind to quic-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_icmp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_icmp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_icmp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollQuicIsKab")
+            && s.contains("nollIcmpIsKab"),
+        "SH28 Kab noll icmp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SCTP stack is not Kab-only yet — leaf lives off noll_icmp.kab.
+#[test]
+fn sh28_noll_sctp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sctp.kab")).expect("noll_sctp.kab");
+    assert!(
+        i.contains("pub fn nollSctpIsKab") && i.contains("return false"),
+        "SH28 Kab nollSctpIsKab"
+    );
+}
+
+/// SH28 deepen: sctp-is-Kab dual-bind to icmp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sctp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sctp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sctp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollIcmpIsKab")
+            && s.contains("nollSctpIsKab"),
+        "SH28 Kab noll sctp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product gRPC stack is not Kab-only yet — leaf lives off noll_sctp.kab.
+#[test]
+fn sh28_noll_grpc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_grpc.kab")).expect("noll_grpc.kab");
+    assert!(
+        i.contains("pub fn nollGrpcIsKab") && i.contains("return false"),
+        "SH28 Kab nollGrpcIsKab"
+    );
+}
+
+/// SH28 deepen: grpc-is-Kab dual-bind to sctp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_grpc_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_grpc_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_grpc_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSctpIsKab")
+            && s.contains("nollGrpcIsKab"),
+        "SH28 Kab noll grpc host dual-bind"
+    );
+}
+
+/// SH28 deepen: product MQTT stack is not Kab-only yet — leaf lives off noll_grpc.kab.
+#[test]
+fn sh28_noll_mqtt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mqtt.kab")).expect("noll_mqtt.kab");
+    assert!(
+        i.contains("pub fn nollMqttIsKab") && i.contains("return false"),
+        "SH28 Kab nollMqttIsKab"
+    );
+}
+
+/// SH28 deepen: mqtt-is-Kab dual-bind to grpc-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mqtt_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mqtt_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mqtt_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollGrpcIsKab")
+            && s.contains("nollMqttIsKab"),
+        "SH28 Kab noll mqtt host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SMTP stack is not Kab-only yet — leaf lives off noll_mqtt.kab.
+#[test]
+fn sh28_noll_smtp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_smtp.kab")).expect("noll_smtp.kab");
+    assert!(
+        i.contains("pub fn nollSmtpIsKab") && i.contains("return false"),
+        "SH28 Kab nollSmtpIsKab"
+    );
+}
+
+/// SH28 deepen: smtp-is-Kab dual-bind to mqtt-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_smtp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_smtp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_smtp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMqttIsKab")
+            && s.contains("nollSmtpIsKab"),
+        "SH28 Kab noll smtp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product IMAP stack is not Kab-only yet — leaf lives off noll_smtp.kab.
+#[test]
+fn sh28_noll_imap_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_imap.kab")).expect("noll_imap.kab");
+    assert!(
+        i.contains("pub fn nollImapIsKab") && i.contains("return false"),
+        "SH28 Kab nollImapIsKab"
+    );
+}
+
+/// SH28 deepen: imap-is-Kab dual-bind to smtp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_imap_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_imap_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_imap_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSmtpIsKab")
+            && s.contains("nollImapIsKab"),
+        "SH28 Kab noll imap host dual-bind"
+    );
+}
+
+/// SH28 deepen: product POP stack is not Kab-only yet — leaf lives off noll_imap.kab.
+#[test]
+fn sh28_noll_pop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_pop.kab")).expect("noll_pop.kab");
+    assert!(
+        i.contains("pub fn nollPopIsKab") && i.contains("return false"),
+        "SH28 Kab nollPopIsKab"
+    );
+}
+
+/// SH28 deepen: pop-is-Kab dual-bind to imap-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_pop_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_pop_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_pop_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollImapIsKab")
+            && s.contains("nollPopIsKab"),
+        "SH28 Kab noll pop host dual-bind"
+    );
+}
+
+/// SH28 deepen: product FTP stack is not Kab-only yet — leaf lives off noll_pop.kab.
+#[test]
+fn sh28_noll_ftp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ftp.kab")).expect("noll_ftp.kab");
+    assert!(
+        i.contains("pub fn nollFtpIsKab") && i.contains("return false"),
+        "SH28 Kab nollFtpIsKab"
+    );
+}
+
+/// SH28 deepen: ftp-is-Kab dual-bind to pop-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ftp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ftp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ftp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPopIsKab")
+            && s.contains("nollFtpIsKab"),
+        "SH28 Kab noll ftp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SSH stack is not Kab-only yet — leaf lives off noll_ftp.kab.
+#[test]
+fn sh28_noll_ssh_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ssh.kab")).expect("noll_ssh.kab");
+    assert!(
+        i.contains("pub fn nollSshIsKab") && i.contains("return false"),
+        "SH28 Kab nollSshIsKab"
+    );
+}
+
+/// SH28 deepen: ssh-is-Kab dual-bind to ftp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ssh_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ssh_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ssh_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFtpIsKab")
+            && s.contains("nollSshIsKab"),
+        "SH28 Kab noll ssh host dual-bind"
+    );
+}
+
+/// SH28 deepen: product LDAP stack is not Kab-only yet — leaf lives off noll_ssh.kab.
+#[test]
+fn sh28_noll_ldap_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ldap.kab")).expect("noll_ldap.kab");
+    assert!(
+        i.contains("pub fn nollLdapIsKab") && i.contains("return false"),
+        "SH28 Kab nollLdapIsKab"
+    );
+}
+
+/// SH28 deepen: ldap-is-Kab dual-bind to ssh-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ldap_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ldap_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ldap_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSshIsKab")
+            && s.contains("nollLdapIsKab"),
+        "SH28 Kab noll ldap host dual-bind"
+    );
+}
+
+/// SH28 deepen: product NTP stack is not Kab-only yet — leaf lives off noll_ldap.kab.
+#[test]
+fn sh28_noll_ntp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ntp.kab")).expect("noll_ntp.kab");
+    assert!(
+        i.contains("pub fn nollNtpIsKab") && i.contains("return false"),
+        "SH28 Kab nollNtpIsKab"
+    );
+}
+
+/// SH28 deepen: ntp-is-Kab dual-bind to ldap-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ntp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ntp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ntp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLdapIsKab")
+            && s.contains("nollNtpIsKab"),
+        "SH28 Kab noll ntp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SNMP stack is not Kab-only yet — leaf lives off noll_ntp.kab.
+#[test]
+fn sh28_noll_snmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_snmp.kab")).expect("noll_snmp.kab");
+    assert!(
+        i.contains("pub fn nollSnmpIsKab") && i.contains("return false"),
+        "SH28 Kab nollSnmpIsKab"
+    );
+}
+
+/// SH28 deepen: snmp-is-Kab dual-bind to ntp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_snmp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_snmp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_snmp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNtpIsKab")
+            && s.contains("nollSnmpIsKab"),
+        "SH28 Kab noll snmp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product DHCP stack is not Kab-only yet — leaf lives off noll_snmp.kab.
+#[test]
+fn sh28_noll_dhcp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_dhcp.kab")).expect("noll_dhcp.kab");
+    assert!(
+        i.contains("pub fn nollDhcpIsKab") && i.contains("return false"),
+        "SH28 Kab nollDhcpIsKab"
+    );
+}
+
+/// SH28 deepen: dhcp-is-Kab dual-bind to snmp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_dhcp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_dhcp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_dhcp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSnmpIsKab")
+            && s.contains("nollDhcpIsKab"),
+        "SH28 Kab noll dhcp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product TFTP stack is not Kab-only yet — leaf lives off noll_dhcp.kab.
+#[test]
+fn sh28_noll_tftp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_tftp.kab")).expect("noll_tftp.kab");
+    assert!(
+        i.contains("pub fn nollTftpIsKab") && i.contains("return false"),
+        "SH28 Kab nollTftpIsKab"
+    );
+}
+
+/// SH28 deepen: tftp-is-Kab dual-bind to dhcp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_tftp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_tftp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_tftp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollDhcpIsKab")
+            && s.contains("nollTftpIsKab"),
+        "SH28 Kab noll tftp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product RADIUS stack is not Kab-only yet — leaf lives off noll_tftp.kab.
+#[test]
+fn sh28_noll_radius_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_radius.kab")).expect("noll_radius.kab");
+    assert!(
+        i.contains("pub fn nollRadiusIsKab") && i.contains("return false"),
+        "SH28 Kab nollRadiusIsKab"
+    );
+}
+
+/// SH28 deepen: radius-is-Kab dual-bind to tftp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_radius_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_radius_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_radius_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollTftpIsKab")
+            && s.contains("nollRadiusIsKab"),
+        "SH28 Kab noll radius host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Kerberos stack is not Kab-only yet — leaf lives off noll_radius.kab.
+#[test]
+fn sh28_noll_kerberos_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_kerberos.kab")).expect("noll_kerberos.kab");
+    assert!(
+        i.contains("pub fn nollKerberosIsKab") && i.contains("return false"),
+        "SH28 Kab nollKerberosIsKab"
+    );
+}
+
+/// SH28 deepen: kerberos-is-Kab dual-bind to radius-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_kerberos_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_kerberos_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_kerberos_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRadiusIsKab")
+            && s.contains("nollKerberosIsKab"),
+        "SH28 Kab noll kerberos host dual-bind"
+    );
+}
+
+/// SH28 deepen: product OAuth stack is not Kab-only yet — leaf lives off noll_kerberos.kab.
+#[test]
+fn sh28_noll_oauth_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_oauth.kab")).expect("noll_oauth.kab");
+    assert!(
+        i.contains("pub fn nollOauthIsKab") && i.contains("return false"),
+        "SH28 Kab nollOauthIsKab"
+    );
+}
+
+/// SH28 deepen: oauth-is-Kab dual-bind to kerberos-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_oauth_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_oauth_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_oauth_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollKerberosIsKab")
+            && s.contains("nollOauthIsKab"),
+        "SH28 Kab noll oauth host dual-bind"
+    );
+}
+
+/// SH28 deepen: product OIDC stack is not Kab-only yet — leaf lives off noll_oauth.kab.
+#[test]
+fn sh28_noll_oidc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_oidc.kab")).expect("noll_oidc.kab");
+    assert!(
+        i.contains("pub fn nollOidcIsKab") && i.contains("return false"),
+        "SH28 Kab nollOidcIsKab"
+    );
+}
+
+/// SH28 deepen: oidc-is-Kab dual-bind to oauth-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_oidc_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_oidc_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_oidc_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollOauthIsKab")
+            && s.contains("nollOidcIsKab"),
+        "SH28 Kab noll oidc host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SAML stack is not Kab-only yet — leaf lives off noll_oidc.kab.
+#[test]
+fn sh28_noll_saml_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_saml.kab")).expect("noll_saml.kab");
+    assert!(
+        i.contains("pub fn nollSamlIsKab") && i.contains("return false"),
+        "SH28 Kab nollSamlIsKab"
+    );
+}
+
+/// SH28 deepen: saml-is-Kab dual-bind to oidc-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_saml_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_saml_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_saml_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollOidcIsKab")
+            && s.contains("nollSamlIsKab"),
+        "SH28 Kab noll saml host dual-bind"
+    );
+}
+
+/// SH28 deepen: product JWT stack is not Kab-only yet — leaf lives off noll_saml.kab.
+#[test]
+fn sh28_noll_jwt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_jwt.kab")).expect("noll_jwt.kab");
+    assert!(
+        i.contains("pub fn nollJwtIsKab") && i.contains("return false"),
+        "SH28 Kab nollJwtIsKab"
+    );
+}
+
+/// SH28 deepen: jwt-is-Kab dual-bind to saml-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_jwt_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_jwt_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_jwt_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSamlIsKab")
+            && s.contains("nollJwtIsKab"),
+        "SH28 Kab noll jwt host dual-bind"
+    );
+}
+
+/// SH28 deepen: product JWKS stack is not Kab-only yet — leaf lives off noll_jwt.kab.
+#[test]
+fn sh28_noll_jwks_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_jwks.kab")).expect("noll_jwks.kab");
+    assert!(
+        i.contains("pub fn nollJwksIsKab") && i.contains("return false"),
+        "SH28 Kab nollJwksIsKab"
+    );
+}
+
+/// SH28 deepen: jwks-is-Kab dual-bind to jwt-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_jwks_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_jwks_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_jwks_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollJwtIsKab")
+            && s.contains("nollJwksIsKab"),
+        "SH28 Kab noll jwks host dual-bind"
+    );
+}
+
+/// SH28 deepen: product WebAuthn stack is not Kab-only yet — leaf lives off noll_jwks.kab.
+#[test]
+fn sh28_noll_webauthn_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_webauthn.kab")).expect("noll_webauthn.kab");
+    assert!(
+        i.contains("pub fn nollWebauthnIsKab") && i.contains("return false"),
+        "SH28 Kab nollWebauthnIsKab"
+    );
+}
+
+/// SH28 deepen: webauthn-is-Kab dual-bind to jwks-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_webauthn_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_webauthn_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_webauthn_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollJwksIsKab")
+            && s.contains("nollWebauthnIsKab"),
+        "SH28 Kab noll webauthn host dual-bind"
+    );
+}
+
+/// SH28 deepen: product TOTP stack is not Kab-only yet — leaf lives off noll_webauthn.kab.
+#[test]
+fn sh28_noll_totp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_totp.kab")).expect("noll_totp.kab");
+    assert!(
+        i.contains("pub fn nollTotpIsKab") && i.contains("return false"),
+        "SH28 Kab nollTotpIsKab"
+    );
+}
+
+/// SH28 deepen: totp-is-Kab dual-bind to webauthn-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_totp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_totp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_totp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollWebauthnIsKab")
+            && s.contains("nollTotpIsKab"),
+        "SH28 Kab noll totp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HOTP stack is not Kab-only yet — leaf lives off noll_totp.kab.
+#[test]
+fn sh28_noll_hotp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hotp.kab")).expect("noll_hotp.kab");
+    assert!(
+        i.contains("pub fn nollHotpIsKab") && i.contains("return false"),
+        "SH28 Kab nollHotpIsKab"
+    );
+}
+
+/// SH28 deepen: hotp-is-Kab dual-bind to totp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hotp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hotp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hotp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollTotpIsKab")
+            && s.contains("nollHotpIsKab"),
+        "SH28 Kab noll hotp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Argon2 stack is not Kab-only yet — leaf lives off noll_hotp.kab.
+#[test]
+fn sh28_noll_argon_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_argon.kab")).expect("noll_argon.kab");
+    assert!(
+        i.contains("pub fn nollArgonIsKab") && i.contains("return false"),
+        "SH28 Kab nollArgonIsKab"
+    );
+}
+
+/// SH28 deepen: argon-is-Kab dual-bind to hotp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_argon_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_argon_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_argon_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHotpIsKab")
+            && s.contains("nollArgonIsKab"),
+        "SH28 Kab noll argon host dual-bind"
+    );
+}
+
+/// SH28 deepen: product scrypt stack is not Kab-only yet — leaf lives off noll_argon.kab.
+#[test]
+fn sh28_noll_scrypt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_scrypt.kab")).expect("noll_scrypt.kab");
+    assert!(
+        i.contains("pub fn nollScryptIsKab") && i.contains("return false"),
+        "SH28 Kab nollScryptIsKab"
+    );
+}
+
+/// SH28 deepen: scrypt-is-Kab dual-bind to argon-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_scrypt_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_scrypt_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_scrypt_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollArgonIsKab")
+            && s.contains("nollScryptIsKab"),
+        "SH28 Kab noll scrypt host dual-bind"
+    );
+}
+
+/// SH28 deepen: product bcrypt stack is not Kab-only yet — leaf lives off noll_scrypt.kab.
+#[test]
+fn sh28_noll_bcrypt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_bcrypt.kab")).expect("noll_bcrypt.kab");
+    assert!(
+        i.contains("pub fn nollBcryptIsKab") && i.contains("return false"),
+        "SH28 Kab nollBcryptIsKab"
+    );
+}
+
+/// SH28 deepen: bcrypt-is-Kab dual-bind to scrypt-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_bcrypt_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_bcrypt_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_bcrypt_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollScryptIsKab")
+            && s.contains("nollBcryptIsKab"),
+        "SH28 Kab noll bcrypt host dual-bind"
+    );
+}
+
+/// SH28 deepen: product PBKDF stack is not Kab-only yet — leaf lives off noll_bcrypt.kab.
+#[test]
+fn sh28_noll_pbkdf_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_pbkdf.kab")).expect("noll_pbkdf.kab");
+    assert!(
+        i.contains("pub fn nollPbkdfIsKab") && i.contains("return false"),
+        "SH28 Kab nollPbkdfIsKab"
+    );
+}
+
+/// SH28 deepen: pbkdf-is-Kab dual-bind to bcrypt-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_pbkdf_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_pbkdf_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_pbkdf_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollBcryptIsKab")
+            && s.contains("nollPbkdfIsKab"),
+        "SH28 Kab noll pbkdf host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HKDF stack is not Kab-only yet — leaf lives off noll_pbkdf.kab.
+#[test]
+fn sh28_noll_hkdf_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hkdf.kab")).expect("noll_hkdf.kab");
+    assert!(
+        i.contains("pub fn nollHkdfIsKab") && i.contains("return false"),
+        "SH28 Kab nollHkdfIsKab"
+    );
+}
+
+/// SH28 deepen: hkdf-is-Kab dual-bind to pbkdf-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hkdf_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hkdf_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hkdf_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPbkdfIsKab")
+            && s.contains("nollHkdfIsKab"),
+        "SH28 Kab noll hkdf host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HMAC stack is not Kab-only yet — leaf lives off noll_hkdf.kab.
+#[test]
+fn sh28_noll_hmac_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hmac.kab")).expect("noll_hmac.kab");
+    assert!(
+        i.contains("pub fn nollHmacIsKab") && i.contains("return false"),
+        "SH28 Kab nollHmacIsKab"
+    );
+}
+
+/// SH28 deepen: hmac-is-Kab dual-bind to hkdf-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hmac_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hmac_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hmac_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHkdfIsKab")
+            && s.contains("nollHmacIsKab"),
+        "SH28 Kab noll hmac host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SHA stack is not Kab-only yet — leaf lives off noll_hmac.kab.
+#[test]
+fn sh28_noll_sha_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sha.kab")).expect("noll_sha.kab");
+    assert!(
+        i.contains("pub fn nollShaIsKab") && i.contains("return false"),
+        "SH28 Kab nollShaIsKab"
+    );
+}
+
+/// SH28 deepen: sha-is-Kab dual-bind to hmac-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sha_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sha_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sha_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHmacIsKab")
+            && s.contains("nollShaIsKab"),
+        "SH28 Kab noll sha host dual-bind"
+    );
+}
+
+/// SH28 deepen: product AES stack is not Kab-only yet — leaf lives off noll_sha.kab.
+#[test]
+fn sh28_noll_aes_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_aes.kab")).expect("noll_aes.kab");
+    assert!(
+        i.contains("pub fn nollAesIsKab") && i.contains("return false"),
+        "SH28 Kab nollAesIsKab"
+    );
+}
+
+/// SH28 deepen: aes-is-Kab dual-bind to sha-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_aes_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_aes_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_aes_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollShaIsKab")
+            && s.contains("nollAesIsKab"),
+        "SH28 Kab noll aes host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ChaCha stack is not Kab-only yet — leaf lives off noll_aes.kab.
+#[test]
+fn sh28_noll_chacha_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_chacha.kab")).expect("noll_chacha.kab");
+    assert!(
+        i.contains("pub fn nollChachaIsKab") && i.contains("return false"),
+        "SH28 Kab nollChachaIsKab"
+    );
+}
+
+/// SH28 deepen: chacha-is-Kab dual-bind to aes-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_chacha_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_chacha_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_chacha_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollAesIsKab")
+            && s.contains("nollChachaIsKab"),
+        "SH28 Kab noll chacha host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Poly1305 stack is not Kab-only yet — leaf lives off noll_chacha.kab.
+#[test]
+fn sh28_noll_poly_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_poly.kab")).expect("noll_poly.kab");
+    assert!(
+        i.contains("pub fn nollPolyIsKab") && i.contains("return false"),
+        "SH28 Kab nollPolyIsKab"
+    );
+}
+
+/// SH28 deepen: poly-is-Kab dual-bind to chacha-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_poly_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_poly_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_poly_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollChachaIsKab")
+            && s.contains("nollPolyIsKab"),
+        "SH28 Kab noll poly host dual-bind"
+    );
+}
+
+/// SH28 deepen: product X25519 stack is not Kab-only yet — leaf lives off noll_poly.kab.
+#[test]
+fn sh28_noll_x25519_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_x25519.kab")).expect("noll_x25519.kab");
+    assert!(
+        i.contains("pub fn nollX25519IsKab") && i.contains("return false"),
+        "SH28 Kab nollX25519IsKab"
+    );
+}
+
+/// SH28 deepen: x25519-is-Kab dual-bind to poly-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_x25519_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_x25519_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_x25519_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPolyIsKab")
+            && s.contains("nollX25519IsKab"),
+        "SH28 Kab noll x25519 host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Ed25519 stack is not Kab-only yet — leaf lives off noll_x25519.kab.
+#[test]
+fn sh28_noll_ed25519_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ed25519.kab")).expect("noll_ed25519.kab");
+    assert!(
+        i.contains("pub fn nollEd25519IsKab") && i.contains("return false"),
+        "SH28 Kab nollEd25519IsKab"
+    );
+}
+
+/// SH28 deepen: ed25519-is-Kab dual-bind to x25519-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ed25519_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ed25519_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ed25519_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollX25519IsKab")
+            && s.contains("nollEd25519IsKab"),
+        "SH28 Kab noll ed25519 host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Kyber stack is not Kab-only yet — leaf lives off noll_ed25519.kab.
+#[test]
+fn sh28_noll_kyber_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_kyber.kab")).expect("noll_kyber.kab");
+    assert!(
+        i.contains("pub fn nollKyberIsKab") && i.contains("return false"),
+        "SH28 Kab nollKyberIsKab"
+    );
+}
+
+/// SH28 deepen: kyber-is-Kab dual-bind to ed25519-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_kyber_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_kyber_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_kyber_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollEd25519IsKab")
+            && s.contains("nollKyberIsKab"),
+        "SH28 Kab noll kyber host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Dilithium stack is not Kab-only yet — leaf lives off noll_kyber.kab.
+#[test]
+fn sh28_noll_dilithium_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_dilithium.kab")).expect("noll_dilithium.kab");
+    assert!(
+        i.contains("pub fn nollDilithiumIsKab") && i.contains("return false"),
+        "SH28 Kab nollDilithiumIsKab"
+    );
+}
+
+/// SH28 deepen: dilithium-is-Kab dual-bind to kyber-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_dilithium_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_dilithium_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_dilithium_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollKyberIsKab")
+            && s.contains("nollDilithiumIsKab"),
+        "SH28 Kab noll dilithium host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SPHINCS+ stack is not Kab-only yet — leaf lives off noll_dilithium.kab.
+#[test]
+fn sh28_noll_sphincs_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sphincs.kab")).expect("noll_sphincs.kab");
+    assert!(
+        i.contains("pub fn nollSphincsIsKab") && i.contains("return false"),
+        "SH28 Kab nollSphincsIsKab"
+    );
+}
+
+/// SH28 deepen: sphincs-is-Kab dual-bind to dilithium-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sphincs_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sphincs_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sphincs_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollDilithiumIsKab")
+            && s.contains("nollSphincsIsKab"),
+        "SH28 Kab noll sphincs host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Falcon stack is not Kab-only yet — leaf lives off noll_sphincs.kab.
+#[test]
+fn sh28_noll_falcon_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_falcon.kab")).expect("noll_falcon.kab");
+    assert!(
+        i.contains("pub fn nollFalconIsKab") && i.contains("return false"),
+        "SH28 Kab nollFalconIsKab"
+    );
+}
+
+/// SH28 deepen: falcon-is-Kab dual-bind to sphincs-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_falcon_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_falcon_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_falcon_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSphincsIsKab")
+            && s.contains("nollFalconIsKab"),
+        "SH28 Kab noll falcon host dual-bind"
+    );
+}
+
+/// SH28 deepen: product NTRU stack is not Kab-only yet — leaf lives off noll_falcon.kab.
+#[test]
+fn sh28_noll_ntru_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ntru.kab")).expect("noll_ntru.kab");
+    assert!(
+        i.contains("pub fn nollNtruIsKab") && i.contains("return false"),
+        "SH28 Kab nollNtruIsKab"
+    );
+}
+
+/// SH28 deepen: ntru-is-Kab dual-bind to falcon-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ntru_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ntru_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ntru_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFalconIsKab")
+            && s.contains("nollNtruIsKab"),
+        "SH28 Kab noll ntru host dual-bind"
+    );
+}
+
+/// SH28 deepen: product McEliece stack is not Kab-only yet — leaf lives off noll_ntru.kab.
+#[test]
+fn sh28_noll_mceliece_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mceliece.kab")).expect("noll_mceliece.kab");
+    assert!(
+        i.contains("pub fn nollMcelieceIsKab") && i.contains("return false"),
+        "SH28 Kab nollMcelieceIsKab"
+    );
+}
+
+/// SH28 deepen: mceliece-is-Kab dual-bind to ntru-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mceliece_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mceliece_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mceliece_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNtruIsKab")
+            && s.contains("nollMcelieceIsKab"),
+        "SH28 Kab noll mceliece host dual-bind"
+    );
+}
+
+/// SH28 deepen: product BIKE stack is not Kab-only yet — leaf lives off noll_mceliece.kab.
+#[test]
+fn sh28_noll_bike_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_bike.kab")).expect("noll_bike.kab");
+    assert!(
+        i.contains("pub fn nollBikeIsKab") && i.contains("return false"),
+        "SH28 Kab nollBikeIsKab"
+    );
+}
+
+/// SH28 deepen: bike-is-Kab dual-bind to mceliece-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_bike_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_bike_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_bike_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMcelieceIsKab")
+            && s.contains("nollBikeIsKab"),
+        "SH28 Kab noll bike host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HQC stack is not Kab-only yet — leaf lives off noll_bike.kab.
+#[test]
+fn sh28_noll_hqc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hqc.kab")).expect("noll_hqc.kab");
+    assert!(
+        i.contains("pub fn nollHqcIsKab") && i.contains("return false"),
+        "SH28 Kab nollHqcIsKab"
+    );
+}
+
+/// SH28 deepen: hqc-is-Kab dual-bind to bike-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hqc_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hqc_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hqc_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollBikeIsKab")
+            && s.contains("nollHqcIsKab"),
+        "SH28 Kab noll hqc host dual-bind"
+    );
+}
+
+/// SH28 deepen: product FrodoKEM stack is not Kab-only yet — leaf lives off noll_hqc.kab.
+#[test]
+fn sh28_noll_frodo_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_frodo.kab")).expect("noll_frodo.kab");
+    assert!(
+        i.contains("pub fn nollFrodoIsKab") && i.contains("return false"),
+        "SH28 Kab nollFrodoIsKab"
+    );
+}
+
+/// SH28 deepen: frodo-is-Kab dual-bind to hqc-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_frodo_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_frodo_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_frodo_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHqcIsKab")
+            && s.contains("nollFrodoIsKab"),
+        "SH28 Kab noll frodo host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SIKE stack is not Kab-only yet — leaf lives off noll_frodo.kab.
+#[test]
+fn sh28_noll_sike_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sike.kab")).expect("noll_sike.kab");
+    assert!(
+        i.contains("pub fn nollSikeIsKab") && i.contains("return false"),
+        "SH28 Kab nollSikeIsKab"
+    );
+}
+
+/// SH28 deepen: sike-is-Kab dual-bind to frodo-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sike_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sike_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sike_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFrodoIsKab")
+            && s.contains("nollSikeIsKab"),
+        "SH28 Kab noll sike host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Rainbow stack is not Kab-only yet — leaf lives off noll_sike.kab.
+#[test]
+fn sh28_noll_rainbow_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_rainbow.kab")).expect("noll_rainbow.kab");
+    assert!(
+        i.contains("pub fn nollRainbowIsKab") && i.contains("return false"),
+        "SH28 Kab nollRainbowIsKab"
+    );
+}
+
+/// SH28 deepen: rainbow-is-Kab dual-bind to sike-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_rainbow_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_rainbow_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_rainbow_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSikeIsKab")
+            && s.contains("nollRainbowIsKab"),
+        "SH28 Kab noll rainbow host dual-bind"
+    );
+}
+
+/// SH28 deepen: product GeMSS stack is not Kab-only yet — leaf lives off noll_rainbow.kab.
+#[test]
+fn sh28_noll_gemss_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_gemss.kab")).expect("noll_gemss.kab");
+    assert!(
+        i.contains("pub fn nollGemssIsKab") && i.contains("return false"),
+        "SH28 Kab nollGemssIsKab"
+    );
+}
+
+/// SH28 deepen: gemss-is-Kab dual-bind to rainbow-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_gemss_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_gemss_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_gemss_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRainbowIsKab")
+            && s.contains("nollGemssIsKab"),
+        "SH28 Kab noll gemss host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Picnic stack is not Kab-only yet — leaf lives off noll_gemss.kab.
+#[test]
+fn sh28_noll_picnic_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_picnic.kab")).expect("noll_picnic.kab");
+    assert!(
+        i.contains("pub fn nollPicnicIsKab") && i.contains("return false"),
+        "SH28 Kab nollPicnicIsKab"
+    );
+}
+
+/// SH28 deepen: picnic-is-Kab dual-bind to gemss-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_picnic_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_picnic_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_picnic_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollGemssIsKab")
+            && s.contains("nollPicnicIsKab"),
+        "SH28 Kab noll picnic host dual-bind"
+    );
+}
+
+/// SH28 deepen: product XMSS stack is not Kab-only yet — leaf lives off noll_picnic.kab.
+#[test]
+fn sh28_noll_xmss_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_xmss.kab")).expect("noll_xmss.kab");
+    assert!(
+        i.contains("pub fn nollXmssIsKab") && i.contains("return false"),
+        "SH28 Kab nollXmssIsKab"
+    );
+}
+
+/// SH28 deepen: xmss-is-Kab dual-bind to picnic-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_xmss_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_xmss_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_xmss_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPicnicIsKab")
+            && s.contains("nollXmssIsKab"),
+        "SH28 Kab noll xmss host dual-bind"
+    );
+}
+
+/// SH28 deepen: product LMS stack is not Kab-only yet — leaf lives off noll_xmss.kab.
+#[test]
+fn sh28_noll_lms_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_lms.kab")).expect("noll_lms.kab");
+    assert!(
+        i.contains("pub fn nollLmsIsKab") && i.contains("return false"),
+        "SH28 Kab nollLmsIsKab"
+    );
+}
+
+/// SH28 deepen: lms-is-Kab dual-bind to xmss-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_lms_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_lms_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_lms_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollXmssIsKab")
+            && s.contains("nollLmsIsKab"),
+        "SH28 Kab noll lms host dual-bind"
+    );
+}
+
+/// SH28 deepen: product WOTS stack is not Kab-only yet — leaf lives off noll_lms.kab.
+#[test]
+fn sh28_noll_wots_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_wots.kab")).expect("noll_wots.kab");
+    assert!(
+        i.contains("pub fn nollWotsIsKab") && i.contains("return false"),
+        "SH28 Kab nollWotsIsKab"
+    );
+}
+
+/// SH28 deepen: wots-is-Kab dual-bind to lms-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_wots_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_wots_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_wots_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollLmsIsKab")
+            && s.contains("nollWotsIsKab"),
+        "SH28 Kab noll wots host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Merkle stack is not Kab-only yet — leaf lives off noll_wots.kab.
+#[test]
+fn sh28_noll_merkle_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_merkle.kab")).expect("noll_merkle.kab");
+    assert!(
+        i.contains("pub fn nollMerkleIsKab") && i.contains("return false"),
+        "SH28 Kab nollMerkleIsKab"
+    );
+}
+
+/// SH28 deepen: merkle-is-Kab dual-bind to wots-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_merkle_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_merkle_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_merkle_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollWotsIsKab")
+            && s.contains("nollMerkleIsKab"),
+        "SH28 Kab noll merkle host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SLH-DSA stack is not Kab-only yet — leaf lives off noll_merkle.kab.
+#[test]
+fn sh28_noll_slhdsa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_slhdsa.kab")).expect("noll_slhdsa.kab");
+    assert!(
+        i.contains("pub fn nollSlhdsaIsKab") && i.contains("return false"),
+        "SH28 Kab nollSlhdsaIsKab"
+    );
+}
+
+/// SH28 deepen: slhdsa-is-Kab dual-bind to merkle-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_slhdsa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_slhdsa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_slhdsa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMerkleIsKab")
+            && s.contains("nollSlhdsaIsKab"),
+        "SH28 Kab noll slhdsa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ML-KEM stack is not Kab-only yet — leaf lives off noll_slhdsa.kab.
+#[test]
+fn sh28_noll_mlkem_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mlkem.kab")).expect("noll_mlkem.kab");
+    assert!(
+        i.contains("pub fn nollMlkemIsKab") && i.contains("return false"),
+        "SH28 Kab nollMlkemIsKab"
+    );
+}
+
+/// SH28 deepen: mlkem-is-Kab dual-bind to slhdsa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mlkem_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mlkem_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mlkem_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSlhdsaIsKab")
+            && s.contains("nollMlkemIsKab"),
+        "SH28 Kab noll mlkem host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ML-DSA stack is not Kab-only yet — leaf lives off noll_mlkem.kab.
+#[test]
+fn sh28_noll_mldsa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mldsa.kab")).expect("noll_mldsa.kab");
+    assert!(
+        i.contains("pub fn nollMldsaIsKab") && i.contains("return false"),
+        "SH28 Kab nollMldsaIsKab"
+    );
+}
+
+/// SH28 deepen: mldsa-is-Kab dual-bind to mlkem-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mldsa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mldsa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mldsa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMlkemIsKab")
+            && s.contains("nollMldsaIsKab"),
+        "SH28 Kab noll mldsa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product FN-DSA stack is not Kab-only yet — leaf lives off noll_mldsa.kab.
+#[test]
+fn sh28_noll_fndsa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_fndsa.kab")).expect("noll_fndsa.kab");
+    assert!(
+        i.contains("pub fn nollFndsaIsKab") && i.contains("return false"),
+        "SH28 Kab nollFndsaIsKab"
+    );
+}
+
+/// SH28 deepen: fndsa-is-Kab dual-bind to mldsa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_fndsa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_fndsa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_fndsa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMldsaIsKab")
+            && s.contains("nollFndsaIsKab"),
+        "SH28 Kab noll fndsa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product hybrid PQC stack is not Kab-only yet — leaf lives off noll_fndsa.kab.
+#[test]
+fn sh28_noll_hybrid_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hybrid.kab")).expect("noll_hybrid.kab");
+    assert!(
+        i.contains("pub fn nollHybridIsKab") && i.contains("return false"),
+        "SH28 Kab nollHybridIsKab"
+    );
+}
+
+/// SH28 deepen: hybrid-is-Kab dual-bind to fndsa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hybrid_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hybrid_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hybrid_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFndsaIsKab")
+            && s.contains("nollHybridIsKab"),
+        "SH28 Kab noll hybrid host dual-bind"
+    );
+}
+
+/// SH28 deepen: product X-Wing stack is not Kab-only yet — leaf lives off noll_hybrid.kab.
+#[test]
+fn sh28_noll_xwing_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_xwing.kab")).expect("noll_xwing.kab");
+    assert!(
+        i.contains("pub fn nollXwingIsKab") && i.contains("return false"),
+        "SH28 Kab nollXwingIsKab"
+    );
+}
+
+/// SH28 deepen: xwing-is-Kab dual-bind to hybrid-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_xwing_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_xwing_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_xwing_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHybridIsKab")
+            && s.contains("nollXwingIsKab"),
+        "SH28 Kab noll xwing host dual-bind"
+    );
+}
+
+/// SH28 deepen: product HPKE stack is not Kab-only yet — leaf lives off noll_xwing.kab.
+#[test]
+fn sh28_noll_hpke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_hpke.kab")).expect("noll_hpke.kab");
+    assert!(
+        i.contains("pub fn nollHpkeIsKab") && i.contains("return false"),
+        "SH28 Kab nollHpkeIsKab"
+    );
+}
+
+/// SH28 deepen: hpke-is-Kab dual-bind to xwing-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_hpke_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_hpke_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_hpke_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollXwingIsKab")
+            && s.contains("nollHpkeIsKab"),
+        "SH28 Kab noll hpke host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Noise stack is not Kab-only yet — leaf lives off noll_hpke.kab.
+#[test]
+fn sh28_noll_noise_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_noise.kab")).expect("noll_noise.kab");
+    assert!(
+        i.contains("pub fn nollNoiseIsKab") && i.contains("return false"),
+        "SH28 Kab nollNoiseIsKab"
+    );
+}
+
+/// SH28 deepen: noise-is-Kab dual-bind to hpke-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_noise_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_noise_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_noise_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollHpkeIsKab")
+            && s.contains("nollNoiseIsKab"),
+        "SH28 Kab noll noise host dual-bind"
+    );
+}
+
+/// SH28 deepen: product age stack is not Kab-only yet — leaf lives off noll_noise.kab.
+#[test]
+fn sh28_noll_age_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_age.kab")).expect("noll_age.kab");
+    assert!(
+        i.contains("pub fn nollAgeIsKab") && i.contains("return false"),
+        "SH28 Kab nollAgeIsKab"
+    );
+}
+
+/// SH28 deepen: age-is-Kab dual-bind to noise-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_age_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_age_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_age_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNoiseIsKab")
+            && s.contains("nollAgeIsKab"),
+        "SH28 Kab noll age host dual-bind"
+    );
+}
+
+/// SH28 deepen: product PGP stack is not Kab-only yet — leaf lives off noll_age.kab.
+#[test]
+fn sh28_noll_pgp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_pgp.kab")).expect("noll_pgp.kab");
+    assert!(
+        i.contains("pub fn nollPgpIsKab") && i.contains("return false"),
+        "SH28 Kab nollPgpIsKab"
+    );
+}
+
+/// SH28 deepen: pgp-is-Kab dual-bind to age-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_pgp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_pgp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_pgp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollAgeIsKab")
+            && s.contains("nollPgpIsKab"),
+        "SH28 Kab noll pgp host dual-bind"
+    );
+}
+
+/// SH28 deepen: product minisign stack is not Kab-only yet — leaf lives off noll_pgp.kab.
+#[test]
+fn sh28_noll_minisign_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_minisign.kab")).expect("noll_minisign.kab");
+    assert!(
+        i.contains("pub fn nollMinisignIsKab") && i.contains("return false"),
+        "SH28 Kab nollMinisignIsKab"
+    );
+}
+
+/// SH28 deepen: minisign-is-Kab dual-bind to pgp-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_minisign_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_minisign_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_minisign_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollPgpIsKab")
+            && s.contains("nollMinisignIsKab"),
+        "SH28 Kab noll minisign host dual-bind"
+    );
+}
+
+/// SH28 deepen: product signify stack is not Kab-only yet — leaf lives off noll_minisign.kab.
+#[test]
+fn sh28_noll_signify_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_signify.kab")).expect("noll_signify.kab");
+    assert!(
+        i.contains("pub fn nollSignifyIsKab") && i.contains("return false"),
+        "SH28 Kab nollSignifyIsKab"
+    );
+}
+
+/// SH28 deepen: signify-is-Kab dual-bind to minisign-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_signify_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_signify_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_signify_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMinisignIsKab")
+            && s.contains("nollSignifyIsKab"),
+        "SH28 Kab noll signify host dual-bind"
+    );
+}
+
+/// SH28 deepen: product cosign stack is not Kab-only yet — leaf lives off noll_signify.kab.
+#[test]
+fn sh28_noll_cosign_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cosign.kab")).expect("noll_cosign.kab");
+    assert!(
+        i.contains("pub fn nollCosignIsKab") && i.contains("return false"),
+        "SH28 Kab nollCosignIsKab"
+    );
+}
+
+/// SH28 deepen: cosign-is-Kab dual-bind to signify-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cosign_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cosign_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cosign_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSignifyIsKab")
+            && s.contains("nollCosignIsKab"),
+        "SH28 Kab noll cosign host dual-bind"
+    );
+}
+
+/// SH28 deepen: product notary stack is not Kab-only yet — leaf lives off noll_cosign.kab.
+#[test]
+fn sh28_noll_notary_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_notary.kab")).expect("noll_notary.kab");
+    assert!(
+        i.contains("pub fn nollNotaryIsKab") && i.contains("return false"),
+        "SH28 Kab nollNotaryIsKab"
+    );
+}
+
+/// SH28 deepen: notary-is-Kab dual-bind to cosign-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_notary_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_notary_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_notary_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCosignIsKab")
+            && s.contains("nollNotaryIsKab"),
+        "SH28 Kab noll notary host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Rekor stack is not Kab-only yet — leaf lives off noll_notary.kab.
+#[test]
+fn sh28_noll_rekor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_rekor.kab")).expect("noll_rekor.kab");
+    assert!(
+        i.contains("pub fn nollRekorIsKab") && i.contains("return false"),
+        "SH28 Kab nollRekorIsKab"
+    );
+}
+
+/// SH28 deepen: rekor-is-Kab dual-bind to notary-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_rekor_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_rekor_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_rekor_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNotaryIsKab")
+            && s.contains("nollRekorIsKab"),
+        "SH28 Kab noll rekor host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Fulcio stack is not Kab-only yet — leaf lives off noll_rekor.kab.
+#[test]
+fn sh28_noll_fulcio_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_fulcio.kab")).expect("noll_fulcio.kab");
+    assert!(
+        i.contains("pub fn nollFulcioIsKab") && i.contains("return false"),
+        "SH28 Kab nollFulcioIsKab"
+    );
+}
+
+/// SH28 deepen: fulcio-is-Kab dual-bind to rekor-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_fulcio_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_fulcio_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_fulcio_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollRekorIsKab")
+            && s.contains("nollFulcioIsKab"),
+        "SH28 Kab noll fulcio host dual-bind"
+    );
+}
+
+/// SH28 deepen: product Sigstore stack is not Kab-only yet — leaf lives off noll_fulcio.kab.
+#[test]
+fn sh28_noll_sigstore_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sigstore.kab")).expect("noll_sigstore.kab");
+    assert!(
+        i.contains("pub fn nollSigstoreIsKab") && i.contains("return false"),
+        "SH28 Kab nollSigstoreIsKab"
+    );
+}
+
+/// SH28 deepen: sigstore-is-Kab dual-bind to fulcio-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sigstore_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sigstore_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sigstore_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollFulcioIsKab")
+            && s.contains("nollSigstoreIsKab"),
+        "SH28 Kab noll sigstore host dual-bind"
+    );
+}
+
+/// SH28 deepen: product in-toto stack is not Kab-only yet — leaf lives off noll_sigstore.kab.
+#[test]
+fn sh28_noll_intoto_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_intoto.kab")).expect("noll_intoto.kab");
+    assert!(
+        i.contains("pub fn nollIntotoIsKab") && i.contains("return false"),
+        "SH28 Kab nollIntotoIsKab"
+    );
+}
+
+/// SH28 deepen: intoto-is-Kab dual-bind to sigstore-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_intoto_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_intoto_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_intoto_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSigstoreIsKab")
+            && s.contains("nollIntotoIsKab"),
+        "SH28 Kab noll intoto host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SLSA stack is not Kab-only yet — leaf lives off noll_intoto.kab.
+#[test]
+fn sh28_noll_slsa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_slsa.kab")).expect("noll_slsa.kab");
+    assert!(
+        i.contains("pub fn nollSlsaIsKab") && i.contains("return false"),
+        "SH28 Kab nollSlsaIsKab"
+    );
+}
+
+/// SH28 deepen: slsa-is-Kab dual-bind to intoto-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_slsa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_slsa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_slsa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollIntotoIsKab")
+            && s.contains("nollSlsaIsKab"),
+        "SH28 Kab noll slsa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SPDX stack is not Kab-only yet — leaf lives off noll_slsa.kab.
+#[test]
+fn sh28_noll_spdx_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_spdx.kab")).expect("noll_spdx.kab");
+    assert!(
+        i.contains("pub fn nollSpdxIsKab") && i.contains("return false"),
+        "SH28 Kab nollSpdxIsKab"
+    );
+}
+
+/// SH28 deepen: spdx-is-Kab dual-bind to slsa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_spdx_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_spdx_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_spdx_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSlsaIsKab")
+            && s.contains("nollSpdxIsKab"),
+        "SH28 Kab noll spdx host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CycloneDX stack is not Kab-only yet — leaf lives off noll_spdx.kab.
+#[test]
+fn sh28_noll_cyclonedx_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cyclonedx.kab")).expect("noll_cyclonedx.kab");
+    assert!(
+        i.contains("pub fn nollCyclonedxIsKab") && i.contains("return false"),
+        "SH28 Kab nollCyclonedxIsKab"
+    );
+}
+
+/// SH28 deepen: cyclonedx-is-Kab dual-bind to spdx-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cyclonedx_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cyclonedx_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cyclonedx_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSpdxIsKab")
+            && s.contains("nollCyclonedxIsKab"),
+        "SH28 Kab noll cyclonedx host dual-bind"
+    );
+}
+
+/// SH28 deepen: product SBOM stack is not Kab-only yet — leaf lives off noll_cyclonedx.kab.
+#[test]
+fn sh28_noll_sbom_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_sbom.kab")).expect("noll_sbom.kab");
+    assert!(
+        i.contains("pub fn nollSbomIsKab") && i.contains("return false"),
+        "SH28 Kab nollSbomIsKab"
+    );
+}
+
+/// SH28 deepen: sbom-is-Kab dual-bind to cyclonedx-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_sbom_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_sbom_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_sbom_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCyclonedxIsKab")
+            && s.contains("nollSbomIsKab"),
+        "SH28 Kab noll sbom host dual-bind"
+    );
+}
+
+/// SH28 deepen: product VEX stack is not Kab-only yet — leaf lives off noll_sbom.kab.
+#[test]
+fn sh28_noll_vex_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_vex.kab")).expect("noll_vex.kab");
+    assert!(
+        i.contains("pub fn nollVexIsKab") && i.contains("return false"),
+        "SH28 Kab nollVexIsKab"
+    );
+}
+
+/// SH28 deepen: vex-is-Kab dual-bind to sbom-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_vex_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_vex_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_vex_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollSbomIsKab")
+            && s.contains("nollVexIsKab"),
+        "SH28 Kab noll vex host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CVE stack is not Kab-only yet — leaf lives off noll_vex.kab.
+#[test]
+fn sh28_noll_cve_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cve.kab")).expect("noll_cve.kab");
+    assert!(
+        i.contains("pub fn nollCveIsKab") && i.contains("return false"),
+        "SH28 Kab nollCveIsKab"
+    );
+}
+
+/// SH28 deepen: cve-is-Kab dual-bind to vex-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cve_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cve_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cve_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollVexIsKab")
+            && s.contains("nollCveIsKab"),
+        "SH28 Kab noll cve host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CWE stack is not Kab-only yet — leaf lives off noll_cve.kab.
+#[test]
+fn sh28_noll_cwe_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cwe.kab")).expect("noll_cwe.kab");
+    assert!(
+        i.contains("pub fn nollCweIsKab") && i.contains("return false"),
+        "SH28 Kab nollCweIsKab"
+    );
+}
+
+/// SH28 deepen: cwe-is-Kab dual-bind to cve-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cwe_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cwe_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cwe_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCveIsKab")
+            && s.contains("nollCweIsKab"),
+        "SH28 Kab noll cwe host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CPE stack is not Kab-only yet — leaf lives off noll_cwe.kab.
+#[test]
+fn sh28_noll_cpe_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cpe.kab")).expect("noll_cpe.kab");
+    assert!(
+        i.contains("pub fn nollCpeIsKab") && i.contains("return false"),
+        "SH28 Kab nollCpeIsKab"
+    );
+}
+
+/// SH28 deepen: cpe-is-Kab dual-bind to cwe-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cpe_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cpe_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cpe_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCweIsKab")
+            && s.contains("nollCpeIsKab"),
+        "SH28 Kab noll cpe host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CVSS stack is not Kab-only yet — leaf lives off noll_cpe.kab.
+#[test]
+fn sh28_noll_cvss_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cvss.kab")).expect("noll_cvss.kab");
+    assert!(
+        i.contains("pub fn nollCvssIsKab") && i.contains("return false"),
+        "SH28 Kab nollCvssIsKab"
+    );
+}
+
+/// SH28 deepen: cvss-is-Kab dual-bind to cpe-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cvss_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cvss_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cvss_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCpeIsKab")
+            && s.contains("nollCvssIsKab"),
+        "SH28 Kab noll cvss host dual-bind"
+    );
+}
+
+/// SH28 deepen: product OSV stack is not Kab-only yet — leaf lives off noll_cvss.kab.
+#[test]
+fn sh28_noll_osv_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_osv.kab")).expect("noll_osv.kab");
+    assert!(
+        i.contains("pub fn nollOsvIsKab") && i.contains("return false"),
+        "SH28 Kab nollOsvIsKab"
+    );
+}
+
+/// SH28 deepen: osv-is-Kab dual-bind to cvss-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_osv_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_osv_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_osv_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCvssIsKab")
+            && s.contains("nollOsvIsKab"),
+        "SH28 Kab noll osv host dual-bind"
+    );
+}
+
+/// SH28 deepen: product GHSA stack is not Kab-only yet — leaf lives off noll_osv.kab.
+#[test]
+fn sh28_noll_ghsa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_ghsa.kab")).expect("noll_ghsa.kab");
+    assert!(
+        i.contains("pub fn nollGhsaIsKab") && i.contains("return false"),
+        "SH28 Kab nollGhsaIsKab"
+    );
+}
+
+/// SH28 deepen: ghsa-is-Kab dual-bind to osv-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_ghsa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_ghsa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_ghsa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollOsvIsKab")
+            && s.contains("nollGhsaIsKab"),
+        "SH28 Kab noll ghsa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product NVD stack is not Kab-only yet — leaf lives off noll_ghsa.kab.
+#[test]
+fn sh28_noll_nvd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_nvd.kab")).expect("noll_nvd.kab");
+    assert!(
+        i.contains("pub fn nollNvdIsKab") && i.contains("return false"),
+        "SH28 Kab nollNvdIsKab"
+    );
+}
+
+/// SH28 deepen: nvd-is-Kab dual-bind to ghsa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_nvd_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_nvd_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_nvd_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollGhsaIsKab")
+            && s.contains("nollNvdIsKab"),
+        "SH28 Kab noll nvd host dual-bind"
+    );
+}
+
+/// SH28 deepen: product KEV stack is not Kab-only yet — leaf lives off noll_nvd.kab.
+#[test]
+fn sh28_noll_kev_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_kev.kab")).expect("noll_kev.kab");
+    assert!(
+        i.contains("pub fn nollKevIsKab") && i.contains("return false"),
+        "SH28 Kab nollKevIsKab"
+    );
+}
+
+/// SH28 deepen: kev-is-Kab dual-bind to nvd-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_kev_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_kev_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_kev_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollNvdIsKab")
+            && s.contains("nollKevIsKab"),
+        "SH28 Kab noll kev host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CISA stack is not Kab-only yet — leaf lives off noll_kev.kab.
+#[test]
+fn sh28_noll_cisa_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_cisa.kab")).expect("noll_cisa.kab");
+    assert!(
+        i.contains("pub fn nollCisaIsKab") && i.contains("return false"),
+        "SH28 Kab nollCisaIsKab"
+    );
+}
+
+/// SH28 deepen: cisa-is-Kab dual-bind to kev-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_cisa_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_cisa_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_cisa_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollKevIsKab")
+            && s.contains("nollCisaIsKab"),
+        "SH28 Kab noll cisa host dual-bind"
+    );
+}
+
+/// SH28 deepen: product MITRE stack is not Kab-only yet — leaf lives off noll_cisa.kab.
+#[test]
+fn sh28_noll_mitre_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_mitre.kab")).expect("noll_mitre.kab");
+    assert!(
+        i.contains("pub fn nollMitreIsKab") && i.contains("return false"),
+        "SH28 Kab nollMitreIsKab"
+    );
+}
+
+/// SH28 deepen: mitre-is-Kab dual-bind to cisa-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_mitre_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_mitre_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_mitre_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCisaIsKab")
+            && s.contains("nollMitreIsKab"),
+        "SH28 Kab noll mitre host dual-bind"
+    );
+}
+
+/// SH28 deepen: product ATT&CK stack is not Kab-only yet — leaf lives off noll_mitre.kab.
+#[test]
+fn sh28_noll_attack_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_attack.kab")).expect("noll_attack.kab");
+    assert!(
+        i.contains("pub fn nollAttackIsKab") && i.contains("return false"),
+        "SH28 Kab nollAttackIsKab"
+    );
+}
+
+/// SH28 deepen: attack-is-Kab dual-bind to mitre-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_attack_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_attack_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_attack_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollMitreIsKab")
+            && s.contains("nollAttackIsKab"),
+        "SH28 Kab noll attack host dual-bind"
+    );
+}
+
+/// SH28 deepen: product CAPEC stack is not Kab-only yet — leaf lives off noll_attack.kab.
+#[test]
+fn sh28_noll_capec_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_capec.kab")).expect("noll_capec.kab");
+    assert!(
+        i.contains("pub fn nollCapecIsKab") && i.contains("return false"),
+        "SH28 Kab nollCapecIsKab"
+    );
+}
+
+/// SH28 deepen: capec-is-Kab dual-bind to attack-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_capec_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_capec_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_capec_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollAttackIsKab")
+            && s.contains("nollCapecIsKab"),
+        "SH28 Kab noll capec host dual-bind"
+    );
+}
+
+/// SH28 deepen: product STIX stack is not Kab-only yet — leaf lives off noll_capec.kab.
+#[test]
+fn sh28_noll_stix_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_stix.kab")).expect("noll_stix.kab");
+    assert!(
+        i.contains("pub fn nollStixIsKab") && i.contains("return false"),
+        "SH28 Kab nollStixIsKab"
+    );
+}
+
+/// SH28 deepen: stix-is-Kab dual-bind to capec-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_stix_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_stix_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_stix_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollCapecIsKab")
+            && s.contains("nollStixIsKab"),
+        "SH28 Kab noll stix host dual-bind"
+    );
+}
+
+/// SH28 deepen: product TAXII stack is not Kab-only yet — leaf lives off noll_stix.kab.
+#[test]
+fn sh28_noll_taxii_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_taxii.kab")).expect("noll_taxii.kab");
+    assert!(
+        i.contains("pub fn nollTaxiiIsKab") && i.contains("return false"),
+        "SH28 Kab nollTaxiiIsKab"
+    );
+}
+
+/// SH28 deepen: taxii-is-Kab dual-bind to stix-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_taxii_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_taxii_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_taxii_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollStixIsKab")
+            && s.contains("nollTaxiiIsKab"),
+        "SH28 Kab noll taxii host dual-bind"
+    );
+}
+
+/// SH28 deepen: product MISP stack is not Kab-only yet — leaf lives off noll_taxii.kab.
+#[test]
+fn sh28_noll_misp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/noll_misp.kab")).expect("noll_misp.kab");
+    assert!(
+        i.contains("pub fn nollMispIsKab") && i.contains("return false"),
+        "SH28 Kab nollMispIsKab"
+    );
+}
+
+/// SH28 deepen: misp-is-Kab dual-bind to taxii-is-Kab, AOT false, and host delete gate.
+#[test]
+fn sh28_noll_misp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh28_noll_misp_host_dual_bind_smoke.kab"))
+        .expect("sh28_noll_misp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("nollHostDeleteOk")
+            && s.contains("nollAotReady")
+            && s.contains("nollTaxiiIsKab")
+            && s.contains("nollMispIsKab"),
+        "SH28 Kab noll misp host dual-bind"
+    );
+}
+
 #[test]
 fn sh6_vm_facade_evals() {
     let path = format!("{}/self_host/vm.kab", env!("CARGO_MANIFEST_DIR"));

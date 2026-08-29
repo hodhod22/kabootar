@@ -1,0 +1,18 @@
+import "kab/noll_saml"
+import "kab/noll_oidc"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollOidcIsKab() != false {
+    return false
+}
+if nollSamlIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

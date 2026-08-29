@@ -1,0 +1,6 @@
+// SH28: product MISP stack is not Kab-only yet. import "kab/noll_misp"
+// Do not grow noll_taxii.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMispIsKab() {
+    return false
+}

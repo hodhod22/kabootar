@@ -1,0 +1,6 @@
+// SH28: product logging is not Kab-only yet. import "kab/noll_log"
+// Do not grow noll_auth.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollLogIsKab() {
+    return false
+}

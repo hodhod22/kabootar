@@ -1,0 +1,18 @@
+import "kab/noll_taxii"
+import "kab/noll_stix"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollStixIsKab() != false {
+    return false
+}
+if nollTaxiiIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

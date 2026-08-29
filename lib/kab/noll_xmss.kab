@@ -1,0 +1,6 @@
+// SH28: product XMSS stack is not Kab-only yet. import "kab/noll_xmss"
+// Do not grow noll_picnic.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollXmssIsKab() {
+    return false
+}

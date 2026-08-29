@@ -1,0 +1,6 @@
+// SH28: product WebSocket stack is not Kab-only yet. import "kab/noll_ws"
+// Do not grow noll_http.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollWsIsKab() {
+    return false
+}

@@ -1,0 +1,18 @@
+import "kab/noll_rainbow"
+import "kab/noll_sike"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollSikeIsKab() != false {
+    return false
+}
+if nollRainbowIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,0 +1,6 @@
+// SH28: product SPHINCS+ stack is not Kab-only yet. import "kab/noll_sphincs"
+// Do not grow noll_dilithium.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSphincsIsKab() {
+    return false
+}

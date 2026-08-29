@@ -1,0 +1,18 @@
+import "kab/noll_sbom"
+import "kab/noll_cyclonedx"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCyclonedxIsKab() != false {
+    return false
+}
+if nollSbomIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

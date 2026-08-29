@@ -1,0 +1,6 @@
+// SH28: product mocks are not Kab-only yet. import "kab/noll_mock"
+// Do not grow noll_snap.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMockIsKab() {
+    return false
+}

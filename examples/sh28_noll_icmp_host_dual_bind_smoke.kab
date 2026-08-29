@@ -1,0 +1,18 @@
+import "kab/noll_icmp"
+import "kab/noll_quic"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollQuicIsKab() != false {
+    return false
+}
+if nollIcmpIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

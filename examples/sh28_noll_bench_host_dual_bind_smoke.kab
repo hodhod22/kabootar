@@ -1,0 +1,18 @@
+import "kab/noll_bench"
+import "kab/noll_doc"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollDocIsKab() != false {
+    return false
+}
+if nollBenchIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

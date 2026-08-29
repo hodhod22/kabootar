@@ -1,0 +1,18 @@
+import "kab/noll_attack"
+import "kab/noll_mitre"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollMitreIsKab() != false {
+    return false
+}
+if nollAttackIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

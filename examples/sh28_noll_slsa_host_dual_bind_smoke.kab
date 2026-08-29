@@ -1,0 +1,18 @@
+import "kab/noll_slsa"
+import "kab/noll_intoto"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollIntotoIsKab() != false {
+    return false
+}
+if nollSlsaIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

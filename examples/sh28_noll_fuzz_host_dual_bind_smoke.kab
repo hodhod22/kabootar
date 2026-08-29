@@ -1,0 +1,18 @@
+import "kab/noll_fuzz"
+import "kab/noll_cov"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCovIsKab() != false {
+    return false
+}
+if nollFuzzIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

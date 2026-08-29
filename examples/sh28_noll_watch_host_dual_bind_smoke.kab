@@ -1,0 +1,18 @@
+import "kab/noll_watch"
+import "kab/noll_init"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollInitIsKab() != false {
+    return false
+}
+if nollWatchIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

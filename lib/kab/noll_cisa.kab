@@ -1,0 +1,6 @@
+// SH28: product CISA stack is not Kab-only yet. import "kab/noll_cisa"
+// Do not grow noll_kev.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCisaIsKab() {
+    return false
+}

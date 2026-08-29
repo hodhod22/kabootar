@@ -1,0 +1,6 @@
+// SH28: product test RNG is not Kab-only yet. import "kab/noll_rand"
+// Do not grow noll_clock.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollRandIsKab() {
+    return false
+}

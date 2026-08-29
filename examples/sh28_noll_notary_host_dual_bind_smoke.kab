@@ -1,0 +1,18 @@
+import "kab/noll_notary"
+import "kab/noll_cosign"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollCosignIsKab() != false {
+    return false
+}
+if nollNotaryIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

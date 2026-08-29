@@ -1,0 +1,6 @@
+// SH28: product ATT&CK stack is not Kab-only yet. import "kab/noll_attack"
+// Do not grow noll_mitre.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollAttackIsKab() {
+    return false
+}

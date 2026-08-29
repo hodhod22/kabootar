@@ -1,0 +1,6 @@
+// SH28: product NVD stack is not Kab-only yet. import "kab/noll_nvd"
+// Do not grow noll_ghsa.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollNvdIsKab() {
+    return false
+}

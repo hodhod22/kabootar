@@ -1,0 +1,6 @@
+// SH28: product SNMP stack is not Kab-only yet. import "kab/noll_snmp"
+// Do not grow noll_ntp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSnmpIsKab() {
+    return false
+}
