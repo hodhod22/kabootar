@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML declare. Off previous ui_sep.kab.
+pub fn uiIsDeclare(tag) {
+    return tag == "declare"
+}

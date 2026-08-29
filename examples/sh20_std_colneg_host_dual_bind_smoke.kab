@@ -1,0 +1,24 @@
+import "kab/std_colneg"
+import "kab/std_coldiv"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let n = stdColFill(1, 84)
+n = stdColPush(n, 0)
+let den = stdColFill(1, 2)
+den = stdColPush(den, 1)
+let q = stdColDiv(n, den)
+if q[0] != 42 {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let g = stdColNeg(v)
+if g[0] + 42 != 0 {
+    return false
+}
+return stdHostDeleteOk() == false

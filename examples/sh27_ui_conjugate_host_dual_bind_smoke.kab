@@ -1,0 +1,14 @@
+import "kab/ui_conjugate"
+import "kab/ui_abs"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsAbs("abs") != true {
+    return false
+}
+if uiIsConjugate("conjugate") != true {
+    return false
+}
+return uiHostDeleteOk() == false

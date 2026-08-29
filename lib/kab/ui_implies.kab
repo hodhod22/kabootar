@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML implies. Off previous ui_not.kab.
+pub fn uiIsImplies(tag) {
+    return tag == "implies"
+}

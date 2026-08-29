@@ -1,0 +1,26 @@
+import "kab/std_colmul"
+import "kab/std_colsub"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 21)
+v = stdColPush(v, 0)
+let hi = stdColFill(1, 63)
+hi = stdColPush(hi, 0)
+let d = stdColSub(hi, v)
+if d[0] != 42 {
+    return false
+}
+let x = stdColFill(1, 6)
+x = stdColPush(x, 0)
+let y = stdColFill(1, 7)
+y = stdColPush(y, 0)
+let p = stdColMul(x, y)
+if p[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

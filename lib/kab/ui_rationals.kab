@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML rationals. Off previous ui_integers.kab.
+pub fn uiIsRationals(tag) {
+    return tag == "rationals"
+}

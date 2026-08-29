@@ -1,0 +1,10 @@
+import "kab/gc_host"
+import "kab/tlab"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if tlabOk(2) != true {
+    return false
+}
+return gcHostDeleteOk() == false

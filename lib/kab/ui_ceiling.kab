@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML ceiling. Off previous ui_floor.kab.
+pub fn uiIsCeiling(tag) {
+    return tag == "ceiling"
+}

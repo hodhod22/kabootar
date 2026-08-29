@@ -1,0 +1,21 @@
+// SH20: collections sign off std_colabs.kab. import "kab/std_colsign"
+// Do not grow std_colabs.kab. stdHostDeleteOk stays false.
+
+pub fn stdColSign(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        let x = a[i]
+        let s = 0
+        if x < 0 {
+            s = 0 - 1
+        }
+        if x > 0 {
+            s = 1
+        }
+        out = push(out, s)
+        i = i + 1
+    }
+    return out
+}

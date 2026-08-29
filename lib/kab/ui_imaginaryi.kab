@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML imaginaryi. Off previous ui_exponentiale.kab.
+pub fn uiIsImaginaryi(tag) {
+    return tag == "imaginaryi"
+}

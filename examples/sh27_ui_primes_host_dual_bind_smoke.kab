@@ -1,0 +1,14 @@
+import "kab/ui_primes"
+import "kab/ui_naturalnumbers"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNaturalnumbers("naturalnumbers") != true {
+    return false
+}
+if uiIsPrimes("primes") != true {
+    return false
+}
+return uiHostDeleteOk() == false

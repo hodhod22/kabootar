@@ -1,0 +1,12 @@
+// FT F23: mmap-bulk array_f64 via os_mm. import "kab/mm"
+// Not default heap; same pointer to GPU later. No new Rust mmap.
+
+pub fn mmF64Ok(kind, stride) {
+    if kind != "f64" {
+        return false
+    }
+    if stride != 8 {
+        return false
+    }
+    return true
+}

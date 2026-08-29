@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cerror. Off previous ui_declare.kab.
+pub fn uiIsCerror(tag) {
+    return tag == "cerror"
+}

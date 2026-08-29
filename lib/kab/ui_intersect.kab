@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML intersect. Off previous ui_union.kab.
+pub fn uiIsIntersect(tag) {
+    return tag == "intersect"
+}

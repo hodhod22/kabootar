@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML curl. Off previous ui_limit.kab.
+pub fn uiIsCurl(tag) {
+    return tag == "curl"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML arcsec. Off previous ui_arccsch.kab.
+pub fn uiIsArcsec(tag) {
+    return tag == "arcsec"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML csc. Off previous ui_sec.kab.
+pub fn uiIsCsc(tag) {
+    return tag == "csc"
+}

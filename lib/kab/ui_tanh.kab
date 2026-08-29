@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML tanh. Off previous ui_cosh.kab.
+pub fn uiIsTanh(tag) {
+    return tag == "tanh"
+}

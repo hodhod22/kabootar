@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML exists. Off previous ui_forall.kab.
+pub fn uiIsExists(tag) {
+    return tag == "exists"
+}

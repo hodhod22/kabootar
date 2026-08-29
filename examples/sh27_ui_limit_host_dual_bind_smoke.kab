@@ -1,0 +1,14 @@
+import "kab/ui_limit"
+import "kab/ui_product"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsProduct("product") != true {
+    return false
+}
+if uiIsLimit("limit") != true {
+    return false
+}
+return uiHostDeleteOk() == false

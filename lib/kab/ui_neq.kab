@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML neq. Off previous ui_msgroup.kab.
+pub fn uiIsNeq(tag) {
+    return tag == "neq"
+}

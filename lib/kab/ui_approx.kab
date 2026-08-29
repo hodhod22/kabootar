@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML approx. Off previous ui_equivalent.kab.
+pub fn uiIsApprox(tag) {
+    return tag == "approx"
+}

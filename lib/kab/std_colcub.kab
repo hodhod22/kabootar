@@ -1,0 +1,13 @@
+// SH20: collections cube off std_colsqr.kab. import "kab/std_colcub"
+// Do not grow std_colsqr.kab. stdHostDeleteOk stays false.
+
+pub fn stdColCub(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] * a[i] * a[i])
+        i = i + 1
+    }
+    return out
+}

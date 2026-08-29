@@ -1,0 +1,14 @@
+import "kab/ui_moment"
+import "kab/ui_mode"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMode("mode") != true {
+    return false
+}
+if uiIsMoment("moment") != true {
+    return false
+}
+return uiHostDeleteOk() == false

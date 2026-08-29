@@ -1,0 +1,14 @@
+import "kab/aot_pgo"
+import "kab/aot_lazy"
+import "kab/aot_lazy_jit"
+
+if aotPgoOk(8) != true {
+    return false
+}
+if aotLazyOk(100) != true {
+    return false
+}
+if aotLazyJitOk("jit") != true {
+    return false
+}
+return true

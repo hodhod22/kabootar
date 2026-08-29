@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML equivalent. Off previous ui_exists.kab.
+pub fn uiIsEquivalent(tag) {
+    return tag == "equivalent"
+}

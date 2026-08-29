@@ -1,0 +1,14 @@
+import "kab/jit_ssa"
+import "kab/jit_tco"
+import "kab/jit_tco_self"
+
+if jitSsaOk(1) != true {
+    return false
+}
+if jitTcoOk(true) != true {
+    return false
+}
+if jitTcoSelfOk(true) != true {
+    return false
+}
+return true

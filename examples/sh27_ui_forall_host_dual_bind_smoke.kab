@@ -1,0 +1,14 @@
+import "kab/ui_forall"
+import "kab/ui_implies"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsImplies("implies") != true {
+    return false
+}
+if uiIsForall("forall") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,22 @@
+import "kab/noll_nors"
+import "kab/noll_hopt"
+import "kab/noll_keep"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollHostOptional() != false {
+    return false
+}
+if nollKeepSrc() != true {
+    return false
+}
+if nollNoNewRs() != true {
+    return false
+}
+return nollHostDeleteOk() == false

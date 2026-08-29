@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML logbase. Off previous ui_degree.kab.
+pub fn uiIsLogbase(tag) {
+    return tag == "logbase"
+}

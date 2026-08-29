@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML log. Off previous ui_logbase.kab.
+pub fn uiIsLog(tag) {
+    return tag == "log"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cs. Off previous ui_cerror.kab.
+pub fn uiIsCs(tag) {
+    return tag == "cs"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML product. Off previous ui_sum.kab.
+pub fn uiIsProduct(tag) {
+    return tag == "product"
+}

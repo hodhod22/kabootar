@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML determinant. Off previous ui_transpose.kab.
+pub fn uiIsDeterminant(tag) {
+    return tag == "determinant"
+}

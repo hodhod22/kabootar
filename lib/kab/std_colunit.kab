@@ -1,0 +1,20 @@
+// SH20: collections unit vector off std_colnorm.kab. import "kab/std_colunit"
+// Do not grow std_colnorm.kab. stdHostDeleteOk stays false.
+
+pub fn stdColUnit(a) {
+    let s = 0
+    let i = 0
+    let n = len(a)
+    while i < n {
+        s = s + a[i] * a[i]
+        i = i + 1
+    }
+    let mag = sqrt(s)
+    let out = []
+    i = 0
+    while i < n {
+        out = push(out, a[i] / mag)
+        i = i + 1
+    }
+    return out
+}

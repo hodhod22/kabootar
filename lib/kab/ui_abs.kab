@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML abs. Off previous ui_arctanh.kab.
+pub fn uiIsAbs(tag) {
+    return tag == "abs"
+}

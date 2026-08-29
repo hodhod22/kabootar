@@ -1,0 +1,14 @@
+import "kab/ui_equivalent"
+import "kab/ui_exists"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsExists("exists") != true {
+    return false
+}
+if uiIsEquivalent("equivalent") != true {
+    return false
+}
+return uiHostDeleteOk() == false

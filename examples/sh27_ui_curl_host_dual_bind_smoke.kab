@@ -1,0 +1,14 @@
+import "kab/ui_curl"
+import "kab/ui_limit"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsLimit("limit") != true {
+    return false
+}
+if uiIsCurl("curl") != true {
+    return false
+}
+return uiHostDeleteOk() == false

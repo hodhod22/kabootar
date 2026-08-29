@@ -1,0 +1,14 @@
+import "kab/ui_sum"
+import "kab/ui_card"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCard("card") != true {
+    return false
+}
+if uiIsSum("sum") != true {
+    return false
+}
+return uiHostDeleteOk() == false

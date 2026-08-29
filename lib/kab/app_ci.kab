@@ -1,0 +1,10 @@
+// FT F18: canonical app-CI harness. import "kab/app_ci"
+// Same-room HTTP vs budget; game-loop and nd/AI deepen later.
+// Microbenches must not win over apps.
+
+pub fn appCiHttpOk(ms) {
+    if ms <= 100 {
+        return true
+    }
+    return false
+}

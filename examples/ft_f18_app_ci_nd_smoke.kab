@@ -1,0 +1,14 @@
+import "kab/app_ci"
+import "kab/app_ci_fps"
+import "kab/app_ci_nd"
+
+if appCiHttpOk(100) != true {
+    return false
+}
+if appCiFpsOk(60) != true {
+    return false
+}
+if appCiNdOk(50) != true {
+    return false
+}
+return true

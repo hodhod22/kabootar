@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML grad. Off previous ui_divergence.kab.
+pub fn uiIsGrad(tag) {
+    return tag == "grad"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML notprsubset. Off previous ui_notsubset.kab.
+pub fn uiIsNotprsubset(tag) {
+    return tag == "notprsubset"
+}

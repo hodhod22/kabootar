@@ -1,0 +1,14 @@
+import "kab/ui_cosh"
+import "kab/ui_sinh"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSinh("sinh") != true {
+    return false
+}
+if uiIsCosh("cosh") != true {
+    return false
+}
+return uiHostDeleteOk() == false

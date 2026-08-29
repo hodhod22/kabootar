@@ -1,0 +1,32 @@
+import "kab/noll_drop"
+import "kab/noll_keep"
+import "kab/noll_user"
+import "kab/noll_kabtest"
+import "kab/noll_ci"
+import "kab/noll_toml"
+import "kab/noll_srcprod"
+import "kab/noll_syscall"
+import "kab/noll_stub"
+import "kab/noll_mmap"
+import "kab/noll_rustc"
+import "kab/noll_cargo"
+import "kab/noll_image"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollKeepSrc() != true {
+    return false
+}
+if nollDropSrc() != false {
+    return false
+}
+if nollUserNoRustc() != false {
+    return false
+}
+return nollHostDeleteOk() == false

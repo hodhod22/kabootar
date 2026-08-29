@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cbytes. Off previous ui_cs.kab.
+pub fn uiIsCbytes(tag) {
+    return tag == "cbytes"
+}

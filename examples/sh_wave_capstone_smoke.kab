@@ -1,0 +1,3 @@
+import "kab/wave_capstone"
+
+return waveCapstoneOk(2, 4096)

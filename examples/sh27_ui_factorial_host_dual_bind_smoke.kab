@@ -1,0 +1,14 @@
+import "kab/ui_factorial"
+import "kab/ui_quotient"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsQuotient("quotient") != true {
+    return false
+}
+if uiIsFactorial("factorial") != true {
+    return false
+}
+return uiHostDeleteOk() == false

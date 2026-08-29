@@ -1,0 +1,13 @@
+// SH20: collections scale off std_collerp.kab. import "kab/std_colscale"
+// Do not grow std_collerp.kab. stdHostDeleteOk stays false.
+
+pub fn stdColScale(a, s) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] * s)
+        i = i + 1
+    }
+    return out
+}

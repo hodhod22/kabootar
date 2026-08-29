@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML ln. Off previous ui_log.kab.
+pub fn uiIsLn(tag) {
+    return tag == "ln"
+}

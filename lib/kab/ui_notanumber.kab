@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML notanumber. Off previous ui_infinity.kab.
+pub fn uiIsNotanumber(tag) {
+    return tag == "notanumber"
+}

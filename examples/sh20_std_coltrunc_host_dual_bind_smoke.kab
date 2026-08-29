@@ -1,0 +1,22 @@
+import "kab/std_coltrunc"
+import "kab/std_colround"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 41.6)
+h = stdColPush(h, 0)
+let k = stdColRound(h)
+if k[0] != 42 {
+    return false
+}
+let t = stdColFill(1, 41.9)
+t = stdColPush(t, 0)
+let u = stdColTrunc(t)
+if u[0] != 41 {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_card"
+import "kab/ui_setdiff"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSetdiff("setdiff") != true {
+    return false
+}
+if uiIsCard("card") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML diff. Off previous ui_int.kab.
+pub fn uiIsDiff(tag) {
+    return tag == "diff"
+}

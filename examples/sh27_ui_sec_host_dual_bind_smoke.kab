@@ -1,0 +1,14 @@
+import "kab/ui_sec"
+import "kab/ui_tan"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsTan("tan") != true {
+    return false
+}
+if uiIsSec("sec") != true {
+    return false
+}
+return uiHostDeleteOk() == false

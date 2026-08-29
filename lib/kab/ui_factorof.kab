@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML factorof. Off previous ui_approx.kab.
+pub fn uiIsFactorof(tag) {
+    return tag == "factorof"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML min. Off previous ui_ceiling.kab.
+pub fn uiIsMin(tag) {
+    return tag == "min"
+}

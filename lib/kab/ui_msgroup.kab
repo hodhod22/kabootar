@@ -1,0 +1,4 @@
+// SH27 kbrowser: Presentation MathML msgroup. Off previous ui_cbytes.kab.
+pub fn uiIsMsgroup(tag) {
+    return tag == "msgroup"
+}

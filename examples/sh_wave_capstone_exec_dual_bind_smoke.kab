@@ -1,0 +1,22 @@
+import "kab/load"
+import "kab/load_kbc"
+import "kab/load_main"
+import "kab/wave_capstone"
+import "kab/noll_aot"
+
+if loadMainDeleteOk() != false {
+    return false
+}
+if loadIsKab("app.kab") == false {
+    return false
+}
+if loadIsKbc("cache/app.kbc") == false {
+    return false
+}
+if waveCapstoneGatesClosed() == false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+return loadMainDeleteOk() == false

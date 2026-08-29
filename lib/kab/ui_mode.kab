@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML mode. Off previous ui_median.kab.
+pub fn uiIsMode(tag) {
+    return tag == "mode"
+}

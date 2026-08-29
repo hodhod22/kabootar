@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML false. Off previous ui_true.kab.
+pub fn uiIsFalse(tag) {
+    return tag == "false"
+}

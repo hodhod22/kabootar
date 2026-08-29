@@ -1,0 +1,14 @@
+import "kab/ui_sep"
+import "kab/ui_domainofapplication"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsDomainofapplication("domainofapplication") != true {
+    return false
+}
+if uiIsSep("sep") != true {
+    return false
+}
+return uiHostDeleteOk() == false

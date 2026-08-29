@@ -1,0 +1,7 @@
+// SH28: users still need rustc to run Kabootar — policy "user-no-rustc" is false.
+// import "kab/noll_user"
+// Do not grow noll_kabtest.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollUserNoRustc() {
+    return false
+}

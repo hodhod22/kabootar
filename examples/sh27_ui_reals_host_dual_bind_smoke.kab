@@ -1,0 +1,14 @@
+import "kab/ui_reals"
+import "kab/ui_rationals"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRationals("rationals") != true {
+    return false
+}
+if uiIsReals("reals") != true {
+    return false
+}
+return uiHostDeleteOk() == false

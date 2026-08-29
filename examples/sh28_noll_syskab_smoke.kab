@@ -1,0 +1,3 @@
+import "kab/noll_syskab"
+
+return nollSyscallIsKab() == false

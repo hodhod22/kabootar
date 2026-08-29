@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML subset. Off previous ui_notin.kab.
+pub fn uiIsSubset(tag) {
+    return tag == "subset"
+}

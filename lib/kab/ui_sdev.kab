@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sdev. Off previous ui_mean.kab.
+pub fn uiIsSdev(tag) {
+    return tag == "sdev"
+}

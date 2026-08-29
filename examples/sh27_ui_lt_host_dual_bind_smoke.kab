@@ -1,0 +1,14 @@
+import "kab/ui_lt"
+import "kab/ui_neq"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsNeq("neq") != true {
+    return false
+}
+if uiIsLt("lt") != true {
+    return false
+}
+return uiHostDeleteOk() == false

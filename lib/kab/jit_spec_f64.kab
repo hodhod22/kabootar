@@ -1,0 +1,7 @@
+// FT F20: type-specialize hot fn when IC is always f64. Off jit_spec.kab.
+pub fn jitSpecF64Ok(kind) {
+    if kind != "f64" {
+        return false
+    }
+    return true
+}

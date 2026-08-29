@@ -1,0 +1,3 @@
+import "kab/noll_nors"
+
+return nollNoNewRs() == true

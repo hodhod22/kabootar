@@ -1,0 +1,14 @@
+import "kab/ui_arccos"
+import "kab/ui_arcsin"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsArcsin("arcsin") != true {
+    return false
+}
+if uiIsArccos("arccos") != true {
+    return false
+}
+return uiHostDeleteOk() == false

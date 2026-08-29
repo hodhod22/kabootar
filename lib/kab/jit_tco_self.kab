@@ -1,0 +1,7 @@
+// FT F24: TCO on known self-recursion. Off jit_tco.kab.
+pub fn jitTcoSelfOk(same) {
+    if same {
+        return true
+    }
+    return false
+}

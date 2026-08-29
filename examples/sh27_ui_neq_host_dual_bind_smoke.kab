@@ -1,0 +1,14 @@
+import "kab/ui_neq"
+import "kab/ui_msgroup"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMsgroup("msgroup") != true {
+    return false
+}
+if uiIsNeq("neq") != true {
+    return false
+}
+return uiHostDeleteOk() == false

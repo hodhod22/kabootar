@@ -1,0 +1,14 @@
+import "kab/ui_in"
+import "kab/ui_intersect"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsIntersect("intersect") != true {
+    return false
+}
+if uiIsIn("in") != true {
+    return false
+}
+return uiHostDeleteOk() == false

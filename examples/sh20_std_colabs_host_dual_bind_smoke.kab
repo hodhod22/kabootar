@@ -1,0 +1,20 @@
+import "kab/std_colabs"
+import "kab/std_colneg"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let g = stdColNeg(v)
+if g[0] + 42 != 0 {
+    return false
+}
+let w = stdColAbs(g)
+if w[0] != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

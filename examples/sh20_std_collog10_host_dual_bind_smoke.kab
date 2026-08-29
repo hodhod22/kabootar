@@ -1,0 +1,22 @@
+import "kab/std_collog10"
+import "kab/std_collog2"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 8.0)
+h = stdColPush(h, 0)
+let k = stdColLog2(h)
+if k[0] != 3 {
+    return false
+}
+let g = stdColFill(1, 1000.0)
+g = stdColPush(g, 0)
+let w = stdColLog10(g)
+if w[0] != 3 {
+    return false
+}
+return stdHostDeleteOk() == false

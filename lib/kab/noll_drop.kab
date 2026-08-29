@@ -1,0 +1,7 @@
+// SH28: host src/ must stay — policy "drop-src" is false.
+// import "kab/noll_drop"
+// Do not grow noll_user.kab or noll_keep.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollDropSrc() {
+    return false
+}

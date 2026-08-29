@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML coth. Off previous ui_csch.kab.
+pub fn uiIsCoth(tag) {
+    return tag == "coth"
+}

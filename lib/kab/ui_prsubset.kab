@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML prsubset. Off previous ui_subset.kab.
+pub fn uiIsPrsubset(tag) {
+    return tag == "prsubset"
+}

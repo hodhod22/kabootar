@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sum. Off previous ui_card.kab.
+pub fn uiIsSum(tag) {
+    return tag == "sum"
+}

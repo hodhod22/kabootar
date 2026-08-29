@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML lcm. Off previous ui_max.kab.
+pub fn uiIsLcm(tag) {
+    return tag == "lcm"
+}

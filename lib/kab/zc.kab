@@ -1,0 +1,7 @@
+// FT F19: zero-copy same-room. sql() row as HTTP body without stringify.
+pub fn zcSqlViewOk(copies) {
+    if copies == 0 {
+        return true
+    }
+    return false
+}

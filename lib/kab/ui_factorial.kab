@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML factorial. Off previous ui_quotient.kab.
+pub fn uiIsFactorial(tag) {
+    return tag == "factorial"
+}

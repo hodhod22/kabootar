@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML gt. Off previous ui_lt.kab.
+pub fn uiIsGt(tag) {
+    return tag == "gt"
+}

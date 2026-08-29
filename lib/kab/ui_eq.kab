@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML eq. Off previous ui_factorial.kab.
+pub fn uiIsEq(tag) {
+    return tag == "eq"
+}

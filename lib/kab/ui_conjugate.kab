@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML conjugate. Off previous ui_abs.kab.
+pub fn uiIsConjugate(tag) {
+    return tag == "conjugate"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_exponentiale"
+import "kab/ui_primes"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsPrimes("primes") != true {
+    return false
+}
+if uiIsExponentiale("exponentiale") != true {
+    return false
+}
+return uiHostDeleteOk() == false

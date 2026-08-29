@@ -1,0 +1,14 @@
+import "kab/ui_intersect"
+import "kab/ui_union"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsUnion("union") != true {
+    return false
+}
+if uiIsIntersect("intersect") != true {
+    return false
+}
+return uiHostDeleteOk() == false

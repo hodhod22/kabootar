@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML lowlimit. Off previous ui_partialdiff.kab.
+pub fn uiIsLowlimit(tag) {
+    return tag == "lowlimit"
+}

@@ -1,0 +1,14 @@
+import "kab/ui_mode"
+import "kab/ui_median"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsMedian("median") != true {
+    return false
+}
+if uiIsMode("mode") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML scalarproduct. Off previous ui_vectorproduct.kab.
+pub fn uiIsScalarproduct(tag) {
+    return tag == "scalarproduct"
+}

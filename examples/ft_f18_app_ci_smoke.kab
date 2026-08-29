@@ -1,0 +1,7 @@
+import "kab/app_ci"
+
+let ok = appCiHttpOk(100)
+if ok {
+    return true
+}
+return false

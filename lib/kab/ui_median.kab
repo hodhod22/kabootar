@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML median. Off previous ui_variance.kab.
+pub fn uiIsMedian(tag) {
+    return tag == "median"
+}

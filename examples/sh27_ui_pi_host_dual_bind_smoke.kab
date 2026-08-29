@@ -1,0 +1,14 @@
+import "kab/ui_pi"
+import "kab/ui_imaginaryi"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsImaginaryi("imaginaryi") != true {
+    return false
+}
+if uiIsPi("pi") != true {
+    return false
+}
+return uiHostDeleteOk() == false

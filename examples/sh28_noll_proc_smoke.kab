@@ -1,0 +1,3 @@
+import "kab/noll_proc"
+
+return nollProcessIsKab() == false

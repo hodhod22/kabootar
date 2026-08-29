@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML cot. Off previous ui_csc.kab.
+pub fn uiIsCot(tag) {
+    return tag == "cot"
+}

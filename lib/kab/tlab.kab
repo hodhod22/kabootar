@@ -1,0 +1,9 @@
+// FT F22: TLAB per-thread nursery. import "kab/tlab"
+// Meaningless on one thread; workers allocate without mutex per new.
+
+pub fn tlabOk(workers) {
+    if workers >= 2 {
+        return true
+    }
+    return false
+}

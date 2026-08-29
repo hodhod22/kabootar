@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML max. Off previous ui_min.kab.
+pub fn uiIsMax(tag) {
+    return tag == "max"
+}

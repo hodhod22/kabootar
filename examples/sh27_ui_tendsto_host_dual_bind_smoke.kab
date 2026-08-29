@@ -1,0 +1,14 @@
+import "kab/ui_tendsto"
+import "kab/ui_factorof"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFactorof("factorof") != true {
+    return false
+}
+if uiIsTendsto("tendsto") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,7 @@
+// SH28: product src/ still exists — policy "product-src-gone" is false.
+// import "kab/noll_srcprod"
+// Do not grow noll_syscall.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollProductSrcGone() {
+    return false
+}

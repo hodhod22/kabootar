@@ -1,0 +1,14 @@
+import "kab/ui_quotient"
+import "kab/ui_rem"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsRem("rem") != true {
+    return false
+}
+if uiIsQuotient("quotient") != true {
+    return false
+}
+return uiHostDeleteOk() == false

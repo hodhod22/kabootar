@@ -1,0 +1,26 @@
+import "kab/std_colsign"
+import "kab/std_colabs"
+import "kab/std_colneg"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let v = stdColFill(1, 42)
+v = stdColPush(v, 0)
+let g = stdColNeg(v)
+let w = stdColAbs(g)
+if w[0] != 42 {
+    return false
+}
+let p = stdColSign(v)
+if p[0] != 1 {
+    return false
+}
+let m = stdColSign(g)
+if m[0] + 1 != 0 {
+    return false
+}
+return stdHostDeleteOk() == false

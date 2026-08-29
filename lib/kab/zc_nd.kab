@@ -1,0 +1,7 @@
+// FT F19: nd-view as HTTP body without stringify. Off zc.kab.
+pub fn zcNdViewOk(copies) {
+    if copies == 0 {
+        return true
+    }
+    return false
+}

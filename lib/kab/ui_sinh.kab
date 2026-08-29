@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML sinh. Off previous ui_cot.kab.
+pub fn uiIsSinh(tag) {
+    return tag == "sinh"
+}

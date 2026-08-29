@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML geq. Off previous ui_leq.kab.
+pub fn uiIsGeq(tag) {
+    return tag == "geq"
+}

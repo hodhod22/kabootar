@@ -1,0 +1,6 @@
+// SH28: bootstrap image name off noll.kab. import "kab/noll_image"
+// Do not grow noll_keep.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollBootstrapImage() {
+    return "kabootar.kbc"
+}

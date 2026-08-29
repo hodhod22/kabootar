@@ -1,0 +1,3 @@
+import "kab/noll_rustc"
+
+return nollRustcNotProcess() == false

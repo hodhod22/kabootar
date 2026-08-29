@@ -1,0 +1,14 @@
+import "kab/ui_divergence"
+import "kab/ui_curl"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsCurl("curl") != true {
+    return false
+}
+if uiIsDivergence("divergence") != true {
+    return false
+}
+return uiHostDeleteOk() == false

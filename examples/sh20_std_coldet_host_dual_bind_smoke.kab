@@ -1,0 +1,26 @@
+import "kab/std_coldet"
+import "kab/std_colcrs"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 2)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 0)
+b = stdColPush(b, 21)
+if stdColCross(a, b) != 42 {
+    return false
+}
+let r0 = stdColFill(1, 6)
+r0 = stdColPush(r0, 0)
+let r1 = stdColFill(1, 0)
+r1 = stdColPush(r1, 7)
+let m = stdColFill(1, r0)
+m = stdColPush(m, r1)
+if stdColDet(m) != 42 {
+    return false
+}
+return stdHostDeleteOk() == false

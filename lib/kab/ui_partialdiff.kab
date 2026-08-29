@@ -1,0 +1,4 @@
+// SH27 kbrowser: Content MathML partialdiff. Off previous ui_diff.kab.
+pub fn uiIsPartialdiff(tag) {
+    return tag == "partialdiff"
+}
