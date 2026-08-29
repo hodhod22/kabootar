@@ -1,0 +1,13 @@
+// SH20: collections atan off std_colacos.kab. import "kab/std_colatan"
+// Do not grow std_colacos.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAtan(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, atan(a[i]))
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny tbreak. Off previous ui_animation.kab.
+pub fn uiIsTbreak(tag) {
+    return tag == "tbreak"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny animation. Off previous ui_listener.kab.
+pub fn uiIsAnimation(tag) {
+    return tag == "animation"
+}

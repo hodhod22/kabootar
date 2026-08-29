@@ -1,0 +1,6 @@
+// SH28: Cranelift/JIT still lives in host src/. import "kab/noll_cranelift"
+// Do not grow noll_gates.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollCraneliftGone() {
+    return false
+}

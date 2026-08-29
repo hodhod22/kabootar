@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny flowTref. Off previous ui_flow_line.kab.
+pub fn uiIsFlowTref(tag) {
+    return tag == "flowTref"
+}

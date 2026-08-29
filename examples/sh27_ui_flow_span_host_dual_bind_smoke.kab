@@ -1,0 +1,14 @@
+import "kab/ui_flow_span"
+import "kab/ui_flow_para"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsFlowPara("flowPara") != true {
+    return false
+}
+if uiIsFlowSpan("flowSpan") != true {
+    return false
+}
+return uiHostDeleteOk() == false

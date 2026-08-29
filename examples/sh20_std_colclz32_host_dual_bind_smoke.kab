@@ -1,0 +1,24 @@
+import "kab/std_colclz32"
+import "kab/std_colimul"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 6)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 7)
+b = stdColPush(b, 0)
+let k = stdColImul(a, b)
+if k[0] != 42 {
+    return false
+}
+let g = stdColFill(1, 1)
+g = stdColPush(g, 0)
+let w = stdColClz32(g)
+if w[0] != 31 {
+    return false
+}
+return stdHostDeleteOk() == false

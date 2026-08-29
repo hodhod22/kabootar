@@ -1,0 +1,18 @@
+import "kab/noll_cranelift"
+import "kab/noll_gates"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollAllGatesClosedOk() != true {
+    return false
+}
+if nollCraneliftGone() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,0 +1,20 @@
+import "kab/std_colln2"
+import "kab/std_cole"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 7)
+a = stdColPush(a, 0)
+let g = stdColE(a)
+if g[0] != e() {
+    return false
+}
+let n = stdColLn2(a)
+if n[0] != ln2() {
+    return false
+}
+return stdHostDeleteOk() == false

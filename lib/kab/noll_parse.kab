@@ -1,0 +1,6 @@
+// SH28: product parser is not Kab-only yet. import "kab/noll_parse"
+// Do not grow noll_compile.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollParseIsKab() {
+    return false
+}

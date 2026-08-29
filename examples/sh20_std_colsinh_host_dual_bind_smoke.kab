@@ -1,0 +1,22 @@
+import "kab/std_colsinh"
+import "kab/std_colexpm1"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 0)
+h = stdColPush(h, 0)
+let k = stdColExpm1(h)
+if k[0] != 0 {
+    return false
+}
+let g = stdColFill(1, 0)
+g = stdColPush(g, 0)
+let w = stdColSinh(g)
+if w[0] != 0 {
+    return false
+}
+return stdHostDeleteOk() == false

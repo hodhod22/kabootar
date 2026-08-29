@@ -1,0 +1,18 @@
+import "kab/noll_cli"
+import "kab/noll_std"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollStdIsKab() != false {
+    return false
+}
+if nollCliIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

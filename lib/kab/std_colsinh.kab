@@ -1,0 +1,13 @@
+// SH20: collections sinh off std_colexpm1.kab. import "kab/std_colsinh"
+// Do not grow std_colexpm1.kab. stdHostDeleteOk stays false.
+
+pub fn stdColSinh(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, sinh(a[i]))
+        i = i + 1
+    }
+    return out
+}

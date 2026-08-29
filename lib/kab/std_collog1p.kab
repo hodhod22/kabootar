@@ -1,0 +1,13 @@
+// SH20: collections log1p off std_colsumprec.kab. import "kab/std_collog1p"
+// Do not grow std_colsumprec.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLog1p(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, log1p(a[i]))
+        i = i + 1
+    }
+    return out
+}

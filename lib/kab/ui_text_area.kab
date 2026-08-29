@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny textArea. Off previous ui_tbreak.kab.
+pub fn uiIsTextArea(tag) {
+    return tag == "textArea"
+}

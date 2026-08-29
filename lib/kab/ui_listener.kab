@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny listener. Off previous ui_handler.kab.
+pub fn uiIsListener(tag) {
+    return tag == "listener"
+}

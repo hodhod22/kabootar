@@ -1,0 +1,13 @@
+// SH20: collections log10e off std_collog2e.kab. import "kab/std_collog10e"
+// Do not grow std_collog2e.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLog10e(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, log10e())
+        i = i + 1
+    }
+    return out
+}

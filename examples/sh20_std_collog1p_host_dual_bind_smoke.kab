@@ -1,0 +1,22 @@
+import "kab/std_collog1p"
+import "kab/std_colsumprec"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 3)
+h = stdColPush(h, 0)
+let k = stdColSumPrecise(h)
+if k != 3 {
+    return false
+}
+let g = stdColFill(1, 0)
+g = stdColPush(g, 0)
+let w = stdColLog1p(g)
+if w[0] != 0 {
+    return false
+}
+return stdHostDeleteOk() == false

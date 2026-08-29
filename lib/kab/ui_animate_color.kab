@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG animateColor. Off previous ui_eq.kab.
+pub fn uiIsAnimateColor(tag) {
+    return tag == "animateColor"
+}

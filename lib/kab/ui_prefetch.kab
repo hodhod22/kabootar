@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny prefetch. Off previous ui_definition_src.kab.
+pub fn uiIsPrefetch(tag) {
+    return tag == "prefetch"
+}

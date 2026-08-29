@@ -1,0 +1,14 @@
+import "kab/ui_mesh"
+import "kab/ui_solid_color"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsSolidColor("solidColor") != true {
+    return false
+}
+if uiIsMesh("mesh") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,14 @@
+import "kab/ui_listener"
+import "kab/ui_handler"
+import "kab/ui_host"
+
+if uiHostDeleteOk() != false {
+    return false
+}
+if uiIsHandler("handler") != true {
+    return false
+}
+if uiIsListener("listener") != true {
+    return false
+}
+return uiHostDeleteOk() == false

@@ -1,0 +1,26 @@
+import "kab/std_colhypot"
+import "kab/std_colatan2"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let y = stdColFill(1, 0.0)
+y = stdColPush(y, 0)
+let x = stdColFill(1, 1.0)
+x = stdColPush(x, 0)
+let k = stdColAtan2(y, x)
+if k[0] != 0 {
+    return false
+}
+let a = stdColFill(1, 3)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 4)
+b = stdColPush(b, 0)
+let w = stdColHypot(a, b)
+if w[0] != 5 {
+    return false
+}
+return stdHostDeleteOk() == false

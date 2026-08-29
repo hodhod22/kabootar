@@ -1,0 +1,18 @@
+import "kab/noll_lsp"
+import "kab/noll_fmt"
+import "kab/noll_aot"
+import "kab/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollFmtIsKab() != false {
+    return false
+}
+if nollLspIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

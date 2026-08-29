@@ -1,0 +1,20 @@
+import "kab/std_collog2e"
+import "kab/std_colln10"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 7)
+a = stdColPush(a, 0)
+let t = stdColLn10(a)
+if t[0] != ln10() {
+    return false
+}
+let w = stdColLog2e(a)
+if w[0] != log2e() {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,24 @@
+import "kab/std_colfmod"
+import "kab/std_colatanh"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 0)
+h = stdColPush(h, 0)
+let k = stdColAtanh(h)
+if k[0] != 0 {
+    return false
+}
+let a = stdColFill(1, 7)
+a = stdColPush(a, 0)
+let b = stdColFill(1, 3)
+b = stdColPush(b, 0)
+let w = stdColFmod(a, b)
+if w[0] != 1 {
+    return false
+}
+return stdHostDeleteOk() == false

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG definition-src. Off previous ui_color_profile.kab.
+pub fn uiIsDefinitionSrc(tag) {
+    return tag == "definition-src"
+}

@@ -1,0 +1,4 @@
+// SH27 kbrowser: SVG Tiny handler. Off previous ui_prefetch.kab.
+pub fn uiIsHandler(tag) {
+    return tag == "handler"
+}

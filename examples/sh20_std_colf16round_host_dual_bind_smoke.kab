@@ -1,0 +1,22 @@
+import "kab/std_colf16round"
+import "kab/std_colfround"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let h = stdColFill(1, 2)
+h = stdColPush(h, 0)
+let k = stdColFround(h)
+if k[0] != 2 {
+    return false
+}
+let g = stdColFill(1, 4)
+g = stdColPush(g, 0)
+let w = stdColF16round(g)
+if w[0] != 4 {
+    return false
+}
+return stdHostDeleteOk() == false

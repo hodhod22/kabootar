@@ -1,0 +1,20 @@
+import "kab/std_colsqrt2"
+import "kab/std_collog10e"
+import "kab/std_colfill"
+import "kab/std_colpush"
+import "kab/std_host"
+
+if stdHostDeleteOk() != false {
+    return false
+}
+let a = stdColFill(1, 7)
+a = stdColPush(a, 0)
+let k = stdColLog10e(a)
+if k[0] != log10e() {
+    return false
+}
+let q = stdColSqrt2(a)
+if q[0] != sqrt2() {
+    return false
+}
+return stdHostDeleteOk() == false
