@@ -667,10 +667,12 @@ pub fn emitCheckWhere(E) {
             idx = idx + 1
         }
         if foundTp == 0 {
-            throw "where: unknown type parameter `" + tp + "`"
+            let whereUnkMsg = "where: unknown type parameter " + tp
+            throw whereUnkMsg
         }
         if idx >= len(E["eTypeArgs"]) {
-            throw "where: missing concrete type for `" + tp + "`"
+            let whereMissMsg = "where: missing concrete type for " + tp
+            throw whereMissMsg
         }
         let ty = E["eTypeArgs"][idx]
         let impls = E["eTraitImpls"][ty]
@@ -692,7 +694,8 @@ pub fn emitCheckWhere(E) {
             ji = ji + 1
         }
         if ok == 0 {
-            throw "where: type `" + ty + "` does not implement `" + tr + "` (required by where " + tp + " : " + tr + ")"
+            let whereMsg = "where: type " + ty + " does not implement " + tr + " (required by where " + tp + " : " + tr + ")"
+            throw whereMsg
         }
         bi = bi + 1
     }
