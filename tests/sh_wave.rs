@@ -1182,6 +1182,62 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host class PairBox<A, B> rejects PairBox<Shown, Nope>"
     );
     assert!(
+        stmt_emit.contains("eGenericMethodTemplates")
+            && emit.contains("eWhereSrc")
+            && emit.contains("emitExpr_call_h5")
+            && emit.contains("E[\"eTypeArgs\"][idx]"),
+        "SH6: self-host method join_ab<A, B> where A: Show, B: Named"
+    );
+    assert!(
+        emit.contains("E[\"eWhereSrc\"] = E[\"eMethTmpl\"]")
+            && emit.contains("emitExpr_call_h5")
+            && emit.contains("throw whereMsg")
+            && emit.contains("E[\"eTypeArgs\"][idx]"),
+        "SH6: self-host method join_ab<A, B> rejects Box().join_ab<Shown, Nope>"
+    );
+    assert!(
+        stmt_emit.contains("eGenericMethodTemplates")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("eWhereSrc")
+            && emit.contains("bound[\"traitName\"]"),
+        "SH6: self-host method both_it<T> where T: Show, T: Named"
+    );
+    assert!(
+        emit.contains("E[\"eWhereSrc\"] = E[\"eMethTmpl\"]")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("throw whereMsg")
+            && emit.contains("bound[\"traitName\"]"),
+        "SH6: self-host method both_it<T> rejects Box().both_it<OnlyShow> missing Named"
+    );
+    assert!(
+        stmt_emit.contains("classWhere")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("emitExpr_call_h3_spec")
+            && emit.contains("bound[\"traitName\"]"),
+        "SH6: self-host class BothBox<T> where T: Show, T: Named"
+    );
+    assert!(
+        stmt_emit.contains("classWhere")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("throw whereMsg")
+            && emit.contains("emitExpr_call_h3_spec"),
+        "SH6: self-host class BothBox<T> rejects BothBox<OnlyShow> missing Named"
+    );
+    assert!(
+        stmt.contains("TOKEN_STRUCT")
+            && stmt_emit.contains("isStruct")
+            && stmt_emit.contains("classWhere")
+            && emit.contains("emitCheckWhere"),
+        "SH6: self-host struct WBox<T> where T: Show"
+    );
+    assert!(
+        stmt.contains("TOKEN_STRUCT")
+            && stmt_emit.contains("isStruct")
+            && stmt_emit.contains("classWhere")
+            && emit.contains("throw whereMsg"),
+        "SH6: self-host struct WBox<T> rejects WBox<Nope>"
+    );
+    assert!(
         postfix.contains("matchPatRangeHiMissing")
             && postfix.contains("\"lo\": null")
             && postfix.contains("\"hi\": null")
@@ -5310,6 +5366,277 @@ fn sh6_self_host_where_class_pair_bounds_reject_ok() {
             && err.contains("does not implement")
             && err.contains("Named")
             && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host method `join_ab<A, B> where A: Show, B: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_method_pair_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Labeled implements Named {\n  fn init() {}\n  fn name() { return 2 }\n}\nclass Box {\n  fn init() {}\n  fn join_ab<A, B>(a, b) where A: Show, B: Named { return 42 }\n}\nreturn Box().join_ab<Shown, Labeled>(Shown(), Labeled())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-method-pair-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("join_ab$Shown_Labeled") {
+                return Err(format!(
+                    "expected join_ab$Shown_Labeled, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host method join_ab<A, B> where A: Show, B: Named");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host method `join_ab<A, B> where A: Show, B: Named` rejects `Box().join_ab<Shown, Nope>`.
+#[test]
+fn sh6_self_host_where_method_pair_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Nope { fn init() {} }\nclass Box {\n  fn init() {}\n  fn join_ab<A, B>(a, b) where A: Show, B: Named { return 1 }\n}\nreturn Box().join_ab<Shown, Nope>(Shown(), Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-method-pair-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("method pair where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host method `both_it<T> where T: Show, T: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_method_two_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show, Named {\n  fn init() {}\n  fn show() { return 1 }\n  fn name() { return 2 }\n}\nclass Box {\n  fn init() {}\n  fn both_it<T>(x) where T: Show, T: Named { return 42 }\n}\nreturn Box().both_it<Shown>(Shown())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-method-two-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("both_it$Shown") {
+                return Err(format!(
+                    "expected both_it$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host method both_it<T> where T: Show, T: Named");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host method `both_it<T> where T: Show, T: Named` rejects `Box().both_it<OnlyShow>`.
+#[test]
+fn sh6_self_host_where_method_two_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass OnlyShow implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Box {\n  fn init() {}\n  fn both_it<T>(x) where T: Show, T: Named { return 1 }\n}\nreturn Box().both_it<OnlyShow>(OnlyShow())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-method-two-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("method two-bounds where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("OnlyShow"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `class BothBox<T> where T: Show, T: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_class_two_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show, Named {\n  fn init() {}\n  fn show() { return 1 }\n  fn name() { return 2 }\n}\nclass BothBox<T> where T: Show, T: Named {\n  fn init() {}\n  fn tag() { return 42 }\n}\nfn run() {\n  return BothBox<Shown>().tag()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-class-two-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("BothBox$Shown") {
+                return Err(format!(
+                    "expected BothBox$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host class BothBox<T> where T: Show, T: Named");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `class BothBox<T> where T: Show, T: Named` rejects `BothBox<OnlyShow>`.
+#[test]
+fn sh6_self_host_where_class_two_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass OnlyShow implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass BothBox<T> where T: Show, T: Named {\n  fn init() {}\n}\nreturn BothBox<OnlyShow>()";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-class-two-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("class two-bounds where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("OnlyShow"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `struct WBox<T> where T: Show` + Kab VM.
+#[test]
+fn sh6_self_host_where_struct_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nstruct WBox<T> where T: Show {\n  fn init() {}\n  fn tag(&self) { return 42 }\n}\nfn run() {\n  return WBox<Shown>().tag()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-struct-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("WBox$Shown") {
+                return Err(format!(
+                    "expected WBox$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("class_is_struct") {
+                return Err(format!(
+                    "expected class_is_struct, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host struct WBox<T> where T: Show");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `struct WBox<T> where T: Show` rejects `WBox<Nope>`.
+#[test]
+fn sh6_self_host_where_struct_show_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nstruct WBox<T> where T: Show {\n  fn init() {}\n}\nreturn WBox<Nope>()";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-struct-show-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("struct where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where") && err.contains("does not implement") && err.contains("Nope"),
         "unexpected err: {err}"
     );
 }
