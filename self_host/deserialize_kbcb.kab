@@ -1,0 +1,454 @@
+/// Packed `KBCB` v2 bytes (Number array or Uint8Array) → runModule IR.
+
+import "self_host/ast_defs"
+
+let KBCB_OP_NAMES = split("const,load_local,store_local,load_global,store_global,pop,add,sub,mul,div,mod,pow,eq,ne,lt,le,gt,ge,and,or,in,bit_and,bit_or,bit_xor,shl,shr,ushr,jump_if_not_nullish,not,neg,bit_not,jump,jump_if_false,call,dup,make_array,make_object,index_get,index_set,get_length,array_push,take_local,take_global,array_push_local,array_push_global,array_pop_local,array_pop_global,acc_add_local,acc_add_global,len_local,len_global,index_get_local,index_get_global,get_member,member_set,swap,concat_array,merge_object,call_from_array,make_ok,make_err,make_some,make_none,jump_if_result_err,array_slice_from,make_arrow_fn,jump_unless_result_ok,unwrap_result_ok,jump_unless_result_err,unwrap_result_err,jump_unless_option_some,unwrap_option_some,jump_unless_option_none,jump_unless_enum_variant,unpack_enum_fields,jump_unless_const_eq,jump_unless_array,jump_unless_object,jump_unless_object_empty,jump_unless_has_member,index_peek_from_end,array_slice_rest,object_rest,await,yield,yield_star,iterator_step_in_place,async_iterator_step_in_place,new_instance,new_instance_from_array,get_super_method,result_question,match_fail,throw,return,halt", ",")
+
+// Per-tag operand kind (host encode_op): 0 none, 1 u16, 2 i32, 3 u8, 4 u16+u8, 5 u16+i32, 6 u16+u16+i32, 7 u8+u8.
+let KBCB_OP_KINDS = "111110000000000000000000000200022303300001111111111111100000000231202020263522253730000041100000"
+
+fn kbcbU8(r) {
+    let i = r["i"]
+    if i >= r["n"] {
+        throw "kbcb v2 truncated"
+    }
+    r["i"] = i + 1
+    if r["u8"] {
+        return uint8_array_get(r["b"], i)
+    }
+    return r["b"][i]
+}
+
+fn kbcbU16(r) {
+    let lo = kbcbU8(r)
+    let hi = kbcbU8(r)
+    return lo + hi * 256
+}
+
+fn kbcbU32(r) {
+    let b0 = kbcbU8(r)
+    let b1 = kbcbU8(r)
+    let b2 = kbcbU8(r)
+    let b3 = kbcbU8(r)
+    return b0 + b1 * 256 + b2 * 65536 + b3 * 16777216
+}
+
+fn kbcbI32(r) {
+    let u = kbcbU32(r)
+    if u >= 2147483648 {
+        return u - 4294967296
+    }
+    return u
+}
+
+fn kbcbI64(r) {
+    let lo = kbcbU32(r)
+    let hi = kbcbU32(r)
+    let bits = lo + hi * 4294967296
+    if bits >= 9223372036854775808 {
+        return bits - 18446744073709551616
+    }
+    return bits
+}
+
+fn kbcbF64(r) {
+    let lo = kbcbU32(r)
+    let hi = kbcbU32(r)
+    let sign = 1
+    if hi >= 2147483648 {
+        sign = 0 - 1
+        hi = hi - 2147483648
+    }
+    let exp = floor(hi / 1048576)
+    let fracHi = hi - exp * 1048576
+    let frac = fracHi * 4294967296 + lo
+    if exp == 2047 {
+        if frac == 0 {
+            return sign / 0
+        }
+        return 0 / 0
+    }
+    let m = frac / 4503599627370496.0
+    if exp == 0 {
+        return sign * m * pow(2, 0 - 1022)
+    }
+    return sign * (1 + m) * pow(2, exp - 1023)
+}
+
+fn kbcbBool(r) {
+    if kbcbU8(r) != 0 {
+        return true
+    }
+    return false
+}
+
+fn kbcbStr(r) {
+    let n = kbcbU32(r)
+    let i = r["i"]
+    let b = r["b"]
+    if i + n > r["n"] {
+        throw "kbcb v2 truncated"
+    }
+    r["i"] = i + n
+    if n == 0 {
+        return ""
+    }
+    if r["u8"] {
+        let off = b["byteOffset"]
+        return text_decode(uint8_array_new(b["buffer"], off + i, n))
+    }
+    return text_decode(array_slice(b, i, i + n))
+}
+
+fn kbcbList() {
+    return { "xs": [] }
+}
+
+fn kbcbPush(acc, item) {
+    object_array_push(acc, "xs", item)
+}
+
+fn kbcbTake(acc) {
+    return acc["xs"]
+}
+
+fn kbcbStrs(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbStr(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbBools(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbBool(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbConst(r) {
+    let tag = kbcbU8(r)
+    if tag == 0 {
+        return kbcbI64(r)
+    }
+    if tag == 1 {
+        return kbcbF64(r)
+    }
+    if tag == 2 {
+        return kbcbStr(r)
+    }
+    if tag == 3 {
+        return kbcbStr(r)
+    }
+    if tag == 4 {
+        return kbcbBool(r)
+    }
+    if tag == 5 {
+        return null
+    }
+    if tag == 6 {
+        return KAB_UNDEF_CONST
+    }
+    if tag == 7 {
+        return 0 / 0
+    }
+    throw "kbcb v2 bad const tag"
+}
+
+fn kbcbConsts(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbConst(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbTries(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        let bs = kbcbU32(r)
+        let be = kbcbU32(r)
+        let cs = kbcbU32(r)
+        let el = kbcbU16(r)
+        kbcbPush(acc, { "bodyStart": bs, "bodyEnd": be, "catchStart": cs, "errLocal": el })
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbOp(r) {
+    let tag = kbcbU8(r)
+    if tag > 95 {
+        throw "kbcb v2 bad op tag"
+    }
+    let name = KBCB_OP_NAMES[tag]
+    let kind = parse_int(str_slice(KBCB_OP_KINDS, tag, tag + 1))
+    let o = { "op": name, "arg": 0, "tag": tag }
+    if kind == 0 {
+        return o
+    }
+    if kind == 1 {
+        o["arg"] = kbcbU16(r)
+        return o
+    }
+    if kind == 2 {
+        o["arg"] = kbcbI32(r)
+        return o
+    }
+    if kind == 3 {
+        o["arg"] = kbcbU8(r)
+        return o
+    }
+    if kind == 4 {
+        o["arg"] = kbcbU16(r)
+        o["arg2"] = kbcbU8(r)
+        return o
+    }
+    if kind == 5 {
+        o["arg"] = kbcbU16(r)
+        o["arg2"] = kbcbI32(r)
+        return o
+    }
+    if kind == 6 {
+        o["arg"] = kbcbU16(r)
+        o["arg2"] = kbcbU16(r)
+        o["arg3"] = kbcbI32(r)
+        return o
+    }
+    o["arg"] = kbcbU8(r)
+    o["arg2"] = kbcbU8(r)
+    return o
+}
+
+fn kbcbOps(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbOp(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbFn(r) {
+    let sym = kbcbStr(r)
+    let params = kbcbStrs(r)
+    let locals = kbcbStrs(r)
+    let gSkip = kbcbStrs(r)
+    let constants = kbcbConsts(r)
+    let ops = kbcbOps(r)
+    let immSkip = kbcbBools(r)
+    let capSkip = kbcbBools(r)
+    let arrowSkip = kbcbFns(r)
+    let asyncSkip = kbcbBool(r)
+    let genSkip = kbcbBool(r)
+    let tryRegions = kbcbTries(r)
+    return {
+        "sym": sym,
+        "params": params,
+        "locals": locals,
+        "ops": ops,
+        "constants": constants,
+        "tryRegions": tryRegions
+    }
+}
+
+fn kbcbFns(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbFn(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbField(r) {
+    let name = kbcbStr(r)
+    let tn = ""
+    if kbcbU8(r) == 1 {
+        tn = kbcbStr(r)
+    }
+    if kbcbU8(r) == 1 {
+        let dcSkip = kbcbU16(r)
+    }
+    let gSkip = kbcbStrs(r)
+    let opSkip = kbcbOps(r)
+    return { "name": name, "type": tn }
+}
+
+fn kbcbClass(r) {
+    let sym = kbcbStr(r)
+    let parentName = null
+    if kbcbU8(r) == 1 {
+        parentName = kbcbStr(r)
+    }
+    let implSkip = kbcbStrs(r)
+    let an = kbcbU32(r)
+    let ai = 0
+    while ai < an {
+        let aSkip = kbcbStr(r)
+        let bSkip = kbcbStr(r)
+        ai = ai + 1
+    }
+    let fieldN = kbcbU32(r)
+    let fieldAcc = kbcbList()
+    let fi = 0
+    while fi < fieldN {
+        kbcbPush(fieldAcc, kbcbField(r))
+        fi = fi + 1
+    }
+    let fields = kbcbTake(fieldAcc)
+    let cSkip = kbcbConsts(r)
+    let methods = kbcbFns(r)
+    let isStruct = 0
+    if kbcbBool(r) {
+        isStruct = 1
+    }
+    let c = { "sym": sym, "methods": methods, "fields": fields, "isStruct": isStruct }
+    if parentName != null {
+        c["extends"] = parentName
+    }
+    return c
+}
+
+fn kbcbClasses(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        kbcbPush(acc, kbcbClass(r))
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbIfaces(r) {
+    let n = kbcbU32(r)
+    let i = 0
+    while i < n {
+        let nSkip = kbcbStr(r)
+        let tpSkip = kbcbStrs(r)
+        let atSkip = kbcbStrs(r)
+        let mn = kbcbU32(r)
+        let mi = 0
+        while mi < mn {
+            let mSkip = kbcbStr(r)
+            let pSkip = kbcbStrs(r)
+            if kbcbU8(r) == 1 {
+                let fSkip = kbcbFn(r)
+            }
+            mi = mi + 1
+        }
+        i = i + 1
+    }
+}
+
+fn kbcbEnums(r) {
+    let n = kbcbU32(r)
+    let acc = kbcbList()
+    let i = 0
+    while i < n {
+        let sym = kbcbStr(r)
+        let vn = kbcbU32(r)
+        let varAcc = kbcbList()
+        let vi = 0
+        while vi < vn {
+            let vname = kbcbStr(r)
+            let fields = kbcbStrs(r)
+            kbcbPush(varAcc, { "name": vname, "fields": fields })
+            vi = vi + 1
+        }
+        kbcbPush(acc, { "sym": sym, "variants": kbcbTake(varAcc) })
+        i = i + 1
+    }
+    return kbcbTake(acc)
+}
+
+fn kbcbModule(r) {
+    let mmSkip = kbcbU8(r)
+    let constants = kbcbConsts(r)
+    let globals = kbcbStrs(r)
+    let locals = kbcbStrs(r)
+    let immSkip = kbcbBools(r)
+    let tryRegions = kbcbTries(r)
+    let ops = kbcbOps(r)
+    let functions = kbcbFns(r)
+    let arrows = kbcbFns(r)
+    let classes = kbcbClasses(r)
+    kbcbIfaces(r)
+    let enums = kbcbEnums(r)
+    let imports = kbcbStrs(r)
+    let pubSkip = kbcbStrs(r)
+    let expSkip = kbcbStrs(r)
+    return {
+        "constants": constants,
+        "globals": globals,
+        "locals": locals,
+        "functions": functions,
+        "classes": classes,
+        "enums": enums,
+        "imports": imports,
+        "arrows": arrows,
+        "tryRegions": tryRegions,
+        "ops": ops
+    }
+}
+
+/// Packed `KBCB` v2 bytes (Number array or Uint8Array) → runModule IR.
+/// v1 text envelope is unsupported.
+pub fn deserializeKbcb(bytes) {
+    let u8 = false
+    if typeof(bytes) == "object" {
+        if bytes != null {
+            if bytes["__kab_u8"] == true {
+                u8 = true
+            }
+        }
+    }
+    if !u8 {
+        if typeof(bytes) != "array" {
+            throw "deserializeKbcb: expected byte array"
+        }
+    }
+    let nbuf = 0
+    if u8 {
+        nbuf = bytes["byteLength"]
+    } else {
+        nbuf = len(bytes)
+    }
+    if nbuf < 9 {
+        throw "deserializeKbcb: truncated envelope"
+    }
+    let r = { "b": bytes, "i": 0, "u8": u8, "n": nbuf }
+    if kbcbU8(r) != 75 || kbcbU8(r) != 66 || kbcbU8(r) != 67 || kbcbU8(r) != 66 {
+        throw "deserializeKbcb: bad magic"
+    }
+    let ver = kbcbU8(r)
+    let n = kbcbU32(r)
+    if r["i"] + n > nbuf {
+        throw "deserializeKbcb: truncated payload"
+    }
+    if ver == 1 {
+        throw "deserializeKbcb: v1 text envelope unsupported (use v2)"
+    }
+    if ver != 2 {
+        throw "deserializeKbcb: unsupported version"
+    }
+    return kbcbModule(r)
+}

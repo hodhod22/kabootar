@@ -14,8 +14,8 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 |----------|----------|
 | Variabler | `let`, **`const`** (immutable) |
 | Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host), **`fn f(a, b = 3)`** / **`(a, b = 3) =>`** / **`class` method `fn add(a, b = 3)`** / **`{ add(a, b = 3) {} }`** / **`trait` default `fn add(a, b = 3)`**, **`fn f(a, ...xs)`** / **`(a, ...xs) =>`** / **`fn rest(a, ...xs)`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM; rust `try_compile` vägrar defaults/rest) |
-| Kontroll | `if`/`else`, `while`, **`do { } while`** (host + self-host + Kab-VM), **`for x in xs`**, **`for x of xs`**, **`for let i = 0; …`** (host + self-host + Kab-VM), **`switch`** + **`fallthrough`** (host + self-host + Kab-VM), `break`, `continue`, **`pass`/`assert`/`not`/`raise`** (host + self-host + Kab-VM), **`with`/`is`/`is not`** (self-host + Kab-VM `object_is`) |
-| Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, **`in`** (membership; host + self-host + Kab-VM), `&& \|\|`, **`??`** (host + self-host + Kab-VM), **`+= -= *= /= %=`** (inkl. **`xs[i] +=`**, **`o.x +=`**, **`o.a.b +=`**, **`o.items[0] +=`**, **`xs[0].x +=`**, **`xs[0][0] +=`** host + self-host + Kab-VM), **`&&= \|\|= ??=`** (host + self-host + Kab-VM), **`!`**, **`? :`** (host + self-host + Kab-VM), **`& \| ^ ~ << >> >>>`** |
+| Kontroll | `if`/`else`, `while`, **`do { } while`** (host + self-host + Kab-VM), **`for x in xs`** / **`for x of xs`** (host + self-host + Kab-VM), **`for let i = 0; …`** (host + self-host + Kab-VM), **`switch`** + **`fallthrough`** (host + self-host + Kab-VM), **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option<Number>.None`** / **`1.0..=2.0`** (host + self-host + Kab-VM `jump_unless_const_eq` / `jump_unless_array` / `jump_unless_has_member` / `ge`/`le` / `array_slice_rest` / `object_rest` / `index_peek_from_end` / `jump_if_false` / `jump_unless_enum_variant` / `unpack_enum_fields` / `unwrap_result_ok` / `unwrap_option_some`), **`if let Some(x)`** / **`while let Ok(v)`** / **`if let 1 | 2`** / **`while let 1 | 2`** (host + self-host + Kab-VM), `break`, `continue`, **`pass`/`assert`/`not`/`raise`** (host + self-host + Kab-VM), **`with`/`is`/`is not`** (self-host + Kab-VM `object_is`) |
+| Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, **`in`** (membership; host + self-host + Kab-VM), `&& \|\|`, **`??`** (host + self-host + Kab-VM), **`+= -= *= /= %=`** (inkl. **`xs[i] +=`**, **`o.x +=`**, **`o.a.b +=`**, **`o.items[0] +=`**, **`o.items[0][0] +=`**, **`xs[0].x +=`**, **`xs[0][0].x +=`**, **`o.items[0][0].x +=`**, **`xs[0][0] +=`**, **`xs[0][0][0] +=`** host + self-host + Kab-VM), **`&&= \|\|= ??=`** (host + self-host + Kab-VM), **`!`**, **`? :`** (host + self-host + Kab-VM), **`& \| ^ ~ << >> >>>`** |
 | Data | array `[1,2]`, **objekt `{ a: 1 }`**, strängar `"..."`, **template `` `Hej ${name}` ``** (host + self-host + Kab-VM) |
 | Åtkomst | **`arr[i]`**, **`obj.key`**, **`obj["key"]`**, **`.length`** |
 | Array-API | **`map`**, **`filter`**, **`push`**, **`pop`**, **`reduce`**, **`find`**, **`slice`**, **`sort`**, **`reverse`**, **`join`**, **`shift`**, **`unshift`**, **`splice`**, **`for_each`**, **`concat`**, **`flat`**, **`flat_map`**, **`len`**, **`includes`**, **`some`**, **`every`**, **`index_of`**, **`last_index_of`**, **`find_last`**, **`find_last_index`** |
@@ -46,7 +46,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Funktion | JS-motsvarighet | Kabootar |
 |----------|-----------------|----------|
 | `switch` | `switch` | **`switch (x) { case 1: { } default: { } }`** + explicit **`fallthrough`**; Kab-VM match + default + fallthrough |
-| `for…of` / `for…in` | värden vs index | **`for x of xs`**, **`for i in xs`** (C#/Rust-semantik) |
+| `for…of` / `for…in` | värden vs index | **`for x of xs`** (host + self-host + Kab-VM); **`for i in xs`** index / **`for k in obj`** nycklar (host + self-host + Kab-VM) |
 | `**` / `??` | operatorer | **`**`**, **`??`** (host + self-host + Kab-VM) |
 | `& \| ^ ~ << >> >>>` | bitwise | **bitwise-operatorer** (ToInt32 / ToUint32 för `>>>`) |
 | `do…while` | loop | **`do { } while`** (self-host + Kab-VM) |
@@ -166,7 +166,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Typed arrays | Float32/64, Uint8, Int32, DataView, SAB | **`array_buffer_new`**, **`shared_array_buffer_new`**, **`float32_array_*`**, **`float64_array_*`**, **`uint8_array_*`**, **`int32_array_*`**, **`data_view_*`** — P2: Float32→`createBuffer`, Uint8→PCM LE i16 + `texImage2D` staging ([GAME.md](GAME.md), [XR.md](XR.md)) |
 | Proxy/Reflect | traps, construct | **`Proxy`**, **`is_proxy`**, **`Reflect.isProxy`**, **`Reflect.construct`** |
 | WeakMap / WeakSet | weak keys | **`weak_map_new/set/get/has/delete`**, **`weak_set_new/add/has/delete`**, **`is_weakmap`**, **`is_weakset`** |
-| `using` / modules | explicit dispose, `import.meta`, dynamic import | **`using x = expr;`** (dispose via **`Symbol.dispose`**, **`dispose()`**, **`close()`**; **self-host** `dispose`/`close` vid block-/modul-slut; rust-VM proven, **inte** Kab-VM — se ROADMAP `store_global` trampolin-COW), **`import.meta.url`**, **`import.meta.path`** (self-host → `import_meta()`; Kab-VM), **`import("math")`** → Promise of module namespace (self-host → `dynamic_import`; inte Kab-VM-proven) |
+| `using` / modules | explicit dispose, `import.meta`, dynamic import | **`using x = expr;`** (dispose via **`Symbol.dispose`**, **`dispose()`**, **`close()`**; **self-host** `dispose`/`close` vid block-/modul-slut; rust-VM proven; Kab-VM anropar `close?.()` men sidoeffekt syns inte — lastThis/`store_global` trampolin-COW), **`import.meta.url`**, **`import.meta.path`** (self-host → `import_meta()`; Kab-VM), **`import("math")`** → Promise of module namespace (self-host → `dynamic_import`; inte Kab-VM-proven) |
 | `Intl` | `NumberFormat`, `DateTimeFormat` | **`Intl.NumberFormat(locale, opts).format(n)`**, **`Intl.DateTimeFormat(locale, opts).format(date)`** — decimal/percent/currency, grouping, date/time styles |
 | `Temporal` | polyfill subset | **`Temporal.PlainDate.from({ year, month, day })`**, **`Temporal.Instant.from(ms)`**, **`Temporal.Now.instant()`**, **`Temporal.Now.plainDateISO()`** |
 | Error `.cause` / `.stack` | chained errors, stack traces | **`error_new(msg, { cause: err })`**, **`error_cause(e)`**, **`error_stack(e)`** — auto stack on **`throw`** |
@@ -349,7 +349,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Feature | Status | Doc |
 |---------|--------|-----|
-| `match Option.Some(v)` i bytecode | ✅ + self-host compile-run | [GENERICS.md](GENERICS.md#fas-3) |
+| `match Option.Some(v)` i bytecode | ✅ + self-host compile-run; **kab-only** `Option.Some(n)` / `Option<Number>.None` | [GENERICS.md](GENERICS.md#fas-3) |
 | `class Child<T> extends Base<T>` | ✅ host + self-host compile-run | [GENERICS.md](GENERICS.md#fas-3) |
 | `super.method()` | ✅ self-host `get_super_method` (inkl. `Child<T>` kab-only); default = kab-only Kab-VM via kbcb v2 Uint8Array/mmap + tag-dispatch; `kabootar run` packed `.kbcb` | [LANGUAGE.md](LANGUAGE.md) |
 | `super.init(...)` / `super.field =` / `super.n +=` | ✅ self-host compile-run | [LANGUAGE.md](LANGUAGE.md) |
@@ -428,9 +428,9 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Ursprung | Konstruktion | Status |
 |----------|--------------|--------|
-| Rust | `match` / mönstermatchning | ✅ host: tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, **`...rest`**, guards, enum. **Self-host:** samma + **`n @ { a, ...r }`** / **`n @ [h, ...t]`** + **`n @ 1..=5 if n != 3`** + or/range/`if let`/`while let` + text-`.kbc` enum-register + Kab-VM payload-ctors + **`match Option.Some(n)`** |
-| Rust | `enum` (användardefinierad) | ✅ `enum Color { Red, Green }`, `Color.Red`, `Msg.Move(x,y)` |
-| Rust | `if let` / `while let` | ✅ host; self-host socker över `match` |
+| Rust | `match` / mönstermatchning | ✅ host: tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, **`...rest`**, guards, enum. **Self-host:** samma + **`n @ 1..=5 if n != 3`** + or/range/`if let`/`while let` + text-`.kbc` enum-register + Kab-VM payload-ctors + **`match Option.Some(n)`** + **kab-only** **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option<Number>.None`** / **`1.0..=2.0`** |
+| Rust | `enum` (användardefinierad) | ✅ host + self-host unit/payload; **kab-only** `match Color.Red` / `Msg.Move(p)` / `Option.Some(n)` / `Option<Number>.None` |
+| Rust | `if let` / `while let` | ✅ host; self-host socker över `match`; **kab-only** `if let Some(x) = Some(3)` / `while let Ok(v) = r` / `if let 1 | 2` / `while let 1 | 2` |
 | Rust | fälttyper i klasser | ✅ `x: number` / `status: Color` runtime-check |
 | Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** + **`?`-operator** (host + self-host + Kab-VM: unwrap `Ok`, behåll `Err`) |
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
