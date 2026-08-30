@@ -2,7 +2,7 @@
 
 **Slutmål (nolltolerans):** hela stacken är `.kab`. Rust är skuld tills [SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Plan: [docs/ROADMAP.md — Kabootar på egna fötter](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
-Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. SH6: Kab-VM **kab-only default**; packed `.kbcb` run; **`in`**; **`await`**; **`array_slice_from`**; **`new_instance_from_array`**; self-host **`let [a, ...rest]`** / **`let { a, ...rest }`** / **`let { x: [a, b] }`** / **`[1, ...xs]`** / **`{ ...obj }`** / **`{ a }`** / **`{ foo() {} }`** / **`{ [k]: v }`** / **`is`/`is not`** / **`fn f(a, b = 3)`** / **`fn f(a, ...xs)`** / **`(a, b = 3) =>`** / **`(a, ...xs) =>`** / **`class C { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** / **`trait T { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`o?.x`** / **`xs?.[0]`** / **`f?.()`** / **`delete o.z`** / **`switch`** / **`fallthrough`** / **`do while`** / **`xs[0] +=`** / **`step()?`/`bad()?`** / **`? :`** / **`import.meta`** / **`` `n=${n}` ``** / **`||=` `&&=` `??=`** / **`??`** / **`for let i = 0`** / **`for x of`** / **`for k in`** / **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`if let Some(x)`** / **`while let Ok(v)`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`if let 1 | 2`** / **`while let 1 | 2`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option.Some("x")`** / **`Option<Number>.None`** / **`1.0..=2.0`** / **`Result.Ok(n)`** / **`Result<Number, String>.Err`** / **`if let n @ Some(x)`** / **`n @ 1 | 2`** / **`v @ Msg.Move(x)`** / **`struct Box<T>`** / **`Box$String`** / **`is(obj, "Class")`** / **`pass`/`assert`/`not`** / **`raise`** / **`o.x +=`** / **`o.a.b +=`** / **`o.items[0] +=`** / **`o.items[0][0] +=`** / **`xs[0].x +=`** / **`xs[0][0].x +=`** / **`o.items[0][0].x +=`** / **`xs[0][0] +=`** / **`xs[0][0][0] +=`**. 100 loop / 200 unrolled. 1k+ loop är nested-interpreter. Text-`maxKbc` oförändrad. Inte `noll_*`. Språkparitet i `.kab`, inte `src/`.
+Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. SH6: Kab-VM **kab-only default**; packed `.kbcb` run; **`in`**; **`await`**; **`array_slice_from`**; **`new_instance_from_array`**; self-host **`let [a, ...rest]`** / **`let { a, ...rest }`** / **`let { x: [a, b] }`** / **`[1, ...xs]`** / **`{ ...obj }`** / **`{ a }`** / **`{ foo() {} }`** / **`{ [k]: v }`** / **`is`/`is not`** / **`fn f(a, b = 3)`** / **`fn f(a, ...xs)`** / **`(a, b = 3) =>`** / **`(a, ...xs) =>`** / **`class C { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** / **`trait T { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`o?.x`** / **`xs?.[0]`** / **`f?.()`** / **`delete o.z`** / **`switch`** / **`fallthrough`** / **`do while`** / **`xs[0] +=`** / **`step()?`/`bad()?`** / **`? :`** / **`import.meta`** / **`` `n=${n}` ``** / **`||=` `&&=` `??=`** / **`??`** / **`for let i = 0`** / **`for x of`** / **`for k in`** / **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`if let Some(x)`** / **`while let Ok(v)`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`if let 1 | 2`** / **`while let 1 | 2`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option.Some("x")`** / **`Option<Number>.None`** / **`1.0..=2.0`** / **`Result.Ok(n)`** / **`Result<Number, String>.Err`** / **`if let n @ Some(x)`** / **`n @ 1 | 2`** / **`v @ Msg.Move(x)`** / **`struct Box<T>`** / **`Box$String`** / **`echo$Number`** / **`echo$String`** / **`Box<String>("hi")`** / **`Child$Number`** / **`id<Number>(42)`** / **`id$String`** / **`id(id(42))`** / **`pair$Number_String`** / **`id$Box`** / **`pair(x, s)`** / **`len(wrap(1))`** / **`super.init`** / **`super.count = 1`** / **`super.n += 2`** / **`let m = super.tag`** / **`this.run(super.f)`** / **`Show<Number>`** / **`type Item = Number`** / **`where T: Show`** / **`show_it<Shown>`** / **`Box().show_it<Shown>`** / **`show_it<Nope>`** / **`Box().show_it<Nope>`** / **`Box<Nope>`** / **`where T: Show, T: Named`** / **`both_it<OnlyShow>`** / **`where A: Show, B: Named`** / **`pair_it<Shown, Nope>`** / **`PairBox<Shown, Labeled>`** / **`PairBox<Shown, Nope>`** / **`is(obj, "Class")`** / **`pass`/`assert`/`not`** / **`raise`** / **`o.x +=`** / **`o.a.b +=`** / **`o.items[0] +=`** / **`o.items[0][0] +=`** / **`xs[0].x +=`** / **`xs[0][0].x +=`** / **`o.items[0][0].x +=`** / **`xs[0][0] +=`** / **`xs[0][0][0] +=`**. 100 loop / 200 unrolled. 1k+ loop är nested-interpreter. Text-`maxKbc` oförändrad. Inte `noll_*`. Språkparitet i `.kab`, inte `src/`.
 
 **Dok efter varje deepen:** uppdatera [docs/ROADMAP.md](../docs/ROADMAP.md) (status + **Nästa**) och den här filen (nuläge + milstolpar + tester) i samma pass. Språkparitet: även [docs/LANGUAGE.md](../docs/LANGUAGE.md).
 
@@ -146,6 +146,36 @@ cargo test --test sh_wave sh6_self_host_match_payload_at_bind_ok -- --test-threa
 cargo test --test sh_wave sh6_self_host_match_option_two_specs_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_struct_box_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_struct_box_two_specs_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_method_echo_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_method_echo_two_specs_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_box_explicit_string_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_class_extends_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_id_explicit_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_id_two_specs_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_id_nested_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_pair_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_id_box_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_fn_pair_from_lets_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_len_wrap_call_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_super_init_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_super_count_assign_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_super_n_add_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_super_bound_tag_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_super_as_callback_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generic_trait_show_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_class_assoc_item_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_class_show_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_show_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_method_show_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_reject_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_method_reject_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_class_reject_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_two_bounds_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_two_bounds_reject_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_pair_bounds_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_fn_pair_bounds_reject_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_class_pair_bounds_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_where_class_pair_bounds_reject_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_is_class_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_pass_assert_not_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_raise_ok -- --test-threads=1

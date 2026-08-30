@@ -13,7 +13,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Kategori | Funktion |
 |----------|----------|
 | Variabler | `let`, **`const`** (immutable) |
-| Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host), **`fn f(a, b = 3)`** / **`(a, b = 3) =>`** / **`class` method `fn add(a, b = 3)`** / **`{ add(a, b = 3) {} }`** / **`trait` default `fn add(a, b = 3)`**, **`fn f(a, ...xs)`** / **`(a, ...xs) =>`** / **`fn rest(a, ...xs)`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM; rust `try_compile` vägrar defaults/rest) |
+| Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host; **kab-only** `id<Number>(42)` / `id$Number` / `id("hi")` / `id$String` / `id(id(42))` / `pair$Number_String` / `len(pair(1, "a"))` / `id(b)` / `id$Box` / `pair(x, s)` / `len(wrap(1))`), **`fn f(a, b = 3)`** / **`(a, b = 3) =>`** / **`class` method `fn add(a, b = 3)`** / **`{ add(a, b = 3) {} }`** / **`trait` default `fn add(a, b = 3)`**, **`fn f(a, ...xs)`** / **`(a, ...xs) =>`** / **`fn rest(a, ...xs)`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM; rust `try_compile` vägrar defaults/rest) |
 | Kontroll | `if`/`else`, `while`, **`do { } while`** (host + self-host + Kab-VM), **`for x in xs`** / **`for x of xs`** (host + self-host + Kab-VM), **`for let i = 0; …`** (host + self-host + Kab-VM), **`switch`** + **`fallthrough`** (host + self-host + Kab-VM), **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option.Some("x")`** / **`Option<Number>.None`** / **`1.0..=2.0`** / **`Result.Ok(n)`** / **`Result<Number, String>.Err`** / **`n @ 1 | 2`** / **`v @ Msg.Move(x)`** (host + self-host + Kab-VM `jump_unless_const_eq` / `jump_unless_array` / `jump_unless_has_member` / `ge`/`le` / `array_slice_rest` / `object_rest` / `index_peek_from_end` / `jump_if_false` / `jump_unless_enum_variant` / `unpack_enum_fields` / `unwrap_result_ok` / `unwrap_option_some`), **`if let Some(x)`** / **`while let Ok(v)`** / **`if let 1 | 2`** / **`while let 1 | 2`** / **`if let n @ Some(x)`** (host + self-host + Kab-VM), `break`, `continue`, **`pass`/`assert`/`not`/`raise`** (host + self-host + Kab-VM), **`with`/`is`/`is not`** (self-host + Kab-VM `object_is`) |
 | Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, **`in`** (membership; host + self-host + Kab-VM), `&& \|\|`, **`??`** (host + self-host + Kab-VM), **`+= -= *= /= %=`** (inkl. **`xs[i] +=`**, **`o.x +=`**, **`o.a.b +=`**, **`o.items[0] +=`**, **`o.items[0][0] +=`**, **`xs[0].x +=`**, **`xs[0][0].x +=`**, **`o.items[0][0].x +=`**, **`xs[0][0] +=`**, **`xs[0][0][0] +=`** host + self-host + Kab-VM), **`&&= \|\|= ??=`** (host + self-host + Kab-VM), **`!`**, **`? :`** (host + self-host + Kab-VM), **`& \| ^ ~ << >> >>>`** |
 | Data | array `[1,2]`, **objekt `{ a: 1 }`**, strängar `"..."`, **template `` `Hej ${name}` ``** (host + self-host + Kab-VM) |
@@ -340,7 +340,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 |---------|-----------|-----|
 | Inferens från variabler (`let n = 42; id(n)`) | G6 ✅ + `id(Box)` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | Generiska klassmetoder (`fn echo<T>(x) { … }`) | G7 ✅ + två specs | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
-| Generiska klasser (`class Box<T>`) | G8 ✅ + G8.1 `b.echo` + `extends Base<T>` + två specs + fält `T` + `Box<String>` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska klasser (`class Box<T>`) | G8 ✅ + G8.1 `b.echo` + `extends Base<T>` + två specs + fält `T` + `Box<String>`; **kab-only** `echo$Number` / `echo$String` / `Box<String>("hi")` / `Child$Number` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | Generiska enum / `Option<T>` / `Result<T,E>` | G9 ✅ + två specs + `Result$Number_String` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | Self-host generics fas 2 | G10 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | LSP hover / completion för generics | G11 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
@@ -350,9 +350,9 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Feature | Status | Doc |
 |---------|--------|-----|
 | `match Option.Some(v)` i bytecode | ✅ + self-host compile-run; **kab-only** `Option.Some(n)` / `Option.Some("x")` / `Option<Number>.None` / `Result.Ok(n)` / `Result$Number_String` | [GENERICS.md](GENERICS.md#fas-3) |
-| `class Child<T> extends Base<T>` | ✅ host + self-host compile-run | [GENERICS.md](GENERICS.md#fas-3) |
-| `super.method()` | ✅ self-host `get_super_method` (inkl. `Child<T>` kab-only); default = kab-only Kab-VM via kbcb v2 Uint8Array/mmap + tag-dispatch; `kabootar run` packed `.kbcb` | [LANGUAGE.md](LANGUAGE.md) |
-| `super.init(...)` / `super.field =` / `super.n +=` | ✅ self-host compile-run | [LANGUAGE.md](LANGUAGE.md) |
+| `class Child<T> extends Base<T>` | ✅ host + self-host compile-run; **kab-only** `Child<Number>().tag()` / `Child$Number` / `super.init` / `Child(42).val` / `super.count = 1` / `super.n += 2` | [GENERICS.md](GENERICS.md#fas-3) |
+| `super.method()` | ✅ self-host `get_super_method` (inkl. `Child<T>` kab-only); **kab-only** `let m = super.tag; m()` / `this.run(super.f)` / `(super.f)()`; default = kab-only Kab-VM via kbcb v2 Uint8Array/mmap + tag-dispatch; `kabootar run` packed `.kbcb` | [LANGUAGE.md](LANGUAGE.md) |
+| `super.init(...)` / `super.field =` / `super.n +=` | ✅ self-host compile-run; **kab-only** `super.init` / `Child(42).val` / `super.count = 1` / `super.n += 2` | [LANGUAGE.md](LANGUAGE.md) |
 | `len(wrap(1))` / `len(pair(x, s))` | ✅ self-host `get_length` (nested call args on locals) | [ROADMAP.md SH3](ROADMAP.md) |
 | Self-host `NewInstance` opcode | ✅ | [self_host/README.md](../self_host/README.md) |
 | LSP hover member-call med receiver | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
@@ -419,7 +419,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
 | C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
 | Rust | `struct` + `&self` / `&mut self` | ✅ host; self-host parse+compile-run (R4) + **`struct Box<T>`**; **kab-only** `Box(42)` / `Box("x")` / `Box$Number` / `Box$String` |
-| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>` |
+| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>`; **kab-only** `Show$Number` / `type Item = Number` / `where T: Show` / `Box$Shown` / `show_it$Shown` / `Box().show_it<Shown>` / `show_it<Nope>` reject / `Box().show_it<Nope>` reject / `Box<Nope>` reject / `where T: Show, T: Named` / `both_it$Shown` / `both_it<OnlyShow>` reject / `where A: Show, B: Named` / `pair_it$Shown_Labeled` / `pair_it<Shown, Nope>` reject / `PairBox<Shown, Labeled>` / `PairBox$Shown_Labeled` / `PairBox<Shown, Nope>` reject |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab` |
 | Kabootar | `@version` / semver | ✅ `import "mod@1.0"` |
@@ -436,7 +436,7 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
 | C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
 | Rust | `struct` + `&self` / `&mut self` | ✅ host; self-host parse+compile-run (R4) + **`struct Box<T>`**; **kab-only** `Box(42)` / `Box("x")` / `Box$Number` / `Box$String` |
-| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>` |
+| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>`; **kab-only** `Show$Number` / `type Item = Number` / `where T: Show` / `Box$Shown` / `show_it$Shown` / `Box().show_it<Shown>` / `show_it<Nope>` reject / `Box().show_it<Nope>` reject / `Box<Nope>` reject / `where T: Show, T: Named` / `both_it$Shown` / `both_it<OnlyShow>` reject / `where A: Show, B: Named` / `pair_it$Shown_Labeled` / `pair_it<Shown, Nope>` reject / `PairBox<Shown, Labeled>` / `PairBox$Shown_Labeled` / `PairBox<Shown, Nope>` reject |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab`, lokalt paketregistry |
 | Kabootar | `@version` / semver | ✅ `import "mod@1.0"` |

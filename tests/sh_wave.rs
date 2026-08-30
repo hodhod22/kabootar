@@ -968,6 +968,220 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host two Box specializations Box$Number / Box$String"
     );
     assert!(
+        stmt_emit.contains("eGenericMethodTemplates")
+            && emit.contains("eGenericMethodTemplates")
+            && emit.contains("emitExpr_call_h5")
+            && emit.contains("eMethTmpl"),
+        "SH6: self-host generic method b.echo(1) → echo$Number"
+    );
+    assert!(
+        emit.contains("emitExpr_call_h5")
+            && emit.contains("emitMangleWithTypeArgs")
+            && emit.contains("eMethTmpl")
+            && stmt_emit.contains("eGenericMethodTemplates"),
+        "SH6: self-host two echo specializations echo$Number / echo$String"
+    );
+    assert!(
+        postfix.contains("pSnapTypeArgs")
+            && postfix.contains("pIsGenericCallee")
+            && emit.contains("emitResolveTypeArgs")
+            && emit.contains("emitExpr_call_h3"),
+        "SH6: self-host explicit Box<String>(...) type-args + Box$String ctor"
+    );
+    assert!(
+        emit.contains("emitSpecializeParentClass")
+            && emit.contains("eParentMangled")
+            && stmt.contains("pExtendsTypeArgs")
+            && stmt.contains("TOKEN_EXTENDS"),
+        "SH6: self-host Child<T> extends Base<T> → Child$Number / Base$Number"
+    );
+    assert!(
+        stmt_emit.contains("eGenericTemplates")
+            && emit.contains("eGenericTemplates")
+            && emit.contains("emitExpr_call_h2")
+            && emit.contains("emitExpr_call_h2_spec"),
+        "SH6: self-host generic fn id<Number>(42) → id$Number"
+    );
+    assert!(
+        stmt_emit.contains("eGenericTemplates")
+            && emit.contains("emitExpr_call_h2")
+            && emit.contains("emitResolveTypeArgs")
+            && emit.contains("emitExpr_call_h2_spec"),
+        "SH6: self-host two id specializations id$Number / id$String"
+    );
+    let emit_sym = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_sym.kab"),
+    )
+    .expect("emit_sym.kab");
+    assert!(
+        emit_sym.contains("emitInferNestedCall")
+            && emit_sym.contains("emitInferTypeArgsFrom")
+            && emit.contains("emitExpr_call_h2")
+            && stmt_emit.contains("eGenericTemplates"),
+        "SH6: self-host nested id(id(42)) infer via emitInferNestedCall"
+    );
+    assert!(
+        emit_sym.contains("emitMangleWithTypeArgs")
+            && emit_sym.contains("eMangleRet = E[nameKey] + \"_\"")
+            && emit.contains("emitExpr_call_h2")
+            && stmt_emit.contains("eGenericTemplates"),
+        "SH6: self-host pair<A,B> → pair$Number_String via emitMangleWithTypeArgs"
+    );
+    assert!(
+        stmt_emit.contains("emitStmt_letCtorLookup")
+            && stmt_emit.contains("eBindingTypes")
+            && emit_sym.contains("emitInferVarBinding")
+            && emit.contains("emitExpr_call_h2"),
+        "SH6: self-host id(b) for class Box → id$Box via emitInferVarBinding"
+    );
+    assert!(
+        stmt_emit.contains("emitStmt_letBind")
+            && stmt_emit.contains("LIT_NUMBER")
+            && stmt_emit.contains("LIT_STRING")
+            && emit_sym.contains("emitInferVarBinding"),
+        "SH6: self-host pair(x, s) from let bindings → pair$Number_String"
+    );
+    assert!(
+        emit.contains("tryEmitLenCall")
+            && emit.contains("do not clobber outer argv")
+            && emit.contains("OP_GET_LENGTH")
+            && emit.contains("eCallExpr(E, a0)"),
+        "SH6: self-host len(wrap(1)) nested call → get_length without clobbering eArgs"
+    );
+    assert!(
+        emit.contains("OP_GET_SUPER_METHOD")
+            && emit.contains("E[\"eBxL\"].kind == AST_SUPER")
+            && cmp.contains("get_super_method")
+            && emit.contains("emitSpecializeParentClass"),
+        "SH6: self-host Child<T> own init calls super.init → get_super_method"
+    );
+    assert!(
+        stmt_emit.contains("maObj.kind == AST_SUPER")
+            && stmt_emit.contains("emitSym(E, 0, \"this\")")
+            && stmt_emit.contains("OP_SET_MEMBER")
+            && emit.contains("OP_GET_SUPER_METHOD"),
+        "SH6: self-host super.count = via this + member_set after super.init"
+    );
+    assert!(
+        stmt.contains("compoundAssignBinOp")
+            && stmt.contains("AST_MEMBER_ASSIGN")
+            && stmt_emit.contains("maObj.kind == AST_SUPER")
+            && emit.contains("OP_GET_SUPER_METHOD"),
+        "SH6: self-host super.n += desugars to super.n + rhs then member_set"
+    );
+    assert!(
+        cmp.contains("vSuperMemberGetS")
+            && cmp.contains("runOpCmpSuperMethod")
+            && emit.contains("OP_GET_SUPER_METHOD")
+            && emit.contains("E[\"eBxL\"].kind == AST_SUPER"),
+        "SH6: self-host bound super.tag (let m = super.tag; m()) via get_super_method value"
+    );
+    assert!(
+        postfix.contains("sess[\"pLeft\"] = { \"kind\": AST_SUPER }")
+            && emit.contains("OP_GET_SUPER_METHOD")
+            && emit.contains("emitExpr_callArgv")
+            && cmp.contains("vSuperMemberGetS"),
+        "SH6: self-host this.run(super.f) / (super.f)() bound super as callback"
+    );
+    assert!(
+        stmt.contains("TOKEN_IMPLEMENTS")
+            && stmt.contains("pImplements")
+            && stmt.contains("implName + \"$\" + implArgs[0]")
+            && ser.contains("interface_type_params"),
+        "SH6: self-host trait Show<T> + implements Show<Number> → Show$Number"
+    );
+    assert!(
+        stmt.contains("parseStmt_class_assoc")
+            && stmt.contains("pClassAssoc")
+            && stmt.contains("parseStmt_iface_assoc")
+            && ser.contains("class_assoc_types"),
+        "SH6: self-host type Item = Number class assoc + class_assoc_types serialize"
+    );
+    assert!(
+        stmt.contains("parseStmt_fn_where")
+            && stmt.contains("pWhereClause")
+            && emit.contains("emitCheckWhere")
+            && emit.contains("does not implement"),
+        "SH6: self-host class Box<T> where T: Show + emitCheckWhere"
+    );
+    assert!(
+        stmt_emit.contains("eGenericTemplates")
+            && emit.contains("emitExpr_call_h2_spec")
+            && emit.contains("emitCheckWhere")
+            && emit.contains("emitExpr_call_h2"),
+        "SH6: self-host fn show_it<T> where T: Show → show_it$Shown"
+    );
+    assert!(
+        stmt_emit.contains("eGenericMethodTemplates")
+            && emit.contains("eWhereSrc")
+            && emit.contains("emitExpr_call_h5")
+            && emit.contains("emitCheckWhere"),
+        "SH6: self-host method show_it<T> where T: Show → Box().show_it<Shown>"
+    );
+    assert!(
+        emit.contains("let whereMsg")
+            && emit.contains("throw whereMsg")
+            && emit.contains("does not implement")
+            && emit.contains("required by where"),
+        "SH6: self-host where reject show_it<Nope> diagnostic"
+    );
+    assert!(
+        emit.contains("E[\"eWhereSrc\"] = E[\"eMethTmpl\"]")
+            && emit.contains("emitExpr_call_h5")
+            && emit.contains("throw whereMsg")
+            && emit.contains("emitCheckWhere"),
+        "SH6: self-host method where reject Box().show_it<Nope>"
+    );
+    assert!(
+        stmt_emit.contains("classWhere")
+            && emit.contains("emitExpr_call_h3_spec")
+            && emit.contains("emitCheckWhere")
+            && emit.contains("throw whereMsg"),
+        "SH6: self-host class Box<T> where T: Show rejects Box<Nope>"
+    );
+    assert!(
+        stmt.contains("pWhereParam")
+            && stmt.contains("pWhereTrait")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("bound[\"traitName\"]"),
+        "SH6: self-host where T: Show, T: Named two bounds loop"
+    );
+    assert!(
+        emit.contains("bi = bi + 1")
+            && emit.contains("while bi < len(clause)")
+            && emit.contains("throw whereMsg")
+            && emit.contains("does not implement"),
+        "SH6: self-host where two-bounds reject both_it<OnlyShow> missing Named"
+    );
+    assert!(
+        emit.contains("whereMissMsg")
+            && emit.contains("bound[\"typeParam\"]")
+            && emit.contains("E[\"eTypeArgs\"][idx]")
+            && stmt.contains("pWhereParam"),
+        "SH6: self-host where A: Show, B: Named two type-param bounds"
+    );
+    assert!(
+        emit.contains("emitExpr_call_h2_spec")
+            && emit.contains("E[\"eTypeArgs\"][idx]")
+            && emit.contains("throw whereMsg")
+            && emit.contains("does not implement"),
+        "SH6: self-host where A: Show, B: Named rejects pair_it<Shown, Nope>"
+    );
+    assert!(
+        stmt_emit.contains("classWhere")
+            && emit.contains("emitExpr_call_h3_spec")
+            && emit.contains("E[\"eTypeArgs\"][idx]")
+            && emit.contains("eGenericClassTemplates"),
+        "SH6: self-host class PairBox<A, B> where A: Show, B: Named"
+    );
+    assert!(
+        stmt_emit.contains("classWhere")
+            && emit.contains("emitExpr_call_h3_spec")
+            && emit.contains("throw whereMsg")
+            && emit.contains("E[\"eTypeArgs\"][idx]"),
+        "SH6: self-host class PairBox<A, B> rejects PairBox<Shown, Nope>"
+    );
+    assert!(
         postfix.contains("matchPatRangeHiMissing")
             && postfix.contains("\"lo\": null")
             && postfix.contains("\"hi\": null")
@@ -3877,6 +4091,1227 @@ fn sh6_self_host_struct_box_two_specs_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host generic method `b.echo(1)` → `echo$Number` + Kab VM.
+#[test]
+fn sh6_self_host_generic_method_echo_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Box<T> {\n  fn init(v) {}\n  fn echo<U>(x) { return x }\n}\nfn run() {\n  let holder = Box(42)\n  return holder.echo(7) + holder.echo(2)\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-method-echo".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Box$Number") {
+                return Err(format!(
+                    "expected Box$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("echo$Number") {
+                return Err(format!(
+                    "expected echo$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic method echo");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host two generic method specs (`echo$Number` + `echo$String`) + Kab VM.
+#[test]
+fn sh6_self_host_generic_method_echo_two_specs_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Holder {\n  fn init() {}\n  fn echo<T>(x) { return x }\n}\nfn run() {\n  let host = Holder()\n  let num = host.echo(1)\n  let txt = host.echo(\"x\")\n  return num + len(txt)\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-method-echo-two-specs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("echo$Number") {
+                return Err(format!(
+                    "expected echo$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("echo$String") {
+                return Err(format!(
+                    "expected echo$String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host two echo specs");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host explicit `Box<String>("hi")` / `Box<Number>` + Kab VM.
+#[test]
+fn sh6_self_host_box_explicit_string_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Box<T> {\n  tag: number;\n  fn init(v) { this.tag = 1 }\n}\nfn run() {\n  let sbox = Box<String>(\"hi\")\n  let nbox = Box<Number>(40)\n  return sbox.tag + nbox.tag\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-box-explicit-string".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Box$String") {
+                return Err(format!(
+                    "expected Box$String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Box$Number") {
+                return Err(format!(
+                    "expected Box$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("new_instance") {
+                return Err(format!(
+                    "expected new_instance for Box<String>, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host explicit Box<String>");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `Child<T> extends Base<T>` (`Child$Number`) + `super.tag()` + Kab VM.
+#[test]
+fn sh6_self_host_generic_class_extends_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  fn tag() { return 1 }\n}\nclass Child<T> extends Base<T> {\n  fn tag() { return super.tag() + 1 }\n}\nfn run() {\n  let kid = Child<Number>()\n  return kid.tag()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-class-extends".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Base$Number") {
+                return Err(format!(
+                    "expected Base$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("new_instance") {
+                return Err(format!(
+                    "expected new_instance for Child<Number>(), snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for super.tag(), snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic class extends");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `id<Number>(42)` → `id$Number` + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_id_explicit_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn id<T>(x) { return x }\nreturn id<Number>(40) + id<Number>(2)";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-id-explicit".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("id$Number") {
+                return Err(format!(
+                    "expected id$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic fn id explicit");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host two `id<T>` specs (`id$Number` + `id$String`) + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_id_two_specs_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn id<T>(x) { return x }\nreturn id(1) + len(id(\"hi\"))";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-id-two-specs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("id$Number") {
+                return Err(format!(
+                    "expected id$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("id$String") {
+                return Err(format!(
+                    "expected id$String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host two id specs");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `id(id(42))` → `id$Number` + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_id_nested_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn id<T>(x) { return x }\nreturn id(id(42))";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-id-nested".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("id$Number") {
+                return Err(format!(
+                    "expected id$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested id(id(42))");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `pair<A,B>` → `pair$Number_String` + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_pair_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn pair<A, B>(a, b) { return [a, b] }\nreturn len(pair(1, \"a\"))";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-pair".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pair$Number_String") {
+                return Err(format!(
+                    "expected pair$Number_String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_length") {
+                return Err(format!(
+                    "expected get_length, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host pair<A,B>");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `id(b)` for `class Box` → `id$Box` + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_id_box_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Box {\n  value: number;\n  fn init(v) { this.value = v }\n}\nfn id<T>(x) { return x }\nlet b = Box(42)\nreturn id(b).value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-id-box".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("id$Box") {
+                return Err(format!(
+                    "expected id$Box, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host id(b) Box");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `pair(x, s)` from let bindings → `pair$Number_String` + Kab VM.
+#[test]
+fn sh6_self_host_generic_fn_pair_from_lets_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn pair<A, B>(a, b) { return [a, b] }\nlet x = 1\nlet s = \"a\"\nreturn len(pair(x, s))";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-fn-pair-from-lets".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pair$Number_String") {
+                return Err(format!(
+                    "expected pair$Number_String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_length") {
+                return Err(format!(
+                    "expected get_length, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host pair(x, s) from lets");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `len(wrap(1))` nested call → `get_length` + Kab VM.
+#[test]
+fn sh6_self_host_len_wrap_call_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn wrap(x) { return [x, x] }\nfn run() {\n  return len(wrap(1))\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-len-wrap-call".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("get_length") {
+                return Err(format!(
+                    "expected get_length, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host len(wrap(1))");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `Child<T>` own `init` + `super.init` + Kab VM.
+#[test]
+fn sh6_self_host_generic_super_init_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  val: number;\n  fn init(v) { this.val = v }\n}\nclass Child<T> extends Base<T> {\n  fn init(v) { super.init(v) }\n}\nfn run() {\n  return Child(42).val\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-super-init".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Base$Number") {
+                return Err(format!(
+                    "expected Base$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for super.init, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic super.init");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `Child<T>` `super.count = 1` after `super.init` + Kab VM.
+#[test]
+fn sh6_self_host_generic_super_count_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  count: number;\n  fn init() { this.count = 0 }\n}\nclass Child<T> extends Base<T> {\n  fn init() {\n    super.init()\n    super.count = 1\n  }\n}\nfn run() {\n  return Child<Number>().count\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-super-count-assign".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for super.init, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set for super.count =, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic super.count =");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: product self-host `Child<T>` `super.n += 2` after `super.init` + Kab VM.
+#[test]
+fn sh6_self_host_generic_super_n_add_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  n: number;\n  fn init() { this.n = 1 }\n}\nclass Child<T> extends Base<T> {\n  fn init() {\n    super.init()\n    super.n += 2\n  }\n}\nfn run() {\n  return Child<Number>().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-super-n-add".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for super.n +=, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set for super.n +=, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic super.n +=");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host bound `super.tag` (`let m = super.tag; m()`) + Kab VM.
+#[test]
+fn sh6_self_host_super_bound_tag_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn go() {\n    let m = super.tag\n    return m()\n  }\n}\nfn run() {\n  return Child().go()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-bound-tag".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for bound super.tag, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host bound super.tag");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: product self-host `this.run(super.f)` / `(super.f)()` + Kab VM.
+#[test]
+fn sh6_self_host_super_as_callback_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn f() { return 2 }\n}\nclass Child extends Base {\n  fn apply(cb) { return cb() }\n  fn via() { return this.apply(super.f) }\n  fn call() { return (super.f)() }\n}\nfn run() {\n  let holder = Child()\n  return holder.via() + holder.call()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-as-callback".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for super as callback, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super as callback");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: product self-host `trait Show<T>` + `implements Show<Number>` + Kab VM.
+#[test]
+fn sh6_self_host_generic_trait_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show<T> { fn show(); }\nclass Point implements Show<Number> {\n  x: number;\n  fn init(n) { this.x = n }\n  fn show() { return this.x }\n}\nfn run() {\n  let pt = Point(3)\n  return pt.show()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-generic-trait-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Show$Number") {
+                return Err(format!(
+                    "expected Show$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("interface_type_params") {
+                return Err(format!(
+                    "expected interface_type_params, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host trait Show<T>");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `type Item = Number` on `implements Iter` + Kab VM.
+#[test]
+fn sh6_self_host_class_assoc_item_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Iter { type Item; fn next(); }\nclass Counter implements Iter {\n  type Item = Number;\n  n: number;\n  fn init() { this.n = 0 }\n  fn next() { this.n = this.n + 1; return this.n }\n}\nfn run() {\n  let ctr = Counter()\n  return ctr.next()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-class-assoc-item".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("class_assoc_types") {
+                return Err(format!(
+                    "expected class_assoc_types, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Item=Number") && !kbc.contains("Item = Number") {
+                return Err(format!(
+                    "expected Item=Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host type Item = Number");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: product self-host `class Box<T> where T: Show` + Kab VM.
+#[test]
+fn sh6_self_host_where_class_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Box<T> where T: Show {\n  fn init() {}\n  fn tag() { return 42 }\n}\nfn run() {\n  return Box<Shown>().tag()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-class-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Box$Shown") {
+                return Err(format!(
+                    "expected Box$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host where T: Show class");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `fn show_it<T> where T: Show` + Kab VM.
+#[test]
+fn sh6_self_host_where_fn_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nfn show_it<T>(x) where T: Show { return 42 }\nreturn show_it<Shown>(Shown())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-fn-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("show_it$Shown") {
+                return Err(format!(
+                    "expected show_it$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host where T: Show fn");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host method `show_it<T> where T: Show` + Kab VM.
+#[test]
+fn sh6_self_host_where_method_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Box {\n  fn init() {}\n  fn show_it<T>(x) where T: Show { return 42 }\n}\nreturn Box().show_it<Shown>(Shown())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-method-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("show_it$Shown") {
+                return Err(format!(
+                    "expected show_it$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host where T: Show method");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `fn show_it<T> where T: Show` rejects `show_it<Nope>`.
+#[test]
+fn sh6_self_host_where_fn_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nfn show_it<T>(x) where T: Show { return 1 }\nreturn show_it<Nope>(Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-fn-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where") && err.contains("does not implement") && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host method `show_it<T> where T: Show` rejects `Box().show_it<Nope>`.
+#[test]
+fn sh6_self_host_where_method_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nclass Box {\n  fn init() {}\n  fn show_it<T>(x) where T: Show { return 1 }\n}\nreturn Box().show_it<Nope>(Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-method-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("method where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where") && err.contains("does not implement") && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `class Box<T> where T: Show` rejects `Box<Nope>()`.
+#[test]
+fn sh6_self_host_where_class_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nclass Box<T> where T: Show {\n  fn init() {}\n}\nreturn Box<Nope>()";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-class-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("class where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where") && err.contains("does not implement") && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `fn both_it<T> where T: Show, T: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_fn_two_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show, Named {\n  fn init() {}\n  fn show() { return 1 }\n  fn name() { return 2 }\n}\nfn both_it<T>(x) where T: Show, T: Named { return 42 }\nreturn both_it<Shown>(Shown())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-fn-two-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("both_it$Shown") {
+                return Err(format!(
+                    "expected both_it$Shown, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host where T: Show, T: Named fn");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `fn both_it<T> where T: Show, T: Named` rejects `both_it<OnlyShow>`.
+#[test]
+fn sh6_self_host_where_fn_two_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass OnlyShow implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nfn both_it<T>(x) where T: Show, T: Named { return 1 }\nreturn both_it<OnlyShow>(OnlyShow())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-fn-two-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("two-bounds where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("OnlyShow"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `fn pair_it<A, B> where A: Show, B: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_fn_pair_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Labeled implements Named {\n  fn init() {}\n  fn name() { return 2 }\n}\nfn pair_it<A, B>(a, b) where A: Show, B: Named { return 42 }\nreturn pair_it<Shown, Labeled>(Shown(), Labeled())";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-fn-pair-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pair_it$Shown_Labeled") {
+                return Err(format!(
+                    "expected pair_it$Shown_Labeled, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host where A: Show, B: Named fn");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `fn pair_it<A, B> where A: Show, B: Named` rejects `pair_it<Shown, Nope>`.
+#[test]
+fn sh6_self_host_where_fn_pair_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Nope { fn init() {} }\nfn pair_it<A, B>(a, b) where A: Show, B: Named { return 1 }\nreturn pair_it<Shown, Nope>(Shown(), Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-fn-pair-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("pair where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
+}
+
+/// SH6: product self-host `class PairBox<A, B> where A: Show, B: Named` + Kab VM.
+#[test]
+fn sh6_self_host_where_class_pair_bounds_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Labeled implements Named {\n  fn init() {}\n  fn name() { return 2 }\n}\nclass PairBox<A, B> where A: Show, B: Named {\n  fn init() {}\n  fn tag() { return 42 }\n}\nfn run() {\n  return PairBox<Shown, Labeled>().tag()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-where-class-pair-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("PairBox$Shown_Labeled") {
+                return Err(format!(
+                    "expected PairBox$Shown_Labeled, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host class PairBox<A, B> where A: Show, B: Named");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `class PairBox<A, B> where A: Show, B: Named` rejects `PairBox<Shown, Nope>`.
+#[test]
+fn sh6_self_host_where_class_pair_bounds_reject_ok() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show { fn show(); }\ntrait Named { fn name(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Nope { fn init() {} }\nclass PairBox<A, B> where A: Show, B: Named {\n  fn init() {}\n}\nreturn PairBox<Shown, Nope>()";
+    let err = std::thread::Builder::new()
+        .name("sh6-where-class-pair-bounds-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("class pair where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert!(
+        err.contains("where")
+            && err.contains("does not implement")
+            && err.contains("Named")
+            && err.contains("Nope"),
+        "unexpected err: {err}"
+    );
 }
 
 /// SH6: product self-host `is(obj, "Class")` / `instanceof` + Kab VM (Child+Base).
