@@ -912,6 +912,26 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host if let 1 | 2 / while let 1 | 2 desugar to match or"
     );
     assert!(
+        stmt.contains("parseStmt_ifLet")
+            && emit.contains("k == \"at\"")
+            && emit.contains("OP_JUMP_UNLESS_OPTION_SOME")
+            && emit.contains("OP_UNWRAP_OPTION_SOME"),
+        "SH6: self-host if let n @ Some(x) at-bind + Some unwrap"
+    );
+    assert!(
+        emit.contains("k == \"at\"")
+            && emit.contains("emitMatchPatOr")
+            && postfix.contains("parseMatchPat"),
+        "SH6: self-host match n @ 1 | 2 at-bind wrapping or"
+    );
+    assert!(
+        emit.contains("k == \"at\"")
+            && emit.contains("OP_UNPACK_ENUM_FIELDS")
+            && emit.contains("OP_JUMP_UNLESS_ENUM_VARIANT")
+            && postfix.contains("parseMatchPat"),
+        "SH6: self-host match v @ Msg.Move(x) at-bind wrapping enum payload"
+    );
+    assert!(
         postfix.contains("Expected ) in pattern")
             && postfix.contains("parseMatchPatAtom"),
         "SH6: self-host match (1 | 2) parenthesized or-pattern parse"
@@ -919,8 +939,33 @@ fn sh6_vm_policy_in_kab() {
     assert!(
         stmt_emit.contains("eGenericEnumTemplates")
             && emit.contains("eGenTmpl")
-            && emit.contains("OP_JUMP_UNLESS_ENUM_VARIANT"),
-        "SH6: self-host generic enum Option<T> template + match Option.Some"
+            && emit.contains("OP_JUMP_UNLESS_ENUM_VARIANT")
+            && emit.contains("emitEnsureSpecializedEnum")
+            && emit.contains("emitMangleWithTypeArgs"),
+        "SH6: self-host generic enum Option<T> / Result<T,E> template + match"
+    );
+    assert!(
+        emit.contains("emitEnsureSpecializedEnum")
+            && emit.contains("emitSubstEnumVariants")
+            && emit.contains("emitMangleWithTypeArgs")
+            && stmt_emit.contains("eGenericEnumTemplates"),
+        "SH6: self-host two Option specializations Option$Number / Option$String"
+    );
+    assert!(
+        stmt.contains("TOKEN_STRUCT")
+            && stmt.contains("pIsStruct")
+            && stmt_emit.contains("isStruct")
+            && stmt_emit.contains("eGenericClassTemplates")
+            && emit.contains("emitExpr_call_h3")
+            && emit.contains("eGenericClassTemplates"),
+        "SH6: self-host struct Box<T> generic class template + Box$Number ctor"
+    );
+    assert!(
+        emit.contains("emitExpr_call_h3")
+            && emit.contains("emitMangleWithTypeArgs")
+            && stmt_emit.contains("eGenericClassTemplates")
+            && stmt.contains("TOKEN_STRUCT"),
+        "SH6: self-host two Box specializations Box$Number / Box$String"
     );
     assert!(
         postfix.contains("matchPatRangeHiMissing")
@@ -3467,6 +3512,371 @@ fn sh6_self_host_match_float_range_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "16");
+}
+
+/// SH6: product self-host `match Result.Ok(n)` generic enum two type params + Kab VM.
+#[test]
+fn sh6_self_host_match_result_enum_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "enum Result<T, E> { Ok(T), Err(E) }\nfn run() {\n  let x = Result<Number, String>.Ok(42)\n  let y = match x { Result.Ok(n) => n, Result.Err(errv) => 0 }\n  let z = match Result<Number, String>.Err(\"no\") { Result.Ok(n) => 10, Result.Err(errv) => 2 }\n  return y + z\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-match-res-enum".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Result$Number_String") {
+                return Err(format!(
+                    "expected Result$Number_String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_unless_enum_variant") {
+                return Err(format!(
+                    "expected jump_unless_enum_variant, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("unpack_enum_fields") {
+                return Err(format!(
+                    "expected unpack_enum_fields, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host match Result.Ok enum");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "44");
+}
+
+/// SH6: product self-host `if let n @ Some(x)` / `if let w @ Ok(v)` + Kab VM.
+#[test]
+fn sh6_self_host_if_let_at_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let a = 0\n  if let wrap @ Some(x) = Some(6) { a = a + x }\n  if let wrap @ Some(x) = None { a = a + 10 }\n  if let wrap @ Ok(v) = Ok(3) { a = a + v }\n  return a\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-if-let-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("jump_unless_option_some") {
+                return Err(format!(
+                    "expected jump_unless_option_some, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("unwrap_option_some") {
+                return Err(format!(
+                    "expected unwrap_option_some, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_unless_result_ok") {
+                return Err(format!(
+                    "expected jump_unless_result_ok, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("fn_op 0 dup") {
+                return Err(format!(
+                    "expected dup for at-bind, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host if let at-bind");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host `match` `n @ 1 | 2` at-bind wrapping or + Kab VM.
+#[test]
+fn sh6_self_host_match_at_or_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let a = match 2 { k @ 1 | 2 => k + 5, _ => 0 }\n  let b = match 1 { k @ 1 | 2 => k, _ => 0 }\n  let c = match 8 { k @ 1 | 2 => k, _ => 0 }\n  return a + b + c\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-match-at-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            let n_eq = kbc.matches("jump_unless_const_eq").count();
+            if n_eq < 5 {
+                return Err(format!(
+                    "expected several jump_unless_const_eq for n @ 1 | 2, got {n_eq}, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("fn_op 0 dup") {
+                return Err(format!(
+                    "expected dup for at-bind wrapping or, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host match at-or");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host `match` `v @ Msg.Move(x)` at-bind wrapping enum payload + Kab VM.
+#[test]
+fn sh6_self_host_match_payload_at_bind_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "enum Msg { Move(k) }\nenum Color { Red }\nfn run() {\n  let a = match Msg.Move(4) { wrap @ Msg.Move(x) => x, _ => 0 }\n  let b = match Msg.Move(3) { wrap @ Msg.Move(x) => x + 1, _ => 0 }\n  let c = match Color.Red { wrap @ Msg.Move(x) => x, _ => 0 }\n  return a + b + c\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-match-payload-at-bind".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("unpack_enum_fields") {
+                return Err(format!(
+                    "expected unpack_enum_fields for v @ Msg.Move(x), snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_unless_enum_variant") {
+                return Err(format!(
+                    "expected jump_unless_enum_variant, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("fn_op 0 dup") {
+                return Err(format!(
+                    "expected dup for at-bind wrapping enum payload, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host match payload at-bind");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host two `Option<T>` specs (`Option$Number` + `Option$String`) + Kab VM.
+#[test]
+fn sh6_self_host_match_option_two_specs_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "enum Option<T> { Some(T), None }\nfn run() {\n  let a = match Option.Some(1) { Option.Some(num) => num, Option.None => 0 }\n  let b = match Option.Some(\"hi\") { Option.Some(txt) => len(txt), Option.None => 0 }\n  let c = match Option<String>.None { Option.Some(txt) => 9, Option.None => 3 }\n  return a + b + c\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-match-opt-two-specs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Option$Number") {
+                return Err(format!(
+                    "expected Option$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Option$String") {
+                return Err(format!(
+                    "expected Option$String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_unless_enum_variant") {
+                return Err(format!(
+                    "expected jump_unless_enum_variant, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("unpack_enum_fields") {
+                return Err(format!(
+                    "expected unpack_enum_fields, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host match two Option specs");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "6");
+}
+
+/// SH6: product self-host `struct Box<T>` (`Box$Number`) + Kab VM.
+#[test]
+fn sh6_self_host_struct_box_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "struct Box<T> {\n  value: T;\n  fn init(v) { self.value = v }\n  fn get(&self) { return self.value }\n}\nfn run() {\n  let a = Box(40)\n  let b = Box(2)\n  return a.get() + b.get()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-struct-box".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Box$Number") {
+                return Err(format!(
+                    "expected Box$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("new_instance") {
+                return Err(format!(
+                    "expected new_instance for Box(40), snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host struct Box<T>");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host two `struct Box<T>` specs (`Box$Number` + `Box$String`) + Kab VM.
+#[test]
+fn sh6_self_host_struct_box_two_specs_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "struct Box<T> {\n  value: T;\n  fn init(v) { self.value = v }\n  fn get(&self) { return self.value }\n}\nfn run() {\n  let a = Box(40)\n  let b = Box(\"hi\")\n  return a.get() + len(b.get())\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-struct-box-two-specs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Box$Number") {
+                return Err(format!(
+                    "expected Box$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Box$String") {
+                return Err(format!(
+                    "expected Box$String, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("new_instance") {
+                return Err(format!(
+                    "expected new_instance for Box ctor, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host two Box specs");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
 }
 
 /// SH6: product self-host `is(obj, "Class")` / `instanceof` + Kab VM (Child+Base).
