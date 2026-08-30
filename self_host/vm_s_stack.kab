@@ -19,11 +19,26 @@ pub fn vSnapCapsS(S) {
 // --- vm_s_find_method ---
 // P6b: find method on class def (pure).
 pub fn vFindMethod(classDef, name) {
-    let methods = classDef["methods"]
+    let methods = vObjGet(classDef, "methods")
+    if typeof(methods) != "array" {
+        return null
+    }
     let i = 0
     while i < len(methods) {
-        if methods[i]["sym"] == name {
+        if vObjGet(methods[i], "sym") == name {
             return methods[i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+pub fn vFindClassByName(S, name) {
+    let classes = S["classes"]
+    let i = 0
+    while i < len(classes) {
+        if classes[i]["sym"] == name {
+            return classes[i]
         }
         i = i + 1
     }
@@ -95,13 +110,10 @@ pub fn poolVal(pool, idx) {
 // --- vm_s_pop ---
 // P6b: pop from session stack.
 pub fn vPopS(S) {
-    let st = S["stack"]
-    if len(st) == 0 {
+    if len(S["stack"]) == 0 {
         throw "vm stack underflow"
     }
-    let top = st[len(st) - 1]
-    S["stack"] = pop(st)
-    return top
+    return object_array_pop(S, "stack")
 }
 
 pub fn vPeekS(S) {
@@ -115,11 +127,16 @@ pub fn vPeekS(S) {
 // --- vm_s_push ---
 // P6b: push onto session stack.
 pub fn vPushS(S, v) {
-    S["stack"] = push(S["stack"], v)
+    object_array_push(S, "stack", v)
 }
 
 // --- vm_s_resolve_host ---
 pub fn vResolveGlobalCached(S, globals, idx, name) {
+    if name == "instanceof" {
+        let marker = { "vmInstof": 1 }
+        S["globals"][idx] = marker
+        return marker
+    }
     let cur = S["globals"][idx]
     if cur != undefined {
         return cur
@@ -153,6 +170,74 @@ pub fn vThisS(S) {
     return S["thisStack"][len(S["thisStack"]) - 1]
 }
 
+// SH6: same contract as host resolve_super_member — parent method bound to this, else field.
+pub fn vSuperMemberGetS(S, key) {
+    let obj = vThisS(S)
+    if obj == null || obj == undefined {
+        throw "`super` used outside of method"
+    }
+    if typeof(obj) != "object" {
+        throw "`super` requires class instance `this`"
+    }
+    let ci = obj["vmC"]
+    if ci == undefined {
+        throw "`super` requires class instance `this`"
+    }
+    let classDef = S["classes"][ci]
+    let parentName = classDef["extends"]
+    if parentName == null || parentName == undefined {
+        throw "Class " + classDef["sym"] + " has no superclass"
+    }
+    let parent = vFindClassByName(S, parentName)
+    if parent == null {
+        throw "Unknown base class: " + parentName
+    }
+    let meth = vFindMethod(parent, key)
+    if meth != null {
+        return { "vmM": meth, "vmR": obj }
+    }
+    if object_has_own(obj, key) {
+        return obj[key]
+    }
+    throw "Super has no member " + key
+}
+
+// SH6: `is(obj, "Class")` / `instanceof` on Kab-VM instances (`vmC`), same
+// inheritance walk as host `instance_of_class` (sym + extends). Not ClassInstance.
+pub fn vInstanceofS(S, ordered) {
+    if len(ordered) < 2 {
+        throw "is() expects 2 arguments"
+    }
+    let obj = ordered[0]
+    let className = ordered[1]
+    if typeof(obj) != "object" || obj == null {
+        return false
+    }
+    let ci = obj["vmC"]
+    if typeof(ci) != "number" {
+        return false
+    }
+    let classes = S["classes"]
+    if ci < 0 || ci >= len(classes) {
+        return false
+    }
+    let current = classes[ci]
+    while current != null {
+        if current["sym"] == className {
+            return true
+        }
+        let parentName = current["extends"]
+        if parentName == null || parentName == undefined {
+            return false
+        }
+        current = vFindClassByName(S, parentName)
+        if current == null {
+            return false
+        }
+    }
+    return false
+}
+
 // --- vm_s_this_is_obj ---
 pub fn vIsCurrentThisObj(obj, cur) {
     if typeof(obj) != "object" || typeof(cur) != "object" {
@@ -178,6 +263,19 @@ pub fn vWriteThisS(S, updated) {
 pub fn vTruthy(v) {
     if v == false || v == null || v == undefined {
         return false
+    }
+    if typeof(v) == "number" {
+        if v == 0 {
+            return false
+        }
+        if v != v {
+            return false
+        }
+    }
+    if typeof(v) == "string" {
+        if v == "" {
+            return false
+        }
     }
     return true
 }
@@ -207,8 +305,15 @@ pub fn vMemberGetClass(S, obj, key) {
     if object_has_own(obj, key) {
         return obj[key]
     }
-    let ci = obj["vmC"]
-    let meth = vFindMethod(S["classes"][ci], key)
+    let ci = vObjGet(obj, "vmC")
+    let classes = S["classes"]
+    if typeof(ci) != "number" || typeof(classes) != "array" {
+        return undefined
+    }
+    if ci < 0 || ci >= len(classes) {
+        return undefined
+    }
+    let meth = vFindMethod(classes[ci], key)
     if meth != null {
         return { "vmM": meth, "vmR": obj }
     }
@@ -286,13 +391,14 @@ pub fn vMemberGetS(S, obj, key) {
     if obj == null || obj == undefined {
         return undefined
     }
-    if typeof(obj) == "object" {
-        if obj["vmEnumNs"] == 1 {
-            return vEnumNsGet(obj, key)
-        }
-        if obj["vmC"] != undefined {
-            return vMemberGetClass(S, obj, key)
-        }
+    if vObjGet(obj, "vmEnumNs") == 1 {
+        return vEnumNsGet(obj, key)
+    }
+    if vObjGet(obj, "vmC") != undefined {
+        return vMemberGetClass(S, obj, key)
+    }
+    if typeof(obj) == "array" {
+        return vIndexGet(obj, key)
     }
     return obj[key]
 }

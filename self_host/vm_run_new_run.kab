@@ -72,3 +72,23 @@ pub fn vNewInstanceS(S, classIdx, argc, pool, globals, functions) {
     let info = vAllocInstance(S, classIdx, argc)
     return vRunNewInitS(S, info, argc, pool, globals, functions)
 }
+
+// --- vm_run_new_from_array ---
+/// Pop args array (spread ctor) and run the same init path as `new_instance`.
+pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
+    let ordered = vArrayToOrdered(vPopS(S))
+    if classIdx < 0 || classIdx >= len(S["classes"]) {
+        throw "vm bad class index"
+    }
+    let classDef = S["classes"][classIdx]
+    let id = S["nextInstId"]
+    S["nextInstId"] = id + 1
+    let inst = { "vmC": classIdx, "vmI": id }
+    let info = {
+        "inst": inst,
+        "init": vResolveInit(classDef),
+        "ordered": ordered,
+        "sym": classDef["sym"]
+    }
+    return vRunNewInitS(S, info, len(ordered), pool, globals, functions)
+}

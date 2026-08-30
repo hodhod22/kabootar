@@ -47,7 +47,12 @@ pub fn run(args: &[String]) -> i32 {
             print_help();
             0
         }
-        path if path.ends_with(".kab") || path.ends_with(".kabootar") => run_file_cmd(args),
+        path if path.ends_with(".kab")
+            || path.ends_with(".kabootar")
+            || path.ends_with(".kbcb") =>
+        {
+            run_file_cmd(args)
+        }
         path if path.ends_with(".knb") => notebook_run_file(path, false),
         _ => {
             eprintln!("Unknown command: {}", args[0]);
@@ -64,7 +69,7 @@ fn print_help() {
 Usage:
   kabootar                         Interactive exploration REPL
   kabootar repl                    Same as bare kabootar (explicit REPL)
-  kabootar run <file.kab>          Run a Kabootar script
+  kabootar run <file.kab|.kbcb>    Run a Kabootar script or packed image
   kabootar notebook run <file.knb> [--science]   Run notebook cells
   kabootar compile <file.kab> [--self-host|--rust]   Compile via self-host (default; Rust fallback)
   kabootar fmt [--check] <file.kab>   Format Kabootar source (basic)
@@ -77,7 +82,7 @@ Usage:
   kabootar shell                   Open Kabootar OS desktop window
   kabootar mod init <web|api|game|game3d|science-ai>
   kabootar mod run                 Run project entry (kabootar.toml)
-  kabootar <file.kab|.knb>         Shorthand for run / notebook run
+  kabootar <file.kab|.kbcb|.knb>   Shorthand for run / notebook run
 
 Kab modules: import \"cli\" | \"log\" | \"validate\" | \"auth\" | \"test\" | \"test/mock\"
 
@@ -150,7 +155,7 @@ fn notebook_run_file(path: &str, preload_science: bool) -> i32 {
 
 fn run_file_cmd(args: &[String]) -> i32 {
     let Some(path) = args.first() else {
-        eprintln!("Usage: kabootar run <file.kab>");
+        eprintln!("Usage: kabootar run <file.kab|.kbcb>");
         return 1;
     };
     match run_file(path) {

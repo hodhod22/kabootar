@@ -5,6 +5,8 @@ import "self_host/emit_exec"
 import "self_host/serialize_sections"
 import "self_host/ownership"
 
+// SH3a: len(expr) → get_length (bust compiler-image fingerprint when emit_expr_body changes).
+
 let gMsParse = 0
 let gMsEmit = 0
 let gMsSer = 0

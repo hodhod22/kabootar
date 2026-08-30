@@ -327,10 +327,10 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 
 | Del | Status |
 |-----|--------|
-| **G6** | `emit.kab`: inferens från `let n = 42` → `id(n)` ⇒ `id$Number` |
-| **G7** | `parser.kab`: `fn echo<T>(x)` i klass; `emit.kab`: `genericMethodTemplates` + `h.echo(42)` ⇒ `echo$Number` på klassen |
-| **G8** | `parser.kab`: `class Box<T>`; `emit.kab`: `Box(42)` ⇒ `classes[]` med `Box$Number`; **G8.1:** `b.echo(1)` ⇒ `echo$Number` på specialiserad klass |
-| **G9** | `parser.kab`: `enum Option<T>`, member `typeArgs`; `emit.kab`: `Option.Some(42)` / `Option<Number>.None` ⇒ `enums[]` |
+| **G6** | `emit.kab`: inferens från `let n = 42` → `id(n)` ⇒ `id$Number`; **`id(id(42))`**; **`id(b)`** för `class Box` ⇒ `id$Box`; **`pair<A,B>`** ⇒ `pair$Number_String`; **`len(pair(...))`** → `get_length` (parser: nested call args on locals, not `sess["pArgs"]`) |
+| **G7** | `parser.kab`: `fn echo<T>(x)` i klass; `emit.kab`: `h.echo(42)` ⇒ `echo$Number`; två specs `echo$Number` + `echo$String` |
+| **G8** | `parser.kab`: `class Box<T>`; `emit.kab`: `Box(42)` ⇒ `Box$Number`; **`Box<String>(…)`** explicit; **G8.1:** `b.echo(1)` ⇒ `echo$Number`; **G10:** två specialiseringar + fälttyp `T` → `Number` |
+| **G9** | `parser.kab`: `enum Option<T>` / **`Result<T,E>`**; `emit.kab`: `Option.Some(42)` / `Option<Number>.None` / **`Result<Number, String>.Ok(42)`**; två Option-specs; variantfält substitueras |
 | **Tester** | `test_parser.kab` + `test_emit.kab` utökade (G7–G9) |
 
 **Begränsningar self-host v1:** ctor/enum monomorph registrerar IR; **`Holder()` / `Box(42)` emitter `new_instance`** (fas 3 ✅).
@@ -341,8 +341,10 @@ let s = Box<String>("hi") // Box$String (explicit eller infer från arg)
 
 | Feature | Rust | Self-host | LSP |
 |---------|------|-----------|-----|
-| `match Option.Some(v)` i bytecode | ✅ `JumpUnlessEnumVariant` + `UnpackEnumFields` | — | — |
-| `class Child<T> extends Base<T>` | ✅ `extends_type_args` + parent auto-specialize | — | — |
+| `match Option.Some(v)` i bytecode | ✅ `JumpUnlessEnumVariant` + `UnpackEnumFields` | ✅ self-host compile-run | — |
+| `class Child<T> extends Base<T>` | ✅ `extends_type_args` + parent auto-specialize | ✅ parse+emit+`class_extends` + compile-run | — |
+| `super.method()` | ✅ `GetSuperMethod` | ✅ parse `AST_SUPER` + `get_super_method` (inkl. `Child<T>` kab-only) | — |
+| `super.init` / `super.field =` / `+=` | ✅ `this` som lvalue-container | ✅ `super.init(n)` + `super.count = 1` + `super.n += 2` compile-run | — |
 | `NewInstance` för klass-konstruktor | ✅ (fanns) | ✅ `OP_NEW_INSTANCE` + serialize `classes[]` | — |
 | Hover på `b.echo` med infererad receiver | — | — | ✅ `hover_member_at` |
 

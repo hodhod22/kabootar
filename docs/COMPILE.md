@@ -1,22 +1,22 @@
 # Snabb kompilering
 
-Kabootar har **AST-tolk**, **bytecode (.kbc)** och **self-host compile**.
+Kabootar kompilerar `.kab` → bytecode (`.kbc` / `.kbcb`) via **`self_host/`**. Körning är Kab-VM (**kab-only default**). AST-evaluator och host-VM i `src/` är **skuld** tills [SH28](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
 ## H6e — boot-policy i Kab
 
 Produktpolicy för bootstrap: `import "kab/boot"`. **Nolltolerans:** ingen Rust-emit, ingen Rust-JIT, ingen Rust-GC — se ROADMAP-rutan.
 
-**`kabootar run` / `run_file`:** self-host först. `KABOOTAR_COMPILE=rust` är **skuld** (ska bort), inte produktväg. Full Rust-fri plan: [ROADMAP.md — Kabootar på egna fötter](ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Fart (JIT/IC/GC/AOT i Kab): [Våg FT](ROADMAP.md#våg-ft--fart-alla-tekniker-i-kab).
+**`kabootar run` / `run_file`:** self-host först. Packed `.kbcb` mmapas (ingen källkompilering). `KABOOTAR_COMPILE=rust` är **skuld** (ska bort), inte produktväg. Full Rust-fri plan: [ROADMAP.md — Kabootar på egna fötter](ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Fart (JIT/IC/GC/AOT i Kab): [Våg FT](ROADMAP.md#våg-ft--fart-alla-tekniker-i-kab).
 
 ## `kabootar compile` (S2)
 
 Default: **`self_host/compile.kab`**. Rust-fallback för appar är **stängd** (SH16). `--rust` / `KABOOTAR_COMPILE=rust` gäller bara `self_host/` (toolchain-seeds). Efter `compile()` / `compileIr()`: `lastCompileMs` eller `bootLastCompileMs` (0 total, 1 parse, 2 emit, 3 serialize). App-`*.kbc`/`*.kbcb` kompileras inte som källa.
 
 ```bash
-kabootar compile main.kab              # self-host → rust fallback
+kabootar compile main.kab              # self-host (produkt). Rust-emit för appar felar (SH16)
 kabootar compile main.kab --self-host  # endast self-host (fel om det misslyckas)
-kabootar compile main.kab --rust       # tvinga Rust-host
-KABOOTAR_COMPILE=rust kabootar compile main.kab
+kabootar compile main.kab --rust       # bara self_host/ toolchain-seeds; fel för appar
+KABOOTAR_COMPILE=rust kabootar compile main.kab   # samma: skuld, inte app-väg
 ```
 
 Cache: `.kabootar/cache/<path-with-__>.kbc` (cwd-relative, mtime + fingerprint + `source=`).

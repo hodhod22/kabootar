@@ -201,19 +201,19 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "assign to tokens uses store_local tokens not column")
 }
 
-// -- && emits and opcode -------------------------------------------
+// -- && short-circuit ----------------------------------------------
 {
-    let ast = parseTokens(tokenize("fn f() { if cd >= 65 && cd <= 90 { ok = 1 } }"))
+    let ast = parseTokens(tokenize("fn f() { return a && b }"))
     let bc = emit(ast)
     tHas = 0
     tI = 0
     while tI < len(bc.functions[0].ops) {
-        if bc.functions[0].ops[tI].op == OP_AND {
+        if bc.functions[0].ops[tI].op == OP_JUMP_IF_FALSE {
             tHas = 1
         }
         tI = tI + 1
     }
-    assert_eq(tHas, 1, "&& emits and")
+    assert_eq(tHas, 1, "&& emits jump_if_false")
 }
 
 // -- expr stmt after call (eExprStmt; not eBxL) --------------------

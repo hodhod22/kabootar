@@ -13,10 +13,10 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Kategori | Funktion |
 |----------|----------|
 | Variabler | `let`, **`const`** (immutable) |
-| Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host) |
-| Kontroll | `if`/`else`, `while`, **`do { } while`**, **`for x in xs`**, **`for x of xs`**, **`switch`**, `break`, `continue` |
-| Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, `&& \|\|`, **`??`**, **`!`**, **`? :`**, **`& \| ^ ~ << >> >>>`** |
-| Data | array `[1,2]`, **objekt `{ a: 1 }`**, strängar `"..."`, **template `` `Hej ${name}` ``** |
+| Funktioner | `fn`, `return`, nästlade funktioner, **`fn id<T>(x: T) -> T`** (native generics v1, monomorphisering; inferens från literals **och variabler** — Rust + self-host), **`fn f(a, b = 3)`** / **`(a, b = 3) =>`** / **`class` method `fn add(a, b = 3)`** / **`{ add(a, b = 3) {} }`** / **`trait` default `fn add(a, b = 3)`**, **`fn f(a, ...xs)`** / **`(a, ...xs) =>`** / **`fn rest(a, ...xs)`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM; rust `try_compile` vägrar defaults/rest) |
+| Kontroll | `if`/`else`, `while`, **`do { } while`** (host + self-host + Kab-VM), **`for x in xs`**, **`for x of xs`**, **`for let i = 0; …`** (host + self-host + Kab-VM), **`switch`** + **`fallthrough`** (host + self-host + Kab-VM), `break`, `continue`, **`pass`/`assert`/`not`/`raise`** (host + self-host + Kab-VM), **`with`/`is`/`is not`** (self-host + Kab-VM `object_is`) |
+| Operatorer | `+ - * / %`, **`**`**, `== != < <= > >=`, **`in`** (membership; host + self-host + Kab-VM), `&& \|\|`, **`??`** (host + self-host + Kab-VM), **`+= -= *= /= %=`** (inkl. **`xs[i] +=`**, **`o.x +=`**, **`o.a.b +=`**, **`o.items[0] +=`**, **`xs[0].x +=`**, **`xs[0][0] +=`** host + self-host + Kab-VM), **`&&= \|\|= ??=`** (host + self-host + Kab-VM), **`!`**, **`? :`** (host + self-host + Kab-VM), **`& \| ^ ~ << >> >>>`** |
+| Data | array `[1,2]`, **objekt `{ a: 1 }`**, strängar `"..."`, **template `` `Hej ${name}` ``** (host + self-host + Kab-VM) |
 | Åtkomst | **`arr[i]`**, **`obj.key`**, **`obj["key"]`**, **`.length`** |
 | Array-API | **`map`**, **`filter`**, **`push`**, **`pop`**, **`reduce`**, **`find`**, **`slice`**, **`sort`**, **`reverse`**, **`join`**, **`shift`**, **`unshift`**, **`splice`**, **`for_each`**, **`concat`**, **`flat`**, **`flat_map`**, **`len`**, **`includes`**, **`some`**, **`every`**, **`index_of`**, **`last_index_of`**, **`find_last`**, **`find_last_index`** |
 | Math | **`floor`**, **`ceil`**, **`round`**, **`abs`**, **`min`**, **`max`**, **`sqrt`**, **`pow`**, **`random`**, **`sign`**, **`trunc`**, **`clamp`**, **`pi`**, **`e`**, **`log`/`log2`/`log10`**, **`exp`**, **`sin`/`cos`/`tan`**, **`asin`/`acos`/`atan`/`atan2`**, **`hypot`**, **`cbrt`** |
@@ -33,23 +33,23 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Timers | **`sleep_ticks`** (scheduler-ticks), **`sleep_ms`**, **`set_timeout`**, **`clear_timeout`**, **`set_interval`**, **`clear_interval`** (ms = wall-clock) |
 | RegExp | **`regex_test`**, **`regex_match`**, **`regex_replace`** |
 | Kommentarer | **`//` radkommentar** |
-| Destructuring | **`let [a, b] = xs`**, **`let { name, age } = obj`**, **`...rest`** |
-| Spread | **`...arr`** i array/objekt/call |
-| Klassisk `for` | **`for let i = 0; i < n; i = i + 1`** |
-| `try`/`catch` | **`try { } catch (e) { }`** på `Result` (`Ok`/`Err`) |
-| Pilfunktioner | **`(a, b) => a + b`**, block-kropp `{ return ... }` |
-| `async`/`await` | **`async fn`**, **`async (n) => ...`**, **`await`** (microtask-kö) |
+| Destructuring | **`let [a, b] = xs`**, **`let { name, age } = obj`**, **`...rest`**, nested **`let { x: [a, b] }`** (Kab-VM **`array_slice_from`/`array_slice_rest`/`object_rest`**; self-host **`let [a, ...rest]`** / **`let { a, ...rest }`** / **`let { x: [a, b] }`**) |
+| Spread | **`...arr`** i array/objekt/call (Kab-VM **`new_instance_from_array`** / **`concat_array`** / **`merge_object`**; self-host parse/emit `...` i anrop, **`[1, ...xs]`**, **`{ ...obj }`**, shorthand **`{ a }`**, computed **`{ [k]: v }`**) |
+| Klassisk `for` | **`for let i = 0; i < n; i = i + 1`** (host + self-host + Kab-VM) |
+| `try`/`catch` | **`try { } catch (e) { }`** på `Result` (`Ok`/`Err`); **`raise`/`throw`** (host + self-host + Kab-VM) |
+| Pilfunktioner | **`(a, b) => a + b`**, **`(a, b = 3) =>`**, **`(a, ...xs) =>`**, block-kropp `{ return ... }`, objekt-metod **`{ foo() {} }`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM `make_arrow_fn`) |
+| `async`/`await` | **`async fn`**, **`async (n) => ...`**, **`await`** (microtask-kö; host + self-host parse/emit + Kab-VM via `await_all`) |
 | Typer | `null`, `undefined`, `NaN`, `true`/`false`, heltal, flyttal |
 
 ### ✅ JS-paritet (stdlib våg 1–4)
 
 | Funktion | JS-motsvarighet | Kabootar |
 |----------|-----------------|----------|
-| `switch` | `switch` | **`switch (x) { case 1: { } default: { } }`** + explicit **`fallthrough`** |
+| `switch` | `switch` | **`switch (x) { case 1: { } default: { } }`** + explicit **`fallthrough`**; Kab-VM match + default + fallthrough |
 | `for…of` / `for…in` | värden vs index | **`for x of xs`**, **`for i in xs`** (C#/Rust-semantik) |
-| `**` / `??` | operatorer | **`**`**, **`??`** |
+| `**` / `??` | operatorer | **`**`**, **`??`** (host + self-host + Kab-VM) |
 | `& \| ^ ~ << >> >>>` | bitwise | **bitwise-operatorer** (ToInt32 / ToUint32 för `>>>`) |
-| `do…while` | loop | **`do { } while`** |
+| `do…while` | loop | **`do { } while`** (self-host + Kab-VM) |
 | `Object.*` / array | helpers | **`assign`**, **`at`**, **`fill`**, **`to_spliced`**, **`to_fixed`**, … |
 | `encodeURI` / timers | URL + timeout | **`encode_uri`**, **`set_timeout`**, **`set_interval`**, **`sleep_ms`** (wall-clock ms) |
 | `Date` (enkel) | timestamp | **`date_now`**, **`date_format`**, **`date_iso`** |
@@ -68,7 +68,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | RegExp | global ersätt | **`regex_replace_all`** |
 | JSON | pretty-print | **`json_stringify(v, indent)`** |
 | `switch` | flera case-labels | **`case 1: case 2: { }`** |
-| `instanceof` | klasscheck | **`instanceof(obj, "Class")`** |
+| `instanceof` | klasscheck | **`instanceof(obj, "Class")`** / **`is(obj, "Class")`** (host + self-host + Kab-VM) |
 | `console` | loggning | **`console_log`**, **`console_warn`**, **`console_error`** |
 
 ### ✅ JS-paritet (stdlib våg 6)
@@ -120,8 +120,8 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | `fetch` | HTTP-anrop | **`fetch(url, { method, body, headers })`** → promise med `{ status, ok, body, headers }` |
 | `Response` helpers | läsa svar | **`response_text`**, **`response_json`**, **`response_ok`** |
 | `queueMicrotask` | microtask | **`queue_microtask(fn, ...args)`** |
-| `?.` optional chaining | null-säker åtkomst | **`obj?.field`**, **`obj?.[i]`**, **`fn?.()`** |
-| `delete obj.key` | ta bort property | **`delete o.x`** (syntax) |
+| `?.` optional chaining | null-säker åtkomst | **`obj?.field`**, **`obj?.[i]`**, **`fn?.()`** — host + self-host + Kab-VM (`__opt_member` / `__opt_index`; `?.()` via `jump_if_not_nullish` + `call`) |
+| `delete obj.key` | ta bort property | **`delete o.x`** (syntax; **self-host** + Kab-VM → `object_delete_prop` + tilldela tillbaka; rust `try_compile` vägrar `delete`) |
 | `Array.map/filter` alias | array | **`array_map`**, **`array_filter`**, **`array_find`**, **`array_some`**, **`array_every`**, **`array_of`** |
 | `Set.symmetricDifference` | mängd | **`set_symmetric_difference`** |
 | `String.codePointAt` | unicode | **`code_point_at`**, **`from_code_point`** |
@@ -153,7 +153,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Funktion | JS-motsvarighet | Kabootar |
 |----------|-----------------|----------|
 | `try/finally` | cleanup-block | **`try { } catch (e) { } finally { }`** |
-| Default/rest params | `fn(a=1, ...rest)` | **`fn f(a, b = 2, ...xs)`** |
+| Default/rest params | `fn(a=1, ...rest)` | **`fn f(a, b = 2, ...xs)`**, **`(a, b = 3) =>`**, klassmetod **`fn add(a, b = 3)`** / **`fn rest(a, ...xs)`**, objekt-metod **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`**, trait default **`fn add(a, b = 3)`** / **`fn rest(a, ...xs)`** |
 | `/* */` | blockkommentar | **`/* ... */`** i lexer |
 | `globalThis` | global referens | **`globalThis()`** / **`global_this()`** → snapshot av globals |
 | `TextEncoder`/`Decoder` | UTF-8 bytes | **`text_encode`**, **`text_decode`**, **`btoa`**, **`atob`** |
@@ -166,7 +166,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Typed arrays | Float32/64, Uint8, Int32, DataView, SAB | **`array_buffer_new`**, **`shared_array_buffer_new`**, **`float32_array_*`**, **`float64_array_*`**, **`uint8_array_*`**, **`int32_array_*`**, **`data_view_*`** — P2: Float32→`createBuffer`, Uint8→PCM LE i16 + `texImage2D` staging ([GAME.md](GAME.md), [XR.md](XR.md)) |
 | Proxy/Reflect | traps, construct | **`Proxy`**, **`is_proxy`**, **`Reflect.isProxy`**, **`Reflect.construct`** |
 | WeakMap / WeakSet | weak keys | **`weak_map_new/set/get/has/delete`**, **`weak_set_new/add/has/delete`**, **`is_weakmap`**, **`is_weakset`** |
-| `using` / modules | explicit dispose, `import.meta`, dynamic import | **`using x = expr;`** (dispose via **`Symbol.dispose`**, **`dispose()`**, **`close()`**), **`import.meta.url`**, **`import.meta.path`**, **`import("math")`** → Promise of module namespace |
+| `using` / modules | explicit dispose, `import.meta`, dynamic import | **`using x = expr;`** (dispose via **`Symbol.dispose`**, **`dispose()`**, **`close()`**; **self-host** `dispose`/`close` vid block-/modul-slut; rust-VM proven, **inte** Kab-VM — se ROADMAP `store_global` trampolin-COW), **`import.meta.url`**, **`import.meta.path`** (self-host → `import_meta()`; Kab-VM), **`import("math")`** → Promise of module namespace (self-host → `dynamic_import`; inte Kab-VM-proven) |
 | `Intl` | `NumberFormat`, `DateTimeFormat` | **`Intl.NumberFormat(locale, opts).format(n)`**, **`Intl.DateTimeFormat(locale, opts).format(date)`** — decimal/percent/currency, grouping, date/time styles |
 | `Temporal` | polyfill subset | **`Temporal.PlainDate.from({ year, month, day })`**, **`Temporal.Instant.from(ms)`**, **`Temporal.Now.instant()`**, **`Temporal.Now.plainDateISO()`** |
 | Error `.cause` / `.stack` | chained errors, stack traces | **`error_new(msg, { cause: err })`**, **`error_cause(e)`**, **`error_stack(e)`** — auto stack on **`throw`** |
@@ -338,10 +338,10 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Feature | Milestone | Doc |
 |---------|-----------|-----|
-| Inferens från variabler (`let n = 42; id(n)`) | G6 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
-| Generiska klassmetoder (`fn echo<T>(x) { … }`) | G7 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
-| Generiska klasser (`class Box<T>`) | G8 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
-| Generiska enum / `Option<T>` | G9 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Inferens från variabler (`let n = 42; id(n)`) | G6 ✅ + `id(Box)` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska klassmetoder (`fn echo<T>(x) { … }`) | G7 ✅ + två specs | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska klasser (`class Box<T>`) | G8 ✅ + G8.1 `b.echo` + `extends Base<T>` + två specs + fält `T` + `Box<String>` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
+| Generiska enum / `Option<T>` / `Result<T,E>` | G9 ✅ + två specs + `Result$Number_String` | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | Self-host generics fas 2 | G10 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 | LSP hover / completion för generics | G11 ✅ | [GENERICS.md](GENERICS.md#fas-2--g6-planering) |
 
@@ -349,8 +349,11 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Feature | Status | Doc |
 |---------|--------|-----|
-| `match Option.Some(v)` i bytecode | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
-| `class Child<T> extends Base<T>` | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
+| `match Option.Some(v)` i bytecode | ✅ + self-host compile-run | [GENERICS.md](GENERICS.md#fas-3) |
+| `class Child<T> extends Base<T>` | ✅ host + self-host compile-run | [GENERICS.md](GENERICS.md#fas-3) |
+| `super.method()` | ✅ self-host `get_super_method` (inkl. `Child<T>` kab-only); default = kab-only Kab-VM via kbcb v2 Uint8Array/mmap + tag-dispatch; `kabootar run` packed `.kbcb` | [LANGUAGE.md](LANGUAGE.md) |
+| `super.init(...)` / `super.field =` / `super.n +=` | ✅ self-host compile-run | [LANGUAGE.md](LANGUAGE.md) |
+| `len(wrap(1))` / `len(pair(x, s))` | ✅ self-host `get_length` (nested call args on locals) | [ROADMAP.md SH3](ROADMAP.md) |
 | Self-host `NewInstance` opcode | ✅ | [self_host/README.md](../self_host/README.md) |
 | LSP hover member-call med receiver | ✅ | [GENERICS.md](GENERICS.md#fas-3) |
 
@@ -415,7 +418,8 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 | Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** |
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
 | C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
-| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()` |
+| Rust | `struct` + `&self` / `&mut self` | ✅ host; self-host parse+compile-run (R4) + **`struct Box<T>`** |
+| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>` |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab` |
 | Kabootar | `@version` / semver | ✅ `import "mod@1.0"` |
@@ -424,14 +428,15 @@ Se [DENO.md](DENO.md) för full mappningstabell.
 
 | Ursprung | Konstruktion | Status |
 |----------|--------------|--------|
-| Rust | `match` / mönstermatchning | ✅ host: tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, guards, enum. **Self-host:** samma + `if let`/`while let` + text-`.kbc` enum-register + Kab-VM payload-ctors |
+| Rust | `match` / mönstermatchning | ✅ host: tal, variabel, `_`, `Some`/`None`, `Ok`/`Err`, array/objekt, **`...rest`**, guards, enum. **Self-host:** samma + **`n @ { a, ...r }`** / **`n @ [h, ...t]`** + **`n @ 1..=5 if n != 3`** + or/range/`if let`/`while let` + text-`.kbc` enum-register + Kab-VM payload-ctors + **`match Option.Some(n)`** |
 | Rust | `enum` (användardefinierad) | ✅ `enum Color { Red, Green }`, `Color.Red`, `Msg.Move(x,y)` |
 | Rust | `if let` / `while let` | ✅ host; self-host socker över `match` |
 | Rust | fälttyper i klasser | ✅ `x: number` / `status: Color` runtime-check |
-| Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** + **`?`-operator** |
+| Rust | `Option` / `Result` | ✅ literaler + match + **try/catch** + **`?`-operator** (host + self-host + Kab-VM: unwrap `Ok`, behåll `Err`) |
 | Rust | `pub` export | ✅ `pub fn`, `pub let`, `pub const` |
 | C# | `class` + fält + metoder | ✅ parsing, `this`, instansiering, **`fn init(...)`**, **`extends`**, **`super`**; **`self`** reserverat för `struct` (Våg R) |
-| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()` |
+| Rust | `struct` + `&self` / `&mut self` | ✅ host; self-host parse+compile-run (R4) + **`struct Box<T>`** |
+| C# | `interface` + `implements` | ✅ `interface I { fn m(); }`, `class C implements I`, `is_impl()`; **self-host:** default-metod inject + `type Item;` / **`type Item = Number`** + **`where T: Trait`** + **`trait Show<T>`** / `implements Show<Number>` |
 | Rust | `try`/`catch` på `Result` | ✅ fångar `Err`, unwrapar `Ok` |
 | C# | Moduler per fil | ✅ `import "mod"`, `lib/*.kab`, lokalt paketregistry |
 | Kabootar | `@version` / semver | ✅ `import "mod@1.0"` |

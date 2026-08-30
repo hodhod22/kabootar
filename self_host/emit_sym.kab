@@ -340,6 +340,45 @@ pub fn emitFnScopeRestore(E) {
     E["eFnGlobals"] = E["eSaveFnGlobals"]
 }
 
+/// Missing args stay undefined in Kab-VM; apply default via jump_if_not_nullish.
+pub fn emitFnParamDefaults(E, params, defaults) {
+    if defaults == undefined || defaults == null {
+        return 0
+    }
+    let di = 0
+    while di < len(params) {
+        if di >= len(defaults) {
+            break
+        }
+        let def = defaults[di]
+        if def != null && def != undefined && def != false {
+            let li = localSymIndex(E, params[di])
+            emitOp(E, OP_LOAD_LOCAL, li)
+            let jumpKeep = opsLen(E)
+            emitOp(E, OP_JUMP_IF_NOT_NULLISH, 0)
+            emitOp(E, OP_POP, 0)
+            eCallExpr(E, def)
+            emitOp(E, OP_STORE_LOCAL, li)
+            let jumpEnd = opsLen(E)
+            emitOp(E, OP_JUMP, 0)
+            patchJumpAt(E, jumpKeep)
+            emitOp(E, OP_POP, 0)
+            patchJumpAt(E, jumpEnd)
+        }
+        di = di + 1
+    }
+    return 0
+}
+
+/// Rest param survives rust kbc roundtrip as a locals marker (no new rust field).
+pub fn emitFnMarkRest(E, rest) {
+    if rest == undefined || rest == null || rest == "" {
+        return 0
+    }
+    symIndex(E, "local", KAB_FN_REST_MARK)
+    return 0
+}
+
 /// SH2: nested `fn name()` inside a function — save outer eFnOps (locals, not eSave*).
 pub fn emitNestedNamedFn(E) {
     let aParams = E["eNode"]["params"]
@@ -363,6 +402,8 @@ pub fn emitNestedNamedFn(E) {
         symIndex(E, "local", aParams[api])
         api = api + 1
     }
+    emitFnMarkRest(E, E["eNode"]["rest"])
+    emitFnParamDefaults(E, aParams, E["eNode"]["paramDefaults"])
     if aBody.kind == AST_BLOCK {
         eCallStmt(E, aBody)
     } else {
@@ -399,6 +440,31 @@ pub fn emitInferVarBinding(E, varNode) {
             E["eInferType"] = E["eBindingTypes"][E["eBi"]]
         }
         E["eBi"] = E["eBi"] + 1
+    }
+}
+
+pub fn emitInferNestedCall(E, callNode, litFull) {
+    if callNode.kind != AST_CALL {
+        return
+    }
+    let cargs = callNode["args"]
+    if cargs == undefined {
+        return
+    }
+    if len(cargs) == 0 {
+        return
+    }
+    let inner = cargs[0]
+    if litFull == 1 {
+        emitInferLitFull(E, inner)
+    } else {
+        emitInferLitBasic(E, inner)
+    }
+    if E["eInferType"] == "" {
+        emitInferVarBinding(E, inner)
+    }
+    if E["eInferType"] == "" {
+        emitInferNestedCall(E, inner, litFull)
     }
 }
 
@@ -439,6 +505,65 @@ pub fn emitInferLitFull(E, litNode) {
     }
 }
 
+pub fn emitSubstTypeName(E, tn) {
+    if tn == undefined {
+        return ""
+    }
+    if tn == "" {
+        return tn
+    }
+    let tparams = E["eGenTmpl"]["typeParams"]
+    if tparams == undefined {
+        return tn
+    }
+    let idx = 0
+    while idx < len(tparams) {
+        if tparams[idx] == tn {
+            if idx < len(E["eTypeArgs"]) {
+                return E["eTypeArgs"][idx]
+            }
+        }
+        idx = idx + 1
+    }
+    return tn
+}
+
+pub fn emitSubstClassFields(E, fields) {
+    let out = []
+    let i = 0
+    while i < len(fields) {
+        let f = fields[i]
+        let tn = f["type"]
+        if tn == undefined {
+            tn = ""
+        }
+        let defv = f["default"]
+        out = push(out, { "name": f["name"], "type": emitSubstTypeName(E, tn), "default": defv })
+        i = i + 1
+    }
+    return out
+}
+
+pub fn emitSubstEnumVariants(E, vars) {
+    let out = []
+    let i = 0
+    while i < len(vars) {
+        let vf = vars[i]["fields"]
+        if vf == undefined {
+            vf = []
+        }
+        let nf = []
+        let j = 0
+        while j < len(vf) {
+            nf = push(nf, emitSubstTypeName(E, vf[j]))
+            j = j + 1
+        }
+        out = push(out, { "name": vars[i]["name"], "fields": nf })
+        i = i + 1
+    }
+    return out
+}
+
 let eMangleRet = 0
 
 pub fn emitMangleWithTypeArgs(E, nameKey) {
@@ -468,6 +593,9 @@ pub fn emitInferTypeArgsFrom(E, argsKey, errSym, litFull) {
         }
         if E["eInferType"] == "" {
             emitInferVarBinding(E, E["eInferArg"])
+        }
+        if E["eInferType"] == "" {
+            emitInferNestedCall(E, E["eInferArg"], litFull)
         }
         if E["eInferType"] == "" {
             if errSym != "" {
@@ -522,6 +650,8 @@ pub fn emitFnCompileBody(E) {
         symIndex(E, "local", E["eParams"][E["eParamI"]])
         E["eParamI"] = E["eLoopSave"] + 1
     }
+    emitFnMarkRest(E, E["eFnRest"])
+    emitFnParamDefaults(E, E["eParams"], E["eParamDefaults"])
     eCallStmt(E, E["eFnBody"])
 }
 
@@ -532,24 +662,67 @@ pub fn emitGenClassMeth(E) {
     }
     if len(E["eMethTypeParams"]) == 0 {
         E["eParams"] = E["eMeth"]["params"]
-        E["eFnBody"] = E["eMeth"]["body"]
-        emitFnCompileBody(E)
-        object_array_push(E, "eClassMethods", {
+        if E["eParams"] == undefined {
+            E["eParams"] = []
+        }
+        let methParams = []
+        let mpi = 0
+        while mpi < len(E["eParams"]) {
+            methParams = push(methParams, E["eParams"][mpi])
+            mpi = mpi + 1
+        }
+        E["eParams"] = methParams
+        E["eInFn"] = 1
+        E["eFnOps"] = []
+        E["eFnOpsN"] = 0
+        E["eFnGlobals"] = []
+        E["eFnLocals"] = []
+        resetLocalMap(E)
+        if E["eClassIsStruct"] == 1 {
+            symIndex(E, "local", "self")
+        } else {
+            symIndex(E, "local", "this")
+        }
+        E["eParamI"] = 0
+        while E["eParamI"] < len(E["eParams"]) {
+            E["eLoopSave"] = E["eParamI"]
+            if E["eParams"][E["eParamI"]] != "this" {
+                if E["eParams"][E["eParamI"]] != "self" {
+                    symIndex(E, "local", E["eParams"][E["eParamI"]])
+                }
+            }
+            E["eParamI"] = E["eLoopSave"] + 1
+        }
+        rebuildLocalMap(E)
+        emitFnMarkRest(E, E["eMeth"]["rest"])
+        emitFnParamDefaults(E, E["eParams"], E["eMeth"]["paramDefaults"])
+        emitOp(E, OP_MAKE_NONE, 0)
+        emitOp(E, OP_POP, 0)
+        eCallStmt(E, E["eMeth"]["body"])
+        E["eClassMethods"] = push(E["eClassMethods"], {
             "sym": E["eMeth"]["sym"],
             "params": arrUtil(E, "snap", E["eParams"]),
             "locals": arrUtil(E, "snap", E["eFnLocals"]),
             "globals": arrUtil(E, "snap", E["eFnGlobals"]),
+            "constants": arrUtil(E, "snap", E["eConsts"]),
             "ops": arrUtil(E, "snap", E["eFnOps"])
         })
         E["eInFn"] = 0
         return 0
     }
-    object_array_push(E, "eGenericMethodTemplates", {
+    let methWhere = E["eMeth"]["whereClause"]
+    if methWhere == undefined {
+        methWhere = []
+    }
+    E["eGenericMethodTemplates"] = push(E["eGenericMethodTemplates"], {
         "classSym": E["eMangled"],
         "methodSym": E["eMeth"]["sym"],
         "typeParams": arrUtil(E, "snap", E["eMethTypeParams"]),
         "params": arrUtil(E, "snap", E["eMeth"]["params"]),
-        "body": E["eMeth"]["body"]
+        "paramDefaults": E["eMeth"]["paramDefaults"],
+        "rest": E["eMeth"]["rest"],
+        "body": E["eMeth"]["body"],
+        "whereClause": arrUtil(E, "snap", methWhere)
     })
     return 0
 }

@@ -3,8 +3,8 @@ import "self_host/ast_defs"
 
 pub let KBC_HEADER = "kabootar-bytecode/1"
 
-pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|set_member|jump|jump_if_false|jump_if_true|call|jump_if_result_err|make_arrow_fn|jump_unless_option_some|jump_unless_option_none|jump_unless_result_ok|jump_unless_result_err|jump_unless_array|jump_unless_object|jump_unless_object_empty|index_peek_from_end|object_rest|unpack_enum_fields|"
-pub let IR_ZERO_ARG = "|pop|dup|swap|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|match_fail|unwrap_option_some|unwrap_result_ok|unwrap_result_err|get_length|"
+pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|get_super_method|member_set|jump|jump_if_false|jump_if_true|jump_if_not_nullish|call|jump_if_result_err|make_arrow_fn|jump_unless_option_some|jump_unless_option_none|jump_unless_result_ok|jump_unless_result_err|jump_unless_array|jump_unless_object|jump_unless_object_empty|index_peek_from_end|object_rest|unpack_enum_fields|new_instance_from_array|"
+pub let IR_ZERO_ARG = "|pop|dup|swap|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|match_fail|unwrap_option_some|unwrap_result_ok|unwrap_result_err|get_length|result_question|concat_array|merge_object|call_from_array|"
 
 pub fn serJoinComma(arr) {
     let params = ""
@@ -73,6 +73,11 @@ pub fn serConstLine(idx, val) {
     if typeof(val) == "string" {
         line = line + "string "
         line = line + serEscStr(val)
+        return line
+    }
+    if val != floor(val) {
+        line = line + "float "
+        line = line + ("" + val)
         return line
     }
     line = line + "number "
@@ -352,11 +357,29 @@ pub fn serAppendClassMethodOps(out, ci, j, ops) {
     return out
 }
 
+pub fn serAppendClassMethodConsts(out, ci, j, constants) {
+    if constants == undefined {
+        return out
+    }
+    let k = 0
+    let n = len(constants)
+    while k < n {
+        let line = serConstLine(k, constants[k])
+        out = serOutTag(out, "class_method_const")
+        out = serOutSpNum(out, ci)
+        out = serOutSpNum(out, j)
+        out = serOutSp(out, str_slice(line, 6, len(line)))
+        k = k + 1
+    }
+    return out
+}
+
 pub fn serAppendOneClassMethod(out, ci, j, meth) {
     out = serOutTagged2(out, "class_method", ci, j, meth["sym"])
     out = serOutTagged2(out, "class_method_params", ci, j, serJoinComma(meth["params"]))
     out = serOutTagged2(out, "class_method_locals", ci, j, serJoinComma(meth["locals"]))
     out = serOutTagged2(out, "class_method_globals", ci, j, serJoinComma(meth["globals"]))
+    out = serAppendClassMethodConsts(out, ci, j, meth["constants"])
     return serAppendClassMethodOps(out, ci, j, meth["ops"])
 }
 
@@ -406,6 +429,145 @@ pub fn serAppendEnums(out, enums) {
     return out
 }
 
+pub fn serAppendClassFields(out, ci, fields) {
+    if fields == undefined {
+        return out
+    }
+    let fi = 0
+    let n = len(fields)
+    while fi < n {
+        let f = fields[fi]
+        out = serOutTagged2(out, "class_field", ci, fi, f["name"])
+        if f["type"] != "" {
+            if f["type"] != undefined {
+                out = serOutTagged2(out, "class_field_type", ci, fi, f["type"])
+            }
+        }
+        fi = fi + 1
+    }
+    return out
+}
+
+pub fn serAppendIfaceMethods(out, ii, methods) {
+    if methods == undefined {
+        return out
+    }
+    let mi = 0
+    let n = len(methods)
+    while mi < n {
+        let m = methods[mi]
+        out = serOutTagged2(out, "iface_method", ii, mi, m["sym"])
+        out = serOutTagged2(out, "iface_method_params", ii, mi, serJoinComma(m["params"]))
+        if m["default"] == 1 {
+            out = serOutTag(out, "iface_method_default")
+            out = serOutSpNum(out, ii)
+            out = serOutSpNum(out, mi)
+            out = serAppendIfaceDefault(out, ii, mi, m)
+        }
+        mi = mi + 1
+    }
+    return out
+}
+
+pub fn serAppendIfaceDefault(out, ii, mi, m) {
+    let constants = m["constants"]
+    if constants == undefined {
+        constants = []
+    }
+    let k = 0
+    while k < len(constants) {
+        let line = serConstLine(k, constants[k])
+        out = serOutTag(out, "iface_method_default_const")
+        out = serOutSpNum(out, ii)
+        out = serOutSpNum(out, mi)
+        out = serOutSp(out, str_slice(line, 6, len(line)))
+        k = k + 1
+    }
+    out = serOutTagged2(out, "iface_method_default_params", ii, mi, serJoinComma(m["params"]))
+    out = serOutTagged2(out, "iface_method_default_locals", ii, mi, serJoinComma(m["locals"]))
+    out = serOutTagged2(out, "iface_method_default_globals", ii, mi, serJoinComma(m["globals"]))
+    let ops = m["ops"]
+    if ops == undefined {
+        ops = []
+    }
+    k = 0
+    while k < len(ops) {
+        out = serOutTagged2(out, "iface_method_default_op", ii, mi, serIrOpLine(ops[k]))
+        k = k + 1
+    }
+    return out
+}
+
+pub fn serAppendInterfaces(out, ifaces) {
+    if ifaces == undefined {
+        return serOutTag(out, "interfaces=0")
+    }
+    out = serOutTagEq(out, "interfaces=", len(ifaces))
+    let i = 0
+    let n = len(ifaces)
+    while i < n {
+        let iface = ifaces[i]
+        out = serOutTagged(out, "interface", i, iface["sym"])
+        let tparams = iface["typeParams"]
+        if tparams != undefined {
+            if len(tparams) > 0 {
+                out = serOutTagged(out, "interface_type_params", i, serJoinComma(tparams))
+            }
+        }
+        let assoc = iface["associatedTypes"]
+        if assoc != undefined {
+            if len(assoc) > 0 {
+                out = serOutTagged(out, "interface_assoc_types", i, serJoinComma(assoc))
+            }
+        }
+        out = serAppendIfaceMethods(out, i, iface["methods"])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn serAppendClassExtends(out, ci, ext) {
+    if ext == undefined {
+        return out
+    }
+    if ext == "" {
+        return out
+    }
+    return serOutTagged(out, "class_extends", ci, serEscStr(ext))
+}
+
+pub fn serAppendClassImplements(out, ci, impls) {
+    if impls == undefined {
+        return out
+    }
+    if len(impls) == 0 {
+        return out
+    }
+    return serOutTagged(out, "class_implements", ci, serJoinComma(impls))
+}
+
+pub fn serAppendClassAssoc(out, ci, assoc) {
+    if assoc == undefined {
+        return out
+    }
+    if len(assoc) == 0 {
+        return out
+    }
+    let encoded = ""
+    let i = 0
+    while i < len(assoc) {
+        let p = assoc[i]
+        let piece = p["name"] + "=" + p["type"]
+        if encoded == "" {
+            encoded = piece
+        } else {
+            encoded = encoded + "," + piece
+        }
+        i = i + 1
+    }
+    return serOutTagged(out, "class_assoc_types", ci, encoded)
+}
+
 pub fn serAppendClasses(out, classes) {
     if classes == undefined {
         return serOutTag(out, "classes=0")
@@ -420,6 +582,10 @@ pub fn serAppendClasses(out, classes) {
             out = serOutTag(out, "class_is_struct")
             out = serOutSpNum(out, i)
         }
+        out = serAppendClassExtends(out, i, cls["extends"])
+        out = serAppendClassImplements(out, i, cls["implements"])
+        out = serAppendClassAssoc(out, i, cls["associatedTypes"])
+        out = serAppendClassFields(out, i, cls["fields"])
         out = serAppendClassMethods(out, i, cls["methods"])
         i = i + 1
     }
@@ -449,6 +615,7 @@ pub fn serAppendGlobals(out, globals) {
 pub fn serAppendBcTailRest(out, bc) {
     out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
     out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
+    out = serAppendInterfaces(out, bc["interfaces"])
     out = serAppendClasses(out, bc.classes)
     out = serAppendEnums(out, bc["enums"])
     out = serOutTag(out, "code")

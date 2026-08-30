@@ -14,17 +14,23 @@ fn text_encode_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
 }
 
 fn text_decode_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
-    let arr = match args.first() {
-        Some(Value::Array(items)) => items,
-        _ => return Err("text_decode(bytes)".into()),
-    };
-    let mut bytes = Vec::with_capacity(arr.len());
-    for v in arr.iter() {
-        match v {
-            Value::Number(n) if (0..=255).contains(n) => bytes.push(*n as u8),
-            _ => return Err("text_decode() expects byte array (0..255)".into()),
+    let first = args.first().ok_or("text_decode(bytes)")?;
+    let bytes = if crate::runtime::shared_memory::is_uint8_array(first) {
+        crate::runtime::shared_memory::uint8_array_to_vec(first)?
+    } else {
+        let arr = match first {
+            Value::Array(items) => items,
+            _ => return Err("text_decode(bytes)".into()),
+        };
+        let mut out = Vec::with_capacity(arr.len());
+        for v in arr.iter() {
+            match v {
+                Value::Number(n) if (0..=255).contains(n) => out.push(*n as u8),
+                _ => return Err("text_decode() expects byte array (0..255)".into()),
+            }
         }
-    }
+        out
+    };
     let s = String::from_utf8(bytes).map_err(|_| "text_decode() invalid UTF-8".to_string())?;
     Ok(Value::String(s))
 }

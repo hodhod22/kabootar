@@ -52,6 +52,9 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
     if kind == "enumCtor" {
         return vApplyEnumCtor(c["ctor"], ordered)
     }
+    if kind == "instof" {
+        return vInstanceofS(S, ordered)
+    }
     return vCallHost(c["callee"], ordered)
 }
 
@@ -82,6 +85,9 @@ pub fn vClassifyMethHost(callee) {
     if typeof(callee) == "object" && callee != null {
         if callee["vmEnumCtor"] == 1 {
             return { "kind": "enumCtor", "ctor": callee }
+        }
+        if callee["vmInstof"] == 1 {
+            return { "kind": "instof" }
         }
     }
     return { "kind": "host", "callee": callee }

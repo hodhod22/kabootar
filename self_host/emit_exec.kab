@@ -116,6 +116,7 @@ pub fn eMakeSession() {
     E["eIndexStack"] = []
     E["eLitNode"] = null
     E["eGenericTemplates"] = []
+    E["eTraitImpls"] = {}
     E["eSpecMangled"] = []
     E["eBindingSyms"] = []
     E["eBindingTypes"] = []
@@ -124,6 +125,7 @@ pub fn eMakeSession() {
     E["eGenericMethodTemplates"] = []
     E["eClasses"] = []
     E["eClassesN"] = 0
+    E["eInterfaces"] = []
     E["eEnums"] = []
     E["eClassMethods"] = []
     E["eClassMethodsSrc"] = []
@@ -151,6 +153,7 @@ pub fn eMakeSession() {
     E["eCtorName"] = ""
     E["eMethodMangled"] = ""
     E["eMethTmpl"] = null
+    E["eWhereSrc"] = null
     E["eNewClasses"] = []
     E["eNewMethods"] = []
     E["eClassIdx"] = 0
@@ -267,6 +270,7 @@ pub fn eResetSession(E) {
     object_array_clear(E, "eIndexStack")
     E["eLitNode"] = null
     E["eGenericTemplates"] = []
+    E["eTraitImpls"] = {}
     E["eSpecMangled"] = []
     E["eBindingSyms"] = []
     E["eBindingTypes"] = []
@@ -275,6 +279,7 @@ pub fn eResetSession(E) {
     E["eGenericMethodTemplates"] = []
     E["eClasses"] = []
     E["eClassesN"] = 0
+    E["eInterfaces"] = []
     E["eEnums"] = []
     E["eClassMethods"] = []
     E["eClassMethodsSrc"] = []
@@ -302,6 +307,7 @@ pub fn eResetSession(E) {
     E["eCtorName"] = ""
     E["eMethodMangled"] = ""
     E["eMethTmpl"] = null
+    E["eWhereSrc"] = null
     E["eNewClasses"] = []
     E["eNewMethods"] = []
     E["eClassIdx"] = 0
@@ -360,11 +366,13 @@ pub fn emitMainInitStacks(E) {
 
 pub fn emitMainInitMeta(E) {
     object_array_clear(E, "eGenericTemplates")
+    E["eTraitImpls"] = {}
     object_array_clear(E, "eGenericClassTemplates")
     object_array_clear(E, "eGenericEnumTemplates")
     object_array_clear(E, "eGenericMethodTemplates")
     object_array_clear(E, "eClasses")
     E["eClassesN"] = 0
+    E["eInterfaces"] = []
     object_array_clear(E, "eEnums")
     object_array_clear(E, "eArrows")
     object_array_clear(E, "eTryRegions")
@@ -405,6 +413,7 @@ pub fn emitMain(E, program) {
         E["eBlockIStack"][pd - 1] = E["eBlockIStack"][pd - 1] + 1
     }
     E["eBlockDepth"] = E["eBlockDepth"] - 1
+    emitDisposeUsings(E, E["eProgram"]["body"])
     emitOp(E, OP_HALT, 0)
     let nops = E["eOpsN"]
     if accCount(nops) != nops {
@@ -416,6 +425,7 @@ pub fn emitMain(E, program) {
         "ops": E["eOps"],
         "functions": E["eFunctions"],
         "classes": E["eClasses"],
+        "interfaces": E["eInterfaces"],
         "enums": E["eEnums"],
         "arrows": E["eArrows"],
         "tryRegions": E["eTryRegions"],

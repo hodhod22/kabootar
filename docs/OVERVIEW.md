@@ -2,7 +2,7 @@
 
 ## Vision
 
-Kabootar ska vara **ett språk för hela stacken**: samma kod och samma mentala modell i webbläsare, på server och i inbyggda miljöer — utan JavaScripts vanligaste fallgropar.
+Kabootar ska vara **ett språk för hela stacken**: samma kod och samma mentala modell i webbläsare, på server och i inbyggda miljöer — utan JavaScripts vanligaste fallgropar. **Hela produkten ska stå på `.kab`** (kompilator, VM, JIT, GC, CLI) — Rust i `src/` är skuld som raderas ([SH28](ROADMAP.md#kabootar-på-egna-fötter--noll-rust)).
 
 ## Kärnprinciper
 
@@ -40,7 +40,7 @@ Kabootar ska vara **ett språk för hela stacken**: samma kod och samma mentala 
 └─────────┘      └─────────────────┘   └─────────────┘
 ```
 
-Se [PLATFORM.md](PLATFORM.md) och [BROWSER.md](BROWSER.md) för dual-layer-arkitekturen.
+Produktvägen är **`self_host/` → bytecode → Kab-VM** (`lib/kab/`), inte AST-evaluatorn i diagrammet (den är host-skuld). Se [PLATFORM.md](PLATFORM.md) och [BROWSER.md](BROWSER.md) för dual-layer-arkitekturen. Plan: [ROADMAP.md — noll Rust](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
 ## Målplattformar
 

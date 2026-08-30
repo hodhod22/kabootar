@@ -6,14 +6,17 @@
 
 Fullstack-programmeringsspråk — tidigare kallat Nova.
 
-**[📖 Dokumentation](docs/README.md)**
+**Slutmål:** hela produkten är `.kab` — kompilator, VM, JIT, GC, CLI, stdlib, OS, browser. Rust i `src/` är **skuld** som ska **ersättas och raderas** ([SH28](docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust)). Ny `.rs`-feature är regression. En användare ska bygga och köra Kabootar **utan rustc**.
+
+**[📖 Dokumentation](docs/README.md)** · **[Roadmap — noll Rust](docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust)**
 
 ```bash
-cargo run          # REPL
-cargo test         # tester
+kabootar              # REPL (produkt-CLI när den finns; idag bootstrap)
+cargo run             # samma REPL via rustc — bootstrap/skuld, inte tak
+cargo test            # host-tester — skuld tills SH25/SH28 (`kabootar test`)
 ```
 
-Se [docs/OVERVIEW.md](docs/OVERVIEW.md) för vision och arkitektur.
+Produktkompilatorn är `self_host/compile.kab`. Körning är Kab-VM (**kab-only default**). Plan och **Nästa:** [docs/ROADMAP.md](docs/ROADMAP.md). Vision: [docs/OVERVIEW.md](docs/OVERVIEW.md).
 
 ## Licens
 

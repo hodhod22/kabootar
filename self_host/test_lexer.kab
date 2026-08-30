@@ -40,22 +40,26 @@ assert_tokens("( ) { } [ ]", [
     ["("], [")"], ["{"], ["}"], ["["], ["]"]
 ], "parens/braces/brackets")
 
-assert_tokens("; , : .", [
-    [";"], [","], [":"], ["."]
-], "semi/comma/colon/dot")
+assert_tokens("; , : . @", [
+    [";"], [","], [":"], ["."], ["@"]
+], "semi/comma/colon/dot/at")
 
 // -- Operators -----------------------------------------------------
 assert_tokens("+ - * / %", [
     ["+"], ["-"], ["*"], ["/"], ["%"]
 ], "arithmetic ops")
 
-assert_tokens("+= -= *= /= %=", [
-    ["+="], ["-="], ["*="], ["/="], ["%="]
+assert_tokens("+= -= *= /= %= &&= ||= ??=", [
+    ["+="], ["-="], ["*="], ["/="], ["%="], ["&&="], ["||="], ["??="]
 ], "compound assign ops")
 
-assert_tokens("** ...", [
-    ["**"], ["..."]
-], "starstar and spread")
+assert_tokens("** ... .. ..=", [
+    ["**"], ["..."], [".."], ["..="]
+], "starstar spread and range")
+
+assert_tokens("1..5 1..=5 1.5", [
+    ["Number", 1], [".."], ["Number", 5], ["Number", 1], ["..="], ["Number", 5], ["Float"]
+], "int range vs float")
 
 assert_tokens("== != < <= > >= =>", [
     ["=="], ["!="], ["<"], ["<="], [">"], [">="], ["=>"]
@@ -146,7 +150,14 @@ assert_tokens(q + q, [
     ["String", ""]
 ], "empty string")
 
-// -- Template literals: not supported in self-hosted lexer (milestone 8 skips)
+let bt = from_char_code(96)
+assert_tokens(bt + "hello" + bt, [
+    ["String", "hello"]
+], "template text is string")
+
+assert_tokens(bt + "a${n}b" + bt, [
+    ["Template"]
+], "template interpolation")
 
 // -- Comments ------------------------------------------------------
 let nl2 = from_char_code(10)

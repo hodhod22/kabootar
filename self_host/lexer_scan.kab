@@ -123,7 +123,11 @@ pub fn lxScanCmp(sess, c, line, col) {
                 lxEat(sess)
                 return lxTok("...", null, line, col)
             }
-            throw "Expected ... at line " + ("" + line) + " col " + ("" + col)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("..=", null, line, col)
+            }
+            return lxTok("..", null, line, col)
         }
         return lxTok(".", null, line, col)
     }
@@ -136,6 +140,10 @@ pub fn lxScanEqBang(sess, c, line, col) {
         lxEat(sess)
         if lxStarts(sess, "?") == 1 {
             lxEat(sess)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("??=", null, line, col)
+            }
             return lxTok("??", null, line, col)
         }
         if lxStarts(sess, ".") == 1 {
@@ -172,6 +180,10 @@ pub fn lxScanLogic(sess, c, line, col) {
         lxEat(sess)
         if lxStarts(sess, "&") == 1 {
             lxEat(sess)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("&&=", null, line, col)
+            }
             return lxTok("&&", null, line, col)
         }
         return lxTok("&", null, line, col)
@@ -180,6 +192,10 @@ pub fn lxScanLogic(sess, c, line, col) {
         lxEat(sess)
         if lxStarts(sess, "|") == 1 {
             lxEat(sess)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("||=", null, line, col)
+            }
             return lxTok("||", null, line, col)
         }
         return lxTok("|", null, line, col)
@@ -232,6 +248,10 @@ pub fn lxScanPunct(sess, c, line, col) {
     if c == "~" {
         lxEat(sess)
         return lxTok("~", null, line, col)
+    }
+    if c == "@" {
+        lxEat(sess)
+        return lxTok("@", null, line, col)
     }
     return null
 }
@@ -326,6 +346,76 @@ pub fn lxScanString(sess, c, line, col) {
     return lxTok(TOKEN_STRING, s, line, col)
 }
 
+pub fn lxScanTemplate(sess, c, line, col) {
+    if c != BACKTICK {
+        return null
+    }
+    lxEat(sess)
+    let parts = []
+    let buf = ""
+    while sess["pos"] < sess["srcLen"] {
+        let ch = char_at(sess["src"], sess["pos"])
+        if ch == BACKTICK {
+            lxEat(sess)
+            if buf != "" {
+                parts = push(parts, { "t": "s", "v": buf })
+            }
+            if len(parts) == 0 {
+                return lxTok(TOKEN_STRING, "", line, col)
+            }
+            if len(parts) == 1 {
+                if parts[0]["t"] == "s" {
+                    return lxTok(TOKEN_STRING, parts[0]["v"], line, col)
+                }
+            }
+            return lxTok(TOKEN_TEMPLATE, parts, line, col)
+        }
+        if ch == "$" {
+            if sess["pos"] + 1 < sess["srcLen"] {
+                if char_at(sess["src"], sess["pos"] + 1) == "{" {
+                    lxEat(sess)
+                    lxEat(sess)
+                    if buf != "" {
+                        parts = push(parts, { "t": "s", "v": buf })
+                        buf = ""
+                    }
+                    let depth = 1
+                    let expr = ""
+                    while sess["pos"] < sess["srcLen"] {
+                        if depth == 0 {
+                            break
+                        }
+                        let ec = char_at(sess["src"], sess["pos"])
+                        lxEat(sess)
+                        if ec == "{" {
+                            depth = depth + 1
+                            expr = expr + ec
+                        } else {
+                            if ec == "}" {
+                                depth = depth - 1
+                                if depth == 0 {
+                                    break
+                                }
+                                expr = expr + ec
+                            } else {
+                                expr = expr + ec
+                            }
+                        }
+                    }
+                    if depth != 0 {
+                        throw "Unterminated ${} in template at line " + ("" + line) + " col " + ("" + col)
+                    }
+                    parts = push(parts, { "t": "e", "v": expr })
+                    continue
+                }
+            }
+        }
+        lxEat(sess)
+        buf = buf + ch
+    }
+    throw "Unterminated template literal at line " + ("" + line) + " col " + ("" + col)
+}
+
 // --- lexer_scan_word ---
 pub fn lxScanNumber(sess, code0, line, col) {
     if !(code0 >= 48 && code0 <= 57) {
@@ -353,24 +443,34 @@ pub fn lxScanNumber(sess, code0, line, col) {
         return lxTok(TOKEN_BIGINT, digits, line, col)
     }
     if lxStarts(sess, ".") == 1 {
-        lxEat(sess)
-        src = sess["src"]
-        srcLen = sess["srcLen"]
-        pos = sess["pos"]
-        scol = sess["col"]
-        let fracStart = pos
-        while pos < srcLen {
-            cd = char_code_at(src, pos)
-            if cd < 48 || cd > 57 {
-                break
+        let afterDot = sess["pos"] + 1
+        let isFrac = 0
+        if afterDot < sess["srcLen"] {
+            cd = char_code_at(sess["src"], afterDot)
+            if cd >= 48 && cd <= 57 {
+                isFrac = 1
             }
-            pos = pos + 1
-            scol = scol + 1
         }
-        sess["pos"] = pos
-        sess["col"] = scol
-        let frac = str_slice(src, fracStart, pos)
-        return lxTok(TOKEN_FLOAT, parse_float(digits + "." + frac), line, col)
+        if isFrac == 1 {
+            lxEat(sess)
+            src = sess["src"]
+            srcLen = sess["srcLen"]
+            pos = sess["pos"]
+            scol = sess["col"]
+            let fracStart = pos
+            while pos < srcLen {
+                cd = char_code_at(src, pos)
+                if cd < 48 || cd > 57 {
+                    break
+                }
+                pos = pos + 1
+                scol = scol + 1
+            }
+            sess["pos"] = pos
+            sess["col"] = scol
+            let frac = str_slice(src, fracStart, pos)
+            return lxTok(TOKEN_FLOAT, parse_float(digits + "." + frac), line, col)
+        }
     }
     return lxTok(TOKEN_NUMBER, parse_int(digits), line, col)
 }
@@ -454,9 +554,8 @@ pub fn lxScan(sess) {
     if tok != null { return tok }
     tok = lxScanString(sess, c, line, col)
     if tok != null { return tok }
-    if c == BACKTICK {
-        throw "Template literal not supported at line " + ("" + line) + " col " + ("" + col)
-    }
+    tok = lxScanTemplate(sess, c, line, col)
+    if tok != null { return tok }
     let code0 = char_code_at(c, 0)
     tok = lxScanNumber(sess, code0, line, col)
     if tok != null { return tok }
